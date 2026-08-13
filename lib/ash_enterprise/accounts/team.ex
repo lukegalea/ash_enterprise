@@ -33,6 +33,7 @@ defmodule AshEnterprise.Accounts.Team do
 
   use AshEnterprise.Platform.Resource,
     domain: AshEnterprise.Accounts,
+    api_type: :team,
     ownership: :business_owned,
     cdm_entity: "Team"
 

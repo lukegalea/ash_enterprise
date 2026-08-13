@@ -42,6 +42,11 @@ defmodule AshEnterprise.Platform.Resource do
     * `:archival?` — soft delete. Default `true`.
     * `:paper_trail?` — additionally keep a per-resource version table. Default
       `false`; see ADR 0002 for why running both is not the default.
+    * `:api_type` — expose the resource over JSON:API and GraphQL under this
+      type name, e.g. `:business_unit`. Omitting it (the default) means the
+      resource has no public API surface at all. Exposure is opt-in per resource
+      precisely so that adding an internal resource never publishes it by
+      accident; the routes themselves are still declared in the domain.
     * `:policies?` — inherit the standard policy set from
       `AshEnterprise.Security.Policies`. Default `true`. Setting this to `false`
       does **not** make a resource public — with an authorizer and no policies,
@@ -73,6 +78,7 @@ defmodule AshEnterprise.Platform.Resource do
     {archival?, opts} = Keyword.pop(opts, :archival?, true)
     {paper_trail?, opts} = Keyword.pop(opts, :paper_trail?, false)
     {policies?, opts} = Keyword.pop(opts, :policies?, true)
+    {api_type, opts} = Keyword.pop(opts, :api_type)
     {extra_extensions, opts} = Keyword.pop(opts, :extra_extensions, [])
     {declared_extensions, opts} = Keyword.pop(opts, :extensions, [])
 
@@ -84,6 +90,8 @@ defmodule AshEnterprise.Platform.Resource do
       |> maybe_add(audit?, AshEvents.Events)
       |> maybe_add(archival?, AshArchival.Resource)
       |> maybe_add(paper_trail?, AshPaperTrail.Resource)
+      |> maybe_add(not is_nil(api_type), AshJsonApi.Resource)
+      |> maybe_add(not is_nil(api_type), AshGraphql.Resource)
       |> Kernel.++(List.wrap(extra_extensions))
       |> Kernel.++(List.wrap(declared_extensions))
       |> Enum.uniq()
@@ -123,6 +131,20 @@ defmodule AshEnterprise.Platform.Resource do
         if policies? do
           quote do
             use AshEnterprise.Security.Policies
+          end
+        end
+      )
+
+      unquote(
+        if api_type do
+          quote do
+            json_api do
+              type unquote(to_string(api_type))
+            end
+
+            graphql do
+              type unquote(api_type)
+            end
           end
         end
       )

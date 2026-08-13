@@ -27,10 +27,46 @@ defmodule AshEnterprise.Security do
 
   use Ash.Domain,
     otp_app: :ash_enterprise,
-    extensions: [AshAdmin.Domain]
+    extensions: [AshAdmin.Domain, AshAi]
 
   admin do
     show? true
+  end
+
+  # Actions exposed to LLM agents over MCP.
+  #
+  # These are NOT a parallel code path. A tool is a declaration that an existing
+  # action may be invoked by a model; the call runs through the same action, the
+  # same validations and the same policies as the admin UI. If the requesting
+  # user cannot assign roles in the UI, the model cannot assign roles on their
+  # behalf, and nobody had to write an agent-specific rule to make that true.
+  # See docs/manifesto/05-agents-are-users.md.
+  #
+  # Note what is absent: no destroy tools. Policies bound what an actor *may* do;
+  # they do not bound what is sensible for a probabilistic caller to attempt
+  # unsupervised. Revoking a role is deliberately a human action in the admin UI.
+  tools do
+    tool :list_roles, AshEnterprise.Security.Role, :read do
+      description "List the security roles defined in this tenant."
+    end
+
+    tool :list_privileges, AshEnterprise.Security.Privilege, :read do
+      description "List the privileges that roles can grant, with the depths each supports."
+    end
+
+    tool :list_role_assignments, AshEnterprise.Security.UserRole, :read do
+      description "List which users hold which roles, and in which business unit scope."
+    end
+
+    tool :assign_role, AshEnterprise.Security.UserRole, :assign do
+      description """
+      Assign a security role to a user, scoped to a business unit.
+
+      Idempotent: assigning a role the user already holds in the same scope is a
+      no-op rather than an error. If no scoping business unit is given, the
+      user's own is used.
+      """
+    end
   end
 
   resources do

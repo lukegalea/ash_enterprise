@@ -30,6 +30,7 @@ defmodule AshEnterprise.Accounts.Organization do
 
   use AshEnterprise.Platform.Resource,
     domain: AshEnterprise.Accounts,
+    api_type: :organization,
     ownership: :organization_owned,
     tenant?: false,
     cdm_entity: "Organization"

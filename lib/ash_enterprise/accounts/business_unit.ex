@@ -44,6 +44,7 @@ defmodule AshEnterprise.Accounts.BusinessUnit do
 
   use AshEnterprise.Platform.Resource,
     domain: AshEnterprise.Accounts,
+    api_type: :business_unit,
     ownership: :business_owned,
     cdm_entity: "BusinessUnit"
 

@@ -17,12 +17,16 @@ defmodule AshEnterpriseWeb.Router do
     plug :protect_from_forgery
     plug :put_secure_browser_headers
     plug :load_from_session
+    # Must run after :load_from_session -- it resolves the authorization context
+    # for whatever user that installed. See the plug's moduledoc.
+    plug AshEnterpriseWeb.Plugs.LoadActorContext
   end
 
   pipeline :api do
     plug :accepts, ["json"]
     plug :load_from_bearer
     plug :set_actor, :user
+    plug AshEnterpriseWeb.Plugs.LoadActorContext
   end
 
   scope "/gql" do
@@ -105,10 +109,45 @@ defmodule AshEnterpriseWeb.Router do
     )
   end
 
-  # Other scopes may use custom stacks.
-  # scope "/api", AshEnterpriseWeb do
-  #   pipe_through :api
-  # end
+  # --- MCP: this application's actions as tools for external agents ------------
+  #
+  # This is a PRODUCT surface, not dev tooling. It exposes the same Ash actions
+  # the admin UI calls, to agents acting on behalf of a real user -- see
+  # docs/manifesto/05-agents-are-users.md.
+  #
+  # The actor is everything. An MCP endpoint reachable without one is an
+  # unauthenticated API over the entire domain, so this pipeline requires a
+  # bearer API key and then resolves the full authorization context, exactly as
+  # the browser and JSON:API pipelines do. There is no agent-specific
+  # authorization path, which is precisely why there is no agent-specific
+  # authorization bug.
+  pipeline :mcp do
+    plug :accepts, ["json"]
+    plug :load_from_bearer
+    plug :set_actor, :user
+    plug AshEnterpriseWeb.Plugs.LoadActorContext
+    plug AshEnterpriseWeb.Plugs.RequireActor
+  end
+
+  scope "/mcp" do
+    pipe_through :mcp
+
+    forward "/", AshAi.Mcp.Router,
+      tools: [
+        :list_users,
+        :list_business_units,
+        :list_teams,
+        :list_roles,
+        :list_privileges,
+        :list_role_assignments,
+        :assign_role
+      ],
+      # The server implements 2025-03-26, but many clients still negotiate
+      # against the older statement. Advertising the older one keeps Claude
+      # Desktop and similar working.
+      protocol_version_statement: "2024-11-05",
+      otp_app: :ash_enterprise
+  end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development
   if Application.compile_env(:ash_enterprise, :dev_routes) do

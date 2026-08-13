@@ -29,6 +29,7 @@ defmodule AshEnterprise.Accounts.Position do
 
   use AshEnterprise.Platform.Resource,
     domain: AshEnterprise.Accounts,
+    api_type: :position,
     ownership: :organization_owned,
     cdm_entity: "Position"
 
