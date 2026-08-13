@@ -1,5 +1,9 @@
 [
   import_deps: [
+    # ash_a2ui is a git dependency, so its installer never ran -- without this
+    # the formatter treats its DSL as ordinary function calls and rewrites
+    # `fields [:a, :b]` to `fields([:a, :b])`.
+    :ash_a2ui,
     :clarity,
     :cinder,
     :ash_rate_limiter,

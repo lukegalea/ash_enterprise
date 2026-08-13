@@ -25,11 +25,56 @@ import {LiveSocket} from "phoenix_live_view"
 import {hooks as colocatedHooks} from "phoenix-colocated/ash_enterprise"
 import topbar from "../vendor/topbar"
 
+// --- A2UI ------------------------------------------------------------------
+//
+// A2UI renders UI from *data*, not code: the server sends a description of a
+// surface and the client renders it from a catalog of components it already
+// trusts. The model never emits markup and never emits script -- it references
+// components that exist. See docs/manifesto/05-agents-are-users.md.
+//
+// Version note: no published @a2ui/lit release ships a v1.0 runtime (0.10.x
+// exposes v0_8/v0_9 entry points only; the v1_0 directory carries schemas
+// alone). ash_a2ui's hook is the v1.0-capable layer on top of the v0.9
+// renderer, so we register the v0_9 catalog here and let the hook translate.
+import "@a2ui/lit/v0_9"
+import {basicCatalog, A2uiLitElement, A2uiController} from "@a2ui/lit/v0_9"
+import {MessageProcessor, Catalog, ChoicePickerApi, ColumnApi} from "@a2ui/web_core/v0_9"
+import {html, css, nothing} from "lit"
+import {AshA2ui, configureAshA2ui} from "../../deps/ash_a2ui/priv/js/ash_a2ui_hook.js"
+import {createAshA2uiCatalog} from "../../deps/ash_a2ui/priv/js/ash_a2ui_catalog.js"
+
+// The ash_a2ui catalog is a FACTORY, not a ready-made object, and it takes the
+// lit runtime as a dependency deliberately: its custom elements must register
+// against the SAME lit instance the renderer uses. Two copies of lit in the
+// bundle means components register in a different custom-element registry and
+// silently never render -- no error, just empty space where the table was.
+//
+// It validates its deps and throws, so a missing key fails loudly at startup
+// rather than at first render. Note that esbuild happily bundles a call with
+// the wrong shape: a green asset build proves nothing here.
+const ashCatalog = createAshA2uiCatalog({
+  Catalog,
+  basicCatalog,
+  ChoicePickerApi,
+  ColumnApi,
+  A2uiLitElement,
+  A2uiController,
+  lit: {html, css, nothing}
+})
+
+configureAshA2ui({
+  MessageProcessor,
+  // Order matters: ash_a2ui overrides basic components where it has a better one
+  // (a native <select> for ChoicePicker, a typeahead combobox for Column) and
+  // falls through to the basic catalog for everything else.
+  catalogs: [basicCatalog, ashCatalog]
+})
+
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks},
+  hooks: {...colocatedHooks, AshA2ui},
 })
 
 // Show progress bar on live navigation and form submits

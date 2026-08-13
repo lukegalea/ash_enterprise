@@ -53,6 +53,22 @@ defmodule AshEnterpriseWeb.Router do
   scope "/", AshEnterpriseWeb do
     pipe_through :browser
 
+    # --- A2UI surfaces -------------------------------------------------------
+    #
+    # Declarative, agent-renderable screens derived from resource metadata. Each
+    # runs the resource's own read actions with the signed-in actor, so it is
+    # filtered by the same policies as /admin and the APIs.
+    #
+    # Tier 3 (docs/manifesto/06-reversibility.md): removing ash_a2ui means
+    # deleting lib/ash_enterprise_web/a2ui/, this live_session, and these three
+    # routes. Every screen has an /admin equivalent, so nothing breaks meanwhile.
+    ash_authentication_live_session :a2ui_surfaces,
+      on_mount: [{AshEnterpriseWeb.LiveUserAuth, :live_user_required}] do
+      live "/app/users", A2uiLive.Users
+      live "/app/roles", A2uiLive.Roles
+      live "/app/business-units", A2uiLive.BusinessUnits
+    end
+
     ash_authentication_live_session :authenticated_routes do
       # in each liveview, add one of the following at the top of the module:
       #

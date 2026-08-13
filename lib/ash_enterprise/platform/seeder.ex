@@ -79,6 +79,13 @@ defmodule AshEnterprise.Platform.Seeder do
 
     actor = SystemActor.seed()
 
+    # The privilege catalogue must exist before the Administrator role is built,
+    # or `seed_admin_role/3` finds nothing to grant and produces a role with ZERO
+    # privileges -- which is worse than an error, because it looks configured in
+    # the admin UI and grants nothing at all. Idempotent, so calling it here
+    # costs nothing when it has already run.
+    seed_privileges()
+
     organization =
       Accounts.Organization
       |> Ash.Changeset.for_create(:create, %{name: name, unique_name: unique_name}, actor: actor)
@@ -140,7 +147,21 @@ defmodule AshEnterprise.Platform.Seeder do
       |> Ash.Query.new()
       |> Ash.read!(actor: actor)
 
-    for privilege <- privileges, privilege.can_be_global do
+    grantable = Enum.filter(privileges, & &1.can_be_global)
+
+    if grantable == [] do
+      raise """
+      Cannot seed the Administrator role: the privilege catalogue is empty.
+
+      A role with no grants reaches nothing while appearing in the admin UI as a
+      configured role, so this fails loudly rather than producing one.
+
+      Run `mix ash_enterprise.seed` (which seeds the catalogue first), or call
+      AshEnterprise.Platform.Seeder.seed_privileges/0 before seed_tenant/1.
+      """
+    end
+
+    for privilege <- grantable do
       Security.RolePrivilege
       |> Ash.Changeset.for_create(
         :create,

@@ -334,10 +334,29 @@ defmodule AshEnterprise.Security.ActorContext do
   # Reads here are structural: they resolve who the actor *is*, and must run
   # before any authorization decision can be made. Authorizing them would be
   # circular -- you would need a context to build the context.
+  #
+  # A failure degrades to "no access" rather than crashing the request, which is
+  # the right direction to fail. But it is LOUD: an empty context is
+  # indistinguishable from a user who genuinely has no roles, so a silently
+  # swallowed error here presents as a mystifying permissions complaint from one
+  # user and nothing in the logs. Log it with the query so the cause is
+  # recoverable.
   defp read_all(query, tenant) do
     case Ash.read(query, authorize?: false, tenant: tenant) do
-      {:ok, results} -> results
-      {:error, _} -> []
+      {:ok, results} ->
+        results
+
+      {:error, error} ->
+        require Logger
+
+        Logger.error("""
+        ActorContext could not resolve #{inspect(query.resource)}; the actor will \
+        be treated as having no access from this source.
+
+        #{Exception.message(error)}\
+        """)
+
+        []
     end
   end
 end

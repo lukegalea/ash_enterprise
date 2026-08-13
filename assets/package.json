@@ -1,0 +1,10 @@
+{
+  "name": "ash_enterprise_assets",
+  "private": true,
+  "description": "Client-side dependencies. Kept minimal: everything else is Phoenix + Tailwind, vendored via mix.",
+  "dependencies": {
+    "@a2ui/lit": "^0.10.3",
+    "@a2ui/web_core": "^0.10.6",
+    "lit": "^3.0.0"
+  }
+}
