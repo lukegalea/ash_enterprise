@@ -42,6 +42,11 @@ defmodule AshEnterprise.Platform.Resource do
     * `:archival?` — soft delete. Default `true`.
     * `:paper_trail?` — additionally keep a per-resource version table. Default
       `false`; see ADR 0002 for why running both is not the default.
+    * `:policies?` — inherit the standard policy set from
+      `AshEnterprise.Security.Policies`. Default `true`. Setting this to `false`
+      does **not** make a resource public — with an authorizer and no policies,
+      Ash denies everything. It exists for resources that must declare their own
+      complete policy set, such as the security resources themselves.
     * `:extra_extensions` — extensions to add on top (e.g. `AshStateMachine`).
 
   Anything else is passed through to `use Ash.Resource`.
@@ -67,6 +72,7 @@ defmodule AshEnterprise.Platform.Resource do
     {audit?, opts} = Keyword.pop(opts, :audit?, true)
     {archival?, opts} = Keyword.pop(opts, :archival?, true)
     {paper_trail?, opts} = Keyword.pop(opts, :paper_trail?, false)
+    {policies?, opts} = Keyword.pop(opts, :policies?, true)
     {extra_extensions, opts} = Keyword.pop(opts, :extra_extensions, [])
     {declared_extensions, opts} = Keyword.pop(opts, :extensions, [])
 
@@ -109,6 +115,14 @@ defmodule AshEnterprise.Platform.Resource do
             events do
               event_log AshEnterprise.Audit.EventLog
             end
+          end
+        end
+      )
+
+      unquote(
+        if policies? do
+          quote do
+            use AshEnterprise.Security.Policies
           end
         end
       )

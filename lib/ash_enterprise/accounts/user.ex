@@ -71,6 +71,25 @@ defmodule AshEnterprise.Accounts.User do
   actions do
     defaults [:read]
 
+    update :assign_to_business_unit do
+      description """
+      Places a user in the organizational hierarchy.
+
+      This is a security-relevant operation, not an administrative detail: a
+      user's business unit is what `:local` and `:deep` grants are evaluated
+      against, so moving someone between units silently changes what every role
+      they hold can reach.
+
+      Deliberately a named action rather than a generic `:update`. It shows up in
+      the audit log as `assign_to_business_unit` rather than as an anonymous
+      update, which is the difference between an auditable reorganization and a
+      row that changed for unknown reasons.
+      """
+
+      accept [:owning_business_unit_id]
+      require_atomic? false
+    end
+
     read :get_by_subject do
       description "Get a user by the subject claim in a JWT"
       argument :subject, :string, allow_nil?: false
