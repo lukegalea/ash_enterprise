@@ -1,0 +1,932 @@
+{
+  "entity": "BusinessUnit",
+  "table": "business_unit",
+  "source_name": "businessunit",
+  "display_name": "Business Unit",
+  "description": "Business, division, or department in the Microsoft Dynamics 365 database.",
+  "dataverse": {
+    "logical_name": "businessunit",
+    "entity_set": "businessunits",
+    "primary_id": "businessunitid",
+    "primary_name": "name",
+    "table_type": "Standard",
+    "ownership_type": "BusinessOwned"
+  },
+  "attributes": [
+    {
+      "name": "Address1_AddressId",
+      "field": "address1_address_id",
+      "source_name": "address1_addressid",
+      "dataverse_type": "Uniqueidentifier",
+      "required_level": "none",
+      "display_name": "Address 1: ID",
+      "description": "Unique identifier for address 1.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address1_AddressTypeCode",
+      "field": "address1_address_type_code",
+      "source_name": "address1_addresstypecode",
+      "dataverse_type": "Picklist",
+      "required_level": "none",
+      "display_name": "Address 1: Address Type",
+      "description": "Type of address for address 1, such as billing, shipping, or primary address.",
+      "is_read_only": false,
+      "global_choice_name": "businessunit_address1_addresstypecode",
+      "default_value": "1",
+      "enum_values": [
+        {
+          "value": "1",
+          "label": "Default Value"
+        }
+      ]
+    },
+    {
+      "name": "Address1_City",
+      "field": "address1_city",
+      "source_name": "address1_city",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 80,
+      "display_name": "Bill To City",
+      "description": "City name for address 1.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address1_Country",
+      "field": "address1_country",
+      "source_name": "address1_country",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 80,
+      "display_name": "Bill To Country/Region",
+      "description": "Country/region name for address 1.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address1_County",
+      "field": "address1_county",
+      "source_name": "address1_county",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 50,
+      "display_name": "Address 1: County",
+      "description": "County name for address 1.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address1_Fax",
+      "field": "address1_fax",
+      "source_name": "address1_fax",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 50,
+      "display_name": "Address 1: Fax",
+      "description": "Fax number for address 1.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address1_Latitude",
+      "field": "address1_latitude",
+      "source_name": "address1_latitude",
+      "dataverse_type": "Double",
+      "required_level": "none",
+      "display_name": "Address 1: Latitude",
+      "description": "Latitude for address 1.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address1_Line1",
+      "field": "address1_line1",
+      "source_name": "address1_line1",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 250,
+      "display_name": "Bill To Street 1",
+      "description": "First line for entering address 1 information.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address1_Line2",
+      "field": "address1_line2",
+      "source_name": "address1_line2",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 250,
+      "display_name": "Bill To Street 2",
+      "description": "Second line for entering address 1 information.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address1_Line3",
+      "field": "address1_line3",
+      "source_name": "address1_line3",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 250,
+      "display_name": "Bill To Street 3",
+      "description": "Third line for entering address 1 information.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address1_Longitude",
+      "field": "address1_longitude",
+      "source_name": "address1_longitude",
+      "dataverse_type": "Double",
+      "required_level": "none",
+      "display_name": "Address 1: Longitude",
+      "description": "Longitude for address 1.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address1_Name",
+      "field": "address1_name",
+      "source_name": "address1_name",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 100,
+      "display_name": "Address 1: Name",
+      "description": "Name to enter for address 1.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address1_PostalCode",
+      "field": "address1_postal_code",
+      "source_name": "address1_postalcode",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 20,
+      "display_name": "Bill To ZIP/Postal Code",
+      "description": "ZIP Code or postal code for address 1.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address1_PostOfficeBox",
+      "field": "address1_post_office_box",
+      "source_name": "address1_postofficebox",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 20,
+      "display_name": "Address 1: Post Office Box",
+      "description": "Post office box number for address 1.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address1_ShippingMethodCode",
+      "field": "address1_shipping_method_code",
+      "source_name": "address1_shippingmethodcode",
+      "dataverse_type": "Picklist",
+      "required_level": "none",
+      "display_name": "Address 1: Shipping Method",
+      "description": "Method of shipment for address 1.",
+      "is_read_only": false,
+      "global_choice_name": "businessunit_address1_shippingmethodcode",
+      "default_value": "1",
+      "enum_values": [
+        {
+          "value": "1",
+          "label": "Default Value"
+        }
+      ]
+    },
+    {
+      "name": "Address1_StateOrProvince",
+      "field": "address1_state_or_province",
+      "source_name": "address1_stateorprovince",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 50,
+      "display_name": "Bill To State/Province",
+      "description": "State or province for address 1.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address1_Telephone1",
+      "field": "address1_telephone1",
+      "source_name": "address1_telephone1",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 50,
+      "display_name": "Main Phone",
+      "description": "First telephone number associated with address 1.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address1_Telephone2",
+      "field": "address1_telephone2",
+      "source_name": "address1_telephone2",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 50,
+      "display_name": "Other Phone",
+      "description": "Second telephone number associated with address 1.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address1_Telephone3",
+      "field": "address1_telephone3",
+      "source_name": "address1_telephone3",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 50,
+      "display_name": "Address 1: Telephone 3",
+      "description": "Third telephone number associated with address 1.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address1_UPSZone",
+      "field": "address1_ups_zone",
+      "source_name": "address1_upszone",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 4,
+      "display_name": "Address 1: UPS Zone",
+      "description": "United Parcel Service (UPS) zone for address 1.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address1_UTCOffset",
+      "field": "address1_utc_offset",
+      "source_name": "address1_utcoffset",
+      "dataverse_type": "Integer",
+      "required_level": "none",
+      "display_name": "Address 1: UTC Offset",
+      "description": "UTC offset for address 1. This is the difference between local time and standard Coordinated Universal Time.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address2_AddressId",
+      "field": "address2_address_id",
+      "source_name": "address2_addressid",
+      "dataverse_type": "Uniqueidentifier",
+      "required_level": "none",
+      "display_name": "Address 2: ID",
+      "description": "Unique identifier for address 2.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address2_AddressTypeCode",
+      "field": "address2_address_type_code",
+      "source_name": "address2_addresstypecode",
+      "dataverse_type": "Picklist",
+      "required_level": "none",
+      "display_name": "Address 2: Address Type",
+      "description": "Type of address for address 2, such as billing, shipping, or primary address.",
+      "is_read_only": false,
+      "global_choice_name": "businessunit_address2_addresstypecode",
+      "default_value": "1",
+      "enum_values": [
+        {
+          "value": "1",
+          "label": "Default Value"
+        }
+      ]
+    },
+    {
+      "name": "Address2_City",
+      "field": "address2_city",
+      "source_name": "address2_city",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 80,
+      "display_name": "Ship To City",
+      "description": "City name for address 2.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address2_Country",
+      "field": "address2_country",
+      "source_name": "address2_country",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 80,
+      "display_name": "Ship To Country/Region",
+      "description": "Country/region name for address 2.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address2_County",
+      "field": "address2_county",
+      "source_name": "address2_county",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 50,
+      "display_name": "Address 2: County",
+      "description": "County name for address 2.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address2_Fax",
+      "field": "address2_fax",
+      "source_name": "address2_fax",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 50,
+      "display_name": "Address 2: Fax",
+      "description": "Fax number for address 2.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address2_Latitude",
+      "field": "address2_latitude",
+      "source_name": "address2_latitude",
+      "dataverse_type": "Double",
+      "required_level": "none",
+      "display_name": "Address 2: Latitude",
+      "description": "Latitude for address 2.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address2_Line1",
+      "field": "address2_line1",
+      "source_name": "address2_line1",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 250,
+      "display_name": "Ship To Street 1",
+      "description": "First line for entering address 2 information.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address2_Line2",
+      "field": "address2_line2",
+      "source_name": "address2_line2",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 250,
+      "display_name": "Ship To Street 2",
+      "description": "Second line for entering address 2 information.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address2_Line3",
+      "field": "address2_line3",
+      "source_name": "address2_line3",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 250,
+      "display_name": "Ship To Street 3",
+      "description": "Third line for entering address 2 information.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address2_Longitude",
+      "field": "address2_longitude",
+      "source_name": "address2_longitude",
+      "dataverse_type": "Double",
+      "required_level": "none",
+      "display_name": "Address 2: Longitude",
+      "description": "Longitude for address 2.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address2_Name",
+      "field": "address2_name",
+      "source_name": "address2_name",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 100,
+      "display_name": "Address 2: Name",
+      "description": "Name to enter for address 2.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address2_PostalCode",
+      "field": "address2_postal_code",
+      "source_name": "address2_postalcode",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 20,
+      "display_name": "Ship To ZIP/Postal Code",
+      "description": "ZIP Code or postal code for address 2.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address2_PostOfficeBox",
+      "field": "address2_post_office_box",
+      "source_name": "address2_postofficebox",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 20,
+      "display_name": "Address 2: Post Office Box",
+      "description": "Post office box number for address 2.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address2_ShippingMethodCode",
+      "field": "address2_shipping_method_code",
+      "source_name": "address2_shippingmethodcode",
+      "dataverse_type": "Picklist",
+      "required_level": "none",
+      "display_name": "Address 2: Shipping Method",
+      "description": "Method of shipment for address 2.",
+      "is_read_only": false,
+      "global_choice_name": "businessunit_address2_shippingmethodcode",
+      "default_value": "1",
+      "enum_values": [
+        {
+          "value": "1",
+          "label": "Default Value"
+        }
+      ]
+    },
+    {
+      "name": "Address2_StateOrProvince",
+      "field": "address2_state_or_province",
+      "source_name": "address2_stateorprovince",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 50,
+      "display_name": "Ship To State/Province",
+      "description": "State or province for address 2.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address2_Telephone1",
+      "field": "address2_telephone1",
+      "source_name": "address2_telephone1",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 50,
+      "display_name": "Address 2: Telephone 1",
+      "description": "First telephone number associated with address 2.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address2_Telephone2",
+      "field": "address2_telephone2",
+      "source_name": "address2_telephone2",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 50,
+      "display_name": "Address 2: Telephone 2",
+      "description": "Second telephone number associated with address 2.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address2_Telephone3",
+      "field": "address2_telephone3",
+      "source_name": "address2_telephone3",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 50,
+      "display_name": "Address 2: Telephone 3",
+      "description": "Third telephone number associated with address 2.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address2_UPSZone",
+      "field": "address2_ups_zone",
+      "source_name": "address2_upszone",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 4,
+      "display_name": "Address 2: UPS Zone",
+      "description": "United Parcel Service (UPS) zone for address 2.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address2_UTCOffset",
+      "field": "address2_utc_offset",
+      "source_name": "address2_utcoffset",
+      "dataverse_type": "Integer",
+      "required_level": "none",
+      "display_name": "Address 2: UTC Offset",
+      "description": "UTC offset for address 2. This is the difference between local time and standard Coordinated Universal Time.",
+      "is_read_only": false
+    },
+    {
+      "name": "BusinessUnitId",
+      "field": "business_unit_id",
+      "source_name": "businessunitid",
+      "dataverse_type": "Uniqueidentifier",
+      "required_level": "systemrequired",
+      "display_name": "Business Unit",
+      "description": "Unique identifier of the business unit.",
+      "is_read_only": false
+    },
+    {
+      "name": "CalendarId",
+      "field": "calendar_id",
+      "source_name": "calendarid",
+      "dataverse_type": "Lookup",
+      "required_level": "none",
+      "display_name": "Calendar",
+      "description": "Fiscal calendar associated with the business unit.",
+      "is_read_only": false,
+      "targets": [
+        "calendar"
+      ]
+    },
+    {
+      "name": "CostCenter",
+      "field": "cost_center",
+      "source_name": "costcenter",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 100,
+      "display_name": "Cost Center",
+      "description": "Name of the business unit cost center.",
+      "is_read_only": false
+    },
+    {
+      "name": "CreditLimit",
+      "field": "credit_limit",
+      "source_name": "creditlimit",
+      "dataverse_type": "Double",
+      "required_level": "none",
+      "display_name": "Credit Limit",
+      "description": "Credit limit for the business unit.",
+      "is_read_only": false
+    },
+    {
+      "name": "Description",
+      "field": "description",
+      "source_name": "description",
+      "dataverse_type": "Memo",
+      "required_level": "none",
+      "max_length": 2000,
+      "display_name": "Description",
+      "description": "Description of the business unit.",
+      "is_read_only": false
+    },
+    {
+      "name": "DivisionName",
+      "field": "division_name",
+      "source_name": "divisionname",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 100,
+      "display_name": "Division",
+      "description": "Name of the division to which the business unit belongs.",
+      "is_read_only": false
+    },
+    {
+      "name": "EMailAddress",
+      "field": "e_mail_address",
+      "source_name": "emailaddress",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 100,
+      "display_name": "Email",
+      "description": "Email address for the business unit.",
+      "is_read_only": false
+    },
+    {
+      "name": "FileAsName",
+      "field": "file_as_name",
+      "source_name": "fileasname",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 100,
+      "display_name": "File as Name",
+      "description": "Alternative name under which the business unit can be filed.",
+      "is_read_only": false
+    },
+    {
+      "name": "FtpSiteUrl",
+      "field": "ftp_site_url",
+      "source_name": "ftpsiteurl",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 200,
+      "display_name": "FTP Site",
+      "description": "FTP site URL for the business unit.",
+      "is_read_only": false
+    },
+    {
+      "name": "ImportSequenceNumber",
+      "field": "import_sequence_number",
+      "source_name": "importsequencenumber",
+      "dataverse_type": "Integer",
+      "required_level": "none",
+      "display_name": "Import Sequence Number",
+      "description": "Unique identifier of the data import or data migration that created this record.",
+      "is_read_only": false
+    },
+    {
+      "name": "InheritanceMask",
+      "field": "inheritance_mask",
+      "source_name": "inheritancemask",
+      "dataverse_type": "Integer",
+      "required_level": "none",
+      "display_name": "Inheritance Mask",
+      "description": "Inheritance mask for the business unit.",
+      "is_read_only": false
+    },
+    {
+      "name": "IsDisabled",
+      "field": "is_disabled",
+      "source_name": "isdisabled",
+      "dataverse_type": "Boolean",
+      "required_level": "systemrequired",
+      "display_name": "Is Disabled",
+      "description": "Information about whether the business unit is enabled or disabled.",
+      "is_read_only": false,
+      "global_choice_name": "businessunit_isdisabled"
+    },
+    {
+      "name": "Name",
+      "field": "name",
+      "source_name": "name",
+      "dataverse_type": "String",
+      "required_level": "systemrequired",
+      "max_length": 160,
+      "display_name": "Name",
+      "description": "Name of the business unit.",
+      "is_read_only": false
+    },
+    {
+      "name": "OverriddenCreatedOn",
+      "field": "overridden_created_on",
+      "source_name": "overriddencreatedon",
+      "dataverse_type": "DateTime",
+      "required_level": "none",
+      "display_name": "Record Created On",
+      "description": "Date and time that the record was migrated.",
+      "is_read_only": false
+    },
+    {
+      "name": "ParentBusinessUnitId",
+      "field": "parent_business_unit_id",
+      "source_name": "parentbusinessunitid",
+      "dataverse_type": "Lookup",
+      "required_level": "applicationrequired",
+      "display_name": "Parent Business",
+      "description": "Unique identifier for the parent business unit.",
+      "is_read_only": false,
+      "targets": [
+        "businessunit"
+      ]
+    },
+    {
+      "name": "Picture",
+      "field": "picture",
+      "source_name": "picture",
+      "dataverse_type": "Memo",
+      "required_level": "none",
+      "max_length": 1073741823,
+      "display_name": "Picture",
+      "description": "Picture or diagram of the business unit.",
+      "is_read_only": false
+    },
+    {
+      "name": "StockExchange",
+      "field": "stock_exchange",
+      "source_name": "stockexchange",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 20,
+      "display_name": "Stock Exchange",
+      "description": "Stock exchange on which the business is listed.",
+      "is_read_only": false
+    },
+    {
+      "name": "TickerSymbol",
+      "field": "ticker_symbol",
+      "source_name": "tickersymbol",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 10,
+      "display_name": "Ticker Symbol",
+      "description": "Stock exchange ticker symbol for the business unit.",
+      "is_read_only": false
+    },
+    {
+      "name": "TransactionCurrencyId",
+      "field": "transaction_currency_id",
+      "source_name": "transactioncurrencyid",
+      "dataverse_type": "Lookup",
+      "required_level": "none",
+      "display_name": "Currency",
+      "description": "Unique identifier of the currency associated with the businessunit.",
+      "is_read_only": false,
+      "targets": [
+        "transactioncurrency"
+      ]
+    },
+    {
+      "name": "UTCOffset",
+      "field": "utc_offset",
+      "source_name": "utcoffset",
+      "dataverse_type": "Integer",
+      "required_level": "none",
+      "display_name": "UTC Offset",
+      "description": "UTC offset for the business unit. This is the difference between local time and standard Coordinated Universal Time.",
+      "is_read_only": false
+    },
+    {
+      "name": "WebSiteUrl",
+      "field": "web_site_url",
+      "source_name": "websiteurl",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 200,
+      "display_name": "Website",
+      "description": "Website URL for the business unit.",
+      "is_read_only": false
+    },
+    {
+      "name": "WorkflowSuspended",
+      "field": "workflow_suspended",
+      "source_name": "workflowsuspended",
+      "dataverse_type": "Boolean",
+      "required_level": "none",
+      "display_name": "Workflow Suspended",
+      "description": "Information about whether workflow or sales process rules have been suspended.",
+      "is_read_only": false,
+      "global_choice_name": "businessunit_workflowsuspended"
+    },
+    {
+      "name": "CreatedBy",
+      "field": "created_by",
+      "source_name": "createdby",
+      "dataverse_type": "Lookup",
+      "required_level": "none",
+      "display_name": "Created By",
+      "description": "Unique identifier of the user who created the business unit.",
+      "is_read_only": true,
+      "targets": [
+        "systemuser"
+      ]
+    },
+    {
+      "name": "CreatedOn",
+      "field": "created_on",
+      "source_name": "createdon",
+      "dataverse_type": "DateTime",
+      "required_level": "none",
+      "display_name": "Created On",
+      "description": "Date and time when the business unit was created.",
+      "is_read_only": true
+    },
+    {
+      "name": "CreatedOnBehalfBy",
+      "field": "created_on_behalf_by",
+      "source_name": "createdonbehalfby",
+      "dataverse_type": "Lookup",
+      "required_level": "none",
+      "display_name": "Created By (Delegate)",
+      "description": "Unique identifier of the delegate user who created the businessunit.",
+      "is_read_only": true,
+      "targets": [
+        "systemuser"
+      ]
+    },
+    {
+      "name": "DisabledReason",
+      "field": "disabled_reason",
+      "source_name": "disabledreason",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 500,
+      "display_name": "Disable Reason",
+      "description": "Reason for disabling the business unit.",
+      "is_read_only": true
+    },
+    {
+      "name": "ExchangeRate",
+      "field": "exchange_rate",
+      "source_name": "exchangerate",
+      "dataverse_type": "Decimal",
+      "required_level": "none",
+      "display_name": "Exchange Rate",
+      "description": "Exchange rate for the currency associated with the businessunit with respect to the base currency.",
+      "is_read_only": true
+    },
+    {
+      "name": "ModifiedBy",
+      "field": "modified_by",
+      "source_name": "modifiedby",
+      "dataverse_type": "Lookup",
+      "required_level": "none",
+      "display_name": "Modified By",
+      "description": "Unique identifier of the user who last modified the business unit.",
+      "is_read_only": true,
+      "targets": [
+        "systemuser"
+      ]
+    },
+    {
+      "name": "ModifiedOn",
+      "field": "modified_on",
+      "source_name": "modifiedon",
+      "dataverse_type": "DateTime",
+      "required_level": "none",
+      "display_name": "Modified On",
+      "description": "Date and time when the business unit was last modified.",
+      "is_read_only": true
+    },
+    {
+      "name": "ModifiedOnBehalfBy",
+      "field": "modified_on_behalf_by",
+      "source_name": "modifiedonbehalfby",
+      "dataverse_type": "Lookup",
+      "required_level": "none",
+      "display_name": "Modified By (Delegate)",
+      "description": "Unique identifier of the delegate user who last modified the businessunit.",
+      "is_read_only": true,
+      "targets": [
+        "systemuser"
+      ]
+    },
+    {
+      "name": "OrganizationId",
+      "field": "organization_id",
+      "source_name": "organizationid",
+      "dataverse_type": "Lookup",
+      "required_level": "systemrequired",
+      "display_name": "Organization",
+      "description": "Unique identifier of the organization associated with the business unit.",
+      "is_read_only": true,
+      "targets": [
+        "organization"
+      ]
+    },
+    {
+      "name": "UserGroupId",
+      "field": "user_group_id",
+      "source_name": "usergroupid",
+      "dataverse_type": "Uniqueidentifier",
+      "required_level": "none",
+      "display_name": "",
+      "description": "",
+      "is_read_only": true
+    },
+    {
+      "name": "VersionNumber",
+      "field": "version_number",
+      "source_name": "versionnumber",
+      "dataverse_type": "BigInt",
+      "required_level": "none",
+      "display_name": "Version number",
+      "description": "Version number of the business unit.",
+      "is_read_only": true
+    }
+  ],
+  "many_to_one": [
+    {
+      "schema_name": "business_unit_parent_business_unit",
+      "referencing_attribute": "parentbusinessunitid",
+      "referenced_entity": "businessunit",
+      "referenced_attribute": "businessunitid",
+      "navigation_property": "parentbusinessunitid"
+    },
+    {
+      "schema_name": "BusinessUnit_Calendar",
+      "referencing_attribute": "calendarid",
+      "referenced_entity": "calendar",
+      "referenced_attribute": "calendarid",
+      "navigation_property": "calendarid"
+    },
+    {
+      "schema_name": "lk_businessunit_createdonbehalfby",
+      "referencing_attribute": "createdonbehalfby",
+      "referenced_entity": "systemuser",
+      "referenced_attribute": "systemuserid",
+      "navigation_property": "createdonbehalfby"
+    },
+    {
+      "schema_name": "lk_businessunit_modifiedonbehalfby",
+      "referencing_attribute": "modifiedonbehalfby",
+      "referenced_entity": "systemuser",
+      "referenced_attribute": "systemuserid",
+      "navigation_property": "modifiedonbehalfby"
+    },
+    {
+      "schema_name": "lk_businessunitbase_createdby",
+      "referencing_attribute": "createdby",
+      "referenced_entity": "systemuser",
+      "referenced_attribute": "systemuserid",
+      "navigation_property": "createdby"
+    },
+    {
+      "schema_name": "lk_businessunitbase_modifiedby",
+      "referencing_attribute": "modifiedby",
+      "referenced_entity": "systemuser",
+      "referenced_attribute": "systemuserid",
+      "navigation_property": "modifiedby"
+    },
+    {
+      "schema_name": "organization_business_units",
+      "referencing_attribute": "organizationid",
+      "referenced_entity": "organization",
+      "referenced_attribute": "organizationid",
+      "navigation_property": "organizationid"
+    },
+    {
+      "schema_name": "TransactionCurrency_BusinessUnit",
+      "referencing_attribute": "transactioncurrencyid",
+      "referenced_entity": "transactioncurrency",
+      "referenced_attribute": "transactioncurrencyid",
+      "navigation_property": "transactioncurrencyid"
+    }
+  ],
+  "many_to_many": [],
+  "provenance": {
+    "source": "MicrosoftDocs/powerapps-docs",
+    "document": "reference/entities/businessunit.md",
+    "branch": "main",
+    "license": "CC-BY-4.0"
+  }
+}

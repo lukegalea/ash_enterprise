@@ -1,0 +1,64 @@
+{
+  "entity": "RoleTemplate",
+  "table": "role_template",
+  "source_name": "roletemplate",
+  "display_name": "Role Template",
+  "description": "Template for a role. Defines initial attributes that will be used when creating a new role.",
+  "dataverse": {
+    "logical_name": "roletemplate",
+    "entity_set": "roletemplates",
+    "primary_id": "roletemplateid",
+    "primary_name": "name",
+    "table_type": "Standard",
+    "ownership_type": "None"
+  },
+  "attributes": [
+    {
+      "name": "Name",
+      "field": "name",
+      "source_name": "name",
+      "dataverse_type": "String",
+      "required_level": "systemrequired",
+      "max_length": 100,
+      "display_name": "",
+      "description": "Name of the role template.",
+      "is_read_only": false
+    },
+    {
+      "name": "RoleTemplateId",
+      "field": "role_template_id",
+      "source_name": "roletemplateid",
+      "dataverse_type": "Uniqueidentifier",
+      "required_level": "systemrequired",
+      "display_name": "",
+      "description": "Unique identifier of the role template.",
+      "is_read_only": false
+    },
+    {
+      "name": "Upgrading",
+      "field": "upgrading",
+      "source_name": "upgrading",
+      "dataverse_type": "Boolean",
+      "required_level": "systemrequired",
+      "display_name": "",
+      "description": "",
+      "is_read_only": true,
+      "global_choice_name": "roletemplate_upgrading"
+    }
+  ],
+  "many_to_one": [],
+  "many_to_many": [
+    {
+      "schema_name": "roletemplateprivileges_association",
+      "intersect_entity": "roletemplateprivileges",
+      "intersect_attribute": "roletemplateid",
+      "navigation_property": "roletemplateprivileges_association"
+    }
+  ],
+  "provenance": {
+    "source": "MicrosoftDocs/powerapps-docs",
+    "document": "reference/entities/roletemplate.md",
+    "branch": "main",
+    "license": "CC-BY-4.0"
+  }
+}

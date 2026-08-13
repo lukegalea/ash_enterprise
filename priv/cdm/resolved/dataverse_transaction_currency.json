@@ -1,0 +1,362 @@
+{
+  "entity": "TransactionCurrency",
+  "table": "transaction_currency",
+  "source_name": "transactioncurrency",
+  "display_name": "Currency",
+  "description": "Currency in which a financial transaction is carried out.",
+  "dataverse": {
+    "logical_name": "transactioncurrency",
+    "entity_set": "transactioncurrencies",
+    "primary_id": "transactioncurrencyid",
+    "primary_name": "currencyname",
+    "table_type": "Standard",
+    "ownership_type": "OrganizationOwned"
+  },
+  "attributes": [
+    {
+      "name": "CurrencyName",
+      "field": "currency_name",
+      "source_name": "currencyname",
+      "dataverse_type": "String",
+      "required_level": "systemrequired",
+      "max_length": 100,
+      "display_name": "Currency Name",
+      "description": "Name of the transaction currency.",
+      "is_read_only": false
+    },
+    {
+      "name": "CurrencyPrecision",
+      "field": "currency_precision",
+      "source_name": "currencyprecision",
+      "dataverse_type": "Integer",
+      "required_level": "systemrequired",
+      "display_name": "Currency Precision",
+      "description": "Number of decimal places that can be used for currency.",
+      "is_read_only": false
+    },
+    {
+      "name": "CurrencySymbol",
+      "field": "currency_symbol",
+      "source_name": "currencysymbol",
+      "dataverse_type": "String",
+      "required_level": "systemrequired",
+      "max_length": 10,
+      "display_name": "Currency Symbol",
+      "description": "Symbol for the transaction currency.",
+      "is_read_only": false
+    },
+    {
+      "name": "CurrencyType",
+      "field": "currency_type",
+      "source_name": "currencytype",
+      "dataverse_type": "Picklist",
+      "required_level": "systemrequired",
+      "display_name": "Currency Type",
+      "description": "Currency type that can be used for new currency.",
+      "is_read_only": false,
+      "global_choice_name": "transactioncurrency_currencytype",
+      "default_value": "0",
+      "enum_values": [
+        {
+          "value": "0",
+          "label": "System"
+        },
+        {
+          "value": "1",
+          "label": "Custom"
+        }
+      ]
+    },
+    {
+      "name": "EntityImage",
+      "field": "entity_image",
+      "source_name": "entityimage",
+      "dataverse_type": "Image",
+      "required_level": "none",
+      "display_name": "Entity Image",
+      "description": "The default image for the entity.",
+      "is_read_only": false
+    },
+    {
+      "name": "ExchangeRate",
+      "field": "exchange_rate",
+      "source_name": "exchangerate",
+      "dataverse_type": "Decimal",
+      "required_level": "systemrequired",
+      "display_name": "Exchange Rate",
+      "description": "Exchange rate between the transaction currency and the base currency.",
+      "is_read_only": false
+    },
+    {
+      "name": "ImportSequenceNumber",
+      "field": "import_sequence_number",
+      "source_name": "importsequencenumber",
+      "dataverse_type": "Integer",
+      "required_level": "none",
+      "display_name": "Import Sequence Number",
+      "description": "Unique identifier of the data import or data migration that created this record.",
+      "is_read_only": false
+    },
+    {
+      "name": "ISOCurrencyCode",
+      "field": "iso_currency_code",
+      "source_name": "isocurrencycode",
+      "dataverse_type": "String",
+      "required_level": "systemrequired",
+      "max_length": 5,
+      "display_name": "Currency Code",
+      "description": "ISO currency code for the transaction currency.",
+      "is_read_only": false
+    },
+    {
+      "name": "OverriddenCreatedOn",
+      "field": "overridden_created_on",
+      "source_name": "overriddencreatedon",
+      "dataverse_type": "DateTime",
+      "required_level": "none",
+      "display_name": "Record Created On",
+      "description": "Date and time that the record was migrated.",
+      "is_read_only": false
+    },
+    {
+      "name": "StateCode",
+      "field": "state_code",
+      "source_name": "statecode",
+      "dataverse_type": "State",
+      "required_level": "systemrequired",
+      "display_name": "Status",
+      "description": "Status of the transaction currency.",
+      "is_read_only": false,
+      "global_choice_name": "transactioncurrency_statecode",
+      "default_value": "0",
+      "enum_values": [
+        {
+          "value": "0",
+          "label": "Active",
+          "default_status": 1,
+          "invariant_name": "Active"
+        },
+        {
+          "value": "1",
+          "label": "Inactive",
+          "default_status": 2,
+          "invariant_name": "Inactive"
+        }
+      ]
+    },
+    {
+      "name": "StatusCode",
+      "field": "status_code",
+      "source_name": "statuscode",
+      "dataverse_type": "Status",
+      "required_level": "none",
+      "display_name": "Status Reason",
+      "description": "Reason for the status of the transaction currency.",
+      "is_read_only": false,
+      "global_choice_name": "transactioncurrency_statuscode",
+      "default_value": "-1",
+      "enum_values": [
+        {
+          "value": "1",
+          "label": "Active",
+          "state": 0
+        },
+        {
+          "value": "2",
+          "label": "Inactive",
+          "state": 1
+        }
+      ]
+    },
+    {
+      "name": "TransactionCurrencyId",
+      "field": "transaction_currency_id",
+      "source_name": "transactioncurrencyid",
+      "dataverse_type": "Uniqueidentifier",
+      "required_level": "systemrequired",
+      "display_name": "Transaction Currency",
+      "description": "Unique identifier of the transaction currency.",
+      "is_read_only": false
+    },
+    {
+      "name": "CreatedBy",
+      "field": "created_by",
+      "source_name": "createdby",
+      "dataverse_type": "Lookup",
+      "required_level": "none",
+      "display_name": "Created By",
+      "description": "Unique identifier of the user who created the transaction currency.",
+      "is_read_only": true,
+      "targets": [
+        "systemuser"
+      ]
+    },
+    {
+      "name": "CreatedOn",
+      "field": "created_on",
+      "source_name": "createdon",
+      "dataverse_type": "DateTime",
+      "required_level": "none",
+      "display_name": "Created On",
+      "description": "Date and time when the transaction currency was created.",
+      "is_read_only": true
+    },
+    {
+      "name": "CreatedOnBehalfBy",
+      "field": "created_on_behalf_by",
+      "source_name": "createdonbehalfby",
+      "dataverse_type": "Lookup",
+      "required_level": "none",
+      "display_name": "Created By (Delegate)",
+      "description": "Unique identifier of the delegate user who created the transactioncurrency.",
+      "is_read_only": true,
+      "targets": [
+        "systemuser"
+      ]
+    },
+    {
+      "name": "EntityImage_Timestamp",
+      "field": "entity_image_timestamp",
+      "source_name": "entityimage_timestamp",
+      "dataverse_type": "BigInt",
+      "required_level": "none",
+      "display_name": "",
+      "description": "",
+      "is_read_only": true
+    },
+    {
+      "name": "EntityImage_URL",
+      "field": "entity_image_url",
+      "source_name": "entityimage_url",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 200,
+      "display_name": "",
+      "description": "",
+      "is_read_only": true
+    },
+    {
+      "name": "EntityImageId",
+      "field": "entity_image_id",
+      "source_name": "entityimageid",
+      "dataverse_type": "Uniqueidentifier",
+      "required_level": "none",
+      "display_name": "Entity Image Id",
+      "description": "For internal use only.",
+      "is_read_only": true
+    },
+    {
+      "name": "ModifiedBy",
+      "field": "modified_by",
+      "source_name": "modifiedby",
+      "dataverse_type": "Lookup",
+      "required_level": "none",
+      "display_name": "Modified By",
+      "description": "Unique identifier of the user who last modified the transaction currency.",
+      "is_read_only": true,
+      "targets": [
+        "systemuser"
+      ]
+    },
+    {
+      "name": "ModifiedOn",
+      "field": "modified_on",
+      "source_name": "modifiedon",
+      "dataverse_type": "DateTime",
+      "required_level": "none",
+      "display_name": "Modified On",
+      "description": "Date and time when the transaction currency was last modified.",
+      "is_read_only": true
+    },
+    {
+      "name": "ModifiedOnBehalfBy",
+      "field": "modified_on_behalf_by",
+      "source_name": "modifiedonbehalfby",
+      "dataverse_type": "Lookup",
+      "required_level": "none",
+      "display_name": "Modified By (Delegate)",
+      "description": "Unique identifier of the delegate user who last modified the transactioncurrency.",
+      "is_read_only": true,
+      "targets": [
+        "systemuser"
+      ]
+    },
+    {
+      "name": "OrganizationId",
+      "field": "organization_id",
+      "source_name": "organizationid",
+      "dataverse_type": "Lookup",
+      "required_level": "systemrequired",
+      "display_name": "Organization",
+      "description": "Unique identifier of the organization associated with the transaction currency.",
+      "is_read_only": true,
+      "targets": [
+        "organization"
+      ]
+    },
+    {
+      "name": "UniqueDscId",
+      "field": "unique_dsc_id",
+      "source_name": "uniquedscid",
+      "dataverse_type": "Uniqueidentifier",
+      "required_level": "none",
+      "display_name": "UniqueDscId",
+      "description": "For internal use only.",
+      "is_read_only": true
+    },
+    {
+      "name": "VersionNumber",
+      "field": "version_number",
+      "source_name": "versionnumber",
+      "dataverse_type": "BigInt",
+      "required_level": "none",
+      "display_name": "Version Number",
+      "description": "Version number of the transaction currency.",
+      "is_read_only": true
+    }
+  ],
+  "many_to_one": [
+    {
+      "schema_name": "lk_transactioncurrency_createdonbehalfby",
+      "referencing_attribute": "createdonbehalfby",
+      "referenced_entity": "systemuser",
+      "referenced_attribute": "systemuserid",
+      "navigation_property": "createdonbehalfby"
+    },
+    {
+      "schema_name": "lk_transactioncurrency_modifiedonbehalfby",
+      "referencing_attribute": "modifiedonbehalfby",
+      "referenced_entity": "systemuser",
+      "referenced_attribute": "systemuserid",
+      "navigation_property": "modifiedonbehalfby"
+    },
+    {
+      "schema_name": "lk_transactioncurrencybase_createdby",
+      "referencing_attribute": "createdby",
+      "referenced_entity": "systemuser",
+      "referenced_attribute": "systemuserid",
+      "navigation_property": "createdby"
+    },
+    {
+      "schema_name": "lk_transactioncurrencybase_modifiedby",
+      "referencing_attribute": "modifiedby",
+      "referenced_entity": "systemuser",
+      "referenced_attribute": "systemuserid",
+      "navigation_property": "modifiedby"
+    },
+    {
+      "schema_name": "organization_transactioncurrencies",
+      "referencing_attribute": "organizationid",
+      "referenced_entity": "organization",
+      "referenced_attribute": "organizationid",
+      "navigation_property": "organizationid"
+    }
+  ],
+  "many_to_many": [],
+  "provenance": {
+    "source": "MicrosoftDocs/powerapps-docs",
+    "document": "reference/entities/transactioncurrency.md",
+    "branch": "main",
+    "license": "CC-BY-4.0"
+  }
+}

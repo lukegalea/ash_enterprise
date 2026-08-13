@@ -1,0 +1,135 @@
+{
+  "entity": "PrincipalObjectAccess",
+  "table": "principal_object_access",
+  "source_name": "principalobjectaccess",
+  "display_name": null,
+  "description": "The following table lists the messages for the PrincipalObjectAccess table.",
+  "dataverse": {
+    "logical_name": "principalobjectaccess",
+    "entity_set": "principalobjectaccessset",
+    "primary_id": "principalobjectaccessid",
+    "primary_name": null,
+    "table_type": "Standard",
+    "ownership_type": "None"
+  },
+  "attributes": [
+    {
+      "name": "AccessRightsMask",
+      "field": "access_rights_mask",
+      "source_name": "accessrightsmask",
+      "dataverse_type": "Integer",
+      "required_level": "none",
+      "display_name": "",
+      "description": "",
+      "is_read_only": false
+    },
+    {
+      "name": "ChangedOn",
+      "field": "changed_on",
+      "source_name": "changedon",
+      "dataverse_type": "DateTime",
+      "required_level": "none",
+      "display_name": "",
+      "description": "",
+      "is_read_only": false
+    },
+    {
+      "name": "InheritedAccessRightsMask",
+      "field": "inherited_access_rights_mask",
+      "source_name": "inheritedaccessrightsmask",
+      "dataverse_type": "Integer",
+      "required_level": "systemrequired",
+      "display_name": "",
+      "description": "",
+      "is_read_only": false
+    },
+    {
+      "name": "ObjectTypeCode",
+      "field": "object_type_code",
+      "source_name": "objecttypecode",
+      "dataverse_type": "EntityName",
+      "required_level": "systemrequired",
+      "display_name": "",
+      "description": "",
+      "is_read_only": false
+    },
+    {
+      "name": "PrincipalObjectAccessId",
+      "field": "principal_object_access_id",
+      "source_name": "principalobjectaccessid",
+      "dataverse_type": "Uniqueidentifier",
+      "required_level": "systemrequired",
+      "display_name": "",
+      "description": "Unique identifier of the principal object access.",
+      "is_read_only": false
+    },
+    {
+      "name": "PrincipalTypeCode",
+      "field": "principal_type_code",
+      "source_name": "principaltypecode",
+      "dataverse_type": "EntityName",
+      "required_level": "none",
+      "display_name": "",
+      "description": "",
+      "is_read_only": false
+    },
+    {
+      "name": "TimeZoneRuleVersionNumber",
+      "field": "time_zone_rule_version_number",
+      "source_name": "timezoneruleversionnumber",
+      "dataverse_type": "Integer",
+      "required_level": "none",
+      "display_name": "",
+      "description": "For internal use only.",
+      "is_read_only": false
+    },
+    {
+      "name": "UTCConversionTimeZoneCode",
+      "field": "utc_conversion_time_zone_code",
+      "source_name": "utcconversiontimezonecode",
+      "dataverse_type": "Integer",
+      "required_level": "none",
+      "display_name": "",
+      "description": "Time zone code that was in use when the record was created.",
+      "is_read_only": false
+    },
+    {
+      "name": "ObjectId",
+      "field": "object_id",
+      "source_name": "objectid",
+      "dataverse_type": "Uniqueidentifier",
+      "required_level": "systemrequired",
+      "display_name": "",
+      "description": "",
+      "is_read_only": true
+    },
+    {
+      "name": "PrincipalId",
+      "field": "principal_id",
+      "source_name": "principalid",
+      "dataverse_type": "Uniqueidentifier",
+      "required_level": "systemrequired",
+      "display_name": "",
+      "description": "",
+      "is_read_only": true
+    },
+    {
+      "name": "VersionNumber",
+      "field": "version_number",
+      "source_name": "versionnumber",
+      "dataverse_type": "BigInt",
+      "required_level": "none",
+      "display_name": "",
+      "description": "",
+      "is_read_only": true
+    }
+  ],
+  "many_to_one": [],
+  "many_to_many": [],
+  "provenance": {
+    "source": "MicrosoftDocs/powerapps-docs",
+    "document": "reference/entities/principalobjectaccess.md",
+    "branch": "main",
+    "license": "CC-BY-4.0"
+  }
+}

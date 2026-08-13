@@ -1,0 +1,1952 @@
+{
+  "entity": "SystemUser",
+  "table": "system_user",
+  "source_name": "systemuser",
+  "display_name": "User",
+  "description": "Person with access to the Microsoft CRM system and who owns objects in the Microsoft CRM database.",
+  "dataverse": {
+    "logical_name": "systemuser",
+    "entity_set": "systemusers",
+    "primary_id": "systemuserid",
+    "primary_name": "fullname",
+    "table_type": "Standard",
+    "ownership_type": "BusinessOwned"
+  },
+  "attributes": [
+    {
+      "name": "AccessMode",
+      "field": "access_mode",
+      "source_name": "accessmode",
+      "dataverse_type": "Picklist",
+      "required_level": "systemrequired",
+      "display_name": "Access Mode",
+      "description": "Type of user.",
+      "is_read_only": false,
+      "global_choice_name": "systemuser_accessmode",
+      "default_value": "0",
+      "enum_values": [
+        {
+          "value": "0",
+          "label": "Read-Write"
+        },
+        {
+          "value": "1",
+          "label": "Administrative"
+        },
+        {
+          "value": "2",
+          "label": "Read"
+        },
+        {
+          "value": "3",
+          "label": "Support User"
+        },
+        {
+          "value": "4",
+          "label": "Non-interactive"
+        },
+        {
+          "value": "5",
+          "label": "Delegated Admin"
+        }
+      ]
+    },
+    {
+      "name": "Address1_AddressId",
+      "field": "address1_address_id",
+      "source_name": "address1_addressid",
+      "dataverse_type": "Uniqueidentifier",
+      "required_level": "none",
+      "display_name": "Address 1: ID",
+      "description": "Unique identifier for address 1.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address1_AddressTypeCode",
+      "field": "address1_address_type_code",
+      "source_name": "address1_addresstypecode",
+      "dataverse_type": "Picklist",
+      "required_level": "none",
+      "display_name": "Address 1: Address Type",
+      "description": "Type of address for address 1, such as billing, shipping, or primary address.",
+      "is_read_only": false,
+      "global_choice_name": "systemuser_address1_addresstypecode",
+      "default_value": "1",
+      "enum_values": [
+        {
+          "value": "1",
+          "label": "Default Value"
+        }
+      ]
+    },
+    {
+      "name": "Address1_City",
+      "field": "address1_city",
+      "source_name": "address1_city",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 128,
+      "display_name": "City",
+      "description": "City name for address 1.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address1_Country",
+      "field": "address1_country",
+      "source_name": "address1_country",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 128,
+      "display_name": "Country/Region",
+      "description": "Country/region name in address 1.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address1_County",
+      "field": "address1_county",
+      "source_name": "address1_county",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 128,
+      "display_name": "Address 1: County",
+      "description": "County name for address 1.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address1_Fax",
+      "field": "address1_fax",
+      "source_name": "address1_fax",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 64,
+      "display_name": "Address 1: Fax",
+      "description": "Fax number for address 1.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address1_Latitude",
+      "field": "address1_latitude",
+      "source_name": "address1_latitude",
+      "dataverse_type": "Double",
+      "required_level": "none",
+      "display_name": "Address 1: Latitude",
+      "description": "Latitude for address 1.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address1_Line1",
+      "field": "address1_line1",
+      "source_name": "address1_line1",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 1024,
+      "display_name": "Street 1",
+      "description": "First line for entering address 1 information.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address1_Line2",
+      "field": "address1_line2",
+      "source_name": "address1_line2",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 1024,
+      "display_name": "Street 2",
+      "description": "Second line for entering address 1 information.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address1_Line3",
+      "field": "address1_line3",
+      "source_name": "address1_line3",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 1024,
+      "display_name": "Street 3",
+      "description": "Third line for entering address 1 information.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address1_Longitude",
+      "field": "address1_longitude",
+      "source_name": "address1_longitude",
+      "dataverse_type": "Double",
+      "required_level": "none",
+      "display_name": "Address 1: Longitude",
+      "description": "Longitude for address 1.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address1_Name",
+      "field": "address1_name",
+      "source_name": "address1_name",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 100,
+      "display_name": "Address 1: Name",
+      "description": "Name to enter for address 1.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address1_PostalCode",
+      "field": "address1_postal_code",
+      "source_name": "address1_postalcode",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 40,
+      "display_name": "ZIP/Postal Code",
+      "description": "ZIP Code or postal code for address 1.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address1_PostOfficeBox",
+      "field": "address1_post_office_box",
+      "source_name": "address1_postofficebox",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 40,
+      "display_name": "Address 1: Post Office Box",
+      "description": "Post office box number for address 1.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address1_ShippingMethodCode",
+      "field": "address1_shipping_method_code",
+      "source_name": "address1_shippingmethodcode",
+      "dataverse_type": "Picklist",
+      "required_level": "none",
+      "display_name": "Address 1: Shipping Method",
+      "description": "Method of shipment for address 1.",
+      "is_read_only": false,
+      "global_choice_name": "systemuser_address1_shippingmethodcode",
+      "default_value": "1",
+      "enum_values": [
+        {
+          "value": "1",
+          "label": "Default Value"
+        }
+      ]
+    },
+    {
+      "name": "Address1_StateOrProvince",
+      "field": "address1_state_or_province",
+      "source_name": "address1_stateorprovince",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 128,
+      "display_name": "State/Province",
+      "description": "State or province for address 1.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address1_Telephone1",
+      "field": "address1_telephone1",
+      "source_name": "address1_telephone1",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 64,
+      "display_name": "Main Phone",
+      "description": "First telephone number associated with address 1.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address1_Telephone2",
+      "field": "address1_telephone2",
+      "source_name": "address1_telephone2",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 50,
+      "display_name": "Other Phone",
+      "description": "Second telephone number associated with address 1.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address1_Telephone3",
+      "field": "address1_telephone3",
+      "source_name": "address1_telephone3",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 50,
+      "display_name": "Pager",
+      "description": "Third telephone number associated with address 1.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address1_UPSZone",
+      "field": "address1_ups_zone",
+      "source_name": "address1_upszone",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 4,
+      "display_name": "Address 1: UPS Zone",
+      "description": "United Parcel Service (UPS) zone for address 1.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address1_UTCOffset",
+      "field": "address1_utc_offset",
+      "source_name": "address1_utcoffset",
+      "dataverse_type": "Integer",
+      "required_level": "none",
+      "display_name": "Address 1: UTC Offset",
+      "description": "UTC offset for address 1. This is the difference between local time and standard Coordinated Universal Time.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address2_AddressId",
+      "field": "address2_address_id",
+      "source_name": "address2_addressid",
+      "dataverse_type": "Uniqueidentifier",
+      "required_level": "none",
+      "display_name": "Address 2: ID",
+      "description": "Unique identifier for address 2.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address2_AddressTypeCode",
+      "field": "address2_address_type_code",
+      "source_name": "address2_addresstypecode",
+      "dataverse_type": "Picklist",
+      "required_level": "none",
+      "display_name": "Address 2: Address Type",
+      "description": "Type of address for address 2, such as billing, shipping, or primary address.",
+      "is_read_only": false,
+      "global_choice_name": "systemuser_address2_addresstypecode",
+      "default_value": "1",
+      "enum_values": [
+        {
+          "value": "1",
+          "label": "Default Value"
+        }
+      ]
+    },
+    {
+      "name": "Address2_City",
+      "field": "address2_city",
+      "source_name": "address2_city",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 128,
+      "display_name": "Other City",
+      "description": "City name for address 2.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address2_Country",
+      "field": "address2_country",
+      "source_name": "address2_country",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 128,
+      "display_name": "Other Country/Region",
+      "description": "Country/region name in address 2.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address2_County",
+      "field": "address2_county",
+      "source_name": "address2_county",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 128,
+      "display_name": "Address 2: County",
+      "description": "County name for address 2.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address2_Fax",
+      "field": "address2_fax",
+      "source_name": "address2_fax",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 50,
+      "display_name": "Address 2: Fax",
+      "description": "Fax number for address 2.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address2_Latitude",
+      "field": "address2_latitude",
+      "source_name": "address2_latitude",
+      "dataverse_type": "Double",
+      "required_level": "none",
+      "display_name": "Address 2: Latitude",
+      "description": "Latitude for address 2.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address2_Line1",
+      "field": "address2_line1",
+      "source_name": "address2_line1",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 1024,
+      "display_name": "Other Street 1",
+      "description": "First line for entering address 2 information.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address2_Line2",
+      "field": "address2_line2",
+      "source_name": "address2_line2",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 1024,
+      "display_name": "Other Street 2",
+      "description": "Second line for entering address 2 information.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address2_Line3",
+      "field": "address2_line3",
+      "source_name": "address2_line3",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 1024,
+      "display_name": "Other Street 3",
+      "description": "Third line for entering address 2 information.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address2_Longitude",
+      "field": "address2_longitude",
+      "source_name": "address2_longitude",
+      "dataverse_type": "Double",
+      "required_level": "none",
+      "display_name": "Address 2: Longitude",
+      "description": "Longitude for address 2.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address2_Name",
+      "field": "address2_name",
+      "source_name": "address2_name",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 100,
+      "display_name": "Address 2: Name",
+      "description": "Name to enter for address 2.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address2_PostalCode",
+      "field": "address2_postal_code",
+      "source_name": "address2_postalcode",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 40,
+      "display_name": "Other ZIP/Postal Code",
+      "description": "ZIP Code or postal code for address 2.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address2_PostOfficeBox",
+      "field": "address2_post_office_box",
+      "source_name": "address2_postofficebox",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 40,
+      "display_name": "Address 2: Post Office Box",
+      "description": "Post office box number for address 2.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address2_ShippingMethodCode",
+      "field": "address2_shipping_method_code",
+      "source_name": "address2_shippingmethodcode",
+      "dataverse_type": "Picklist",
+      "required_level": "none",
+      "display_name": "Address 2: Shipping Method",
+      "description": "Method of shipment for address 2.",
+      "is_read_only": false,
+      "global_choice_name": "systemuser_address2_shippingmethodcode",
+      "default_value": "1",
+      "enum_values": [
+        {
+          "value": "1",
+          "label": "Default Value"
+        }
+      ]
+    },
+    {
+      "name": "Address2_StateOrProvince",
+      "field": "address2_state_or_province",
+      "source_name": "address2_stateorprovince",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 128,
+      "display_name": "Other State/Province",
+      "description": "State or province for address 2.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address2_Telephone1",
+      "field": "address2_telephone1",
+      "source_name": "address2_telephone1",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 50,
+      "display_name": "Address 2: Telephone 1",
+      "description": "First telephone number associated with address 2.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address2_Telephone2",
+      "field": "address2_telephone2",
+      "source_name": "address2_telephone2",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 50,
+      "display_name": "Address 2: Telephone 2",
+      "description": "Second telephone number associated with address 2.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address2_Telephone3",
+      "field": "address2_telephone3",
+      "source_name": "address2_telephone3",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 50,
+      "display_name": "Address 2: Telephone 3",
+      "description": "Third telephone number associated with address 2.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address2_UPSZone",
+      "field": "address2_ups_zone",
+      "source_name": "address2_upszone",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 4,
+      "display_name": "Address 2: UPS Zone",
+      "description": "United Parcel Service (UPS) zone for address 2.",
+      "is_read_only": false
+    },
+    {
+      "name": "Address2_UTCOffset",
+      "field": "address2_utc_offset",
+      "source_name": "address2_utcoffset",
+      "dataverse_type": "Integer",
+      "required_level": "none",
+      "display_name": "Address 2: UTC Offset",
+      "description": "UTC offset for address 2. This is the difference between local time and standard Coordinated Universal Time.",
+      "is_read_only": false
+    },
+    {
+      "name": "ApplicationId",
+      "field": "application_id",
+      "source_name": "applicationid",
+      "dataverse_type": "Uniqueidentifier",
+      "required_level": "none",
+      "display_name": "Application ID",
+      "description": "The identifier for the application. This is used to access data in another application.",
+      "is_read_only": false
+    },
+    {
+      "name": "AzureState",
+      "field": "azure_state",
+      "source_name": "azurestate",
+      "dataverse_type": "Picklist",
+      "required_level": "systemrequired",
+      "display_name": "Azure State",
+      "description": "Azure state of user",
+      "is_read_only": false,
+      "global_choice_name": "systemuser_azurestate",
+      "default_value": "0",
+      "enum_values": [
+        {
+          "value": "0",
+          "label": "Exists"
+        },
+        {
+          "value": "1",
+          "label": "Soft deleted"
+        },
+        {
+          "value": "2",
+          "label": "Not found or hard deleted"
+        }
+      ]
+    },
+    {
+      "name": "BusinessUnitId",
+      "field": "business_unit_id",
+      "source_name": "businessunitid",
+      "dataverse_type": "Lookup",
+      "required_level": "systemrequired",
+      "display_name": "Business Unit",
+      "description": "Unique identifier of the business unit with which the user is associated.",
+      "is_read_only": false,
+      "targets": [
+        "businessunit"
+      ]
+    },
+    {
+      "name": "CalendarId",
+      "field": "calendar_id",
+      "source_name": "calendarid",
+      "dataverse_type": "Lookup",
+      "required_level": "none",
+      "display_name": "Calendar",
+      "description": "Fiscal calendar associated with the user.",
+      "is_read_only": false,
+      "targets": [
+        "calendar"
+      ]
+    },
+    {
+      "name": "CALType",
+      "field": "cal_type",
+      "source_name": "caltype",
+      "dataverse_type": "Picklist",
+      "required_level": "systemrequired",
+      "display_name": "License Type",
+      "description": "License type of user. This is used only in the on-premises version of the product. Online licenses are managed through Microsoft 365 Office Portal",
+      "is_read_only": false,
+      "global_choice_name": "systemuser_caltype",
+      "default_value": "0",
+      "enum_values": [
+        {
+          "value": "0",
+          "label": "Professional"
+        },
+        {
+          "value": "1",
+          "label": "Administrative"
+        },
+        {
+          "value": "2",
+          "label": "Basic"
+        },
+        {
+          "value": "3",
+          "label": "Device Professional"
+        },
+        {
+          "value": "4",
+          "label": "Device Basic"
+        },
+        {
+          "value": "5",
+          "label": "Essential"
+        },
+        {
+          "value": "6",
+          "label": "Device Essential"
+        },
+        {
+          "value": "7",
+          "label": "Enterprise"
+        },
+        {
+          "value": "8",
+          "label": "Device Enterprise"
+        },
+        {
+          "value": "9",
+          "label": "Sales"
+        },
+        {
+          "value": "10",
+          "label": "Service"
+        },
+        {
+          "value": "11",
+          "label": "Field Service"
+        },
+        {
+          "value": "12",
+          "label": "Project Service"
+        }
+      ]
+    },
+    {
+      "name": "DisplayInServiceViews",
+      "field": "display_in_service_views",
+      "source_name": "displayinserviceviews",
+      "dataverse_type": "Boolean",
+      "required_level": "none",
+      "display_name": "Display in Service Views",
+      "description": "Whether to display the user in service views.",
+      "is_read_only": false,
+      "global_choice_name": "systemuser_displayinserviceviews"
+    },
+    {
+      "name": "DomainName",
+      "field": "domain_name",
+      "source_name": "domainname",
+      "dataverse_type": "String",
+      "required_level": "systemrequired",
+      "max_length": 1024,
+      "display_name": "User Name",
+      "description": "Active Directory domain of which the user is a member.",
+      "is_read_only": false
+    },
+    {
+      "name": "EmailRouterAccessApproval",
+      "field": "email_router_access_approval",
+      "source_name": "emailrouteraccessapproval",
+      "dataverse_type": "Picklist",
+      "required_level": "systemrequired",
+      "display_name": "Primary Email Status",
+      "description": "Shows the status of the primary email address.",
+      "is_read_only": false,
+      "global_choice_name": "systemuser_emailrouteraccessapproval",
+      "default_value": "0",
+      "enum_values": [
+        {
+          "value": "0",
+          "label": "Empty"
+        },
+        {
+          "value": "1",
+          "label": "Approved"
+        },
+        {
+          "value": "2",
+          "label": "Pending Approval"
+        },
+        {
+          "value": "3",
+          "label": "Rejected"
+        }
+      ]
+    },
+    {
+      "name": "EmployeeId",
+      "field": "employee_id",
+      "source_name": "employeeid",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 100,
+      "display_name": "Employee",
+      "description": "Employee identifier for the user.",
+      "is_read_only": false
+    },
+    {
+      "name": "EntityImage",
+      "field": "entity_image",
+      "source_name": "entityimage",
+      "dataverse_type": "Image",
+      "required_level": "none",
+      "display_name": "Entity Image",
+      "description": "Shows the default image for the record.",
+      "is_read_only": false
+    },
+    {
+      "name": "FirstName",
+      "field": "first_name",
+      "source_name": "firstname",
+      "dataverse_type": "String",
+      "required_level": "applicationrequired",
+      "max_length": 256,
+      "display_name": "First Name",
+      "description": "First name of the user.",
+      "is_read_only": false
+    },
+    {
+      "name": "GovernmentId",
+      "field": "government_id",
+      "source_name": "governmentid",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 100,
+      "display_name": "Government",
+      "description": "Government identifier for the user.",
+      "is_read_only": false
+    },
+    {
+      "name": "HomePhone",
+      "field": "home_phone",
+      "source_name": "homephone",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 50,
+      "display_name": "Home Phone",
+      "description": "Home phone number for the user.",
+      "is_read_only": false
+    },
+    {
+      "name": "ImportSequenceNumber",
+      "field": "import_sequence_number",
+      "source_name": "importsequencenumber",
+      "dataverse_type": "Integer",
+      "required_level": "none",
+      "display_name": "Import Sequence Number",
+      "description": "Unique identifier of the data import or data migration that created this record.",
+      "is_read_only": false
+    },
+    {
+      "name": "IncomingEmailDeliveryMethod",
+      "field": "incoming_email_delivery_method",
+      "source_name": "incomingemaildeliverymethod",
+      "dataverse_type": "Picklist",
+      "required_level": "systemrequired",
+      "display_name": "Incoming Email Delivery Method",
+      "description": "Incoming email delivery method for the user.",
+      "is_read_only": false,
+      "global_choice_name": "systemuser_incomingemaildeliverymethod",
+      "default_value": "1",
+      "enum_values": [
+        {
+          "value": "0",
+          "label": "None"
+        },
+        {
+          "value": "1",
+          "label": "Microsoft Dynamics 365 for Outlook"
+        },
+        {
+          "value": "2",
+          "label": "Server-Side Synchronization or Email Router"
+        },
+        {
+          "value": "3",
+          "label": "Forward Mailbox"
+        }
+      ]
+    },
+    {
+      "name": "InternalEMailAddress",
+      "field": "internal_e_mail_address",
+      "source_name": "internalemailaddress",
+      "dataverse_type": "String",
+      "required_level": "systemrequired",
+      "max_length": 100,
+      "display_name": "Primary Email",
+      "description": "Internal email address for the user.",
+      "is_read_only": false
+    },
+    {
+      "name": "InviteStatusCode",
+      "field": "invite_status_code",
+      "source_name": "invitestatuscode",
+      "dataverse_type": "Picklist",
+      "required_level": "applicationrequired",
+      "display_name": "Invitation Status",
+      "description": "User invitation status.",
+      "is_read_only": false,
+      "global_choice_name": "systemuser_invitestatuscode",
+      "default_value": "0",
+      "enum_values": [
+        {
+          "value": "0",
+          "label": "Invitation Not Sent"
+        },
+        {
+          "value": "1",
+          "label": "Invited"
+        },
+        {
+          "value": "2",
+          "label": "Invitation Near Expired"
+        },
+        {
+          "value": "3",
+          "label": "Invitation Expired"
+        },
+        {
+          "value": "4",
+          "label": "Invitation Accepted"
+        },
+        {
+          "value": "5",
+          "label": "Invitation Rejected"
+        },
+        {
+          "value": "6",
+          "label": "Invitation Revoked"
+        }
+      ]
+    },
+    {
+      "name": "IsAllowedByIpFirewall",
+      "field": "is_allowed_by_ip_firewall",
+      "source_name": "isallowedbyipfirewall",
+      "dataverse_type": "Boolean",
+      "required_level": "none",
+      "display_name": "To bypass IP firewall restriction on the user",
+      "description": "Bypasses the selected user from IP firewall restriction",
+      "is_read_only": false,
+      "global_choice_name": "systemuser_isallowedbyipfirewall"
+    },
+    {
+      "name": "IsDisabled",
+      "field": "is_disabled",
+      "source_name": "isdisabled",
+      "dataverse_type": "Boolean",
+      "required_level": "none",
+      "display_name": "Status",
+      "description": "Information about whether the user is enabled.",
+      "is_read_only": false,
+      "global_choice_name": "systemuser_isdisabled"
+    },
+    {
+      "name": "IsIntegrationUser",
+      "field": "is_integration_user",
+      "source_name": "isintegrationuser",
+      "dataverse_type": "Boolean",
+      "required_level": "systemrequired",
+      "display_name": "Integration user mode",
+      "description": "Check if user is an integration user.",
+      "is_read_only": false,
+      "global_choice_name": "systemuser_isintegrationuser"
+    },
+    {
+      "name": "IsLicensed",
+      "field": "is_licensed",
+      "source_name": "islicensed",
+      "dataverse_type": "Boolean",
+      "required_level": "systemrequired",
+      "display_name": "User Licensed",
+      "description": "Information about whether the user is licensed.",
+      "is_read_only": false,
+      "global_choice_name": "systemuser_isuserlicensed"
+    },
+    {
+      "name": "IsSyncWithDirectory",
+      "field": "is_sync_with_directory",
+      "source_name": "issyncwithdirectory",
+      "dataverse_type": "Boolean",
+      "required_level": "systemrequired",
+      "display_name": "User Synced",
+      "description": "Information about whether the user is synced with the directory.",
+      "is_read_only": false,
+      "global_choice_name": "systemuser_isusersynced"
+    },
+    {
+      "name": "JobTitle",
+      "field": "job_title",
+      "source_name": "jobtitle",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 100,
+      "display_name": "Job Title",
+      "description": "Job title of the user.",
+      "is_read_only": false
+    },
+    {
+      "name": "LastName",
+      "field": "last_name",
+      "source_name": "lastname",
+      "dataverse_type": "String",
+      "required_level": "applicationrequired",
+      "max_length": 256,
+      "display_name": "Last Name",
+      "description": "Last name of the user.",
+      "is_read_only": false
+    },
+    {
+      "name": "MiddleName",
+      "field": "middle_name",
+      "source_name": "middlename",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 50,
+      "display_name": "Middle Name",
+      "description": "Middle name of the user.",
+      "is_read_only": false
+    },
+    {
+      "name": "MobileAlertEMail",
+      "field": "mobile_alert_e_mail",
+      "source_name": "mobilealertemail",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 100,
+      "display_name": "Mobile Alert Email",
+      "description": "Mobile alert email address for the user.",
+      "is_read_only": false
+    },
+    {
+      "name": "MobileOfflineProfileId",
+      "field": "mobile_offline_profile_id",
+      "source_name": "mobileofflineprofileid",
+      "dataverse_type": "Lookup",
+      "required_level": "none",
+      "display_name": "Mobile Offline Profile",
+      "description": "Items contained with a particular SystemUser.",
+      "is_read_only": false,
+      "targets": [
+        "mobileofflineprofile"
+      ]
+    },
+    {
+      "name": "MobilePhone",
+      "field": "mobile_phone",
+      "source_name": "mobilephone",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 64,
+      "display_name": "Mobile Phone",
+      "description": "Mobile phone number for the user.",
+      "is_read_only": false
+    },
+    {
+      "name": "NickName",
+      "field": "nick_name",
+      "source_name": "nickname",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 50,
+      "display_name": "Nickname",
+      "description": "Nickname of the user.",
+      "is_read_only": false
+    },
+    {
+      "name": "OutgoingEmailDeliveryMethod",
+      "field": "outgoing_email_delivery_method",
+      "source_name": "outgoingemaildeliverymethod",
+      "dataverse_type": "Picklist",
+      "required_level": "systemrequired",
+      "display_name": "Outgoing Email Delivery Method",
+      "description": "Outgoing email delivery method for the user.",
+      "is_read_only": false,
+      "global_choice_name": "systemuser_outgoingemaildeliverymethod",
+      "default_value": "1",
+      "enum_values": [
+        {
+          "value": "0",
+          "label": "None"
+        },
+        {
+          "value": "1",
+          "label": "Microsoft Dynamics 365 for Outlook"
+        },
+        {
+          "value": "2",
+          "label": "Server-Side Synchronization or Email Router"
+        }
+      ]
+    },
+    {
+      "name": "OverriddenCreatedOn",
+      "field": "overridden_created_on",
+      "source_name": "overriddencreatedon",
+      "dataverse_type": "DateTime",
+      "required_level": "none",
+      "display_name": "Record Created On",
+      "description": "Date and time that the record was migrated.",
+      "is_read_only": false
+    },
+    {
+      "name": "ParentSystemUserId",
+      "field": "parent_system_user_id",
+      "source_name": "parentsystemuserid",
+      "dataverse_type": "Lookup",
+      "required_level": "none",
+      "display_name": "Manager",
+      "description": "Unique identifier of the manager of the user.",
+      "is_read_only": false,
+      "targets": [
+        "systemuser"
+      ]
+    },
+    {
+      "name": "PassportHi",
+      "field": "passport_hi",
+      "source_name": "passporthi",
+      "dataverse_type": "Integer",
+      "required_level": "none",
+      "display_name": "Passport Hi",
+      "description": "For internal use only.",
+      "is_read_only": false
+    },
+    {
+      "name": "PassportLo",
+      "field": "passport_lo",
+      "source_name": "passportlo",
+      "dataverse_type": "Integer",
+      "required_level": "none",
+      "display_name": "Passport Lo",
+      "description": "For internal use only.",
+      "is_read_only": false
+    },
+    {
+      "name": "PersonalEMailAddress",
+      "field": "personal_e_mail_address",
+      "source_name": "personalemailaddress",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 100,
+      "display_name": "Email 2",
+      "description": "Personal email address of the user.",
+      "is_read_only": false
+    },
+    {
+      "name": "PhotoUrl",
+      "field": "photo_url",
+      "source_name": "photourl",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 200,
+      "display_name": "Photo URL",
+      "description": "URL for the Website on which a photo of the user is located.",
+      "is_read_only": false
+    },
+    {
+      "name": "PositionId",
+      "field": "position_id",
+      "source_name": "positionid",
+      "dataverse_type": "Lookup",
+      "required_level": "none",
+      "display_name": "Position",
+      "description": "User's position in hierarchical security model.",
+      "is_read_only": false,
+      "targets": [
+        "position"
+      ]
+    },
+    {
+      "name": "PreferredAddressCode",
+      "field": "preferred_address_code",
+      "source_name": "preferredaddresscode",
+      "dataverse_type": "Picklist",
+      "required_level": "none",
+      "display_name": "Preferred Address",
+      "description": "Preferred address for the user.",
+      "is_read_only": false,
+      "global_choice_name": "systemuser_preferredaddresscode",
+      "default_value": "1",
+      "enum_values": [
+        {
+          "value": "1",
+          "label": "Mailing Address"
+        },
+        {
+          "value": "2",
+          "label": "Other Address"
+        }
+      ]
+    },
+    {
+      "name": "PreferredEmailCode",
+      "field": "preferred_email_code",
+      "source_name": "preferredemailcode",
+      "dataverse_type": "Picklist",
+      "required_level": "none",
+      "display_name": "Preferred Email",
+      "description": "Preferred email address for the user.",
+      "is_read_only": false,
+      "global_choice_name": "systemuser_preferredemailcode",
+      "default_value": "1",
+      "enum_values": [
+        {
+          "value": "1",
+          "label": "Default Value"
+        }
+      ]
+    },
+    {
+      "name": "PreferredPhoneCode",
+      "field": "preferred_phone_code",
+      "source_name": "preferredphonecode",
+      "dataverse_type": "Picklist",
+      "required_level": "none",
+      "display_name": "Preferred Phone",
+      "description": "Preferred phone number for the user.",
+      "is_read_only": false,
+      "global_choice_name": "systemuser_preferredphonecode",
+      "default_value": "1",
+      "enum_values": [
+        {
+          "value": "1",
+          "label": "Main Phone"
+        },
+        {
+          "value": "2",
+          "label": "Other Phone"
+        },
+        {
+          "value": "3",
+          "label": "Home Phone"
+        },
+        {
+          "value": "4",
+          "label": "Mobile Phone"
+        }
+      ]
+    },
+    {
+      "name": "ProcessId",
+      "field": "process_id",
+      "source_name": "processid",
+      "dataverse_type": "Uniqueidentifier",
+      "required_level": "none",
+      "display_name": "Process",
+      "description": "Shows the ID of the process.",
+      "is_read_only": false
+    },
+    {
+      "name": "QueueId",
+      "field": "queue_id",
+      "source_name": "queueid",
+      "dataverse_type": "Lookup",
+      "required_level": "none",
+      "display_name": "Default Queue",
+      "description": "Unique identifier of the default queue for the user.",
+      "is_read_only": false,
+      "targets": [
+        "queue"
+      ]
+    },
+    {
+      "name": "Salutation",
+      "field": "salutation",
+      "source_name": "salutation",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 20,
+      "display_name": "Salutation",
+      "description": "Salutation for correspondence with the user.",
+      "is_read_only": false
+    },
+    {
+      "name": "SetupUser",
+      "field": "setup_user",
+      "source_name": "setupuser",
+      "dataverse_type": "Boolean",
+      "required_level": "systemrequired",
+      "display_name": "Restricted Access Mode",
+      "description": "Check if user is a setup user.",
+      "is_read_only": false,
+      "global_choice_name": "systemuser_setupuser"
+    },
+    {
+      "name": "SharePointEmailAddress",
+      "field": "share_point_email_address",
+      "source_name": "sharepointemailaddress",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 1024,
+      "display_name": "SharePoint Email Address",
+      "description": "SharePoint Work Email Address",
+      "is_read_only": false
+    },
+    {
+      "name": "Skills",
+      "field": "skills",
+      "source_name": "skills",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 100,
+      "display_name": "Skills",
+      "description": "Skill set of the user.",
+      "is_read_only": false
+    },
+    {
+      "name": "StageId",
+      "field": "stage_id",
+      "source_name": "stageid",
+      "dataverse_type": "Uniqueidentifier",
+      "required_level": "none",
+      "display_name": "(Deprecated) Process Stage",
+      "description": "Shows the ID of the stage.",
+      "is_read_only": false
+    },
+    {
+      "name": "SystemManagedUserType",
+      "field": "system_managed_user_type",
+      "source_name": "systemmanagedusertype",
+      "dataverse_type": "Picklist",
+      "required_level": "systemrequired",
+      "display_name": "System Managed User Type",
+      "description": "The type of user",
+      "is_read_only": false,
+      "global_choice_name": "systemuser_systemmanagedusertype",
+      "default_value": "0",
+      "enum_values": [
+        {
+          "value": "0",
+          "label": "Entra User"
+        },
+        {
+          "value": "1",
+          "label": "C2 User"
+        },
+        {
+          "value": "2",
+          "label": "Impersonable Stub User"
+        },
+        {
+          "value": "3",
+          "label": "Agentic User"
+        }
+      ]
+    },
+    {
+      "name": "SystemUserId",
+      "field": "system_user_id",
+      "source_name": "systemuserid",
+      "dataverse_type": "Uniqueidentifier",
+      "required_level": "systemrequired",
+      "display_name": "User",
+      "description": "Unique identifier for the user.",
+      "is_read_only": false
+    },
+    {
+      "name": "TerritoryId",
+      "field": "territory_id",
+      "source_name": "territoryid",
+      "dataverse_type": "Lookup",
+      "required_level": "none",
+      "display_name": "Territory",
+      "description": "Unique identifier of the territory to which the user is assigned.",
+      "is_read_only": false,
+      "targets": [
+        "territory"
+      ]
+    },
+    {
+      "name": "TimeZoneRuleVersionNumber",
+      "field": "time_zone_rule_version_number",
+      "source_name": "timezoneruleversionnumber",
+      "dataverse_type": "Integer",
+      "required_level": "none",
+      "display_name": "Time Zone Rule Version Number",
+      "description": "For internal use only.",
+      "is_read_only": false
+    },
+    {
+      "name": "Title",
+      "field": "title",
+      "source_name": "title",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 128,
+      "display_name": "Title",
+      "description": "Title of the user.",
+      "is_read_only": false
+    },
+    {
+      "name": "TransactionCurrencyId",
+      "field": "transaction_currency_id",
+      "source_name": "transactioncurrencyid",
+      "dataverse_type": "Lookup",
+      "required_level": "none",
+      "display_name": "Currency",
+      "description": "Unique identifier of the currency associated with the systemuser.",
+      "is_read_only": false,
+      "targets": [
+        "transactioncurrency"
+      ]
+    },
+    {
+      "name": "TraversedPath",
+      "field": "traversed_path",
+      "source_name": "traversedpath",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 1250,
+      "display_name": "(Deprecated) Traversed Path",
+      "description": "For internal use only.",
+      "is_read_only": false
+    },
+    {
+      "name": "UserLicenseType",
+      "field": "user_license_type",
+      "source_name": "userlicensetype",
+      "dataverse_type": "Integer",
+      "required_level": "systemrequired",
+      "display_name": "User License Type",
+      "description": "Shows the type of user license.",
+      "is_read_only": false
+    },
+    {
+      "name": "UTCConversionTimeZoneCode",
+      "field": "utc_conversion_time_zone_code",
+      "source_name": "utcconversiontimezonecode",
+      "dataverse_type": "Integer",
+      "required_level": "none",
+      "display_name": "UTC Conversion Time Zone Code",
+      "description": "Time zone code that was in use when the record was created.",
+      "is_read_only": false
+    },
+    {
+      "name": "WindowsLiveID",
+      "field": "windows_live_id",
+      "source_name": "windowsliveid",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 1024,
+      "display_name": "Windows Live ID",
+      "description": "Windows Live ID",
+      "is_read_only": false
+    },
+    {
+      "name": "YammerEmailAddress",
+      "field": "yammer_email_address",
+      "source_name": "yammeremailaddress",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 200,
+      "display_name": "Yammer Email",
+      "description": "User's Yammer login email address",
+      "is_read_only": false
+    },
+    {
+      "name": "YammerUserId",
+      "field": "yammer_user_id",
+      "source_name": "yammeruserid",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 128,
+      "display_name": "Yammer User ID",
+      "description": "User's Yammer ID",
+      "is_read_only": false
+    },
+    {
+      "name": "YomiFirstName",
+      "field": "yomi_first_name",
+      "source_name": "yomifirstname",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 64,
+      "display_name": "Yomi First Name",
+      "description": "Pronunciation of the first name of the user, written in phonetic hiragana or katakana characters.",
+      "is_read_only": false
+    },
+    {
+      "name": "YomiLastName",
+      "field": "yomi_last_name",
+      "source_name": "yomilastname",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 64,
+      "display_name": "Yomi Last Name",
+      "description": "Pronunciation of the last name of the user, written in phonetic hiragana or katakana characters.",
+      "is_read_only": false
+    },
+    {
+      "name": "YomiMiddleName",
+      "field": "yomi_middle_name",
+      "source_name": "yomimiddlename",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 50,
+      "display_name": "Yomi Middle Name",
+      "description": "Pronunciation of the middle name of the user, written in phonetic hiragana or katakana characters.",
+      "is_read_only": false
+    },
+    {
+      "name": "ActiveDirectoryGuid",
+      "field": "active_directory_guid",
+      "source_name": "activedirectoryguid",
+      "dataverse_type": "Uniqueidentifier",
+      "required_level": "none",
+      "display_name": "Active Directory Guid",
+      "description": "Active Directory object GUID for the system user.",
+      "is_read_only": true
+    },
+    {
+      "name": "Address1_Composite",
+      "field": "address1_composite",
+      "source_name": "address1_composite",
+      "dataverse_type": "Memo",
+      "required_level": "none",
+      "max_length": 1000,
+      "display_name": "Address",
+      "description": "Shows the complete primary address.",
+      "is_read_only": true
+    },
+    {
+      "name": "Address2_Composite",
+      "field": "address2_composite",
+      "source_name": "address2_composite",
+      "dataverse_type": "Memo",
+      "required_level": "none",
+      "max_length": 1000,
+      "display_name": "Other Address",
+      "description": "Shows the complete secondary address.",
+      "is_read_only": true
+    },
+    {
+      "name": "ApplicationIdUri",
+      "field": "application_id_uri",
+      "source_name": "applicationiduri",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 1024,
+      "display_name": "Application ID URI",
+      "description": "The URI used as a unique logical identifier for the external app. This can be used to validate the application.",
+      "is_read_only": true
+    },
+    {
+      "name": "AzureActiveDirectoryObjectId",
+      "field": "azure_active_directory_object_id",
+      "source_name": "azureactivedirectoryobjectid",
+      "dataverse_type": "Uniqueidentifier",
+      "required_level": "none",
+      "display_name": "Azure AD Object ID",
+      "description": "This is the application directory object Id.",
+      "is_read_only": true
+    },
+    {
+      "name": "AzureDeletedOn",
+      "field": "azure_deleted_on",
+      "source_name": "azuredeletedon",
+      "dataverse_type": "DateTime",
+      "required_level": "none",
+      "display_name": "Azure Deleted On",
+      "description": "Date and time when the user was set as soft deleted in Azure.",
+      "is_read_only": true
+    },
+    {
+      "name": "CreatedBy",
+      "field": "created_by",
+      "source_name": "createdby",
+      "dataverse_type": "Lookup",
+      "required_level": "none",
+      "display_name": "Created By",
+      "description": "Unique identifier of the user who created the user.",
+      "is_read_only": true,
+      "targets": [
+        "systemuser"
+      ]
+    },
+    {
+      "name": "CreatedOn",
+      "field": "created_on",
+      "source_name": "createdon",
+      "dataverse_type": "DateTime",
+      "required_level": "none",
+      "display_name": "Created On",
+      "description": "Date and time when the user was created.",
+      "is_read_only": true
+    },
+    {
+      "name": "CreatedOnBehalfBy",
+      "field": "created_on_behalf_by",
+      "source_name": "createdonbehalfby",
+      "dataverse_type": "Lookup",
+      "required_level": "none",
+      "display_name": "Created By (Delegate)",
+      "description": "Unique identifier of the delegate user who created the systemuser.",
+      "is_read_only": true,
+      "targets": [
+        "systemuser"
+      ]
+    },
+    {
+      "name": "DefaultFiltersPopulated",
+      "field": "default_filters_populated",
+      "source_name": "defaultfilterspopulated",
+      "dataverse_type": "Boolean",
+      "required_level": "systemrequired",
+      "display_name": "Default Filters Populated",
+      "description": "Indicates if default outlook filters have been populated.",
+      "is_read_only": true,
+      "global_choice_name": "systemuser_defaultfilterspopulated"
+    },
+    {
+      "name": "DefaultMailbox",
+      "field": "default_mailbox",
+      "source_name": "defaultmailbox",
+      "dataverse_type": "Lookup",
+      "required_level": "none",
+      "display_name": "Mailbox",
+      "description": "Select the mailbox associated with this user.",
+      "is_read_only": true,
+      "targets": [
+        "mailbox"
+      ]
+    },
+    {
+      "name": "DefaultOdbFolderName",
+      "field": "default_odb_folder_name",
+      "source_name": "defaultodbfoldername",
+      "dataverse_type": "String",
+      "required_level": "systemrequired",
+      "max_length": 200,
+      "display_name": "Default OneDrive for Business Folder Name",
+      "description": "Type a default folder name for the user's OneDrive For Business location.",
+      "is_read_only": true
+    },
+    {
+      "name": "DeletedState",
+      "field": "deleted_state",
+      "source_name": "deletedstate",
+      "dataverse_type": "Picklist",
+      "required_level": "systemrequired",
+      "display_name": "Deleted State",
+      "description": "User delete state",
+      "is_read_only": true,
+      "global_choice_name": "systemuser_deletestate",
+      "default_value": "0",
+      "enum_values": [
+        {
+          "value": "0",
+          "label": "Not deleted"
+        },
+        {
+          "value": "1",
+          "label": "Soft deleted"
+        }
+      ]
+    },
+    {
+      "name": "DisabledReason",
+      "field": "disabled_reason",
+      "source_name": "disabledreason",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 500,
+      "display_name": "Disabled Reason",
+      "description": "Reason for disabling the user.",
+      "is_read_only": true
+    },
+    {
+      "name": "EntityImage_Timestamp",
+      "field": "entity_image_timestamp",
+      "source_name": "entityimage_timestamp",
+      "dataverse_type": "BigInt",
+      "required_level": "none",
+      "display_name": "",
+      "description": "",
+      "is_read_only": true
+    },
+    {
+      "name": "EntityImage_URL",
+      "field": "entity_image_url",
+      "source_name": "entityimage_url",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 200,
+      "display_name": "",
+      "description": "",
+      "is_read_only": true
+    },
+    {
+      "name": "EntityImageId",
+      "field": "entity_image_id",
+      "source_name": "entityimageid",
+      "dataverse_type": "Uniqueidentifier",
+      "required_level": "none",
+      "display_name": "Entity Image Id",
+      "description": "For internal use only.",
+      "is_read_only": true
+    },
+    {
+      "name": "ExchangeRate",
+      "field": "exchange_rate",
+      "source_name": "exchangerate",
+      "dataverse_type": "Decimal",
+      "required_level": "none",
+      "display_name": "Exchange Rate",
+      "description": "Exchange rate for the currency associated with the systemuser with respect to the base currency.",
+      "is_read_only": true
+    },
+    {
+      "name": "FullName",
+      "field": "full_name",
+      "source_name": "fullname",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 200,
+      "display_name": "Full Name",
+      "description": "Full name of the user.",
+      "is_read_only": true
+    },
+    {
+      "name": "IdentityId",
+      "field": "identity_id",
+      "source_name": "identityid",
+      "dataverse_type": "Integer",
+      "required_level": "systemrequired",
+      "display_name": "Unique user identity id",
+      "description": "For internal use only.",
+      "is_read_only": true
+    },
+    {
+      "name": "IsActiveDirectoryUser",
+      "field": "is_active_directory_user",
+      "source_name": "isactivedirectoryuser",
+      "dataverse_type": "Boolean",
+      "required_level": "systemrequired",
+      "display_name": "Is Active Directory User",
+      "description": "Information about whether the user is an AD user.",
+      "is_read_only": true,
+      "global_choice_name": "systemuser_isactivedirectoryuser"
+    },
+    {
+      "name": "IsEmailAddressApprovedByO365Admin",
+      "field": "is_email_address_approved_by_o365_admin",
+      "source_name": "isemailaddressapprovedbyo365admin",
+      "dataverse_type": "Boolean",
+      "required_level": "systemrequired",
+      "display_name": "Email Address O365 Admin Approval Status",
+      "description": "Shows the status of approval of the email address by O365 Admin.",
+      "is_read_only": true,
+      "global_choice_name": "systemuser_isemailaddressapprovedbyo365admin"
+    },
+    {
+      "name": "LatestUpdateTime",
+      "field": "latest_update_time",
+      "source_name": "latestupdatetime",
+      "dataverse_type": "DateTime",
+      "required_level": "none",
+      "display_name": "Latest User Update Time",
+      "description": "Time stamp of the latest update for the user",
+      "is_read_only": true
+    },
+    {
+      "name": "ModifiedBy",
+      "field": "modified_by",
+      "source_name": "modifiedby",
+      "dataverse_type": "Lookup",
+      "required_level": "none",
+      "display_name": "Modified By",
+      "description": "Unique identifier of the user who last modified the user.",
+      "is_read_only": true,
+      "targets": [
+        "systemuser"
+      ]
+    },
+    {
+      "name": "ModifiedOn",
+      "field": "modified_on",
+      "source_name": "modifiedon",
+      "dataverse_type": "DateTime",
+      "required_level": "none",
+      "display_name": "Modified On",
+      "description": "Date and time when the user was last modified.",
+      "is_read_only": true
+    },
+    {
+      "name": "ModifiedOnBehalfBy",
+      "field": "modified_on_behalf_by",
+      "source_name": "modifiedonbehalfby",
+      "dataverse_type": "Lookup",
+      "required_level": "none",
+      "display_name": "Modified By (Delegate)",
+      "description": "Unique identifier of the delegate user who last modified the systemuser.",
+      "is_read_only": true,
+      "targets": [
+        "systemuser"
+      ]
+    },
+    {
+      "name": "OrganizationId",
+      "field": "organization_id",
+      "source_name": "organizationid",
+      "dataverse_type": "Uniqueidentifier",
+      "required_level": "systemrequired",
+      "display_name": "Organization",
+      "description": "Unique identifier of the organization associated with the user.",
+      "is_read_only": true
+    },
+    {
+      "name": "OrganizationIdName",
+      "field": "organization_id_name",
+      "source_name": "organizationidname",
+      "dataverse_type": "String",
+      "required_level": "systemrequired",
+      "max_length": 100,
+      "display_name": "",
+      "description": "",
+      "is_read_only": true
+    },
+    {
+      "name": "UserPuid",
+      "field": "user_puid",
+      "source_name": "userpuid",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 100,
+      "display_name": "User PUID",
+      "description": "User PUID User Identifiable Information",
+      "is_read_only": true
+    },
+    {
+      "name": "VersionNumber",
+      "field": "version_number",
+      "source_name": "versionnumber",
+      "dataverse_type": "BigInt",
+      "required_level": "none",
+      "display_name": "Version number",
+      "description": "Version number of the user.",
+      "is_read_only": true
+    },
+    {
+      "name": "YomiFullName",
+      "field": "yomi_full_name",
+      "source_name": "yomifullname",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 200,
+      "display_name": "Yomi Full Name",
+      "description": "Pronunciation of the full name of the user, written in phonetic hiragana or katakana characters.",
+      "is_read_only": true
+    }
+  ],
+  "many_to_one": [
+    {
+      "schema_name": "business_unit_system_users",
+      "referencing_attribute": "businessunitid",
+      "referenced_entity": "businessunit",
+      "referenced_attribute": "businessunitid",
+      "navigation_property": "businessunitid"
+    },
+    {
+      "schema_name": "calendar_system_users",
+      "referencing_attribute": "calendarid",
+      "referenced_entity": "calendar",
+      "referenced_attribute": "calendarid",
+      "navigation_property": "calendarid"
+    },
+    {
+      "schema_name": "lk_systemuser_createdonbehalfby",
+      "referencing_attribute": "createdonbehalfby",
+      "referenced_entity": "systemuser",
+      "referenced_attribute": "systemuserid",
+      "navigation_property": "createdonbehalfby"
+    },
+    {
+      "schema_name": "lk_systemuser_modifiedonbehalfby",
+      "referencing_attribute": "modifiedonbehalfby",
+      "referenced_entity": "systemuser",
+      "referenced_attribute": "systemuserid",
+      "navigation_property": "modifiedonbehalfby"
+    },
+    {
+      "schema_name": "lk_systemuserbase_createdby",
+      "referencing_attribute": "createdby",
+      "referenced_entity": "systemuser",
+      "referenced_attribute": "systemuserid",
+      "navigation_property": "createdby"
+    },
+    {
+      "schema_name": "lk_systemuserbase_modifiedby",
+      "referencing_attribute": "modifiedby",
+      "referenced_entity": "systemuser",
+      "referenced_attribute": "systemuserid",
+      "navigation_property": "modifiedby"
+    },
+    {
+      "schema_name": "MobileOfflineProfile_SystemUser",
+      "referencing_attribute": "mobileofflineprofileid",
+      "referenced_entity": "mobileofflineprofile",
+      "referenced_attribute": "mobileofflineprofileid",
+      "navigation_property": "mobileofflineprofileid"
+    },
+    {
+      "schema_name": "organization_system_users",
+      "referencing_attribute": "organizationid",
+      "referenced_entity": "organization",
+      "referenced_attribute": "organizationid",
+      "navigation_property": "organizationid_organization"
+    },
+    {
+      "schema_name": "position_users",
+      "referencing_attribute": "positionid",
+      "referenced_entity": "position",
+      "referenced_attribute": "positionid",
+      "navigation_property": "positionid"
+    },
+    {
+      "schema_name": "processstage_systemusers",
+      "referencing_attribute": "stageid",
+      "referenced_entity": "processstage",
+      "referenced_attribute": "processstageid",
+      "navigation_property": "stageid_processstage"
+    },
+    {
+      "schema_name": "queue_system_user",
+      "referencing_attribute": "queueid",
+      "referenced_entity": "queue",
+      "referenced_attribute": "queueid",
+      "navigation_property": "queueid"
+    },
+    {
+      "schema_name": "systemuser_defaultmailbox_mailbox",
+      "referencing_attribute": "defaultmailbox",
+      "referenced_entity": "mailbox",
+      "referenced_attribute": "mailboxid",
+      "navigation_property": "defaultmailbox"
+    },
+    {
+      "schema_name": "territory_system_users",
+      "referencing_attribute": "territoryid",
+      "referenced_entity": "territory",
+      "referenced_attribute": "territoryid",
+      "navigation_property": "territoryid"
+    },
+    {
+      "schema_name": "TransactionCurrency_SystemUser",
+      "referencing_attribute": "transactioncurrencyid",
+      "referenced_entity": "transactioncurrency",
+      "referenced_attribute": "transactioncurrencyid",
+      "navigation_property": "transactioncurrencyid"
+    },
+    {
+      "schema_name": "user_parent_user",
+      "referencing_attribute": "parentsystemuserid",
+      "referenced_entity": "systemuser",
+      "referenced_attribute": "systemuserid",
+      "navigation_property": "parentsystemuserid"
+    }
+  ],
+  "many_to_many": [
+    {
+      "schema_name": "msdyn_flow_actionapprovalmodelrelationship_systemuser",
+      "intersect_entity": "msdyn_flow_actionapprovalmodel_systemuser",
+      "intersect_attribute": "systemuserid",
+      "navigation_property": "msdyn_flow_actionapprovalmodelrelationship_systemuser"
+    },
+    {
+      "schema_name": "msdyn_flow_awaitallactionmodelrelationship_user",
+      "intersect_entity": "msdyn_flow_awaitallactionapprovalmodel_user",
+      "intersect_attribute": "systemuserid",
+      "navigation_property": "msdyn_flow_awaitallactionmodelrelationship_user"
+    },
+    {
+      "schema_name": "msdyn_flow_awaitallmodelrelationship_systemuser",
+      "intersect_entity": "msdyn_flow_awaitallmodel_systemuser",
+      "intersect_attribute": "systemuserid",
+      "navigation_property": "msdyn_flow_awaitallmodelrelationship_systemuser"
+    },
+    {
+      "schema_name": "msdyn_flow_basicapprovalmodelrelationship_systemuser",
+      "intersect_entity": "msdyn_flow_basicapprovalmodel_systemuser",
+      "intersect_attribute": "systemuserid",
+      "navigation_property": "msdyn_flow_basicapprovalmodelrelationship_systemuser"
+    },
+    {
+      "schema_name": "powerpagecomponent_webrole_systemuser",
+      "intersect_entity": "powerpagecomponent_webrole_systemuser",
+      "intersect_attribute": "systemuserid",
+      "navigation_property": "powerpagecomponent_webrole_systemuser"
+    },
+    {
+      "schema_name": "queuemembership_association",
+      "intersect_entity": "queuemembership",
+      "intersect_attribute": "systemuserid",
+      "navigation_property": "queuemembership_association"
+    },
+    {
+      "schema_name": "systemuserprofiles_association",
+      "intersect_entity": "systemuserprofiles",
+      "intersect_attribute": "systemuserid",
+      "navigation_property": "systemuserprofiles_association"
+    },
+    {
+      "schema_name": "systemuserroles_association",
+      "intersect_entity": "systemuserroles",
+      "intersect_attribute": "systemuserid",
+      "navigation_property": "systemuserroles_association"
+    },
+    {
+      "schema_name": "teammembership_association",
+      "intersect_entity": "teammembership",
+      "intersect_attribute": "systemuserid",
+      "navigation_property": "teammembership_association"
+    }
+  ],
+  "provenance": {
+    "source": "MicrosoftDocs/powerapps-docs",
+    "document": "reference/entities/systemuser.md",
+    "branch": "main",
+    "license": "CC-BY-4.0"
+  }
+}

@@ -1,0 +1,603 @@
+{
+  "entity": "Audit",
+  "table": "audit",
+  "source_name": "audit",
+  "display_name": "Auditing",
+  "description": "Track changes to records for analysis, record keeping, and compliance.",
+  "dataverse": {
+    "logical_name": "audit",
+    "entity_set": "audits",
+    "primary_id": "auditid",
+    "primary_name": null,
+    "table_type": "Standard",
+    "ownership_type": "None"
+  },
+  "attributes": [
+    {
+      "name": "AdditionalInfo",
+      "field": "additional_info",
+      "source_name": "additionalinfo",
+      "dataverse_type": "Memo",
+      "required_level": "none",
+      "max_length": 2000,
+      "display_name": "Additional Info",
+      "description": "Additional Info for Audit",
+      "is_read_only": false
+    },
+    {
+      "name": "RegardingObjectId",
+      "field": "regarding_object_id",
+      "source_name": "regardingobjectid",
+      "dataverse_type": "Lookup",
+      "required_level": "none",
+      "display_name": "Regarding",
+      "description": "Unique identifier of the object with which the record is associated.",
+      "is_read_only": false
+    },
+    {
+      "name": "UserAdditionalInfo",
+      "field": "user_additional_info",
+      "source_name": "useradditionalinfo",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 350,
+      "display_name": "User Info",
+      "description": "Additional information associated to the user who caused the change.",
+      "is_read_only": false
+    },
+    {
+      "name": "Action",
+      "field": "action",
+      "source_name": "action",
+      "dataverse_type": "Picklist",
+      "required_level": "applicationrequired",
+      "display_name": "Event",
+      "description": "Actions the user can perform that cause a change",
+      "is_read_only": true,
+      "global_choice_name": "audit_action",
+      "default_value": "-1",
+      "enum_values": [
+        {
+          "value": "0",
+          "label": "Unknown"
+        },
+        {
+          "value": "1",
+          "label": "Create"
+        },
+        {
+          "value": "2",
+          "label": "Update"
+        },
+        {
+          "value": "3",
+          "label": "Delete"
+        },
+        {
+          "value": "4",
+          "label": "Activate"
+        },
+        {
+          "value": "5",
+          "label": "Deactivate"
+        },
+        {
+          "value": "6",
+          "label": "Upsert"
+        },
+        {
+          "value": "11",
+          "label": "Cascade"
+        },
+        {
+          "value": "12",
+          "label": "Merge"
+        },
+        {
+          "value": "13",
+          "label": "Assign"
+        },
+        {
+          "value": "14",
+          "label": "Share"
+        },
+        {
+          "value": "15",
+          "label": "Retrieve"
+        },
+        {
+          "value": "16",
+          "label": "Close"
+        },
+        {
+          "value": "17",
+          "label": "Cancel"
+        },
+        {
+          "value": "18",
+          "label": "Complete"
+        },
+        {
+          "value": "20",
+          "label": "Resolve"
+        },
+        {
+          "value": "21",
+          "label": "Reopen"
+        },
+        {
+          "value": "22",
+          "label": "Fulfill"
+        },
+        {
+          "value": "23",
+          "label": "Paid"
+        },
+        {
+          "value": "24",
+          "label": "Qualify"
+        },
+        {
+          "value": "25",
+          "label": "Disqualify"
+        },
+        {
+          "value": "26",
+          "label": "Submit"
+        },
+        {
+          "value": "27",
+          "label": "Reject"
+        },
+        {
+          "value": "28",
+          "label": "Approve"
+        },
+        {
+          "value": "29",
+          "label": "Invoice"
+        },
+        {
+          "value": "30",
+          "label": "Hold"
+        },
+        {
+          "value": "31",
+          "label": "Add Member"
+        },
+        {
+          "value": "32",
+          "label": "Remove Member"
+        },
+        {
+          "value": "33",
+          "label": "Associate Entities"
+        },
+        {
+          "value": "34",
+          "label": "Disassociate Entities"
+        },
+        {
+          "value": "35",
+          "label": "Add Members"
+        },
+        {
+          "value": "36",
+          "label": "Remove Members"
+        },
+        {
+          "value": "37",
+          "label": "Add Item"
+        },
+        {
+          "value": "38",
+          "label": "Remove Item"
+        },
+        {
+          "value": "39",
+          "label": "Add Substitute"
+        },
+        {
+          "value": "40",
+          "label": "Remove Substitute"
+        },
+        {
+          "value": "41",
+          "label": "Set State"
+        },
+        {
+          "value": "42",
+          "label": "Renew"
+        },
+        {
+          "value": "43",
+          "label": "Revise"
+        },
+        {
+          "value": "44",
+          "label": "Win"
+        },
+        {
+          "value": "45",
+          "label": "Lose"
+        },
+        {
+          "value": "46",
+          "label": "Internal Processing"
+        },
+        {
+          "value": "47",
+          "label": "Reschedule"
+        },
+        {
+          "value": "48",
+          "label": "Modify Share"
+        },
+        {
+          "value": "49",
+          "label": "Unshare"
+        },
+        {
+          "value": "50",
+          "label": "Book"
+        },
+        {
+          "value": "51",
+          "label": "Generate Quote From Opportunity"
+        },
+        {
+          "value": "52",
+          "label": "Add To Queue"
+        },
+        {
+          "value": "53",
+          "label": "Assign Role To Team"
+        },
+        {
+          "value": "54",
+          "label": "Remove Role From Team"
+        },
+        {
+          "value": "55",
+          "label": "Assign Role To User"
+        },
+        {
+          "value": "56",
+          "label": "Remove Role From User"
+        },
+        {
+          "value": "57",
+          "label": "Add Privileges to Role"
+        },
+        {
+          "value": "58",
+          "label": "Remove Privileges From Role"
+        },
+        {
+          "value": "59",
+          "label": "Replace Privileges In Role"
+        },
+        {
+          "value": "60",
+          "label": "Import Mappings"
+        },
+        {
+          "value": "61",
+          "label": "Clone"
+        },
+        {
+          "value": "62",
+          "label": "Send Direct Email"
+        },
+        {
+          "value": "63",
+          "label": "Enabled for organization"
+        },
+        {
+          "value": "64",
+          "label": "User Access via Web"
+        },
+        {
+          "value": "65",
+          "label": "User Access via Web Services"
+        },
+        {
+          "value": "100",
+          "label": "Delete Entity"
+        },
+        {
+          "value": "101",
+          "label": "Delete Attribute"
+        },
+        {
+          "value": "102",
+          "label": "Audit Change at Entity Level"
+        },
+        {
+          "value": "103",
+          "label": "Audit Change at Attribute Level"
+        },
+        {
+          "value": "104",
+          "label": "Audit Change at Org Level"
+        },
+        {
+          "value": "105",
+          "label": "Entity Audit Started"
+        },
+        {
+          "value": "106",
+          "label": "Attribute Audit Started"
+        },
+        {
+          "value": "107",
+          "label": "Audit Enabled"
+        },
+        {
+          "value": "108",
+          "label": "Entity Audit Stopped"
+        },
+        {
+          "value": "109",
+          "label": "Attribute Audit Stopped"
+        },
+        {
+          "value": "110",
+          "label": "Audit Disabled"
+        },
+        {
+          "value": "111",
+          "label": "Audit Log Deletion"
+        },
+        {
+          "value": "112",
+          "label": "User Access Audit Started"
+        },
+        {
+          "value": "113",
+          "label": "User Access Audit Stopped"
+        },
+        {
+          "value": "115",
+          "label": "Archive"
+        },
+        {
+          "value": "116",
+          "label": "Retain"
+        },
+        {
+          "value": "117",
+          "label": "RollbackRetain"
+        },
+        {
+          "value": "118",
+          "label": "IPFirewallAcccesDenied"
+        },
+        {
+          "value": "119",
+          "label": "IPFirewallAcccesAllowed"
+        },
+        {
+          "value": "120",
+          "label": "Restore"
+        },
+        {
+          "value": "121",
+          "label": "ApplicationBasedAccessDenied"
+        },
+        {
+          "value": "122",
+          "label": "ApplicationBasedAccessAllowed"
+        },
+        {
+          "value": "123",
+          "label": "Create - AI assisted"
+        },
+        {
+          "value": "124",
+          "label": "Update - AI assisted"
+        },
+        {
+          "value": "125",
+          "label": "Read Unmasked"
+        }
+      ]
+    },
+    {
+      "name": "AttributeMask",
+      "field": "attribute_mask",
+      "source_name": "attributemask",
+      "dataverse_type": "Memo",
+      "required_level": "none",
+      "max_length": 2000,
+      "display_name": "Changed Field",
+      "description": "Contains a CSV of the ColumnNumber metadata property of attributes",
+      "is_read_only": true
+    },
+    {
+      "name": "AuditId",
+      "field": "audit_id",
+      "source_name": "auditid",
+      "dataverse_type": "Uniqueidentifier",
+      "required_level": "systemrequired",
+      "display_name": "Record Id",
+      "description": "Unique identifier of the auditing instance",
+      "is_read_only": true
+    },
+    {
+      "name": "CallingUserId",
+      "field": "calling_user_id",
+      "source_name": "callinguserid",
+      "dataverse_type": "Lookup",
+      "required_level": "none",
+      "display_name": "Calling User",
+      "description": "Unique identifier of the calling user in case of an impersonated call",
+      "is_read_only": true,
+      "targets": [
+        "systemuser"
+      ]
+    },
+    {
+      "name": "ChangeData",
+      "field": "change_data",
+      "source_name": "changedata",
+      "dataverse_type": "Memo",
+      "required_level": "none",
+      "max_length": 2000,
+      "display_name": "Change Data",
+      "description": "For given audit action, contains a string value describing the change details when corresponding IsAuditEnabled property is True",
+      "is_read_only": true
+    },
+    {
+      "name": "CreatedOn",
+      "field": "created_on",
+      "source_name": "createdon",
+      "dataverse_type": "DateTime",
+      "required_level": "systemrequired",
+      "display_name": "Changed Date",
+      "description": "Date and time when the audit record was created.",
+      "is_read_only": true
+    },
+    {
+      "name": "ObjectId",
+      "field": "object_id",
+      "source_name": "objectid",
+      "dataverse_type": "Lookup",
+      "required_level": "systemrequired",
+      "display_name": "Record",
+      "description": "Unique identifier of the record that is being audited",
+      "is_read_only": true
+    },
+    {
+      "name": "ObjectTypeCode",
+      "field": "object_type_code",
+      "source_name": "objecttypecode",
+      "dataverse_type": "EntityName",
+      "required_level": "none",
+      "display_name": "Entity",
+      "description": "Unique identifier of the entity that is being audited",
+      "is_read_only": true
+    },
+    {
+      "name": "Operation",
+      "field": "operation",
+      "source_name": "operation",
+      "dataverse_type": "Picklist",
+      "required_level": "systemrequired",
+      "display_name": "Operation",
+      "description": "The action that causes the audit--it will be create, delete, update, upsert or archive",
+      "is_read_only": true,
+      "global_choice_name": "audit_operation",
+      "default_value": "-1",
+      "enum_values": [
+        {
+          "value": "1",
+          "label": "Create"
+        },
+        {
+          "value": "2",
+          "label": "Update"
+        },
+        {
+          "value": "3",
+          "label": "Delete"
+        },
+        {
+          "value": "4",
+          "label": "Access"
+        },
+        {
+          "value": "5",
+          "label": "Upsert"
+        },
+        {
+          "value": "115",
+          "label": "Archive"
+        },
+        {
+          "value": "116",
+          "label": "Retain"
+        },
+        {
+          "value": "117",
+          "label": "RollbackRetain"
+        },
+        {
+          "value": "118",
+          "label": "Restore"
+        },
+        {
+          "value": "200",
+          "label": "CustomOperation"
+        }
+      ]
+    },
+    {
+      "name": "TimeToLiveInSeconds",
+      "field": "time_to_live_in_seconds",
+      "source_name": "timetoliveinseconds",
+      "dataverse_type": "Integer",
+      "required_level": "none",
+      "display_name": "Time To Live In Seconds",
+      "description": "Time to live in seconds for audit record",
+      "is_read_only": true
+    },
+    {
+      "name": "TransactionId",
+      "field": "transaction_id",
+      "source_name": "transactionid",
+      "dataverse_type": "Uniqueidentifier",
+      "required_level": "systemrequired",
+      "display_name": "Transaction Id",
+      "description": "Unique identifier for multiple changes that are part of a single operation; this field contains the same GUID for all the audit rows generated in a single transaction",
+      "is_read_only": true
+    },
+    {
+      "name": "UserId",
+      "field": "user_id",
+      "source_name": "userid",
+      "dataverse_type": "Lookup",
+      "required_level": "systemrequired",
+      "display_name": "Changed By",
+      "description": "Unique identifier of the user who caused a change",
+      "is_read_only": true,
+      "targets": [
+        "externalparty",
+        "systemuser"
+      ]
+    },
+    {
+      "name": "VersionNumber",
+      "field": "version_number",
+      "source_name": "versionnumber",
+      "dataverse_type": "BigInt",
+      "required_level": "none",
+      "display_name": "Version Number",
+      "description": "Version number of the audit.",
+      "is_read_only": true
+    }
+  ],
+  "many_to_one": [
+    {
+      "schema_name": "lk_audit_callinguserid",
+      "referencing_attribute": "callinguserid",
+      "referenced_entity": "systemuser",
+      "referenced_attribute": "systemuserid",
+      "navigation_property": "callinguserid"
+    },
+    {
+      "schema_name": "lk_audit_userid",
+      "referencing_attribute": "userid",
+      "referenced_entity": "systemuser",
+      "referenced_attribute": "systemuserid",
+      "navigation_property": "userid"
+    }
+  ],
+  "many_to_many": [],
+  "provenance": {
+    "source": "MicrosoftDocs/powerapps-docs",
+    "document": "reference/entities/audit.md",
+    "branch": "main",
+    "license": "CC-BY-4.0"
+  }
+}

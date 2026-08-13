@@ -1,0 +1,222 @@
+{
+  "entity": "TimeZoneDefinition",
+  "table": "time_zone_definition",
+  "source_name": "timezonedefinition",
+  "display_name": "Time Zone Definition",
+  "description": "Time zone definition, including name and time zone code.",
+  "dataverse": {
+    "logical_name": "timezonedefinition",
+    "entity_set": "timezonedefinitions",
+    "primary_id": "timezonedefinitionid",
+    "primary_name": "userinterfacename",
+    "table_type": "Standard",
+    "ownership_type": "None"
+  },
+  "attributes": [
+    {
+      "name": "Bias",
+      "field": "bias",
+      "source_name": "bias",
+      "dataverse_type": "Integer",
+      "required_level": "none",
+      "display_name": "Bias",
+      "description": "Base time bias of the time zone.",
+      "is_read_only": false
+    },
+    {
+      "name": "DaylightName",
+      "field": "daylight_name",
+      "source_name": "daylightname",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 100,
+      "display_name": "Daylight Name",
+      "description": "Time zone name for the daylight time.",
+      "is_read_only": false
+    },
+    {
+      "name": "RetiredOrder",
+      "field": "retired_order",
+      "source_name": "retiredorder",
+      "dataverse_type": "Integer",
+      "required_level": "systemrequired",
+      "display_name": "Retired Order",
+      "description": "Order an entry for a time zone definition is retired. 0 for the latest entry.",
+      "is_read_only": false
+    },
+    {
+      "name": "StandardName",
+      "field": "standard_name",
+      "source_name": "standardname",
+      "dataverse_type": "String",
+      "required_level": "systemrequired",
+      "max_length": 100,
+      "display_name": "Standard Name",
+      "description": "Time zone name for the standard time.",
+      "is_read_only": false
+    },
+    {
+      "name": "TimeZoneCode",
+      "field": "time_zone_code",
+      "source_name": "timezonecode",
+      "dataverse_type": "Integer",
+      "required_level": "systemrequired",
+      "display_name": "Time Zone Code",
+      "description": "Time zone identification code.",
+      "is_read_only": false
+    },
+    {
+      "name": "TimeZoneDefinitionId",
+      "field": "time_zone_definition_id",
+      "source_name": "timezonedefinitionid",
+      "dataverse_type": "Uniqueidentifier",
+      "required_level": "systemrequired",
+      "display_name": "Time Zone Definition",
+      "description": "Unique identifier of the time zone record.",
+      "is_read_only": false
+    },
+    {
+      "name": "UserInterfaceName",
+      "field": "user_interface_name",
+      "source_name": "userinterfacename",
+      "dataverse_type": "String",
+      "required_level": "systemrequired",
+      "max_length": 100,
+      "display_name": "User Interface Name",
+      "description": "Display name for the time zone in the Microsoft Windows registry.",
+      "is_read_only": false
+    },
+    {
+      "name": "CreatedBy",
+      "field": "created_by",
+      "source_name": "createdby",
+      "dataverse_type": "Lookup",
+      "required_level": "none",
+      "display_name": "Created By",
+      "description": "Unique identifier of the user who created the time zone record.",
+      "is_read_only": true,
+      "targets": [
+        "systemuser"
+      ]
+    },
+    {
+      "name": "CreatedOn",
+      "field": "created_on",
+      "source_name": "createdon",
+      "dataverse_type": "DateTime",
+      "required_level": "none",
+      "display_name": "Created On",
+      "description": "Date and time when the time zone record was created.",
+      "is_read_only": true
+    },
+    {
+      "name": "CreatedOnBehalfBy",
+      "field": "created_on_behalf_by",
+      "source_name": "createdonbehalfby",
+      "dataverse_type": "Lookup",
+      "required_level": "none",
+      "display_name": "Created By (Delegate)",
+      "description": "Unique identifier of the delegate user who created the timezonedefinition.",
+      "is_read_only": true,
+      "targets": [
+        "systemuser"
+      ]
+    },
+    {
+      "name": "ModifiedBy",
+      "field": "modified_by",
+      "source_name": "modifiedby",
+      "dataverse_type": "Lookup",
+      "required_level": "none",
+      "display_name": "Modified By",
+      "description": "Unique identifier of the user who last modified the time zone record.",
+      "is_read_only": true,
+      "targets": [
+        "systemuser"
+      ]
+    },
+    {
+      "name": "ModifiedOn",
+      "field": "modified_on",
+      "source_name": "modifiedon",
+      "dataverse_type": "DateTime",
+      "required_level": "none",
+      "display_name": "Modified On",
+      "description": "Date and time when the time zone record was modified.",
+      "is_read_only": true
+    },
+    {
+      "name": "ModifiedOnBehalfBy",
+      "field": "modified_on_behalf_by",
+      "source_name": "modifiedonbehalfby",
+      "dataverse_type": "Lookup",
+      "required_level": "none",
+      "display_name": "Modified By (Delegate)",
+      "description": "Unique identifier of the delegate user who last modified the timezonedefinition.",
+      "is_read_only": true,
+      "targets": [
+        "systemuser"
+      ]
+    },
+    {
+      "name": "OrganizationId",
+      "field": "organization_id",
+      "source_name": "organizationid",
+      "dataverse_type": "Lookup",
+      "required_level": "none",
+      "display_name": "Organization",
+      "description": "Unique identifier of the organization associated with the time zone definition.",
+      "is_read_only": true,
+      "targets": [
+        "organization"
+      ]
+    },
+    {
+      "name": "VersionNumber",
+      "field": "version_number",
+      "source_name": "versionnumber",
+      "dataverse_type": "BigInt",
+      "required_level": "none",
+      "display_name": "",
+      "description": "",
+      "is_read_only": true
+    }
+  ],
+  "many_to_one": [
+    {
+      "schema_name": "lk_timezonedefinition_createdby",
+      "referencing_attribute": "createdby",
+      "referenced_entity": "systemuser",
+      "referenced_attribute": "systemuserid",
+      "navigation_property": "createdby"
+    },
+    {
+      "schema_name": "lk_timezonedefinition_createdonbehalfby",
+      "referencing_attribute": "createdonbehalfby",
+      "referenced_entity": "systemuser",
+      "referenced_attribute": "systemuserid",
+      "navigation_property": "createdonbehalfby"
+    },
+    {
+      "schema_name": "lk_timezonedefinition_modifiedby",
+      "referencing_attribute": "modifiedby",
+      "referenced_entity": "systemuser",
+      "referenced_attribute": "systemuserid",
+      "navigation_property": "modifiedby"
+    },
+    {
+      "schema_name": "lk_timezonedefinition_modifiedonbehalfby",
+      "referencing_attribute": "modifiedonbehalfby",
+      "referenced_entity": "systemuser",
+      "referenced_attribute": "systemuserid",
+      "navigation_property": "modifiedonbehalfby"
+    }
+  ],
+  "many_to_many": [],
+  "provenance": {
+    "source": "MicrosoftDocs/powerapps-docs",
+    "document": "reference/entities/timezonedefinition.md",
+    "branch": "main",
+    "license": "CC-BY-4.0"
+  }
+}

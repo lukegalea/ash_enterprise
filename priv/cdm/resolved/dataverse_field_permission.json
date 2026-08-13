@@ -1,0 +1,277 @@
+{
+  "entity": "FieldPermission",
+  "table": "field_permission",
+  "source_name": "fieldpermission",
+  "display_name": "Field Permission",
+  "description": "Group of privileges used to categorize users to provide appropriate access to secured columns.",
+  "dataverse": {
+    "logical_name": "fieldpermission",
+    "entity_set": "fieldpermissions",
+    "primary_id": "fieldpermissionid",
+    "primary_name": null,
+    "table_type": "Standard",
+    "ownership_type": "None"
+  },
+  "attributes": [
+    {
+      "name": "AttributeLogicalName",
+      "field": "attribute_logical_name",
+      "source_name": "attributelogicalname",
+      "dataverse_type": "String",
+      "required_level": "systemrequired",
+      "max_length": 128,
+      "display_name": "Name of the attribute for which this privilege is defined",
+      "description": "Attribute Name.",
+      "is_read_only": false
+    },
+    {
+      "name": "CanCreate",
+      "field": "can_create",
+      "source_name": "cancreate",
+      "dataverse_type": "Picklist",
+      "required_level": "systemrequired",
+      "display_name": "Can create the attribute",
+      "description": "Can this Profile create the attribute",
+      "is_read_only": false,
+      "global_choice_name": "field_security_permission_type",
+      "default_value": "0",
+      "enum_values": [
+        {
+          "value": "0",
+          "label": "Not Allowed"
+        },
+        {
+          "value": "4",
+          "label": "Allowed"
+        }
+      ]
+    },
+    {
+      "name": "CanRead",
+      "field": "can_read",
+      "source_name": "canread",
+      "dataverse_type": "Picklist",
+      "required_level": "systemrequired",
+      "display_name": "Can Read the attribute",
+      "description": "Can this Profile read the attribute",
+      "is_read_only": false,
+      "global_choice_name": "field_security_permission_type",
+      "default_value": "0",
+      "enum_values": [
+        {
+          "value": "0",
+          "label": "Not Allowed"
+        },
+        {
+          "value": "4",
+          "label": "Allowed"
+        }
+      ]
+    },
+    {
+      "name": "CanReadUnMasked",
+      "field": "can_read_un_masked",
+      "source_name": "canreadunmasked",
+      "dataverse_type": "Picklist",
+      "required_level": "systemrequired",
+      "display_name": "Can this profile read unmasked value of attribute",
+      "description": "",
+      "is_read_only": false,
+      "global_choice_name": "field_security_permission_readunmasked",
+      "default_value": "0",
+      "enum_values": [
+        {
+          "value": "0",
+          "label": "Not Allowed"
+        },
+        {
+          "value": "1",
+          "label": "One Record"
+        },
+        {
+          "value": "3",
+          "label": "All Records"
+        }
+      ]
+    },
+    {
+      "name": "CanUpdate",
+      "field": "can_update",
+      "source_name": "canupdate",
+      "dataverse_type": "Picklist",
+      "required_level": "systemrequired",
+      "display_name": "Can Update the attribute",
+      "description": "Can this Profile update the attribute",
+      "is_read_only": false,
+      "global_choice_name": "field_security_permission_type",
+      "default_value": "0",
+      "enum_values": [
+        {
+          "value": "0",
+          "label": "Not Allowed"
+        },
+        {
+          "value": "4",
+          "label": "Allowed"
+        }
+      ]
+    },
+    {
+      "name": "EntityName",
+      "field": "entity_name",
+      "source_name": "entityname",
+      "dataverse_type": "EntityName",
+      "required_level": "systemrequired",
+      "display_name": "Name of the Entity for which this privilege is defined",
+      "description": "Entity name.",
+      "is_read_only": false
+    },
+    {
+      "name": "FieldPermissionId",
+      "field": "field_permission_id",
+      "source_name": "fieldpermissionid",
+      "dataverse_type": "Uniqueidentifier",
+      "required_level": "systemrequired",
+      "display_name": "Field Permission",
+      "description": "Unique identifier of the Field Permission.",
+      "is_read_only": false
+    },
+    {
+      "name": "FieldSecurityProfileId",
+      "field": "field_security_profile_id",
+      "source_name": "fieldsecurityprofileid",
+      "dataverse_type": "Lookup",
+      "required_level": "systemrequired",
+      "display_name": "Profile",
+      "description": "Unique identifier of profile to which this privilege belongs.",
+      "is_read_only": false,
+      "targets": [
+        "fieldsecurityprofile"
+      ]
+    },
+    {
+      "name": "ComponentState",
+      "field": "component_state",
+      "source_name": "componentstate",
+      "dataverse_type": "Picklist",
+      "required_level": "systemrequired",
+      "display_name": "Component State",
+      "description": "For internal use only.",
+      "is_read_only": true,
+      "global_choice_name": "componentstate",
+      "default_value": "-1",
+      "enum_values": [
+        {
+          "value": "0",
+          "label": "Published"
+        },
+        {
+          "value": "1",
+          "label": "Unpublished"
+        },
+        {
+          "value": "2",
+          "label": "Deleted"
+        },
+        {
+          "value": "3",
+          "label": "Deleted Unpublished"
+        }
+      ]
+    },
+    {
+      "name": "FieldPermissionIdUnique",
+      "field": "field_permission_id_unique",
+      "source_name": "fieldpermissionidunique",
+      "dataverse_type": "Uniqueidentifier",
+      "required_level": "systemrequired",
+      "display_name": "Field Permission",
+      "description": "For internal use only.",
+      "is_read_only": true
+    },
+    {
+      "name": "IsManaged",
+      "field": "is_managed",
+      "source_name": "ismanaged",
+      "dataverse_type": "Boolean",
+      "required_level": "systemrequired",
+      "display_name": "Is Managed",
+      "description": "Indicates whether the solution component is part of a managed solution.",
+      "is_read_only": true,
+      "global_choice_name": "ismanaged"
+    },
+    {
+      "name": "OrganizationId",
+      "field": "organization_id",
+      "source_name": "organizationid",
+      "dataverse_type": "Lookup",
+      "required_level": "none",
+      "display_name": "Organization Id",
+      "description": "Unique identifier for the organization",
+      "is_read_only": true
+    },
+    {
+      "name": "OverwriteTime",
+      "field": "overwrite_time",
+      "source_name": "overwritetime",
+      "dataverse_type": "DateTime",
+      "required_level": "systemrequired",
+      "display_name": "Record Overwrite Time",
+      "description": "For internal use only.",
+      "is_read_only": true
+    },
+    {
+      "name": "SolutionId",
+      "field": "solution_id",
+      "source_name": "solutionid",
+      "dataverse_type": "Uniqueidentifier",
+      "required_level": "systemrequired",
+      "display_name": "Solution",
+      "description": "Unique identifier of the associated solution.",
+      "is_read_only": true
+    },
+    {
+      "name": "SupportingSolutionId",
+      "field": "supporting_solution_id",
+      "source_name": "supportingsolutionid",
+      "dataverse_type": "Uniqueidentifier",
+      "required_level": "none",
+      "display_name": "Solution",
+      "description": "For internal use only.",
+      "is_read_only": true
+    },
+    {
+      "name": "VersionNumber",
+      "field": "version_number",
+      "source_name": "versionnumber",
+      "dataverse_type": "BigInt",
+      "required_level": "none",
+      "display_name": "",
+      "description": "",
+      "is_read_only": true
+    }
+  ],
+  "many_to_one": [
+    {
+      "schema_name": "lk_fieldpermission_fieldsecurityprofileid",
+      "referencing_attribute": "fieldsecurityprofileid",
+      "referenced_entity": "fieldsecurityprofile",
+      "referenced_attribute": "fieldsecurityprofileid",
+      "navigation_property": "fieldsecurityprofileid"
+    },
+    {
+      "schema_name": "solution_fieldpermission",
+      "referencing_attribute": "solutionid",
+      "referenced_entity": "solution",
+      "referenced_attribute": "solutionid",
+      "navigation_property": "solution_fieldpermission"
+    }
+  ],
+  "many_to_many": [],
+  "provenance": {
+    "source": "MicrosoftDocs/powerapps-docs",
+    "document": "reference/entities/fieldpermission.md",
+    "branch": "main",
+    "license": "CC-BY-4.0"
+  }
+}

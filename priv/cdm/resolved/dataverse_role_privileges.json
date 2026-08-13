@@ -1,0 +1,201 @@
+{
+  "entity": "RolePrivileges",
+  "table": "role_privileges",
+  "source_name": "roleprivileges",
+  "display_name": null,
+  "description": "Group of privileges used to categorize users to provide appropriate access to entities.",
+  "dataverse": {
+    "logical_name": "roleprivileges",
+    "entity_set": "roleprivilegescollection",
+    "primary_id": "roleprivilegeid",
+    "primary_name": null,
+    "table_type": "Standard",
+    "ownership_type": "None"
+  },
+  "attributes": [
+    {
+      "name": "CanBeDeleted",
+      "field": "can_be_deleted",
+      "source_name": "canbedeleted",
+      "dataverse_type": "ManagedProperty",
+      "required_level": "systemrequired",
+      "display_name": "Can Be Deleted",
+      "description": "Tells whether the role privilege can be deleted.",
+      "is_read_only": false
+    },
+    {
+      "name": "PrivilegeDepthMask",
+      "field": "privilege_depth_mask",
+      "source_name": "privilegedepthmask",
+      "dataverse_type": "Integer",
+      "required_level": "systemrequired",
+      "display_name": "",
+      "description": "System-generated attribute that stores the privileges associated with the role.",
+      "is_read_only": false
+    },
+    {
+      "name": "RecordFilterId",
+      "field": "record_filter_id",
+      "source_name": "recordfilterid",
+      "dataverse_type": "Lookup",
+      "required_level": "none",
+      "display_name": "Record Filter",
+      "description": "Unique identifier for Record Filter associated with role privilege.",
+      "is_read_only": false,
+      "targets": [
+        "recordfilter"
+      ]
+    },
+    {
+      "name": "RolePrivilegeId",
+      "field": "role_privilege_id",
+      "source_name": "roleprivilegeid",
+      "dataverse_type": "Uniqueidentifier",
+      "required_level": "systemrequired",
+      "display_name": "",
+      "description": "Unique identifier of the role privilege.",
+      "is_read_only": false
+    },
+    {
+      "name": "ComponentState",
+      "field": "component_state",
+      "source_name": "componentstate",
+      "dataverse_type": "Picklist",
+      "required_level": "systemrequired",
+      "display_name": "Component State",
+      "description": "For internal use only.",
+      "is_read_only": true,
+      "global_choice_name": "componentstate",
+      "default_value": "-1",
+      "enum_values": [
+        {
+          "value": "0",
+          "label": "Published"
+        },
+        {
+          "value": "1",
+          "label": "Unpublished"
+        },
+        {
+          "value": "2",
+          "label": "Deleted"
+        },
+        {
+          "value": "3",
+          "label": "Deleted Unpublished"
+        }
+      ]
+    },
+    {
+      "name": "IsManaged",
+      "field": "is_managed",
+      "source_name": "ismanaged",
+      "dataverse_type": "Boolean",
+      "required_level": "systemrequired",
+      "display_name": "",
+      "description": "",
+      "is_read_only": true,
+      "global_choice_name": "ismanaged"
+    },
+    {
+      "name": "OverwriteTime",
+      "field": "overwrite_time",
+      "source_name": "overwritetime",
+      "dataverse_type": "DateTime",
+      "required_level": "systemrequired",
+      "display_name": "Record Overwrite Time",
+      "description": "For internal use only.",
+      "is_read_only": true
+    },
+    {
+      "name": "PrivilegeId",
+      "field": "privilege_id",
+      "source_name": "privilegeid",
+      "dataverse_type": "Uniqueidentifier",
+      "required_level": "systemrequired",
+      "display_name": "",
+      "description": "Unique identifier of the privilege associated with the role.",
+      "is_read_only": true
+    },
+    {
+      "name": "RoleId",
+      "field": "role_id",
+      "source_name": "roleid",
+      "dataverse_type": "Uniqueidentifier",
+      "required_level": "systemrequired",
+      "display_name": "",
+      "description": "Unique identifier of the role that is associated with the role privilege.",
+      "is_read_only": true
+    },
+    {
+      "name": "RolePrivilegeIdUnique",
+      "field": "role_privilege_id_unique",
+      "source_name": "roleprivilegeidunique",
+      "dataverse_type": "Uniqueidentifier",
+      "required_level": "systemrequired",
+      "display_name": "",
+      "description": "For internal use only.",
+      "is_read_only": true
+    },
+    {
+      "name": "SolutionId",
+      "field": "solution_id",
+      "source_name": "solutionid",
+      "dataverse_type": "Uniqueidentifier",
+      "required_level": "systemrequired",
+      "display_name": "Solution",
+      "description": "Unique identifier of the associated solution.",
+      "is_read_only": true
+    },
+    {
+      "name": "SupportingSolutionId",
+      "field": "supporting_solution_id",
+      "source_name": "supportingsolutionid",
+      "dataverse_type": "Uniqueidentifier",
+      "required_level": "none",
+      "display_name": "Solution",
+      "description": "For internal use only.",
+      "is_read_only": true
+    },
+    {
+      "name": "VersionNumber",
+      "field": "version_number",
+      "source_name": "versionnumber",
+      "dataverse_type": "BigInt",
+      "required_level": "none",
+      "display_name": "",
+      "description": "",
+      "is_read_only": true
+    }
+  ],
+  "many_to_one": [
+    {
+      "schema_name": "recordfilter_roleprivileges",
+      "referencing_attribute": "recordfilterid",
+      "referenced_entity": "recordfilter",
+      "referenced_attribute": "recordfilterid",
+      "navigation_property": "RecordFilterId"
+    },
+    {
+      "schema_name": "solution_roleprivileges",
+      "referencing_attribute": "solutionid",
+      "referenced_entity": "solution",
+      "referenced_attribute": "solutionid",
+      "navigation_property": "solutionid"
+    }
+  ],
+  "many_to_many": [
+    {
+      "schema_name": "roleprivileges_association",
+      "intersect_entity": "roleprivileges",
+      "intersect_attribute": null,
+      "navigation_property": null
+    }
+  ],
+  "provenance": {
+    "source": "MicrosoftDocs/powerapps-docs",
+    "document": "reference/entities/roleprivileges.md",
+    "branch": "main",
+    "license": "CC-BY-4.0"
+  }
+}

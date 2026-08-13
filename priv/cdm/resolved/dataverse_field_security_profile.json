@@ -1,0 +1,295 @@
+{
+  "entity": "FieldSecurityProfile",
+  "table": "field_security_profile",
+  "source_name": "fieldsecurityprofile",
+  "display_name": "Field Security Profile",
+  "description": "Profile which defines access level for secured attributes",
+  "dataverse": {
+    "logical_name": "fieldsecurityprofile",
+    "entity_set": "fieldsecurityprofiles",
+    "primary_id": "fieldsecurityprofileid",
+    "primary_name": "name",
+    "table_type": "Standard",
+    "ownership_type": "OrganizationOwned"
+  },
+  "attributes": [
+    {
+      "name": "Description",
+      "field": "description",
+      "source_name": "description",
+      "dataverse_type": "Memo",
+      "required_level": "none",
+      "max_length": 2000,
+      "display_name": "Description",
+      "description": "Description of the Profile",
+      "is_read_only": false
+    },
+    {
+      "name": "FieldSecurityProfileId",
+      "field": "field_security_profile_id",
+      "source_name": "fieldsecurityprofileid",
+      "dataverse_type": "Uniqueidentifier",
+      "required_level": "systemrequired",
+      "display_name": "Field Security Profile",
+      "description": "Unique identifier of the profile.",
+      "is_read_only": false
+    },
+    {
+      "name": "Name",
+      "field": "name",
+      "source_name": "name",
+      "dataverse_type": "String",
+      "required_level": "systemrequired",
+      "max_length": 100,
+      "display_name": "Name",
+      "description": "Name of the profile.",
+      "is_read_only": false
+    },
+    {
+      "name": "ComponentState",
+      "field": "component_state",
+      "source_name": "componentstate",
+      "dataverse_type": "Picklist",
+      "required_level": "systemrequired",
+      "display_name": "Component State",
+      "description": "For internal use only.",
+      "is_read_only": true,
+      "global_choice_name": "componentstate",
+      "default_value": "-1",
+      "enum_values": [
+        {
+          "value": "0",
+          "label": "Published"
+        },
+        {
+          "value": "1",
+          "label": "Unpublished"
+        },
+        {
+          "value": "2",
+          "label": "Deleted"
+        },
+        {
+          "value": "3",
+          "label": "Deleted Unpublished"
+        }
+      ]
+    },
+    {
+      "name": "CreatedBy",
+      "field": "created_by",
+      "source_name": "createdby",
+      "dataverse_type": "Lookup",
+      "required_level": "none",
+      "display_name": "Created By",
+      "description": "Unique identifier of the user who created the profile.",
+      "is_read_only": true,
+      "targets": [
+        "systemuser"
+      ]
+    },
+    {
+      "name": "CreatedOn",
+      "field": "created_on",
+      "source_name": "createdon",
+      "dataverse_type": "DateTime",
+      "required_level": "none",
+      "display_name": "Created On",
+      "description": "Date and time when the profile was created.",
+      "is_read_only": true
+    },
+    {
+      "name": "CreatedOnBehalfBy",
+      "field": "created_on_behalf_by",
+      "source_name": "createdonbehalfby",
+      "dataverse_type": "Lookup",
+      "required_level": "none",
+      "display_name": "Created By Impersonator",
+      "description": "Unique identifier of the delegate user who created the role.",
+      "is_read_only": true,
+      "targets": [
+        "systemuser"
+      ]
+    },
+    {
+      "name": "FieldSecurityProfileIdUnique",
+      "field": "field_security_profile_id_unique",
+      "source_name": "fieldsecurityprofileidunique",
+      "dataverse_type": "Uniqueidentifier",
+      "required_level": "systemrequired",
+      "display_name": "Field Security Profile",
+      "description": "For internal use only.",
+      "is_read_only": true
+    },
+    {
+      "name": "IsManaged",
+      "field": "is_managed",
+      "source_name": "ismanaged",
+      "dataverse_type": "Boolean",
+      "required_level": "systemrequired",
+      "display_name": "Is Managed",
+      "description": "Indicates whether the solution component is part of a managed solution.",
+      "is_read_only": true,
+      "global_choice_name": "ismanaged"
+    },
+    {
+      "name": "ModifiedBy",
+      "field": "modified_by",
+      "source_name": "modifiedby",
+      "dataverse_type": "Lookup",
+      "required_level": "none",
+      "display_name": "Modified By",
+      "description": "Unique identifier of the user who last modified the profile.",
+      "is_read_only": true,
+      "targets": [
+        "systemuser"
+      ]
+    },
+    {
+      "name": "ModifiedOn",
+      "field": "modified_on",
+      "source_name": "modifiedon",
+      "dataverse_type": "DateTime",
+      "required_level": "none",
+      "display_name": "Modified On",
+      "description": "Date and time when the profile was last modified.",
+      "is_read_only": true
+    },
+    {
+      "name": "ModifiedOnBehalfBy",
+      "field": "modified_on_behalf_by",
+      "source_name": "modifiedonbehalfby",
+      "dataverse_type": "Lookup",
+      "required_level": "none",
+      "display_name": "Modified By (Delegate)",
+      "description": "Unique identifier of the delegate user who last modified the profile.",
+      "is_read_only": true,
+      "targets": [
+        "systemuser"
+      ]
+    },
+    {
+      "name": "OrganizationId",
+      "field": "organization_id",
+      "source_name": "organizationid",
+      "dataverse_type": "Lookup",
+      "required_level": "systemrequired",
+      "display_name": "Organization",
+      "description": "Unique identifier of the associated organization.",
+      "is_read_only": true,
+      "targets": [
+        "organization"
+      ]
+    },
+    {
+      "name": "OverwriteTime",
+      "field": "overwrite_time",
+      "source_name": "overwritetime",
+      "dataverse_type": "DateTime",
+      "required_level": "systemrequired",
+      "display_name": "Record Overwrite Time",
+      "description": "For internal use only.",
+      "is_read_only": true
+    },
+    {
+      "name": "SolutionId",
+      "field": "solution_id",
+      "source_name": "solutionid",
+      "dataverse_type": "Uniqueidentifier",
+      "required_level": "systemrequired",
+      "display_name": "Solution",
+      "description": "Unique identifier of the associated solution.",
+      "is_read_only": true
+    },
+    {
+      "name": "SupportingSolutionId",
+      "field": "supporting_solution_id",
+      "source_name": "supportingsolutionid",
+      "dataverse_type": "Uniqueidentifier",
+      "required_level": "none",
+      "display_name": "Solution",
+      "description": "For internal use only.",
+      "is_read_only": true
+    },
+    {
+      "name": "VersionNumber",
+      "field": "version_number",
+      "source_name": "versionnumber",
+      "dataverse_type": "BigInt",
+      "required_level": "none",
+      "display_name": "",
+      "description": "",
+      "is_read_only": true
+    }
+  ],
+  "many_to_one": [
+    {
+      "schema_name": "lk_fieldsecurityprofile_createdby",
+      "referencing_attribute": "createdby",
+      "referenced_entity": "systemuser",
+      "referenced_attribute": "systemuserid",
+      "navigation_property": "createdby"
+    },
+    {
+      "schema_name": "lk_fieldsecurityprofile_createdonbehalfby",
+      "referencing_attribute": "createdonbehalfby",
+      "referenced_entity": "systemuser",
+      "referenced_attribute": "systemuserid",
+      "navigation_property": "createdonbehalfby"
+    },
+    {
+      "schema_name": "lk_fieldsecurityprofile_modifiedby",
+      "referencing_attribute": "modifiedby",
+      "referenced_entity": "systemuser",
+      "referenced_attribute": "systemuserid",
+      "navigation_property": "modifiedby"
+    },
+    {
+      "schema_name": "lk_fieldsecurityprofile_modifiedonbehalfby",
+      "referencing_attribute": "modifiedonbehalfby",
+      "referenced_entity": "systemuser",
+      "referenced_attribute": "systemuserid",
+      "navigation_property": "modifiedonbehalfby"
+    },
+    {
+      "schema_name": "lk_fieldsecurityprofile_organizationid",
+      "referencing_attribute": "organizationid",
+      "referenced_entity": "organization",
+      "referenced_attribute": "organizationid",
+      "navigation_property": "organizationid"
+    },
+    {
+      "schema_name": "solution_fieldsecurityprofile",
+      "referencing_attribute": "solutionid",
+      "referenced_entity": "solution",
+      "referenced_attribute": "solutionid",
+      "navigation_property": "solution_fieldsecurityprofile"
+    }
+  ],
+  "many_to_many": [
+    {
+      "schema_name": "applicationuserprofile",
+      "intersect_entity": "applicationuserprofile",
+      "intersect_attribute": "fieldsecurityprofileid",
+      "navigation_property": "applicationuserprofile"
+    },
+    {
+      "schema_name": "systemuserprofiles_association",
+      "intersect_entity": "systemuserprofiles",
+      "intersect_attribute": "fieldsecurityprofileid",
+      "navigation_property": "systemuserprofiles_association"
+    },
+    {
+      "schema_name": "teamprofiles_association",
+      "intersect_entity": "teamprofiles",
+      "intersect_attribute": "fieldsecurityprofileid",
+      "navigation_property": "teamprofiles_association"
+    }
+  ],
+  "provenance": {
+    "source": "MicrosoftDocs/powerapps-docs",
+    "document": "reference/entities/fieldsecurityprofile.md",
+    "branch": "main",
+    "license": "CC-BY-4.0"
+  }
+}

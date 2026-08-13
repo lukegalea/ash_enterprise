@@ -1,0 +1,328 @@
+{
+  "entity": "Position",
+  "table": "position",
+  "source_name": "position",
+  "display_name": "Position",
+  "description": "Position of a user in the hierarchy",
+  "dataverse": {
+    "logical_name": "position",
+    "entity_set": "positions",
+    "primary_id": "positionid",
+    "primary_name": "name",
+    "table_type": "Standard",
+    "ownership_type": "OrganizationOwned"
+  },
+  "attributes": [
+    {
+      "name": "Description",
+      "field": "description",
+      "source_name": "description",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 100,
+      "display_name": "Description",
+      "description": "The description of the position.",
+      "is_read_only": false
+    },
+    {
+      "name": "ImportSequenceNumber",
+      "field": "import_sequence_number",
+      "source_name": "importsequencenumber",
+      "dataverse_type": "Integer",
+      "required_level": "none",
+      "display_name": "Import Sequence Number",
+      "description": "Sequence number of the import that created this record.",
+      "is_read_only": false
+    },
+    {
+      "name": "Name",
+      "field": "name",
+      "source_name": "name",
+      "dataverse_type": "String",
+      "required_level": "applicationrequired",
+      "max_length": 100,
+      "display_name": "Name",
+      "description": "The name of the position.",
+      "is_read_only": false
+    },
+    {
+      "name": "OverriddenCreatedOn",
+      "field": "overridden_created_on",
+      "source_name": "overriddencreatedon",
+      "dataverse_type": "DateTime",
+      "required_level": "none",
+      "display_name": "Record Created On",
+      "description": "Date and time that the record was migrated.",
+      "is_read_only": false
+    },
+    {
+      "name": "ParentPositionId",
+      "field": "parent_position_id",
+      "source_name": "parentpositionid",
+      "dataverse_type": "Lookup",
+      "required_level": "none",
+      "display_name": "Parent Position",
+      "description": "Parent position.",
+      "is_read_only": false,
+      "targets": [
+        "position"
+      ]
+    },
+    {
+      "name": "PositionId",
+      "field": "position_id",
+      "source_name": "positionid",
+      "dataverse_type": "Uniqueidentifier",
+      "required_level": "systemrequired",
+      "display_name": "Position",
+      "description": "Unique identifier for position entity instances",
+      "is_read_only": false
+    },
+    {
+      "name": "statecode",
+      "field": "statecode",
+      "source_name": "statecode",
+      "dataverse_type": "State",
+      "required_level": "systemrequired",
+      "display_name": "Status",
+      "description": "Status of the Position",
+      "is_read_only": false,
+      "global_choice_name": "position_statecode",
+      "default_value": "",
+      "enum_values": [
+        {
+          "value": "0",
+          "label": "Active",
+          "default_status": 1,
+          "invariant_name": "Active"
+        },
+        {
+          "value": "1",
+          "label": "Inactive",
+          "default_status": 2,
+          "invariant_name": "Inactive"
+        }
+      ]
+    },
+    {
+      "name": "StatusCode",
+      "field": "status_code",
+      "source_name": "statuscode",
+      "dataverse_type": "Status",
+      "required_level": "none",
+      "display_name": "Status Reason",
+      "description": "Reason for the status of the Position",
+      "is_read_only": false,
+      "global_choice_name": "position_statuscode",
+      "default_value": "",
+      "enum_values": [
+        {
+          "value": "1",
+          "label": "Active",
+          "state": 0
+        },
+        {
+          "value": "2",
+          "label": "Inactive",
+          "state": 1
+        }
+      ]
+    },
+    {
+      "name": "TimeZoneRuleVersionNumber",
+      "field": "time_zone_rule_version_number",
+      "source_name": "timezoneruleversionnumber",
+      "dataverse_type": "Integer",
+      "required_level": "none",
+      "display_name": "Time Zone Rule Version Number",
+      "description": "For internal use only.",
+      "is_read_only": false
+    },
+    {
+      "name": "TransactionCurrencyId",
+      "field": "transaction_currency_id",
+      "source_name": "transactioncurrencyid",
+      "dataverse_type": "Lookup",
+      "required_level": "none",
+      "display_name": "Currency",
+      "description": "Unique identifier of the currency associated with the position.",
+      "is_read_only": false,
+      "targets": [
+        "transactioncurrency"
+      ]
+    },
+    {
+      "name": "UTCConversionTimeZoneCode",
+      "field": "utc_conversion_time_zone_code",
+      "source_name": "utcconversiontimezonecode",
+      "dataverse_type": "Integer",
+      "required_level": "none",
+      "display_name": "UTC Conversion Time Zone Code",
+      "description": "Time zone code that was in use when the record was created.",
+      "is_read_only": false
+    },
+    {
+      "name": "CreatedBy",
+      "field": "created_by",
+      "source_name": "createdby",
+      "dataverse_type": "Lookup",
+      "required_level": "none",
+      "display_name": "Created By",
+      "description": "Unique identifier of the user who created the record.",
+      "is_read_only": true,
+      "targets": [
+        "systemuser"
+      ]
+    },
+    {
+      "name": "CreatedOn",
+      "field": "created_on",
+      "source_name": "createdon",
+      "dataverse_type": "DateTime",
+      "required_level": "none",
+      "display_name": "Created On",
+      "description": "Date and time when the record was created.",
+      "is_read_only": true
+    },
+    {
+      "name": "CreatedOnBehalfBy",
+      "field": "created_on_behalf_by",
+      "source_name": "createdonbehalfby",
+      "dataverse_type": "Lookup",
+      "required_level": "none",
+      "display_name": "Created By (Delegate)",
+      "description": "Unique identifier of the delegate user who created the record.",
+      "is_read_only": true,
+      "targets": [
+        "systemuser"
+      ]
+    },
+    {
+      "name": "ExchangeRate",
+      "field": "exchange_rate",
+      "source_name": "exchangerate",
+      "dataverse_type": "Decimal",
+      "required_level": "none",
+      "display_name": "Exchange Rate",
+      "description": "Exchange rate for the currency associated with the position with respect to the base currency.",
+      "is_read_only": true
+    },
+    {
+      "name": "ModifiedBy",
+      "field": "modified_by",
+      "source_name": "modifiedby",
+      "dataverse_type": "Lookup",
+      "required_level": "none",
+      "display_name": "Modified By",
+      "description": "Unique identifier of the user who modified the record.",
+      "is_read_only": true,
+      "targets": [
+        "systemuser"
+      ]
+    },
+    {
+      "name": "ModifiedOn",
+      "field": "modified_on",
+      "source_name": "modifiedon",
+      "dataverse_type": "DateTime",
+      "required_level": "none",
+      "display_name": "Modified On",
+      "description": "Date and time when the record was modified.",
+      "is_read_only": true
+    },
+    {
+      "name": "ModifiedOnBehalfBy",
+      "field": "modified_on_behalf_by",
+      "source_name": "modifiedonbehalfby",
+      "dataverse_type": "Lookup",
+      "required_level": "none",
+      "display_name": "Modified By (Delegate)",
+      "description": "Unique identifier of the delegate user who modified the record.",
+      "is_read_only": true,
+      "targets": [
+        "systemuser"
+      ]
+    },
+    {
+      "name": "OrganizationId",
+      "field": "organization_id",
+      "source_name": "organizationid",
+      "dataverse_type": "Lookup",
+      "required_level": "none",
+      "display_name": "Organization Id",
+      "description": "Unique identifier for the organization",
+      "is_read_only": true,
+      "targets": [
+        "organization"
+      ]
+    },
+    {
+      "name": "VersionNumber",
+      "field": "version_number",
+      "source_name": "versionnumber",
+      "dataverse_type": "BigInt",
+      "required_level": "none",
+      "display_name": "",
+      "description": "",
+      "is_read_only": true
+    }
+  ],
+  "many_to_one": [
+    {
+      "schema_name": "lk_position_createdby",
+      "referencing_attribute": "createdby",
+      "referenced_entity": "systemuser",
+      "referenced_attribute": "systemuserid",
+      "navigation_property": "createdby"
+    },
+    {
+      "schema_name": "lk_position_createdonbehalfby",
+      "referencing_attribute": "createdonbehalfby",
+      "referenced_entity": "systemuser",
+      "referenced_attribute": "systemuserid",
+      "navigation_property": "createdonbehalfby"
+    },
+    {
+      "schema_name": "lk_position_modifiedby",
+      "referencing_attribute": "modifiedby",
+      "referenced_entity": "systemuser",
+      "referenced_attribute": "systemuserid",
+      "navigation_property": "modifiedby"
+    },
+    {
+      "schema_name": "lk_position_modifiedonbehalfby",
+      "referencing_attribute": "modifiedonbehalfby",
+      "referenced_entity": "systemuser",
+      "referenced_attribute": "systemuserid",
+      "navigation_property": "modifiedonbehalfby"
+    },
+    {
+      "schema_name": "organization_position",
+      "referencing_attribute": "organizationid",
+      "referenced_entity": "organization",
+      "referenced_attribute": "organizationid",
+      "navigation_property": "organizationid"
+    },
+    {
+      "schema_name": "position_parent_position",
+      "referencing_attribute": "parentpositionid",
+      "referenced_entity": "position",
+      "referenced_attribute": "positionid",
+      "navigation_property": "parentpositionid"
+    },
+    {
+      "schema_name": "transactioncurrency_position",
+      "referencing_attribute": "transactioncurrencyid",
+      "referenced_entity": "transactioncurrency",
+      "referenced_attribute": "transactioncurrencyid",
+      "navigation_property": "transactioncurrencyid"
+    }
+  ],
+  "many_to_many": [],
+  "provenance": {
+    "source": "MicrosoftDocs/powerapps-docs",
+    "document": "reference/entities/position.md",
+    "branch": "main",
+    "license": "CC-BY-4.0"
+  }
+}

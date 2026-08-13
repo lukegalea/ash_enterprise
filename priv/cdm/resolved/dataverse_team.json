@@ -1,0 +1,604 @@
+{
+  "entity": "Team",
+  "table": "team",
+  "source_name": "team",
+  "display_name": "Team",
+  "description": "Collection of system users that routinely collaborate. Teams can be used to simplify record sharing and provide team members with common access to organization data when team members belong to different Business Units.",
+  "dataverse": {
+    "logical_name": "team",
+    "entity_set": "teams",
+    "primary_id": "teamid",
+    "primary_name": "name",
+    "table_type": "Standard",
+    "ownership_type": "BusinessOwned"
+  },
+  "attributes": [
+    {
+      "name": "AdministratorId",
+      "field": "administrator_id",
+      "source_name": "administratorid",
+      "dataverse_type": "Lookup",
+      "required_level": "systemrequired",
+      "display_name": "Administrator",
+      "description": "Unique identifier of the user primary responsible for the team.",
+      "is_read_only": false,
+      "targets": [
+        "systemuser"
+      ]
+    },
+    {
+      "name": "AzureActiveDirectoryObjectId",
+      "field": "azure_active_directory_object_id",
+      "source_name": "azureactivedirectoryobjectid",
+      "dataverse_type": "Uniqueidentifier",
+      "required_level": "none",
+      "display_name": "Object Id for a group",
+      "description": "The object Id for a group.",
+      "is_read_only": false
+    },
+    {
+      "name": "BusinessUnitId",
+      "field": "business_unit_id",
+      "source_name": "businessunitid",
+      "dataverse_type": "Lookup",
+      "required_level": "systemrequired",
+      "display_name": "Business Unit",
+      "description": "Unique identifier of the business unit with which the team is associated.",
+      "is_read_only": false,
+      "targets": [
+        "businessunit"
+      ]
+    },
+    {
+      "name": "DelegatedAuthorizationId",
+      "field": "delegated_authorization_id",
+      "source_name": "delegatedauthorizationid",
+      "dataverse_type": "Lookup",
+      "required_level": "none",
+      "display_name": "Delegated authorization",
+      "description": "The delegated authorization context for the team.",
+      "is_read_only": false,
+      "targets": [
+        "delegatedauthorization"
+      ]
+    },
+    {
+      "name": "Description",
+      "field": "description",
+      "source_name": "description",
+      "dataverse_type": "Memo",
+      "required_level": "none",
+      "max_length": 2000,
+      "display_name": "Description",
+      "description": "Description of the team.",
+      "is_read_only": false
+    },
+    {
+      "name": "EMailAddress",
+      "field": "e_mail_address",
+      "source_name": "emailaddress",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 100,
+      "display_name": "Email",
+      "description": "Email address for the team.",
+      "is_read_only": false
+    },
+    {
+      "name": "ImportSequenceNumber",
+      "field": "import_sequence_number",
+      "source_name": "importsequencenumber",
+      "dataverse_type": "Integer",
+      "required_level": "none",
+      "display_name": "Import Sequence Number",
+      "description": "Unique identifier of the data import or data migration that created this record.",
+      "is_read_only": false
+    },
+    {
+      "name": "MembershipType",
+      "field": "membership_type",
+      "source_name": "membershiptype",
+      "dataverse_type": "Picklist",
+      "required_level": "systemrequired",
+      "display_name": "Membership Type",
+      "description": "",
+      "is_read_only": false,
+      "global_choice_name": "team_membershiptype",
+      "default_value": "0",
+      "enum_values": [
+        {
+          "value": "0",
+          "label": "Members and guests"
+        },
+        {
+          "value": "1",
+          "label": "Members"
+        },
+        {
+          "value": "2",
+          "label": "Owners"
+        },
+        {
+          "value": "3",
+          "label": "Guests"
+        }
+      ]
+    },
+    {
+      "name": "Name",
+      "field": "name",
+      "source_name": "name",
+      "dataverse_type": "String",
+      "required_level": "systemrequired",
+      "max_length": 160,
+      "display_name": "Team Name",
+      "description": "Name of the team.",
+      "is_read_only": false
+    },
+    {
+      "name": "OverriddenCreatedOn",
+      "field": "overridden_created_on",
+      "source_name": "overriddencreatedon",
+      "dataverse_type": "DateTime",
+      "required_level": "none",
+      "display_name": "Record Created On",
+      "description": "Date and time that the record was migrated.",
+      "is_read_only": false
+    },
+    {
+      "name": "ProcessId",
+      "field": "process_id",
+      "source_name": "processid",
+      "dataverse_type": "Uniqueidentifier",
+      "required_level": "none",
+      "display_name": "Process",
+      "description": "Shows the ID of the process.",
+      "is_read_only": false
+    },
+    {
+      "name": "QueueId",
+      "field": "queue_id",
+      "source_name": "queueid",
+      "dataverse_type": "Lookup",
+      "required_level": "none",
+      "display_name": "Default Queue",
+      "description": "Unique identifier of the default queue for the team.",
+      "is_read_only": false,
+      "targets": [
+        "queue"
+      ]
+    },
+    {
+      "name": "RegardingObjectId",
+      "field": "regarding_object_id",
+      "source_name": "regardingobjectid",
+      "dataverse_type": "Lookup",
+      "required_level": "none",
+      "display_name": "Regarding Object Id",
+      "description": "Choose the record that the team relates to.",
+      "is_read_only": false,
+      "targets": [
+        "knowledgearticle"
+      ]
+    },
+    {
+      "name": "RegardingObjectTypeCode",
+      "field": "regarding_object_type_code",
+      "source_name": "regardingobjecttypecode",
+      "dataverse_type": "EntityName",
+      "required_level": "none",
+      "display_name": "Regarding Object Type",
+      "description": "Type of the associated record for team - used for system managed access teams only.",
+      "is_read_only": false
+    },
+    {
+      "name": "StageId",
+      "field": "stage_id",
+      "source_name": "stageid",
+      "dataverse_type": "Uniqueidentifier",
+      "required_level": "none",
+      "display_name": "(Deprecated) Process Stage",
+      "description": "Shows the ID of the stage.",
+      "is_read_only": false
+    },
+    {
+      "name": "TeamId",
+      "field": "team_id",
+      "source_name": "teamid",
+      "dataverse_type": "Uniqueidentifier",
+      "required_level": "systemrequired",
+      "display_name": "Team",
+      "description": "Unique identifier for the team.",
+      "is_read_only": false
+    },
+    {
+      "name": "TeamTemplateId",
+      "field": "team_template_id",
+      "source_name": "teamtemplateid",
+      "dataverse_type": "Lookup",
+      "required_level": "none",
+      "display_name": "Team Template Identifier",
+      "description": "Shows the team template that is associated with the team.",
+      "is_read_only": false,
+      "targets": [
+        "teamtemplate"
+      ]
+    },
+    {
+      "name": "TeamType",
+      "field": "team_type",
+      "source_name": "teamtype",
+      "dataverse_type": "Picklist",
+      "required_level": "systemrequired",
+      "display_name": "Team Type",
+      "description": "Select the team type.",
+      "is_read_only": false,
+      "global_choice_name": "team_type",
+      "default_value": "0",
+      "enum_values": [
+        {
+          "value": "0",
+          "label": "Owner"
+        },
+        {
+          "value": "1",
+          "label": "Access"
+        },
+        {
+          "value": "2",
+          "label": "Security Group"
+        },
+        {
+          "value": "3",
+          "label": "Office Group"
+        }
+      ]
+    },
+    {
+      "name": "TransactionCurrencyId",
+      "field": "transaction_currency_id",
+      "source_name": "transactioncurrencyid",
+      "dataverse_type": "Lookup",
+      "required_level": "none",
+      "display_name": "Currency",
+      "description": "Unique identifier of the currency associated with the team.",
+      "is_read_only": false,
+      "targets": [
+        "transactioncurrency"
+      ]
+    },
+    {
+      "name": "TraversedPath",
+      "field": "traversed_path",
+      "source_name": "traversedpath",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 1250,
+      "display_name": "(Deprecated) Traversed Path",
+      "description": "For internal use only.",
+      "is_read_only": false
+    },
+    {
+      "name": "YomiName",
+      "field": "yomi_name",
+      "source_name": "yominame",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 160,
+      "display_name": "Yomi Name",
+      "description": "Pronunciation of the full name of the team, written in phonetic hiragana or katakana characters.",
+      "is_read_only": false
+    },
+    {
+      "name": "CreatedBy",
+      "field": "created_by",
+      "source_name": "createdby",
+      "dataverse_type": "Lookup",
+      "required_level": "none",
+      "display_name": "Created By",
+      "description": "Unique identifier of the user who created the team.",
+      "is_read_only": true,
+      "targets": [
+        "systemuser"
+      ]
+    },
+    {
+      "name": "CreatedOn",
+      "field": "created_on",
+      "source_name": "createdon",
+      "dataverse_type": "DateTime",
+      "required_level": "none",
+      "display_name": "Created On",
+      "description": "Date and time when the team was created.",
+      "is_read_only": true
+    },
+    {
+      "name": "CreatedOnBehalfBy",
+      "field": "created_on_behalf_by",
+      "source_name": "createdonbehalfby",
+      "dataverse_type": "Lookup",
+      "required_level": "none",
+      "display_name": "Created By (Delegate)",
+      "description": "Unique identifier of the delegate user who created the team.",
+      "is_read_only": true,
+      "targets": [
+        "systemuser"
+      ]
+    },
+    {
+      "name": "ExchangeRate",
+      "field": "exchange_rate",
+      "source_name": "exchangerate",
+      "dataverse_type": "Decimal",
+      "required_level": "none",
+      "display_name": "Exchange Rate",
+      "description": "Exchange rate for the currency associated with the team with respect to the base currency.",
+      "is_read_only": true
+    },
+    {
+      "name": "IsDefault",
+      "field": "is_default",
+      "source_name": "isdefault",
+      "dataverse_type": "Boolean",
+      "required_level": "systemrequired",
+      "display_name": "Is Default",
+      "description": "Information about whether the team is a default business unit team.",
+      "is_read_only": true,
+      "global_choice_name": "team_isdefault"
+    },
+    {
+      "name": "IsSasTokenSet",
+      "field": "is_sas_token_set",
+      "source_name": "issastokenset",
+      "dataverse_type": "Boolean",
+      "required_level": "none",
+      "display_name": "",
+      "description": "",
+      "is_read_only": true,
+      "global_choice_name": "isencryptedattributevalueset"
+    },
+    {
+      "name": "ModifiedBy",
+      "field": "modified_by",
+      "source_name": "modifiedby",
+      "dataverse_type": "Lookup",
+      "required_level": "none",
+      "display_name": "Modified By",
+      "description": "Unique identifier of the user who last modified the team.",
+      "is_read_only": true,
+      "targets": [
+        "systemuser"
+      ]
+    },
+    {
+      "name": "ModifiedOn",
+      "field": "modified_on",
+      "source_name": "modifiedon",
+      "dataverse_type": "DateTime",
+      "required_level": "none",
+      "display_name": "Modified On",
+      "description": "Date and time when the team was last modified.",
+      "is_read_only": true
+    },
+    {
+      "name": "ModifiedOnBehalfBy",
+      "field": "modified_on_behalf_by",
+      "source_name": "modifiedonbehalfby",
+      "dataverse_type": "Lookup",
+      "required_level": "none",
+      "display_name": "Modified By (Delegate)",
+      "description": "Unique identifier of the delegate user who last modified the team.",
+      "is_read_only": true,
+      "targets": [
+        "systemuser"
+      ]
+    },
+    {
+      "name": "OrganizationId",
+      "field": "organization_id",
+      "source_name": "organizationid",
+      "dataverse_type": "Uniqueidentifier",
+      "required_level": "systemrequired",
+      "display_name": "Organization",
+      "description": "Unique identifier of the organization associated with the team.",
+      "is_read_only": true
+    },
+    {
+      "name": "OrganizationIdName",
+      "field": "organization_id_name",
+      "source_name": "organizationidname",
+      "dataverse_type": "String",
+      "required_level": "systemrequired",
+      "max_length": 100,
+      "display_name": "",
+      "description": "",
+      "is_read_only": true
+    },
+    {
+      "name": "SasToken",
+      "field": "sas_token",
+      "source_name": "sastoken",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 50,
+      "display_name": "Sas Token",
+      "description": "Sas Token for Team.",
+      "is_read_only": true
+    },
+    {
+      "name": "ShareLinkQualifier",
+      "field": "share_link_qualifier",
+      "source_name": "sharelinkqualifier",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 1250,
+      "display_name": "Share Link Qualifier",
+      "description": "For internal use only.",
+      "is_read_only": true
+    },
+    {
+      "name": "SystemManaged",
+      "field": "system_managed",
+      "source_name": "systemmanaged",
+      "dataverse_type": "Boolean",
+      "required_level": "systemrequired",
+      "display_name": "Is System Managed",
+      "description": "Select whether the team will be managed by the system.",
+      "is_read_only": true,
+      "global_choice_name": "team_systemmanaged"
+    },
+    {
+      "name": "VersionNumber",
+      "field": "version_number",
+      "source_name": "versionnumber",
+      "dataverse_type": "BigInt",
+      "required_level": "none",
+      "display_name": "Version number",
+      "description": "Version number of the team.",
+      "is_read_only": true
+    }
+  ],
+  "many_to_one": [
+    {
+      "schema_name": "business_unit_teams",
+      "referencing_attribute": "businessunitid",
+      "referenced_entity": "businessunit",
+      "referenced_attribute": "businessunitid",
+      "navigation_property": "businessunitid"
+    },
+    {
+      "schema_name": "knowledgearticle_Teams",
+      "referencing_attribute": "regardingobjectid",
+      "referenced_entity": "knowledgearticle",
+      "referenced_attribute": "knowledgearticleid",
+      "navigation_property": "regardingobjectid_knowledgearticle"
+    },
+    {
+      "schema_name": "lk_team_createdonbehalfby",
+      "referencing_attribute": "createdonbehalfby",
+      "referenced_entity": "systemuser",
+      "referenced_attribute": "systemuserid",
+      "navigation_property": "createdonbehalfby"
+    },
+    {
+      "schema_name": "lk_team_modifiedonbehalfby",
+      "referencing_attribute": "modifiedonbehalfby",
+      "referenced_entity": "systemuser",
+      "referenced_attribute": "systemuserid",
+      "navigation_property": "modifiedonbehalfby"
+    },
+    {
+      "schema_name": "lk_teambase_administratorid",
+      "referencing_attribute": "administratorid",
+      "referenced_entity": "systemuser",
+      "referenced_attribute": "systemuserid",
+      "navigation_property": "administratorid"
+    },
+    {
+      "schema_name": "lk_teambase_createdby",
+      "referencing_attribute": "createdby",
+      "referenced_entity": "systemuser",
+      "referenced_attribute": "systemuserid",
+      "navigation_property": "createdby"
+    },
+    {
+      "schema_name": "lk_teambase_modifiedby",
+      "referencing_attribute": "modifiedby",
+      "referenced_entity": "systemuser",
+      "referenced_attribute": "systemuserid",
+      "navigation_property": "modifiedby"
+    },
+    {
+      "schema_name": "organization_teams",
+      "referencing_attribute": "organizationid",
+      "referenced_entity": "organization",
+      "referenced_attribute": "organizationid",
+      "navigation_property": "organizationid_organization"
+    },
+    {
+      "schema_name": "processstage_teams",
+      "referencing_attribute": "stageid",
+      "referenced_entity": "processstage",
+      "referenced_attribute": "processstageid",
+      "navigation_property": "stageid_processstage"
+    },
+    {
+      "schema_name": "queue_team",
+      "referencing_attribute": "queueid",
+      "referenced_entity": "queue",
+      "referenced_attribute": "queueid",
+      "navigation_property": "queueid"
+    },
+    {
+      "schema_name": "team_delegatedauthorization",
+      "referencing_attribute": "delegatedauthorizationid",
+      "referenced_entity": "delegatedauthorization",
+      "referenced_attribute": "delegatedauthorizationid",
+      "navigation_property": "delegatedauthorizationid"
+    },
+    {
+      "schema_name": "teamtemplate_Teams",
+      "referencing_attribute": "teamtemplateid",
+      "referenced_entity": "teamtemplate",
+      "referenced_attribute": "teamtemplateid",
+      "navigation_property": "associatedteamtemplateid"
+    },
+    {
+      "schema_name": "TransactionCurrency_Team",
+      "referencing_attribute": "transactioncurrencyid",
+      "referenced_entity": "transactioncurrency",
+      "referenced_attribute": "transactioncurrencyid",
+      "navigation_property": "transactioncurrencyid"
+    }
+  ],
+  "many_to_many": [
+    {
+      "schema_name": "msdyn_flow_actionapprovalmodelrelationship_team",
+      "intersect_entity": "msdyn_flow_actionapprovalmodel_team",
+      "intersect_attribute": "teamid",
+      "navigation_property": "msdyn_flow_actionapprovalmodelrelationship_team"
+    },
+    {
+      "schema_name": "msdyn_flow_awaitallactionmodelrelationship_team",
+      "intersect_entity": "msdyn_flow_awaitallactionapprovalmodel_team",
+      "intersect_attribute": "teamid",
+      "navigation_property": "msdyn_flow_awaitallactionmodelrelationship_team"
+    },
+    {
+      "schema_name": "msdyn_flow_awaitallmodelrelationship_team",
+      "intersect_entity": "msdyn_flow_awaitallmodel_team",
+      "intersect_attribute": "teamid",
+      "navigation_property": "msdyn_flow_awaitallmodelrelationship_team"
+    },
+    {
+      "schema_name": "msdyn_flow_basicapprovalmodelrelationship_team",
+      "intersect_entity": "msdyn_flow_basicapprovalmodel_team",
+      "intersect_attribute": "teamid",
+      "navigation_property": "msdyn_flow_basicapprovalmodelrelationship_team"
+    },
+    {
+      "schema_name": "teammembership_association",
+      "intersect_entity": "teammembership",
+      "intersect_attribute": "teamid",
+      "navigation_property": "teammembership_association"
+    },
+    {
+      "schema_name": "teamprofiles_association",
+      "intersect_entity": "teamprofiles",
+      "intersect_attribute": "teamid",
+      "navigation_property": "teamprofiles_association"
+    },
+    {
+      "schema_name": "teamroles_association",
+      "intersect_entity": "teamroles",
+      "intersect_attribute": "teamid",
+      "navigation_property": "teamroles_association"
+    }
+  ],
+  "provenance": {
+    "source": "MicrosoftDocs/powerapps-docs",
+    "document": "reference/entities/team.md",
+    "branch": "main",
+    "license": "CC-BY-4.0"
+  }
+}

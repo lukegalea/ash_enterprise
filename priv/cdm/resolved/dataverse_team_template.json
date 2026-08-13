@@ -1,0 +1,290 @@
+{
+  "entity": "TeamTemplate",
+  "table": "team_template",
+  "source_name": "teamtemplate",
+  "display_name": "Team template",
+  "description": "Team template for an entity enabled for automatically created access teams.",
+  "dataverse": {
+    "logical_name": "teamtemplate",
+    "entity_set": "teamtemplates",
+    "primary_id": "teamtemplateid",
+    "primary_name": "teamtemplatename",
+    "table_type": "Standard",
+    "ownership_type": "None"
+  },
+  "attributes": [
+    {
+      "name": "DefaultAccessRightsMask",
+      "field": "default_access_rights_mask",
+      "source_name": "defaultaccessrightsmask",
+      "dataverse_type": "Integer",
+      "required_level": "systemrequired",
+      "display_name": "Access Rights",
+      "description": "Default access rights mask for the access teams associated with entity instances.",
+      "is_read_only": false
+    },
+    {
+      "name": "Description",
+      "field": "description",
+      "source_name": "description",
+      "dataverse_type": "Memo",
+      "required_level": "none",
+      "max_length": 2000,
+      "display_name": "Description",
+      "description": "Type additional information that describes the team.",
+      "is_read_only": false
+    },
+    {
+      "name": "IsCustomizable",
+      "field": "is_customizable",
+      "source_name": "iscustomizable",
+      "dataverse_type": "ManagedProperty",
+      "required_level": "systemrequired",
+      "display_name": "Is Customizable",
+      "description": "For internal use only.",
+      "is_read_only": false
+    },
+    {
+      "name": "ObjectTypeCode",
+      "field": "object_type_code",
+      "source_name": "objecttypecode",
+      "dataverse_type": "Integer",
+      "required_level": "systemrequired",
+      "display_name": "Entity",
+      "description": "Object type code of entity which is enabled for access teams",
+      "is_read_only": false
+    },
+    {
+      "name": "TeamTemplateId",
+      "field": "team_template_id",
+      "source_name": "teamtemplateid",
+      "dataverse_type": "Uniqueidentifier",
+      "required_level": "systemrequired",
+      "display_name": "Primary key for team template",
+      "description": "Unique identifier of the team template.",
+      "is_read_only": false
+    },
+    {
+      "name": "TeamTemplateName",
+      "field": "team_template_name",
+      "source_name": "teamtemplatename",
+      "dataverse_type": "String",
+      "required_level": "systemrequired",
+      "max_length": 100,
+      "display_name": "Name",
+      "description": "Type the name of the team template.",
+      "is_read_only": false
+    },
+    {
+      "name": "ComponentIdUnique",
+      "field": "component_id_unique",
+      "source_name": "componentidunique",
+      "dataverse_type": "Uniqueidentifier",
+      "required_level": "systemrequired",
+      "display_name": "Row id unique",
+      "description": "For internal use only.",
+      "is_read_only": true
+    },
+    {
+      "name": "ComponentState",
+      "field": "component_state",
+      "source_name": "componentstate",
+      "dataverse_type": "Picklist",
+      "required_level": "systemrequired",
+      "display_name": "Component State",
+      "description": "For internal use only.",
+      "is_read_only": true,
+      "global_choice_name": "componentstate",
+      "default_value": "",
+      "enum_values": [
+        {
+          "value": "0",
+          "label": "Published"
+        },
+        {
+          "value": "1",
+          "label": "Unpublished"
+        },
+        {
+          "value": "2",
+          "label": "Deleted"
+        },
+        {
+          "value": "3",
+          "label": "Deleted Unpublished"
+        }
+      ]
+    },
+    {
+      "name": "CreatedBy",
+      "field": "created_by",
+      "source_name": "createdby",
+      "dataverse_type": "Lookup",
+      "required_level": "none",
+      "display_name": "Created By",
+      "description": "Unique identifier of the user who created the team template.",
+      "is_read_only": true,
+      "targets": [
+        "systemuser"
+      ]
+    },
+    {
+      "name": "CreatedOn",
+      "field": "created_on",
+      "source_name": "createdon",
+      "dataverse_type": "DateTime",
+      "required_level": "none",
+      "display_name": "Created On",
+      "description": "Date and time when the team template was created.",
+      "is_read_only": true
+    },
+    {
+      "name": "CreatedOnBehalfBy",
+      "field": "created_on_behalf_by",
+      "source_name": "createdonbehalfby",
+      "dataverse_type": "Lookup",
+      "required_level": "none",
+      "display_name": "Created By (Delegate)",
+      "description": "Unique identifier of the delegate user who created the team template.",
+      "is_read_only": true,
+      "targets": [
+        "systemuser"
+      ]
+    },
+    {
+      "name": "IsManaged",
+      "field": "is_managed",
+      "source_name": "ismanaged",
+      "dataverse_type": "Boolean",
+      "required_level": "systemrequired",
+      "display_name": "Is Managed",
+      "description": "Indicates whether the solution component is part of a managed solution.",
+      "is_read_only": true,
+      "global_choice_name": "ismanaged"
+    },
+    {
+      "name": "IsSystem",
+      "field": "is_system",
+      "source_name": "issystem",
+      "dataverse_type": "Boolean",
+      "required_level": "systemrequired",
+      "display_name": "Is System",
+      "description": "Information about whether this team template is user-defined or system-defined.",
+      "is_read_only": true,
+      "global_choice_name": "teamtemplate_issystem"
+    },
+    {
+      "name": "ModifiedBy",
+      "field": "modified_by",
+      "source_name": "modifiedby",
+      "dataverse_type": "Lookup",
+      "required_level": "none",
+      "display_name": "Modified By",
+      "description": "Unique identifier of the user who last modified the team template.",
+      "is_read_only": true,
+      "targets": [
+        "systemuser"
+      ]
+    },
+    {
+      "name": "ModifiedOn",
+      "field": "modified_on",
+      "source_name": "modifiedon",
+      "dataverse_type": "DateTime",
+      "required_level": "none",
+      "display_name": "Modified On",
+      "description": "Date and time when the team template was last modified.",
+      "is_read_only": true
+    },
+    {
+      "name": "ModifiedOnBehalfBy",
+      "field": "modified_on_behalf_by",
+      "source_name": "modifiedonbehalfby",
+      "dataverse_type": "Lookup",
+      "required_level": "none",
+      "display_name": "Modified By (Delegate)",
+      "description": "Unique identifier of the delegate user who modified the team template.",
+      "is_read_only": true,
+      "targets": [
+        "systemuser"
+      ]
+    },
+    {
+      "name": "OverwriteTime",
+      "field": "overwrite_time",
+      "source_name": "overwritetime",
+      "dataverse_type": "DateTime",
+      "required_level": "systemrequired",
+      "display_name": "Record Overwrite Time",
+      "description": "For internal use only.",
+      "is_read_only": true
+    },
+    {
+      "name": "SolutionId",
+      "field": "solution_id",
+      "source_name": "solutionid",
+      "dataverse_type": "Uniqueidentifier",
+      "required_level": "systemrequired",
+      "display_name": "Solution",
+      "description": "Unique identifier of the associated solution.",
+      "is_read_only": true
+    },
+    {
+      "name": "SupportingSolutionId",
+      "field": "supporting_solution_id",
+      "source_name": "supportingsolutionid",
+      "dataverse_type": "Uniqueidentifier",
+      "required_level": "none",
+      "display_name": "Solution",
+      "description": "For internal use only.",
+      "is_read_only": true
+    },
+    {
+      "name": "versionnumber",
+      "field": "versionnumber",
+      "source_name": "versionnumber",
+      "dataverse_type": "BigInt",
+      "required_level": "none",
+      "display_name": "Version Number",
+      "description": "Version number for team template.",
+      "is_read_only": true
+    }
+  ],
+  "many_to_one": [
+    {
+      "schema_name": "lk_teamtemplate_createdby",
+      "referencing_attribute": "createdby",
+      "referenced_entity": "systemuser",
+      "referenced_attribute": "systemuserid",
+      "navigation_property": "createdby"
+    },
+    {
+      "schema_name": "lk_teamtemplate_createdonbehalfby",
+      "referencing_attribute": "createdonbehalfby",
+      "referenced_entity": "systemuser",
+      "referenced_attribute": "systemuserid",
+      "navigation_property": "createdonbehalfby"
+    },
+    {
+      "schema_name": "lk_teamtemplate_modifiedby",
+      "referencing_attribute": "modifiedby",
+      "referenced_entity": "systemuser",
+      "referenced_attribute": "systemuserid",
+      "navigation_property": "modifiedby"
+    },
+    {
+      "schema_name": "lk_teamtemplate_modifiedonbehalfby",
+      "referencing_attribute": "modifiedonbehalfby",
+      "referenced_entity": "systemuser",
+      "referenced_attribute": "systemuserid",
+      "navigation_property": "modifiedonbehalfby"
+    }
+  ],
+  "many_to_many": [],
+  "provenance": {
+    "source": "MicrosoftDocs/powerapps-docs",
+    "document": "reference/entities/teamtemplate.md",
+    "branch": "main",
+    "license": "CC-BY-4.0"
+  }
+}

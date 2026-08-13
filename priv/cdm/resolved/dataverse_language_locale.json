@@ -1,0 +1,170 @@
+{
+  "entity": "LanguageLocale",
+  "table": "language_locale",
+  "source_name": "languagelocale",
+  "display_name": "Language",
+  "description": "Language",
+  "dataverse": {
+    "logical_name": "languagelocale",
+    "entity_set": "languagelocale",
+    "primary_id": "languagelocaleid",
+    "primary_name": "name",
+    "table_type": "Standard",
+    "ownership_type": "OrganizationOwned"
+  },
+  "attributes": [
+    {
+      "name": "LanguageLocaleId",
+      "field": "language_locale_id",
+      "source_name": "languagelocaleid",
+      "dataverse_type": "Uniqueidentifier",
+      "required_level": "systemrequired",
+      "display_name": "",
+      "description": "LanguageLocaleId",
+      "is_read_only": false
+    },
+    {
+      "name": "LocaleId",
+      "field": "locale_id",
+      "source_name": "localeid",
+      "dataverse_type": "Integer",
+      "required_level": "systemrequired",
+      "display_name": "Locale ID",
+      "description": "Locale ID",
+      "is_read_only": false
+    },
+    {
+      "name": "statecode",
+      "field": "statecode",
+      "source_name": "statecode",
+      "dataverse_type": "State",
+      "required_level": "systemrequired",
+      "display_name": "State Code",
+      "description": "State Code",
+      "is_read_only": false,
+      "global_choice_name": "languagelocale_statecode",
+      "default_value": "",
+      "enum_values": [
+        {
+          "value": "0",
+          "label": "Active",
+          "default_status": 1,
+          "invariant_name": "Active"
+        },
+        {
+          "value": "1",
+          "label": "Inactive",
+          "default_status": 2,
+          "invariant_name": "Inactive"
+        }
+      ]
+    },
+    {
+      "name": "statuscode",
+      "field": "statuscode",
+      "source_name": "statuscode",
+      "dataverse_type": "Status",
+      "required_level": "none",
+      "display_name": "Language Status Code",
+      "description": "Language Status Code",
+      "is_read_only": false,
+      "global_choice_name": "languagelocale_statuscode",
+      "default_value": "",
+      "enum_values": [
+        {
+          "value": "1",
+          "label": "Active",
+          "state": 0
+        },
+        {
+          "value": "2",
+          "label": "Inactive",
+          "state": 1
+        }
+      ]
+    },
+    {
+      "name": "Code",
+      "field": "code",
+      "source_name": "code",
+      "dataverse_type": "String",
+      "required_level": "systemrequired",
+      "max_length": 100,
+      "display_name": "Code",
+      "description": "Code",
+      "is_read_only": true
+    },
+    {
+      "name": "Language",
+      "field": "language",
+      "source_name": "language",
+      "dataverse_type": "String",
+      "required_level": "systemrequired",
+      "max_length": 100,
+      "display_name": "Language",
+      "description": "Language",
+      "is_read_only": true
+    },
+    {
+      "name": "Name",
+      "field": "name",
+      "source_name": "name",
+      "dataverse_type": "String",
+      "required_level": "systemrequired",
+      "max_length": 100,
+      "display_name": "Name",
+      "description": "Name",
+      "is_read_only": true
+    },
+    {
+      "name": "OrganizationId",
+      "field": "organization_id",
+      "source_name": "organizationid",
+      "dataverse_type": "Lookup",
+      "required_level": "systemrequired",
+      "display_name": "Organization",
+      "description": "Unique identifier of the organization associated with the language locale.",
+      "is_read_only": true,
+      "targets": [
+        "organization"
+      ]
+    },
+    {
+      "name": "Region",
+      "field": "region",
+      "source_name": "region",
+      "dataverse_type": "String",
+      "required_level": "none",
+      "max_length": 100,
+      "display_name": "Region",
+      "description": "Region",
+      "is_read_only": true
+    },
+    {
+      "name": "VersionNumber",
+      "field": "version_number",
+      "source_name": "versionnumber",
+      "dataverse_type": "BigInt",
+      "required_level": "none",
+      "display_name": "",
+      "description": "",
+      "is_read_only": true
+    }
+  ],
+  "many_to_one": [
+    {
+      "schema_name": "languagelocale_organization",
+      "referencing_attribute": "organizationid",
+      "referenced_entity": "organization",
+      "referenced_attribute": "organizationid",
+      "navigation_property": "organizationid"
+    }
+  ],
+  "many_to_many": [],
+  "provenance": {
+    "source": "MicrosoftDocs/powerapps-docs",
+    "document": "reference/entities/languagelocale.md",
+    "branch": "main",
+    "license": "CC-BY-4.0"
+  }
+}
