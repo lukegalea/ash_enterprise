@@ -11,12 +11,15 @@ defmodule AshEnterprise.Repo do
       # UUIDv7 primary keys need gen_random_uuid()-adjacent helpers; uuid-ossp
       # is the conventional companion and costs nothing to have present.
       "uuid-ossp",
-      # pgvector, via Ash's own extension module rather than the bare string --
-      # AshPostgres.Extensions.Vector also registers the vector type and the
-      # distance operators (cosine, L2, inner product) with the query builder,
-      # which the plain "vector" string would not. Required by ash_ai's
-      # vectorize block.
-      AshPostgres.Extensions.Vector,
+      # pgvector, required by ash_ai's vectorize block.
+      #
+      # NOTE: this list is about `CREATE EXTENSION` in migrations, so pgvector
+      # belongs here as the plain string. `AshPostgres.Extensions.Vector` is a
+      # *Postgrex type* extension -- a different mechanism entirely -- and putting
+      # it here fails with "function AshPostgres.Extensions.Vector.extension/0 is
+      # undefined". It is wired up in AshEnterprise.PostgrexTypes and referenced
+      # from the repo's `types:` config instead.
+      "vector",
       AshMoney.AshPostgresExtension
     ]
   end

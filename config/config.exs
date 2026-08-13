@@ -92,10 +92,14 @@ config :spark,
     ]
   ]
 
+# Teach Postgrex about the pgvector wire type. See lib/ash_enterprise/postgrex_types.ex.
+config :ash_enterprise, AshEnterprise.Repo, types: AshEnterprise.PostgrexTypes
+
 config :ash_enterprise,
   ecto_repos: [AshEnterprise.Repo],
   generators: [timestamp_type: :utc_datetime],
-  ash_domains: [AshEnterprise.Accounts]
+  ash_domains: [AshEnterprise.Accounts, AshEnterprise.Audit],
+  base_resources: [AshEnterprise.Platform.Resource]
 
 # Configure the endpoint
 config :ash_enterprise, AshEnterpriseWeb.Endpoint,

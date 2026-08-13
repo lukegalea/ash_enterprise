@@ -1,7 +1,22 @@
 defmodule AshEnterprise.Accounts.User do
-  use Ash.Resource,
+  # Dataverse's `systemuser` is BusinessOwned: a user belongs to a business unit
+  # rather than being owned by a principal. So Local/Deep depth checks work on
+  # users, but Basic does not -- there is no owner to compare an actor against.
+  #
+  # Tenancy and soft delete are off for now:
+  #   - tenant?: Organization does not exist yet (Phase 5). Turning it on before
+  #     then would make organization_id required with nothing to point at, and
+  #     would break registration.
+  #   - archival?: sign-in looks users up by email. A soft-deleted user must not
+  #     silently remain authenticable, and Dataverse models this as
+  #     `isdisabled`/`state_code` rather than deletion. Deactivation, not archival.
+  use AshEnterprise.Platform.Resource,
     otp_app: :ash_enterprise,
     domain: AshEnterprise.Accounts,
+    ownership: :business_owned,
+    tenant?: false,
+    archival?: false,
+    cdm_entity: "SystemUser",
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer],
     extensions: [AshAuthentication]

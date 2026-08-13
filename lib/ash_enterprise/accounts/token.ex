@@ -1,4 +1,15 @@
 defmodule AshEnterprise.Accounts.Token do
+  # Deliberately NOT on AshEnterprise.Platform.Resource.
+  #
+  # This table is authentication plumbing owned by ash_authentication -- a store
+  # of JWT jti values for revocation. It is not a business entity: nobody owns a
+  # token, it has no lifecycle beyond its expiry, auditing it would double every
+  # sign-in write for no compliance value, and soft-deleting a revoked token
+  # would defeat the point of revoking it.
+  #
+  # This is the "opting out is explicit and greppable" case from
+  # docs/manifesto/04-batteries-are-inherited.md, taken to its conclusion: when a
+  # resource needs none of the batteries, it should not claim to inherit them.
   use Ash.Resource,
     otp_app: :ash_enterprise,
     domain: AshEnterprise.Accounts,

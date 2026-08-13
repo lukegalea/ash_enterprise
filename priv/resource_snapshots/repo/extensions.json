@@ -2,6 +2,9 @@
   "ash_functions_version": 6,
   "installed": [
     "ash-functions",
-    "citext"
+    "citext",
+    "uuid-ossp",
+    "vector",
+    "ash_money_v5"
   ]
 }
