@@ -43,6 +43,19 @@ defmodule AshEnterpriseWeb.A2uiLive do
       do: socket.assigns[:current_user] && socket.assigns.current_user.organization_id
   end
 
+  defmodule Teams do
+    @moduledoc "A2UI surface for teams."
+    use AshA2ui.LiveRenderer,
+      ui: AshEnterpriseWeb.A2ui.TeamUI,
+      actor_fn: &__MODULE__.actor/1,
+      tenant_fn: &__MODULE__.tenant/1
+
+    def actor(socket), do: socket.assigns[:current_user]
+
+    def tenant(socket),
+      do: socket.assigns[:current_user] && socket.assigns.current_user.organization_id
+  end
+
   defmodule BusinessUnits do
     @moduledoc "A2UI surface for the business-unit hierarchy."
     use AshA2ui.LiveRenderer,

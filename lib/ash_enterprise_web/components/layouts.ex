@@ -37,19 +37,28 @@ defmodule AshEnterpriseWeb.Layouts do
     ~H"""
     <header class="navbar px-4 sm:px-6 lg:px-8">
       <div class="flex-1">
-        <a href="/" class="flex-1 flex w-fit items-center gap-2">
+        <a href="/" class="flex w-fit items-center gap-2">
           <img src={~p"/images/logo.svg"} width="36" />
-          <span class="text-sm font-semibold">v{Application.spec(:phoenix, :vsn)}</span>
+          <span class="text-sm font-semibold">Ash Enterprise</span>
         </a>
       </div>
       <div class="flex-none">
-        <ul class="flex flex-column px-1 space-x-4 items-center">
+        <ul class="flex flex-column px-1 space-x-2 items-center">
+          <%!--
+            Administration. These are A2UI surfaces derived from resource
+            metadata, not hand-written screens -- see
+            lib/ash_enterprise_web/a2ui/. Each is filtered by the signed-in
+            actor's policies, so a user with no grants sees an empty table
+            rather than a 403.
+          --%>
+          <li><a href="/agent" class="btn btn-ghost btn-sm">Helper</a></li>
+          <li><a href="/app/users" class="btn btn-ghost btn-sm">Users</a></li>
+          <li><a href="/app/teams" class="btn btn-ghost btn-sm">Teams</a></li>
+          <li><a href="/app/roles" class="btn btn-ghost btn-sm">Roles</a></li>
           <li>
-            <a href="https://phoenixframework.org/" class="btn btn-ghost">Website</a>
+            <a href="/app/business-units" class="btn btn-ghost btn-sm">Business units</a>
           </li>
-          <li>
-            <a href="https://github.com/phoenixframework/phoenix" class="btn btn-ghost">GitHub</a>
-          </li>
+          <li><a href="/admin" class="btn btn-ghost btn-sm">Admin</a></li>
           <li>
             <.theme_toggle />
           </li>

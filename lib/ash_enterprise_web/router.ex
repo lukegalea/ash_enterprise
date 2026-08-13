@@ -66,6 +66,7 @@ defmodule AshEnterpriseWeb.Router do
       on_mount: [{AshEnterpriseWeb.LiveUserAuth, :live_user_required}] do
       live "/agent", AgentLive
       live "/app/users", A2uiLive.Users
+      live "/app/teams", A2uiLive.Teams
       live "/app/roles", A2uiLive.Roles
       live "/app/business-units", A2uiLive.BusinessUnits
     end
