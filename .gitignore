@@ -58,3 +58,6 @@ devenv.local.yaml
 
 # Release artifacts
 /_build/prod/*.tar.gz
+
+# Personal Claude Code overrides. .claude/settings.json is the shared one.
+.claude/settings.local.json

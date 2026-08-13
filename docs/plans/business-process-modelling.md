@@ -57,9 +57,11 @@ the system does). Those have very different costs.
 
 ## 2. What BPMN 2.0 actually is, and the subset that matters
 
-BPMN 2.0.2 is an OMG specification of **532 pages** (`formal/13-12-09`) defining, by one careful count, **267 element
-variants**, of which 244 are relevant to process collaboration — plus an XML interchange format and execution semantics.
-Almost nobody implements it fully, and almost nobody uses it fully.
+BPMN 2.0.2 is an OMG specification of **532 pages**, plus an XML interchange format and execution semantics. (Its PDF
+cover is dated December 2013 while the OMG's specification page records adoption in January 2014; both are primary and
+they disagree. 2.0.2 itself states that it *"contains a minor change to Clause 15"* — the WS-BPEL mapping, which nobody
+implements any more.) The survey cited below counts **267 distinct element variants** in it, 244 of them relevant to
+process collaboration. Almost nobody implements it fully, and almost nobody uses it fully.
 
 The empirical case is unusually well evidenced, and it is worth citing the strong version rather than the famous one.
 
@@ -135,15 +137,38 @@ There is **no viable BPMN engine on the BEAM.** Two exist and both are abandoned
 |---|---|---|---|---|
 | [`bpmn`](https://hex.pm/packages/bpmn) (Hashiru BPMN) | `0.1.0-dev` | 2017-10-21 | ~1,540 | Dead. Never left `-dev`. |
 | [`bpxe`](https://hex.pm/packages/bpxe) | `0.4.1` | 2021-01-21 | ~1,350 | Dead. |
+| [`rodar`](https://hex.pm/packages/rodar) | `1.4.4` | 2026-03-28 | **82** | Current, Apache-2.0, and essentially unadopted. |
+| [`bpe`](https://hex.pm/packages/bpe) (synrc) | `11.4.16` | 2026-04-14 | ~121,000 | Erlang, ISC, genuinely executes BPMN XML. **KVS/Mnesia storage only — no Postgres, no Ecto, no Ash.** Its hex description text does not match its README, so treat the package identity as unverified. |
 
 There is also no Elixir client for Zeebe. The `camunda-community-hub` maintains community clients for Java, Go, C#,
-Node, Python, PHP and Delphi — **not Elixir.** There is no official Temporal Elixir SDK either; Temporal's supported
-list is Go, Java, TypeScript, Python and .NET, and the Elixir Forum threads on the subject are several years of "someone
-should build this."
+Node, Python, PHP and Delphi — **not Elixir.** There is no official Temporal Elixir SDK either; Temporal ships Go, Java,
+TypeScript, Python, .NET, PHP and Ruby, and the Elixir Forum threads on the subject are several years of "someone should
+build this."
 
-There is no Elixir library for human tasks, approvals, or maker-checker. `Ash.Flow` — Ash's own earlier BPMN-flavoured
-flow DSL — was extracted from core and deprecated in favour of Reactor. That deprecation is a data point worth taking
-seriously: the Ash core team looked at a monolithic flow DSL, and chose composition of smaller focused tools instead.
+**There is no Elixir library for human tasks, approvals, or maker-checker.** Searching hex for `approval` returns a
+golden-file *approval testing* library and two unrelated packages. This is the gap thesis 7 names, and it is
+ecosystem-wide rather than specific to us.
+
+`Ash.Flow` — Ash's own earlier BPMN-flavoured flow DSL — was extracted from core and soft-deprecated, verbatim from its
+README: *"Ash.Flow will be supported for the foreseeable future, but we are working to replace it with `Reactor`, and an
+accompanying extension, `Ash.Reactor`."* That is a data point worth taking seriously: the Ash core team looked at a
+monolithic flow DSL and chose composition of smaller focused tools instead. This plan agrees with that judgement for
+step orchestration, and departs from it only for the parts Reactor structurally cannot hold (§4.2).
+
+**A 2026 cohort of durable-execution libraries now exists, and none of it is usable here.** `gen_durable` (0.2.15,
+BSD-3, ~60 days old, solo author, zero stars) is the best-engineered — FSM-as-a-row, `{:await, names, next, state,
+timeout: :timer.hours(48)}`, signal-by-correlation-key, durable signal inbox with dedup — and is precisely the
+escalation primitive §6.4 needs. `durable` (0.1.0-**rc**) has the richest human-in-the-loop API (`wait_for_approval/2`,
+`wait_for_form/2`). Both ship their own Postgres queue, duplicating Oban. `gust` (Apache-2.0, 362 stars) is the
+healthiest by community metrics but is an Airflow replacement for data pipelines — wrong shape. `sage` has had no
+release since 2022 and is in-memory like Reactor. And one licence landmine worth naming: **`journey` is
+`LicenseRef-Journey`, non-OSI and source-available**, requiring a commercial key above a revenue threshold *explicitly
+including internal business applications*, with a runtime phone-home. That is a legal review, not a `mix.exs` line.
+
+The pattern is consistent: several credible attempts, all young, all solo-maintained, none Ash-aware, none with an
+authorization model. This is the state of the art we would be building against, and it argues for owning the small
+amount of machinery we actually need rather than adopting a dependency that will be abandoned before our first
+reorganisation.
 
 ### 3.2 External engines
 
@@ -223,7 +248,7 @@ semantics; `switch` (conditional branching), `group`, `around`, `map`, `compose`
 `guard`, `where`; a `Reactor.Middleware` behaviour with `init`, `halt`, `complete`, `error` and per-step `event`
 callbacks; and a Mermaid renderer.
 
-**It can halt and resume — in memory.** A step returning `{:halt, reason}` causes `Reactor.run/4` to return
+**It can halt and resume.** A step returning `{:halt, reason}` causes `Reactor.run/4` to return
 `{:halted, %Reactor{state: :halted}}`, and that struct can be passed back into `Reactor.run/2` to continue:
 
 ```elixir
@@ -233,26 +258,56 @@ callbacks; and a Mermaid renderer.
 def run(reactor, ...) when is_reactor(reactor) and reactor.state in ~w[pending halted]a do
 ```
 
-**Stops at — and this is the single most important fact in this document — persistence.** There is no serialization
-story. Searching the entire `reactor` source and its documentation for `serial`, `persist`, `durab` or `term_to_binary`
-returns nothing but Spark's unrelated `get_persisted/2`. The halted struct is:
+**Stops at persistence — but the truth here is more interesting than "it cannot be done", and getting it exactly right
+matters, because someone will try.** There is no persistence layer: no `Reactor.Persistence` behaviour, no
+`Reactor.resume/4`. `Reactor.Executor.State` is documented in-source as *"run-time only information."* Async steps run
+on a local `Task.Supervisor` — single-node. Searching the repository's entire issue history for `durable`, `durability`,
+`serializ` and `checkpoint` returns zero results in each case. The halted struct is:
 
 ```elixir
 defstruct context: %{}, description: nil, id: nil, inputs: [], intermediate_results: %{},
           middleware: [], plan: nil, return: nil, state: :pending, steps: [], undo: []
 ```
 
-`plan` is a `Multigraph`. `steps` are `Reactor.Step` structs that, for DSL steps written with `run fn ... end`, close
-over anonymous functions. `intermediate_results` holds arbitrary terms including Ash structs. You *can*
-`:erlang.term_to_binary/1` that. You should not: an anonymous function is serialized as a module-and-index reference
-that breaks on the next compile of that module, which means **any deploy would corrupt every in-flight process.** This
-is not a bug in Reactor; Reactor is explicitly an in-process orchestrator and its own documentation frames it that way.
+You *can* `:erlang.term_to_binary/1` that and rehydrate it. This was verified empirically at tag `v1.0.6`, not reasoned
+about. Three findings, and the third is the one that decides the design:
 
-[Thesis 6](../manifesto/06-reversibility.md) already states this correctly: *"Reactor's saga orchestration is
-in-process; it does not survive a node restart mid-workflow."*
+1. **Module-backed steps survive.** `step :approve, MyApp.ApproveStep` serialises as a module name and resumes correctly
+   across a real VM restart *and* across a recompile of that module. `Jason.encode/1` fails — `term_to_binary` is the
+   only option, so the snapshot is opaque and uninspectable.
+2. **Inline steps do not, and fail catastrophically.** The DSL compiles `run fn ... end` into a **content-hashed
+   generated function** — `&MyReactor.run_0_generated_184ACD2713A85C64F83AF0031192EA65/2`, where the hash derives from
+   the function body. Edit the body of a step that has not run yet, deploy, and resume:
+   `UndefinedFunctionError: function MyReactor.run_0_generated_184ACD.../2 is undefined`. **Any edit to a pending inline
+   step permanently bricks every in-flight checkpoint**, with no migration path, because the old body no longer exists
+   anywhere.
+3. **Halt is a checkpoint, not a park.** `{:halt, reason}` stores `reason` **as that step's result** and never re-runs
+   the step. A gate returning `{:halt, :awaiting_approval}` leaves `intermediate_results: %{gate: :awaiting_approval}`;
+   on resume the gate does not re-execute even with changed context, and downstream steps receive `:awaiting_approval`
+   as its value. Modelling a human decision therefore requires reaching into the struct and overwriting
+   `intermediate_results` by hand — undocumented struct manipulation, on a field with no compatibility guarantee.
+
+There is also a **live bug**: when a halt originates inside a `compose`d sub-reactor, resuming does not resume the child.
+The downstream step receives `nil` and the run reports `{:ok, ...}` rather than `{:halted, _}`. Root cause is in
+`Reactor.Step.Compose` — with `support_undo?: true` (**the DSL default**) a halted sub-reactor is stored as a
+`%Reactor{}`, which has a `return` field but no `:result` key, so the `extract_result` clause fails to match and falls
+through to a catch-all returning `{:ok, nil}`. Silent wrong answer, not a crash. Unreported upstream as of this writing;
+worth filing.
+
+[Thesis 6](../manifesto/06-reversibility.md) states the practical consequence correctly: *"Reactor's saga orchestration
+is in-process; it does not survive a node restart mid-workflow."*
+
+**So the honest position is not "persisting Reactor is impossible" — it is "persisting Reactor requires a discipline
+the DSL does not enforce, to buy a checkpoint whose semantics are wrong for human tasks."** You would have to ban inline
+steps by convention, accept an opaque binary blob as your process state, hand-mutate an undocumented field to model an
+approval, and work around a silent-nil bug in composition. There is prior art —
+[`ash_durable_workflow`](https://github.com/sunprema/ash_durable_workflow), the only Ash-native attempt, which drives
+`Reactor.run(..., max_iterations: 1, async?: false)` in a loop and `term_to_binary`s the halted struct into a row. It is
+two commits, has no licence, is not on hex, and its README's claim to survive deploys was empirically falsified by
+exactly the inline-step hash problem above. Read it as a 150-line reference; do not depend on it.
 
 The `Reactor.Middleware` `halt/1` callback is nonetheless a real seam — it is where a persistence layer *could* snapshot
-context. But context is not the problem; the plan and the closures are.
+context. But context is not the problem; the step references and the halt semantics are.
 
 **Conclusion:** Reactor is the right tool for *what happens inside one process step* — a multi-step side effect with
 compensation, completing in seconds, inside one job. It is the wrong tool for *the process itself*, which must outlive
@@ -277,8 +332,34 @@ AshOban.run_trigger(task, :escalate, schedule_in: 48 * 60 * 60, actor: actor)
 That is a real timer with second granularity, cancellable via `Oban.cancel_job/1` if the job id is recorded.
 
 **Stops at:** everything above a single job. Oban has no notion of a graph, a token, a join, a parent process, or a
-compensation history. Oban Pro's `Workflow` supplies a DAG of jobs with dependencies — and is commercial, which
-[thesis 6](../manifesto/06-reversibility.md) already logs as a knowingly-taken loss. `config :ash_oban, pro?: false`.
+compensation history. `config :ash_oban, pro?: false`.
+
+**The Oban Pro entry in [thesis 6](../manifesto/06-reversibility.md) is now understated and should be revisited when
+this work is scheduled.** That table records the loss as "durable Workflows, Smart Engine". Since then, **Oban Pro 1.7
+(2026-04-30) shipped Signals**, and `Oban.Pro.Worker.await_signal/1` is very nearly the exact primitive this entire
+document is about:
+
+```elixir
+case await_signal(wait_for: {24, :hours}) do
+  {:ok, %{decision: "approved"}} -> charge_card()
+  {:ok, %{decision: "rejected"}} -> {:cancel, :rejected}
+  {:error, :timeout}             -> {:cancel, :no_decision}
+end
+
+Oban.Pro.Worker.signal(job_id, %{decision: "approved"})   # from a controller, IEx, anywhere
+```
+
+Per Oban's documentation this *"turns workers into durable state machines that can wait on human approval or third-party
+callbacks without holding a job process or database connection open."* Signals are persisted (one delivered before
+`await_signal` is reached is consumed on the next call), `Workflow.signal/3` resolves jobs by name within a workflow,
+and Oban Web surfaces an "Awaiting Signal" state with its deadline. Pro's Workflows also gained **grafting** — runtime
+expansion of a sub-workflow — which is the durable equivalent of a dynamic sub-process.
+
+That is a real answer to capabilities 1, 5 and part of 2, bought rather than built, from a maintainer with a track
+record. It does **not** answer capabilities 3, 4, 6 or 9 — assignment resolution, maker-checker, delegation and
+versioning are domain problems tied to our authorization model, and no job queue will supply them (§6.3). So Pro would
+shorten phase 2, not phase 1, and phase 1 is where the value is. Worth pricing when this work is scheduled; not worth
+reopening the open-source-only decision on its own.
 
 Also: the sweep pattern is *reconciliation*, not *scheduling*. It is excellent as a safety net and poor as a primary
 driver — a per-minute full-table scan per trigger does not scale to a process with forty node types.
@@ -806,8 +887,13 @@ Named honestly, in the spirit of [thesis 7](../manifesto/07-what-we-do-not-have.
 
 **Bad ideas, named so nobody re-proposes them:**
 
-9. **Persisting a halted `Reactor` struct.** It contains closures and a `Multigraph`. `term_to_binary` on it will appear
-   to work in development and corrupt every in-flight process on the next deploy of any referenced module. §4.2.
+9. **Persisting a halted `Reactor` struct as the process state.** Stated precisely, because the blunt version is wrong
+   and someone will check: it *does* work for module-backed steps. It fails for inline `run fn ... end` steps, whose
+   generated function names are content hashes — editing a pending step's body bricks every in-flight checkpoint with
+   no migration path. It also buys the wrong semantics: halt is a checkpoint that freezes the step's result, not a park
+   that re-evaluates, so modelling an approval means hand-mutating an undocumented struct field. And composition is
+   currently broken for halts (silent `nil`). §4.2. `ash_durable_workflow` is the worked example of taking this route
+   and is not one to follow.
 10. **Running Camunda 8 alongside.** Production requires a commercial licence as of 8.6, which fails the open-source
     requirement outright. Separately: no Elixir client, and two sources of truth.
 11. **Running Flowable or Operaton alongside.** The licences are fine (Apache-2.0). Everything else is not: a JVM in the
@@ -854,5 +940,16 @@ process layer for orchestration; use Ash for business truth"* — is the correct
 5. **It does not address the two problems that actually matter here:** assignment resolved through a real authorization
    model (§6.3), and process versioning with in-flight instances (§7). It mentions version pinning in a single bullet
    and leaves it there.
+
+Three smaller factual errors in it, recorded so they are not propagated:
+
+- It advises falling back to *"a GenServer or `:gen_statem` for the timeout piece"* because AshOban's granularity is
+  *"too coarse"* for sub-minute waits. **Wrong.** `AshOban.build_trigger/3` passes unrecognised options through to
+  `Oban.Worker.new/2`, so `schedule_in:` gives durable one-off timers at second granularity (§4.3). The advice would
+  trade a Postgres-backed timer for one that dies with the node — the opposite of the intended effect.
+- It cites `queuert` as a Postgres-native Elixir alternative. **`queuert` is TypeScript** (`kvet/queuert`, targeting
+  Kysely/Drizzle/Prisma), not on hex, and not an Elixir option at all.
+- It predates Oban Pro 1.7's `await_signal` (April 2026), which is the single most relevant existing primitive for the
+  use case it describes, and omits it entirely (§4.3).
 
 Treat it as an input, not as a plan. Where this document contradicts it, this document is the one that was verified.

@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/check-ash-codegen.sh\"",
+            "async": true,
+            "asyncRewake": true,
+            "timeout": 300,
+            "statusMessage": "Checking Ash codegen drift",
+            "rewakeSummary": "Ash codegen drift",
+            "rewakeMessage": "A background check found that Ash resources have drifted from their generated migrations:"
+          }
+        ]
+      }
+    ]
+  }
+}
