@@ -108,25 +108,68 @@ defmodule AshEnterprise.Platform.Transformers.AddSystemAttributes do
   end
 
   # --- lifecycle: cdsStateAndStatus -------------------------------------------
+  #
+  # Dataverse stores `statecode` and `statuscode` as a pair of integers, but the
+  # mapping status -> state is a total function, so storing both is storing the
+  # same fact twice -- and two columns that must agree eventually disagree.
+  #
+  # We store only the status, as an atom driven by AshStateMachine, and DERIVE
+  # both integers as calculations. Interop is preserved on read; an inconsistent
+  # pair becomes unrepresentable.
   defp maybe_add_lifecycle(dsl, false), do: dsl
 
   defp maybe_add_lifecycle(dsl, true) do
+    lifecycle = AshEnterprise.Platform.Lifecycle
+
     dsl
     |> add_new(fn ->
-      Ash.Resource.Builder.build_attribute(:state_code, :integer,
+      Ash.Resource.Builder.build_attribute(:lifecycle_status, :atom,
         allow_nil?: false,
-        default: 0,
+        default: lifecycle.default_status(),
         public?: true,
-        description: "Coarse lifecycle state. 0 = Active, 1 = Inactive."
+        constraints: [one_of: lifecycle.statuses()],
+        description:
+          "The record's lifecycle status. Managed by AshStateMachine: only declared transitions may change it."
       )
     end)
-    |> add_new(fn ->
-      Ash.Resource.Builder.build_attribute(:status_code, :integer,
-        allow_nil?: true,
-        public?: true,
-        description: "Fine-grained status reason. Each status belongs to exactly one state_code."
-      )
-    end)
+    |> add_derived_code(:status_code, lifecycle.status_code_pairs(),
+      description: "Dataverse statuscode, derived from lifecycle_status. Read-only."
+    )
+    |> add_derived_code(:state_code, lifecycle.state_code_pairs(),
+      description:
+        "Dataverse statecode, derived from the status's owning state. Read-only -- this is why the pair cannot drift."
+    )
+  end
+
+  # Builds `state_code`/`status_code` as a derived value over the status atom.
+  #
+  # A module calculation rather than an expression: see
+  # `AshEnterprise.Platform.Calculations.LifecycleCode` for why, and for the
+  # bounded cost (these two are not filterable in SQL; `lifecycle_status` is).
+  defp add_derived_code(dsl, name, pairs, opts) do
+    case Ash.Resource.Builder.build_calculation(
+           name,
+           :integer,
+           {AshEnterprise.Platform.Calculations.LifecycleCode, pairs: pairs},
+           public?: true,
+           description: opts[:description]
+         ) do
+      {:ok, entity} ->
+        if calculation_exists?(dsl, name) do
+          dsl
+        else
+          Transformer.add_entity(dsl, [:calculations], entity)
+        end
+
+      {:error, error} ->
+        raise "AddSystemAttributes could not build #{name}: #{inspect(error)}"
+    end
+  end
+
+  defp calculation_exists?(dsl, name) do
+    dsl
+    |> Transformer.get_entities([:calculations])
+    |> Enum.any?(&(&1.name == name))
   end
 
   # --- ownership: cdsOwnershipInfo --------------------------------------------

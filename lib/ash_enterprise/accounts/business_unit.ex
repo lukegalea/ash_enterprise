@@ -152,16 +152,22 @@ defmodule AshEnterprise.Accounts.BusinessUnit do
       change AshEnterprise.Accounts.Changes.MaintainBusinessUnitPath
     end
 
+    # `is_disabled` and the lifecycle status are ORTHOGONAL, exactly as they are
+    # in Dataverse -- `businessunit` carries both `isdisabled` and `statecode`.
+    # Disabling stops a unit granting access through it; deactivating is the
+    # record's lifecycle. Conflating them would mean one concept could not be
+    # expressed without the other.
+    #
+    # Use the platform's `:deactivate` / `:activate` actions for the lifecycle;
+    # they are guarded by the state machine. These two touch only the flag.
     update :disable do
       accept []
       change set_attribute(:is_disabled, true)
-      change set_attribute(:state_code, 1)
     end
 
     update :enable do
       accept []
       change set_attribute(:is_disabled, false)
-      change set_attribute(:state_code, 0)
     end
 
     read :subtree do

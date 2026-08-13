@@ -92,6 +92,7 @@ defmodule AshEnterprise.Platform.Resource do
       |> maybe_add(paper_trail?, AshPaperTrail.Resource)
       |> maybe_add(not is_nil(api_type), AshJsonApi.Resource)
       |> maybe_add(not is_nil(api_type), AshGraphql.Resource)
+      |> maybe_add(lifecycle?, AshStateMachine)
       |> Kernel.++(List.wrap(extra_extensions))
       |> Kernel.++(List.wrap(declared_extensions))
       |> Enum.uniq()
@@ -144,6 +145,55 @@ defmodule AshEnterprise.Platform.Resource do
 
             graphql do
               type unquote(api_type)
+            end
+          end
+        end
+      )
+
+      unquote(
+        if lifecycle? do
+          lifecycle = AshEnterprise.Platform.Lifecycle
+
+          transitions =
+            for {action, from, to} <- lifecycle.transitions() do
+              quote do
+                transition unquote(action), from: unquote(from), to: unquote(to)
+              end
+            end
+
+          # One update action per transition. Named after the transition rather
+          # than being a generic `:update` that happens to set a field, so the
+          # audit log records "deactivate" and not an anonymous update -- the
+          # same argument as User.assign_to_business_unit.
+          actions =
+            for {action, _from, to} <- lifecycle.transitions() do
+              quote do
+                update unquote(action) do
+                  description "Lifecycle transition. Guarded by the state machine."
+                  accept []
+                  require_atomic? false
+                  # transition_state/1 takes the TARGET STATE, not the action
+                  # name. Passing the action name yields the confusing
+                  # "Attempted to change state to :deactivate ... no matching
+                  # transition was configured".
+                  change transition_state(unquote(to))
+                end
+              end
+            end
+
+          quote do
+            state_machine do
+              state_attribute :lifecycle_status
+              initial_states [unquote(lifecycle.default_status())]
+              default_initial_state unquote(lifecycle.default_status())
+
+              transitions do
+                (unquote_splicing(transitions))
+              end
+            end
+
+            actions do
+              (unquote_splicing(actions))
             end
           end
         end
