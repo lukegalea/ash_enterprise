@@ -1,13 +1,18 @@
-# AshStrangler — implementation plan
+# Plan — AshStrangler
 
-> **Status: DEFERRED.** Not started, not scheduled. This is a design document for a *standalone open-source package*
-> that would live outside this repository. It does not begin until the current phases (Organization/tenancy, hierarchy
-> security) are complete. Written now because the design questions are cheap to answer on paper and expensive to
-> answer in code, and because [§10](#10-what-is-genuinely-hard) contains findings that are true whether or not the
-> package is ever built.
->
-> Companion: [`ash-strangler-in-reference-app.md`](ash-strangler-in-reference-app.md) — how this repository would
-> demonstrate it, and the conflicts that surfaces.
+- **Status:** **DEFERRED.** Not started, not scheduled. Do not begin until the current phases are complete —
+  Organization and tenancy (Phase 5), hierarchy security (Phase 6). Written now because the design questions are cheap
+  to answer on paper and expensive to answer in code, and because [§10](#10-what-is-genuinely-hard) records findings
+  that hold whether or not the package is ever built.
+- **Date:** 2026-08-13
+- **Scope:** a *standalone open-source package*, living outside this repository. There is nothing to add to `mix.exs`
+  here.
+- **Replaces the guidance in:** `docs/AshStrangler.md` and
+  `docs/Strangler Fig Migrations for Postgres Schemas…md`, both raw research transcripts. They are useful for their
+  citations and wrong in several specifics — see [§10](#10-what-is-genuinely-hard), where six of their assumptions are
+  corrected against an executed test.
+- **Companion:** [`ash-strangler-in-reference-app.md`](ash-strangler-in-reference-app.md) — how this repository would
+  demonstrate it, and the platform conflicts that surfaces.
 
 ---
 
@@ -301,10 +306,38 @@ CREATE TRIGGER strangler_users_notify
   FOR EACH ROW EXECUTE FUNCTION strangler.notify_users();
 ```
 
-Change `phase` to `:dual_write` and the next `mix ash.codegen` adds the three `INSTEAD OF` triggers and the write-path
-usage counter. Change it to `:read_from_new` and the generator emits the reversal: a new physical table, a backfill
-migration, and a view *named `legacy.users`* defined over it so the old application keeps working unchanged. Change it
-to `:decommissioned` and everything is dropped.
+Plus the expression index that keeps `Ash.get` off a sequential scan — verified necessary and verified sufficient
+(§10.1's companion measurement in the reference-app plan §4.1):
+
+```sql
+-- statement :strangler_users_key_index
+CREATE INDEX IF NOT EXISTS strangler_users_key_idx ON legacy.users
+  (uuid_generate_v5('6b1e8b2c-6f6d-4a4a-9f1a-5b0e0d3c4a71'::uuid, 'legacy.users:' || id::text));
+```
+
+Change `phase` to `:dual_write` and the next `mix ash.codegen` adds **all three** `INSTEAD OF` triggers and the
+write-path usage counter. All three unconditionally, even where Postgres's auto-updatability would have handled the
+write — see §10.3, which is the reason. Each generated trigger re-reads and returns the stored row rather than `NEW`,
+which is §10.1's reason:
+
+```sql
+-- statement :strangler_users_insert_up  (abridged)
+CREATE OR REPLACE FUNCTION strangler.users_insert() RETURNS trigger AS $$
+DECLARE rec legacy.users;
+BEGIN
+  INSERT INTO legacy.users (email, state, deleted_at)
+  VALUES (NEW.email, CASE NEW.state_code WHEN 0 THEN 'active' ELSE 'suspended' END, NEW.archived_at)
+  RETURNING * INTO rec;
+  PERFORM strangler.count_use('MyApp.Accounts.User', 'ash_write');
+  -- MUST re-read: RETURNING on the view reports what this function returns, not what was stored.
+  SELECT * INTO NEW FROM strangler.users WHERE __legacy_id = rec.id;
+  RETURN NEW;
+END $$ LANGUAGE plpgsql;
+```
+
+Change it to `:read_from_new` and the generator emits the reversal: a new physical table, a backfill migration, and a
+view *named `legacy.users`* defined over it so the old application keeps working unchanged. Change it to
+`:decommissioned` and everything is dropped.
 
 **The phase is the whole design.** One word decides which of a dozen artifacts exist, and the transition is a diff a
 reviewer can read.
@@ -428,7 +461,7 @@ defp after?(_, %Operation.RemoveCustomStatement{}), do: true
 ```
 
 Every `Remove` runs first, every `Add` runs last, both are `no_phase: true` so they are never folded into a
-`create table` block, and a *changed* statement becomes Remove-old-then-Add-new. See §10.6.
+`create table` block, and a *changed* statement becomes Remove-old-then-Add-new. See §10.7.
 
 ### 6.2 Transformers
 
@@ -489,7 +522,7 @@ in `deps/ash/lib/ash/notifier/notifier.ex`. Two verified traps:
   will not resolve. **This is a real limitation of the bridge and it is not obvious from the outside.**
 
 Also: `notify/1` called inside a transaction for that resource returns the notification *unsent*, back to the caller.
-The listener is not in a transaction, so this is fine — but a synchronous audit trigger (§10.4) would be, and would
+The listener is not in a transaction, so this is fine — but a synchronous audit trigger (§10.5) would be, and would
 have to handle it.
 
 **`AshStrangler.Reconciler`** compares the two shapes: row counts, then per-batch checksums over the mapped columns.
@@ -638,6 +671,17 @@ See the reference-app plan §3.
 **8.10 A scale test, run nightly, not in PR CI.** 10 million rows, measure backfill throughput and lock duration.
 Marked clearly as the *only* evidence about scale, because everything else in the suite is small.
 
+**8.11 Five named regression tests, one per hazard §10 found by execution.** These are not general properties; they are
+specific traps with specific assertions, and each would otherwise be discovered in production:
+
+| Test | Asserts |
+|---|---|
+| `returning_is_not_null` | `Ash.create!` on a view-backed resource returns a record with a non-nil primary key and a populated `created_on`. Fails against the naive trigger (§10.1) |
+| `upsert_is_a_compile_error` | A resource declaring `upsert?: true` while view-backed fails to compile, with an error naming §10.2 |
+| `no_write_bypasses_the_trigger` | In `:dual_write`, `UPDATE`, `DELETE` **and `MERGE`** issued as raw SQL against the view all increment the usage counter. Catches the auto-updatability bypass (§10.3) |
+| `noop_trigger_is_impossible` | Generated `INSTEAD OF` triggers always write; a mapping that would produce a no-op is a compile error, not an `UPDATE 1` (§10.3) |
+| `policy_filters_use_an_index` | `EXPLAIN` of a policy-filtered read shows no `Seq Scan` on the legacy base table (§10.6) |
+
 ## 9. Repository and release
 
 | | |
@@ -783,29 +827,53 @@ the notify trigger must live on the base table, which is what the design already
 no per-row hook on the view itself for auditing what came through it. The usage counter (§7.1) has to live inside the
 `INSTEAD OF` function.
 
-### 10.4 Notifications are best-effort, and an audit log is not
+### 10.5 Notifications are best-effort, and an audit log is not
 
-`pg_notify` is at-most-once with a bounded queue and a payload ceiling. A listener that is down misses events
-permanently, and a full queue fails the *transaction that issued the NOTIFY*. This is entirely fine for LiveView
-reactivity and cache invalidation, and entirely unacceptable for a compliance audit trail.
+Verified against PG 17.10:
 
-The package must say so in the README rather than letting users discover it. Where a complete record of legacy writes
-is required, the mechanism has to be a synchronous trigger inserting into an events table inside the legacy
-transaction — which couples the legacy app's availability to the audit table's health. That is a real tradeoff with no
-right answer, and the package should support both and refuse to pick.
+- **`NOTIFY` does not fire on rollback.** A `pg_notify` inside a rolled-back transaction delivers nothing. Correct, and
+  what you want.
+- **Postgres collapses duplicate notifications within a transaction.** Two identical `(channel, payload)` notifies in
+  one transaction deliver **once**; a third with a different payload delivers separately. Since the design's payload is
+  just the primary key, a row updated twice in one transaction produces one event. That is fine for a re-read-based
+  listener and fatal for anything that counts events. **You cannot use `pg_notify` to measure write volume.**
+- **The payload ceiling is a hard error, not a truncation.** 8000 bytes fails with `ERROR: payload string too long` —
+  which aborts the *legacy application's transaction*. A notify trigger that builds its payload from row data is a
+  latent outage in the legacy app. The design's key-only payload is therefore not merely an optimization; it is the
+  only safe choice.
+- At-most-once delivery: a listener that is down misses events permanently, and a full queue fails the transaction that
+  issued the `NOTIFY`.
 
-### 10.5 Policy filters over views
+All of which is entirely fine for LiveView reactivity and cache invalidation, and entirely unacceptable for a
+compliance audit trail. Where a complete record of legacy writes is required, the mechanism has to be a synchronous
+trigger inserting into an events table inside the legacy transaction — coupling the legacy app's availability to the
+audit table's health. A real tradeoff with no right answer; the package should support both and refuse to pick.
 
-Ash policies produce `WHERE` clauses. Against a single-table view Postgres inlines the predicate and the base table's
-indexes are used. Against a view with joins, `DISTINCT`, or aggregates, pushdown is not guaranteed, and a filter on a
-*computed* column — which `owning_business_unit_id` is, in the reference-app design — cannot use an index at all
-unless one was built on the expression.
+### 10.6 Policy filters over views — less bad than expected, but sharply bounded
 
-The extension can emit expression indexes for columns it knows are filtered on, but it does not know which those are.
-The realistic answer is that **complex views are for the read phase only**, and the expand step (real columns, real
-indexes) is a prerequisite for any resource under meaningful load. That should be a documented rule, not a discovery.
+Ash policies produce `WHERE` clauses, so the question is whether Postgres pushes them into the base table. Measured:
 
-### 10.6 Migration ordering
+| View shape | Filter | Plan |
+|---|---|---|
+| single table | plain column | `Index Scan using users_pkey` |
+| `LEFT JOIN` to a second table | plain column | `Index Scan using users_pkey` under a hash join |
+| `DISTINCT` | plain column | `Index Scan` **below** the `Unique`/`Sort` |
+| `GROUP BY … count(*)` | the grouping key | `Index Only Scan` below `GroupAggregate` |
+| `row_number() OVER (…)` | plain column | `Subquery Scan` + `Filter` **above** `WindowAgg` — full scan |
+| single table | **computed column** | `Seq Scan` with the expression in `Filter` |
+
+So joins, `DISTINCT` and aggregates on grouping keys are all fine — the pessimism in the source documents is
+misplaced. **The two real killers are window functions and filters on computed columns.** The second is the one that
+matters here, because `owning_business_unit_id` is a computed column in the reference-app design and `RoleGrant`
+filters on exactly that. Every policy-relevant column must therefore be either a real column or backed by an
+expression index.
+
+The extension can emit expression indexes, but it cannot know which columns policies will filter on. The workable rule:
+**derive an expression index for every attribute that appears in an `identity`, a `belongs_to` source, or the
+multitenancy attribute**, document that anything else under load needs the expand step, and make §8's suite include an
+`EXPLAIN`-based assertion so a regression is a test failure rather than a pager.
+
+### 10.7 Migration ordering
 
 `custom_statements` are diffed by name and ash_postgres's own documentation is explicit that it cannot determine
 ordering, that all `down`s run before all `up`s, and that changing a statement regenerates it as down-then-up. For a
@@ -818,7 +886,7 @@ internally), and use `CREATE OR REPLACE` where Postgres allows it so the down-th
 cross-resource dependencies**, and the fallback is that the package generates the statements and a human orders the
 migration — which is a defensible position for DDL this consequential, but it is not the "fully derived" story.
 
-### 10.7 Phase transitions are stateful, and Spark verifiers are read-only
+### 10.8 Phase transitions are stateful, and Spark verifiers are read-only
 
 `VerifyPhaseTransition` needs the previous phase. Spark verifiers are strictly read-only by API surface —
 `Spark.Dsl.Verifier` delegates only `get_persisted`, `get_option`, `fetch_option` and `get_entities`
@@ -832,7 +900,7 @@ sync. A third option is to give up on compile-time checking entirely and make ph
 inspects the database (`mix ash_strangler.phase MyApp.User --to dual_write`), which is where this probably lands —
 compile-time verification of a *stateful* transition was the wrong instinct. **Undecided.**
 
-### 10.8 Passwords, and everything else the mapping cannot reach
+### 10.9 Passwords, and everything else the mapping cannot reach
 
 Legacy password hashes cannot be converted. Encrypted columns cannot be re-keyed by a view. Serialized Ruby YAML
 columns cannot be usefully projected. Every real migration has at least one of these, and none of them are schema
@@ -843,7 +911,7 @@ The correct posture is for the package to be *loudly incomplete* about it: `writ
 "and now you write a custom hash provider by hand." A tool that leaves you holding the hard part is still valuable.
 A tool that implies there is no hard part is worse than nothing.
 
-### 10.9 It might not be worth building
+### 10.10 It might not be worth building
 
 Stated last because it is the honest conclusion of §2 and must survive the enthusiasm of the preceding nine sections.
 The mechanism — views and `INSTEAD OF` triggers — is well understood and hand-writable. What the package adds is
@@ -852,33 +920,43 @@ valuable parts, and the SQL generation is the risky part, then **the honest mini
 `mix ash_strangler.check` plus the verifiers, with the SQL left to the user.** That is a much smaller thing and it
 delivers most of the value on the first day.
 
-The decision gate in §11 is designed to find out.
+The argument on the other side got stronger while this document was being written, and it should be recorded fairly.
+§10.1 and §10.3 are exactly the kind of trap a generator exists to eliminate: the obvious hand-written trigger returns
+nulls and reports success, and the obvious "we don't need an `INSTEAD OF UPDATE` here" reasoning opens an ungoverned
+write path. Neither is discoverable by reading; both were found by running SQL. **A tool whose entire value is
+"never writes the version that silently loses data" is a defensible tool** — and it argues for generating the SQL
+rather than documenting how to write it.
+
+That is an argument, not a decision. The gate in §11 is what settles it.
 
 ## 11. Sequencing, and the spikes that come first
 
-Two of the three original spikes are already answered from source reading; one remains, and it is the one that
-constrains the claim.
+All three original spikes are answered — two from source reading, one from executing SQL against PG 17.10. That is
+unusual for a plan at this stage and it is the reason the risk assessment above is specific rather than hedged.
 
-1. ~~**Can a third-party Spark transformer add entities to `[:postgres, :custom_statements]`?**~~ **Answered: yes.**
+1. ~~**Can a third-party Spark transformer add entities to `[:postgres, :custom_statements]`?**~~ **Yes.**
    `add_entity/4` is ungated and keyed on section path only; `build_entity/4` validates against the target extension's
    schema; `VerifyEntityUniqueness` checks the names. Unprecedented in a data-layer section, but mechanically sound.
    §6.1.
-2. **Does `RETURNING` behave as §10.1 describes?** Documented behaviour says the trigger's return value is what
-   `RETURNING` reports. That was established from the Postgres documentation, not by execution. A twenty-line SQL
-   script confirms or refutes it and is the cheapest high-value thing to run.
-3. **Does `INSERT … ON CONFLICT` work against a view with `INSTEAD OF` triggers?** Expected: no. AshPostgres emits both
-   an `ON CONFLICT` path (`data_layer.ex:2316`) and a PG17 `MERGE` path (`lib/merge.ex`), and both need a real conflict
-   target that a view cannot provide. §10.2. The open question is *behavioural*, not documentary: how many Ash and
-   `ash_authentication` code paths silently depend on upserts. That needs a spike against a real database, and it
-   determines whether the package can honestly claim to support authentication resources at all.
+2. ~~**Does `RETURNING` behave as assumed?**~~ **Yes, and the naive trigger silently returns nulls.** §10.1.
+3. ~~**Does `INSERT … ON CONFLICT` work against a view?**~~ **No, in two different ways depending on view shape, and
+   `DO NOTHING` does not swallow the conflict.** §10.2.
 
-Then, in order:
+Three questions the SQL spike *raised* and did not answer, all of which now precede step 1:
+
+4. **How many Ash and `ash_authentication` code paths silently depend on upserts?** §10.2 makes upserts unavailable.
+   This determines whether the package can honestly claim to support authentication resources at all, and it is a spike
+   against a real application rather than a real database.
+5. **Can `ecto_watch` install triggers on arbitrary relations in a non-default schema**, or is it bound to Ecto schemas
+   it owns? §2.1's conclusion that notifications are an integration rather than a pillar depends on the answer.
+6. **What does `Ash.Notifier.PubSub` do with a synthesized notification that has no changeset?** §6.4. If `:_pkey` and
+   `:_tenant` topic templates cannot resolve, the bridge is less transparent than claimed and the README has to say so.
 
 Then, in order:
 
 | Step | Deliverable | Why this order |
 |---|---|---|
-| 1 | `mix ash_strangler.check` + the verifiers, no SQL generation | Standalone value, zero risk, answers §10.9 |
+| 1 | `mix ash_strangler.check` + the verifiers, no SQL generation | Standalone value, zero risk, answers §10.10 |
 | 2 | View generation, `:read_from_legacy` only | The smallest useful generator |
 | 3 | Round-trip property test harness | Before write generation, not after |
 | 4 | `INSTEAD OF` triggers, `:dual_write` | The risky part, with the oracle already in place |

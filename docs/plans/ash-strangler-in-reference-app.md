@@ -1,10 +1,15 @@
-# AshStrangler in the reference application
+# Plan — AshStrangler in the reference application
 
-> **Status: DEFERRED.** Nothing here is built. This document is the demonstration plan for
-> [`ash-strangler.md`](ash-strangler.md), and it does not start until the current phases (Organization/tenancy,
-> hierarchy security) are complete. It is written now because designing the demo is how you find out whether the
-> extension design is honest, and because the conflicts listed in [§4](#4-where-it-collides-with-the-platform) are
-> findings about *this repository* whether or not the extension is ever built.
+- **Status:** **DEFERRED.** Nothing here is built. Do not begin until the current phases are complete — Organization
+  and tenancy (Phase 5), hierarchy security (Phase 6). Written now because designing the demonstration is how you find
+  out whether the extension design is honest, and because the conflicts in
+  [§4](#4-where-it-collides-with-the-platform) are findings about *this repository* whether or not the extension is
+  ever built.
+- **Date:** 2026-08-13
+- **Depends on:** [`ash-strangler.md`](ash-strangler.md), at least through its read-model phase. Two steps
+  ([§5](#5-the-migration-story-step-by-step), steps 0 and 1) do not.
+
+---
 
 ## 1. Why the reference app needs a legacy schema at all
 
@@ -112,8 +117,14 @@ Six properties of this schema are load-bearing for the demonstration. Each maps 
 | `crypted_password` is SHA1 + salt | `AshAuthentication.BcryptProvider` |
 | `roles_users` has no primary key | Ash resources require one |
 
-Plus one that is not a schema property at all: **the legacy application keeps writing.** That is what breaks the audit
-log, and it is the hardest problem in the whole exercise.
+Plus two that are not schema properties at all.
+
+**The legacy application keeps writing.** That is what breaks the audit log, and it is the hardest problem in the whole
+exercise (§4.8).
+
+**A view cannot arbitrate an upsert.** `AshAuthentication` needs upserts for several flows and they are unavailable
+against a view — verified, §4.10. This is the constraint that decides the *order* of the migration, and it is invisible
+until you try it.
 
 ## 3. How it gets created and seeded
 
@@ -181,14 +192,25 @@ Three options, and the plan takes two of them at different phases:
 uuid_generate_v5('6b1e...'::uuid, 'legacy.users:' || u.id::text) AS id
 ```
 
-`uuid_generate_v5` comes from `uuid-ossp`, which `AshEnterprise.Repo.installed_extensions/0` already installs, and it
-is `IMMUTABLE`, so the expression can be indexed. The same value is computable in Elixir, so application code and SQL
-agree without a lookup table. Zero writes to the legacy schema. This is what makes phase 1 possible on a database you
-are not allowed to alter yet.
+`uuid_generate_v5` comes from `uuid-ossp`, which `AshEnterprise.Repo.installed_extensions/0` already installs.
+Verified against PG 17.10: `pg_proc.provolatile = 'i'` — genuinely `IMMUTABLE`, unlike `uuid_generate_v4` (`'v'`) — so
+the expression can be indexed, and it is:
 
-The cost is real: `WHERE id = $1` against the view becomes `WHERE uuid_generate_v5(ns, 'legacy.users:' || id::text) = $1`,
-which cannot use the primary key index unless you build the expression index. And the reverse direction — given a
-UUID, find the integer — is not computable at all. You need a functional index or a mapping column.
+```
+CREATE INDEX users_v5_idx ON legacy.users
+  (uuid_generate_v5('6b1e…'::uuid, 'legacy.users:' || id::text));
+
+EXPLAIN SELECT * FROM strangler.users WHERE id = '8be4d3bf-…';
+  Index Scan using users_v5_idx on users u
+    Index Cond: (uuid_generate_v5('6b1e…'::uuid, ('legacy.users:'::text || (id)::text)) = '8be4d3bf-…'::uuid)
+```
+
+The same value is computable in Elixir, so application code and SQL agree without a lookup table, and there are zero
+writes to the legacy schema. This is what makes phase 1 possible on a database you are not allowed to alter yet.
+
+The cost is real: without that expression index, `WHERE id = $1` is a sequential scan, and the extension has to emit
+the index automatically because nobody will remember to. And the reverse direction — given a UUID, find the integer —
+is not computable at all. Hence the `legacy_id` column in the view, which every write trigger keys off.
 
 **A stored `uuid` column on the legacy table (dual-write phase).** The first genuine expand step: add
 `uuid uuid NOT NULL DEFAULT uuid_generate_v4()` — no, deliberately not; backfill it with the *same* v5 value so ids do
@@ -204,8 +226,10 @@ all, and it costs a join on every single read. Worth mentioning; not worth demon
 > rows and not others, and any code that assumed it is wrong. The resolution is to make the legacy-backed resource
 > declare its own `default` rather than use `uuid_primary_key`, and to have the `INSTEAD OF INSERT` trigger allocate
 > the legacy `serial` and *recompute* the v5 id, discarding the one Ash sent. Which in turn means Ash's `RETURNING`
-> must be trusted over the changeset — see the extension plan's discussion of `RETURNING` through `INSTEAD OF`
-> triggers, which is the single most fragile mechanic in the design.
+> must be trusted over the changeset — and `RETURNING` through an `INSTEAD OF` trigger is verified (extension plan
+> §10.1) to report **whatever the trigger returned**, not what was stored. The obvious trigger body returns nulls for
+> `id` and `created_at` and raises no error. This is the single most fragile mechanic in the design, and the demo
+> should include the broken version first so the failure is visible before the fix is.
 
 ### 4.2 No tenant
 
@@ -378,18 +402,52 @@ demonstrating the choice is worth more than demonstrating a mechanism.
 
 ### 4.9 Policies over a view
 
-Policy filters become `WHERE` clauses. Against a simple single-table view Postgres inlines them and the underlying
-indexes are used. Against a view with joins or `DISTINCT`, predicate pushdown is not guaranteed, and a `RoleGrant`
-filter on `owning_business_unit_id` — a *computed expression* in the view, not a column — degrades to a scan.
+Policy filters become `WHERE` clauses, so the question is whether Postgres pushes them into the base table. Measured
+against PG 17.10 (see the extension plan §10.6 for the full table): joins, `DISTINCT` and `GROUP BY` on the grouping
+key all push down and use the base index. **Filters on computed columns do not** — they produce a `Seq Scan` with the
+expression in `Filter`.
 
-This is the performance failure mode of the whole approach, and it interacts badly with thesis 3's hard rule that
-policy checks must not query. The checks do not query; the *filters they produce* are the problem, one level down.
+That is precisely the case here. `AshEnterprise.Security.Checks.RoleGrant` filters on `owning_business_unit_id`, which
+in the phase-1 view is a *constant expression*, and would be a `CASE` over `company_id` after §4.3 step 2. So the
+performance failure mode is not "views are slow" — it is specifically "**every column a policy filters on must be a
+real column or have an expression index**."
 
-The demo should include an `EXPLAIN`-based test: assert that a policy-filtered read of the legacy-backed user resource
-does not sequentially scan `legacy.users`. If that test cannot be made to pass, that is a finding about the approach,
-and it belongs in the extension plan's "genuinely hard" section rather than being smoothed over.
+It interacts with thesis 3's hard rule in an interesting way: the rule is that policy *checks* must not query, and they
+do not. The problem is one level down, in the filters they produce. `ActorContext` correctly makes the check free; it
+cannot make the resulting `WHERE` clause indexable.
 
-### 4.10 Archival, lifecycle, concurrency
+The demo should include an `EXPLAIN`-based test asserting that a policy-filtered read of the legacy-backed user
+resource does not sequentially scan `legacy.users`. Getting it to pass is the point of the expand step (§5, step 4).
+
+### 4.10 Upserts, and whether AshAuthentication survives the view at all
+
+Verified against PG 17.10 (extension plan §10.2): `INSERT … ON CONFLICT` does not work against a view. On a
+single-table view it fails with *"there is no unique or exclusion constraint matching the ON CONFLICT specification"*;
+on a joined view it fails earlier with *"cannot insert into view"*. And `ON CONFLICT DO NOTHING` does **not** swallow
+the conflict — the base table's unique violation escapes from inside the trigger.
+
+This lands directly on the demo, because the resource being migrated is `AshEnterprise.Accounts.User` and it carries
+`extensions: [AshAuthentication]`. Several `ash_authentication` flows are upsert-shaped by nature — OAuth2/OIDC
+sign-in creates-or-updates by identity, and confirmation add-ons update a record found by token.
+
+Two consequences the demo has to confront rather than route around:
+
+1. **The legacy-backed `User` cannot support the full authentication surface during `:read_from_legacy` and
+   `:dual_write`.** It can support password sign-in (a read) and it can support reads generally. Registration and
+   OAuth almost certainly need the new table. That makes authentication one of the *first* things to cut over, not one
+   of the last — which inverts the usual instinct to migrate the scary thing last.
+2. **Verification has to be at compile time**, because the runtime failure is a Postgrex error surfacing as a 500 in
+   the middle of a sign-in flow. `VerifyNoUpserts` is the mechanism.
+
+There is a second, subtler hazard the demo should show working: **a single-table view is automatically updatable even
+with computed columns.** Verified — `UPDATE strangler.users SET email = …` succeeds with no `INSTEAD OF UPDATE`
+trigger at all, `DELETE` likewise, and `MERGE` routes through the auto-update path even when an `INSTEAD OF INSERT`
+trigger exists. So during `:dual_write`, a write can reach `legacy.users` by a path the mapping never described. The
+demo should include exactly that: issue a `MERGE` against the view in `psql`, and show it landing in the base table
+*without* incrementing the usage counter. That is the argument for generating all three triggers unconditionally, and
+it is much more convincing demonstrated than asserted.
+
+### 4.11 Archival, lifecycle, concurrency
 
 The small ones, listed for completeness because each is a line of mapping and a decision:
 

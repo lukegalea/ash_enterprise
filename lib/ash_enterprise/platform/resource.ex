@@ -124,6 +124,14 @@ defmodule AshEnterprise.Platform.Resource do
             events do
               event_log AshEnterprise.Audit.EventLog
             end
+
+            changes do
+              # Stamps the request's correlation id onto every audit event, so
+              # the several rows one user action produces can be reconstructed
+              # as one operation. Dataverse's audit.transactionid, essentially.
+              change AshEnterprise.Platform.Changes.StampCorrelation,
+                on: [:create, :update, :destroy]
+            end
           end
         end
       )

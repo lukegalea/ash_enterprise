@@ -33,6 +33,11 @@ defmodule AshEnterpriseWeb.Plugs.LoadActorContext do
 
   @impl true
   def call(%Plug.Conn{} = conn, _opts) do
+    # One correlation id per request, stamped onto every audit event the request
+    # produces. Set before the actor check so that even unauthenticated requests
+    # that write something (registration, say) are correlated.
+    AshEnterprise.Platform.Correlation.start_new()
+
     case conn.assigns[:current_user] do
       nil ->
         conn

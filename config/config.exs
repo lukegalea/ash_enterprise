@@ -92,6 +92,25 @@ config :spark,
     ]
   ]
 
+# --- Observability -----------------------------------------------------------
+#
+# OpentelemetryAsh implements Ash.Tracer, so every action, query, changeset,
+# validation, change and calculation becomes a span with no per-resource wiring.
+# That is the same "declare once, derive everywhere" property as the rest of the
+# platform: a new resource is instrumented by virtue of being a resource.
+#
+# Note the honest limitation recorded in
+# docs/manifesto/07-what-we-do-not-have.md: opentelemetry_ash is 0.1.x and thin
+# relative to what enterprise APM expects. Expect to extend it.
+config :ash, :tracer, [OpentelemetryAsh]
+
+# Traces go nowhere unless an OTLP endpoint is configured, which is the right
+# default for a template: exporting by accident is worse than not exporting.
+# Set OTEL_EXPORTER_OTLP_ENDPOINT to turn it on (see config/runtime.exs).
+config :opentelemetry,
+  span_processor: :batch,
+  traces_exporter: :none
+
 # Teach Postgrex about the pgvector wire type. See lib/ash_enterprise/postgrex_types.ex.
 config :ash_enterprise, AshEnterprise.Repo, types: AshEnterprise.PostgrexTypes
 
