@@ -122,9 +122,10 @@ Plus two that are not schema properties at all.
 **The legacy application keeps writing.** That is what breaks the audit log, and it is the hardest problem in the whole
 exercise (§4.8).
 
-**A view cannot arbitrate an upsert.** `AshAuthentication` needs upserts for several flows and they are unavailable
-against a view — verified, §4.10. This is the constraint that decides the *order* of the migration, and it is invisible
-until you try it.
+**One line of mapping decides whether upserts still work.** A view is auto-updatable — upserts included — until an
+`INSTEAD OF` trigger appears, and a single computed-but-writable mapping forces one. `AshAuthentication` needs upserts.
+Verified, §4.10. This is the constraint that decides the *order* of the migration, and it is invisible until you try
+it.
 
 ## 3. How it gets created and seeded
 
@@ -419,33 +420,36 @@ cannot make the resulting `WHERE` clause indexable.
 The demo should include an `EXPLAIN`-based test asserting that a policy-filtered read of the legacy-backed user
 resource does not sequentially scan `legacy.users`. Getting it to pass is the point of the expand step (§5, step 4).
 
-### 4.10 Upserts, and whether AshAuthentication survives the view at all
+### 4.10 The trigger trade, and whether AshAuthentication survives the view
 
-Verified against PG 17.10 (extension plan §10.2): `INSERT … ON CONFLICT` does not work against a view. On a
-single-table view it fails with *"there is no unique or exclusion constraint matching the ON CONFLICT specification"*;
-on a joined view it fails earlier with *"cannot insert into view"*. And `ON CONFLICT DO NOTHING` does **not** swallow
-the conflict — the base table's unique violation escapes from inside the trigger.
+This is the conflict that most changes how the demo has to be built, and it is not a conflict with our platform — it
+is a conflict inside Postgres.
 
-This lands directly on the demo, because the resource being migrated is `AshEnterprise.Accounts.User` and it carries
-`extensions: [AshAuthentication]`. Several `ash_authentication` flows are upsert-shaped by nature — OAuth2/OIDC
-sign-in creates-or-updates by identity, and confirmation add-ons update a record found by token.
+Verified against PG 17.10 (extension plan §10.2). A **single-table view with computed columns is automatically
+updatable**: `UPDATE strangler.users SET email = …` succeeds with no `INSTEAD OF UPDATE` trigger, `DELETE` likewise,
+`MERGE` likewise, and `INSERT … ON CONFLICT (email) DO UPDATE … RETURNING …` **works**, resolving through to the base
+table's unique index. Adding an `INSTEAD OF` trigger to that same view silently removes all of it: upserts break,
+`RETURNING` starts reporting whatever the trigger returned, and `WITH CHECK OPTION` is ignored without a warning.
 
-Two consequences the demo has to confront rather than route around:
+So the demo has two mutually exclusive modes and must show both.
 
-1. **The legacy-backed `User` cannot support the full authentication surface during `:read_from_legacy` and
-   `:dual_write`.** It can support password sign-in (a read) and it can support reads generally. Registration and
-   OAuth almost certainly need the new table. That makes authentication one of the *first* things to cut over, not one
-   of the last — which inverts the usual instinct to migrate the scary thing last.
-2. **Verification has to be at compile time**, because the runtime failure is a Postgrex error surfacing as a 500 in
-   the middle of a sign-in flow. `VerifyNoUpserts` is the mechanism.
+**Without triggers**, `AshEnterprise.Accounts.User` keeps its full `AshAuthentication` surface — which matters,
+because several flows are upsert-shaped by nature (OAuth2/OIDC sign-in creates-or-updates by identity). But writes can
+reach `legacy.users` by a path the mapping never described. The demo should prove it: issue a `MERGE` against the view
+in `psql` and show it landing in the base table, un-mapped and uncounted.
 
-There is a second, subtler hazard the demo should show working: **a single-table view is automatically updatable even
-with computed columns.** Verified — `UPDATE strangler.users SET email = …` succeeds with no `INSTEAD OF UPDATE`
-trigger at all, `DELETE` likewise, and `MERGE` routes through the auto-update path even when an `INSTEAD OF INSERT`
-trigger exists. So during `:dual_write`, a write can reach `legacy.users` by a path the mapping never described. The
-demo should include exactly that: issue a `MERGE` against the view in `psql`, and show it landing in the base table
-*without* incrementing the usage counter. That is the argument for generating all three triggers unconditionally, and
-it is much more convincing demonstrated than asserted.
+**With triggers**, every write is governed and the usage counter (§5, step 6) exists at all — but upserts are gone,
+and the failure is a Postgrex error surfacing as a 500 mid-sign-in unless a compile-time verifier catches it first.
+
+Neither mode is correct in general. What the demo proves is that **the choice is forced by the mapping, not by
+preference**: our `full_name` mapping is read-only and our `state_code` mapping is computed-but-writable, and it is
+that second one — a single line of DSL — that drags in an `INSTEAD OF UPDATE` trigger and therefore costs upserts on
+the whole resource. Showing that a one-line mapping decision silently determines whether authentication still works is
+worth more than either mode on its own.
+
+The practical consequence for the migration order: **authentication is one of the *first* things to cut over, not one
+of the last.** That inverts the usual instinct to leave the scary thing until the end, and it is the kind of finding
+only a real legacy schema produces.
 
 ### 4.11 Archival, lifecycle, concurrency
 
@@ -502,7 +506,8 @@ goes away for the ones that mattered.
 table runs against migrated grants and access *narrows*. Diff the `Ash.can?` matrix before and after and put it in the
 demo output. This is the step with the highest blast radius in any real migration.
 
-**Step 6 — Dual write.** `INSTEAD OF INSERT/UPDATE/DELETE` on the view; Ash write actions enabled; a reconciliation
+**Step 6 — Dual write.** `INSTEAD OF INSERT/UPDATE/DELETE` on the view *if the mapping forces them* (§4.10) — and the
+demo should run this step twice, once each way, because the difference is the whole lesson; Ash write actions enabled; a reconciliation
 Oban job comparing row counts and checksums between the two shapes on a schedule; a usage counter incremented inside
 the legacy-path triggers so there is *evidence* of when the legacy write path goes quiet. Password changes are
 explicitly excluded (§4.6). Outcome: both applications write, in the same transactions, to the same rows.

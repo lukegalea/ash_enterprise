@@ -14,7 +14,22 @@ defmodule AshEnterprise.MixProject do
       listeners: [Phoenix.CodeReloader, Clarity.CodeReloader],
       consolidate_protocols: Mix.env() != :dev,
       usage_rules: usage_rules(),
-      dialyzer: dialyzer()
+      dialyzer: dialyzer(),
+      releases: releases()
+    ]
+  end
+
+  # Release configuration. See lib/ash_enterprise/release.ex for why migrations
+  # run as a release command rather than a mix task.
+  defp releases do
+    [
+      ash_enterprise: [
+        include_executables_for: [:unix],
+        # Bakes the ERTS into the release, so the runtime image needs no Erlang
+        # installed and cannot drift from what the release was built against.
+        include_erts: true,
+        steps: [:assemble, :tar]
+      ]
     ]
   end
 

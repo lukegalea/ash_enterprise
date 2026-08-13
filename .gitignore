@@ -55,3 +55,6 @@ devenv.local.yaml
 # Cached upstream Dataverse table-reference markdown. The committed JSON in
 # priv/cdm/resolved/ is the artifact; this is just a scraper cache.
 /priv/cdm/.docs_cache/
+
+# Release artifacts
+/_build/prod/*.tar.gz

@@ -57,15 +57,34 @@ the system does). Those have very different costs.
 
 ## 2. What BPMN 2.0 actually is, and the subset that matters
 
-BPMN 2.0 is an OMG specification of roughly 500 pages defining ~100 notation elements, an XML interchange format, and
-execution semantics. Almost nobody implements it fully, and almost nobody uses it fully.
+BPMN 2.0.2 is an OMG specification of **532 pages** (`formal/13-12-09`) defining, by one careful count, **267 element
+variants**, of which 244 are relevant to process collaboration — plus an XML interchange format and execution semantics.
+Almost nobody implements it fully, and almost nobody uses it fully.
 
-The empirical result worth knowing is zur Muehlen and Recker's 2008 study of real-world BPMN models, which ranked the
-notation's elements by frequency: **over 75% of BPMN constructs appeared in fewer than 30% of the diagrams examined**,
-and diagrams aimed at non-specialists used essentially six symbols — event, activity, gateway, sequence flow, data
-object, association. Camunda's own guidance has said the same thing for years in gentler language. The OMG acknowledged
-this by defining a **Common Executable** conformance subclass — a deliberately reduced element set for engines that
-execute rather than merely draw.
+The empirical case is unusually well evidenced, and it is worth citing the strong version rather than the famous one.
+
+Compagnucci, Corradini, Fornari and Re surveyed **39,695 unique real-world BPMN models** across seven collections
+(*Business & Information Systems Engineering* 66(1):43–66, 2023, open access). Findings:
+
+- **59 of the 244 collaboration-relevant elements appear in none of the 38,863 collaboration models.** Not rarely —
+  never.
+- The average model uses **8 distinct element types**; 84% use between 4 and 14.
+- **Exactly six elements appear in more than half of all models**: sequence flow (97.4%), end event (81.7%), start
+  event (78.6%), normal task (73.2%), expanded pool (56.8%), lane (52.1%).
+- Activities + sequence flows co-occur in 93% of models, + events in 91% ("the core combination"), + gateways in 66%.
+- Verbatim on what is *not* used: *"call activities, ad-hoc subprocesses, and in general, all the elements with
+  compensation, loop, and multiplicity markers… typed and marked elements are rarely used regardless of the model
+  types."*
+
+This replicates zur Muehlen and Recker's much-cited 2008 study (CAiSE, 120 models, BPMN **1.x** and its 50 constructs)
+almost exactly — they found an average of 9 distinct constructs per model and *"less than 20% of its vocabulary is
+regularly used"* — on a corpus roughly 320× larger, fifteen years later. Cite the 2023 paper; the 2008 one is about a
+superseded version of the notation and is routinely misquoted.
+
+The OMG itself concedes the point by defining conformance sub-classes, of which **Common Executable** is the reduced
+element set for engines that execute rather than merely draw. A detail worth knowing before anyone promises
+"conformance": **`manualTask`, `scriptTask`, `businessRuleTask` and `complexGateway` appear in none of the three
+sub-classes.** Three of BPMN's eight task types sit outside every named conformance subset.
 
 The practically-load-bearing subset is small:
 
@@ -80,12 +99,24 @@ The practically-load-bearing subset is small:
 Everything else — event-based gateways, complex gateways, ad-hoc sub-processes, transaction sub-processes, the full
 event taxonomy — is specification surface that real deployments avoid.
 
-**DMN** (Decision Model and Notation), by contrast, has been a genuine success. A DMN decision table with FEEL
-expressions is a legitimately good artifact: it is legible to a finance controller, versionable, and testable. Camunda
-supports DMN in both 7 and 8 precisely because it earned its place.
+**DMN** (Decision Model and Notation, `formal/24-01-01`), by contrast, has been a genuine success. A DMN decision table
+with FEEL expressions is a legitimately good artifact: it is legible to a finance controller, versionable, and testable.
+Camunda supports DMN in both 7 and 8 precisely because it earned its place. Two notes for whoever implements §9 phase 3:
+the spec now **actively discourages the S-FEEL subset** (*"few if any complete decision models can be defined using
+S-FEEL… developers and users are therefore encouraged to use and implement the full FEEL specification"*), and FEEL is
+specified to have **no implementation-defined semantics and no side effects** — which is precisely what makes a decision
+table safely evaluable as data.
 
-**CMMN** (Case Management) did not. Camunda deprecated it in 7, never brought it to 8, and published a post-mortem
-titled *"How CMMN never lived up to its potential."* Treat CMMN as a dead standard.
+**CMMN** (Case Management) did not. Careful here, because the usual claim is wrong: **Camunda never issued a formal CMMN
+deprecation notice** — its Support Announcements page does not mention CMMN at all. What happened was a slow de-facto
+removal: a 2020 blog post saying CMMN would be *"maintained but not fully supported"* and a post-mortem titled *"How
+CMMN never lived up to its potential"*; the Modeler's `disable-cmmn` flag defaulting to `true` in 4.5.0 (Jan 2021); an
+issue in 2022 recording the editor as *"no longer maintained, and currently crashing"*; and finally a November 2025 PR
+removing *"the long broken CMMN support in the modeler."* Camunda 8 contains zero occurrences of the string.
+
+The sharpest datum is the CMMN 1.1 specification's own copyright page: every contributing organisation's copyright is
+frozen at **2011**, and **neither Camunda nor Flowable — the only two vendors who ever shipped a CMMN engine — appears
+on it.** Compare DMN 1.5, whose contributor copyrights run to 2023. Treat CMMN as a dead standard.
 
 **The conclusion for us:** the valuable part of BPMN is a small vocabulary and a set of execution semantics, both of
 which are describable in a Spark DSL in a few hundred lines. The expensive part is XML interchange and conformance
@@ -121,13 +152,33 @@ seriously: the Ash core team looked at a monolithic flow DSL, and chose composit
 | **Camunda 8 / Zeebe** | Proprietary (Camunda Self-Managed Non-Production *or* Enterprise). Since 8.6 (Oct 2024) **all core components require a commercial licence for production use.** Only the Connector SDK and REST connector are Apache-2.0. | Paid. | None. Build your own gRPC or REST client. |
 | **Camunda 7 CE** | Apache-2.0 | **End of life October 2025** (final release 7.24). Enterprise edition extended to April 2030. | None. |
 | **Operaton / CIB seven / Fluxnova** | Apache-2.0 forks of Camunda 7 CE, post-EOL | Free, young, small communities | None. JVM service. |
-| **Flowable** | Apache-2.0, actively maintained (2025.2, Dec 2025) | Free | None. JVM service. |
+| **Flowable** | Apache-2.0, actively maintained (8.0.0, Feb 2026). **Engines and REST only — see below.** | Free | None. JVM service. |
+| **Activiti** | Apache-2.0 | Effectively dead: last GA on Maven Central is **6.0.0 (May 2017)**; 7/8/9 are published only to a vendor's private Nexus | None. |
+| **jBPM** | Apache-2.0 | The embeddable engine is frozen at **7.74.1.Final (Jul 2023)**. "Apache KIE jBPM" 10.x is a different, Kogito-derived engine, and KIE is still an Apache **podling**. | None. |
 | **Temporal** | MIT (server), commercial cloud | Free self-hosted, heavy ops | No official SDK |
 
 **The Camunda 8 licence change is decisive and it invalidates the recommendation in `docs/BPMN.md`,** which states that
 "Self-Managed is free/open-source under the Camunda Community License." That was true before 8.6 and is not true now.
 [Thesis 6](../manifesto/06-reversibility.md) records that open-source-only was a requirement for this repository.
 Camunda 8 fails it.
+
+**Flowable's open-source story is also worse than it looks, and this matters if anyone proposes it as the Apache-2.0
+answer.** Flowable 7 removed **all UI applications** — Modeler, Task, Admin, IDM — from open source, along with the Form
+and Content engines. The `modules/flowable-ui` directory exists in the `flowable-6.8.1` tag and does not exist on `main`.
+The stated reason is that those apps used unsupported AngularJS; the replacement React modeller is **cloud-only**, and
+Flowable staff have confirmed on their own forum that the self-hosted option is a Docker image requiring an enterprise
+licence. The BPMN, CMMN and DMN engines and the full REST layer remain genuinely Apache-2.0 — but **open-source Flowable
+7+ ships no self-hostable BPMN modeller.** Anyone choosing it for the visual editor would end up embedding `bpmn-js`
+themselves anyway (§8), at which point the JVM buys much less than it appeared to.
+
+**Engines do exist outside the JVM, and the shape of them is instructive.** `paed01/bpmn-engine` (Node, MIT, actively
+maintained), `bpmnServer/bpmn-server` (TypeScript, MIT), `nitram509/lib-bpmn-engine` (Go, MIT — *explicitly* a BPMN
+subset) and SpiffWorkflow (Python, LGPL-3.0, `Development Status :: 4 - Beta`). None is on the BEAM, so none is usable
+here. But two things follow. First, a *subset* engine is demonstrably a tractable amount of work for a small team, which
+is what §5.1 Option C proposes. Second, SpiffWorkflow's own documentation is the clearest available warning about which
+half is hard: *"Spiff's implementation of Service Tasks is abstract, so while they will be parsed, the library provides
+no built-in mechanism for executing them"*, and likewise for Data Stores. **Parsing BPMN is the easy half. Executing it
+against a real domain is the half nobody hands you.**
 
 ### 3.3 What we already depend on
 
@@ -300,7 +351,8 @@ Rejected, for four reasons in descending weight:
 1. **Licence.** Camunda 8 Self-Managed requires a commercial Enterprise licence for production as of 8.6. Open-source
    only is a stated requirement of this repository ([thesis 6](../manifesto/06-reversibility.md)). Camunda 7 CE is EOL as
    of October 2025. The Apache-2.0 options that remain — Flowable, Operaton, CIB seven, Fluxnova — are viable licences
-   attached to JVM services.
+   attached to JVM services, and Flowable's open-source distribution no longer includes a modeller at all (§3.2).
+   Activiti and jBPM are, in practice, no longer options.
 2. **No client.** There is no Elixir client for Zeebe, Flowable, Operaton or Temporal. The "thin ~150-line gRPC bridge"
    in `docs/BPMN.md` is optimistic; a job worker needs long-polling, lease renewal, backpressure, reconnection,
    idempotency and failure semantics, and it is unmaintained infrastructure the day after it is written. (Camunda 8.8+
@@ -644,6 +696,45 @@ DSL carries things BPMN cannot express (Ash action references, candidate rules, 
 BPMN carries things the DSL will never implement (the event taxonomy, `bpmndi:` layout, lanes as decoration). Merging
 two partially-overlapping models bidirectionally means every edit needs conflict resolution, and the conflicts arrive at
 the worst time.
+
+This is not a hunch, and it is worth arming whoever has to argue it, because "surely we can just sync them" is the
+single most persistent request in this area. Five pieces of evidence, in ascending order of how hard they are to
+dismiss:
+
+1. **BPMN↔BPMN round-tripping is itself unsolved.** The OMG runs a Model Interchange Working Group whose test suite has
+   three procedures — Import, Export, and explicitly **Roundtrip** (import a reference `.bpmn`, re-export, diff for data
+   loss) — and whose own framing is that *"despite wide adoption of the BPMN notation, smooth BPMN model interchange
+   between tools still poses a problem."* If XML → XML between two conforming vendors is lossy, XML ↔ an arbitrary DSL
+   is strictly harder.
+2. **Camunda built this exact tool and killed it.** `camunda/camunda-cycle` — repository description, verbatim, *"The
+   BPMN 2.0 roundtrip tool"* — synchronised diagrams between Camunda Modeler and third-party modelling tools, and was
+   one of the four original Camunda BPM components at the 2013 launch. It is now archived, carries two stars, and
+   appears nowhere in current documentation. What replaced it is Camunda's *"One Model"* position: *"a single source of
+   truth by using the same model for design, execution, monitoring, and analysis… the complexity that comes from dealing
+   with multiple models for multiple stakeholders, forcing frequent version confusion and reconciliation, will be
+   increasingly untenable."*
+3. **Layout is the hard part, and Camunda punted on it.** Their own fluent Java builder — twelve years old, covering
+   roughly a dozen element types — documents that it *"is not nearly complete"* and, crucially, that **"Auto layout is
+   not provided, therefore the elements of different branches may overlap."** Generating correct BPMN *semantics* from
+   code is easy. Generating a diagram a human wants to look at is not. This is also why AWS Step Functions can
+   round-trip its Workflow Studio successfully: ASL carries no coordinates at all, so the diagram contains no
+   human-authored information a generator could destroy. BPMN carries `bpmndi:` coordinates, and those are exactly the
+   information a code generator cannot reconstruct and a human will not forgive losing.
+4. **The MDA literature settled this two decades ago.** Bran Selic (co-chair of the UML 2.0 task force), 2003:
+   round-trip conversion *"can't perform the kind of abstraction that a human can."* Juha-Pekka Tolvanen, more bluntly:
+   *"Having the same information in two places, code and models, is a recipe for trouble."* And a UML **tool vendor**
+   conceding the point in public — LieberLieber's CEO, *"Why Round-Trip Engineering does not work"* — notes that
+   behavioural constructs simply have no code equivalent. Their recommended alternative is one-way generation plus
+   protected regions.
+5. **Every system that genuinely achieves bidirectionality does it by having one artifact, not two.** Umple calls it
+   "text–diagram duality"; JetBrains MPS persists only the AST and treats every syntax as a projection; Blockly's visual
+   *is* the AST. None of them synchronises two artifacts, because none of them has two artifacts.
+
+Temporal's position is the same argument stated for workflows specifically, and their co-founder's framing is the one
+to quote: **"The picture is a lie… It doesn't show the real control flow, which is hidden in data-dependent
+expressions."** Their documentation is explicit that Temporal *"isn't a no-code Workflow engine — it is
+Workflows-as-Code."* Airflow's PMC reached the same place from the other direction: *"Airflow UI is for monitoring, not
+for DAG writing."*
 
 **The position:** one-way, DSL → diagram, always. If BPMN XML export is ever required — for an auditor who wants to open
 the process in a tool they already have — emit a read-only BPMN 2.0 XML rendering of the Common Executable subset from

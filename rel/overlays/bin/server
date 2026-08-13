@@ -1,0 +1,8 @@
+#!/bin/sh
+# Starts the release with the Phoenix endpoint listening.
+#
+# PHX_SERVER is what config/runtime.exs checks to decide whether to start the
+# web server. Without it the release boots the application but serves nothing --
+# a container that looks healthy and answers no requests.
+cd -P -- "$(dirname -- "$0")/.." || exit 1
+PHX_SERVER=true exec ./bin/ash_enterprise start

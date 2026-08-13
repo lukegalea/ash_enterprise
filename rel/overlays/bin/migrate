@@ -1,0 +1,13 @@
+#!/bin/sh
+# Runs pending migrations and re-seeds the privilege catalogue.
+#
+# Run as a SEPARATE step from starting the application. Migrating from the app
+# container means every replica races to migrate on rollout.
+#
+# Seeding privileges here is deliberate: the catalogue is derived from the
+# resource list, so a resource added without re-seeding has no privileges, and
+# access to it becomes ungrantable. That failure is silent and looks like a
+# permissions bug, so it runs on every deploy. It is idempotent.
+cd -P -- "$(dirname -- "$0")/.." || exit 1
+./bin/ash_enterprise eval AshEnterprise.Release.migrate
+./bin/ash_enterprise eval AshEnterprise.Release.seed_privileges

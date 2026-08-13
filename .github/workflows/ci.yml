@@ -1,0 +1,118 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+# A failed run tells you nothing if a later push is already superseding it.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  MIX_ENV: test
+
+jobs:
+  test:
+    name: Compile, test, and check generated code
+    runs-on: ubuntu-latest
+
+    services:
+      # pgvector rather than plain postgres: ash_ai's vectorize block needs the
+      # extension to exist, and the repo declares it in installed_extensions, so
+      # `mix ash.setup` fails without it.
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_DB: ash_enterprise_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Pinned to the pairing devenv.nix uses. CI drifting from local is how
+      # "works on my machine" becomes a class of bug rather than an incident.
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: "27.3"
+          elixir-version: "1.18.4"
+
+      - name: Restore dependency and build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+          key: ${{ runner.os }}-mix-${{ hashFiles('mix.lock') }}
+          restore-keys: ${{ runner.os }}-mix-
+
+      - run: mix deps.get
+
+      - name: Check formatting
+        run: mix format --check-formatted
+
+      - name: Check for unused dependencies
+        run: mix deps.unlock --check-unused
+
+      # --warnings-as-errors is the real static-analysis gate in this project.
+      # Elixir 1.18's type checker catches more than Dialyzer manages against
+      # Spark-generated code -- see docs/manifesto/07-what-we-do-not-have.md.
+      - name: Compile with warnings as errors
+        run: mix compile --warnings-as-errors
+
+      - name: Credo
+        run: mix credo --strict
+
+      # Ash derives migrations as a diff against resource snapshots. Without
+      # this gate the schema silently drifts from the resources, and the failure
+      # surfaces at deploy time in the worst possible place.
+      - name: Check Ash-generated code is committed
+        run: mix ash.codegen --check
+
+      - name: Security scan
+        run: mix sobelow --config --exit
+
+      - name: Retired and vulnerable dependencies
+        run: mix hex.audit
+
+      - name: Test
+        run: mix test
+
+  dialyzer:
+    name: Dialyzer (advisory)
+    runs-on: ubuntu-latest
+    # DELIBERATELY non-blocking. There is no official guidance for running
+    # Dialyzer against Ash or Spark, no canonical ignore file, and Spark's macro
+    # expansion produces spurious warnings. Running it as a hard gate would mean
+    # either a permanently red build or an ignore file so broad it hides real
+    # findings. See docs/manifesto/07-what-we-do-not-have.md#4-dialyzer-certainty.
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: "27.3"
+          elixir-version: "1.18.4"
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+            priv/plts
+          key: ${{ runner.os }}-dialyzer-${{ hashFiles('mix.lock') }}
+          restore-keys: ${{ runner.os }}-dialyzer-
+
+      - run: mix deps.get
+      - run: mkdir -p priv/plts
+      - run: mix dialyzer --format github
