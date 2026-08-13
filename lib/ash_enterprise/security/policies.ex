@@ -45,16 +45,16 @@ defmodule AshEnterprise.Security.Policies do
   unreachable rather than public, which is the correct default for a system whose
   whole point is access control.
 
-  ## What is not here yet
+  ## Hierarchy security is off by default
 
-  **Hierarchy security** — the manager and position chains — is the third grant
-  path in the model and is not implemented. It needs `manager_id` on User and a
-  Position resource. Until then, managers get no implicit access to their
-  reports' records; grant it explicitly with roles or shares.
+  The third grant path (`AshEnterprise.Security.Checks.HierarchyGrant`) is wired
+  in but contributes nothing until enabled:
 
-  This is a gap, not a decision. It is tracked rather than quietly omitted,
-  because the alternative — pretending the model is complete — is how a security
-  architecture ends up with a hole nobody documented.
+      config :ash_enterprise, :hierarchy_security, mode: :manager
+
+  It is opt-in because switching it on widens access for everyone who has a
+  report, without changing a single role — which is exactly the kind of change
+  that should be deliberate. See `AshEnterprise.Security.Hierarchy`.
   """
 
   @doc """
@@ -82,6 +82,7 @@ defmodule AshEnterprise.Security.Policies do
         policy always() do
           authorize_if AshEnterprise.Security.Checks.RoleGrant
           authorize_if AshEnterprise.Security.Checks.SharedWithActor
+          authorize_if AshEnterprise.Security.Checks.HierarchyGrant
         end
       end
     end

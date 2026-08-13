@@ -71,6 +71,28 @@ defmodule AshEnterprise.Accounts.User do
   actions do
     defaults [:read]
 
+    update :assign_manager do
+      description """
+      Sets the user's manager. Security-relevant when hierarchy security runs in
+      `:manager` mode: it changes what the manager can reach without touching any
+      role.
+      """
+
+      accept [:manager_id]
+      require_atomic? false
+      validate AshEnterprise.Accounts.Validations.NoManagerCycle
+    end
+
+    update :assign_position do
+      description """
+      Places the user in the job hierarchy. Security-relevant when hierarchy
+      security runs in `:position` mode.
+      """
+
+      accept [:position_id]
+      require_atomic? false
+    end
+
     update :assign_to_business_unit do
       description """
       Places a user in the organizational hierarchy.
@@ -278,6 +300,38 @@ defmodule AshEnterprise.Accounts.User do
     end
 
     attribute :confirmed_at, :utc_datetime_usec
+  end
+
+  relationships do
+    belongs_to :manager, __MODULE__ do
+      public? true
+      attribute_writable? true
+      source_attribute :manager_id
+
+      description """
+      The user this one reports to. Dataverse calls this `parentsystemuserid` and
+      surfaces it as "Manager".
+
+      Drives hierarchy security in `:manager` mode: a manager reaches records
+      owned by their reports without holding any role that names those records.
+      """
+    end
+
+    has_many :direct_reports, __MODULE__ do
+      public? true
+      destination_attribute :manager_id
+    end
+
+    belongs_to :position, AshEnterprise.Accounts.Position do
+      public? true
+      attribute_writable? true
+
+      description """
+      The user's node in the job hierarchy. Drives hierarchy security in
+      `:position` mode, which -- unlike manager mode -- reaches across business
+      units.
+      """
+    end
   end
 
   identities do

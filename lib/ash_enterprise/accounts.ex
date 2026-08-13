@@ -30,5 +30,9 @@ defmodule AshEnterprise.Accounts do
     resource AshEnterprise.Accounts.BusinessUnit
     resource AshEnterprise.Accounts.Team
     resource AshEnterprise.Accounts.TeamMembership
+
+    # The job hierarchy, as distinct from the organizational one. Drives
+    # hierarchy security in :position mode, which reaches across business units.
+    resource AshEnterprise.Accounts.Position
   end
 end

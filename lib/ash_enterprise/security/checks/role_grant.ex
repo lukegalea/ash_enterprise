@@ -62,14 +62,12 @@ defmodule AshEnterprise.Security.Checks.RoleGrant do
   end
 
   defp build_filter(grant, context, resource) do
-    cond do
-      grant.global? ->
-        true
-
-      true ->
-        [business_unit_clause(grant, resource), basic_clause(grant, context, resource)]
-        |> Enum.reject(&is_nil/1)
-        |> combine()
+    if grant.global? do
+      true
+    else
+      [business_unit_clause(grant, resource), basic_clause(grant, context, resource)]
+      |> Enum.reject(&is_nil/1)
+      |> combine()
     end
   end
 

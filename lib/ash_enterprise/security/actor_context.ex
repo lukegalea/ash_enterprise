@@ -64,6 +64,7 @@ defmodule AshEnterprise.Security.ActorContext do
     principal_ids: [],
     grants: %{},
     shared: %{},
+    hierarchy: nil,
     system?: false
   ]
 
@@ -75,6 +76,7 @@ defmodule AshEnterprise.Security.ActorContext do
           principal_ids: [Ash.UUID.t()],
           grants: %{{String.t(), atom()} => Grant.t()},
           shared: %{{String.t(), atom()} => MapSet.t(Ash.UUID.t())},
+          hierarchy: AshEnterprise.Security.Hierarchy.t() | nil,
           system?: boolean()
         }
 
@@ -138,6 +140,9 @@ defmodule AshEnterprise.Security.ActorContext do
       principal_ids: principal_ids,
       grants: grants,
       shared: shared,
+      # Costs nothing when hierarchy security is disabled (the default): resolve/2
+      # returns an empty struct without querying.
+      hierarchy: AshEnterprise.Security.Hierarchy.resolve(user, tenant),
       system?: false
     }
   end
@@ -227,16 +232,16 @@ defmodule AshEnterprise.Security.ActorContext do
 
     subtrees = load_subtrees(Enum.uniq(deep_scopes), tenant)
 
-    Enum.reduce(assignments, %{}, fn {role_id, scope_bu}, acc ->
-      by_role
-      |> Map.get(role_id, [])
-      |> Enum.reduce(acc, fn rp, acc ->
-        case rp.privilege do
-          nil -> acc
-          privilege -> apply_grant(acc, privilege, rp.depth, scope_bu, subtrees)
-        end
-      end)
-    end)
+    # Flattened to (role_privilege, scoping_business_unit) pairs first, so the
+    # accumulation is a single reduce rather than a nested one. Same result,
+    # and the union logic in apply_grant/5 stays the only thing to read.
+    for {role_id, scope_bu} <- assignments,
+        role_privilege <- Map.get(by_role, role_id, []),
+        not is_nil(role_privilege.privilege),
+        reduce: %{} do
+      acc ->
+        apply_grant(acc, role_privilege.privilege, role_privilege.depth, scope_bu, subtrees)
+    end
   end
 
   defp apply_grant(acc, privilege, depth, scope_bu, subtrees) do
