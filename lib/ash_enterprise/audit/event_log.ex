@@ -48,6 +48,7 @@ defmodule AshEnterprise.Audit.EventLog do
   use Ash.Resource,
     domain: AshEnterprise.Audit,
     data_layer: AshPostgres.DataLayer,
+    authorizers: [Ash.Policy.Authorizer],
     extensions: [AshEvents.EventLog]
 
   postgres do
@@ -71,6 +72,32 @@ defmodule AshEnterprise.Audit.EventLog do
     # and "we failed to record who did this" are different findings, and a null
     # user_id alone cannot tell them apart.
     persist_actor_primary_key :user_id, AshEnterprise.Accounts.User
+  end
+
+  actions do
+    # The log is append-only from the application's point of view: AshEvents
+    # writes entries as a side effect of other actions, and nothing may create,
+    # update or destroy one directly. Only reading is offered.
+    defaults [:read]
+    default_accept []
+  end
+
+  policies do
+    bypass AshEnterprise.Security.Checks.SystemActor do
+      authorize_if always()
+    end
+
+    # Reading the audit log is itself a privileged act -- it reveals the
+    # existence, shape and history of records the reader may not otherwise be
+    # able to see. So it is gated on an explicit grant rather than being
+    # readable by anyone who can reach the admin UI.
+    #
+    # Only :global grants are meaningful here: the log has no owner and no
+    # business unit, so narrower depths would reach nothing. The seeder
+    # registers the privilege for exactly that reason.
+    policy action_type(:read) do
+      authorize_if AshEnterprise.Security.Checks.RoleGrant
+    end
   end
 
   @doc """

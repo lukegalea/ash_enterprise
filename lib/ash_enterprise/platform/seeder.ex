@@ -213,15 +213,33 @@ defmodule AshEnterprise.Platform.Seeder do
     |> Application.get_env(:ash_domains, [])
     |> Enum.flat_map(&Ash.Domain.Info.resources/1)
     |> Enum.filter(&platform_resource?/1)
+    |> Enum.concat(additionally_governed())
+    |> Enum.uniq()
     |> Enum.sort_by(&inspect/1)
   end
+
+  # Resources that are NOT platform resources -- they carry no ownership,
+  # tenancy or lifecycle columns -- but whose access still has to be grantable.
+  #
+  # The audit log is the case in point: it has no owner and no business unit, so
+  # only :global grants are meaningful on it, but reading it must still require
+  # a deliberate grant rather than being available to anyone who can reach the
+  # admin UI. Without a privilege row there would be nothing to grant, and the
+  # policy on the resource would deny everyone including administrators.
+  defp additionally_governed, do: [AshEnterprise.Audit.EventLog]
 
   defp platform_resource?(resource) do
     AshEnterprise.Platform.SystemAttributes in Spark.extensions(resource)
   end
 
   defp ownership_of(resource) do
-    Spark.Dsl.Extension.get_opt(resource, [:platform], :ownership, :user_owned)
+    if platform_resource?(resource) do
+      Spark.Dsl.Extension.get_opt(resource, [:platform], :ownership, :user_owned)
+    else
+      # No ownership columns at all, so only Organization-level access is
+      # meaningful -- the same treatment Dataverse gives its own unowned tables.
+      :none
+    end
   end
 
   defp privilege_name(resource, verb) do

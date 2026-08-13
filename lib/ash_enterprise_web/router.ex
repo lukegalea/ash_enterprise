@@ -64,6 +64,7 @@ defmodule AshEnterpriseWeb.Router do
     # routes. Every screen has an /admin equivalent, so nothing breaks meanwhile.
     ash_authentication_live_session :a2ui_surfaces,
       on_mount: [{AshEnterpriseWeb.LiveUserAuth, :live_user_required}] do
+      live "/agent", AgentLive
       live "/app/users", A2uiLive.Users
       live "/app/roles", A2uiLive.Roles
       live "/app/business-units", A2uiLive.BusinessUnits

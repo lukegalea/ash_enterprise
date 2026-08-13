@@ -11,8 +11,11 @@ defmodule AshEnterprise.Security.Changes.DefaultTeamScopingBusinessUnit do
 
   @impl true
   def change(changeset, _opts, _context) do
+    # Applied directly, not in before_action -- required-attribute validation
+    # runs first, so a default set in a hook arrives too late. See the
+    # UserRole counterpart for the full explanation.
     case Ash.Changeset.get_attribute(changeset, :scoping_business_unit_id) do
-      nil -> Ash.Changeset.before_action(changeset, &apply_default/1)
+      nil -> apply_default(changeset)
       _ -> changeset
     end
   end

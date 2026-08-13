@@ -16,8 +16,12 @@ defmodule AshEnterprise.Security.Changes.DefaultScopingBusinessUnit do
 
   @impl true
   def change(changeset, _opts, _context) do
+    # Applied directly rather than in a `before_action` hook. Ash validates
+    # required attributes before before_action hooks run, so a default set there
+    # arrives too late and the action fails with
+    # "scoping_business_unit_id is required" despite the default existing.
     case Ash.Changeset.get_attribute(changeset, :scoping_business_unit_id) do
-      nil -> Ash.Changeset.before_action(changeset, &apply_default/1)
+      nil -> apply_default(changeset)
       _ -> changeset
     end
   end
