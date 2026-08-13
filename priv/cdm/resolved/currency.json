@@ -1,0 +1,409 @@
+{
+  "entity": "Currency",
+  "table": "currency",
+  "source_name": "TransactionCurrency",
+  "display_name": null,
+  "description": null,
+  "attributes": [
+    {
+      "name": "statusCode",
+      "field": "status_code",
+      "source_name": "statuscode",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Status Reason",
+      "description": "Reason for the status of the transaction currency.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "statusCode_display",
+      "field": "status_code_display",
+      "data_format": "STRING",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "modifiedOn",
+      "field": "modified_on",
+      "source_name": "modifiedon",
+      "data_format": "DATE_TIME",
+      "required_level": "none",
+      "display_name": "Modified On",
+      "description": "Date and time when the transaction currency was last modified.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "stateCode",
+      "field": "state_code",
+      "source_name": "statecode",
+      "data_format": "INT32",
+      "required_level": "systemrequired",
+      "display_name": "Status",
+      "description": "Status of the transaction currency.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "stateCode_display",
+      "field": "state_code_display",
+      "data_format": "STRING",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "versionNumber",
+      "field": "version_number",
+      "source_name": "versionnumber",
+      "data_format": "INT64",
+      "required_level": "none",
+      "display_name": "Version Number",
+      "description": "Version number of the transaction currency.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "modifiedBy",
+      "field": "modified_by",
+      "source_name": "modifiedby",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Modified By",
+      "description": "Unique identifier of the user who last modified the transaction currency.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "importSequenceNumber",
+      "field": "import_sequence_number",
+      "source_name": "importsequencenumber",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Import Sequence Number",
+      "description": "Unique identifier of the data import or data migration that created this record.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "overriddenCreatedOn",
+      "field": "overridden_created_on",
+      "source_name": "overriddencreatedon",
+      "data_format": "DATE_TIME",
+      "required_level": "none",
+      "display_name": "Record Created On",
+      "description": "Date and time that the record was migrated.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "createdOn",
+      "field": "created_on",
+      "source_name": "createdon",
+      "data_format": "DATE_TIME",
+      "required_level": "none",
+      "display_name": "Created On",
+      "description": "Date and time when the transaction currency was created.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "transactionCurrencyId",
+      "field": "transaction_currency_id",
+      "source_name": "transactioncurrencyid",
+      "data_format": "GUID",
+      "required_level": "systemrequired",
+      "display_name": "Transaction Currency",
+      "description": "Unique identifier of the transaction currency.",
+      "is_primary_key": true,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "exchangeRate",
+      "field": "exchange_rate",
+      "source_name": "exchangerate",
+      "data_format": "DECIMAL",
+      "required_level": "systemrequired",
+      "display_name": "Exchange Rate",
+      "description": "Exchange rate between the transaction currency and the base currency.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "currencySymbol",
+      "field": "currency_symbol",
+      "source_name": "currencysymbol",
+      "data_format": "STRING",
+      "required_level": "systemrequired",
+      "max_length": 10,
+      "display_name": "Currency Symbol",
+      "description": "Symbol for the transaction currency.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "currencyName",
+      "field": "currency_name",
+      "source_name": "currencyname",
+      "data_format": "STRING",
+      "required_level": "systemrequired",
+      "max_length": 100,
+      "display_name": "Currency Name",
+      "description": "Name of the transaction currency.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "createdBy",
+      "field": "created_by",
+      "source_name": "createdby",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Created By",
+      "description": "Unique identifier of the user who created the transaction currency.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "ISOCurrencyCode",
+      "field": "iso_currency_code",
+      "source_name": "isocurrencycode",
+      "data_format": "STRING",
+      "required_level": "systemrequired",
+      "max_length": 5,
+      "display_name": "Currency Code",
+      "description": "ISO currency code for the transaction currency.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "organizationId",
+      "field": "organization_id",
+      "source_name": "organizationid",
+      "data_format": "GUID",
+      "required_level": "systemrequired",
+      "display_name": "Organization",
+      "description": "Unique identifier of the organization associated with the transaction currency.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "currencyPrecision",
+      "field": "currency_precision",
+      "source_name": "currencyprecision",
+      "data_format": "INT32",
+      "required_level": "systemrequired",
+      "display_name": "Currency Precision",
+      "description": "Number of decimal places that can be used for currency.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "createdOnBehalfBy",
+      "field": "created_on_behalf_by",
+      "source_name": "createdonbehalfby",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Created By (Delegate)",
+      "description": "Unique identifier of the delegate user who created the transactioncurrency.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "modifiedOnBehalfBy",
+      "field": "modified_on_behalf_by",
+      "source_name": "modifiedonbehalfby",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Modified By (Delegate)",
+      "description": "Unique identifier of the delegate user who last modified the transactioncurrency.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "entityImageId",
+      "field": "entity_image_id",
+      "source_name": "entityimageid",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Entity Image Id",
+      "description": "For internal use only.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    }
+  ],
+  "provenance": {
+    "source": "microsoft/CDM",
+    "commit": "dd21d715e05ebf740a11356c80b5c3b4c38a89c2",
+    "document": "Currency.cdm.json/Currency",
+    "license": "CC-BY-4.0"
+  }
+}

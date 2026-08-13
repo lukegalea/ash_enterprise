@@ -1,0 +1,33 @@
+{
+  "_comment": [
+    "Project-scoped MCP servers. Both talk to the RUNNING dev server, so start it",
+    "first with `iex-server` (devenv script) -- they will show as disconnected until",
+    "the endpoint is listening on :4000.",
+    "",
+    "tidewave: Dashbit's runtime-intelligence server (Apache-2.0, free). The highest",
+    "  leverage tool here by a wide margin. project_eval gives the agent an IEx",
+    "  session inside the live app; get_ash_resources enumerates every Ash domain and",
+    "  resource; execute_sql_query hits the dev database; get_docs resolves against",
+    "  the exact versions in mix.lock rather than whatever the model remembers.",
+    "  Transport is streamable http -- older guides saying `sse` are out of date.",
+    "",
+    "ash_ai_dev: the dev-time MCP server that ash_ai itself mounts. Kept because this",
+    "  repo is a reference for ash_ai and should demonstrate it, but note that",
+    "  upstream describes it as experimental and Tidewave covers Ash introspection",
+    "  better today. Do not rely on it.",
+    "",
+    "The PRODUCTION MCP server is a different thing entirely -- it exposes this",
+    "application's Ash actions as tools to external agents over OAuth 2.1, and is",
+    "mounted in the router, not here."
+  ],
+  "mcpServers": {
+    "tidewave": {
+      "type": "http",
+      "url": "http://localhost:4000/tidewave/mcp"
+    },
+    "ash_ai_dev": {
+      "type": "http",
+      "url": "http://localhost:4000/ash_ai/mcp"
+    }
+  }
+}

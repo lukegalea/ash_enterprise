@@ -1,0 +1,1952 @@
+{
+  "entity": "Email",
+  "table": "email",
+  "source_name": "Email",
+  "display_name": null,
+  "description": null,
+  "attributes": [
+    {
+      "name": "createdOn",
+      "field": "created_on",
+      "source_name": "createdon",
+      "data_format": "DATE_TIME",
+      "required_level": "none",
+      "display_name": "Created On",
+      "description": "Date and time when the record was created.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": true
+      }
+    },
+    {
+      "name": "createdBy",
+      "field": "created_by",
+      "source_name": "createdby",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Created By",
+      "description": "Shows who created the record.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": true
+      }
+    },
+    {
+      "name": "modifiedOn",
+      "field": "modified_on",
+      "source_name": "modifiedon",
+      "data_format": "DATE_TIME",
+      "required_level": "none",
+      "display_name": "Modified On",
+      "description": "Date and time when the record was modified.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": true
+      }
+    },
+    {
+      "name": "modifiedBy",
+      "field": "modified_by",
+      "source_name": "modifiedby",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Modified By",
+      "description": "Shows who last updated the record.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": true
+      }
+    },
+    {
+      "name": "createdOnBehalfBy",
+      "field": "created_on_behalf_by",
+      "source_name": "createdonbehalfby",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Created By (Delegate)",
+      "description": "Shows who created the record on behalf of another user.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": true
+      }
+    },
+    {
+      "name": "modifiedOnBehalfBy",
+      "field": "modified_on_behalf_by",
+      "source_name": "modifiedonbehalfby",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Modified By (Delegate)",
+      "description": "Shows who last updated the record on behalf of another user.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": true
+      }
+    },
+    {
+      "name": "overriddenCreatedOn",
+      "field": "overridden_created_on",
+      "source_name": "overriddencreatedon",
+      "data_format": "DATE_TIME",
+      "required_level": "none",
+      "display_name": "Record Created On",
+      "description": "Date and time that the record was migrated.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": true
+      }
+    },
+    {
+      "name": "importSequenceNumber",
+      "field": "import_sequence_number",
+      "source_name": "importsequencenumber",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Import Sequence Number",
+      "description": "Unique identifier of the data import or data migration that created this record.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "ownerId",
+      "field": "owner_id",
+      "source_name": "ownerid",
+      "data_format": "GUID",
+      "required_level": "systemrequired",
+      "display_name": "Owner",
+      "description": "Owner Id",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": true,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": true
+      }
+    },
+    {
+      "name": "ownerIdType",
+      "field": "owner_id_type",
+      "source_name": "owneridtype",
+      "data_format": "STRING",
+      "required_level": "systemrequired",
+      "display_name": "Owner Type",
+      "description": "The type of owner, either User or Team.",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": true,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "owningBusinessUnit",
+      "field": "owning_business_unit",
+      "source_name": "owningbusinessunit",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Owning Business Unit",
+      "description": "Unique identifier for the business unit that owns the record",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": true
+      }
+    },
+    {
+      "name": "owningUser",
+      "field": "owning_user",
+      "source_name": "owninguser",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Owning User",
+      "description": "Unique identifier for the user that owns the record.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": true
+      }
+    },
+    {
+      "name": "owningTeam",
+      "field": "owning_team",
+      "source_name": "owningteam",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Owning Team",
+      "description": "Unique identifier for the team that owns the record.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": true
+      }
+    },
+    {
+      "name": "timeZoneRuleVersionNumber",
+      "field": "time_zone_rule_version_number",
+      "source_name": "timezoneruleversionnumber",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Time Zone Rule Version Number",
+      "description": "For internal use only.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": true
+      }
+    },
+    {
+      "name": "UTCConversionTimeZoneCode",
+      "field": "utc_conversion_time_zone_code",
+      "source_name": "utcconversiontimezonecode",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "UTC Conversion Time Zone Code",
+      "description": "Time zone code that was in use when the record was created.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": true
+      }
+    },
+    {
+      "name": "versionNumber",
+      "field": "version_number",
+      "source_name": "versionnumber",
+      "data_format": "INT64",
+      "required_level": "none",
+      "display_name": "Version Number",
+      "description": "Version Number",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": true
+      }
+    },
+    {
+      "name": "activityId",
+      "field": "activity_id",
+      "source_name": "activityid",
+      "data_format": "GUID",
+      "required_level": "systemrequired",
+      "display_name": "Activity",
+      "description": "Unique identifier of the activity.",
+      "is_primary_key": true,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "activityTypeCode",
+      "field": "activity_type_code",
+      "source_name": "activitytypecode",
+      "data_format": "STRING",
+      "required_level": "systemrequired",
+      "display_name": "Activity Type",
+      "description": "Type of activity.",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "isBilled",
+      "field": "is_billed",
+      "source_name": "isbilled",
+      "data_format": "BOOLEAN",
+      "required_level": "none",
+      "display_name": "Is Billed",
+      "description": "Information regarding whether the activity was billed as part of resolving a case.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "isRegularActivity",
+      "field": "is_regular_activity",
+      "source_name": "isregularactivity",
+      "data_format": "BOOLEAN",
+      "required_level": "systemrequired",
+      "display_name": "Is Regular Activity",
+      "description": "Information regarding whether the activity is a regular activity type or event type.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "isWorkflowCreated",
+      "field": "is_workflow_created",
+      "source_name": "isworkflowcreated",
+      "data_format": "BOOLEAN",
+      "required_level": "none",
+      "display_name": "Is Workflow Created",
+      "description": "Information regarding whether the activity was created from a workflow rule.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "priorityCode",
+      "field": "priority_code",
+      "source_name": "prioritycode",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Priority",
+      "description": "Priority of the activity.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "priorityCode_display",
+      "field": "priority_code_display",
+      "data_format": "STRING",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "regardingObjectId",
+      "field": "regarding_object_id",
+      "source_name": "regardingobjectid",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Regarding",
+      "description": "Unique identifier of the object with which the activity is associated.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "regardingObjectTypeCode",
+      "field": "regarding_object_type_code",
+      "source_name": "regardingobjecttypecode",
+      "data_format": "STRING",
+      "display_name": "Regarding Type",
+      "description": "The name of the entity linked by regardingObjectId",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "scheduledEnd",
+      "field": "scheduled_end",
+      "source_name": "scheduledend",
+      "data_format": "DATE_TIME",
+      "required_level": "none",
+      "display_name": "Due Date",
+      "description": "Scheduled end time of the activity.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "scheduledStart",
+      "field": "scheduled_start",
+      "source_name": "scheduledstart",
+      "data_format": "DATE_TIME",
+      "required_level": "none",
+      "display_name": "Start Date",
+      "description": "Scheduled start time of the activity.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "sortDate",
+      "field": "sort_date",
+      "source_name": "sortdate",
+      "data_format": "DATE_TIME",
+      "required_level": "none",
+      "display_name": "Sort Date",
+      "description": "Shows the date and time by which the activities are sorted.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "subject",
+      "field": "subject",
+      "source_name": "subject",
+      "data_format": "STRING",
+      "required_level": "required",
+      "max_length": 200,
+      "display_name": "Subject",
+      "description": "Subject associated with the activity.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "scheduledDurationMinutes",
+      "field": "scheduled_duration_minutes",
+      "source_name": "scheduleddurationminutes",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Scheduled Duration",
+      "description": "Scheduled duration of the activity, specified in minutes.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "actualDurationMinutes",
+      "field": "actual_duration_minutes",
+      "source_name": "actualdurationminutes",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Actual Duration",
+      "description": "Actual duration of the activity in minutes.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "actualEnd",
+      "field": "actual_end",
+      "source_name": "actualend",
+      "data_format": "DATE_TIME",
+      "required_level": "none",
+      "display_name": "Actual End",
+      "description": "Actual end time of the activity.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "actualStart",
+      "field": "actual_start",
+      "source_name": "actualstart",
+      "data_format": "DATE_TIME",
+      "required_level": "none",
+      "display_name": "Actual Start",
+      "description": "Actual start time of the activity.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "category",
+      "field": "category",
+      "source_name": "category",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 250,
+      "display_name": "Category",
+      "description": "Type a category to identify the activity type, such as lead outreach, customer follow-up, or service alert, to tie the eactivity to a business group or function.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "subcategory",
+      "field": "subcategory",
+      "source_name": "subcategory",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 250,
+      "display_name": "Sub-Category",
+      "description": "Type a subcategory to identify the activity type and relate the activity to a specific product, sales region, business group, or other function.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "activityAdditionalParams",
+      "field": "activity_additional_params",
+      "source_name": "activityadditionalparams",
+      "data_format": "JSON",
+      "required_level": "none",
+      "max_length": 8192,
+      "display_name": "Activity Additional Parameters",
+      "description": "Additional information provided by the external application as JSON. For internal use only.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "to",
+      "field": "to",
+      "source_name": "to",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "To",
+      "description": "The account, contact, lead, queue, or user recipients for the activity.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "multi",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": true,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "from",
+      "field": "from",
+      "source_name": "from",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "From",
+      "description": "The sender of the activity.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": true,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "BCC",
+      "field": "bcc",
+      "source_name": "bcc",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Bcc",
+      "description": "Enter the recipients that are included on the activity distribution, but are not displayed to other recipients.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "multi",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": true,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "CC",
+      "field": "cc",
+      "source_name": "cc",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Cc",
+      "description": "Enter the recipients that should be copied on the activity.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "multi",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": true,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "sentOn",
+      "field": "sent_on",
+      "source_name": "senton",
+      "data_format": "DATE_TIME",
+      "required_level": "none",
+      "display_name": "Date Sent",
+      "description": "Date and time when the activity was sent.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "senderMailboxId",
+      "field": "sender_mailbox_id",
+      "source_name": "sendermailboxid",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Sender's Mailbox",
+      "description": "Unique identifier of the mailbox associated with the sender of the email message.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "deliveryPriorityCode",
+      "field": "delivery_priority_code",
+      "source_name": "deliveryprioritycode",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Delivery Priority",
+      "description": "Priority of delivery of the activity to the email server.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "deliveryPriorityCode_display",
+      "field": "delivery_priority_code_display",
+      "data_format": "STRING",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "directionCode",
+      "field": "direction_code",
+      "source_name": "directioncode",
+      "data_format": "BOOLEAN",
+      "required_level": "none",
+      "display_name": "Direction",
+      "description": "Select the direction of the activity as incoming or outbound.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "statusCode",
+      "field": "status_code",
+      "source_name": "statuscode",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Status Reason",
+      "description": "Select the email's status.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "statusCode_display",
+      "field": "status_code_display",
+      "data_format": "STRING",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "submittedBy",
+      "field": "submitted_by",
+      "source_name": "submittedby",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 250,
+      "display_name": "Submitted By",
+      "description": "Shows the Microsoft Office Outlook account for the user who submitted the email to Microsoft Dynamics 365.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "description",
+      "field": "description",
+      "source_name": "description",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 1073741823,
+      "display_name": "Description",
+      "description": "Type the greeting and message text of the email.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "mimeType",
+      "field": "mime_type",
+      "source_name": "mimetype",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 256,
+      "display_name": "Mime Type",
+      "description": "MIME type of the email message data.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "readReceiptRequested",
+      "field": "read_receipt_requested",
+      "source_name": "readreceiptrequested",
+      "data_format": "BOOLEAN",
+      "required_level": "none",
+      "display_name": "Read Receipt Requested",
+      "description": "Indicates that a read receipt is requested.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "trackingToken",
+      "field": "tracking_token",
+      "source_name": "trackingtoken",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 50,
+      "display_name": "Tracking Token",
+      "description": "Shows the tracking token assigned to the email to make sure responses are automatically tracked in Microsoft Dynamics 365.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "sender",
+      "field": "sender",
+      "source_name": "sender",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 250,
+      "display_name": "From",
+      "description": "Sender of the email.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "toRecipients",
+      "field": "to_recipients",
+      "source_name": "torecipients",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 500,
+      "display_name": "To Recipients",
+      "description": "Shows the email addresses corresponding to the recipients.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "deliveryReceiptRequested",
+      "field": "delivery_receipt_requested",
+      "source_name": "deliveryreceiptrequested",
+      "data_format": "BOOLEAN",
+      "required_level": "none",
+      "display_name": "Delivery Receipt Requested",
+      "description": "Select whether the sender should receive confirmation that the email was delivered.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "stateCode",
+      "field": "state_code",
+      "source_name": "statecode",
+      "data_format": "INT32",
+      "required_level": "systemrequired",
+      "display_name": "Activity Status",
+      "description": "Shows whether the email is open, completed, or canceled. Completed and canceled email is read-only and can't be edited.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "stateCode_display",
+      "field": "state_code_display",
+      "data_format": "STRING",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "messageId",
+      "field": "message_id",
+      "source_name": "messageid",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 320,
+      "display_name": "Message ID",
+      "description": "Unique identifier of the email message. Used only for email that is received.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "deliveryAttempts",
+      "field": "delivery_attempts",
+      "source_name": "deliveryattempts",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "No. of Delivery Attempts",
+      "description": "Shows the count of the number of attempts made to send the email. The count is used as an indicator of email routing issues.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "compressed",
+      "field": "compressed",
+      "source_name": "compressed",
+      "data_format": "BOOLEAN",
+      "required_level": "systemrequired",
+      "display_name": "Compression",
+      "description": "Indicates if the body is compressed.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "notifications",
+      "field": "notifications",
+      "source_name": "notifications",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Notifications",
+      "description": "Select the notification code to identify issues with the email recipients or attachments, such as blocked attachments.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "notifications_display",
+      "field": "notifications_display",
+      "data_format": "STRING",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "transactionCurrencyId",
+      "field": "transaction_currency_id",
+      "source_name": "transactioncurrencyid",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Currency",
+      "description": "Choose the local currency for the record to make sure budgets are reported in the correct currency.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "exchangeRate",
+      "field": "exchange_rate",
+      "source_name": "exchangerate",
+      "data_format": "DECIMAL",
+      "required_level": "none",
+      "display_name": "Exchange Rate",
+      "description": "Shows the conversion rate of the record's currency. The exchange rate is used to convert all money fields in the record from the local currency to the system's default currency.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "emailSender",
+      "field": "email_sender",
+      "source_name": "emailsender",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Sender",
+      "description": "Shows the sender of the email.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "multi",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "emailSenderObjectTypeCode",
+      "field": "email_sender_object_type_code",
+      "source_name": "emailsenderobjecttypecode",
+      "data_format": "STRING",
+      "display_name": "emailSender Type",
+      "description": "The name of the entity linked by emailSender",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "sendersAccount",
+      "field": "senders_account",
+      "source_name": "sendersaccount",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Senders Account",
+      "description": "Shows the parent account of the sender of the email.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "sendersAccountObjectTypeCode",
+      "field": "senders_account_object_type_code",
+      "source_name": "sendersaccountobjecttypecode",
+      "data_format": "STRING",
+      "display_name": "sendersAccount Type",
+      "description": "The name of the entity linked by sendersAccount",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "attachmentCount",
+      "field": "attachment_count",
+      "source_name": "attachmentcount",
+      "data_format": "INT32",
+      "required_level": "systemrequired",
+      "display_name": "Attachment Count",
+      "description": "Shows the umber of attachments of the email message.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "parentActivityId",
+      "field": "parent_activity_id",
+      "source_name": "parentactivityid",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Parent Activity Id",
+      "description": "Select the activity that the email is associated with.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "inReplyTo",
+      "field": "in_reply_to",
+      "source_name": "inreplyto",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 320,
+      "display_name": "In Reply To Message",
+      "description": "Type the ID of the email message that this email activity is a response to.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "baseConversationIndexHash",
+      "field": "base_conversation_index_hash",
+      "source_name": "baseconversationindexhash",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Conversation Index (Hash)",
+      "description": "Hash of base of conversation index.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "conversationIndex",
+      "field": "conversation_index",
+      "source_name": "conversationindex",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 2048,
+      "display_name": "Conversation Index",
+      "description": "Identifier for all the email responses for this conversation.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "correlationMethod",
+      "field": "correlation_method",
+      "source_name": "correlationmethod",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Correlation Method",
+      "description": "Shows how an email is matched to an existing email in Microsoft Dynamics 365. For system use only.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "correlationMethod_display",
+      "field": "correlation_method_display",
+      "data_format": "STRING",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "postponeEmailProcessingUntil",
+      "field": "postpone_email_processing_until",
+      "source_name": "postponeemailprocessinguntil",
+      "data_format": "DATE_TIME",
+      "required_level": "none",
+      "display_name": "Delay email processing until",
+      "description": "For internal use only.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "processId",
+      "field": "process_id",
+      "source_name": "processid",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Process",
+      "description": "Shows the ID of the process.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "stageId",
+      "field": "stage_id",
+      "source_name": "stageid",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Process Stage",
+      "description": "Shows the ID of the stage.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "isUnsafe",
+      "field": "is_unsafe",
+      "source_name": "isunsafe",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "IsUnsafe",
+      "description": "For internal use only.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "SLAId",
+      "field": "sla_id",
+      "source_name": "slaid",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "SLA",
+      "description": "Choose the service level agreement (SLA) that you want to apply to the email record.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "SLAInvokedId",
+      "field": "sla_invoked_id",
+      "source_name": "slainvokedid",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Last SLA applied",
+      "description": "Last SLA that was applied to this email. This field is for internal use only.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "onHoldTime",
+      "field": "on_hold_time",
+      "source_name": "onholdtime",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "On Hold Time (Minutes)",
+      "description": "Shows how long, in minutes, that the record was on hold.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "lastOnHoldTime",
+      "field": "last_on_hold_time",
+      "source_name": "lastonholdtime",
+      "data_format": "DATE_TIME",
+      "required_level": "none",
+      "display_name": "Last On Hold Time",
+      "description": "Contains the date and time stamp of the last on hold time.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "traversedPath",
+      "field": "traversed_path",
+      "source_name": "traversedpath",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 1250,
+      "display_name": "Traversed Path",
+      "description": "For internal use only.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "attachmentOpenCount",
+      "field": "attachment_open_count",
+      "source_name": "attachmentopencount",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Attachment Open Count",
+      "description": "Shows the number of times an email attachment has been viewed.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "conversationTrackingId",
+      "field": "conversation_tracking_id",
+      "source_name": "conversationtrackingid",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Conversation Tracking Id",
+      "description": "Conversation Tracking Id.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "delayedEmailSendTime",
+      "field": "delayed_email_send_time",
+      "source_name": "delayedemailsendtime",
+      "data_format": "DATE_TIME",
+      "required_level": "none",
+      "display_name": "Send Later",
+      "description": "Enter the expected date and time when email will be sent.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "lastOpenedTime",
+      "field": "last_opened_time",
+      "source_name": "lastopenedtime",
+      "data_format": "DATE_TIME",
+      "required_level": "none",
+      "display_name": "Last Opened Time",
+      "description": "Shows the latest date and time when email was opened.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "linksClickedCount",
+      "field": "links_clicked_count",
+      "source_name": "linksclickedcount",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Links Clicked Count",
+      "description": "Shows the number of times a link in an email has been clicked.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "openCount",
+      "field": "open_count",
+      "source_name": "opencount",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Open Count",
+      "description": "Shows the number of times an email has been opened.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "replyCount",
+      "field": "reply_count",
+      "source_name": "replycount",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Reply Count",
+      "description": "Shows the number of replies received for an email.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "emailTrackingId",
+      "field": "email_tracking_id",
+      "source_name": "emailtrackingid",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Email Tracking Id",
+      "description": "Email Tracking Id.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "followEmailUserPreference",
+      "field": "follow_email_user_preference",
+      "source_name": "followemailuserpreference",
+      "data_format": "BOOLEAN",
+      "required_level": "none",
+      "display_name": "Following",
+      "description": "Select whether the email allows following recipient activities sent from Microsoft Dynamics 365.This is user preference state which can be overridden by system evaluated state.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "isEmailFollowed",
+      "field": "is_email_followed",
+      "source_name": "isemailfollowed",
+      "data_format": "BOOLEAN",
+      "required_level": "none",
+      "display_name": "Followed",
+      "description": "For internal use only. Shows whether this email is followed. This is evaluated state which overrides user selection of follow email.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "emailReminderExpiryTime",
+      "field": "email_reminder_expiry_time",
+      "source_name": "emailreminderexpirytime",
+      "data_format": "DATE_TIME",
+      "required_level": "none",
+      "display_name": "Email Reminder Expiry Time",
+      "description": "Shows the date and time when an email reminder expires.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "emailReminderType",
+      "field": "email_reminder_type",
+      "source_name": "emailremindertype",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Email Reminder Type",
+      "description": "Shows the type of the email reminder.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "emailReminderType_display",
+      "field": "email_reminder_type_display",
+      "data_format": "STRING",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "emailReminderStatus",
+      "field": "email_reminder_status",
+      "source_name": "emailreminderstatus",
+      "data_format": "INT32",
+      "required_level": "systemrequired",
+      "display_name": "Email Reminder Status",
+      "description": "Shows the status of the email reminder.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "emailReminderStatus_display",
+      "field": "email_reminder_status_display",
+      "data_format": "STRING",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "emailReminderText",
+      "field": "email_reminder_text",
+      "source_name": "emailremindertext",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 1250,
+      "display_name": "Email Reminder Text",
+      "description": "For internal use only.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "templateId",
+      "field": "template_id",
+      "source_name": "templateid",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "ID for template used.",
+      "description": "For internal use only. ID for template used in email.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "reminderActionCardId",
+      "field": "reminder_action_card_id",
+      "source_name": "reminderactioncardid",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Reminder Action Card Id.",
+      "description": "Reminder Action Card Id.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "isEmailReminderSet",
+      "field": "is_email_reminder_set",
+      "source_name": "isemailreminderset",
+      "data_format": "BOOLEAN",
+      "required_level": "none",
+      "display_name": "Reminder Set",
+      "description": "For internal use only. Shows whether this email Reminder is Set.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    }
+  ],
+  "provenance": {
+    "source": "microsoft/CDM",
+    "commit": "dd21d715e05ebf740a11356c80b5c3b4c38a89c2",
+    "document": "Email.cdm.json/Email",
+    "license": "CC-BY-4.0"
+  }
+}

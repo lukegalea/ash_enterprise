@@ -1,0 +1,87 @@
+{
+  "entity": "TeamMembership",
+  "table": "team_membership",
+  "source_name": "TeamMembership",
+  "display_name": null,
+  "description": null,
+  "attributes": [
+    {
+      "name": "teamMembershipId",
+      "field": "team_membership_id",
+      "source_name": "teammembershipid",
+      "data_format": "GUID",
+      "required_level": "systemrequired",
+      "display_name": "Team Membership Id",
+      "description": "Unique identifier of the teamMembership.",
+      "is_primary_key": true,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "systemUserId",
+      "field": "system_user_id",
+      "source_name": "systemuserid",
+      "data_format": "GUID",
+      "required_level": "systemrequired",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "teamId",
+      "field": "team_id",
+      "source_name": "teamid",
+      "data_format": "GUID",
+      "required_level": "systemrequired",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "versionNumber",
+      "field": "version_number",
+      "source_name": "versionnumber",
+      "data_format": "INT64",
+      "required_level": "none",
+      "display_name": "Version Number",
+      "description": "Version Number",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": true
+      }
+    }
+  ],
+  "provenance": {
+    "source": "microsoft/CDM",
+    "commit": "dd21d715e05ebf740a11356c80b5c3b4c38a89c2",
+    "document": "TeamMembership.cdm.json/TeamMembership",
+    "license": "CC-BY-4.0"
+  }
+}

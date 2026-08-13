@@ -1,0 +1,514 @@
+{
+  "entity": "KnowledgeArticleViews",
+  "table": "knowledge_article_views",
+  "source_name": "KnowledgeArticleViews",
+  "display_name": null,
+  "description": null,
+  "attributes": [
+    {
+      "name": "knowledgeArticleViewsId",
+      "field": "knowledge_article_views_id",
+      "source_name": "knowledgearticleviewsid",
+      "data_format": "GUID",
+      "required_level": "systemrequired",
+      "display_name": "View",
+      "description": "Unique identifier of the Knowledge Article Views",
+      "is_primary_key": true,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "timeZoneRuleVersionNumber",
+      "field": "time_zone_rule_version_number",
+      "source_name": "timezoneruleversionnumber",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Time Zone Rule Version Number",
+      "description": "For internal use only.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "transactionCurrencyId",
+      "field": "transaction_currency_id",
+      "source_name": "transactioncurrencyid",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Currency",
+      "description": "Choose the local currency for the record to make sure budgets are reported in the correct currency.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "exchangeRate",
+      "field": "exchange_rate",
+      "source_name": "exchangerate",
+      "data_format": "DECIMAL",
+      "required_level": "none",
+      "display_name": "Exchange Rate",
+      "description": "Shows the conversion rate of the record's currency. The exchange rate is used to convert all money fields in the record from the local currency to the system's default currency.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "importSequenceNumber",
+      "field": "import_sequence_number",
+      "source_name": "importsequencenumber",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Import Sequence Number",
+      "description": "Unique identifier of the data import or data migration that created this record.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "overriddenCreatedOn",
+      "field": "overridden_created_on",
+      "source_name": "overriddencreatedon",
+      "data_format": "DATE_TIME",
+      "required_level": "none",
+      "display_name": "Record Created On",
+      "description": "Date and time that the record was migrated.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "versionNumber",
+      "field": "version_number",
+      "source_name": "versionnumber",
+      "data_format": "INT64",
+      "required_level": "none",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "knowledgeArticleView",
+      "field": "knowledge_article_view",
+      "source_name": "knowledgearticleview",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Knowledge Article View",
+      "description": "Number of Knowledge Article Views visited per day",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "viewDate",
+      "field": "view_date",
+      "source_name": "viewdate",
+      "data_format": "DATE_TIME",
+      "required_level": "none",
+      "display_name": "Day",
+      "description": "Information about the Day",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "knowledgearticleId",
+      "field": "knowledgearticle_id",
+      "source_name": "knowledgearticleid",
+      "data_format": "GUID",
+      "required_level": "systemrequired",
+      "display_name": "Knowledge Article",
+      "description": "Choose the Knowledge Article.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "createdBy",
+      "field": "created_by",
+      "source_name": "createdby",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Created By",
+      "description": "Shows who created the record.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "createdOn",
+      "field": "created_on",
+      "source_name": "createdon",
+      "data_format": "DATE_TIME",
+      "required_level": "systemrequired",
+      "display_name": "Created On",
+      "description": "Date and time when the record was created.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "createdOnBehalfBy",
+      "field": "created_on_behalf_by",
+      "source_name": "createdonbehalfby",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Created By (Delegate)",
+      "description": "Unique identifier of the delegate user who created the record.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "modifiedBy",
+      "field": "modified_by",
+      "source_name": "modifiedby",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Modified By",
+      "description": "Shows who last updated the record.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "modifiedOn",
+      "field": "modified_on",
+      "source_name": "modifiedon",
+      "data_format": "DATE_TIME",
+      "required_level": "none",
+      "display_name": "Modified On",
+      "description": "Shows the date and time when the record was last updated. The date and time are displayed in the time zone selected in Microsoft Dynamics 365 options.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "modifiedOnBehalfBy",
+      "field": "modified_on_behalf_by",
+      "source_name": "modifiedonbehalfby",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Modified By (Delegate)",
+      "description": "Unique identifier of the delegate user who modified the record.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "ownerId",
+      "field": "owner_id",
+      "source_name": "ownerid",
+      "data_format": "GUID",
+      "required_level": "systemrequired",
+      "display_name": "Owner",
+      "description": "Owner Id",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": true,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": true
+      }
+    },
+    {
+      "name": "ownerIdType",
+      "field": "owner_id_type",
+      "source_name": "owneridtype",
+      "data_format": "STRING",
+      "required_level": "systemrequired",
+      "display_name": "Owner Type",
+      "description": "The type of owner, either User or Team.",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": true,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "owningBusinessUnit",
+      "field": "owning_business_unit",
+      "source_name": "owningbusinessunit",
+      "data_format": "GUID",
+      "required_level": "required",
+      "display_name": "Owning Business Unit",
+      "description": "Unique identifier of the business unit that owns the knowledge article views.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "owningUser",
+      "field": "owning_user",
+      "source_name": "owninguser",
+      "data_format": "GUID",
+      "required_level": "required",
+      "display_name": "Owning User",
+      "description": "Unique identifier of the user who owns the knowledge article views.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "stateCode",
+      "field": "state_code",
+      "source_name": "statecode",
+      "data_format": "INT32",
+      "required_level": "systemrequired",
+      "display_name": "Status",
+      "description": "Status of the Knowledge Article Views",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "stateCode_display",
+      "field": "state_code_display",
+      "data_format": "STRING",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "statusCode",
+      "field": "status_code",
+      "source_name": "statuscode",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Status Reason",
+      "description": "Reason for the status of the Knowledge Article Views",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "statusCode_display",
+      "field": "status_code_display",
+      "data_format": "STRING",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "UTCConversionTimeZoneCode",
+      "field": "utc_conversion_time_zone_code",
+      "source_name": "utcconversiontimezonecode",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "UTC Conversion Time Zone Code",
+      "description": "Time zone code that was in use when the record was created.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "location",
+      "field": "location",
+      "source_name": "location",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Location",
+      "description": "Shows where the knowledge was used",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "location_display",
+      "field": "location_display",
+      "data_format": "STRING",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    }
+  ],
+  "provenance": {
+    "source": "microsoft/CDM",
+    "commit": "dd21d715e05ebf740a11356c80b5c3b4c38a89c2",
+    "document": "KnowledgeArticleViews.cdm.json/KnowledgeArticleViews",
+    "license": "CC-BY-4.0"
+  }
+}

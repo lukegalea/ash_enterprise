@@ -1,0 +1,529 @@
+{
+  "entity": "EmailSignature",
+  "table": "email_signature",
+  "source_name": "EmailSignature",
+  "display_name": null,
+  "description": null,
+  "attributes": [
+    {
+      "name": "emailSignatureId",
+      "field": "email_signature_id",
+      "source_name": "emailsignatureid",
+      "data_format": "GUID",
+      "required_level": "systemrequired",
+      "display_name": "Email Signature",
+      "description": "Unique identifier of the email signature.",
+      "is_primary_key": true,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "owningBusinessUnit",
+      "field": "owning_business_unit",
+      "source_name": "owningbusinessunit",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Owning Business Unit",
+      "description": "Unique identifier of the business unit that owns the email signature.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "isPersonal",
+      "field": "is_personal",
+      "source_name": "ispersonal",
+      "data_format": "BOOLEAN",
+      "required_level": "none",
+      "display_name": "Viewable By",
+      "description": "Information about whether the email signature is personal or is available to all users.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "mimeType",
+      "field": "mime_type",
+      "source_name": "mimetype",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 256,
+      "display_name": "Mime Type",
+      "description": "MIME type of the email signature.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "body",
+      "field": "body",
+      "source_name": "body",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 1073741823,
+      "display_name": "Body",
+      "description": "Body text of the email signature.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "title",
+      "field": "title",
+      "source_name": "title",
+      "data_format": "STRING",
+      "required_level": "required",
+      "max_length": 200,
+      "display_name": "Title",
+      "description": "Title of the email signature.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "description",
+      "field": "description",
+      "source_name": "description",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 2000,
+      "display_name": "Description",
+      "description": "Description of the email signature.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "owningUser",
+      "field": "owning_user",
+      "source_name": "owninguser",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Owning User",
+      "description": "Unique identifier of the user who owns the email signature.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "createdBy",
+      "field": "created_by",
+      "source_name": "createdby",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Created By",
+      "description": "Unique identifier of the user who created the email signature.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "presentationXml",
+      "field": "presentation_xml",
+      "source_name": "presentationxml",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 1073741823,
+      "display_name": "Presentation XML",
+      "description": "XML data for the body of the email signature.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "createdOn",
+      "field": "created_on",
+      "source_name": "createdon",
+      "data_format": "DATE_TIME",
+      "required_level": "none",
+      "display_name": "Created On",
+      "description": "Date and time when the email signature was created.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "modifiedBy",
+      "field": "modified_by",
+      "source_name": "modifiedby",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Modified By",
+      "description": "Unique identifier of the user who last modified the email signature.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "modifiedOn",
+      "field": "modified_on",
+      "source_name": "modifiedon",
+      "data_format": "DATE_TIME",
+      "required_level": "none",
+      "display_name": "Modified On",
+      "description": "Date and time when the email signature was last modified.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "ownerId",
+      "field": "owner_id",
+      "source_name": "ownerid",
+      "data_format": "GUID",
+      "required_level": "systemrequired",
+      "display_name": "Owner",
+      "description": "Owner Id",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": true,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": true
+      }
+    },
+    {
+      "name": "ownerIdType",
+      "field": "owner_id_type",
+      "source_name": "owneridtype",
+      "data_format": "STRING",
+      "required_level": "systemrequired",
+      "display_name": "Owner Type",
+      "description": "The type of owner, either User or Team.",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": true,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "generationTypeCode",
+      "field": "generation_type_code",
+      "source_name": "generationtypecode",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Generation Type Code",
+      "description": "For internal use only.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "languageCode",
+      "field": "language_code",
+      "source_name": "languagecode",
+      "data_format": "STRING",
+      "required_level": "required",
+      "display_name": "Language",
+      "description": "Language of the email signature.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "importSequenceNumber",
+      "field": "import_sequence_number",
+      "source_name": "importsequencenumber",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Import Sequence Number",
+      "description": "Unique identifier of the data import or data migration that created this record.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "overwriteTime",
+      "field": "overwrite_time",
+      "source_name": "overwritetime",
+      "data_format": "DATE_TIME",
+      "required_level": "systemrequired",
+      "display_name": "Record Overwrite Time",
+      "description": "For internal use only.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "componentState",
+      "field": "component_state",
+      "source_name": "componentstate",
+      "data_format": "INT32",
+      "required_level": "systemrequired",
+      "display_name": "Component State",
+      "description": "For internal use only.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "componentState_display",
+      "field": "component_state_display",
+      "data_format": "STRING",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "createdOnBehalfBy",
+      "field": "created_on_behalf_by",
+      "source_name": "createdonbehalfby",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Created By (Delegate)",
+      "description": "Unique identifier of the delegate user who created the email signature.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "modifiedOnBehalfBy",
+      "field": "modified_on_behalf_by",
+      "source_name": "modifiedonbehalfby",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Modified By (Delegate)",
+      "description": "Unique identifier of the delegate user who last modified the email signature.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "owningTeam",
+      "field": "owning_team",
+      "source_name": "owningteam",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Owning Team",
+      "description": "Unique identifier of the team who owns the email signature.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "isCustomizable",
+      "field": "is_customizable",
+      "source_name": "iscustomizable",
+      "data_format": "BOOLEAN",
+      "required_level": "systemrequired",
+      "display_name": "Customizable",
+      "description": "Information that specifies whether this component can be customized.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "overriddenCreatedOn",
+      "field": "overridden_created_on",
+      "source_name": "overriddencreatedon",
+      "data_format": "DATE_TIME",
+      "required_level": "none",
+      "display_name": "Record Created On",
+      "description": "Date and time that the record was migrated.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "isDefault",
+      "field": "is_default",
+      "source_name": "isdefault",
+      "data_format": "BOOLEAN",
+      "required_level": "none",
+      "display_name": "Is Default",
+      "description": "Information that specifies whether the email signature is default to the user.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    }
+  ],
+  "provenance": {
+    "source": "microsoft/CDM",
+    "commit": "dd21d715e05ebf740a11356c80b5c3b4c38a89c2",
+    "document": "EmailSignature.cdm.json/EmailSignature",
+    "license": "CC-BY-4.0"
+  }
+}

@@ -1,0 +1,938 @@
+{
+  "entity": "Queue",
+  "table": "queue",
+  "source_name": "Queue",
+  "display_name": null,
+  "description": null,
+  "attributes": [
+    {
+      "name": "queueId",
+      "field": "queue_id",
+      "source_name": "queueid",
+      "data_format": "GUID",
+      "required_level": "systemrequired",
+      "display_name": "Queue",
+      "description": "Unique identifier of the queue.",
+      "is_primary_key": true,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "businessUnitId",
+      "field": "business_unit_id",
+      "source_name": "businessunitid",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Business Unit",
+      "description": "Unique identifier of the business unit with which the queue is associated.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "organizationId",
+      "field": "organization_id",
+      "source_name": "organizationid",
+      "data_format": "GUID",
+      "required_level": "systemrequired",
+      "display_name": "Organization",
+      "description": "Unique identifier of the organization associated with the queue.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "emailAddress",
+      "field": "email_address",
+      "source_name": "emailaddress",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 100,
+      "display_name": "Incoming Email",
+      "description": "Email address that is associated with the queue.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "primaryUserId",
+      "field": "primary_user_id",
+      "source_name": "primaryuserid",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Owner (deprecated)",
+      "description": "Unique identifier of the owner of the queue.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "queueTypeCode",
+      "field": "queue_type_code",
+      "source_name": "queuetypecode",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Queue Type",
+      "description": "Type of queue that is automatically assigned when a user or queue is created. The type can be public, private, or work in process.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "queueTypeCode_display",
+      "field": "queue_type_code_display",
+      "data_format": "STRING",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "name",
+      "field": "name",
+      "source_name": "name",
+      "data_format": "STRING",
+      "required_level": "required",
+      "max_length": 200,
+      "display_name": "Name",
+      "description": "Name of the queue.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "description",
+      "field": "description",
+      "source_name": "description",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 2000,
+      "display_name": "Description",
+      "description": "Description of the queue.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "queueSemantics",
+      "field": "queue_semantics",
+      "source_name": "queuesemantics",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Queue Semantics",
+      "description": "For internal use only.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "createdOn",
+      "field": "created_on",
+      "source_name": "createdon",
+      "data_format": "DATE_TIME",
+      "required_level": "none",
+      "display_name": "Created On",
+      "description": "Date and time when the queue was created.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "createdBy",
+      "field": "created_by",
+      "source_name": "createdby",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Created By",
+      "description": "Unique identifier of the user who created the queue record.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "modifiedBy",
+      "field": "modified_by",
+      "source_name": "modifiedby",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Modified By",
+      "description": "Unique identifier of the user who last modified the queue.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "modifiedOn",
+      "field": "modified_on",
+      "source_name": "modifiedon",
+      "data_format": "DATE_TIME",
+      "required_level": "none",
+      "display_name": "Modified On",
+      "description": "Date and time when the queue was last modified.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "versionNumber",
+      "field": "version_number",
+      "source_name": "versionnumber",
+      "data_format": "INT64",
+      "required_level": "none",
+      "display_name": "Version Number",
+      "description": "Version number of the queue.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "ignoreUnsolicitedEmail",
+      "field": "ignore_unsolicited_email",
+      "source_name": "ignoreunsolicitedemail",
+      "data_format": "BOOLEAN",
+      "required_level": "none",
+      "display_name": "Convert To Email Activities",
+      "description": "Information that specifies whether a queue is to ignore unsolicited email (deprecated).",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "isFaxQueue",
+      "field": "is_fax_queue",
+      "source_name": "isfaxqueue",
+      "data_format": "BOOLEAN",
+      "required_level": "none",
+      "display_name": "Fax Queue",
+      "description": "Indication of whether a queue is the fax delivery queue.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "emailPassword",
+      "field": "email_password",
+      "source_name": "emailpassword",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 200,
+      "display_name": "Password (Obsolete)",
+      "description": "This attribute is no longer used. The data is now in the Mailbox.Password attribute.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "incomingEmailDeliveryMethod",
+      "field": "incoming_email_delivery_method",
+      "source_name": "incomingemaildeliverymethod",
+      "data_format": "INT32",
+      "required_level": "systemrequired",
+      "display_name": "Incoming Email Delivery Method",
+      "description": "Incoming email delivery method for the queue.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "incomingEmailDeliveryMethod_display",
+      "field": "incoming_email_delivery_method_display",
+      "data_format": "STRING",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "emailUsername",
+      "field": "email_username",
+      "source_name": "emailusername",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 200,
+      "display_name": "User Name (Obsolete)",
+      "description": "This attribute is no longer used. The data is now in the Mailbox.UserName attribute.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "outgoingEmailDeliveryMethod",
+      "field": "outgoing_email_delivery_method",
+      "source_name": "outgoingemaildeliverymethod",
+      "data_format": "INT32",
+      "required_level": "systemrequired",
+      "display_name": "Outgoing Email Delivery Method",
+      "description": "Outgoing email delivery method for the queue.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "outgoingEmailDeliveryMethod_display",
+      "field": "outgoing_email_delivery_method_display",
+      "data_format": "STRING",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "allowEmailCredentials",
+      "field": "allow_email_credentials",
+      "source_name": "allowemailcredentials",
+      "data_format": "BOOLEAN",
+      "required_level": "systemrequired",
+      "display_name": "Allow to Use Credentials for Email Processing (Obsolete)",
+      "description": "This attribute is no longer used. The data is now in the Mailbox.AllowEmailConnectorToUseCredentials attribute.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "incomingEmailFilteringMethod",
+      "field": "incoming_email_filtering_method",
+      "source_name": "incomingemailfilteringmethod",
+      "data_format": "INT32",
+      "required_level": "systemrequired",
+      "display_name": "Convert Incoming Email To Activities",
+      "description": "Convert Incoming Email To Activities",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "incomingEmailFilteringMethod_display",
+      "field": "incoming_email_filtering_method_display",
+      "data_format": "STRING",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "ownerId",
+      "field": "owner_id",
+      "source_name": "ownerid",
+      "data_format": "GUID",
+      "required_level": "systemrequired",
+      "display_name": "Owner",
+      "description": "Owner Id",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": true,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": true
+      }
+    },
+    {
+      "name": "ownerIdType",
+      "field": "owner_id_type",
+      "source_name": "owneridtype",
+      "data_format": "STRING",
+      "required_level": "systemrequired",
+      "display_name": "Owner Type",
+      "description": "The type of owner, either User or Team.",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": true,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "overriddenCreatedOn",
+      "field": "overridden_created_on",
+      "source_name": "overriddencreatedon",
+      "data_format": "DATE_TIME",
+      "required_level": "none",
+      "display_name": "Record Created On",
+      "description": "Date and time that the record was migrated.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "statusCode",
+      "field": "status_code",
+      "source_name": "statuscode",
+      "data_format": "INT32",
+      "required_level": "systemrequired",
+      "display_name": "Status Reason",
+      "description": "Reason for the status of the queue.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "statusCode_display",
+      "field": "status_code_display",
+      "data_format": "STRING",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "owningBusinessUnit",
+      "field": "owning_business_unit",
+      "source_name": "owningbusinessunit",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Owning Business Unit",
+      "description": "Unique identifier of the business unit that owns the queue.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "owningUser",
+      "field": "owning_user",
+      "source_name": "owninguser",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Owning User",
+      "description": "Unique identifier of the user who owns the queue.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "stateCode",
+      "field": "state_code",
+      "source_name": "statecode",
+      "data_format": "INT32",
+      "required_level": "systemrequired",
+      "display_name": "Status",
+      "description": "Status of the queue.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "stateCode_display",
+      "field": "state_code_display",
+      "data_format": "STRING",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "createdOnBehalfBy",
+      "field": "created_on_behalf_by",
+      "source_name": "createdonbehalfby",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Created By (Delegate)",
+      "description": "Unique identifier of the delegate user who created the queue.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "modifiedOnBehalfBy",
+      "field": "modified_on_behalf_by",
+      "source_name": "modifiedonbehalfby",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Modified By (Delegate)",
+      "description": "Unique identifier of the delegate user who last modified the queue.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "numberOfItems",
+      "field": "number_of_items",
+      "source_name": "numberofitems",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Queue Items",
+      "description": "Number of Queue items associated with the queue.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "numberOfMembers",
+      "field": "number_of_members",
+      "source_name": "numberofmembers",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "No. of Members",
+      "description": "Number of Members associated with the queue.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "importSequenceNumber",
+      "field": "import_sequence_number",
+      "source_name": "importsequencenumber",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Import Sequence Number",
+      "description": "Unique identifier of the data import or data migration that created this record.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "owningTeam",
+      "field": "owning_team",
+      "source_name": "owningteam",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Owning Team",
+      "description": "Unique identifier of the team who owns the queue.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "transactionCurrencyId",
+      "field": "transaction_currency_id",
+      "source_name": "transactioncurrencyid",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Currency",
+      "description": "Unique identifier of the currency associated with the queue.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "exchangeRate",
+      "field": "exchange_rate",
+      "source_name": "exchangerate",
+      "data_format": "DECIMAL",
+      "required_level": "none",
+      "display_name": "Exchange Rate",
+      "description": "Exchange rate for the currency associated with the queue with respect to the base currency.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "emailRouterAccessApproval",
+      "field": "email_router_access_approval",
+      "source_name": "emailrouteraccessapproval",
+      "data_format": "INT32",
+      "required_level": "systemrequired",
+      "display_name": "Primary Email Status",
+      "description": "Shows the status of the primary email address.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "emailRouterAccessApproval_display",
+      "field": "email_router_access_approval_display",
+      "data_format": "STRING",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "defaultMailbox",
+      "field": "default_mailbox",
+      "source_name": "defaultmailbox",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Mailbox",
+      "description": "Select the mailbox associated with this queue.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "entityImageId",
+      "field": "entity_image_id",
+      "source_name": "entityimageid",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Entity Image Id",
+      "description": "For internal use only.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "isEmailAddressApprovedByO365Admin",
+      "field": "is_email_address_approved_by_o365_admin",
+      "source_name": "isemailaddressapprovedbyo365admin",
+      "data_format": "BOOLEAN",
+      "required_level": "systemrequired",
+      "display_name": "Email Address O365 Admin Approval Status",
+      "description": "Shows the status of approval of the email address by O365 Admin.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "queueViewType",
+      "field": "queue_view_type",
+      "source_name": "queueviewtype",
+      "data_format": "INT32",
+      "required_level": "systemrequired",
+      "display_name": "Type",
+      "description": "Select whether the queue is public or private. A public queue can be viewed by all. A private queue can be viewed only by the members added to the queue.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "queueViewType_display",
+      "field": "queue_view_type_display",
+      "data_format": "STRING",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    }
+  ],
+  "provenance": {
+    "source": "microsoft/CDM",
+    "commit": "dd21d715e05ebf740a11356c80b5c3b4c38a89c2",
+    "document": "Queue.cdm.json/Queue",
+    "license": "CC-BY-4.0"
+  }
+}

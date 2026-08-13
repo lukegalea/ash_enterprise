@@ -1,0 +1,424 @@
+{
+  "entity": "ActivityParty",
+  "table": "activity_party",
+  "source_name": "ActivityParty",
+  "display_name": null,
+  "description": null,
+  "attributes": [
+    {
+      "name": "activityId",
+      "field": "activity_id",
+      "source_name": "activityid",
+      "data_format": "GUID",
+      "required_level": "systemrequired",
+      "display_name": "Activity",
+      "description": "Unique identifier of the activity associated with the activity party. (A \"party\" is any person who is associated with an activity.)",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "activityPartyId",
+      "field": "activity_party_id",
+      "source_name": "activitypartyid",
+      "data_format": "GUID",
+      "required_level": "systemrequired",
+      "display_name": "Activity Party",
+      "description": "Unique identifier of the activity party.",
+      "is_primary_key": true,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "partyId",
+      "field": "party_id",
+      "source_name": "partyid",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Party",
+      "description": "Unique identifier of the party associated with the activity.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "partyObjectTypeCode",
+      "field": "party_object_type_code",
+      "source_name": "partyobjecttypecode",
+      "data_format": "STRING",
+      "display_name": "partyId Type",
+      "description": "The name of the entity linked by partyId",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "participationTypeMask",
+      "field": "participation_type_mask",
+      "source_name": "participationtypemask",
+      "data_format": "INT32",
+      "required_level": "systemrequired",
+      "display_name": "Participation Type",
+      "description": "Role of the person in the activity, such as sender, to, cc, bcc, required, optional, organizer, regarding, or owner.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "participationTypeMask_display",
+      "field": "participation_type_mask_display",
+      "data_format": "STRING",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "addressUsed",
+      "field": "address_used",
+      "source_name": "addressused",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 200,
+      "display_name": "Address ",
+      "description": "Email address to which an email is delivered, and which is associated with the target entity.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "doNotFax",
+      "field": "do_not_fax",
+      "source_name": "donotfax",
+      "data_format": "BOOLEAN",
+      "required_level": "none",
+      "display_name": "Do not allow Faxes",
+      "description": "Information about whether to allow sending faxes to the activity party.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "scheduledStart",
+      "field": "scheduled_start",
+      "source_name": "scheduledstart",
+      "data_format": "DATE_TIME",
+      "required_level": "none",
+      "display_name": "Scheduled Start",
+      "description": "Scheduled start time of the activity.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "scheduledEnd",
+      "field": "scheduled_end",
+      "source_name": "scheduledend",
+      "data_format": "DATE_TIME",
+      "required_level": "none",
+      "display_name": "Scheduled End",
+      "description": "Scheduled end time of the activity.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "effort",
+      "field": "effort",
+      "source_name": "effort",
+      "data_format": "DOUBLE",
+      "required_level": "none",
+      "display_name": "Effort",
+      "description": "Amount of effort used by the resource in a service appointment activity.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "doNotEMail",
+      "field": "do_not_e_mail",
+      "source_name": "donotemail",
+      "data_format": "BOOLEAN",
+      "required_level": "none",
+      "display_name": "Do not allow Emails",
+      "description": "Information about whether to allow sending email to the activity party.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "exchangeEntryId",
+      "field": "exchange_entry_id",
+      "source_name": "exchangeentryid",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 1024,
+      "display_name": "Exchange Entry",
+      "description": "For internal use only.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "versionNumber",
+      "field": "version_number",
+      "source_name": "versionnumber",
+      "data_format": "INT64",
+      "required_level": "none",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "doNotPostalMail",
+      "field": "do_not_postal_mail",
+      "source_name": "donotpostalmail",
+      "data_format": "BOOLEAN",
+      "required_level": "none",
+      "display_name": "Do not allow Postal Mails",
+      "description": "Information about whether to allow sending postal mail to the lead.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "doNotPhone",
+      "field": "do_not_phone",
+      "source_name": "donotphone",
+      "data_format": "BOOLEAN",
+      "required_level": "none",
+      "display_name": "Do not allow Phone Calls",
+      "description": "Information about whether to allow phone calls to the lead.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "ownerId",
+      "field": "owner_id",
+      "source_name": "ownerid",
+      "data_format": "GUID",
+      "required_level": "systemrequired",
+      "display_name": "Owner",
+      "description": "Owner Id",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": true,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": true
+      }
+    },
+    {
+      "name": "ownerIdType",
+      "field": "owner_id_type",
+      "source_name": "owneridtype",
+      "data_format": "STRING",
+      "required_level": "systemrequired",
+      "display_name": "Owner Type",
+      "description": "The type of owner, either User or Team.",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": true,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "instanceTypeCode",
+      "field": "instance_type_code",
+      "source_name": "instancetypecode",
+      "data_format": "INT32",
+      "required_level": "systemrequired",
+      "display_name": "Appointment Type",
+      "description": "Type of instance of a recurring series.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "instanceTypeCode_display",
+      "field": "instance_type_code_display",
+      "data_format": "STRING",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "isPartyDeleted",
+      "field": "is_party_deleted",
+      "source_name": "ispartydeleted",
+      "data_format": "BOOLEAN",
+      "required_level": "systemrequired",
+      "display_name": "Is Party Deleted",
+      "description": "Information about whether the underlying entity record is deleted.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "addressUsedEmailColumnNumber",
+      "field": "address_used_email_column_number",
+      "source_name": "addressusedemailcolumnnumber",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Email column number of party",
+      "description": "Email address column number from associated party.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    }
+  ],
+  "provenance": {
+    "source": "microsoft/CDM",
+    "commit": "dd21d715e05ebf740a11356c80b5c3b4c38a89c2",
+    "document": "ActivityParty.cdm.json/ActivityParty",
+    "license": "CC-BY-4.0"
+  }
+}

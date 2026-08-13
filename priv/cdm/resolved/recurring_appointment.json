@@ -1,0 +1,1582 @@
+{
+  "entity": "RecurringAppointment",
+  "table": "recurring_appointment",
+  "source_name": "RecurringAppointmentMaster",
+  "display_name": null,
+  "description": null,
+  "attributes": [
+    {
+      "name": "createdOn",
+      "field": "created_on",
+      "source_name": "createdon",
+      "data_format": "DATE_TIME",
+      "required_level": "none",
+      "display_name": "Created On",
+      "description": "Date and time when the record was created.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": true
+      }
+    },
+    {
+      "name": "createdBy",
+      "field": "created_by",
+      "source_name": "createdby",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Created By",
+      "description": "Shows who created the record.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": true
+      }
+    },
+    {
+      "name": "modifiedOn",
+      "field": "modified_on",
+      "source_name": "modifiedon",
+      "data_format": "DATE_TIME",
+      "required_level": "none",
+      "display_name": "Modified On",
+      "description": "Date and time when the record was modified.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": true
+      }
+    },
+    {
+      "name": "modifiedBy",
+      "field": "modified_by",
+      "source_name": "modifiedby",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Modified By",
+      "description": "Shows who last updated the record.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": true
+      }
+    },
+    {
+      "name": "createdOnBehalfBy",
+      "field": "created_on_behalf_by",
+      "source_name": "createdonbehalfby",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Created By (Delegate)",
+      "description": "Shows who created the record on behalf of another user.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": true
+      }
+    },
+    {
+      "name": "modifiedOnBehalfBy",
+      "field": "modified_on_behalf_by",
+      "source_name": "modifiedonbehalfby",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Modified By (Delegate)",
+      "description": "Shows who last updated the record on behalf of another user.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": true
+      }
+    },
+    {
+      "name": "overriddenCreatedOn",
+      "field": "overridden_created_on",
+      "source_name": "overriddencreatedon",
+      "data_format": "DATE_TIME",
+      "required_level": "none",
+      "display_name": "Record Created On",
+      "description": "Date and time that the record was migrated.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": true
+      }
+    },
+    {
+      "name": "importSequenceNumber",
+      "field": "import_sequence_number",
+      "source_name": "importsequencenumber",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Import Sequence Number",
+      "description": "Unique identifier of the data import or data migration that created this record.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "ownerId",
+      "field": "owner_id",
+      "source_name": "ownerid",
+      "data_format": "GUID",
+      "required_level": "systemrequired",
+      "display_name": "Owner",
+      "description": "Owner Id",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": true,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": true
+      }
+    },
+    {
+      "name": "ownerIdType",
+      "field": "owner_id_type",
+      "source_name": "owneridtype",
+      "data_format": "STRING",
+      "required_level": "systemrequired",
+      "display_name": "Owner Type",
+      "description": "The type of owner, either User or Team.",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": true,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "owningBusinessUnit",
+      "field": "owning_business_unit",
+      "source_name": "owningbusinessunit",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Owning Business Unit",
+      "description": "Unique identifier for the business unit that owns the record",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": true
+      }
+    },
+    {
+      "name": "owningUser",
+      "field": "owning_user",
+      "source_name": "owninguser",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Owning User",
+      "description": "Unique identifier for the user that owns the record.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": true
+      }
+    },
+    {
+      "name": "owningTeam",
+      "field": "owning_team",
+      "source_name": "owningteam",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Owning Team",
+      "description": "Unique identifier for the team that owns the record.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": true
+      }
+    },
+    {
+      "name": "timeZoneRuleVersionNumber",
+      "field": "time_zone_rule_version_number",
+      "source_name": "timezoneruleversionnumber",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Time Zone Rule Version Number",
+      "description": "For internal use only.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": true
+      }
+    },
+    {
+      "name": "UTCConversionTimeZoneCode",
+      "field": "utc_conversion_time_zone_code",
+      "source_name": "utcconversiontimezonecode",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "UTC Conversion Time Zone Code",
+      "description": "Time zone code that was in use when the record was created.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": true
+      }
+    },
+    {
+      "name": "versionNumber",
+      "field": "version_number",
+      "source_name": "versionnumber",
+      "data_format": "INT64",
+      "required_level": "none",
+      "display_name": "Version Number",
+      "description": "Version Number",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": true
+      }
+    },
+    {
+      "name": "activityId",
+      "field": "activity_id",
+      "source_name": "activityid",
+      "data_format": "GUID",
+      "required_level": "systemrequired",
+      "display_name": "Activity",
+      "description": "Unique identifier of the activity.",
+      "is_primary_key": true,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "activityTypeCode",
+      "field": "activity_type_code",
+      "source_name": "activitytypecode",
+      "data_format": "STRING",
+      "required_level": "systemrequired",
+      "display_name": "Activity Type",
+      "description": "Type of activity.",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "isBilled",
+      "field": "is_billed",
+      "source_name": "isbilled",
+      "data_format": "BOOLEAN",
+      "required_level": "none",
+      "display_name": "Is Billed",
+      "description": "Information regarding whether the activity was billed as part of resolving a case.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "isRegularActivity",
+      "field": "is_regular_activity",
+      "source_name": "isregularactivity",
+      "data_format": "BOOLEAN",
+      "required_level": "systemrequired",
+      "display_name": "Is Regular Activity",
+      "description": "Information regarding whether the activity is a regular activity type or event type.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "isWorkflowCreated",
+      "field": "is_workflow_created",
+      "source_name": "isworkflowcreated",
+      "data_format": "BOOLEAN",
+      "required_level": "none",
+      "display_name": "Is Workflow Created",
+      "description": "Information regarding whether the activity was created from a workflow rule.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "priorityCode",
+      "field": "priority_code",
+      "source_name": "prioritycode",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Priority",
+      "description": "Priority of the activity.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "priorityCode_display",
+      "field": "priority_code_display",
+      "data_format": "STRING",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "regardingObjectId",
+      "field": "regarding_object_id",
+      "source_name": "regardingobjectid",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Regarding",
+      "description": "Unique identifier of the object with which the activity is associated.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "regardingObjectTypeCode",
+      "field": "regarding_object_type_code",
+      "source_name": "regardingobjecttypecode",
+      "data_format": "STRING",
+      "display_name": "Regarding Type",
+      "description": "The name of the entity linked by regardingObjectId",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "scheduledEnd",
+      "field": "scheduled_end",
+      "source_name": "scheduledend",
+      "data_format": "DATE_TIME",
+      "required_level": "none",
+      "display_name": "Due Date",
+      "description": "Scheduled end time of the activity.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "scheduledStart",
+      "field": "scheduled_start",
+      "source_name": "scheduledstart",
+      "data_format": "DATE_TIME",
+      "required_level": "none",
+      "display_name": "Start Date",
+      "description": "Scheduled start time of the activity.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "sortDate",
+      "field": "sort_date",
+      "source_name": "sortdate",
+      "data_format": "DATE_TIME",
+      "required_level": "none",
+      "display_name": "Sort Date",
+      "description": "Shows the date and time by which the activities are sorted.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "subject",
+      "field": "subject",
+      "source_name": "subject",
+      "data_format": "STRING",
+      "required_level": "required",
+      "max_length": 200,
+      "display_name": "Subject",
+      "description": "Subject associated with the activity.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "category",
+      "field": "category",
+      "source_name": "category",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 250,
+      "display_name": "Category",
+      "description": "Type a category to identify the activity type, such as lead outreach, customer follow-up, or service alert, to tie the eactivity to a business group or function.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "subcategory",
+      "field": "subcategory",
+      "source_name": "subcategory",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 250,
+      "display_name": "Sub-Category",
+      "description": "Type a subcategory to identify the activity type and relate the activity to a specific product, sales region, business group, or other function.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "instanceTypeCode",
+      "field": "instance_type_code",
+      "source_name": "instancetypecode",
+      "data_format": "INT32",
+      "required_level": "systemrequired",
+      "display_name": "Recurring Instance Type",
+      "description": "Type of instance of a recurring series.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "instanceTypeCode_display",
+      "field": "instance_type_code_display",
+      "data_format": "STRING",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "isMapiPrivate",
+      "field": "is_mapi_private",
+      "source_name": "ismapiprivate",
+      "data_format": "BOOLEAN",
+      "required_level": "none",
+      "display_name": "Is Private",
+      "description": "For internal use only.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "organizer",
+      "field": "organizer",
+      "source_name": "organizer",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Organizer",
+      "description": "The user who is in charge of coordinating or leading the activity.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": true,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "requiredAttendees",
+      "field": "required_attendees",
+      "source_name": "requiredattendees",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Required Attendees",
+      "description": "Enter the account, contact, lead, user, or other equipment resources that are required to attend the activity.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "multi",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": true,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "optionalAttendees",
+      "field": "optional_attendees",
+      "source_name": "optionalattendees",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Optional Attendees",
+      "description": "The account, contact, lead, user, or other equipment resources that are not needed at the activity, but can optionally attend.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "multi",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": true,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "isWeekDayPattern",
+      "field": "is_week_day_pattern",
+      "source_name": "isweekdaypattern",
+      "data_format": "BOOLEAN",
+      "required_level": "systemrequired",
+      "display_name": "Every Weekday",
+      "description": "Indicates whether the weekly recurrence pattern is a daily weekday pattern. Valid for weekly recurrence pattern only.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "ruleId",
+      "field": "rule_id",
+      "source_name": "ruleid",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Recurrence Rule",
+      "description": "Unique identifier of the recurrence rule that is associated with the recurring appointment series.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "isNthYearly",
+      "field": "is_nth_yearly",
+      "source_name": "isnthyearly",
+      "data_format": "BOOLEAN",
+      "required_level": "systemrequired",
+      "display_name": "Nth Yearly",
+      "description": "Indicates whether the recurring appointment series should occur after every N years. Valid for yearly recurrence pattern only.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "stateCode",
+      "field": "state_code",
+      "source_name": "statecode",
+      "data_format": "INT32",
+      "required_level": "systemrequired",
+      "display_name": "Status",
+      "description": "Shows whether the recurring appointment is open, scheduled, completed, or canceled. Completed and canceled appointments are read-only and can't be edited.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "stateCode_display",
+      "field": "state_code_display",
+      "data_format": "STRING",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "groupId",
+      "field": "group_id",
+      "source_name": "groupid",
+      "data_format": "GUID",
+      "required_level": "systemrequired",
+      "display_name": "Group Id",
+      "description": "Unique identifier of the recurring appointment series for which the recurrence information was updated. ",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "lastExpandedInstanceDate",
+      "field": "last_expanded_instance_date",
+      "source_name": "lastexpandedinstancedate",
+      "data_format": "DATE_TIME",
+      "required_level": "none",
+      "display_name": "Last Expanded Instance Date",
+      "description": "Date of last expanded instance of a recurring appointment series.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "effectiveEndDate",
+      "field": "effective_end_date",
+      "source_name": "effectiveenddate",
+      "data_format": "DATE_TIME",
+      "required_level": "none",
+      "display_name": "Effective End Date",
+      "description": "Actual end date of the recurring appointment series based on the specified end date and recurrence pattern.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "patternStartDate",
+      "field": "pattern_start_date",
+      "source_name": "patternstartdate",
+      "data_format": "DATE_TIME",
+      "required_level": "required",
+      "display_name": "Recurrence Range Start",
+      "description": "Start date of the recurrence range.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "isRegenerate",
+      "field": "is_regenerate",
+      "source_name": "isregenerate",
+      "data_format": "BOOLEAN",
+      "required_level": "systemrequired",
+      "display_name": "Regenerate",
+      "description": "For internal use only.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "firstDayOfWeek",
+      "field": "first_day_of_week",
+      "source_name": "firstdayofweek",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "First Day Of Week",
+      "description": "First day of week for the recurrence pattern.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "outlookOwnerApptId",
+      "field": "outlook_owner_appt_id",
+      "source_name": "outlookownerapptid",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Outlook Recurring Appointment Master Owner",
+      "description": "Unique identifier of the Microsoft Office Outlook recurring appointment series owner that correlates to the PR_OWNER_APPT_ID MAPI property.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "recurrencePatternType",
+      "field": "recurrence_pattern_type",
+      "source_name": "recurrencepatterntype",
+      "data_format": "INT32",
+      "required_level": "systemrequired",
+      "display_name": "Recurrence Frequency",
+      "description": "Select the pattern type for the recurring appointment to indicate whether the appointment occurs daily, weekly, monthly, or yearly.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "recurrencePatternType_display",
+      "field": "recurrence_pattern_type_display",
+      "data_format": "STRING",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "nextExpansionInstanceDate",
+      "field": "next_expansion_instance_date",
+      "source_name": "nextexpansioninstancedate",
+      "data_format": "DATE_TIME",
+      "required_level": "none",
+      "display_name": "Next Expanded Instance Date",
+      "description": "Date of the next expanded instance of a recurring appointment series.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "expansionStateCode",
+      "field": "expansion_state_code",
+      "source_name": "expansionstatecode",
+      "data_format": "INT32",
+      "required_level": "systemrequired",
+      "display_name": "Expansion State Code",
+      "description": "State code to indicate whether the recurring appointment series is expanded fully or partially.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "expansionStateCode_display",
+      "field": "expansion_state_code_display",
+      "data_format": "STRING",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "patternEndDate",
+      "field": "pattern_end_date",
+      "source_name": "patternenddate",
+      "data_format": "DATE_TIME",
+      "required_level": "none",
+      "display_name": "Recurrence Range End",
+      "description": "End date of the recurrence range.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "globalObjectId",
+      "field": "global_object_id",
+      "source_name": "globalobjectid",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 300,
+      "display_name": "Outlook Recurring Appointment Master",
+      "description": "Unique Outlook identifier to correlate recurring appointment series across Exchange mailboxes.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "effectiveStartDate",
+      "field": "effective_start_date",
+      "source_name": "effectivestartdate",
+      "data_format": "DATE_TIME",
+      "required_level": "none",
+      "display_name": "Effective Start Date",
+      "description": "Actual start date of the recurring appointment series based on the specified start date and recurrence pattern.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "dayOfMonth",
+      "field": "day_of_month",
+      "source_name": "dayofmonth",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Day Of Month",
+      "description": "The day of the month on which the recurring appointment occurs.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "statusCode",
+      "field": "status_code",
+      "source_name": "statuscode",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Status Reason",
+      "description": "Select the recurring appointment's status.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "statusCode_display",
+      "field": "status_code_display",
+      "data_format": "STRING",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "startTime",
+      "field": "start_time",
+      "source_name": "starttime",
+      "data_format": "DATE_TIME",
+      "required_level": "none",
+      "display_name": "Pattern Start Time",
+      "description": "Start time of the recurring appointment series.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "occurrences",
+      "field": "occurrences",
+      "source_name": "occurrences",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Occurrences",
+      "description": "Number of appointment occurrences in a recurring appointment series.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "isAllDayEvent",
+      "field": "is_all_day_event",
+      "source_name": "isalldayevent",
+      "data_format": "BOOLEAN",
+      "required_level": "none",
+      "display_name": "All Day Event",
+      "description": "Select whether the recurring appointment is an all-day event to make sure that the required resources are scheduled for the full day.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "seriesStatus",
+      "field": "series_status",
+      "source_name": "seriesstatus",
+      "data_format": "BOOLEAN",
+      "required_level": "none",
+      "display_name": "Series Status",
+      "description": "Indicates whether the recurring appointment series is active or inactive.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "isNthMonthly",
+      "field": "is_nth_monthly",
+      "source_name": "isnthmonthly",
+      "data_format": "BOOLEAN",
+      "required_level": "systemrequired",
+      "display_name": "Nth Monthly",
+      "description": "Indicates whether the recurring appointment series should occur after every N months. Valid for monthly recurrence pattern only.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "endTime",
+      "field": "end_time",
+      "source_name": "endtime",
+      "data_format": "DATE_TIME",
+      "required_level": "none",
+      "display_name": "Pattern End Time",
+      "description": "End time of the associated activity.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "daysOfWeekMask",
+      "field": "days_of_week_mask",
+      "source_name": "daysofweekmask",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Days Of Week Mask",
+      "description": "Bitmask that represents the days of the week on which the recurring appointment occurs.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "description",
+      "field": "description",
+      "source_name": "description",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 1048576,
+      "display_name": "Description",
+      "description": "Type additional information to describe the recurring appointment, such as key talking points or objectives.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "instance",
+      "field": "instance",
+      "source_name": "instance",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Instance",
+      "description": "Specifies the recurring appointment series to occur on every Nth day of a month. Valid for monthly and yearly recurrence patterns only.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "instance_display",
+      "field": "instance_display",
+      "data_format": "STRING",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "deletedExceptionsList",
+      "field": "deleted_exceptions_list",
+      "source_name": "deletedexceptionslist",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 1073741823,
+      "display_name": "Deleted Appointments",
+      "description": "List of deleted instances of the recurring appointment series.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "interval",
+      "field": "interval",
+      "source_name": "interval",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Interval",
+      "description": "Number of units of a given recurrence type between occurrences.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "duration",
+      "field": "duration",
+      "source_name": "duration",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Duration",
+      "description": "Duration of the recurring appointment series in minutes.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "monthOfYear",
+      "field": "month_of_year",
+      "source_name": "monthofyear",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Month Of Year",
+      "description": "Indicates the month of the year for the recurrence pattern.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "monthOfYear_display",
+      "field": "month_of_year_display",
+      "data_format": "STRING",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "location",
+      "field": "location",
+      "source_name": "location",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 200,
+      "display_name": "Location",
+      "description": "Type the location where the recurring appointment will take place, such as a conference room or customer office.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "patternEndType",
+      "field": "pattern_end_type",
+      "source_name": "patternendtype",
+      "data_format": "INT32",
+      "required_level": "systemrequired",
+      "display_name": "Pattern End Type",
+      "description": "Select the type of end date for the recurring appointment, such as no end date or the number of occurrences.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "patternEndType_display",
+      "field": "pattern_end_type_display",
+      "data_format": "STRING",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "transactionCurrencyId",
+      "field": "transaction_currency_id",
+      "source_name": "transactioncurrencyid",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Currency",
+      "description": "Choose the local currency for the record to make sure budgets are reported in the correct currency.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "exchangeRate",
+      "field": "exchange_rate",
+      "source_name": "exchangerate",
+      "data_format": "DECIMAL",
+      "required_level": "none",
+      "display_name": "Exchange Rate",
+      "description": "Shows the conversion rate of the record's currency. The exchange rate is used to convert all money fields in the record from the local currency to the system's default currency.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "processId",
+      "field": "process_id",
+      "source_name": "processid",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Process",
+      "description": "Shows the ID of the process.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "stageId",
+      "field": "stage_id",
+      "source_name": "stageid",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Process Stage",
+      "description": "Shows the ID of the stage.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "traversedPath",
+      "field": "traversed_path",
+      "source_name": "traversedpath",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 1250,
+      "display_name": "Traversed Path",
+      "description": "For internal use only.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "isUnsafe",
+      "field": "is_unsafe",
+      "source_name": "isunsafe",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "IsUnsafe",
+      "description": "For internal use only.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    }
+  ],
+  "provenance": {
+    "source": "microsoft/CDM",
+    "commit": "dd21d715e05ebf740a11356c80b5c3b4c38a89c2",
+    "document": "RecurringAppointment.cdm.json/RecurringAppointment",
+    "license": "CC-BY-4.0"
+  }
+}

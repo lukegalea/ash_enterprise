@@ -1,0 +1,1672 @@
+{
+  "entity": "Goal",
+  "table": "goal",
+  "source_name": "Goal",
+  "display_name": null,
+  "description": null,
+  "attributes": [
+    {
+      "name": "createdOn",
+      "field": "created_on",
+      "source_name": "createdon",
+      "data_format": "DATE_TIME",
+      "required_level": "none",
+      "display_name": "Created On",
+      "description": "Date and time when the record was created.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": true
+      }
+    },
+    {
+      "name": "createdBy",
+      "field": "created_by",
+      "source_name": "createdby",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Created By",
+      "description": "Shows who created the record.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": true
+      }
+    },
+    {
+      "name": "modifiedOn",
+      "field": "modified_on",
+      "source_name": "modifiedon",
+      "data_format": "DATE_TIME",
+      "required_level": "none",
+      "display_name": "Modified On",
+      "description": "Date and time when the record was modified.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": true
+      }
+    },
+    {
+      "name": "modifiedBy",
+      "field": "modified_by",
+      "source_name": "modifiedby",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Modified By",
+      "description": "Shows who last updated the record.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": true
+      }
+    },
+    {
+      "name": "createdOnBehalfBy",
+      "field": "created_on_behalf_by",
+      "source_name": "createdonbehalfby",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Created By (Delegate)",
+      "description": "Shows who created the record on behalf of another user.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": true
+      }
+    },
+    {
+      "name": "modifiedOnBehalfBy",
+      "field": "modified_on_behalf_by",
+      "source_name": "modifiedonbehalfby",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Modified By (Delegate)",
+      "description": "Shows who last updated the record on behalf of another user.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": true
+      }
+    },
+    {
+      "name": "overriddenCreatedOn",
+      "field": "overridden_created_on",
+      "source_name": "overriddencreatedon",
+      "data_format": "DATE_TIME",
+      "required_level": "none",
+      "display_name": "Record Created On",
+      "description": "Date and time that the record was migrated.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": true
+      }
+    },
+    {
+      "name": "importSequenceNumber",
+      "field": "import_sequence_number",
+      "source_name": "importsequencenumber",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Import Sequence Number",
+      "description": "Unique identifier of the data import or data migration that created this record.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "ownerId",
+      "field": "owner_id",
+      "source_name": "ownerid",
+      "data_format": "GUID",
+      "required_level": "systemrequired",
+      "display_name": "Owner",
+      "description": "Owner Id",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": true,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": true
+      }
+    },
+    {
+      "name": "ownerIdType",
+      "field": "owner_id_type",
+      "source_name": "owneridtype",
+      "data_format": "STRING",
+      "required_level": "systemrequired",
+      "display_name": "Owner Type",
+      "description": "The type of owner, either User or Team.",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": true,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "owningBusinessUnit",
+      "field": "owning_business_unit",
+      "source_name": "owningbusinessunit",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Owning Business Unit",
+      "description": "Unique identifier for the business unit that owns the record",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": true
+      }
+    },
+    {
+      "name": "owningUser",
+      "field": "owning_user",
+      "source_name": "owninguser",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Owning User",
+      "description": "Unique identifier for the user that owns the record.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": true
+      }
+    },
+    {
+      "name": "owningTeam",
+      "field": "owning_team",
+      "source_name": "owningteam",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Owning Team",
+      "description": "Unique identifier for the team that owns the record.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": true
+      }
+    },
+    {
+      "name": "timeZoneRuleVersionNumber",
+      "field": "time_zone_rule_version_number",
+      "source_name": "timezoneruleversionnumber",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Time Zone Rule Version Number",
+      "description": "For internal use only.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": true
+      }
+    },
+    {
+      "name": "UTCConversionTimeZoneCode",
+      "field": "utc_conversion_time_zone_code",
+      "source_name": "utcconversiontimezonecode",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "UTC Conversion Time Zone Code",
+      "description": "Time zone code that was in use when the record was created.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": true
+      }
+    },
+    {
+      "name": "versionNumber",
+      "field": "version_number",
+      "source_name": "versionnumber",
+      "data_format": "INT64",
+      "required_level": "none",
+      "display_name": "Version Number",
+      "description": "Version Number",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": true
+      }
+    },
+    {
+      "name": "goalId",
+      "field": "goal_id",
+      "source_name": "goalid",
+      "data_format": "GUID",
+      "required_level": "systemrequired",
+      "display_name": "Goal",
+      "description": "Unique identifier of the goal.",
+      "is_primary_key": true,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "stateCode",
+      "field": "state_code",
+      "source_name": "statecode",
+      "data_format": "INT32",
+      "required_level": "systemrequired",
+      "display_name": "Status",
+      "description": "Shows whether the goal is open, completed, or canceled. Completed and canceled goals are read-only and can't be edited.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "stateCode_display",
+      "field": "state_code_display",
+      "data_format": "STRING",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "statusCode",
+      "field": "status_code",
+      "source_name": "statuscode",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Status Reason",
+      "description": "Select the goal's status.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "statusCode_display",
+      "field": "status_code_display",
+      "data_format": "STRING",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "title",
+      "field": "title",
+      "source_name": "title",
+      "data_format": "STRING",
+      "required_level": "required",
+      "max_length": 100,
+      "display_name": "Name",
+      "description": "Type a title or name that describes the goal.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "fiscalPeriod",
+      "field": "fiscal_period",
+      "source_name": "fiscalperiod",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Fiscal Period",
+      "description": "Select the fiscal period for the goal.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "fiscalPeriod_display",
+      "field": "fiscal_period_display",
+      "data_format": "STRING",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "fiscalYear",
+      "field": "fiscal_year",
+      "source_name": "fiscalyear",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Fiscal Year",
+      "description": "Select the fiscal year for the goal that's being tracked.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "fiscalYear_display",
+      "field": "fiscal_year_display",
+      "data_format": "STRING",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "goalStartDate",
+      "field": "goal_start_date",
+      "source_name": "goalstartdate",
+      "data_format": "DATE_TIME",
+      "required_level": "none",
+      "display_name": "From",
+      "description": "Enter the date and time when the period for tracking the goal begins.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "goalEndDate",
+      "field": "goal_end_date",
+      "source_name": "goalenddate",
+      "data_format": "DATE_TIME",
+      "required_level": "none",
+      "display_name": "To",
+      "description": "Enter the date when the goal ends.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "goalOwnerId",
+      "field": "goal_owner_id",
+      "source_name": "goalownerid",
+      "data_format": "GUID",
+      "required_level": "required",
+      "display_name": "Goal Owner",
+      "description": "Choose the user or team responsible for meeting the goal.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "goalOwnerIdType",
+      "field": "goal_owner_id_type",
+      "source_name": "goalowneridtype",
+      "data_format": "STRING",
+      "display_name": "goalOwnerId Type",
+      "description": "The name of the entity linked by goalOwnerId",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "parentGoalId",
+      "field": "parent_goal_id",
+      "source_name": "parentgoalid",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Parent Goal",
+      "description": "Choose a parent goal if the current goal is a child goal. This sets up a parent-child relationship for reporting and analytics.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "transactionCurrencyId",
+      "field": "transaction_currency_id",
+      "source_name": "transactioncurrencyid",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Currency",
+      "description": "Choose the local currency for the record to make sure budgets are reported in the correct currency.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "exchangeRate",
+      "field": "exchange_rate",
+      "source_name": "exchangerate",
+      "data_format": "DECIMAL",
+      "required_level": "none",
+      "display_name": "Exchange Rate",
+      "description": "Shows the conversion rate of the record's currency. The exchange rate is used to convert all money fields in the record from the local currency to the system's default currency.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "metricId",
+      "field": "metric_id",
+      "source_name": "metricid",
+      "data_format": "GUID",
+      "required_level": "required",
+      "display_name": "Goal Metric",
+      "description": "Choose the metric for the goal. This metric determines how the goal is tracked.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "treeId",
+      "field": "tree_id",
+      "source_name": "treeid",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Tree ID",
+      "description": "Unique identifier of the goal tree.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "depth",
+      "field": "depth",
+      "source_name": "depth",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Depth",
+      "description": "Depth of the goal in the tree.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "stretchTargetMoney",
+      "field": "stretch_target_money",
+      "source_name": "stretchtargetmoney",
+      "data_format": "DECIMAL",
+      "required_level": "none",
+      "display_name": "Stretch Target (Money)",
+      "description": "Select stretch target (money) of the goal to define a higher or difficult level of goal than the usual ones.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "stretchTargetMoneyBase",
+      "field": "stretch_target_money_base",
+      "source_name": "stretchtargetmoney_base",
+      "data_format": "DECIMAL",
+      "required_level": "none",
+      "display_name": "Stretch Target (Money) (Base)",
+      "description": "Shows the stretch target (money) in base currency to indicate a higher or difficult level of goal than the usual ones.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "stretchTargetDecimal",
+      "field": "stretch_target_decimal",
+      "source_name": "stretchtargetdecimal",
+      "data_format": "DECIMAL",
+      "required_level": "none",
+      "display_name": "Stretch Target (Decimal)",
+      "description": "Select a stretch target (decimal) of the goal to define a higher or difficult level of goal than the usual ones.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "stretchTargetInteger",
+      "field": "stretch_target_integer",
+      "source_name": "stretchtargetinteger",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Stretch Target (Integer)",
+      "description": "Select the stretch target (integer) of the goal to define a higher or difficult level of goal than the usual ones.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "targetMoney",
+      "field": "target_money",
+      "source_name": "targetmoney",
+      "data_format": "DECIMAL",
+      "required_level": "none",
+      "display_name": "Target (Money)",
+      "description": "Select a goal target (money) to track a monetary amount such as revenue from a product.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "targetMoneyBase",
+      "field": "target_money_base",
+      "source_name": "targetmoney_base",
+      "data_format": "DECIMAL",
+      "required_level": "none",
+      "display_name": "Target (Money) (Base)",
+      "description": "Shows the goal target of the money type in base currency.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "targetDecimal",
+      "field": "target_decimal",
+      "source_name": "targetdecimal",
+      "data_format": "DECIMAL",
+      "required_level": "none",
+      "display_name": "Target (Decimal)",
+      "description": "Select a goal target of the decimal type to use for tracking data that include partial numbers, such as pounds sold of a product sold by weight.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "targetInteger",
+      "field": "target_integer",
+      "source_name": "targetinteger",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Target (Integer)",
+      "description": "Select a goal target of the integer type to use for tracking anything countable in whole numbers, such as units sold.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "actualMoney",
+      "field": "actual_money",
+      "source_name": "actualmoney",
+      "data_format": "DECIMAL",
+      "required_level": "none",
+      "display_name": "Actual (Money)",
+      "description": "Shows the actual value (Money type) achieved towards the target as of the last rolled-up date. This field appears when the metric type of the goal is Amount and the amount data type is Money.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "actualMoneyBase",
+      "field": "actual_money_base",
+      "source_name": "actualmoney_base",
+      "data_format": "DECIMAL",
+      "required_level": "none",
+      "display_name": "Actual (Money) (Base)",
+      "description": "Shows the actual value (money type) in base currency to track goal results against the target.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "customRollupFieldMoney",
+      "field": "custom_rollup_field_money",
+      "source_name": "customrollupfieldmoney",
+      "data_format": "DECIMAL",
+      "required_level": "none",
+      "display_name": "Custom Rollup Field (Money)",
+      "description": "Indicates a placeholder rollup field for a money value to track a third category of results other than actuals and in-progress results.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "customRollupFieldMoneyBase",
+      "field": "custom_rollup_field_money_base",
+      "source_name": "customrollupfieldmoney_base",
+      "data_format": "DECIMAL",
+      "required_level": "none",
+      "display_name": "Custom Rollup Field (Money) (Base)",
+      "description": "Indicates a placeholder rollup field for a money value in base currency to track a third category of results other than actuals and in-progress results.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "inProgressMoney",
+      "field": "in_progress_money",
+      "source_name": "inprogressmoney",
+      "data_format": "DECIMAL",
+      "required_level": "none",
+      "display_name": "In-progress (Money)",
+      "description": "Shows the in-progress value (money) against the target. This value could contribute to a goal, but is not counted yet as actual.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "inProgressMoneyBase",
+      "field": "in_progress_money_base",
+      "source_name": "inprogressmoney_base",
+      "data_format": "DECIMAL",
+      "required_level": "none",
+      "display_name": "In-progress (Money) (Base)",
+      "description": "Shows the in-progress value (money) in base currency to track goal results against the target.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "actualDecimal",
+      "field": "actual_decimal",
+      "source_name": "actualdecimal",
+      "data_format": "DECIMAL",
+      "required_level": "none",
+      "display_name": "Actual (Decimal)",
+      "description": "Shows the actual value (Decimal type) achieved towards the target as of the last rolled-up date. This field appears when the metric type of the goal is Amount and the amount data type is Decimal.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "customRollupFieldDecimal",
+      "field": "custom_rollup_field_decimal",
+      "source_name": "customrollupfielddecimal",
+      "data_format": "DECIMAL",
+      "required_level": "none",
+      "display_name": "Custom Rollup Field (Decimal)",
+      "description": "Indicates a placeholder rollup field for a decimal value to track a third category of results other than actuals and in-progress results.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "inProgressDecimal",
+      "field": "in_progress_decimal",
+      "source_name": "inprogressdecimal",
+      "data_format": "DECIMAL",
+      "required_level": "none",
+      "display_name": "In-progress (Decimal)",
+      "description": "Shows the in-progress value (decimal) against the target. This value could contribute to a goal, but is not counted yet as actual.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "actualInteger",
+      "field": "actual_integer",
+      "source_name": "actualinteger",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Actual (Integer)",
+      "description": "Shows the actual value (integer) achieved towards the target as of the last rolled-up date. This field appears when the metric type of the goal is Amount or Count and the amount data type is Integer.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "customRollupFieldInteger",
+      "field": "custom_rollup_field_integer",
+      "source_name": "customrollupfieldinteger",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Custom Rollup Field (Integer)",
+      "description": "Indicates a placeholder rollup field for an integer value to track a third category of results other than actuals and in-progress results.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "inProgressInteger",
+      "field": "in_progress_integer",
+      "source_name": "inprogressinteger",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "In-progress (Integer)",
+      "description": "Shows the in-progress value (integer) against the target. This value could contribute to a goal, but is not counted yet as actual.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "percentage",
+      "field": "percentage",
+      "source_name": "percentage",
+      "data_format": "DECIMAL",
+      "required_level": "none",
+      "display_name": "Percentage Achieved",
+      "description": "Shows the percentage achieved against the target goal.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "isFiscalPeriodGoal",
+      "field": "is_fiscal_period_goal",
+      "source_name": "isfiscalperiodgoal",
+      "data_format": "BOOLEAN",
+      "required_level": "none",
+      "display_name": "Goal Period Type",
+      "description": "Select whether the goal period is a fiscal period or custom period.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "considerOnlyGoalOwnersRecords",
+      "field": "consider_only_goal_owners_records",
+      "source_name": "consideronlygoalownersrecords",
+      "data_format": "BOOLEAN",
+      "required_level": "systemrequired",
+      "display_name": "Record Set for Rollup",
+      "description": "Select whether only the goal owner's records, or all records, should be rolled up for goal results.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "lastRolledupDate",
+      "field": "last_rolledup_date",
+      "source_name": "lastrolledupdate",
+      "data_format": "DATE_TIME",
+      "required_level": "none",
+      "display_name": "Last Rolled Up Date",
+      "description": "Shows the date and time when the goal was last rolled up. The date and time are displayed in the time zone selected in Microsoft Dynamics 365 options.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "targetString",
+      "field": "target_string",
+      "source_name": "targetstring",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 100,
+      "display_name": "Target",
+      "description": "Target value of the goal.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "stretchTargetString",
+      "field": "stretch_target_string",
+      "source_name": "stretchtargetstring",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 100,
+      "display_name": "Stretched Target",
+      "description": "Stretch target value for all data types.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "actualString",
+      "field": "actual_string",
+      "source_name": "actualstring",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 100,
+      "display_name": "Actual",
+      "description": "Actual Value of the goal.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "customRollupFieldString",
+      "field": "custom_rollup_field_string",
+      "source_name": "customrollupfieldstring",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 100,
+      "display_name": "Custom Rollup Field",
+      "description": "Placeholder rollup field for the goal.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "inProgressString",
+      "field": "in_progress_string",
+      "source_name": "inprogressstring",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 100,
+      "display_name": "In-Progress",
+      "description": "In-progress value of the goal.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "amountDataType",
+      "field": "amount_data_type",
+      "source_name": "amountdatatype",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Amount Data Type",
+      "description": "Data type of the amount.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "amountDataType_display",
+      "field": "amount_data_type_display",
+      "data_format": "STRING",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "isAmount",
+      "field": "is_amount",
+      "source_name": "isamount",
+      "data_format": "BOOLEAN",
+      "required_level": "required",
+      "display_name": "Metric Type",
+      "description": "Indicates whether the metric type is Count or Amount.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "rollupQueryActualIntegerId",
+      "field": "rollup_query_actual_integer_id",
+      "source_name": "rollupqueryactualintegerid",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Rollup Query - Actual(Integer)",
+      "description": "Choose the query that will be used to calculate the actual data for the goal (integer).",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "rollUpQueryActualMoneyId",
+      "field": "roll_up_query_actual_money_id",
+      "source_name": "rollupqueryactualmoneyid",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Rollup Query - Actual(Money)",
+      "description": "Choose the query that will be used to calculate the actual data for the goal (money).",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "rollUpQueryActualDecimalId",
+      "field": "roll_up_query_actual_decimal_id",
+      "source_name": "rollupqueryactualdecimalid",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Rollup Query - Actual(Decimal)",
+      "description": "Choose the query that will be used to calculate the actual data for the goal (decimal).",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "rollUpQueryCustomIntegerId",
+      "field": "roll_up_query_custom_integer_id",
+      "source_name": "rollupquerycustomintegerid",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Rollup Query - Custom Rollup Field (Integer)",
+      "description": "Choose the query that will be used to calculate data for the custom rollup field (integer).",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "rollUpQueryCustomMoneyId",
+      "field": "roll_up_query_custom_money_id",
+      "source_name": "rollupquerycustommoneyid",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Rollup Query - Custom Rollup Field (Money)",
+      "description": "Choose the query that will be used to calculate data for the custom rollup field (money).",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "rollUpQueryCustomDecimalId",
+      "field": "roll_up_query_custom_decimal_id",
+      "source_name": "rollupquerycustomdecimalid",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Rollup Query - Custom Rollup Field (Decimal)",
+      "description": "Choose the query that will be used to calculate data for the custom rollup field (decimal).",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "rollUpQueryInprogressIntegerId",
+      "field": "roll_up_query_inprogress_integer_id",
+      "source_name": "rollupqueryinprogressintegerid",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Rollup Query - In-progress(Integer)",
+      "description": "Choose the query that will be used to calculate data for the in-progress rollup field (integer).",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "rollUpQueryInprogressMoneyId",
+      "field": "roll_up_query_inprogress_money_id",
+      "source_name": "rollupqueryinprogressmoneyid",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Rollup Query - In-progress(Money)",
+      "description": "Choose the query that will be used to calculate data for the in-progress rollup field (money).",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "rollUpQueryInprogressDecimalId",
+      "field": "roll_up_query_inprogress_decimal_id",
+      "source_name": "rollupqueryinprogressdecimalid",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Rollup Query - In-progress(Decimal)",
+      "description": "Choose the query that will be used to calculate data for the in-progress rollup field (decimal).",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "rollupOnlyFromChildGoals",
+      "field": "rollup_only_from_child_goals",
+      "source_name": "rolluponlyfromchildgoals",
+      "data_format": "BOOLEAN",
+      "required_level": "systemrequired",
+      "display_name": "Roll Up Only from Child Goals",
+      "description": "Select whether the data should be rolled up only from the child goals.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "goalWithErrorId",
+      "field": "goal_with_error_id",
+      "source_name": "goalwitherrorid",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Goal With Error",
+      "description": "Unique identifier of the goal that caused an error in the rollup of the goal hierarchy.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "rollupErrorCode",
+      "field": "rollup_error_code",
+      "source_name": "rolluperrorcode",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Rollup Error Code",
+      "description": "Error code associated with rollup.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "computedTargetAsOfTodayPercentageAchieved",
+      "field": "computed_target_as_of_today_percentage_achieved",
+      "source_name": "computedtargetasoftodaypercentageachieved",
+      "data_format": "DECIMAL",
+      "required_level": "none",
+      "display_name": "Today's Target (Percentage Achieved)",
+      "description": "Shows the expected value for percentage achieved against the target goal as of the current date.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "computedTargetAsOfTodayMoney",
+      "field": "computed_target_as_of_today_money",
+      "source_name": "computedtargetasoftodaymoney",
+      "data_format": "DECIMAL",
+      "required_level": "none",
+      "display_name": "Today's Target (Money)",
+      "description": "Shows the expected amount for actual value (money type) against the target goal as of the current date.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "computedTargetAsOfTodayMoneyBase",
+      "field": "computed_target_as_of_today_money_base",
+      "source_name": "computedtargetasoftodaymoney_base",
+      "data_format": "DECIMAL",
+      "required_level": "none",
+      "display_name": "Today's Target (Money) (Base)",
+      "description": "Shows the expected amount in base currency for actual value (money type) against the target goal as of the current date.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "computedTargetAsOfTodayDecimal",
+      "field": "computed_target_as_of_today_decimal",
+      "source_name": "computedtargetasoftodaydecimal",
+      "data_format": "DECIMAL",
+      "required_level": "none",
+      "display_name": "Today's Target (Decimal)",
+      "description": "Shows the expected amount for actual value (decimal type) against the target goal.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "computedTargetAsOfTodayInteger",
+      "field": "computed_target_as_of_today_integer",
+      "source_name": "computedtargetasoftodayinteger",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Today's Target (Integer)",
+      "description": "Shows the expected amount for actual value (integer type) against the target goal as of the current date.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "isOverride",
+      "field": "is_override",
+      "source_name": "isoverride",
+      "data_format": "BOOLEAN",
+      "required_level": "none",
+      "display_name": "Override",
+      "description": "Indicates whether the values of system rollup fields can be updated.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "isOverridden",
+      "field": "is_overridden",
+      "source_name": "isoverridden",
+      "data_format": "BOOLEAN",
+      "required_level": "none",
+      "display_name": "Overridden",
+      "description": "Select whether the system rollup fields are updated. If set to Yes, the next system rollup will not update the values of the rollup fields with the system calculated values.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "entityImageId",
+      "field": "entity_image_id",
+      "source_name": "entityimageid",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Entity Image Id",
+      "description": "For internal use only.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    }
+  ],
+  "provenance": {
+    "source": "microsoft/CDM",
+    "commit": "dd21d715e05ebf740a11356c80b5c3b4c38a89c2",
+    "document": "Goal.cdm.json/Goal",
+    "license": "CC-BY-4.0"
+  }
+}

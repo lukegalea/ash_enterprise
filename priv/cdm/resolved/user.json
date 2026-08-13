@@ -1,0 +1,2609 @@
+{
+  "entity": "User",
+  "table": "user",
+  "source_name": "SystemUser",
+  "display_name": null,
+  "description": null,
+  "attributes": [
+    {
+      "name": "systemUserId",
+      "field": "system_user_id",
+      "source_name": "systemuserid",
+      "data_format": "GUID",
+      "required_level": "systemrequired",
+      "display_name": "User",
+      "description": "Unique identifier for the user.",
+      "is_primary_key": true,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "organizationId",
+      "field": "organization_id",
+      "source_name": "organizationid",
+      "data_format": "GUID",
+      "required_level": "systemrequired",
+      "display_name": "Organization ",
+      "description": "Unique identifier of the organization associated with the user.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "businessUnitId",
+      "field": "business_unit_id",
+      "source_name": "businessunitid",
+      "data_format": "GUID",
+      "required_level": "systemrequired",
+      "display_name": "Business Unit",
+      "description": "Unique identifier of the business unit with which the user is associated.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "parentSystemUserId",
+      "field": "parent_system_user_id",
+      "source_name": "parentsystemuserid",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Manager",
+      "description": "Unique identifier of the manager of the user.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "firstName",
+      "field": "first_name",
+      "source_name": "firstname",
+      "data_format": "STRING",
+      "required_level": "required",
+      "max_length": 64,
+      "display_name": "First Name",
+      "description": "First name of the user.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "salutation",
+      "field": "salutation",
+      "source_name": "salutation",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 20,
+      "display_name": "Salutation",
+      "description": "Salutation for correspondence with the user.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "middleName",
+      "field": "middle_name",
+      "source_name": "middlename",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 50,
+      "display_name": "Middle Name",
+      "description": "Middle name of the user.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "lastName",
+      "field": "last_name",
+      "source_name": "lastname",
+      "data_format": "STRING",
+      "required_level": "required",
+      "max_length": 64,
+      "display_name": "Last Name",
+      "description": "Last name of the user.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "personalEMailAddress",
+      "field": "personal_e_mail_address",
+      "source_name": "personalemailaddress",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 100,
+      "display_name": "Email 2",
+      "description": "Personal email address of the user.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "fullName",
+      "field": "full_name",
+      "source_name": "fullname",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 200,
+      "display_name": "Full Name",
+      "description": "Full name of the user.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "nickName",
+      "field": "nick_name",
+      "source_name": "nickname",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 50,
+      "display_name": "Nickname",
+      "description": "Nickname of the user.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "title",
+      "field": "title",
+      "source_name": "title",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 128,
+      "display_name": "Title",
+      "description": "Title of the user.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "internalEMailAddress",
+      "field": "internal_e_mail_address",
+      "source_name": "internalemailaddress",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 100,
+      "display_name": "Primary Email",
+      "description": "Internal email address for the user.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "jobTitle",
+      "field": "job_title",
+      "source_name": "jobtitle",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 100,
+      "display_name": "Job Title",
+      "description": "Job title of the user.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "mobileAlertEMail",
+      "field": "mobile_alert_e_mail",
+      "source_name": "mobilealertemail",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 100,
+      "display_name": "Mobile Alert Email",
+      "description": "Mobile alert email address for the user.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "preferredEmailCode",
+      "field": "preferred_email_code",
+      "source_name": "preferredemailcode",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Preferred Email",
+      "description": "Preferred email address for the user.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "preferredEmailCode_display",
+      "field": "preferred_email_code_display",
+      "data_format": "STRING",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "homePhone",
+      "field": "home_phone",
+      "source_name": "homephone",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 50,
+      "display_name": "Home Phone",
+      "description": "Home phone number for the user.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "mobilePhone",
+      "field": "mobile_phone",
+      "source_name": "mobilephone",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 64,
+      "display_name": "Mobile Phone",
+      "description": "Mobile phone number for the user.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "preferredPhoneCode",
+      "field": "preferred_phone_code",
+      "source_name": "preferredphonecode",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Preferred Phone",
+      "description": "Preferred phone number for the user.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "preferredPhoneCode_display",
+      "field": "preferred_phone_code_display",
+      "data_format": "STRING",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "preferredAddressCode",
+      "field": "preferred_address_code",
+      "source_name": "preferredaddresscode",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Preferred Address",
+      "description": "Preferred address for the user.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "preferredAddressCode_display",
+      "field": "preferred_address_code_display",
+      "data_format": "STRING",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "photoUrl",
+      "field": "photo_url",
+      "source_name": "photourl",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 200,
+      "display_name": "Photo URL",
+      "description": "URL for the Website on which a photo of the user is located.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "domainName",
+      "field": "domain_name",
+      "source_name": "domainname",
+      "data_format": "STRING",
+      "required_level": "systemrequired",
+      "max_length": 1024,
+      "display_name": "User Name",
+      "description": "Active Directory domain of which the user is a member.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "passportLo",
+      "field": "passport_lo",
+      "source_name": "passportlo",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Passport Lo",
+      "description": "For internal use only.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "createdOn",
+      "field": "created_on",
+      "source_name": "createdon",
+      "data_format": "DATE_TIME",
+      "required_level": "none",
+      "display_name": "Created On",
+      "description": "Date and time when the user was created.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "passportHi",
+      "field": "passport_hi",
+      "source_name": "passporthi",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Passport Hi",
+      "description": "For internal use only.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "disabledReason",
+      "field": "disabled_reason",
+      "source_name": "disabledreason",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 500,
+      "display_name": "Disabled Reason",
+      "description": "Reason for disabling the user.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "modifiedOn",
+      "field": "modified_on",
+      "source_name": "modifiedon",
+      "data_format": "DATE_TIME",
+      "required_level": "none",
+      "display_name": "Modified On",
+      "description": "Date and time when the user was last modified.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "createdBy",
+      "field": "created_by",
+      "source_name": "createdby",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Created By",
+      "description": "Unique identifier of the user who created the user.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "employeeId",
+      "field": "employee_id",
+      "source_name": "employeeid",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 100,
+      "display_name": "Employee",
+      "description": "Employee identifier for the user.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "modifiedBy",
+      "field": "modified_by",
+      "source_name": "modifiedby",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Modified By",
+      "description": "Unique identifier of the user who last modified the user.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "isDisabled",
+      "field": "is_disabled",
+      "source_name": "isdisabled",
+      "data_format": "BOOLEAN",
+      "required_level": "none",
+      "display_name": "Status",
+      "description": "Information about whether the user is enabled.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "governmentId",
+      "field": "government_id",
+      "source_name": "governmentid",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 100,
+      "display_name": "Government",
+      "description": "Government identifier for the user.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "versionNumber",
+      "field": "version_number",
+      "source_name": "versionnumber",
+      "data_format": "INT64",
+      "required_level": "none",
+      "display_name": "Version number",
+      "description": "Version number of the user.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "address1AddressId",
+      "field": "address1_address_id",
+      "source_name": "address1_addressid",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Address 1: ID",
+      "description": "Unique identifier for address 1.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "address1AddressTypeCode",
+      "field": "address1_address_type_code",
+      "source_name": "address1_addresstypecode",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Address 1: Address Type",
+      "description": "Type of address for address 1, such as billing, shipping, or primary address.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "address1AddressTypeCode_display",
+      "field": "address1_address_type_code_display",
+      "data_format": "STRING",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "address1Name",
+      "field": "address1_name",
+      "source_name": "address1_name",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 100,
+      "display_name": "Address 1: Name",
+      "description": "Name to enter for address 1.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "address1Line1",
+      "field": "address1_line1",
+      "source_name": "address1_line1",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 1024,
+      "display_name": "Street 1",
+      "description": "First line for entering address 1 information.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "address1Line2",
+      "field": "address1_line2",
+      "source_name": "address1_line2",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 1024,
+      "display_name": "Street 2",
+      "description": "Second line for entering address 1 information.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "address1Line3",
+      "field": "address1_line3",
+      "source_name": "address1_line3",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 1024,
+      "display_name": "Street 3",
+      "description": "Third line for entering address 1 information.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "address1City",
+      "field": "address1_city",
+      "source_name": "address1_city",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 128,
+      "display_name": "City",
+      "description": "City name for address 1.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "address1StateOrProvince",
+      "field": "address1_state_or_province",
+      "source_name": "address1_stateorprovince",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 128,
+      "display_name": "State/Province",
+      "description": "State or province for address 1.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "address1County",
+      "field": "address1_county",
+      "source_name": "address1_county",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 128,
+      "display_name": "Address 1: County",
+      "description": "County name for address 1.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "address1Country",
+      "field": "address1_country",
+      "source_name": "address1_country",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 128,
+      "display_name": "Country/Region",
+      "description": "Country/region name in address 1.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "address1PostOfficeBox",
+      "field": "address1_post_office_box",
+      "source_name": "address1_postofficebox",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 40,
+      "display_name": "Address 1: Post Office Box",
+      "description": "Post office box number for address 1.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "address1PostalCode",
+      "field": "address1_postal_code",
+      "source_name": "address1_postalcode",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 40,
+      "display_name": "ZIP/Postal Code",
+      "description": "ZIP Code or postal code for address 1.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "address1UTCOffset",
+      "field": "address1_utc_offset",
+      "source_name": "address1_utcoffset",
+      "data_format": "STRING",
+      "required_level": "none",
+      "display_name": "Address 1: UTC Offset",
+      "description": "UTC offset for address 1. This is the difference between local time and standard Coordinated Universal Time.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "address1UPSZone",
+      "field": "address1_ups_zone",
+      "source_name": "address1_upszone",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 4,
+      "display_name": "Address 1: UPS Zone",
+      "description": "United Parcel Service (UPS) zone for address 1.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "address1Latitude",
+      "field": "address1_latitude",
+      "source_name": "address1_latitude",
+      "data_format": "DOUBLE",
+      "required_level": "none",
+      "display_name": "Address 1: Latitude",
+      "description": "Latitude for address 1.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "address1Telephone1",
+      "field": "address1_telephone1",
+      "source_name": "address1_telephone1",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 64,
+      "display_name": "Main Phone",
+      "description": "First telephone number associated with address 1.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "address1Longitude",
+      "field": "address1_longitude",
+      "source_name": "address1_longitude",
+      "data_format": "DOUBLE",
+      "required_level": "none",
+      "display_name": "Address 1: Longitude",
+      "description": "Longitude for address 1.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "address1ShippingMethodCode",
+      "field": "address1_shipping_method_code",
+      "source_name": "address1_shippingmethodcode",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Address 1: Shipping Method",
+      "description": "Method of shipment for address 1.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "address1ShippingMethodCode_display",
+      "field": "address1_shipping_method_code_display",
+      "data_format": "STRING",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "address1Telephone2",
+      "field": "address1_telephone2",
+      "source_name": "address1_telephone2",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 50,
+      "display_name": "Other Phone",
+      "description": "Second telephone number associated with address 1.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "address1Telephone3",
+      "field": "address1_telephone3",
+      "source_name": "address1_telephone3",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 50,
+      "display_name": "Pager",
+      "description": "Third telephone number associated with address 1.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "address1Fax",
+      "field": "address1_fax",
+      "source_name": "address1_fax",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 64,
+      "display_name": "Address 1: Fax",
+      "description": "Fax number for address 1.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "address2AddressId",
+      "field": "address2_address_id",
+      "source_name": "address2_addressid",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Address 2: ID",
+      "description": "Unique identifier for address 2.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "address2AddressTypeCode",
+      "field": "address2_address_type_code",
+      "source_name": "address2_addresstypecode",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Address 2: Address Type",
+      "description": "Type of address for address 2, such as billing, shipping, or primary address.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "address2AddressTypeCode_display",
+      "field": "address2_address_type_code_display",
+      "data_format": "STRING",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "address2Name",
+      "field": "address2_name",
+      "source_name": "address2_name",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 100,
+      "display_name": "Address 2: Name",
+      "description": "Name to enter for address 2.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "address2Line1",
+      "field": "address2_line1",
+      "source_name": "address2_line1",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 1024,
+      "display_name": "Other Street 1",
+      "description": "First line for entering address 2 information.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "address2Line2",
+      "field": "address2_line2",
+      "source_name": "address2_line2",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 1024,
+      "display_name": "Other Street 2",
+      "description": "Second line for entering address 2 information.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "address2Line3",
+      "field": "address2_line3",
+      "source_name": "address2_line3",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 1024,
+      "display_name": "Other Street 3",
+      "description": "Third line for entering address 2 information.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "address2City",
+      "field": "address2_city",
+      "source_name": "address2_city",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 128,
+      "display_name": "Other City",
+      "description": "City name for address 2.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "address2StateOrProvince",
+      "field": "address2_state_or_province",
+      "source_name": "address2_stateorprovince",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 128,
+      "display_name": "Other State/Province",
+      "description": "State or province for address 2.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "address2County",
+      "field": "address2_county",
+      "source_name": "address2_county",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 128,
+      "display_name": "Address 2: County",
+      "description": "County name for address 2.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "address2Country",
+      "field": "address2_country",
+      "source_name": "address2_country",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 128,
+      "display_name": "Other Country/Region",
+      "description": "Country/region name in address 2.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "address2PostOfficeBox",
+      "field": "address2_post_office_box",
+      "source_name": "address2_postofficebox",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 40,
+      "display_name": "Address 2: Post Office Box",
+      "description": "Post office box number for address 2.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "address2PostalCode",
+      "field": "address2_postal_code",
+      "source_name": "address2_postalcode",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 40,
+      "display_name": "Other ZIP/Postal Code",
+      "description": "ZIP Code or postal code for address 2.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "address2UTCOffset",
+      "field": "address2_utc_offset",
+      "source_name": "address2_utcoffset",
+      "data_format": "STRING",
+      "required_level": "none",
+      "display_name": "Address 2: UTC Offset",
+      "description": "UTC offset for address 2. This is the difference between local time and standard Coordinated Universal Time.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "address2UPSZone",
+      "field": "address2_ups_zone",
+      "source_name": "address2_upszone",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 4,
+      "display_name": "Address 2: UPS Zone",
+      "description": "United Parcel Service (UPS) zone for address 2.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "address2Latitude",
+      "field": "address2_latitude",
+      "source_name": "address2_latitude",
+      "data_format": "DOUBLE",
+      "required_level": "none",
+      "display_name": "Address 2: Latitude",
+      "description": "Latitude for address 2.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "address2Telephone1",
+      "field": "address2_telephone1",
+      "source_name": "address2_telephone1",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 50,
+      "display_name": "Address 2: Telephone 1",
+      "description": "First telephone number associated with address 2.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "address2Longitude",
+      "field": "address2_longitude",
+      "source_name": "address2_longitude",
+      "data_format": "DOUBLE",
+      "required_level": "none",
+      "display_name": "Address 2: Longitude",
+      "description": "Longitude for address 2.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "address2ShippingMethodCode",
+      "field": "address2_shipping_method_code",
+      "source_name": "address2_shippingmethodcode",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Address 2: Shipping Method",
+      "description": "Method of shipment for address 2.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "address2ShippingMethodCode_display",
+      "field": "address2_shipping_method_code_display",
+      "data_format": "STRING",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "address2Telephone2",
+      "field": "address2_telephone2",
+      "source_name": "address2_telephone2",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 50,
+      "display_name": "Address 2: Telephone 2",
+      "description": "Second telephone number associated with address 2.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "address2Telephone3",
+      "field": "address2_telephone3",
+      "source_name": "address2_telephone3",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 50,
+      "display_name": "Address 2: Telephone 3",
+      "description": "Third telephone number associated with address 2.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "address2Fax",
+      "field": "address2_fax",
+      "source_name": "address2_fax",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 50,
+      "display_name": "Address 2: Fax",
+      "description": "Fax number for address 2.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "skills",
+      "field": "skills",
+      "source_name": "skills",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 100,
+      "display_name": "Skills",
+      "description": "Skill set of the user.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "displayInServiceViews",
+      "field": "display_in_service_views",
+      "source_name": "displayinserviceviews",
+      "data_format": "BOOLEAN",
+      "required_level": "none",
+      "display_name": "Display in Service Views",
+      "description": "Whether to display the user in service views.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "calendarId",
+      "field": "calendar_id",
+      "source_name": "calendarid",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Calendar",
+      "description": "Fiscal calendar associated with the user.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "setupUser",
+      "field": "setup_user",
+      "source_name": "setupuser",
+      "data_format": "BOOLEAN",
+      "required_level": "systemrequired",
+      "display_name": "Restricted Access Mode",
+      "description": "Check if user is a setup user.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "windowsLiveID",
+      "field": "windows_live_id",
+      "source_name": "windowsliveid",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 1024,
+      "display_name": "Windows Live ID",
+      "description": "Windows Live ID",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "incomingEmailDeliveryMethod",
+      "field": "incoming_email_delivery_method",
+      "source_name": "incomingemaildeliverymethod",
+      "data_format": "INT32",
+      "required_level": "systemrequired",
+      "display_name": "Incoming Email Delivery Method",
+      "description": "Incoming email delivery method for the user.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "incomingEmailDeliveryMethod_display",
+      "field": "incoming_email_delivery_method_display",
+      "data_format": "STRING",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "outgoingEmailDeliveryMethod",
+      "field": "outgoing_email_delivery_method",
+      "source_name": "outgoingemaildeliverymethod",
+      "data_format": "INT32",
+      "required_level": "systemrequired",
+      "display_name": "Outgoing Email Delivery Method",
+      "description": "Outgoing email delivery method for the user.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "outgoingEmailDeliveryMethod_display",
+      "field": "outgoing_email_delivery_method_display",
+      "data_format": "STRING",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "importSequenceNumber",
+      "field": "import_sequence_number",
+      "source_name": "importsequencenumber",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Import Sequence Number",
+      "description": "Unique identifier of the data import or data migration that created this record.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "accessMode",
+      "field": "access_mode",
+      "source_name": "accessmode",
+      "data_format": "INT32",
+      "required_level": "systemrequired",
+      "display_name": "Access Mode",
+      "description": "Type of user.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "accessMode_display",
+      "field": "access_mode_display",
+      "data_format": "STRING",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "inviteStatusCode",
+      "field": "invite_status_code",
+      "source_name": "invitestatuscode",
+      "data_format": "INT32",
+      "required_level": "required",
+      "display_name": "Invitation Status",
+      "description": "User invitation status.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "inviteStatusCode_display",
+      "field": "invite_status_code_display",
+      "data_format": "STRING",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "overriddenCreatedOn",
+      "field": "overridden_created_on",
+      "source_name": "overriddencreatedon",
+      "data_format": "DATE_TIME",
+      "required_level": "none",
+      "display_name": "Record Created On",
+      "description": "Date and time that the record was migrated.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "UTCConversionTimeZoneCode",
+      "field": "utc_conversion_time_zone_code",
+      "source_name": "utcconversiontimezonecode",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "UTC Conversion Time Zone Code",
+      "description": "Time zone code that was in use when the record was created.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "timeZoneRuleVersionNumber",
+      "field": "time_zone_rule_version_number",
+      "source_name": "timezoneruleversionnumber",
+      "data_format": "INT32",
+      "required_level": "none",
+      "display_name": "Time Zone Rule Version Number",
+      "description": "For internal use only.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "yomiFullName",
+      "field": "yomi_full_name",
+      "source_name": "yomifullname",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 200,
+      "display_name": "Yomi Full Name",
+      "description": "Pronunciation of the full name of the user, written in phonetic hiragana or katakana characters.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "yomiLastName",
+      "field": "yomi_last_name",
+      "source_name": "yomilastname",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 64,
+      "display_name": "Yomi Last Name",
+      "description": "Pronunciation of the last name of the user, written in phonetic hiragana or katakana characters.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "yomiMiddleName",
+      "field": "yomi_middle_name",
+      "source_name": "yomimiddlename",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 50,
+      "display_name": "Yomi Middle Name",
+      "description": "Pronunciation of the middle name of the user, written in phonetic hiragana or katakana characters.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "yomiFirstName",
+      "field": "yomi_first_name",
+      "source_name": "yomifirstname",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 64,
+      "display_name": "Yomi First Name",
+      "description": "Pronunciation of the first name of the user, written in phonetic hiragana or katakana characters.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "isIntegrationUser",
+      "field": "is_integration_user",
+      "source_name": "isintegrationuser",
+      "data_format": "BOOLEAN",
+      "required_level": "systemrequired",
+      "display_name": "Integration user mode",
+      "description": "Check if user is an integration user.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "defaultFiltersPopulated",
+      "field": "default_filters_populated",
+      "source_name": "defaultfilterspopulated",
+      "data_format": "BOOLEAN",
+      "required_level": "systemrequired",
+      "display_name": "Default Filters Populated",
+      "description": "Indicates if default outlook filters have been populated.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "createdOnBehalfBy",
+      "field": "created_on_behalf_by",
+      "source_name": "createdonbehalfby",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Created By (Delegate)",
+      "description": "Unique identifier of the delegate user who created the systemuser.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "queueId",
+      "field": "queue_id",
+      "source_name": "queueid",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Default Queue",
+      "description": "Unique identifier of the default queue for the user.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "modifiedOnBehalfBy",
+      "field": "modified_on_behalf_by",
+      "source_name": "modifiedonbehalfby",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Modified By (Delegate)",
+      "description": "Unique identifier of the delegate user who last modified the systemuser.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "emailRouterAccessApproval",
+      "field": "email_router_access_approval",
+      "source_name": "emailrouteraccessapproval",
+      "data_format": "INT32",
+      "required_level": "systemrequired",
+      "display_name": "Primary Email Status",
+      "description": "Shows the status of the primary email address.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "emailRouterAccessApproval_display",
+      "field": "email_router_access_approval_display",
+      "data_format": "STRING",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "transactionCurrencyId",
+      "field": "transaction_currency_id",
+      "source_name": "transactioncurrencyid",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Currency",
+      "description": "Unique identifier of the currency associated with the systemuser.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "exchangeRate",
+      "field": "exchange_rate",
+      "source_name": "exchangerate",
+      "data_format": "DECIMAL",
+      "required_level": "none",
+      "display_name": "Exchange Rate",
+      "description": "Exchange rate for the currency associated with the systemuser with respect to the base currency.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "CALType",
+      "field": "cal_type",
+      "source_name": "caltype",
+      "data_format": "INT32",
+      "required_level": "systemrequired",
+      "display_name": "License Type",
+      "description": "License type of user.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "CALType_display",
+      "field": "cal_type_display",
+      "data_format": "STRING",
+      "is_primary_key": false,
+      "is_read_only": true,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "isLicensed",
+      "field": "is_licensed",
+      "source_name": "islicensed",
+      "data_format": "BOOLEAN",
+      "required_level": "systemrequired",
+      "display_name": "User Licensed",
+      "description": "Information about whether the user is licensed.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "isSyncWithDirectory",
+      "field": "is_sync_with_directory",
+      "source_name": "issyncwithdirectory",
+      "data_format": "BOOLEAN",
+      "required_level": "systemrequired",
+      "display_name": "User Synced",
+      "description": "Information about whether the user is synced with the directory.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "yammerEmailAddress",
+      "field": "yammer_email_address",
+      "source_name": "yammeremailaddress",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 200,
+      "display_name": "Yammer Email",
+      "description": "User's Yammer login email address",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "yammerUserId",
+      "field": "yammer_user_id",
+      "source_name": "yammeruserid",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 128,
+      "display_name": "Yammer User ID",
+      "description": "User's Yammer ID",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "defaultMailbox",
+      "field": "default_mailbox",
+      "source_name": "defaultmailbox",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Mailbox",
+      "description": "Select the mailbox associated with this user.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "userLicenseType",
+      "field": "user_license_type",
+      "source_name": "userlicensetype",
+      "data_format": "INT32",
+      "required_level": "systemrequired",
+      "display_name": "User License Type",
+      "description": "Shows the type of user license.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "entityImageId",
+      "field": "entity_image_id",
+      "source_name": "entityimageid",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Entity Image Id",
+      "description": "For internal use only.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "address2Composite",
+      "field": "address2_composite",
+      "source_name": "address2_composite",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 1000,
+      "display_name": "Other Address",
+      "description": "Shows the complete secondary address.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "address1Composite",
+      "field": "address1_composite",
+      "source_name": "address1_composite",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 1000,
+      "display_name": "Address",
+      "description": "Shows the complete primary address.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "processId",
+      "field": "process_id",
+      "source_name": "processid",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Process",
+      "description": "Shows the ID of the process.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "stageId",
+      "field": "stage_id",
+      "source_name": "stageid",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Process Stage",
+      "description": "Shows the ID of the stage.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "isEmailAddressApprovedByO365Admin",
+      "field": "is_email_address_approved_by_o365_admin",
+      "source_name": "isemailaddressapprovedbyo365admin",
+      "data_format": "BOOLEAN",
+      "required_level": "systemrequired",
+      "display_name": "Email Address O365 Admin Approval Status",
+      "description": "Shows the status of approval of the email address by O365 Admin.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "positionId",
+      "field": "position_id",
+      "source_name": "positionid",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Position",
+      "description": "User's position in hierarchical security model.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "traversedPath",
+      "field": "traversed_path",
+      "source_name": "traversedpath",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 1250,
+      "display_name": "Traversed Path",
+      "description": "For internal use only.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "sharePointEmailAddress",
+      "field": "share_point_email_address",
+      "source_name": "sharepointemailaddress",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 1024,
+      "display_name": "SharePoint Email Address",
+      "description": "SharePoint Work Email Address",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "mobileOfflineProfileId",
+      "field": "mobile_offline_profile_id",
+      "source_name": "mobileofflineprofileid",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Mobile Offline Profile",
+      "description": "Items contained with a particular SystemUser.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "defaultOdbFolderName",
+      "field": "default_odb_folder_name",
+      "source_name": "defaultodbfoldername",
+      "data_format": "STRING",
+      "required_level": "systemrequired",
+      "max_length": 200,
+      "display_name": "Default OneDrive for Business Folder Name",
+      "description": "Type a default folder name for the user's OneDrive For Business location.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "applicationId",
+      "field": "application_id",
+      "source_name": "applicationid",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Application ID",
+      "description": "The identifier for the application. This is used to access data in another application.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "applicationIdUri",
+      "field": "application_id_uri",
+      "source_name": "applicationiduri",
+      "data_format": "STRING",
+      "required_level": "none",
+      "max_length": 1024,
+      "display_name": "Application ID URI",
+      "description": "The URI used as a unique logical identifier for the external app. This can be used to validate the application.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "azureActiveDirectoryObjectId",
+      "field": "azure_active_directory_object_id",
+      "source_name": "azureactivedirectoryobjectid",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Azure AD Object ID",
+      "description": "This is the application directory object Id.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "identityId",
+      "field": "identity_id",
+      "source_name": "identityid",
+      "data_format": "INT32",
+      "required_level": "systemrequired",
+      "display_name": "Unique user identity id",
+      "description": "For internal use only.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "territoryId",
+      "field": "territory_id",
+      "source_name": "territoryid",
+      "data_format": "GUID",
+      "required_level": "none",
+      "display_name": "Territory",
+      "description": "Unique identifier of the territory to which the user is assigned.",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": "single",
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    }
+  ],
+  "provenance": {
+    "source": "microsoft/CDM",
+    "commit": "dd21d715e05ebf740a11356c80b5c3b4c38a89c2",
+    "document": "User.cdm.json/User",
+    "license": "CC-BY-4.0"
+  }
+}

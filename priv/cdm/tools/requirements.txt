@@ -1,0 +1,14 @@
+# Offline-only tooling for resolving vendored CDM schema documents.
+#
+# This file is NOT part of the build. Nothing in the application, the test
+# suite, or CI depends on Python -- these packages exist purely to run
+# resolve.py once, whose committed JSON output is the real artifact.
+#
+# Pinned to the last release Microsoft ever shipped (2024-02-23). The object
+# model has not been updated since, in any language, and neither has the schema
+# corpus it reads -- so pinning costs us nothing.
+commondatamodel-objectmodel==1.7.6
+
+# Used by dataverse_docs.py to parse the Dataverse table reference markdown,
+# which is where the security and audit entities live (the CDM has none).
+requests>=2.32

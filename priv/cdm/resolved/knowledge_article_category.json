@@ -1,0 +1,84 @@
+{
+  "entity": "KnowledgeArticleCategory",
+  "table": "knowledge_article_category",
+  "source_name": "KnowledgeArticlesCategories",
+  "display_name": null,
+  "description": null,
+  "attributes": [
+    {
+      "name": "knowledgeArticleId",
+      "field": "knowledge_article_id",
+      "source_name": "knowledgearticleid",
+      "data_format": "GUID",
+      "required_level": "systemrequired",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "categoryId",
+      "field": "category_id",
+      "source_name": "categoryid",
+      "data_format": "GUID",
+      "required_level": "systemrequired",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "knowledgeArticleCategoryId",
+      "field": "knowledge_article_category_id",
+      "source_name": "knowledgearticlecategoryid",
+      "data_format": "GUID",
+      "required_level": "systemrequired",
+      "description": "Unique identifier of the Category for the knowledge article.",
+      "is_primary_key": true,
+      "is_read_only": false,
+      "is_nullable": false,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    },
+    {
+      "name": "versionNumber",
+      "field": "version_number",
+      "source_name": "versionnumber",
+      "data_format": "INT64",
+      "required_level": "none",
+      "is_primary_key": false,
+      "is_read_only": false,
+      "is_nullable": true,
+      "cds": {
+        "lookup_style": null,
+        "is_owner": false,
+        "is_customer": false,
+        "is_party_list": false,
+        "is_standard": false
+      }
+    }
+  ],
+  "provenance": {
+    "source": "microsoft/CDM",
+    "commit": "dd21d715e05ebf740a11356c80b5c3b4c38a89c2",
+    "document": "KnowledgeArticleCategory.cdm.json/KnowledgeArticleCategory",
+    "license": "CC-BY-4.0"
+  }
+}
