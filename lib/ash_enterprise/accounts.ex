@@ -22,5 +22,13 @@ defmodule AshEnterprise.Accounts do
   resources do
     resource AshEnterprise.Accounts.Token
     resource AshEnterprise.Accounts.User
+
+    # The organizational structure. Order here is documentation, not dependency:
+    # Organization is the tenant, BusinessUnit is the access hierarchy inside it,
+    # and Teams are the principals that hang off business units.
+    resource AshEnterprise.Accounts.Organization
+    resource AshEnterprise.Accounts.BusinessUnit
+    resource AshEnterprise.Accounts.Team
+    resource AshEnterprise.Accounts.TeamMembership
   end
 end

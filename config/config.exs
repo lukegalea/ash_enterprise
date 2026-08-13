@@ -98,7 +98,7 @@ config :ash_enterprise, AshEnterprise.Repo, types: AshEnterprise.PostgrexTypes
 config :ash_enterprise,
   ecto_repos: [AshEnterprise.Repo],
   generators: [timestamp_type: :utc_datetime],
-  ash_domains: [AshEnterprise.Accounts, AshEnterprise.Audit],
+  ash_domains: [AshEnterprise.Accounts, AshEnterprise.Security, AshEnterprise.Audit],
   base_resources: [AshEnterprise.Platform.Resource]
 
 # Configure the endpoint
