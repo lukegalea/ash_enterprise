@@ -419,10 +419,20 @@ DDL.
 tables. Outcome: the user list appears in `ash_admin`, in GraphQL, in JSON:API, and as an MCP tool — with no code
 written for any of those surfaces. That is the derivation claim, tested against a schema nobody derived.
 
+> Worth doing this step *twice*: once with `mix ash_postgres.gen.resources --tables --include-views`, which since
+> ash_postgres 2.11 (May 2026) scaffolds read-only resources over existing views, and once with the strangler mapping.
+> The comparison is the honest measure of what the extension adds over what the ecosystem already ships. If the
+> difference is small at this phase — and it may well be — say so.
+
 **Step 3 — Reactivity.** `AFTER` triggers on `legacy.users` emitting `pg_notify` with the legacy primary key; a
-supervised listener that re-reads through Ash and dispatches an `Ash.Notifier.Notification`. Outcome: edit a row in
-`psql`, watch the LiveView update. This is the demo that sells the whole thing, and it is also the one whose delivery
-guarantees are weakest — §4.8.
+listener that re-reads through Ash and dispatches an `Ash.Notifier.Notification`. Outcome: edit a row in `psql`, watch
+the LiveView update. This is the demo that sells the whole thing, and it is also the one whose delivery guarantees are
+weakest — §4.8.
+
+> The trigger-and-listen plumbing here should come from `ecto_watch` (1.1.0, actively maintained, ~108k downloads)
+> rather than being written. What the demo adds on top is the Ash-specific bridge: re-reading through Ash so policies,
+> tenancy and calculations apply, and synthesizing a real `Ash.Notifier.Notification` so LiveView cannot tell a legacy
+> write from an Ash one. That bridge is a couple of hundred lines and it is the part worth showing.
 
 **Step 4 — Expand.** The first and only migration that writes to the legacy schema: add `uuid`, `organization_id`,
 `owning_business_unit_id`, `version_number` as nullable columns; backfill in batches; index concurrently. Legacy code
