@@ -116,6 +116,17 @@ pgroll and Reshape are the important entries because they **validate the mechani
 healthy, both prove that views-plus-triggers-plus-backfill is production-grade, and neither can express a
 legacy→modern mapping. Neither is consumable from Elixir except by shelling out to a binary and handing it JSON.
 
+> **Revisited 2026-08-14**, past this table's README-level read, into `pgroll`'s actual Go source (asked directly:
+> "can we leverage it to accelerate development?"). The verdict does not change — its migration is `add_column` /
+> `rename_column` / `alter_column` on a schema it owns, versioned by which Postgres schema a session's `search_path`
+> points at; there is still no way to hand it "this legacy relation, mapped onto this Ash resource," and its own
+> `Start` → dual-write → `Complete`-or-`Rollback` lifecycle is validated confirmation that this plan's phase model has
+> the right shape, not something to import. But its `Start`/`Complete` split for `OpAlterColumn`
+> (`pkg/migrations/op_alter_column.go`) is a clean worked example of exactly this plan's expand/dual-write/contract
+> idea at column scope, and its backfill package (`pkg/backfill/`) contains one concrete, non-obvious improvement over
+> this plan's own §6.4 sketch, recorded there: a dedicated `_needs_backfill` flag column instead of `IS NULL`, and
+> `FOR NO KEY UPDATE` in the batch query. Go and Elixir, so it is a reference to read, not a dependency to add.
+
 "Views-first schema" as a productized tool category **could not be found to exist**. The pattern is well documented as
 folklore — Percona and Hasura both write about updatable views plus `INSTEAD OF` for low-downtime change — and nobody
 ships a tool for it in any language.
@@ -557,7 +568,15 @@ clever but they are specific, and getting any of them wrong turns a background t
 - **Keyset pagination**, `WHERE id > $last ORDER BY id LIMIT $batch`, never `OFFSET`. One committed transaction per
   batch. A single large `UPDATE` holds row locks for the whole run, pins the global xmin so `VACUUM` reclaims nothing
   cluster-wide, and cannot be resumed.
-- **Idempotent predicate** (`AND new_col IS NULL`) so a restart skips finished rows.
+- **Idempotent predicate: a dedicated flag column, not `AND new_col IS NULL`.** Read directly from `pgroll`'s Go source
+  (`pkg/backfill/`, `xataio/pgroll` @ github.com, 2026-08-14 — going past §2.3's README-level survey into the actual
+  implementation): it adds `_pgroll_needs_backfill boolean DEFAULT true`, sets it `false` inside the sync trigger once
+  a row is populated, and batches `WHERE _pgroll_needs_backfill = true`. `IS NULL` is the wrong predicate whenever the
+  target column's *correct* value can legitimately be null — which `unmapped …, as: :null` guarantees will happen here
+  — because then a fully-backfilled row is indistinguishable from one still waiting, and the batch loop never
+  terminates. Its batch query is also worth copying directly: a `WITH batch AS (SELECT pk … LIMIT n FOR NO KEY UPDATE)
+  UPDATE … FROM batch … RETURNING pk` — `FOR NO KEY UPDATE` rather than a bare `FOR UPDATE` so the batch lock doesn't
+  needlessly block concurrent FK checks referencing these rows.
 - **`lock_timeout` on every DDL statement, with a retry loop.** A DDL statement waiting for `ACCESS EXCLUSIVE` sits at
   the head of the lock queue and every subsequent `SELECT` queues behind it — one slow reader plus one waiting
   `ALTER TABLE` takes the table offline. `statement_timeout` is not a substitute: it also kills a DDL that has already
