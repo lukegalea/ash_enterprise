@@ -852,11 +852,12 @@ Contents, in priority order:
 
 ## 10. What is genuinely hard
 
-Twelve things. Some are solvable with care; four are not solved and would ship as documented limitations.
+Fourteen things. Some are solvable with care; five are not solved and would ship as documented limitations.
 
-> §10.1–10.7 and §10.12 were **executed against PostgreSQL 17.10** (this repository's `devenv` server) rather than
-> inferred from documentation. Where a result contradicts what the source documents in `docs/` assume, the executed
-> result wins.
+> §10.1–10.7 and §10.12–10.14 were **executed** — against PostgreSQL 17.10 (this repository's `devenv` server), or
+> against a live `ash` — rather than inferred from documentation. Where a result contradicts what the source documents
+> in `docs/` assume, the executed result wins. §10.8 and §10.12 additionally correct claims made *earlier in this
+> document*, both found by building the thing rather than by rereading it.
 >
 > **§10.2 is the finding that reshapes the design.** It was written twice: the first version concluded upserts are
 > simply unavailable on views, which is wrong. Upserts work fine on *auto-updatable* views and are destroyed by adding
@@ -1124,11 +1125,37 @@ ordering, that all `down`s run before all `up`s, and that changing a statement r
 single view that is fine. For a view another view depends on, the `DROP` fails or needs `CASCADE`; for a trigger whose
 function is in a different statement, the ordering is wrong.
 
-Mitigations: emit one statement per resource containing all of its DDL (fewer, larger statements order themselves
-internally), and use `CREATE OR REPLACE` where Postgres allows it so the down-then-up cycle is avoided entirely.
+Mitigations: use `CREATE OR REPLACE` where Postgres allows it so the down-then-up cycle is avoided entirely.
 `CREATE OR REPLACE VIEW` cannot change a column's type or drop a column, so this only goes so far. **Unresolved for
 cross-resource dependencies**, and the fallback is that the package generates the statements and a human orders the
 migration — which is a defensible position for DDL this consequential, but it is not the "fully derived" story.
+
+> ⚠️ **Corrected 2026-08-14, while building step 4.** This section previously proposed "emit one statement per resource
+> containing all of its DDL (fewer, larger statements order themselves internally)". **That is impossible.** An
+> `AshPostgres.Statement` is rendered as a single `execute("…")`;
+> `Ecto.Adapters.SQL.execute_ddl/4` (`deps/ecto_sql/lib/ecto/adapters/sql.ex:1237`) wraps the string and passes it to
+> `query!/4`, the *extended* protocol, which rejects multiple commands outright:
+>
+> ```
+> ERROR 42601 (syntax_error) cannot insert multiple commands into a prepared statement
+> ```
+>
+> So a statement holding a `CREATE FUNCTION` **and** its `CREATE TRIGGER` fails at `mix ash.migrate` time. Discovered
+> the same way everything else in §10 was — by running it, here in the test harness, which fails at fixture-install
+> time and therefore before any test can pass.
+>
+> The rule is the opposite of what was written: **exactly one SQL command per statement.** Two consequences follow, both
+> now implemented:
+>
+> 1. **Order matters and must be forced.** `Spark.Dsl.Transformer.add_entity/4` **prepends** by default
+>    (`deps/spark/lib/spark/dsl/transformer.ex:275`), which reverses a dependency-ordered list and fails on the first
+>    migration. `type: :append` is required.
+> 2. **`down`s must be order-independent**, because every `Remove` runs before every `Add`, in list order — the reverse
+>    of what teardown needs. Functions drop `CASCADE`; trigger drops are wrapped in a `DO $$ … $$` block (still one
+>    command) guarded by `to_regclass`, because `DROP TRIGGER IF EXISTS … ON <view>` still raises if the *view* is
+>    already gone — `IF EXISTS` guards the trigger, not the relation.
+>
+> A `DO $$ … $$` block is the general escape hatch here: arbitrary procedural logic, still a single command.
 
 ### 10.9 Phase transitions are stateful, and Spark verifiers are read-only
 
@@ -1173,6 +1200,49 @@ written down in this document. **A tool whose entire value is "never emits the v
 defensible tool** — and that argues for generating the SQL rather than documenting how to write it.
 
 That is an argument, not a decision. The gate in §11 is what settles it.
+
+### 10.13 The derived primary key breaks every `create` until it is marked generated
+
+Found 2026-08-14 while building step 4. §5.4 anticipated the *shape* of this — "the id is derived from the legacy key,
+so it cannot be generated client-side" — and prescribed
+
+```elixir
+attribute :id, :uuid, primary_key?: true, allow_nil?: false, writable?: false
+```
+
+which does not work. Ash requires any `allow_nil? false` attribute that has neither a supplied value nor a default, so
+**every create fails with `attribute id is required`** before a query is issued. `writable? false` does not exempt it;
+it just guarantees nobody can satisfy the requirement either.
+
+The fix is `generated? true`, which tells Ash the data layer produces the value and to read it back rather than demand
+it. That is not a workaround — the view genuinely generates the column.
+
+Implemented as `AshStrangler.Transformers.MarkKeyGenerated` rather than left to the user, because the DSL already says
+which attribute the key is (`key :id, from: "id", …`); making the author restate it as an unrelated-looking flag on the
+attribute means the penalty for forgetting is a confusing runtime error on every create that points nowhere near the
+mapping.
+
+One implementation note worth recording: `Spark.Dsl.Transformer.replace_entity/4`'s default matcher compares
+`__identifier__`, which `Ash.Resource.Attribute` does not have, so it **raises** rather than failing to match. Pass an
+explicit matcher.
+
+### 10.14 Ash's own type casting diverges from what the legacy application writes
+
+Found the same day, by the dual-write round-trip property failing on `" leading"` coming back as `"leading"`.
+
+`Ash.Type.CiString` defaults to `trim?: true`, so a value written *through Ash* is trimmed before it reaches SQL, while
+the identical value written directly by the legacy application is not. During `:dual_write` the two paths therefore
+disagree about what is stored, and nothing raises. The same applies to any Ash type with normalising constraints.
+
+**This is not a defect this package can fix, and it should not try.** It is the legitimate behaviour of the modern
+model; the whole point of adopting Ash is that it validates and normalises. But it means "the two write paths agree" is
+*false by construction* for some columns, which matters for two things already planned:
+
+- §8.4's differential dual-write test cannot assert byte-identical databases for such columns. It has to compare
+  against what each path is *supposed* to store, not against each other.
+- The reconciler (§6.4, step 6) will report these as drift forever unless it knows to normalise before comparing.
+  That is the reconciler's problem to solve and it should be designed knowing this exists — otherwise its first
+  production run is a wall of false positives, which is how a drift detector gets switched off.
 
 ### 10.12 A naive `timestamp` cast to `timestamptz` is session-dependent — and silently so
 
@@ -1314,7 +1384,7 @@ Then, in order:
 | 1 | `mix ash_strangler.check` + the verifiers, no SQL generation | Standalone value, zero risk, answers §10.11 | **done** 2026-08-14 |
 | 2 | View generation, `:read_from_legacy` only | The smallest useful generator | **done** 2026-08-14 |
 | 3 | Round-trip property test harness | Before write generation, not after | **done** 2026-08-14 |
-| 4 | `INSTEAD OF` triggers, `:dual_write` | The risky part, with the oracle already in place | next |
+| 4 | `INSTEAD OF` triggers, `:dual_write` | The risky part, with the oracle already in place | **done** 2026-08-14 |
 | 5 | Listener + notifications | Independent; genuinely useful on its own | |
 | 6 | Backfill + reconciler | | see §6.4 for pgroll's flag-column finding |
 | 7 | `:read_from_new` reversal, `:decommissioned` | The one-way door, built last | |
@@ -1324,9 +1394,16 @@ Then, in order:
 this document, ship step 1 as the whole package and write a guide for hand-rolling the rest. That is a legitimate
 outcome, and pre-committing to it is the main reason this plan exists in written form before any code.
 
-> **The gate was passed, and step 3 is why it is worth recording how.** The harness (real Postgres, no mocks; a
+> **The gate was passed, and steps 3–4 are why it is worth recording how.** The harness (real Postgres, no mocks; a
 > generated view installed by executing the generator's own output; StreamData over an adversarial value space) found
 > §10.12 within an hour of existing — a silent, session-dependent timestamp error in SQL that had already been written,
-> reviewed and committed. It also proved it can fail: mutating a single character of the generated key expression
-> (`':'` → `'!'`) was caught by four tests. That is the evidence §10.11 asked for, and it argues for continuing to
-> step 4 rather than stopping at verification.
+> reviewed and committed. Step 4 then found three more the same way: §10.8's central mitigation was impossible,
+> §10.13's prescribed primary-key declaration broke every create, and §10.14 surfaced a dual-write divergence nobody
+> had considered. All four were found by *executing* generated SQL, none by rereading the plan.
+>
+> The suites also prove they can fail. Mutating one character of the generated key expression (`':'` → `'!'`) is caught
+> by four tests; dropping `AT TIME ZONE` from the write path is caught by one — and *only* by the test that shifts the
+> session zone, because under the default UTC session the wrong implementation accidentally produces the right answer.
+> That asymmetry is the argument for adversarial fixtures over convenient ones.
+>
+> That is the evidence §10.11 asked for.
