@@ -14,14 +14,18 @@ Read this first in a new session, then `docs/manifesto/00-index.md`.
 **`/home/lukegalea/ash_strangler`** — **99 tests / 4 properties passing**,
 steps 1–7 of its plan shipped. Standalone repo, **not vendored** into the app.
 
-⚠️ **Neither repo has a git remote and nothing has ever been pushed.** Confirmed
-2026-08-14: `git remote -v` is empty in both, and neither repository exists under
-`github.com/lukegalea`. The intent on record is **`ash_strangler` public** and
-**`ash_enterprise` private**, both under `lukegalea`; creating and pushing them
-is outstanding and needs a human to do it or approve it. `gh` is authenticated as
-`lukegalea`. A secret scan before any push came back clean: the only credentials
-in tracked config are the standard Phoenix dev/test placeholders, `runtime.exs`
-reads production values from the environment, and `.env` is gitignored.
+Both are now on GitHub under `lukegalea`, pushed 2026-08-14, **both private**:
+
+- `github.com/lukegalea/ash_enterprise` — private, as intended permanently.
+- `github.com/lukegalea/ash_strangler` — **private for now, intended to go
+  public.** It was held back only because publishing an alpha extension before
+  its first CI run is a bad first impression. Flip it once the GitHub Actions
+  run on `master` comes back green: `gh repo edit lukegalea/ash_strangler
+  --visibility public`.
+
+A secret scan before pushing came back clean: the only credentials in tracked
+config are the standard Phoenix dev/test placeholders, `runtime.exs` reads
+production values from the environment, and `.env` is gitignored.
 
 ### Phases, honestly
 
@@ -273,14 +277,16 @@ and `ash_strangler` steps 1–7.
 
 Two things, in this order:
 
-> **1. Push the repositories** (§1). Nothing is backed up anywhere. This is a
-> human decision because it publishes `ash_strangler`.
+> **1. Watch the first CI run** on `lukegalea/ash_strangler`. It has never
+> executed — the workflow calls the org's shared `ash-ci.yml`, and the inputs
+> (`postgres: true`, `ash_postgres: false`, `changelog-lint: false`) are
+> reasoned but unproven. Then flip the repo public.
 >
-> **2. `ash_strangler` step 8** — the §9.1 publication checklist. The
-> conspicuous gap is that a DSL package ships no DSL documentation:
-> `mix spark.cheat_sheets` into `documentation/dsls/`. After that, adopting the
-> shared `ash-project/ash/.github/workflows/ash-ci.yml` brings a dozen checks
-> for the cost of one file.
+> **2. Consider `git_ops`.** `ash-ci`'s `changelog-lint` job actively *fails* a
+> build that adds an `## [Unreleased]` section, because the org generates
+> changelogs from conventional commits instead. The job is currently disabled
+> with a comment. Adopting `git_ops` and dropping the Unreleased section would
+> let it be re-enabled — worth deciding before 0.1.0 rather than after.
 
 Then the reference app's own strangler demo (§5.4), which is where the package
 gets exercised against a schema it did not grow up with — the plan's §4 warns
@@ -289,5 +295,5 @@ over **first**, not last.
 
 Opening line for a new session:
 
-> Read `docs/HANDOFF.md`. Push the two repos if that has not happened, then
-> finish `ash_strangler` step 8 — the §9.1 publication checklist.
+> Read `docs/HANDOFF.md`, then start the reference app's strangler demo
+> (§5.4) — `ash_strangler` steps 1–8 are done and pushed.

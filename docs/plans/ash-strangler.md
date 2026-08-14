@@ -1427,7 +1427,7 @@ Then, in order:
 | 5 | Listener + notifications | Independent; genuinely useful on its own | **done** 2026-08-14 |
 | 6 | Backfill + reconciler | | **done** 2026-08-14, with pgroll's flag column (§6.4) |
 | 7 | `:read_from_new` reversal, `:decommissioned` | The one-way door, built last | **done** 2026-08-14 |
-| 8 | Publication audit against the ecosystem's extension conventions — §9.1 | Last, because most of it only settles once the package's shape has | scoped 2026-08-14 |
+| 8 | Publication audit against the ecosystem's extension conventions — §9.1 | Last, because most of it only settles once the package's shape has | **done** 2026-08-14 |
 
 **Step 1 is the decision gate.** If it is useful on its own and steps 2–4 look worse in the writing than they do in
 this document, ship step 1 as the whole package and write a guide for hand-rolling the rest. That is a legitimate
