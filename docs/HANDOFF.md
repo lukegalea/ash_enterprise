@@ -190,10 +190,15 @@ Ordered by how likely you are to want it.
    `test/ash_enterprise/reference/reference_test.exs`, which asserts the tenant
    scoping is actually enforced (same ISO code in two tenants: fine; same code
    twice in one tenant: rejected) rather than merely that the resources compile.
-3. **`ash_strangler` steps 4–7** — `INSTEAD OF` triggers, listener/
-   notifications, backfill/reconciler, the `:read_from_new` reversal, plus a
-   **step 8 added 2026-08-14: audit the repo against the Ash community's
-   conventions for third-party extension packages** before publishing.
+3. **`ash_strangler` steps 4–8** — `INSTEAD OF` triggers, listener/
+   notifications, backfill/reconciler, the `:read_from_new` reversal, and a
+   **step 8 added 2026-08-14: audit the repo against the ecosystem's
+   conventions for third-party extension packages** before publishing. That
+   checklist is researched and written up as **§9.1 of the plan** — the
+   headline is that extensions do not hand-roll CI, they call
+   `ash-project/ash/.github/workflows/ash-ci.yml` via `workflow_call`, and that
+   `ash_credo` is a *consumer*-facing tool which extension repos do not run on
+   themselves (the plan previously said otherwise; corrected in place).
    Steps 1–3 are **shipped, 2026-08-14** (35 tests, 3 properties):
 
    - **1, verifiers.** Unchanged.
@@ -282,8 +287,11 @@ Highest value next:
 > generated **only where the mapping requires them** (§10.2), because adding one
 > silently costs upserts, correct `RETURNING`, and `WITH CHECK OPTION`.
 
-Then, before publishing, **step 8**: audit the repo against the Ash community's
-conventions for third-party extension packages.
+Then, before publishing, **step 8**: work the §9.1 checklist. The two items
+with the most leverage are `mix spark.cheat_sheets` (the package currently
+ships no DSL documentation at all, which for a DSL package is the conspicuous
+gap) and adopting the shared CI workflow, which brings a dozen checks at the
+cost of one file.
 
 Opening line for a new session:
 

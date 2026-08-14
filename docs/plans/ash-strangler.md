@@ -773,7 +773,62 @@ specific traps with specific assertions, and each would otherwise be discovered 
 | Version | `0.1.0`, README stating **alpha** plainly. By this repository's own tier rules ([thesis 6](../manifesto/06-reversibility.md)) it is **tier 3** until it has real deployments — isolated behind a seam, removable by deletion. |
 | Hex | `mix hex.publish`, `ex_doc`, Spark DSL docs generated into `documentation/dsls/` via `mix spark.cheat_sheets`. |
 | Installer | `mix igniter.install ash_strangler` adding the deps entry, the formatter `import_deps`, and the supervision-tree child. Standard for the ecosystem and the thing that makes a package feel finished. |
-| CI | GitHub Actions: Elixir/OTP matrix × PG 14/15/16/17; `mix format --check-formatted`; `mix credo --strict` with `ash_credo`; `mix test`; `mix hex.audit`; Dialyzer **non-blocking**, matching this repository's stated policy for Spark-generated code. |
+| CI | **Call the org's shared reusable workflow rather than hand-rolling one** — see §9.1. |
+
+> ⚠️ **Correction, 2026-08-14.** An earlier version of this row said CI should run "`mix credo --strict` with
+> `ash_credo`". That is wrong: `ash_credo` is a **consumer-facing** tool, for applications that *use* Ash. Extension
+> repositories do not run it on themselves — they run plain `credo --strict`. Verified against `ash_credo`'s own README
+> and the `mix.exs` of every vendored `ash_*` package.
+
+### 9.1 The publication checklist
+
+Researched 2026-08-14 against the 15 `ash_*` packages vendored in this repository's `deps/` (their shipped
+`mix.exs`, `.formatter.exs`, `hex_metadata.config` and `README.md` — i.e. what was *actually published*, not what a
+guide claims) plus the `ash-project` org on GitHub. **There is no template or scaffold repository**; the org's own
+answer to "how do I start an extension" is to copy conventions from a sibling package, and `ash_state_machine` is the
+cleanest small one to copy from.
+
+This is scope for **step 8** in §11 — deliberately last, because most of it is only meaningful once the package's
+shape has stopped moving.
+
+**Must-have, in rough dependency order:**
+
+| # | Item | State in `ash_strangler` today |
+|---|---|---|
+| 1 | Root `usage-rules.md`, listed in `package/0`'s `files:` | **done** |
+| 2 | An `Info` module via `use Spark.InfoGenerator` — Spark's own documented convention is that `MyApp.MyExtension`'s introspection lives in `MyApp.MyExtension.Info` | **done** (`AshStrangler.Info`) |
+| 3 | `.formatter.exs` with `spark_locals_without_parens` repeated under `export:` — this is what makes a *consumer's* `import_deps: [:ash_strangler]` format the DSL correctly | **done**, hand-maintained; should switch to `mix spark.formatter` |
+| 4 | `documentation/dsls/DSL-AshStrangler.md` from `mix spark.cheat_sheets`, committed, added to `files:`, and wired into `docs/0` `extras:` with `Spark.Docs.search_data_for(AshStrangler.Resource)` | **missing entirely** |
+| 5 | `mix.exs` aliases for `spark.formatter` and `spark.cheat_sheets`, with `docs:` chaining cheat-sheets first | missing |
+| 6 | CI calling the shared workflow — `uses: ash-project/ash/.github/workflows/ash-ci.yml@main` with `secrets: HEX_API_KEY`, and `permissions:` for `contents`/`pages`/`id-token`/`security-events`. It provides format, `spark.formatter --check`, `spark.cheat_sheets --check`, `credo --strict` (plus a SARIF upload to code scanning), sobelow, dialyzer, `hex.audit`, `deps.unlock --check-unused`, doctor, changelog-lint, docs build/deploy, and the test matrix | **no `.github/` at all** |
+| 7 | `package/0` `links:` including Discord and the Ash Elixir Forum category — universal across every package checked | missing |
+| 8 | `docs/0` `groups_for_extras` and `groups_for_modules` (at minimum `Dsl:`, `Introspection: [AshStrangler.Info]`, `Internals: ~r/.*/`) | missing |
+| 9 | README badge row — the CI, License, Hex version, Hexdocs and REUSE badges are word-for-word identical across packages | missing |
+| 10 | `CHANGELOG.md` with an `Unreleased` section; the shared workflow has a `changelog-lint` job | missing |
+
+**REUSE/SPDX is the one to decide deliberately.** Every `ash-project` source file opens with
+`SPDX-FileCopyrightText` / `SPDX-License-Identifier` headers, files that cannot carry a comment get a sidecar
+`<file>.license`, the canonical text lives in `LICENSES/MIT.txt`, and the shared workflow has a dedicated `reuse` job.
+Hex does not require any of it. It is cheap to adopt and conspicuous to omit, so the choice is about whether the
+package is presenting itself as ecosystem-native.
+
+**Nice-to-have:**
+
+- `lib/mix/tasks/ash_strangler.install.ex`, wrapped in `if Code.ensure_loaded?(Igniter) do`, with `igniter` added as
+  `only: [:dev, :test]` — *never* a runtime dependency, which is also exactly the constraint ADR 0006 records for
+  SaladUI. At minimum it should call `Igniter.Project.Formatter.import_dep(:ash_strangler)`, the step that makes DSL
+  formatting work for consumers without them reading any documentation.
+- Split `usage-rules.md` into a `usage-rules/` directory of topic files once it outgrows a few screens, as
+  `ash_postgres`, `ash_graphql`, `ash_oban` and `ash_a2ui` do.
+- `.github/CODE_OF_CONDUCT.md`, `FUNDING.yml`, and the PR/issue templates. Note these are only *checked* by the shared
+  workflow's `community-files-check` job, which byte-compares them against `ash-project/.github` and fails on drift or
+  on the wrong location — so copy them verbatim into `.github/`, or leave them out entirely rather than writing
+  approximations.
+
+**Already right, worth not breaking:** `ash_postgres` is declared `optional: true` here, and `ash_a2ui` ships a
+bespoke CI job that proves its core compiles without its optional Phoenix dependency. The equivalent for this package
+— proving the verifiers and `mix ash_strangler.check` still work with no data layer present — is worth adding when CI
+exists, because that separation is a stated design goal (§2.4) and nothing currently enforces it.
 
 ### `usage-rules.md`
 
@@ -1263,6 +1318,7 @@ Then, in order:
 | 5 | Listener + notifications | Independent; genuinely useful on its own | |
 | 6 | Backfill + reconciler | | see §6.4 for pgroll's flag-column finding |
 | 7 | `:read_from_new` reversal, `:decommissioned` | The one-way door, built last | |
+| 8 | Publication audit against the ecosystem's extension conventions — §9.1 | Last, because most of it only settles once the package's shape has | scoped 2026-08-14 |
 
 **Step 1 is the decision gate.** If it is useful on its own and steps 2–4 look worse in the writing than they do in
 this document, ship step 1 as the whole package and write a guide for hand-rolling the rest. That is a legitimate
