@@ -190,24 +190,46 @@ Ordered by how likely you are to want it.
    `test/ash_enterprise/reference/reference_test.exs`, which asserts the tenant
    scoping is actually enforced (same ISO code in two tenants: fine; same code
    twice in one tenant: rejected) rather than merely that the resources compile.
-3. **`ash_strangler` steps 3–7** — round-trip property tests, `INSTEAD OF`
-   triggers, listener/notifications, backfill/reconciler, the `:read_from_new`
-   reversal. Steps 1 (verifiers) and 2 (view generation for `:read_from_legacy`)
-   are **shipped, 2026-08-14**: `AshStrangler.Sql.View` builds the `CREATE VIEW`
-   (plus the `{:uuid_v5, ...}` expression index) from the mapping, and
-   `AshStrangler.Transformers.DeriveStatements` injects it into
-   `[:postgres, :custom_statements]` so `mix ash.codegen` picks it up like any
-   other schema change — no-op for a resource with no strangler mapping or not
-   on `AshPostgres.DataLayer`. All six spikes in §11 of the plan were answered
-   the same day: `ecto_watch` can watch an arbitrary relation in a non-default
-   schema via its map-form `schema_definition` — no Ecto schema module
-   required, verified by reading `WatcherOptions.SchemaDefinition.new/1`; and a
-   synthesized `Ash.Notifier.Notification` with `changeset: nil` does not
-   degrade gracefully, it **raises** `KeyError` the moment a topic template
-   uses `:_pkey`, `:_tenant`, or (for update/destroy) any plain attribute key —
+3. **`ash_strangler` steps 4–7** — `INSTEAD OF` triggers, listener/
+   notifications, backfill/reconciler, the `:read_from_new` reversal, plus a
+   **step 8 added 2026-08-14: audit the repo against the Ash community's
+   conventions for third-party extension packages** before publishing.
+   Steps 1–3 are **shipped, 2026-08-14** (35 tests, 3 properties):
+
+   - **1, verifiers.** Unchanged.
+   - **2, view generation.** `AshStrangler.Sql.View` builds the `CREATE VIEW`
+     plus the `{:uuid_v5, ...}` expression index from the mapping;
+     `AshStrangler.Transformers.DeriveStatements` injects them into
+     `[:postgres, :custom_statements]`, so `mix ash.codegen` picks them up like
+     any other schema change. No-op for a resource with no strangler mapping or
+     not on `AshPostgres.DataLayer`.
+   - **3, the round-trip harness.** Real Postgres, no mocks. It installs the
+     fixture schema by *executing the generator's own output*, so the golden
+     tests assert what the generator says and the round-trip tests assert that
+     what it says runs. `AshStrangler.KeyDerivation` makes the key strategy a
+     pure Elixir function asserted byte-identical to Postgres's
+     `uuid_generate_v5` over generated inputs.
+
+   All six spikes in §11 of the plan were answered the same day: `ecto_watch`
+   can watch an arbitrary relation in a non-default schema via its map-form
+   `schema_definition` — no Ecto schema module required, verified by reading
+   `WatcherOptions.SchemaDefinition.new/1`; and a synthesized
+   `Ash.Notifier.Notification` with `changeset: nil` does not degrade
+   gracefully, it **raises** `KeyError` the moment a topic template uses
+   `:_pkey`, `:_tenant`, or (for update/destroy) any plain attribute key —
    reproduced directly against `ash` 3.31.3. A *minimal* synthesized changeset
    (`resource`/`data`/`to_tenant`/`action_type`, no real changeset construction)
    fixes it, verified the same way.
+
+   ⚠️ **Step 3 found a live bug in step 2's shipped output, recorded as §10.12
+   of the plan.** `cast: :timestamptz` over a naive legacy `timestamp` generates
+   `(deleted_at)::timestamptz`, which reads the value as wall-clock time in the
+   *session's* `TimeZone` — the same row through the same view is 10.5 hours
+   apart on a UTC connection versus `Australia/Lord_Howe`, with no error. It is
+   pinned by a `:hazard`-tagged regression test rather than fixed, because the
+   fix needs the DSL to ask what zone a legacy column is in (`from_zone:`), and
+   that belongs with step 4. **Do not build the trigger path without resolving
+   it** — the write direction has the same ambiguity in reverse.
 4. **The legacy schema demo** in this app — `docs/plans/ash-strangler-in-reference-app.md`.
    Note the plan's own conclusion: the demo must run the dual-write step **both
    ways**, and **authentication cuts over first**, not last, because a single
@@ -243,17 +265,28 @@ Ordered by how likely you are to want it.
 ## 7. Suggested next session
 
 `mix cdm.gen.resource` and the `Reference` domain (§5.1–5.2), all six
-`ash_strangler` spikes (§5.3, §11 of the plan), and `ash_strangler` steps 1–2
-(verifiers, `:read_from_legacy` view generation) are committed and done.
+`ash_strangler` spikes (§5.3, §11 of the plan), and `ash_strangler` steps 1–3
+(verifiers, `:read_from_legacy` view generation, the round-trip harness) are
+committed and done.
 
 Highest value next:
 
-> Build `ash_strangler` step 3 in `/home/lukegalea/ash_strangler`: the
-> round-trip property test harness (`StreamData`, real Postgres). §11's step
-> table puts it deliberately **before** `INSTEAD OF` triggers (step 4), not
-> after — the oracle should exist before the risky generator does.
+> Build `ash_strangler` step 4 in `/home/lukegalea/ash_strangler`: `INSTEAD OF`
+> triggers for `:dual_write` — the risky part, now with an oracle already in
+> place. **Resolve §10.12 first**: the naive-timestamp cast is session-dependent
+> in the read direction and the write direction inherits the same ambiguity, so
+> the `from_zone:` DSL change belongs at the start of this step, not after it.
+>
+> Two things from §10 that decide the shape of this step before any code:
+> triggers must re-read and return the stored row (§10.1), and they must be
+> generated **only where the mapping requires them** (§10.2), because adding one
+> silently costs upserts, correct `RETURNING`, and `WITH CHECK OPTION`.
+
+Then, before publishing, **step 8**: audit the repo against the Ash community's
+conventions for third-party extension packages.
 
 Opening line for a new session:
 
-> Read `docs/HANDOFF.md`, then build `ash_strangler` step 3 — the round-trip
-> property test harness — in `/home/lukegalea/ash_strangler`.
+> Read `docs/HANDOFF.md`, then build `ash_strangler` step 4 — `INSTEAD OF`
+> triggers for `:dual_write` — in `/home/lukegalea/ash_strangler`, resolving
+> §10.12 of the plan first.

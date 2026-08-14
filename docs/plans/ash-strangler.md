@@ -797,10 +797,11 @@ Contents, in priority order:
 
 ## 10. What is genuinely hard
 
-Eleven things. Some are solvable with care; three are not solved and would ship as documented limitations.
+Twelve things. Some are solvable with care; four are not solved and would ship as documented limitations.
 
-> §10.1–10.7 were **executed against PostgreSQL 17.10** (this repository's `devenv` server) rather than inferred from
-> documentation. Where a result contradicts what the source documents in `docs/` assume, the executed result wins.
+> §10.1–10.7 and §10.12 were **executed against PostgreSQL 17.10** (this repository's `devenv` server) rather than
+> inferred from documentation. Where a result contradicts what the source documents in `docs/` assume, the executed
+> result wins.
 >
 > **§10.2 is the finding that reshapes the design.** It was written twice: the first version concluded upserts are
 > simply unavailable on views, which is wrong. Upserts work fine on *auto-updatable* views and are destroyed by adding
@@ -1118,6 +1119,55 @@ defensible tool** — and that argues for generating the SQL rather than documen
 
 That is an argument, not a decision. The gate in §11 is what settles it.
 
+### 10.12 A naive `timestamp` cast to `timestamptz` is session-dependent — and silently so
+
+Found 2026-08-14 while building step 3's round-trip harness, executed against PG 17.10. Not anticipated anywhere above,
+and it is the same species as §10.1: the generated SQL is accepted, runs, returns a plausible value, and the value is
+wrong.
+
+A mapping written the obvious way —
+
+```elixir
+map :archived_at, "deleted_at", cast: :timestamptz
+```
+
+— generates `(deleted_at)::timestamptz`. When the legacy column is `timestamp` *without* time zone, which is what Rails,
+Django and most 2010s schemas store, **that cast interprets the naive value as wall-clock time in the session's
+`TimeZone` GUC** and converts to an instant accordingly. Verified, same stored row, same view, three sessions:
+
+| session `TimeZone` | resulting UTC instant |
+|---|---|
+| `UTC` | `2024-06-15 12:00:00Z` |
+| `America/New_York` | `2024-06-15 16:00:00Z` |
+| `Australia/Lord_Howe` | `2024-06-15 01:30:00Z` |
+
+Ten and a half hours of drift between two connections reading the same row through the same view. Nothing in the view
+controls it: `TimeZone` is per-session, so a background job, a psql session, a replica with a different default, or a
+pooled connection that inherited a `SET TimeZone` all read different instants. This is worse than the `WITH CHECK
+OPTION` case in §10.2, because there is no error and no missing behaviour to notice — just a timestamp that is quietly
+wrong by a fixed offset.
+
+Two related behaviours, also verified, also silent: a nonexistent local time (`2024-03-10 02:30` in the spring-forward
+gap) is normalized rather than rejected, and an ambiguous one (`2024-11-03 01:30`, which happens twice) resolves to one
+of the two occurrences without complaint. There is no error path a test could assert on.
+
+**Not fixed, deliberately, and this is the fourth documented limitation.** The correct SQL is
+`(deleted_at AT TIME ZONE 'UTC')`, which is deterministic — but only if the legacy column really is UTC. The generator
+cannot know that: it is a fact about the legacy application, not about the schema, and guessing wrong moves every
+timestamp in the system by a fixed offset. The options, in preference order:
+
+1. **Make the DSL ask.** `cast: :timestamptz, from_zone: "UTC"` generating `AT TIME ZONE`, and *refuse to compile* a
+   naive-to-`timestamptz` cast that does not say which zone. That is the `because:`-style move this package already
+   makes elsewhere: force the ambiguity to be resolved in the mapping, where it is reviewable, rather than inherited
+   from whatever connection happens to run the query.
+2. Emit `AT TIME ZONE 'UTC'` by default and document it. Right for the majority; silently wrong for everyone else.
+3. Leave it and document. Cheapest, and inconsistent with the rest of the design.
+
+Option 1 is where this should land, and it is step 4 work — the DSL change is small, but it belongs with the write path
+rather than bolted onto a shipped read path. Pinned in the meantime by a regression test
+(`AshStrangler.RoundTripTest`, tagged `:hazard`) that asserts the drift *exists*, so the day it changes, something
+fails.
+
 ## 11. Sequencing, and the spikes that come first
 
 All six spikes — the original three plus the three the SQL spike raised — are now answered: three from source reading,
@@ -1204,16 +1254,23 @@ verifiers and `mix ash_strangler.check` — needed none of them and shipped firs
 
 Then, in order:
 
-| Step | Deliverable | Why this order |
-|---|---|---|
-| 1 | `mix ash_strangler.check` + the verifiers, no SQL generation | Standalone value, zero risk, answers §10.11 |
-| 2 | View generation, `:read_from_legacy` only | The smallest useful generator |
-| 3 | Round-trip property test harness | Before write generation, not after |
-| 4 | `INSTEAD OF` triggers, `:dual_write` | The risky part, with the oracle already in place |
-| 5 | Listener + notifications | Independent; genuinely useful on its own |
-| 6 | Backfill + reconciler | |
-| 7 | `:read_from_new` reversal, `:decommissioned` | The one-way door, built last |
+| Step | Deliverable | Why this order | State |
+|---|---|---|---|
+| 1 | `mix ash_strangler.check` + the verifiers, no SQL generation | Standalone value, zero risk, answers §10.11 | **done** 2026-08-14 |
+| 2 | View generation, `:read_from_legacy` only | The smallest useful generator | **done** 2026-08-14 |
+| 3 | Round-trip property test harness | Before write generation, not after | **done** 2026-08-14 |
+| 4 | `INSTEAD OF` triggers, `:dual_write` | The risky part, with the oracle already in place | next |
+| 5 | Listener + notifications | Independent; genuinely useful on its own | |
+| 6 | Backfill + reconciler | | see §6.4 for pgroll's flag-column finding |
+| 7 | `:read_from_new` reversal, `:decommissioned` | The one-way door, built last | |
 
 **Step 1 is the decision gate.** If it is useful on its own and steps 2–4 look worse in the writing than they do in
 this document, ship step 1 as the whole package and write a guide for hand-rolling the rest. That is a legitimate
 outcome, and pre-committing to it is the main reason this plan exists in written form before any code.
+
+> **The gate was passed, and step 3 is why it is worth recording how.** The harness (real Postgres, no mocks; a
+> generated view installed by executing the generator's own output; StreamData over an adversarial value space) found
+> §10.12 within an hour of existing — a silent, session-dependent timestamp error in SQL that had already been written,
+> reviewed and committed. It also proved it can fail: mutating a single character of the generated key expression
+> (`':'` → `'!'`) was caught by four tests. That is the evidence §10.11 asked for, and it argues for continuing to
+> step 4 rather than stopping at verification.
