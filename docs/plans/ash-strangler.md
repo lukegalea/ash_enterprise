@@ -1116,9 +1116,33 @@ unusual for a plan at this stage and it is the reason the risk assessment above 
 
 Three questions the SQL spike *raised* and did not answer, all of which now precede step 1:
 
-4. **How many Ash and `ash_authentication` code paths silently depend on upserts?** §10.2 makes them unavailable on
-   the trigger path. This sets the price of the trade and decides whether authentication resources can be migrated
-   with triggers at all. A spike against a real application, not a real database.
+4. ~~**How many Ash and `ash_authentication` code paths silently depend on upserts?**~~ **Answered 2026-08-14, against
+   `ash_authentication` 4.14.1 and this application.** The answer is sharper than "some", and it partitions cleanly:
+
+   | Path | Upsert | Migratable with `INSTEAD OF` triggers |
+   |---|---|---|
+   | `password` strategy | none — register is a plain create | **yes** |
+   | `oauth2` / `oidc` strategies | **enforced** | **no** |
+   | `UserIdentity` resource | unconditional `upsert?: true` | **no** |
+   | This app's own resources | 6 of them, 5 in `Security` | no |
+
+   The OAuth2 case is not incidental. Its transformer *validates* the requirement —
+   `validate_field_in_values(action, :upsert?, [true])` plus a required `upsert_identity` — so an OAuth2 register action
+   **cannot be defined without an upsert**. There is no configuration that avoids it, which means the trigger path and
+   OAuth2 are mutually exclusive rather than merely awkward together.
+
+   Consequences for the design:
+
+   - **Password-only authentication can migrate with triggers.** This is the common case for a legacy monolith and it
+     is the one the reference app demonstrates.
+   - **Adding OAuth2 to a resource already on the trigger path is a breaking change**, and the failure is a compile-time
+     transformer error rather than a runtime surprise — which is the good outcome, but the extension should say so in
+     the `writes: :triggers` documentation rather than letting people discover it.
+   - `VerifyNoUpserts` must name the *strategy* when the offending upsert comes from `ash_authentication`, because
+     "action `:register_with_oauth2` requires upserts" is not actionable without knowing it was the strategy that
+     required it.
+   - The six upsert actions in this application are all join tables and catalogue rows — the resources least likely to
+     need strangling. That is luck, not design, and it should not be generalized to other applications.
 5. **Can `ecto_watch` install triggers on arbitrary relations in a non-default schema**, or is it bound to Ecto schemas
    it owns? §2.1's conclusion that notifications are an integration rather than a pillar depends on the answer.
 6. **What does `Ash.Notifier.PubSub` do with a synthesized notification that has no changeset?** §6.4. If `:_pkey` and
