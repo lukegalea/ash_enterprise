@@ -7,9 +7,10 @@ Read this first in a new session, then `docs/manifesto/00-index.md`.
 
 ## 1. Where things stand
 
-**`/home/lukegalea/ash_enterprise`** — 18 commits, **85 tests passing**, compiles
-clean with `--warnings-as-errors`, `mix ash.codegen --check` clean, `mix release`
-builds in `MIX_ENV=prod`.
+**`/home/lukegalea/ash_enterprise`** — 18 commits (plus `mix cdm.gen.resource` and
+the `Reference` domain added 2026-08-14, not yet committed), **88 tests
+passing**, compiles clean with `--warnings-as-errors`, `mix ash.codegen --check`
+clean, `mix release` builds in `MIX_ENV=prod`.
 
 **`/home/lukegalea/ash_strangler`** — 1 commit, 13 tests passing. Standalone repo,
 **not vendored** into the app. Neither repo has a remote; nothing is pushed.
@@ -20,9 +21,9 @@ builds in `MIX_ENV=prod`.
 |---|---|
 | 1. devenv environment | **done** |
 | 2. App bootstrap, full dependency stack | **done** |
-| 3. CDM corpus + resolvers | **done**; `mix cdm.gen.resource` was **never built** (see §5) |
+| 3. CDM corpus + resolvers | **done**, including `mix cdm.gen.resource` (added 2026-08-14, see §5) |
 | 4. Platform base resource | **done**, including correlation ids and OTel |
-| 5. Accounts / Security / Audit domains | **done**; a `Reference` domain (Currency, TimeZoneDefinition, LanguageLocale) was planned and **never built** |
+| 5. Accounts / Security / Audit domains | **done**; the `Reference` domain (Currency, TimeZoneDefinition, LanguageLocale) was added 2026-08-14 as the generator's proof, see §5 |
 | 6. Security engine + conformance suite | **done**, all three grant paths |
 | 7–8. APIs + UI | **done** |
 | 9–11. Skills, gates, manifesto, ADRs | **done** |
@@ -169,14 +170,26 @@ key, because only interpretation needs one.
 
 Ordered by how likely you are to want it.
 
-1. **`mix cdm.gen.resource`** — the Elixir generator that turns
-   `priv/cdm/resolved/*.json` into Ash resources. The corpus and both resolvers
-   are done (43 CDM + 18 Dataverse entities, 2,389 attributes); the generator was
-   never written. Resources so far were hand-written from the JSON. This is the
-   biggest remaining piece of Phase 3 and the thing that makes "adopt a new CDM
-   domain" cheap.
-2. **The `Reference` domain** — Currency, TimeZoneDefinition, LanguageLocale.
-   Scraped and sitting in `priv/cdm/resolved/`, never turned into resources.
+1. ~~**`mix cdm.gen.resource`**~~ — **done, 2026-08-14.** `lib/mix/tasks/cdm.gen.resource.ex`
+   reads a resolved corpus entity (CDM or Dataverse format), strips every
+   attribute the platform base resource already supplies, maps the rest to Ash
+   types with required-ness/max-length/description carried over, writes the
+   resource, and creates or patches the target domain module and
+   `config :ash_enterprise, ash_domains: [...]`. It does *not* guess ownership
+   for a plain-CDM entity (no `dataverse.ownership_type` to scrape) or wire up
+   `Lookup` relationships — both are left as an explicit `--ownership` flag and
+   a commented placeholder column respectively, on purpose; see the task's
+   moduledoc and the `cdm-adopt` skill for why those stay judgment calls.
+2. ~~**The `Reference` domain**~~ — **done, 2026-08-14**, as the generator's
+   proof. `Currency`, `TimeZoneDefinition` and `LanguageLocale` were generated,
+   then hand-finished: a natural-key `identity` added to each (the generator
+   does not propose identities), and `--no-tenant` used for the two genuinely
+   global entities per the override `AshEnterprise.Platform.SystemAttributes`
+   already documented for "time zones, locales" — `Currency` stays tenant-scoped
+   since Dataverse requires `organizationid` on it. Covered by
+   `test/ash_enterprise/reference/reference_test.exs`, which asserts the tenant
+   scoping is actually enforced (same ISO code in two tenants: fine; same code
+   twice in one tenant: rejected) rather than merely that the resources compile.
 3. **`ash_strangler` steps 2–7** — view generation, triggers, backfill,
    reconciler. Step 1 (verifiers) is shipped. Two spike questions still precede
    step 2: whether `ecto_watch` can install triggers in a non-default schema, and
@@ -216,16 +229,16 @@ Ordered by how likely you are to want it.
 
 ## 7. Suggested next session
 
-Highest value first:
+`mix cdm.gen.resource` and the `Reference` domain (§5.1–5.2) are done but
+**uncommitted** — review the diff and commit it first.
 
-> **Build `mix cdm.gen.resource`** (§5.1), then use it to generate the
-> `Reference` domain (§5.2) as its proof. That closes Phase 3 and 5 properly and
-> makes every later CDM adoption cheap.
+Highest value after that:
 
-Alternatively, continue `ash_strangler` at step 2 — but answer the two remaining
-spike questions first; the plan is explicit that they precede it, and the last
-spike reversed a design decision.
+> Continue `ash_strangler` at step 2 — but answer the two remaining spike
+> questions first; the plan is explicit that they precede it, and the last
+> spike reversed a design decision.
 
 Opening line for a new session:
 
-> Read `docs/HANDOFF.md`, then continue with `mix cdm.gen.resource`.
+> Read `docs/HANDOFF.md`, then continue `ash_strangler` at step 2 — after
+> answering the two spike questions §11 of the plan says precede it.
