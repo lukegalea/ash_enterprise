@@ -190,16 +190,16 @@ Ordered by how likely you are to want it.
    `test/ash_enterprise/reference/reference_test.exs`, which asserts the tenant
    scoping is actually enforced (same ISO code in two tenants: fine; same code
    twice in one tenant: rejected) rather than merely that the resources compile.
-3. **`ash_strangler` steps 4–8** — `INSTEAD OF` triggers, listener/
-   notifications, backfill/reconciler, the `:read_from_new` reversal, and a
-   **step 8 added 2026-08-14: audit the repo against the ecosystem's
-   conventions for third-party extension packages** before publishing. That
-   checklist is researched and written up as **§9.1 of the plan** — the
-   headline is that extensions do not hand-roll CI, they call
-   `ash-project/ash/.github/workflows/ash-ci.yml` via `workflow_call`, and that
-   `ash_credo` is a *consumer*-facing tool which extension repos do not run on
-   themselves (the plan previously said otherwise; corrected in place).
-   Steps 1–3 are **shipped, 2026-08-14** (35 tests, 3 properties):
+3. **`ash_strangler` steps 5–8** — listener/notifications, backfill/reconciler,
+   the `:read_from_new` reversal, and a **step 8 added 2026-08-14: audit the
+   repo against the ecosystem's conventions for third-party extension
+   packages** before publishing. That checklist is researched and written up as
+   **§9.1 of the plan** — the headline is that extensions do not hand-roll CI,
+   they call `ash-project/ash/.github/workflows/ash-ci.yml` via
+   `workflow_call`, and that `ash_credo` is a *consumer*-facing tool which
+   extension repos do not run on themselves (the plan previously said
+   otherwise; corrected in place).
+   Steps 1–4 are **shipped, 2026-08-14** (46 tests, 4 properties):
 
    - **1, verifiers.** Unchanged.
    - **2, view generation.** `AshStrangler.Sql.View` builds the `CREATE VIEW`
@@ -214,6 +214,14 @@ Ordered by how likely you are to want it.
      what it says runs. `AshStrangler.KeyDerivation` makes the key strategy a
      pure Elixir function asserted byte-identical to Postgres's
      `uuid_generate_v5` over generated inputs.
+   - **4, `INSTEAD OF` triggers for `:dual_write`.** `AshStrangler.Sql.Triggers`
+     generates insert/update/delete functions and triggers **only where the
+     mapping requires them** (§10.2's trade), each re-reading the stored row
+     rather than returning `NEW` (§10.1), and raising with the mapping's own
+     `because:` text when something writes a `writable? false` attribute.
+     §10.12's `from_zone:` was resolved first, as planned — the write path
+     needs the exact inverse conversion, and dropping it is caught only by the
+     test that shifts the session zone.
 
    All six spikes in §11 of the plan were answered the same day: `ecto_watch`
    can watch an arbitrary relation in a non-default schema via its map-form
@@ -226,15 +234,28 @@ Ordered by how likely you are to want it.
    (`resource`/`data`/`to_tenant`/`action_type`, no real changeset construction)
    fixes it, verified the same way.
 
-   ⚠️ **Step 3 found a live bug in step 2's shipped output, recorded as §10.12
-   of the plan.** `cast: :timestamptz` over a naive legacy `timestamp` generates
-   `(deleted_at)::timestamptz`, which reads the value as wall-clock time in the
-   *session's* `TimeZone` — the same row through the same view is 10.5 hours
-   apart on a UTC connection versus `Australia/Lord_Howe`, with no error. It is
-   pinned by a `:hazard`-tagged regression test rather than fixed, because the
-   fix needs the DSL to ask what zone a legacy column is in (`from_zone:`), and
-   that belongs with step 4. **Do not build the trigger path without resolving
-   it** — the write direction has the same ambiguity in reverse.
+   ⚠️ **Building steps 3 and 4 disproved the plan four times**, each found by
+   executing generated SQL rather than rereading the document. All four are
+   written up in §10 and all four are now fixed or corrected in place:
+
+   - **§10.12** — `cast: :timestamptz` on a naive legacy column read the value
+     in the *session's* `TimeZone`, silently, so the same row was 10.5 hours
+     apart on two connections. Fixed by a required `from_zone:`, which
+     generates `AT TIME ZONE` and is refused if absent
+     (`VerifyTimestampZones`).
+   - **§10.8** — its own central mitigation ("one statement per resource
+     containing all of its DDL") is impossible: one statement is one
+     `execute()` is one prepared statement is **one command**. Multi-command
+     statements fail at migrate time with `42601`.
+   - **§10.13** — the primary-key declaration §5.4 prescribed breaks *every*
+     create with `attribute id is required`. Needs `generated? true`, applied
+     by a transformer rather than asked of the user.
+   - **§10.14** — `Ash.Type.CiString` trims by default, so a value written
+     through Ash differs from the same value written by the legacy app. Not
+     fixable and not a defect, but it makes "both write paths agree" false by
+     construction for some columns. **The reconciler (step 6) must know this
+     before its first run**, or it reports a wall of false positives, which is
+     how a drift detector gets switched off.
 4. **The legacy schema demo** in this app — `docs/plans/ash-strangler-in-reference-app.md`.
    Note the plan's own conclusion: the demo must run the dual-write step **both
    ways**, and **authentication cuts over first**, not last, because a single
@@ -276,16 +297,18 @@ committed and done.
 
 Highest value next:
 
-> Build `ash_strangler` step 4 in `/home/lukegalea/ash_strangler`: `INSTEAD OF`
-> triggers for `:dual_write` — the risky part, now with an oracle already in
-> place. **Resolve §10.12 first**: the naive-timestamp cast is session-dependent
-> in the read direction and the write direction inherits the same ambiguity, so
-> the `from_zone:` DSL change belongs at the start of this step, not after it.
+> Build `ash_strangler` step 5 in `/home/lukegalea/ash_strangler`: the listener
+> that bridges legacy writes into `Ash.Notifier.Notification`s. Spike 6 already
+> settled the hard part — the bridge **must** synthesize a minimal changeset
+> (`resource`/`data`/`to_tenant`/`action_type`) or `Ash.Notifier.PubSub` raises
+> `KeyError` on any topic using `:_pkey`, `:_tenant`, or an update/destroy
+> attribute key. Spike 5 settled the other half: `ecto_watch` can watch
+> `legacy.users` directly via its map-form `schema_definition`, so this is an
+> integration, not a reimplementation.
 >
-> Two things from §10 that decide the shape of this step before any code:
-> triggers must re-read and return the stored row (§10.1), and they must be
-> generated **only where the mapping requires them** (§10.2), because adding one
-> silently costs upserts, correct `RETURNING`, and `WITH CHECK OPTION`.
+> Step 6 (backfill + reconciler) is the one to think about hardest, for two
+> reasons already recorded: pgroll's flag-column finding (§6.4) and §10.14's
+> divergence, which will otherwise make the reconciler cry wolf on day one.
 
 Then, before publishing, **step 8**: work the §9.1 checklist. The two items
 with the most leverage are `mix spark.cheat_sheets` (the package currently
@@ -295,6 +318,5 @@ cost of one file.
 
 Opening line for a new session:
 
-> Read `docs/HANDOFF.md`, then build `ash_strangler` step 4 — `INSTEAD OF`
-> triggers for `:dual_write` — in `/home/lukegalea/ash_strangler`, resolving
-> §10.12 of the plan first.
+> Read `docs/HANDOFF.md`, then build `ash_strangler` step 5 — the notification
+> listener — in `/home/lukegalea/ash_strangler`.
