@@ -140,6 +140,14 @@ A new package is justified, on a **narrower scope than the source documents prop
 - **Justified but should be borrowed, not invented:** backfill and reconciliation. Copy Sequin's watermark
   coordination and pgroll's expand-contract lifecycle rather than designing either.
 - **Not justified:** trigger → notify → PubSub plumbing. `ecto_watch` has it. Integrate or wrap; do not rebuild.
+  > **Revisited when step 5 was built, and deviated from.** `ecto_watch` rebroadcasts to `Phoenix.PubSub`, which this
+  > package does not otherwise depend on — adopting it would add `phoenix_pubsub` to a schema-mapping library's
+  > dependency tree (verified absent from `mix.lock`). And it cannot do the part that matters: re-reading through Ash
+  > and synthesizing an `Ash.Notifier.Notification`. Since the package already generates triggers, generating one more
+  > notify trigger is marginal, and the listener is ~150 lines against `Postgrex.Notifications` with the builtin `JSON`
+  > module — **zero new dependencies**. The README tells anyone already running `ecto_watch` to prefer it for the
+  > transport and hand the key to `AshStrangler.Listener.notify/2`, which keeps §2.1's finding useful without paying
+  > for it.
 - **Not justified:** the `legacy_api` HTTP layer from `docs/AshStrangler.md`. Different package, and
   `reverse_proxy_plug` plus hand-written controllers already covers it.
 
@@ -430,6 +438,37 @@ end
 ## 6. Architecture
 
 ### 6.1 Where it hooks into AshPostgres
+
+> ⛔ **This section's conclusion is WRONG, and it was the load-bearing architectural decision of the whole plan.**
+> Corrected 2026-08-14 while building step 7, by generating an actual migration and reading it. Everything below about
+> the *mechanism* is accurate — a third-party transformer really can inject into `[:postgres, :custom_statements]`, it
+> really is ungated, and the entity really does validate. What is wrong is the assumption that doing so **produces a
+> migration that runs**.
+>
+> A strangler resource's `table` names a **view**. Both possible settings of `migrate?` fail, in opposite directions:
+>
+> | `migrate?` | Result |
+> |---|---|
+> | `true` (default) | The generator emits `create table(:users, prefix: "strangler")` for the view's own name, *and* the view DDL. `CREATE OR REPLACE VIEW` against an existing table fails, so the migration cannot run at all. |
+> | `false` | `MigrationGenerator` splits resources into managed and unmanaged (`migration_generator.ex:41`), and **only managed resources produce snapshots** — which is where `custom_statements` are read from (`:1071`). The view, index and triggers are silently dropped. |
+>
+> Both were verified by running `mix ash.codegen` and reading the output, not inferred. There is no setting in
+> between, so **`custom_statements` cannot carry DDL for a view-backed resource.**
+>
+> The resolution: the resource declares `migrate? false` (enforced by `AshStrangler.Verifiers.VerifyNotMigrated`, with
+> that explanation in the error), and the DDL is emitted by a dedicated `mix ash_strangler.gen.migration`. This is the
+> position AshPostgres itself already takes — `mix ash_postgres.gen.resources --include-views` writes `migrate? false`
+> beside a comment saying migrations for views are handled manually. The package automates the manual part.
+>
+> **What was lost:** the "flows through ordinary codegen, no new step" property this section argued was the whole
+> payoff. **What was gained, unexpectedly:** the `down`s can now be emitted in reverse order, because a single
+> generated migration controls its own sequence. The `custom_statements` path could not do that — it runs every
+> `Remove` before every `Add`, in list order — which is why §10.8's statements had to be individually
+> order-independent. The replacement is strictly simpler on that axis.
+>
+> **The general lesson, and it is the same one as §10.1, §10.8 and §10.12:** the mechanism was verified in isolation
+> and the *outcome* was not. Reading `add_entity/4` proved a statement could be injected. Only generating a migration
+> proved what the migration then contained.
 
 Via `custom_statements`, and only via `custom_statements`. Verified against the vendored source of
 `ash_postgres 2.11.0` / `spark 2.7.2` in this repository's `deps/`.
@@ -1385,9 +1424,9 @@ Then, in order:
 | 2 | View generation, `:read_from_legacy` only | The smallest useful generator | **done** 2026-08-14 |
 | 3 | Round-trip property test harness | Before write generation, not after | **done** 2026-08-14 |
 | 4 | `INSTEAD OF` triggers, `:dual_write` | The risky part, with the oracle already in place | **done** 2026-08-14 |
-| 5 | Listener + notifications | Independent; genuinely useful on its own | |
-| 6 | Backfill + reconciler | | see §6.4 for pgroll's flag-column finding |
-| 7 | `:read_from_new` reversal, `:decommissioned` | The one-way door, built last | |
+| 5 | Listener + notifications | Independent; genuinely useful on its own | **done** 2026-08-14 |
+| 6 | Backfill + reconciler | | **done** 2026-08-14, with pgroll's flag column (§6.4) |
+| 7 | `:read_from_new` reversal, `:decommissioned` | The one-way door, built last | **done** 2026-08-14 |
 | 8 | Publication audit against the ecosystem's extension conventions — §9.1 | Last, because most of it only settles once the package's shape has | scoped 2026-08-14 |
 
 **Step 1 is the decision gate.** If it is useful on its own and steps 2–4 look worse in the writing than they do in
