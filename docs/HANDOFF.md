@@ -7,13 +7,21 @@ Read this first in a new session, then `docs/manifesto/00-index.md`.
 
 ## 1. Where things stand
 
-**`/home/lukegalea/ash_enterprise`** — 18 commits (plus `mix cdm.gen.resource` and
-the `Reference` domain added 2026-08-14, not yet committed), **88 tests
-passing**, compiles clean with `--warnings-as-errors`, `mix ash.codegen --check`
-clean, `mix release` builds in `MIX_ENV=prod`.
+**`/home/lukegalea/ash_enterprise`** — **88 tests passing**, compiles clean with
+`--warnings-as-errors`, `mix ash.codegen --check` clean, `mix release` builds in
+`MIX_ENV=prod`.
 
-**`/home/lukegalea/ash_strangler`** — 1 commit, 13 tests passing. Standalone repo,
-**not vendored** into the app. Neither repo has a remote; nothing is pushed.
+**`/home/lukegalea/ash_strangler`** — **99 tests / 4 properties passing**,
+steps 1–7 of its plan shipped. Standalone repo, **not vendored** into the app.
+
+⚠️ **Neither repo has a git remote and nothing has ever been pushed.** Confirmed
+2026-08-14: `git remote -v` is empty in both, and neither repository exists under
+`github.com/lukegalea`. The intent on record is **`ash_strangler` public** and
+**`ash_enterprise` private**, both under `lukegalea`; creating and pushing them
+is outstanding and needs a human to do it or approve it. `gh` is authenticated as
+`lukegalea`. A secret scan before any push came back clean: the only credentials
+in tracked config are the standard Phoenix dev/test placeholders, `runtime.exs`
+reads production values from the environment, and `.env` is gitignored.
 
 ### Phases, honestly
 
@@ -190,72 +198,41 @@ Ordered by how likely you are to want it.
    `test/ash_enterprise/reference/reference_test.exs`, which asserts the tenant
    scoping is actually enforced (same ISO code in two tenants: fine; same code
    twice in one tenant: rejected) rather than merely that the resources compile.
-3. **`ash_strangler` steps 5–8** — listener/notifications, backfill/reconciler,
-   the `:read_from_new` reversal, and a **step 8 added 2026-08-14: audit the
-   repo against the ecosystem's conventions for third-party extension
-   packages** before publishing. That checklist is researched and written up as
-   **§9.1 of the plan** — the headline is that extensions do not hand-roll CI,
-   they call `ash-project/ash/.github/workflows/ash-ci.yml` via
-   `workflow_call`, and that `ash_credo` is a *consumer*-facing tool which
-   extension repos do not run on themselves (the plan previously said
-   otherwise; corrected in place).
-   Steps 1–4 are **shipped, 2026-08-14** (46 tests, 4 properties):
+3. **`ash_strangler` step 8** — the publication audit (§9.1 of the plan) is the
+   only step left. **Steps 1–7 are shipped, 2026-08-14** (99 tests, 4
+   properties): verifiers, view generation, the round-trip harness, `INSTEAD
+   OF` triggers, the notification bridge, backfill + reconciler, and the
+   `:read_from_new` reversal. All four phases generate SQL that has been
+   executed, not merely inspected — including a full migrate / rollback /
+   migrate cycle.
 
-   - **1, verifiers.** Unchanged.
-   - **2, view generation.** `AshStrangler.Sql.View` builds the `CREATE VIEW`
-     plus the `{:uuid_v5, ...}` expression index from the mapping;
-     `AshStrangler.Transformers.DeriveStatements` injects them into
-     `[:postgres, :custom_statements]`, so `mix ash.codegen` picks them up like
-     any other schema change. No-op for a resource with no strangler mapping or
-     not on `AshPostgres.DataLayer`.
-   - **3, the round-trip harness.** Real Postgres, no mocks. It installs the
-     fixture schema by *executing the generator's own output*, so the golden
-     tests assert what the generator says and the round-trip tests assert that
-     what it says runs. `AshStrangler.KeyDerivation` makes the key strategy a
-     pure Elixir function asserted byte-identical to Postgres's
-     `uuid_generate_v5` over generated inputs.
-   - **4, `INSTEAD OF` triggers for `:dual_write`.** `AshStrangler.Sql.Triggers`
-     generates insert/update/delete functions and triggers **only where the
-     mapping requires them** (§10.2's trade), each re-reading the stored row
-     rather than returning `NEW` (§10.1), and raising with the mapping's own
-     `because:` text when something writes a `writable? false` attribute.
-     §10.12's `from_zone:` was resolved first, as planned — the write path
-     needs the exact inverse conversion, and dropping it is caught only by the
-     test that shifts the session zone.
+   ⚠️ **Building it disproved the plan seven times.** Every one was found by
+   running generated SQL rather than by rereading the document, and all are
+   written up in §6.1 and §10:
 
-   All six spikes in §11 of the plan were answered the same day: `ecto_watch`
-   can watch an arbitrary relation in a non-default schema via its map-form
-   `schema_definition` — no Ecto schema module required, verified by reading
-   `WatcherOptions.SchemaDefinition.new/1`; and a synthesized
-   `Ash.Notifier.Notification` with `changeset: nil` does not degrade
-   gracefully, it **raises** `KeyError` the moment a topic template uses
-   `:_pkey`, `:_tenant`, or (for update/destroy) any plain attribute key —
-   reproduced directly against `ash` 3.31.3. A *minimal* synthesized changeset
-   (`resource`/`data`/`to_tenant`/`action_type`, no real changeset construction)
-   fixes it, verified the same way.
+   - **§6.1 — the load-bearing architectural decision was wrong.**
+     `custom_statements` cannot carry DDL for a view-backed resource *at all*.
+     `migrate? true` emits a `create table` for the view's own name so the view
+     DDL fails against it; `migrate? false` stops the resource producing a
+     snapshot, and custom_statements are read only from snapshots. No setting
+     in between. Replaced by `migrate? false` (enforced, with the explanation
+     in the error) plus `mix ash_strangler.gen.migration`. **Read this
+     correction first** — the mechanism had been verified in isolation and the
+     outcome had not, which is the same mistake as §10.1 and §10.12.
+   - **§10.8** — its own mitigation ("one statement per resource containing all
+     its DDL") is impossible; one statement is one command.
+   - **§10.12** — a naive-timestamp cast was session-dependent, silently. Fixed
+     by a required `from_zone:`.
+   - **§10.13** — the primary-key declaration §5.4 prescribed broke every
+     create; needs `generated? true`, now applied by a transformer.
+   - **§10.14** — Ash's own casting diverges from what the legacy app writes,
+     so "both write paths agree" is false by construction for some columns.
+     The reconciler takes per-column normalization because of it.
+   - **§2.4's `ecto_watch` verdict** — deliberately deviated from: adopting it
+     would add `phoenix_pubsub` to a schema-mapping library and it still
+     cannot synthesize an Ash notification, which is the only part that
+     matters. The listener is built directly, zero new dependencies.
 
-   ⚠️ **Building steps 3 and 4 disproved the plan four times**, each found by
-   executing generated SQL rather than rereading the document. All four are
-   written up in §10 and all four are now fixed or corrected in place:
-
-   - **§10.12** — `cast: :timestamptz` on a naive legacy column read the value
-     in the *session's* `TimeZone`, silently, so the same row was 10.5 hours
-     apart on two connections. Fixed by a required `from_zone:`, which
-     generates `AT TIME ZONE` and is refused if absent
-     (`VerifyTimestampZones`).
-   - **§10.8** — its own central mitigation ("one statement per resource
-     containing all of its DDL") is impossible: one statement is one
-     `execute()` is one prepared statement is **one command**. Multi-command
-     statements fail at migrate time with `42601`.
-   - **§10.13** — the primary-key declaration §5.4 prescribed breaks *every*
-     create with `attribute id is required`. Needs `generated? true`, applied
-     by a transformer rather than asked of the user.
-   - **§10.14** — `Ash.Type.CiString` trims by default, so a value written
-     through Ash differs from the same value written by the legacy app. Not
-     fixable and not a defect, but it makes "both write paths agree" false by
-     construction for some columns. **The reconciler (step 6) must know this
-     before its first run**, or it reports a wall of false positives, which is
-     how a drift detector gets switched off.
 4. **The legacy schema demo** in this app — `docs/plans/ash-strangler-in-reference-app.md`.
    Note the plan's own conclusion: the demo must run the dual-write step **both
    ways**, and **authentication cuts over first**, not last, because a single
@@ -290,33 +267,27 @@ Ordered by how likely you are to want it.
 
 ## 7. Suggested next session
 
-`mix cdm.gen.resource` and the `Reference` domain (§5.1–5.2), all six
-`ash_strangler` spikes (§5.3, §11 of the plan), and `ash_strangler` steps 1–3
-(verifiers, `:read_from_legacy` view generation, the round-trip harness) are
-committed and done.
+Everything in §5 except the publication audit is committed and done:
+`mix cdm.gen.resource`, the `Reference` domain, all six `ash_strangler` spikes,
+and `ash_strangler` steps 1–7.
 
-Highest value next:
+Two things, in this order:
 
-> Build `ash_strangler` step 5 in `/home/lukegalea/ash_strangler`: the listener
-> that bridges legacy writes into `Ash.Notifier.Notification`s. Spike 6 already
-> settled the hard part — the bridge **must** synthesize a minimal changeset
-> (`resource`/`data`/`to_tenant`/`action_type`) or `Ash.Notifier.PubSub` raises
-> `KeyError` on any topic using `:_pkey`, `:_tenant`, or an update/destroy
-> attribute key. Spike 5 settled the other half: `ecto_watch` can watch
-> `legacy.users` directly via its map-form `schema_definition`, so this is an
-> integration, not a reimplementation.
+> **1. Push the repositories** (§1). Nothing is backed up anywhere. This is a
+> human decision because it publishes `ash_strangler`.
 >
-> Step 6 (backfill + reconciler) is the one to think about hardest, for two
-> reasons already recorded: pgroll's flag-column finding (§6.4) and §10.14's
-> divergence, which will otherwise make the reconciler cry wolf on day one.
+> **2. `ash_strangler` step 8** — the §9.1 publication checklist. The
+> conspicuous gap is that a DSL package ships no DSL documentation:
+> `mix spark.cheat_sheets` into `documentation/dsls/`. After that, adopting the
+> shared `ash-project/ash/.github/workflows/ash-ci.yml` brings a dozen checks
+> for the cost of one file.
 
-Then, before publishing, **step 8**: work the §9.1 checklist. The two items
-with the most leverage are `mix spark.cheat_sheets` (the package currently
-ships no DSL documentation at all, which for a DSL package is the conspicuous
-gap) and adopting the shared CI workflow, which brings a dozen checks at the
-cost of one file.
+Then the reference app's own strangler demo (§5.4), which is where the package
+gets exercised against a schema it did not grow up with — the plan's §4 warns
+that the demo must run dual-write **both ways**, and that authentication cuts
+over **first**, not last.
 
 Opening line for a new session:
 
-> Read `docs/HANDOFF.md`, then build `ash_strangler` step 5 — the notification
-> listener — in `/home/lukegalea/ash_strangler`.
+> Read `docs/HANDOFF.md`. Push the two repos if that has not happened, then
+> finish `ash_strangler` step 8 — the §9.1 publication checklist.
