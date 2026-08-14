@@ -1101,8 +1101,10 @@ That is an argument, not a decision. The gate in §11 is what settles it.
 
 ## 11. Sequencing, and the spikes that come first
 
-All three original spikes are answered — two from source reading, one from executing SQL against PG 17.10. That is
-unusual for a plan at this stage and it is the reason the risk assessment above is specific rather than hedged.
+All six spikes — the original three plus the three the SQL spike raised — are now answered: three from source reading,
+one from executing SQL against PG 17.10, one from executing Elixir against a live `ash_authentication` app, and one
+from reproducing a crash directly against `Ash.Notifier.PubSub`. That is unusual for a plan at this stage and it is the
+reason the risk assessment above is specific rather than hedged.
 
 1. ~~**Can a third-party Spark transformer add entities to `[:postgres, :custom_statements]`?**~~ **Yes.**
    `add_entity/4` is ungated and keyed on section path only; `build_entity/4` validates against the target extension's
@@ -1114,7 +1116,8 @@ unusual for a plan at this stage and it is the reason the risk assessment above 
    with `ON CONSTRAINT`. §10.2 — and this reversed a design decision, which is the argument for running spikes before
    writing plans rather than after.
 
-Three questions the SQL spike *raised* and did not answer, all of which now precede step 1:
+Three questions the SQL spike *raised* and did not answer at the time, all of which preceded step 2 (step 1 — the
+verifiers and `mix ash_strangler.check` — needed none of them and shipped first, 0.1.0):
 
 4. ~~**How many Ash and `ash_authentication` code paths silently depend on upserts?**~~ **Answered 2026-08-14, against
    `ash_authentication` 4.14.1 and this application.** The answer is sharper than "some", and it partitions cleanly:
@@ -1143,10 +1146,42 @@ Three questions the SQL spike *raised* and did not answer, all of which now prec
      required it.
    - The six upsert actions in this application are all join tables and catalogue rows — the resources least likely to
      need strangling. That is luck, not design, and it should not be generalized to other applications.
-5. **Can `ecto_watch` install triggers on arbitrary relations in a non-default schema**, or is it bound to Ecto schemas
-   it owns? §2.1's conclusion that notifications are an integration rather than a pillar depends on the answer.
-6. **What does `Ash.Notifier.PubSub` do with a synthesized notification that has no changeset?** §6.4. If `:_pkey` and
-   `:_tenant` topic templates cannot resolve, the bridge is less transparent than claimed and the README has to say so.
+5. ~~**Can `ecto_watch` install triggers on arbitrary relations in a non-default schema**, or is it bound to Ecto
+   schemas it owns?~~ **Answered 2026-08-14, by reading `cheerfulstoic/ecto_watch` main @ github.com (`lib/ecto_watch/options/watcher_options.ex`,
+   `lib/ecto_watch/watcher_server.ex`).** Yes, unambiguously — this is not an accident of implementation, it is a
+   documented, validated second path. `WatcherOptions.SchemaDefinition.new/1` has two clauses: one takes an Ecto
+   schema module and introspects it; the other takes a **plain map** —
+   `%{schema_prefix:, table_name:, primary_key:, columns:, association_columns:, column_map:}` — with no Ecto schema
+   involved at all, validated by its own `NimbleOptions` schema and requiring only a `label:` option alongside it (the
+   trigger/function/channel names are derived from the schema module in the Ecto-schema path, so the map path needs an
+   explicit name to derive them from instead). `schema_prefix` defaults to `:public` but accepts any schema name as a
+   string or atom, and the generated DDL is schema-qualified throughout —
+   `CREATE OR REPLACE TRIGGER … ON "#{schema_prefix}"."#{table_name}"`, function created as
+   `"#{schema_prefix}".#{function_name}` (`watcher_server.ex`). It also branches on
+   `EctoWatch.DB.supports_create_or_replace_trigger?/1` (`major_version(repo) >= 14`) to fall back to `DROP TRIGGER IF
+   EXISTS` + plain `CREATE TRIGGER` below PG 14 — `CREATE OR REPLACE TRIGGER` is itself a PG 14 feature, which lines up
+   exactly with this plan's own PG 14 floor. **Consequence: `ecto_watch` can watch `legacy.users` directly, with no
+   Ecto schema module for it at all**, which confirms §2.1's premise and means the notify/listen half of this design
+   really can be "integrate `ecto_watch`", not "reimplement it because it can't reach the legacy schema."
+6. ~~**What does `Ash.Notifier.PubSub` do with a synthesized notification that has no changeset?**~~ **Answered
+   2026-08-14, executed against `ash` 3.31.3 (`deps/ash/lib/ash/notifier/pub_sub/pub_sub.ex`) rather than inferred.**
+   Worse than the hedge above: it does not merely fail to resolve, **it raises**. A `%Ash.Notifier.Notification{}`
+   with `changeset: nil` and a topic containing `:_pkey` on a create-type action raises
+   `** (KeyError) key :resource not found in: nil` (`Ash.Resource.Info.primary_key(notification.changeset.resource)`,
+   `pub_sub.ex:588`); the same with `:_tenant` on an update-type action raises
+   `** (KeyError) key :to_tenant not found in: nil` (`notification.changeset.to_tenant`, `pub_sub.ex:549`). Both were
+   reproduced directly: an ETS-backed resource with `notifiers: [Ash.Notifier.PubSub]`, a hand-built notification with
+   `changeset: nil`, calling `Ash.Notifier.PubSub.notify/1`. **It is not only `:_pkey`/`:_tenant`** — for an
+   `:update`/`:destroy` action, *any* plain-attribute topic key also dereferences `notification.changeset.data` to
+   compare before/after values, so it crashes too; only a `:create` notification with a topic built from literal
+   strings or plain attributes already present on `data` survives with `changeset: nil`. Since `notify/1` dispatch is
+   synchronous in the calling process (§6.4), this crash lands **in the listener process**, on every legacy write that
+   matches such a publication — not a degraded bridge, a crashing one. The fix was verified too, not just proposed: a
+   *minimal* synthesized `%Ash.Changeset{resource:, action_type:, data:, to_tenant:}` (no real changeset construction,
+   no action running) is sufficient — both crashes disappear and the topics resolve correctly
+   (`thing:updated:tenant-x`, `thing:created:<uuid>`). **Consequence: synthesizing a changeset in the bridge is not an
+   enhancement, it is a correctness requirement for any publication using `:_pkey`, `:_tenant`, or an update/destroy
+   topic — the README's hedge should become a firm "the bridge always synthesizes one," not a caveat.**
 
 Then, in order:
 

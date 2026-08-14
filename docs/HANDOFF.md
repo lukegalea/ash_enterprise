@@ -191,10 +191,17 @@ Ordered by how likely you are to want it.
    scoping is actually enforced (same ISO code in two tenants: fine; same code
    twice in one tenant: rejected) rather than merely that the resources compile.
 3. **`ash_strangler` steps 2–7** — view generation, triggers, backfill,
-   reconciler. Step 1 (verifiers) is shipped. Two spike questions still precede
-   step 2: whether `ecto_watch` can install triggers in a non-default schema, and
-   what `Ash.Notifier.PubSub` does with a synthesized notification that has no
-   changeset. See §11 of the plan.
+   reconciler. Step 1 (verifiers) is shipped. All six spikes in §11 of the plan
+   are now answered (the last two, 2026-08-14): `ecto_watch` can watch an
+   arbitrary relation in a non-default schema via its map-form
+   `schema_definition` — no Ecto schema module required, verified by reading
+   `WatcherOptions.SchemaDefinition.new/1`; and a synthesized
+   `Ash.Notifier.Notification` with `changeset: nil` does not degrade
+   gracefully, it **raises** `KeyError` the moment a topic template uses
+   `:_pkey`, `:_tenant`, or (for update/destroy) any plain attribute key —
+   reproduced directly against `ash` 3.31.3. A *minimal* synthesized changeset
+   (`resource`/`data`/`to_tenant`/`action_type`, no real changeset construction)
+   fixes it, verified the same way. Nothing blocks step 2 anymore.
 4. **The legacy schema demo** in this app — `docs/plans/ash-strangler-in-reference-app.md`.
    Note the plan's own conclusion: the demo must run the dual-write step **both
    ways**, and **authentication cuts over first**, not last, because a single
@@ -229,16 +236,16 @@ Ordered by how likely you are to want it.
 
 ## 7. Suggested next session
 
-`mix cdm.gen.resource` and the `Reference` domain (§5.1–5.2) are done but
-**uncommitted** — review the diff and commit it first.
+`mix cdm.gen.resource` and the `Reference` domain (§5.1–5.2), and all six
+`ash_strangler` spikes (§5.3, §11 of the plan), are committed and done.
 
-Highest value after that:
+Highest value next:
 
-> Continue `ash_strangler` at step 2 — but answer the two remaining spike
-> questions first; the plan is explicit that they precede it, and the last
-> spike reversed a design decision.
+> Build `ash_strangler` step 2 in `/home/lukegalea/ash_strangler`: view
+> generation for `:read_from_legacy` only — "the smallest useful generator,"
+> per §11's step table. Nothing blocks it now.
 
 Opening line for a new session:
 
-> Read `docs/HANDOFF.md`, then continue `ash_strangler` at step 2 — after
-> answering the two spike questions §11 of the plan says precede it.
+> Read `docs/HANDOFF.md`, then build `ash_strangler` step 2 — view generation
+> for `:read_from_legacy` — in `/home/lukegalea/ash_strangler`.
