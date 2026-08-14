@@ -35,10 +35,10 @@ The concrete exit: which files change, and how much work it is.
 | [0001](0001-cdm-as-frozen-hybrid-corpus.md) | The CDM is a frozen, hybrid, vendored corpus | accepted |
 | [0002](0002-ash-events-over-paper-trail.md) | AshEvents as the default audit layer, AshPaperTrail opt-in | accepted |
 | [0003](0003-attribute-multitenancy.md) | Attribute-based multitenancy plus business-unit hierarchy | accepted |
-| 0004 | Reactor over Oban Pro for orchestration | planned |
-| 0005 | ash_admin and ash_a2ui: division of labour | planned |
-| 0006 | daisyUI + SaladUI as the design system | planned |
-| 0007 | Dialyzer runs non-blocking | planned |
+| [0004](0004-reactor-over-oban-pro.md) | Reactor for transactional orchestration, Oban for durability | accepted |
+| [0005](0005-admin-and-a2ui-division-of-labour.md) | ash_admin and ash_a2ui: division of labour | accepted |
+| [0006](0006-design-system.md) | daisyUI 5 + Phoenix core_components as the design system | accepted |
+| [0007](0007-dialyzer-non-blocking.md) | Dialyzer runs, and does not gate | accepted |
 
 ## Writing a new one
 
