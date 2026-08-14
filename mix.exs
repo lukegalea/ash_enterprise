@@ -37,11 +37,26 @@ defmodule AshEnterprise.MixProject do
   # files shipped inside our dependencies into AGENTS.md and generates Claude
   # skills from them.
   #
-  # This is the single highest-leverage configuration in the repository for AI
-  # agent accuracy: almost every ash_* package ships version-accurate guidance,
-  # and the `~r/^ash_/` pattern picks up every one we add from here on without
-  # further edits. An agent working from these rules writes current Ash rather
-  # than whatever Ash looked like at its training cutoff.
+  # AGENTS.md is read into every agent's context on every session, so its size
+  # is a standing cost, not a one-time one. The three biggest and most
+  # specialized extensions -- ash_a2ui (a whole UI protocol, deliberately
+  # isolated per docs/adr, and split into ash_a2ui:<topic> sub-rules meant for
+  # on-demand lookup rather than always-on reading), ash_events (our audit
+  # trail, whose day-to-day guidance is already covered by the
+  # audit-and-telemetry skill), and ash_ai -- are linked instead of inlined
+  # (`link: :markdown`), the pattern the usage_rules package itself recommends
+  # once a synced file gets too big. That trades ~130k characters of
+  # always-loaded content for a one-line pointer per topic; the full text is
+  # still one file-read away, and is inlined in full inside the `ash-framework`
+  # skill below for whenever an agent is actually working with one of them.
+  #
+  # Every other dependency stays inlined because it's touched on nearly every
+  # task (:ash, ash_postgres, ash_phoenix, phoenix) or is small enough that
+  # linking wouldn't move the needle. Because inlining vs. linking is set
+  # per-package below rather than through the `~r/^ash_/` catch-all, a new
+  # ash_* dependency needs a line added here to appear in AGENTS.md -- it will
+  # still appear automatically in the `ash-framework` skill either way, so
+  # nothing is silently missing, just not inlined by default.
   #
   # NOTE: usage_rules 1.0 REMOVED the old CLI flags (`--all`, `--inline`,
   # `--link-to-folder`). Everything is configured here now, and
@@ -50,7 +65,28 @@ defmodule AshEnterprise.MixProject do
   defp usage_rules do
     [
       file: "AGENTS.md",
-      usage_rules: [:ash, ~r/^ash_/, :phoenix, :igniter, :reactor, :elixir, :otp],
+      usage_rules: [
+        :ash,
+        {:ash_a2ui, link: :markdown},
+        {:ash_ai, link: :markdown},
+        :ash_authentication,
+        :ash_credo,
+        {:ash_events, link: :markdown},
+        :ash_graphql,
+        :ash_json_api,
+        :ash_money,
+        :ash_oban,
+        :ash_phoenix,
+        :ash_postgres,
+        :phoenix,
+        :igniter,
+        :reactor,
+        :elixir,
+        # `:otp` aliases to the same `usage_rules` package as `:elixir` (both
+        # are sub-rules of it); without `main: false` here its shared
+        # top-level doc gets inlined twice.
+        {:otp, main: false}
+      ],
       skills: [
         location: ".claude/skills",
         package_skills: [:ash],
