@@ -190,18 +190,24 @@ Ordered by how likely you are to want it.
    `test/ash_enterprise/reference/reference_test.exs`, which asserts the tenant
    scoping is actually enforced (same ISO code in two tenants: fine; same code
    twice in one tenant: rejected) rather than merely that the resources compile.
-3. **`ash_strangler` steps 2–7** — view generation, triggers, backfill,
-   reconciler. Step 1 (verifiers) is shipped. All six spikes in §11 of the plan
-   are now answered (the last two, 2026-08-14): `ecto_watch` can watch an
-   arbitrary relation in a non-default schema via its map-form
-   `schema_definition` — no Ecto schema module required, verified by reading
-   `WatcherOptions.SchemaDefinition.new/1`; and a synthesized
-   `Ash.Notifier.Notification` with `changeset: nil` does not degrade
-   gracefully, it **raises** `KeyError` the moment a topic template uses
-   `:_pkey`, `:_tenant`, or (for update/destroy) any plain attribute key —
+3. **`ash_strangler` steps 3–7** — round-trip property tests, `INSTEAD OF`
+   triggers, listener/notifications, backfill/reconciler, the `:read_from_new`
+   reversal. Steps 1 (verifiers) and 2 (view generation for `:read_from_legacy`)
+   are **shipped, 2026-08-14**: `AshStrangler.Sql.View` builds the `CREATE VIEW`
+   (plus the `{:uuid_v5, ...}` expression index) from the mapping, and
+   `AshStrangler.Transformers.DeriveStatements` injects it into
+   `[:postgres, :custom_statements]` so `mix ash.codegen` picks it up like any
+   other schema change — no-op for a resource with no strangler mapping or not
+   on `AshPostgres.DataLayer`. All six spikes in §11 of the plan were answered
+   the same day: `ecto_watch` can watch an arbitrary relation in a non-default
+   schema via its map-form `schema_definition` — no Ecto schema module
+   required, verified by reading `WatcherOptions.SchemaDefinition.new/1`; and a
+   synthesized `Ash.Notifier.Notification` with `changeset: nil` does not
+   degrade gracefully, it **raises** `KeyError` the moment a topic template
+   uses `:_pkey`, `:_tenant`, or (for update/destroy) any plain attribute key —
    reproduced directly against `ash` 3.31.3. A *minimal* synthesized changeset
    (`resource`/`data`/`to_tenant`/`action_type`, no real changeset construction)
-   fixes it, verified the same way. Nothing blocks step 2 anymore.
+   fixes it, verified the same way.
 4. **The legacy schema demo** in this app — `docs/plans/ash-strangler-in-reference-app.md`.
    Note the plan's own conclusion: the demo must run the dual-write step **both
    ways**, and **authentication cuts over first**, not last, because a single
@@ -236,16 +242,18 @@ Ordered by how likely you are to want it.
 
 ## 7. Suggested next session
 
-`mix cdm.gen.resource` and the `Reference` domain (§5.1–5.2), and all six
-`ash_strangler` spikes (§5.3, §11 of the plan), are committed and done.
+`mix cdm.gen.resource` and the `Reference` domain (§5.1–5.2), all six
+`ash_strangler` spikes (§5.3, §11 of the plan), and `ash_strangler` steps 1–2
+(verifiers, `:read_from_legacy` view generation) are committed and done.
 
 Highest value next:
 
-> Build `ash_strangler` step 2 in `/home/lukegalea/ash_strangler`: view
-> generation for `:read_from_legacy` only — "the smallest useful generator,"
-> per §11's step table. Nothing blocks it now.
+> Build `ash_strangler` step 3 in `/home/lukegalea/ash_strangler`: the
+> round-trip property test harness (`StreamData`, real Postgres). §11's step
+> table puts it deliberately **before** `INSTEAD OF` triggers (step 4), not
+> after — the oracle should exist before the risky generator does.
 
 Opening line for a new session:
 
-> Read `docs/HANDOFF.md`, then build `ash_strangler` step 2 — view generation
-> for `:read_from_legacy` — in `/home/lukegalea/ash_strangler`.
+> Read `docs/HANDOFF.md`, then build `ash_strangler` step 3 — the round-trip
+> property test harness — in `/home/lukegalea/ash_strangler`.
