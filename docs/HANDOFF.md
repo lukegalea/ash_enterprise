@@ -14,14 +14,29 @@ Read this first in a new session, then `docs/manifesto/00-index.md`.
 **`/home/lukegalea/ash_strangler`** — **99 tests / 4 properties passing**,
 steps 1–7 of its plan shipped. Standalone repo, **not vendored** into the app.
 
-Both are now on GitHub under `lukegalea`, pushed 2026-08-14, **both private**:
+Both are on GitHub under `lukegalea`, pushed 2026-08-14:
 
-- `github.com/lukegalea/ash_enterprise` — private, as intended permanently.
-- `github.com/lukegalea/ash_strangler` — **private for now, intended to go
-  public.** It was held back only because publishing an alpha extension before
-  its first CI run is a bad first impression. Flip it once the GitHub Actions
-  run on `master` comes back green: `gh repo edit lukegalea/ash_strangler
-  --visibility public`.
+- `github.com/lukegalea/ash_enterprise` — **private**, as intended permanently.
+- `github.com/lukegalea/ash_strangler` — **public**, with CI fully green.
+
+Both default to `main`. They were created on `master` and renamed, because the
+shared `ash-ci` workflow triggers on `main` only — on `master` it never ran at
+all, silently.
+
+Four things the first CI runs found that local testing could not:
+
+1. **No `.tool-versions`** — the shared workflow's `install-elixir` step reads
+   it, so every compiling job failed instantly.
+2. **`PGHOST` is set in CI** to the service-container name `postgres`, which
+   only resolves for jobs running *inside* a container. The test config read it
+   and every test failed with `non-existing domain`. The override is now
+   `DB_HOST`; `PGHOST` is libpq's own variable and other tooling sets it.
+3. **citext folding is collation-dependent** — see §3.
+4. **`ash-ci`'s credo job cannot pass on a private repo.** It declares
+   `permissions: security-events: write` and nothing else, which drops
+   `contents: read`, so checkout 404s. Every `ash-project` repo is public, so
+   upstream never hits it. This was the actual reason to go public rather than
+   any judgement about readiness.
 
 A secret scan before pushing came back clean: the only credentials in tracked
 config are the standard Phoenix dev/test placeholders, `runtime.exs` reads
@@ -107,6 +122,15 @@ These are the ones that cost real time and are not written in any upstream doc.
 
 ### Postgres / AshPostgres
 
+- **`citext` case folding is collation-dependent, so it is not portable.** It
+  folds by calling SQL `lower()`, which follows the database's `LC_CTYPE`: under
+  `C` only ASCII folds, under a UTF-8 locale Turkish dotted I and German ß fold
+  too. **The same mapping therefore gives a different uniqueness answer on two
+  servers** — which matters enormously for a migration, since a migration has
+  two servers in it by definition. An Ash `identity` on a citext column may hold
+  in development and not in production. Found when a test asserting the local
+  `C` behaviour failed on CI's `postgres:16`. It never folds whitespace and
+  never normalizes NFC against NFD, under any collation.
 - **`AshPostgres.Extensions.Vector` is a Postgrex *type* extension, not an
   `installed_extensions` entry.** pgvector needs *both*: the string `"vector"` in
   `installed_extensions`, and `Postgrex.Types.define` referenced from the repo's
