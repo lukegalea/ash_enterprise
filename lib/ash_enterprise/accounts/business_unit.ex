@@ -131,6 +131,24 @@ defmodule AshEnterprise.Accounts.BusinessUnit do
       public? true
       destination_attribute :parent_business_unit_id
     end
+
+    has_many :ancestors, __MODULE__ do
+      public? true
+
+      # The join is a path prefix, not a foreign key, which is what
+      # `no_attributes?` says. Walking `parent_business_unit_id` instead would
+      # be one query per level -- the recursive lookup the materialized path
+      # exists to avoid. Same prefix technique `AshEnterprise.Security.
+      # ActorContext` uses to resolve a Deep grant.
+      #
+      # Includes self: a unit's own path is a prefix of itself, so the breadcrumb
+      # ends at the unit it describes rather than at its parent.
+      no_attributes? true
+      filter expr(like(parent(path), path <> "%"))
+      sort depth: :asc
+
+      description "Every unit from the root down to and including this one, by materialized path."
+    end
   end
 
   identities do
@@ -178,9 +196,68 @@ defmodule AshEnterprise.Accounts.BusinessUnit do
     end
   end
 
+  aggregates do
+    # An aggregate rather than a hand-written SQL subquery. `Ash.Resource.
+    # Aggregate` defaults to `authorize?: true`, so the destination's policies,
+    # the tenant filter and AshArchival's `archived_at` base filter all apply
+    # without being restated. A `fragment/1` doing the same join would bypass
+    # all three silently, and would have to keep matching them forever.
+    #
+    # One lateral join for the whole page, not a query per row.
+    list :ancestor_names, :ancestors, :name do
+      public? true
+      sort depth: :asc
+    end
+  end
+
   calculations do
     calculate :is_root, :boolean, expr(is_nil(parent_business_unit_id)) do
       public? true
+    end
+
+    calculate :breadcrumb, :string, expr(string_join(ancestor_names, " / ")) do
+      public? true
+
+      description """
+      The ancestor chain by name, root first: "Example Corp / Engineering / Platform".
+
+      `path` is the same chain as UUIDs, and stays that way: it is an
+      authorization structure, read by every Deep grant as a prefix comparison.
+      This is the display of it, derived, and never a second source of truth.
+      """
+    end
+
+    # Indentation as data, because A2UI has nowhere to put it: no component in
+    # any version of the spec carries a padding, indent or spacing property, and
+    # an unknown property does not degrade -- the client throws and discards the
+    # whole message. What it does have is markdown on every Text value, so the
+    # indent travels inside the string.
+    #
+    # `&nbsp;` rather than spaces: markdown collapses runs of spaces, and four
+    # leading spaces would make the line a code block instead.
+    calculate :tree_label,
+              :string,
+              expr(
+                fragment(
+                  # The cast is required, not defensive: Ash renders `depth` as
+                  # bigint and Postgres only has repeat(text, integer), so
+                  # without it the query fails with `function repeat(unknown,
+                  # bigint) does not exist`.
+                  "repeat('&nbsp;', (? * 6)::integer) || CASE WHEN ? = 0 THEN '' ELSE '└─ ' END || ?",
+                  depth,
+                  depth,
+                  name
+                )
+              ) do
+      public? true
+
+      description """
+      `name`, indented by depth, for rendering the hierarchy as a flat list.
+
+      Correct only when sorted by `path` ascending. Because every segment is a
+      fixed-width UUID, lexicographic path order *is* depth-first pre-order, so
+      each row lands directly beneath its parent.
+      """
     end
   end
 

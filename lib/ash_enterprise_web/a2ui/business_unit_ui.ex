@@ -20,30 +20,46 @@ defmodule AshEnterpriseWeb.A2ui.BusinessUnitUI do
 
     query :default do
       search_fields [:name]
-      sortable [:name, :depth]
-      default_sort depth: :asc
+      sortable [:name, :depth, :path]
+
+      # Sorting by `path` is what makes the surface a tree rather than a list.
+      # Every segment is a fixed-width UUID, so lexicographic path order is
+      # exactly depth-first pre-order and each unit lands directly beneath its
+      # parent -- which is the ordering `tree_label`'s indentation assumes.
+      # Siblings therefore order by id rather than by name; sorting by name
+      # instead would separate a parent from its children entirely.
+      default_sort path: :asc
       page_size 50
     end
 
     component :table do
-      fields [:name, :depth, :path, :is_disabled]
+      fields [:tree_label, :breadcrumb, :is_disabled]
       read_action :read
       query :default
 
       row_layout do
-        title :name
+        title :tree_label
         badge :is_disabled
         badge_text true: "Disabled", false: "Active"
-        meta [:depth, :path]
-        columns 2
+        meta [:breadcrumb]
+        columns 1
       end
     end
 
-    field :path do
-      # The materialized path is a chain of UUIDs. At body size in a
-      # proportional font it was the most visually prominent thing on every
-      # row, dominating the name -- while being a debugging aid rather than
-      # something anyone reads. Keep the column, shrink its claim on attention.
+    field :tree_label do
+      # The name, indented by depth. A2UI has nowhere to express indentation --
+      # no component in any version of the spec carries a padding or spacing
+      # property -- but every Text value is rendered as markdown, so the indent
+      # travels inside the string. See the calculation on the resource.
+      label "Name"
+    end
+
+    field :breadcrumb do
+      # Replaces `path`, which was a chain of UUIDs: at body size in a
+      # proportional font it was the most visually prominent thing on the row,
+      # dominating the name, while being a debugging aid nobody reads. Same
+      # chain, resolved to names. `path` itself is unchanged -- it is an
+      # authorization structure, and this is only its display.
       label "Ancestry"
     end
 
