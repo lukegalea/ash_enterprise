@@ -27,9 +27,13 @@ defmodule AshEnterprise.AI.Interpreter do
 
   ## Without an API key
 
-  `interpret/3` returns a clear error. It does not fall back to pattern
-  matching: a fallback that silently half-works is worse than an honest failure,
-  because it produces a demo that appears to prove something it does not.
+  `interpret/3` returns a clear error naming the environment variable the
+  *configured* model needs. It does not fall back to pattern matching: a
+  fallback that silently half-works is worse than an honest failure, because it
+  produces a demo that appears to prove something it does not.
+
+  The provider follows `AshEnterprise.AI.model/0`, which `AI_INTERPRETER_MODEL`
+  sets — so switching provider is a deployment concern and never a code change.
   """
 
   alias AshEnterprise.AI.Proposal
@@ -54,30 +58,52 @@ defmodule AshEnterprise.AI.Interpreter do
   end
 
   defp infer_intent(request) do
-    if configured?() do
-      run_prompt(request)
-    else
-      {:error,
-       """
-       No LLM provider is configured, so natural-language requests cannot be \
-       interpreted. Set ANTHROPIC_API_KEY (or OPENAI_API_KEY) in .env and \
-       restart.
-
-       The rest of this flow -- authorization, confirmation, execution and \
-       audit -- does not depend on a provider and is exercised by the test \
-       suite without one.\
-       """}
+    case key_status() do
+      :ok -> run_prompt(request)
+      {:error, message} -> {:error, message}
     end
   end
 
-  # Asks ReqLLM the same question the actual call will ask, rather than
-  # reimplementing it. `ReqLLM.Keys.get/1` resolves in three places -- an explicit
-  # `:api_key`, `config :req_llm`, and the environment variable -- and checking
-  # only the middle one made this report "no provider configured" for a key
-  # supplied exactly as the error message instructs, since `devenv`'s `dotenv`
-  # puts `.env` into the environment rather than into application config.
-  defp configured? do
-    Enum.any?([:anthropic, :openai], &match?({:ok, _key, _source}, ReqLLM.Keys.get(&1)))
+  # Asks ReqLLM about the provider we are actually going to call, rather than
+  # reimplementing its lookup or guessing the provider.
+  #
+  # Both halves of that were wrong before. `ReqLLM.Keys.get/1` resolves in three
+  # places -- an explicit `:api_key`, `config :req_llm`, and the environment
+  # variable -- and checking only the middle one reported "no provider
+  # configured" for a key supplied exactly as the error message instructs, since
+  # `devenv`'s `dotenv` puts `.env` into the environment rather than into
+  # application config. The provider list was then hardcoded to Anthropic and
+  # OpenAI even though the model is configurable, so pointing `:interpreter_model`
+  # at any other provider reported the same thing with its key correctly set.
+  defp key_status do
+    model = AshEnterprise.AI.model()
+
+    with {:ok, %{provider: provider}} <- ReqLLM.model(model),
+         {:ok, _key, _source} <- ReqLLM.Keys.get(provider) do
+      :ok
+    else
+      _ -> {:error, not_configured_message(model)}
+    end
+  end
+
+  defp not_configured_message(model) do
+    # Naming the variable the configured model actually needs, rather than a
+    # fixed pair, so the instruction is never wrong for the current config.
+    env_var =
+      case ReqLLM.model(model) do
+        {:ok, %{provider: provider}} -> ReqLLM.Keys.env_var_name(provider)
+        _ -> "ANTHROPIC_API_KEY"
+      end
+
+    """
+    No API key is configured for `#{model}`, so natural-language requests \
+    cannot be interpreted. Set #{env_var} in .env and restart, or point \
+    AI_INTERPRETER_MODEL at a provider you do have a key for.
+
+    The rest of this flow -- authorization, confirmation, execution and \
+    audit -- does not depend on a provider and is exercised by the test \
+    suite without one.\
+    """
   end
 
   defp run_prompt(request) do

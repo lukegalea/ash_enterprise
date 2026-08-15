@@ -142,11 +142,20 @@ defmodule AshEnterpriseWeb.AgentLive do
 
           <p class="text-lg">{@proposal.summary}</p>
 
+          <%!--
+            `display: contents` rather than a `<template>`. A `<template>` element
+            is inert: the browser parses its children into a document fragment and
+            never renders them, so the details -- the concrete user, role and scope
+            being changed -- were silently absent from every confirmation, leaving
+            only the one-line summary to approve. A plain wrapper would render but
+            would also break the two-column grid, since the dt/dd pairs would no
+            longer be grid items; `contents` keeps both.
+          --%>
           <dl class="grid grid-cols-[8rem_1fr] gap-x-4 gap-y-1 text-sm">
-            <template :for={{label, value} <- @proposal.details}>
+            <div :for={{label, value} <- @proposal.details} class="contents">
               <dt class="text-base-content/60">{label |> to_string() |> String.capitalize()}</dt>
               <dd>{value}</dd>
-            </template>
+            </div>
           </dl>
 
           <p class="text-base-content/60 text-xs">

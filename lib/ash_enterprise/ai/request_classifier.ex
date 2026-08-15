@@ -31,8 +31,14 @@ defmodule AshEnterprise.AI.RequestClassifier do
 
       argument :request, :string, allow_nil?: false
 
+      # A capture, not a call. `prompt/2` is a macro and its arguments are
+      # evaluated while this module compiles, so `AshEnterprise.AI.model()`
+      # baked whatever config existed at *build* time into the action -- a
+      # release could never be repointed at another provider, which is the one
+      # thing `:interpreter_model` exists to allow. AshAi resolves a 0-arity
+      # function per call instead.
       run prompt(
-            AshEnterprise.AI.model(),
+            &AshEnterprise.AI.model/0,
             # `tools: false` is load-bearing, not a default. A model holding a
             # mutation tool can perform the mutation regardless of what the
             # prompt says or what a user injects into their request. Denying

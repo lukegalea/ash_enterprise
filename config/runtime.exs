@@ -23,6 +23,17 @@ end
 config :ash_enterprise, AshEnterpriseWeb.Endpoint,
   http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 
+# Which model interprets agent requests, as a ReqLLM spec ("provider:model-id").
+#
+# Set only when present so the default stays in `AshEnterprise.AI.model/0` and
+# there is one place to read it. ReqLLM finds the matching API key from the
+# environment itself, so choosing a provider here is the whole change --
+# `AI_INTERPRETER_MODEL=openrouter:anthropic/claude-haiku-4.5` needs
+# OPENROUTER_API_KEY and nothing else.
+if model = System.get_env("AI_INTERPRETER_MODEL") do
+  config :ash_enterprise, :ai, interpreter_model: model
+end
+
 if config_env() == :dev do
   # Reload browser tabs when matching files change.
   config :ash_enterprise, AshEnterpriseWeb.Endpoint,

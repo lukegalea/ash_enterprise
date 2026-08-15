@@ -43,7 +43,11 @@ defmodule AshEnterpriseWeb.Plugs.LoadActorContext do
         conn
 
       user ->
-        context = ActorContext.build(user, tenant: Map.get(user, :organization_id))
+        # Not `tenant: user.organization_id`. `User` is `tenant?: false`, so that
+        # read is always nil -- it silently overrode nothing and the tenant was
+        # never set, which is precisely the failure this moduledoc warns about.
+        # `build/2` resolves it through the user's business unit instead.
+        context = ActorContext.build(user)
         actor = ActorContext.attach(user, context)
 
         conn

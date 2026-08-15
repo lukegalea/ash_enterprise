@@ -121,9 +121,9 @@ defmodule AshEnterprise.Security.ActorContext do
   independent of how many roles or business units are involved.
   """
   def build(user, opts \\ []) do
-    tenant = opts[:tenant] || Map.get(user, :organization_id)
     user_id = Map.get(user, :id)
     business_unit_id = Map.get(user, :owning_business_unit_id)
+    tenant = opts[:tenant] || Map.get(user, :organization_id) || tenant_of(business_unit_id)
 
     team_ids = load_team_ids(user_id, tenant)
     principal_ids = [user_id | team_ids] |> Enum.reject(&is_nil/1)
@@ -186,6 +186,30 @@ defmodule AshEnterprise.Security.ActorContext do
   defp resource_name(resource) when is_binary(resource), do: resource
 
   # --- loading ----------------------------------------------------------------
+
+  # A user does not carry the tenant: `User` is `tenant?: false`, because a user
+  # is scoped by the business unit that owns them. So the tenant has to be read
+  # through that unit, and reaching for `user.organization_id` yields nil for
+  # every user there is.
+  #
+  # Nil is the dangerous answer rather than a loud one. `global? true` on the
+  # multitenancy block means a nil tenant is *accepted*: reads silently span every
+  # tenant, and creates insert a null discriminator until a not-null constraint
+  # happens to catch them. One query per request, resolved once here, is what
+  # stops that.
+  defp tenant_of(nil), do: nil
+
+  defp tenant_of(business_unit_id) do
+    AshEnterprise.Accounts.BusinessUnit
+    |> Ash.Query.filter(id == ^business_unit_id)
+    |> Ash.Query.select([:organization_id])
+    # No tenant to scope by -- resolving the tenant is the point of the query.
+    |> Ash.read_one(authorize?: false)
+    |> case do
+      {:ok, %{organization_id: organization_id}} -> organization_id
+      _ -> nil
+    end
+  end
 
   defp load_team_ids(nil, _tenant), do: []
 

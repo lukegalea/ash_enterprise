@@ -59,12 +59,25 @@ The same generator, three more resources — users, teams and security roles:
 
 **The helper console.** Ask for an administrative change in plain language. The
 model plans and returns a struct; it never holds the mutation, so there is no
-tool for a prompt injection to reach. You read the concrete change and approve
-it, and it then executes *as you* — through the same policies and into the same
-audit log. Interpreting a request needs a provider key; everything after it does
-not.
+tool for a prompt injection to reach.
 
-![The helper console](docs/screenshots/agent-console.png)
+Here it has interpreted *"Give dana@example.com the Auditor role"*. The names are
+resolved **as you**, against records you are allowed to see — so a user you
+cannot read comes back as "not found" rather than as a proposal referencing a
+record you have no business knowing exists. Authorization is checked before this
+card is rendered, so you are never asked to confirm something that will then
+fail:
+
+![The helper console, showing a proposed role assignment awaiting approval](docs/screenshots/agent-proposal.png)
+
+Approving executes it *as you*, through the same policies as the admin UI. The
+audit row names the human who approved, not the model that suggested:
+
+![The helper console after approval, showing the change was applied](docs/screenshots/agent-approved.png)
+
+Interpreting a request needs a provider key. Everything after it — resolution,
+authorization, execution, audit — is ordinary Ash code and does not, which is why
+the flow is exercised end to end by the test suite without one.
 
 **AshAdmin.** Every resource, every action, no configuration.
 
