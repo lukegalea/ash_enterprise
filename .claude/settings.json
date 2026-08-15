@@ -12,8 +12,8 @@
             "asyncRewake": true,
             "timeout": 300,
             "statusMessage": "Checking Ash codegen drift",
-            "rewakeSummary": "Ash codegen drift",
-            "rewakeMessage": "A background check found that Ash resources have drifted from their generated migrations:"
+            "rewakeSummary": "Ash codegen check",
+            "rewakeMessage": "A background Ash codegen check has something to report. Read it carefully — it distinguishes real drift from the check being unable to run, and only the former calls for generating a migration:"
           }
         ]
       }

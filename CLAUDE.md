@@ -43,6 +43,12 @@ That is why `processes.phoenix` is deliberately absent from `devenv.nix`.
 4. **Run `mix ash.codegen <name>` after changing any resource.** Ash derives migrations as a diff against the resource
    snapshots; forgetting means the schema silently drifts. `mix ash.codegen --check` gates CI.
 
+   The background hook (`.claude/hooks/check-ash-codegen.sh`) reports drift *only* when the check actually ran and
+   said so — the literal `Pending Code Generation Detected` or a leftover `--dev` migration. A non-zero exit for any
+   other reason (build lock held, compile error, missing deps, no devenv) is reported as **"the check could not run"**,
+   which is not a licence to generate. Regenerating against a project that could not be checked produces an empty or
+   wrong migration plus snapshot churn.
+
 5. **Do not hand-write migrations.** Change the resource and regenerate.
 
 6. **`priv/cdm/schemaDocuments/` is vendored third-party content** (Microsoft CDM, CC-BY-4.0, pinned commit). Never edit
