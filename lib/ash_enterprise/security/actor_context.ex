@@ -165,6 +165,18 @@ defmodule AshEnterprise.Security.ActorContext do
     |> MapSet.to_list()
   end
 
+  @doc """
+  The tenant an actor belongs to, without querying.
+
+  Call this rather than reaching for `actor.organization_id`. Not every actor
+  resource *has* that attribute — `User` is `tenant?: false`, because a user is
+  scoped by the business unit that owns them rather than carrying the tenant
+  directly — so the plain field access raises `KeyError` on exactly the actor type
+  most code holds. The resolved context, attached once per request by
+  `AshEnterpriseWeb.Plugs.LoadActorContext`, already knows the answer.
+  """
+  def tenant(actor), do: for_actor(actor).organization_id
+
   @doc "Attaches a context to a user struct so it travels as the actor."
   def attach(user, %__MODULE__{} = context) do
     Map.put(user, :__ash_enterprise_context__, context)

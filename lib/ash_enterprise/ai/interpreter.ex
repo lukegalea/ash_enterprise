@@ -70,13 +70,14 @@ defmodule AshEnterprise.AI.Interpreter do
     end
   end
 
+  # Asks ReqLLM the same question the actual call will ask, rather than
+  # reimplementing it. `ReqLLM.Keys.get/1` resolves in three places -- an explicit
+  # `:api_key`, `config :req_llm`, and the environment variable -- and checking
+  # only the middle one made this report "no provider configured" for a key
+  # supplied exactly as the error message instructs, since `devenv`'s `dotenv`
+  # puts `.env` into the environment rather than into application config.
   defp configured? do
-    Enum.any?([:anthropic_api_key, :openai_api_key], fn key ->
-      case Application.get_env(:req_llm, key) do
-        value when is_binary(value) and value != "" -> true
-        _ -> false
-      end
-    end)
+    Enum.any?([:anthropic, :openai], &match?({:ok, _key, _source}, ReqLLM.Keys.get(&1)))
   end
 
   defp run_prompt(request) do

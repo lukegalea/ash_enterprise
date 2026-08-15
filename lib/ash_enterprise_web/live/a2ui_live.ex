@@ -14,7 +14,10 @@ defmodule AshEnterpriseWeb.A2uiLive do
 
   `AshEnterpriseWeb.Plugs.LoadActorContext` has already attached the resolved
   authorization context to `current_user`, so `actor_fn` is a plain assign read
-  rather than a per-mount query.
+  rather than a per-mount query, and `tenant_fn` reads the tenant back off that
+  context. It does *not* read `current_user.organization_id`: `User` is
+  `tenant?: false` and has no such attribute, so that access raises `KeyError` —
+  which is what it did, on every surface, until the first time anyone signed in.
   """
 
   defmodule Users do
@@ -24,10 +27,11 @@ defmodule AshEnterpriseWeb.A2uiLive do
       actor_fn: &__MODULE__.actor/1,
       tenant_fn: &__MODULE__.tenant/1
 
+    alias AshEnterprise.Security.ActorContext
+
     def actor(socket), do: socket.assigns[:current_user]
 
-    def tenant(socket),
-      do: socket.assigns[:current_user] && socket.assigns.current_user.organization_id
+    def tenant(socket), do: ActorContext.tenant(socket.assigns[:current_user])
   end
 
   defmodule Roles do
@@ -37,10 +41,11 @@ defmodule AshEnterpriseWeb.A2uiLive do
       actor_fn: &__MODULE__.actor/1,
       tenant_fn: &__MODULE__.tenant/1
 
+    alias AshEnterprise.Security.ActorContext
+
     def actor(socket), do: socket.assigns[:current_user]
 
-    def tenant(socket),
-      do: socket.assigns[:current_user] && socket.assigns.current_user.organization_id
+    def tenant(socket), do: ActorContext.tenant(socket.assigns[:current_user])
   end
 
   defmodule Teams do
@@ -50,10 +55,11 @@ defmodule AshEnterpriseWeb.A2uiLive do
       actor_fn: &__MODULE__.actor/1,
       tenant_fn: &__MODULE__.tenant/1
 
+    alias AshEnterprise.Security.ActorContext
+
     def actor(socket), do: socket.assigns[:current_user]
 
-    def tenant(socket),
-      do: socket.assigns[:current_user] && socket.assigns.current_user.organization_id
+    def tenant(socket), do: ActorContext.tenant(socket.assigns[:current_user])
   end
 
   defmodule BusinessUnits do
@@ -63,9 +69,10 @@ defmodule AshEnterpriseWeb.A2uiLive do
       actor_fn: &__MODULE__.actor/1,
       tenant_fn: &__MODULE__.tenant/1
 
+    alias AshEnterprise.Security.ActorContext
+
     def actor(socket), do: socket.assigns[:current_user]
 
-    def tenant(socket),
-      do: socket.assigns[:current_user] && socket.assigns.current_user.organization_id
+    def tenant(socket), do: ActorContext.tenant(socket.assigns[:current_user])
   end
 end

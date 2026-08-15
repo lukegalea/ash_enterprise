@@ -38,6 +38,44 @@ Sign in with the credentials the seeder prints, then visit:
 | `/clarity` | ER, class, policy and state-machine diagrams (dev only) |
 | `/api/json/swaggerui` · `/gql/playground` | JSON:API + OpenAPI, GraphQL |
 
+## What it looks like
+
+Nothing below was designed. Every surface here is derived from the same resource
+definitions — which is the point: the screenshots are what you get for declaring
+a resource, before writing any UI.
+
+**A2UI surfaces.** One page per resource, rendered from resource metadata. The
+list, the filter, the pagination and the create form are all derived; the actor
+and the tenant are the only things the LiveView supplies, so each surface is
+filtered by exactly the policies that guard the API.
+
+![The business-unit surface, showing the materialized-path hierarchy](docs/screenshots/a2ui-business-units.png)
+
+The same generator, three more resources — users, teams and security roles:
+
+| Users | Teams | Roles |
+|---|---|---|
+| ![](docs/screenshots/a2ui-users.png) | ![](docs/screenshots/a2ui-teams.png) | ![](docs/screenshots/a2ui-roles.png) |
+
+**The helper console.** Ask for an administrative change in plain language. The
+model plans and returns a struct; it never holds the mutation, so there is no
+tool for a prompt injection to reach. You read the concrete change and approve
+it, and it then executes *as you* — through the same policies and into the same
+audit log. Interpreting a request needs a provider key; everything after it does
+not.
+
+![The helper console](docs/screenshots/agent-console.png)
+
+**AshAdmin.** Every resource, every action, no configuration.
+
+![AshAdmin showing the User resource](docs/screenshots/admin.png)
+
+**GraphQL.** The schema — types, filter inputs, sort inputs, pagination — is
+generated from the resources that opt into an `api_type`. Nothing in the list
+below was hand-written.
+
+![The GraphQL playground with the schema explorer open](docs/screenshots/graphql-playground.png)
+
 ## What is here
 
 **A platform layer.** `AshEnterprise.Platform.Resource` is the base resource

@@ -5,7 +5,18 @@ defmodule AshEnterpriseWeb.Router do
 
   import AshAuthentication.Plug.Helpers
 
+  # Mirrors :api. Without these the endpoint has no way to authenticate anybody:
+  # every request arrives with a nil actor, the policy union grants nothing, and
+  # the API answers `{"count": 0, "results": []}` to every query -- a successful
+  # response containing nothing, which reads as "no data" rather than as "not
+  # authenticated". Bearer only, deliberately: session auth here would make every
+  # mutation reachable cross-origin.
+  #
+  # `AshGraphql.Plug` must run last; it reads the actor these plugs installed.
   pipeline :graphql do
+    plug :load_from_bearer
+    plug :set_actor, :user
+    plug AshEnterpriseWeb.Plugs.LoadActorContext
     plug AshGraphql.Plug
   end
 

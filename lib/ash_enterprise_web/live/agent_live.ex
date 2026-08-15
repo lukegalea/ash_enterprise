@@ -28,6 +28,7 @@ defmodule AshEnterpriseWeb.AgentLive do
 
   alias AshEnterprise.AI.Interpreter
   alias AshEnterprise.AI.Proposal
+  alias AshEnterprise.Security.ActorContext
 
   on_mount {AshEnterpriseWeb.LiveUserAuth, :live_user_required}
 
@@ -91,8 +92,11 @@ defmodule AshEnterpriseWeb.AgentLive do
      assign(socket, proposal: nil, error: nil, result: "Cancelled. Nothing was changed.")}
   end
 
+  # Not `current_user.organization_id`: `User` is `tenant?: false` and has no such
+  # attribute, so the direct access raises `KeyError` the moment anyone submits a
+  # request. The tenant comes off the context the plug already resolved.
   defp tenant(socket) do
-    socket.assigns.current_user && socket.assigns.current_user.organization_id
+    ActorContext.tenant(socket.assigns[:current_user])
   end
 
   @impl true

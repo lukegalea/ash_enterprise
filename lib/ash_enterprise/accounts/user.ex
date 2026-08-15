@@ -280,11 +280,12 @@ defmodule AshEnterprise.Accounts.User do
     end
   end
 
-  policies do
-    bypass AshAuthentication.Checks.AshAuthenticationInteraction do
-      authorize_if always()
-    end
-  end
+  # No `policies` block: the `ash_authentication` bypass is contributed by
+  # `AshEnterprise.Security.Policies`, which detects the extension. Declaring it
+  # here instead would place it *after* the inherited grant union -- policies run
+  # in declaration order and the inherited set is injected by `use` -- so the
+  # union would forbid the nil actor first and sign-in would collapse to
+  # `filter false` before the password was ever checked.
 
   attributes do
     uuid_primary_key :id

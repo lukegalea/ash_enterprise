@@ -63,10 +63,41 @@ defmodule AshEnterprise.Security.Policies do
   A macro rather than a shared module because Spark DSL sections are built at
   compile time into the resource's own DSL state; there is nothing to delegate to
   at runtime.
+
+  ## Options
+
+    * `:authentication?` — prepend the `ash_authentication` bypass. Set
+      automatically by `AshEnterprise.Platform.Resource` when the resource carries
+      the `AshAuthentication` extension. It has to be prepended here rather than
+      declared on the resource, because policy order is declaration order and this
+      set is injected first.
   """
-  defmacro __using__(_opts) do
+  defmacro __using__(opts) do
+    authentication? = Keyword.get(opts, :authentication?, false)
+
     quote do
       policies do
+        unquote(
+          if authentication? do
+            quote do
+              # Must come first, and cannot live in the resource's own `policies`
+              # block. Policies are evaluated in declaration order and this set is
+              # injected by `use`, so anything the resource declares itself lands
+              # *after* the grant union below -- which forbids a nil actor and
+              # collapses the read to `filter false`. Sign-in never reaches the
+              # password check; the query is skipped and the failure presents as
+              # "Email or password was incorrect".
+              #
+              # The check is narrow: it passes only for interactions
+              # ash_authentication itself initiates, which is why granting them
+              # everything is safe.
+              bypass AshAuthentication.Checks.AshAuthenticationInteraction do
+                authorize_if always()
+              end
+            end
+          end
+        )
+
         # Non-human actors bypass the role model entirely. They are not given a
         # superuser role, because a role would appear in the admin UI as
         # something an administrator could revoke -- and revoking it would break

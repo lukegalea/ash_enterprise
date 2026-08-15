@@ -97,6 +97,16 @@ defmodule AshEnterprise.Platform.Resource do
       |> Kernel.++(List.wrap(declared_extensions))
       |> Enum.uniq()
 
+    # The caller wrote `extensions: [AshAuthentication]`, so what arrives here is
+    # alias AST rather than the atom -- `AshAuthentication in extensions` is
+    # silently false. Expanding against the caller's environment is what turns it
+    # back into a module to compare against.
+    authentication? =
+      Enum.any?(
+        List.wrap(extra_extensions) ++ List.wrap(declared_extensions),
+        &(Macro.expand(&1, __CALLER__) == AshAuthentication)
+      )
+
     resource_opts =
       opts
       |> Keyword.put_new(:data_layer, AshPostgres.DataLayer)
@@ -139,7 +149,8 @@ defmodule AshEnterprise.Platform.Resource do
       unquote(
         if policies? do
           quote do
-            use AshEnterprise.Security.Policies
+            use AshEnterprise.Security.Policies,
+              authentication?: unquote(authentication?)
           end
         end
       )
