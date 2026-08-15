@@ -29,6 +29,22 @@ defmodule AshEnterpriseWeb.A2ui.BusinessUnitUI do
       fields [:name, :depth, :path, :is_disabled]
       read_action :read
       query :default
+
+      row_layout do
+        title :name
+        badge :is_disabled
+        badge_text true: "Disabled", false: "Active"
+        meta [:depth, :path]
+        columns 2
+      end
+    end
+
+    field :path do
+      # The materialized path is a chain of UUIDs. At body size in a
+      # proportional font it was the most visually prominent thing on every
+      # row, dominating the name -- while being a debugging aid rather than
+      # something anyone reads. Keep the column, shrink its claim on attention.
+      label "Ancestry"
     end
 
     component :form do

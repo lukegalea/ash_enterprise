@@ -27,6 +27,14 @@ defmodule AshEnterpriseWeb.A2ui.RoleUI do
       fields [:name, :description, :is_inherited]
       read_action :read
       query :default
+
+      row_layout do
+        title :name
+        badge :is_inherited
+        badge_text true: "Inherited", false: "Direct"
+        meta [:description]
+        columns 1
+      end
     end
 
     component :form do

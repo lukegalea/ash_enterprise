@@ -25,6 +25,23 @@ defmodule AshEnterpriseWeb.A2ui.TeamUI do
       fields [:name, :team_type, :description, :is_default]
       read_action :read
       query :default
+
+      # Without this, rows are flat cell Rows carrying no `weight`, so every
+      # column is content-sized: "Sales" and "Enterprise Sales" push everything
+      # after them to a different x and nothing lines up down the page. This is
+      # the only encoder path that emits weights.
+      row_layout do
+        title :name
+        badge :team_type
+
+        badge_text owner: "Owner",
+                   access: "Access",
+                   security_group: "Security group",
+                   office_group: "Office group"
+
+        meta [:description, :is_default]
+        columns 2
+      end
     end
 
     component :form do

@@ -40,14 +40,22 @@ Sign in with the credentials the seeder prints, then visit:
 
 ## What it looks like
 
-Nothing below was designed. Every surface here is derived from the same resource
-definitions — which is the point: the screenshots are what you get for declaring
-a resource, before writing any UI.
+No markup was written for any of this. Every surface here is derived from the
+same resource definitions — which is the point: the screenshots are what you get
+for declaring a resource, before writing any UI.
 
 **A2UI surfaces.** One page per resource, rendered from resource metadata. The
 list, the filter, the pagination and the create form are all derived; the actor
 and the tenant are the only things the LiveView supplies, so each surface is
 filtered by exactly the policies that guard the API.
+
+What *is* declared is a dozen lines of layout intent per surface — which field is
+the title, which is the status badge, what belongs in the metadata grid — because
+a derived screen still has to be told what matters. Nothing in that declaration
+is styling; A2UI's components carry no spacing or colour props at all, in any
+version of the spec. Appearance comes from a CSS custom-property contract that
+`assets/css/app.css` maps onto daisyUI's tokens, so these pages follow the same
+theme and the same dark-mode toggle as the rest of the app.
 
 ![The business-unit surface, showing the materialized-path hierarchy](docs/screenshots/a2ui-business-units.png)
 

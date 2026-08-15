@@ -20,6 +20,33 @@ defmodule AshEnterpriseWeb.A2uiLive do
   which is what it did, on every surface, until the first time anyone signed in.
   """
 
+  defmodule Chrome do
+    @moduledoc """
+    The application shell around a surface.
+
+    `AshA2ui.LiveRenderer`'s default `render/1` returns the bare hook div, which
+    is correct for a library — it has no idea what application it is inside —
+    but it meant these pages rendered with no navbar, no container and content
+    flush to the viewport edge, while the navbar elsewhere linked *to* them.
+
+    The width is the reason this is a wrapper rather than a plain
+    `<Layouts.app>` call: the default content column is `max-w-2xl`, sized for
+    prose, and a data table inside it is unreadable.
+    """
+
+    use Phoenix.Component
+
+    alias AshEnterpriseWeb.Layouts
+
+    def page(assigns) do
+      ~H"""
+      <Layouts.app flash={@flash} width="max-w-7xl">
+        {AshA2ui.LiveRenderer.surface_container(assigns)}
+      </Layouts.app>
+      """
+    end
+  end
+
   defmodule Users do
     @moduledoc "A2UI surface for users."
     use AshA2ui.LiveRenderer,
@@ -28,10 +55,13 @@ defmodule AshEnterpriseWeb.A2uiLive do
       tenant_fn: &__MODULE__.tenant/1
 
     alias AshEnterprise.Security.ActorContext
+    alias AshEnterpriseWeb.A2uiLive.Chrome
 
     def actor(socket), do: socket.assigns[:current_user]
 
     def tenant(socket), do: ActorContext.tenant(socket.assigns[:current_user])
+
+    def render(assigns), do: Chrome.page(assigns)
   end
 
   defmodule Roles do
@@ -42,10 +72,13 @@ defmodule AshEnterpriseWeb.A2uiLive do
       tenant_fn: &__MODULE__.tenant/1
 
     alias AshEnterprise.Security.ActorContext
+    alias AshEnterpriseWeb.A2uiLive.Chrome
 
     def actor(socket), do: socket.assigns[:current_user]
 
     def tenant(socket), do: ActorContext.tenant(socket.assigns[:current_user])
+
+    def render(assigns), do: Chrome.page(assigns)
   end
 
   defmodule Teams do
@@ -56,10 +89,13 @@ defmodule AshEnterpriseWeb.A2uiLive do
       tenant_fn: &__MODULE__.tenant/1
 
     alias AshEnterprise.Security.ActorContext
+    alias AshEnterpriseWeb.A2uiLive.Chrome
 
     def actor(socket), do: socket.assigns[:current_user]
 
     def tenant(socket), do: ActorContext.tenant(socket.assigns[:current_user])
+
+    def render(assigns), do: Chrome.page(assigns)
   end
 
   defmodule BusinessUnits do
@@ -70,9 +106,12 @@ defmodule AshEnterpriseWeb.A2uiLive do
       tenant_fn: &__MODULE__.tenant/1
 
     alias AshEnterprise.Security.ActorContext
+    alias AshEnterpriseWeb.A2uiLive.Chrome
 
     def actor(socket), do: socket.assigns[:current_user]
 
     def tenant(socket), do: ActorContext.tenant(socket.assigns[:current_user])
+
+    def render(assigns), do: Chrome.page(assigns)
   end
 end

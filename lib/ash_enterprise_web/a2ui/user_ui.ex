@@ -45,9 +45,30 @@ defmodule AshEnterpriseWeb.A2ui.UserUI do
       # `confirmed_at` (private) was caught rather than shipping as a blank
       # column. Field selection on a user surface is a security decision:
       # `hashed_password` is private for exactly this reason.
-      fields [:email, :state_code, :created_on]
+      # `lifecycle_status`, not `state_code`. Both describe the same thing, but
+      # `lifecycle_status` is the canonical atom the state machine actually
+      # manages, while `state_code` is a *derived* integer that exists for
+      # Dataverse interop -- so the surface was rendering a bare "0" where it
+      # meant "Active". Badging an atom also reads correctly without a
+      # translation table, since unmatched values humanize.
+      fields [:email, :lifecycle_status, :created_on]
       read_action :read
       query :default
+
+      # Flat rows carry no `weight`, so each cell is content-sized and nothing
+      # lines up between rows. This is the only encoder path that emits weights.
+      row_layout do
+        title :email
+        badge :lifecycle_status
+        meta [:created_on]
+        columns 1
+      end
+    end
+
+    field :created_on do
+      label "Created"
+      # Otherwise: 2026-08-15T04:34:42.905134Z, microseconds and all.
+      format :date
     end
   end
 end
