@@ -27,6 +27,25 @@ Open-source-only is a project constraint, which removes Fluxon and Petal Pro.
 **`ash_admin`** provides zero-config CRUD at `/admin`. **`cinder`** (0.17) provides Ash-native data tables.
 **`ash_a2ui`** provides declarative, agent-renderable surfaces.
 
+**The design system does not reach A2UI, and this is structural.** `@a2ui/lit`'s basic-catalog components render inside
+**shadow DOM** and expose no `::part()`s, so nothing above — not Tailwind utilities, not daisyUI's classes, not element
+or class selectors — crosses into them. The only seam that does is **CSS custom properties**, which inherit through
+shadow boundaries.
+
+So A2UI is themed by *mapping tokens*, never by writing rules: `assets/css/app.css` imports
+`deps/ash_a2ui/priv/js/ash_a2ui_theme.css` and then binds the `--a2ui-*` contract to daisyUI's variables. Two ordering
+facts make it work — the catalog injects its defaults at `:where(:root)` (zero specificity), so a plain `:root` wins;
+and A2UI's colours use `light-dark()`, which reads `color-scheme` rather than any class, so `color-scheme` must be
+bound to the `data-theme` attribute or the surfaces follow the OS instead of the app's toggle.
+
+This was omitted from the original decision, and the omission is exactly how the surfaces shipped unstyled: daisyUI was
+correctly installed and compiling the whole time, the classes simply could not reach. Nothing failed at build time, so
+a green asset build proved nothing.
+
+Structure is a separate concern from style and lands upstream, not here: column alignment in A2UI comes from mirrored
+`weight` between a header row and the record template, which is `ash_a2ui`'s encoder to emit. No token can fix a
+layout that never declared a width.
+
 **SaladUI was planned and then rejected on a hard technical conflict.** SaladUI 1.0 declares `igniter` as a plain
 runtime dependency. Our `igniter` is `only: [:dev, :test]`, and Mix refuses the mismatch:
 

@@ -105,4 +105,60 @@
 /* Make LiveView wrapper divs transparent for layout */
 [data-phx-session], [data-phx-teleported-src] { display: contents }
 
+/* --- A2UI surfaces --------------------------------------------------------
+ *
+ * A2UI's basic-catalog components render inside SHADOW DOM. None of the CSS
+ * above reaches them: not Tailwind utilities, not daisyUI's classes, not
+ * element or class selectors, and they expose no ::part()s. daisyUI is
+ * installed and working -- it simply cannot cross that boundary, which is why
+ * these surfaces looked unstyled while the rest of the app looked fine.
+ *
+ * The one seam that does cross it is CSS custom properties, which inherit
+ * through shadow boundaries. So theming A2UI is exactly this: declare the
+ * --a2ui-* contract, and let it inherit.
+ *
+ * Order matters twice over. The catalog injects its own defaults at
+ * :where(:root) (zero specificity), so the plain :root below outranks them;
+ * and ash_a2ui's neutral theme must be imported before our overrides, since
+ * both land at the same specificity and the last declaration wins.
+ */
+@import "../../deps/ash_a2ui/priv/js/ash_a2ui_theme.css";
+
+:root {
+  /* Map daisyUI's tokens onto the A2UI contract, rather than restating colour
+   * values. The surfaces then follow the themes defined at the top of this
+   * file automatically, including any future edits to them. */
+  --a2ui-color-background: var(--color-base-200);
+  --a2ui-color-on-background: var(--color-base-content);
+  --a2ui-color-surface: var(--color-base-100);
+  --a2ui-color-on-surface: var(--color-base-content);
+  --a2ui-color-primary: var(--color-primary);
+  --a2ui-color-on-primary: var(--color-primary-content);
+  --a2ui-color-secondary: var(--color-base-200);
+  --a2ui-color-on-secondary: var(--color-base-content);
+  --a2ui-color-input: var(--color-base-100);
+  --a2ui-color-on-input: var(--color-base-content);
+  --a2ui-color-border: var(--color-base-300);
+
+  --a2ui-border-radius: var(--radius-field);
+  --a2ui-button-border-radius: var(--radius-field);
+  --a2ui-textfield-border-radius: var(--radius-field);
+  --a2ui-card-border-radius: var(--radius-box);
+
+  /* Admin density. The stock rhythm gives a one-line row a ~76px card, so five
+   * users fill the viewport; these roughly halve that without crowding. */
+  --a2ui-card-padding: 0.75rem;
+  --a2ui-list-gap: 0.5rem;
+  --a2ui-row-gap: 1rem;
+  --a2ui-column-gap: 0.75rem;
+}
+
+/* A2UI's colours are written with light-dark(), which reads `color-scheme`
+ * rather than any class or attribute -- and the protocol carries no dark-mode
+ * signal at all, in any version. Binding color-scheme to the daisyUI data
+ * attribute is the only thing that makes these surfaces follow the app's own
+ * theme toggle instead of the OS setting. */
+:root[data-theme="light"] { color-scheme: light }
+:root[data-theme="dark"] { color-scheme: dark }
+
 /* This file is for your main application CSS */

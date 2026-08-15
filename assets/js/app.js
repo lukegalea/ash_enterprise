@@ -37,9 +37,11 @@ import topbar from "../vendor/topbar"
 // alone). ash_a2ui's hook is the v1.0-capable layer on top of the v0.9
 // renderer, so we register the v0_9 catalog here and let the hook translate.
 import "@a2ui/lit/v0_9"
-import {basicCatalog, A2uiLitElement, A2uiController} from "@a2ui/lit/v0_9"
+import {basicCatalog, A2uiLitElement, A2uiController, Context} from "@a2ui/lit/v0_9"
 import {MessageProcessor, Catalog, ChoicePickerApi, ColumnApi} from "@a2ui/web_core/v0_9"
 import {html, css, nothing} from "lit"
+import {ContextProvider} from "@lit/context"
+import {renderMarkdown} from "@a2ui/markdown-it"
 import {AshA2ui, configureAshA2ui} from "../../deps/ash_a2ui/priv/js/ash_a2ui_hook.js"
 import {createAshA2uiCatalog} from "../../deps/ash_a2ui/priv/js/ash_a2ui_catalog.js"
 
@@ -64,10 +66,31 @@ const ashCatalog = createAshA2uiCatalog({
 
 configureAshA2ui({
   MessageProcessor,
-  // Order matters: ash_a2ui overrides basic components where it has a better one
-  // (a native <select> for ChoicePicker, a typeahead combobox for Column) and
-  // falls through to the basic catalog for everything else.
-  catalogs: [basicCatalog, ashCatalog]
+  // ONLY the merged catalog. It registers under the *same* catalog id the
+  // encoder emits, and resolution is first-match:
+  //
+  //     const catalog = this.catalogs.find(c => c.id === catalogId)
+  //
+  // so passing basicCatalog first shadowed ashCatalog completely and every
+  // override it exists to provide was dead code -- visible as single-choice
+  // pickers rendering a stack of radio buttons instead of a <select>. It
+  // already reuses every basic-catalog component it does not replace, so
+  // nothing is lost by dropping basicCatalog from this list.
+  catalogs: [ashCatalog],
+
+  // Without a markdown renderer the basic catalog's Text component falls back
+  // to `<span class="no-markdown-renderer">`, which prints headings as literal
+  // `## Title` and -- much worse -- collapses EVERY Text on every surface to
+  // one identical unstyled span. That erases the whole type hierarchy and
+  // leaves the --a2ui-font-size-* scale as dead code.
+  //
+  // This is a hard requirement for A2UI v1.0, not a nicety: v1.0 removes the
+  // h1-h5 Text variants entirely, so ash_a2ui's v1.0 encoder turns headings
+  // into markdown `#` prefixes and there is no variant left to fall back on.
+  //
+  // renderMarkdown runs its output through DOMPurify, which matters because
+  // these values come from the database rather than from a trusted author.
+  markdown: {ContextProvider, context: Context.markdown, render: renderMarkdown}
 })
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
