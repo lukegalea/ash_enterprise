@@ -39,6 +39,7 @@ The concrete exit: which files change, and how much work it is.
 | [0005](0005-admin-and-a2ui-division-of-labour.md) | ash_admin and ash_a2ui: division of labour | accepted |
 | [0006](0006-design-system.md) | daisyUI 5 + Phoenix core_components as the design system | accepted |
 | [0007](0007-dialyzer-non-blocking.md) | Dialyzer runs, and does not gate | accepted |
+| [0008](0008-typed-invertible-legacy-mappings.md) | Legacy mappings are typed expressions with proven inverses | accepted |
 
 ## Writing a new one
 
