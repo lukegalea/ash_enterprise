@@ -8,6 +8,8 @@
 - **Date:** 2026-08-13
 - **Depends on:** [`ash-strangler.md`](ash-strangler.md), at least through its read-model phase. Two steps
   ([§5](#5-the-migration-story-step-by-step), steps 0 and 1) do not.
+- **Mapping decisions** follow [ADR 0008](../adr/0008-typed-invertible-legacy-mappings.md): every mapping is a typed
+  expression whose inverse is proven, not asserted. §4.1, §4.2, §4.6, §4.7 and §4.11 are written that way.
 
 ---
 
@@ -123,9 +125,8 @@ Plus two that are not schema properties at all.
 exercise (§4.8).
 
 **One line of mapping decides whether upserts still work.** A view is auto-updatable — upserts included — until an
-`INSTEAD OF` trigger appears, and a single computed-but-writable mapping forces one. `AshAuthentication` needs upserts.
-Verified, §4.10. This is the constraint that decides the *order* of the migration, and it is invisible until you try
-it.
+`INSTEAD OF` trigger appears, and whether the mapping needs one is decided column by column. `AshAuthentication` needs
+upserts. Verified, §4.10. This is a constraint on how each column is mapped, and it is invisible until you try it.
 
 ## 3. How it gets created and seeded
 
@@ -188,8 +189,15 @@ Three options, and the plan takes two of them at different phases:
 
 **Deterministic UUIDv5, computed in the view (read phase).**
 
+```elixir
+# The declaration. The namespace is fixed forever and checked into the repo, and
+# it lives on the migration group -- once, rather than on each of the resources
+# sharing legacy.users.
+key :id, from: :id, strategy: {:uuid_v5, namespace: "6b1e..."}
+```
+
 ```sql
--- One namespace UUID per legacy table, fixed forever, checked into the repo.
+-- What it generates in the view's SELECT list.
 uuid_generate_v5('6b1e...'::uuid, 'legacy.users:' || u.id::text) AS id
 ```
 
@@ -239,9 +247,19 @@ application is single-tenant; there is no column to map.
 
 The resolution is a constant in the view:
 
-```sql
-'00000000-0000-0000-0000-0000000000fe'::uuid AS organization_id  -- the "legacy" Organization
+```elixir
+# The "legacy" Organization -- one row representing the whole legacy estate.
+constant :organization_id, expr(type("00000000-0000-0000-0000-0000000000fe", :uuid))
 ```
+
+```sql
+'00000000-0000-0000-0000-0000000000fe'::uuid AS organization_id
+```
+
+It is also the literal the backfill needs, and it is not retyped there: `AshStrangler.Backfill.plan/2`
+reads the `constant` entities directly, so nobody restates it as a raw SQL string in
+`set: [organization_id: "'0000…fe'::uuid"]`. The literal is declared once and the two places that need it
+— the view's `SELECT` list and the backfill's `UPDATE` — are both derived from that one declaration.
 
 One `Organization` row is seeded to represent the entire legacy estate. Every legacy-derived record belongs to it.
 This is correct and it is also the whole point: multitenancy is a property you can add to data that never had it,
@@ -336,6 +354,22 @@ Two further details the demo should not skip:
   attribute non-writable through the legacy path and require that password changes go to the new table only. That
   makes password change the first action that *cannot* be dual-written, and therefore the first forcing function for
   cutover.
+
+  The refusal is written as an explicit opt-out, and the distinction matters:
+
+  ```elixir
+  map :hashed_password,
+    from: expr("$legacy-sha1$" <> salt <> "$" <> crypted_password),
+    writable?: false,
+    because: "Password changes must not be written back into a SHA1 scheme. Cut over first."
+  ```
+
+  Note that `concat` with a literal separator *is* in the invertible tier — `$` is provably absent from a
+  40-character hex digest and from the salt, so the tool can derive the decomposition. Refusing here is
+  therefore a **policy** decision rather than a limit of the grammar, and `writable? false` with a
+  `because` says so out loud. That is the case the opt-out exists for, and the demo should draw the
+  distinction: a mapping that *cannot* travel back is a fact about the expression, a mapping that *must
+  not* is a judgement somebody made, and only the second one needs a sentence of prose attached to it.
 - `remember_token` / `activation_code` have no equivalent in our model at all; they are dropped, and dropping them
   logs out every legacy session at cutover. Schedule that, do not discover it.
 
@@ -370,6 +404,46 @@ Two findings worth stating in the demo:
 
 Unlike the password problem, this one *is* a good fit for the DSL: it is a pure declarative mapping with a lossy
 expansion, and expressing it as data rather than as a one-off script is exactly the argument for the extension.
+
+It is two combinators, and each carries its own proof obligation:
+
+```elixir
+# scope -> depth. A bijection over the three legacy values, so `decode` derives
+# both directions and checks exhaustiveness against the depth enum. The widening
+# is visible in the declaration rather than buried in a CASE.
+decode :depth, from: :scope, %{
+  nil        => :global,   # the honest reading of "unscoped" -- and a WIDENING
+  "own"      => :basic,
+  "company"  => :local     # correct only once §4.3 step 2 has happened
+}
+
+# action -> privileges. One legacy row becomes up to five, so this is NOT a
+# bijection and `collapse` is the wrong shape: the forward direction fans out.
+# It is declared as an expansion with an explicit inverse policy.
+expand :privileges, from: :action, %{
+  "read"    => [:read],
+  "edit"    => [:write],
+  "destroy" => [:delete],
+  "manage"  => [:read, :write, :delete, :assign, :share]
+} do
+  # `manage` is the only many-valued row, so the inverse is only defined on
+  # exactly that set. Anything else -- notably any grant including :append or
+  # :append_to, which have no legacy equivalent -- cannot travel back.
+  writable? false
+  because "Ours is strictly richer: :append/:append_to have no legacy verb, and a partial subset of \
+           `manage` has no legacy encoding. Grant those in the new model only."
+end
+```
+
+Two things this buys that a script does not. The `:global` widening is now a **declared** entry rather
+than an implicit `ELSE`, so it appears in the mapping diagram as its own edge and a reviewer is asked to
+look at it — which §4.7 already argues is the correct handling. And `PutTotal` refuses the mapping if the
+`Privilege` enum grows a value with no legacy encoding and nobody updated the table, which is exactly how
+this kind of mapping rots.
+
+The `roles_users` case is unchanged and still needs a synthetic key
+(`key :id, strategy: {:uuid_v5, ...}` over `role_id || ':' || user_id`), still read-only, still one of
+the first write paths to cut over entirely.
 
 ### 4.8 Audit, and the hole in it
 
@@ -442,14 +516,30 @@ in `psql` and show it landing in the base table, un-mapped and uncounted.
 and the failure is a Postgrex error surfacing as a 500 mid-sign-in unless a compile-time verifier catches it first.
 
 Neither mode is correct in general. What the demo proves is that **the choice is forced by the mapping, not by
-preference**: our `full_name` mapping is read-only and our `state_code` mapping is computed-but-writable, and it is
-that second one — a single line of DSL — that drags in an `INSTEAD OF UPDATE` trigger and therefore costs upserts on
-the whole resource. Showing that a one-line mapping decision silently determines whether authentication still works is
-worth more than either mode on its own.
+preference — and it is forced one column at a time**, which is the finer and more interesting result.
 
-The practical consequence for the migration order: **authentication is one of the *first* things to cut over, not one
-of the last.** That inverts the usual instinct to leave the scary thing until the end, and it is the kind of finding
-only a real legacy schema produces.
+`CREATE VIEW`'s updatability rule is column-level: a view mixing plain and computed columns is automatically
+updatable, and a computed column raises an error only if a statement *assigns* it. Measured on PostgreSQL 17.10, such
+a view kept `UPDATE` of its plain columns, `DELETE`, and `INSERT … ON CONFLICT … RETURNING` — including on the run
+where the conflict actually fired — with **no triggers at all**. Upserts are lost to the trigger, not to the
+computation.
+
+So the question to ask of each mapping is not "is this column computed?" but "does any write path have to assign it?"
+Our `full_name` mapping is read-only and costs nothing. A `decode`d `state_code` that the new model writes is a
+candidate for a `GENERATED … STORED` column or a `BEFORE` trigger on `legacy.users` — push the computation down to the
+base table and the compatibility view stays auto-updatable, so `AshAuthentication` keeps its full surface and
+authentication does not have to lead the migration. Reach for `INSTEAD OF` and you have bought the trigger mode for
+every column on the resource at once, for the sake of one of them.
+
+The `MERGE`-bypasses-the-mapping demonstration stands either way: an auto-updatable view really can be written by a
+path the mapping never described, and that is the honest cost of *not* using triggers.
+
+> One further measured hazard for whichever mode the demo runs: under an `INSTEAD OF` trigger,
+> `WITH CHECK OPTION` is not merely unenforced. The same violating `INSERT` that the plain
+> auto-updatable view **refuses** succeeds, and the row lands in `legacy.users`. If the view carries a
+> tenant or soft-delete predicate — and §4.2 means it will — the predicate must be re-implemented as an
+> explicit guard inside the trigger body. This is one of the consequences recorded in
+> [ADR 0008](../adr/0008-typed-invertible-legacy-mappings.md).
 
 ### 4.11 Archival, lifecycle, concurrency
 
@@ -458,10 +548,29 @@ The small ones, listed for completeness because each is a line of mapping and a 
 | Platform | Legacy | Resolution |
 |---|---|---|
 | `archived_at` (AshArchival) | `deleted_at` | direct map; both are "soft deleted" |
-| `state_code` / `status_code` | `state varchar` (`passive`/`pending`/`active`/`suspended`/`deleted`) | `CASE` in the view; reverse mapping needed for writes |
+| `state_code` / `status_code` | `state varchar` (`passive`/`pending`/`active`/`suspended`/`deleted`) | **`decode`** — one declared bijection, both directions derived from a single map. See the note below: this is the mapping where a wrong inverse rewrites lifecycle states silently |
 | `version_number` | — | no column. Optimistic locking is **off** for legacy-backed resources until the expand step adds one. State it; do not silently ship a resource whose concurrency control is a constant `1`. |
 | `created_on` / `modified_on` (`utc_datetime_usec`) | `created_at` / `updated_at` (`timestamp`, local, three zones) | `AT TIME ZONE` per row range. Genuinely lossy; the demo should get one range wrong on purpose and show the reconciliation catching it. |
 | `created_by_id` etc. | — | permanently NULL for legacy rows. Provenance for pre-migration data does not exist and cannot be manufactured. |
+
+> **Why `state` is a `decode`, and what `decode` proves about it.** Legacy `state` ranges over
+> `passive | pending | active | suspended | deleted`; `state_code` is a small integer. Map the two
+> directions as two independent expressions and nothing relates them: `from "CASE state WHEN 'active'
+> THEN 0 ELSE 1 END"` paired with `to "CASE $NEW.state_code WHEN 0 THEN 'active' ELSE 'suspended' END"`
+> is a bijection on `{active, suspended}` and destroys the other three states. Measured on
+> PostgreSQL 17.10, one `UPDATE` through such a view assigning **only the email** rewrote `passive`,
+> `pending` and `deleted` to `suspended` — no error, correct row count, five lifecycle states collapsed
+> to two. Declared as a `decode`, both directions come from one map, and the round trip is checked at
+> compile time over the *legacy* value space — every value `state` actually takes, not the ones the
+> author happened to think of. See [ADR 0008](../adr/0008-typed-invertible-legacy-mappings.md), and
+> `documentation/topics/the-transform-layer.md` in the `ash_strangler` repository for how the tiers are
+> decided.
+>
+> The demo should show the failure before the mapping that refuses it — exactly the shape §4.1
+> recommends for the `RETURNING` hazard: **include the broken version first, so the failure is visible
+> before the fix is.** It is the single most persuasive thing this demo can show, because there is
+> nothing to see when it goes wrong: no exception, no rollback, and a row count that matches what the
+> operator expected.
 
 ## 5. The migration story, step by step
 
@@ -475,6 +584,23 @@ uniqueness of `email` case-insensitively, non-nullness of every `allow_nil?: fal
 `manager_id`. It fails, listing the seeded defects from §3. **This is the first deliverable and it should ship before
 any view exists** — knowing whether the target model is even satisfiable is worth more than any amount of generated
 DDL.
+
+> `mix ash_strangler.check` runs exactly these assertions against the legacy data, alongside the mapping
+> report and the join fan-out measurement. What makes that nearly free is the *twin*:
+> `mix ash_strangler.gen.twin` turns the legacy relation into a real Ash resource, so each assertion is a
+> query the target model already implies rather than SQL anybody writes:
+>
+> | Model assertion | The check it becomes |
+> |---|---|
+> | `allow_nil? false` | `Ash.count(twin, filter: is_nil(^source))` |
+> | `identity :unique_email` on a `:ci_string` | an aggregate grouped by the normalised expression |
+> | a cast, or a `decode` table | project the mapping over the twin and count the failures |
+> | `manager_id` referential integrity | an `exists` filter across the twin's own relationship |
+>
+> That decides who owns which half rather than whether the step is worth doing. Written through the twin,
+> the assertions belong to the extension and this repository's task is a thin wrapper naming the resources
+> and the mapping. Written standalone it needs nothing but `psql`, which is why §8 can list step 1 as
+> having no dependency on the extension at all.
 
 **Step 2 — Read model.** A view in schema `legacy_compat`, generated from the declarative mapping, plus
 `AshEnterprise.Legacy.User` pointing at it with read actions only, no identity, and `migrate? false` on the legacy

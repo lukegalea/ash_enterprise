@@ -137,7 +137,7 @@ agent-specific authorization, and therefore no agent-specific authorization bug.
 | [`docs/HANDOFF.md`](docs/HANDOFF.md) | **Start here in a new session** — current state, findings that cost time to discover, what is genuinely not done |
 | [`docs/manifesto/`](docs/manifesto/00-index.md) | The seven theses, including [what we do not have](docs/manifesto/07-what-we-do-not-have.md) |
 | [`docs/adr/`](docs/adr/README.md) | Decision records, with the reversal path for each |
-| [`docs/plans/`](docs/plans/) | Deferred work: strangler-fig migrations, business process modelling |
+| [`docs/plans/`](docs/plans/) | Deferred and proposed work: strangler-fig migrations, business process modelling |
 | `AGENTS.md` | Generated from dependency usage rules — do not edit the generated sections |
 | `.claude/skills/` | Task-specific guidance for AI agents |
 
