@@ -99,32 +99,56 @@ we distrust the maintainer.
 read through the ordinary action layer, so `AshEnterprise.Security.ActorContext` filters them exactly
 as it filters a hand-written resource. There is no second read path to secure.
 
-**`ash_bpmn`: no — and the gap is larger than a wiring detail.** Three findings, verified against the
-working tree on 2026-08-18, and they are the reason this ADR is `proposed` rather than `accepted`:
+**`ash_bpmn`: yes, since 2026-08-18 — and it took three fixes to get there.** This ADR was written
+while it did not, and the findings are kept below because the remedies are the interesting part.
 
-1. **It ships no policies while running unauthorized internally.** Every generated resource declares
-   `authorizers: [Ash.Policy.Authorizer]` and then contains no `policies do` block at all — there is
-   not one `policy` in its `lib/`. Meanwhile the engine itself passes `authorize?: false` at roughly
-   ninety call sites across the facade, the advance worker, the timer worker and the LiveViews. The
-   design position is that `AshBpmn.Web.TaskActions` is the swap point where a host inserts
-   enforcement. That is a defensible library decision and it is also, as shipped, **an unauthorized
-   path into resources this repository would otherwise guard** — precisely the "parallel code path
-   with parallel bugs" that [thesis 5](../manifesto/05-agents-are-users.md) exists to prevent.
-2. **Multitenancy is declared but not plumbed.** Each resource macro takes `tenant?:` and, when true,
-   generates an attribute strategy on `organization_id` — matching [ADR 0003](0003-attribute-multitenancy.md)
-   exactly. But `AshBpmn.start_instance/2` accepts a `:tenant` option and discards it
-   (`lib/ash_bpmn.ex:39` binds it to `_tenant`), so no tenant is set on the instance or token creates,
-   and no test exercises `tenant?: true`. A work item can therefore be created outside any tenant.
-3. **A work item cannot sit on the platform base resource.** The macros emit `use Ash.Resource`
-   themselves, so a human task cannot inherit ownership, provenance, soft delete, the audit hook or the
-   policy set. Until that changes, "an approval is an ordinary owned, audited, tenant-scoped record" is
-   the design intent stated in the Decision above, not a fact about the code.
+1. **It shipped no policies while running unauthorized internally.** Every generated resource declared
+   `authorizers: [Ash.Policy.Authorizer]` and then contained no `policies do` block at all, while the
+   engine passed `authorize?: false` at roughly ninety call sites across the facade, the advance
+   worker, the timer worker and the LiveViews. Engine calls now carry `AshBpmn.Scope.engine/2` —
+   actor, tenant, and a private context flag — and every generated resource declares one bypass on
+   `AshBpmn.Checks.AshBpmnInteraction`.
 
-None of the three is hard to fix and all three are in `ash_bpmn` rather than here: plumb the tenant,
-add a base-resource option to the resource macros, and replace the internal `authorize?: false` with a
-system actor of the kind `AshEnterprise.Platform.SystemActor` already models. **That work is the
-precondition for accepting this ADR**, and the roadmap entry says so rather than implying the
-composition already holds.
+   The honest framing, which that module states itself: this is **not** a stronger boundary than the
+   option it replaced. Anything that can set private context could have passed `authorize?: false`.
+   What changed is that the engine's authority is one named, greppable, testable thing in the policy
+   set rather than ninety anonymous ones, so a host can read it, reason about it, and replace it. A
+   test fails the build if a ninety-first appears; the one deliberate exception is
+   `AshBpmn.Scope.subject/2`, which reads the *host's* subject record, over which no `ash_bpmn` policy
+   has anything to say.
+
+2. **Multitenancy was declared but not plumbed.** `AshBpmn.start_instance/2` accepted a `:tenant`
+   option and discarded it, and no test exercised `tenant?: true` — the test tables had no
+   `organization_id` at all, so nothing could have caught it. The tenant now reaches the instance, its
+   tokens, its work items and its events, including the ones background workers create: it travels in
+   the Oban payload, because a job outlives the process that enqueued it. A second, tenant-scoped copy
+   of the tables exists purely so the suite can assert it, cross-tenant reads included.
+
+3. **A work item can now sit on the platform base resource.** Every resource macro takes `:base` and
+   `:base_opts`, so a human task inherits ownership, provenance, soft delete, the audit hook and this
+   repository's policy set.
+
+**One composition rule survives, and it is Ash's rather than anyone's oversight.** Policies fold into
+a single boolean expression in which a bypass contributes a disjunct covering the policies *after* it
+— so a bypass skips only what follows it. A base resource emits its policy set from `use`, ahead of
+anything `ash_bpmn` adds, which means the engine's bypass lands second and does not fire. Adopting
+`ash_bpmn` here therefore requires one of two things, and the choice belongs in the adoption commit
+rather than here:
+
+  * add `bypass AshBpmn.Checks.AshBpmnInteraction` at the top of
+    [`AshEnterprise.Security.Policies`](../../lib/ash_enterprise/security/policies.ex), where the
+    `SystemActor` bypass already sits — the engine then keeps the human actor, so ownership,
+    provenance and the audit entry still name the person who approved; or
+  * set `config :ash_bpmn, engine_actor: {AshEnterprise.Platform.SystemActor, :system, []}`, which
+    needs no change to the policy set at all because it already bypasses on `SystemActor` — at the
+    cost of attributing every engine write to that system actor, leaving the human only in
+    `decided_by_id` and its siblings.
+
+**What remains before this ADR can be `accepted`** is no longer an authorization gap. It is the
+composition itself: adding both packages to `mix.exs`, mapping one legacy table through
+`ash_strangler` in this repository, and putting one approval behind `ash_bpmn` on a resource that uses
+`AshEnterprise.Platform.Resource`. Until that exists, the claim being made here is a design decision
+with the obstacles removed, not a demonstration.
 
 ## Consequences
 

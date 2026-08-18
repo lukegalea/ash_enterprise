@@ -37,7 +37,7 @@ lines. Standalone repo, **not vendored** into the app — though
 first-party extension this repository is meant to depend on, which has not been
 done yet.
 
-**`/home/lukegalea/ash_bpmn`** — **176 tests in 7 files** over ~7.9k lines. It
+**`/home/lukegalea/ash_bpmn`** — **202 tests in 10 files** over ~8.5k lines. It
 did not exist when this file was written; see §5.5.
 
 All three are on GitHub under `lukegalea`. Verified 2026-08-18:
@@ -47,8 +47,12 @@ All three are on GitHub under `lukegalea`. Verified 2026-08-18:
   permanently"; that was true on 2026-08-14 and is not true now. The vendored CDM
   corpus under `priv/cdm/schemaDocuments/` keeps its own CC-BY-4.0 terms —
   see `priv/cdm/ATTRIBUTION.md`.
-- `github.com/lukegalea/ash_strangler` — **public**, not on Hex. Its CI has run
-  and is **red on `main`** (see §7).
+- `github.com/lukegalea/ash_strangler` — **public**, not on Hex. Its CI was red
+  on `main` for four consecutive runs and is **green as of 2026-08-18**: the
+  typed-mapping DSL added a `backfill_interlock?` option without regenerating
+  `.formatter.exs`, and `AshStrangler.Lens` specced `Ash.Query.Ref.t/0`, a type
+  `Ash.Query.Ref` does not declare — which the shared workflow's
+  `warnings: [:unknown]` turns into a build failure rather than a loose type.
 - `github.com/lukegalea/ash_bpmn` — **private**, not on Hex.
 
 `ash_enterprise` and `ash_strangler` both default to `main`. They were created on
@@ -347,25 +351,36 @@ Ordered by how likely you are to want it.
    list, maker-checker exclusion by subtraction rather than `forbid_if`,
    delegation, and escalation timers that actually get cancelled.
 
-   **What is not done is wiring it in here, and that is not a morning's work.**
-   [ADR 0009](adr/0009-strangler-and-bpmn-are-first-party.md) names three
-   blockers, all of them in the package rather than in this repository:
+   **The three blockers [ADR 0009](adr/0009-strangler-and-bpmn-are-first-party.md)
+   named are closed, as of 2026-08-18, in the package rather than here:**
 
-   - **It ships no policies while running unauthorized internally.** Every
-     generated resource declares `authorizers: [Ash.Policy.Authorizer]` and then
-     contains no `policies do` block at all — there is not one `policy` in its
-     `lib/` — while the engine passes `authorize?: false` at roughly ninety call
-     sites across the facade, the workers and the LiveViews. As shipped that is
-     an unauthorized path into resources this repository would otherwise guard.
-   - **Multitenancy is declared but not plumbed.** The resource macros take
-     `tenant?:` and generate an attribute strategy on `organization_id`, but
-     `AshBpmn.start_instance/2` accepts a `:tenant` option and **discards it**
-     (`lib/ash_bpmn.ex:39` binds it to `_tenant`), so no tenant reaches the
-     instance or token creates and no test exercises `tenant?: true`. A work item
-     can be created outside any tenant.
-   - **A work item cannot sit on the platform base resource.** The macros emit
-     `use Ash.Resource` themselves, so a human task cannot inherit ownership,
-     provenance, soft delete, the audit hook or the policy set.
+   - **It shipped no policies while running unauthorized internally** — every
+     generated resource named `Ash.Policy.Authorizer` and contained no `policies`
+     block, while the engine passed `authorize?: false` at roughly ninety call
+     sites. Engine calls now carry `AshBpmn.Scope.engine/2` (actor, tenant and a
+     private context flag) and each resource declares one bypass on
+     `AshBpmn.Checks.AshBpmnInteraction`. That is not a stronger boundary than the
+     option it replaced, and the module says so — it is a *named* one, which the
+     ninety were not.
+   - **Multitenancy was declared but not plumbed** — `AshBpmn.start_instance/2`
+     bound `:tenant` to `_tenant` and dropped it, and the test tables had no
+     `organization_id` for a test to have caught it with. The tenant now reaches
+     the instance, tokens, work items and events, travelling in the Oban payload
+     for the ones background workers create.
+   - **A work item could not sit on the platform base resource** — the macros now
+     take `:base` and `:base_opts`.
+
+   **One composition rule came out of it**, and it is Ash's semantics rather than
+   an oversight: a bypass short-circuits only the policies declared *after* it,
+   and a base resource emits its policy set from `use`, ahead of anything
+   `ash_bpmn` adds. Adopting it here therefore means either putting
+   `AshBpmn.Checks.AshBpmnInteraction` at the top of
+   `AshEnterprise.Security.Policies`, or setting `config :ash_bpmn, engine_actor:`
+   to a `SystemActor` that policy set already bypasses. ADR 0009 states the
+   trade-off between them.
+
+   **What is not done is wiring it in here**, which is now a composition task
+   rather than an authorization one.
 
    It also depends on raw `oban` rather than `ash_oban`, and on neither
    `ash_state_machine` nor `ash_events`, so it does not compose with this
@@ -405,19 +420,29 @@ The forward plan now lives in two documents of its own —
 [`docs/ROADMAP.md`](ROADMAP.md) sequences it, [`docs/QUESTIONS.md`](QUESTIONS.md)
 scores it — and what follows is that sequencing rather than a competing list.
 
-> **1. Adopt `ash_bpmn` and `ash_strangler` here, and close the three gaps
-> [ADR 0009](adr/0009-strangler-and-bpmn-are-first-party.md) names.** This is
-> first for one reason, and it is not that it is the largest: it is the only item
-> where the claim is ahead of the code, which is the one kind of debt this
-> repository refuses to carry. The three gaps are §5.5's, and all three are in
-> `ash_bpmn` rather than here — plumb the discarded `:tenant`, add a
-> base-resource option to the resource macros, and replace the internal
-> `authorize?: false` with a system actor of the kind
-> `AshEnterprise.Platform.SystemActor` already models. Closing them is the
-> precondition for moving ADR 0009 from `proposed` to `accepted`. The
-> `ash_strangler` demo (§5.4) is the other half of the same item, and the plan's
-> warning stands: dual-write runs **both ways**, and authentication cuts over
-> **first**, not last.
+> **1. Adopt `ash_bpmn` and `ash_strangler` here.** This is first for one reason,
+> and it is not that it is the largest: it is the only item where the claim is
+> ahead of the code, which is the one kind of debt this repository refuses to
+> carry. The three `ash_bpmn` gaps
+> [ADR 0009](adr/0009-strangler-and-bpmn-are-first-party.md) named were closed
+> upstream on 2026-08-18 (§5.5), so what is left is composition: add both to
+> `mix.exs`, map one legacy table through `ash_strangler`, and put one approval
+> behind `ash_bpmn` on a resource that uses `AshEnterprise.Platform.Resource`.
+>
+> Decide one thing on the way in. A bypass in Ash short-circuits only the
+> policies declared *after* it, and a base resource emits its policy set from
+> `use` — so either `AshBpmn.Checks.AshBpmnInteraction` goes at the top of
+> `AshEnterprise.Security.Policies` (the engine then keeps the human actor, so
+> ownership and the audit entry still name the person who approved) or
+> `config :ash_bpmn, engine_actor: {AshEnterprise.Platform.SystemActor, :system, []}`
+> reuses the `SystemActor` bypass already there, at the cost of attributing every
+> engine write to it. **The first is preferable** for exactly the reason the audit
+> log exists. Doing either, with a working approval behind it, is what moves ADR
+> 0009 from `proposed` to `accepted`.
+>
+> The `ash_strangler` demo (§5.4) is the other half of the same item, and the
+> plan's warning stands: dual-write runs **both ways**, and authentication cuts
+> over **first**, not last.
 >
 > **2. Then the rest of priority 1**, in the order
 > [`docs/ROADMAP.md`](ROADMAP.md) argues rather than in ADR number order:
@@ -436,12 +461,17 @@ scores it — and what follows is that sequencing rather than a competing list.
 > re-enabled — worth deciding before 0.1.0 rather than after.
 
 One thing that blocks nothing but should not be discovered twice: **`ash_strangler`'s
-CI has run, and it is red on `main`** (runs `32058413148` and `32065066215`,
-2026-08-17). This file previously recorded it as "fully green", which was written
-before the first run had ever executed.
+CI was red on `main` for four consecutive runs**, from `32057721812` to
+`32065066215` (2026-08-17). This file once recorded it as "fully green", which was
+written before the first run had ever executed. It is green as of run
+`32184205780` (2026-08-18); the two failures were a `.formatter.exs` that had not
+been regenerated after the typed-mapping DSL added an option, and a spec naming
+`Ash.Query.Ref.t/0` — a type `Ash.Query.Ref` does not declare, which the shared
+workflow's `warnings: [:unknown]` fails the build over rather than degrading to
+`any()`.
 
 Opening line for a new session:
 
 > Read `docs/QUESTIONS.md` and `docs/ROADMAP.md`, then `docs/HANDOFF.md` §3, and
 > start on [ADR 0009](adr/0009-strangler-and-bpmn-are-first-party.md) — adopting
-> `ash_bpmn` and `ash_strangler` here, and closing the three gaps it names.
+> `ash_bpmn` and `ash_strangler` here. Their side of it is done; this side is not.

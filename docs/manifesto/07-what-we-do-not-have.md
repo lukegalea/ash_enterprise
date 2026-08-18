@@ -46,13 +46,20 @@ escalation, and an audit trail of who approved what: an `Ash.Resource.Change` dr
 candidate list, maker-checker exclusion applied by subtraction at candidate resolution rather than as a `forbid_if`,
 and remind/escalate/expire timers that are Oban jobs whose ids are stored on the task so they actually get cancelled.
 
-**What is missing is adopting it here**, and that is not wiring. ADR 0009 names three gaps, each verified against the
-package's working tree: it declares `Ash.Policy.Authorizer` on every generated resource and ships no `policies` block
-at all, while the engine passes `authorize?: false` at roughly ninety internal call sites; `AshBpmn.start_instance/2`
-accepts a `:tenant` option and discards it, so a work item can be created outside any tenant; and its resource macros
-emit `use Ash.Resource` themselves, so a human task cannot sit on the platform base resource and inherit ownership,
-soft delete, audit or the policy set. Until those three close, "an approval is an ordinary owned, audited,
-tenant-scoped record" is a design intent rather than a fact about the code.
+**What is missing is adopting it here.** ADR 0009 named three gaps in the package — an authorizer on every generated
+resource with no `policies` block behind it while the engine passed `authorize?: false` at roughly ninety internal call
+sites; a `:tenant` option that `AshBpmn.start_instance/2` accepted and discarded; resource macros emitting
+`use Ash.Resource` themselves, so a human task could not sit on the platform base resource. All three were closed
+upstream on 2026-08-18, and the package's suite grew from 176 tests to 202 proving it.
+
+What is left is the composition, plus one decision that came out of the fix and belongs here rather than there. Ash
+folds policies into a single expression in which a bypass short-circuits only the policies declared *after* it, and a
+base resource emits its policy set from `use` — ahead of anything `ash_bpmn` adds. So a work item on
+`AshEnterprise.Platform.Resource` reaches the engine's bypass second, and the engine is forbidden, unless
+`AshBpmn.Checks.AshBpmnInteraction` goes at the top of `AshEnterprise.Security.Policies` or the engine is configured to
+act as a `SystemActor` that set already admits. Until one of those is done and an approval actually runs here, "an
+approval is an ordinary owned, audited, tenant-scoped record" remains a design intent rather than a fact about *this*
+codebase — the obstacles are gone, the demonstration is not there yet.
 
 **→ Roadmap:** [ADR 0015 — approvals and process modelling stay inside Ash](../adr/0015-approvals-stay-in-ash.md)
 and [ADR 0009 — `ash_strangler` and `ash_bpmn` are first-party](../adr/0009-strangler-and-bpmn-are-first-party.md).

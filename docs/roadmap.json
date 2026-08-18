@@ -218,7 +218,7 @@
       "id": "q23",
       "section": "change",
       "question": "How do the processes people actually follow get modelled?",
-      "answer": "`ash_bpmn` compiles a BPMN document into an immutable versioned graph and executes it with a token interpreter over Postgres and Oban, with an embedded designer. 176 tests. It is not yet wired in here, and it ships no policies while running `authorize?: false` internally — so adopting it is a precondition, not a formality.",
+      "answer": "`ash_bpmn` compiles a BPMN document into an immutable versioned graph and executes it with a token interpreter over Postgres and Oban, with an embedded designer. 202 tests. The three authorization gaps ADR 0009 named are now closed upstream — the engine carries an actor and a tenant through one named policy bypass, and its resources can sit on this platform's base resource — but it is still not wired in here.",
       "status": "partial",
       "adr": "0009",
       "item": "first-party"
@@ -276,8 +276,8 @@
       "choice": "ash_strangler + ash_bpmn, first-party",
       "adr": "0009",
       "status": "partial",
-      "effort": "Both packages exist at 0.1.0 under MIT with substantial suites — 341 tests for the strangler, 176 for BPMN. What is missing is the composition: depending on them here, the reference-app demo, and three fixes in `ash_bpmn` (plumb the discarded tenant, allow its resources on a base resource, replace internal `authorize?: false` with a system actor) without which its records sit outside this platform's security model.",
-      "bar": "Yes for `ash_strangler` — its output is read through the ordinary action layer. Not yet for `ash_bpmn`, which ships no policies and discards the tenant it documents. Named in ADR 0009 rather than assumed."
+      "effort": "Both packages exist at 0.1.0 under MIT with substantial suites — 341 tests for the strangler, 202 for BPMN. The three `ash_bpmn` fixes ADR 0009 named have landed: the tenant reaches the rows it names, `:base` puts a work item on this platform's base resource, and the engine's ninety internal `authorize?: false` options are one declared policy bypass. What is left is the composition itself — depending on both here, and the reference-app demo.",
+      "bar": "Yes for both, now. `ash_strangler` by construction — its output is read through the ordinary action layer. `ash_bpmn` because a work item on `AshEnterprise.Platform.Resource` inherits this policy set, with one ordering rule: Ash's bypasses skip only the policies declared after them, so the engine's bypass has to sit at the top of `AshEnterprise.Security.Policies` or the engine acts as a `SystemActor` this set already admits."
     },
     {
       "id": "ingestion",
@@ -316,7 +316,7 @@
       "choice": "ash_bpmn — no external engine",
       "adr": "0015",
       "status": "partial",
-      "effort": "Built and tested in the package, including duplicate refusal via a partial unique index and timer cancellation. Remaining: adopt it here, and close the three authorization gaps ADR 0009 names.",
+      "effort": "Built and tested in the package, including duplicate refusal via a partial unique index and timer cancellation. The three authorization gaps ADR 0009 named are closed upstream. Remaining: adopt it here.",
       "bar": "The decisive argument against Camunda or Flowable — an external engine is a second authorization and data model to keep in sync, and it would express maker-checker as a deny rule, which this repository forbids."
     },
     {

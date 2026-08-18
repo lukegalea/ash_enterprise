@@ -106,10 +106,12 @@ family before it is generalized. The integration hub sits alongside rather than 
 answers a different question — data you pull versus systems you talk to.
 
 Sharing priority 1 with all of that is the composition already half-built: adopting `ash_strangler` and
-`ash_bpmn` here, and closing the three authorization gaps
-[ADR 0009](adr/0009-strangler-and-bpmn-are-first-party.md) names in `ash_bpmn`. That work is first
-because it is the only item where the claim on the landing page is currently ahead of the code, and
-that is the one kind of debt this repository refuses to carry.
+`ash_bpmn` here. The three authorization gaps
+[ADR 0009](adr/0009-strangler-and-bpmn-are-first-party.md) named in `ash_bpmn` were closed upstream on
+2026-08-18 — the engine carries an actor and a tenant through one declared policy bypass, and its
+resources can sit on this platform's base resource — so what remains is depending on both packages
+here and demonstrating them. That work is first because it is the only item where the claim on the
+landing page is ahead of the code, and that is the one kind of debt this repository refuses to carry.
 
 **Priority 2 consumes what priority 1 produces.** A catalog needs something to catalogue; BI needs
 something to report on. API versioning sits here rather than lower because it is the item most likely
