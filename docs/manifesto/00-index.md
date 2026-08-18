@@ -78,4 +78,13 @@ here is overhead.
 Read thesis 1 and 3 first — they carry the weight. Thesis 4 is the mechanism that makes 1 and 3 practical. Theses 2, 5
 and 6 are consequences. Thesis 7 is the one to read before making a commitment.
 
-Then read `docs/adr/`, which records the specific forks and why each was taken.
+The manifesto argues the position. Five documents outside this directory record what came of it, and reading only the
+theses gives you the argument without the score.
+
+| Then | For |
+|---|---|
+| [`../QUESTIONS.md`](../QUESTIONS.md) | The 28 questions every enterprise application answers, and which ones this repository actually answers — shipped, partial, planned, or open. The ledger against which the theses are claims. |
+| [`../ROADMAP.md`](../ROADMAP.md) | Where the planned and open rows go, in what order, and the one selection rule every item had to clear. |
+| [`../adr/`](../adr/README.md) | The specific forks, why each was taken, and — the part worth reading — what would have to change to reverse it. |
+| [`../HANDOFF.md`](../HANDOFF.md) | For picking the work up: the environment traps, and the findings that were expensive to discover and are written down nowhere else. |
+| [`../plans/`](../plans/) | The long-form designs behind the larger pieces — including the parts that building them disproved, which are left in place rather than tidied away. |

@@ -77,6 +77,13 @@ jobs:
       - name: Check Ash-generated code is committed
         run: mix ash.codegen --check
 
+      # docs/roadmap.json is the single source for every status table in the
+      # README and in docs/. Same reasoning as the gate above: a derived artifact
+      # that can drift from its source will, and a status table that silently
+      # disagrees with itself is worse than no status table.
+      - name: Check the roadmap tables are rendered
+        run: mix ash_enterprise.roadmap --check
+
       - name: Security scan
         run: mix sobelow --config --exit
 

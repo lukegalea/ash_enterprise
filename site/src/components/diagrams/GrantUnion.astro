@@ -1,0 +1,188 @@
+---
+/**
+ * Thesis 3, drawn: three independent grant paths, unioned. Any one succeeding
+ * is sufficient, and nothing anywhere subtracts — which is why the diagram has
+ * no arrow pointing back the other way.
+ *
+ * Everything is painted from the theme tokens (`--ae-*`) or `currentColor`, so
+ * it reads correctly in light and dark without a second copy.
+ */
+interface Props {
+  class?: string;
+}
+const { class: className = '' } = Astro.props;
+---
+
+<div class:list={['overflow-guard', className]}>
+  <svg
+    viewBox="0 0 760 300"
+    role="img"
+    aria-labelledby="grant-union-title grant-union-desc"
+    class="block w-full min-w-[680px] text-fg"
+    style="max-width:100%"
+  >
+    <title id="grant-union-title">Authorization as a pure union of three grant paths</title>
+    <desc id="grant-union-desc">
+      Three independent checks — a role grant of role by privilege by depth, an explicit sharing
+      ACL, and a manager or position hierarchy grant — each feed a union. Any one of them
+      succeeding authorizes the row. No path removes access granted by another.
+    </desc>
+
+    <defs>
+      <marker
+        id="gu-arrow"
+        viewBox="0 0 10 10"
+        refX="9"
+        refY="5"
+        markerWidth="6"
+        markerHeight="6"
+        orient="auto-start-reverse"
+      >
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--ae-line-strong)"></path>
+      </marker>
+      <marker
+        id="gu-arrow-brand"
+        viewBox="0 0 10 10"
+        refX="9"
+        refY="5"
+        markerWidth="6"
+        markerHeight="6"
+        orient="auto-start-reverse"
+      >
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--ae-brand)"></path>
+      </marker>
+    </defs>
+
+    {/* --- The three grant paths --- */}
+    {
+      [
+        {
+          y: 16,
+          name: 'RoleGrant',
+          detail: 'role × privilege × depth',
+          note: 'rows in a table',
+        },
+        {
+          y: 118,
+          name: 'SharedWith',
+          detail: 'explicit per-record ACL',
+          note: 'principal → record → rights',
+        },
+        {
+          y: 220,
+          name: 'HierarchyGrant',
+          detail: 'manager / position chain',
+          note: 'bounded by depth',
+        },
+      ].map(({ y, name, detail, note }) => (
+        <g>
+          <rect
+            x="1"
+            y={y}
+            width="268"
+            height="66"
+            rx="10"
+            fill="var(--ae-surface)"
+            stroke="var(--ae-line-strong)"
+            stroke-width="1.25"
+          />
+          <text
+            x="20"
+            y={y + 27}
+            font-size="14.5"
+            font-weight="600"
+            fill="currentColor"
+            font-family="var(--font-mono)"
+          >
+            {name}
+          </text>
+          <text x="20" y={y + 46} font-size="12.5" fill="var(--ae-fg-muted)">
+            {detail}
+          </text>
+          <text x="252" y={y + 46} font-size="11" text-anchor="end" fill="var(--ae-fg-muted)">
+            {note}
+          </text>
+        </g>
+      ))
+    }
+
+    {/* --- Edges into the union --- */}
+    <path
+      d="M 269 49 C 340 49 350 130 410 145"
+      fill="none"
+      stroke="var(--ae-line-strong)"
+      stroke-width="1.5"
+      marker-end="url(#gu-arrow)"></path>
+    <path
+      d="M 269 151 C 330 151 350 150 410 150"
+      fill="none"
+      stroke="var(--ae-line-strong)"
+      stroke-width="1.5"
+      marker-end="url(#gu-arrow)"></path>
+    <path
+      d="M 269 253 C 340 253 350 172 410 156"
+      fill="none"
+      stroke="var(--ae-line-strong)"
+      stroke-width="1.5"
+      marker-end="url(#gu-arrow)"></path>
+
+    {/* --- The union --- */}
+    <circle
+      cx="470"
+      cy="150"
+      r="46"
+      fill="var(--ae-brand-soft)"
+      stroke="var(--ae-brand)"
+      stroke-width="1.5"></circle>
+    <text
+      x="470"
+      y="147"
+      font-size="26"
+      text-anchor="middle"
+      fill="var(--ae-brand)"
+      font-weight="600">∪</text
+    >
+    <text x="470" y="169" font-size="10.5" text-anchor="middle" fill="var(--ae-fg-muted)"
+      >any one suffices</text
+    >
+
+    <path
+      d="M 518 150 L 588 150"
+      fill="none"
+      stroke="var(--ae-brand)"
+      stroke-width="1.75"
+      marker-end="url(#gu-arrow-brand)"></path>
+
+    <rect
+      x="596"
+      y="122"
+      width="162"
+      height="56"
+      rx="10"
+      fill="var(--ae-surface)"
+      stroke="var(--ae-brand)"
+      stroke-width="1.5"></rect>
+    <text x="677" y="147" font-size="14" text-anchor="middle" font-weight="600" fill="currentColor"
+      >Row authorized</text
+    >
+    <text x="677" y="164" font-size="11" text-anchor="middle" fill="var(--ae-fg-muted)"
+      >order cannot matter</text
+    >
+
+    {/* --- The absent path, drawn as absent --- */}
+    <line
+      x1="596"
+      y1="222"
+      x2="758"
+      y2="222"
+      stroke="var(--ae-line)"
+      stroke-width="1.25"
+      stroke-dasharray="4 5"></line>
+    <text x="677" y="242" font-size="11" text-anchor="middle" fill="var(--ae-fg-muted)"
+      >no <tspan font-family="var(--font-mono)">forbid_if</tspan> for row access</text
+    >
+    <text x="677" y="258" font-size="11" text-anchor="middle" fill="var(--ae-fg-muted)"
+      >nothing subtracts</text
+    >
+  </svg>
+</div>

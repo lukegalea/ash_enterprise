@@ -1,0 +1,45 @@
+---
+/**
+ * A syntax-highlighted code sample with an optional filename bar.
+ *
+ * The panel is dark in both themes on purpose: a terminal and an editor look
+ * like a terminal and an editor, and a single Shiki theme means one set of
+ * tokens to check rather than two. The surrounding chrome is tokenised, so the
+ * panel still sits correctly on either background.
+ */
+import { Code } from 'astro:components';
+
+interface Props {
+  code: string;
+  lang?: string;
+  /** Shown in the title bar; usually a path or a shell prompt label. */
+  filename?: string;
+  class?: string;
+}
+
+const { code, lang = 'elixir', filename, class: className = '' } = Astro.props;
+---
+
+<div
+  class:list={[
+    'not-prose overflow-hidden rounded-xl border border-line bg-[#0d1117] shadow-card',
+    className,
+  ]}
+>
+  {
+    filename && (
+      <div class="flex items-center gap-2 border-b border-white/10 px-4 py-2.5">
+        <span class="h-2 w-2 rounded-full bg-white/20" aria-hidden="true" />
+        <span class="font-mono text-xs tracking-wide text-white/55">{filename}</span>
+      </div>
+    )
+  }
+  <div class="overflow-guard">
+    <Code
+      code={code.trim()}
+      lang={lang as any}
+      theme="github-dark"
+      class="!bg-transparent px-4 py-4 text-[0.78125rem] leading-relaxed"
+    />
+  </div>
+</div>

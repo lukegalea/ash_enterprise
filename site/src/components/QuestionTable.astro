@@ -1,0 +1,117 @@
+---
+/**
+ * The whole enterprise checklist, grouped by section, rendered from
+ * `docs/roadmap.json`. Every status, every answer and every proof link is data;
+ * the only literal strings here are column headings.
+ *
+ * It sits on the landing page rather than behind a link because thesis 7's
+ * position is that a reference architecture which hides its gaps is marketing,
+ * not engineering — so the gaps go where the sales copy would normally be.
+ */
+import StatusChip from './StatusChip.astro';
+import { inlineMarkdown, basename } from './inline';
+import { sections, questionsInSection, adrHref, repoHref, counts } from '../lib/roadmap';
+
+const perSection = sections.map((section) => {
+  const rows = questionsInSection(section.id);
+  return { section, rows, tally: counts(rows) };
+});
+---
+
+<div class="space-y-16">
+  {
+    perSection.map(({ section, rows, tally }) => (
+      <section aria-labelledby={`checklist-${section.id}`}>
+        <div class="mb-4 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 border-b border-line-strong pb-3">
+          <h3
+            id={`checklist-${section.id}`}
+            class="text-xl font-semibold tracking-tight text-balance"
+          >
+            {section.title}
+          </h3>
+          <p class="font-mono text-xs text-muted tabular-nums">
+            {tally.shipped} of {tally.total} shipped
+          </p>
+        </div>
+
+        <div class="overflow-guard">
+          <table class="w-full min-w-[46rem] border-collapse text-left text-sm">
+            <caption class="sr-only">
+              {section.title} — every question, its current status, and the evidence for it.
+            </caption>
+            <thead>
+              <tr class="text-[0.6875rem] tracking-widest text-muted uppercase">
+                <th scope="col" class="w-[24%] py-2 pr-5 font-medium">
+                  Question
+                </th>
+                <th scope="col" class="py-2 pr-5 font-medium">
+                  Where it stands
+                </th>
+                <th scope="col" class="w-[6.5rem] py-2 pr-5 font-medium">
+                  Status
+                </th>
+                <th scope="col" class="w-[9rem] py-2 font-medium">
+                  Evidence
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((q) => {
+                const adr = adrHref(q.adr);
+                return (
+                  <tr class="border-t border-line align-top transition-colors hover:bg-surface-2/70">
+                    <th
+                      scope="row"
+                      class="py-4 pr-5 text-[0.9375rem] leading-snug font-medium text-pretty"
+                    >
+                      {q.question}
+                    </th>
+                    <td
+                      class="py-4 pr-5 leading-relaxed text-pretty text-muted"
+                      set:html={inlineMarkdown(q.answer)}
+                    />
+                    <td class="py-4 pr-5">
+                      <StatusChip status={q.status} size="sm" />
+                    </td>
+                    <td class="py-4">
+                      <ul class="space-y-1.5">
+                        {adr && (
+                          <li>
+                            <a
+                              class="font-mono text-xs text-brand underline-offset-4 hover:underline"
+                              href={adr}
+                            >
+                              ADR {q.adr}
+                            </a>
+                          </li>
+                        )}
+                        {q.proof && (
+                          <li>
+                            <a
+                              class="block truncate font-mono text-xs text-brand underline-offset-4 hover:underline"
+                              href={repoHref(q.proof)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title={q.proof}
+                            >
+                              {basename(q.proof)}
+                            </a>
+                          </li>
+                        )}
+                        {!adr && !q.proof && (
+                          <li class="text-xs text-muted" aria-label="No evidence yet">
+                            —
+                          </li>
+                        )}
+                      </ul>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    ))
+  }
+</div>

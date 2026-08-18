@@ -1,0 +1,35 @@
+---
+/**
+ * A status pill. The label, icon and colours all come from `statusMeta` in
+ * `src/lib/roadmap.ts`, which reads `docs/roadmap.json`. Nothing in the markup
+ * hardcodes a status word — that is the whole point of the file: the site
+ * cannot claim something is shipped unless the repo says so.
+ */
+import { statusMeta, type Status } from '../lib/roadmap';
+
+interface Props {
+  status: Status;
+  /** Prefix, e.g. "Approvals" -> "Approvals · Partial". Optional. */
+  label?: string;
+  size?: 'sm' | 'md';
+  class?: string;
+}
+
+const { status, label, size = 'md', class: className = '' } = Astro.props;
+const meta = statusMeta[status];
+
+const sizing =
+  size === 'sm' ? 'gap-1 px-2 py-0.5 text-[0.6875rem]' : 'gap-1.5 px-2.5 py-1 text-xs';
+---
+
+<span
+  class:list={[
+    'inline-flex shrink-0 items-center rounded-full font-medium whitespace-nowrap',
+    sizing,
+    meta.classes,
+    className,
+  ]}
+>
+  <span aria-hidden="true" class="text-[0.8em] leading-none">{meta.icon}</span>
+  {label ? <span>{label} · {meta.label}</span> : <span>{meta.label}</span>}
+</span>

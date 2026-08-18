@@ -1,0 +1,32 @@
+---
+/**
+ * The only 404 on the site — Starlight's own is disabled in `astro.config.mjs`
+ * so it cannot collide with this route.
+ */
+import Base from '../layouts/Base.astro';
+import { withBase } from '../lib/roadmap';
+
+const link =
+  'inline-flex items-center justify-center gap-2 rounded-lg border border-line-strong px-5 py-3 text-sm font-semibold text-fg transition-colors hover:bg-surface-2';
+---
+
+<Base title="Page not found" description="That page does not exist on this site.">
+  <section class="mx-auto flex max-w-2xl flex-col items-center px-4 py-28 text-center sm:px-6 sm:py-40">
+    <p class="font-mono text-sm tracking-widest text-muted">404</p>
+    <h1 class="mt-4 text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
+      That page is not here
+    </h1>
+    <p class="mt-5 leading-relaxed text-pretty text-muted">
+      The link may be stale, or the page may have moved as the docs were reorganised. The manifesto,
+      the decision records and the plans all live under <code
+        class="rounded bg-code-bg px-1.5 py-0.5 font-mono text-[0.9em]">/docs</code
+      >.
+    </p>
+
+    <div class="mt-10 flex flex-wrap justify-center gap-3">
+      <a class={link} href={withBase('/')}>Back to the overview</a>
+      <a class={link} href={withBase('/docs/')}>Browse the docs</a>
+      <a class={link} href={withBase('/roadmap/')}>Roadmap</a>
+    </div>
+  </section>
+</Base>

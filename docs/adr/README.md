@@ -40,6 +40,36 @@ The concrete exit: which files change, and how much work it is.
 | [0006](0006-design-system.md) | daisyUI 5 + Phoenix core_components as the design system | accepted |
 | [0007](0007-dialyzer-non-blocking.md) | Dialyzer runs, and does not gate | accepted |
 | [0008](0008-typed-invertible-legacy-mappings.md) | Legacy mappings are typed expressions with proven inverses | accepted |
+| [0009](0009-strangler-and-bpmn-are-first-party.md) | `ash_strangler` and `ash_bpmn` are first-party platform extensions | proposed |
+| [0010](0010-meltano-for-ingestion.md) | Meltano for ingestion, Airbyte as the named fallback | proposed |
+| [0011](0011-nango-as-integration-hub.md) | Nango for the provider edge, sync logic stays in Ash | proposed |
+| [0012](0012-openlineage-and-marquez.md) | OpenLineage as the schema, Marquez as the backend | proposed |
+| [0013](0013-openmetadata-as-catalog.md) | OpenMetadata as the catalog, populated from codegen | proposed |
+| [0014](0014-superset-over-metabase.md) | Superset over Metabase for BI | proposed |
+| [0015](0015-approvals-stay-in-ash.md) | Approvals and process modelling stay inside Ash | proposed |
+| [0016](0016-unleash-for-feature-flags.md) | Feature flags: FunWithFlags, not Unleash | proposed |
+| [0017](0017-entity-resolution-in-ash.md) | Entity resolution as Ash calculations over CDM resources | proposed |
+| [0018](0018-grafana-lgtm-observability-backend.md) | Grafana LGTM as the observability backend | proposed |
+| [0019](0019-api-versioning-as-presentation-contract.md) | API versioning is a presentation contract, not a schema fork | proposed |
+
+Records 0001–0008 are `accepted` and describe code that exists. **0009–0019 are `proposed`: none of
+them is built.** They are here because a decision is cheapest to reason about — and cheapest to
+*reverse* — while the alternatives are still fresh, and because
+[thesis 6](../manifesto/06-reversibility.md) asks for the exit before the entrance. Three of them
+record an answer that changed under verification, which is the main reason to write them down early.
+
+Their sequencing, and the one rule they were all selected against, is [`../ROADMAP.md`](../ROADMAP.md).
+
+## On the four-section format
+
+Six of the first eight records add sections beyond the prescribed four, and that is sanctioned rather
+than tolerated: an ADR that needs a `## Why not X` or a `## Results` section is clearer for having one.
+The four are a floor, not a ceiling.
+
+Records 0009 onward add one further mandatory section, **`## Does it consume ActorContext?`**, placed
+between Decision and Consequences. Every one of them concerns a tool or package outside the action
+layer, and that question is the bar each had to clear — so it is answered in a fixed place, including
+where the honest answer is "not yet, and here is what that costs".
 
 ## Writing a new one
 

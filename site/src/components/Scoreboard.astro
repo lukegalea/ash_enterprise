@@ -1,0 +1,64 @@
+---
+/**
+ * The headline number and the four-status tally, both computed from
+ * `docs/roadmap.json`. If a question flips to shipped in the repo, this line
+ * changes on the next build and nowhere else has to be edited.
+ */
+import { counts, statuses, statusMeta } from '../lib/roadmap';
+
+interface Props {
+  /** `hero` is the large treatment; `inline` is the compact one. */
+  variant?: 'hero' | 'inline';
+  class?: string;
+}
+
+const { variant = 'hero', class: className = '' } = Astro.props;
+const tally = counts();
+---
+
+{
+  variant === 'hero' ? (
+    <div class:list={['rounded-2xl border border-line bg-surface p-6 shadow-card', className]}>
+      <p class="text-sm text-muted">
+        <span class="text-3xl font-semibold tracking-tight text-fg tabular-nums">
+          {tally.shipped}
+        </span>
+        <span class="text-3xl font-semibold tracking-tight text-muted tabular-nums">
+          {' '}
+          / {tally.total}
+        </span>
+        <span class="ml-2">enterprise questions have a shipped answer.</span>
+      </p>
+
+      <dl class="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {statuses.map((status) => (
+          <div class="rounded-lg border border-line bg-bg px-3 py-2.5">
+            <dt class="flex items-center gap-1.5 text-xs font-medium text-muted">
+              <span aria-hidden="true">{statusMeta[status].icon}</span>
+              {statusMeta[status].label}
+            </dt>
+            <dd class="mt-1 text-xl font-semibold tabular-nums">{tally[status]}</dd>
+          </div>
+        ))}
+      </dl>
+
+      <p class="mt-4 text-xs leading-relaxed text-muted">
+        Counted at build time from <code class="font-mono">docs/roadmap.json</code>, the same file
+        the README and the checklist render from. A status can be wrong here only by being wrong
+        everywhere.
+      </p>
+    </div>
+  ) : (
+    <dl class:list={['flex flex-wrap items-center gap-x-5 gap-y-2 text-sm', className]}>
+      {statuses.map((status) => (
+        <div class="flex items-center gap-1.5">
+          <dt class="flex items-center gap-1.5 text-muted">
+            <span aria-hidden="true">{statusMeta[status].icon}</span>
+            {statusMeta[status].label}
+          </dt>
+          <dd class="font-semibold tabular-nums">{tally[status]}</dd>
+        </div>
+      ))}
+    </dl>
+  )
+}

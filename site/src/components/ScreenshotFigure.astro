@@ -1,0 +1,87 @@
+---
+/**
+ * A screenshot that is allowed not to exist.
+ *
+ * Some captures land after this page is written (they are produced by a
+ * separate run against the live app). A direct `import` of a missing file is a
+ * hard build failure, so every screenshot on this site is resolved through one
+ * eager glob instead: if the file is not on disk at build time the figure is
+ * simply omitted and the surrounding prose still reads.
+ *
+ * The glob itself lives in `screenshots.ts`, so a page that needs to change its
+ * *layout* depending on what landed can ask the same registry. Pass the bare
+ * filename, e.g. `<ScreenshotFigure name="admin.png" … />`.
+ */
+import { Image } from 'astro:assets';
+import { screenshot } from './screenshots';
+
+interface Props {
+  /** Bare filename inside `src/assets/screenshots/`, e.g. `admin.png`. */
+  name: string;
+  alt: string;
+  caption?: string;
+  /** Rendered widths handed to sharp. Keep the list short: CI builds every one. */
+  widths?: number[];
+  sizes?: string;
+  class?: string;
+  /** Set for the tallest captures so they do not dominate the scroll. */
+  frame?: 'default' | 'tall';
+  /** Rendered when the capture is absent, instead of nothing. */
+  fallback?: boolean;
+  loading?: 'lazy' | 'eager';
+}
+
+const {
+  name,
+  alt,
+  caption,
+  widths = [640, 960, 1440],
+  sizes = '(min-width: 1024px) 960px, 100vw',
+  class: className = '',
+  frame = 'default',
+  fallback = false,
+  loading = 'lazy',
+} = Astro.props;
+
+const src = screenshot(name);
+const hasCaption = Boolean(caption || Astro.slots.has('default'));
+---
+
+{
+  src ? (
+    <figure class:list={['not-prose group my-0', className]}>
+      <div class="overflow-hidden rounded-xl border border-line bg-surface shadow-card transition-shadow duration-300 group-hover:shadow-lg">
+        <div
+          class="flex items-center gap-1.5 border-b border-line bg-surface-2 px-3 py-2"
+          aria-hidden="true"
+        >
+          <span class="h-2.5 w-2.5 rounded-full bg-line-strong" />
+          <span class="h-2.5 w-2.5 rounded-full bg-line-strong" />
+          <span class="h-2.5 w-2.5 rounded-full bg-line-strong" />
+        </div>
+        <Image
+          src={src}
+          alt={alt}
+          widths={widths}
+          sizes={sizes}
+          loading={loading}
+          decoding="async"
+          class:list={[
+            'block w-full',
+            frame === 'tall' ? 'max-h-[34rem] object-cover object-top' : '',
+          ]}
+        />
+      </div>
+      {hasCaption && (
+        <figcaption class="mt-3 text-sm leading-relaxed text-muted">
+          {caption}
+          <slot />
+        </figcaption>
+      )}
+    </figure>
+  ) : fallback ? (
+    <p class="rounded-xl border border-dashed border-line px-4 py-3 text-sm text-muted">
+      {caption ?? alt}
+    </p>
+  ) : null
+}

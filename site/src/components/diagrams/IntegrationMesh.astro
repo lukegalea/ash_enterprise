@@ -1,0 +1,253 @@
+---
+/**
+ * M×N against N+M, drawn.
+ *
+ * Left: one bespoke contract per (use case × provider) — the shape that makes
+ * the fourth provider cost as much as the first three. Right: a hub holding the
+ * provider edge only, so a use case is written once.
+ *
+ * The hub is deliberately drawn thin. Nango's free self-hosted edition covers
+ * auth and proxy but gates syncs, actions and webhooks, so the sync logic stays
+ * inside the boundary as Ash actions over Oban — which is also the only way it
+ * stays inside the policy engine.
+ */
+import { statusMeta, type Status } from '../../lib/roadmap';
+
+interface Props {
+  status: Status;
+  class?: string;
+}
+const { status, class: className = '' } = Astro.props;
+
+const useCases = ['Contact sync', 'Invoice push', 'Calendar'];
+const providers = ['Salesforce', 'HubSpot', 'Xero', 'Google'];
+
+const caseY = [66, 146, 226];
+const providerY = [40, 110, 180, 250];
+---
+
+<div class:list={['overflow-guard', className]}>
+  <svg
+    viewBox="0 0 900 372"
+    role="img"
+    aria-labelledby="mesh-title mesh-desc"
+    class="block w-full min-w-[760px] text-fg"
+    style="max-width:100%"
+  >
+    <title id="mesh-title">Point-to-point integrations against a single provider hub</title>
+    <desc id="mesh-desc">
+      On the left, three use cases wired directly to four providers require twelve bespoke
+      contracts. On the right, the same three use cases meet the four providers through one hub,
+      which is seven edges. The hub carries authentication and proxying only; the sync logic stays
+      inside the application as ordinary Ash actions.
+    </desc>
+
+    <defs>
+      <marker
+        id="im-arrow"
+        viewBox="0 0 10 10"
+        refX="9"
+        refY="5"
+        markerWidth="5.5"
+        markerHeight="5.5"
+        orient="auto-start-reverse"
+      >
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--ae-line-strong)"></path>
+      </marker>
+    </defs>
+
+    {/* ============ Left: the mesh ============ */}
+    <text x="30" y="24" font-size="13" font-weight="600" fill="currentColor">Point-to-point</text>
+    <text x="410" y="24" font-size="11.5" text-anchor="end" fill="var(--ae-fg-muted)"
+      >N × M · 12 contracts</text
+    >
+
+    {
+      caseY.flatMap((y) =>
+        providerY.map((py) => (
+          <line
+            x1="152"
+            y1={y + 22}
+            x2="286"
+            y2={py + 19}
+            stroke="var(--ae-line-strong)"
+            stroke-width="1"
+            opacity="0.45"
+          />
+        )),
+      )
+    }
+
+    {
+      useCases.map((label, i) => (
+        <g>
+          <rect
+            x="30"
+            y={caseY[i]}
+            width="122"
+            height="44"
+            rx="8"
+            fill="var(--ae-surface)"
+            stroke="var(--ae-line-strong)"
+            stroke-width="1.25"
+          />
+          <text x="91" y={caseY[i] + 27} font-size="12" text-anchor="middle" fill="currentColor">
+            {label}
+          </text>
+        </g>
+      ))
+    }
+
+    {
+      providers.map((label, j) => (
+        <g>
+          <rect
+            x="286"
+            y={providerY[j]}
+            width="118"
+            height="38"
+            rx="8"
+            fill="var(--ae-surface-2)"
+            stroke="var(--ae-line-strong)"
+            stroke-width="1.25"
+            stroke-dasharray="5 4"
+          />
+          <text
+            x="345"
+            y={providerY[j] + 24}
+            font-size="11.5"
+            text-anchor="middle"
+            fill="var(--ae-fg-muted)"
+          >
+            {label}
+          </text>
+        </g>
+      ))
+    }
+
+    <text x="217" y="312" font-size="11" text-anchor="middle" fill="var(--ae-fg-muted)"
+      >Each edge re-implements auth, paging,</text
+    >
+    <text x="217" y="328" font-size="11" text-anchor="middle" fill="var(--ae-fg-muted)"
+      >retries and webhook verification.</text
+    >
+
+    {/* ============ Divider ============ */}
+    <line
+      x1="450"
+      y1="16"
+      x2="450"
+      y2="340"
+      stroke="var(--ae-line)"
+      stroke-width="1.25"
+      stroke-dasharray="4 6"></line>
+
+    {/* ============ Right: the hub ============ */}
+    <text x="486" y="24" font-size="13" font-weight="600" fill="currentColor">One provider edge</text
+    >
+    <text x="878" y="24" font-size="11.5" text-anchor="end" fill="var(--ae-fg-muted)"
+      >N + M · 7 edges</text
+    >
+
+    {
+      caseY.map((y) => (
+        <path
+          d={`M 608 ${y + 22} C 640 ${y + 22} 640 165 656 165`}
+          fill="none"
+          stroke="var(--ae-line-strong)"
+          stroke-width="1.25"
+          marker-end="url(#im-arrow)"
+        />
+      ))
+    }
+    {
+      providerY.map((py) => (
+        <path
+          d={`M 750 165 C 768 165 768 ${py + 19} 784 ${py + 19}`}
+          fill="none"
+          stroke="var(--ae-line-strong)"
+          stroke-width="1.25"
+          marker-end="url(#im-arrow)"
+        />
+      ))
+    }
+
+    {
+      useCases.map((label, i) => (
+        <g>
+          <rect
+            x="486"
+            y={caseY[i]}
+            width="122"
+            height="44"
+            rx="8"
+            fill="var(--ae-surface)"
+            stroke="var(--ae-line-strong)"
+            stroke-width="1.25"
+          />
+          <text x="547" y={caseY[i] + 27} font-size="12" text-anchor="middle" fill="currentColor">
+            {label}
+          </text>
+        </g>
+      ))
+    }
+
+    <rect
+      x="656"
+      y="128"
+      width="94"
+      height="74"
+      rx="9"
+      fill="var(--ae-brand-soft)"
+      stroke="var(--ae-brand)"
+      stroke-width="1.5"></rect>
+    <text
+      x="703"
+      y="156"
+      font-size="12.5"
+      text-anchor="middle"
+      font-weight="600"
+      fill="currentColor"
+      font-family="var(--font-mono)">Nango</text
+    >
+    <text x="703" y="173" font-size="10" text-anchor="middle" fill="var(--ae-fg-muted)"
+      >auth · tokens</text
+    >
+    <text x="703" y="187" font-size="10" text-anchor="middle" fill="var(--ae-fg-muted)">proxy only</text
+    >
+
+    {
+      providers.map((label, j) => (
+        <g>
+          <rect
+            x="784"
+            y={providerY[j]}
+            width="94"
+            height="38"
+            rx="8"
+            fill="var(--ae-surface-2)"
+            stroke="var(--ae-line-strong)"
+            stroke-width="1.25"
+            stroke-dasharray="5 4"
+          />
+          <text
+            x="831"
+            y={providerY[j] + 24}
+            font-size="11"
+            text-anchor="middle"
+            fill="var(--ae-fg-muted)"
+          >
+            {label}
+          </text>
+        </g>
+      ))
+    }
+
+    <text x="672" y="312" font-size="11" text-anchor="middle" fill="var(--ae-fg-muted)"
+      >Sync logic stays here as Ash actions over Oban,</text
+    >
+    <text x="672" y="328" font-size="11" text-anchor="middle" fill="var(--ae-fg-muted)"
+      >so every sync runs through the ordinary policy engine. · {statusMeta[status].label}</text
+    >
+  </svg>
+</div>

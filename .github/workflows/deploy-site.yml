@@ -1,0 +1,59 @@
+name: Deploy site
+
+# Publishes the Astro site in `site/` to GitHub Pages.
+#
+# ONE-TIME MANUAL STEP: in the repository's Settings → Pages, set "Source" to
+# "GitHub Actions". Without it this workflow builds successfully and deploys
+# nothing, because the Pages API refuses artifacts for a repository still
+# configured to publish from a branch.
+#
+# The build runs `npm run build`, whose `prebuild` step is `scripts/sync-docs.mjs`.
+# That script exits non-zero on a dead link, so a broken cross-reference in
+# `docs/` fails the deploy rather than shipping a 404.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'site/**'
+      - 'docs/**'
+      - 'README.md'
+      - '.github/workflows/deploy-site.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never cancel a deploy in flight; queue behind it instead.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      # withastro/action installs Node, restores the package-manager cache,
+      # builds, and uploads the Pages artifact. Hand-rolling
+      # `upload-pages-artifact` around it only duplicates that.
+      - name: Build with Astro
+        uses: withastro/action@v6
+        with:
+          path: ./site
+          node-version: 22
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

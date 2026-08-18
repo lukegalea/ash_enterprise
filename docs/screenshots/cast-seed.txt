@@ -1,0 +1,2 @@
+$ devenv shell -- mix ash_enterprise.seed --privileges-only
+Seeded 128 privileges across 16 resources.
