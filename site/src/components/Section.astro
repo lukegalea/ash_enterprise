@@ -1,0 +1,93 @@
+---
+/**
+ * One beat of the landing page's argument: a numbered eyebrow, a heading, an
+ * optional lead, an optional row of status chips, and whatever the caller puts
+ * in the body.
+ *
+ * `tone="muted"` paints the band in `surface-2` so consecutive sections do not
+ * read as one undifferentiated scroll; it is used sparingly, roughly every
+ * third section.
+ */
+interface Props {
+  id: string;
+  /** Two-digit step number in the narrative, e.g. `04`. */
+  step?: string;
+  eyebrow?: string;
+  title: string;
+  lead?: string;
+  tone?: 'default' | 'muted';
+  /** Wider body for full-bleed tables and diagrams. */
+  wide?: boolean;
+  class?: string;
+}
+
+const {
+  id,
+  step,
+  eyebrow,
+  title,
+  lead,
+  tone = 'default',
+  wide = false,
+  class: className = '',
+} = Astro.props;
+
+const hasChips = Astro.slots.has('chips');
+const hasAside = Astro.slots.has('aside');
+---
+
+<section
+  id={id}
+  class:list={[
+    'scroll-mt-24 border-t border-line py-20 sm:py-28',
+    tone === 'muted' ? 'bg-surface-2/50' : '',
+    className,
+  ]}
+>
+  <div class:list={['mx-auto px-4 sm:px-6 lg:px-8', wide ? 'max-w-6xl' : 'max-w-5xl']}>
+    <header class="max-w-3xl">
+      {
+        (step || eyebrow) && (
+          <p class="mb-4 flex items-center gap-3 font-mono text-xs tracking-widest text-muted uppercase">
+            {step && (
+              <span class="rounded border border-line px-1.5 py-0.5 text-brand tabular-nums">
+                {step}
+              </span>
+            )}
+            {eyebrow && <span>{eyebrow}</span>}
+          </p>
+        )
+      }
+
+      <h2 class="text-3xl leading-tight font-semibold tracking-tight text-balance sm:text-4xl">
+        {title}
+      </h2>
+
+      {
+        lead && (
+          <p class="mt-5 text-lg leading-relaxed text-pretty text-muted sm:text-xl">{lead}</p>
+        )
+      }
+
+      {
+        hasChips && (
+          <div class="mt-6 flex flex-wrap items-center gap-2">
+            <slot name="chips" />
+          </div>
+        )
+      }
+    </header>
+
+    {
+      hasAside && (
+        <div class="mt-6 max-w-3xl border-l-2 border-brand/40 pl-5 text-base leading-relaxed text-muted">
+          <slot name="aside" />
+        </div>
+      )
+    }
+
+    <div class="mt-12">
+      <slot />
+    </div>
+  </div>
+</section>

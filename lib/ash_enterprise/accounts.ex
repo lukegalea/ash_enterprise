@@ -1,4 +1,13 @@
 defmodule AshEnterprise.Accounts do
+  @moduledoc """
+  Identity and organizational structure: users, the business-unit tree, teams,
+  positions and the tenant itself.
+
+  This is the domain the security model reads from. `BusinessUnit` carries the
+  materialized path that grant depth expands over, and `Team` is the non-user
+  half of polymorphic ownership -- so a change here is a change to what
+  `AshEnterprise.Security.ActorContext` can resolve.
+  """
   use Ash.Domain,
     otp_app: :ash_enterprise,
     extensions: [AshAdmin.Domain, AshJsonApi.Domain, AshGraphql.Domain, AshAi]

@@ -126,7 +126,7 @@ check that queries is a bug.
 **Comprehension.** This model is genuinely more intricate than `if user.admin?`. A developer must understand depth
 semantics before writing a role.
 
-That is what the conformance suite is for. `test/security/conformance_test.exs` enumerates the truth table directly:
+That is what the conformance suite is for. `test/ash_enterprise/security/conformance_test.exs` enumerates the truth table directly:
 for every combination of ownership type, privilege, depth, and actor placement, it asserts the expected verdict via
 `Ash.can?/3`. It is not a test of our implementation so much as an executable copy of the specification — and it is the
 first thing to read when the model surprises you.
@@ -134,6 +134,6 @@ first thing to read when the model surprises you.
 ## Further reading
 
 - `lib/ash_enterprise/security/` — the checks
-- `test/security/conformance_test.exs` — the truth table
+- `test/ash_enterprise/security/conformance_test.exs` — the truth table
 - [Security concepts in Microsoft Dataverse](https://learn.microsoft.com/en-us/power-platform/admin/wp-security-cds)
 - [Ash policies guide](https://hexdocs.pm/ash/policies.html)

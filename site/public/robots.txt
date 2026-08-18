@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://lukegalea.github.io/ash_enterprise/sitemap-index.xml

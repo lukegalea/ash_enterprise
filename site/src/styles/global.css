@@ -1,0 +1,137 @@
+@import "tailwindcss";
+
+/*
+ * Dark mode follows Starlight.
+ * -----------------------------------------------------------------------
+ * Starlight owns the theme for `/docs/*`: it stamps `data-theme="light"` or
+ * `data-theme="dark"` on <html> and persists the choice to the localStorage key
+ * `starlight-theme`. The landing page uses the *same* attribute and the *same*
+ * key (see `src/layouts/Base.astro`), so toggling on one side of the site and
+ * navigating to the other keeps the reader's choice.
+ *
+ * Consequence: Tailwind's `dark:` variant must key off that attribute rather
+ * than the default `prefers-color-scheme` media query, or the utilities and the
+ * tokens below would disagree the moment anyone touches the toggle.
+ */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/* --- Tokens ------------------------------------------------------------- */
+/*
+ * Light is the base definition, on bare `:root`, so no colour has its only
+ * definition inside a media query. Dark is redefined twice: once for the system
+ * preference (guarded so an explicit `light` choice still wins) and once for an
+ * explicit `dark` choice (so the toggle wins in both directions).
+ */
+:root {
+  --ae-bg: oklch(99% 0.004 260);
+  --ae-surface: oklch(100% 0 0);
+  --ae-surface-2: oklch(97% 0.006 260);
+  --ae-fg: oklch(21% 0.03 260);
+  --ae-fg-muted: oklch(48% 0.02 260);
+  --ae-line: oklch(90% 0.01 260);
+  --ae-line-strong: oklch(82% 0.015 260);
+  --ae-brand: oklch(55% 0.16 268);
+  --ae-brand-fg: oklch(99% 0.005 268);
+  --ae-brand-soft: oklch(95% 0.03 268);
+  --ae-code-bg: oklch(96% 0.008 260);
+  --ae-shadow: 0 1px 2px oklch(21% 0.03 260 / 0.06), 0 8px 24px oklch(21% 0.03 260 / 0.06);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ae-bg: oklch(17% 0.02 264);
+    --ae-surface: oklch(21% 0.022 264);
+    --ae-surface-2: oklch(25% 0.024 264);
+    --ae-fg: oklch(95% 0.008 264);
+    --ae-fg-muted: oklch(72% 0.018 264);
+    --ae-line: oklch(30% 0.022 264);
+    --ae-line-strong: oklch(38% 0.026 264);
+    --ae-brand: oklch(72% 0.14 268);
+    --ae-brand-fg: oklch(18% 0.03 268);
+    --ae-brand-soft: oklch(28% 0.05 268);
+    --ae-code-bg: oklch(24% 0.022 264);
+    --ae-shadow: 0 1px 2px oklch(0% 0 0 / 0.3), 0 8px 24px oklch(0% 0 0 / 0.35);
+  }
+}
+
+:root[data-theme="dark"] {
+  --ae-bg: oklch(17% 0.02 264);
+  --ae-surface: oklch(21% 0.022 264);
+  --ae-surface-2: oklch(25% 0.024 264);
+  --ae-fg: oklch(95% 0.008 264);
+  --ae-fg-muted: oklch(72% 0.018 264);
+  --ae-line: oklch(30% 0.022 264);
+  --ae-line-strong: oklch(38% 0.026 264);
+  --ae-brand: oklch(72% 0.14 268);
+  --ae-brand-fg: oklch(18% 0.03 268);
+  --ae-brand-soft: oklch(28% 0.05 268);
+  --ae-code-bg: oklch(24% 0.022 264);
+  --ae-shadow: 0 1px 2px oklch(0% 0 0 / 0.3), 0 8px 24px oklch(0% 0 0 / 0.35);
+}
+
+/*
+ * `@theme inline` publishes the tokens as Tailwind utilities without freezing
+ * their values, so `bg-surface`, `text-muted`, `border-line`, `text-brand` and
+ * friends re-resolve per theme instead of baking in the light palette.
+ */
+@theme inline {
+  --color-bg: var(--ae-bg);
+  --color-surface: var(--ae-surface);
+  --color-surface-2: var(--ae-surface-2);
+  --color-fg: var(--ae-fg);
+  --color-muted: var(--ae-fg-muted);
+  --color-line: var(--ae-line);
+  --color-line-strong: var(--ae-line-strong);
+  --color-brand: var(--ae-brand);
+  --color-brand-fg: var(--ae-brand-fg);
+  --color-brand-soft: var(--ae-brand-soft);
+  --color-code-bg: var(--ae-code-bg);
+
+  --shadow-card: var(--ae-shadow);
+
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+/* --- Base --------------------------------------------------------------- */
+
+html {
+  scroll-behavior: smooth;
+  /* The sticky header must not swallow the heading an anchor lands on. */
+  scroll-padding-top: 5rem;
+  -webkit-text-size-adjust: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+body {
+  /* Explicit, tokenised: a transparent body would borrow the host's colours. */
+  background-color: var(--ae-bg);
+  color: var(--ae-fg);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background-color: var(--ae-brand-soft);
+  color: var(--ae-fg);
+}
+
+:focus-visible {
+  outline: 2px solid var(--ae-brand);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Wide content must scroll inside its own box; the page body never does. */
+.overflow-guard {
+  overflow-x: auto;
+  max-width: 100%;
+}

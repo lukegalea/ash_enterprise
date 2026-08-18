@@ -61,3 +61,10 @@ devenv.local.yaml
 
 # Personal Claude Code overrides. .claude/settings.json is the shared one.
 .claude/settings.local.json
+
+# The marketing site (site/) is a separate Astro project. Its content collection
+# is generated from docs/ by site/scripts/sync-docs.mjs, so it is never committed.
+/site/node_modules/
+/site/dist/
+/site/.astro/
+/site/src/content/docs/

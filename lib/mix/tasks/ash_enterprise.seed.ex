@@ -18,7 +18,13 @@ defmodule Mix.Tasks.AshEnterprise.Seed do
     * **A tenant** is provisioned: organization, root business unit, default
       team, an Administrator role, and a user holding it.
 
-  Idempotent. Safe on every deploy — which is the point of the privilege half.
+  **Only the privilege half is idempotent**, and that half is the one that
+  matters on deploy: re-running it after adding a resource is the intended
+  workflow. The tenant half is not — a second run fails with
+  `unique_name: has already been taken`, because provisioning an organization
+  that already exists is a mistake rather than a no-op. Use `--privileges-only`
+  on a database that has already been seeded. (Verified 2026-08-18; this
+  moduledoc previously claimed the whole task was idempotent.)
   """
 
   use Mix.Task

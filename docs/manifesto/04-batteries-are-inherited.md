@@ -42,7 +42,7 @@ What that one `use` line supplies:
 | **Lifecycle** | `state_code`, `status_code` |
 | **Concurrency** | `version_number`, wired to Ash optimistic locking |
 | **Multitenancy** | `organization_id` and the `multitenancy` block |
-| **Authorization** | the policy set from [thesis 3](03-authorization-is-data.md), plus field policies |
+| **Authorization** | the policy set from [thesis 3](03-authorization-is-data.md) |
 | **Audit** | `AshEvents` — every action lands in the central event log with actor and transaction id |
 | **Soft delete** | `AshArchival`, with cascade to related records |
 | **Observability** | notifiers and the `Ash.Tracer` hook, so every action emits telemetry and OpenTelemetry spans |

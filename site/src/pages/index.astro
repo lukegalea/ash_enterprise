@@ -1,0 +1,1055 @@
+---
+/**
+ * The landing page.
+ *
+ * One long argument, in the order the manifesto makes it: declare the
+ * cross-cutting concerns once, derive everything else, and then show the
+ * derived thing rather than describing it. Every screenshot is a real capture
+ * of the running application; every status word is read from
+ * `docs/roadmap.json`; every internal href goes through `withBase`.
+ *
+ * The scoreboard at the end is not an appendix. Thesis 7's position is that a
+ * reference architecture which hides its gaps is marketing rather than
+ * engineering, so the full checklist — including the seventeen questions that
+ * do not have a shipped answer — sits on the front page.
+ */
+import Base from '../layouts/Base.astro';
+import Section from '../components/Section.astro';
+import CodePanel from '../components/CodePanel.astro';
+import ScreenshotFigure from '../components/ScreenshotFigure.astro';
+import StatusChip from '../components/StatusChip.astro';
+import Scoreboard from '../components/Scoreboard.astro';
+import QuestionTable from '../components/QuestionTable.astro';
+import GrantUnion from '../components/diagrams/GrantUnion.astro';
+import DataFlow from '../components/diagrams/DataFlow.astro';
+import IntegrationMesh from '../components/diagrams/IntegrationMesh.astro';
+import { hasAnyScreenshot } from '../components/screenshots';
+import { items, counts, withBase, adrHref, repoHref, type Status } from '../lib/roadmap';
+
+/**
+ * The Clarity captures are produced by a separate run against the live app and
+ * may not exist in this build. The section reflows rather than leaving a hole:
+ * with the figures it leads on them, without them it leads on the prose.
+ */
+const clarityShots = ['clarity-er.png', 'clarity-policy.png', 'clarity-class.png'];
+const hasClarity = hasAnyScreenshot(...clarityShots);
+
+/** Status for a roadmap item id — never a literal in the markup. */
+function itemStatus(id: string): Status {
+  const item = items.find((i) => i.id === id);
+  if (!item) throw new Error(`roadmap.json has no item "${id}" — the page references it.`);
+  return item.status;
+}
+
+const tally = counts();
+
+const btnPrimary =
+  'inline-flex items-center justify-center gap-2 rounded-lg bg-brand px-5 py-3 text-sm font-semibold text-brand-fg shadow-card transition-opacity hover:opacity-90';
+const btnSecondary =
+  'inline-flex items-center justify-center gap-2 rounded-lg border border-line-strong px-5 py-3 text-sm font-semibold text-fg transition-colors hover:bg-surface-2';
+
+const quickstart = `
+devenv up -d                            # Postgres, with pgvector
+devenv shell -- mix setup               # deps, db, migrations
+devenv shell -- mix ash_enterprise.seed # a tenant, a role, a user
+devenv shell -- iex-server              # the app
+`;
+
+const agentWiring = `
+$ ls .claude/skills/
+ash-framework        cdm-adopt      phoenix-web
+audit-and-telemetry  new-resource   policy-authoring
+run-the-app
+
+$ jq '.mcpServers | keys' .mcp.json
+["ash_ai_dev", "tidewave"]
+
+$ mix usage_rules.sync --yes
+# regenerates AGENTS.md and every skill above
+`;
+
+const cdmGen = `
+$ mix cdm.gen.resource Currency \\
+    --domain Reference --ownership organization_owned
+
+$ mix cdm.gen.resource TimeZoneDefinition \\
+    --domain Reference --no-tenant
+
+# reads priv/cdm/schemaDocuments/ at a pinned commit.
+# no network call anywhere in the pipeline.
+`;
+
+const baseResource = `
+defmodule AshEnterprise.Accounts.Team do
+  use AshEnterprise.Platform.Resource,
+    domain: AshEnterprise.Accounts,
+    cdm: [entity: "Team", ownership: :business_owned]
+
+  # From here down: only what is actually specific to Team.
+  attributes do
+    attribute :name, :string, allow_nil?: false, public?: true
+  end
+end
+`;
+
+const optOut = `
+use AshEnterprise.Platform.Resource,
+  domain: AshEnterprise.Reference,
+  ownership: :organization_owned, # only Global/None apply
+  audit: false,                   # this IS the audit log
+  archival: false                 # immutable; never archived
+`;
+
+const inherited: [string, string][] = [
+  [
+    'Ownership',
+    '`owner_id` (polymorphic user-or-team), `owning_business_unit_id`, `owning_user_id`, `owning_team_id`',
+  ],
+  [
+    'Provenance',
+    '`created_on/by/on_behalf_by`, `modified_on/by/on_behalf_by`, `overridden_created_on`, `import_sequence_number`',
+  ],
+  ['Lifecycle', '`state_code`, `status_code`'],
+  ['Concurrency', '`version_number`, wired to Ash optimistic locking'],
+  ['Multitenancy', '`organization_id` and the `multitenancy` block'],
+  ['Authorization', 'the policy set from thesis 3'],
+  ['Audit', '`AshEvents` — every action lands in the central event log with actor and transaction id'],
+  ['Soft delete', '`AshArchival`, with cascade to related records'],
+  [
+    'Observability',
+    'notifiers and the `Ash.Tracer` hook, so every action emits telemetry and OpenTelemetry spans',
+  ],
+  ['Surfaces', 'admin, JSON:API and GraphQL derivation defaults'],
+];
+
+const stranglerPhases = [
+  { atom: ':read_from_legacy', note: 'the old app owns writes' },
+  { atom: ':dual_write', note: 'turn writes on' },
+  { atom: ':read_from_new', note: 'after the backfill' },
+  { atom: ':decommissioned', note: 'old app switched off' },
+];
+
+const requireApproval = `
+# Your resource. The change is the entire integration.
+create :submit do
+  accept [:role_id, :justification]
+  change AshBpmn.Changes.RequireApproval,
+    key: "access_request.grant",
+    name: "Approve access request",
+    outcomes: [:approved, :rejected],
+    candidates: [{:manager_of, "subject.created_by_id"}],
+    # maker-checker, by subtraction at candidate
+    # resolution -- never a policy forbid_if
+    excluding: ["subject.created_by_id"],
+    on_complete: %{approved: "provision_access"},
+    escalate_in: [hours: 24],
+    expire_in: [days: 7]
+end
+`;
+
+const agentTools = `
+defmodule AshEnterprise.Accounts do
+  use Ash.Domain, extensions: [AshAi]
+
+  tools do
+    tool :assign_role, AshEnterprise.Security.UserRole, :create
+    tool :list_users,  AshEnterprise.Accounts.User,     :read
+  end
+end
+`;
+
+const policyUnion = `
+policies do
+  # Each clause is one grant path.
+  # Any one of them succeeding is sufficient.
+  policy action_type(:read) do
+    # role x privilege x depth
+    authorize_if AshEnterprise.Security.Checks.RoleGrant
+    # explicit per-record ACL
+    authorize_if AshEnterprise.Security.Checks.SharedWith
+    # manager / position chain
+    authorize_if AshEnterprise.Security.Checks.HierarchyGrant
+  end
+end
+`;
+
+const clarityRoutes = `
+$ devenv shell -- iex-server
+
+  /clarity          ER, class, policy, state machines
+  /admin            zero-config admin, every resource
+  /app/users        A2UI, derived from metadata
+  /gql/playground   GraphQL
+  /api/json/swaggerui   JSON:API + OpenAPI
+`;
+---
+
+<Base
+  title="Ash Enterprise — declare the cross-cutting concerns once"
+  description="A reference Elixir/Ash application template: ownership, hierarchy, audit, tenancy and policy declared once and derived everywhere. The argument is in the manifesto; the code is the evidence."
+  bare={true}
+  active="home"
+>
+  {/* ============================ 0 · Hero ============================ */}
+  <section class="relative overflow-hidden">
+    <div
+      class="pointer-events-none absolute inset-x-0 -top-40 h-80 bg-[radial-gradient(60%_100%_at_50%_100%,var(--ae-brand-soft),transparent)] opacity-70"
+      aria-hidden="true"
+    >
+    </div>
+
+    <div class="mx-auto max-w-6xl px-4 pt-16 pb-20 sm:px-6 sm:pt-24 sm:pb-28 lg:px-8">
+      <div class="grid items-start gap-12 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:gap-16">
+        <div>
+          <p
+            class="inline-flex items-center gap-2 rounded-full border border-line bg-surface px-3 py-1 text-xs font-medium text-muted"
+          >
+            <span class="h-1.5 w-1.5 rounded-full bg-brand" aria-hidden="true"></span>
+            A reference Elixir / Ash / Phoenix template — not a product
+          </p>
+
+          <h1
+            class="mt-6 text-4xl leading-[1.08] font-semibold tracking-tight text-balance sm:text-5xl lg:text-[3.4rem]"
+          >
+            The cross-cutting concerns of enterprise software are declarable.
+          </h1>
+
+          <p class="mt-6 max-w-xl text-lg leading-relaxed text-pretty text-muted sm:text-xl">
+            Declare them once, derive them everywhere, and what is left over is the actual business.
+            Ownership, business-unit hierarchy, audit, tenancy, soft delete and policy arrive on
+            every resource from a single <code
+              class="rounded bg-code-bg px-1.5 py-0.5 font-mono text-[0.9em] text-fg">use</code
+            > line.
+          </p>
+
+          <div class="mt-9 flex flex-wrap gap-3">
+            <a class={btnPrimary} href={withBase('/docs/manifesto/')}>
+              Read the manifesto{' '}
+              <span aria-hidden="true">→</span>
+            </a>
+            <a class={btnSecondary} href={withBase('/roadmap/')}>See the roadmap</a>
+          </div>
+
+          <p class="mt-6 text-sm text-muted">
+            The argument is in <a
+              class="text-brand underline-offset-4 hover:underline"
+              href={withBase('/docs/manifesto/')}>docs/manifesto/</a
+            >. The code is the evidence.
+          </p>
+
+          <div class="mt-10">
+            <CodePanel code={quickstart} lang="bash" filename="four commands to a running app" />
+          </div>
+        </div>
+
+        <div class="lg:pt-4">
+          <Scoreboard variant="hero" />
+
+          <p class="mt-6 text-sm leading-relaxed text-muted">
+            Every enterprise application answers the same questions. Most answer them one feature at
+            a time, inconsistently, and discover in month nine which ones they got wrong. This one
+            keeps a ledger — and puts the unanswered rows{' '}
+            <a class="text-brand underline-offset-4 hover:underline" href="#scoreboard"
+              >on the front page</a
+            >.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {/* ==================== 1 · Agent-ready ==================== */}
+  <Section
+    id="agents-first"
+    step="01"
+    eyebrow="Agent-ready"
+    title="Point an agent at the app you already have"
+    lead="The tooling an agent needs to work in this codebase is generated from the codebase, not written by hand and left to rot. Skills, rules and runtime introspection all come out of the same place the dependencies do."
+    tone="muted"
+  >
+    <div class="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:items-start">
+      <dl class="space-y-7">
+        <div>
+          <dt class="font-semibold">Seven skills, derived not authored</dt>
+          <dd class="mt-1.5 leading-relaxed text-muted">
+            <code class="font-mono text-[0.9em]">.claude/skills/</code> is generated by{' '}
+            <code class="font-mono text-[0.9em]">mix usage_rules.sync</code> from the{' '}
+            <code class="font-mono text-[0.9em]">usage-rules.md</code> files shipped inside the
+            dependencies, plus this repository's own house rules — the base resource, the{' '}
+            <code class="font-mono text-[0.9em]">forbid_if</code> prohibition, the dynamic Postgres port.
+          </dd>
+        </div>
+        <div>
+          <dt class="font-semibold">A live session, not a guess</dt>
+          <dd class="mt-1.5 leading-relaxed text-muted">
+            Tidewave over MCP gives the agent <code class="font-mono text-[0.9em]">project_eval</code
+            > inside the running app, <code class="font-mono text-[0.9em]">get_ash_resources</code> over
+            every domain, SQL against the dev database, and docs resolved against the exact versions
+            in <code class="font-mono text-[0.9em]">mix.lock</code> rather than whatever the model
+            remembers.
+          </dd>
+        </div>
+        <div>
+          <dt class="font-semibold">AGENTS.md tracks the lockfile</dt>
+          <dd class="mt-1.5 leading-relaxed text-muted">
+            Re-run the sync after upgrading a dependency and the rules move with it. The generated
+            sections are replaced wholesale, so they cannot drift into being subtly wrong.
+          </dd>
+        </div>
+      </dl>
+
+      <CodePanel code={agentWiring} lang="bash" filename="the wiring, in full" />
+    </div>
+  </Section>
+
+  {/* ==================== 2 · Clarity diagrams ==================== */}
+  <Section
+    id="documents-itself"
+    step="02"
+    eyebrow="Self-documenting"
+    title="It documents your data model, continuously"
+    lead="Nobody maintains the ER diagram. Clarity derives it — entities, relationships, attributes, actions and the policy flow — from the resources themselves, so it is correct by construction rather than correct when someone last remembered."
+  >
+    {
+      hasClarity && (
+        <div class="mb-12 grid gap-8 md:grid-cols-2">
+          <ScreenshotFigure
+            name="clarity-er.png"
+            alt="An entity-relationship diagram generated from the Ash resources, showing users, teams, business units and their foreign keys."
+            caption="The entity-relationship graph, derived from the resources rather than drawn alongside them."
+          />
+          <ScreenshotFigure
+            name="clarity-policy.png"
+            alt="A policy diagram showing the authorization checks attached to a resource's actions."
+            caption="Policies, visualised per action — the grant paths of thesis 3 as the engine actually evaluates them."
+          />
+          <ScreenshotFigure
+            name="clarity-class.png"
+            alt="A class diagram generated from the Ash resources, listing each resource's attributes and its named actions."
+            caption="The same resources as a class diagram — every attribute, and every named action beneath it. The actions are the interesting half: there is no generic update that could set a lifecycle state."
+            class="md:col-span-2"
+          />
+        </div>
+      )
+    }
+
+    <div class="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:items-start">
+      <dl class="space-y-6">
+        <div>
+          <dt class="font-semibold">Entities and relationships</dt>
+          <dd class="mt-1.5 leading-relaxed text-muted">
+            The ER graph is read off the resources — every attribute, every foreign key, every
+            polymorphic owner. It cannot disagree with the schema, because it is the schema.
+          </dd>
+        </div>
+        <div>
+          <dt class="font-semibold">Policies, per action</dt>
+          <dd class="mt-1.5 leading-relaxed text-muted">
+            The grant paths of thesis 3, drawn as the engine will actually evaluate them, so a
+            surprising authorization result has somewhere to be looked up.
+          </dd>
+        </div>
+        <div>
+          <dt class="font-semibold">State machines</dt>
+          <dd class="mt-1.5 leading-relaxed text-muted">
+            Read straight off the transitions a resource declares. Nothing to keep in sync, so
+            nothing to fall out of sync.
+          </dd>
+        </div>
+        <p class="text-sm leading-relaxed text-muted">
+          These are development-time surfaces, mounted behind the same boundary the rest of the dev
+          tooling sits behind. Start the app and they are already there.
+        </p>
+      </dl>
+
+      <CodePanel code={clarityRoutes} lang="bash" filename="what is already mounted" />
+    </div>
+  </Section>
+
+  {/* ==================== 3 · Schema commons ==================== */}
+  <Section
+    id="schema-commons"
+    step="03"
+    eyebrow="Thesis 2"
+    title="Adopt a schema commons. Do not invent your nouns."
+    lead="Somebody has already modelled Account, Contact, Team, BusinessUnit and Owner more carefully than you will on a deadline. Adopt that model — but adopt it as a frozen corpus you own, not as a dependency you track."
+    tone="muted"
+  >
+    <div class="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:items-start">
+      <div>
+        <dl class="grid grid-cols-2 gap-4">
+          <div class="rounded-xl border border-line bg-surface p-5">
+            <dt class="text-sm text-muted">CDM entities</dt>
+            <dd class="mt-1 text-3xl font-semibold tabular-nums">43</dd>
+            <dd class="mt-1 text-xs text-muted">the cross-cutting core of Dynamics 365</dd>
+          </div>
+          <div class="rounded-xl border border-line bg-surface p-5">
+            <dt class="text-sm text-muted">Dataverse tables</dt>
+            <dd class="mt-1 text-3xl font-semibold tabular-nums">18</dd>
+            <dd class="mt-1 text-xs text-muted">security and audit, still maintained</dd>
+          </div>
+        </dl>
+
+        <p class="mt-6 leading-relaxed text-muted">
+          Vendored into <code class="font-mono text-[0.9em]">priv/cdm/schemaDocuments/</code> at a
+          pinned commit, CC-BY-4.0. Nothing fetches it at build time; there is no network call in the
+          pipeline. That matters because the corpus is <em>frozen</em>: content release 1.7.6 landed
+          in February 2024 and the schema store shut down that March. Never build anything that
+          assumes it will be updated.
+        </p>
+
+        <p class="mt-4 leading-relaxed text-muted">
+          The generator refuses rather than guesses. Ownership is never inferred and foreign keys are
+          never invented — the corpus proposes, you dispose. CDM entities are wide because they serve
+          everyone; delete the columns you do not need.
+        </p>
+
+        <a
+          class="mt-6 inline-flex items-center gap-1.5 text-sm font-medium text-brand underline-offset-4 hover:underline"
+          href={withBase('/docs/manifesto/02-schema-commons/')}
+        >
+          Thesis 2 — The schema commons <span aria-hidden="true">→</span>
+        </a>
+      </div>
+
+      <CodePanel code={cdmGen} lang="bash" filename="adopting an entity" />
+    </div>
+  </Section>
+
+  {/* ==================== 4 · The one line ==================== */}
+  <Section
+    id="inherited-batteries"
+    step="04"
+    eyebrow="Thesis 4 — the strongest argument here"
+    title="Derive the rest from one line"
+    lead="This is the mechanism that makes the rest practical. One base resource supplies audit, telemetry, ownership, tenancy, soft delete and the entire policy set. None of it is written per resource, and none of it can be forgotten."
+    wide={true}
+  >
+    <div class="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-start">
+      <div class="space-y-6">
+        <CodePanel code={baseResource} lang="elixir" filename="lib/ash_enterprise/accounts/team.ex" />
+
+        <div class="rounded-xl border border-line bg-surface p-6">
+          <h3 class="text-base font-semibold">Opting out is explicit, local and greppable</h3>
+          <p class="mt-2 text-sm leading-relaxed text-muted">
+            The base resource is parameterised rather than rigid. The audit log itself cannot be
+            audited by the audit log, so it says so — in the one place a reader is already looking.
+          </p>
+          <div class="mt-4">
+            <CodePanel code={optOut} lang="elixir" />
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <h3 class="text-sm font-semibold tracking-widest text-muted uppercase">
+          What that one <code class="font-mono normal-case">use</code> line supplies
+        </h3>
+
+        <div class="overflow-guard mt-4">
+          <table class="w-full min-w-[26rem] border-collapse text-left text-sm">
+            <thead>
+              <tr class="text-[0.6875rem] tracking-widest text-muted uppercase">
+                <th scope="col" class="w-[9rem] py-2 pr-4 font-medium">Concern</th>
+                <th scope="col" class="py-2 font-medium">What arrives</th>
+              </tr>
+            </thead>
+            <tbody>
+              {
+                inherited.map(([concern, arrives]) => (
+                  <tr class="border-t border-line align-top">
+                    <th scope="row" class="py-3 pr-4 font-medium whitespace-nowrap">
+                      {concern}
+                    </th>
+                    <td
+                      class="py-3 leading-relaxed text-pretty text-muted"
+                      set:html={arrives.replace(
+                        /`([^`]+)`/g,
+                        '<code class="rounded bg-code-bg px-1 py-0.5 font-mono text-[0.85em] text-fg">$1</code>',
+                      )}
+                    />
+                  </tr>
+                ))
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <p class="mt-6 border-l-2 border-brand/40 pl-5 text-base leading-relaxed text-pretty">
+          Forgetting the audit trail on a new resource requires effort. That asymmetry — where the
+          compliant path is the path of least resistance — is the whole design.
+        </p>
+
+        <a
+          class="mt-6 inline-flex items-center gap-1.5 text-sm font-medium text-brand underline-offset-4 hover:underline"
+          href={withBase('/docs/manifesto/04-batteries-are-inherited/')}
+        >
+          Thesis 4 — Batteries are inherited, not installed <span aria-hidden="true">→</span>
+        </a>
+      </div>
+    </div>
+  </Section>
+
+  {/* ==================== 5 · ash_strangler ==================== */}
+  <Section
+    id="strangler"
+    step="05"
+    eyebrow="ash_strangler"
+    title="Map it onto the database you cannot stop"
+    lead="Adopt the schema you should have had without stopping the application you already have. A legacy table gets a well-modelled Ash resource on top of it, through a closed grammar of typed combinators whose reverses are built rather than guessed."
+    tone="muted"
+    wide={true}
+  >
+    <Fragment slot="chips">
+      <StatusChip status={itemStatus('first-party')} label="First-party extensions" />
+    </Fragment>
+
+    <div class="grid gap-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:items-start">
+      <div>
+        <h3 class="text-lg font-semibold">The failure a shape check cannot catch</h3>
+        <blockquote
+          class="mt-4 rounded-xl border border-line bg-surface p-6 text-[0.9375rem] leading-relaxed text-pretty"
+        >
+          <p>
+            Measured on PostgreSQL 17.10, with legacy <code
+              class="rounded bg-code-bg px-1 py-0.5 font-mono text-[0.85em]">state</code
+            > ranging over{' '}
+            <code class="rounded bg-code-bg px-1 py-0.5 font-mono text-[0.85em]"
+              >passive | pending | active | suspended | deleted</code
+            >, a forward direction sending every non-<code
+              class="rounded bg-code-bg px-1 py-0.5 font-mono text-[0.85em]">active</code
+            > value to{' '}
+            <code class="rounded bg-code-bg px-1 py-0.5 font-mono text-[0.85em]">1</code> and a backward
+            direction sending{' '}
+            <code class="rounded bg-code-bg px-1 py-0.5 font-mono text-[0.85em]">1</code> to{' '}
+            <code class="rounded bg-code-bg px-1 py-0.5 font-mono text-[0.85em]">'suspended'</code>:
+            a single <code class="rounded bg-code-bg px-1 py-0.5 font-mono text-[0.85em]">UPDATE</code
+            > through the view assigning <strong class="font-semibold">only the email</strong> rewrote{' '}
+            <code class="rounded bg-code-bg px-1 py-0.5 font-mono text-[0.85em]">passive</code>,{' '}
+            <code class="rounded bg-code-bg px-1 py-0.5 font-mono text-[0.85em]">pending</code> and{' '}
+            <code class="rounded bg-code-bg px-1 py-0.5 font-mono text-[0.85em]">deleted</code> to{' '}
+            <code class="rounded bg-code-bg px-1 py-0.5 font-mono text-[0.85em]">suspended</code>.
+            Three of five lifecycle states, no error, correct row count.
+          </p>
+          <footer class="mt-4 text-sm text-muted">
+            {
+              adrHref('0008') ? (
+                <a class="text-brand underline-offset-4 hover:underline" href={adrHref('0008')!}>
+                  ADR 0008 — Legacy mappings are typed expressions with proven inverses
+                </a>
+              ) : (
+                <span>ADR 0008 — Legacy mappings are typed expressions with proven inverses</span>
+              )
+            }
+          </footer>
+        </blockquote>
+
+        <p class="mt-6 leading-relaxed text-muted">
+          Both strings were present and well-formed, so no shape check could have caught it. That is
+          the argument for a grammar: do not accept an arbitrary expression and try to invert it —
+          accept combinator constructors and <em>emit</em> the expressions from them, in tiers of
+          total bijections, partial isomorphisms needing exactly one declared datum, and a single
+          opaque node kind meaning <em>not proven</em>.
+        </p>
+      </div>
+
+      <div class="space-y-8">
+        <dl class="grid grid-cols-2 gap-4">
+          <div class="rounded-xl border border-line bg-surface p-5">
+            <dt class="text-sm text-muted">Compile-time verifiers</dt>
+            <dd class="mt-1 text-3xl font-semibold tabular-nums">12</dd>
+          </div>
+          <div class="rounded-xl border border-line bg-surface p-5">
+            <dt class="text-sm text-muted">Tests in the package</dt>
+            <dd class="mt-1 text-3xl font-semibold tabular-nums">341</dd>
+            <dd class="mt-1 text-xs text-muted">including round-trip properties</dd>
+          </div>
+        </dl>
+
+        <div>
+          <h3 class="text-sm font-semibold tracking-widest text-muted uppercase">
+            Four cutover phases
+          </h3>
+          <ol class="mt-4 space-y-3">
+            {
+              stranglerPhases.map((phase, i) => (
+                <li class="flex items-start gap-4 rounded-xl border border-line bg-surface px-4 py-3">
+                  <span
+                    class="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-md bg-brand-soft font-mono text-[0.7rem] font-semibold text-brand"
+                    aria-hidden="true"
+                  >
+                    {i + 1}
+                  </span>
+                  <span class="min-w-0">
+                    <code class="font-mono text-sm font-semibold break-all">{phase.atom}</code>
+                    <span class="mt-0.5 block text-xs text-muted">{phase.note}</span>
+                  </span>
+                </li>
+              ))
+            }
+          </ol>
+          <p class="mt-4 text-sm leading-relaxed text-muted">
+            Each step is a one-word edit and a generated migration, and every one but the last is
+            reversible. One declaration also derives the compatibility view, the{' '}
+            <code class="font-mono text-[0.9em]">INSTEAD OF</code> triggers, an expression index, a resumable
+            backfill, a drift reconciler and a column-level lineage graph.
+          </p>
+        </div>
+      </div>
+    </div>
+  </Section>
+
+  {/* ==================== 6 · ash_bpmn ==================== */}
+  <Section
+    id="processes"
+    step="06"
+    eyebrow="ash_bpmn"
+    title="Model the processes, not just the tables"
+    lead="Approvals are the most requested enterprise workflow pattern, and the Ash ecosystem had nothing for them. The engine orchestrates and never decides: every node resolves to a host callback, and every mutation runs through an ordinary Ash action with its own policies."
+    wide={true}
+  >
+    <Fragment slot="chips">
+      <StatusChip status={itemStatus('approvals')} label="Approvals and maker-checker" />
+    </Fragment>
+
+    <div class="grid gap-8 lg:grid-cols-2">
+      <ScreenshotFigure
+        name="bpmn-designer-user-task.png"
+        alt="The BPMN designer in the browser with a user task selected, showing its candidate resolution, exclusions and outcomes in a side panel."
+        caption="The designer, with a user task selected. Candidates, exclusions and outcomes are configuration on the node — not code somewhere else."
+        loading="eager"
+      />
+      <ScreenshotFigure
+        name="bpmn-viewer-running.png"
+        alt="The BPMN viewer showing a running process instance with live tokens highlighted on the diagram."
+        caption="A running instance, with live tokens on the diagram. Version N keeps finishing on its own pinned snapshot while N+1 is published."
+        loading="eager"
+      />
+    </div>
+
+    <div class="mt-10 grid gap-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:items-start">
+      <div>
+        <CodePanel
+          code={requireApproval}
+          lang="elixir"
+          filename="an approval on an action — no diagram anywhere"
+        />
+        <p class="mt-5 leading-relaxed text-muted">
+          The change is the entire integration. When the chain grows past what a keyword list should
+          carry, the same configuration is drawn in the browser instead, published as version N+1,
+          and the resource stops needing to know.
+        </p>
+      </div>
+
+      <div>
+        <h3 class="text-lg font-semibold text-balance">
+          Maker-checker by subtraction, at candidate resolution
+        </h3>
+        <p class="mt-4 leading-relaxed text-muted">
+          Maker-checker is inherently subtractive — <em>except the person who raised it</em> — and a{' '}
+          <code class="rounded bg-code-bg px-1 py-0.5 font-mono text-[0.9em] text-fg">forbid_if</code
+          > is a subtraction that breaks order-independence everywhere else. So the subtraction happens
+          while <em>building</em> the candidate set, where subtraction belongs.
+        </p>
+        <ul class="mt-6 space-y-4">
+          <li class="border-l-2 border-brand/40 pl-4">
+            <strong class="font-semibold">The task list is one query.</strong>
+            <span class="text-muted">
+              Candidates are materialised as rows, so the list is a join on the actor's principal
+              ids — not a policy evaluation per row.</span
+            >
+          </li>
+          <li class="border-l-2 border-brand/40 pl-4">
+            <strong class="font-semibold">The authorization model stays additive.</strong>
+            <span class="text-muted">
+              No deny rule enters the policy engine, so the union of thesis 3 survives intact.</span
+            >
+          </li>
+          <li class="border-l-2 border-brand/40 pl-4">
+            <strong class="font-semibold">Delegation is a row, not a rule change.</strong>
+            <span class="text-muted">
+              The delegate acts, the delegator stays accountable, and the event log records both.</span
+            >
+          </li>
+        </ul>
+        <p class="mt-6 text-sm leading-relaxed text-muted">
+          Staleness is handled honestly rather than hidden: the rows are an index, the resolver's
+          rule is re-checked at claim time, and a discrepancy is an event you can see.
+        </p>
+      </div>
+    </div>
+
+    <div class="mt-10 grid gap-8 lg:grid-cols-2">
+      <ScreenshotFigure
+        name="bpmn-task-list.png"
+        alt="The task list showing pending approvals assigned to the signed-in user."
+        caption="My tasks: one indexed query, because candidates are rows rather than per-request policy evaluation."
+      />
+      <ScreenshotFigure
+        name="bpmn-designer.png"
+        alt="The full BPMN designer canvas showing a multi-step approval process."
+        caption="The full canvas, for when the chain outgrows a keyword list."
+      />
+    </div>
+  </Section>
+
+  {/* ==================== 7 · Surfaces ==================== */}
+  <Section
+    id="surfaces"
+    step="07"
+    eyebrow="Derived surfaces"
+    title="The surfaces are already there"
+    lead="Admin screens, agent-facing surfaces, JSON:API with OpenAPI, and GraphQL — all derived from the same resource metadata. No markup was written for any of it."
+    tone="muted"
+    wide={true}
+  >
+    <div class="grid gap-8 md:grid-cols-2">
+      <ScreenshotFigure
+        name="a2ui-business-units.png"
+        alt="The business units A2UI surface, showing the business-unit hierarchy rendered as a tree with named ancestry."
+        caption="Business units, as a tree with named ancestry — the hierarchy that grant depth expands over."
+      />
+      <ScreenshotFigure
+        name="a2ui-business-units-dark.png"
+        alt="The same business-unit surface in dark mode, showing identical structure with the application's dark palette applied."
+        caption="The same surface, dark. A2UI's components carry no spacing or colour props in any version of the spec — appearance comes from a CSS custom-property contract, so a derived screen follows the application's theme rather than bringing its own."
+      />
+      <ScreenshotFigure
+        name="a2ui-users.png"
+        alt="The users A2UI surface listing users with their roles and business unit."
+        caption="Users. The columns, types and constraints come from the resource, not from a template."
+      />
+      <ScreenshotFigure
+        name="a2ui-teams.png"
+        alt="The teams A2UI surface listing teams and their memberships."
+        caption="Teams — one of the polymorphic owners a record can belong to."
+      />
+      <ScreenshotFigure
+        name="a2ui-roles.png"
+        alt="The roles A2UI surface showing security roles and their privilege grants."
+        caption="Roles, and the (role, privilege, depth) rows that are the authorization model."
+      />
+    </div>
+
+    <p class="mx-auto mt-10 max-w-3xl text-center text-lg leading-relaxed text-pretty">
+      A2UI treats UI as data rather than code. The server emits a description of a surface; the
+      client renders it from components it already trusts. Nothing in that declaration is styling —
+      A2UI's components carry no spacing or colour props at all, in any version of the spec.
+    </p>
+
+    <div class="mt-12 grid gap-8 lg:grid-cols-2">
+      <ScreenshotFigure
+        name="admin.png"
+        alt="The zero-config admin interface listing every Ash resource in the application."
+        caption="/admin — zero-config, over every resource, with the same policies applied."
+        frame="tall"
+      />
+      <ScreenshotFigure
+        name="graphql-playground.png"
+        alt="The GraphQL playground showing the generated schema for the application's resources."
+        caption="/gql/playground — the GraphQL schema, derived."
+        frame="tall"
+      />
+      <ScreenshotFigure
+        name="swagger.png"
+        alt="Swagger UI showing the generated OpenAPI description of the JSON:API surface."
+        caption="/api/json/swaggerui — JSON:API with an OpenAPI description, also derived."
+        frame="tall"
+        class="lg:col-span-2"
+      />
+    </div>
+  </Section>
+
+  {/* ==================== 8 · Agents are users ==================== */}
+  <Section
+    id="agents-are-users"
+    step="08"
+    eyebrow="Thesis 5"
+    title="Agents are users, not a side door"
+    lead="Ask for an administrative change in plain language. The console shows exactly what it proposes to do, and nothing happens until you approve it."
+    wide={true}
+  >
+    <div class="grid gap-8 lg:grid-cols-2">
+      <ScreenshotFigure
+        name="agent-proposal.png"
+        alt="The helper console showing a proposed administrative change, with the resolved record names and the concrete mutation it would perform."
+        caption="The model resolves the request to a concrete mutation, with real record names rather than UUIDs. Authorization is checked before this is rendered — a proposal you could never perform is refused at the point of display."
+      />
+      <ScreenshotFigure
+        name="agent-approved.png"
+        alt="The helper console after the human approved the proposal, showing the executed change."
+        caption="On approval the action runs — through the policies, into the audit log, with you as the actor. The audit row names the human who approved, not the model that suggested."
+      />
+    </div>
+
+    <div class="mt-12 grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-start">
+      <div>
+        <p class="text-lg leading-relaxed text-pretty">
+          An <code class="rounded bg-code-bg px-1.5 py-0.5 font-mono text-[0.9em] text-fg"
+            >ash_ai</code
+          > tool is not a new code path. It is a <em>declaration that an existing action may be called
+            by a model</em> — the same action the admin UI invokes, with the requesting user as the actor,
+          through the same policy checks.
+        </p>
+        <p class="mt-5 leading-relaxed text-muted">
+          If that person cannot assign roles in the UI, the model cannot assign roles on their
+          behalf, and nobody had to write an agent-specific rule to make that true. There is no
+          agent-specific authorization path — which is precisely why there is no agent-specific
+          authorization bug.
+        </p>
+        <p class="mt-5 leading-relaxed text-muted">
+          The model never holds the mutation. It returns a struct. That is a structural guarantee
+          rather than a prompt instruction, which is what makes prompt injection uninteresting here:
+          there is no tool to trick it into calling.
+        </p>
+        <a
+          class="mt-6 inline-flex items-center gap-1.5 text-sm font-medium text-brand underline-offset-4 hover:underline"
+          href={withBase('/docs/manifesto/05-agents-are-users/')}
+        >
+          Thesis 5 — Agents are users <span aria-hidden="true">→</span>
+        </a>
+      </div>
+
+      <CodePanel code={agentTools} lang="elixir" filename="lib/ash_enterprise/accounts.ex" />
+    </div>
+  </Section>
+
+  {/* ==================== 9 · Compliance ==================== */}
+  <Section
+    id="compliance"
+    step="09"
+    eyebrow="Thesis 3"
+    title="Compliance you inherit"
+    lead="Authorization is data: (role, privilege, depth) rows evaluated as a pure union of grants. Three independent paths can authorize a row, and nothing anywhere takes access away."
+    tone="muted"
+    wide={true}
+  >
+    <GrantUnion class="mt-2" />
+
+    <div class="mt-12 grid gap-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:items-start">
+      <CodePanel code={policyUnion} lang="elixir" filename="one clause per grant path" />
+
+      <div class="space-y-6">
+        <p class="leading-relaxed text-muted">
+          Because every clause is an <code
+            class="rounded bg-code-bg px-1 py-0.5 font-mono text-[0.9em] text-fg">authorize_if</code
+          >, the sequence <em>is</em> a union and the order cannot matter. A single{' '}
+          <code class="rounded bg-code-bg px-1 py-0.5 font-mono text-[0.9em] text-fg">forbid_if</code
+          > for row access would break that, so it is prohibited outright — reserved for concerns that
+          are not row access at all, like a disabled account or a decommissioned tenant.
+        </p>
+        <p class="leading-relaxed text-muted">
+          Every set those checks read — team ids, the business-unit subtree, the privilege map, the
+          reporting chain — is computed <strong class="font-semibold text-fg">once per request</strong
+          > into <code class="rounded bg-code-bg px-1 py-0.5 font-mono text-[0.9em] text-fg"
+            >ActorContext</code
+          >, in a plug, and carried on the actor. A policy check that issues a query is a bug, not a
+          slow path.
+        </p>
+
+        <div class="rounded-xl border border-line bg-surface p-6">
+          <h3 class="text-base font-semibold">The truth table is executable</h3>
+          <p class="mt-2 text-sm leading-relaxed text-muted">
+            For every combination of ownership type, privilege, depth and actor placement, the
+            conformance suite asserts the expected verdict via <code class="font-mono text-[0.9em]"
+              >Ash.can?/3</code
+            >. It is less a test of the implementation than an executable copy of the specification —
+            and the first thing to read when the model surprises you.
+          </p>
+          <a
+            class="mt-4 inline-flex items-center gap-1.5 font-mono text-xs text-brand underline-offset-4 hover:underline"
+            href={repoHref('test/ash_enterprise/security/conformance_test.exs')}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            test/ash_enterprise/security/conformance_test.exs <span aria-hidden="true">→</span>
+          </a>
+        </div>
+
+        <p class="text-sm leading-relaxed text-muted">
+          Alongside it: an append-only event log with actor and transaction id on every action, a
+          correlation id threaded through every effect, attribute multitenancy on every resource, and
+          soft delete with cascade. All inherited, none of it per-resource work.
+        </p>
+      </div>
+    </div>
+  </Section>
+
+  {/* ==================== 10 · Data flow ==================== */}
+  <Section
+    id="data-flow"
+    step="10"
+    eyebrow="Where the data comes from"
+    title="Ingestion, lineage, catalog, analytics"
+    lead="The half this repository is currently silent on, drawn honestly. Each choice is an ADR you can read and disagree with, and each had to clear one bar: can the tool be handed a thin generated declaration and delegate authorization back to ActorContext, or does it bring its own?"
+    wide={true}
+  >
+    <Fragment slot="chips">
+      <StatusChip status={itemStatus('ingestion')} label="Ingestion" />
+      <StatusChip status={itemStatus('lineage')} label="Lineage" />
+      <StatusChip status={itemStatus('catalog')} label="Catalog" />
+      <StatusChip status={itemStatus('bi')} label="Analytics" />
+    </Fragment>
+
+    <DataFlow
+      ingestion={itemStatus('ingestion')}
+      lineage={itemStatus('lineage')}
+      catalog={itemStatus('catalog')}
+      bi={itemStatus('bi')}
+    />
+
+    <div class="mt-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+      <div class="rounded-xl border border-line bg-surface p-5">
+        <h3 class="font-mono text-sm font-semibold">Meltano</h3>
+        <p class="mt-2 text-sm leading-relaxed text-muted">
+          Kept deliberately <em>outside</em> the boundary where authorization applies, so there is no second
+          model to synchronise. The cost is stated rather than hidden: staging rows are unauthorized at
+          rest.
+        </p>
+      </div>
+      <div class="rounded-xl border border-line bg-surface p-5">
+        <h3 class="font-mono text-sm font-semibold">OpenLineage + Marquez</h3>
+        <p class="mt-2 text-sm leading-relaxed text-muted">
+          The OpenLineage <code class="font-mono text-[0.9em]">runId</code> <em>is</em> the existing correlation
+          id. It emits inside the action, after authorization, so lineage records authorized effects rather
+          than a privileged crawl.
+        </p>
+      </div>
+      <div class="rounded-xl border border-line bg-surface p-5">
+        <h3 class="font-mono text-sm font-semibold">OpenMetadata</h3>
+        <p class="mt-2 text-sm leading-relaxed text-muted">
+          The least comfortable answer of the set. Its RBAC has Allow/Deny rules where deny wins —
+          the exact inverse of a pure union — so no attempt is made to mirror roles into it, and the
+          catalogue can never face tenants.
+        </p>
+      </div>
+      <div class="rounded-xl border border-line bg-surface p-5">
+        <h3 class="font-mono text-sm font-semibold">Superset</h3>
+        <p class="mt-2 text-sm leading-relaxed text-muted">
+          Chosen over Metabase on one fact: Metabase paywalls row-level security even when
+          self-hosted, which would put this project's central thesis behind a paywall.
+        </p>
+      </div>
+    </div>
+  </Section>
+
+  {/* ==================== 11 · Integration ==================== */}
+  <Section
+    id="integration"
+    step="11"
+    eyebrow="Integration hub"
+    title="Integrations without M×N"
+    lead="One contract per category rather than one per (your app × their API) — surfaced as ordinary Ash actions, so policies gate which actor may trigger a sync and the normal audit log records it."
+    tone="muted"
+    wide={true}
+  >
+    <Fragment slot="chips">
+      <StatusChip status={itemStatus('integration')} label="Integration hub" />
+    </Fragment>
+
+    <IntegrationMesh status={itemStatus('integration')} />
+
+    <div class="mt-12 grid gap-8 lg:grid-cols-3">
+      <div class="lg:col-span-2">
+        <h3 class="text-lg font-semibold">The rule that carries the load</h3>
+        <p class="mt-3 leading-relaxed text-muted">
+          The Nango connection id is <strong class="font-semibold text-fg"
+            >never an action argument</strong
+          >. It is derived from the actor's tenant. Otherwise the policy engine authorizes the
+          operation while the caller picks whose credentials to spend — an authorization check that
+          passes on the wrong subject.
+        </p>
+        <p class="mt-4 leading-relaxed text-muted">
+          The residual risk is stated rather than wrapped away: anyone holding the Nango secret key
+          bypasses every policy.
+        </p>
+      </div>
+      <div class="rounded-xl border border-line bg-surface p-6">
+        <h3 class="text-sm font-semibold">Verification inverted the design</h3>
+        <p class="mt-2 text-sm leading-relaxed text-muted">
+          Nango's free self-hosted edition covers auth and proxy but gates syncs, actions and
+          webhooks. Generating an action per Nango sync would have put the mechanism behind a paid
+          tier, so Nango holds the provider edge and the sync logic stays here.
+        </p>
+        {
+          adrHref('0011') && (
+            <a
+              class="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-brand underline-offset-4 hover:underline"
+              href={adrHref('0011')!}
+            >
+              ADR 0011 <span aria-hidden="true">→</span>
+            </a>
+          )
+        }
+      </div>
+    </div>
+  </Section>
+
+  {/* ==================== 12 · Scoreboard ==================== */}
+  <Section
+    id="scoreboard"
+    step="12"
+    eyebrow="The honest scoreboard"
+    title={`${tally.shipped} of ${tally.total} enterprise questions have a shipped answer`}
+    lead="Nothing here is aspirational. Every row is one of four states, and the vocabulary is deliberate: a Partial is not a Shipped with an asterisk, and a Planned is not a promise — it is an argument you can read and disagree with."
+    wide={true}
+  >
+    <Fragment slot="chips">
+      <Scoreboard variant="inline" />
+    </Fragment>
+
+    <Fragment slot="aside">
+      <p>
+        A reference architecture that hides its gaps is marketing, not engineering. So the gaps go
+        where the sales copy would normally be — rendered from <code class="font-mono text-[0.9em]"
+          >docs/roadmap.json</code
+        >, the same file the README and the checklist read, and checked in CI alongside{' '}
+        <code class="font-mono text-[0.9em]">mix ash.codegen --check</code>.
+      </p>
+    </Fragment>
+
+    <QuestionTable />
+
+    <div class="mt-14 flex flex-wrap gap-3">
+      <a class={btnSecondary} href={withBase('/docs/questions/')}>The checklist in prose</a>
+      <a class={btnSecondary} href={withBase('/roadmap/')}>What is planned, and why</a>
+      <a class={btnSecondary} href={withBase('/docs/manifesto/07-what-we-do-not-have/')}>
+        What we do not have
+      </a>
+    </div>
+  </Section>
+
+  {/* ==================== 13 · Footer CTA ==================== */}
+  <section class="border-t border-line py-24 sm:py-32">
+    <div class="mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
+      <h2 class="text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
+        This is a template, not a product
+      </h2>
+      <p class="mx-auto mt-5 max-w-2xl text-lg leading-relaxed text-pretty text-muted">
+        Clone it, delete what you do not need, and keep the shape. The commitment this repository
+        makes is not that there are no gaps — it is that we will name them.
+      </p>
+
+      <div class="mt-10 flex flex-wrap justify-center gap-3">
+        <a
+          class={btnPrimary}
+          href="https://github.com/lukegalea/ash_enterprise"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Clone it on GitHub{' '}
+          <span aria-hidden="true">→</span>
+        </a>
+        <a class={btnSecondary} href={withBase('/docs/manifesto/')}>Read the manifesto</a>
+        <a class={btnSecondary} href={withBase('/docs/manifesto/07-what-we-do-not-have/')}>
+          Read what we do not have
+        </a>
+      </div>
+
+      <p class="mt-8 text-sm text-muted">
+        Read theses 1 and 3 first — they carry the weight. Thesis 7 is the one to read before making
+        a commitment.
+      </p>
+    </div>
+  </section>
+</Base>

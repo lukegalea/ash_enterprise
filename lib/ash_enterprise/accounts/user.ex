@@ -1,4 +1,10 @@
 defmodule AshEnterprise.Accounts.User do
+  @moduledoc """
+  A person who can sign in, and the actor every policy is evaluated against.
+
+  Business-owned rather than user-owned, which has a consequence worth knowing
+  before writing a policy over users -- see the comment below.
+  """
   # Dataverse's `systemuser` is BusinessOwned: a user belongs to a business unit
   # rather than being owned by a principal. So Local/Deep depth checks work on
   # users, but Basic does not -- there is no owner to compare an actor against.

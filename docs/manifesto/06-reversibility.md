@@ -33,10 +33,16 @@ but the version is pinned tightly and the ADRs name what we would do without the
 **Tier 3 — isolated behind a seam.** Alpha, unpublished, unmaintained, or commercial. Confined to one directory or one
 route. Removing any of these must be a deletion, never a refactor.
 
-`ash_a2ui` (unpublished, git dep) · `clarity` (self-described alpha) · `ash_diagram` · everything commercial
+`ash_a2ui` (unpublished, git dep) · `clarity` (self-described alpha) · `ash_diagram` · `ash_strangler` (0.1.0,
+first-party, not on hex) · `ash_bpmn` (0.1.0, first-party, not on hex) · everything commercial
 
 The rule that makes the tiers real: **tier 3 code may not be imported by tier 1 or tier 2 code.** Dependencies point one
 way. A resource never knows that `ash_a2ui` exists.
+
+`ash_strangler` is the one entry that does not satisfy that rule as stated, because a mapping is a block *on* a
+resource. It is kept in tier 3 anyway, on the weaker property the rule exists to guarantee: the block is deletable
+without touching anything around it. That is a real exception rather than a reading of the rule, and it is argued in
+the seam below.
 
 ## The seams, specifically
 
@@ -62,6 +68,25 @@ It is mounted **in `:dev` only**. Nothing at runtime depends on it, no module im
 of the domain model, which is not something to expose in production even behind a login. The exit is deleting one router
 line.
 
+### `ash_strangler` and `ash_bpmn` — first-party, and still tier 3
+
+Both are 0.1.0, neither is on hex, and one is not yet public, so by the letter of the rule they are tier 3. They are
+also written here rather than found — [ADR 0009](../adr/0009-strangler-and-bpmn-are-first-party.md) makes them
+first-party extensions of the platform — which changes the *reason* for the placement rather than the placement.
+
+Tier 3 exists because *someone else's* pre-1.0 package can be abandoned, or can change under you. For a package we
+write, abandonment is not the risk; scope creep is. So the rule is kept and its justification restated: the exits stay
+open not because we distrust the maintainer, but because they are what lets whoever clones this repository right-size
+it. A template with more moving parts is a template with more to delete.
+
+The seams are narrower than a directory. An `ash_strangler` mapping is a `strangler` block on a resource, so removing it
+is deleting a block rather than refactoring the resource around it — with one ordering constraint that applies nowhere
+else here: the generated compatibility views and `INSTEAD OF` triggers have to be dropped **before** the code, or the
+legacy application loses its write path. `ash_bpmn` is confined to its own domain and its own routes; dropping it also
+removes the approval change from any action carrying it, which takes effect silently rather than as a compile error, so
+that part is a review rather than a `grep`. Both reversals are costed in
+[ADR 0009](../adr/0009-strangler-and-bpmn-are-first-party.md) rather than repeated here.
+
 ### The commercial options we did not take
 
 Open-source-only was a requirement, and it is worth recording that it cost less than expected — and where it did cost
@@ -77,6 +102,36 @@ something:
 
 Each is a swap-in, not a rewrite, because each is confined: orchestration to Reactor modules, components to the web
 layer, telemetry to one tracer module and one config block.
+
+## The fourth category: services behind a network boundary
+
+The three tiers rank *Elixir dependencies* by how much of the codebase may know about them. Most of
+[the roadmap](../ROADMAP.md) is not a `mix.exs` entry at all. Meltano, Marquez, OpenMetadata, Superset and Nango are
+processes on the far side of a network boundary, and "which modules may import it" is not a question you can ask about a
+process. They get their own category, and two rules:
+
+1. **The service consumes `AshEnterprise.Security.ActorContext`, or views derived from it.** It never owns a second copy
+   of the authorization model. A service with its own RBAC, its own tenancy or its own audit trail is a second security
+   model to keep synchronized, and every synchronization diverges eventually — silently, and in the permissive
+   direction.
+2. **Removing it degrades a feature; it never breaks the application.** Marquez going down should cost you lineage, not
+   writes.
+
+That is a stricter bar than "does an open-source project exist for this", and it disqualified two products that win on
+features:
+
+- **Metabase** — row-level security is behind the paid tier even when self-hosted, so adopting it would put
+  [thesis 3](03-authorization-is-data.md) behind a paywall. → [ADR 0014](../adr/0014-superset-over-metabase.md)
+- **Camunda / Flowable** — not a licensing objection. A workflow engine is a second identity, assignment and
+  authorization model, and it expresses maker-checker as a deny rule, which this repository forbids outright. →
+  [ADR 0015](../adr/0015-approvals-stay-in-ash.md)
+
+One case does not fit comfortably, and stating it is more useful than smoothing it. **OpenMetadata's own RBAC resolves
+Allow/Deny effects with deny winning** — the exact inverse of [thesis 3](03-authorization-is-data.md)'s pure union, and
+precedence-dependent by construction. [ADR 0013](../adr/0013-openmetadata-as-catalog.md) therefore makes no attempt to
+mirror role grants into it, and pays the price rule 1 implies: the catalogue is an internal tool for stewards and
+auditors, and can never face tenants. Failing rule 1 does not always mean rejecting the tool. It means the feature it
+would have supported is what the failure costs.
 
 ## The general rule
 
@@ -95,3 +150,4 @@ paid forever.
 
 - `docs/adr/` — the per-decision record
 - [thesis 7](07-what-we-do-not-have.md) — the gaps no dependency currently fills
+- [`../ROADMAP.md`](../ROADMAP.md) — the external services, sequenced, and the one rule they were selected against

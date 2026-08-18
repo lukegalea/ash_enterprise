@@ -1,0 +1,383 @@
+{
+  "$comment": [
+    "The single source of truth for every status claim in this repository.",
+    "README.md, docs/QUESTIONS.md, docs/ROADMAP.md and the marketing site all",
+    "render from this file via `mix ash_enterprise.roadmap`, which CI checks.",
+    "A status can therefore be wrong in one place only by being wrong in all of",
+    "them -- which is the point. Legal statuses: shipped | partial | planned | open.",
+    "  shipped -- working code plus a test that would fail if it regressed.",
+    "  partial -- works, with a named limitation stated in the answer.",
+    "  planned -- an ADR and a plan exist, no code.",
+    "  open    -- named as a gap, no decision taken.",
+    "Last reviewed against the tree: 2026-08-18."
+  ],
+  "sections": [
+    {
+      "id": "identity",
+      "title": "Who are you, and what may you do?"
+    },
+    {
+      "id": "evidence",
+      "title": "What happened, and can you prove it?"
+    },
+    {
+      "id": "tenancy",
+      "title": "Whose data is it?"
+    },
+    {
+      "id": "flow",
+      "title": "Where does data come from, and where does it go?"
+    },
+    {
+      "id": "change",
+      "title": "How does it change, and keep running?"
+    }
+  ],
+  "questions": [
+    {
+      "id": "q1",
+      "section": "identity",
+      "question": "How do people prove who they are?",
+      "answer": "Password, magic link, OAuth2/OIDC and API keys via `ash_authentication`. No WebAuthn and no SAML anywhere in the ecosystem — the two gaps most likely to appear in an RFP.",
+      "status": "partial",
+      "proof": "test/ash_enterprise/accounts/sign_in_test.exs"
+    },
+    {
+      "id": "q2",
+      "section": "identity",
+      "question": "How is \"may this actor do this?\" decided?",
+      "answer": "`(role, privilege, depth)` rows evaluated as a pure union of grants — authorization is data, not code. No deny rules, so order cannot matter.",
+      "status": "shipped",
+      "proof": "test/ash_enterprise/security/conformance_test.exs"
+    },
+    {
+      "id": "q3",
+      "section": "identity",
+      "question": "Who owns a record?",
+      "answer": "Polymorphic user-or-team ownership inherited from the base resource. The Dataverse ownership type per entity is scraped from the corpus, never guessed.",
+      "status": "shipped",
+      "proof": "lib/ash_enterprise/platform/system_attributes.ex"
+    },
+    {
+      "id": "q4",
+      "section": "identity",
+      "question": "How does where you sit in the org chart change what you can see?",
+      "answer": "A business-unit tree with a materialized path, plus an optional manager/position hierarchy. Grant depth expands to a subtree once per request, never inside a policy check.",
+      "status": "shipped",
+      "proof": "test/ash_enterprise/security/hierarchy_test.exs"
+    },
+    {
+      "id": "q5",
+      "section": "identity",
+      "question": "Can one record be shared with someone the rules would not otherwise reach?",
+      "answer": "An `AccessGrant` row — Dataverse's `PrincipalObjectAccess` — adds rights to one record without widening any role.",
+      "status": "shipped",
+      "proof": "lib/ash_enterprise/security/checks/shared_with_actor.ex"
+    },
+    {
+      "id": "q6",
+      "section": "identity",
+      "question": "Are some columns more sensitive than the rows that contain them?",
+      "answer": "Not yet. Ash field policies would carry this on the same additive model, and the corpus already has `FieldPermission` and `FieldSecurityProfile` — but no field policy is declared anywhere in `lib/` today.",
+      "status": "open"
+    },
+    {
+      "id": "q7",
+      "section": "evidence",
+      "question": "Is every change recorded, including who and from where?",
+      "answer": "`AshEvents` writes a central append-only log on every create, update and destroy — inherited from the base resource, not wired per resource, so a new table cannot quietly have no history.",
+      "status": "shipped",
+      "proof": "lib/ash_enterprise/audit/event_log.ex"
+    },
+    {
+      "id": "q8",
+      "section": "evidence",
+      "question": "Can you follow one request across the whole system at 3am?",
+      "answer": "One correlation id per request, stamped into audit metadata and OTel spans, and carried across process boundaries explicitly.",
+      "status": "shipped",
+      "proof": "test/ash_enterprise/platform/correlation_test.exs"
+    },
+    {
+      "id": "q9",
+      "section": "evidence",
+      "question": "Are illegal state transitions impossible, or merely discouraged?",
+      "answer": "`ash_state_machine` generates one named action per legal transition from the canonical Dataverse lifecycle. There is no generic `:update` that can set a state.",
+      "status": "shipped",
+      "proof": "test/ash_enterprise/platform/lifecycle_test.exs"
+    },
+    {
+      "id": "q10",
+      "section": "evidence",
+      "question": "Can a deletion be undone?",
+      "answer": "`ash_archival` soft delete, inherited. Opting out is an explicit `archival?: false` that a reviewer can grep for.",
+      "status": "shipped",
+      "proof": "lib/ash_enterprise/platform/resource.ex"
+    },
+    {
+      "id": "q11",
+      "section": "evidence",
+      "question": "Can you rebuild state by replaying the log?",
+      "answer": "The `AshEvents` replay machinery is wired, but the clear-records step deliberately refuses by default — it is indistinguishable from \"delete all business data\", so each deployment authorizes it explicitly.",
+      "status": "partial",
+      "proof": "lib/ash_enterprise/audit/clear_records_for_replay.ex"
+    },
+    {
+      "id": "q12",
+      "section": "tenancy",
+      "question": "How are tenants separated?",
+      "answer": "Attribute multitenancy on `organization_id`, inherited by every resource — never schema-per-tenant, and never per-department.",
+      "status": "shipped",
+      "proof": "test/ash_enterprise/security/tenant_resolution_test.exs"
+    },
+    {
+      "id": "q13",
+      "section": "tenancy",
+      "question": "Does tenant isolation hold even when authorization is wrong?",
+      "answer": "Yes, and it is asserted as a separate property: the conformance suite checks isolation independently of every grant path.",
+      "status": "shipped",
+      "proof": "test/ash_enterprise/security/conformance_test.exs"
+    },
+    {
+      "id": "q14",
+      "section": "tenancy",
+      "question": "Can you erase a person on request?",
+      "answer": "No. `ash_archival` is soft delete only — there is no purge schedule, no anonymization pipeline, and an append-only audit log is exactly what a right-to-erasure request runs into.",
+      "status": "open"
+    },
+    {
+      "id": "q15",
+      "section": "tenancy",
+      "question": "Where does the data physically live?",
+      "answer": "Undecided. Attribute multitenancy makes residency a deployment question rather than a schema one, which is a deferral, not an answer.",
+      "status": "open"
+    },
+    {
+      "id": "q16",
+      "section": "flow",
+      "question": "How does data get in from systems you do not own?",
+      "answer": "Meltano lands rows in a staging schema as an external producer; a generator turns the declared target schema into an ordinary platform resource, so ingested data inherits ownership, tenancy and audit.",
+      "status": "planned",
+      "adr": "0010",
+      "item": "ingestion"
+    },
+    {
+      "id": "q17",
+      "section": "flow",
+      "question": "How do you integrate N SaaS systems without writing N×M integrations?",
+      "answer": "One contract per category rather than one per (your app × their API). Nango holds the provider edge — OAuth, token refresh, the proxy — and the sync logic stays here as Ash actions over Oban, so a policy gates which actor may trigger a sync and the ordinary audit log records it. Nango's free self-hosted edition gates syncs and webhooks, which is why the design is split that way rather than generated wholesale.",
+      "status": "planned",
+      "adr": "0011",
+      "item": "integration"
+    },
+    {
+      "id": "q18",
+      "section": "flow",
+      "question": "Can you trace a value back to the system it came from?",
+      "answer": "OpenLineage events whose run id *is* the correlation id the audit log already carries — lineage as a second consumer of existing telemetry rather than a parallel system. `ash_strangler` already ships the emitter for column-level mappings. Neither Meltano nor Airbyte emits OpenLineage, so the graph has a hole exactly where external data enters, and that is stated rather than drawn over.",
+      "status": "planned",
+      "adr": "0012",
+      "item": "lineage"
+    },
+    {
+      "id": "q19",
+      "section": "flow",
+      "question": "What data do you have, and who owns it?",
+      "answer": "A catalogue populated from codegen — every resource already declares its CDM provenance, ownership type and tenancy scope, so it is a read-only projection rather than a second source of truth. It is an internal tool only: its own RBAC resolves deny-wins, which is the inverse of this project's model.",
+      "status": "planned",
+      "adr": "0013",
+      "item": "catalog"
+    },
+    {
+      "id": "q20",
+      "section": "flow",
+      "question": "How do people get reports out of it?",
+      "answer": "Superset over views already filtered by the same actor context, so the BI tool's row-level security is a formality rather than a duplicate authorization model. Metabase loses because its RLS is paywalled.",
+      "status": "planned",
+      "adr": "0014",
+      "item": "bi"
+    },
+    {
+      "id": "q21",
+      "section": "flow",
+      "question": "The same customer arrived from three systems — which one is real?",
+      "answer": "Entity resolution as an Ash calculation and change pipeline over the CDM-derived resources, so the golden record inherits ownership, audit and policy instead of living in a second system.",
+      "status": "planned",
+      "adr": "0017",
+      "item": "mdm"
+    },
+    {
+      "id": "q22",
+      "section": "change",
+      "question": "How do you move onto this platform from a database you cannot stop?",
+      "answer": "`ash_strangler` maps a well-modelled resource onto the legacy schema through a closed grammar of typed combinators whose reverses are built rather than guessed, and moves it through four cutover phases without hand-written SQL. 341 tests, including round-trip properties over the legacy value space. The package ships; the demo inside this repository does not.",
+      "status": "partial",
+      "adr": "0009",
+      "item": "first-party"
+    },
+    {
+      "id": "q23",
+      "section": "change",
+      "question": "How do the processes people actually follow get modelled?",
+      "answer": "`ash_bpmn` compiles a BPMN document into an immutable versioned graph and executes it with a token interpreter over Postgres and Oban, with an embedded designer. 176 tests. It is not yet wired in here, and it ships no policies while running `authorize?: false` internally — so adopting it is a precondition, not a formality.",
+      "status": "partial",
+      "adr": "0009",
+      "item": "first-party"
+    },
+    {
+      "id": "q24",
+      "section": "change",
+      "question": "How does an action get a second person's approval before it takes effect?",
+      "answer": "A change dropped on any action: work item, materialized candidate list, maker-checker exclusion applied by subtraction at candidate resolution rather than as a `forbid_if`, delegation, and escalation timers that actually get cancelled. No external BPMN engine — Camunda 7's community edition reached end of life in October 2025 and Camunda 8 Self-Managed needs a paid production licence, so \"adopt an open engine\" is largely no longer on the table anyway.",
+      "status": "partial",
+      "adr": "0015",
+      "item": "approvals"
+    },
+    {
+      "id": "q25",
+      "section": "change",
+      "question": "How do API contracts change without breaking the callers you cannot see?",
+      "answer": "Version deltas declared as data on the resource — one schema, N presentation contracts, no second table or view — with `render`/`parse` invertibility checked at compile time and sunset proposed from real traffic.",
+      "status": "planned",
+      "adr": "0019",
+      "item": "api-versioning"
+    },
+    {
+      "id": "q26",
+      "section": "change",
+      "question": "How do you ship a change to some users first?",
+      "answer": "A flag is evaluated in-process against the application's own database, with actor, business unit and tenant supplied from the context already computed once per request. Policies are not a substitute — they answer *may you*, not *is this on*, and conflating them produces a `beta_user` role you then have to revoke from everyone.",
+      "status": "planned",
+      "adr": "0016",
+      "item": "flags"
+    },
+    {
+      "id": "q27",
+      "section": "change",
+      "question": "How does the schema itself evolve without drifting from the model?",
+      "answer": "Migrations are derived as a diff against committed resource snapshots, and the diff is a CI gate — so a resource change without a migration fails the build rather than surfacing at deploy time.",
+      "status": "shipped",
+      "proof": "priv/resource_snapshots/"
+    },
+    {
+      "id": "q28",
+      "section": "change",
+      "question": "Can you tell what is happening in production?",
+      "answer": "Correlation ids and Ash tracing are wired — `OpentelemetryAsh` is registered as the `Ash.Tracer`, so every action, query and calculation becomes a span with no per-resource wiring. Two things are not: `OpentelemetryPhoenix.setup/1` and `OpentelemetryEcto.setup/1` are never called, so those two declared dependencies emit nothing, and the OTLP endpoint the config comment says lives in `runtime.exs` is not there. The backend is now named; the bridge is still thin.",
+      "status": "partial",
+      "adr": "0018",
+      "item": "observability"
+    }
+  ],
+  "items": [
+    {
+      "id": "first-party",
+      "title": "Legacy migration and process modelling as platform extensions",
+      "priority": 1,
+      "choice": "ash_strangler + ash_bpmn, first-party",
+      "adr": "0009",
+      "status": "partial",
+      "effort": "Both packages exist at 0.1.0 under MIT with substantial suites — 341 tests for the strangler, 176 for BPMN. What is missing is the composition: depending on them here, the reference-app demo, and three fixes in `ash_bpmn` (plumb the discarded tenant, allow its resources on a base resource, replace internal `authorize?: false` with a system actor) without which its records sit outside this platform's security model.",
+      "bar": "Yes for `ash_strangler` — its output is read through the ordinary action layer. Not yet for `ash_bpmn`, which ships no policies and discards the tenant it documents. Named in ADR 0009 rather than assumed."
+    },
+    {
+      "id": "ingestion",
+      "title": "Data ingestion",
+      "priority": 1,
+      "choice": "Meltano (MIT); Airbyte as the fallback",
+      "adr": "0010",
+      "status": "planned",
+      "effort": "A `mix meltano.gen.resource` mirroring the CDM generator, carrying its refusals across: ownership is never guessed and foreign keys are never invented. Promotion out of the staging schema is an ordinary Ash action — the only place ingested data acquires ownership, tenancy and audit.",
+      "bar": "No, by refusal: Meltano is kept outside the boundary where authorization applies, so there is no second model to synchronize. The cost is that staging rows are unauthorized at rest, and a pipeline landing two tenants into one table is a defect the platform cannot detect."
+    },
+    {
+      "id": "integration",
+      "title": "Integration hub — avoiding M×N",
+      "priority": 1,
+      "choice": "Nango for the provider edge only",
+      "adr": "0011",
+      "status": "planned",
+      "effort": "Verification inverted the design: Nango's free self-hosted edition covers auth and proxy but gates syncs, actions and webhooks, so generating an action per Nango sync would put the mechanism behind a paid tier. Nango holds the provider edge; sync logic stays here as Ash actions over Oban.",
+      "bar": "Yes, with one load-bearing rule: the Nango connection id is never an action argument — it is derived from the actor's tenant. Otherwise the policy engine authorizes the operation while the caller picks whose credentials to spend. The residual is stated, not wrapped away: anyone holding the Nango secret key bypasses every policy."
+    },
+    {
+      "id": "lineage",
+      "title": "Lineage and provenance",
+      "priority": 1,
+      "choice": "OpenLineage + Marquez",
+      "adr": "0012",
+      "status": "planned",
+      "effort": "A notifier whose OpenLineage `runId` *is* the existing correlation id and whose parent facet derives from the existing depth counter. It runs inside the action, after authorization, so lineage records authorized effects rather than a privileged crawl. `ash_strangler` already ships a columnLineage emitter.",
+      "bar": "Marquez has no authorization model at all — which forces two rules: deploy it like `clarity`, behind the same boundary, and never put a value, actor or tenant into a facet. No verifier enforces the second."
+    },
+    {
+      "id": "approvals",
+      "title": "Approvals and maker-checker",
+      "priority": 1,
+      "choice": "ash_bpmn — no external engine",
+      "adr": "0015",
+      "status": "partial",
+      "effort": "Built and tested in the package, including duplicate refusal via a partial unique index and timer cancellation. Remaining: adopt it here, and close the three authorization gaps ADR 0009 names.",
+      "bar": "The decisive argument against Camunda or Flowable — an external engine is a second authorization and data model to keep in sync, and it would express maker-checker as a deny rule, which this repository forbids."
+    },
+    {
+      "id": "catalog",
+      "title": "Data catalog and governance",
+      "priority": 2,
+      "choice": "OpenMetadata (DataHub is the closer call it looks)",
+      "adr": "0013",
+      "status": "planned",
+      "effort": "A push step alongside `mix ash.codegen`, writing each resource's declared metadata over the REST API as a bot. Two stateful services, not one: OpenMetadata requires Elasticsearch or OpenSearch as well as Postgres.",
+      "bar": "The least comfortable answer of the set. OpenMetadata's RBAC has Allow/Deny rules where deny wins — the exact inverse of a pure union — so no attempt is made to mirror roles into it, and the catalogue can therefore never face tenants."
+    },
+    {
+      "id": "bi",
+      "title": "Reporting and embedded analytics",
+      "priority": 2,
+      "choice": "Apache Superset over Metabase",
+      "adr": "0014",
+      "status": "planned",
+      "effort": "Tenant- and role-scoped views generated from the existing actor context, so Superset's own RLS config is a formality.",
+      "bar": "The deciding factor. Metabase paywalls row-level security even when self-hosted, which would put this project's central thesis behind a paywall."
+    },
+    {
+      "id": "api-versioning",
+      "title": "API versioning and deprecation",
+      "priority": 2,
+      "choice": "ash_api_versioning",
+      "adr": "0019",
+      "status": "planned",
+      "effort": "A new extension. No new database objects — that property is what makes it categorically cheaper than the strangler, and losing it makes it pointless.",
+      "bar": "Not applicable — this is ours, and it wraps the action layer rather than bypassing it."
+    },
+    {
+      "id": "flags",
+      "title": "Feature flags and progressive delivery",
+      "priority": 3,
+      "choice": "FunWithFlags (Unleash rejected)",
+      "adr": "0016",
+      "status": "planned",
+      "effort": "Protocol implementations declared once, so actor, business unit and tenant become flag targeting for free. Verification reversed the expected answer twice over: the widely-cited Unleash end-of-life attaches to Edge OSS rather than the server, but the server relicensed Apache-2.0 to AGPL-3.0 at v8.0.0 and its OSS edition is capped at one project and two environments.",
+      "bar": "Unleash fails on a fact worse than licensing: its Elixir SDK is community-maintained and silently ignores segments and flag dependencies, so a flag the Unleash UI says excludes a user returns true for them. FunWithFlags evaluates in-process against the application's own Postgres."
+    },
+    {
+      "id": "observability",
+      "title": "Observability backend",
+      "priority": 3,
+      "choice": "Grafana LGTM",
+      "adr": "0018",
+      "status": "planned",
+      "effort": "Close to zero Ash-side work — the exporters exist and need a destination. Three concrete follow-ups came out of checking rather than assuming: call the Phoenix and Ecto setup functions, put the OTLP endpoint where the config comment claims it is, and note that Grafana Agent and Promtail reached end of life on 2025-11-01.",
+      "bar": "Not applicable — telemetry is not an authorization surface. The licence mix is the interesting part: the collection tier (Alloy) is Apache-2.0 while the storage tier is copyleft."
+    },
+    {
+      "id": "mdm",
+      "title": "Master data and entity resolution",
+      "priority": 4,
+      "choice": "In-Ash resolution over CDM resources",
+      "adr": "0017",
+      "status": "planned",
+      "effort": "The golden-record shape is adopted rather than invented: the vendored `Account` and `Contact` CDM entities already carry `merged` and a self-referencing `master`/`masterid`. Match, merge and survivorship become ordinary changes and calculations.",
+      "bar": "A golden record inside the platform inherits ownership, audit and policy. Two consequences fall out that an external hub hides: candidate generation must run as a system actor, so the review queue can leak the existence of duplicates; and a merge can revoke a user's access without revoking any grant, because grants are per-record and the record moved. AtroCore is GPL-3.0, not the MIT its own marketing claims; Pimcore left open source entirely in 2025."
+    }
+  ]
+}

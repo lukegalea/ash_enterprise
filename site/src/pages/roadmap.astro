@@ -1,0 +1,287 @@
+---
+/**
+ * The roadmap page.
+ *
+ * Renders `itemsByPriority()` straight out of `docs/roadmap.json`, so an item
+ * that flips from planned to shipped in the repo flips here on the next build.
+ * The prose around the items — the selection bar, the sequencing argument and
+ * the four premises that did not survive checking — is the material from
+ * `docs/ROADMAP.md`, which is also published in full under /docs/roadmap/.
+ */
+import Base from '../layouts/Base.astro';
+import StatusChip from '../components/StatusChip.astro';
+import Scoreboard from '../components/Scoreboard.astro';
+import { inlineMarkdown } from '../components/inline';
+import { itemsByPriority, items, counts, withBase, adrHref } from '../lib/roadmap';
+
+const groups = itemsByPriority();
+const tally = counts(items);
+
+const priorityIntro: Record<number, { label: string; text: string }> = {
+  1: {
+    label: 'A chain, not a set',
+    text:
+      'Ingestion first, because lineage and cataloguing are meaningless without something producing traceable ingestion events — you cannot trace provenance for data that arrived by hand. Lineage next, because it is nearly free once ingestion exists: the correlation id is already threaded through every action, and `ash_strangler` already ships an OpenLineage emitter for column-level mappings. The integration hub sits alongside rather than after, because it answers a different question — data you pull versus systems you talk to. Sharing this tier is the composition already half-built, which is first because it is the only item where the claim on the landing page is currently ahead of the code.',
+  },
+  2: {
+    label: 'Consumes what priority 1 produces',
+    text:
+      'A catalog needs something to catalogue; BI needs something to report on. API versioning sits here rather than lower because it is the item most likely to be needed *before* it is wanted — the first external consumer of the JSON:API surface is the point after which changing it becomes expensive.',
+  },
+  3: {
+    label: 'Genuinely deferrable',
+    text:
+      'Feature flags matter when there are enough users to stage a rollout to, and an observability backend matters when there is enough traffic for a trace to tell you something a log would not.',
+  },
+  4: {
+    label: 'Genuinely deferrable',
+    text:
+      'Entity resolution matters when the same customer has arrived from three systems, which is a consequence of priority 1 rather than a precondition for it.',
+  },
+};
+
+/** The four premises this roadmap was drafted on that turned out to be wrong. */
+const corrections: { claim: string; correction: string }[] = [
+  {
+    claim: 'Meltano is Apache-2.0, and Airbyte’s connectors are MIT.',
+    correction:
+      'Meltano is **MIT**. And Airbyte’s connectors moved from MIT to ELv2 in July 2025, so the "source-available platform, open connectors" split no longer holds — the fallback is source-available throughout.',
+  },
+  {
+    claim: 'The ingestion tool will emit lineage events.',
+    correction:
+      'Neither Meltano nor Airbyte emits OpenLineage. That leaves a hole in the lineage graph exactly where external data enters. ADR 0008’s own argument applies — a diagram that omits edges it could not work out is worse than no diagram, because a reader cannot tell "nothing feeds this" from "the generator gave up" — so the hole is drawn as a hole.',
+  },
+  {
+    claim: 'OpenMetadata is one Postgres, which is what put it ahead of DataHub.',
+    correction:
+      'OpenMetadata requires Elasticsearch or OpenSearch, not optionally. It is **two stateful services**, not one — and that was the argument that put it ahead of DataHub.',
+  },
+  {
+    claim: 'Marquez upgrades cheaply into the chosen catalog.',
+    correction:
+      'OpenMetadata’s OpenLineage ingest is a Kafka/Kinesis consumer, not an HTTP endpoint. So the cheap upgrade from Marquez is **DataHub** — a base-URL change — while OpenMetadata needs a Kafka hop. The reversal path out of ADR 0012 and the destination chosen in ADR 0013 therefore point at different products. Both records say so; it is a real tension, not an oversight.',
+  },
+];
+
+const btnSecondary =
+  'inline-flex items-center justify-center gap-2 rounded-lg border border-line-strong px-5 py-3 text-sm font-semibold text-fg transition-colors hover:bg-surface-2';
+---
+
+<Base
+  title="Roadmap"
+  description="The eleven gaps this reference architecture has not closed, each with a decision recorded as an ADR — and the one bar every external tool had to clear."
+  active="roadmap"
+>
+  {/* ---------------------------- Header ---------------------------- */}
+  <section class="border-b border-line">
+    <div class="mx-auto max-w-5xl px-4 py-16 sm:px-6 sm:py-24 lg:px-8">
+      <p class="font-mono text-xs tracking-widest text-muted uppercase">Roadmap</p>
+      <h1 class="mt-4 text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
+        {tally.total} gaps, {tally.planned + tally.open} of them still open at the code level
+      </h1>
+      <p class="mt-6 max-w-3xl text-lg leading-relaxed text-pretty text-muted">
+        This repository proves one half of an enterprise application well: who you are, what you may
+        do, what happened, and whose data it is. It is close to silent on the other half — where data
+        comes from, where it goes, how it is traced, how it is integrated, and how its contracts
+        change. Each item below is a decision you can read and disagree with, not a promise.
+      </p>
+
+      <div class="mt-8">
+        <Scoreboard variant="inline" />
+      </div>
+
+      <div class="mt-10 flex flex-wrap gap-3">
+        <a class={btnSecondary} href={withBase('/docs/roadmap/')}>The full roadmap, in prose</a>
+        <a class={btnSecondary} href={withBase('/docs/adr/')}>All decision records</a>
+        <a class={btnSecondary} href={withBase('/#scoreboard')}>The 28-question checklist</a>
+      </div>
+    </div>
+  </section>
+
+  {/* ---------------------------- The bar ---------------------------- */}
+  <section class="border-b border-line bg-surface-2/50">
+    <div class="mx-auto max-w-5xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+      <div class="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:items-start">
+        <div>
+          <h2 class="text-2xl font-semibold tracking-tight text-balance sm:text-3xl">
+            The bar every item had to clear
+          </h2>
+          <p class="mt-4 leading-relaxed text-muted">
+            There is exactly one selection rule, and it disqualified several tools that would
+            otherwise have won on features.
+          </p>
+        </div>
+
+        <div>
+          <blockquote
+            class="rounded-2xl border border-brand/30 bg-surface p-6 text-lg leading-relaxed text-pretty shadow-card sm:p-8"
+          >
+            An external tool earns a place only if it can be handed a thin, generated declaration and
+            delegate authorization back to{' '}
+            <code class="rounded bg-code-bg px-1.5 py-0.5 font-mono text-[0.85em]"
+              >AshEnterprise.Security.ActorContext</code
+            >.
+          </blockquote>
+          <p class="mt-5 text-sm leading-relaxed text-muted">
+            A tool that brings its own RBAC, its own tenancy model or its own audit trail is a second
+            copy of the security model to keep synchronised. Every synchronisation job diverges
+            eventually, and it diverges silently in the permissive direction. Three strong products
+            lose on that specifically: Metabase, Camunda/Flowable, and Unleash.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {/* ------------------- Premises that did not survive ------------------- */}
+  <section class="border-b border-line">
+    <div class="mx-auto max-w-5xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+      <h2 class="text-2xl font-semibold tracking-tight text-balance sm:text-3xl">
+        Where the neat story did not survive checking
+      </h2>
+      <p class="mt-4 max-w-3xl leading-relaxed text-muted">
+        Four premises this roadmap was drafted on turned out to be wrong, and correcting them is more
+        useful than the tidier version.
+      </p>
+
+      <ol class="mt-10 space-y-6">
+        {
+          corrections.map(({ claim, correction }, i) => (
+            <li class="grid gap-4 rounded-xl border border-line bg-surface p-6 sm:grid-cols-[auto_minmax(0,1fr)] sm:gap-6">
+              <span
+                class="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-surface-2 font-mono text-xs font-semibold text-muted"
+                aria-hidden="true"
+              >
+                {i + 1}
+              </span>
+              <div>
+                <p class="text-sm text-muted line-through decoration-line-strong">{claim}</p>
+                <p
+                  class="mt-2 leading-relaxed text-pretty"
+                  set:html={inlineMarkdown(correction).replace(
+                    /\*\*([^*]+)\*\*/g,
+                    '<strong class="font-semibold">$1</strong>',
+                  )}
+                />
+              </div>
+            </li>
+          ))
+        }
+      </ol>
+    </div>
+  </section>
+
+  {/* ---------------------------- The items ---------------------------- */}
+  <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+    {
+      groups.map(({ priority, items: group }) => {
+        const intro = priorityIntro[priority];
+        return (
+          <section id={`priority-${priority}`} class="scroll-mt-24 border-b border-line py-16 sm:py-20">
+            <header class="max-w-3xl">
+              <p class="flex items-center gap-3 font-mono text-xs tracking-widest text-muted uppercase">
+                <span class="rounded border border-line px-1.5 py-0.5 text-brand">
+                  Priority {priority}
+                </span>
+                {intro && <span>{intro.label}</span>}
+                <span aria-hidden="true">·</span>
+                <span>
+                  {group.length} item{group.length === 1 ? '' : 's'}
+                </span>
+              </p>
+              {intro && (
+                <p
+                  class="mt-5 leading-relaxed text-pretty text-muted"
+                  set:html={inlineMarkdown(intro.text)}
+                />
+              )}
+            </header>
+
+            <div class="mt-10 space-y-6">
+              {group.map((item) => {
+                const adr = adrHref(item.adr);
+                return (
+                  <article
+                    id={item.id}
+                    class="scroll-mt-24 rounded-2xl border border-line bg-surface p-6 transition-shadow hover:shadow-card sm:p-8"
+                  >
+                    <div class="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+                      <div class="min-w-0">
+                        <h3 class="text-xl font-semibold tracking-tight text-balance">
+                          {item.title}
+                        </h3>
+                        <p class="mt-1.5 font-mono text-sm text-brand">{item.choice}</p>
+                      </div>
+                      <div class="flex shrink-0 items-center gap-3">
+                        <StatusChip status={item.status} />
+                        {adr ? (
+                          <a
+                            class="font-mono text-xs text-muted underline-offset-4 transition-colors hover:text-brand hover:underline"
+                            href={adr}
+                          >
+                            ADR {item.adr}
+                          </a>
+                        ) : item.adr ? (
+                          <span class="font-mono text-xs text-muted">ADR {item.adr}</span>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    <dl class="mt-7 grid gap-7 sm:grid-cols-2">
+                      <div>
+                        <dt class="text-xs font-semibold tracking-widest text-muted uppercase">
+                          What the work actually is
+                        </dt>
+                        <dd
+                          class="mt-2.5 text-sm leading-relaxed text-pretty"
+                          set:html={inlineMarkdown(item.effort)}
+                        />
+                      </div>
+                      {item.bar && (
+                        <div>
+                          <dt class="text-xs font-semibold tracking-widest text-muted uppercase">
+                            Does it consume ActorContext?
+                          </dt>
+                          <dd
+                            class="mt-2.5 border-l-2 border-brand/40 pl-4 text-sm leading-relaxed text-pretty text-muted"
+                            set:html={inlineMarkdown(item.bar)}
+                          />
+                        </div>
+                      )}
+                    </dl>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        );
+      })
+    }
+  </div>
+
+  {/* ---------------------------- Closing ---------------------------- */}
+  <section class="py-16 sm:py-24">
+    <div class="mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
+      <h2 class="text-2xl font-semibold tracking-tight text-balance sm:text-3xl">
+        How this page stays honest
+      </h2>
+      <p class="mt-5 leading-relaxed text-pretty text-muted">
+        Every status word above is read at build time from <code
+          class="rounded bg-code-bg px-1.5 py-0.5 font-mono text-[0.9em]">docs/roadmap.json</code
+        >, the same file the README, the checklist and the prose roadmap render from, and checked in
+        CI alongside <code class="rounded bg-code-bg px-1.5 py-0.5 font-mono text-[0.9em]"
+          >mix ash.codegen --check</code
+        >. A status can be wrong in one place only by being wrong in all of them — which is easier to
+        notice.
+      </p>
+      <div class="mt-9 flex flex-wrap justify-center gap-3">
+        <a class={btnSecondary} href={withBase('/docs/roadmap/')}>The full roadmap</a>
+        <a class={btnSecondary} href={withBase('/docs/manifesto/07-what-we-do-not-have/')}>
+          What we do not have
+        </a>
+        <a class={btnSecondary} href={withBase('/')}>Back to the overview</a>
+      </div>
+    </div>
+  </section>
+</Base>

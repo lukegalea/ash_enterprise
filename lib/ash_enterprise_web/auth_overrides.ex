@@ -1,4 +1,10 @@
 defmodule AshEnterpriseWeb.AuthOverrides do
+  @moduledoc """
+  Presentation overrides for `ash_authentication_phoenix`'s generated screens.
+
+  Appearance only. Anything that changes what an unauthenticated caller may do
+  belongs in the resource's strategies or its policies, not here.
+  """
   use AshAuthentication.Phoenix.Overrides
 
   # configure your UI overrides here

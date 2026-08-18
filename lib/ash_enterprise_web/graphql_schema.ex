@@ -1,4 +1,11 @@
 defmodule AshEnterpriseWeb.GraphqlSchema do
+  @moduledoc """
+  The Absinthe schema, generated from the domains that opt in.
+
+  Nothing here is hand-written: types, filter inputs, sort inputs and pagination
+  are all derived from resources declaring a `graphql` type. The comment below
+  records the compile-time failure you get from an empty domain list.
+  """
   use Absinthe.Schema
 
   # Every domain that should appear in the GraphQL schema is listed here.
