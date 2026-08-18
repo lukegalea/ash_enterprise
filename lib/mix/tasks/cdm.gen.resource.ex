@@ -181,7 +181,7 @@ defmodule Mix.Tasks.Cdm.Gen.Resource do
         "dataverse" -> ["dataverse_#{underscored}.json", "#{underscored}.json"]
         nil -> ["#{underscored}.json", "dataverse_#{underscored}.json"]
         "cdm" -> ["#{underscored}.json", "dataverse_#{underscored}.json"]
-        other -> Mix.raise("--source must be \"cdm\" or \"dataverse\", got #{inspect(other)}")
+        other -> Mix.raise(~s|--source must be "cdm" or "dataverse", got #{inspect(other)}|)
       end
 
     path =
@@ -289,41 +289,54 @@ defmodule Mix.Tasks.Cdm.Gen.Resource do
     }
   end
 
-  defp ash_type(%{"data_format" => fmt}) when is_binary(fmt) do
-    case fmt do
-      "STRING" -> :string
-      "INT32" -> :integer
-      "INT64" -> :integer
-      "DECIMAL" -> :decimal
-      "DOUBLE" -> :float
-      "BOOLEAN" -> :boolean
-      "DATE_TIME" -> :utc_datetime_usec
-      "DATE" -> :date
-      "TIME" -> :time
-      "GUID" -> :uuid
-      _ -> :string
-    end
-  end
+  # The two source vocabularies, each mapped to the narrowest Ash type that does
+  # not lose information. They are tables rather than `case` clauses because a
+  # table is the thing they are -- and because a reader adding a CDM data format
+  # should not have to read control flow to do it.
+  #
+  # `Money` becomes `:decimal` rather than `AshMoney`'s type on purpose: the CDM
+  # carries the amount and the currency in separate columns, so pairing them is a
+  # judgement about which currency column applies, and the generator does not
+  # make judgements. `Lookup` and `Customer` become a bare `:uuid` for the same
+  # reason -- see the unresolved-foreign-key note `description_for/1` attaches.
+  @cdm_data_formats %{
+    "STRING" => :string,
+    "INT32" => :integer,
+    "INT64" => :integer,
+    "DECIMAL" => :decimal,
+    "DOUBLE" => :float,
+    "BOOLEAN" => :boolean,
+    "DATE_TIME" => :utc_datetime_usec,
+    "DATE" => :date,
+    "TIME" => :time,
+    "GUID" => :uuid
+  }
 
-  defp ash_type(%{"dataverse_type" => type}) when is_binary(type) do
-    case type do
-      "String" -> :string
-      "Memo" -> :string
-      "Integer" -> :integer
-      "BigInt" -> :integer
-      "Decimal" -> :decimal
-      "Double" -> :float
-      "Money" -> :decimal
-      "Boolean" -> :boolean
-      "DateTime" -> :utc_datetime_usec
-      "Date" -> :date
-      "Uniqueidentifier" -> :uuid
-      "Lookup" -> :uuid
-      "Customer" -> :uuid
-      "Picklist" -> :integer
-      _ -> :string
-    end
-  end
+  @dataverse_types %{
+    "String" => :string,
+    "Memo" => :string,
+    "Integer" => :integer,
+    "BigInt" => :integer,
+    "Decimal" => :decimal,
+    "Double" => :float,
+    "Money" => :decimal,
+    "Boolean" => :boolean,
+    "DateTime" => :utc_datetime_usec,
+    "Date" => :date,
+    "Uniqueidentifier" => :uuid,
+    "Lookup" => :uuid,
+    "Customer" => :uuid,
+    "Picklist" => :integer
+  }
+
+  # Both fall back to `:string` rather than raising. The corpus is third-party
+  # and pinned, so an unrecognised format is a gap in these tables rather than
+  # bad data -- and the generated resource is meant to be edited before it ships.
+  defp ash_type(%{"data_format" => fmt}) when is_binary(fmt),
+    do: Map.get(@cdm_data_formats, fmt, :string)
+
+  defp ash_type(%{"dataverse_type" => type}) when is_binary(type),
+    do: Map.get(@dataverse_types, type, :string)
 
   defp ash_type(_attr), do: :string
 
@@ -348,10 +361,7 @@ defmodule Mix.Tasks.Cdm.Gen.Resource do
   # --- rendering -------------------------------------------------------------
 
   defp render_resource(ctx) do
-    attrs_src =
-      ctx.attributes
-      |> Enum.map(&render_attribute/1)
-      |> Enum.join("\n\n")
+    attrs_src = Enum.map_join(ctx.attributes, "\n\n", &render_attribute/1)
 
     provenance = ctx.provenance
 
@@ -412,9 +422,7 @@ defmodule Mix.Tasks.Cdm.Gen.Resource do
   defp api_type_line(type), do: ",\n    api_type: :#{type}"
 
   defp accept_list(attributes) do
-    attributes
-    |> Enum.map(&":#{&1.name}")
-    |> Enum.join(", ")
+    Enum.map_join(attributes, ", ", &":#{&1.name}")
   end
 
   defp render_attribute(attr) do
@@ -426,8 +434,7 @@ defmodule Mix.Tasks.Cdm.Gen.Resource do
         present?(attr.description) && "description #{inspect(attr.description)}"
       ]
       |> Enum.filter(& &1)
-      |> Enum.map(&("    " <> &1))
-      |> Enum.join("\n")
+      |> Enum.map_join("\n", &("    " <> &1))
 
     """
       attribute :#{attr.name}, #{inspect(attr.type)} do

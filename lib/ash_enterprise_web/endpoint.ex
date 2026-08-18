@@ -31,7 +31,24 @@ defmodule AshEnterpriseWeb.Endpoint do
     raise_on_missing_only: code_reloading?
 
   if Mix.env() == :dev do
-    plug Tidewave
+    # Tidewave, except on Clarity's routes.
+    #
+    # `Tidewave.maybe_inject_toolbar/1` inserts its <meta> and <script> before the
+    # **last** `</head>` in the response body. Clarity inlines a ~5 MB JavaScript
+    # bundle that contains the literal string `</head>`, so the injection lands
+    # *inside* that script and the next `</script>` truncates it. Clarity's JS then
+    # never runs, its LiveView socket never opens, and /clarity is a permanent
+    # splash screen -- which looks like Clarity is broken rather than like two dev
+    # tools disagreeing. Found 2026-08-18; see docs/HANDOFF.md §3.
+    #
+    # Both are dev-only, so this costs nothing in production. Skipping the
+    # injection rather than reordering the plugs is deliberate: Tidewave has to
+    # stay ahead of the router to see the request, and Clarity is the only route
+    # that inlines a bundle large enough to contain the sentinel.
+    plug :tidewave_except_clarity
+
+    defp tidewave_except_clarity(%Plug.Conn{path_info: ["clarity" | _]} = conn, _opts), do: conn
+    defp tidewave_except_clarity(conn, _opts), do: Tidewave.call(conn, Tidewave.init([]))
   end
 
   # Code reloading can be explicitly enabled under the

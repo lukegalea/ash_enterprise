@@ -196,9 +196,11 @@ These are the ones that cost real time and are not written in any upstream doc.
   bundle that contains the literal string `</head>`, so the injection lands
   *inside* that script and the next `</script>` truncates it. Clarity's
   JavaScript never runs and its LiveView socket never opens, so `/clarity` is a
-  permanent splash screen. Found 2026-08-18 while capturing screenshots. Both
-  packages are dev-only, so this costs nothing in production — but it makes the
-  best introspection tool in the repo look broken.
+  permanent splash screen. Found 2026-08-18 while capturing screenshots, and
+  confirmed by counting: the response contains **two** `</head>` strings, the
+  real one and one inside the bundle. **Fixed** — `lib/ash_enterprise_web/endpoint.ex`
+  now skips the injection for `/clarity` paths only, verified by fetching both a
+  Clarity page (no Tidewave markup) and `/` (Tidewave still present).
 - **`/clarity` with no vertex crashes on connect** — `** (RuntimeError)
   attempted to live patch while mounting`, in a reconnect loop. Any URL naming
   both a vertex and a content id works, e.g.

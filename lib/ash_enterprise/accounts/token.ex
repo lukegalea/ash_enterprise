@@ -1,4 +1,11 @@
 defmodule AshEnterprise.Accounts.Token do
+  @moduledoc """
+  JWT revocation records owned by `ash_authentication`.
+
+  Authentication plumbing rather than a business entity, and deliberately not on
+  the platform base resource -- the comment below says why, and it is the one
+  opt-out in this application that is worth reading before copying.
+  """
   # Deliberately NOT on AshEnterprise.Platform.Resource.
   #
   # This table is authentication plumbing owned by ash_authentication -- a store

@@ -103,7 +103,7 @@ defmodule Mix.Tasks.AshEnterprise.Roadmap do
         data
 
       {:ok, _} ->
-        Mix.raise("#{@source} must contain both a \"questions\" and an \"items\" array.")
+        Mix.raise(~s|#{@source} must contain both a "questions" and an "items" array.|)
 
       {:error, error} ->
         Mix.raise("#{@source} is not valid JSON: #{Exception.message(error)}")

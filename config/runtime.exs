@@ -151,3 +151,31 @@ if config_env() == :prod do
   #
   # See https://swoosh.hexdocs.pm/Swoosh.html#module-installation for details.
 end
+
+# ## OpenTelemetry
+#
+# `config/config.exs` sets `traces_exporter: :none`, because exporting by
+# accident is worse than not exporting. This is the switch that turns it on, and
+# it is here rather than there because an endpoint is a deployment fact.
+#
+# Set OTEL_EXPORTER_OTLP_ENDPOINT (e.g. http://collector:4318) and traces start
+# flowing; leave it unset and nothing changes. OTEL_EXPORTER_OTLP_HEADERS carries
+# credentials for a hosted collector, in the W3C `key=value,key=value` form.
+#
+# See docs/adr/0018-grafana-lgtm-observability-backend.md for where these land.
+if otlp_endpoint = System.get_env("OTEL_EXPORTER_OTLP_ENDPOINT") do
+  config :opentelemetry,
+    span_processor: :batch,
+    traces_exporter: :otlp
+
+  config :opentelemetry_exporter,
+    otlp_protocol: :http_protobuf,
+    otlp_endpoint: otlp_endpoint,
+    otlp_headers: System.get_env("OTEL_EXPORTER_OTLP_HEADERS")
+
+  config :opentelemetry, :resource,
+    service: %{
+      name: System.get_env("OTEL_SERVICE_NAME", "ash_enterprise"),
+      namespace: "ash_enterprise"
+    }
+end

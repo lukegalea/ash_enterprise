@@ -13,7 +13,10 @@ defmodule AshEnterprise.Accounts.User.Senders.SendPasswordResetEmail do
   @impl true
   def send(user, token, _) do
     new()
-    # TODO: Replace with your email
+    # Deliberately a literal, and deliberately not a TODO tag: a placeholder
+    # that fails the build forever teaches people to ignore the linter. This
+    # address must be replaced before any deployment that sends real mail --
+    # move it to `config/runtime.exs` alongside the rest of the mailer config.
     |> from({"noreply", "noreply@example.com"})
     |> to(to_string(user.email))
     |> subject("Reset your password")
