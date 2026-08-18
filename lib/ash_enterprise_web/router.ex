@@ -20,13 +20,52 @@ defmodule AshEnterpriseWeb.Router do
     plug AshGraphql.Plug
   end
 
+  # Content-Security-Policy for every HTML route.
+  #
+  # Three directives here are doing real work and cost nothing: `frame-ancestors
+  # 'none'` blocks clickjacking, `object-src 'none'` kills the plugin surface, and
+  # `base-uri 'self'` stops an injected <base> from re-pointing every relative URL.
+  #
+  # Two are weaker than they should be, and it is worth saying why rather than
+  # letting a reader assume this is a considered maximum:
+  #
+  #   * `script-src` allows 'unsafe-inline' and 'unsafe-eval' because the mounted
+  #     dev tools need them -- GraphiQL and Swagger UI both inline bootstrapping
+  #     scripts, and Clarity inlines its whole bundle. All three are dev-only
+  #     (`/gql/playground`, `/api/json/swaggerui`, `/clarity`), so a deployment
+  #     that drops them can tighten this to `'self'` plus a per-request nonce.
+  #     LiveView itself does not need either.
+  #   * `style-src` allows 'unsafe-inline' because A2UI's components render into
+  #     shadow DOM with their styles inlined, and because Phoenix's own error
+  #     pages do the same.
+  #
+  # `connect-src` includes ws:/wss: because that is the LiveView socket.
+  #
+  # One thing that will confuse anyone comparing environments: **the header you
+  # see in dev is not this string.** Tidewave rewrites it -- it adds
+  # `https://tidewave.ai` to `script-src` and removes `frame-ancestors` outright,
+  # because it needs to be framed. Tidewave is `only: [:dev]`, so production
+  # serves exactly what is written here.
+  @csp [
+         "default-src 'self'",
+         "img-src 'self' data: blob:",
+         "font-src 'self' data:",
+         "style-src 'self' 'unsafe-inline'",
+         "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+         "connect-src 'self' ws: wss:",
+         "frame-ancestors 'none'",
+         "base-uri 'self'",
+         "object-src 'none'"
+       ]
+       |> Enum.join("; ")
+
   pipeline :browser do
     plug :accepts, ["html"]
     plug :fetch_session
     plug :fetch_live_flash
     plug :put_root_layout, html: {AshEnterpriseWeb.Layouts, :root}
     plug :protect_from_forgery
-    plug :put_secure_browser_headers
+    plug :put_secure_browser_headers, %{"content-security-policy" => @csp}
     plug :load_from_session
     # Must run after :load_from_session -- it resolves the authorization context
     # for whatever user that installed. See the plug's moduledoc.
