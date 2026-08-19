@@ -52,7 +52,22 @@ defmodule Mix.Tasks.AshEnterprise.Legacy.Setup do
     Mix.shell().info("applying priv/legacy/#{name}")
 
     {output, status} =
-      System.cmd("psql", psql_args() ++ ["--file", path], stderr_to_stdout: true)
+      try do
+        System.cmd("psql", psql_args() ++ ["--file", path],
+          stderr_to_stdout: true,
+          env: psql_env()
+        )
+      rescue
+        ErlangError ->
+          Mix.raise("""
+          `psql` is not on PATH, so the simulated legacy schema cannot be applied.
+
+          It is applied with psql rather than as a migration on purpose -- see
+          priv/legacy/README.md -- so this is a missing dependency rather than
+          something to work around. Inside devenv it is already present; a CI
+          image needs the postgresql client package.
+          """)
+      end
 
     if status != 0 do
       Mix.raise("""
@@ -63,7 +78,11 @@ defmodule Mix.Tasks.AshEnterprise.Legacy.Setup do
     end
   end
 
-  defp psql_args do
+  @doc false
+  # Public only so `AshEnterprise.Legacy.SetupTaskTest` can assert the two
+  # properties that turned a 44-second test suite into a 37-minute CI hang:
+  # that psql can never prompt, and that the password is not on the command line.
+  def psql_args do
     config = AshEnterprise.Repo.config()
 
     [
@@ -80,7 +99,33 @@ defmodule Mix.Tasks.AshEnterprise.Legacy.Setup do
       "--set",
       "ON_ERROR_STOP=1",
       "--quiet",
-      "--no-psqlrc"
+      "--no-psqlrc",
+      # NEVER prompt. Without this, a server that wants a password -- which is
+      # every CI postgres service, since they are started with POSTGRES_PASSWORD
+      # -- makes psql read the password from the terminal, and `System.cmd/3`
+      # gives it a terminal that will never answer. The task then hangs until the
+      # job times out, with no output and nothing to read.
+      #
+      # This is not a hypothetical: it cost a 37-minute CI run that reported
+      # nothing but "in progress". `--no-password` turns that into an immediate,
+      # legible authentication error.
+      "--no-password"
     ]
+  end
+
+  # `PGPASSWORD` from the repo's own config, so the credentials psql uses and the
+  # credentials Ecto uses cannot drift. Nothing is passed on the command line:
+  # arguments are visible in `ps` to every user on the machine.
+  #
+  # Omitted entirely when the config has no password, which is the local
+  # `devenv` case -- its cluster trusts local connections, and setting an empty
+  # PGPASSWORD there would be a password attempt rather than the absence of one.
+  @doc false
+  def psql_env do
+    case AshEnterprise.Repo.config()[:password] do
+      nil -> []
+      "" -> []
+      password -> [{"PGPASSWORD", to_string(password)}]
+    end
   end
 end
