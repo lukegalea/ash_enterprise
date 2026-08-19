@@ -1,0 +1,76 @@
+---
+/**
+ * An animated capture that is allowed not to exist.
+ *
+ * The sibling of `ScreenshotFigure.astro`, and separate from it for one
+ * concrete reason: that component renders through `astro:assets`, which hands
+ * the file to sharp, and sharp re-encodes an animated GIF down to its first
+ * frame. An animation shown that way is silently just a screenshot — it looks
+ * fine in review and proves nothing.
+ *
+ * So this emits a plain `<img>` against the bundled URL, with `width` and
+ * `height` set so the page does not reflow while it loads.
+ */
+import { animation } from './screenshots';
+
+interface Props {
+  /** Bare filename inside `src/assets/screenshots/`, e.g. `legacy-live-update.gif`. */
+  name: string;
+  alt: string;
+  caption?: string;
+  width: number;
+  height: number;
+  class?: string;
+  /** Rendered when the capture is absent, instead of nothing. */
+  fallback?: boolean;
+}
+
+const {
+  name,
+  alt,
+  caption,
+  width,
+  height,
+  class: className = '',
+  fallback = false,
+} = Astro.props;
+
+const src = animation(name);
+const hasCaption = Boolean(caption || Astro.slots.has('default'));
+---
+
+{
+  src ? (
+    <figure class:list={['not-prose group my-0', className]}>
+      <div class="overflow-hidden rounded-xl border border-line bg-surface shadow-card transition-shadow duration-300 group-hover:shadow-lg">
+        <div
+          class="flex items-center gap-1.5 border-b border-line bg-surface-2 px-3 py-2"
+          aria-hidden="true"
+        >
+          <span class="h-2.5 w-2.5 rounded-full bg-line-strong" />
+          <span class="h-2.5 w-2.5 rounded-full bg-line-strong" />
+          <span class="h-2.5 w-2.5 rounded-full bg-line-strong" />
+        </div>
+        <img
+          src={src}
+          alt={alt}
+          width={width}
+          height={height}
+          loading="lazy"
+          decoding="async"
+          class="block h-auto w-full"
+        />
+      </div>
+      {hasCaption && (
+        <figcaption class="mt-3 text-sm leading-relaxed text-muted">
+          {caption}
+          <slot />
+        </figcaption>
+      )}
+    </figure>
+  ) : fallback ? (
+    <p class="rounded-xl border border-dashed border-line px-4 py-3 text-sm text-muted">
+      {caption ?? alt}
+    </p>
+  ) : null
+}

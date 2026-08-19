@@ -85,6 +85,39 @@ A request like *"assign the admin role to user XYZ"* does not execute. It pauses
 
 The audit entry records a human actor, because a human made the decision. The model proposed; it did not decide.
 
+## Showing is not changing, and they must not share a shape
+
+A console that only proposes mutations answers half the questions people actually ask it. *"Show me the legacy users"*
+is not a change, and there is nothing for a human to decide by looking at the result: a table is filtered by the
+viewer's own policies before a single row reaches the page. Putting a confirmation in front of it would not add safety —
+it would subtract it, by teaching people that the confirmation is a thing you click past. **The confirmation on a write
+is only worth reading because a read never asks for one.**
+
+So `/agent` does three things, and they are deliberately three different shapes:
+
+| Request | What happens | Waits for a human? |
+|---|---|---|
+| *"assign the Administrator role to dana@corp.example"* | resolved to a concrete mutation, held | **yes** |
+| *"show me the legacy users"* | a **declared** surface is rendered | no |
+| *"legacy users, just login and email, sorted by login"* | a surface is **composed**, validated, rendered | no |
+
+The third is the interesting one, because it is where a model produces something that gets rendered. It does not
+produce UI. It produces a **spec** — a resource name, field names, a sort — in the same vocabulary the compile-time DSL
+uses. The server resolves every name in it against a host-configured allowlist and runs the *same verifier modules* the
+DSL compiles with, over a synthetic DSL state. A spec naming a field that does not exist is refused with a structured
+error, which is fed back rather than swallowed; it is never rendered blank.
+
+Two properties follow, and both are structural rather than promised:
+
+- **The allowlist is host configuration, not client input.** It gates the surface's resource and every context
+  resource, so no request can compose its way to a table this application never meant to publish.
+- **The resolved surface is held on the server**, keyed by its id, and client interactions are routed through it. A
+  surface is never rebuilt from anything the client echoed back.
+
+A composed table is also *live* when the resource it was composed over publishes notifications — the strangler read
+model does, so a table the model designed thirty seconds ago updates itself when the old application writes. Nothing
+about being designed at runtime makes a surface less able to keep up.
+
 ## Why A2UI rather than a chat transcript
 
 A2UI (Google's open agent-to-UI payload spec) treats **UI as data, not code**. The server emits a description of a

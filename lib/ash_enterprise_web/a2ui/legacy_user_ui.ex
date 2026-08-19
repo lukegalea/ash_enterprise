@@ -33,6 +33,11 @@ defmodule AshEnterpriseWeb.A2ui.LegacyUserUI do
   present three different time zones as a single ordering and look authoritative
   doing it. `legacy_id` is monotonic and honest, so that is what this sorts by
   until the expand step resolves the zones.
+
+  Descending, so the most recent legacy row is the first one on the page. On a
+  surface whose whole point is that it updates when somebody else writes, a
+  default that puts new rows below the fold means the update happens where
+  nobody is looking.
   """
 
   use AshA2ui.Standalone
@@ -44,7 +49,7 @@ defmodule AshEnterpriseWeb.A2ui.LegacyUserUI do
     query :default do
       search_fields [:email, :login, :full_name]
       sortable [:legacy_id, :login]
-      default_sort legacy_id: :asc
+      default_sort legacy_id: :desc
       page_size 25
     end
 
@@ -53,11 +58,14 @@ defmodule AshEnterpriseWeb.A2ui.LegacyUserUI do
       read_action :read
       query :default
 
+      # Four metadata values across three columns rather than stacked one per
+      # line. Nine people at one field per row is a page you have to scroll to
+      # see a change land in, which defeats the point of the surface being live.
       row_layout do
         title :full_name
         badge :lifecycle_status
         meta [:login, :email, :legacy_state, :legacy_id]
-        columns 1
+        columns 3
       end
     end
 

@@ -16,6 +16,7 @@
 import Base from '../layouts/Base.astro';
 import Section from '../components/Section.astro';
 import CodePanel from '../components/CodePanel.astro';
+import AnimationFigure from '../components/AnimationFigure.astro';
 import ScreenshotFigure from '../components/ScreenshotFigure.astro';
 import StatusChip from '../components/StatusChip.astro';
 import Scoreboard from '../components/Scoreboard.astro';
@@ -610,7 +611,7 @@ $ devenv shell -- iex-server
           </div>
           <div class="rounded-xl border border-line bg-surface p-5">
             <dt class="text-sm text-muted">Tests in the package</dt>
-            <dd class="mt-1 text-3xl font-semibold tabular-nums">341</dd>
+            <dd class="mt-1 text-3xl font-semibold tabular-nums">345</dd>
             <dd class="mt-1 text-xs text-muted">including round-trip properties</dd>
           </div>
         </dl>
@@ -642,6 +643,67 @@ $ devenv shell -- iex-server
             reversible. One declaration also derives the compatibility view, the{' '}
             <code class="font-mono text-[0.9em]">INSTEAD OF</code> triggers, an expression index, a resumable
             backfill, a drift reconciler and a column-level lineage graph.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-14 border-t border-line pt-10">
+      <h3 class="text-lg font-semibold">The old application writes. The page updates.</h3>
+      <p class="mt-3 max-w-3xl leading-relaxed text-muted">
+        A 2010-era Rails schema lives in{' '}
+        <code class="font-mono text-[0.9em]">legacy.users</code>: a{' '}
+        <code class="font-mono text-[0.9em]">serial</code> primary key, no tenant column,{' '}
+        <code class="font-mono text-[0.9em]">acts_as_paranoid</code>, passwords hashed with SHA1. One
+        mapping declaration turns it into an ordinary resource here — same policies, same tenancy,
+        same admin UI — and the same declaration emits an{' '}
+        <code class="font-mono text-[0.9em]">AFTER</code> trigger that{' '}
+        <code class="font-mono text-[0.9em]">pg_notify</code>s on commit. A listener re-reads the row
+        through Ash and dispatches a real notification, so nothing downstream can tell which
+        application wrote it.
+      </p>
+
+      <div class="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] lg:items-start">
+        <AnimationFigure
+          name="legacy-live-update.gif"
+          alt="A table of legacy users in the browser. A row for Nadia Hale appears at the top and a banner reads: another application changed these rows, the table was rebuilt."
+          width={1000}
+          height={481}
+          fallback={true}
+          caption="Recorded against the running application. Nothing is staged: the row arrives from a plain INSERT into legacy.users issued with psql — no Ash, no changeset, no HTTP request."
+        />
+
+        <div class="space-y-4">
+          <ol class="space-y-3 text-sm">
+            {
+              [
+                ['psql', 'INSERT INTO legacy.users … — the old application\u2019s write path, untouched'],
+                ['AFTER trigger', 'pg_notify with the row key only, delivered on commit'],
+                ['Listener', 're-reads through Ash, so calculations, tenancy and policies apply'],
+                ['Notifier', 'a real Ash.Notifier.Notification, broadcast to subscribers'],
+                ['LiveView', 'rebuilds the table under the viewer\u2019s own actor'],
+              ].map(([step, note], i) => (
+                <li class="flex items-start gap-4 rounded-xl border border-line bg-surface px-4 py-3">
+                  <span
+                    class="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-md bg-brand-soft font-mono text-[0.7rem] font-semibold text-brand"
+                    aria-hidden="true"
+                  >
+                    {i + 1}
+                  </span>
+                  <span class="min-w-0">
+                    <code class="font-mono text-sm font-semibold break-all">{step}</code>
+                    <span class="mt-0.5 block text-xs text-muted">{note}</span>
+                  </span>
+                </li>
+              ))
+            }
+          </ol>
+
+          <p class="text-sm leading-relaxed text-muted">
+            Delivery is at-most-once and in-memory, which is the correct trade for cache
+            invalidation and a live page and the wrong one for an audit trail. That distinction is
+            written down rather than discovered: a missed event costs a stale page until the next
+            read, and the audit trail is a separate, hash-chained mechanism.
           </p>
         </div>
       </div>
@@ -829,7 +891,7 @@ $ devenv shell -- iex-server
     step="08"
     eyebrow="Thesis 5"
     title="Agents are users, not a side door"
-    lead="Ask for an administrative change in plain language. The console shows exactly what it proposes to do, and nothing happens until you approve it."
+    lead="Ask in plain language. A change is held for your approval; a table is simply shown, because it was already filtered by your policies before a single row reached the page."
     wide={true}
   >
     <div class="grid gap-8 lg:grid-cols-2">
@@ -843,6 +905,39 @@ $ devenv shell -- iex-server
         alt="The helper console after the human approved the proposal, showing the executed change."
         caption="On approval the action runs — through the policies, into the audit log, with you as the actor. The audit row names the human who approved, not the model that suggested."
       />
+    </div>
+
+    <div class="mt-14 border-t border-line pt-10">
+      <h3 class="text-lg font-semibold">It can also just show you the thing</h3>
+      <p class="mt-3 max-w-3xl leading-relaxed text-muted">
+        Not every request is a change, and treating one as if it were is how people learn to click
+        through confirmations. Asked for a table, the console picks one of the surfaces the
+        application already declares — or, when none fits, composes a spec and hands it to the server
+        to resolve. A spec is not UI: every resource, field and action name in it is checked against
+        a host-configured allowlist by the same verifiers the compile-time DSL runs, so a spec naming
+        a field that does not exist is refused with an error rather than rendered blank.
+      </p>
+
+      <div class="mt-8 grid gap-8 lg:grid-cols-2">
+        <ScreenshotFigure
+          name="agent-surface-legacy-users.png"
+          alt="The helper console after asking to see the legacy users, showing a table badged live."
+          frame="tall"
+          caption="“show me the legacy users” resolves to a declared surface. The live badge is only rendered where the underlying resource actually publishes notifications — a promise the page can keep."
+        />
+        <ScreenshotFigure
+          name="agent-composed-surface.png"
+          alt="The helper console showing a table the agent composed, with only the login and email columns, badged composed and live."
+          frame="tall"
+          caption="“just the login and email columns, sorted by login” matches no declared surface, so one is composed and validated. It is still live: nothing about being designed at runtime stops a table updating itself."
+        />
+      </div>
+
+      <p class="mt-6 max-w-3xl text-sm leading-relaxed text-muted">
+        Both tables are built by running the resource's own read action with the person asking as the
+        actor. What an agent can show you is bounded by what you are allowed to see, not by what the
+        agent knows — and that is the same sentence as the one about mutations, which is the point.
+      </p>
     </div>
 
     <div class="mt-12 grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-start">

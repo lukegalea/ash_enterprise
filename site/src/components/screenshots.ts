@@ -29,3 +29,31 @@ export function hasScreenshot(name: string): boolean {
 export function hasAnyScreenshot(...names: string[]): boolean {
   return names.some(hasScreenshot);
 }
+
+/**
+ * Animated captures, kept in a separate glob and deliberately NOT run through
+ * `astro:assets`.
+ *
+ * `<Image>` hands the file to sharp, which re-encodes it and keeps only the
+ * first frame — so an animation processed that way silently becomes a
+ * screenshot. These are emitted as-is and referenced with a plain `<img>`;
+ * `AnimationFigure.astro` is the only thing that should read this.
+ *
+ * `query: '?url'` asks the bundler for the emitted path rather than metadata,
+ * because that path is all a raw `<img>` needs.
+ */
+const animations = import.meta.glob<{ default: string }>('../assets/screenshots/*.gif', {
+  eager: true,
+  query: '?url',
+  import: 'default',
+});
+
+/** The emitted URL for an animated capture, or `undefined` when it was not taken. */
+export function animation(name: string): string | undefined {
+  return animations[`../assets/screenshots/${name}`] as unknown as string | undefined;
+}
+
+/** Whether an animated capture is present in this build. */
+export function hasAnimation(name: string): boolean {
+  return Boolean(animation(name));
+}

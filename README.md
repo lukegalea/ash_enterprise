@@ -125,8 +125,9 @@ Sign in with the credentials the seeder prints, then visit:
 
 | URL | What |
 |---|---|
-| `/agent` | Helper console — the model proposes, you approve, the app executes |
+| `/agent` | Helper console — proposes changes for your approval, and shows or composes tables on request |
 | `/app/users`, `/app/teams`, `/app/roles`, `/app/business-units` | A2UI surfaces derived from resource metadata |
+| `/app/legacy-users` | The same, over a 2010-era Rails schema read through a compatibility view — and it updates when the old application writes |
 | `/admin` | Zero-config admin over every resource |
 | `/clarity` | ER, class, policy and state-machine diagrams (dev only) |
 | `/api/json/swaggerui` · `/gql/playground` | JSON:API + OpenAPI, GraphQL |
@@ -179,6 +180,34 @@ audit row names the human who approved, not the model that suggested:
 Interpreting a request needs a provider key. Everything after it — resolution,
 authorization, execution, audit — is ordinary Ash code and does not, which is why
 the flow is exercised end to end by the test suite without one.
+
+Not every request is a change, and treating one as if it were is how people learn
+to click past confirmations. Asked for a table, the console renders one of the
+surfaces the application already declares — filtered by your policies before a
+single row reaches the page, so there is nothing to confirm:
+
+![The helper console showing the legacy users table, badged live](docs/screenshots/agent-surface-legacy-users.png)
+
+When no declared surface fits, it composes one. What the model returns is a
+**spec**, not UI: a resource name, field names, a sort. The server resolves every
+name against a host-configured allowlist and runs the same verifiers the
+compile-time DSL runs, so a spec naming a field that does not exist is refused
+with an error rather than rendered blank:
+
+![The helper console showing a table the agent composed, with only login and email](docs/screenshots/agent-composed-surface.png)
+
+**A legacy write, showing up.** `legacy.users` is a simulated 2010-era Rails
+schema this application does not own — `serial` primary key, no tenant column,
+`acts_as_paranoid`, SHA1 passwords. One `ash_strangler` mapping turns it into an
+ordinary resource here *and* emits an `AFTER` trigger that `pg_notify`s on
+commit. A listener re-reads the row through Ash and dispatches a real
+notification, so nothing downstream can tell which application wrote it:
+
+![A legacy user row appearing in the browser moments after a plain SQL INSERT, with a banner saying another application changed these rows](docs/screenshots/legacy-live-update.gif)
+
+Nothing there is staged. The row arrives from a plain `INSERT INTO legacy.users`
+issued with `psql` — no Ash, no changeset, no HTTP request. See
+[`priv/legacy/README.md`](priv/legacy/README.md) for the commands.
 
 **AshAdmin.** Every resource, every action, no configuration.
 

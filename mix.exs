@@ -179,14 +179,7 @@ defmodule AshEnterprise.MixProject do
       # than third-party (ADR 0009), and used here for the read model over
       # `legacy.*` plus the notification bridge that makes a legacy write
       # visible to LiveView. See docs/plans/ash-strangler-in-reference-app.md.
-      # Pinned to a BRANCH rather than the default one, and that is temporary:
-      # https://github.com/lukegalea/ash_strangler/pull/4 carries two fixes this
-      # application needs -- the generated migration never created its own
-      # schema, and the notification bridge dispatched nothing for a
-      # `:read_from_legacy` resource. Both were found here. Move this back to a
-      # bare `github:` once that PR is merged.
-      {:ash_strangler,
-       github: "lukegalea/ash_strangler", branch: "fix/create-schema-and-heredoc-indentation"},
+      {:ash_strangler, github: "lukegalea/ash_strangler"},
 
       # --- Observability -------------------------------------------------------
       # Ash.Tracer -> OpenTelemetry -> OTLP. opentelemetry_ash is thin (0.1.x);

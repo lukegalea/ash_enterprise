@@ -119,11 +119,17 @@ defmodule AshEnterpriseWeb.A2uiLive do
           -> "legacy_users:created" on AshEnterprise.PubSub
           -> here
 
-    The topics are listed by hand because `AshA2ui.LiveRenderer` does not
-    introspect them -- it cannot know which publications a resource declares. So
-    these three strings and the `pub_sub` block on the resource have to agree,
-    and a typo here produces a surface that simply never updates, with nothing
-    logged anywhere. That is the one genuinely fragile joint in the chain.
+    `AshA2ui.LiveRenderer` does not introspect topics -- it cannot know which
+    publications a resource declares -- so they have to come from somewhere.
+    Writing them out here would make them a second spelling of the `pub_sub`
+    block, and a typo in either would produce a surface that silently never
+    updates. `AshEnterpriseWeb.A2ui.Surfaces.topics/1` reads them off the
+    publications instead, so there is one declaration and the subscription is
+    derived from it.
+
+    The `use` options look like they must be compile-time literals and are not:
+    the macro injects them into the body of `__ash_a2ui_config__/0`, so a
+    function call there is evaluated per call.
 
     ## What a refresh actually does
 
@@ -165,11 +171,7 @@ defmodule AshEnterpriseWeb.A2uiLive do
       tenant_fn: &__MODULE__.tenant/1,
       pubsub: [
         module: AshEnterprise.PubSub,
-        topics: [
-          "legacy_users:created",
-          "legacy_users:updated",
-          "legacy_users:destroyed"
-        ]
+        topics: AshEnterpriseWeb.A2ui.Surfaces.topics(AshEnterpriseWeb.A2ui.LegacyUserUI)
       ]
 
     alias AshEnterprise.Security.ActorContext

@@ -1,6 +1,7 @@
 defmodule AshEnterprise.AI.Interpreter do
   @moduledoc """
-  Turns a natural-language request into an `AshEnterprise.AI.Proposal`.
+  Turns a natural-language request into a *plan* — something the console can
+  carry out, or show, or refuse.
 
   This is the only part of the agent flow that involves a model, and it is
   deliberately the *smallest* part. It produces a plan; it never performs
@@ -37,24 +38,114 @@ defmodule AshEnterprise.AI.Interpreter do
   """
 
   alias AshEnterprise.AI.Proposal
+  alias AshEnterprise.AI.RequestClassifier
+  alias AshEnterpriseWeb.A2ui.Surfaces
+
+  @typedoc """
+  What the console should do about a request.
+
+  A tagged tuple rather than a single struct, because the three outcomes are not
+  variations on one thing: a proposal is inert until a human approves it, and
+  the two surfaces are shown immediately because a read is already filtered by
+  the viewer's policies. Collapsing them would mean either confirming reads or
+  performing writes unasked.
+  """
+  @type plan ::
+          {:proposal, Proposal.t()}
+          | {:surface, map()}
+          | {:designed, struct(), String.t()}
 
   @doc """
-  Interprets `request` and returns `{:ok, proposal}` or `{:error, message}`.
+  Interprets `request` and returns `{:ok, plan}` or `{:error, message}`.
   """
+  @spec interpret(String.t(), term(), term()) :: {:ok, plan()} | {:error, String.t()}
   def interpret(request, actor, tenant) do
     with {:ok, intent} <- infer_intent(request) do
-      to_proposal(intent, actor, tenant)
+      to_plan(intent, request, actor, tenant)
     end
   end
 
-  defp to_proposal(%{kind: :assign_role} = intent, actor, tenant) do
-    Proposal.assign_role(actor, tenant, intent.user_email, intent.role_name)
+  @doc """
+  Turns an already-inferred intent into a plan.
+
+  Public because it is the seam the tests need. The model call is the one part of
+  this flow that cannot run without a provider; everything after it is ordinary
+  code, and the moduledoc's claim that the flow is exercised without an API key
+  depends on that half being reachable. Applications should call `interpret/3`.
+  """
+  @spec plan(AshEnterprise.AI.Intent.t(), String.t(), term(), term()) ::
+          {:ok, plan()} | {:error, String.t()}
+  def plan(intent, request, actor, tenant), do: to_plan(intent, request, actor, tenant)
+
+  defp to_plan(%{kind: :assign_role} = intent, _request, actor, tenant) do
+    with {:ok, proposal} <-
+           Proposal.assign_role(actor, tenant, intent.user_email, intent.role_name) do
+      {:ok, {:proposal, proposal}}
+    end
   end
 
-  defp to_proposal(%{kind: kind}, _actor, _tenant) do
+  defp to_plan(%{kind: :show_surface} = intent, _request, _actor, _tenant) do
+    case Surfaces.fetch(intent.surface) do
+      nil ->
+        # The model named a surface that does not exist. Listing the real names
+        # rather than apologising, because the next thing the person will do is
+        # ask again and they need to know what to ask for.
+        {:error,
+         "I read that as a request to show #{inspect(intent.surface)}, which is not one of " <>
+           "the surfaces here. Available: #{Enum.join(Surfaces.names(), ", ")}."}
+
+      surface ->
+        {:ok, {:surface, surface}}
+    end
+  end
+
+  defp to_plan(%{kind: :design_surface}, request, _actor, _tenant) do
+    design(request)
+  end
+
+  defp to_plan(%{kind: kind}, _request, _actor, _tenant) do
     {:error,
-     "I understood that as #{inspect(kind)}, which this console does not support yet. " <>
-       "Currently supported: assigning a role to a user."}
+     "I understood that as #{inspect(kind)}, which this console does not support. " <>
+       "It can assign a role to a user, show one of the declared surfaces " <>
+       "(#{Enum.join(Surfaces.names(), ", ")}), or compose a table for you."}
+  end
+
+  # Composition is a second model call, not a bigger first one. The classifier's
+  # job is to notice that nothing declared fits, which is a small judgement over
+  # a short list; composing a spec needs the whole schema of every allowlisted
+  # resource in its prompt. Putting both in one call would pay for the second
+  # prompt on every request, including the ones answered by a declared surface.
+  defp design(request) do
+    with {:ok, spec} <- compose(request),
+         {:ok, surface} <-
+           AshA2ui.Dynamic.resolve(spec, allowlist: Surfaces.dynamic_allowlist()) do
+      {:ok, {:designed, surface, surface.title || "Composed table"}}
+    else
+      {:error, [%{} | _] = errors} ->
+        # Structured refusals from the same verifiers the compile-time DSL runs.
+        # Shown rather than swallowed: "that field does not exist" is a useful
+        # thing for a person to read, and it is the evidence that the spec was
+        # checked rather than rendered.
+        {:error,
+         "I composed a table but the server refused it:\n" <>
+           Enum.map_join(AshA2ui.Dynamic.Error.messages(errors), "\n", &"  - #{&1}")}
+
+      {:error, message} when is_binary(message) ->
+        {:error, message}
+
+      {:error, other} ->
+        {:error, "Could not compose a table for that: #{inspect(other)}"}
+    end
+  end
+
+  defp compose(request) do
+    case RequestClassifier.compose_surface(request) do
+      {:ok, spec} when is_map(spec) -> {:ok, spec}
+      {:ok, other} -> {:error, "The model returned #{inspect(other)} rather than a table spec."}
+      {:error, error} -> {:error, "Could not compose a table: #{Exception.message(error)}"}
+    end
+  rescue
+    error -> {:error, "Could not compose a table: #{Exception.message(error)}"}
   end
 
   defp infer_intent(request) do
@@ -107,7 +198,7 @@ defmodule AshEnterprise.AI.Interpreter do
   end
 
   defp run_prompt(request) do
-    case AshEnterprise.AI.RequestClassifier.interpret_request(request) do
+    case RequestClassifier.interpret_request(request) do
       {:ok, intent} -> {:ok, intent}
       {:error, error} -> {:error, "Could not interpret that request: #{Exception.message(error)}"}
     end
