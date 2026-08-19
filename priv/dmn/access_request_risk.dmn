@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  How risky is an access request?
+
+  A baseline decision, published into the platform organization. A tenant that disagrees forks
+  it and rebinds, which is the point: what counts as "privileged" is a business judgement that
+  differs between customers and changes without a deploy.
+
+  Hit policy UNIQUE: exactly one rule may match. Overlapping rules are a publish-time error
+  with a counterexample rather than a coin toss at runtime.
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             id="access_request_risk_definitions"
+             name="Access request risk"
+             namespace="https://ash-enterprise.example/dmn/access-request-risk"
+             expressionLanguage="https://www.omg.org/spec/DMN/20230324/FEEL/"
+             typeLanguage="https://www.omg.org/spec/DMN/20230324/FEEL/">
+
+  <inputData id="input_tier" name="requestedRoleTier">
+    <variable id="var_tier" name="requestedRoleTier" typeRef="string"/>
+  </inputData>
+
+  <inputData id="input_justification_length" name="justificationLength">
+    <variable id="var_justification_length" name="justificationLength" typeRef="number"/>
+  </inputData>
+
+  <decision id="decision_risk" name="RiskTier">
+    <variable id="var_risk" name="RiskTier" typeRef="string"/>
+    <informationRequirement id="req_tier">
+      <requiredInput href="#input_tier"/>
+    </informationRequirement>
+    <informationRequirement id="req_justification">
+      <requiredInput href="#input_justification_length"/>
+    </informationRequirement>
+
+    <decisionTable id="table_risk" hitPolicy="UNIQUE" outputLabel="RiskTier">
+      <input id="clause_tier" label="Requested role tier">
+        <inputExpression id="expr_tier" typeRef="string">
+          <text>requestedRoleTier</text>
+        </inputExpression>
+        <inputValues>
+          <text>"standard", "elevated", "privileged"</text>
+        </inputValues>
+      </input>
+      <input id="clause_justification" label="Justification length">
+        <inputExpression id="expr_justification" typeRef="number">
+          <text>justificationLength</text>
+        </inputExpression>
+      </input>
+      <output id="clause_risk" name="RiskTier" typeRef="string">
+        <outputValues>
+          <text>"low", "medium", "high"</text>
+        </outputValues>
+      </output>
+
+      <rule id="rule_privileged">
+        <inputEntry id="e_priv_tier"><text>"privileged"</text></inputEntry>
+        <inputEntry id="e_priv_just"><text>-</text></inputEntry>
+        <outputEntry id="o_priv"><text>"high"</text></outputEntry>
+      </rule>
+
+      <rule id="rule_elevated_thin">
+        <inputEntry id="e_elev_thin_tier"><text>"elevated"</text></inputEntry>
+        <inputEntry id="e_elev_thin_just"><text>&lt; 40</text></inputEntry>
+        <outputEntry id="o_elev_thin"><text>"high"</text></outputEntry>
+      </rule>
+
+      <rule id="rule_elevated_argued">
+        <inputEntry id="e_elev_arg_tier"><text>"elevated"</text></inputEntry>
+        <inputEntry id="e_elev_arg_just"><text>&gt;= 40</text></inputEntry>
+        <outputEntry id="o_elev_arg"><text>"medium"</text></outputEntry>
+      </rule>
+
+      <rule id="rule_standard_thin">
+        <inputEntry id="e_std_thin_tier"><text>"standard"</text></inputEntry>
+        <inputEntry id="e_std_thin_just"><text>&lt; 40</text></inputEntry>
+        <outputEntry id="o_std_thin"><text>"medium"</text></outputEntry>
+      </rule>
+
+      <rule id="rule_standard_argued">
+        <inputEntry id="e_std_arg_tier"><text>"standard"</text></inputEntry>
+        <inputEntry id="e_std_arg_just"><text>&gt;= 40</text></inputEntry>
+        <outputEntry id="o_std_arg"><text>"low"</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+</definitions>

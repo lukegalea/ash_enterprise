@@ -37,7 +37,9 @@ defmodule AshEnterprise.Process.DecisionResolver do
 
   @impl true
   def decide(ref, inputs, ctx) do
-    tenant = Map.get(ctx, :tenant)
+    # Not `ctx[:tenant]`: the engine does not reliably supply it, and a decision evaluated
+    # against no tenant records evidence the tenant that caused it cannot see.
+    tenant = AshEnterprise.Process.EngineContext.tenant(ctx)
 
     # Through the domain facade rather than looking the definition up here, so a business rule
     # task and a trigger's routing decision resolve the same way -- including honouring a
@@ -47,7 +49,11 @@ defmodule AshEnterprise.Process.DecisionResolver do
            correlation_id: correlation_id(ctx)
          ) do
       {:ok, result} ->
-        {:ok, %{outputs: outputs_map(result.outputs), version: result.definition_version}}
+        {:ok,
+         %{
+           outputs: outputs_map(result.outputs, result.decision),
+           version: result.definition_version
+         }}
 
       {:error, reason} ->
         {:error, reason}
@@ -77,10 +83,13 @@ defmodule AshEnterprise.Process.DecisionResolver do
   end
 
   # A decision table with one output returns a bare value; with several it returns a context.
-  # A business rule task promotes *named* signals, so a bare value is given the decision's own
-  # name to promote under.
-  defp outputs_map(outputs) when is_map(outputs), do: outputs
-  defp outputs_map(outputs), do: %{"result" => outputs}
+  #
+  # A business rule task promotes *named* signals, so a bare value needs a name — and the right
+  # one is the decision's own, which is what the DMN author sees in the modeller and what they
+  # will write in the diagram's `ash:signal from=`. Calling it "result" would invent a third
+  # vocabulary nobody asked for.
+  defp outputs_map(outputs, _decision) when is_map(outputs), do: outputs
+  defp outputs_map(outputs, decision), do: %{decision => outputs}
 
   defp correlation_id(ctx) do
     case Map.get(ctx, :instance) do

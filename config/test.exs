@@ -56,3 +56,9 @@ config :ash_enterprise, :legacy_listener?, false
 # The trigger index reads the database at boot, outside any test's checked-out connection,
 # which the Ecto SQL sandbox refuses. See `AshEnterprise.Application.trigger_index/0`.
 config :ash_enterprise, trigger_index?: false
+
+# The process engine's advance jobs run synchronously, so a test can assert on where a process
+# ended up rather than on the fact that a job was enqueued. Timers are still stored rather than
+# fired -- `AshBpmn.Runtime.Oban.TestJobs.fire!/2` fires them explicitly, which is what makes an
+# escalation test deterministic instead of a sleep.
+config :ash_bpmn, oban_testing: :inline

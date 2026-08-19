@@ -81,5 +81,6 @@ defmodule AshEnterprise.Security do
 
     # The exception path: per-record sharing.
     resource AshEnterprise.Security.AccessGrant
+    resource AshEnterprise.Security.AccessRequest
   end
 end

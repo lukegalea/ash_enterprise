@@ -41,51 +41,91 @@ defmodule AshEnterprise.Process.Triggers.SweepWorker do
   @impl Oban.Worker
   def perform(%Oban.Job{args: args}) do
     tenant = args["tenant"]
+    cursor = ensure_cursor(tenant)
 
-    AshEnterprise.Repo.transaction(fn ->
-      lock(tenant)
+    case events_after(cursor.last_sequence, tenant) do
+      [] ->
+        :ok
 
-      cursor = cursor_for(tenant)
-      events = events_after(cursor.last_sequence, tenant)
-
-      case events do
-        [] ->
-          :ok
-
-        events ->
-          triggers = published_triggers(tenant)
-          Enum.each(events, &Dispatch.dispatch_event(&1, triggers, tenant))
-          advance(cursor, List.last(events).sequence, tenant)
-      end
-    end)
-
-    :ok
+      events ->
+        triggers = published_triggers(tenant)
+        Enum.each(events, &dispatch_isolated(&1, triggers, tenant))
+        advance(cursor, List.last(events).sequence, tenant)
+        :ok
+    end
   end
 
-  # Serializes sweeps for one tenant. Transaction-scoped, so it is released at COMMIT and a
-  # crashed sweep does not leave the tenant permanently locked.
+  # Each event is dispatched in **its own transaction**, and what makes two concurrent sweeps
+  # safe is the `TriggerDispatch` identity rather than a lock.
   #
-  # A two-argument key in the same shape AshEvents uses, but with a distinct first element:
-  # this must not contend with the append lock, or a sweep would block every audited write for
-  # the tenant it is sweeping.
-  defp lock(tenant) do
-    Ecto.Adapters.SQL.query!(
-      AshEnterprise.Repo,
-      "SELECT pg_advisory_xact_lock($1, $2)",
-      [:erlang.phash2(__MODULE__), :erlang.phash2(tenant)]
-    )
+  # The obvious design -- one transaction around the batch holding a per-tenant advisory lock
+  # -- fails in two ways. A database error anywhere in a Postgres transaction *aborts* it, so
+  # one event whose process could not start takes the whole batch with it, other events'
+  # instances and the cursor advance included, leaving no record of having tried. And a
+  # session-scoped lock needs connection affinity that a pooled repo does not promise.
+  #
+  # So there is no lock. Three things make that correct:
+  #
+  #   * Oban's `unique` on `{worker, tenant}` means a second sweep is not usually enqueued.
+  #   * If two do run, `TriggerDispatch`'s `[:trigger_id, :event_id]` identity is written **in
+  #     the same transaction as the instance start** -- so the loser's insert conflicts and its
+  #     instance rolls back with it. The identity is the arbiter, and it is the only one that
+  #     works across processes and nodes.
+  #   * The cursor makes completeness independent of either: an event missed by a racing sweep
+  #     is still behind some cursor and gets picked up.
+  #
+  # Found by building the alternative: a service task raised and an entire sweep vanished,
+  # instance and all.
+  defp dispatch_isolated(event, triggers, tenant) do
+    AshEnterprise.Repo.transaction(fn -> Dispatch.dispatch_event(event, triggers, tenant) end)
+    :ok
+  rescue
+    e ->
+      Logger.error(
+        "trigger dispatch for event #{event.id} failed and was rolled back: #{Exception.message(e)}"
+      )
+
+      :ok
   end
 
-  defp cursor_for(tenant) do
+  @doc """
+  Returns this tenant's cursor, creating it at the **current high-water mark** if absent.
+
+  Starting a new cursor at zero would be the obvious thing and is badly wrong: the sweep would
+  walk the tenant's entire history and start a process for every historical event that matches.
+  On a tenant with a real audit trail that is thousands of processes for things that happened
+  months ago, and the first symptom is the queue rather than the mistake.
+
+  A trigger fires on what happens *after* it exists. So a fresh cursor begins at the newest
+  event, and this is called when a trigger is published as well as by the sweep — otherwise
+  everything between publishing and the first sweep would fall in the gap.
+  """
+  @spec ensure_cursor(Ash.UUID.t()) :: struct()
+  def ensure_cursor(tenant) do
     TriggerCursor
     |> Ash.Query.for_read(:read)
     |> Ash.read_one!(actor: SystemActor.process(), tenant: tenant)
     |> case do
       nil ->
-        TriggerCursor.create!(%{last_sequence: 0}, actor: SystemActor.process(), tenant: tenant)
+        TriggerCursor.create!(%{last_sequence: current_high_water(tenant)},
+          actor: SystemActor.process(),
+          tenant: tenant
+        )
 
       cursor ->
         cursor
+    end
+  end
+
+  defp current_high_water(tenant) do
+    AshEnterprise.Audit.EventLog
+    |> Ash.Query.for_read(:read)
+    |> Ash.Query.sort(sequence: :desc)
+    |> Ash.Query.limit(1)
+    |> Ash.read!(actor: SystemActor.process(), tenant: tenant)
+    |> case do
+      [%{sequence: sequence}] -> sequence
+      [] -> 0
     end
   end
 

@@ -40,9 +40,23 @@ config :ash_bpmn,
   ash_domains: [AshEnterprise.Bpmn],
   assignment_resolver: AshEnterprise.Process.AssignmentResolver,
   action_invoker: AshEnterprise.Process.ActionInvoker,
-  decision_resolver: AshEnterprise.Process.DecisionResolver
+  decision_resolver: AshEnterprise.Process.DecisionResolver,
+  # Without this the engine reads an instance's definition in the instance's own tenant, which
+  # cannot see a platform baseline -- and the failure is silent: the token claims and the
+  # process sits at its start node forever.
+  definition_loader: AshEnterprise.Process.DefinitionLoader
 
 config :ash_decisions, ash_domains: [AshEnterprise.Decisions]
+
+# The trigger sweep dispatches a whole batch inside one transaction -- deliberately, so a
+# dispatch row and the instance it records are committed together and a crashed sweep replays
+# cleanly. Ash cannot send notifications from inside a transaction, so the writes the engine
+# makes there produce "missed notification" warnings by design rather than by mistake.
+#
+# Ignored rather than raised: the notifications in question are PubSub updates for engine
+# bookkeeping, and nothing subscribes to them. A *host* write that needed its notification
+# would not be happening inside the sweep.
+config :ash, :missed_notifications, :ignore
 
 config :ash_graphql, authorize_update_destroy_with_error?: true
 

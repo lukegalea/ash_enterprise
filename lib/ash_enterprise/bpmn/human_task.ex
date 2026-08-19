@@ -20,9 +20,24 @@ defmodule AshEnterprise.Bpmn.HumanTask do
     token: AshEnterprise.Bpmn.Token,
     base: AshEnterprise.Platform.Resource,
     base_opts: [
-      # User-owned rather than organization-owned: a task has an assignee, and ownership is
-      # how the platform's grant model already expresses "this record is that person's".
-      ownership: :user_owned,
+      # Organization-owned, not user-owned, and the reason is the thing that makes this design
+      # work rather than a technicality.
+      #
+      # `:user_owned` gives a non-null `owner_id`, and **a task has no owner until someone
+      # claims it**. An open approval is deliberately unassigned: that is what makes it
+      # claimable by any of its candidates, and the whole point of materialising a candidate
+      # list is that "who may act on this" is a set rather than a person. Modelling it as owned
+      # would force the engine to invent an owner at creation, which is either the requester
+      # (wrong -- maker-checker excludes them) or an arbitrary candidate (wrong -- it is not
+      # theirs yet).
+      #
+      # So access is governed by `TaskCandidate` rows, which is the mechanism
+      # `docs/manifesto/03-authorization-is-data.md` argues for, and `assignee_id` records who
+      # took it once somebody has.
+      #
+      # Found by building it: a task on the privileged path could not be created at all, and
+      # the process rolled back with no error surfaced.
+      ownership: :organization_owned,
       # `open -> claimed -> completed | cancelled` is the task's own state machine.
       lifecycle?: false,
       audit?: true,

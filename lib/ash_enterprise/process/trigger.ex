@@ -174,6 +174,12 @@ defmodule AshEnterprise.Process.Trigger do
       require_atomic? false
       validate attribute_equals(:status, :draft), message: "only a draft can be published"
       change set_attribute(:status, :published)
+
+      # Establish the tenant's cursor now, at the current high-water mark. Without this the
+      # first sweep would create it, and everything between publishing and that sweep would
+      # fall in the gap -- or, worse, a cursor created at zero would walk the whole history and
+      # start a process for every matching event that ever happened.
+      change AshEnterprise.Process.Trigger.Changes.EnsureCursor
     end
 
     update :retire do

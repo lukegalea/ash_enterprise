@@ -182,7 +182,8 @@ defmodule AshEnterprise.Process.AssignmentResolver do
   # something the requester is entitled to do, and running it as them would silently produce a
   # shorter candidate list for a less privileged requester -- a task nobody can claim, with no
   # error anywhere.
-  defp read_opts(ctx) do
-    [actor: AshEnterprise.Platform.SystemActor.process(), tenant: Map.get(ctx, :tenant)]
-  end
+  # Via `EngineContext` rather than `ctx[:tenant]`: the engine does not reliably supply it, and
+  # a candidate query with no tenant returns nobody -- which presents as a task nobody can
+  # claim rather than as a missing tenant.
+  defp read_opts(ctx), do: AshEnterprise.Process.EngineContext.engine_opts(ctx)
 end

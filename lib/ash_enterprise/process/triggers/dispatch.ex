@@ -138,7 +138,28 @@ defmodule AshEnterprise.Process.Triggers.Dispatch do
     end
   end
 
+  # Wrapped, and the wrapping is load-bearing rather than defensive.
+  #
+  # The sweep runs a whole batch inside one transaction, so an exception escaping here would
+  # roll back *everything* -- the other events' dispatches, their instances, and the cursor.
+  # A process that failed to start would take the batch with it and leave no trace of having
+  # tried, which is the opposite of the failure semantics this design promises: the cursor
+  # advances past a failure and the failure is a queryable row.
+  #
+  # Found the hard way: a service task raising made a whole sweep vanish, instance included.
   defp start_one(trigger, event, target, tenant) do
+    do_start_one(trigger, event, target, tenant)
+  rescue
+    e ->
+      record(trigger, event, tenant,
+        status: :failed,
+        reason: :decision_error,
+        process_key: target.process_key,
+        error: %{"detail" => Exception.message(e)}
+      )
+  end
+
+  defp do_start_one(trigger, event, target, tenant) do
     with {:ok, definition} <- Resolver.resolve(:process, target.process_key, tenant),
          {:ok, instance} <- start_instance(definition, event, tenant) do
       record(trigger, event, tenant,
@@ -170,10 +191,14 @@ defmodule AshEnterprise.Process.Triggers.Dispatch do
     AshBpmn.start_instance(AshEnterprise.Bpmn,
       definition: definition,
       subject: subject_stub(event),
-      # The process runs as a named non-human actor. The originating human is on the instance
-      # and in the correlation id -- see `docs/plans/event-triggered-processes.md` §6 for why
-      # rebuilding their ActorContext would be a standing privilege-escalation surface.
+      # The process runs as a named non-human actor: rebuilding the requester's ActorContext
+      # would hand the instance their grants for its whole life, which outlives their session
+      # and survives their offboarding (`docs/plans/event-triggered-processes.md` §6).
+      #
+      # But the *human* is still named. Authority and accountability are different columns,
+      # and `started_by_id` is the one an auditor reads to answer "whose request was this".
       actor: SystemActor.process(),
+      started_by_id: event.user_id,
       tenant: tenant,
       correlation_id: get_in(event.metadata, ["correlation_id"])
     )

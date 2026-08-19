@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn2:definitions xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:ash="https://github.com/lukegalea/ash_bpmn/ns"
+                   id="Definitions_access_request_grant"
+                   targetNamespace="https://ash-enterprise.example/bpmn">
+  <bpmn2:process id="Process_access_request_grant" name="Access request" isExecutable="true">
+
+    <bpmn2:startEvent id="Start">
+      <bpmn2:outgoing>Flow_to_assess</bpmn2:outgoing>
+    </bpmn2:startEvent>
+
+    <bpmn2:businessRuleTask id="AssessRisk" name="Assess risk">
+      <bpmn2:extensionElements>
+        <ash:decision ref="access_request.risk" binding="latest"/>
+        <ash:inputs>
+          <ash:input name="requestedRoleTier" from="subject.requested_role_tier"/>
+          <ash:input name="justificationLength" from="string length(subject.justification)"/>
+        </ash:inputs>
+        <ash:promote>
+          <!-- The decision is named RiskTier; the token carries it as risk_tier. -->
+          <ash:signal name="risk_tier" from="RiskTier" required="true"/>
+        </ash:promote>
+      </bpmn2:extensionElements>
+      <bpmn2:incoming>Flow_to_assess</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_to_record</bpmn2:outgoing>
+    </bpmn2:businessRuleTask>
+
+    <bpmn2:serviceTask id="RecordRisk" name="Record the risk on the request">
+      <bpmn2:extensionElements>
+        <ash:taskConfig action="record_risk"/>
+      </bpmn2:extensionElements>
+      <bpmn2:incoming>Flow_to_record</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_to_route</bpmn2:outgoing>
+    </bpmn2:serviceTask>
+
+    <bpmn2:exclusiveGateway id="Route" name="How risky?" default="Flow_auto">
+      <bpmn2:incoming>Flow_to_route</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_high</bpmn2:outgoing>
+      <bpmn2:outgoing>Flow_medium</bpmn2:outgoing>
+      <bpmn2:outgoing>Flow_auto</bpmn2:outgoing>
+    </bpmn2:exclusiveGateway>
+
+    <bpmn2:userTask id="ExecutiveApproval" name="Executive approval">
+      <bpmn2:extensionElements>
+        <ash:taskConfig>
+          <ash:candidates>
+            <ash:candidate kind="role" of="Administrator"/>
+          </ash:candidates>
+          <ash:exclusions>
+            <ash:exclusion who="subject.created_by_id"/>
+          </ash:exclusions>
+          <ash:outcomes>
+            <ash:outcome name="approved"/>
+            <ash:outcome name="rejected"/>
+          </ash:outcomes>
+          <ash:timers>
+            <ash:timer kind="escalate" hours="24"/>
+          </ash:timers>
+        </ash:taskConfig>
+      </bpmn2:extensionElements>
+      <bpmn2:incoming>Flow_high</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_exec_decided</bpmn2:outgoing>
+    </bpmn2:userTask>
+
+    <bpmn2:userTask id="ManagerApproval" name="Manager approval">
+      <bpmn2:extensionElements>
+        <ash:taskConfig>
+          <ash:candidates>
+            <ash:candidate kind="manager_of" of="subject.created_by_id"/>
+            <ash:candidate kind="role" of="Administrator"/>
+          </ash:candidates>
+          <ash:exclusions>
+            <ash:exclusion who="subject.created_by_id"/>
+          </ash:exclusions>
+          <ash:outcomes>
+            <ash:outcome name="approved"/>
+            <ash:outcome name="rejected"/>
+          </ash:outcomes>
+          <ash:timers>
+            <ash:timer kind="escalate" hours="48"/>
+          </ash:timers>
+        </ash:taskConfig>
+      </bpmn2:extensionElements>
+      <bpmn2:incoming>Flow_medium</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_mgr_decided</bpmn2:outgoing>
+    </bpmn2:userTask>
+
+    <bpmn2:serviceTask id="Grant" name="Grant the role">
+      <bpmn2:extensionElements>
+        <ash:taskConfig action="grant_role"/>
+      </bpmn2:extensionElements>
+      <bpmn2:incoming>Flow_auto</bpmn2:incoming>
+      <bpmn2:incoming>Flow_exec_approved</bpmn2:incoming>
+      <bpmn2:incoming>Flow_mgr_approved</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_granted</bpmn2:outgoing>
+    </bpmn2:serviceTask>
+
+    <bpmn2:serviceTask id="Reject" name="Record the rejection">
+      <bpmn2:extensionElements>
+        <ash:taskConfig action="reject_request"/>
+      </bpmn2:extensionElements>
+      <bpmn2:incoming>Flow_exec_rejected</bpmn2:incoming>
+      <bpmn2:incoming>Flow_mgr_rejected</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_rejected</bpmn2:outgoing>
+    </bpmn2:serviceTask>
+
+    <bpmn2:endEvent id="EndGranted">
+      <bpmn2:extensionElements><ash:taskConfig outcome="granted"/></bpmn2:extensionElements>
+      <bpmn2:incoming>Flow_granted</bpmn2:incoming>
+    </bpmn2:endEvent>
+
+    <bpmn2:endEvent id="EndRejected">
+      <bpmn2:extensionElements><ash:taskConfig outcome="rejected"/></bpmn2:extensionElements>
+      <bpmn2:incoming>Flow_rejected</bpmn2:incoming>
+    </bpmn2:endEvent>
+
+    <bpmn2:sequenceFlow id="Flow_to_assess" sourceRef="Start" targetRef="AssessRisk"/>
+    <bpmn2:sequenceFlow id="Flow_to_record" sourceRef="AssessRisk" targetRef="RecordRisk"/>
+    <bpmn2:sequenceFlow id="Flow_to_route" sourceRef="RecordRisk" targetRef="Route"/>
+
+    <bpmn2:sequenceFlow id="Flow_high" sourceRef="Route" targetRef="ExecutiveApproval">
+      <bpmn2:conditionExpression xsi:type="bpmn2:tFormalExpression"
+        language="feel">routing.risk_tier = "high"</bpmn2:conditionExpression>
+    </bpmn2:sequenceFlow>
+    <bpmn2:sequenceFlow id="Flow_medium" sourceRef="Route" targetRef="ManagerApproval">
+      <bpmn2:conditionExpression xsi:type="bpmn2:tFormalExpression"
+        language="feel">routing.risk_tier = "medium"</bpmn2:conditionExpression>
+    </bpmn2:sequenceFlow>
+    <bpmn2:sequenceFlow id="Flow_auto" sourceRef="Route" targetRef="Grant"/>
+
+    <bpmn2:sequenceFlow id="Flow_exec_decided" sourceRef="ExecutiveApproval" targetRef="Grant">
+      <bpmn2:conditionExpression xsi:type="bpmn2:tFormalExpression"
+        language="feel">task.outcome = "approved"</bpmn2:conditionExpression>
+    </bpmn2:sequenceFlow>
+    <bpmn2:sequenceFlow id="Flow_exec_approved" sourceRef="ExecutiveApproval" targetRef="Grant"/>
+    <bpmn2:sequenceFlow id="Flow_exec_rejected" sourceRef="ExecutiveApproval" targetRef="Reject"/>
+
+    <bpmn2:sequenceFlow id="Flow_mgr_decided" sourceRef="ManagerApproval" targetRef="Grant">
+      <bpmn2:conditionExpression xsi:type="bpmn2:tFormalExpression"
+        language="feel">task.outcome = "approved"</bpmn2:conditionExpression>
+    </bpmn2:sequenceFlow>
+    <bpmn2:sequenceFlow id="Flow_mgr_approved" sourceRef="ManagerApproval" targetRef="Grant"/>
+    <bpmn2:sequenceFlow id="Flow_mgr_rejected" sourceRef="ManagerApproval" targetRef="Reject"/>
+
+    <bpmn2:sequenceFlow id="Flow_granted" sourceRef="Grant" targetRef="EndGranted"/>
+    <bpmn2:sequenceFlow id="Flow_rejected" sourceRef="Reject" targetRef="EndRejected"/>
+  </bpmn2:process>
+</bpmn2:definitions>

@@ -286,3 +286,25 @@ defmodule AshEnterprise.Process.Trigger.Changes.NormalizeMatchResource do
     end
   end
 end
+
+defmodule AshEnterprise.Process.Trigger.Changes.EnsureCursor do
+  @moduledoc """
+  Creates the tenant's dispatch cursor when a trigger is published, if it has none.
+
+  A trigger fires on what happens after it exists, so the cursor starts at the newest event
+  rather than at zero. Doing it here rather than leaving it to the first sweep closes the
+  window between publishing and that sweep — see
+  `AshEnterprise.Process.Triggers.SweepWorker.ensure_cursor/1` for why starting at zero would
+  be worse than a gap.
+  """
+
+  use Ash.Resource.Change
+
+  @impl true
+  def change(changeset, _opts, _context) do
+    Ash.Changeset.after_action(changeset, fn changeset, trigger ->
+      AshEnterprise.Process.Triggers.SweepWorker.ensure_cursor(changeset.tenant)
+      {:ok, trigger}
+    end)
+  end
+end
