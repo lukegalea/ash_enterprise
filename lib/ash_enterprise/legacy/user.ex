@@ -187,6 +187,13 @@ defmodule AshEnterprise.Legacy.User do
       map :modified_on, from: :updated_at, zone: "UTC"
 
       # The legacy estate is one tenant, and every legacy row belongs to it.
+      #
+      # This literal is deliberately readable and that has one measured cost: it
+      # derives the audit log's advisory lock key `[0, 0]`, because
+      # `AshEvents.AdvisoryLockKeyGenerator.Default` samples only bytes 0-3 and
+      # 8-11 of a uuid. Accepted -- a shared key over-serializes, which is safe --
+      # but a further hand-picked tenant id must vary one of those byte ranges or
+      # it collides with this one. See `AshEnterprise.Legacy.Estate`.
       constant(
         :organization_id,
         expr(type("00000000-0000-0000-0000-0000000000fe", :uuid))
