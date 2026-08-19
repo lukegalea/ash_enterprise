@@ -54,6 +54,18 @@ jobs:
           key: ${{ runner.os }}-mix-${{ hashFiles('mix.lock') }}
           restore-keys: ${{ runner.os }}-mix-
 
+      # `xmllint`, which `boxic_dmn` (under `ash_decisions`) shells out to when it
+      # validates a DMN document against the normative XSD.
+      #
+      # Declared rather than assumed. GitHub's ubuntu images have carried it for
+      # years, and relying on that is the trap: the suite passes today and starts
+      # failing the week the runner image is rebuilt without it, with nothing in
+      # this repository having changed. The Dockerfile and devenv.nix both name it
+      # for the same reason -- see the note at the top of the Dockerfile about
+      # what happens when those three disagree.
+      - name: Install xmllint
+        run: sudo apt-get update -y && sudo apt-get install -y libxml2-utils
+
       - run: mix deps.get
 
       - name: Check formatting

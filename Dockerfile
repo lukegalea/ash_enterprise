@@ -62,8 +62,19 @@ RUN mix release
 # --- runtime -----------------------------------------------------------------
 FROM ${RUNNER_IMAGE}
 
+# `libxml2-utils` provides `xmllint`, and it belongs in the RUNTIME stage rather
+# than the builder: `boxic_dmn` (under `ash_decisions`) validates a DMN document
+# against the normative XSD by shelling out to it, so it is needed when a model
+# LOADS -- not when the release is compiled. Installed in the builder instead,
+# every test passes, the image builds, and then every DMN model fails in
+# production with `:schema_validator_unavailable`, which reads as "decisions are
+# broken" rather than as a missing package.
+#
+# `AshEnterprise.Application` warns at boot if it is absent, so the failure is
+# one line in the log rather than a hunt -- but a warning is not a substitute for
+# shipping the dependency.
 RUN apt-get update -y \
-  && apt-get install -y libstdc++6 openssl libncurses5 locales ca-certificates \
+  && apt-get install -y libstdc++6 openssl libncurses5 locales ca-certificates libxml2-utils \
   && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # The BEAM wants a UTF-8 locale; without it, string handling misbehaves in ways
