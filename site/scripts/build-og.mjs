@@ -78,7 +78,7 @@ const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" v
         fill="#94a3b8">declared once, derived everywhere.</text>
 
   ${pill(72, 'Answered with a test', `${shipped} of ${total}`, '#34d399')}
-  ${pill(348, 'Partial, with the limit named', String(counts.partial ?? 0), '#fbbf24')}
+  ${pill(348, 'Partial, limit named', String(counts.partial ?? 0), '#fbbf24')}
   ${pill(624, 'Decided, not built', String(counts.planned ?? 0), '#38bdf8')}
   ${pill(900, 'Open, and said so', String(counts.open ?? 0), '#9ca3af')}
 
