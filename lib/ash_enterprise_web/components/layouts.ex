@@ -70,6 +70,21 @@ defmodule AshEnterpriseWeb.Layouts do
           <li>
             <a href="/app/legacy-users" class="btn btn-ghost btn-sm">Legacy users</a>
           </li>
+          <%!-- Grouped rather than four more top-level buttons: the bar already carries six
+                and wraps below about 1400px, which is narrower than the width the
+                documentation screenshots are captured at. A wrapped nav would appear in
+                every one of them. --%>
+          <li>
+            <details class="dropdown">
+              <summary class="btn btn-ghost btn-sm">Workflow</summary>
+              <ul class="dropdown-content menu z-10 w-52 rounded-box bg-base-100 p-2 shadow">
+                <li><a href="/app/tasks">My tasks</a></li>
+                <li><a href="/app/processes">Processes</a></li>
+                <li><a href="/app/decisions">Decisions</a></li>
+                <li><a href="/app/triggers">Triggers</a></li>
+              </ul>
+            </details>
+          </li>
           <li><a href="/admin" class="btn btn-ghost btn-sm">Admin</a></li>
           <li>
             <.theme_toggle />

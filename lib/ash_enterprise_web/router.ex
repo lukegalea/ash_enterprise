@@ -122,6 +122,26 @@ defmodule AshEnterpriseWeb.Router do
       live "/app/legacy-users", A2uiLive.LegacyUsers
     end
 
+    # Process and decision surfaces. A separate live_session from the A2UI one because these
+    # need `:current_tenant` in assigns -- `ash_bpmn`'s LiveViews read it there, where the rest
+    # of this application derives the tenant from the actor's context. The hook supplies it
+    # rather than a second source of truth being assigned everywhere.
+    #
+    # Tier 3, like the surfaces above: removing ash_bpmn means deleting
+    # lib/ash_enterprise_web/live/bpmn/, this live_session, and these routes.
+    ash_authentication_live_session :process_surfaces,
+      on_mount: [
+        {AshEnterpriseWeb.LiveUserAuth, :live_user_required},
+        {AshEnterpriseWeb.Bpmn.Helpers, :assign_tenant}
+      ] do
+      live "/app/tasks", Bpmn.TaskListLive
+      live "/app/processes", Bpmn.CatalogLive, :processes
+      live "/app/decisions", Bpmn.CatalogLive, :decisions
+      live "/app/triggers", Bpmn.CatalogLive, :triggers
+      live "/app/processes/:key/designer", Bpmn.DesignerLive
+      live "/app/instances/:id", Bpmn.ViewerLive
+    end
+
     ash_authentication_live_session :authenticated_routes do
       # in each liveview, add one of the following at the top of the module:
       #

@@ -137,6 +137,63 @@ defmodule AshEnterprise.Platform.Seeder do
   @platform_unique_name "platform"
 
   @doc """
+  Grants every existing role the privileges it is missing, in one tenant.
+
+  ## Why this is needed at all
+
+  `seed_tenant/1` grants the Administrator role every globally-grantable privilege **at
+  provisioning time**. A resource added afterwards has privileges nobody holds, so the role
+  that is supposed to reach everything silently stops reaching the new thing — and the symptom
+  is a forbidden write on a resource an administrator can see in the admin UI, which reads as a
+  bug in the resource rather than as a stale grant.
+
+  There was no idempotent way to fix that: re-running the seed refuses, because provisioning a
+  tenant twice is a mistake rather than a no-op. This is that path.
+
+  Only the Administrator role, and only globally-grantable privileges: widening a *customer's*
+  roles automatically would be the platform quietly changing who can do what, which is exactly
+  what `docs/manifesto/03-authorization-is-data.md` exists to prevent. Any other role is the
+  tenant's to manage.
+
+  Returns the number of grants added.
+  """
+  @spec regrant_administrator_privileges(Ash.UUID.t()) :: non_neg_integer()
+  def regrant_administrator_privileges(tenant) do
+    actor = SystemActor.seed()
+    opts = [actor: actor, tenant: tenant]
+
+    role =
+      Security.Role
+      |> Ash.Query.filter(name == "Administrator")
+      |> Ash.read_one!(opts)
+
+    if role do
+      held =
+        Security.RolePrivilege
+        |> Ash.Query.filter(role_id == ^role.id)
+        |> Ash.read!(opts)
+        |> MapSet.new(& &1.privilege_id)
+
+      Security.Privilege
+      |> Ash.Query.filter(can_be_global == true)
+      |> Ash.read!(actor: actor)
+      |> Enum.reject(&MapSet.member?(held, &1.id))
+      |> Enum.map(fn privilege ->
+        Security.RolePrivilege
+        |> Ash.Changeset.for_create(
+          :create,
+          %{role_id: role.id, privilege_id: privilege.id, depth: :global},
+          opts
+        )
+        |> Ash.create!()
+      end)
+      |> length()
+    else
+      0
+    end
+  end
+
+  @doc """
   Seeds the platform organization: where baseline processes and decisions are published.
 
   A baseline has to live in a tenant, because the platform base resource makes

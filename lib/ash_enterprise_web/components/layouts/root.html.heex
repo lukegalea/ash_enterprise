@@ -6,6 +6,10 @@
     <meta name="csrf-token" content={get_csrf_token()} />
     <.live_title default="AshEnterprise" suffix=" · Phoenix Framework" phx-no-format>{assigns[:page_title]}</.live_title>
     <link phx-track-static rel="stylesheet" href={~p"/assets/css/app.css"} />
+    <%!-- esbuild emits this alongside app.js because the bpmn-js hook imports diagram-js's
+          stylesheets. Without the link the designer renders as unstyled boxes -- the JS works
+          and the diagram is unreadable, which is a worse failure than a broken script. --%>
+    <link phx-track-static rel="stylesheet" href={~p"/assets/js/app.css"} />
     <script defer phx-track-static type="text/javascript" src={~p"/assets/js/app.js"}>
     </script>
     <script>

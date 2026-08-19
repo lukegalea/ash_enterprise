@@ -37,6 +37,14 @@ import topbar from "../vendor/topbar"
 // alone). ash_a2ui's hook is the v1.0-capable layer on top of the v0.9
 // renderer, so we register the v0_9 catalog here and let the hook translate.
 import "@a2ui/lit/v0_9"
+
+// The BPMN designer and instance viewer. Imported from the package's own `priv/js` -- the same
+// arrangement the A2UI hook uses -- so the library ships plain ESM and the host owns the
+// bpmn-js dependency and the bundle.
+//
+// These import CSS, which esbuild emits as a second stylesheet alongside app.js. `root.html.heex`
+// links it explicitly; without that link the diagram renders as unstyled boxes.
+import {AshBpmnDesigner, AshBpmnViewer} from "../../deps/ash_bpmn/priv/js/ash_bpmn_designer.js"
 import {basicCatalog, A2uiLitElement, A2uiController, Context} from "@a2ui/lit/v0_9"
 import {MessageProcessor, Catalog, ChoicePickerApi, ColumnApi} from "@a2ui/web_core/v0_9"
 import {html, css, nothing} from "lit"
@@ -97,7 +105,7 @@ const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks, AshA2ui},
+  hooks: {...colocatedHooks, AshA2ui, AshBpmnDesigner, AshBpmnViewer},
 })
 
 // Show progress bar on live navigation and form submits

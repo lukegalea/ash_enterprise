@@ -21,6 +21,12 @@ config :ash_enterprise, Oban,
   queues: [default: 10, bpmn: 10],
   repo: AshEnterprise.Repo,
   plugins: [
+    # Rescues jobs left `executing` by a node that died mid-flight. Without it they stay that
+    # way forever: `drain_queue` does not pick them up, no other node will claim them, and a
+    # process whose advance was orphaned simply stops -- silently, which for a *durable*
+    # process engine is the one failure mode that must not be possible. Found by killing a
+    # seed run mid-drain and watching three instances stick.
+    {Oban.Plugins.Lifeline, rescue_after: :timer.minutes(5)},
     {Oban.Plugins.Cron,
      crontab: [
        # The trigger sweep is the *driver*, not a safety net: the notifier's nudge is
@@ -199,10 +205,26 @@ config :ash_enterprise, AshEnterprise.Mailer, adapter: Swoosh.Adapters.Local
 config :esbuild,
   version: "0.25.4",
   ash_enterprise: [
+    # bpmn-js ships an icon font and its stylesheet references the files by relative path.
+    # Without loaders esbuild fails outright on the unresolved `.woff` -- it is not a
+    # cosmetic gap, the build stops. Inlined as data URLs, which `font-src 'self' data:`
+    # in the CSP already permits, so the diagram palette renders without widening it.
     args:
-      ~w(js/app.js --bundle --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=.),
+      ~w(js/app.js --bundle --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=.) ++
+        ~w(--loader:.woff=dataurl --loader:.woff2=dataurl --loader:.ttf=dataurl
+           --loader:.eot=dataurl --loader:.svg=dataurl),
     cd: Path.expand("../assets", __DIR__),
-    env: %{"NODE_PATH" => [Path.expand("../deps", __DIR__), Mix.Project.build_path()]}
+    env: %{
+      "NODE_PATH" => [
+        Path.expand("../deps", __DIR__),
+        Mix.Project.build_path(),
+        # The ash_bpmn hook lives in `deps/ash_bpmn/priv/js/` and imports `bpmn-js`, which is
+        # installed here. Node resolution walks up from the *importing file*, so without this
+        # it searches `deps/ash_bpmn/node_modules` and upwards and never reaches the assets
+        # directory -- the build fails outright rather than degrading.
+        Path.expand("../assets/node_modules", __DIR__)
+      ]
+    }
   ]
 
 # Configure tailwind (the version is required)
@@ -214,7 +236,17 @@ config :tailwind,
       --output=priv/static/assets/css/app.css
     ),
     cd: Path.expand("..", __DIR__),
-    env: %{"NODE_PATH" => [Path.expand("../deps", __DIR__), Mix.Project.build_path()]}
+    env: %{
+      "NODE_PATH" => [
+        Path.expand("../deps", __DIR__),
+        Mix.Project.build_path(),
+        # The ash_bpmn hook lives in `deps/ash_bpmn/priv/js/` and imports `bpmn-js`, which is
+        # installed here. Node resolution walks up from the *importing file*, so without this
+        # it searches `deps/ash_bpmn/node_modules` and upwards and never reaches the assets
+        # directory -- the build fails outright rather than degrading.
+        Path.expand("../assets/node_modules", __DIR__)
+      ]
+    }
   ]
 
 # Configure Elixir's Logger
