@@ -22,6 +22,19 @@
 #   ~r/regex against the formatted warning/
 
 [
-  # Empty on purpose. Populate from real `mix dialyzer` output rather than
-  # pre-emptively silencing categories.
+  # 2026-08-19. Postgrex's type-module macro, expanded into a module this
+  # application owns (`AshEnterprise.PostgrexTypes` calls
+  # `Postgrex.Types.define/3`), so the beam is ours while the source line is the
+  # dependency's:
+  #
+  #   deps/postgrex/lib/postgrex/type_module.ex:1045:improper_list_constr
+  #   List construction (cons) will produce an improper list, because its
+  #   second argument is binary().
+  #
+  # Spurious, and confirmed so rather than assumed: the generated code builds an
+  # iodata list, where a binary tail is correct and idiomatic -- `["a" | "b"]` is
+  # valid iodata and improper only in the sense Dialyzer means. There is nothing
+  # to fix in this repository; the alternative to filtering it is a permanently
+  # red Dialyzer, which is what makes the other findings unreadable.
+  {"deps/postgrex/lib/postgrex/type_module.ex", :improper_list_constr}
 ]

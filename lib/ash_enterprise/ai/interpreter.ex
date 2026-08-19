@@ -121,21 +121,28 @@ defmodule AshEnterprise.AI.Interpreter do
            AshA2ui.Dynamic.resolve(spec, allowlist: Surfaces.dynamic_allowlist()) do
       {:ok, {:designed, surface, surface.title || "Composed table"}}
     else
-      {:error, [%{} | _] = errors} ->
-        # Structured refusals from the same verifiers the compile-time DSL runs.
-        # Shown rather than swallowed: "that field does not exist" is a useful
-        # thing for a person to read, and it is the evidence that the spec was
-        # checked rather than rendered.
-        {:error,
-         "I composed a table but the server refused it:\n" <>
-           Enum.map_join(AshA2ui.Dynamic.Error.messages(errors), "\n", &"  - #{&1}")}
+      # `AshA2ui.Dynamic.resolve/2` fails with a LIST of `%Error{}`;
+      # `compose/1` fails with a message it has already written. Those two are
+      # the whole failure space, so there is no catch-all -- one would be
+      # unreachable, and Dialyzer says so.
+      {:error, errors} when is_list(errors) ->
+        {:error, refusal_message(errors)}
 
       {:error, message} when is_binary(message) ->
         {:error, message}
-
-      {:error, other} ->
-        {:error, "Could not compose a table for that: #{inspect(other)}"}
     end
+  end
+
+  # Structured refusals from the same verifiers the compile-time DSL runs, shown
+  # rather than swallowed: "that field does not exist" is a useful thing for a
+  # person to read, and it is the evidence that the spec was checked rather than
+  # rendered.
+  #
+  # One clause, no empty-list case: a refusal always carries at least one error,
+  # which Dialyzer proves rather than this asserting.
+  defp refusal_message(errors) do
+    "I composed a table but the server refused it:\n" <>
+      Enum.map_join(AshA2ui.Dynamic.Error.messages(errors), "\n", &"  - #{&1}")
   end
 
   defp compose(request) do
@@ -169,8 +176,18 @@ defmodule AshEnterprise.AI.Interpreter do
   defp key_status do
     model = AshEnterprise.AI.model()
 
+    # The `String.trim/1` step is the load-bearing one. An empty key is *found* by
+    # `ReqLLM.Keys.get/1` and reported as configured, so without it the request
+    # goes out and fails with "ANTHROPIC_API_KEY was found but is empty" -- a
+    # provider error where the honest answer is that nothing is configured.
+    #
+    # That is the state a fresh checkout is in, not an exotic one: `.env.example`
+    # ships `ANTHROPIC_API_KEY=` with nothing after it, so `cp .env.example .env`
+    # sets the variable and leaves it blank. Whitespace counts too -- a key pasted
+    # with a trailing newline is blank for every purpose except `byte_size/1`.
     with {:ok, %{provider: provider}} <- ReqLLM.model(model),
-         {:ok, _key, _source} <- ReqLLM.Keys.get(provider) do
+         {:ok, key, _source} <- ReqLLM.Keys.get(provider),
+         true <- String.trim(key) != "" do
       :ok
     else
       _ -> {:error, not_configured_message(model)}

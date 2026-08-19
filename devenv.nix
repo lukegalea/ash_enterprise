@@ -126,6 +126,37 @@ in
     fi
 
     export DATABASE_URL="ecto://$DB_USER:$DB_PASSWORD@$PGHOST:$PGPORT/$PGDATABASE"
+
+    # An EMPTY provider key is worse than an absent one, so drop them.
+    #
+    # `.env.example` ships `ANTHROPIC_API_KEY=` with nothing after it, which is
+    # exactly what `cp .env.example .env` leaves behind. ReqLLM's key lookup then
+    # *finds* the variable, reports the provider as configured, and fails the
+    # request with "ANTHROPIC_API_KEY was found but is empty" -- so the console
+    # shows a provider error instead of the "no API key is configured" message
+    # written for precisely this situation. Unsetting them here makes ReqLLM's
+    # answer and the truth agree.
+    for _key in ANTHROPIC_API_KEY OPENAI_API_KEY OPENROUTER_API_KEY GOOGLE_API_KEY; do
+      [ -z "''${!_key}" ] && unset "$_key"
+    done
+    unset _key
+
+    # Name the interpreter model after whichever provider actually has a key, so
+    # nobody has to pass AI_INTERPRETER_MODEL on the command line to use the
+    # helper console.
+    #
+    # Resolved here rather than set in `env` above, for the same reason PGPORT is:
+    # a static value would be wrong on most machines. `AshEnterprise.AI.model/0`
+    # defaults to Anthropic, so pinning Openrouter for everyone would break every
+    # checkout whose key is an Anthropic one.
+    #
+    # An explicit AI_INTERPRETER_MODEL always wins. Adding a provider here means
+    # naming a real model id for it -- an invented one fails at request time with
+    # a message about the model rather than about the configuration.
+    if [ -z "$AI_INTERPRETER_MODEL" ] && [ -z "$ANTHROPIC_API_KEY" ] &&
+       [ -n "$OPENROUTER_API_KEY" ]; then
+      export AI_INTERPRETER_MODEL="openrouter:anthropic/claude-haiku-4.5"
+    fi
   '';
 
   # ---------------------------------------------------------------------------

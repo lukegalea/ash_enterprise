@@ -24,6 +24,18 @@ defmodule AshEnterprise.AI.Intent do
 
   use Ash.TypedStruct
 
+  # Hand-written because `Ash.TypedStruct` does not emit one -- the `@type t` in
+  # that module belongs to its own `Field` entity, not to the struct it builds.
+  # Without this, every `@spec` naming `Intent.t()` is an unknown type, which is
+  # a Dialyzer error rather than a silent no-op.
+  @type t :: %__MODULE__{
+          kind: :assign_role | :show_surface | :design_surface | :unknown,
+          user_email: String.t() | nil,
+          role_name: String.t() | nil,
+          surface: String.t() | nil,
+          reasoning: String.t() | nil
+        }
+
   typed_struct do
     field :kind, :atom,
       constraints: [one_of: [:assign_role, :show_surface, :design_surface, :unknown]],
