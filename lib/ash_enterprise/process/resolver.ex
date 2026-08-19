@@ -161,6 +161,52 @@ defmodule AshEnterprise.Process.Resolver do
   end
 
   @doc """
+  Starts a tenant's own copy of whatever it currently runs for `key`.
+
+  The first half of customizing: create a **draft** in the tenant's own scope, seeded with the
+  XML of the definition that tenant runs today. Editing and publishing it is the second half,
+  and publishing is what writes the `Binding` -- so a fork that is never published changes
+  nothing, which is the right shape for a draft.
+
+  `forked_from_version` is recorded on the binding at publish time, not here, because a draft
+  that is abandoned should leave no claim about lineage.
+
+  ## Why it copies rather than references
+
+  A tenant's version numbers are its own -- `AssignVersion` counts within the tenant -- so a
+  fork of platform v5 is the tenant's v1. Without copying the XML, the tenant would be editing
+  the platform's row, which is the thing this whole design exists to prevent.
+  """
+  @spec fork(:process | :decision, String.t(), Ash.UUID.t(), term()) ::
+          {:ok, struct()} | {:error, term()}
+  def fork(kind, key, tenant, actor \\ nil) do
+    with {:ok, source} <- resolve(kind, key, tenant) do
+      opts = [actor: actor || SystemActor.process(), tenant: tenant]
+
+      existing_draft =
+        kind
+        |> resource()
+        |> Ash.Query.for_read(:read)
+        |> Ash.Query.filter(key == ^key and status == :draft)
+        |> Ash.read_one!(opts)
+
+      case existing_draft do
+        # A key has at most one draft, enforced by a partial unique index. Returning the
+        # existing one makes forking idempotent, which a seed needs and a double-click wants.
+        %{} = draft ->
+          {:ok, draft}
+
+        nil ->
+          {:ok,
+           resource(kind).create!(
+             %{key: key, name: source.name, xml: source.xml},
+             opts
+           )}
+      end
+    end
+  end
+
+  @doc """
   What each customized key has diverged from.
 
   Returns `[%{kind:, key:, forked_from_version:, platform_version:, behind_by:}]`.

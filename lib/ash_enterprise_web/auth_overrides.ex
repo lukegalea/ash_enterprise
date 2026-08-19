@@ -23,4 +23,17 @@ defmodule AshEnterpriseWeb.AuthOverrides do
   # override AshAuthentication.Phoenix.Components.SignIn do
   #  set :show_banner, false
   # end
+
+  # The default banner points `image_url` at https://ash-hq.org, which this application's
+  # Content-Security-Policy refuses -- `img-src 'self' data: blob:` names no remote host. So
+  # every visitor to the sign-in page has seen a broken image, and the only place it was
+  # reported was a console the screenshot script now reads.
+  #
+  # Replaced with the application's own icon rather than by widening the policy. A sign-in
+  # page that fetches an image from a third party is a beacon on the one page an unauthenticated
+  # visitor is guaranteed to load, and the CSP is right to refuse it.
+  override AshAuthentication.Phoenix.Components.Banner do
+    set :image_url, "/favicon.ico"
+    set :dark_image_url, "/favicon.ico"
+  end
 end

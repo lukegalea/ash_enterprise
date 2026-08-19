@@ -1,0 +1,9 @@
+{
+  "name": "ash_enterprise_screenshots",
+  "private": true,
+  "type": "module",
+  "description": "Standalone from the app's assets/ and from site/: capturing screenshots needs a browser and a running server, and neither the asset pipeline nor the marketing site build should depend on either.",
+  "devDependencies": {
+    "playwright": "^1.49.0"
+  }
+}

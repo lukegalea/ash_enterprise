@@ -37,32 +37,40 @@ defmodule Mix.Tasks.AshEnterprise.Bpmn.Setup do
     Mix.Task.run("ash_enterprise.bpmn.publish")
 
     for organization <- tenants() do
-      Mix.shell().info("\n#{organization.unique_name}:")
-      # The catalogue itself is derived from the resources that exist, so a resource added
-      # after the last seed has no privileges at all -- not merely ungranted ones. Idempotent.
-      Seeder.seed_privileges()
-
-      # New resources mean new privileges, and the Administrator role was granted its set at
-      # provisioning time. Without this the seeded admin cannot submit a request on a resource
-      # that did not exist when their role was built -- a forbidden write that reads as a bug
-      # in the resource rather than as a stale grant.
-      case Seeder.regrant_administrator_privileges(organization.id) do
-        0 -> :ok
-        n -> Mix.shell().info("  granted #{n} new privilege(s) to Administrator")
-      end
-
-      ensure_trigger(organization.id)
-      role = ensure_role(organization.id)
-      user = first_user(organization.id)
-
-      if user do
-        seed_requests(organization.id, role, user)
-      else
-        Mix.shell().info("  (no user in this tenant; skipping requests)")
-      end
+      seed_tenant_demo(organization)
     end
 
     Mix.shell().info("\nDone. Visit /app/tasks, /app/processes and /app/triggers.")
+  end
+
+  defp seed_tenant_demo(organization) do
+    Mix.shell().info("\n#{organization.unique_name}:")
+
+    # The catalogue itself is derived from the resources that exist, so a resource added after
+    # the last seed has no privileges at all -- not merely ungranted ones. Idempotent.
+    Seeder.seed_privileges()
+
+    # New resources mean new privileges, and the Administrator role was granted its set at
+    # provisioning time. Without this the seeded admin cannot submit a request on a resource
+    # that did not exist when their role was built -- a forbidden write that reads as a bug in
+    # the resource rather than as a stale grant.
+    case Seeder.regrant_administrator_privileges(organization.id) do
+      0 -> :ok
+      n -> Mix.shell().info("  granted #{n} new privilege(s) to Administrator")
+    end
+
+    ensure_trigger(organization.id)
+    role = ensure_role(organization.id)
+
+    case first_user(organization.id) do
+      nil ->
+        Mix.shell().info("  (no user in this tenant; skipping requests)")
+
+      user ->
+        seed_requests(organization.id, role, user)
+        # One tenant gets its own copy, so the catalogue has something to say about drift.
+        if organization.unique_name == "example", do: fork_for_demo(organization.id)
+    end
   end
 
   # Every seeded tenant except the platform organization, which owns baselines and is not a
@@ -165,6 +173,20 @@ defmodule Mix.Tasks.AshEnterprise.Bpmn.Setup do
 
       drain(tenant)
       Mix.shell().info("  three requests submitted and dispatched")
+    end
+  end
+
+  # One tenant is given its own copy of the process, so the designer opens a real diagram and
+  # the catalogue has something to say about drift. Without it every tenant runs the baseline,
+  # the customization story has no subject, and the designer -- which creates a draft from a
+  # blank template when a tenant has none -- shows an empty canvas.
+  defp fork_for_demo(tenant) do
+    case Resolver.fork(:process, "access_request.grant", tenant) do
+      {:ok, draft} ->
+        Mix.shell().info("  forked access_request.grant as draft v#{draft.version}")
+
+      {:error, reason} ->
+        Mix.shell().info("  could not fork: #{inspect(reason)}")
     end
   end
 

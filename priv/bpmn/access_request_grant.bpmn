@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <bpmn2:definitions xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL"
                    xmlns:ash="https://github.com/lukegalea/ash_bpmn/ns"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
                    id="Definitions_access_request_grant"
                    targetNamespace="https://ash-enterprise.example/bpmn">
   <bpmn2:process id="Process_access_request_grant" name="Access request" isExecutable="true">
@@ -145,4 +148,109 @@
     <bpmn2:sequenceFlow id="Flow_granted" sourceRef="Grant" targetRef="EndGranted"/>
     <bpmn2:sequenceFlow id="Flow_rejected" sourceRef="Reject" targetRef="EndRejected"/>
   </bpmn2:process>
+
+  <!--
+    Diagram interchange: where each element sits on the canvas.
+
+    The engine never reads this: it executes the graph, which carries no coordinates. But
+    bpmn-js cannot render a diagram without it and shows "no diagram to display", which reads
+    as a broken editor rather than as a file with no layout. Found exactly that way.
+  -->
+  <bpmndi:BPMNDiagram id="Diagram_1">
+    <bpmndi:BPMNPlane id="Plane_1" bpmnElement="Process_access_request_grant">
+      <bpmndi:BPMNShape id="Shape_Start" bpmnElement="Start">
+        <dc:Bounds x="150" y="202" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_AssessRisk" bpmnElement="AssessRisk">
+        <dc:Bounds x="240" y="180" width="110" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_RecordRisk" bpmnElement="RecordRisk">
+        <dc:Bounds x="400" y="180" width="110" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Route" bpmnElement="Route">
+        <dc:Bounds x="560" y="195" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ExecutiveApproval" bpmnElement="ExecutiveApproval">
+        <dc:Bounds x="670" y="60" width="120" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ManagerApproval" bpmnElement="ManagerApproval">
+        <dc:Bounds x="670" y="180" width="120" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Grant" bpmnElement="Grant">
+        <dc:Bounds x="850" y="180" width="110" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Reject" bpmnElement="Reject">
+        <dc:Bounds x="850" y="320" width="110" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_EndGranted" bpmnElement="EndGranted">
+        <dc:Bounds x="1010" y="202" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_EndRejected" bpmnElement="EndRejected">
+        <dc:Bounds x="1010" y="342" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_to_assess" bpmnElement="Flow_to_assess">
+        <di:waypoint x="186" y="220"/>
+        <di:waypoint x="240" y="220"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_to_record" bpmnElement="Flow_to_record">
+        <di:waypoint x="350" y="220"/>
+        <di:waypoint x="400" y="220"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_to_route" bpmnElement="Flow_to_route">
+        <di:waypoint x="510" y="220"/>
+        <di:waypoint x="560" y="220"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_high" bpmnElement="Flow_high">
+        <di:waypoint x="585" y="195"/>
+        <di:waypoint x="585" y="100"/>
+        <di:waypoint x="670" y="100"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_medium" bpmnElement="Flow_medium">
+        <di:waypoint x="610" y="220"/>
+        <di:waypoint x="670" y="220"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_auto" bpmnElement="Flow_auto">
+        <di:waypoint x="585" y="245"/>
+        <di:waypoint x="585" y="290"/>
+        <di:waypoint x="905" y="290"/>
+        <di:waypoint x="905" y="260"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_exec_decided" bpmnElement="Flow_exec_decided">
+        <di:waypoint x="790" y="100"/>
+        <di:waypoint x="905" y="100"/>
+        <di:waypoint x="905" y="180"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_exec_approved" bpmnElement="Flow_exec_approved">
+        <di:waypoint x="790" y="110"/>
+        <di:waypoint x="905" y="110"/>
+        <di:waypoint x="905" y="180"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_exec_rejected" bpmnElement="Flow_exec_rejected">
+        <di:waypoint x="730" y="140"/>
+        <di:waypoint x="730" y="360"/>
+        <di:waypoint x="850" y="360"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_mgr_decided" bpmnElement="Flow_mgr_decided">
+        <di:waypoint x="790" y="220"/>
+        <di:waypoint x="850" y="220"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_mgr_approved" bpmnElement="Flow_mgr_approved">
+        <di:waypoint x="790" y="230"/>
+        <di:waypoint x="850" y="230"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_mgr_rejected" bpmnElement="Flow_mgr_rejected">
+        <di:waypoint x="730" y="260"/>
+        <di:waypoint x="730" y="360"/>
+        <di:waypoint x="850" y="360"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_granted" bpmnElement="Flow_granted">
+        <di:waypoint x="960" y="220"/>
+        <di:waypoint x="1010" y="220"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_rejected" bpmnElement="Flow_rejected">
+        <di:waypoint x="960" y="360"/>
+        <di:waypoint x="1010" y="360"/>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
 </bpmn2:definitions>

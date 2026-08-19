@@ -5,6 +5,11 @@
 @import "../../deps/cinder/priv/cinder.css";
 @import "../../deps/cinder/priv/themes/daisy_ui.css";
 @source "../../deps/ash_authentication_phoenix";
+/* ash_bpmn ships whole LiveViews with Tailwind classes baked into their templates. Without
+   this the markup renders with *no* styling at all -- the diagram canvas has no height, the
+   properties panel has no layout, and the result looks like a broken editor rather than an
+   unscanned dependency. `source(none)` above means nothing is scanned unless it is named. */
+@source "../../deps/ash_bpmn/lib";
 @import "phoenix-colocated/ash_enterprise/colocated.css";
 @source "../css";
 @source "../js";
