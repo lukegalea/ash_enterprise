@@ -204,9 +204,10 @@ defmodule AshEnterprise.MixProject do
       # this application. See `devenv.nix` and the boot check in
       # `AshEnterprise.Application`.
       #
-      # TEMP-PATH-DEP: flipped back to github before commit
-      {:ash_bpmn, path: "../ash_bpmn"},
-      {:ash_decisions, path: "../ash_decisions"},
+      # Not published to hex, so these are git dependencies -- same as `ash_a2ui`
+      # and `ash_strangler`, and first-party rather than third-party (ADR 0009).
+      {:ash_bpmn, github: "lukegalea/ash_bpmn"},
+      {:ash_decisions, github: "lukegalea/ash_decisions"},
 
       # --- Observability -------------------------------------------------------
       # Ash.Tracer -> OpenTelemetry -> OTLP. opentelemetry_ash is thin (0.1.x);
