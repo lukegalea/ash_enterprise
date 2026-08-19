@@ -75,6 +75,43 @@ defmodule AshEnterprise.Audit.EventLog do
   Events with no tenant — registration before an organization exists, system
   actors operating outside one — form their own chain, keyed on `NULL`.
 
+  ## Something depends on that lock which is not the chain
+
+  The advisory lock above is taken by `AshEvents` for its own reasons, and the hash
+  chain merely piggybacks on it. **A second consumer now depends on it too**, and on
+  a stronger property than the chain needs, so it is recorded here rather than only
+  where it is used.
+
+  Because the lock is taken *before* the event row is inserted and is
+  `xact`-scoped, a second transaction for the same tenant cannot consume
+  `nextval()` until the first has committed. So **within one tenant, `sequence`
+  order is commit order** — which is what makes `sequence` usable as a change-feed
+  cursor at all. A plain `bigserial` is otherwise the canonical wrong thing to build
+  a feed on: values are assigned at INSERT, so two transactions can take 100 and 101
+  and commit in the other order, and a consumer holding a high-water mark loses 100
+  permanently and silently.
+
+  Three limits on that, each of which someone will otherwise assume away:
+
+    * **It is per tenant, and only for tenant-scoped resources.** The default key
+      generator returns a two-element list under attribute multitenancy and a single
+      integer otherwise, so the two paths call `pg_advisory_xact_lock($1, $2)` and
+      `pg_advisory_xact_lock($1)`. Postgres treats those as **separate lock spaces** —
+      measured: holding `(0, 0)`, a `(0)` acquires in about a millisecond. The
+      `NULL`-tenant chain therefore has *no* ordering guarantee, not a weaker one, and
+      a consumer must give it its own cursor and treat it as best-effort.
+    * **It depends on there being an enclosing transaction**, which is not obvious
+      given `AshEnterprise.Repo` sets `prefer_transaction? false`. There is: an
+      audited create traces as `begin / INSERT <resource> / pg_advisory_xact_lock /
+      INSERT audit_events / commit`.
+    * **It is `ash_events`' implementation, not our schema.** Setting a custom
+      `advisory_lock_key_generator`, or an upstream change to when the lock is taken,
+      invalidates all of the above — and would do so silently, because the failure is
+      a consumer skipping an event rather than an error.
+
+  `docs/plans/event-triggered-processes.md` §2 has the measurements and the design
+  that rests on them.
+
   ## Retention
 
   ⚠️ There is still no retention or purge policy, and the immutability trigger

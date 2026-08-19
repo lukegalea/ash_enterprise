@@ -9,6 +9,7 @@ whether or not the thing is ever built.
 | [`ash-strangler.md`](ash-strangler.md) | **Built** — see [ADR 0009](../adr/0009-strangler-and-bpmn-are-first-party.md) | Strangler-fig migration for Ash: mapping a well-modelled resource onto a legacy PostgreSQL schema and moving it through four cutover phases. |
 | [`ash-strangler-in-reference-app.md`](ash-strangler-in-reference-app.md) | **Deferred** | How *this* repository demonstrates the above, and the collisions that surfaces with the platform base resource. |
 | [`business-process-modelling.md`](business-process-modelling.md) | **Built** — see [ADR 0015](../adr/0015-approvals-stay-in-ash.md) | Approvals as a domain, then processes as data. Recommends a token-based interpreter as an Ash domain driven by Oban, not a BPMN-conformant engine. |
+| [`event-triggered-processes.md`](event-triggered-processes.md) | **Specified** | How an audit event starts a process, and how a tenant diverges from a platform baseline without forking it forever. Includes the measurements behind the one guarantee the design rests on. |
 | [`ash-api-versioning.md`](ash-api-versioning.md) | **Proposed** | One resource, one schema, N presentation contracts. Version deltas as data, with `render`/`parse` invertibility checked at compile time and no new database objects. |
 
 ## A note on the two that were built
