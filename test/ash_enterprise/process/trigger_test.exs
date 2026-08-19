@@ -66,6 +66,135 @@ defmodule AshEnterprise.Process.TriggerTest do
     end
   end
 
+  describe "a trigger must watch something that actually writes events" do
+    # The audit log is a feed of writes that went through an Ash action, not a change feed.
+    # A trigger on an unaudited resource waits forever and nothing errors -- the same failure
+    # shape as a trigger feeding itself, in the opposite direction.
+    test "refuses an unaudited resource", %{tenant: tenant} do
+      # `Legacy.User` reads a Postgres view; the writes worth reacting to are the old
+      # application's raw SQL, which runs no Ash action. This is the case that will actually
+      # come up on a strangler-migrated application.
+      assert {:error, error} =
+               Trigger.create(
+                 %{
+                   key: "legacy-#{System.unique_integer([:positive])}",
+                   match_resource: "AshEnterprise.Legacy.User",
+                   process_key: "onboarding"
+                 },
+                 opts(tenant)
+               )
+
+      assert Exception.message(error) =~ "not audited"
+      assert Exception.message(error) =~ "never fire"
+    end
+
+    test "refuses a resource that does not exist, which is how a typo presents", %{tenant: tenant} do
+      assert {:error, error} =
+               Trigger.create(
+                 %{
+                   key: "typo-#{System.unique_integer([:positive])}",
+                   match_resource: "AshEnterprise.Accounts.Uzer",
+                   process_key: "p"
+                 },
+                 opts(tenant)
+               )
+
+      assert Exception.message(error) =~ "not a loadable Ash resource"
+    end
+
+    test "an audited resource is accepted", %{tenant: tenant} do
+      assert %Trigger{} =
+               Trigger.create!(
+                 %{
+                   key: "audited-#{System.unique_integer([:positive])}",
+                   match_resource: "AshEnterprise.Security.Role",
+                   process_key: "p"
+                 },
+                 opts(tenant)
+               )
+    end
+
+    # The bug this caught in our own code: the audit log stores `to_string(module)`, which
+    # carries the `Elixir.` prefix. A trigger holding the inspect-style name would compare
+    # unequal to every event forever -- the same silent-never-fires failure, arriving through
+    # the back door. So a name is accepted in either form and stored in one.
+    test "the resource name is stored the way the audit log records it", %{tenant: tenant} do
+      from_short =
+        Trigger.create!(
+          %{
+            key: "short-#{System.unique_integer([:positive])}",
+            match_resource: "AshEnterprise.Security.Role",
+            process_key: "p"
+          },
+          opts(tenant)
+        )
+
+      from_full =
+        Trigger.create!(
+          %{
+            key: "full-#{System.unique_integer([:positive])}",
+            match_resource: "Elixir.AshEnterprise.Security.Role",
+            process_key: "p"
+          },
+          opts(tenant)
+        )
+
+      assert from_short.match_resource == "AshEnterprise.Security.Role"
+      assert from_full.match_resource == from_short.match_resource
+    end
+
+    test "the stored form is what a real audit event carries", %{tenant: tenant} do
+      # Provoke one audited write and compare, rather than asserting the format from memory.
+      AshEnterprise.Security.Role
+      |> Ash.Changeset.for_create(
+        :create,
+        %{name: "trig-probe-#{System.unique_integer([:positive])}"},
+        actor: SystemActor.seed(),
+        tenant: tenant
+      )
+      |> Ash.create!()
+
+      [event | _] =
+        AshEnterprise.Audit.EventLog
+        |> Ash.Query.for_read(:read)
+        |> Ash.Query.filter(resource == AshEnterprise.Security.Role)
+        |> Ash.Query.limit(1)
+        |> Ash.read!(actor: SystemActor.process(), tenant: tenant)
+
+      trigger =
+        Trigger.create!(
+          %{
+            key: "match-#{System.unique_integer([:positive])}",
+            match_resource: "AshEnterprise.Security.Role",
+            process_key: "p"
+          },
+          opts(tenant)
+        )
+
+      # `event.resource` is a module atom -- Ash casts the column back on read -- so the
+      # comparison goes through the same helper dispatch uses. Asserting against the raw field
+      # is what would have hidden the bug.
+      assert trigger.match_resource ==
+               AshEnterprise.Process.Trigger.ResourceName.of_event(event.resource),
+             "a trigger must store the resource name in the form dispatch compares against"
+
+      assert is_atom(event.resource),
+             "if this ever becomes a string, ResourceName.of_event/1 needs revisiting"
+    end
+
+    # Worth pinning because it is the mechanism, not the policy: `ash_events` appends by
+    # wrapping actions rather than by observing, so an audited resource registers no notifier
+    # and a synthesized notification can never become an event. There is no configuration that
+    # connects the strangler's notifications to the audit log.
+    test "an audited resource carries no notifiers, which is why a notification is not an event" do
+      assert Ash.Resource.Info.notifiers(AshEnterprise.Security.Role) == []
+      assert AshEvents.Events in Ash.Resource.Info.extensions(AshEnterprise.Security.Role)
+
+      assert Ash.Notifier.PubSub in Ash.Resource.Info.notifiers(AshEnterprise.Legacy.User)
+      refute AshEvents.Events in Ash.Resource.Info.extensions(AshEnterprise.Legacy.User)
+    end
+  end
+
   describe "a trigger needs somewhere to send an event" do
     test "neither a process nor a decision is refused", %{tenant: tenant} do
       assert {:error, error} =

@@ -112,6 +112,53 @@ detail that quietly stops being true:
 
 ---
 
+## 2b. The audit log is not a change feed
+
+It is a feed of **writes that went through an Ash action**, which is narrower and less obvious.
+`AshEvents` appends by *wrapping actions* — `create_action_wrapper` and its siblings — not by
+observing changes. Anything that changes a row without running an Ash action produces no event,
+and a trigger watching for it waits forever without erroring.
+
+The case that will actually come up is the strangler. `AshEnterprise.Legacy.User` reads a
+Postgres view, and the writes worth reacting to are the *old application's* — raw SQL. The
+listener does synthesize an `Ash.Notifier.Notification` for them, which is what makes the
+LiveView update live, but **a notification is not an event**, and no configuration connects the
+two. Measured:
+
+```elixir
+Ash.Resource.Info.notifiers(AshEnterprise.Security.Role)   # audited  => []
+Ash.Resource.Info.notifiers(AshEnterprise.Legacy.User)     #          => [Ash.Notifier.PubSub]
+```
+
+An audited resource carries **no notifiers at all**, because `ash_events` registers none.
+
+So "a user appears in the legacy system, start onboarding" — among the first processes anyone
+will try to model on a strangler-migrated application — would silently never fire. That is the
+self-trigger cycle in the opposite direction, and it gets the same treatment: **refused at
+publish time**, by `Trigger.Validations.MatchesAnAuditedResource`, with the reason named. The
+same check catches a misspelled module name, which presents identically.
+
+Two honest routes exist if it is ever wanted, neither built speculatively: subscribe the
+trigger index to the strangler's PubSub topics — at-most-once, so latency-tolerant triggers
+only, and that weaker guarantee must be *declared* rather than inherited — or have the listener
+perform a real Ash action, trading away the read-only property of `:read_from_legacy`.
+
+### Three spellings of a resource name
+
+Worth stating because getting it wrong produces the same silent failure, and it was in fact
+written wrong first:
+
+| Where | Form |
+|---|---|
+| The `audit_events` column | `"Elixir.AshEnterprise.Security.Role"` |
+| `event.resource` as Ash returns it | the module **atom**, cast back on read |
+| A trigger, and the event context a guard sees | `"AshEnterprise.Security.Role"` |
+
+The short form is chosen for the third because it is what a person types and what a FEEL guard
+compares against. `AshEnterprise.Process.Trigger.ResourceName` is the one place that knows.
+
+---
+
 ## 3. Dispatch: the sweep is the driver, the notifier is a nudge
 
 The instinct is a notifier fast path with a sweep as safety net, mirroring `ash_bpmn`'s own

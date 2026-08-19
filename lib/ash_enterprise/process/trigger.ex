@@ -142,6 +142,10 @@ defmodule AshEnterprise.Process.Trigger do
       message: "a trigger needs either a process_key or a decision_key"
 
     validate {AshEnterprise.Process.Trigger.Validations.NotSelfTriggering, []}, on: [:create]
+
+    # The other way a trigger silently never fires: watching something that writes no events.
+    validate {AshEnterprise.Process.Trigger.Validations.MatchesAnAuditedResource, []},
+      on: [:create]
   end
 
   actions do
@@ -161,6 +165,7 @@ defmodule AshEnterprise.Process.Trigger do
         :enabled
       ]
 
+      change AshEnterprise.Process.Trigger.Changes.NormalizeMatchResource
       change AshEnterprise.Process.Trigger.Changes.AssignVersion
     end
 

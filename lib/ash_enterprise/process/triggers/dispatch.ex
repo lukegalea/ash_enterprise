@@ -20,6 +20,7 @@ defmodule AshEnterprise.Process.Triggers.Dispatch do
   alias AshEnterprise.Decisions
   alias AshEnterprise.Platform.SystemActor
   alias AshEnterprise.Process.{Resolver, TriggerDispatch}
+  alias AshEnterprise.Process.Trigger.ResourceName
 
   @doc "Runs every published trigger against one event."
   @spec dispatch_event(struct(), [struct()], Ash.UUID.t()) :: :ok
@@ -33,8 +34,11 @@ defmodule AshEnterprise.Process.Triggers.Dispatch do
 
   # ── stage 1: match ───────────────────────────────────────────────────────
 
+  # `event.resource` is a module atom -- Ash casts the column back on read -- so it goes
+  # through `ResourceName.of_event/1` rather than being compared to a string directly. That
+  # comparison was wrong first time and produced a trigger that matched nothing, silently.
   defp matches?(trigger, event) do
-    trigger.match_resource == event.resource and
+    trigger.match_resource == ResourceName.of_event(event.resource) and
       (is_nil(trigger.match_action) or trigger.match_action == to_string(event.action)) and
       (is_nil(trigger.match_action_type) or trigger.match_action_type == event.action_type)
   end
@@ -181,10 +185,13 @@ defmodule AshEnterprise.Process.Triggers.Dispatch do
     %{__struct__: resource_module(event.resource), id: event.record_id}
   end
 
+  defp resource_module(resource) when is_atom(resource), do: resource
+
   defp resource_module(resource) when is_binary(resource) do
-    String.to_existing_atom(resource)
-  rescue
-    ArgumentError -> nil
+    case ResourceName.resolve(resource) do
+      {:ok, module} -> module
+      :error -> nil
+    end
   end
 
   # ── the event context, a published contract ──────────────────────────────
@@ -206,7 +213,9 @@ defmodule AshEnterprise.Process.Triggers.Dispatch do
         "id" => event.id,
         "sequence" => event.sequence,
         "occurred_at" => event.occurred_at,
-        "resource" => event.resource,
+        # The short name, so a guard reads `event.resource = "AshEnterprise.Accounts.User"`
+        # rather than carrying the `Elixir.` prefix into a business rule.
+        "resource" => ResourceName.of_event(event.resource),
         "action" => to_string(event.action),
         "action_type" => to_string(event.action_type),
         "record_id" => event.record_id,
