@@ -125,7 +125,12 @@ defmodule AshEnterprise.Audit.EventLog do
     domain: AshEnterprise.Audit,
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer],
-    extensions: [AshEvents.EventLog]
+    extensions: [AshEvents.EventLog],
+    # The trigger dispatcher's nudge. It runs *after* the transaction -- Ash defers
+    # notifications -- so it cannot extend the per-tenant advisory lock this chain relies on.
+    # It also cannot be transactional with the write, which is why it only nudges and the
+    # cron-driven sweep is what makes dispatch complete.
+    notifiers: [AshEnterprise.Process.Triggers.Notifier]
 
   postgres do
     table "audit_events"

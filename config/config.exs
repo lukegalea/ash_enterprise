@@ -20,7 +20,15 @@ config :ash_enterprise, Oban,
   # whatever else the application enqueues.
   queues: [default: 10, bpmn: 10],
   repo: AshEnterprise.Repo,
-  plugins: [{Oban.Plugins.Cron, []}]
+  plugins: [
+    {Oban.Plugins.Cron,
+     crontab: [
+       # The trigger sweep is the *driver*, not a safety net: the notifier's nudge is
+       # non-transactional and can be lost, so this is what guarantees an event is eventually
+       # dispatched. Every minute, one job per tenant that has a published trigger.
+       {"* * * * *", AshEnterprise.Process.Triggers.CronSweep}
+     ]}
+  ]
 
 # --- The process engine's three host callbacks --------------------------------
 #
@@ -143,7 +151,8 @@ config :ash_enterprise,
     AshEnterprise.Audit,
     AshEnterprise.Reference,
     AshEnterprise.Bpmn,
-    AshEnterprise.Decisions
+    AshEnterprise.Decisions,
+    AshEnterprise.Process
   ],
   base_resources: [AshEnterprise.Platform.Resource]
 

@@ -24,6 +24,7 @@ defmodule AshEnterprise.Application do
            Application.fetch_env!(:ash_enterprise, Oban)
          )},
         {Phoenix.PubSub, name: AshEnterprise.PubSub},
+        # The trigger index. Started after the Repo because it loads published triggers.
         # Start a worker by calling: AshEnterprise.Worker.start_link(arg)
         # {AshEnterprise.Worker, arg},
         # Start to serve requests, typically the last entry
@@ -31,7 +32,7 @@ defmodule AshEnterprise.Application do
         {AshAuthentication.Supervisor, [otp_app: :ash_enterprise]},
         {Absinthe.Subscription, AshEnterpriseWeb.Endpoint},
         AshGraphql.Subscription.Batcher
-      ] ++ legacy_listener()
+      ] ++ trigger_index() ++ legacy_listener()
 
     # See https://elixir.hexdocs.pm/Supervisor.html
     # for other strategies and supported options
@@ -68,6 +69,25 @@ defmodule AshEnterprise.Application do
         {AshStrangler.Listener,
          repo: AshEnterprise.Repo, resources: [AshEnterprise.Legacy.User], authorize?: false}
       ]
+    else
+      []
+    end
+  end
+
+  # The trigger index: which resources any published trigger watches, so the audit-log
+  # notifier can answer "does anyone care about this write" without a query.
+  #
+  # Off in :test, for the same shape of reason the legacy listener is. It reads the database at
+  # boot, outside any test's checked-out connection, so the Ecto SQL sandbox refuses it -- and
+  # the refusal is harmless but noisy. It is also pointless there: the index exists to save a
+  # job insert per write, and a suite that rolls back has nothing to save.
+  #
+  # `Index.interested?/1` returns false when the table is absent, so the notifier degrades to
+  # "nudge nobody" rather than to an error. Dispatch is unaffected either way, because the
+  # cron sweep is the driver and the nudge only shortens the wait.
+  defp trigger_index do
+    if Application.get_env(:ash_enterprise, :trigger_index?, true) do
+      [AshEnterprise.Process.Triggers.Index]
     else
       []
     end

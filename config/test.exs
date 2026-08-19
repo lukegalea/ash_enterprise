@@ -52,3 +52,7 @@ config :phoenix,
 # a suite where every test rolls back. Tests that need the behaviour drive
 # `AshStrangler.Listener.notify/2` directly.
 config :ash_enterprise, :legacy_listener?, false
+
+# The trigger index reads the database at boot, outside any test's checked-out connection,
+# which the Ecto SQL sandbox refuses. See `AshEnterprise.Application.trigger_index/0`.
+config :ash_enterprise, trigger_index?: false

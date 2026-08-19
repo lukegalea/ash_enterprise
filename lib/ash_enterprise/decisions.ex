@@ -35,4 +35,42 @@ defmodule AshEnterprise.Decisions do
     resource AshEnterprise.Decisions.Definition
     resource AshEnterprise.Decisions.Evaluation
   end
+
+  @doc """
+  Evaluates the decision `key` for `tenant`, and records what it decided.
+
+  Which *version* is evaluated is resolved through `AshEnterprise.Process.Resolver`, so a
+  tenant that has customized a decision runs its own and every other tenant runs the platform
+  baseline — the same binding model processes use, because a decision diverges for exactly the
+  same reasons and should not need a second mechanism.
+
+  Note what this does **not** do: it resolves at call time rather than pinning. That is the
+  opposite of how a process instance behaves and it is deliberate. A process version is a
+  *shape*, and changing it under a running instance can leave a token with nowhere to stand. A
+  decision is a *rule*, and the whole reason a business keeps rules outside code is that
+  changing one takes effect without redeploying or restarting what is already in flight.
+
+  Options: `:tenant` (required), `:decision` (when the document defines several), `:timeout`,
+  `:correlation_id`, and `:record` to suppress the evidence row for a designer preview.
+  """
+  @spec evaluate(String.t(), map(), keyword()) :: {:ok, map()} | {:error, term()}
+  def evaluate(key, inputs, opts) do
+    tenant = Keyword.fetch!(opts, :tenant)
+
+    with {:ok, definition} <- AshEnterprise.Process.Resolver.resolve(:decision, key, tenant) do
+      AshDecisions.Evaluator.evaluate(
+        definition,
+        inputs,
+        opts
+        |> Keyword.take([:decision, :timeout, :correlation_id, :record])
+        |> Keyword.merge(
+          evaluation_resource: AshEnterprise.Decisions.Evaluation,
+          scope: %AshDecisions.Scope{
+            actor: AshEnterprise.Platform.SystemActor.process(),
+            tenant: tenant
+          }
+        )
+      )
+    end
+  end
 end

@@ -33,28 +33,24 @@ defmodule AshEnterprise.Process.DecisionResolver do
   require Ash.Query
   require Logger
 
-  alias AshDecisions.Evaluator
-  alias AshEnterprise.Decisions.{Definition, Evaluation}
+  alias AshEnterprise.Decisions.Definition
 
   @impl true
   def decide(ref, inputs, ctx) do
     tenant = Map.get(ctx, :tenant)
 
-    with {:ok, definition} <- published(ref, tenant) do
-      case Evaluator.evaluate(definition, inputs,
-             evaluation_resource: Evaluation,
-             scope: %AshDecisions.Scope{
-               actor: AshEnterprise.Platform.SystemActor.process(),
-               tenant: tenant
-             },
-             correlation_id: correlation_id(ctx)
-           ) do
-        {:ok, result} ->
-          {:ok, %{outputs: outputs_map(result.outputs), version: result.definition_version}}
+    # Through the domain facade rather than looking the definition up here, so a business rule
+    # task and a trigger's routing decision resolve the same way -- including honouring a
+    # tenant's binding when it has customized the decision.
+    case AshEnterprise.Decisions.evaluate(ref, inputs,
+           tenant: tenant,
+           correlation_id: correlation_id(ctx)
+         ) do
+      {:ok, result} ->
+        {:ok, %{outputs: outputs_map(result.outputs), version: result.definition_version}}
 
-        {:error, reason} ->
-          {:error, reason}
-      end
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 
@@ -78,19 +74,6 @@ defmodule AshEnterprise.Process.DecisionResolver do
       )
 
       false
-  end
-
-  defp published(ref, tenant) do
-    Definition
-    |> Ash.Query.for_read(:read)
-    |> Ash.Query.filter(key == ^ref and status == :published)
-    |> Ash.Query.sort(version: :desc)
-    |> Ash.Query.limit(1)
-    |> Ash.read!(actor: AshEnterprise.Platform.SystemActor.process(), tenant: tenant)
-    |> case do
-      [definition] -> {:ok, definition}
-      [] -> {:error, {:no_published_decision, ref}}
-    end
   end
 
   # A decision table with one output returns a bare value; with several it returns a context.

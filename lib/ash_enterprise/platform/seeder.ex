@@ -134,6 +134,48 @@ defmodule AshEnterprise.Platform.Seeder do
     %{organization: organization, business_unit: root, role: role, user: user}
   end
 
+  @platform_unique_name "platform"
+
+  @doc """
+  Seeds the platform organization: where baseline processes and decisions are published.
+
+  A baseline has to live in a tenant, because the platform base resource makes
+  `organization_id` `allow_nil? false` and relaxing that to serve one resource would weaken
+  the tenancy invariant for every resource in the application.
+
+  So it is a real `Organization` row -- and deliberately an empty one. **No users, no roles,
+  no sign-in.** It is not a customer and must not be mistaken for one: nothing should ever
+  authenticate into it, and a tenant listing shown to a human should exclude it.
+
+  Idempotent, like `seed_legacy_estate/1` and unlike `seed_tenant/1`, because it runs on every
+  deploy that publishes a baseline.
+  """
+  @spec seed_platform_organization() :: Accounts.Organization.t()
+  def seed_platform_organization do
+    actor = SystemActor.seed()
+
+    existing =
+      Accounts.Organization
+      |> Ash.Query.filter(unique_name == ^@platform_unique_name)
+      |> Ash.read_one!(authorize?: false)
+
+    organization =
+      existing ||
+        Accounts.Organization
+        |> Ash.Changeset.for_create(
+          :create,
+          %{name: "Platform (baselines)", unique_name: @platform_unique_name},
+          actor: actor
+        )
+        |> Ash.create!()
+
+    # The resolver memoises this id, and seeding is exactly when it can have been memoised as
+    # absent.
+    AshEnterprise.Process.Resolver.forget_platform_tenant()
+
+    organization
+  end
+
   @doc """
   Provisions the tenant the legacy estate belongs to, at the fixed ids
   `AshEnterprise.Legacy.User`'s mapping names.
