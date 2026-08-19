@@ -39,6 +39,14 @@ defmodule AshEnterprise.Audit.Export do
 
   alias AshEnterprise.Audit.EventLog
 
+  # Sobelow reads `@sobelow_skip` out of the source AST, so nothing in the
+  # compiled module ever consults it and Elixir reports it as "set but never
+  # used" -- which `--warnings-as-errors` turns into a failed build. Persisting
+  # it writes the value into the beam's attribute chunk, which counts as a use
+  # and is true to what the attribute is: metadata about this module, for another
+  # tool to read.
+  Module.register_attribute(__MODULE__, :sobelow_skip, persist: true)
+
   @columns ~w(sequence occurred_at organization_id resource action action_type
               record_id user_id system_actor correlation_id changed_attributes
               previous_hash hash)a
