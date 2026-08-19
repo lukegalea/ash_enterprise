@@ -25,10 +25,21 @@ every ⚪ row below.
 README. Edit the JSON, never the table.
 
 <!-- roadmap:scoreboard:start -->
-**11 of 28** enterprise questions have a shipped answer.
+**15 of 51** enterprise questions have a shipped answer.
 
-✅ Shipped 11 · 🟡 Partial 6 · 🔵 Planned 8 · ⚪ Open 3
+✅ Shipped 15 · 🟡 Partial 13 · 🔵 Planned 8 · ⚪ Open 15
 <!-- roadmap:scoreboard:end -->
+
+<!-- roadmap:sections:start -->
+| Section | Shipped | Partial | Planned | Open |
+|---|---|---|---|---|
+| Who are you, and what may you do? | 4 | 2 | 0 | 4 |
+| What happened, and can you prove it? | 8 | 1 | 0 | 2 |
+| Whose data is it? | 2 | 1 | 0 | 3 |
+| Where does data come from, and where does it go? | 0 | 0 | 6 | 2 |
+| How does it change, and keep running? | 1 | 6 | 2 | 1 |
+| Can you prove it, continuously? | 0 | 3 | 0 | 3 |
+<!-- roadmap:sections:end -->
 
 ---
 
@@ -43,6 +54,10 @@ README. Edit the JSON, never the table.
 | 4 | How does where you sit in the org chart change what you can see? | A business-unit tree with a materialized path, plus an optional manager/position hierarchy. Grant depth expands to a subtree once per request, never inside a policy check. | ✅ Shipped | `test/ash_enterprise/security/hierarchy_test.exs` |
 | 5 | Can one record be shared with someone the rules would not otherwise reach? | An `AccessGrant` row — Dataverse's `PrincipalObjectAccess` — adds rights to one record without widening any role. | ✅ Shipped | `lib/ash_enterprise/security/checks/shared_with_actor.ex` |
 | 6 | Are some columns more sensitive than the rows that contain them? | Not yet. Ash field policies would carry this on the same additive model, and the corpus already has `FieldPermission` and `FieldSecurityProfile` — but no field policy is declared anywhere in `lib/` today. | ⚪ Open | — |
+| 29 | How do enterprise customers bring their own identity provider? | Open. AshAuthentication ships password, magic link, API key and OAuth2, and no SAML — which is still the format most enterprise IdPs lead with in a procurement conversation. OIDC is reachable through the existing OAuth2 strategy; SAML would need a new one. | ⚪ Open | — |
+| 30 | How do accounts appear and disappear when someone joins or leaves? | Open. Users are created by registration and deactivated by a lifecycle transition; nothing consumes SCIM, so a customer removing someone from their directory does not remove them here. | ⚪ Open | — |
+| 31 | What second factor is required, and how are sessions bounded? | Open. Sessions are AshAuthentication's, with no MFA enforcement, no step-up for privileged actions and no configurable session lifetime. WebAuthn was named as a gap in thesis 7 and still is. | ⚪ Open | — |
+| 32 | Who may act as someone else, and is that recorded differently from acting as yourself? | Partial. Acting on someone else's behalf is now represented end to end: the record's `created_on_behalf_by_id` names the operator while `created_by_id` names the customer, and every audit event carries `impersonator_id`. What is missing is the gate — nothing yet decides who may impersonate whom, or records a session with a stated reason. | 🟡 Partial | `test/ash_enterprise/audit/impersonation_test.exs` |
 
 ### What happened, and can you prove it?
 
@@ -53,6 +68,12 @@ README. Edit the JSON, never the table.
 | 9 | Are illegal state transitions impossible, or merely discouraged? | `ash_state_machine` generates one named action per legal transition from the canonical Dataverse lifecycle. There is no generic `:update` that can set a state. | ✅ Shipped | `test/ash_enterprise/platform/lifecycle_test.exs` |
 | 10 | Can a deletion be undone? | `ash_archival` soft delete, inherited. Opting out is an explicit `archival?: false` that a reviewer can grep for. | ✅ Shipped | `lib/ash_enterprise/platform/resource.ex` |
 | 11 | Can you rebuild state by replaying the log? | The `AshEvents` replay machinery is wired, but the clear-records step deliberately refuses by default — it is indistinguishable from "delete all business data", so each deployment authorizes it explicitly. | 🟡 Partial | `lib/ash_enterprise/audit/clear_records_for_replay.ex` |
+| 33 | Can the audit log be altered after the fact? | Shipped. Two mechanisms with different jobs: a trigger refuses `UPDATE` and `DELETE` outright, and every event carries a SHA-256 chained to the previous one, so an operator privileged enough to drop the trigger still cannot make an edit look untouched. `mix ash_enterprise.audit.verify` walks the chains; the suite proves it by tampering. | ✅ Shipped | `test/ash_enterprise/audit/chain_test.exs` |
+| 34 | Can a customer see their own audit trail, and only theirs? | Shipped. The log is attribute-multitenant on an `organization_id` the chain trigger derives from stamped metadata, so a tenant-scoped read is filtered by the data layer rather than by a policy written specially for the audit log. Depth answers how much of a tenant you see; tenancy answers which tenant. | ✅ Shipped | `test/ash_enterprise/audit/tenant_isolation_test.exs` |
+| 35 | Can an auditor be handed a window of evidence without engineering help? | Shipped. `mix ash_enterprise.audit.export --from --to [--tenant]` writes CSV in chain order, including `sequence`, `previous_hash` and `hash` so the recipient can re-verify it rather than take it on trust. It reads through the ordinary action layer, so an export is exactly as wide as its requester's authorization. | ✅ Shipped | `lib/ash_enterprise/audit/export.ex` |
+| 36 | How long is evidence kept, and where does it live after ninety days? | Open. Nothing expires, nothing is partitioned, and nothing moves to cold storage — so a twelve-month SOC 2 observation window is retained by accident rather than by policy. Made sharper by the immutability trigger, which now actively refuses the `DELETE` a retention job would need. | ⚪ Open | [ADR 0024](adr/0024-audit-retention-and-erasure.md) |
+| 37 | Are role and permission changes attributable to a person? | Shipped. Role assignments are ordinary audited resources, so granting one produces an event naming the grantor, the grantee and the correlation id of the request — and the record itself now carries `created_by_id`, which nothing populated before. | ✅ Shipped | `test/ash_enterprise/audit/impersonation_test.exs` |
+| 38 | Where do logs go to be reviewed, and what raises an alarm? | Open. Everything is queryable in Postgres and nothing streams anywhere. An auditor asks for evidence that logs are *reviewed*, not merely kept, and there is none: no SIEM export, no anomaly rules, no record of a human having looked. | ⚪ Open | [ADR 0025](adr/0025-log-shipping-and-review.md) |
 
 ### Whose data is it?
 
@@ -62,6 +83,8 @@ README. Edit the JSON, never the table.
 | 13 | Does tenant isolation hold even when authorization is wrong? | Yes, and it is asserted as a separate property: the conformance suite checks isolation independently of every grant path. | ✅ Shipped | `test/ash_enterprise/security/conformance_test.exs` |
 | 14 | Can you erase a person on request? | No. `ash_archival` is soft delete only — there is no purge schedule, no anonymization pipeline, and an append-only audit log is exactly what a right-to-erasure request runs into. | ⚪ Open | — |
 | 15 | Where does the data physically live? | Undecided. Attribute multitenancy makes residency a deployment question rather than a schema one, which is a deferral, not an answer. | ⚪ Open | — |
+| 39 | What crosses the tenant boundary, and to whom? | Open. There is no data inventory, no classification, and no published sub-processor list — which is the first artefact a security questionnaire asks for and the one that has to be current rather than merely written once. | ⚪ Open | — |
+| 40 | What does an AI model see, and can a customer opt out? | Partial. Thesis 5 settles the authorization half — an agent is an actor with an actor's permissions, and `ash_ai` tools are declarations that existing actions may be invoked, so a model reaches nothing its user could not. What is absent is the governance half: no prompt or response logging, no per-tenant opt-out, no disclosure of which model or vendor saw what. | 🟡 Partial | [ADR 0026](adr/0026-ai-governance-is-disclosure.md) |
 
 ### Where does data come from, and where does it go?
 
@@ -73,6 +96,8 @@ README. Edit the JSON, never the table.
 | 19 | What data do you have, and who owns it? | A catalogue populated from codegen — every resource already declares its CDM provenance, ownership type and tenancy scope, so it is a read-only projection rather than a second source of truth. It is an internal tool only: its own RBAC resolves deny-wins, which is the inverse of this project's model. | 🔵 Planned | [ADR 0013](adr/0013-openmetadata-as-catalog.md) |
 | 20 | How do people get reports out of it? | Superset over views already filtered by the same actor context, so the BI tool's row-level security is a formality rather than a duplicate authorization model. Metabase loses because its RLS is paywalled. | 🔵 Planned | [ADR 0014](adr/0014-superset-over-metabase.md) |
 | 21 | The same customer arrived from three systems — which one is real? | Entity resolution as an Ash calculation and change pipeline over the CDM-derived resources, so the golden record inherits ownership, audit and policy instead of living in a second system. | 🔵 Planned | [ADR 0017](adr/0017-entity-resolution-in-ash.md) |
+| 41 | How do other systems find out that something happened here? | Open. Events land in the audit log and go nowhere else. There is no outbound webhook, no subscription, and no delivery guarantee for anyone who needs to react to a change rather than poll for it. | ⚪ Open | — |
+| 42 | How does a customer get fifty thousand rows in, or out? | Open. JSON:API and GraphQL paginate, and neither is a bulk path. Import exists only as a Meltano-shaped plan; export exists only for the audit log. | ⚪ Open | — |
 
 ### How does it change, and keep running?
 
@@ -85,6 +110,20 @@ README. Edit the JSON, never the table.
 | 26 | How do you ship a change to some users first? | A flag is evaluated in-process against the application's own database, with actor, business unit and tenant supplied from the context already computed once per request. Policies are not a substitute — they answer *may you*, not *is this on*, and conflating them produces a `beta_user` role you then have to revoke from everyone. | 🔵 Planned | [ADR 0016](adr/0016-unleash-for-feature-flags.md) |
 | 27 | How does the schema itself evolve without drifting from the model? | Migrations are derived as a diff against committed resource snapshots, and the diff is a CI gate — so a resource change without a migration fails the build rather than surfacing at deploy time. | ✅ Shipped | `priv/resource_snapshots/` |
 | 28 | Can you tell what is happening in production? | Correlation ids and Ash tracing are wired — `OpentelemetryAsh` is registered as the `Ash.Tracer`, so every action, query and calculation becomes a span with no per-resource wiring. Two things are not: `OpentelemetryPhoenix.setup/1` and `OpentelemetryEcto.setup/1` are never called, so those two declared dependencies emit nothing, and the OTLP endpoint the config comment says lives in `runtime.exs` is not there. The backend is now named; the bridge is still thin. | 🟡 Partial | [ADR 0018](adr/0018-grafana-lgtm-observability-backend.md) |
+| 43 | Can a deploy happen without downtime, and can a migration be reversed? | Partial. Every generated migration has a `down`, and `ash_strangler`'s four-phase cutover is built precisely so a legacy migration can be reversed at any phase. What is untested is the app's own rolling deploy: nothing proves an old and a new node can serve the same schema at once, which is the property zero-downtime actually needs. | 🟡 Partial | — |
+| 44 | Does it still work for a customer with fifty thousand of something? | Open. No load test, no query budget, and no pagination requirement on read actions — the audit export is the only place in the codebase that streams rather than loads. A reference architecture that has never met a large tenant is making an untested claim. | ⚪ Open | — |
+| 45 | Can a customer change how it behaves without a deploy? | Partial. Approval chains and process routing are configuration — a BPMN document published as a new version, or a keyword list on an action — via `ash_bpmn`. Custom fields are not: adding an attribute is a resource change, a migration and a deploy. | 🟡 Partial | [ADR 0009](adr/0009-strangler-and-bpmn-are-first-party.md) |
+
+### Can you prove it, continuously?
+
+| # | Question | Our answer | Status | Proven by |
+|---|---|---|---|---|
+| 46 | Which named controls does any of this actually satisfy? | Partial. `docs/COMPLIANCE.md` maps SOC 2, ISO 27001 and GDPR controls to the questions above and through them to the test that proves each — generated from the same ledger, so it cannot drift. It covers technical prerequisites only: certification also needs policy, process and an auditor, and the document says so first rather than last. | 🟡 Partial | `docs/controls.json` |
+| 47 | What is promised about uptime, and what happens when it is missed? | Open. No SLO, no error budget, no status page. Telemetry exists and nothing is expressed as a target, so there is nothing for an incident to be measured against. | ⚪ Open | — |
+| 48 | How quickly can you come back from losing the database? | Open. Backups are whatever the deployment provides; nothing here tests a restore, and an untested restore is a belief rather than a control. No RPO or RTO is committed to. | ⚪ Open | — |
+| 49 | When something breaks at three in the morning, what happens? | Open. Alerts go nowhere, no rota exists, and no runbook says who tells the customer. The correlation id makes the investigation possible; nothing makes it start. | ⚪ Open | — |
+| 50 | What is in the build, and can you prove nothing else is? | Partial. CI runs `mix hex.audit` for retired and vulnerable packages and `mix sobelow` for web vulnerabilities, and `mix.lock` pins everything transitively. There is no SBOM, no signed build, and no provenance attestation — so the dependency set is checked but not attested. | 🟡 Partial | `.github/workflows/ci.yml` |
+| 51 | Can you show a control operated continuously for twelve months? | Partial. This is the question the rest of the section is really asking. What exists: an unbroken, verifiable hash chain covering every write, exportable per tenant for any window. What does not: a retention policy guaranteeing the window is still there in month twelve, and any evidence that anyone reviewed it. | 🟡 Partial | [ADR 0021](adr/0021-control-mapping-is-generated.md) |
 <!-- roadmap:questions:end -->
 
 ---

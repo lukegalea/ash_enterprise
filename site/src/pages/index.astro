@@ -19,6 +19,7 @@ import CodePanel from '../components/CodePanel.astro';
 import ScreenshotFigure from '../components/ScreenshotFigure.astro';
 import StatusChip from '../components/StatusChip.astro';
 import Scoreboard from '../components/Scoreboard.astro';
+import SectionScoreboard from '../components/SectionScoreboard.astro';
 import QuestionTable from '../components/QuestionTable.astro';
 import GrantUnion from '../components/diagrams/GrantUnion.astro';
 import DataFlow from '../components/diagrams/DataFlow.astro';
@@ -129,6 +130,33 @@ const stranglerPhases = [
   { atom: ':decommissioned', note: 'old app switched off' },
 ];
 
+const auditVerify = `
+$ mix ash_enterprise.audit.verify
+
+Chain (no tenant) — 512 event(s) checked
+  1117 event(s) predate the chain and were skipped.
+
+Chain 54773a98-3302-4342-b8af-61686b011234 — 3 event(s) checked
+
+515 events across 2 chain(s) verified. No breaks.
+`;
+
+const auditExport = `
+$ mix ash_enterprise.audit.export \\
+    --from 2026-08-01 --to 2026-09-01 \\
+    --tenant 54773a98-3302-4342-b8af-61686b011234
+
+Wrote 3 event(s) to tmp/audit-54773a98-2026-08-01-to-2026-09-01.csv
+  window: 2026-08-01T00:00:00Z .. 2026-09-01T00:00:00Z (exclusive)
+  tenant: 54773a98-3302-4342-b8af-61686b011234
+
+$ head -2 tmp/audit-54773a98-*.csv
+sequence,occurred_at,organization_id,resource,action,action_type,
+record_id,user_id,system_actor,correlation_id,changed_attributes,
+previous_hash,hash
+1630,2026-08-19T01:28:49Z,54773a98-…,BusinessUnit,create,create,…
+`;
+
 const requireApproval = `
 # Your resource. The change is the entire integration.
 create :submit do
@@ -205,36 +233,39 @@ $ devenv shell -- iex-server
             class="inline-flex items-center gap-2 rounded-full border border-line bg-surface px-3 py-1 text-xs font-medium text-muted"
           >
             <span class="h-1.5 w-1.5 rounded-full bg-brand" aria-hidden="true"></span>
-            A reference Elixir / Ash / Phoenix template — not a product
+            For multi-tenant B2B software that will meet an auditor
           </p>
 
           <h1
             class="mt-6 text-4xl leading-[1.08] font-semibold tracking-tight text-balance sm:text-5xl lg:text-[3.4rem]"
           >
-            The cross-cutting concerns of enterprise software are declarable.
+            Point an agent at the app you have. Get the one an enterprise will buy.
           </h1>
 
           <p class="mt-6 max-w-xl text-lg leading-relaxed text-pretty text-muted sm:text-xl">
-            Declare them once, derive them everywhere, and what is left over is the actual business.
-            Ownership, business-unit hierarchy, audit, tenancy, soft delete and policy arrive on
-            every resource from a single <code
+            A schema somebody already argued about, mapped onto the legacy database you cannot stop.
+            Admin screens, APIs and agent surfaces you did not write. An audit trail that survives
+            being tampered with. All of it derived from one <code
               class="rounded bg-code-bg px-1.5 py-0.5 font-mono text-[0.9em] text-fg">use</code
-            > line.
+            > line, because the cross-cutting concerns of enterprise software are declarable.
           </p>
 
           <div class="mt-9 flex flex-wrap gap-3">
-            <a class={btnPrimary} href={withBase('/docs/manifesto/')}>
-              Read the manifesto{' '}
+            <a class={btnPrimary} href={withBase('/vision/')}>
+              See how it goes{' '}
               <span aria-hidden="true">→</span>
             </a>
-            <a class={btnSecondary} href={withBase('/roadmap/')}>See the roadmap</a>
+            <a class={btnSecondary} href={withBase('/controls/')}>The control map</a>
           </div>
 
           <p class="mt-6 text-sm text-muted">
             The argument is in <a
               class="text-brand underline-offset-4 hover:underline"
               href={withBase('/docs/manifesto/')}>docs/manifesto/</a
-            >. The code is the evidence.
+            >. The code is the evidence. The <a
+              class="text-brand underline-offset-4 hover:underline"
+              href="#scoreboard">unanswered rows</a
+            > are on this page.
           </p>
 
           <div class="mt-10">
@@ -243,20 +274,38 @@ $ devenv shell -- iex-server
         </div>
 
         <div class="lg:pt-4">
-          <Scoreboard variant="hero" />
+          <ScreenshotFigure
+            name="clarity-er.png"
+            alt="Clarity's entity-relationship diagram of the application, derived from the resources themselves."
+            caption="Nobody drew this. It is derived from the resources, so it is correct by construction rather than correct when someone last remembered."
+            loading="eager"
+          />
+
+          <Scoreboard variant="hero" class="mt-8" />
 
           <p class="mt-6 text-sm leading-relaxed text-muted">
             Every enterprise application answers the same questions. Most answer them one feature at
-            a time, inconsistently, and discover in month nine which ones they got wrong. This one
-            keeps a ledger — and puts the unanswered rows{' '}
-            <a class="text-brand underline-offset-4 hover:underline" href="#scoreboard"
-              >on the front page</a
-            >.
+            a time, inconsistently, and find out in month nine which ones they got wrong. This one
+            keeps a ledger.
           </p>
         </div>
       </div>
     </div>
   </section>
+
+
+  {/* ──────────────── Act I ──────────────── */}
+  <div class="mx-auto max-w-6xl px-4 pt-20 sm:px-6 lg:px-8">
+    <div class="border-t border-line pt-10">
+      <p class="font-mono text-xs tracking-widest text-brand uppercase">Act I — the on-ramp</p>
+      <h2 class="mt-3 max-w-3xl text-2xl font-semibold tracking-tight text-balance sm:text-3xl">
+        From the application you have to a schema worth owning
+      </h2>
+      <p class="mt-4 max-w-2xl leading-relaxed text-pretty text-muted">
+        Five steps, none of which require stopping what is already running. The last one is the reason the others are affordable: a legacy database can be mapped rather than migrated, so the cutover is reversible at every phase.
+      </p>
+    </div>
+  </div>
 
   {/* ==================== 1 · Agent-ready ==================== */}
   <Section
@@ -693,6 +742,20 @@ $ devenv shell -- iex-server
     </div>
   </Section>
 
+
+  {/* ──────────────── Act II ──────────────── */}
+  <div class="mx-auto max-w-6xl px-4 pt-20 sm:px-6 lg:px-8">
+    <div class="border-t border-line pt-10">
+      <p class="font-mono text-xs tracking-widest text-brand uppercase">Act II — what you get</p>
+      <h2 class="mt-3 max-w-3xl text-2xl font-semibold tracking-tight text-balance sm:text-3xl">
+        Surfaces, agents and an authorization model you did not hand-write
+      </h2>
+      <p class="mt-4 max-w-2xl leading-relaxed text-pretty text-muted">
+        Everything here is derived from the same resource declarations that produced the schema. That is not primarily a saving — it is a guarantee, because a surface derived from the resource cannot show a field the policy hides.
+      </p>
+    </div>
+  </div>
+
   {/* ==================== 7 · Surfaces ==================== */}
   <Section
     id="surfaces"
@@ -875,10 +938,123 @@ $ devenv shell -- iex-server
     </div>
   </Section>
 
+
+  {/* ──────────────── Act III ──────────────── */}
+  <div class="mx-auto max-w-6xl px-4 pt-20 sm:px-6 lg:px-8">
+    <div class="border-t border-line pt-10">
+      <p class="font-mono text-xs tracking-widest text-brand uppercase">Act III — the evidence</p>
+      <h2 class="mt-3 max-w-3xl text-2xl font-semibold tracking-tight text-balance sm:text-3xl">
+        The part enterprise buyers actually probe, and the part most templates skip
+      </h2>
+      <p class="mt-4 max-w-2xl leading-relaxed text-pretty text-muted">
+        An auditor is not asking whether a control exists. They are asking whether you can show it operated continuously for six to twelve months — which is a question about evidence, and evidence has to be designed in rather than retrofitted the quarter before.
+      </p>
+    </div>
+  </div>
+
+  {/* ==================== 9b · The evidence layer ==================== */}
+  <Section
+    id="evidence"
+    step="10"
+    eyebrow="Tamper-evident audit"
+    title="An audit trail that survives being tampered with"
+    lead="Append-only used to be a property of the application: the resource offered only a read action, so nothing written in Elixir could rewrite history. That is not the question an auditor asks. The question is whether history can be rewritten at all — and until recently, anyone with a psql connection could."
+    tone="muted"
+    wide={true}
+  >
+    <Fragment slot="chips">
+      <StatusChip status="shipped" label="Tamper-evidence" />
+      <StatusChip status="shipped" label="Per-tenant trail" />
+      <StatusChip status="shipped" label="Auditor export" />
+      <StatusChip status={itemStatus('retention')} label="Retention" />
+    </Fragment>
+
+    <div class="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:items-start">
+      <div>
+        <h3 class="text-lg font-semibold text-balance">Two mechanisms, doing different jobs</h3>
+
+        <ul class="mt-5 space-y-4">
+          <li class="border-l-2 border-brand/40 pl-4">
+            <strong class="font-semibold">The trigger prevents.</strong>
+            <span class="text-muted">
+              <code class="rounded bg-code-bg px-1 py-0.5 font-mono text-[0.9em]">UPDATE</code> and
+              <code class="rounded bg-code-bg px-1 py-0.5 font-mono text-[0.9em]">DELETE</code> on the
+              log raise. Total, until someone has enough privilege to lift it — at which point it offers
+              nothing.</span
+            >
+          </li>
+          <li class="border-l-2 border-brand/40 pl-4">
+            <strong class="font-semibold">The chain detects.</strong>
+            <span class="text-muted">
+              Every event carries the SHA-256 of its contents and the previous event's hash. Alter a
+              row and every row after it stops adding up; remove one and the link breaks across the
+              gap. Dropping the trigger to make an edit does not help, which is the point of doing
+              both.</span
+            >
+          </li>
+          <li class="border-l-2 border-brand/40 pl-4">
+            <strong class="font-semibold">One chain per tenant.</strong>
+            <span class="text-muted">
+              Not a compromise — AshEvents already takes a per-tenant advisory lock on every audited
+              write, so the serialization a chain needs is already held. A global chain would add
+              contention that a per-tenant one does not, and a customer could not verify their own
+              trail without being shown everyone else's.</span
+            >
+          </li>
+        </ul>
+
+        <p class="mt-6 text-sm leading-relaxed text-muted">
+          The suite proves it by tampering: it disables each trigger in turn, edits a row, deletes a
+          row, forges an event, and asserts each is found. A tamper-evidence claim never tested
+          against tampering is not evidence of anything.
+        </p>
+      </div>
+
+      <div class="space-y-6">
+        <CodePanel code={auditVerify} lang="bash" filename="the chain, checked" />
+        <CodePanel code={auditExport} lang="bash" filename="the sample an auditor asks for" />
+      </div>
+    </div>
+
+    <div class="mt-12 grid gap-6 sm:grid-cols-3">
+      <div class="rounded-xl border border-line bg-bg p-5">
+        <h4 class="text-sm font-semibold">A customer can read their own trail</h4>
+        <p class="mt-2 text-sm leading-relaxed text-muted">
+          The log is tenant-scoped by the same multitenancy that isolates everything else, not by a
+          policy written specially for it. Before, reading it needed a grant over
+          <em>every</em> tenant's log — so per-tenant isolation was not narrow, it was absent.
+        </p>
+      </div>
+      <div class="rounded-xl border border-line bg-bg p-5">
+        <h4 class="text-sm font-semibold">Impersonation names both people</h4>
+        <p class="mt-2 text-sm leading-relaxed text-muted">
+          A support engineer acting on a customer's account leaves the customer in
+          <code class="font-mono text-[0.85em]">created_by_id</code> and the engineer in
+          <code class="font-mono text-[0.85em]">created_on_behalf_by_id</code>. Authorization is
+          unchanged: impersonation adds attribution, never reach.
+        </p>
+      </div>
+      <div class="rounded-xl border border-line bg-bg p-5">
+        <h4 class="text-sm font-semibold">And what it makes harder</h4>
+        <p class="mt-2 text-sm leading-relaxed text-muted">
+          A log that refuses <code class="font-mono text-[0.85em]">DELETE</code> collides with a right
+          to erasure, and the chain makes it worse. That is now a designed decision — destroy keys, not
+          rows — rather than a gap nobody had costed.
+        </p>
+      </div>
+    </div>
+
+    <div class="mt-10">
+      <a class={btnSecondary} href={withBase('/controls/')}>
+        Which controls this actually satisfies <span aria-hidden="true">→</span>
+      </a>
+    </div>
+  </Section>
+
   {/* ==================== 10 · Data flow ==================== */}
   <Section
     id="data-flow"
-    step="10"
+    step="11"
     eyebrow="Where the data comes from"
     title="Ingestion, lineage, catalog, analytics"
     lead="The half this repository is currently silent on, drawn honestly. Each choice is an ADR you can read and disagree with, and each had to clear one bar: can the tool be handed a thin generated declaration and delegate authorization back to ActorContext, or does it bring its own?"
@@ -936,7 +1112,7 @@ $ devenv shell -- iex-server
   {/* ==================== 11 · Integration ==================== */}
   <Section
     id="integration"
-    step="11"
+    step="12"
     eyebrow="Integration hub"
     title="Integrations without M×N"
     lead="One contract per category rather than one per (your app × their API) — surfaced as ordinary Ash actions, so policies gate which actor may trigger a sync and the normal audit log records it."
@@ -988,7 +1164,7 @@ $ devenv shell -- iex-server
   {/* ==================== 12 · Scoreboard ==================== */}
   <Section
     id="scoreboard"
-    step="12"
+    step="13"
     eyebrow="The honest scoreboard"
     title={`${tally.shipped} of ${tally.total} enterprise questions have a shipped answer`}
     lead="Nothing here is aspirational. Every row is one of four states, and the vocabulary is deliberate: a Partial is not a Shipped with an asterisk, and a Planned is not a promise — it is an argument you can read and disagree with."
@@ -1008,9 +1184,18 @@ $ devenv shell -- iex-server
       </p>
     </Fragment>
 
+    {/* Read the shape before the rows. One ratio across fifty-one questions
+        reports the project as uniformly half-finished; the sections say which
+        half, and that is what a reader actually came for. */}
+    <div class="mb-14 rounded-2xl border border-line bg-surface p-6 sm:p-8">
+      <h3 class="text-lg font-semibold tracking-tight">Where the answers actually are</h3>
+      <SectionScoreboard class="mt-6" />
+    </div>
+
     <QuestionTable />
 
     <div class="mt-14 flex flex-wrap gap-3">
+      <a class={btnSecondary} href={withBase('/controls/')}>Mapped to named controls</a>
       <a class={btnSecondary} href={withBase('/docs/questions/')}>The checklist in prose</a>
       <a class={btnSecondary} href={withBase('/roadmap/')}>What is planned, and why</a>
       <a class={btnSecondary} href={withBase('/docs/manifesto/07-what-we-do-not-have/')}>
@@ -1029,6 +1214,23 @@ $ devenv shell -- iex-server
         Clone it, delete what you do not need, and keep the shape. The commitment this repository
         makes is not that there are no gaps — it is that we will name them.
       </p>
+
+      <div class="mx-auto mt-12 max-w-2xl rounded-2xl border border-line bg-surface p-6 text-left sm:p-8">
+        <h3 class="text-base font-semibold">What you would otherwise be writing</h3>
+        <p class="mt-3 text-sm leading-relaxed text-muted">
+          Per resource, by hand, and again on the one added under deadline in month nine: the
+          ownership columns, the tenancy discriminator and the query filter that must never be
+          forgotten, the audit hook, the soft-delete flag and every read that has to exclude it, the
+          policy set, the admin screen, the API type, the provenance columns, and the lifecycle
+          transitions that keep an illegal state from being reachable.
+        </p>
+        <p class="mt-3 text-sm leading-relaxed text-muted">
+          Here that is a
+          <code class="rounded bg-code-bg px-1 py-0.5 font-mono text-[0.9em] text-fg">use</code>
+          line. The saving is real, but it is not the argument — the argument is that none of it can
+          be <em>forgotten</em>, because none of it was written per resource in the first place.
+        </p>
+      </div>
 
       <div class="mt-10 flex flex-wrap justify-center gap-3">
         <a

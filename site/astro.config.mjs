@@ -38,6 +38,7 @@ export default defineConfig({
           items: [
             { label: 'Documentation', link: '/docs/' },
             { label: 'The enterprise checklist', link: '/docs/questions/' },
+            { label: 'Control map', link: '/docs/compliance/' },
             { label: 'Roadmap', link: '/docs/roadmap/' },
             { label: 'Handoff notes', link: '/docs/handoff/' },
           ],

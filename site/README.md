@@ -36,6 +36,21 @@ import { withBase } from '../lib/roadmap';
 not write a bare `/…`. Links *inside* the docs are handled for you — `scripts/sync-docs.mjs` rewrites
 them during the sync and fails the build on a dead one.
 
+## The share card is generated, not drawn
+
+`scripts/build-og.mjs` composes `public/og.png` from `docs/roadmap.json` and rasterises it with sharp,
+which Astro already depends on for `astro:assets`. It runs in `prebuild` and `dev`.
+
+Two reasons it is generated rather than exported from a design tool. The layout sets
+`twitter:card=summary_large_image`, so **without an image every share renders a blank rectangle** —
+which was the state until August 2026 — and a hand-made card would carry a number that goes stale the
+first time a question flips to shipped. The card reads the live scoreboard, so the first thing a
+stranger sees is the honest one.
+
+`og.png` is the one generated file that belongs in `public/`: a crawler fetches it by absolute URL
+from `<meta property="og:image">`, so it must keep an exact name at an exact path and must not be
+content-hashed.
+
 ## Screenshots and images go in `src/assets/`, never `public/`
 
 Anything under `public/` is copied byte-for-byte to the output root. That means two things:
@@ -70,6 +85,9 @@ repo-root `docs/` tree into `src/content/docs/docs/` and, on the way:
   `docs/roadmap.json`) become GitHub blob URLs, since the site has no page for them;
 - generates a landing page at `/docs/`, and a directory index for any synced directory whose source
   has no `README.md`;
+- copies the root-level ledger documents (`QUESTIONS.md`, `COMPLIANCE.md`, `ROADMAP.md`,
+  `HANDOFF.md`) to their own routes — add to `ROOT_FILES` when another one appears, or it will be
+  silently absent and any hand-written link to it in `src/pages/` will 404;
 - skips the three raw research transcripts at the root of `docs/` (`AshStrangler.md`, `BPMN.md`, and
   the Strangler Fig one). They are superseded, and one is 1.2 MB;
 - **exits non-zero if it rewrote a link to a page that does not exist.** A dead link in generated docs

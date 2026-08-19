@@ -36,8 +36,15 @@ defmodule Mix.Tasks.AshEnterprise.Roadmap do
   @targets [
     "README.md",
     "docs/QUESTIONS.md",
-    "docs/ROADMAP.md"
+    "docs/ROADMAP.md",
+    "docs/COMPLIANCE.md"
   ]
+
+  # Control identifiers and the questions bearing on them. Kept beside the
+  # ledger rather than inside it because the two go stale for different reasons:
+  # a status changes when code changes, a control identifier changes when a
+  # standards body renumbers.
+  @controls_source "docs/controls.json"
 
   @status_label %{
     "shipped" => "✅ Shipped",
@@ -182,7 +189,9 @@ defmodule Mix.Tasks.AshEnterprise.Roadmap do
       "questions" => &questions_table/1,
       "questions-summary" => &questions_summary/1,
       "items" => &items_table/1,
-      "scoreboard" => &scoreboard/1
+      "scoreboard" => &scoreboard/1,
+      "controls" => &controls_table/1,
+      "sections" => &sections_scoreboard/1
     }
   end
 
@@ -250,6 +259,100 @@ defmodule Mix.Tasks.AshEnterprise.Roadmap do
       end)
 
     "**#{shipped} of #{total}** enterprise questions have a shipped answer.\n\n#{tally}"
+  end
+
+  # Per-section counts. One aggregate ratio across fifty-one questions reports
+  # the project as uniformly incomplete, when in fact identity and evidence are
+  # nearly finished and assurance has barely started -- and the difference is
+  # the thing a reader most needs.
+  defp sections_scoreboard(%{"questions" => questions} = data) do
+    """
+    | Section | Shipped | Partial | Planned | Open |
+    |---|---|---|---|---|
+    """ <>
+      (data
+       |> sections()
+       |> Enum.map_join("\n", fn section ->
+         rows = Enum.filter(questions, &(&1["section"] == section["id"]))
+         counts = Enum.frequencies_by(rows, & &1["status"])
+
+         cells =
+           Enum.map_join(@status_order, " | ", fn status ->
+             to_string(Map.get(counts, status, 0))
+           end)
+
+         "| #{section["title"]} | #{cells} |"
+       end))
+  end
+
+  # The control map. Every status here is *derived* from the questions a control
+  # names, so a control can never claim more than the ledger does -- which is the
+  # entire reason this is generated rather than written.
+  defp controls_table(data) do
+    base = base(data)
+    controls = load_controls!()
+    by_id = Map.new(data["questions"], &{&1["id"], &1})
+
+    controls["frameworks"]
+    |> Enum.map_join("\n\n", fn framework ->
+      rows = Enum.filter(controls["controls"], &(&1["framework"] == framework["id"]))
+
+      """
+      ### #{framework["name"]}
+
+      <sub>#{framework["revision"]}</sub>
+
+      | Control | What it asks | Where it stands | Bearing on it |
+      |---|---|---|---|
+      """ <>
+        Enum.map_join(rows, "\n", fn control ->
+          questions = Enum.map(control["questions"], &Map.fetch!(by_id, &1))
+
+          "| **#{control["id"]}** #{control["name"]} | #{control["asks"]} | " <>
+            "#{derived_status(questions)}<br />#{control["note"]} | " <>
+            "#{question_links(questions, base)} |"
+        end)
+    end)
+  end
+
+  # A control is only as answered as its least answered question. Deliberately
+  # pessimistic: a control with one open question is not "mostly satisfied", it
+  # is a control an auditor will ask about.
+  defp derived_status(questions) do
+    # `@status_order` runs strongest to weakest, so the weakest question is the
+    # one furthest along it -- `max_by`, not `min_by`. Getting this backwards
+    # reported a control with an open question as fully shipped, which is exactly
+    # the kind of quiet overclaim this whole file exists to prevent.
+    weakest =
+      Enum.max_by(questions, fn q -> Enum.find_index(@status_order, &(&1 == q["status"])) end)
+
+    shipped = Enum.count(questions, &(&1["status"] == "shipped"))
+
+    "#{@status_label[weakest["status"]]} — #{shipped}/#{length(questions)} shipped"
+  end
+
+  # Plain ids rather than links. `docs/QUESTIONS.md` renders a table without
+  # per-row anchors, so `#q17` would be a link that silently goes to the top of
+  # the page -- worse than no link, because it looks checked.
+  defp question_links(questions, _base) do
+    Enum.map_join(questions, " ", &"`#{&1["id"]}`")
+  end
+
+  defp load_controls! do
+    unless File.exists?(@controls_source) do
+      Mix.raise("#{@controls_source} does not exist; docs/COMPLIANCE.md renders from it.")
+    end
+
+    case @controls_source |> File.read!() |> Jason.decode() do
+      {:ok, %{"frameworks" => _, "controls" => _} = controls} ->
+        controls
+
+      {:ok, _} ->
+        Mix.raise(~s|#{@controls_source} needs "frameworks" and "controls" arrays.|)
+
+      {:error, error} ->
+        Mix.raise("#{@controls_source} is not valid JSON: #{Exception.message(error)}")
+    end
   end
 
   # -- cells ----------------------------------------------------------------

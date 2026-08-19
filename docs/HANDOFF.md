@@ -19,17 +19,26 @@ time*:
 
 ## 1. Where things stand
 
-**`/home/lukegalea/ash_enterprise`** — **102 tests, 0 failures** (re-run
-2026-08-18; this said 88 when written on 2026-08-14). Compiles clean with
-`--warnings-as-errors`, `mix ash.codegen --check` clean, and
-`mix ash_enterprise.roadmap --check` clean. `mix release` builds in
-`MIX_ENV=prod`.
+**`/home/lukegalea/ash_enterprise`** — **132 tests, 0 failures** (re-run
+2026-08-19; this said 88 on 2026-08-14 and 102 on 2026-08-18). Compiles clean
+with `--warnings-as-errors`; `mix ash.codegen --check`, `mix credo --strict`,
+`mix ash_enterprise.roadmap --check`, `mix sobelow --config --skip --exit` and
+`mix hex.audit` all clean. `mix release` builds in `MIX_ENV=prod`.
 
-> ⚠️ **`mix credo --strict` exits non-zero on a clean tree**, and did so before
-> the 2026-08-18 documentation work — so the CI credo step is red. The findings
-> are two `Enum.map/2 |> Enum.join/2` calls and two cyclomatic-complexity
-> warnings on `Mix.Tasks.Cdm.Gen.Resource.ash_type/2`. None is a correctness
-> problem; all four are real and should be fixed rather than ignored.
+**The evidence layer landed on 2026-08-19** and is the reason for the +30 tests.
+The audit log is hash-chained per tenant with a trigger refusing `UPDATE` and
+`DELETE` ([ADR 0020](adr/0020-tamper-evident-audit-log.md)); it is
+attribute-multitenant so a customer reads their own trail and no one else's
+([ADR 0022](adr/0022-audit-log-is-tenant-scoped.md)); there is a CSV export an
+auditor can be handed; and the four Dataverse provenance columns — which
+**nothing had ever written to**, verified by grep — are now filled, including the
+`*_on_behalf_by` pair when someone is acting on another user's behalf
+([ADR 0023](adr/0023-impersonation-is-attribution.md)).
+
+> **`mix sobelow` needs `--skip`.** There is exactly one `@sobelow_skip` in the
+> codebase, on `AshEnterprise.Audit.Export.to_file/4`, where the path comes from
+> a mix task flag. Without `--skip` in the CI invocation the build fails on a
+> low-confidence directory-traversal finding.
 
 **`/home/lukegalea/ash_strangler`** — **341 tests in 21 files** over ~12.7k
 lines. Standalone repo, **not vendored** into the app — though
@@ -238,8 +247,9 @@ These are the ones that cost real time and are not written in any upstream doc.
 ## 4. Architecture, in one screen
 
 The argument is `docs/manifesto/` (7 theses); the decisions are `docs/adr/`
-(**19 records**). The split matters: **0001–0008 are `accepted` and describe code
-that exists**; **0009–0019 are `proposed` and none of them is built.** They were
+(**26 records**). The split matters: **0001–0008 and 0020–0023 are `accepted` and
+describe code that exists**; **0009–0019 and 0024–0026 are `proposed` and none of
+them is built.** They were
 written early on purpose — a decision is cheapest to reason about, and cheapest to
 reverse, while the alternatives are still fresh. Records 0009 onward carry one
 extra mandatory section, `## Does it consume ActorContext?`, because that is the
@@ -413,6 +423,31 @@ Ordered by how likely you are to want it.
   recorded.
 
 ---
+
+## 6b. The ledger, and the control map
+
+`docs/roadmap.json` grew from 28 questions to **51** on 2026-08-19, absorbing an
+enterprise-readiness checklist covering auditability, security posture, data
+governance, reliability and procurement fit. A sixth section — *Can you prove it,
+continuously?* — carries the questions that are about **evidence** rather than
+behaviour, which is the axis the original 28 had no room for.
+
+Read the per-section rollup rather than the total. Evidence is 8/11 shipped and
+identity is 4/10; assurance is 0/6, and most of that is process rather than code.
+A single ratio across 51 questions reports the project as uniformly half-finished
+and hides which half.
+
+`docs/controls.json` maps SOC 2, ISO 27001 and GDPR controls to those questions
+and, through them, to the test that proves each. It renders into
+`docs/COMPLIANCE.md` and the site through the same task and the same `--check`
+gate as the roadmap tables, so a control can never claim more than the ledger
+does. **A control is scored by its weakest question, not its average** — rounding
+up would defeat the point.
+
+Two things writing it surfaced that had been invisible: *evidence of review* had
+no question at all (now `q38`, and [ADR 0025](adr/0025-log-shipping-and-review.md)),
+and cryptography appears in exactly one place in the entire repository — the
+SHA-256 over the audit chain.
 
 ## 7. Suggested next session
 

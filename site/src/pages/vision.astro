@@ -1,0 +1,229 @@
+---
+/**
+ * The vision page: the whole arc, from the application you have to the one this
+ * argues you could have, on a timeline.
+ *
+ * The landing page shows the parts working. This exists because the parts do not
+ * add up to the argument on their own — the argument is the *sequence*, and that
+ * a legacy application can enter it without stopping.
+ *
+ * Every status chip is read from `docs/roadmap.json`, so the honest version and
+ * the aspirational one are the same page.
+ */
+import Base from '../layouts/Base.astro';
+import StatusChip from '../components/StatusChip.astro';
+import SectionScoreboard from '../components/SectionScoreboard.astro';
+import { items, withBase } from '../lib/roadmap';
+import type { Status } from '../lib/roadmap';
+
+const byId = new Map(items.map((item) => [item.id, item]));
+
+function itemStatus(id: string): Status {
+  const item = byId.get(id);
+  if (!item) throw new Error(`vision.astro references roadmap item "${id}", which does not exist`);
+  return item.status;
+}
+
+const phases: {
+  when: string;
+  title: string;
+  lead: string;
+  detail: string;
+  status: Status;
+  note?: string;
+}[] = [
+  {
+    when: 'Week one',
+    title: 'Point an agent at what you already have',
+    lead: 'Nothing is migrated. Nothing is decided. The first output is a description of the system you have, produced by reading it rather than by interviewing whoever remembers.',
+    detail:
+      'Clarity derives the entity-relationship graph, the class diagram and the policy flow from the resources themselves. The skills corpus and AGENTS.md are generated from the dependencies actually locked in mix.lock, so the tooling an agent uses is as current as the build.',
+    status: 'shipped',
+  },
+  {
+    when: 'Week two',
+    title: 'Adopt nouns somebody has already argued about',
+    lead: 'The most expensive mistake in an enterprise schema is inventing Account, Contact, Team and Owner on a deadline, and living with the version you wrote on a Thursday.',
+    detail:
+      'The Microsoft Common Data Model is vendored at a pinned commit — 43 entities and 18 Dataverse tables, frozen and owned rather than tracked. `mix cdm.gen.resource` derives a resource from one and refuses to guess ownership, because ownership is the decision that cannot be defaulted.',
+    status: 'shipped',
+  },
+  {
+    when: 'Week three',
+    title: 'Derive the cross-cutting concerns from one line',
+    lead: 'This is the mechanism the whole argument rests on. Audit, telemetry, ownership, business-unit hierarchy, tenancy, soft delete, lifecycle and the entire policy set arrive from a single `use`.',
+    detail:
+      'None of it is written per resource, so none of it can be forgotten on the resource added under deadline in month nine — which is the one that matters, because it is the one nobody reviews.',
+    status: 'shipped',
+  },
+  {
+    when: 'Month two',
+    title: 'Map it onto the database you cannot stop',
+    lead: 'The legacy application keeps serving traffic. A well-modelled resource is projected onto the tables it already writes, through a closed grammar of typed combinators whose reverses are built rather than guessed.',
+    detail:
+      'Four phases — shadow, dual-write, read-switch, retire — and the compiler refuses a mapping whose inverse it cannot construct. That refusal is the feature: a mapping that cannot be reversed is a cutover that cannot be rolled back, and you find that out during the cutover.',
+    status: 'partial',
+    note: 'The package ships with 341 tests. The demonstration inside this reference application does not exist yet.',
+  },
+  {
+    when: 'Month three',
+    title: 'The surfaces were already there',
+    lead: 'Admin screens, agent-renderable surfaces, JSON:API with OpenAPI, and GraphQL — all derived from the same resource metadata that produced the policies.',
+    detail:
+      'No markup was written for any of it, which matters less as a saving than as a guarantee: a surface derived from the resource cannot show a field the policy hides, because it is the same declaration.',
+    status: 'shipped',
+  },
+  {
+    when: 'Month three',
+    title: 'Model the process, not just the tables',
+    lead: 'Approvals, delegation, escalation and maker-checker — as a change dropped on an action, or as a diagram a business analyst edits in the browser and publishes as a version.',
+    detail:
+      'Maker-checker is subtraction applied while building the candidate set, not a deny rule in the policy engine, so the authorization model stays a pure union. That is the difference between a workflow engine bolted on and one that shares an identity model.',
+    status: 'partial',
+    note: 'Built and tested at 202 tests, with the three authorization gaps closed. Not yet wired into this application.',
+  },
+  {
+    when: 'Ongoing',
+    title: 'Compliance you inherit rather than retrofit',
+    lead: 'The audit trail is hash-chained and tenant-scoped, exportable per customer for any window, and every control it bears on is mapped to the test that proves it.',
+    detail:
+      'The expensive version of this is discovering, three weeks before an audit, that the log can be edited, that a customer cannot see their own trail, and that nobody can produce a week of evidence without writing a script. All three were true here until they were fixed, which is why they are stated in the past tense rather than omitted.',
+    status: 'partial',
+    note: 'The evidence layer ships. Retention, review and the process half of every control do not.',
+  },
+];
+
+const gaps = [
+  {
+    id: 'ingestion',
+    title: 'Where the data comes from',
+    text: 'Ingestion, lineage, catalog and analytics are the half this repository was silent on. Each is now a decision you can read and disagree with rather than a blank.',
+  },
+  {
+    id: 'retention',
+    title: 'Keeping evidence, and erasing people',
+    text: 'An append-only log that refuses DELETE collides directly with a right to erasure. The resolution is to destroy keys rather than rows, and it is a genuine trade-off with a legal reading attached.',
+  },
+  {
+    id: 'reliability',
+    title: 'Staying up, and proving it',
+    text: 'No SLO, no tested restore, no rota. The correlation id makes a 3am investigation tractable; nothing yet makes it start.',
+  },
+];
+---
+
+<Base
+  title="The vision"
+  description="Point an agent at the application you already have, and end up with a schema worth owning, a legacy database you can leave, surfaces you did not write, and compliance you inherited."
+  active="vision"
+>
+  <div class="mx-auto max-w-4xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+    <header>
+      <p class="text-xs font-medium tracking-widest text-brand uppercase">The vision</p>
+      <h1 class="mt-3 text-3xl leading-tight font-semibold tracking-tight text-balance sm:text-4xl">
+        You already have the application. The question is what it costs to make it enterprise-grade.
+      </h1>
+      <div class="mt-6 space-y-4 text-lg leading-relaxed text-pretty text-muted">
+        <p>
+          Usually: a schema nobody would design twice, a permissions system that grew one exception
+          at a time, an audit trail added the quarter before an audit, and a database you cannot stop
+          long enough to fix any of it.
+        </p>
+        <p>
+          The argument here is that almost none of that is your business logic. It is the same set of
+          concerns every enterprise application has, and they are <strong
+            class="font-semibold text-fg">declarable</strong
+          > — stated once and derived everywhere, including onto the resource somebody adds under deadline
+          in month nine.
+        </p>
+      </div>
+    </header>
+
+    <section class="mt-16">
+      <h2 class="text-sm font-medium tracking-widest text-muted uppercase">How it goes</h2>
+
+      <ol class="mt-8 space-y-10">
+        {
+          phases.map((phase) => (
+            <li class="relative border-l-2 border-line pl-6 sm:pl-8">
+              <span
+                class="absolute -left-[7px] top-2 h-3 w-3 rounded-full bg-brand"
+                aria-hidden="true"
+              />
+
+              <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
+                <span class="font-mono text-xs tracking-wider text-muted uppercase">
+                  {phase.when}
+                </span>
+                <StatusChip status={phase.status} />
+              </div>
+
+              <h3 class="mt-2 text-xl font-semibold tracking-tight text-balance">{phase.title}</h3>
+              <p class="mt-3 leading-relaxed text-pretty text-muted">{phase.lead}</p>
+              <p class="mt-3 text-sm leading-relaxed text-muted">{phase.detail}</p>
+
+              {phase.note ? (
+                <p class="mt-3 rounded-lg border border-line bg-surface px-3.5 py-2.5 text-sm text-muted">
+                  <strong class="font-semibold text-fg">Where it actually is:</strong> {phase.note}
+                </p>
+              ) : null}
+            </li>
+          ))
+        }
+      </ol>
+    </section>
+
+    <section class="mt-20 rounded-2xl border border-line bg-surface p-6 sm:p-8">
+      <h2 class="text-lg font-semibold tracking-tight">And the parts that are not there</h2>
+      <p class="mt-3 text-sm leading-relaxed text-muted">
+        A vision page that lists only what works is a brochure. These are the three largest things
+        this architecture does not do yet, each with a decision written down and open to
+        disagreement.
+      </p>
+
+      <ul class="mt-6 space-y-5">
+        {
+          gaps.map((gap) => (
+            <li>
+              <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <h3 class="text-base font-semibold">{gap.title}</h3>
+                <StatusChip status={itemStatus(gap.id)} />
+              </div>
+              <p class="mt-1.5 text-sm leading-relaxed text-muted">{gap.text}</p>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+
+    <section class="mt-20">
+      <h2 class="text-lg font-semibold tracking-tight">Where each part of the argument stands</h2>
+      <p class="mt-3 text-sm leading-relaxed text-muted">
+        Fifty-one questions, six sections, one status vocabulary. The shape matters more than the
+        total.
+      </p>
+      <SectionScoreboard class="mt-8" />
+    </section>
+
+    <div class="mt-16 flex flex-wrap gap-3">
+      <a
+        class="inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2.5 text-sm font-medium text-white transition hover:opacity-90"
+        href={withBase('/docs/manifesto/')}
+      >
+        Read the argument <span aria-hidden="true">→</span>
+      </a>
+      <a
+        class="inline-flex items-center gap-2 rounded-lg border border-line bg-surface px-4 py-2.5 text-sm font-medium transition hover:border-brand/40"
+        href={withBase('/controls/')}
+      >
+        See the control map
+      </a>
+      <a
+        class="inline-flex items-center gap-2 rounded-lg border border-line bg-surface px-4 py-2.5 text-sm font-medium transition hover:border-brand/40"
+        href={withBase('/roadmap/')}
+      >
+        See what is missing
+      </a>
+    </div>
+  </div>
+</Base>

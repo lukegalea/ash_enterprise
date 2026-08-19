@@ -1,0 +1,74 @@
+---
+/**
+ * Per-section counts, as a set of bars.
+ *
+ * The aggregate number is honest and incomplete: one ratio across fifty-one
+ * questions reports the project as uniformly half-finished, when in fact
+ * evidence is nearly done and assurance has barely started — and which of those
+ * a reader cares about depends entirely on why they came.
+ *
+ * Everything is computed from `docs/roadmap.json`, so a question moving section
+ * or status changes this and nothing else has to be edited.
+ */
+import { countsBySection, statuses, statusMeta, withBase } from '../lib/roadmap';
+
+interface Props {
+  class?: string;
+}
+
+const { class: className = '' } = Astro.props;
+const rows = countsBySection();
+
+// Tailwind cannot see a class name assembled at runtime, so the bar colours are
+// written out rather than interpolated.
+const barColour: Record<string, string> = {
+  shipped: 'bg-emerald-500 dark:bg-emerald-400',
+  partial: 'bg-amber-500 dark:bg-amber-400',
+  planned: 'bg-sky-500 dark:bg-sky-400',
+  open: 'bg-zinc-300 dark:bg-zinc-600',
+};
+---
+
+<div class:list={['not-prose', className]}>
+  <ul class="space-y-5">
+    {
+      rows.map(({ section, counts }) => (
+        <li>
+          <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+            <h3 class="text-sm font-semibold text-balance">{section.title}</h3>
+            <p class="text-xs text-muted tabular-nums">
+              <span class="font-semibold text-fg">{counts.shipped}</span> of {counts.total} shipped
+            </p>
+          </div>
+
+          <div
+            class="mt-2 flex h-2.5 w-full overflow-hidden rounded-full bg-line"
+            role="img"
+            aria-label={statuses
+              .map((s) => `${counts[s]} ${statusMeta[s].label.toLowerCase()}`)
+              .join(', ')}
+          >
+            {statuses.map((status) =>
+              counts[status] > 0 ? (
+                <span
+                  class:list={['h-full', barColour[status]]}
+                  style={`width: ${(counts[status] / counts.total) * 100}%`}
+                />
+              ) : null,
+            )}
+          </div>
+        </li>
+      ))
+    }
+  </ul>
+
+  <p class="mt-6 text-xs leading-relaxed text-muted">
+    Read the rows, not the total. The two sections a reader usually arrives for — who may do what,
+    and what happened — are the two furthest along; the one that scores worst is the one about
+    proving it to somebody else, which is mostly process rather than code and says so.{' '}
+    <a class="text-brand underline-offset-4 hover:underline" href={withBase('/docs/questions/')}>
+      Every row, with its proof
+    </a>
+    .
+  </p>
+</div>

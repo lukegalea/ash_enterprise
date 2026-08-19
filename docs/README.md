@@ -5,6 +5,7 @@ Four kinds of document live here, and the difference between them is the point.
 | | What it is | Read it when |
 |---|---|---|
 | [**QUESTIONS.md**](QUESTIONS.md) | The ledger. Every question an enterprise application must answer, our answer, and what proves it. | You want to know what this actually does before reading why. |
+| [**COMPLIANCE.md**](COMPLIANCE.md) | The control map: named SOC 2, ISO 27001 and GDPR controls, where each stands, and what proves it. Generated from the ledger. | Someone has sent you a security questionnaire. |
 | [**ROADMAP.md**](ROADMAP.md) | Where the gaps go, in what order, and what each choice beat. | You want to know where it is heading, or whether a decision was reasoned. |
 | [**manifesto/**](manifesto/00-index.md) | The argument. Seven theses, one of which is the honest list of what is missing. | You want to know *why* anything here is shaped the way it is. |
 | [**adr/**](adr/README.md) | The decisions. Nineteen records, each with the exit from it. | You disagree with something and want to know what it would cost to change. |
@@ -27,7 +28,7 @@ different application entirely. Do not treat them as guidance.
 
 ## Suggested reading order
 
-If you are evaluating: [QUESTIONS.md](QUESTIONS.md) →
+If you are evaluating: [QUESTIONS.md](QUESTIONS.md) → [COMPLIANCE.md](COMPLIANCE.md) →
 [thesis 7](manifesto/07-what-we-do-not-have.md) → [ROADMAP.md](ROADMAP.md).
 
 If you are building: [HANDOFF.md](HANDOFF.md) → [manifesto](manifesto/00-index.md) theses 1 and 3 →

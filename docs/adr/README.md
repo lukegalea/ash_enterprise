@@ -51,9 +51,16 @@ The concrete exit: which files change, and how much work it is.
 | [0017](0017-entity-resolution-in-ash.md) | Entity resolution as Ash calculations over CDM resources | proposed |
 | [0018](0018-grafana-lgtm-observability-backend.md) | Grafana LGTM as the observability backend | proposed |
 | [0019](0019-api-versioning-as-presentation-contract.md) | API versioning is a presentation contract, not a schema fork | proposed |
+| [0020](0020-tamper-evident-audit-log.md) | The audit log is tamper-evident, by two mechanisms | accepted |
+| [0021](0021-control-mapping-is-generated.md) | The compliance control map is generated from the ledger | accepted |
+| [0022](0022-audit-log-is-tenant-scoped.md) | The audit log is tenant-scoped by multitenancy, not a special check | accepted |
+| [0023](0023-impersonation-is-attribution.md) | Impersonation adds attribution, never reach | accepted (in part) |
+| [0024](0024-audit-retention-and-erasure.md) | Audit retention: partition for age, crypto-shred for erasure | proposed |
+| [0025](0025-log-shipping-and-review.md) | Logs ship to the customer's SIEM; review is evidence | proposed |
+| [0026](0026-ai-governance-is-disclosure.md) | AI governance is disclosure, not a second authorization model | proposed |
 
-Records 0001–0008 are `accepted` and describe code that exists. **0009–0019 are `proposed`: none of
-them is built.** They are here because a decision is cheapest to reason about — and cheapest to
+Records 0001–0008 and 0020–0023 are `accepted` and describe code that exists. **0009–0019 and
+0024–0026 are `proposed`: none of them is built.** They are here because a decision is cheapest to reason about — and cheapest to
 *reverse* — while the alternatives are still fresh, and because
 [thesis 6](../manifesto/06-reversibility.md) asks for the exit before the entrance. Three of them
 record an answer that changed under verification, which is the main reason to write them down early.

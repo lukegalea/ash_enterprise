@@ -104,7 +104,12 @@ defmodule AshEnterprise.Platform.Correlation do
     %{
       "correlation_id" => id(),
       "depth" => depth(),
-      "system_actor" => system_actor_name(actor)
+      "system_actor" => system_actor_name(actor),
+      # Present only while someone is acting on another user's behalf, which is
+      # what makes it useful: `metadata ? 'impersonator_id'` is the query for
+      # "show me every support access this month". See
+      # `AshEnterprise.Security.Impersonation`.
+      "impersonator_id" => AshEnterprise.Security.Impersonation.impersonator_id(actor)
     }
     |> Enum.reject(fn {_k, v} -> is_nil(v) end)
     |> Map.new()

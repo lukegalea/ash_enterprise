@@ -116,6 +116,14 @@ defmodule AshEnterprise.Platform.Resource do
     quote do
       use Ash.Resource, unquote(resource_opts)
 
+      # Fills the four provenance columns SystemAttributes declares. Outside the
+      # `audit?` branch on purpose -- the columns come from being a platform
+      # resource, not from being audited, so a resource with `audit?: false`
+      # still records who created and last modified it.
+      changes do
+        change AshEnterprise.Platform.Changes.StampProvenance, on: [:create, :update]
+      end
+
       platform do
         ownership(unquote(ownership))
         tenant?(unquote(tenant?))

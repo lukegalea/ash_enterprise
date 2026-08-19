@@ -68,3 +68,6 @@ devenv.local.yaml
 /site/dist/
 /site/.astro/
 /site/src/content/docs/
+# The share card is composed from docs/roadmap.json at build time, so committing
+# it would mean a binary that goes stale every time a question changes status.
+/site/public/og.png

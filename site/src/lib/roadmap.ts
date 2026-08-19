@@ -9,6 +9,7 @@
  */
 
 import roadmapJson from '../../../docs/roadmap.json';
+import controlsJson from '../../../docs/controls.json';
 
 export type Status = 'shipped' | 'partial' | 'planned' | 'open';
 
@@ -130,6 +131,14 @@ export function questionsInSection(sectionId: string): Question[] {
   return questions.filter((q) => q.section === sectionId);
 }
 
+/** Counts per section, in section order — the shape the aggregate hides. */
+export function countsBySection(): { section: Section; counts: Counts }[] {
+  return sections.map((section) => ({
+    section,
+    counts: counts(questionsInSection(section.id)),
+  }));
+}
+
 /** Roadmap items grouped by priority, ascending. */
 export function itemsByPriority(): { priority: number; items: Item[] }[] {
   const groups = new Map<number, Item[]>();
@@ -196,6 +205,67 @@ export function adrHref(adr: string | undefined | null): string | null {
 
 /** Every ADR number that has a page, for sanity checks. */
 export const knownAdrNumbers: readonly string[] = [...adrSlugByNumber.keys()].sort();
+
+// ---------------------------------------------------------------------------
+// Controls
+// ---------------------------------------------------------------------------
+
+export interface Framework {
+  id: string;
+  name: string;
+  revision: string;
+}
+
+export interface Control {
+  /** e.g. `CC7.2`. */
+  id: string;
+  /** Framework id; see `frameworks`. */
+  framework: string;
+  name: string;
+  /** What the control asks for, in the standard's own terms. */
+  asks: string;
+  /** Ids of the ledger questions bearing on it. */
+  questions: string[];
+  /** Where it stands, and why. */
+  note: string;
+}
+
+interface ControlsJson {
+  $comment?: unknown;
+  frameworks: Framework[];
+  controls: Control[];
+}
+
+const controlsData = controlsJson as unknown as ControlsJson;
+
+export const frameworks: readonly Framework[] = controlsData.frameworks;
+export const controls: readonly Control[] = controlsData.controls;
+
+/** Controls belonging to a framework, in file order. */
+export function controlsInFramework(frameworkId: string): Control[] {
+  return controls.filter((c) => c.framework === frameworkId);
+}
+
+const questionById = new Map(questions.map((q) => [q.id, q]));
+
+/** The ledger questions a control names, resolved. */
+export function questionsFor(control: Control): Question[] {
+  return control.questions
+    .map((id) => questionById.get(id))
+    .filter((q): q is Question => Boolean(q));
+}
+
+/**
+ * A control is only as answered as its weakest question.
+ *
+ * Deliberately pessimistic, and it has to be: a control with one open question
+ * is not "mostly satisfied", it is a control an auditor is going to ask about.
+ * Averaging would round exactly the wrong way.
+ */
+export function controlStatus(control: Control): Status {
+  const ranks = questionsFor(control).map((q) => statuses.indexOf(q.status));
+  return statuses[Math.max(0, ...ranks)];
+}
 
 /** GitHub blob URL for a repo-relative path — used for `proof` links. */
 export function repoHref(repoRelativePath: string): string {

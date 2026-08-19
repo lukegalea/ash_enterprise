@@ -89,8 +89,16 @@ This is a real gap for anything holding EU personal data, and it interacts awkwa
 an immutable central audit log is exactly what a right-to-erasure request runs into. Design the retention story
 deliberately; do not assume soft delete is compliance.
 
-**→ Still open.** No decision taken. This is the hardest of the open entries, because it needs a design rather than a
-tool.
+**It got harder on purpose in August 2026.** The audit log is now hash-chained and carries a trigger that refuses
+`UPDATE` and `DELETE`, so the collision is no longer theoretical: the log actively rejects the deletion an erasure
+request implies, and removing a row would break the chain even if the trigger allowed it. That is the integrity
+guarantee working, and it means the retention design can no longer be postponed by pretending the two requirements
+might not meet.
+
+**→ Roadmap:** [ADR 0024 — retention: partition for age, crypto-shred for erasure](../adr/0024-audit-retention-and-erasure.md).
+Proposed, not built. It is the hardest decision in the set and the least reversible — encryption is one-way for anyone
+whose key has already been destroyed — which is the argument for designing it before it is urgent rather than during an
+incident.
 
 ## 6. Analytics and warehouse data layers
 

@@ -14,16 +14,29 @@ the missing forward half.
 | Priority | Gap | Choice | Status | ADR |
 |---|---|---|---|---|
 | 1 | Approvals and maker-checker | ash_bpmn — no external engine | 🟡 Partial | [ADR 0015](adr/0015-approvals-stay-in-ash.md) |
+| 1 | Audit retention, partitioning and erasure | Time-partitioned hot/cold split; erasure by crypto-shredding | 🔵 Planned | [ADR 0024](adr/0024-audit-retention-and-erasure.md) |
+| 1 | Control mapping and evidence | Generated from the ledger; SOC 2, ISO 27001, GDPR | 🟡 Partial | [ADR 0021](adr/0021-control-mapping-is-generated.md) |
 | 1 | Data ingestion | Meltano (MIT); Airbyte as the fallback | 🔵 Planned | [ADR 0010](adr/0010-meltano-for-ingestion.md) |
+| 1 | Enterprise identity: SAML, OIDC and SCIM | AshAuthentication strategies; SCIM as a resource-backed endpoint | 🔵 Planned | — |
 | 1 | Integration hub — avoiding M×N | Nango for the provider edge only | 🔵 Planned | [ADR 0011](adr/0011-nango-as-integration-hub.md) |
 | 1 | Legacy migration and process modelling as platform extensions | ash_strangler + ash_bpmn, first-party | 🟡 Partial | [ADR 0009](adr/0009-strangler-and-bpmn-are-first-party.md) |
 | 1 | Lineage and provenance | OpenLineage + Marquez | 🔵 Planned | [ADR 0012](adr/0012-openlineage-and-marquez.md) |
+| 2 | AI governance: what leaves the tenant boundary | Prompt/response logging as audit events; per-tenant opt-out | 🔵 Planned | [ADR 0026](adr/0026-ai-governance-is-disclosure.md) |
 | 2 | API versioning and deprecation | ash_api_versioning | 🔵 Planned | [ADR 0019](adr/0019-api-versioning-as-presentation-contract.md) |
+| 2 | Break-glass and impersonation control | In-Ash: a session resource with a stated reason | 🟡 Partial | — |
 | 2 | Data catalog and governance | OpenMetadata (DataHub is the closer call it looks) | 🔵 Planned | [ADR 0013](adr/0013-openmetadata-as-catalog.md) |
+| 2 | Log shipping, review and alerting | Structured export to the customer's SIEM; Grafana for ours | 🔵 Planned | [ADR 0025](adr/0025-log-shipping-and-review.md) |
 | 2 | Reporting and embedded analytics | Apache Superset over Metabase | 🔵 Planned | [ADR 0014](adr/0014-superset-over-metabase.md) |
+| 2 | SLOs, disaster recovery and incident response | Committed RPO/RTO with a tested restore; error budgets | 🔵 Planned | — |
+| 3 | Bulk import and export | Ash bulk actions over a staged upload | 🔵 Planned | — |
+| 3 | Data inventory, classification and sub-processors | Derived from resource metadata, not maintained by hand | 🔵 Planned | — |
 | 3 | Feature flags and progressive delivery | FunWithFlags (Unleash rejected) | 🔵 Planned | [ADR 0016](adr/0016-unleash-for-feature-flags.md) |
 | 3 | Observability backend | Grafana LGTM | 🔵 Planned | [ADR 0018](adr/0018-grafana-lgtm-observability-backend.md) |
+| 3 | Outbound events and subscriptions | An Ash notifier over the existing event log | 🔵 Planned | — |
 | 4 | Master data and entity resolution | In-Ash resolution over CDM resources | 🔵 Planned | [ADR 0017](adr/0017-entity-resolution-in-ash.md) |
+| 4 | Performance at enterprise data volumes | A seeded large tenant and a query budget | 🔵 Planned | — |
+| 4 | SBOM and build provenance | CycloneDX SBOM; attested builds | 🔵 Planned | — |
+| 4 | Zero-downtime deploys and reversible migrations | Expand/contract, proven by a two-version test | 🔵 Planned | — |
 <!-- roadmap:items:end -->
 
 Generated from [`roadmap.json`](roadmap.json). Edit the JSON, not the table.

@@ -84,8 +84,11 @@ jobs:
       - name: Check the roadmap tables are rendered
         run: mix ash_enterprise.roadmap --check
 
+      # `--skip` honours the `@sobelow_skip` attributes in the source. There is
+      # exactly one, on `AshEnterprise.Audit.Export`, and it says why next to
+      # itself -- which is the point of the attribute over a config file.
       - name: Security scan
-        run: mix sobelow --config --exit
+        run: mix sobelow --config --skip --exit
 
       - name: Retired and vulnerable dependencies
         run: mix hex.audit

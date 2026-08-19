@@ -59,6 +59,7 @@ const ROOT_FILES = [
   { from: 'README.md', to: 'index.md', optional: true },
   { from: 'QUESTIONS.md', to: 'questions.md' },
   { from: 'ROADMAP.md', to: 'roadmap.md' },
+  { from: 'COMPLIANCE.md', to: 'compliance.md' },
   { from: 'HANDOFF.md', to: 'handoff.md' },
 ];
 

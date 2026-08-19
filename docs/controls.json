@@ -1,0 +1,157 @@
+{
+  "$comment": [
+    "Maps named compliance controls to the questions in roadmap.json, and through",
+    "them to the test or module that proves each one.",
+    "",
+    "This file names controls and says which questions bear on them. It never",
+    "carries a status of its own -- every status in docs/COMPLIANCE.md is derived",
+    "from the questions listed here, so a control cannot claim more than the",
+    "ledger does. That is the whole design: `mix ash_enterprise.roadmap --check`",
+    "fails CI if the rendered page and this file disagree.",
+    "",
+    "Revisions this was written against, 2026-08-19: SOC 2 Trust Services Criteria",
+    "(2017, revised 2022 points of focus); ISO/IEC 27001:2022 Annex A; GDPR",
+    "(Regulation (EU) 2016/679). Control identifiers move between revisions -- ISO",
+    "renumbered substantially in 2022 -- so going stale is a normal reason to",
+    "update this rather than a defect in it."
+  ],
+  "frameworks": [
+    {
+      "id": "soc2",
+      "name": "SOC 2 Trust Services Criteria",
+      "revision": "2017 criteria, 2022 points of focus"
+    },
+    {
+      "id": "iso27001",
+      "name": "ISO/IEC 27001:2022 Annex A",
+      "revision": "2022"
+    },
+    {
+      "id": "gdpr",
+      "name": "GDPR",
+      "revision": "Regulation (EU) 2016/679"
+    }
+  ],
+  "controls": [
+    {
+      "id": "CC6.1",
+      "framework": "soc2",
+      "name": "Logical access — authorization",
+      "asks": "Access to data and systems is restricted to authorized users, and the basis of that authorization is defined.",
+      "questions": ["q1", "q2", "q3", "q4", "q5", "q6"],
+      "note": "The strongest area. Authorization is `(role, privilege, depth)` data evaluated as a pure union with no deny rules, and a conformance suite asserts the resulting truth table rather than a sample of it. The gap is column-level: q6 is open, so 'restricted' is currently a row-level claim only."
+    },
+    {
+      "id": "CC6.2",
+      "framework": "soc2",
+      "name": "Registration and authorization of new users",
+      "asks": "Users are registered and authorized before being issued credentials, and access is removed when no longer required.",
+      "questions": ["q1", "q29", "q30", "q37"],
+      "note": "Registration and deactivation exist as audited, named actions. Deprovisioning driven by the customer's directory does not — q30 is open, so removal depends on someone here being told."
+    },
+    {
+      "id": "CC6.3",
+      "framework": "soc2",
+      "name": "Access is modified and removed on a role change",
+      "asks": "Access rights are added, modified and removed based on roles, and changes are authorized.",
+      "questions": ["q2", "q4", "q37", "q32"],
+      "note": "A role assignment is an ordinary audited resource, so a grant produces an event naming grantor, grantee and request. Impersonation is attributed but not yet gated (q32)."
+    },
+    {
+      "id": "CC7.2",
+      "framework": "soc2",
+      "name": "Monitoring — logs are complete and protected",
+      "asks": "The system is monitored, and log data is protected against alteration.",
+      "questions": ["q7", "q8", "q33", "q34", "q38"],
+      "note": "Completeness and protection are answered: audit is inherited rather than wired per resource, and the log is hash-chained with a trigger refusing UPDATE and DELETE. Monitoring is not — q38 is open, and 'logs nobody reads' is the classic finding here."
+    },
+    {
+      "id": "CC7.3",
+      "framework": "soc2",
+      "name": "Evaluation of security events",
+      "asks": "Security events are evaluated to determine whether they represent a failure, and the evaluation is evidenced.",
+      "questions": ["q38", "q49", "q51"],
+      "note": "The weakest area on the board, and it is a process gap rather than a code one: alerts go nowhere, no rota exists, and nothing records that a human looked."
+    },
+    {
+      "id": "CC7.4",
+      "framework": "soc2",
+      "name": "Incident response",
+      "asks": "Identified incidents are responded to, contained and communicated.",
+      "questions": ["q8", "q49", "q47"],
+      "note": "The correlation id makes an investigation tractable at 3am — one id reconstructs a whole operation. Nothing makes the investigation start."
+    },
+    {
+      "id": "CC8.1",
+      "framework": "soc2",
+      "name": "Change management",
+      "asks": "Changes to infrastructure, data and software are authorized, designed, tested and approved before implementation.",
+      "questions": ["q9", "q27", "q43", "q50"],
+      "note": "Schema change is the strong half: migrations are derived from resources and `mix ash.codegen --check` fails CI on drift, so a schema cannot diverge from the model unnoticed. Approval of changes to *this* system is CI and review, which is evidence an auditor accepts; approval of changes *within* the product is q24 and is stronger."
+    },
+    {
+      "id": "A.5.15",
+      "framework": "iso27001",
+      "name": "Access control",
+      "asks": "Rules for physical and logical access are established based on business and information security requirements.",
+      "questions": ["q2", "q3", "q4", "q5"],
+      "note": "The rules are data, not code — which is what makes them reviewable by someone who does not read Elixir. That is unusually good evidence for this control."
+    },
+    {
+      "id": "A.8.15",
+      "framework": "iso27001",
+      "name": "Logging",
+      "asks": "Logs recording activities, exceptions and faults are produced, stored and protected.",
+      "questions": ["q7", "q33", "q34", "q35", "q36"],
+      "note": "Produced and protected: yes, with a test that tampers to prove it. Stored: q36 is open — nothing expires and nothing is committed to being kept, so the retention half is satisfied by accident."
+    },
+    {
+      "id": "A.8.16",
+      "framework": "iso27001",
+      "name": "Monitoring activities",
+      "asks": "Networks, systems and applications are monitored for anomalous behaviour and appropriate action is taken.",
+      "questions": ["q28", "q38", "q47"],
+      "note": "Telemetry exists and is exported by OpenTelemetry; anomaly detection and action do not."
+    },
+    {
+      "id": "A.8.24",
+      "framework": "iso27001",
+      "name": "Use of cryptography",
+      "asks": "Rules for the effective use of cryptography, including key management, are defined and implemented.",
+      "questions": ["q33", "q36"],
+      "note": "Present only where integrity needed it: SHA-256 over the audit chain. Encryption at rest, in transit and key management are the deployment's, and this repository says nothing about them — which is a gap in the map, not a strength."
+    },
+    {
+      "id": "Art.15",
+      "framework": "gdpr",
+      "name": "Right of access",
+      "asks": "A data subject can obtain confirmation of processing and a copy of their data.",
+      "questions": ["q34", "q35", "q19"],
+      "note": "For audit data, yes and per tenant. For the subject's own records there is no assembled export — q19 is planned, and a data inventory is the prerequisite."
+    },
+    {
+      "id": "Art.17",
+      "framework": "gdpr",
+      "name": "Right to erasure",
+      "asks": "A data subject can obtain erasure of their personal data without undue delay.",
+      "questions": ["q10", "q14", "q36"],
+      "note": "The sharpest conflict in the repository, and it got sharper deliberately: soft delete means a destroy is reversible by design, and the audit log now actively refuses DELETE. ADR 0024 resolves it by crypto-shredding rather than by weakening either. Until that ships, this control is unanswered and says so."
+    },
+    {
+      "id": "Art.30",
+      "framework": "gdpr",
+      "name": "Records of processing activities",
+      "asks": "A controller maintains a record of processing activities, including categories of data and recipients.",
+      "questions": ["q7", "q39", "q40", "q19"],
+      "note": "Every processing *event* is recorded in detail; the *register* of activities, categories and recipients is not. q39 is open, and a sub-processor list is the first thing a customer's privacy team asks for."
+    },
+    {
+      "id": "Art.32",
+      "framework": "gdpr",
+      "name": "Security of processing",
+      "asks": "Appropriate technical measures ensure ongoing confidentiality, integrity, availability and resilience.",
+      "questions": ["q12", "q13", "q33", "q48", "q50"],
+      "note": "Confidentiality and integrity are the strong half — tenant isolation is tested to hold even when authorization is wrong, and the log is verifiably intact. Availability and resilience are untested: q48 is open, and an untested restore is a belief rather than a measure."
+    }
+  ]
+}

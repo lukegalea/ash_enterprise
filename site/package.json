@@ -8,8 +8,9 @@
   },
   "scripts": {
     "sync": "node ./scripts/sync-docs.mjs",
-    "dev": "npm run sync && astro dev",
-    "prebuild": "npm run sync",
+    "dev": "npm run sync && npm run og && astro dev",
+    "og": "node ./scripts/build-og.mjs",
+    "prebuild": "npm run sync && npm run og",
     "build": "astro build",
     "preview": "astro preview",
     "check": "astro check"

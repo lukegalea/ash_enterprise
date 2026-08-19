@@ -31,6 +31,10 @@
     {
       "id": "change",
       "title": "How does it change, and keep running?"
+    },
+    {
+      "id": "assurance",
+      "title": "Can you prove it, continuously?"
     }
   ],
   "questions": [
@@ -266,6 +270,198 @@
       "status": "partial",
       "adr": "0018",
       "item": "observability"
+    },
+    {
+      "id": "q29",
+      "section": "identity",
+      "question": "How do enterprise customers bring their own identity provider?",
+      "answer": "Open. AshAuthentication ships password, magic link, API key and OAuth2, and no SAML — which is still the format most enterprise IdPs lead with in a procurement conversation. OIDC is reachable through the existing OAuth2 strategy; SAML would need a new one.",
+      "status": "open",
+      "item": "sso"
+    },
+    {
+      "id": "q30",
+      "section": "identity",
+      "question": "How do accounts appear and disappear when someone joins or leaves?",
+      "answer": "Open. Users are created by registration and deactivated by a lifecycle transition; nothing consumes SCIM, so a customer removing someone from their directory does not remove them here.",
+      "status": "open",
+      "item": "sso"
+    },
+    {
+      "id": "q31",
+      "section": "identity",
+      "question": "What second factor is required, and how are sessions bounded?",
+      "answer": "Open. Sessions are AshAuthentication's, with no MFA enforcement, no step-up for privileged actions and no configurable session lifetime. WebAuthn was named as a gap in thesis 7 and still is.",
+      "status": "open",
+      "item": "sso"
+    },
+    {
+      "id": "q32",
+      "section": "identity",
+      "question": "Who may act as someone else, and is that recorded differently from acting as yourself?",
+      "answer": "Partial. Acting on someone else's behalf is now represented end to end: the record's `created_on_behalf_by_id` names the operator while `created_by_id` names the customer, and every audit event carries `impersonator_id`. What is missing is the gate — nothing yet decides who may impersonate whom, or records a session with a stated reason.",
+      "status": "partial",
+      "proof": "test/ash_enterprise/audit/impersonation_test.exs",
+      "item": "break-glass"
+    },
+    {
+      "id": "q33",
+      "section": "evidence",
+      "question": "Can the audit log be altered after the fact?",
+      "answer": "Shipped. Two mechanisms with different jobs: a trigger refuses `UPDATE` and `DELETE` outright, and every event carries a SHA-256 chained to the previous one, so an operator privileged enough to drop the trigger still cannot make an edit look untouched. `mix ash_enterprise.audit.verify` walks the chains; the suite proves it by tampering.",
+      "status": "shipped",
+      "proof": "test/ash_enterprise/audit/chain_test.exs"
+    },
+    {
+      "id": "q34",
+      "section": "evidence",
+      "question": "Can a customer see their own audit trail, and only theirs?",
+      "answer": "Shipped. The log is attribute-multitenant on an `organization_id` the chain trigger derives from stamped metadata, so a tenant-scoped read is filtered by the data layer rather than by a policy written specially for the audit log. Depth answers how much of a tenant you see; tenancy answers which tenant.",
+      "status": "shipped",
+      "proof": "test/ash_enterprise/audit/tenant_isolation_test.exs"
+    },
+    {
+      "id": "q35",
+      "section": "evidence",
+      "question": "Can an auditor be handed a window of evidence without engineering help?",
+      "answer": "Shipped. `mix ash_enterprise.audit.export --from --to [--tenant]` writes CSV in chain order, including `sequence`, `previous_hash` and `hash` so the recipient can re-verify it rather than take it on trust. It reads through the ordinary action layer, so an export is exactly as wide as its requester's authorization.",
+      "status": "shipped",
+      "proof": "lib/ash_enterprise/audit/export.ex"
+    },
+    {
+      "id": "q36",
+      "section": "evidence",
+      "question": "How long is evidence kept, and where does it live after ninety days?",
+      "answer": "Open. Nothing expires, nothing is partitioned, and nothing moves to cold storage — so a twelve-month SOC 2 observation window is retained by accident rather than by policy. Made sharper by the immutability trigger, which now actively refuses the `DELETE` a retention job would need.",
+      "status": "open",
+      "adr": "0024",
+      "item": "retention"
+    },
+    {
+      "id": "q37",
+      "section": "evidence",
+      "question": "Are role and permission changes attributable to a person?",
+      "answer": "Shipped. Role assignments are ordinary audited resources, so granting one produces an event naming the grantor, the grantee and the correlation id of the request — and the record itself now carries `created_by_id`, which nothing populated before.",
+      "status": "shipped",
+      "proof": "test/ash_enterprise/audit/impersonation_test.exs"
+    },
+    {
+      "id": "q38",
+      "section": "evidence",
+      "question": "Where do logs go to be reviewed, and what raises an alarm?",
+      "answer": "Open. Everything is queryable in Postgres and nothing streams anywhere. An auditor asks for evidence that logs are *reviewed*, not merely kept, and there is none: no SIEM export, no anomaly rules, no record of a human having looked.",
+      "status": "open",
+      "adr": "0025",
+      "item": "siem"
+    },
+    {
+      "id": "q39",
+      "section": "tenancy",
+      "question": "What crosses the tenant boundary, and to whom?",
+      "answer": "Open. There is no data inventory, no classification, and no published sub-processor list — which is the first artefact a security questionnaire asks for and the one that has to be current rather than merely written once.",
+      "status": "open",
+      "item": "governance"
+    },
+    {
+      "id": "q40",
+      "section": "tenancy",
+      "question": "What does an AI model see, and can a customer opt out?",
+      "answer": "Partial. Thesis 5 settles the authorization half — an agent is an actor with an actor's permissions, and `ash_ai` tools are declarations that existing actions may be invoked, so a model reaches nothing its user could not. What is absent is the governance half: no prompt or response logging, no per-tenant opt-out, no disclosure of which model or vendor saw what.",
+      "status": "partial",
+      "adr": "0026",
+      "item": "ai-governance"
+    },
+    {
+      "id": "q41",
+      "section": "flow",
+      "question": "How do other systems find out that something happened here?",
+      "answer": "Open. Events land in the audit log and go nowhere else. There is no outbound webhook, no subscription, and no delivery guarantee for anyone who needs to react to a change rather than poll for it.",
+      "status": "open",
+      "item": "webhooks"
+    },
+    {
+      "id": "q42",
+      "section": "flow",
+      "question": "How does a customer get fifty thousand rows in, or out?",
+      "answer": "Open. JSON:API and GraphQL paginate, and neither is a bulk path. Import exists only as a Meltano-shaped plan; export exists only for the audit log.",
+      "status": "open",
+      "item": "bulk"
+    },
+    {
+      "id": "q43",
+      "section": "change",
+      "question": "Can a deploy happen without downtime, and can a migration be reversed?",
+      "answer": "Partial. Every generated migration has a `down`, and `ash_strangler`'s four-phase cutover is built precisely so a legacy migration can be reversed at any phase. What is untested is the app's own rolling deploy: nothing proves an old and a new node can serve the same schema at once, which is the property zero-downtime actually needs.",
+      "status": "partial",
+      "item": "deploys"
+    },
+    {
+      "id": "q44",
+      "section": "change",
+      "question": "Does it still work for a customer with fifty thousand of something?",
+      "answer": "Open. No load test, no query budget, and no pagination requirement on read actions — the audit export is the only place in the codebase that streams rather than loads. A reference architecture that has never met a large tenant is making an untested claim.",
+      "status": "open",
+      "item": "scale"
+    },
+    {
+      "id": "q45",
+      "section": "change",
+      "question": "Can a customer change how it behaves without a deploy?",
+      "answer": "Partial. Approval chains and process routing are configuration — a BPMN document published as a new version, or a keyword list on an action — via `ash_bpmn`. Custom fields are not: adding an attribute is a resource change, a migration and a deploy.",
+      "status": "partial",
+      "adr": "0009",
+      "item": "first-party"
+    },
+    {
+      "id": "q46",
+      "section": "assurance",
+      "question": "Which named controls does any of this actually satisfy?",
+      "answer": "Partial. `docs/COMPLIANCE.md` maps SOC 2, ISO 27001 and GDPR controls to the questions above and through them to the test that proves each — generated from the same ledger, so it cannot drift. It covers technical prerequisites only: certification also needs policy, process and an auditor, and the document says so first rather than last.",
+      "status": "partial",
+      "proof": "docs/controls.json",
+      "adr": "0021"
+    },
+    {
+      "id": "q47",
+      "section": "assurance",
+      "question": "What is promised about uptime, and what happens when it is missed?",
+      "answer": "Open. No SLO, no error budget, no status page. Telemetry exists and nothing is expressed as a target, so there is nothing for an incident to be measured against.",
+      "status": "open",
+      "item": "reliability"
+    },
+    {
+      "id": "q48",
+      "section": "assurance",
+      "question": "How quickly can you come back from losing the database?",
+      "answer": "Open. Backups are whatever the deployment provides; nothing here tests a restore, and an untested restore is a belief rather than a control. No RPO or RTO is committed to.",
+      "status": "open",
+      "item": "reliability"
+    },
+    {
+      "id": "q49",
+      "section": "assurance",
+      "question": "When something breaks at three in the morning, what happens?",
+      "answer": "Open. Alerts go nowhere, no rota exists, and no runbook says who tells the customer. The correlation id makes the investigation possible; nothing makes it start.",
+      "status": "open",
+      "item": "reliability"
+    },
+    {
+      "id": "q50",
+      "section": "assurance",
+      "question": "What is in the build, and can you prove nothing else is?",
+      "answer": "Partial. CI runs `mix hex.audit` for retired and vulnerable packages and `mix sobelow` for web vulnerabilities, and `mix.lock` pins everything transitively. There is no SBOM, no signed build, and no provenance attestation — so the dependency set is checked but not attested.",
+      "status": "partial",
+      "proof": ".github/workflows/ci.yml",
+      "item": "supply-chain"
+    },
+    {
+      "id": "q51",
+      "section": "assurance",
+      "question": "Can you show a control operated continuously for twelve months?",
+      "answer": "Partial. This is the question the rest of the section is really asking. What exists: an unbroken, verifiable hash chain covering every write, exportable per tenant for any window. What does not: a retention policy guaranteeing the window is still there in month twelve, and any evidence that anyone reviewed it.",
+      "status": "partial",
+      "adr": "0021",
+      "item": "retention"
     }
   ],
   "items": [
@@ -378,6 +574,127 @@
       "status": "planned",
       "effort": "The golden-record shape is adopted rather than invented: the vendored `Account` and `Contact` CDM entities already carry `merged` and a self-referencing `master`/`masterid`. Match, merge and survivorship become ordinary changes and calculations.",
       "bar": "A golden record inside the platform inherits ownership, audit and policy. Two consequences fall out that an external hub hides: candidate generation must run as a system actor, so the review queue can leak the existence of duplicates; and a merge can revoke a user's access without revoking any grant, because grants are per-record and the record moved. AtroCore is GPL-3.0, not the MIT its own marketing claims; Pimcore left open source entirely in 2025."
+    },
+    {
+      "id": "retention",
+      "title": "Audit retention, partitioning and erasure",
+      "priority": 1,
+      "choice": "Time-partitioned hot/cold split; erasure by crypto-shredding",
+      "adr": "0024",
+      "status": "planned",
+      "effort": "Monthly partitions on `audit_events`, ninety days hot, the rest detached to cheaper storage and still chain-verifiable. The hard half is not partitioning: it is that erasure and an append-only log are in direct conflict, and the resolution has to preserve the chain — which points at encrypting subject data per person and destroying the key rather than deleting rows.",
+      "bar": "No external tool. Retention is a property of the log, and the log is the thing this platform's audit story rests on — handing it to something outside the boundary would put the evidence chain outside it too."
+    },
+    {
+      "id": "controls",
+      "title": "Control mapping and evidence",
+      "priority": 1,
+      "choice": "Generated from the ledger; SOC 2, ISO 27001, GDPR",
+      "adr": "0021",
+      "status": "partial",
+      "effort": "`docs/controls.json` maps control ids to ledger questions and their proofs, rendered into `docs/COMPLIANCE.md` and the site by the same task that renders the roadmap. Remaining: the evidence-of-review half, which needs the SIEM item, and per-control screenshots an auditor can be handed.",
+      "bar": "The map claims technical prerequisites and says so in its first paragraph. Claiming more would make the honesty mechanism the rest of this repository is built on worthless."
+    },
+    {
+      "id": "sso",
+      "title": "Enterprise identity: SAML, OIDC and SCIM",
+      "priority": 1,
+      "choice": "AshAuthentication strategies; SCIM as a resource-backed endpoint",
+      "status": "planned",
+      "effort": "OIDC through the existing OAuth2 strategy is small. SAML needs a new strategy and an XML signature story. SCIM is the larger piece and the more interesting one here: provisioning maps onto ordinary create and lifecycle actions, so it is an endpoint over existing actions rather than a parallel user store.",
+      "bar": "Yes. An identity provider authenticates; it never authorizes. Group-to-role mapping stays here as `(role, privilege, depth)` rows, which is the difference between an IdP telling us who you are and an IdP telling us what you may do."
+    },
+    {
+      "id": "break-glass",
+      "title": "Break-glass and impersonation control",
+      "priority": 2,
+      "choice": "In-Ash: a session resource with a stated reason",
+      "status": "partial",
+      "effort": "Attribution shipped — records and events name both the customer and the operator. Remaining: a session resource carrying who, whom, when, why and for how long; a privilege gating it; and a notification to the account owner, which is the control customers actually ask for.",
+      "bar": "No external tool. Who may act as whom is an authorization question, and this platform already has exactly one place authorization is expressed."
+    },
+    {
+      "id": "siem",
+      "title": "Log shipping, review and alerting",
+      "priority": 2,
+      "choice": "Structured export to the customer's SIEM; Grafana for ours",
+      "adr": "0025",
+      "status": "planned",
+      "effort": "A notifier streaming audit events as structured JSON to a customer-configured sink, per tenant, with the chain hashes intact so the copy is verifiable against the original. Alerting rules follow the same ledger the control map does.",
+      "bar": "Partial by design: a SIEM cannot consume ActorContext, so the boundary is that it receives only what one tenant is entitled to and never a cross-tenant stream."
+    },
+    {
+      "id": "reliability",
+      "title": "SLOs, disaster recovery and incident response",
+      "priority": 2,
+      "choice": "Committed RPO/RTO with a tested restore; error budgets",
+      "status": "planned",
+      "effort": "A restore drill in CI against a real dump is the load-bearing piece — an untested backup is a belief. SLOs and error budgets sit on the telemetry that already exists; the status page and rota are process rather than code, and are named as such.",
+      "bar": "Not applicable in the usual sense, and worth saying so: these are operational commitments, not tools with authorization models. The bar they have to clear is that they are tested rather than asserted."
+    },
+    {
+      "id": "webhooks",
+      "title": "Outbound events and subscriptions",
+      "priority": 3,
+      "choice": "An Ash notifier over the existing event log",
+      "status": "planned",
+      "effort": "The audit log already contains every change with an actor and a tenant. A subscription is a filtered, tenant-scoped view of it with delivery and retry — which is Oban's job, not a new event system's.",
+      "bar": "Yes, and unusually cleanly: a subscription is a read, so it is filtered by the same policies as any other read. A customer cannot subscribe to what they cannot see."
+    },
+    {
+      "id": "bulk",
+      "title": "Bulk import and export",
+      "priority": 3,
+      "choice": "Ash bulk actions over a staged upload",
+      "status": "planned",
+      "effort": "`Ash.bulk_create` and `Ash.bulk_update` already exist and are authorized per record. The work is the staging surface, the error report a user can act on, and streaming exports that do not load a tenant into memory — the audit export is the pattern.",
+      "bar": "Yes. Bulk is the same actions in a loop, so ownership, tenancy and audit apply per row rather than being skipped for speed."
+    },
+    {
+      "id": "governance",
+      "title": "Data inventory, classification and sub-processors",
+      "priority": 3,
+      "choice": "Derived from resource metadata, not maintained by hand",
+      "status": "planned",
+      "effort": "Every resource already declares its CDM provenance, ownership type and tenancy scope. Classification is one more declaration, and the inventory is then generated — the same argument as the control map, and the same reason it will still be true in a year.",
+      "bar": "Overlaps the catalog item deliberately: this is the compliance artefact, that is the discovery tool, and both should read from the same declarations."
+    },
+    {
+      "id": "supply-chain",
+      "title": "SBOM and build provenance",
+      "priority": 4,
+      "choice": "CycloneDX SBOM; attested builds",
+      "status": "planned",
+      "effort": "An SBOM generated in CI and attached to each release, plus provenance attestation for the container. Small, mechanical, and asked about on every enterprise security questionnaire.",
+      "bar": "Not applicable — nothing here touches the authorization model. It is on the list because it is asked for, and off priority 1 because nothing depends on it."
+    },
+    {
+      "id": "deploys",
+      "title": "Zero-downtime deploys and reversible migrations",
+      "priority": 4,
+      "choice": "Expand/contract, proven by a two-version test",
+      "status": "planned",
+      "effort": "Every migration already has a `down`. What is missing is a test that an old and a new node can serve the same schema simultaneously, which is what zero-downtime actually requires and what `down` alone does not give.",
+      "bar": "Not applicable. Named because 'reversible migrations' is on every enterprise checklist and this repository can currently only claim half of it."
+    },
+    {
+      "id": "scale",
+      "title": "Performance at enterprise data volumes",
+      "priority": 4,
+      "choice": "A seeded large tenant and a query budget",
+      "status": "planned",
+      "effort": "Seed a tenant with fifty thousand of the widest resource, then assert query counts and response times in CI. The interesting result is not the number; it is which of the inherited policies turn out to cost something at that size.",
+      "bar": "Not applicable, but load-bearing for thesis 3: an authorization model that is elegant and slow is not a model anyone keeps."
+    },
+    {
+      "id": "ai-governance",
+      "title": "AI governance: what leaves the tenant boundary",
+      "priority": 2,
+      "choice": "Prompt/response logging as audit events; per-tenant opt-out",
+      "adr": "0026",
+      "status": "planned",
+      "effort": "Thesis 5 already did the hard part — an agent is an actor, so a model reaches nothing its user could not, and there is no agent-specific authorization path to secure. What is left is disclosure: log prompt and response as audit events under the same tenant and correlation id as the action they produced, record which model and vendor saw them, and let a tenant switch the whole thing off.",
+      "bar": "Yes, and it is the clearest case in the set. An LLM provider is a service behind a network boundary that cannot consume ActorContext, so the rule from thesis 6 applies literally: it receives only what one actor was already entitled to, and removing it degrades a feature rather than breaking the app."
     }
   ]
 }
