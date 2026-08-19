@@ -25,9 +25,9 @@ every ⚪ row below.
 README. Edit the JSON, never the table.
 
 <!-- roadmap:scoreboard:start -->
-**15 of 51** enterprise questions have a shipped answer.
+**15 of 52** enterprise questions have a shipped answer.
 
-✅ Shipped 15 · 🟡 Partial 13 · 🔵 Planned 8 · ⚪ Open 15
+✅ Shipped 15 · 🟡 Partial 14 · 🔵 Planned 8 · ⚪ Open 15
 <!-- roadmap:scoreboard:end -->
 
 <!-- roadmap:sections:start -->
@@ -37,7 +37,7 @@ README. Edit the JSON, never the table.
 | What happened, and can you prove it? | 8 | 1 | 0 | 2 |
 | Whose data is it? | 2 | 1 | 0 | 3 |
 | Where does data come from, and where does it go? | 0 | 0 | 6 | 2 |
-| How does it change, and keep running? | 1 | 6 | 2 | 1 |
+| How does it change, and keep running? | 1 | 7 | 2 | 1 |
 | Can you prove it, continuously? | 0 | 3 | 0 | 3 |
 <!-- roadmap:sections:end -->
 
@@ -104,8 +104,8 @@ README. Edit the JSON, never the table.
 | # | Question | Our answer | Status | Proven by |
 |---|---|---|---|---|
 | 22 | How do you move onto this platform from a database you cannot stop? | `ash_strangler` maps a well-modelled resource onto the legacy schema through a closed grammar of typed combinators whose reverses are built rather than guessed, and moves it through four cutover phases without hand-written SQL. 341 tests, including round-trip properties over the legacy value space. The package ships; the demo inside this repository does not. | 🟡 Partial | [ADR 0009](adr/0009-strangler-and-bpmn-are-first-party.md) |
-| 23 | How do the processes people actually follow get modelled? | `ash_bpmn` compiles a BPMN document into an immutable versioned graph and executes it with a token interpreter over Postgres and Oban, with an embedded designer. 202 tests. The three authorization gaps ADR 0009 named are now closed upstream — the engine carries an actor and a tenant through one named policy bypass, and its resources can sit on this platform's base resource — but it is still not wired in here. | 🟡 Partial | [ADR 0009](adr/0009-strangler-and-bpmn-are-first-party.md) |
-| 24 | How does an action get a second person's approval before it takes effect? | A change dropped on any action: work item, materialized candidate list, maker-checker exclusion applied by subtraction at candidate resolution rather than as a `forbid_if`, delegation, and escalation timers that actually get cancelled. No external BPMN engine — Camunda 7's community edition reached end of life in October 2025 and Camunda 8 Self-Managed needs a paid production licence, so "adopt an open engine" is largely no longer on the table anyway. | 🟡 Partial | [ADR 0015](adr/0015-approvals-stay-in-ash.md) |
+| 23 | How do the processes people actually follow get modelled? | `ash_bpmn` compiles a BPMN document into an immutable versioned graph and executes it with a token interpreter over Postgres and Oban, with an embedded designer. Gateway conditions are FEEL, the DMN expression language. **Adopted here**: the six resources sit on the platform base resource, so a process instance is an ordinary owned, tenant-scoped record, and the engine's bypass is the first policy in the base's own set. What is missing is a process actually running here -- no published definition, no demo yet. | 🟡 Partial | [ADR 0009](adr/0009-strangler-and-bpmn-are-first-party.md) |
+| 24 | How does an action get a second person's approval before it takes effect? | A change dropped on any action: work item, materialized candidate list, maker-checker exclusion applied by subtraction at candidate resolution rather than as a `forbid_if`, delegation, and escalation timers that get cancelled. **A work item is now a platform resource here** -- owned, tenant-scoped and audited -- so who may approve is the same union of grants as who may read. Not yet demonstrated end to end. | 🟡 Partial | [ADR 0015](adr/0015-approvals-stay-in-ash.md) |
 | 25 | How do API contracts change without breaking the callers you cannot see? | Version deltas declared as data on the resource — one schema, N presentation contracts, no second table or view — with `render`/`parse` invertibility checked at compile time and sunset proposed from real traffic. | 🔵 Planned | [ADR 0019](adr/0019-api-versioning-as-presentation-contract.md) |
 | 26 | How do you ship a change to some users first? | A flag is evaluated in-process against the application's own database, with actor, business unit and tenant supplied from the context already computed once per request. Policies are not a substitute — they answer *may you*, not *is this on*, and conflating them produces a `beta_user` role you then have to revoke from everyone. | 🔵 Planned | [ADR 0016](adr/0016-unleash-for-feature-flags.md) |
 | 27 | How does the schema itself evolve without drifting from the model? | Migrations are derived as a diff against committed resource snapshots, and the diff is a CI gate — so a resource change without a migration fails the build rather than surfacing at deploy time. | ✅ Shipped | `priv/resource_snapshots/` |
@@ -113,6 +113,7 @@ README. Edit the JSON, never the table.
 | 43 | Can a deploy happen without downtime, and can a migration be reversed? | Partial. Every generated migration has a `down`, and `ash_strangler`'s four-phase cutover is built precisely so a legacy migration can be reversed at any phase. What is untested is the app's own rolling deploy: nothing proves an old and a new node can serve the same schema at once, which is the property zero-downtime actually needs. | 🟡 Partial | — |
 | 44 | Does it still work for a customer with fifty thousand of something? | Open. No load test, no query budget, and no pagination requirement on read actions — the audit export is the only place in the codebase that streams rather than loads. A reference architecture that has never met a large tenant is making an untested claim. | ⚪ Open | — |
 | 45 | Can a customer change how it behaves without a deploy? | Partial. Approval chains and process routing are configuration — a BPMN document published as a new version, or a keyword list on an action — via `ash_bpmn`. Custom fields are not: adding an attribute is a resource change, a migration and a deploy. | 🟡 Partial | [ADR 0009](adr/0009-strangler-and-bpmn-are-first-party.md) |
+| 52 | How are business rules expressed, versioned, and changed without a deploy? | As DMN decisions -- decision tables and literal expressions -- held as versioned, tenant-scoped Ash resources by `ash_decisions` and evaluated by a native Elixir DMN engine measured at 3,414 of 3,495 nodes against the official DMN TCK. Every evaluation records which version decided and what it saw. Partial: the resources and the engine are here, the authoring UI is not. | 🟡 Partial | `test/ash_enterprise/bpmn/adoption_test.exs` |
 
 ### Can you prove it, continuously?
 

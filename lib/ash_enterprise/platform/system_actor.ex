@@ -33,6 +33,10 @@ defmodule AshEnterprise.Platform.SystemActor do
     migration: "A data migration or backfill.",
     seed: "Database seeding, including the initial tenant bootstrap.",
     ai: "An AI agent acting without a human actor. Prefer the human's actor where one exists.",
+    process:
+      "The business process engine, resolving who may act on a task or advancing a token " <>
+        "long after the request that started the process. A human decision inside a process " <>
+        "is still attributed to the human.",
     system: "Generic fallback. Prefer a specific actor above; this one tells an auditor little."
   }
 

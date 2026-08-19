@@ -14,9 +14,27 @@ config :ash_oban, pro?: false
 config :ash_enterprise, Oban,
   engine: Oban.Engines.Basic,
   notifier: Oban.Notifiers.Postgres,
-  queues: [default: 10],
+  # `:bpmn` is where the process engine runs. Every token advance, every timer and the
+  # reconciliation sweep are jobs on it, so a stuck queue is a stuck process rather than a
+  # slow one -- which is why it is separate from `:default` and not sharing its budget with
+  # whatever else the application enqueues.
+  queues: [default: 10, bpmn: 10],
   repo: AshEnterprise.Repo,
   plugins: [{Oban.Plugins.Cron, []}]
+
+# --- The process engine's three host callbacks --------------------------------
+#
+# `ash_bpmn` deliberately knows nothing about what an action is, who a manager is, or what a
+# decision is. Each is a module here, and each is the seam that keeps business logic out of
+# the process graph: a rule expressed in a diagram is a rule every non-process caller
+# bypasses.
+config :ash_bpmn,
+  ash_domains: [AshEnterprise.Bpmn],
+  assignment_resolver: AshEnterprise.Process.AssignmentResolver,
+  action_invoker: AshEnterprise.Process.ActionInvoker,
+  decision_resolver: AshEnterprise.Process.DecisionResolver
+
+config :ash_decisions, ash_domains: [AshEnterprise.Decisions]
 
 config :ash_graphql, authorize_update_destroy_with_error?: true
 
@@ -123,7 +141,9 @@ config :ash_enterprise,
     AshEnterprise.Accounts,
     AshEnterprise.Security,
     AshEnterprise.Audit,
-    AshEnterprise.Reference
+    AshEnterprise.Reference,
+    AshEnterprise.Bpmn,
+    AshEnterprise.Decisions
   ],
   base_resources: [AshEnterprise.Platform.Resource]
 

@@ -68,6 +68,11 @@ defmodule AshEnterprise.MixProject do
       usage_rules: [
         :ash,
         {:ash_a2ui, link: :markdown},
+        # Both are process/decision modelling rules that only matter when working on a
+        # diagram or a decision table, so they are linked rather than inlined -- the same
+        # trade the note above describes for the other large extensions.
+        {:ash_bpmn, link: :markdown},
+        {:ash_decisions, link: :markdown},
         {:ash_ai, link: :markdown},
         :ash_authentication,
         :ash_credo,
@@ -180,6 +185,28 @@ defmodule AshEnterprise.MixProject do
       # `legacy.*` plus the notification bridge that makes a legacy write
       # visible to LiveView. See docs/plans/ash-strangler-in-reference-app.md.
       {:ash_strangler, github: "lukegalea/ash_strangler"},
+
+      # --- Business processes and the decisions they route on ------------------
+      # The other half of ADR 0009. `ash_bpmn` compiles a BPMN document into an
+      # immutable versioned graph and executes it with a token interpreter over
+      # Postgres and Oban; `ash_decisions` holds DMN decisions as versioned Ash
+      # resources over a native Elixir DMN engine, and is what a business rule
+      # task in a process resolves to.
+      #
+      # They are two packages rather than one on purpose: `ash_bpmn` reaches a
+      # decision through a configured `AshBpmn.DecisionResolver` and never
+      # depends on this one, so a host can adopt the engine with a hand-written
+      # resolver, or adopt decisions with no process engine at all and serve
+      # pricing rules over JSON:API.
+      #
+      # NOTE: `ash_decisions` brings `boxic_dmn`, which validates DMN documents
+      # by shelling out to `xmllint` -- so `libxml2` is a runtime dependency of
+      # this application. See `devenv.nix` and the boot check in
+      # `AshEnterprise.Application`.
+      #
+      # TEMP-PATH-DEP: flipped back to github before commit
+      {:ash_bpmn, path: "../ash_bpmn"},
+      {:ash_decisions, path: "../ash_decisions"},
 
       # --- Observability -------------------------------------------------------
       # Ash.Tracer -> OpenTelemetry -> OTLP. opentelemetry_ash is thin (0.1.x);

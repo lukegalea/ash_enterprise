@@ -222,7 +222,7 @@
       "id": "q23",
       "section": "change",
       "question": "How do the processes people actually follow get modelled?",
-      "answer": "`ash_bpmn` compiles a BPMN document into an immutable versioned graph and executes it with a token interpreter over Postgres and Oban, with an embedded designer. 202 tests. The three authorization gaps ADR 0009 named are now closed upstream — the engine carries an actor and a tenant through one named policy bypass, and its resources can sit on this platform's base resource — but it is still not wired in here.",
+      "answer": "`ash_bpmn` compiles a BPMN document into an immutable versioned graph and executes it with a token interpreter over Postgres and Oban, with an embedded designer. Gateway conditions are FEEL, the DMN expression language. **Adopted here**: the six resources sit on the platform base resource, so a process instance is an ordinary owned, tenant-scoped record, and the engine's bypass is the first policy in the base's own set. What is missing is a process actually running here -- no published definition, no demo yet.",
       "status": "partial",
       "adr": "0009",
       "item": "first-party"
@@ -231,7 +231,7 @@
       "id": "q24",
       "section": "change",
       "question": "How does an action get a second person's approval before it takes effect?",
-      "answer": "A change dropped on any action: work item, materialized candidate list, maker-checker exclusion applied by subtraction at candidate resolution rather than as a `forbid_if`, delegation, and escalation timers that actually get cancelled. No external BPMN engine — Camunda 7's community edition reached end of life in October 2025 and Camunda 8 Self-Managed needs a paid production licence, so \"adopt an open engine\" is largely no longer on the table anyway.",
+      "answer": "A change dropped on any action: work item, materialized candidate list, maker-checker exclusion applied by subtraction at candidate resolution rather than as a `forbid_if`, delegation, and escalation timers that get cancelled. **A work item is now a platform resource here** -- owned, tenant-scoped and audited -- so who may approve is the same union of grants as who may read. Not yet demonstrated end to end.",
       "status": "partial",
       "adr": "0015",
       "item": "approvals"
@@ -413,6 +413,14 @@
       "item": "first-party"
     },
     {
+      "id": "q52",
+      "section": "change",
+      "question": "How are business rules expressed, versioned, and changed without a deploy?",
+      "answer": "As DMN decisions -- decision tables and literal expressions -- held as versioned, tenant-scoped Ash resources by `ash_decisions` and evaluated by a native Elixir DMN engine measured at 3,414 of 3,495 nodes against the official DMN TCK. Every evaluation records which version decided and what it saw. Partial: the resources and the engine are here, the authoring UI is not.",
+      "status": "partial",
+      "proof": "test/ash_enterprise/bpmn/adoption_test.exs"
+    },
+    {
       "id": "q46",
       "section": "assurance",
       "question": "Which named controls does any of this actually satisfy?",
@@ -473,7 +481,8 @@
       "adr": "0009",
       "status": "partial",
       "effort": "Both packages exist at 0.1.0 under MIT with substantial suites — 341 tests for the strangler, 202 for BPMN. The three `ash_bpmn` fixes ADR 0009 named have landed: the tenant reaches the rows it names, `:base` puts a work item on this platform's base resource, and the engine's ninety internal `authorize?: false` options are one declared policy bypass. What is left is the composition itself — depending on both here, and the reference-app demo.",
-      "bar": "Yes for both, now. `ash_strangler` by construction — its output is read through the ordinary action layer. `ash_bpmn` because a work item on `AshEnterprise.Platform.Resource` inherits this policy set, with one ordering rule: Ash's bypasses skip only the policies declared after them, so the engine's bypass has to sit at the top of `AshEnterprise.Security.Policies` or the engine acts as a `SystemActor` this set already admits."
+      "bar": "Yes for both, now. `ash_strangler` by construction — its output is read through the ordinary action layer. `ash_bpmn` because a work item on `AshEnterprise.Platform.Resource` inherits this policy set, with one ordering rule: Ash's bypasses skip only the policies declared after them, so the engine's bypass has to sit at the top of `AshEnterprise.Security.Policies` or the engine acts as a `SystemActor` this set already admits.",
+      "answer": "Both `ash_strangler` and `ash_bpmn` are dependencies of this application, and `ash_decisions` joins them: a legacy table is mapped and read here, and the process and decision tables are this application's own. What remains is the demonstration -- a process that runs, an approval someone completes, and the screenshots to match."
     },
     {
       "id": "ingestion",
@@ -513,7 +522,8 @@
       "adr": "0015",
       "status": "partial",
       "effort": "Built and tested in the package, including duplicate refusal via a partial unique index and timer cancellation. The three authorization gaps ADR 0009 named are closed upstream. Remaining: adopt it here.",
-      "bar": "The decisive argument against Camunda or Flowable — an external engine is a second authorization and data model to keep in sync, and it would express maker-checker as a deny rule, which this repository forbids."
+      "bar": "The decisive argument against Camunda or Flowable — an external engine is a second authorization and data model to keep in sync, and it would express maker-checker as a deny rule, which this repository forbids.",
+      "answer": "`ash_bpmn` adopted, with its work item on the platform base resource and the engine's authority declared as the first bypass in the base's policy set rather than as an option at a call site. Decisions a process routes on are `ash_decisions`, a DMN layer verified against the official DMN TCK. Not yet demonstrated with a process running in this application."
     },
     {
       "id": "catalog",

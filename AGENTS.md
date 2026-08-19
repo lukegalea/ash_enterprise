@@ -1507,6 +1507,21 @@ _An Ash extension that generates A2UI (Agent to UI) v0.9.1 payloads from Ash res
 ## ash_a2ui:reports usage
 [ash_a2ui:reports usage rules](deps/ash_a2ui/usage-rules/reports.md)
 <!-- ash_a2ui:reports-end -->
+<!-- ash_bpmn-start -->
+## ash_bpmn usage
+_BPMN-designed, Ash-executed business processes: an embedded bpmn-js designer, a
+compiler from BPMN XML to an immutable graph snapshot, and a durable token
+interpreter over Postgres and Oban._
+
+[ash_bpmn usage rules](deps/ash_bpmn/usage-rules.md)
+<!-- ash_bpmn-end -->
+<!-- ash_decisions-start -->
+## ash_decisions usage
+_DMN decisions as versioned Ash resources: a DMN document compiled and verified into an
+immutable snapshot, evaluated by a native FEEL engine, with a dmn-js designer._
+
+[ash_decisions usage rules](deps/ash_decisions/usage-rules.md)
+<!-- ash_decisions-end -->
 <!-- ash_ai-start -->
 ## ash_ai usage
 _Integrated LLM features for your Ash application._

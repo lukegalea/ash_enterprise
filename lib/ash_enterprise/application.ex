@@ -5,9 +5,12 @@ defmodule AshEnterprise.Application do
 
   use Application
 
+  require Logger
+
   @impl true
   def start(_type, _args) do
     setup_opentelemetry()
+    check_external_binaries()
 
     children =
       [
@@ -81,6 +84,31 @@ defmodule AshEnterprise.Application do
   #
   # `adapter: :bandit` is required and must match the endpoint's actual adapter;
   # naming the wrong one attaches handlers to telemetry events that never fire.
+  # External binaries this application shells out to, and what breaks without each.
+  #
+  # An absent external dependency should fail **once, loudly, at boot** -- not per-operation
+  # and in the vocabulary of the operation. `boxic_dmn`, under `ash_decisions`, validates a DMN
+  # document against the normative XSD by running `xmllint`; without it every model fails to
+  # load with `:schema_validator_unavailable`, which reads as "decisions are broken" and sends
+  # whoever is on call reading decision code rather than installing a package.
+  #
+  # A warning rather than a refusal to start: an application that does not evaluate decisions
+  # is perfectly usable without it, and a hard failure would make an optional feature a boot
+  # requirement. The line is written so that searching for the error it prevents finds it.
+  @external_binaries [
+    {"xmllint",
+     "DMN models cannot be validated or loaded (ash_decisions -> boxic_dmn). " <>
+       "Install libxml2; in this repository it is `libxml2.bin` in devenv.nix."}
+  ]
+
+  defp check_external_binaries do
+    for {binary, consequence} <- @external_binaries, is_nil(System.find_executable(binary)) do
+      Logger.warning("#{binary} is not on PATH. #{consequence}")
+    end
+
+    :ok
+  end
+
   defp setup_opentelemetry do
     OpentelemetryPhoenix.setup(adapter: :bandit, liveview: true)
     OpentelemetryEcto.setup([:ash_enterprise, :repo], db_statement: :disabled)

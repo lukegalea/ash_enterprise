@@ -53,6 +53,17 @@ in
     jq
     curl
     graphviz # AshDiagram's Graphviz renderer (Mermaid renders client-side)
+
+    # `xmllint`, for DMN. `boxic_dmn` -- the engine under `ash_decisions` -- validates a DMN
+    # document against the normative XSD by shelling out to it, so it is a *runtime*
+    # dependency of the application and not a development convenience. Without it every model
+    # fails to load with `:schema_validator_unavailable`, which presents as "decisions do not
+    # work" rather than as a missing binary; `AshEnterprise.Application` checks for it at boot
+    # so the failure is one sentence instead.
+    #
+    # The binary lives in libxml2's `.bin` output, hence `.bin` rather than the bare
+    # attribute. Verify with `xmllint --version` in the shell rather than trusting this line.
+    libxml2.bin
   ];
 
   # ---------------------------------------------------------------------------
