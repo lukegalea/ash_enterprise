@@ -86,9 +86,19 @@ defmodule AshEnterprise.Platform.Seeder do
     # costs nothing when it has already run.
     seed_privileges()
 
+    # `force_change_attribute` rather than an accepted argument: both ids are
+    # `writable? false`, and deliberately so -- an id a client can choose is an
+    # id a client can collide. The one caller that legitimately needs to pick is
+    # the legacy estate (`seed_legacy_estate/1`), whose ids are baked into a view
+    # definition that is checked in and therefore cannot depend on what a seed
+    # generated. Creating still goes through the real action, so every change
+    # runs -- notably `MaintainBusinessUnitPath`, which `Ash.Seed.seed!/2` would
+    # have skipped, leaving a root unit with no materialized path and grant
+    # depth quietly reaching nothing.
     organization =
       Accounts.Organization
       |> Ash.Changeset.for_create(:create, %{name: name, unique_name: unique_name}, actor: actor)
+      |> force_id(opts[:organization_id])
       |> Ash.create!()
 
     tenant = organization.id
@@ -96,6 +106,7 @@ defmodule AshEnterprise.Platform.Seeder do
     root =
       Accounts.BusinessUnit
       |> Ash.Changeset.for_create(:create, %{name: name}, actor: actor, tenant: tenant)
+      |> force_id(opts[:business_unit_id])
       |> Ash.create!()
 
     _default_team =
@@ -122,6 +133,46 @@ defmodule AshEnterprise.Platform.Seeder do
 
     %{organization: organization, business_unit: root, role: role, user: user}
   end
+
+  @doc """
+  Provisions the tenant the legacy estate belongs to, at the fixed ids
+  `AshEnterprise.Legacy.User`'s mapping names.
+
+  A second tenant alongside `seed_tenant/1`'s, on purpose. Plan §4.2 makes the
+  point that a tenant with one member proves nothing about isolation: the
+  evidence that multitenancy survived being *added* to data that never had it is
+  that the legacy rows are invisible from the greenfield organization. Two
+  tenants is the smallest arrangement in which that is a claim rather than a
+  hope.
+
+  Idempotent: returns `:already_seeded` if the organization exists, so this can
+  run on every deploy.
+  """
+  @spec seed_legacy_estate(keyword()) :: map() | :already_seeded
+  def seed_legacy_estate(opts \\ []) do
+    organization_id = AshEnterprise.Legacy.Estate.organization_id()
+
+    existing =
+      Accounts.Organization
+      |> Ash.Query.filter(id == ^organization_id)
+      |> Ash.read_one!(authorize?: false)
+
+    if existing do
+      :already_seeded
+    else
+      seed_tenant(
+        name: opts[:name] || "Legacy Estate",
+        unique_name: opts[:unique_name] || "legacy",
+        email: opts[:email] || "admin@legacy.example",
+        password: opts[:password] || "password1234",
+        organization_id: organization_id,
+        business_unit_id: AshEnterprise.Legacy.Estate.business_unit_id()
+      )
+    end
+  end
+
+  defp force_id(changeset, nil), do: changeset
+  defp force_id(changeset, id), do: Ash.Changeset.force_change_attribute(changeset, :id, id)
 
   # An administrator role granting every privilege at :global -- but only at
   # depths each privilege actually supports, so the grant is never one of the

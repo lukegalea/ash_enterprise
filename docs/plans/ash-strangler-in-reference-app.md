@@ -1,11 +1,14 @@
 # Plan — AshStrangler in the reference application
 
-- **Status:** **DEFERRED.** Nothing here is built. Do not begin until the current phases are complete — Organization
-  and tenancy (Phase 5), hierarchy security (Phase 6). Written now because designing the demonstration is how you find
-  out whether the extension design is honest, and because the conflicts in
-  [§4](#4-where-it-collides-with-the-platform) are findings about *this repository* whether or not the extension is
-  ever built.
-- **Date:** 2026-08-13
+- **Status:** **PARTIALLY BUILT.** Steps 0, 2 and 3 of [§5](#5-the-migration-story-step-by-step) have landed — the
+  simulated legacy schema, the read model over it, and the reactivity bridge that makes a legacy write visible in a
+  LiveView. Steps 1 and 4 onward are not built. The parts that *are* built are marked below.
+
+  The original deferral said to wait for Organization and tenancy (Phase 5) and hierarchy security (Phase 6), which is
+  what steps 2 and 3 turned out to need and now have. Steps 5 through 8 still depend on work that does not exist, and
+  step 5 in particular (`legacy.companies` → `BusinessUnit`) narrows access for everyone the moment it lands, so it is
+  not something to slip in.
+- **Date:** 2026-08-13, revised 2026-08-19
 - **Depends on:** [`ash-strangler.md`](ash-strangler.md), at least through its read-model phase. Two steps
   ([§5](#5-the-migration-story-step-by-step), steps 0 and 1) do not.
 - **Mapping decisions** follow [ADR 0008](../adr/0008-typed-invertible-legacy-mappings.md): every mapping is a typed
@@ -576,10 +579,10 @@ The small ones, listed for completeness because each is a line of mapping and a 
 
 Each step is a commit, each has an observable outcome, and each is reversible until step 6.
 
-**Step 0 — Baseline.** `mix ash_enterprise.legacy.setup` creates and seeds `legacy.*`. A LiveView renders the legacy
+**Step 0 — Baseline. ✅ BUILT.** `mix ash_enterprise.legacy.setup` creates and seeds `legacy.*`. A LiveView renders the legacy
 `users` table by raw SQL, so there is something to watch. No Ash resources involved.
 
-**Step 1 — Pre-flight.** `mix ash_enterprise.legacy.check` runs the assertions implied by the target resource:
+**Step 1 — Pre-flight. ❌ NOT BUILT.** `mix ash_enterprise.legacy.check` runs the assertions implied by the target resource:
 uniqueness of `email` case-insensitively, non-nullness of every `allow_nil?: false` attribute, referential integrity of
 `manager_id`. It fails, listing the seeded defects from §3. **This is the first deliverable and it should ship before
 any view exists** — knowing whether the target model is even satisfiable is worth more than any amount of generated
@@ -602,7 +605,8 @@ DDL.
 > and the mapping. Written standalone it needs nothing but `psql`, which is why §8 can list step 1 as
 > having no dependency on the extension at all.
 
-**Step 2 — Read model.** A view in schema `legacy_compat`, generated from the declarative mapping, plus
+**Step 2 — Read model. ✅ BUILT.** A view in schema `strangler` (not `legacy_compat` — the extension names the schema
+after itself, and there was no reason to fight it), generated from the declarative mapping, plus
 `AshEnterprise.Legacy.User` pointing at it with read actions only, no identity, and `migrate? false` on the legacy
 tables. Outcome: the user list appears in `ash_admin`, in GraphQL, in JSON:API, and as an MCP tool — with no code
 written for any of those surfaces. That is the derivation claim, tested against a schema nobody derived.
@@ -612,9 +616,9 @@ written for any of those surfaces. That is the derivation claim, tested against 
 > The comparison is the honest measure of what the extension adds over what the ecosystem already ships. If the
 > difference is small at this phase — and it may well be — say so.
 
-**Step 3 — Reactivity.** `AFTER` triggers on `legacy.users` emitting `pg_notify` with the legacy primary key; a
-listener that re-reads through Ash and dispatches an `Ash.Notifier.Notification`. Outcome: edit a row in `psql`, watch
-the LiveView update. This is the demo that sells the whole thing, and it is also the one whose delivery guarantees are
+**Step 3 — Reactivity. ✅ BUILT.** `AFTER` triggers on `legacy.users` emitting `pg_notify` with the legacy primary
+key; a listener that re-reads through Ash and dispatches an `Ash.Notifier.Notification`. Outcome: edit a row in `psql`,
+watch the LiveView update. This is the demo that sells the whole thing, and it is also the one whose delivery guarantees are
 weakest — §4.8.
 
 > The trigger-and-listen plumbing here should come from `ecto_watch` (1.1.0, actively maintained, ~108k downloads)
@@ -622,33 +626,97 @@ weakest — §4.8.
 > tenancy and calculations apply, and synthesizing a real `Ash.Notifier.Notification` so LiveView cannot tell a legacy
 > write from an Ash one. That bridge is a couple of hundred lines and it is the part worth showing.
 
-**Step 4 — Expand.** The first and only migration that writes to the legacy schema: add `uuid`, `organization_id`,
+**Step 4 — Expand. ❌ NOT BUILT.** The first and only migration that writes to the legacy schema: add `uuid`, `organization_id`,
 `owning_business_unit_id`, `version_number` as nullable columns; backfill in batches; index concurrently. Legacy code
 is untouched and unaware. Outcome: the view's computed columns become real columns, and the §4.9 performance problem
 goes away for the ones that mattered.
 
-**Step 5 — Backfill the security model.** `legacy.companies` → `BusinessUnit`; `legacy.roles` + `legacy.permissions` →
+**Step 5 — Backfill the security model. ❌ NOT BUILT.** `legacy.companies` → `BusinessUnit`; `legacy.roles` + `legacy.permissions` →
 `Role` + `RolePrivilege` with the §4.7 mapping; `legacy.roles_users` → `UserRole`. Outcome: the conformance truth
 table runs against migrated grants and access *narrows*. Diff the `Ash.can?` matrix before and after and put it in the
 demo output. This is the step with the highest blast radius in any real migration.
 
-**Step 6 — Dual write.** `INSTEAD OF INSERT/UPDATE/DELETE` on the view *if the mapping forces them* (§4.10) — and the
+**Step 6 — Dual write. ❌ NOT BUILT.** `INSTEAD OF INSERT/UPDATE/DELETE` on the view *if the mapping forces them* (§4.10) — and the
 demo should run this step twice, once each way, because the difference is the whole lesson; Ash write actions enabled; a reconciliation
 Oban job comparing row counts and checksums between the two shapes on a schedule; a usage counter incremented inside
 the legacy-path triggers so there is *evidence* of when the legacy write path goes quiet. Password changes are
 explicitly excluded (§4.6). Outcome: both applications write, in the same transactions, to the same rows.
 
-**Step 7 — Cutover.** The new Ash-owned `users` table becomes the source of truth. The view is redefined to read from
+**Step 7 — Cutover. ❌ NOT BUILT.** The new Ash-owned `users` table becomes the source of truth. The view is redefined to read from
 it, so the legacy Rails app keeps working against `legacy.users`-as-a-view without a code change. Direction of the
 `INSTEAD OF` triggers reverses. This is the highest-risk step and it is where a real migration would spend its
 rollback plan.
 
-**Step 8 — Decommission.** Drop the view, drop the triggers, drop the legacy tables. `AshEnterprise.Legacy.User`
+**Step 8 — Decommission. ❌ NOT BUILT.** Drop the view, drop the triggers, drop the legacy tables. `AshEnterprise.Legacy.User`
 becomes `AshEnterprise.Accounts.User` — the identical module we ship today, with no strangler DSL in it at all.
 
 That last property is the acceptance criterion for the whole design: **the end state must be a resource that shows no
 evidence the migration happened.** If the extension leaves residue in the resource file, it is a framework, not a
 migration tool.
+
+## Visual cue
+
+Step 3's outcome is "watch the LiveView update", and a table that quietly gains a row is a poor demonstration of that:
+by the time you look back at the screen, nothing distinguishes the new state from the state you were already looking
+at. So the surface raises a cue. What follows is where the boundary between what works and what does not actually
+falls, because it is not where you would guess.
+
+### What was built
+
+A banner above the surface, keyed on a counter, that fades in on `phx-mounted` and clears itself after six seconds.
+Every part of that is ordinary LiveView, because the banner is **LiveView's own DOM**:
+
+```elixir
+<div :if={@cue} id={"legacy-cue-#{@cue}"}>
+  <div phx-mounted={JS.transition({"transition-all duration-500 ease-out",
+                                   "opacity-0 -translate-y-1",
+                                   "opacity-100 translate-y-0"}, time: 500)}>
+```
+
+Two details are load-bearing. The element is **keyed on the counter**, so a second change removes and re-adds it — and
+`phx-mounted` fires on being added, so without the key only the first change would ever animate. And the cue is raised
+on the renderer's internal `{:ash_a2ui, :refresh}` message rather than on the PubSub broadcast, because the renderer
+debounces 150 ms: announcing an update before the rows arrive reads as a bug even though nothing is wrong.
+
+### Why the changed *row* is not highlighted
+
+This is the interesting half. The canonical LiveView techniques for "flash the thing that changed" are well documented
+and there are three of them. **None of them reach a row on an A2UI surface**, and it is the same reason each time.
+
+The renderer's container is `<div id="ash-a2ui-surface" phx-hook="AshA2ui" phx-update="ignore">`, and the components
+inside it are custom elements rendering into **shadow DOM**. So LiveView does not render the rows, does not patch them,
+and cannot see them:
+
+| Technique | Why it does not apply here |
+|---|---|
+| `push_event` + `liveSocket.execJS(el, el.getAttribute("data-highlight"))` | Needs an element carrying a `data-*` JS command that LiveView rendered. LiveView renders no rows here, and `document.querySelectorAll` does not cross a shadow boundary. |
+| `phx-mounted={@fresh && JS.transition(...)}` on a stream item | Needs LiveView to render the element. Same reason. There is no stream: the surface is one pushed `updateDataModel` message. |
+| A CSS keyframe that restarts when a node is inserted | Needs the rule to exist *inside* the shadow root. App stylesheets do not cross the boundary. Only inherited custom properties (`--a2ui-*`) do. |
+
+The pattern is worth stating plainly because it generalises past this one page: **`phx-update="ignore"` plus shadow DOM
+means the host application's cue vocabulary stops at the container.** Anything richer has to come from inside.
+
+### The three ways a row-level highlight could actually happen
+
+**Make the cue data, not decoration.** The surface already renders `row_layout`'s `badge` from a field. A calculation
+like `expr(modified_on > ago(30, :second))` would badge the recently-changed rows with no JavaScript at all, and it
+would survive the full data-model replacement because it *is* part of the data model. The catch is that it cannot clear
+itself: the badge disappears on the next refresh, and the next refresh only comes from the next write. Good enough to
+demonstrate, dishonest as a general mechanism.
+
+**Diff in the hook.** `priv/js/ash_a2ui_hook.js` receives every `updateDataModel` and could compare the incoming rows
+against the previous ones by key, then set an attribute on the changed rows *inside* the shadow root — where a
+`--a2ui-*`-themed animation can reach them. This is the correct fix and it belongs upstream in `ash_a2ui`, not here: it
+is a property of the renderer, every surface wants it, and it is the only one of the three that knows *which* rows
+changed rather than guessing from a timestamp.
+
+**Send the changed keys with the refresh.** The notification already carries `legacy_id` and the derived `id`, and the
+LiveView already knows them at refresh time. Pushing them alongside the data model would let the hook highlight exactly
+the rows the database said changed rather than diffing for them. Cheaper and more precise than diffing, but it needs a
+protocol addition, so it is the option that should be argued for rather than assumed.
+
+Until one of those exists, the banner is the honest cue: it tells you the table was rebuilt, and it does not pretend to
+know more than it does.
 
 ## 6. What this proves that a greenfield app cannot
 

@@ -105,10 +105,14 @@ metadata:
 - [migrations](references/ash_postgres/migrations.md)
 - [multitenancy](references/ash_postgres/multitenancy.md)
 
+### ash_strangler
+
+- [ash_strangler](references/ash_strangler/ash_strangler.md)
+
 ## Searching Documentation
 
 ```sh
-mix usage_rules.search_docs "search term" -p ash -p ash_a2ui -p ash_admin -p ash_ai -p ash_archival -p ash_authentication -p ash_authentication_phoenix -p ash_cloak -p ash_credo -p ash_diagram -p ash_events -p ash_graphql -p ash_json_api -p ash_money -p ash_oban -p ash_paper_trail -p ash_phoenix -p ash_postgres -p ash_rate_limiter -p ash_state_machine
+mix usage_rules.search_docs "search term" -p ash -p ash_a2ui -p ash_admin -p ash_ai -p ash_archival -p ash_authentication -p ash_authentication_phoenix -p ash_cloak -p ash_credo -p ash_diagram -p ash_events -p ash_graphql -p ash_json_api -p ash_money -p ash_oban -p ash_paper_trail -p ash_phoenix -p ash_postgres -p ash_rate_limiter -p ash_state_machine -p ash_strangler
 ```
 
 ## Available Mix Tasks
@@ -187,4 +191,9 @@ mix usage_rules.search_docs "search term" -p ash -p ash_a2ui -p ash_admin -p ash
 - `mix ash_state_machine.generate_flow_charts` - Generates Mermaid Flow Charts for each resource using `AshStateMachine`
 - `mix ash_state_machine.install` - Installs AshStateMachine
 - `mix ash_state_machine.install.docs`
+- `mix ash_strangler.check` - Runs the new model's assertions against the legacy data
+- `mix ash_strangler.gen.diagram` - Generates Mermaid diagrams of the legacy-to-new mapping
+- `mix ash_strangler.gen.migration` - Generate the migration that builds the strangler compatibility layer
+- `mix ash_strangler.gen.twin` - Generates a twin resource by introspecting a live legacy relation
+- `mix ash_strangler.install` - Installs AshStrangler. Invoked by `mix igniter.install ash_strangler`
 <!-- usage-rules-skill-end -->

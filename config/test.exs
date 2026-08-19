@@ -45,3 +45,10 @@ config :phoenix_live_view,
 # Sort query params output of verified routes for robust url comparisons
 config :phoenix,
   sort_verified_routes_query_params: true
+
+# The strangler notification bridge is off in tests. `LISTEN` is session state
+# and needs a connection outside the pool, which `Ecto.Adapters.SQL.Sandbox` does
+# not provide; and a bridge that fires on committed writes has nothing to say in
+# a suite where every test rolls back. Tests that need the behaviour drive
+# `AshStrangler.Listener.notify/2` directly.
+config :ash_enterprise, :legacy_listener?, false

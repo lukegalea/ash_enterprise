@@ -78,6 +78,11 @@ defmodule AshEnterprise.MixProject do
         :ash_oban,
         :ash_phoenix,
         :ash_postgres,
+        # Linked rather than inlined, on the same reasoning as ash_a2ui and
+        # ash_events: it is a large, specialized rule set that matters only when
+        # somebody is touching the legacy mapping, and AGENTS.md is read into
+        # every session whether or not anyone is.
+        {:ash_strangler, link: :markdown},
         :phoenix,
         :igniter,
         :reactor,
@@ -169,6 +174,20 @@ defmodule AshEnterprise.MixProject do
       # so removing it is a deletion, not a refactor.
       {:ash_a2ui, github: "lukegalea/ash_a2ui"},
 
+      # --- Strangler-fig migration of the legacy schema ------------------------
+      # Not published to hex, so this is a git dependency. First-party rather
+      # than third-party (ADR 0009), and used here for the read model over
+      # `legacy.*` plus the notification bridge that makes a legacy write
+      # visible to LiveView. See docs/plans/ash-strangler-in-reference-app.md.
+      # Pinned to a BRANCH rather than the default one, and that is temporary:
+      # https://github.com/lukegalea/ash_strangler/pull/4 carries two fixes this
+      # application needs -- the generated migration never created its own
+      # schema, and the notification bridge dispatched nothing for a
+      # `:read_from_legacy` resource. Both were found here. Move this back to a
+      # bare `github:` once that PR is merged.
+      {:ash_strangler,
+       github: "lukegalea/ash_strangler", branch: "fix/create-schema-and-heredoc-indentation"},
+
       # --- Observability -------------------------------------------------------
       # Ash.Tracer -> OpenTelemetry -> OTLP. opentelemetry_ash is thin (0.1.x);
       # expect to extend it. See docs/manifesto/07-what-we-do-not-have.md.
@@ -259,10 +278,31 @@ defmodule AshEnterprise.MixProject do
   # See the documentation for `Mix` for more info on aliases.
   defp aliases do
     [
-      setup: ["deps.get", "ash.setup", "assets.setup", "assets.build", "run priv/repo/seeds.exs"],
-      "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
+      # `ash_enterprise.legacy.setup` before every migrate, and after the database
+      # exists. The strangler migration declares a VIEW over `legacy.users`, so
+      # it cannot run against a database where that table has never been created
+      # -- it fails on `CREATE VIEW` with "relation legacy.users does not exist".
+      # This is the one place the simulated legacy schema has to be sequenced by
+      # hand, and it is sequenced here rather than inside a migration on purpose:
+      # a migration that created `legacy.*` would make Ash the owner of a schema
+      # the whole exercise depends on Ash NOT owning. See priv/legacy/README.md.
+      setup: [
+        "deps.get",
+        "ecto.create --quiet",
+        "ash_enterprise.legacy.setup",
+        "ash.setup",
+        "assets.setup",
+        "assets.build",
+        "run priv/repo/seeds.exs"
+      ],
+      "ecto.setup": [
+        "ecto.create",
+        "ash_enterprise.legacy.setup",
+        "ecto.migrate",
+        "run priv/repo/seeds.exs"
+      ],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
-      test: ["ash.setup --quiet", "test"],
+      test: ["ecto.create --quiet", "ash_enterprise.legacy.setup", "ash.setup --quiet", "test"],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
       "assets.build": ["compile", "tailwind ash_enterprise", "esbuild ash_enterprise"],
       "assets.deploy": [

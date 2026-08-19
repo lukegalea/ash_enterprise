@@ -118,6 +118,8 @@ config :ash_enterprise,
   ecto_repos: [AshEnterprise.Repo],
   generators: [timestamp_type: :utc_datetime],
   ash_domains: [
+    AshEnterprise.Legacy,
+    AshEnterprise.Legacy.Twins,
     AshEnterprise.Accounts,
     AshEnterprise.Security,
     AshEnterprise.Audit,

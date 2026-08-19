@@ -52,6 +52,20 @@ defmodule Mix.Tasks.AshEnterprise.Seed do
     if opts[:privileges_only] do
       :ok
     else
+      # The legacy estate first, so the greenfield tenant is provably not the
+      # only one and the isolation claim in plan §4.2 has something to isolate
+      # from. Idempotent, unlike the greenfield half.
+      case AshEnterprise.Platform.Seeder.seed_legacy_estate() do
+        :already_seeded ->
+          Mix.shell().info("Legacy estate already provisioned.")
+
+        seeded ->
+          Mix.shell().info(
+            "Provisioned the legacy estate tenant #{inspect(seeded.organization.name)} " <>
+              "(sign in as #{seeded.user.email})."
+          )
+      end
+
       seeded = AshEnterprise.Platform.Seeder.seed_tenant(opts)
 
       Mix.shell().info("""

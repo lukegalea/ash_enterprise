@@ -67,6 +67,9 @@ defmodule AshEnterpriseWeb.Layouts do
           <li>
             <a href="/app/business-units" class="btn btn-ghost btn-sm">Business units</a>
           </li>
+          <li>
+            <a href="/app/legacy-users" class="btn btn-ghost btn-sm">Legacy users</a>
+          </li>
           <li><a href="/admin" class="btn btn-ghost btn-sm">Admin</a></li>
           <li>
             <.theme_toggle />

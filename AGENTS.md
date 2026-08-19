@@ -3142,6 +3142,12 @@ mix ash.migrate
 mix ash_postgres.migrate --tenants
 ```
 <!-- ash_postgres:multitenancy-end -->
+<!-- ash_strangler-start -->
+## ash_strangler usage
+_Strangler-fig migrations for Ash: map an Ash resource onto a legacy Postgres schema and move it through the migration phases without hand-writing SQL._
+
+[ash_strangler usage rules](deps/ash_strangler/usage-rules.md)
+<!-- ash_strangler-end -->
 <!-- phoenix:ecto-start -->
 ## phoenix:ecto usage
 ## Ecto Guidelines

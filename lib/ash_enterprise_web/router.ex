@@ -110,7 +110,7 @@ defmodule AshEnterpriseWeb.Router do
     # filtered by the same policies as /admin and the APIs.
     #
     # Tier 3 (docs/manifesto/06-reversibility.md): removing ash_a2ui means
-    # deleting lib/ash_enterprise_web/a2ui/, this live_session, and these three
+    # deleting lib/ash_enterprise_web/a2ui/, this live_session, and these
     # routes. Every screen has an /admin equivalent, so nothing breaks meanwhile.
     ash_authentication_live_session :a2ui_surfaces,
       on_mount: [{AshEnterpriseWeb.LiveUserAuth, :live_user_required}] do
@@ -119,6 +119,7 @@ defmodule AshEnterpriseWeb.Router do
       live "/app/teams", A2uiLive.Teams
       live "/app/roles", A2uiLive.Roles
       live "/app/business-units", A2uiLive.BusinessUnits
+      live "/app/legacy-users", A2uiLive.LegacyUsers
     end
 
     ash_authentication_live_session :authenticated_routes do
