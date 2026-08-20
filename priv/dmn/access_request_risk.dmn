@@ -11,6 +11,9 @@
 -->
 <definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/"
              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20230324/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/"
              id="access_request_risk_definitions"
              name="Access request risk"
              namespace="https://ash-enterprise.example/dmn/access-request-risk"
@@ -85,4 +88,39 @@
       </rule>
     </decisionTable>
   </decision>
+
+  <!--
+    Diagram interchange. Not decoration: without it dmn-js has no layout and draws a
+    requirements diagram containing none of its nodes, which is an empty canvas rather than an
+    error, and is exactly how its absence was found. The model already declared both inputs
+    and both information requirements; nothing said where to put them.
+
+    (Note for anyone editing this comment: XML forbids a double hyphen inside a comment, so
+    the em-dash convention used everywhere else in this repository cannot be used here.)
+
+    The same lesson as `bpmndi:` on the BPMN baseline next door. A designer given a model with
+    no layout is a designer showing an empty page.
+  -->
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="diagram_risk" name="Access request risk">
+      <dmndi:DMNShape id="shape_decision_risk" dmnElementRef="decision_risk">
+        <dc:Bounds height="80" width="180" x="270" y="80"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="shape_input_tier" dmnElementRef="input_tier">
+        <dc:Bounds height="60" width="180" x="150" y="280"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="shape_input_justification_length"
+                      dmnElementRef="input_justification_length">
+        <dc:Bounds height="60" width="180" x="390" y="280"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNEdge id="edge_req_tier" dmnElementRef="req_tier">
+        <di:waypoint x="240" y="280"/>
+        <di:waypoint x="330" y="160"/>
+      </dmndi:DMNEdge>
+      <dmndi:DMNEdge id="edge_req_justification" dmnElementRef="req_justification">
+        <di:waypoint x="480" y="280"/>
+        <di:waypoint x="390" y="160"/>
+      </dmndi:DMNEdge>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
 </definitions>

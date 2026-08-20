@@ -20,7 +20,7 @@ defmodule AshEnterpriseWeb.Bpmn.CatalogLive do
   require Ash.Query
 
   alias AshEnterprise.Platform.SystemActor
-  alias AshEnterprise.Process.{Binding, Resolver, Trigger}
+  alias AshEnterprise.Process.{Binding, DefinitionLoader, Resolver, Trigger}
 
   @impl true
   def mount(_params, _session, socket) do
@@ -95,7 +95,47 @@ defmodule AshEnterpriseWeb.Bpmn.CatalogLive do
     socket
     |> assign(:rows, rows)
     |> assign(:kind, kind)
+    |> assign(:instances, if(kind == :process, do: running_instances(socket), else: []))
     |> assign(:drift, Map.new(Resolver.drift(tenant), &{{&1.kind, &1.key}, &1}))
+  end
+
+  # What is actually running, and the only route to the instance viewer.
+  #
+  # Before this, `/app/instances/:id` was reachonly by typing a UUID: no screen linked to it,
+  # so the one surface that shows a diagram with live tokens on it was effectively unreachable.
+  # A list of keys and versions answers "what could run here"; this answers "what is running",
+  # which is the question someone on call actually has.
+  defp running_instances(socket) do
+    tenant = tenant(socket)
+
+    instances =
+      AshEnterprise.Bpmn.Instance
+      |> Ash.Query.for_read(:read)
+      |> Ash.Query.do_filter(status: :running)
+      |> Ash.Query.sort(created_on: :desc)
+      |> Ash.Query.limit(10)
+      |> Ash.read!(actor: SystemActor.process(), tenant: tenant)
+
+    # An instance carries `definition_id`, not `definition_key` -- deliberately, because the
+    # key is not what it is pinned to. Resolving the key therefore means reading the
+    # definition, and the definition may be the platform organization's rather than this
+    # tenant's, which is exactly what `DefinitionLoader` exists to handle. Reading it here with
+    # a plain tenant-scoped query would show a blank key for every instance running a baseline
+    # -- which is most of them.
+    Enum.map(instances, fn instance ->
+      key =
+        case DefinitionLoader.load(
+               AshEnterprise.Bpmn.Definition,
+               instance.definition_id,
+               instance,
+               %{tenant: tenant}
+             ) do
+          {:ok, definition} -> definition.key
+          {:error, _} -> nil
+        end
+
+      %{instance: instance, key: key}
+    end)
   end
 
   defp active_definition(definitions, %{source: :tenant, target_id: id}, _own),
@@ -241,6 +281,44 @@ defmodule AshEnterpriseWeb.Bpmn.CatalogLive do
               </tr>
             </tbody>
           </table>
+
+          <%!-- Running instances. See `running_instances/1`: without this the instance viewer
+                had no inbound link from anywhere in the application. --%>
+          <div :if={@kind == :process} class="space-y-2">
+            <h2 class="text-lg font-semibold">Running now</h2>
+            <p class="max-w-3xl text-sm opacity-70">
+              Each one is pinned to the definition version it started on and keeps running it,
+              so rebinding a key never migrates work that is already in flight.
+            </p>
+
+            <p :if={@instances == []} class="text-sm opacity-60" id="no-instances">
+              Nothing running. `mix ash_enterprise.bpmn.setup` leaves some behind.
+            </p>
+
+            <table :if={@instances != []} class="table table-zebra" id="instances-table">
+              <thead>
+                <tr>
+                  <th>Process</th>
+                  <th>Started</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr :for={row <- @instances} id={"instance-#{row.instance.id}"}>
+                  <td class="font-mono text-xs">{row.key || "(definition not found)"}</td>
+                  <td class="text-xs opacity-70">{row.instance.created_on}</td>
+                  <td class="text-right">
+                    <.link
+                      navigate={~p"/app/instances/#{row.instance.id}"}
+                      class="btn btn-ghost btn-xs"
+                    >
+                      View tokens
+                    </.link>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         <% end %>
       </div>
     </Layouts.app>

@@ -18,7 +18,8 @@
 // the sandbox these were first captured in; override with BROWSER=chromium if yours can.
 
 import { chromium, firefox } from "playwright";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -63,10 +64,27 @@ const hideDevTooling = `
   [id*="tidewave"], tidewave-toolbar, #tidewave-toolbar { display: none !important; }
 `;
 
-async function shot(name, path, { wait = 1200, selector = null } = {}) {
+// Every capture is wrapped: a step that throws costs its own screenshot and is recorded as a
+// failure, rather than aborting the run and silently leaving every later shot at whatever the
+// last commit produced. A half-finished capture that exits 0 is the failure mode this script
+// exists to prevent.
+async function shot(name, path, opts = {}) {
+  try {
+    await doShot(name, path, opts);
+  } catch (err) {
+    failures.push(`${name} (${path}): ${err.message.split("\n")[0]}`);
+    console.error(`  ${name}  THREW: ${err.message.split("\n")[0]}`);
+  }
+}
+
+async function doShot(name, path, { wait = 1200, selector = null, before = null } = {}) {
   await page.goto(`${base}${path}`, { waitUntil: "networkidle" });
   await page.addStyleTag({ content: hideDevTooling });
   await page.waitForTimeout(wait);
+
+  // Interaction that has to happen after the page settles but before the shutter: selecting a
+  // node, switching a tab, zooming out from under an overlay.
+  if (before) await before();
 
   if (selector) {
     try {
@@ -117,7 +135,127 @@ await shot("bpmn-designer.png", "/app/processes/access_request.grant/designer", 
   selector: ".bjs-powered-by",
 });
 
+// The designer with a user task selected, so the properties panel has content: candidates,
+// maker-checker exclusions, outcomes, timers. `ManagerApproval` rather than a start event
+// because it is the node with something to say.
+//
+// bpmn-js fits the diagram edge to edge, which slides the leftmost element under the palette
+// overlay -- hence the zoom-out before clicking anything. Selecting by the element's label
+// rather than by position, for the same reason the ash_bpmn script does: a layout change
+// must not silently reframe the capture on a different node.
+await shot("bpmn-designer-user-task.png", "/app/processes/access_request.grant/designer", {
+  wait: 3000,
+  selector: ".bjs-powered-by",
+  before: async () => {
+    await page.evaluate(() => {
+      document.querySelector('[title="Zoom out"], .bjs-zoom-out')?.click();
+    });
+    const node = page.locator('.djs-element[data-element-id="ManagerApproval"]').first();
+
+    if (await node.count()) {
+      // Offset from the centre on purpose. `Flow_mgr_rejected` runs vertically through
+      // x=730, which is exactly the centre of a task box spanning 670..790 -- so a plain
+      // centre click is intercepted by the flow's hit stroke and Playwright retries until it
+      // times out. `force: true` would not help: the flow is genuinely the topmost element
+      // there. Clicking the box's upper-left instead lands on the task.
+      await node.click({ position: { x: 20, y: 15 } });
+      await page.waitForTimeout(600);
+    } else {
+      console.warn("  bpmn-designer-user-task: ManagerApproval node not found");
+    }
+  },
+});
+
+// A running instance, with tokens on the diagram. Reached by clicking through from the
+// catalogue rather than by a hardcoded id: the id changes every seed, and a capture script
+// that needs one edited by hand is a capture script nobody re-runs.
+await page.goto(`${base}/app/processes`, { waitUntil: "networkidle" });
+const viewLink = page.locator("#instances-table a", { hasText: "View tokens" }).first();
+
+if (await viewLink.count()) {
+  const href = await viewLink.getAttribute("href");
+  await shot("bpmn-viewer-running.png", href, {
+    wait: 3000,
+    selector: ".bjs-powered-by",
+  });
+} else {
+  failures.push("bpmn-viewer-running.png: no running instance on /app/processes");
+  console.error("  bpmn-viewer-running.png  NO RUNNING INSTANCE");
+}
+
+// The DMN editor. `access_request.risk` has to be *customized* in this tenant for the editor
+// to open on it, which is the point of the fork-before-edit rule -- so click Customize if the
+// row is still a baseline. dmn-js opens the decision-table view for a single-decision
+// document, so this is the table shot; the DRD is one tab away.
+await page.goto(`${base}/app/decisions`, { waitUntil: "networkidle" });
+const customize = page
+  .locator('#catalog-access_request\\.risk button', { hasText: "Customize" })
+  .first();
+
+if (await customize.count()) {
+  await customize.click();
+  await page.waitForURL((u) => u.pathname.includes("/editor"), { timeout: 15000 });
+}
+
+// The decision table is NOT the default view. dmn-js opens views[0], which is the DRD
+// whenever the document carries DMNDI -- and this one now does. Before the layout was added
+// there was no DRD view to open, dmn-js fell through to the decision table, and this shot
+// happened to be right by accident.
+//
+// It stopped being right silently: the table capture became a byte-identical copy of the DRD
+// capture, and two identical files were a hand-width away from shipping as two different
+// figures on the marketing site. So the tab is clicked explicitly, and the two shots are
+// checked for being distinct at the end of this script.
+await shot("dmn-decision-table.png", "/app/decisions/access_request.risk/editor", {
+  wait: 3500,
+  before: async () => {
+    const tab = page.locator("#decision-views button", { hasText: "Decision table" }).first();
+    if (await tab.count()) {
+      await tab.click();
+      await page.waitForTimeout(2000);
+    } else {
+      throw new Error("no Decision table tab -- dmn-js reported no decision-table view");
+    }
+  },
+});
+
+// The requirements diagram, from the same document. The tabs are server-rendered -- dmn-js
+// ships no view switcher -- so this is a click on our own button, not on the editor's.
+await page.goto(`${base}/app/decisions/access_request.risk/editor`, {
+  waitUntil: "networkidle",
+});
+await page.waitForTimeout(3000);
+const drdTab = page.locator("#decision-views button", { hasText: "Requirements" }).first();
+
+if (await drdTab.count()) {
+  await drdTab.click();
+  await page.waitForTimeout(2000);
+  await page.addStyleTag({ content: hideDevTooling });
+  await page.screenshot({ path: resolve(outDir, "dmn-drd.png"), fullPage: false });
+  console.log("  dmn-drd.png");
+} else {
+  failures.push("dmn-drd.png: no Requirements tab -- dmn-js reported no views");
+  console.error("  dmn-drd.png  NO VIEWS");
+}
+
 await browser.close();
+
+// Two captures that are byte-identical mean one of them photographed the wrong thing. This
+// has happened once already -- see the note above the decision-table shot -- and it is the
+// kind of mistake that survives review, because both files exist and both look fine on their
+// own.
+const distinctPairs = [["dmn-decision-table.png", "dmn-drd.png"]];
+
+for (const [a, bName] of distinctPairs) {
+  try {
+    const [ha, hb] = [a, bName].map((n) =>
+      createHash("sha256").update(readFileSync(resolve(outDir, n))).digest("hex"),
+    );
+    if (ha === hb) failures.push(`${a} and ${bName} are byte-identical -- one is the wrong view`);
+  } catch (err) {
+    failures.push(`could not compare ${a} and ${bName}: ${err.message}`);
+  }
+}
 
 if (failures.length) {
   console.error(`\n${failures.length} page(s) failed to render:`);
