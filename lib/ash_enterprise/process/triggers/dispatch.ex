@@ -140,13 +140,16 @@ defmodule AshEnterprise.Process.Triggers.Dispatch do
 
   # Wrapped, and the wrapping is load-bearing rather than defensive.
   #
-  # The sweep runs a whole batch inside one transaction, so an exception escaping here would
-  # roll back *everything* -- the other events' dispatches, their instances, and the cursor.
-  # A process that failed to start would take the batch with it and leave no trace of having
-  # tried, which is the opposite of the failure semantics this design promises: the cursor
-  # advances past a failure and the failure is a queryable row.
+  # An exception escaping here would abort the event's own transaction and propagate out of
+  # `dispatch_isolated/3`, taking the rest of the sweep -- and the cursor advance -- with it. A
+  # process that failed to start would leave no trace of having tried, which is the opposite of
+  # the failure semantics this design promises: the cursor advances past a failure and the
+  # failure is a queryable row.
   #
   # Found the hard way: a service task raising made a whole sweep vanish, instance included.
+  # That was also what removed the per-sweep advisory lock, since a single transaction around
+  # the batch cannot survive one bad event -- a Postgres error aborts it and every later
+  # statement fails too. See `SweepWorker`'s moduledoc.
   defp start_one(trigger, event, target, tenant) do
     do_start_one(trigger, event, target, tenant)
   rescue

@@ -5,12 +5,22 @@ defmodule Mix.Tasks.AshEnterprise.Bpmn.Setup do
   Makes the process surfaces show something real.
 
   Publishes the baselines, creates the access-request trigger in each seeded tenant, and then
-  **drives four requests to four different states** so that every screen has something on it:
+  **drives four requests down all three branches of the gateway** so that every screen has
+  something on it, and no branch of the published diagram is left unexercised:
 
-    1. granted with no human involved — proof the engine runs end to end
-    2. waiting on an approval — so the task list has a row somebody can act on
-    3. waiting on an executive approval, from a privileged request — a different branch
-    4. a tenant that has customized the risk decision — so the drift badge has a subject
+    1. `low` — granted with no human involved, proof the engine runs end to end
+    2. `high`, from an elevated request with a thin justification — an executive approval
+    3. `high`, from a privileged request — the same branch by a different rule
+    4. `medium` — a manager approval, so the task list has a row and `ManagerApproval` runs
+
+  It also customizes one tenant's risk decision, so the drift badge on `/app/processes` has a
+  subject rather than being a feature nothing demonstrates.
+
+  The fourth request is the one to be careful with when editing: the trigger's guard is
+  `string length(data.justification) > 30` and the risk table's boundary is `< 40`, so only a
+  standard-tier justification of 31 to 39 characters reaches `medium` at all. Three requests
+  route to `low`, `high` and `high`, which is why `ManagerApproval` had never once executed
+  before it was added.
 
   ## Why it drains the queue
 
@@ -171,8 +181,20 @@ defmodule Mix.Tasks.AshEnterprise.Bpmn.Setup do
         "Privileged access for the incident review, scoped to the affected unit only."
       )
 
+      # The `medium` request, and the reason it is written to a length rather than to read
+      # nicely. The trigger's guard is `string length(data.justification) > 30` and the risk
+      # table's boundary is `< 40`, so a request only reaches `medium` -- and therefore only
+      # reaches `ManagerApproval` -- with a standard-tier justification between 31 and 39
+      # characters. This one is 37.
+      #
+      # Without it the whole middle branch of the diagram was unreachable from the seed: the
+      # other three route to `low`, `high` and `high`, so both approval tasks were executive
+      # ones and `ManagerApproval` had never executed. A demo that leaves a branch of its own
+      # diagram unexercised is the kind of thing a screenshot hides rather than reveals.
+      submit(tenant, role, user, :standard, "Standing report access for month-end.")
+
       drain(tenant)
-      Mix.shell().info("  three requests submitted and dispatched")
+      Mix.shell().info("  four requests submitted and dispatched")
     end
   end
 

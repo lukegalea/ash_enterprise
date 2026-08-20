@@ -1,13 +1,14 @@
 {
   "name": "ash_enterprise_assets",
   "private": true,
-  "description": "Client-side dependencies. Kept minimal: everything else is Phoenix + Tailwind, vendored via mix. bpmn-js is the exception -- the process designer is a real diagram editor and there is no server-rendered equivalent; the ash_bpmn hook imports it, the host owns the dependency.",
+  "description": "Client-side dependencies. Kept minimal: everything else is Phoenix + Tailwind, vendored via mix. bpmn-js and dmn-js are the exception -- a process designer and a decision-table editor are real editors with no server-rendered equivalent; the ash_bpmn and ash_decisions hooks import them, the host owns the dependency. Both carry the bpmn.io licence, whose texts are byte-identical: the watermark must stay visible and unoverlapped, which constrains CSS and screenshot cropping alike. See docs/manifesto/06-reversibility.md for the cost this represents.",
   "dependencies": {
     "@a2ui/lit": "^0.10.3",
     "@a2ui/markdown-it": "^0.1.1",
     "@a2ui/web_core": "^0.10.6",
     "@lit/context": "^1.1.6",
-    "lit": "^3.0.0",
-    "bpmn-js": "^18.0.0"
+    "bpmn-js": "^18.0.0",
+    "dmn-js": "^17.10.1",
+    "lit": "^3.0.0"
   }
 }

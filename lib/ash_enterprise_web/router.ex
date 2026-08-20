@@ -139,6 +139,7 @@ defmodule AshEnterpriseWeb.Router do
       live "/app/decisions", Bpmn.CatalogLive, :decisions
       live "/app/triggers", Bpmn.CatalogLive, :triggers
       live "/app/processes/:key/designer", Bpmn.DesignerLive
+      live "/app/decisions/:key/editor", Decisions.EditorLive
       live "/app/instances/:id", Bpmn.ViewerLive
     end
 

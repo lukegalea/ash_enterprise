@@ -10,6 +10,10 @@
    properties panel has no layout, and the result looks like a broken editor rather than an
    unscanned dependency. `source(none)` above means nothing is scanned unless it is named. */
 @source "../../deps/ash_bpmn/lib";
+/* Same reason for ash_decisions: its editor LiveView carries Tailwind classes in
+   its own template, and `source(none)` above means nothing is scanned unless it
+   is named here. Unscanned, the editor renders as an unstyled column. */
+@source "../../deps/ash_decisions/lib";
 @import "phoenix-colocated/ash_enterprise/colocated.css";
 @source "../css";
 @source "../js";

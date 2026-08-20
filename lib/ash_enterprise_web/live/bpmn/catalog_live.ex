@@ -32,6 +32,28 @@ defmodule AshEnterpriseWeb.Bpmn.CatalogLive do
     {:noreply, load(socket, socket.assigns.live_action)}
   end
 
+  @impl true
+  def handle_event("customize", %{"key" => key}, socket) do
+    kind = socket.assigns.kind
+
+    # The actor is the signed-in administrator, not a system actor: forking is a person's
+    # decision and the audit entry should name them. `Resolver.fork/4` is idempotent, so a
+    # double-click returns the same draft rather than a second one.
+    case Resolver.fork(kind, key, tenant(socket), socket.assigns[:current_user]) do
+      {:ok, _draft} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, "Draft created from the baseline. Publish it to switch over.")
+         |> push_navigate(to: editor_path(kind, key))}
+
+      {:error, error} ->
+        {:noreply, put_flash(socket, :error, Exception.message(error))}
+    end
+  end
+
+  defp editor_path(:process, key), do: ~p"/app/processes/#{key}/designer"
+  defp editor_path(:decision, key), do: ~p"/app/decisions/#{key}/editor"
+
   defp load(socket, :processes),
     do: load_definitions(socket, :process, AshEnterprise.Bpmn.Definition)
 
@@ -171,13 +193,49 @@ defmodule AshEnterpriseWeb.Bpmn.CatalogLive do
                     <% end %>
                   </span>
                 </td>
-                <td class="text-right">
+                <td class="space-x-1 text-right">
+                  <%!-- Customizing is an explicit act, not a side effect of opening an editor.
+                        Both editors create a draft on first visit if none exists, seeded from a
+                        blank template -- which is right for a key nobody has ever published and
+                        wrong here, where the answer should be a copy of the baseline. So the
+                        fork happens on this button, and the editor is only ever opened on a
+                        draft that already exists.
+
+                        It also keeps the default honest. Absence of a binding means "follow the
+                        baseline"; a design where merely looking at a decision forked it would
+                        turn every visit into a customization. --%>
+                  <button
+                    :if={row.source == :platform}
+                    type="button"
+                    class="btn btn-ghost btn-xs"
+                    phx-click="customize"
+                    phx-value-key={row.key}
+                  >
+                    Customize
+                  </button>
                   <.link
-                    :if={@kind == :process}
+                    :if={@kind == :process and row.source == :tenant}
                     navigate={~p"/app/processes/#{row.key}/designer"}
                     class="btn btn-ghost btn-xs"
                   >
                     Open designer
+                  </.link>
+                  <.link
+                    :if={@kind == :decision and row.source == :tenant}
+                    navigate={~p"/app/decisions/#{row.key}/editor"}
+                    class="btn btn-ghost btn-xs"
+                  >
+                    Open editor
+                  </.link>
+                  <%!-- A baseline is readable but not editable from here: publishing into the
+                        platform organization is `mix ash_enterprise.bpmn.publish` and nothing
+                        else. See ADR 0029. --%>
+                  <.link
+                    :if={@kind == :process and row.source == :platform}
+                    navigate={~p"/app/processes/#{row.key}/designer"}
+                    class="btn btn-ghost btn-xs"
+                  >
+                    View
                   </.link>
                 </td>
               </tr>

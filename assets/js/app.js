@@ -45,6 +45,12 @@ import "@a2ui/lit/v0_9"
 // These import CSS, which esbuild emits as a second stylesheet alongside app.js. `root.html.heex`
 // links it explicitly; without that link the diagram renders as unstyled boxes.
 import {AshBpmnDesigner, AshBpmnViewer} from "../../deps/ash_bpmn/priv/js/ash_bpmn_designer.js"
+
+// The DMN decision editor, on the same arrangement. dmn-js renders three
+// different things behind one hook -- the requirements diagram, the decision
+// table, the literal expression -- and ships no view switcher, so the tabs are
+// server-rendered by the LiveView from the view list the hook reports.
+import {AshDecisionsEditor} from "../../deps/ash_decisions/priv/js/ash_decisions_editor.js"
 import {basicCatalog, A2uiLitElement, A2uiController, Context} from "@a2ui/lit/v0_9"
 import {MessageProcessor, Catalog, ChoicePickerApi, ColumnApi} from "@a2ui/web_core/v0_9"
 import {html, css, nothing} from "lit"
@@ -105,7 +111,7 @@ const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks, AshA2ui, AshBpmnDesigner, AshBpmnViewer},
+  hooks: {...colocatedHooks, AshA2ui, AshBpmnDesigner, AshBpmnViewer, AshDecisionsEditor},
 })
 
 // Show progress bar on live navigation and form submits

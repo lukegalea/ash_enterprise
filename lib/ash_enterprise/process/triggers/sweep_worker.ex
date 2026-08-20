@@ -6,12 +6,25 @@ defmodule AshEnterprise.Process.Triggers.SweepWorker do
   nudge costs latency rather than a missed process. The design and the measurements it rests on
   are in `docs/plans/event-triggered-processes.md`.
 
-  ## One writer, holding a lock, walking a cursor
+  ## One cursor, and an arbiter that is not a lock
 
   The audit table cannot be marked — a Postgres trigger raises on `UPDATE` and `DELETE` — so
   there is no per-row state to reconcile against, and two writers advancing an unmarkable
-  stream is a race with no arbiter. So a sweep takes a per-tenant advisory lock: a nudge
-  arriving mid-sweep blocks and then finds the cursor already advanced.
+  stream would be a race with no arbiter.
+
+  **The arbiter is `TriggerDispatch`'s `[:trigger_id, :event_id]` identity, not an advisory
+  lock**, and the difference is worth stating because the lock was written first and had to be
+  removed. Wrapping a sweep in `pg_advisory_xact_lock` needs one transaction around the batch,
+  and one transaction around the batch is exactly what a failing event cannot survive: a
+  Postgres error aborts the enclosing transaction, so rescuing the exception leaves every
+  subsequent statement in the batch failing too, and a whole sweep disappears on one bad event.
+  Found by running it, not by reading it.
+
+  So each event is dispatched in its own transaction and the identity refuses the duplicate.
+  Two concurrent sweeps therefore cost duplicated work, not duplicated processes, and Oban's
+  `unique` option on the enqueue keeps that rare. A nudge arriving mid-sweep does not block; it
+  either finds the cursor advanced or re-dispatches an event whose dispatch row already exists
+  and is recorded as `:skipped`.
 
   Reading `sequence > cursor` is safe because, within a tenant, sequence order is commit order
   — see `AshEnterprise.Audit.EventLog`, which records why and what that depends on.
@@ -34,8 +47,8 @@ defmodule AshEnterprise.Process.Triggers.SweepWorker do
   alias AshEnterprise.Process.{Trigger, TriggerCursor, TriggerDispatch}
   alias AshEnterprise.Process.Triggers.Dispatch
 
-  # Bounded so one sweep cannot hold the lock indefinitely on a tenant with a large backlog.
-  # The next sweep continues from the cursor.
+  # Bounded so a tenant with a large backlog is swept in several passes rather than one very
+  # long job. The next sweep continues from the cursor.
   @batch 500
 
   @impl Oban.Worker
