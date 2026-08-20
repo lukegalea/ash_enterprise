@@ -64,7 +64,11 @@ defmodule AshEnterprise.Legacy.User do
     # writes to would be worse than not claiming one. See plan §4.8.
     audit?: false,
     extra_extensions: [AshStrangler.Resource],
-    notifiers: [Ash.Notifier.PubSub]
+    # Two notifiers, and both matter. `PubSub` makes /app/legacy-users live over the view;
+    # `Projection` copies the same change into a table this application owns, so
+    # /app/directory is live over real columns. Declared together so a legacy write drives
+    # both surfaces and the pair can be compared -- see AshEnterprise.Legacy.Projection.
+    notifiers: [Ash.Notifier.PubSub, AshEnterprise.Legacy.Projection]
 
   postgres do
     # The VIEW, in schema `strangler`. Not `legacy.users`.

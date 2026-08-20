@@ -120,6 +120,11 @@ defmodule AshEnterpriseWeb.Router do
       live "/app/roles", A2uiLive.Roles
       live "/app/business-units", A2uiLive.BusinessUnits
       live "/app/legacy-users", A2uiLive.LegacyUsers
+
+      # The same people, over a table this application owns rather than a view over the legacy
+      # one. Both are live, and the pair is the demonstration -- see
+      # AshEnterprise.Legacy.Projection.
+      live "/app/directory", A2uiLive.ProjectedUsers
     end
 
     # Process and decision surfaces. A separate live_session from the A2UI one because these

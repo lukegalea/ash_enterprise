@@ -213,9 +213,9 @@
       "id": "q22",
       "section": "change",
       "question": "How do you move onto this platform from a database you cannot stop?",
-      "answer": "`ash_strangler` maps a well-modelled resource onto the legacy schema through a closed grammar of typed combinators whose reverses are built rather than guessed, and moves it through four cutover phases without hand-written SQL. 341 tests, including round-trip properties over the legacy value space. The package ships; the demo inside this repository does not.",
+      "answer": "`ash_strangler` maps a well-modelled resource onto the legacy schema through a closed grammar of typed combinators whose reverses are built rather than guessed, and moves it through four cutover phases without hand-written SQL. 341 tests, including round-trip properties over the legacy value space. **Running here**: `legacy.users` is read through a compatibility view as an ordinary platform resource, a Postgres trigger and listener make that surface live, and the same change is *projected* into a table this application owns -- so there are two live surfaces over the same people, one over the view and one over real columns, and the second is audited where the first structurally cannot be. Still partial, and deliberately: this is not a cutover. The legacy database remains the system of record, and the mapping is not invertible in two documented places (`full_name` cannot be split back into first and last; `company_id` is unmapped), which is exactly what a true cutover would have to resolve.",
       "status": "partial",
-      "adr": "0009",
+      "adr": "0031",
       "item": "first-party"
     },
     {
@@ -479,6 +479,15 @@
       "status": "partial",
       "adr": "0028",
       "item": "decisions"
+    },
+    {
+      "id": "q54",
+      "section": "change",
+      "question": "Can a UI built on the new model be driven by a database the old application still owns?",
+      "answer": "Yes, and it is demonstrated rather than asserted: `INSERT INTO legacy.users` in `psql` reaches a surface generated from `AshEnterprise.Accounts.ProjectedUser` -- an Ash-owned table with real columns -- without a reload and without anything in that surface knowing a legacy database exists. The chain is an `AFTER` trigger, `pg_notify` on commit, a listener that re-reads through Ash so the mapped values apply, a notifier that upserts through an ordinary Ash action, and `Ash.Notifier.PubSub`. What it costs: the projection is eventually consistent, and `projected_at` is a column so the lag is on screen rather than hidden. A row that fails to project is silently absent until the backfill is re-run -- there is no retry, and the reconciliation job that would close that gap is not built.",
+      "status": "shipped",
+      "adr": "0031",
+      "item": "first-party"
     }
   ],
   "items": [
@@ -489,7 +498,7 @@
       "choice": "ash_strangler + ash_bpmn + ash_decisions, first-party",
       "adr": "0009",
       "status": "shipped",
-      "effort": "Three packages at 0.1.0 under MIT with substantial suites -- 341 tests for the strangler, 198 for BPMN, 101 plus a 3,495-assertion conformance corpus for decisions. The composition is what was outstanding and is now done: all three are dependencies, their resources sit on this application's base resource, and a process runs here end to end.",
+      "effort": "Three packages at 0.1.0 under MIT with substantial suites -- 341 tests for the strangler, 198 for BPMN, 101 plus a 3,495-assertion conformance corpus for decisions. The composition is what was outstanding and is now done: all three are dependencies, their resources sit on this application's base resource, a process runs here end to end, and the legacy estate is both read live through a view and projected into a table this application owns.",
       "bar": "Yes for both, now. `ash_strangler` by construction — its output is read through the ordinary action layer. `ash_bpmn` because a work item on `AshEnterprise.Platform.Resource` inherits this policy set, with one ordering rule: Ash's bypasses skip only the policies declared after them, so the engine's bypass has to sit at the top of `AshEnterprise.Security.Policies` or the engine acts as a `SystemActor` this set already admits.",
       "answer": "All three are dependencies of this application and their resources are this application's own: a legacy table is mapped and read here, and the process, decision and trigger tables inherit `AshEnterprise.Platform.Resource` -- so an instance is an ordinary owned, tenant-scoped, audited record and the engines' authority is two declared policy bypasses rather than an option at a call site. Demonstrated rather than asserted: an `AccessRequest` submission is one audited write, a trigger matches it, a FEEL guard filters it, a DMN decision routes it, and four seeded requests drive all three branches of the gateway. What is not here is a FEEL editor, and decision evaluation from the editor."
     },

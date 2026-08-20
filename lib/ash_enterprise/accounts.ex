@@ -90,5 +90,11 @@ defmodule AshEnterprise.Accounts do
     # The job hierarchy, as distinct from the organizational one. Drives
     # hierarchy security in :position mode, which reaches across business units.
     resource AshEnterprise.Accounts.Position
+
+    # The legacy estate, projected into a table this application owns. Sits in Accounts rather
+    # than Legacy on purpose: the point of a projection is that the result is an ordinary
+    # resource of this application's, and filing it next to the legacy read model would suggest
+    # otherwise. See its moduledoc for why it is not `User` yet.
+    resource AshEnterprise.Accounts.ProjectedUser
   end
 end

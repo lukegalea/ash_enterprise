@@ -768,3 +768,170 @@ This work is DEFERRED. It requires, in order:
 Steps 0 and 1 of §5 are the exception: the legacy schema and the pre-flight checker have no dependency on the
 extension and could be built at any point. They are also where most of the learning is. If only one piece of this
 document is ever built, build those two.
+
+---
+
+# Addendum — 2026-08-20: step 3½, the projection
+
+**Appended, not merged.** Per the convention in [`README.md`](README.md), nothing above this line has
+been edited. This section records something that was built which the plan above does not contain: it
+sits between [step 3](#5-the-migration-story-step-by-step) and step 4, it is not one of the eight
+steps, and it should not be counted as progress along them. The decision and its alternatives are
+[ADR 0031](../adr/0031-the-legacy-estate-is-projected-not-cut-over.md); this is the plan-shaped record
+of what it changes about §5 and `## Visual cue`.
+
+## What was asked for, and which step it turned out to be
+
+A UI generated for the **new** schema, receiving the inserts made into the **legacy** table, updating
+**live**. The third clause was step 3 and already worked. The first clause — a table this application
+owns, rather than a view whose columns are a `SELECT` list — is **step 7, Cutover**.
+
+**Step 7 was rejected, and the mapping is what rejected it.** At `:read_from_new` the legacy name
+becomes a view over the new table with `INSTEAD OF` triggers, so every mapping has to run backwards, and
+`AshStrangler.Verifiers.VerifyReverseMappable` refuses the phase over anything classified
+`invertible: :no` or `:semi`. `AshEnterprise.Legacy.User` has three: `full_name`, `legacy_state` and
+`lifecycle_status`, each carrying the mandatory `because:` that makes it one.
+
+**One of those three is a place the plan above was wrong, and it is worth naming rather than glossing.**
+[§4.11](#411-archival-lifecycle-concurrency) predicts legacy `state` will be a **`decode`** — *"one
+declared bijection, both directions derived from a single map"* — onto `state_code`/`status_code`. What
+shipped is not a bijection and does not touch `state_code`: `legacy_state` carries the legacy value
+verbatim and `lifecycle_status` is a lossy `if(state == :active, …)` collapse, both `read_only?`, because
+the platform's `lifecycle_status` has **two** values and no `decode` can be a bijection onto five. §4.11's
+own warning about wrong inverses rewriting lifecycle states silently is correct and was heeded; its
+proposed *mechanism* assumed a target enum wide enough to hold the source, and this one is not. The
+consequence is that one of the three mappings blocking `:read_from_new` was predicted to be the mapping
+that made the phase *safe*.
+
+The verifier's remedy is *"carry those legacy columns across unchanged as
+well"*, which means the new table holds `first_name`, `last_name` and `state` rather than deriving them
+— and a target resource that carries the legacy columns is not the resource §5's step 8 acceptance
+criterion describes. Steps 4, 5 and 6 are also in the way, and step 5 is the one this plan calls **the
+step with the highest blast radius in any real migration**.
+
+So the direction was inverted instead. Data flows legacy → new and only that way — the direction the
+mapping is already proven in, where no inverse is needed and the one-way door stays shut.
+
+## What was built
+
+**Step 3½ — Projection. ✅ BUILT.** `AshEnterprise.Accounts.ProjectedUser` over `projected_users`, an
+Ash-owned table created by `mix ash.codegen`, kept current by `AshEnterprise.Legacy.Projection` — a
+second `Ash.Notifier` on `Legacy.User`, consuming the notification `AshStrangler.Listener` already
+dispatches. `mix ash_enterprise.legacy.project` establishes the starting state, because the projector
+reacts to *changes* and a fifteen-year-old row has never produced one.
+`AshEnterpriseWeb.A2ui.ProjectedUserUI` renders it at `/app/directory`, live, beside
+`/app/legacy-users`. Outcome: **the same nine people over a view and over a table, both updating from a
+`psql` INSERT, side by side.**
+
+Three things fall out of it that no step above delivers:
+
+- **The write is audited.** §4.8's hole is a property of the world — you cannot audit writers you do not
+  control — and it stays open for the legacy application's writes. But the *projection's* write is an
+  ordinary Ash action, so it produces an ordinary hash-chained audit event, attributed to
+  `SystemActor.projection/0` rather than to a person. §6.4 says a greenfield application never confronts
+  this; the projection is the first place in this exercise where the honest answer improves.
+- **The five-onto-two collapse becomes a transition.** `lifecycle_status` is reached by running the
+  platform's own `:deactivate` action, not by writing the attribute — `initial_states [:active]` forbids
+  creating a row already inactive, correctly. On the read model the collapse is a derivation computed on
+  every `SELECT` and recorded nowhere; here an auditor can find the transition that produced it.
+- **Nothing on the projected surface is strangler-aware.** The two `use AshA2ui.LiveRenderer` blocks are
+  the same options over a different UI module. `/app/directory` subscribes to `projected_users:*` because
+  the resource declares those publications, and cannot tell a projected write from a create made by a
+  person in the admin UI.
+
+`AshStrangler.Backfill` is deliberately *not* used for the backfill: it fills columns **within** a legacy
+table, which is step 4. This copies rows **out** of one, and the estate is nine users. At a million it
+would need to stream and commit per batch, and the task's moduledoc says so rather than pretending
+otherwise.
+
+## What it does not change
+
+It is **not** progress along §5. The phase is still `:read_from_legacy`, the legacy database is still the
+system of record, `projected_users` is derived, and the three `read_only?` mappings are still not
+invertible. Step 7 costs exactly what it cost before. One piece of it is now established early:
+`ProjectedUser` stores `legacy_id`, which `ash_strangler`'s usage rule 21 requires *before* cutover
+because the uuid derivation runs one way and a reverse view cannot recover the integer key.
+
+Two of §7's three disclaimers apply unchanged and one gains a new instance. **Scale**: a projection over
+nine rows says nothing about projecting forty million, where the absence of batching stops being an
+honest simplification. **Concurrent legacy load**: the "legacy application" is still `psql`.
+**Expressiveness**: unchanged — one schema, chosen by us.
+
+And the reliability story is weaker than the read model's in one specific way. A row that fails to
+project is **silently absent** from `projected_users` until something re-runs the backfill: there is no
+retry and no dead-letter queue, because containment has to live in the notifier — a notifier that raises
+takes the listener's process with it, and the listener holds the only `LISTEN` connection, so one bad row
+would stop reactivity on *every* surface including the read model's. The reconciliation job that would
+close that gap is **step 6**, and this is not it.
+
+## What `## Visual cue` gets right, and the one thing it now understates
+
+Everything in that section holds. `AshEnterpriseWeb.A2uiLive.Cue` was extracted when the second live
+surface arrived, and the three load-bearing properties it names are exactly the three that would have
+drifted between two copies: the element is keyed on the counter (`phx-mounted` fires on insertion, so
+without the key it animates once and never again), the counter is bumped on the renderer's debounced
+`{:ash_a2ui, :refresh}` rather than on the broadcast, and the timer is cancelled and replaced rather than
+accumulated. Both surfaces call it with a different `id_prefix` and a different message, so two banners
+on one page cannot collide.
+
+**What the section understates is the first of its three routes to a row-level highlight.** *"Make the
+cue data, not decoration"* is dismissed as *"good enough to demonstrate, dishonest as a general
+mechanism"*, on the grounds that a badge cannot clear itself. On the projected table that objection is
+softer, because `projected_at` exists as a real column — it is on screen precisely so the lag is a number
+rather than a hope — and a calculation over it needs no `modified_on` heuristic. It still cannot clear
+itself without a write, so the conclusion does not change. But the reasoning behind it is now weaker
+than the text implies, and the note about where the badge must come from is a hard constraint worth
+repeating: `row_layout`'s `badge` must name one of the table's own fields, and `AshA2ui`'s layout
+verifier refuses otherwise — which is how a draft of `ProjectedUserUI`'s moduledoc was caught claiming a
+column had been dropped.
+
+The other two routes are unaffected. Diffing in `priv/js/ash_a2ui_hook.js` is still the correct fix and
+still belongs upstream; sending the changed keys with the refresh is still cheaper, more precise, and
+still needs a protocol addition.
+
+## Three findings, all from running it rather than reading it
+
+Recorded here because §5's steps were written as forecasts and this section is a record, and because
+`README.md` says the gap between the two is the point.
+
+**The backfill and the live projector disagreed.** The task rebuilt the attribute map itself and called
+the upsert directly, skipping the lifecycle transition — so a legacy user in `suspended` or `passive` sat
+in `projected_users` marked `:active`, and whether a row was right depended on whether anyone had edited
+it since the projector started. Found by one `SELECT`, not by reading the code. Fixed by making
+`Projection.project_row/1` the only entry point; a test now pins three logins across both states.
+
+**An ordering trap that points both ways, which §3 half-anticipated and §5 does not mention.**
+`mix ash_enterprise.legacy.setup` must run **before** the migrations, because the strangler view needs
+`legacy.users` to exist. The projection must run **after** them, because `projected_users` is Ash-owned.
+Wiring the projection into `legacy.setup` — where it looks like it belongs, beside the rest of the legacy
+plumbing — produced nine `relation "projected_users" does not exist` errors on a fresh database, each
+reported as a *refused row*. One refusal is a data-quality finding worth printing; nine refusals for the
+same structural reason is a mistake wearing a finding's clothes. It is now sequenced after `ash.setup` in
+`setup` and `ecto.setup`, with an `ensure_table!/0` guard in the task that raises and explains both
+directions. The `test` alias deliberately does not project, because every test that cares seeds the
+estate inside its own sandbox transaction.
+
+**A new resource is invisible until the privilege catalogue is regenerated.** `/app/directory` rendered
+zero rows with the whole chain working: `privileges` held nothing for
+`AshEnterprise.Accounts.ProjectedUser`, so the Administrator role granted nothing over it.
+`Seeder.regrant_administrator_privileges/1` returned 0, because it only grants privileges that *exist* —
+`seed_privileges/0` has to run first. Measured on a fresh database: 248 written, then 8 regranted per
+tenant, one per `AccessRight` verb. This is a standing consequence of deriving the catalogue from the
+resources that exist at seed time, and its failure mode presents as a broken feature rather than as a
+stale grant.
+
+## The tenant confusion, which is §4.2 working correctly
+
+Not a finding about the projection, and worth writing down because it will cost somebody an afternoon.
+`/app/legacy-users` and `/app/directory` both show **nothing** to `admin@example.com`. The legacy rows
+belong to the `legacy` organization — §4.2's one `Organization` row representing the whole estate — and
+both surfaces are tenant-scoped like every other resource here. The demo has to sign in as
+`admin@legacy.example`.
+
+That is correct, and it is confusing, because an empty table looks exactly like a broken feature.
+`scripts/screenshots/capture-live.mjs` therefore defaults `EMAIL` to `admin@legacy.example` with a
+comment saying why, and distinguishes *"projected_users is empty — run `mix ash_enterprise.legacy.project`
+first"* from *"reached `legacy.users` but never reached `projected_users`"* in its failure list, so a
+capture cannot pass by photographing an empty page. The INSERT is made by `psql` and not through the
+application, deliberately: a demo where the application writes its own row and then notices it proves
+nothing.

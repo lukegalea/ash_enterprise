@@ -37,6 +37,11 @@ defmodule AshEnterprise.Platform.SystemActor do
       "The business process engine, resolving who may act on a task or advancing a token " <>
         "long after the request that started the process. A human decision inside a process " <>
         "is still attributed to the human.",
+    projection:
+      "The strangler projector, copying a write made in the legacy application into a table " <>
+        "this one owns. Deliberately not a person: the change was really made by a process " <>
+        "this application cannot see, and the audit trail should say so rather than borrow a " <>
+        "name from whoever happened to be signed in.",
     system: "Generic fallback. Prefer a specific actor above; this one tells an auditor little."
   }
 

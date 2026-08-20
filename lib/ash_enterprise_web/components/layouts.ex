@@ -70,6 +70,9 @@ defmodule AshEnterpriseWeb.Layouts do
           <li>
             <a href="/app/legacy-users" class="btn btn-ghost btn-sm">Legacy users</a>
           </li>
+          <li>
+            <a href="/app/directory" class="btn btn-ghost btn-sm">Directory</a>
+          </li>
           <%!-- Grouped rather than four more top-level buttons: the bar already carries six
                 and wraps below about 1400px, which is narrower than the width the
                 documentation screenshots are captured at. A wrapped nav would appear in

@@ -68,6 +68,19 @@ defmodule Mix.Tasks.AshEnterprise.Seed do
 
       seeded = AshEnterprise.Platform.Seeder.seed_tenant(opts)
 
+      # Project the legacy estate into `projected_users`, and do it *here* rather than in a mix
+      # alias, because this is the only point at which all three of its prerequisites exist: the
+      # migrations have created the table, `seed_privileges/0` above has put the new resource in
+      # the privilege catalogue, and `seed_legacy_estate/0` has created the Organization the
+      # projected rows are tenant-scoped to.
+      #
+      # Wired into `mix ash_enterprise.legacy.setup` first, which looks like the obvious home and
+      # is the one place it cannot go: that task has to run *before* the migrations, because the
+      # strangler view it creates needs `legacy.users` to exist. The result was nine
+      # `relation "projected_users" does not exist` failures reported as refused rows -- a
+      # structural mistake wearing a data-quality finding's clothes.
+      Mix.Task.run("ash_enterprise.legacy.project")
+
       Mix.shell().info("""
 
       Provisioned tenant #{inspect(seeded.organization.name)}:

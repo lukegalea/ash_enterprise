@@ -708,6 +708,69 @@ $ devenv shell -- iex-server
         </div>
       </div>
     </div>
+
+    <div class="mt-14 border-t border-line pt-10">
+      <h3 class="text-lg font-semibold">
+        The same write, arriving in a table this application owns
+      </h3>
+      <p class="mt-3 max-w-3xl leading-relaxed text-muted">
+        The surface above reads a <em>view</em> over the legacy table: modern shape, legacy
+        storage, no writes, and no audit trail — because the writes worth auditing belong to an
+        application Ash cannot see. So the same notification also drives a{' '}
+        <strong class="font-semibold">projection</strong>: an upsert, through an ordinary Ash
+        action, into a table created by{' '}
+        <code class="font-mono text-[0.9em]">mix ash.codegen</code>. Two live surfaces over the
+        same people, and the difference between them is the point.
+      </p>
+
+      <div class="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] lg:items-start">
+        <AnimationFigure
+          name="directory-live-update.gif"
+          alt="A table of projected users in the browser. A new row appears at the top and a banner reads: a legacy write was projected into this application's own table."
+          width={1000}
+          height={625}
+          fallback={true}
+          caption="The same plain INSERT into legacy.users, landing on a surface whose rows are ordinary columns in an Ash-owned table. Nothing in that surface knows a legacy database exists."
+        />
+
+        <div class="space-y-4">
+          <dl class="space-y-4 text-sm">
+            {
+              [
+                [
+                  'Audited, where the view could not be',
+                  'The write is an Ash action, so it produces an ordinary audit event — attributed to a projection system actor rather than to a person, because a person did not do it.',
+                ],
+                [
+                  'The notification is real, not synthesized',
+                  'Over the view, no Ash action ran, so the listener has to invent one named legacy_write. Here it is a plain create, and Ash.Notifier.PubSub fires unremarkably.',
+                ],
+                [
+                  'The same id on both surfaces',
+                  'The projected row keeps the uuid the view derives from the legacy integer key, so one person can be followed between the two without a lookup table.',
+                ],
+                [
+                  'The lag is a column',
+                  'A projection is not synchronous with the legacy write, so projected_at is on screen. Hiding it would claim a guarantee the design does not make.',
+                ],
+              ].map(([term, note]) => (
+                <div class="rounded-xl border border-line bg-surface px-4 py-3">
+                  <dt class="font-semibold">{term}</dt>
+                  <dd class="mt-1 text-xs leading-relaxed text-muted">{note}</dd>
+                </div>
+              ))
+            }
+          </dl>
+
+          <p class="text-sm leading-relaxed text-muted">
+            Deliberately <em>not</em> a cutover. The legacy database is still the system of record,
+            and the mapping is not invertible in two places it documents itself — a name no
+            splitting rule fixes, and a column that was never a security boundary. Resolving those
+            is what a real cutover has to do, and this does not pretend to have done it.
+          </p>
+        </div>
+      </div>
+    </div>
   </Section>
 
   {/* ==================== 6 · ash_bpmn ==================== */}

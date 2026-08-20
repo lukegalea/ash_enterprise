@@ -64,12 +64,47 @@ the script exits non-zero when either of two things happens:
 It also hides the Tidewave dev toolbar, because leaving it in a documentation capture shows readers
 something they will never have.
 
-Two caveats, so nobody trusts the gate further than it goes. The designer capture waits for
+One caveat, so nobody trusts the gate further than it goes: the designer capture waits for
 `.bjs-powered-by` — both the signal that bpmn-js booted *and* the bpmn.io watermark the licence requires
 stay visible and unoverlapped — but a missing selector currently only warns and captures anyway, so a
-non-compliant crop would not fail the run. And **not every image in `screenshots/` comes from this
-script**: the ones predating it were captured by hand, and two BPMN images are still captures of
-`ash_bpmn`'s own `dev/` application rather than of this one.
+non-compliant crop would not fail the run. **Not every image in `screenshots/` comes from this script**
+either: the ones predating it were captured by hand.
+
+### The live-update capture is a second script, and has to be
+
+`scripts/screenshots/capture-live.mjs` records the legacy projection: a plain `INSERT INTO legacy.users`
+in `psql`, and the surface over this application's *own* table gaining the row without a reload.
+
+```bash
+devenv shell -- mix ash_enterprise.legacy.project     # so the table is not empty to begin with
+devenv shell -- mix phx.server                        # in its own shell
+devenv shell -- node scripts/screenshots/capture-live.mjs
+```
+
+It must run **inside `devenv shell`**, unlike `capture.mjs`, because it shells out to `psql` and needs
+`$PGPORT` — devenv shifts the port when 5432 is taken, so a hardcoded one connects to nothing on some
+machines and to somebody else's Postgres on others.
+
+Four things separate it from `capture.mjs`, and each was a bug first:
+
+- **It signs in as `admin@legacy.example`, not `admin@example.com`.** The legacy rows belong to the
+  `legacy` organization and both surfaces are tenant-scoped like everything else here, so the example
+  tenant's admin sees an empty table on `/app/legacy-users` *and* `/app/directory`. Correct, and
+  confusing, because an empty table looks exactly like a broken projection.
+- **It verifies in the database, not the DOM.** A2UI's components render into shadow roots, so
+  `innerText` on the surface returns the page chrome and a `shadowRoot` traversal does not reach the rows
+  either. An earlier version asserted on that text and reported "looks empty" for a page rendering nine
+  rows perfectly well.
+- **It cleans up after itself.** Every run inserts a user; without a teardown the fourth run showed
+  three identical people stacked above the seeded ones, which reads as the projection duplicating rows.
+  The delete goes through `legacy.users`, so it exercises the projector's destroy path too.
+- **It blocks Tidewave's network requests rather than only hiding the toolbar.** Hiding it is enough for
+  a still; for a video, Firefox paints `Transferring data from tidewave.ai…` into the viewport while the
+  request is in flight, and that lands in the recording as a caption on a marketing GIF.
+
+The GIF is ffmpeg over Playwright's webm, trimmed to the last six seconds with `-sseof` — Playwright
+records a context for its whole life, and the first version was sixteen seconds of mostly signing in, at
+twenty-five times the file size of the frames that mattered.
 
 ## The three raw transcripts
 

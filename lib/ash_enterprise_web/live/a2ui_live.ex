@@ -47,6 +47,89 @@ defmodule AshEnterpriseWeb.A2uiLive do
     end
   end
 
+  defmodule Cue do
+    @moduledoc """
+    The "somebody else changed this" banner, shared by the two live surfaces.
+
+    Extracted when the second live surface arrived, because the interesting parts of it are
+    non-obvious enough that two copies would drift:
+
+      * The element is **keyed on the counter**, so it is genuinely removed and re-added on each
+        refresh. `phx-mounted` fires on insertion, so without the key it animates once and then
+        never again — which reads as the feature working for the first change and being broken
+        for every one after it.
+      * The counter is bumped on the renderer's debounced `{:ash_a2ui, :refresh}`, not on the
+        broadcast. Announcing an update 150 ms before the table rebuilds looks like a bug even
+        though nothing is wrong.
+      * The timer is cancelled and replaced rather than accumulated, so a burst of changes
+        leaves one banner with a count rather than a queue of overlapping fades.
+
+    There is deliberately **no highlight on the changed row**, and that is a limitation rather
+    than a choice — the A2UI renderer owns the DOM inside the surface and its components render
+    into shadow DOM, which none of the three standard cue techniques can reach. The reasoning is
+    written up under `## Visual cue` in docs/plans/ash-strangler-in-reference-app.md.
+    """
+
+    use Phoenix.Component
+
+    alias Phoenix.LiveView.JS
+
+    @visible_ms 6_000
+
+    @doc "How long a banner stays up before it fades itself out."
+    def visible_ms, do: @visible_ms
+
+    @doc """
+    Bumps the counter and restarts the fade timer. Returns the updated socket.
+
+    Takes the socket rather than being a `handle_info` clause because the two surfaces have to
+    call `AshA2ui.LiveRenderer.handle_notification/3` themselves — the refresh is the renderer's
+    business and the banner is ours.
+    """
+    def bump(socket) do
+      if socket.assigns[:cue_ref], do: Process.cancel_timer(socket.assigns.cue_ref)
+      ref = Process.send_after(self(), :clear_cue, @visible_ms)
+
+      Phoenix.Component.assign(socket,
+        cue: (socket.assigns[:cue] || 0) + 1,
+        cue_ref: ref
+      )
+    end
+
+    @doc "Clears the banner."
+    def clear(socket), do: Phoenix.Component.assign(socket, cue: nil, cue_ref: nil)
+
+    attr :cue, :integer, default: nil, doc: "refresh counter; nil hides the banner"
+    attr :id_prefix, :string, required: true, doc: "so two surfaces on one page cannot collide"
+    attr :message, :string, required: true
+
+    def banner(assigns) do
+      ~H"""
+      <div :if={@cue} id={"#{@id_prefix}-cue-#{@cue}"} class="mb-4">
+        <div
+          class="flex items-center gap-2 rounded-lg border border-amber-400/60 bg-amber-50 px-4 py-2 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-950/60 dark:text-amber-100"
+          phx-mounted={
+            JS.transition(
+              {"transition-all duration-500 ease-out", "opacity-0 -translate-y-1",
+               "opacity-100 translate-y-0"},
+              time: 500
+            )
+          }
+        >
+          <span class="relative flex size-2">
+            <span class="absolute inline-flex size-2 animate-ping rounded-full bg-amber-500 opacity-75" />
+            <span class="relative inline-flex size-2 rounded-full bg-amber-500" />
+          </span>
+          <span>
+            {@message}
+            <span :if={@cue > 1} class="font-semibold">({@cue} updates)</span>
+          </span>
+        </div>
+      </div>
+      """
+    end
+  end
+
   defmodule Users do
     @moduledoc "A2UI surface for users."
     use AshA2ui.LiveRenderer,
@@ -175,10 +258,8 @@ defmodule AshEnterpriseWeb.A2uiLive do
       ]
 
     alias AshEnterprise.Security.ActorContext
+    alias AshEnterpriseWeb.A2uiLive.Cue
     alias AshEnterpriseWeb.Layouts
-    alias Phoenix.LiveView.JS
-
-    @cue_visible_ms 6_000
 
     def actor(socket), do: socket.assigns[:current_user]
 
@@ -207,14 +288,11 @@ defmodule AshEnterpriseWeb.A2uiLive do
       {:noreply, socket} =
         AshA2ui.LiveRenderer.handle_notification(__ash_a2ui_config__(), message, socket)
 
-      if socket.assigns.cue_ref, do: Process.cancel_timer(socket.assigns.cue_ref)
-      ref = Process.send_after(self(), :clear_cue, @cue_visible_ms)
-
-      {:noreply, assign(socket, cue: (socket.assigns.cue || 0) + 1, cue_ref: ref)}
+      {:noreply, Cue.bump(socket)}
     end
 
     def handle_info(:clear_cue, socket) do
-      {:noreply, assign(socket, cue: nil, cue_ref: nil)}
+      {:noreply, Cue.clear(socket)}
     end
 
     def handle_info(message, socket) do
@@ -225,32 +303,100 @@ defmodule AshEnterpriseWeb.A2uiLive do
     def render(assigns) do
       ~H"""
       <Layouts.app flash={@flash} width="max-w-7xl">
-        <%!--
-          Keyed on @cue so the element is genuinely removed and re-added on each
-          refresh -- which is what makes `phx-mounted` fire again for a second
-          change rather than only the first.
-        --%>
-        <div :if={@cue} id={"legacy-cue-#{@cue}"} class="mb-4">
-          <div
-            class="flex items-center gap-2 rounded-lg border border-amber-400/60 bg-amber-50 px-4 py-2 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-950/60 dark:text-amber-100"
-            phx-mounted={
-              JS.transition(
-                {"transition-all duration-500 ease-out", "opacity-0 -translate-y-1",
-                 "opacity-100 translate-y-0"},
-                time: 500
-              )
-            }
-          >
-            <span class="relative flex size-2">
-              <span class="absolute inline-flex size-2 animate-ping rounded-full bg-amber-500 opacity-75" />
-              <span class="relative inline-flex size-2 rounded-full bg-amber-500" />
-            </span>
-            <span>
-              The legacy application changed these rows. The table below was rebuilt
-              <span :if={@cue > 1} class="font-semibold">({@cue} updates)</span>
-            </span>
-          </div>
-        </div>
+        <Cue.banner
+          cue={@cue}
+          id_prefix="legacy"
+          message="The legacy application changed these rows. The table below was rebuilt"
+        />
+        {AshA2ui.LiveRenderer.surface_container(assigns)}
+      </Layouts.app>
+      """
+    end
+  end
+
+  defmodule ProjectedUsers do
+    @moduledoc """
+    A2UI surface over `projected_users` — the legacy estate, in a table this application owns.
+
+    The second live surface, and the one that answers a question the first one cannot. On
+    `/app/legacy-users` the rows are a view over `legacy.users`: modern shape, legacy storage,
+    no writes, no audit trail. Here they are ordinary rows in an ordinary table, and the update
+    that arrives when somebody writes legacy is a plain `Ash.Notifier.PubSub` broadcast from a
+    plain Ash action.
+
+    ## Nothing here is strangler-aware, and that is the whole claim
+
+    Compare the `use` block with `LegacyUsers`'s: they are the same options over a different UI
+    module. This one subscribes to `projected_users:*` because
+    `AshEnterprise.Accounts.ProjectedUser` declares those publications, not because anything
+    knows a legacy database exists. The write that triggers the broadcast came from
+    `AshEnterprise.Legacy.Projection`, and this surface cannot tell it apart from a create made
+    by a person in the admin UI — which is the property that makes the projection worth having.
+
+    The consequence worth stating: on the legacy surface the notification has to be
+    *synthesized*, because no Ash action ran and `Ash.Notifier` dereferences
+    `notification.action.name` unconditionally. Here it is real. `publish :project, [...]` would
+    work; `publish_all` is used only so one helper can read both surfaces' topics.
+
+    ## The lag is on screen
+
+    A projection is not synchronous with the legacy write — the trigger fires on commit, the
+    listener re-reads, the projector writes — so `projected_at` is a column rather than an
+    implementation detail. Watching the two surfaces update a beat apart is the honest picture
+    of what this design gives you, and hiding it would be claiming a guarantee it does not make.
+    """
+    use AshA2ui.LiveRenderer,
+      ui: AshEnterpriseWeb.A2ui.ProjectedUserUI,
+      actor_fn: &__MODULE__.actor/1,
+      tenant_fn: &__MODULE__.tenant/1,
+      pubsub: [
+        module: AshEnterprise.PubSub,
+        topics: AshEnterpriseWeb.A2ui.Surfaces.topics(AshEnterpriseWeb.A2ui.ProjectedUserUI)
+      ]
+
+    alias AshEnterprise.Security.ActorContext
+    alias AshEnterpriseWeb.A2uiLive.Cue
+    alias AshEnterpriseWeb.Layouts
+
+    def actor(socket), do: socket.assigns[:current_user]
+
+    def tenant(socket), do: ActorContext.tenant(socket.assigns[:current_user])
+
+    @impl true
+    def mount(params, session, socket) do
+      {:ok, socket} =
+        AshA2ui.LiveRenderer.mount(__ash_a2ui_config__(), params, session, socket)
+
+      {:ok, assign(socket, cue: nil, cue_ref: nil)}
+    end
+
+    # See `Cue` for why the counter is bumped here, on the renderer's debounced refresh, rather
+    # than on the broadcast.
+    @impl true
+    def handle_info({:ash_a2ui, :refresh} = message, socket) do
+      {:noreply, socket} =
+        AshA2ui.LiveRenderer.handle_notification(__ash_a2ui_config__(), message, socket)
+
+      {:noreply, Cue.bump(socket)}
+    end
+
+    def handle_info(:clear_cue, socket) do
+      {:noreply, Cue.clear(socket)}
+    end
+
+    def handle_info(message, socket) do
+      AshA2ui.LiveRenderer.handle_notification(__ash_a2ui_config__(), message, socket)
+    end
+
+    @impl true
+    def render(assigns) do
+      ~H"""
+      <Layouts.app flash={@flash} width="max-w-7xl">
+        <Cue.banner
+          cue={@cue}
+          id_prefix="projected"
+          message="A legacy write was projected into this application's own table"
+        />
         {AshA2ui.LiveRenderer.surface_container(assigns)}
       </Layouts.app>
       """
