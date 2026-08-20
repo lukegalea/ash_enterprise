@@ -46,23 +46,115 @@ escalation, and an audit trail of who approved what: an `Ash.Resource.Change` dr
 candidate list, maker-checker exclusion applied by subtraction at candidate resolution rather than as a `forbid_if`,
 and remind/escalate/expire timers that are Oban jobs whose ids are stored on the task so they actually get cancelled.
 
-**What is missing is adopting it here.** ADR 0009 named three gaps in the package — an authorizer on every generated
-resource with no `policies` block behind it while the engine passed `authorize?: false` at roughly ninety internal call
-sites; a `:tenant` option that `AshBpmn.start_instance/2` accepted and discarded; resource macros emitting
-`use Ash.Resource` themselves, so a human task could not sit on the platform base resource. All three were closed
-upstream on 2026-08-18, and the package's suite grew from 176 tests to 202 proving it.
+**It is adopted here now** — this entry was rewritten on 2026-08-20, later than the rest of the page. Twelve resources
+sit on `AshEnterprise.Platform.Resource`: six from `ash_bpmn`, two from a second first-party package `ash_decisions`,
+and four written here for triggers and bindings. An `AccessRequest` submission is one audited write; a trigger matches
+it, a FEEL guard filters it, a versioned DMN decision routes it, and a process with a business rule task, an exclusive
+gateway and human tasks runs to a granted role or a parked approval. The engine's authority is a policy bypass rather
+than an `authorize?: false` at a call site, so it keeps the human actor and the audit entry still names the person who
+approved. `AshBpmn.Expr` — 571 hand-written lines of tokenizer, parser and evaluator, with a `String.to_atom/1` on
+tenant-authored XML and a bare `rescue _ -> {:ok, false}` in it — was deleted, and FEEL replaced it, so the platform has
+one expression language rather than two. Both authoring surfaces are wired: bpmn-js for processes and dmn-js for
+decisions, each opening a tenant's own draft, with forking an explicit act on a button rather than a side effect of
+opening an editor. The design is in [`docs/plans/ash-bpmn-in-reference-app.md`](../plans/ash-bpmn-in-reference-app.md)
+and [`docs/plans/decisions-and-feel.md`](../plans/decisions-and-feel.md); every collision it caused is in §4 of the
+first.
 
-What is left is the composition, plus one decision that came out of the fix and belongs here rather than there. Ash
-folds policies into a single expression in which a bypass short-circuits only the policies declared *after* it, and a
-base resource emits its policy set from `use` — ahead of anything `ash_bpmn` adds. So a work item on
-`AshEnterprise.Platform.Resource` reaches the engine's bypass second, and the engine is forbidden, unless
-`AshBpmn.Checks.AshBpmnInteraction` goes at the top of `AshEnterprise.Security.Policies` or the engine is configured to
-act as a `SystemActor` that set already admits. Until one of those is done and an approval actually runs here, "an
-approval is an ordinary owned, audited, tenant-scoped record" remains a design intent rather than a fact about *this*
-codebase — the obstacles are gone, the demonstration is not there yet.
+**So this entry is no longer about approvals. It is about business rules, and seven things are missing.** In descending
+order of how much they cost:
 
-**→ Roadmap:** [ADR 0015 — approvals and process modelling stay inside Ash](../adr/0015-approvals-stay-in-ash.md)
-and [ADR 0009 — `ash_strangler` and `ash_bpmn` are first-party](../adr/0009-strangler-and-bpmn-are-first-party.md).
+1. **An author cannot try a decision before publishing it.** The DMN editor landed: `/app/decisions` has a
+   "Customize" button that forks a baseline, `/app/decisions/:key/editor` opens dmn-js on the resulting draft, and the
+   save/publish lifecycle is covered by tests. What it has no way to do is **evaluate** — there is no panel for feeding
+   the table sample inputs and seeing which row fires, so a rule author publishes a decision having never once watched
+   it answer. `Evaluation` rows exist and are only written by a business rule task at runtime, which means the first
+   real evaluation of a newly published rule happens in a live process. For a layer whose entire premise is that
+   non-developers change business logic, "you may edit it but not test it" is the gap that matters most, and it is
+   ours to close rather than the engine's.
+
+   The narrower editing gap alongside it: **there is still no FEEL editor.** `@bpmn-io/feel-editor` is MIT and would
+   give literal expressions and input entries syntax highlighting and autocompletion, and it is present only as an
+   unused transitive dependency of dmn-js. So the most error-prone text in a decision table is typed into a plain box.
+
+2. **Publish-time overlap and completeness analysis does not exist.** This was meant to be the thing `ash_decisions`
+   offers over a hosted DMN engine, and it is designed and unbuilt: no overlap check, no completeness check, no
+   decidable/undecidable distinction, and no obligations mechanism. The design is sound and the technique is already
+   proven next door — `ash_strangler`'s proof-obligation engine ([ADR 0008](../adr/0008-typed-invertible-legacy-mappings.md))
+   does exactly this shape of work, decidable by finite-domain enumeration and interval algebra for cells that are
+   S-FEEL unary tests over enumerable domains or numeric intervals, with the undecidable remainder carried as unproven
+   obligations re-checked at runtime. **None of it is code.** The consequence is concrete: a `UNIQUE` table with two
+   overlapping rules publishes without complaint, and the conflict surfaces as a runtime error on the first case that
+   matches both rows. An error rather than a silent wrong answer, and much later than it needed to be found.
+
+3. **The audit trail can say a decision was evaluated and what it returned, but not why.** This is the real hole in
+   the evidence story and it is worth stating in its own right rather than as a caveat. `Evaluation.matched_rule_ids`
+   is always `[]` and `TriggerDispatch.fired_rule` is always `nil`, because `Boxic.DMN.evaluate/3` returns the
+   decision's value and nothing about how it reached it. So an auditor asking *"which rule denied this request?"* can
+   be shown the inputs, the outputs, the definition version and the timestamp, and cannot be shown the row. Computing
+   a second opinion is refused on purpose: one that disagreed with the engine that actually decided would be worse
+   than no answer. It is an upstream limitation, the columns are already there, and until it is closed the decision
+   trail is one question short of the one people ask.
+
+   Alongside it, a smaller compile-time gap: decision table **input entries are not parsed at publish time**. They are
+   unary tests, a grammar the engine parses inside its evaluator rather than exposing, so they are size-bounded at
+   compile time and validated when they first run. A table can publish with a malformed cell and fail on the first
+   case that reaches that column.
+
+4. **FEEL's three-valued logic is not uniform, and the asymmetry is a diagnostic hole.**
+   `subject.missing > 100` is `null` and the interpreter records a `:condition_null` event. `subject.missing = true` is
+   plain `false` and records nothing, because equality against `null` is defined. So an ordering comparison on an absent
+   field leaves evidence and an equality comparison on the same absent field takes the default branch silently. That is
+   FEEL to specification rather than a defect, which is exactly why it belongs on this page: it is a permanent property
+   of the language we chose, it will surprise whoever hits it, and the only mitigation is that it is written down.
+
+5. **A tenant can sit indefinitely behind a baseline.** Drift is *reported* — "customized · forked from platform v3 ·
+   platform is now v5" — and never merged. That is the right refusal: the two XML documents have diverged and
+   reconciling them is the round-tripping problem in another costume. But refusing to merge is not the same as having an
+   answer, and the honest description of the current state is that a customized tenant accumulates distance from the
+   platform with a badge, a side-by-side viewer, and no path back.
+
+6. **There is no export, for anything in flight.** [ADR 0009](../adr/0009-strangler-and-bpmn-are-first-party.md)'s
+   reversal section says *"In-flight process instances are lost; there is no export"*, and the plan for this work named
+   `mix ash_decisions.export` as a day-one requirement specifically so that admission would not be knowingly repeated.
+   It was not built; `ash_decisions` ships two mix tasks and both are conformance tasks. Two facts soften it and neither
+   closes it: the authored XML is a column, so every definition survives a `COPY`, and all instance state is ordinary
+   rows in this application's own tables rather than in an engine's private schema. The data is not lost. There is no
+   migration path to another engine, and that is what an export would be.
+
+7. **The engine underneath is tier 3, and the reasons it is defensible are the reasons to keep watching it.**
+   `boxic_dmn` 0.3.0 and `boxic_feel` 0.2.0 are Apache-2.0 packages by a single author with negligible adoption.
+   Adopting them was a measured decision — an independent run of the official DMN TCK, written here against the
+   published packages, put them at **97.68%** of 3,495 asserted result nodes, which is the alternative to a 60–90
+   person-day FEEL implementation. Four things bound what that number certifies, and each is a real cost:
+   - **It is a statement about DMN 1.5 documents.** `dmn-js` emits DMN **1.3**, and the engine refuses anything but
+     1.5. `AshDecisions.Dmn.Profile` rewrites the namespace URIs on the way into the engine and never on the way to
+     storage, and `mix ash_decisions.tck --downgrade` re-runs the whole corpus rewritten to 1.3 to prove the rewrite
+     changes no answers. That is a well-tested mitigation for an integration that does not work out of the box.
+   - **It is gated by CI, not by `mix test`.** The suite is a mix task. Someone running the tests locally will not
+     notice a conformance regression, and 81 result nodes remain outstanding.
+   - **`libxml2` is now a runtime dependency of loading any DMN document.** The engine validates against the normative
+     XSD by shelling out to `xmllint`, because the packaged OTP `xmerl_xsd` cannot compile that schema's derivation
+     graph. It is in `devenv.nix`, in CI, and in the `Dockerfile`'s runtime stage, and `AshEnterprise.Application`
+     warns at boot when it is absent — but **without the binary every model fails to load**, and a rules engine that
+     silently has no rules is a bad failure mode to have acquired from a dependency.
+   - **We depend on a package whose stated Elixir constraint we violate.** Both boxic packages declare
+     `elixir: "~> 1.20.0"`. This repository pins Elixir 1.18.4 on OTP 27, to match what the Ash ecosystem is tested
+     against. They compile and pass here — the conformance run is the evidence — but *compiles and passes* is not
+     *supported*. Either upstream relaxes it, or we pin `boxic_* 0.1.x`, or the toolchain moves.
+
+   What makes the dependency defensible rather than reckless is narrow and should be stated as narrowly as it is true:
+   the engine is called from **one module per package**, and **the conformance suite is ours**. A replacement is
+   therefore one module to write and a number to compare against, rather than a search. Remove either of those
+   properties and this would not be a dependency to take.
+
+**→ Decided.** Six records: [ADR 0009 — `ash_strangler` and `ash_bpmn` are
+first-party](../adr/0009-strangler-and-bpmn-are-first-party.md),
+[ADR 0015 — approvals and process modelling stay inside Ash](../adr/0015-approvals-stay-in-ash.md),
+[ADR 0027 — FEEL is the one expression language](../adr/0027-feel-is-the-expression-language.md),
+[ADR 0028 — decisions are DMN, measured against the TCK](../adr/0028-decisions-are-dmn.md),
+[ADR 0029 — process configuration is tenant data](../adr/0029-process-configuration-is-tenant-data.md) and
+[ADR 0030 — events trigger processes through a dispatched cursor](../adr/0030-events-trigger-processes.md). The seven
+items above are what those records do not close.
 
 ## 4. Dialyzer certainty
 

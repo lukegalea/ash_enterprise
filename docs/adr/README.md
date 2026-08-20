@@ -40,7 +40,7 @@ The concrete exit: which files change, and how much work it is.
 | [0006](0006-design-system.md) | daisyUI 5 + Phoenix core_components as the design system | accepted |
 | [0007](0007-dialyzer-non-blocking.md) | Dialyzer runs, and does not gate | accepted |
 | [0008](0008-typed-invertible-legacy-mappings.md) | Legacy mappings are typed expressions with proven inverses | accepted |
-| [0009](0009-strangler-and-bpmn-are-first-party.md) | `ash_strangler` and `ash_bpmn` are first-party platform extensions | proposed |
+| [0009](0009-strangler-and-bpmn-are-first-party.md) | `ash_strangler`, `ash_bpmn` and `ash_decisions` are first-party platform extensions | accepted |
 | [0010](0010-meltano-for-ingestion.md) | Meltano for ingestion, Airbyte as the named fallback | proposed |
 | [0011](0011-nango-as-integration-hub.md) | Nango for the provider edge, sync logic stays in Ash | proposed |
 | [0012](0012-openlineage-and-marquez.md) | OpenLineage as the schema, Marquez as the backend | proposed |
@@ -58,12 +58,20 @@ The concrete exit: which files change, and how much work it is.
 | [0024](0024-audit-retention-and-erasure.md) | Audit retention: partition for age, crypto-shred for erasure | proposed |
 | [0025](0025-log-shipping-and-review.md) | Logs ship to the customer's SIEM; review is evidence | proposed |
 | [0026](0026-ai-governance-is-disclosure.md) | AI governance is disclosure, not a second authorization model | proposed |
+| [0027](0027-feel-is-the-expression-language.md) | FEEL is the one expression language, and the engine is adopted rather than written | accepted |
+| [0028](0028-decisions-are-dmn.md) | Decisions are DMN, measured against the TCK, in their own first-party package | accepted |
+| [0029](0029-process-configuration-is-tenant-data.md) | Process and decision configuration is tenant data, defaulting to a platform baseline | accepted |
+| [0030](0030-events-trigger-processes.md) | Events trigger processes through a dispatched cursor, not a handler | accepted |
 
-Records 0001–0008 and 0020–0023 are `accepted` and describe code that exists. **0009–0019 and
-0024–0026 are `proposed`: none of them is built.** They are here because a decision is cheapest to reason about — and cheapest to
+Records 0001–0009, 0020–0023 and 0027–0030 are `accepted` and describe code that exists.
+**0010–0019 and 0024–0026 are `proposed`: none of them is built.** They are here because a decision is cheapest to reason about — and cheapest to
 *reverse* — while the alternatives are still fresh, and because
 [thesis 6](../manifesto/06-reversibility.md) asks for the exit before the entrance. Three of them
 record an answer that changed under verification, which is the main reason to write them down early.
+
+0015 is the one deliberate straggler: its subject is built and demonstrated, and it stays `proposed`
+because the specific negative test it named as its own acceptance criterion has not been written. A
+record whose criterion is unmet does not get promoted for being nearly right.
 
 Their sequencing, and the one rule they were all selected against, is [`../ROADMAP.md`](../ROADMAP.md).
 

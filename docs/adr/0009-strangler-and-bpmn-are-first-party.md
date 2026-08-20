@@ -1,7 +1,7 @@
-# ADR 0009 — `ash_strangler` and `ash_bpmn` are first-party platform extensions
+# ADR 0009 — `ash_strangler`, `ash_bpmn` and `ash_decisions` are first-party platform extensions
 
-- **Status:** proposed
-- **Date:** 2026-08-18
+- **Status:** accepted
+- **Date:** 2026-08-18 (accepted 2026-08-20; see [Amendment](#amendment-2026-08-20--the-composition-exists))
 
 ## Context
 
@@ -66,6 +66,7 @@ platform layer they close a loop that neither closes alone:
 | The nouns | What are the entities, and what do they inherit? | `ash_enterprise` platform + CDM corpus |
 | The on-ramp | How do those entities exist over the database you already have? | `ash_strangler` |
 | The verbs | How do the processes people follow become declarative and auditable? | `ash_bpmn` |
+| The rules | How do the decisions those processes route on change without a deploy? | `ash_decisions` |
 | The surfaces | How does anyone use it? | derived — admin, JSON:API, GraphQL, A2UI, MCP |
 
 The migration story and the process story are the same story told from opposite ends. A team
@@ -84,7 +85,7 @@ engine is not the hard part, the second security model is.
 
 **3. The tier rules still apply, with the reason restated.** [Thesis 6](../manifesto/06-reversibility.md)
 puts alpha and unpublished packages in tier 3 — "isolated behind a seam; removing it must be a
-deletion, never a refactor". Both of these are 0.1.0 and one is unpublished, so by the letter of the
+deletion, never a refactor". All three are 0.1.0 and none is on Hex, so by the letter of the
 rule they are tier 3. The letter is right and the reasoning behind it needs restating: tier 3 exists
 because *someone else's* pre-1.0 package can be abandoned or can change under you. For a package we
 write, the risk is different — not abandonment but scope creep — and the mitigation is different too.
@@ -144,11 +145,82 @@ rather than here:
     cost of attributing every engine write to that system actor, leaving the human only in
     `decided_by_id` and its siblings.
 
-**What remains before this ADR can be `accepted`** is no longer an authorization gap. It is the
+**What remained before this ADR could be `accepted`** was no longer an authorization gap. It was the
 composition itself: adding both packages to `mix.exs`, mapping one legacy table through
-`ash_strangler` in this repository, and putting one approval behind `ash_bpmn` on a resource that uses
-`AshEnterprise.Platform.Resource`. Until that exists, the claim being made here is a design decision
-with the obstacles removed, not a demonstration.
+`ash_strangler` in this repository, and putting one process behind `ash_bpmn` on a resource that uses
+`AshEnterprise.Platform.Resource`. Until that existed, the claim being made here was a design decision
+with the obstacles removed, not a demonstration. **It now exists — see the amendment below.**
+
+## Amendment, 2026-08-20 — the composition exists
+
+**Status moves from `proposed` to `accepted`, and the first-party set gains a third member.**
+
+**What closed it.** All three packages are in `mix.exs` as `github:` dependencies. `ash_strangler`
+supplies the read model over `legacy.*` plus the notification bridge. `ash_bpmn` and
+`ash_decisions` instantiate eight resources under `AshEnterprise.Bpmn` and
+`AshEnterprise.Decisions`, each on `AshEnterprise.Platform.Resource`. And an end-to-end process runs
+in this application, started by an audit event rather than by a wired action: a request is submitted,
+a trigger matches, a FEEL guard evaluates, a versioned DMN decision is invoked, its answer is
+promoted onto the token, a gateway routes on it, and the process either grants the role through an
+ordinary Ash action or parks on a human approval whose candidates exclude the requester. Asserted by
+`test/ash_enterprise/process/access_request_demo_test.exs` and
+`test/ash_enterprise/bpmn/adoption_test.exs`.
+
+**The bypass choice was made, and it was the first of the two options above.** `AshBpmn.Checks.AshBpmnInteraction`
+and `AshDecisions.Checks.AshDecisionsInteraction` are declared at the top of
+[`AshEnterprise.Security.Policies`](../../lib/ash_enterprise/security/policies.ex), ahead of the
+`SystemActor` bypass — following the precedent the `authentication?:` option already set for
+prepending. So the engines keep the human actor, and ownership, provenance and the audit entry still
+name the person who acted. `config :ash_bpmn, engine_actor:` was rejected for exactly the reason the
+audit log exists. A test asserts both bypasses precede every other policy, on a generated *and* on a
+hand-written platform resource, so a reordering fails the build.
+
+**`ash_decisions` joins the set**, and the argument is the one made above rather than a new one: it is
+a package we write, and its exit is that a decision is a DMN document nothing else in the application
+parses. Its conformance measurement, its refusals and its known gaps are
+[ADR 0028](0028-decisions-are-dmn.md); the language it shares with `ash_bpmn` is
+[ADR 0027](0027-feel-is-the-expression-language.md); baselines and per-tenant bindings are
+[ADR 0029](0029-process-configuration-is-tenant-data.md); and event-driven starts are
+[ADR 0030](0030-events-trigger-processes.md).
+
+**The lockstep named in Consequences below is now a diamond, and one corner is someone else's.**
+`ash_bpmn` and `ash_decisions` both declare `boxic_feel ~> 0.2`, and `boxic_dmn` requires
+`boxic_feel ~> 0.2.0` — so the tightest constraint is patch-level and belongs to a package we do not
+release. One mitigation exists and one does not, and the gap is worth naming rather than blurring.
+
+*Exists:* FEEL expression evaluation goes through **one adapter module per package** —
+`AshBpmn.Feel` and `AshDecisions.Feel` — so a replacement is two modules rather than a sweep. CI here
+also installs `libxml2-utils` explicitly rather than relying on the runner image carrying `xmllint`,
+because the failure mode of assuming it is a suite that breaks the week the image is rebuilt with
+nothing in this repository having changed.
+
+*Does not exist:* **a CI job that builds all four repositories from their working trees.** That is the
+only place the diamond is actually resolved, and today each repository's CI resolves its own
+dependencies independently — so a `boxic_feel` release that satisfies one constraint and not the other
+is discovered by a build failure somewhere else, which is precisely the maintenance obligation the
+Consequences section below predicted. `ash_strangler` having been red on `main` for consecutive runs
+is the precedent for why "green locally" is not evidence.
+
+**A correction to what this ADR says about silent removal.** The body describes dropping `ash_bpmn`
+as a *behavioural* change rather than a compile error, because an action losing
+`AshBpmn.Changes.RequireApproval` simply takes effect. Dropping **`ash_decisions`** is the opposite,
+and loudly so — but not for the reason first assumed. The interpreter does **not** raise on an
+unknown node type; it returns `{:error, "unsupported node type: …"}` and the advance worker lets Oban
+retry. What raises is narrower and better: `AshBpmn.Config.decision_resolver!/0` raises **naming the
+config key** when no resolver is configured, `AshBpmn.Compiler.Verify` refuses at publish time with
+the node id and the same key, and the interpreter raises on any resolver failure with the node id. So
+a published `businessRuleTask` fails visibly with a message that says what is missing, which is the
+opposite of the `RequireApproval` case and is worth stating because the two live in the same reversal
+section.
+
+**One further correction, to the JavaScript claim.** `ash_bpmn`'s repository is now **public**, so the
+"currently private" note in Context is stale; `ash_decisions` declares the same remote. And the
+`phoenix_live_view` runtime dependency named in Consequences below is joined by a real asset cost:
+`bpmn-js` is a diagram editor with no server-rendered equivalent, and adopting it required dataurl
+font loaders and an explicit `<link>` for the stylesheet esbuild emits alongside `app.js` — without
+the second, the designer renders as unstyled boxes, which looks like a bad diagram rather than a
+missing file. That roughly triples the JavaScript surface of a repository that had deliberately kept
+it near zero, and it belongs in thesis 6's cost column rather than in a bundle report.
 
 ## Consequences
 
@@ -183,6 +255,14 @@ migration dropping its six tables. Any action carrying `AshBpmn.Changes.RequireA
 change and takes effect immediately — which is a behavioural change, not a compile error, so it needs
 a deliberate review of each site rather than a `grep`-and-delete. Approximately a day, plus that
 review. In-flight process instances are lost; there is no export.
+
+**Dropping `ash_decisions`:** remove the dep, delete `lib/ash_enterprise/decisions.ex` and its two
+resource instantiations, `lib/ash_enterprise/process/decision_resolver.ex`, the
+`AshDecisionsInteraction` bypass and the `/app/decisions` routes; generate a migration dropping its
+two tables. Then find every published process containing a `businessRuleTask` and edit it, because
+those fail visibly rather than silently — see the correction in the amendment above. `libxml2` stops
+being a runtime dependency, which is the one thing this reversal buys back. Roughly a day, plus the
+diagram edits. Detailed in [ADR 0028](0028-decisions-are-dmn.md#reversal).
 
 **Dropping `ash_strangler`:** remove the dep, delete the twin resources and the `strangler` blocks
 from any resource carrying one, and run `mix ash_strangler.gen.migration` in reverse to drop the

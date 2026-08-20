@@ -19,6 +19,58 @@ table.
 
 `screenshots/` holds real captures of the running application. Nothing in there is a mockup.
 
+## Capturing screenshots
+
+`scripts/screenshots/capture.mjs` drives a real browser against a running server. It has its own tiny
+`package.json` (Playwright, nothing else) and is deliberately standalone from `assets/` and from `site/`:
+capturing needs a browser *and* a running application, and neither the asset pipeline nor the marketing
+site build should depend on either.
+
+```bash
+devenv shell -- mix ash_enterprise.bpmn.setup   # so there is something on the screens
+devenv shell -- mix phx.server                  # in its own shell; it holds the _build lock
+node scripts/screenshots/capture.mjs
+```
+
+`BASE_URL`, `EMAIL`, `PASSWORD` and `BROWSER` override the defaults
+(`http://localhost:4000`, `admin@example.com`, `password1234`, `firefox`).
+
+Three things about it are load-bearing rather than incidental.
+
+**It signs in.** Every surface worth capturing is behind `live_user_required`, so the script visits
+`/sign-in`, submits the form, and waits for the URL to change before doing anything else.
+
+**It is Firefox at 1440×900 with `deviceScaleFactor: 2`.** Not a preference — **Chromium cannot rasterize
+in the sandbox these were first captured in.** `page.screenshot()` hangs indefinitely under system Chrome
+and under every `--disable-gpu` / `--single-process` / `--headless=old` combination tried; Firefox and
+WebKit work. `BROWSER=chromium` is there for an environment where it does. The full finding is in
+[`HANDOFF.md`](HANDOFF.md), and 1440 is also why the four workflow pages are grouped under one nav
+dropdown: the bar already carries six items and wraps below about 1400px, so four more top-level buttons
+would put a wrapped nav in every capture.
+
+**It refuses to photograph a broken page**, which is the part worth copying into any other project. A
+Phoenix error page screenshots very happily — the first attempt at documenting the process surfaces
+produced a perfectly sharp, correctly cropped capture of a stacktrace and filed it as documentation. So
+the script exits non-zero when either of two things happens:
+
+- **A Content-Security-Policy refusal appears in the browser console.** Predicting a policy's effect from
+  its directives verifies the *part*; loading the page and reading what the browser actually says
+  verifies the *outcome*. This is how a long-standing CSP violation on the sign-in page was found — the
+  default authentication banner fetches an image from a third-party host, `img-src 'self' data: blob:`
+  refuses it, and the only report had ever been in a console nobody read.
+- **The rendered body looks like an error page** — `at GET /`, `Internal Server Error`,
+  `Something went wrong`, or `Error` in the document title.
+
+It also hides the Tidewave dev toolbar, because leaving it in a documentation capture shows readers
+something they will never have.
+
+Two caveats, so nobody trusts the gate further than it goes. The designer capture waits for
+`.bjs-powered-by` — both the signal that bpmn-js booted *and* the bpmn.io watermark the licence requires
+stay visible and unoverlapped — but a missing selector currently only warns and captures anyway, so a
+non-compliant crop would not fail the run. And **not every image in `screenshots/` comes from this
+script**: the ones predating it were captured by hand, and two BPMN images are still captures of
+`ash_bpmn`'s own `dev/` application rather than of this one.
+
 ## The three raw transcripts
 
 `AshStrangler.md`, `BPMN.md` and `Strangler Fig Migrations for Postgres Schemas…md` at this level are

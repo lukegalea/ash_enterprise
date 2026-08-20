@@ -953,3 +953,110 @@ Three smaller factual errors in it, recorded so they are not propagated:
   use case it describes, and omits it entirely (§4.3).
 
 Treat it as an input, not as a plan. Where this document contradicts it, this document is the one that was verified.
+
+---
+
+# Correction — 2026-08-20
+
+**Appended, not merged.** Per the convention in [`README.md`](README.md), nothing above this line has
+been edited: the useful record is what was predicted against what was found, and a document quietly
+brought into line with the code teaches nothing. Two of this plan's positions were settled by building
+it, and both were settled differently than the text above expects.
+
+## §8's "one-way, DSL → diagram, always" was resolved by deleting one of the artifacts
+
+[§8](#8-visual-modelling) closes with:
+
+> **The position:** one-way, DSL → diagram, always. If BPMN XML export is ever required […] emit a
+> read-only BPMN 2.0 XML rendering of the Common Executable subset from the snapshot, and state plainly
+> that it is a *view*, not an interchange format. Do not accept edits back.
+
+That is not what shipped, and the reason it is not is written into `ash_bpmn`'s own rules. Usage rule 3,
+verbatim:
+
+> **BPMN XML is the single artifact.** There is no code DSL for processes and there will not be one. Do
+> not generate XML from code, do not parse the graph back into domain structures, do not keep a second
+> copy of the process anywhere. Edit in the designer (or in the XML), publish, done.
+
+`ash_decisions` rule 1 says the same about DMN XML. So the round-tripping problem §8 spends fifteen
+hundred words arming the reader against was not solved — it was **removed**, by removing one of the two
+artifacts it needs in order to exist. The document holds the XML in `Definition.xml`; publishing
+compiles it into an immutable `Definition.graph` snapshot that the interpreter reads and nothing writes
+back. There is one authored thing and one derived thing, and the derived thing is never edited.
+
+§8's own evidence point 5 is the argument for this, and it was in the document the whole time:
+
+> **Every system that genuinely achieves bidirectionality does it by having one artifact, not two.**
+> Umple calls it "text–diagram duality"; JetBrains MPS persists only the AST and treats every syntax as
+> a projection; Blockly's visual *is* the AST. None of them synchronises two artifacts, because none of
+> them has two artifacts.
+
+The conclusion drawn from that point in §8 — emit a read-only view from a DSL — keeps two artifacts and
+makes one of them second-class. Taking the point at face value gives the better answer. It is worth
+naming as a failure mode of a plan rather than of the reasoning: the evidence was correct, sufficient,
+and led somewhere the recommendation did not go.
+
+**What §8 got right and is still true.** Three of its warnings survived contact exactly as written.
+
+- **The watermark obligation is real and is now doubled.** `bpmn-js` *and* `dmn-js` both carry the
+  bpmn.io licence, so the attribution must stay visible and unoverlapped in two places. The screenshot
+  hazard §8 did not anticipate is that a capture cropped to the designer root can cut it off, so a
+  licence obligation is now also a property of the documentation pipeline.
+- **Bundling is possible but not free.** `assets/package.json` went from five dependencies to seven, and
+  `assets/node_modules` is now 86 MB. §8's "three packages, all A2UI" is stale only in the count; the
+  characterisation of the cost was right.
+- **Layout is the hard part.** §8's point 3 argues that `bpmndi:` coordinates are the human-authored
+  information a code generator cannot reconstruct. That was confirmed from the other direction: the
+  hand-written baselines in `priv/bpmn/` initially had no `bpmndi:` section at all, because the engine
+  never reads one — and nothing complained until a human opened the designer and saw an empty canvas
+  (commit `db52877`). Semantics without layout runs perfectly and cannot be looked at.
+
+## §10.7's "where DMN sits" is answered, and the guess inside it was wrong
+
+[§10.7](#10-what-is-genuinely-hard-unresolved-or-a-bad-idea), verbatim:
+
+> **Where DMN sits.** A decision-table resource with versioned rules is plausibly *more* valuable than
+> the process graph and is nearly independent of it. It may deserve to be promoted ahead of phase 2.
+
+DMN sits in its own first-party package, `ash_decisions` — versioned, tenant-scoped, immutable on
+publish, with a `businessRuleTask` in `ash_bpmn` as the only way a process reaches one. The first half
+of the guess held: the decision layer is separately valuable, and it is reachable without a process
+graph at all.
+
+**"Nearly independent of it" was wrong, and wrong in the useful direction.** The two are coupled at the
+expression language, and that coupling is the entire reason the work was worth doing. FEEL — DMN's
+expression language — replaced `ash_bpmn`'s hand-written `AshBpmn.Expr` outright, so a gateway condition
+and a decision table's input entry are now the same grammar evaluated by the same engine through one
+adapter module per package. Adopting DMN did not add a second expression language to the platform; it
+**removed** one. Had DMN been "promoted ahead of phase 2" as §10.7 suggests, that consolidation would
+not have been available — there would have been nothing to consolidate with.
+
+## Two smaller items, recorded so the record is not tidier than the history
+
+**§10.15 — "BPMN conformance as a goal"** says *"Nobody is asking. Conformance serves interchange, and we
+do not interchange."* Half of that stands and half does not. BPMN conformance is still not a goal and
+`ash_bpmn` refuses everything outside its executable subset by element id. But **DMN conformance became
+a goal and is measured**: `mix ash_decisions.tck` runs the vendored official DMN TCK corpus and gates the
+build on it, at 97.68% of 3,495 asserted result nodes. The reason the same argument produces the opposite
+answer is that the decision layer *does* interchange — the DMN document is the single artifact, it is
+authored in a third-party designer, and a customer may reasonably expect to open it in a tool they
+already own. §10.15's premise was right; its scope was BPMN, and DMN is not in it.
+
+That interchange has a measured cost, which is the kind of thing this section exists to record:
+`dmn-js` emits DMN 1.3 and the engine loads DMN 1.5, so a document drawn in the designer is rejected by
+the engine that has to run it. `AshDecisions.Dmn.Profile` rewrites the namespace URIs on the way *into*
+the engine and never on the way to storage, and `mix ash_decisions.tck --downgrade` re-runs the whole
+corpus rewritten to 1.3 to prove the rewrite changes no answers.
+
+**§10.13 — "business data in process variables"** was listed as a bad idea to be avoided by convention.
+It is now a checked invariant instead: a `businessRuleTask` promotes named scalar signals onto
+`Token.routing` and the decision's full output map goes to an `Evaluation` row and a `ProcessEvent`,
+never to the token. The convention became a property.
+
+The rest of §10 is unchanged and still open. §10.1 in particular — assignment resolution against a live
+org chart, *"the single most likely thing to be redesigned after first contact"* — has now had first
+contact, and `AshEnterprise.Process.AssignmentResolver` is the thing that will be redesigned.
+
+**Where this correction and the sections above disagree, the code is the arbiter.** The adoption
+narrative is [`ash-bpmn-in-reference-app.md`](ash-bpmn-in-reference-app.md); the decision layer's design
+is [`decisions-and-feel.md`](decisions-and-feel.md).

@@ -804,6 +804,142 @@ $ devenv shell -- iex-server
     </div>
   </Section>
 
+  <Section
+    id="decisions"
+    step="07"
+    eyebrow="ash_decisions"
+    title="The rules a process routes on are data, and they are DMN"
+    lead="A gateway needs an answer before it can branch, and the answer is usually a table somebody in the business owns. So decisions are DMN documents — versioned, tenant-scoped, edited in dmn-js — and the engine underneath them was adopted rather than written, because there was a conformance suite to measure it with."
+    wide={true}
+  >
+    <Fragment slot="chips">
+      <StatusChip status={itemStatus('decisions')} label="Business rules and decision tables" />
+    </Fragment>
+
+    <div class="grid gap-8 lg:grid-cols-2">
+      <ScreenshotFigure
+        name="dmn-decision-table.png"
+        alt="A DMN decision table in the browser, showing five rules over two input columns with a hit policy selector."
+        caption="A decision table in dmn-js. The hit policy is on the table, the type constraints are on the columns, and the whole thing is one DMN document."
+        loading="eager"
+      />
+      <ScreenshotFigure
+        name="dmn-drd.png"
+        alt="A DMN requirements diagram showing one decision drawing on two input data nodes."
+        caption="The same document as a requirements diagram: what the decision needs, and where it comes from."
+        loading="eager"
+      />
+    </div>
+
+    <div class="mt-10 grid gap-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:items-start">
+      <div>
+        <h3 class="text-lg font-semibold text-balance">
+          One artifact, for the same reason the diagram is one artifact
+        </h3>
+        <p class="mt-4 leading-relaxed text-muted">
+          The obvious schema is a table of decision tables and a table of rules. It is also the
+          schema where somebody edits a rule row, the document disagrees, and nobody can say which
+          one the engine ran. So the DMN XML <em>is</em> the record — compiled at publish time into
+          an immutable snapshot, never re-derived — exactly as the BPMN document is.
+        </p>
+
+        <h3 class="mt-8 text-lg font-semibold text-balance">
+          Two hit policies are refused, on the same grounds as a deny rule
+        </h3>
+        <p class="mt-4 leading-relaxed text-muted">
+          <code class="rounded bg-code-bg px-1 py-0.5 font-mono text-[0.9em] text-fg">OUTPUT ORDER</code>
+          and
+          <code class="rounded bg-code-bg px-1 py-0.5 font-mono text-[0.9em] text-fg">RULE ORDER</code>
+          make the order of the result list semantically significant, so the answer depends on where
+          a rule sits in the document rather than on what the rule says. That is the order-dependence
+          thesis 3 rejects for authorization, one layer along. Both are compile-time errors, and
+          Camunda refuses them too — so refusing costs nothing in interchange.
+        </p>
+
+        <h3 class="mt-8 text-lg font-semibold text-balance">
+          The expression language is FEEL, and it is the only one
+        </h3>
+        <p class="mt-4 leading-relaxed text-muted">
+          A 571-line hand-written parser and evaluator was deleted to get here. It called
+          <code class="rounded bg-code-bg px-1 py-0.5 font-mono text-[0.9em] text-fg">String.to_atom/1</code>
+          on path segments taken from tenant-authored XML — atoms are never collected, so enough
+          distinct segments took the node down — and it wrapped every evaluation in a bare rescue,
+          which turned each failure into <em>branch not taken</em>. FEEL is what DMN specifies, and
+          a gateway condition and a decision table cell are now the same language.
+        </p>
+      </div>
+
+      <div class="space-y-8">
+        <dl class="grid grid-cols-2 gap-4">
+          <div class="rounded-xl border border-line bg-surface p-5">
+            <dt class="text-sm text-muted">DMN TCK, all levels</dt>
+            <dd class="mt-1 text-3xl font-semibold tabular-nums">97.68%</dd>
+            <dd class="mt-1 text-xs text-muted">3,414 of 3,495 asserted result nodes</dd>
+          </div>
+          <div class="rounded-xl border border-line bg-surface p-5">
+            <dt class="text-sm text-muted">Excused failures</dt>
+            <dd class="mt-1 text-3xl font-semibold tabular-nums">81</dd>
+            <dd class="mt-1 text-xs text-muted">each listed, with a pinned count</dd>
+          </div>
+          <div class="rounded-xl border border-line bg-surface p-5">
+            <dt class="text-sm text-muted">Compliance level 2</dt>
+            <dd class="mt-1 text-3xl font-semibold tabular-nums">96.83%</dd>
+          </div>
+          <div class="rounded-xl border border-line bg-surface p-5">
+            <dt class="text-sm text-muted">Compliance level 3</dt>
+            <dd class="mt-1 text-3xl font-semibold tabular-nums">97.71%</dd>
+          </div>
+        </dl>
+
+        <div>
+          <h3 class="text-sm font-semibold tracking-widest text-muted uppercase">
+            Why the number is the argument
+          </h3>
+          <p class="mt-4 text-sm leading-relaxed text-muted">
+            Writing a conforming FEEL implementation is a two-to-three month project, so the
+            decision to adopt one was made by running the official conformance kit against the
+            published packages before anything was built. The suite is ours and it is a gate, not a
+            report: an unlisted failure fails the build, and so does a listed one whose count moves
+            — in either direction.
+          </p>
+          <p class="mt-4 text-sm leading-relaxed text-muted">
+            That matters more than the percentage. The first version excused whole groups, which
+            covered 1,206 result nodes to account for 81 real failures — a thousand-node hole in
+            something described as a gate. Each entry now carries a measured count.
+          </p>
+        </div>
+
+        <div class="rounded-xl border border-line bg-surface p-5">
+          <h3 class="text-sm font-semibold tracking-widest text-muted uppercase">
+            What is not built
+          </h3>
+          <p class="mt-3 text-sm leading-relaxed text-muted">
+            Publish-time overlap and completeness analysis. The technique is decided — finite-domain
+            enumeration and interval algebra over S-FEEL unary tests, with the undecidable remainder
+            carried as obligations re-checked at runtime — and none of it exists, so a table with a
+            gap or an overlap publishes without complaint. There is also no way to try a decision
+            against sample inputs before publishing it, and the log can say a decision was evaluated
+            and what it returned but not <em>which rule</em> produced it, because the engine does not
+            report that.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-10 grid gap-8 lg:grid-cols-2">
+      <ScreenshotFigure
+        name="bpmn-decision-catalog.png"
+        alt="A list of decisions, each showing which version this tenant runs and whether it is the platform baseline or a customization."
+        caption="Which decisions this tenant runs, and where each came from. No binding row means follow the baseline — so onboarding writes nothing."
+      />
+      <ScreenshotFigure
+        name="bpmn-trigger-list.png"
+        alt="A list of triggers showing the resource and action each matches, its FEEL guard, and the decision that routes it."
+        caption="What starts a process: an audited write, a FEEL guard, and a decision that names the process. No handler is registered anywhere."
+      />
+    </div>
+  </Section>
+
 
   {/* ──────────────── Act II ──────────────── */}
   <div class="mx-auto max-w-6xl px-4 pt-20 sm:px-6 lg:px-8">
@@ -821,7 +957,7 @@ $ devenv shell -- iex-server
   {/* ==================== 7 · Surfaces ==================== */}
   <Section
     id="surfaces"
-    step="07"
+    step="08"
     eyebrow="Derived surfaces"
     title="The surfaces are already there"
     lead="Admin screens, agent-facing surfaces, JSON:API with OpenAPI, and GraphQL — all derived from the same resource metadata. No markup was written for any of it."
@@ -888,7 +1024,7 @@ $ devenv shell -- iex-server
   {/* ==================== 8 · Agents are users ==================== */}
   <Section
     id="agents-are-users"
-    step="08"
+    step="09"
     eyebrow="Thesis 5"
     title="Agents are users, not a side door"
     lead="Ask in plain language. A change is held for your approval; a table is simply shown, because it was already filtered by your policies before a single row reached the page."
@@ -975,7 +1111,7 @@ $ devenv shell -- iex-server
   {/* ==================== 9 · Compliance ==================== */}
   <Section
     id="compliance"
-    step="09"
+    step="10"
     eyebrow="Thesis 3"
     title="Compliance you inherit"
     lead="Authorization is data: (role, privilege, depth) rows evaluated as a pure union of grants. Three independent paths can authorize a row, and nothing anywhere takes access away."
@@ -1050,7 +1186,7 @@ $ devenv shell -- iex-server
   {/* ==================== 9b · The evidence layer ==================== */}
   <Section
     id="evidence"
-    step="10"
+    step="11"
     eyebrow="Tamper-evident audit"
     title="An audit trail that survives being tampered with"
     lead="Append-only used to be a property of the application: the resource offered only a read action, so nothing written in Elixir could rewrite history. That is not the question an auditor asks. The question is whether history can be rewritten at all — and until recently, anyone with a psql connection could."
@@ -1149,7 +1285,7 @@ $ devenv shell -- iex-server
   {/* ==================== 10 · Data flow ==================== */}
   <Section
     id="data-flow"
-    step="11"
+    step="12"
     eyebrow="Where the data comes from"
     title="Ingestion, lineage, catalog, analytics"
     lead="The half this repository is currently silent on, drawn honestly. Each choice is an ADR you can read and disagree with, and each had to clear one bar: can the tool be handed a thin generated declaration and delegate authorization back to ActorContext, or does it bring its own?"
@@ -1207,7 +1343,7 @@ $ devenv shell -- iex-server
   {/* ==================== 11 · Integration ==================== */}
   <Section
     id="integration"
-    step="12"
+    step="13"
     eyebrow="Integration hub"
     title="Integrations without M×N"
     lead="One contract per category rather than one per (your app × their API) — surfaced as ordinary Ash actions, so policies gate which actor may trigger a sync and the normal audit log records it."
@@ -1259,7 +1395,7 @@ $ devenv shell -- iex-server
   {/* ==================== 12 · Scoreboard ==================== */}
   <Section
     id="scoreboard"
-    step="13"
+    step="14"
     eyebrow="The honest scoreboard"
     title={`${tally.shipped} of ${tally.total} enterprise questions have a shipped answer`}
     lead="Nothing here is aspirational. Every row is one of four states, and the vocabulary is deliberate: a Partial is not a Shipped with an asterisk, and a Planned is not a promise — it is an argument you can read and disagree with."

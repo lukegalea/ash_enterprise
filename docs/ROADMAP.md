@@ -15,11 +15,12 @@ the missing forward half.
 |---|---|---|---|---|
 | 1 | Approvals and maker-checker | ash_bpmn — no external engine | 🟡 Partial | [ADR 0015](adr/0015-approvals-stay-in-ash.md) |
 | 1 | Audit retention, partitioning and erasure | Time-partitioned hot/cold split; erasure by crypto-shredding | 🔵 Planned | [ADR 0024](adr/0024-audit-retention-and-erasure.md) |
+| 1 | Business rules and decision tables | ash_decisions — DMN, engine adopted not written | 🟡 Partial | [ADR 0028](adr/0028-decisions-are-dmn.md) |
 | 1 | Control mapping and evidence | Generated from the ledger; SOC 2, ISO 27001, GDPR | 🟡 Partial | [ADR 0021](adr/0021-control-mapping-is-generated.md) |
 | 1 | Data ingestion | Meltano (MIT); Airbyte as the fallback | 🔵 Planned | [ADR 0010](adr/0010-meltano-for-ingestion.md) |
 | 1 | Enterprise identity: SAML, OIDC and SCIM | AshAuthentication strategies; SCIM as a resource-backed endpoint | 🔵 Planned | — |
 | 1 | Integration hub — avoiding M×N | Nango for the provider edge only | 🔵 Planned | [ADR 0011](adr/0011-nango-as-integration-hub.md) |
-| 1 | Legacy migration and process modelling as platform extensions | ash_strangler + ash_bpmn, first-party | 🟡 Partial | [ADR 0009](adr/0009-strangler-and-bpmn-are-first-party.md) |
+| 1 | Legacy migration, process modelling and decisions as platform extensions | ash_strangler + ash_bpmn + ash_decisions, first-party | ✅ Shipped | [ADR 0009](adr/0009-strangler-and-bpmn-are-first-party.md) |
 | 1 | Lineage and provenance | OpenLineage + Marquez | 🔵 Planned | [ADR 0012](adr/0012-openlineage-and-marquez.md) |
 | 2 | AI governance: what leaves the tenant boundary | Prompt/response logging as audit events; per-tenant opt-out | 🔵 Planned | [ADR 0026](adr/0026-ai-governance-is-disclosure.md) |
 | 2 | API versioning and deprecation | ash_api_versioning | 🔵 Planned | [ADR 0019](adr/0019-api-versioning-as-presentation-contract.md) |
