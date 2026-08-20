@@ -106,6 +106,27 @@ The GIF is ffmpeg over Playwright's webm, trimmed to the last six seconds with `
 records a context for its whole life, and the first version was sixteen seconds of mostly signing in, at
 twenty-five times the file size of the frames that mattered.
 
+### Checking the marketing site's lightbox
+
+`scripts/screenshots/lightbox-check.mjs` drives the *built* site rather than the application, so it
+needs a preview server instead of Phoenix:
+
+```bash
+cd site && npm run build && npx astro preview --port 4321 &
+node scripts/screenshots/lightbox-check.mjs
+```
+
+Twenty assertions: that a figure opens, that the enlarged image is measurably wider than the inline
+one, that Escape, the backdrop, the close button and a click on the image itself each do the right
+thing, that a modifier-click falls through to the browser, that the dialog is centred, and that a page
+with no figures still renders. It exits non-zero on any failure or any console error.
+
+It exists because the two bugs it found were both invisible in review. Tailwind's preflight resets
+`margin`, which kills the UA stylesheet's `margin: auto` on `<dialog>` — so the lightbox rendered pinned
+to the top-left corner, which looks deliberate enough to pass, and moved the backdrop such that
+dismissal stopped working in the corner people aim for. And the close button was initially laid out
+*below* the image, which covered it.
+
 ## The three raw transcripts
 
 `AshStrangler.md`, `BPMN.md` and `Strangler Fig Migrations for Postgres Schemas…md` at this level are

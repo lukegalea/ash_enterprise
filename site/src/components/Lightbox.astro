@@ -1,0 +1,163 @@
+---
+/**
+ * The lightbox: one `<dialog>` per page, shared by every figure on it.
+ *
+ * Included once from `Base.astro`. Nothing here is per-image — the script
+ * delegates from `document`, so a figure added later is lightboxable without
+ * touching this file or being registered anywhere.
+ *
+ * ## Why a native `<dialog>` and not a library
+ *
+ * `showModal()` already provides the things a lightbox library is mostly for:
+ * a top-layer element that cannot be scrolled behind, focus moved in and
+ * restored on close, focus trapped while open, `Escape` to dismiss, and a real
+ * `::backdrop` to paint. GLightbox and PhotoSwipe are 30-50 kB to reimplement
+ * that in JavaScript.
+ *
+ * This site has deliberately kept its client-side JavaScript to the theme
+ * toggle. That is an argued position — see `docs/manifesto/06-reversibility.md`
+ * on the cost of a JavaScript surface — so a feature this small paying a
+ * dependency for it would be the wrong trade.
+ *
+ * ## The trigger is a link, not a button
+ *
+ * "Opens a dialog" is normally a `<button>`. This uses an `<a>` pointing at the
+ * image, and gains two things for it:
+ *
+ *   * **It works with JavaScript off.** The click falls through to the image
+ *     file, which is a worse experience than a lightbox and a much better one
+ *     than an inert cursor.
+ *   * **Cmd-click and middle-click still open the raw capture in a new tab**,
+ *     which is what somebody comparing two screenshots actually wants. The
+ *     handler checks for modifier keys and gets out of the way.
+ *
+ * The cost is that a screen reader announces a link rather than a dialog
+ * trigger, so `aria-label` on each trigger says "larger" explicitly.
+ *
+ * ## What it does not do
+ *
+ * There is no next/previous, no pinch-zoom and no panning. On a phone the
+ * enlarged image is barely wider than the inline one — 96vw against a figure
+ * that was already full-width — so "Enlarge" is close to an over-promise there.
+ * What the lightbox still buys on a small screen is the surrounding page getting
+ * out of the way, and a `frame="tall"` capture being shown *whole* rather than
+ * cropped, which is why the badge on those says "Cropped — see all" instead.
+ *
+ * Panning a large image is the obvious next thing and is deliberately not here:
+ * it needs gesture handling, and that is the point where this stops being forty
+ * lines and starts being a library.
+ *
+ * Verified by `scripts/screenshots/lightbox-check.mjs`, which drives a real
+ * browser against the built site — twenty assertions covering open, the four
+ * ways of closing, the modifier-click fall-through, keyboard access, and that
+ * the enlarged image is actually larger than the one in the page.
+ */
+---
+
+{/*
+  The dialog's own parts are addressed by `id`, and the `data-lightbox-*`
+  namespace is reserved for data carried by a *trigger*. Both used `data-`
+  attributes at first, and `[data-lightbox-caption]` then matched 27 elements:
+  one caption sink in here, and 26 trigger links carrying the caption to put in
+  it. Source and sink sharing a selector is a bug waiting for its first query.
+*/}
+<dialog id="ae-lightbox" class="ae-lightbox" aria-label="Enlarged screenshot">
+  {/*
+    The image and its caption sit in a wrapper so a click on the dialog itself —
+    the area around them — can be told apart from a click on the content. That
+    is how backdrop-dismissal is detected: `::backdrop` is not an element and
+    never receives events, so `event.target === dialog` is the only signal.
+  */}
+  {/*
+    Three rows, in this order, so nothing can overlap anything: the controls
+    above, the image in the middle, the caption below.
+
+    The first arrangement put the close button in a bar *under* the image, and
+    the image covered it — Playwright reported the click being intercepted 55
+    times before timing out. A flex column whose middle item is a large image is
+    exactly where that goes wrong, and no z-index fixes it honestly: the button
+    simply has to be somewhere the image cannot reach.
+  */}
+  <div class="ae-lightbox-frame">
+    <div class="ae-lightbox-controls">
+      <button type="button" id="ae-lightbox-close" class="ae-lightbox-close" aria-label="Close" title="Close (Esc)">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          aria-hidden="true"
+        >
+          <path d="M6 6l12 12M18 6L6 18"></path>
+        </svg>
+      </button>
+    </div>
+
+    <img id="ae-lightbox-image" alt="" decoding="async" />
+
+    <p id="ae-lightbox-caption" class="ae-lightbox-caption"></p>
+  </div>
+
+</dialog>
+
+<script is:inline>
+  (() => {
+    const dialog = document.getElementById('ae-lightbox');
+    if (!dialog || typeof dialog.showModal !== 'function') return;
+
+    const image = document.getElementById('ae-lightbox-image');
+    const caption = document.getElementById('ae-lightbox-caption');
+
+    // `showModal()` makes the page inert but does not stop it scrolling behind
+    // the backdrop in every browser, so the scrollbar is taken out by hand and
+    // the previous value restored rather than assumed to be `''`.
+    let restoreOverflow = '';
+
+    function open(trigger) {
+      const src = trigger.dataset.lightboxSrc || trigger.getAttribute('href');
+      if (!src) return;
+
+      image.src = src;
+      image.alt = trigger.dataset.lightboxAlt || '';
+
+      const text = trigger.dataset.lightboxCaption || '';
+      caption.textContent = text;
+      caption.hidden = text === '';
+
+      restoreOverflow = document.documentElement.style.overflow;
+      document.documentElement.style.overflow = 'hidden';
+      dialog.showModal();
+    }
+
+    document.addEventListener('click', (event) => {
+      const trigger = event.target.closest('[data-lightbox-src]');
+      if (!trigger) return;
+
+      // Let the browser have the ones where the user has asked for a new tab or
+      // a download. Without this, cmd-click on a screenshot silently opens a
+      // modal instead — the single most annoying thing a lightbox can do.
+      if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+        return;
+      }
+
+      event.preventDefault();
+      open(trigger);
+    });
+
+    // Dismiss on a click that lands on the dialog but outside its content.
+    // `::backdrop` is a pseudo-element and receives no events at all, which is
+    // why this compares against the dialog rather than listening on it.
+    dialog.addEventListener('click', (event) => {
+      if (event.target === dialog) dialog.close();
+    });
+
+    document.getElementById('ae-lightbox-close').addEventListener('click', () => dialog.close());
+
+    // Fires for the close button, the backdrop, and Escape alike — Escape is
+    // handled by the browser and never reaches a keydown listener here.
+    dialog.addEventListener('close', () => {
+      document.documentElement.style.overflow = restoreOverflow;
+    });
+  })();
+</script>

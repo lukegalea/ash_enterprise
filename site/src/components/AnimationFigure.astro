@@ -12,6 +12,7 @@
  * `height` set so the page does not reflow while it loads.
  */
 import { animation } from './screenshots';
+import ZoomBadge from './ZoomBadge.astro';
 
 interface Props {
   /** Bare filename inside `src/assets/screenshots/`, e.g. `legacy-live-update.gif`. */
@@ -51,15 +52,32 @@ const hasCaption = Boolean(caption || Astro.slots.has('default'));
           <span class="h-2.5 w-2.5 rounded-full bg-line-strong" />
           <span class="h-2.5 w-2.5 rounded-full bg-line-strong" />
         </div>
-        <img
-          src={src}
-          alt={alt}
-          width={width}
-          height={height}
-          loading="lazy"
-          decoding="async"
-          class="block h-auto w-full"
-        />
+        {/*
+          The lightbox source is the same file, unlike `ScreenshotFigure` which
+          renders a larger variant for it. There is nothing to render: the whole
+          reason this component exists is that sharp flattens an animated GIF to
+          its first frame, so any "larger" version would be a still. What the
+          lightbox gives an animation is the viewport, not more pixels.
+        */}
+        <a
+          class="ae-zoom relative"
+          href={src}
+          data-lightbox-src={src}
+          data-lightbox-alt={alt}
+          data-lightbox-caption={caption ?? alt}
+          aria-label={`View larger: ${alt}`}
+        >
+          <img
+            src={src}
+            alt={alt}
+            width={width}
+            height={height}
+            loading="lazy"
+            decoding="async"
+            class="block h-auto w-full"
+          />
+          <ZoomBadge />
+        </a>
       </div>
       {hasCaption && (
         <figcaption class="mt-3 text-sm leading-relaxed text-muted">

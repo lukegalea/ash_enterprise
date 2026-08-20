@@ -1,0 +1,38 @@
+---
+/**
+ * The hover affordance on a lightboxable figure.
+ *
+ * A screenshot that opens on click and looks identical to one that does not is
+ * a feature nobody finds. The cursor already changes (`.ae-zoom`), but a cursor
+ * is invisible on a touch device and easy to miss on a desktop, so this is the
+ * visible half.
+ *
+ * `cropped` exists because `frame="tall"` captures are rendered with
+ * `object-cover object-top` — the bottom of the image is *not on the page at
+ * all*. For those the badge says so, since "expand" and "there is more of this
+ * than you can see" are different promises and only one of them was being kept.
+ */
+interface Props {
+  cropped?: boolean;
+}
+
+const { cropped = false } = Astro.props;
+---
+
+<span
+  class="pointer-events-none absolute right-3 bottom-3 flex items-center gap-1.5 rounded-lg border border-white/20 bg-black/65 px-2.5 py-1.5 text-xs font-medium text-white opacity-0 shadow-lg backdrop-blur-sm transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100 motion-reduce:transition-none"
+  aria-hidden="true"
+>
+  <svg
+    class="h-3.5 w-3.5"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >
+    <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"></path>
+  </svg>
+  {cropped ? 'Cropped — see all' : 'Enlarge'}
+</span>

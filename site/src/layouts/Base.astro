@@ -18,6 +18,7 @@
  * Every internal href must go through `withBase` — see `src/README` notes.
  */
 import '../styles/global.css';
+import Lightbox from '../components/Lightbox.astro';
 import { withBase } from '../lib/roadmap';
 
 interface Props {
@@ -223,6 +224,15 @@ const year = new Date().getFullYear();
         </nav>
       </div>
     </footer>
+
+    {/*
+      One dialog for every figure on the page, and it costs a page with no
+      figures nothing but its own markup: the script delegates from `document`
+      and exits immediately if the dialog is missing or `showModal` is not a
+      function. Declared here rather than in each page so a figure added later
+      is lightboxable without anyone remembering this exists.
+    */}
+    <Lightbox />
 
     <script is:inline>
       (() => {

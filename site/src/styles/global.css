@@ -135,3 +135,162 @@ body {
   overflow-x: auto;
   max-width: 100%;
 }
+
+/* --- Lightbox ----------------------------------------------------------- */
+
+/*
+ * See `src/components/Lightbox.astro` for why this is a native `<dialog>` and
+ * not a library. These rules are here rather than as utilities in the markup
+ * because two of them cannot be expressed as utilities at all: `::backdrop` is
+ * a pseudo-element, and the exit transition needs `allow-discrete`.
+ */
+
+.ae-lightbox {
+  /* `margin: auto` is restated, not inherited.
+   *
+   * The UA stylesheet centres a modal dialog with `margin: auto`, and Tailwind's
+   * preflight resets `margin` to 0 on every element — so the dialog renders
+   * pinned to the top-left corner of the viewport. It looks deliberate enough to
+   * miss in review, and it also moves the backdrop: a click near the top-left is
+   * then inside the dialog rather than outside it, so dismissal quietly stops
+   * working in exactly the corner people aim for. */
+  margin: auto;
+
+  /* The dialog is the frame; the image inside it is what gets sized. */
+  max-width: min(96vw, 1800px);
+  max-height: 94vh;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ae-fg);
+}
+
+.ae-lightbox::backdrop {
+  /* 0.88, measured rather than eyeballed: sampling the rendered page puts the
+   * area outside the dialog at exactly rgb(31 31 31) over white, which is what
+   * 0.88 black composites to. It was 0.8 first, and 3rem headings stayed legible
+   * enough through it to compete with the image — plenty of dimming for body
+   * text, not enough for display type.
+   *
+   * The blur is a progressive enhancement and **Firefox ignores it**:
+   * `backdrop-filter` is not applied to `::backdrop` there, so the content
+   * behind stays sharp and only the dimming does any work. Chromium gets both.
+   * Kept because it costs nothing, noted because a comment claiming the blur
+   * "finishes the job" would be false for most of the people reading this site. */
+  background-color: rgb(0 0 0 / 0.88);
+  backdrop-filter: blur(6px);
+}
+
+.ae-lightbox-frame {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  max-height: 94vh;
+}
+
+.ae-lightbox-controls {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.ae-lightbox img {
+  display: block;
+  /* `min-height: 0` is load-bearing: a flex item's default `min-height: auto`
+   * refuses to shrink below its intrinsic height, so a tall capture overflows
+   * the viewport instead of fitting it. */
+  min-height: 0;
+  /* Leaves room for the control row above and the caption below. Without this
+   * the image claims the full 94vh and pushes both out of the dialog. */
+  max-height: calc(94vh - 8rem);
+  max-width: 100%;
+  width: auto;
+  height: auto;
+  margin-inline: auto;
+  border-radius: 0.75rem;
+  box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.6);
+  /* A screenshot on a dark backdrop wants its own ground: a PNG with
+   * transparency would otherwise composite onto the blur. */
+  background-color: var(--ae-surface);
+}
+
+.ae-lightbox-caption {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  max-width: 70ch;
+  text-align: center;
+  margin-inline: auto;
+  /* Always light-on-dark: the backdrop is dark in both themes, so this must not
+   * follow the theme's foreground token. */
+  color: rgb(255 255 255 / 0.82);
+}
+
+.ae-lightbox-caption[hidden] {
+  display: none;
+}
+
+.ae-lightbox-close {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgb(255 255 255 / 0.25);
+  color: rgb(255 255 255 / 0.82);
+  background-color: rgb(255 255 255 / 0.08);
+  cursor: pointer;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
+.ae-lightbox-close:hover {
+  background-color: rgb(255 255 255 / 0.16);
+  color: white;
+}
+
+.ae-lightbox-close svg {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+/* The affordance. Without a cursor change nothing suggests a screenshot is
+ * clickable, and the badge in the figure only appears on hover — which a touch
+ * device never does, hence the cursor is not the only signal. */
+.ae-zoom {
+  display: block;
+  cursor: zoom-in;
+}
+
+/* `display` and `overlay` need `allow-discrete` or the *exit* transition is
+ * skipped entirely: the element is removed from the top layer the instant
+ * `close()` runs, and a fade-out with nothing to fade is just a flicker. */
+.ae-lightbox,
+.ae-lightbox::backdrop {
+  opacity: 0;
+  transition:
+    opacity 180ms ease,
+    display 180ms allow-discrete,
+    overlay 180ms allow-discrete;
+}
+
+.ae-lightbox[open],
+.ae-lightbox[open]::backdrop {
+  opacity: 1;
+}
+
+/* The opening half. A transition needs a start value, and an element entering
+ * the top layer has no previous one to interpolate from. */
+@starting-style {
+  .ae-lightbox[open],
+  .ae-lightbox[open]::backdrop {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ae-lightbox,
+  .ae-lightbox::backdrop,
+  .ae-lightbox-close {
+    transition: none;
+  }
+}

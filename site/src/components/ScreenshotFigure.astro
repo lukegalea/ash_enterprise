@@ -12,8 +12,9 @@
  * *layout* depending on what landed can ask the same registry. Pass the bare
  * filename, e.g. `<ScreenshotFigure name="admin.png" … />`.
  */
-import { Image } from 'astro:assets';
+import { Image, getImage } from 'astro:assets';
 import { screenshot } from './screenshots';
+import ZoomBadge from './ZoomBadge.astro';
 
 interface Props {
   /** Bare filename inside `src/assets/screenshots/`, e.g. `admin.png`. */
@@ -45,6 +46,21 @@ const {
 
 const src = screenshot(name);
 const hasCaption = Boolean(caption || Astro.slots.has('default'));
+
+/*
+ * One extra variant per capture, rendered only for the lightbox.
+ *
+ * The widths above top out at 1440 because that is the widest the figure is ever
+ * displayed at. Opening one of those in a lightbox and calling it "larger" would
+ * be upscaling — the point of clicking is to read a label that was too small in
+ * the page, so the lightbox needs real pixels.
+ *
+ * Capped at the source width so a small capture is never enlarged past what was
+ * recorded, and `webp` because these are handed to sharp anyway. The cost is one
+ * more encode per screenshot in CI, which is the reason the `widths` list above
+ * asks to be kept short and is worth spending once here.
+ */
+const full = src ? await getImage({ src, width: Math.min(src.width, 2400), format: 'webp' }) : undefined;
 ---
 
 {
@@ -59,18 +75,28 @@ const hasCaption = Boolean(caption || Astro.slots.has('default'));
           <span class="h-2.5 w-2.5 rounded-full bg-line-strong" />
           <span class="h-2.5 w-2.5 rounded-full bg-line-strong" />
         </div>
-        <Image
-          src={src}
-          alt={alt}
-          widths={widths}
-          sizes={sizes}
-          loading={loading}
-          decoding="async"
-          class:list={[
-            'block w-full',
-            frame === 'tall' ? 'max-h-[34rem] object-cover object-top' : '',
-          ]}
-        />
+        <a
+          class="ae-zoom relative"
+          href={full!.src}
+          data-lightbox-src={full!.src}
+          data-lightbox-alt={alt}
+          data-lightbox-caption={caption ?? alt}
+          aria-label={`View larger: ${alt}`}
+        >
+          <Image
+            src={src}
+            alt={alt}
+            widths={widths}
+            sizes={sizes}
+            loading={loading}
+            decoding="async"
+            class:list={[
+              'block w-full',
+              frame === 'tall' ? 'max-h-[34rem] object-cover object-top' : '',
+            ]}
+          />
+          <ZoomBadge cropped={frame === 'tall'} />
+        </a>
       </div>
       {hasCaption && (
         <figcaption class="mt-3 text-sm leading-relaxed text-muted">
