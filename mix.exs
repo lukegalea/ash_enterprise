@@ -173,18 +173,32 @@ defmodule AshEnterprise.MixProject do
       # gathers rules for direct dependencies.
       {:reactor, "~> 1.0"},
 
+      # --- The four unreleased first-party packages ----------------------------
+      #
+      # `ref:` on all four, not just an entry in mix.lock. Without a ref, `github:`
+      # means "whatever that trunk says", and mix.lock only holds the resolved SHA
+      # until something makes mix re-resolve -- `mix deps.update`, a lock conflict,
+      # or a fresh checkout whose lock has been touched. Four trunks free to move
+      # under a demo is four ways for it to change overnight with nothing in the
+      # diff to show it. The refs below are exactly what mix.lock already held, so
+      # this pins the current state rather than moving anything.
+      #
+      # Bump one by editing the ref here AND running `mix deps.get`, so the change
+      # is visible in the diff.
+
       # --- Declarative, agent-renderable UI (A2UI protocol) --------------------
       # Not published to hex, so this is a SHA-pinned git dependency. Tier 3 in
       # docs/manifesto/06-reversibility.md: confined to lib/ash_enterprise_web/a2ui/
       # so removing it is a deletion, not a refactor.
-      {:ash_a2ui, github: "lukegalea/ash_a2ui"},
+      {:ash_a2ui, github: "lukegalea/ash_a2ui", ref: "5be19664870d00d02f57ce887c3b1093686de73e"},
 
       # --- Strangler-fig migration of the legacy schema ------------------------
       # Not published to hex, so this is a git dependency. First-party rather
       # than third-party (ADR 0009), and used here for the read model over
       # `legacy.*` plus the notification bridge that makes a legacy write
       # visible to LiveView. See docs/plans/ash-strangler-in-reference-app.md.
-      {:ash_strangler, github: "lukegalea/ash_strangler"},
+      {:ash_strangler,
+       github: "lukegalea/ash_strangler", ref: "48d29ead05dfa0dfb38de8188d44c054d7d4f9ff"},
 
       # --- Business processes and the decisions they route on ------------------
       # The other half of ADR 0009. `ash_bpmn` compiles a BPMN document into an
@@ -206,8 +220,9 @@ defmodule AshEnterprise.MixProject do
       #
       # Not published to hex, so these are git dependencies -- same as `ash_a2ui`
       # and `ash_strangler`, and first-party rather than third-party (ADR 0009).
-      {:ash_bpmn, github: "lukegalea/ash_bpmn"},
-      {:ash_decisions, github: "lukegalea/ash_decisions"},
+      {:ash_bpmn, github: "lukegalea/ash_bpmn", ref: "8664a9e719390d4c965506cb116e324954fd36ba"},
+      {:ash_decisions,
+       github: "lukegalea/ash_decisions", ref: "9a4e1c7b6800804bd7933a3937fde7ebc174f0f3"},
 
       # --- Observability -------------------------------------------------------
       # Ash.Tracer -> OpenTelemetry -> OTLP. opentelemetry_ash is thin (0.1.x);

@@ -86,8 +86,15 @@ defmodule Mix.Tasks.AshEnterprise.Legacy.Project do
   # refused row. One row refused is a data-quality finding worth printing; nine refused for the
   # same structural reason is a mistake wearing a finding's clothes.
   defp ensure_table! do
+    # Unqualified on purpose. Hardcoding `public.` asserts a schema the repo does
+    # not necessarily use: with ASH_SCHEMA set (see config/dev.exs) this
+    # application's tables live in a schema of their own, and the check then fails
+    # on a database that has been migrated perfectly well -- reporting "run the
+    # migrations first", which is the one thing that would not fix it.
+    # `to_regclass` resolves an unqualified name through the connection's
+    # search_path, which is the repo's own answer to where its tables live.
     %{rows: [[exists?]]} =
-      AshEnterprise.Repo.query!("SELECT to_regclass('public.projected_users') IS NOT NULL")
+      AshEnterprise.Repo.query!("SELECT to_regclass('projected_users') IS NOT NULL")
 
     unless exists? do
       Mix.raise("""

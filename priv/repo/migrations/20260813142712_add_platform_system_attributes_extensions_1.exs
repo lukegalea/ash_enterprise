@@ -9,7 +9,34 @@ defmodule AshEnterprise.Repo.Migrations.AddPlatformSystemAttributesExtensions1 d
 
   def up do
     execute("CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\"")
-    execute("CREATE EXTENSION IF NOT EXISTS \"vector\"")
+
+    # pgvector, but only where the server actually ships it.
+    #
+    # `IF NOT EXISTS` guards against the extension already being installed; it
+    # does not guard against the server not having it available, which raises
+    # `could not open extension control file`. VendorPM's database runs
+    # postgis/postgis:16-3.5-alpine, which carries postgis, citext, cube,
+    # earthdistance and uuid-ossp but NOT pgvector -- so an unconditional
+    # `CREATE EXTENSION "vector"` makes `mix setup` unrunnable against it.
+    #
+    # Nothing in this application vectorizes yet: `installed_extensions/0` lists
+    # "vector" so that ash_ai's `vectorize` block is ready when it is wanted, and
+    # no resource declares one. So skipping it where it is unavailable costs
+    # nothing today and still installs it on a server that has it -- rather than
+    # dropping it from `installed_extensions/0`, which would make the migration
+    # generator emit a removal and lose the readiness.
+    execute("""
+    DO $$
+    BEGIN
+      IF EXISTS (SELECT 1 FROM pg_available_extensions WHERE name = 'vector') THEN
+        CREATE EXTENSION IF NOT EXISTS "vector";
+      ELSE
+        RAISE NOTICE 'pgvector is not available on this server; skipping. Nothing in this application vectorizes yet.';
+      END IF;
+    END
+    $$;
+    """)
+
     execute "CREATE TYPE public.money_with_currency AS (currency_code varchar, amount numeric);"
 
     execute """
