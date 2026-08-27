@@ -9,7 +9,7 @@
     "  partial -- works, with a named limitation stated in the answer.",
     "  planned -- an ADR and a plan exist, no code.",
     "  open    -- named as a gap, no decision taken.",
-    "Last reviewed against the tree: 2026-08-18."
+    "Last reviewed against the tree: 2026-08-27."
   ],
   "sections": [
     {
@@ -488,6 +488,15 @@
       "status": "shipped",
       "adr": "0031",
       "item": "first-party"
+    },
+    {
+      "id": "q55",
+      "section": "flow",
+      "question": "How does production data reach an environment where the rules that protect it do not run?",
+      "answer": "A dump pipeline, not the action layer: greenmask transforms a pg_dump in flight, and its config is generated from the resource declarations by a proposed first-party extension — a `sensitive?` attribute with no declared transform fails generation rather than passing through, and referential continuity comes from greenmask's hash engine with an env-injected salt.",
+      "status": "planned",
+      "adr": "0032",
+      "item": "anonymization"
     }
   ],
   "items": [
@@ -734,6 +743,16 @@
       "status": "planned",
       "effort": "Thesis 5 already did the hard part — an agent is an actor, so a model reaches nothing its user could not, and there is no agent-specific authorization path to secure. What is left is disclosure: log prompt and response as audit events under the same tenant and correlation id as the action they produced, record which model and vendor saw them, and let a tenant switch the whole thing off.",
       "bar": "Yes, and it is the clearest case in the set. An LLM provider is a service behind a network boundary that cannot consume ActorContext, so the rule from thesis 6 applies literally: it receives only what one actor was already entitled to, and removing it degrades a feature rather than breaking the app."
+    },
+    {
+      "id": "anonymization",
+      "title": "Pseudoanonymization of production data",
+      "priority": 2,
+      "choice": "ash_greenmask — config generated from the resource declarations (greenmask, Apache-2.0, adopted not written)",
+      "adr": "0032",
+      "status": "planned",
+      "effort": "A first-party extension in the ash_api_versioning shape: a `greenmask` block on the resource is the single declaration of what may leave production and how, `mix ash_greenmask.gen.config` emits greenmask's YAML from it plus what the model already knows (`sensitive?`, types, the ash_postgres table mapping), and CI gates both the drift between declarations and config and greenmask's own `validate --strict`. No database objects, nothing running in the application itself.",
+      "bar": "Cleanly, by construction: greenmask is handed a thin generated declaration and holds no authorization model — it never serves a query. The control that stands in for ActorContext is the pipeline itself, the only door production bytes leave through, transformed before anything person-like sees them. The residuals are stated rather than wrapped away: the salt is load-bearing key material, hashed keys are not guaranteed unique, and what the config does not name passes through — which is why generation is refuse-by-default over `sensitive?`."
     }
   ]
 }

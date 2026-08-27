@@ -13,6 +13,7 @@ whether or not the thing is ever built.
 | [`decisions-and-feel.md`](decisions-and-feel.md) | **Built**, with one named exception | Why FEEL replaced a bespoke expression language, why decisions are DMN in a first-party package, what is refused and why, and how the conformance number was measured — including the four ways its first run was false. |
 | [`event-triggered-processes.md`](event-triggered-processes.md) | **Built** | How an audit event starts a process, and how a tenant diverges from a platform baseline without forking it forever. Includes the measurements behind the one guarantee the design rests on. |
 | [`ash-api-versioning.md`](ash-api-versioning.md) | **Proposed** | One resource, one schema, N presentation contracts. Version deltas as data, with `render`/`parse` invertibility checked at compile time and no new database objects. |
+| [`ash-greenmask.md`](ash-greenmask.md) | **Proposed** | Pseudoanonymization of production copies: greenmask over the dump stream, its config generated from resource declarations by a first-party extension, refuse-by-default over `sensitive?` and referentially continuous by salt and hash. |
 
 ## A note on the two that were built
 

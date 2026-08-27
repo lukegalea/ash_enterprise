@@ -31,9 +31,9 @@ works with a limitation stated in the answer; 🔵 means a decision is written d
 ⚪ means a gap with no decision taken.
 
 <!-- roadmap:scoreboard:start -->
-**17 of 54** enterprise questions have a shipped answer.
+**17 of 55** enterprise questions have a shipped answer.
 
-✅ Shipped 17 · 🟡 Partial 14 · 🔵 Planned 8 · ⚪ Open 15
+✅ Shipped 17 · 🟡 Partial 14 · 🔵 Planned 9 · ⚪ Open 15
 <!-- roadmap:scoreboard:end -->
 
 <!-- roadmap:sections:start -->
@@ -42,7 +42,7 @@ works with a limitation stated in the answer; 🔵 means a decision is written d
 | Who are you, and what may you do? | 4 | 2 | 0 | 4 |
 | What happened, and can you prove it? | 8 | 1 | 0 | 2 |
 | Whose data is it? | 2 | 1 | 0 | 3 |
-| Where does data come from, and where does it go? | 0 | 0 | 6 | 2 |
+| Where does data come from, and where does it go? | 0 | 0 | 7 | 2 |
 | How does it change, and keep running? | 3 | 7 | 2 | 1 |
 | Can you prove it, continuously? | 0 | 3 | 0 | 3 |
 <!-- roadmap:sections:end -->
@@ -88,6 +88,7 @@ works with a limitation stated in the answer; 🔵 means a decision is written d
 | 21 | The same customer arrived from three systems — which one is real? | Entity resolution as an Ash calculation and change pipeline over the CDM-derived resources, so the golden record inherits ownership, audit and policy instead of living in a second system. | 🔵 Planned |
 | 41 | How do other systems find out that something happened here? | Open. Events land in the audit log and go nowhere else. There is no outbound webhook, no subscription, and no delivery guarantee for anyone who needs to react to a change rather than poll for it. | ⚪ Open |
 | 42 | How does a customer get fifty thousand rows in, or out? | Open. JSON:API and GraphQL paginate, and neither is a bulk path. Import exists only as a Meltano-shaped plan; export exists only for the audit log. | ⚪ Open |
+| 55 | How does production data reach an environment where the rules that protect it do not run? | A dump pipeline, not the action layer: greenmask transforms a pg_dump in flight, and its config is generated from the resource declarations by a proposed first-party extension — a `sensitive?` attribute with no declared transform fails generation rather than passing through, and referential continuity comes from greenmask's hash engine with an env-injected salt. | 🔵 Planned |
 | 22 | How do you move onto this platform from a database you cannot stop? | `ash_strangler` maps a well-modelled resource onto the legacy schema through a closed grammar of typed combinators whose reverses are built rather than guessed, and moves it through four cutover phases without hand-written SQL. 341 tests, including round-trip properties over the legacy value space. **Running here**: `legacy.users` is read through a compatibility view as an ordinary platform resource, a Postgres trigger and listener make that surface live, and the same change is *projected* into a table this application owns -- so there are two live surfaces over the same people, one over the view and one over real columns, and the second is audited where the first structurally cannot be. Still partial, and deliberately: this is not a cutover. The legacy database remains the system of record, and the mapping is not invertible in two documented places (`full_name` cannot be split back into first and last; `company_id` is unmapped), which is exactly what a true cutover would have to resolve. | 🟡 Partial |
 | 23 | How do the processes people actually follow get modelled? | `ash_bpmn` compiles a BPMN document into an immutable versioned graph and executes it with a token interpreter over Postgres and Oban, with an embedded designer. Gateway conditions are FEEL, the DMN expression language -- the hand-written expression evaluator it replaced is deleted. **Running here**: the six resources sit on the platform base resource, so a process instance is an ordinary owned, tenant-scoped record and the engine's bypass is the first policy in the base's own set. A published baseline, four seeded requests covering every branch of the gateway, and two tenants on different versions of the same key. | ✅ Shipped |
 | 24 | How does an action get a second person's approval before it takes effect? | A change dropped on any action: work item, materialized candidate list, maker-checker exclusion applied by subtraction at candidate resolution rather than as a `forbid_if`, delegation, and escalation timers that get cancelled. **A work item is a platform resource here** -- owned, tenant-scoped and audited -- so who may approve is the same union of grants as who may read, and both the manager and executive approval branches are reachable in the demo. Still partial for one reason: nothing asserts that a user *without* the privilege cannot decide a task, and the positive case passing is not the same evidence. | 🟡 Partial |
@@ -269,6 +270,7 @@ permissive direction.
 | 2 | Break-glass and impersonation control | In-Ash: a session resource with a stated reason | 🟡 Partial | — |
 | 2 | Data catalog and governance | OpenMetadata (DataHub is the closer call it looks) | 🔵 Planned | [ADR 0013](docs/adr/0013-openmetadata-as-catalog.md) |
 | 2 | Log shipping, review and alerting | Structured export to the customer's SIEM; Grafana for ours | 🔵 Planned | [ADR 0025](docs/adr/0025-log-shipping-and-review.md) |
+| 2 | Pseudoanonymization of production data | ash_greenmask — config generated from the resource declarations (greenmask, Apache-2.0, adopted not written) | 🔵 Planned | [ADR 0032](docs/adr/0032-anonymization-config-is-generated.md) |
 | 2 | Reporting and embedded analytics | Apache Superset over Metabase | 🔵 Planned | [ADR 0014](docs/adr/0014-superset-over-metabase.md) |
 | 2 | SLOs, disaster recovery and incident response | Committed RPO/RTO with a tested restore; error budgets | 🔵 Planned | — |
 | 3 | Bulk import and export | Ash bulk actions over a staged upload | 🔵 Planned | — |

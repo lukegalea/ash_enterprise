@@ -63,9 +63,10 @@ The concrete exit: which files change, and how much work it is.
 | [0029](0029-process-configuration-is-tenant-data.md) | Process and decision configuration is tenant data, defaulting to a platform baseline | accepted |
 | [0030](0030-events-trigger-processes.md) | Events trigger processes through a dispatched cursor, not a handler | accepted |
 | [0031](0031-the-legacy-estate-is-projected-not-cut-over.md) | The legacy estate is projected, not cut over | accepted |
+| [0032](0032-anonymization-config-is-generated.md) | Anonymization config is generated from the resource declarations | proposed |
 
 Records 0001–0009, 0020–0023 and 0027–0031 are `accepted` and describe code that exists.
-**0010–0019 and 0024–0026 are `proposed`: none of them is built.** They are here because a decision is cheapest to reason about — and cheapest to
+**0010–0019, 0024–0026 and 0032 are `proposed`: none of them is built.** They are here because a decision is cheapest to reason about — and cheapest to
 *reverse* — while the alternatives are still fresh, and because
 [thesis 6](../manifesto/06-reversibility.md) asks for the exit before the entrance. Three of them
 record an answer that changed under verification, which is the main reason to write them down early.

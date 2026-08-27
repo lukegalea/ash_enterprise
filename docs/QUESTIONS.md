@@ -25,9 +25,9 @@ every ⚪ row below.
 README. Edit the JSON, never the table.
 
 <!-- roadmap:scoreboard:start -->
-**17 of 54** enterprise questions have a shipped answer.
+**17 of 55** enterprise questions have a shipped answer.
 
-✅ Shipped 17 · 🟡 Partial 14 · 🔵 Planned 8 · ⚪ Open 15
+✅ Shipped 17 · 🟡 Partial 14 · 🔵 Planned 9 · ⚪ Open 15
 <!-- roadmap:scoreboard:end -->
 
 <!-- roadmap:sections:start -->
@@ -36,7 +36,7 @@ README. Edit the JSON, never the table.
 | Who are you, and what may you do? | 4 | 2 | 0 | 4 |
 | What happened, and can you prove it? | 8 | 1 | 0 | 2 |
 | Whose data is it? | 2 | 1 | 0 | 3 |
-| Where does data come from, and where does it go? | 0 | 0 | 6 | 2 |
+| Where does data come from, and where does it go? | 0 | 0 | 7 | 2 |
 | How does it change, and keep running? | 3 | 7 | 2 | 1 |
 | Can you prove it, continuously? | 0 | 3 | 0 | 3 |
 <!-- roadmap:sections:end -->
@@ -98,6 +98,7 @@ README. Edit the JSON, never the table.
 | 21 | The same customer arrived from three systems — which one is real? | Entity resolution as an Ash calculation and change pipeline over the CDM-derived resources, so the golden record inherits ownership, audit and policy instead of living in a second system. | 🔵 Planned | [ADR 0017](adr/0017-entity-resolution-in-ash.md) |
 | 41 | How do other systems find out that something happened here? | Open. Events land in the audit log and go nowhere else. There is no outbound webhook, no subscription, and no delivery guarantee for anyone who needs to react to a change rather than poll for it. | ⚪ Open | — |
 | 42 | How does a customer get fifty thousand rows in, or out? | Open. JSON:API and GraphQL paginate, and neither is a bulk path. Import exists only as a Meltano-shaped plan; export exists only for the audit log. | ⚪ Open | — |
+| 55 | How does production data reach an environment where the rules that protect it do not run? | A dump pipeline, not the action layer: greenmask transforms a pg_dump in flight, and its config is generated from the resource declarations by a proposed first-party extension — a `sensitive?` attribute with no declared transform fails generation rather than passing through, and referential continuity comes from greenmask's hash engine with an env-injected salt. | 🔵 Planned | [ADR 0032](adr/0032-anonymization-config-is-generated.md) |
 
 ### How does it change, and keep running?
 
