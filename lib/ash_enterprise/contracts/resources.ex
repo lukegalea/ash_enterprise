@@ -382,7 +382,9 @@ defmodule AshEnterprise.Contracts.Contract do
     attribute(:expiry_date, :date, public?: true)
     attribute(:value, :decimal, public?: true)
     attribute(:payment_term, :string, public?: true)
-    attribute(:clauses, :map, allow_nil?: false, public?: true)
+    # The legacy column is jsonb and always holds an ARRAY of clause objects
+    # (default '[]'); :map cannot load it and crashes every surface mount.
+    attribute(:clauses, {:array, :map}, allow_nil?: false, public?: true)
     attribute(:metadata, :map, allow_nil?: false, public?: true)
     attribute(:service_provider_party_id, :uuid, public?: true)
     attribute(:client_party_id, :uuid, public?: true)
