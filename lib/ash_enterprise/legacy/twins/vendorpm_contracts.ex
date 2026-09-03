@@ -19,10 +19,10 @@ defmodule AshEnterprise.Legacy.Twins.ClmParties do
 
   attributes do
     attribute(:id, :uuid, allow_nil?: false, primary_key?: true, public?: true)
-    attribute(:client_id, :string, source: :"clientId", public?: true)
+    attribute(:client_id, :string, source: :clientId, public?: true)
     attribute(:name, :string, allow_nil?: false, public?: true)
     attribute(:metadata, :map, allow_nil?: false, public?: true)
-    attribute(:created_at, :naive_datetime, allow_nil?: false, source: :"createdAt", public?: true)
+    attribute(:created_at, :naive_datetime, allow_nil?: false, source: :createdAt, public?: true)
   end
 end
 
@@ -49,18 +49,18 @@ defmodule AshEnterprise.Legacy.Twins.ClmContracts do
     attribute(:id, :uuid, allow_nil?: false, primary_key?: true, public?: true)
     attribute(:name, :string, allow_nil?: false, public?: true)
     attribute(:description, :string, public?: true)
-    attribute(:effective_date, :date, source: :"effectiveDate", public?: true)
-    attribute(:expiry_date, :date, source: :"expiryDate", public?: true)
+    attribute(:effective_date, :date, source: :effectiveDate, public?: true)
+    attribute(:expiry_date, :date, source: :expiryDate, public?: true)
     attribute(:value, :decimal, public?: true)
-    attribute(:payment_term, :string, source: :"paymentTerm", public?: true)
+    attribute(:payment_term, :string, source: :paymentTerm, public?: true)
     attribute(:clauses, :map, allow_nil?: false, public?: true)
     attribute(:metadata, :map, allow_nil?: false, public?: true)
     attribute(:processed, :boolean, public?: true)
     attribute(:verified, :boolean, public?: true)
     attribute(:archived, :naive_datetime, public?: true)
-    attribute(:created_at, :naive_datetime, allow_nil?: false, source: :"createdAt", public?: true)
-    attribute(:service_provider_party_id, :uuid, source: :"serviceProviderPartyId", public?: true)
-    attribute(:client_party_id, :uuid, source: :"clientPartyId", public?: true)
+    attribute(:created_at, :naive_datetime, allow_nil?: false, source: :createdAt, public?: true)
+    attribute(:service_provider_party_id, :uuid, source: :serviceProviderPartyId, public?: true)
+    attribute(:client_party_id, :uuid, source: :clientPartyId, public?: true)
   end
 end
 
