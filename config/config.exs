@@ -174,7 +174,8 @@ config :ash_enterprise,
     AshEnterprise.Decisions,
     AshEnterprise.Process,
     AshEnterprise.Contracts,
-    AshEnterprise.LegacyAgent
+    AshEnterprise.LegacyAgent,
+    AshEnterprise.CanonicalAgent
   ],
   base_resources: [AshEnterprise.Platform.Resource]
 

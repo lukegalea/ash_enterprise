@@ -19,6 +19,29 @@ config :ash_enterprise, AshEnterprise.Repo,
   pool: Ecto.Adapters.SQL.Sandbox,
   pool_size: System.schedulers_online() * 2
 
+# The VendorPM-workspace knobs, mirroring config/dev.exs. Since VPM-12 the
+# migration set includes strangler views over the real legacy tables, so the
+# test database has to be a restored copy of the legacy dump -- and that dump
+# installs its extensions in a non-public schema, so an unqualified `citext`
+# (what every `:ci_string` attribute compiles to) cannot resolve without the
+# search path below. Env-gated exactly like dev: unset, the test environment
+# keeps the upstream behaviour and runs against a blank database.
+ash_schema = System.get_env("ASH_SCHEMA")
+
+if ash_schema do
+  search_path =
+    [ash_schema, "public", System.get_env("PG_EXTENSION_SCHEMA")]
+    |> Enum.reject(&(&1 in [nil, ""]))
+    |> Enum.uniq()
+    |> Enum.join(",")
+
+  config :ash_enterprise, AshEnterprise.Repo,
+    migration_default_prefix: ash_schema,
+    parameters: [search_path: search_path]
+
+  config :ash_enterprise, Oban, prefix: ash_schema
+end
+
 # We don't run a server during test. If one is required,
 # you can enable the server option below.
 config :ash_enterprise, AshEnterpriseWeb.Endpoint,

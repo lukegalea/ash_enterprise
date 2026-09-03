@@ -9,7 +9,8 @@ defmodule AshEnterprise.Contracts.Party do
     archival?: false,
     audit?: false,
     cdm_entity: "Party",
-    extra_extensions: [AshStrangler.Resource]
+    extra_extensions: [AshStrangler.Resource],
+    notifiers: [Ash.Notifier.PubSub]
 
   postgres do
     table("parties")
@@ -27,6 +28,14 @@ defmodule AshEnterprise.Contracts.Party do
 
   actions do
     defaults([:read])
+  end
+
+  pub_sub do
+    module AshEnterpriseWeb.Endpoint
+    prefix "canonical_parties"
+    publish_all :create, ["created"]
+    publish_all :update, ["updated"]
+    publish_all :destroy, ["destroyed"]
   end
 
   strangler do
@@ -355,7 +364,8 @@ defmodule AshEnterprise.Contracts.Contract do
     archival?: false,
     audit?: false,
     cdm_entity: "Contract",
-    extra_extensions: [AshStrangler.Resource]
+    extra_extensions: [AshStrangler.Resource],
+    notifiers: [Ash.Notifier.PubSub]
 
   postgres do
     table("contracts")
@@ -386,6 +396,14 @@ defmodule AshEnterprise.Contracts.Contract do
 
   actions do
     defaults([:read])
+  end
+
+  pub_sub do
+    module AshEnterpriseWeb.Endpoint
+    prefix "canonical_contracts"
+    publish_all :create, ["created"]
+    publish_all :update, ["updated"]
+    publish_all :destroy, ["destroyed"]
   end
 
   strangler do
@@ -525,7 +543,8 @@ defmodule AshEnterprise.Contracts.Commitment do
     archival?: false,
     audit?: false,
     cdm_entity: "Commitment",
-    extra_extensions: [AshStrangler.Resource]
+    extra_extensions: [AshStrangler.Resource],
+    notifiers: [Ash.Notifier.PubSub]
 
   postgres do
     table("commitments")
@@ -545,6 +564,14 @@ defmodule AshEnterprise.Contracts.Commitment do
 
   actions do
     defaults([:read])
+  end
+
+  pub_sub do
+    module AshEnterpriseWeb.Endpoint
+    prefix "canonical_commitments"
+    publish_all :create, ["created"]
+    publish_all :update, ["updated"]
+    publish_all :destroy, ["destroyed"]
   end
 
   strangler do

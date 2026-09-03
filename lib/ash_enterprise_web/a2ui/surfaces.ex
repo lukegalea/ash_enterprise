@@ -31,6 +31,33 @@ defmodule AshEnterpriseWeb.A2ui.Surfaces do
 
   @surfaces [
     %{
+      name: "canonical_parties",
+      label: "Canonical parties",
+      ui: A2ui.CanonicalPartyUI,
+      path: "/app/canonical-parties",
+      blurb: "Canonical parties in the contracting model.",
+      description:
+        "Parties in the canonical contracting model, served by the canonical Ash resource."
+    },
+    %{
+      name: "canonical_contracts",
+      label: "Canonical contracts",
+      ui: A2ui.CanonicalContractUI,
+      path: "/app/canonical-contracts",
+      blurb: "Contracts in the canonical contracting model.",
+      description:
+        "Contracts in the canonical contracting model, served by the canonical Ash resource."
+    },
+    %{
+      name: "canonical_commitments",
+      label: "Canonical commitments",
+      ui: A2ui.CanonicalCommitmentUI,
+      path: "/app/canonical-commitments",
+      blurb: "Commitments in the canonical contracting model.",
+      description:
+        "Commitments in the canonical contracting model, served by the canonical Ash resource."
+    },
+    %{
       name: "users",
       label: "Users",
       ui: A2ui.UserUI,

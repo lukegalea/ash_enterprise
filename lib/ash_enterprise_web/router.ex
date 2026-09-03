@@ -126,6 +126,18 @@ defmodule AshEnterpriseWeb.Router do
       live "/app/directory", A2uiLive.ProjectedUsers
     end
 
+    ash_authentication_live_session :canonical_surfaces,
+      on_mount: [{AshEnterpriseWeb.LiveUserAuth, :live_user_required}] do
+      live "/app/canonical-parties", A2uiLive.CanonicalParties
+      live "/app/canonical-contracts", A2uiLive.CanonicalContracts
+      live "/app/canonical-commitments", A2uiLive.CanonicalCommitments
+    end
+
+    ash_authentication_live_session :canonical_agent,
+      on_mount: [{AshEnterpriseWeb.LiveUserAuth, :live_user_required}] do
+      live "/canonical/agent", CanonicalAgentLive
+    end
+
     ash_authentication_live_session :legacy_surfaces,
       on_mount: [{AshEnterpriseWeb.LiveUserAuth, :live_user_required}] do
       live "/app/legacy-users", A2uiLive.LegacyUsers
@@ -256,6 +268,15 @@ defmodule AshEnterpriseWeb.Router do
         :legacy_contract_lines,
         :legacy_commitments
       ],
+      protocol_version_statement: "2024-11-05",
+      otp_app: :ash_enterprise
+  end
+
+  scope "/canonical/mcp" do
+    pipe_through :mcp
+
+    forward "/", AshAi.Mcp.Router,
+      tools: [:canonical_parties, :canonical_contracts, :canonical_commitments],
       protocol_version_statement: "2024-11-05",
       otp_app: :ash_enterprise
   end
