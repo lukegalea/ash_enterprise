@@ -103,6 +103,17 @@ defmodule AshEnterpriseWeb.Router do
   scope "/", AshEnterpriseWeb do
     pipe_through :browser
 
+    # --- Demo hub ------------------------------------------------------------
+    #
+    # The front door of the POC: one card per showcase surface, so a demo never
+    # starts from a URL nobody can remember. The root path redirects here (see
+    # PageController), which means a signed-out visitor is bounced to /sign-in
+    # by this session's on_mount while a signed-in one lands on the hub.
+    ash_authentication_live_session :demo_dashboard,
+      on_mount: [{AshEnterpriseWeb.LiveUserAuth, :live_user_required}] do
+      live "/app/demo", DashboardLive
+    end
+
     # --- A2UI surfaces -------------------------------------------------------
     #
     # Declarative, agent-renderable screens derived from resource metadata. Each
@@ -194,7 +205,10 @@ defmodule AshEnterpriseWeb.Router do
   scope "/", AshEnterpriseWeb do
     pipe_through :browser
 
-    get "/", PageController, :home
+    # The root is the demo hub rather than a landing page: this hands to
+    # /app/demo, whose live session decides what happens next (dashboard for a
+    # signed-in visitor, /sign-in for anyone else).
+    get "/", PageController, :root
     auth_routes AuthController, AshEnterprise.Accounts.User, path: "/auth"
     sign_out_route AuthController
 

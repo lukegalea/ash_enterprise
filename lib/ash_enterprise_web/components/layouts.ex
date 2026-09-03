@@ -93,8 +93,10 @@ defmodule AshEnterpriseWeb.Layouts do
             <.theme_toggle />
           </li>
           <li>
-            <a href="https://phoenix.hexdocs.pm/overview.html" class="btn btn-primary">
-              Get Started <span aria-hidden="true">&rarr;</span>
+            <%!-- The demo hub replaces the generated "Get Started" CTA: this app's
+                  front door is its own dashboard, not the framework's docs. --%>
+            <a href={~p"/app/demo"} class="btn btn-primary">
+              Demo hub <span aria-hidden="true">&rarr;</span>
             </a>
           </li>
         </ul>
