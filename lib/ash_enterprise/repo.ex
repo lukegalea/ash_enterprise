@@ -2,6 +2,19 @@ defmodule AshEnterprise.Repo do
   use AshPostgres.Repo,
     otp_app: :ash_enterprise
 
+  # Schema-less resources (the platform set: accounts, security, audit,
+  # process, reference) resolve their table's schema through this callback.
+  # The upstream default of "public" is correct for the reference app's own
+  # database; when this app is hosted inside somebody else's database
+  # (ASH_SCHEMA set, per config/dev.exs), they all live in the owned schema.
+  # Found by VPM-14's CI: the canonical panels' authorization lookup
+  # qualified "public"."roles" against a database where the roles table is
+  # canonical.roles — a path no surface had exercised until the panels.
+  @impl true
+  def default_prefix do
+    System.get_env("ASH_SCHEMA") || "public"
+  end
+
   @impl true
   def installed_extensions do
     # Add extensions here, and the migration generator will install them.
