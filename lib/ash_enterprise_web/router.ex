@@ -127,7 +127,7 @@ defmodule AshEnterpriseWeb.Router do
     end
 
     ash_authentication_live_session :legacy_surfaces,
-      on_mount: [{AshEnterpriseWeb.LiveUserAuth, :live_user_optional}] do
+      on_mount: [{AshEnterpriseWeb.LiveUserAuth, :live_user_required}] do
       live "/app/legacy-users", A2uiLive.LegacyUsers
       live "/app/legacy-parties", A2uiLive.LegacyParties
       live "/app/legacy-vendor-parties", A2uiLive.LegacyVendorParties
