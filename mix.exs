@@ -198,7 +198,7 @@ defmodule AshEnterprise.MixProject do
       # `legacy.*` plus the notification bridge that makes a legacy write
       # visible to LiveView. See docs/plans/ash-strangler-in-reference-app.md.
       {:ash_strangler,
-       github: "lukegalea/ash_strangler", ref: "48d29ead05dfa0dfb38de8188d44c054d7d4f9ff"},
+       github: "lukegalea/ash_strangler", ref: "15992b7edc9601a532dadb01ff80c8d7ba7aa6fc"},
 
       # --- Business processes and the decisions they route on ------------------
       # The other half of ADR 0009. `ash_bpmn` compiles a BPMN document into an

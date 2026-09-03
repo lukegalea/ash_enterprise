@@ -22,7 +22,7 @@ defmodule AshEnterprise.Legacy.Twins.ClmParties do
     attribute(:client_id, :string, public?: true)
     attribute(:name, :string, allow_nil?: false, public?: true)
     attribute(:metadata, :map, allow_nil?: false, public?: true)
-    attribute(:created_at, :naive_datetime, allow_nil?: false, public?: true)
+    attribute(:created_at, :naive_datetime, allow_nil?: false, source: :"createdAt", public?: true)
   end
 end
 

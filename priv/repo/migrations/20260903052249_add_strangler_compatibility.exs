@@ -86,7 +86,7 @@ defmodule AshEnterprise.Repo.Migrations.AddStranglerCompatibility do
       NULL AS modified_by_id,
       NULL AS created_by_id,
       NULL AS modified_on,
-      (created_at AT TIME ZONE 'UTC') AS created_on,
+      ("createdAt" AT TIME ZONE 'UTC') AS created_on,
       name AS legal_name,
       client_id AS client_id,
       metadata AS metadata
@@ -343,17 +343,17 @@ defmodule AshEnterprise.Repo.Migrations.AddStranglerCompatibility do
       NULL AS modified_by_id,
       NULL AS created_by_id,
       NULL AS modified_on,
-      (createdAt AT TIME ZONE 'UTC') AS created_on,
+      ("createdAt" AT TIME ZONE 'UTC') AS created_on,
       name AS name,
       description AS description,
-      effectiveDate AS effective_date,
-      expiryDate AS expiry_date,
+      "effectiveDate" AS effective_date,
+      "expiryDate" AS expiry_date,
       value AS value,
-      paymentTerm AS payment_term,
+      "paymentTerm" AS payment_term,
       clauses AS clauses,
       metadata AS metadata,
-      serviceProviderPartyId AS service_provider_party_id,
-      clientPartyId AS client_party_id,
+      "serviceProviderPartyId" AS service_provider_party_id,
+      "clientPartyId" AS client_party_id,
       (CASE WHEN (archived IS NOT NULL) THEN 'archived' ELSE (CASE WHEN (processed AND (NOT verified)) THEN 'unverified' ELSE (CASE WHEN (processed AND verified) THEN 'active' ELSE 'processing' END) END) END) AS lifecycle_status
     FROM public.clm_contracts;
     """)
