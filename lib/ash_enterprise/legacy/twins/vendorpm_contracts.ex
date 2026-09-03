@@ -84,7 +84,7 @@ defmodule AshEnterprise.Legacy.Twins.Vendors do
   end
 
   attributes do
-    attribute(:id, :integer, allow_nil?: false, public?: true)
+    attribute(:id, :integer, allow_nil?: false, primary_key?: true, public?: true)
     attribute(:company, :string, allow_nil?: false, public?: true)
     attribute(:email, :string, public?: true)
     attribute(:phone, :string, public?: true)
@@ -115,7 +115,7 @@ defmodule AshEnterprise.Legacy.Twins.Enterprises do
   end
 
   attributes do
-    attribute(:id, :integer, allow_nil?: false, public?: true)
+    attribute(:id, :integer, allow_nil?: false, primary_key?: true, public?: true)
     attribute(:company, :string, allow_nil?: false, public?: true)
     attribute(:created, :utc_datetime, public?: true)
     attribute(:archived, :boolean, allow_nil?: false, public?: true)
@@ -144,7 +144,7 @@ defmodule AshEnterprise.Legacy.Twins.Rfqs do
   end
 
   attributes do
-    attribute(:id, :integer, allow_nil?: false, public?: true)
+    attribute(:id, :integer, allow_nil?: false, primary_key?: true, public?: true)
     attribute(:deadline, :utc_datetime, public?: true)
     attribute(:created, :utc_datetime, public?: true)
     attribute(:cancelled, :utc_datetime, public?: true)
@@ -176,7 +176,7 @@ defmodule AshEnterprise.Legacy.Twins.RfqResponses do
   end
 
   attributes do
-    attribute(:id, :integer, allow_nil?: false, public?: true)
+    attribute(:id, :integer, allow_nil?: false, primary_key?: true, public?: true)
     attribute(:rfq_id, :integer, allow_nil?: false, public?: true)
     attribute(:vendor_id, :integer, allow_nil?: false, public?: true)
     attribute(:interested, :boolean, public?: true)
@@ -207,7 +207,7 @@ defmodule AshEnterprise.Legacy.Twins.Quotes do
   end
 
   attributes do
-    attribute(:id, :integer, allow_nil?: false, public?: true)
+    attribute(:id, :integer, allow_nil?: false, primary_key?: true, public?: true)
     attribute(:rfq_id, :integer, allow_nil?: false, public?: true)
     attribute(:vendor_id, :integer, allow_nil?: false, public?: true)
     attribute(:created, :utc_datetime, public?: true)
@@ -238,7 +238,7 @@ defmodule AshEnterprise.Legacy.Twins.ComplianceDocuments do
   end
 
   attributes do
-    attribute(:id, :integer, allow_nil?: false, public?: true)
+    attribute(:id, :integer, allow_nil?: false, primary_key?: true, public?: true)
     attribute(:vendor_id, :integer, allow_nil?: false, public?: true)
     attribute(:type, :string, allow_nil?: false, public?: true)
     attribute(:status, :string, allow_nil?: false, public?: true)
