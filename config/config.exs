@@ -173,7 +173,8 @@ config :ash_enterprise,
     AshEnterprise.Bpmn,
     AshEnterprise.Decisions,
     AshEnterprise.Process,
-    AshEnterprise.Contracts
+    AshEnterprise.Contracts,
+    AshEnterprise.LegacyAgent
   ],
   base_resources: [AshEnterprise.Platform.Resource]
 
