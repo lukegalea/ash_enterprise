@@ -18,8 +18,8 @@ defmodule AshEnterprise.Legacy.Twins.ClmParties do
   end
 
   attributes do
-    attribute(:id, :uuid, allow_nil?: false, public?: true)
-    attribute(:client_id, :string, public?: true)
+    attribute(:id, :uuid, allow_nil?: false, primary_key?: true, public?: true)
+    attribute(:client_id, :string, source: :"clientId", public?: true)
     attribute(:name, :string, allow_nil?: false, public?: true)
     attribute(:metadata, :map, allow_nil?: false, public?: true)
     attribute(:created_at, :naive_datetime, allow_nil?: false, source: :"createdAt", public?: true)
@@ -46,7 +46,7 @@ defmodule AshEnterprise.Legacy.Twins.ClmContracts do
   end
 
   attributes do
-    attribute(:id, :uuid, allow_nil?: false, public?: true)
+    attribute(:id, :uuid, allow_nil?: false, primary_key?: true, public?: true)
     attribute(:name, :string, allow_nil?: false, public?: true)
     attribute(:description, :string, public?: true)
     attribute(:effective_date, :date, source: :"effectiveDate", public?: true)

@@ -88,7 +88,7 @@ defmodule AshEnterprise.Repo.Migrations.AddStranglerCompatibility do
       NULL AS modified_on,
       ("createdAt" AT TIME ZONE 'UTC') AS created_on,
       name AS legal_name,
-      client_id AS client_id,
+      "clientId" AS client_id,
       metadata AS metadata
     FROM public.clm_parties;
     """)
