@@ -394,6 +394,28 @@ defmodule AshEnterprise.Contracts.Contract do
     )
   end
 
+  relationships do
+    # Both party foreign keys are real uuid columns on the view, carried straight
+    # from `clm_contracts."serviceProviderPartyId"` / `"clientPartyId"`, and the
+    # Party id is the identity-mapped `clm_parties.id` -- so the join is the
+    # legacy schema's own. The attributes already exist above, hence
+    # `define_attribute? false`: the relationship reads them, it does not own
+    # them.
+    belongs_to :service_provider_party, AshEnterprise.Contracts.Party do
+      public? true
+      define_attribute? false
+
+      description "The CLM party supplying the service."
+    end
+
+    belongs_to :client_party, AshEnterprise.Contracts.Party do
+      public? true
+      define_attribute? false
+
+      description "The CLM party receiving the service."
+    end
+  end
+
   actions do
     defaults([:read])
   end
@@ -620,6 +642,13 @@ defmodule AshEnterprise.Contracts.Amendment do
     table("amendments")
     schema("canonical")
     repo(AshEnterprise.Repo)
+
+    references do
+      # The contract lives in the strangler schema (a compatibility view, for
+      # now), and Postgres cannot put a real constraint against a view. The
+      # join is application-level until canonical.contracts exists.
+      reference :contract, ignore?: true
+    end
   end
 
   attributes do
@@ -629,6 +658,17 @@ defmodule AshEnterprise.Contracts.Amendment do
     attribute(:rationale, :string, public?: true)
     attribute(:description, :string, public?: true)
     attribute(:amended_at, :utc_datetime_usec, public?: true)
+  end
+
+  relationships do
+    # `contract_id` is a real uuid column on canonical.amendments referencing
+    # the canonical Contract id; `define_attribute? false` because the attribute
+    # is declared above.
+    belongs_to :contract, AshEnterprise.Contracts.Contract do
+      allow_nil? false
+      public? true
+      define_attribute? false
+    end
   end
 
   actions do
@@ -651,6 +691,14 @@ defmodule AshEnterprise.Contracts.Milestone do
     table("milestones")
     schema("canonical")
     repo(AshEnterprise.Repo)
+
+    references do
+      # Same view-FK reasoning as Amendment: contract is still a strangler
+      # compatibility view; commitment is `strangler.commitments`. Constraints
+      # would fail against views, so both joins stay application-level.
+      reference :contract, ignore?: true
+      reference :commitment, ignore?: true
+    end
   end
 
   attributes do
@@ -662,6 +710,23 @@ defmodule AshEnterprise.Contracts.Milestone do
     attribute(:due_date, :date, public?: true)
     attribute(:notice_lead_days, :integer, public?: true)
     attribute(:completed_at, :utc_datetime_usec, public?: true)
+  end
+
+  relationships do
+    # Both foreign keys are real uuid columns on canonical.milestones; the
+    # commitment link is optional by design -- not every milestone hangs off an
+    # assurance. `define_attribute? false` because both attributes are declared
+    # above.
+    belongs_to :contract, AshEnterprise.Contracts.Contract do
+      allow_nil? false
+      public? true
+      define_attribute? false
+    end
+
+    belongs_to :commitment, AshEnterprise.Contracts.Commitment do
+      public? true
+      define_attribute? false
+    end
   end
 
   actions do
@@ -684,6 +749,14 @@ defmodule AshEnterprise.Contracts.Transaction do
     table("transactions")
     schema("canonical")
     repo(AshEnterprise.Repo)
+
+    references do
+      # Contract and contract line are strangler compatibility views for now;
+      # Postgres cannot constrain against a view, so both joins stay at the
+      # application level. The `source_reference` identity is the real guard.
+      reference :contract, ignore?: true
+      reference :line, ignore?: true
+    end
   end
 
   attributes do
@@ -695,6 +768,22 @@ defmodule AshEnterprise.Contracts.Transaction do
     attribute(:value_date, :date, public?: true)
     attribute(:source, :string, allow_nil?: false, public?: true)
     attribute(:external_reference, :string, allow_nil?: false, public?: true)
+  end
+
+  relationships do
+    # `contract_id` and `line_id` are real uuid columns on canonical.transactions
+    # (the line link optional -- payments can land on the contract as a whole);
+    # `define_attribute? false` because both attributes are declared above.
+    belongs_to :contract, AshEnterprise.Contracts.Contract do
+      allow_nil? false
+      public? true
+      define_attribute? false
+    end
+
+    belongs_to :line, AshEnterprise.Contracts.ContractLine do
+      public? true
+      define_attribute? false
+    end
   end
 
   identities do
