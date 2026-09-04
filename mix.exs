@@ -220,9 +220,13 @@ defmodule AshEnterprise.MixProject do
       #
       # Not published to hex, so these are git dependencies -- same as `ash_a2ui`
       # and `ash_strangler`, and first-party rather than third-party (ADR 0009).
-      {:ash_bpmn, github: "lukegalea/ash_bpmn", ref: "8664a9e719390d4c965506cb116e324954fd36ba"},
+      # Each is pinned to a ref on its feature branch (ash_bpmn:
+      # feat/typed-nodes-linked-editors, ash_decisions: feat/designer-catalogue):
+      # a pin makes the demo reproducible while the branch is reviewed, and the
+      # branch name says what the pin is waiting to become.
+      {:ash_bpmn, github: "lukegalea/ash_bpmn", ref: "ca7405543bb339e9ecbdc4b46d7236cb4e441fdd"},
       {:ash_decisions,
-       github: "lukegalea/ash_decisions", ref: "9a4e1c7b6800804bd7933a3937fde7ebc174f0f3"},
+       github: "lukegalea/ash_decisions", ref: "78d6932f1ab29079f5b2aad34e1871b5b7ca4ced"},
 
       # --- Observability -------------------------------------------------------
       # Ash.Tracer -> OpenTelemetry -> OTLP. opentelemetry_ash is thin (0.1.x);
