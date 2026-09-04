@@ -339,10 +339,13 @@ resource "coder_script" "devenv" {
 
     if ! command -v nix >/dev/null 2>&1; then
       echo "installing Nix (one-time; several minutes)..."
-      # NB: the artifacts.nixos.org installer build takes no `--init` flag
-      # (usage: `install --no-confirm [PLAN]`); it detects the container
-      # environment itself. Verified the hard way on the first live start.
-      if ! curl -sSfL https://artifacts.nixos.org/nix-installer | sh -s -- install --no-confirm; then
+      # NB: in nix-installer 2.35.x `--init` belongs to the planner subcommand
+      # (`install linux --init none`), not to `install` itself. `--init none`
+      # is the daemonless/container-safe path — no systemd in this image, and
+      # the default (systemd) plan leaves a root-owned store with a daemon
+      # socket that never exists. Verified against the binary the bootstrap
+      # actually fetches (releases/download/2.35.1).
+      if ! curl -sSfL https://artifacts.nixos.org/nix-installer | sh -s -- install linux --init none --no-confirm; then
         echo "ERROR: Nix installer failed"
         if ! command -v sudo >/dev/null 2>&1; then
           echo "       (no sudo on PATH and not root — Nix needs one of the two to create /nix)"
