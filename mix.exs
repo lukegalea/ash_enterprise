@@ -253,7 +253,11 @@ defmodule AshEnterprise.MixProject do
       {:ash_rate_limiter, "~> 1.0"},
       {:ash_money, "~> 0.2"},
       {:usage_rules, "~> 1.0", only: [:dev]},
-      {:ash_ai, "~> 0.8"},
+      {:ash_ai, "~> 1.0"},
+      # ash_ai 0.8 pulled req_llm in as a hard dependency; 1.0 makes it optional.
+      # The interpreter calls ReqLLM directly (key resolution, model selection),
+      # so the application owns the declaration now.
+      {:req_llm, "~> 1.7"},
       {:absinthe_phoenix, "~> 2.0"},
       {:oban, "~> 2.0"},
       {:open_api_spex, "~> 3.0"},
