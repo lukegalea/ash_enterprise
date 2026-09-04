@@ -1,4 +1,4 @@
-defmodule AshEnterprise.Repo.Migrations.SchemaBindingAlignment do
+defmodule AshEnterprise.Repo.Migrations.RecordReferencePrefixes do
   @moduledoc """
   Updates resources based on their most recent snapshots.
 
@@ -6,22 +6,6 @@ defmodule AshEnterprise.Repo.Migrations.SchemaBindingAlignment do
   """
 
   use Ecto.Migration
-
-  # `prefix: prefix()` rather than the generated `prefix: prefix()`.
-  #
-  # This migration was generated with ASH_SCHEMA=canonical set, so the
-  # generator resolved every schema-less resource's reference to a baked-in
-  # `canonical` literal. The platform tables are created by earlier migrations
-  # in the migrator's own prefix (Ecto's `migration_default_prefix`), so the
-  # literal only worked where that prefix happened to be `canonical` too -- and
-  # nowhere in this repository's history had these migrations ever been
-  # replayed from scratch to find out. A fresh run dies at the first FK with
-  # `relation "canonical.bpmn_definitions" does not exist`.
-  #
-  # `Ecto.Migration.prefix/0` is the migrator's own prefix, so each reference
-  # lands in whatever schema this run is actually creating tables in. See the
-  # same fix, and the same generator behaviour, in
-  # 20260819162255_adopt_bpmn_and_decisions.exs.
 
   def up do
     drop constraint(:bpmn_instances, "bpmn_instances_definition_id_fkey")
@@ -32,7 +16,7 @@ defmodule AshEnterprise.Repo.Migrations.SchemaBindingAlignment do
                column: :id,
                name: "bpmn_instances_definition_id_fkey",
                type: :uuid,
-               prefix: prefix()
+               prefix: "public"
              )
     end
 
@@ -46,7 +30,7 @@ defmodule AshEnterprise.Repo.Migrations.SchemaBindingAlignment do
                column: :id,
                name: "team_memberships_user_id_fkey",
                type: :uuid,
-               prefix: prefix(),
+               prefix: "public",
                on_delete: :delete_all
              )
 
@@ -55,7 +39,7 @@ defmodule AshEnterprise.Repo.Migrations.SchemaBindingAlignment do
                column: :id,
                name: "team_memberships_team_id_fkey",
                type: :uuid,
-               prefix: prefix(),
+               prefix: "public",
                on_delete: :delete_all
              )
     end
@@ -68,7 +52,7 @@ defmodule AshEnterprise.Repo.Migrations.SchemaBindingAlignment do
                column: :id,
                name: "positions_parent_position_id_fkey",
                type: :uuid,
-               prefix: prefix(),
+               prefix: "public",
                on_delete: :restrict
              )
     end
@@ -81,7 +65,7 @@ defmodule AshEnterprise.Repo.Migrations.SchemaBindingAlignment do
                column: :id,
                name: "teams_administrator_id_fkey",
                type: :uuid,
-               prefix: prefix()
+               prefix: "public"
              )
     end
 
@@ -95,7 +79,7 @@ defmodule AshEnterprise.Repo.Migrations.SchemaBindingAlignment do
                column: :id,
                name: "access_requests_requested_role_id_fkey",
                type: :uuid,
-               prefix: prefix(),
+               prefix: "public",
                on_delete: :nothing
              )
 
@@ -104,7 +88,7 @@ defmodule AshEnterprise.Repo.Migrations.SchemaBindingAlignment do
                column: :id,
                name: "access_requests_scoping_business_unit_id_fkey",
                type: :uuid,
-               prefix: prefix(),
+               prefix: "public",
                on_delete: :nothing
              )
     end
@@ -117,7 +101,7 @@ defmodule AshEnterprise.Repo.Migrations.SchemaBindingAlignment do
                column: :id,
                name: "dmn_evaluations_definition_id_fkey",
                type: :uuid,
-               prefix: prefix()
+               prefix: "public"
              )
     end
 
@@ -133,7 +117,7 @@ defmodule AshEnterprise.Repo.Migrations.SchemaBindingAlignment do
                column: :id,
                name: "user_roles_user_id_fkey",
                type: :uuid,
-               prefix: prefix(),
+               prefix: "public",
                on_delete: :delete_all
              )
 
@@ -142,7 +126,7 @@ defmodule AshEnterprise.Repo.Migrations.SchemaBindingAlignment do
                column: :id,
                name: "user_roles_role_id_fkey",
                type: :uuid,
-               prefix: prefix(),
+               prefix: "public",
                on_delete: :delete_all
              )
 
@@ -151,7 +135,7 @@ defmodule AshEnterprise.Repo.Migrations.SchemaBindingAlignment do
                column: :id,
                name: "user_roles_scoping_business_unit_id_fkey",
                type: :uuid,
-               prefix: prefix(),
+               prefix: "public",
                on_delete: :restrict
              )
     end
@@ -164,7 +148,7 @@ defmodule AshEnterprise.Repo.Migrations.SchemaBindingAlignment do
                column: :id,
                name: "bpmn_process_events_instance_id_fkey",
                type: :uuid,
-               prefix: prefix()
+               prefix: "public"
              )
     end
 
@@ -180,7 +164,7 @@ defmodule AshEnterprise.Repo.Migrations.SchemaBindingAlignment do
                column: :id,
                name: "team_roles_team_id_fkey",
                type: :uuid,
-               prefix: prefix(),
+               prefix: "public",
                on_delete: :delete_all
              )
 
@@ -189,7 +173,7 @@ defmodule AshEnterprise.Repo.Migrations.SchemaBindingAlignment do
                column: :id,
                name: "team_roles_role_id_fkey",
                type: :uuid,
-               prefix: prefix(),
+               prefix: "public",
                on_delete: :delete_all
              )
 
@@ -198,7 +182,7 @@ defmodule AshEnterprise.Repo.Migrations.SchemaBindingAlignment do
                column: :id,
                name: "team_roles_scoping_business_unit_id_fkey",
                type: :uuid,
-               prefix: prefix(),
+               prefix: "public",
                on_delete: :restrict
              )
     end
@@ -211,7 +195,7 @@ defmodule AshEnterprise.Repo.Migrations.SchemaBindingAlignment do
                column: :id,
                name: "bpmn_task_candidates_task_id_fkey",
                type: :uuid,
-               prefix: prefix()
+               prefix: "public"
              )
     end
 
@@ -223,7 +207,7 @@ defmodule AshEnterprise.Repo.Migrations.SchemaBindingAlignment do
                column: :id,
                name: "process_trigger_dispatches_trigger_id_fkey",
                type: :uuid,
-               prefix: prefix()
+               prefix: "public"
              )
     end
 
@@ -235,7 +219,7 @@ defmodule AshEnterprise.Repo.Migrations.SchemaBindingAlignment do
                column: :id,
                name: "bpmn_tokens_instance_id_fkey",
                type: :uuid,
-               prefix: prefix()
+               prefix: "public"
              )
     end
 
@@ -249,7 +233,7 @@ defmodule AshEnterprise.Repo.Migrations.SchemaBindingAlignment do
                column: :id,
                name: "role_privileges_role_id_fkey",
                type: :uuid,
-               prefix: prefix(),
+               prefix: "public",
                on_delete: :delete_all
              )
 
@@ -258,7 +242,7 @@ defmodule AshEnterprise.Repo.Migrations.SchemaBindingAlignment do
                column: :id,
                name: "role_privileges_privilege_id_fkey",
                type: :uuid,
-               prefix: prefix(),
+               prefix: "public",
                on_delete: :restrict
              )
     end
@@ -271,7 +255,7 @@ defmodule AshEnterprise.Repo.Migrations.SchemaBindingAlignment do
                column: :id,
                name: "business_units_parent_business_unit_id_fkey",
                type: :uuid,
-               prefix: prefix(),
+               prefix: "public",
                on_delete: :restrict
              )
     end
@@ -286,7 +270,7 @@ defmodule AshEnterprise.Repo.Migrations.SchemaBindingAlignment do
                column: :id,
                name: "users_manager_id_fkey",
                type: :uuid,
-               prefix: prefix()
+               prefix: "public"
              )
 
       modify :position_id,
@@ -294,7 +278,7 @@ defmodule AshEnterprise.Repo.Migrations.SchemaBindingAlignment do
                column: :id,
                name: "users_position_id_fkey",
                type: :uuid,
-               prefix: prefix()
+               prefix: "public"
              )
     end
 
@@ -308,7 +292,7 @@ defmodule AshEnterprise.Repo.Migrations.SchemaBindingAlignment do
                column: :id,
                name: "bpmn_human_tasks_instance_id_fkey",
                type: :uuid,
-               prefix: prefix()
+               prefix: "public"
              )
 
       modify :token_id,
@@ -316,7 +300,7 @@ defmodule AshEnterprise.Repo.Migrations.SchemaBindingAlignment do
                column: :id,
                name: "bpmn_human_tasks_token_id_fkey",
                type: :uuid,
-               prefix: prefix()
+               prefix: "public"
              )
     end
   end
@@ -332,7 +316,7 @@ defmodule AshEnterprise.Repo.Migrations.SchemaBindingAlignment do
                column: :id,
                name: "bpmn_human_tasks_token_id_fkey",
                type: :uuid,
-               prefix: prefix()
+               prefix: "canonical"
              )
 
       modify :instance_id,
@@ -340,7 +324,7 @@ defmodule AshEnterprise.Repo.Migrations.SchemaBindingAlignment do
                column: :id,
                name: "bpmn_human_tasks_instance_id_fkey",
                type: :uuid,
-               prefix: prefix()
+               prefix: "canonical"
              )
     end
 
@@ -354,7 +338,7 @@ defmodule AshEnterprise.Repo.Migrations.SchemaBindingAlignment do
                column: :id,
                name: "users_position_id_fkey",
                type: :uuid,
-               prefix: prefix()
+               prefix: "canonical"
              )
 
       modify :manager_id,
@@ -362,7 +346,7 @@ defmodule AshEnterprise.Repo.Migrations.SchemaBindingAlignment do
                column: :id,
                name: "users_manager_id_fkey",
                type: :uuid,
-               prefix: prefix()
+               prefix: "canonical"
              )
     end
 
@@ -374,7 +358,7 @@ defmodule AshEnterprise.Repo.Migrations.SchemaBindingAlignment do
                column: :id,
                name: "business_units_parent_business_unit_id_fkey",
                type: :uuid,
-               prefix: prefix(),
+               prefix: "canonical",
                on_delete: :restrict
              )
     end
@@ -389,7 +373,7 @@ defmodule AshEnterprise.Repo.Migrations.SchemaBindingAlignment do
                column: :id,
                name: "role_privileges_privilege_id_fkey",
                type: :uuid,
-               prefix: prefix(),
+               prefix: "canonical",
                on_delete: :restrict
              )
 
@@ -398,7 +382,7 @@ defmodule AshEnterprise.Repo.Migrations.SchemaBindingAlignment do
                column: :id,
                name: "role_privileges_role_id_fkey",
                type: :uuid,
-               prefix: prefix(),
+               prefix: "canonical",
                on_delete: :delete_all
              )
     end
@@ -411,7 +395,7 @@ defmodule AshEnterprise.Repo.Migrations.SchemaBindingAlignment do
                column: :id,
                name: "bpmn_tokens_instance_id_fkey",
                type: :uuid,
-               prefix: prefix()
+               prefix: "canonical"
              )
     end
 
@@ -423,7 +407,7 @@ defmodule AshEnterprise.Repo.Migrations.SchemaBindingAlignment do
                column: :id,
                name: "process_trigger_dispatches_trigger_id_fkey",
                type: :uuid,
-               prefix: prefix()
+               prefix: "canonical"
              )
     end
 
@@ -435,7 +419,7 @@ defmodule AshEnterprise.Repo.Migrations.SchemaBindingAlignment do
                column: :id,
                name: "bpmn_task_candidates_task_id_fkey",
                type: :uuid,
-               prefix: prefix()
+               prefix: "canonical"
              )
     end
 
@@ -451,7 +435,7 @@ defmodule AshEnterprise.Repo.Migrations.SchemaBindingAlignment do
                column: :id,
                name: "team_roles_scoping_business_unit_id_fkey",
                type: :uuid,
-               prefix: prefix(),
+               prefix: "canonical",
                on_delete: :restrict
              )
 
@@ -460,7 +444,7 @@ defmodule AshEnterprise.Repo.Migrations.SchemaBindingAlignment do
                column: :id,
                name: "team_roles_role_id_fkey",
                type: :uuid,
-               prefix: prefix(),
+               prefix: "canonical",
                on_delete: :delete_all
              )
 
@@ -469,7 +453,7 @@ defmodule AshEnterprise.Repo.Migrations.SchemaBindingAlignment do
                column: :id,
                name: "team_roles_team_id_fkey",
                type: :uuid,
-               prefix: prefix(),
+               prefix: "canonical",
                on_delete: :delete_all
              )
     end
@@ -482,7 +466,7 @@ defmodule AshEnterprise.Repo.Migrations.SchemaBindingAlignment do
                column: :id,
                name: "bpmn_process_events_instance_id_fkey",
                type: :uuid,
-               prefix: prefix()
+               prefix: "canonical"
              )
     end
 
@@ -498,7 +482,7 @@ defmodule AshEnterprise.Repo.Migrations.SchemaBindingAlignment do
                column: :id,
                name: "user_roles_scoping_business_unit_id_fkey",
                type: :uuid,
-               prefix: prefix(),
+               prefix: "canonical",
                on_delete: :restrict
              )
 
@@ -507,7 +491,7 @@ defmodule AshEnterprise.Repo.Migrations.SchemaBindingAlignment do
                column: :id,
                name: "user_roles_role_id_fkey",
                type: :uuid,
-               prefix: prefix(),
+               prefix: "canonical",
                on_delete: :delete_all
              )
 
@@ -516,7 +500,7 @@ defmodule AshEnterprise.Repo.Migrations.SchemaBindingAlignment do
                column: :id,
                name: "user_roles_user_id_fkey",
                type: :uuid,
-               prefix: prefix(),
+               prefix: "canonical",
                on_delete: :delete_all
              )
     end
@@ -529,7 +513,7 @@ defmodule AshEnterprise.Repo.Migrations.SchemaBindingAlignment do
                column: :id,
                name: "dmn_evaluations_definition_id_fkey",
                type: :uuid,
-               prefix: prefix()
+               prefix: "canonical"
              )
     end
 
@@ -543,7 +527,7 @@ defmodule AshEnterprise.Repo.Migrations.SchemaBindingAlignment do
                column: :id,
                name: "access_requests_scoping_business_unit_id_fkey",
                type: :uuid,
-               prefix: prefix(),
+               prefix: "canonical",
                on_delete: :nothing
              )
 
@@ -552,7 +536,7 @@ defmodule AshEnterprise.Repo.Migrations.SchemaBindingAlignment do
                column: :id,
                name: "access_requests_requested_role_id_fkey",
                type: :uuid,
-               prefix: prefix(),
+               prefix: "canonical",
                on_delete: :nothing
              )
     end
@@ -565,7 +549,7 @@ defmodule AshEnterprise.Repo.Migrations.SchemaBindingAlignment do
                column: :id,
                name: "teams_administrator_id_fkey",
                type: :uuid,
-               prefix: prefix()
+               prefix: "canonical"
              )
     end
 
@@ -577,7 +561,7 @@ defmodule AshEnterprise.Repo.Migrations.SchemaBindingAlignment do
                column: :id,
                name: "positions_parent_position_id_fkey",
                type: :uuid,
-               prefix: prefix(),
+               prefix: "canonical",
                on_delete: :restrict
              )
     end
@@ -592,7 +576,7 @@ defmodule AshEnterprise.Repo.Migrations.SchemaBindingAlignment do
                column: :id,
                name: "team_memberships_team_id_fkey",
                type: :uuid,
-               prefix: prefix(),
+               prefix: "canonical",
                on_delete: :delete_all
              )
 
@@ -601,7 +585,7 @@ defmodule AshEnterprise.Repo.Migrations.SchemaBindingAlignment do
                column: :id,
                name: "team_memberships_user_id_fkey",
                type: :uuid,
-               prefix: prefix(),
+               prefix: "canonical",
                on_delete: :delete_all
              )
     end
@@ -614,7 +598,7 @@ defmodule AshEnterprise.Repo.Migrations.SchemaBindingAlignment do
                column: :id,
                name: "bpmn_instances_definition_id_fkey",
                type: :uuid,
-               prefix: prefix()
+               prefix: "canonical"
              )
     end
   end

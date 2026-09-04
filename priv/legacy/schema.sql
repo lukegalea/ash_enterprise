@@ -88,3 +88,114 @@ CREATE TABLE IF NOT EXISTS legacy.permissions (
   action        varchar(20),   -- 'read', 'edit', 'destroy', 'manage'
   scope         varchar(20)    -- NULL | 'own' | 'company'
 );
+
+-- The VendorPM estate, as dumped in VPM-11 and mapped in VPM-12: the knex-era
+-- `vendorpm` schema, plus the two `clm_*` contract-management tables the CLM
+-- feature parked in the database's default schema.
+--
+-- The strangler compatibility migration declares views, notify triggers and
+-- expression indexes over these tables, and that migration runs against the
+-- test database too -- so these fixtures have to stand in for the estate. The
+-- real tables exist only in the VendorPM database; tests never ran in CI on
+-- this branch before, which is why the omission surfaced only now. Columns are
+-- synthesized from the twins
+-- (lib/ash_enterprise/legacy/twins/vendorpm_contracts.ex, generated from the
+-- VPM-11 dump) and from the strangler views' SELECT lists; timestamps are bare
+-- `timestamp` like everything above, because that is what the twins read and
+-- what the views' AT TIME ZONE casts were generated against. No test seeds
+-- rows here -- the tables exist so the compatibility layer can build.
+--
+-- `IF NOT EXISTS`, like everything above: against the real VendorPM database
+-- this file is a no-op, and the real tables win.
+
+CREATE SCHEMA IF NOT EXISTS vendorpm;
+
+CREATE TABLE IF NOT EXISTS public.clm_parties (
+  id          uuid PRIMARY KEY,
+  "clientId"  text,
+  name        text NOT NULL,
+  metadata    jsonb NOT NULL,
+  "createdAt" timestamp NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS public.clm_contracts (
+  id                       uuid PRIMARY KEY,
+  name                     text NOT NULL,
+  description              text,
+  "effectiveDate"          date,
+  "expiryDate"             date,
+  value                    numeric,
+  "paymentTerm"            text,
+  clauses                  jsonb NOT NULL,
+  metadata                 jsonb NOT NULL,
+  processed                boolean,
+  verified                 boolean,
+  archived                 timestamp,
+  "createdAt"              timestamp NOT NULL,
+  "serviceProviderPartyId" uuid,
+  "clientPartyId"          uuid
+);
+
+CREATE TABLE IF NOT EXISTS vendorpm.vendors (
+  id              serial PRIMARY KEY,
+  company         text NOT NULL,
+  email           text,
+  phone           text,
+  verified_status text,
+  blacklisted     boolean NOT NULL,
+  onboarding      boolean NOT NULL,
+  created         timestamp NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS vendorpm.enterprises (
+  id          serial PRIMARY KEY,
+  company     text NOT NULL,
+  created     timestamp,
+  archived    boolean NOT NULL,
+  clm_enabled boolean NOT NULL,
+  data_region text NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS vendorpm.rfqs (
+  id                 serial PRIMARY KEY,
+  deadline           timestamp,
+  created            timestamp,
+  cancelled          timestamp,
+  submitted          timestamp,
+  last_modified      timestamp,
+  cancel_reason      text,
+  additional_message text,
+  "public"           boolean NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS vendorpm.rfq_responses (
+  id                          serial PRIMARY KEY,
+  rfq_id                      integer NOT NULL,
+  vendor_id                   integer NOT NULL,
+  interested                  boolean,
+  reason                      text,
+  created                     timestamp,
+  archived                    timestamp,
+  additional_insured_document text
+);
+
+CREATE TABLE IF NOT EXISTS vendorpm.quotes (
+  id                          serial PRIMARY KEY,
+  rfq_id                      integer NOT NULL,
+  vendor_id                   integer NOT NULL,
+  created                     timestamp,
+  submitted                   timestamp,
+  updated                     timestamp,
+  total_price                 numeric NOT NULL,
+  procurement_review_complete boolean NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS vendorpm.compliance_documents (
+  id          serial PRIMARY KEY,
+  vendor_id   integer NOT NULL,
+  type        text NOT NULL,
+  status      text NOT NULL,
+  expiry_date timestamp,
+  attachment  text NOT NULL,
+  created     timestamp
+);
