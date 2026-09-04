@@ -465,6 +465,18 @@ resource "coder_script" "setup" {
     done
     export PATH="$HOME/.nix-profile/bin:/nix/var/nix/profiles/default/bin:$PATH"
 
+    # Startup scripts run CONCURRENTLY (observed on coder 2.34.7, against this
+    # template's "run in order" assumption): this script can start while
+    # 'Install Nix + devenv' is still running. Wait for devenv to land rather
+    # than erroring out — up to 20 minutes for a slow first install.
+    i=0
+    while [ "$i" -lt 240 ]; do
+      command -v devenv >/dev/null 2>&1 && break
+      [ -x "$HOME/.nix-profile/bin/devenv" ] && break
+      i=$((i+1))
+      sleep 5
+    done
+
     if ! command -v devenv >/dev/null 2>&1; then
       echo "ERROR: devenv not found — check the 'Install Nix + devenv' script log"
       exit 1
