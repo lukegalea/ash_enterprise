@@ -20,6 +20,16 @@ defmodule AshEnterprise.Process.ActionInvoker do
   `.mcp.json`'s explicit tool allowlist makes for the agent surface, and it is stronger here
   because the caller is a diagram rather than a person.
 
+  ## The registry is the allowlist, and the catalogue is the registry
+
+  The `@registry` below is self-describing: each entry carries the function that runs it and
+  where its catalogue entry comes from. `catalogue/0` derives the designer's action panel from
+  that same map, so **what a modeller is offered and what the engine permits are one list by
+  construction** — a ref that is not reviewed here cannot appear in the panel, and a ref that
+  is reviewed here cannot hide from it. `exists?/1` lets the compiler verify at publish time
+  that a diagram names only registry entries, so a typo is refused at publish rather than
+  discovered when the node executes.
+
   ## Which actor a service task acts as
 
   `AshEnterprise.Platform.SystemActor.process()`, always — not the actor the engine happens to
@@ -48,19 +58,46 @@ defmodule AshEnterprise.Process.ActionInvoker do
 
   require Logger
 
-  # `"name" => fun/1`. Deliberately explicit: see the moduledoc. Each entry is reviewed like
-  # code because a diagram is what names it.
-  @allowed %{
-    "record_risk" => &__MODULE__.record_risk/1,
-    "grant_role" => &__MODULE__.grant_role/1,
-    "reject_request" => &__MODULE__.reject_request/1
+  # The allowlist itself: `"ref" => entry`. Deliberately explicit: see the moduledoc. Each
+  # entry is reviewed like code because a diagram is what names it.
+  #
+  # `:run` is what execution calls, with the engine's ctx (the `:subject`, the evaluated
+  # `:inputs` as a string-keyed map, and whatever scope the engine carried).
+  #
+  # `:action` says where the catalogue entry comes from:
+  #
+  #   * `{resource, action}` — the entry's label, description and declared arguments are
+  #     introspected from the real action, so the panel the designer renders cannot drift
+  #     from what the action actually accepts. An unknown action raises `ArgumentError` the
+  #     moment the catalogue is built, which is the point: the allowlist is code, and code
+  #     with a typo in it should be loud.
+  #   * `:bespoke` — the entry carries its own label and description, for a ref whose
+  #     behaviour is more than one action (`grant_role` is find-or-create *plus* grant; the
+  #     diagram names the composition, not either half).
+  @registry %{
+    "record_risk" => %{
+      run: &__MODULE__.record_risk/1,
+      action: {AshEnterprise.Security.AccessRequest, :record_risk}
+    },
+    "grant_role" => %{
+      run: &__MODULE__.grant_role/1,
+      action: :bespoke,
+      label: "Grant the requested role",
+      description:
+        "Assigns the requested role (finding an existing assignment rather than duplicating " <>
+          "one) and records the grant on the request."
+    },
+    "reject_request" => %{
+      run: &__MODULE__.reject_request/1,
+      action: {AshEnterprise.Security.AccessRequest, :reject}
+    }
   }
 
   @impl true
   def invoke(action, ctx) do
-    case Map.fetch(@allowed, action) do
-      {:ok, fun} ->
-        run(fun, action, ctx)
+    case Map.fetch(@registry, action) do
+      {:ok, entry} ->
+        run(entry.run, action, ctx)
 
       :error ->
         # An unknown action fails the node rather than being ignored. A service task that
@@ -68,21 +105,61 @@ defmodule AshEnterprise.Process.ActionInvoker do
         # than one that stops.
         {:error,
          {:action_not_allowed, action,
-          "add it to AshEnterprise.Process.ActionInvoker's allowlist if a process should be " <>
+          "add it to AshEnterprise.Process.ActionInvoker's registry if a process should be " <>
             "able to invoke it"}}
     end
   end
 
-  # ── the allowed actions ──────────────────────────────────────────────────
+  @doc """
+  Whether the diagram's action ref names a registry entry.
+
+  The compiler calls this at publish time, so a service task whose ref is not reviewed here is
+  refused when the diagram is published — the same guarantee the decision resolver's
+  `exists?/1` makes for a business rule task — rather than when the token reaches the node.
+
+  A voluntary export rather than a callback: the compiler detects it with
+  `function_exported?/3` and verifies with it only when it is there.
+  """
+  def exists?(action) when is_binary(action), do: Map.has_key?(@registry, action)
+
+  @doc """
+  The action catalogue the designer's service-task panel renders.
+
+  Derived from `@registry` — not written alongside it — so the panel offers exactly the refs
+  `invoke/2` dispatches on, each with the arguments its action actually declares.
+  """
+  def catalogue do
+    @registry
+    |> Enum.map(fn {ref, entry} -> catalogue_entry(ref, entry) end)
+    |> Enum.sort_by(& &1.ref)
+  end
+
+  defp catalogue_entry(ref, %{action: {resource, action_name}}) do
+    # Raises ArgumentError naming the ref when the action does not exist: a reviewed entry
+    # pointing at an action that went away must be loud, not a panel that offers a lie.
+    List.first(AshBpmn.Catalogue.AshActions.entries([{ref, resource, action_name}]))
+  end
+
+  defp catalogue_entry(ref, %{action: :bespoke} = entry) do
+    %{ref: ref, label: entry.label, description: entry.description, args: []}
+  end
+
+  # ── the registered actions ───────────────────────────────────────────────
   #
   # Each is an ordinary Ash action called as the actor the engine is carrying, so its policies,
   # its validations and its audit entry are the ones a person clicking a button would get. The
   # process orchestrates; it does not get a privileged path to the data.
 
-  @doc "Writes back the risk tier the decision produced, so the request shows why it routed."
+  @doc """
+  Writes back the risk tier the decision produced, so the request shows why it routed.
+
+  The tier arrives as a declared input on the service task (`ash:inputs` in the diagram),
+  evaluated by the engine from the same FEEL context a decision sees — not scraped off the
+  token's routing, which is the decision's *promoted* answer and not this action's contract.
+  """
   def record_risk(ctx) do
     with %{} = subject <- ctx[:subject],
-         tier when is_binary(tier) <- routing(ctx)["risk_tier"] do
+         tier when is_binary(tier) <- inputs(ctx)["risk_tier"] do
       AshEnterprise.Security.AccessRequest.record_risk!(
         subject,
         risk_atom(tier),
@@ -156,9 +233,13 @@ defmodule AshEnterprise.Process.ActionInvoker do
   # tenant authored, and an atom created from tenant input is never collected.
   defp risk_atom(tier) when is_binary(tier), do: String.to_existing_atom(tier)
 
-  defp routing(ctx) do
-    case ctx[:token] do
-      %{routing: routing} when is_map(routing) -> routing
+  # The engine evaluates the node's declared `ash:inputs` and hands the result over here — a
+  # map with string keys, or absent when the node declares none. Absent means empty rather
+  # than an error: the distinction this module cares about is "the declared input was missing",
+  # which `record_risk/1` reports, not "the node had no inputs at all".
+  defp inputs(ctx) do
+    case ctx[:inputs] do
+      inputs when is_map(inputs) -> inputs
       _ -> %{}
     end
   end

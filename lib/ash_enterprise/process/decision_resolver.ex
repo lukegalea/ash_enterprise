@@ -44,9 +44,10 @@ defmodule AshEnterprise.Process.DecisionResolver do
     # Through the domain facade rather than looking the definition up here, so a business rule
     # task and a trigger's routing decision resolve the same way -- including honouring a
     # tenant's binding when it has customized the decision.
-    case AshEnterprise.Decisions.evaluate(ref, inputs,
-           tenant: tenant,
-           correlation_id: correlation_id(ctx)
+    case AshEnterprise.Decisions.evaluate(
+           ref,
+           inputs,
+           [tenant: tenant, correlation_id: correlation_id(ctx)] ++ decision_opt(ctx)
          ) do
       {:ok, result} ->
         {:ok,
@@ -57,6 +58,17 @@ defmodule AshEnterprise.Process.DecisionResolver do
 
       {:error, reason} ->
         {:error, reason}
+    end
+  end
+
+  # A diagram whose decision key holds several decisions says which one it means with
+  # `ash:decision name=`; the engine forwards that here as `:decision_name`, and the document
+  # is evaluated as the named decision rather than as its first. Nil when the diagram does not
+  # name one, which is the common single-decision case.
+  defp decision_opt(ctx) do
+    case ctx[:decision_name] do
+      nil -> []
+      name -> [decision: name]
     end
   end
 

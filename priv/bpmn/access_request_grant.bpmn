@@ -32,6 +32,11 @@
     <bpmn2:serviceTask id="RecordRisk" name="Record the risk on the request">
       <bpmn2:extensionElements>
         <ash:taskConfig action="record_risk"/>
+        <!-- The invoker reads its declared inputs, not the token's routing: the tier is
+             this action's contract, spelled where the modeller can see it. -->
+        <ash:inputs>
+          <ash:input name="risk_tier" from="routing.risk_tier"/>
+        </ash:inputs>
       </bpmn2:extensionElements>
       <bpmn2:incoming>Flow_to_record</bpmn2:incoming>
       <bpmn2:outgoing>Flow_to_route</bpmn2:outgoing>
