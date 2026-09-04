@@ -68,6 +68,16 @@ jobs:
 
       - run: mix deps.get
 
+      # Dependencies compile in their own invocation, before the gate below.
+      # `mix compile --warnings-as-errors` is the static-analysis gate for THIS
+      # repository's code -- a dependency left uncompiled here would otherwise
+      # compile inside it, and a cold cache (new mix.lock hash, first run on a
+      # new branch) would turn a dependency's own warning into a red build:
+      # oban carries a dead clause for the engines we do not use, toml still
+      # has single-quoted charlists. Their warnings stay visible in this log;
+      # they stop pretending to be ours.
+      - run: mix deps.compile
+
       - name: Check formatting
         run: mix format --check-formatted
 
