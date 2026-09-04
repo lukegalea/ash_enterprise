@@ -157,11 +157,10 @@ defmodule AshEnterprise.Legacy.Projection do
   end
 
   defp log_failure(data, reason) do
-    message =
-      case reason do
-        %{__exception__: true} = error -> Exception.message(error)
-        other -> inspect(other)
-      end
+    # Ash.update's error tuples are always exception structs, and that is the only
+    # thing that reaches here -- dialyzer proved the inspect/1 fallback below was
+    # dead code, which is why it had to go rather than stay as insurance.
+    message = Exception.message(reason)
 
     Logger.error("""
     legacy projection failed for legacy_id #{inspect(Map.get(data, :legacy_id))}: #{message}
