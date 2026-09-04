@@ -187,7 +187,10 @@ defmodule AshEnterpriseWeb.DashboardLive do
             delay={300}
           >
             <:actions>
-              <.link navigate={~p"/admin"} class="btn btn-primary btn-sm">
+              <%!-- /admin is compiled only when dev_routes is on, so the verified
+                   ~p sigil cannot see it in CI -- a plain href keeps the card
+                   without making the route unconditional. --%>
+              <.link href="/admin" class="btn btn-primary btn-sm">
                 Open the admin console
               </.link>
             </:actions>
