@@ -337,15 +337,20 @@ resource "coder_script" "devenv" {
       export PATH="$HOME/.nix-profile/bin:/nix/var/nix/profiles/default/bin:$PATH"
     fi
 
-    if ! command -v nix >/dev/null 2>&1; then
+    # Judge by the store, not by `command -v nix`: $HOME persists across
+    # workspace rebuilds (host bind) while /nix lives in the container rootfs,
+    # so a stale ~/.nix-profile can satisfy `command -v nix` against a
+    # dangling symlink. 
+    if [ ! -d /nix/store ]; then
       echo "installing Nix (one-time; several minutes)..."
-      # NB: in nix-installer 2.35.x `--init` belongs to the planner subcommand
-      # (`install linux --init none`), not to `install` itself. `--init none`
-      # is the daemonless/container-safe path — no systemd in this image, and
-      # the default (systemd) plan leaves a root-owned store with a daemon
-      # socket that never exists. Verified against the binary the bootstrap
-      # actually fetches (releases/download/2.35.1).
-      if ! curl -sSfL https://artifacts.nixos.org/nix-installer | sh -s -- install linux --init none --no-confirm; then
+      # NB (nix-installer 2.35.x, learned the hard way on first live start):
+      # `--init` is a planner-subcommand option (`install linux --init none`),
+      # not an `install` flag. `--init none` yields a ROOT-ONLY store the
+      # non-root agent cannot use (the planner's own help says so), and the
+      # default (systemd) plan lays out the proper multi-user store but
+      # configures a unit this image (no systemd) can never start. So: default
+      # plan here, daemon started by hand below.
+      if ! curl -sSfL https://artifacts.nixos.org/nix-installer | sh -s -- install --no-confirm; then
         echo "ERROR: Nix installer failed"
         if ! command -v sudo >/dev/null 2>&1; then
           echo "       (no sudo on PATH and not root — Nix needs one of the two to create /nix)"
@@ -364,6 +369,36 @@ resource "coder_script" "devenv" {
     if ! command -v nix >/dev/null 2>&1; then
       echo "ERROR: Nix is still not on PATH after install — see /nix and the devenv script log"
       exit 1
+    fi
+
+    # No systemd in this image: the multi-user daemon must be started by hand
+    # (idempotent — re-run on every workspace start), and the non-root agent
+    # must be trusted (devenv adds substituters, which untrusted users cannot).
+    if [ "$(id -u)" -ne 0 ]; then
+      if ! sudo -n true 2>/dev/null; then
+        echo "ERROR: no passwordless sudo and not root — cannot start the Nix daemon"
+        exit 1
+      fi
+      sudo -n mkdir -p /etc/nix /nix/var/nix/daemon-socket
+      if ! sudo -n grep -q '^trusted-users' /etc/nix/nix.conf 2>/dev/null; then
+        echo "trusted-users = root $(id -un)" | sudo -n tee -a /etc/nix/nix.conf >/dev/null
+      fi
+      if [ ! -S /nix/var/nix/daemon-socket/socket ]; then
+        NIX_BIN=/nix/var/nix/profiles/default/bin/nix
+        [ -x "$NIX_BIN" ] || NIX_BIN="$(command -v nix)"
+        sudo -n sh -c "setsid '$NIX_BIN' daemon >/var/log/nix-daemon.log 2>&1 </dev/null &"
+        for i in $(seq 1 30); do
+          [ -S /nix/var/nix/daemon-socket/socket ] && break
+          sleep 1
+        done
+        # The socket is root-owned by default; the agent user must reach it.
+        # Lax by multi-user-host standards, fine for a single-user workspace.
+        sudo -n chmod 666 /nix/var/nix/daemon-socket/socket 2>/dev/null || true
+      fi
+      if [ ! -S /nix/var/nix/daemon-socket/socket ]; then
+        echo "ERROR: Nix daemon did not come up — see /var/log/nix-daemon.log"
+        exit 1
+      fi
     fi
 
     # devenv is flake-based. The Determinate installer enables flakes by
