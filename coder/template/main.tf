@@ -339,7 +339,10 @@ resource "coder_script" "devenv" {
 
     if ! command -v nix >/dev/null 2>&1; then
       echo "installing Nix (one-time; several minutes)..."
-      if ! curl -sSfL https://artifacts.nixos.org/nix-installer | sh -s -- install --no-confirm --init none; then
+      # NB: the artifacts.nixos.org installer build takes no `--init` flag
+      # (usage: `install --no-confirm [PLAN]`); it detects the container
+      # environment itself. Verified the hard way on the first live start.
+      if ! curl -sSfL https://artifacts.nixos.org/nix-installer | sh -s -- install --no-confirm; then
         echo "ERROR: Nix installer failed"
         if ! command -v sudo >/dev/null 2>&1; then
           echo "       (no sudo on PATH and not root — Nix needs one of the two to create /nix)"
