@@ -192,11 +192,12 @@ defmodule AshEnterpriseWeb.DashboardLive do
             delay={300}
           >
             <:actions :if={@dev_routes?}>
-              <%!-- A plain href, deliberately: `/admin` is mounted only when the
-                   `dev_routes` config is on, and a verified route would warn
-                   at compile time in every env where it is not (test, prod) --
-                   which `mix precommit` treats as an error. The guard above
-                   keeps the dead link out of those envs entirely. --%>
+              <%!-- `/admin` is mounted only when the `dev_routes` config is
+                   on, so a verified `~p` sigil would warn at compile time in
+                   every env where it is not (test, prod) -- which
+                   `mix precommit` treats as an error. A plain href keeps the
+                   route from going unconditional, and the guard keeps the
+                   dead link out of those envs entirely. --%>
               <.link href="/admin" class="btn btn-primary btn-sm">
                 Open the admin console
               </.link>

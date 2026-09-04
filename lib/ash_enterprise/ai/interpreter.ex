@@ -168,9 +168,14 @@ defmodule AshEnterprise.AI.Interpreter do
   # back into the map the surface composer expects.
   defp decode_spec(json) do
     case Jason.decode(json) do
-      {:ok, spec} when is_map(spec) -> {:ok, spec}
-      {:ok, other} -> {:error, "The spec JSON decoded to #{inspect(other)} rather than an object."}
-      {:error, error} -> {:error, "The spec was not valid JSON: #{Exception.message(error)}"}
+      {:ok, spec} when is_map(spec) ->
+        {:ok, spec}
+
+      {:ok, other} ->
+        {:error, "The spec JSON decoded to #{inspect(other)} rather than an object."}
+
+      {:error, error} ->
+        {:error, "The spec was not valid JSON: #{Exception.message(error)}"}
     end
   end
 

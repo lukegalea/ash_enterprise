@@ -24,15 +24,15 @@ defmodule AshEnterprise.Legacy.Twins do
     otp_app: :ash_enterprise
 
   resources do
-    resource(AshEnterprise.Legacy.Twins.Companies)
-    resource(AshEnterprise.Legacy.Twins.Users)
-    resource(AshEnterprise.Legacy.Twins.ClmParties)
-    resource(AshEnterprise.Legacy.Twins.ClmContracts)
-    resource(AshEnterprise.Legacy.Twins.Vendors)
-    resource(AshEnterprise.Legacy.Twins.Enterprises)
-    resource(AshEnterprise.Legacy.Twins.Rfqs)
-    resource(AshEnterprise.Legacy.Twins.RfqResponses)
-    resource(AshEnterprise.Legacy.Twins.Quotes)
-    resource(AshEnterprise.Legacy.Twins.ComplianceDocuments)
+    resource AshEnterprise.Legacy.Twins.Companies
+    resource AshEnterprise.Legacy.Twins.Users
+    resource AshEnterprise.Legacy.Twins.ClmParties
+    resource AshEnterprise.Legacy.Twins.ClmContracts
+    resource AshEnterprise.Legacy.Twins.Vendors
+    resource AshEnterprise.Legacy.Twins.Enterprises
+    resource AshEnterprise.Legacy.Twins.Rfqs
+    resource AshEnterprise.Legacy.Twins.RfqResponses
+    resource AshEnterprise.Legacy.Twins.Quotes
+    resource AshEnterprise.Legacy.Twins.ComplianceDocuments
   end
 end
