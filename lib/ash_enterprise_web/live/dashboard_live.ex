@@ -18,6 +18,11 @@ defmodule AshEnterpriseWeb.DashboardLive do
 
   require Ash.Query
 
+  # Compile-time constant per env: the AshAdmin/clarity mounts in the router
+  # read the same key, so the console card below agrees with what is actually
+  # routed. False in test/prod, where the /admin route does not exist.
+  @dev_routes? Application.compile_env(:ash_enterprise, :dev_routes, false)
+
   alias AshEnterprise.Security.ActorContext
   alias AshEnterpriseWeb.A2ui.Surfaces
   alias AshEnterpriseWeb.Layouts
@@ -32,7 +37,7 @@ defmodule AshEnterpriseWeb.DashboardLive do
       Phoenix.PubSub.subscribe(AshEnterprise.PubSub, topic)
     end
 
-    {:ok, assign(socket, party_count: count_parties(socket))}
+    {:ok, assign(socket, party_count: count_parties(socket), dev_routes?: @dev_routes?)}
   end
 
   # A count, not a table: whatever arrives on a party topic, recount and move
@@ -186,8 +191,13 @@ defmodule AshEnterpriseWeb.DashboardLive do
               this page, including users, roles and the workflow definitions."
             delay={300}
           >
-            <:actions>
-              <.link navigate={~p"/admin"} class="btn btn-primary btn-sm">
+            <:actions :if={@dev_routes?}>
+              <%!-- A plain href, deliberately: `/admin` is mounted only when the
+                   `dev_routes` config is on, and a verified route would warn
+                   at compile time in every env where it is not (test, prod) --
+                   which `mix precommit` treats as an error. The guard above
+                   keeps the dead link out of those envs entirely. --%>
+              <.link href="/admin" class="btn btn-primary btn-sm">
                 Open the admin console
               </.link>
             </:actions>
@@ -259,16 +269,14 @@ defmodule AshEnterpriseWeb.DashboardLive do
       <div class="card-body gap-4">
         <div class="flex items-start justify-between gap-3">
           <h2 class="card-title flex items-center gap-3 text-base">
-            <span
-              class={[
-                "grid size-9 shrink-0 place-items-center rounded-box border",
-                if(
-                  @primary,
-                  do: "border-primary/30 bg-primary/10 text-primary",
-                  else: "border-base-300 bg-base-200 text-base-content/70"
-                )
-              ]}
-            >
+            <span class={[
+              "grid size-9 shrink-0 place-items-center rounded-box border",
+              if(
+                @primary,
+                do: "border-primary/30 bg-primary/10 text-primary",
+                else: "border-base-300 bg-base-200 text-base-content/70"
+              )
+            ]}>
               <.icon name={@icon} class="size-5" />
             </span>
             {@title}
