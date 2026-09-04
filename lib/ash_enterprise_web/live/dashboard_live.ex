@@ -259,16 +259,14 @@ defmodule AshEnterpriseWeb.DashboardLive do
       <div class="card-body gap-4">
         <div class="flex items-start justify-between gap-3">
           <h2 class="card-title flex items-center gap-3 text-base">
-            <span
-              class={[
-                "grid size-9 shrink-0 place-items-center rounded-box border",
-                if(
-                  @primary,
-                  do: "border-primary/30 bg-primary/10 text-primary",
-                  else: "border-base-300 bg-base-200 text-base-content/70"
-                )
-              ]}
-            >
+            <span class={[
+              "grid size-9 shrink-0 place-items-center rounded-box border",
+              if(
+                @primary,
+                do: "border-primary/30 bg-primary/10 text-primary",
+                else: "border-base-300 bg-base-200 text-base-content/70"
+              )
+            ]}>
               <.icon name={@icon} class="size-5" />
             </span>
             {@title}
