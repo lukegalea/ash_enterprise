@@ -47,12 +47,31 @@ defmodule AshEnterpriseWeb.Bpmn.CatalogLive do
          |> push_navigate(to: editor_path(kind, key))}
 
       {:error, error} ->
-        {:noreply, put_flash(socket, :error, Exception.message(error))}
+        {:noreply, put_flash(socket, :error, fork_error_message(error))}
     end
   end
 
   defp editor_path(:process, key), do: ~p"/app/processes/#{key}/designer"
   defp editor_path(:decision, key), do: ~p"/app/decisions/#{key}/editor"
+
+  # `Resolver.fork/4` fails with the tagged atoms and tuples out of
+  # `Resolver.resolve/3` -- not exception structs -- and `Exception.message/1`
+  # itself crashes on those, which is exactly what Dialyzer flagged on the old
+  # code. Render the shapes `fork/4` actually returns so a failed fork becomes
+  # a flash message rather than a crashed LiveView. The set is closed: `fork/4`
+  # fails only through `resolve/3`, and its `create!` raises rather than
+  # returning `{:error, _}`, so these heads are exhaustive by construction.
+  defp fork_error_message(:no_platform_organization),
+    do: "No platform organization is configured to fork from."
+
+  defp fork_error_message({:no_platform_organization, _key}),
+    do: "No platform organization is configured to fork from."
+
+  defp fork_error_message({:no_published_baseline, kind, key}),
+    do: "The #{kind} \"#{key}\" has no published platform baseline to fork from."
+
+  defp fork_error_message({:definition_not_found, kind, id}),
+    do: "The #{kind} definition \"#{id}\" could not be found."
 
   defp load(socket, :processes),
     do: load_definitions(socket, :process, AshEnterprise.Bpmn.Definition)

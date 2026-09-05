@@ -36,5 +36,27 @@
   # valid iodata and improper only in the sense Dialyzer means. There is nothing
   # to fix in this repository; the alternative to filtering it is a permanently
   # red Dialyzer, which is what makes the other findings unreadable.
-  {"deps/postgrex/lib/postgrex/type_module.ex", :improper_list_constr}
+  {"deps/postgrex/lib/postgrex/type_module.ex", :improper_list_constr},
+
+  # 2026-09-05. `AshBpmn.Web.DesignerLive.__using__/1` expands into catalogue
+  # helpers whose `case` carries a `nil ->` branch for hosts that OMIT the
+  # `:decisions` / `:actions` / `:decision_editor` options
+  # (`deps/ash_bpmn/lib/ash_bpmn/web/designer_live.ex`, `ash_bpmn_catalogue/2`
+  # and `ash_bpmn_editor_href_fn/1`). `AshEnterpriseWeb.Bpmn.DesignerLive`
+  # passes all three MFAs at compile time, so in this module's expansion those
+  # branches are provably dead -- but the dead branches are the dependency's
+  # source, legitimately reachable for other hosts. Same beam-ours /
+  # line-theirs situation as the Postgrex entry above; Dialyzer attributes the
+  # warnings to the `use` line:
+  #
+  #   lib/ash_enterprise_web/live/bpmn/designer_live.ex:19:pattern_match
+  #   The pattern can never match the type.
+  #   Pattern: nil
+  #   Type: {AshEnterprise.Process.DesignerCatalogue, :actions | :decisions, []}
+  #   Type: {AshEnterprise.Process.DesignerCatalogue, :decision_editor_path, []}
+  #
+  # The fix belongs in ash_bpmn's macro (or nowhere -- the nil fallback is
+  # correct general behavior), not in this wiring. Confirmed against the macro
+  # source, not assumed.
+  {"lib/ash_enterprise_web/live/bpmn/designer_live.ex", :pattern_match}
 ]

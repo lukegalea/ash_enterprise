@@ -156,12 +156,11 @@ defmodule AshEnterprise.Legacy.Projection do
     [actor: SystemActor.projection(), tenant: Estate.organization_id(), authorize?: false]
   end
 
+  # The only caller is the `rescue` above, so `reason` is always an exception
+  # struct. A defensive non-exception branch used to sit here; Dialyzer could
+  # prove it dead (pattern_match_cov) because the rescue guarantees the type.
   defp log_failure(data, reason) do
-    message =
-      case reason do
-        %{__exception__: true} = error -> Exception.message(error)
-        other -> inspect(other)
-      end
+    message = Exception.message(reason)
 
     Logger.error("""
     legacy projection failed for legacy_id #{inspect(Map.get(data, :legacy_id))}: #{message}
