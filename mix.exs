@@ -239,7 +239,11 @@ defmodule AshEnterprise.MixProject do
       {:ash_rate_limiter, "~> 1.0"},
       {:ash_money, "~> 0.2"},
       {:usage_rules, "~> 1.0", only: [:dev]},
-      {:ash_ai, "~> 0.8"},
+      # ash_ai 1.0 made its LLM backend optional, so req_llm is declared
+      # explicitly here -- we use it, and an undeclared transitive dep would
+      # not be upgraded/pinned by our own lock discipline.
+      {:ash_ai, "~> 1.0"},
+      {:req_llm, "~> 1.7"},
       {:absinthe_phoenix, "~> 2.0"},
       {:oban, "~> 2.0"},
       {:open_api_spex, "~> 3.0"},
