@@ -155,6 +155,30 @@
       "size": null,
       "source": "last_dispatched_at",
       "type": "utc_datetime_usec"
+    },
+    {
+      "allow_nil?": false,
+      "default": "fragment(\"(now() AT TIME ZONE 'utc')\")",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "inserted_at",
+      "type": "utc_datetime_usec"
+    },
+    {
+      "allow_nil?": false,
+      "default": "fragment(\"(now() AT TIME ZONE 'utc')\")",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "updated_at",
+      "type": "utc_datetime_usec"
     }
   ],
   "base_filter": null,
@@ -163,12 +187,12 @@
   "custom_indexes": [],
   "custom_statements": [],
   "has_create_action": true,
-  "hash": "C5B41948979F8F0E54DB05CC31778A2F63AFC11B61429DB56F3BF6EA84F27330",
+  "hash": "FC58E732DF97BE81C571F4C7697FCAFA30463D057A9A7B1DC2789069FCBE5DBA",
   "identities": [
     {
       "all_tenants?": true,
       "base_filter": null,
-      "index_name": "process_trigger_cursors_one_per_tenant_index",
+      "index_name": "bpmn_cursors_one_per_tenant_index",
       "keys": [
         {
           "type": "atom",
@@ -187,5 +211,5 @@
   },
   "repo": "Elixir.AshEnterprise.Repo",
   "schema": null,
-  "table": "process_trigger_cursors"
+  "table": "bpmn_cursors"
 }

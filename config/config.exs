@@ -29,10 +29,15 @@ config :ash_enterprise, Oban,
     {Oban.Plugins.Lifeline, rescue_after: :timer.minutes(5)},
     {Oban.Plugins.Cron,
      crontab: [
-       # The trigger sweep is the *driver*, not a safety net: the notifier's nudge is
+       # The trigger sweep is the *driver*, not a safety net: the nudge on the audit log is
        # non-transactional and can be lost, so this is what guarantees an event is eventually
-       # dispatched. Every minute, one job per tenant that has a published trigger.
-       {"* * * * *", AshEnterprise.Process.Triggers.CronSweep}
+       # dispatched. Every minute, one job per tenant that has a published, enabled
+       # subscription (the fan-out reads `config :ash_bpmn, trigger_tenants`).
+       #
+       # Spelled as the literal tuple `AshBpmn.Triggers.SweepWorker.cron_entry()` returns
+       # rather than by calling it: this file is evaluated before dependencies are compiled,
+       # so a function call into a dep would break the cold `mix setup` path.
+       {"* * * * *", AshBpmn.Triggers.CronSweep, queue: :bpmn, max_attempts: 1}
      ]}
   ]
 
@@ -50,11 +55,20 @@ config :ash_bpmn,
   # Without this the engine reads an instance's definition in the instance's own tenant, which
   # cannot see a platform baseline -- and the failure is silent: the token claims and the
   # process sits at its start node forever.
-  definition_loader: AshEnterprise.Process.DefinitionLoader
+  definition_loader: AshEnterprise.Process.DefinitionLoader,
+  # The trigger engine's adapter over the audit log. Every coupling to the log lives there:
+  # the streaming cursor protocol, the published event-context contract, the per-chain
+  # ordering declaration, and the publish-time audited? check.
+  event_source: AshEnterprise.Audit.EventSource,
+  # The sweep fans out to one job per tenant, every minute (the crontab above). Enumerated
+  # from the data, the same way the prototype's cron sweep did it: every tenant with a
+  # published, enabled subscription. Evaluated per call; see
+  # `AshEnterprise.Bpmn.Subscription.trigger_tenants/0`.
+  trigger_tenants: {AshEnterprise.Bpmn.Subscription, :trigger_tenants, []}
 
 config :ash_decisions, ash_domains: [AshEnterprise.Decisions]
 
-# The trigger sweep dispatches a whole batch inside one transaction -- deliberately, so a
+# The trigger sweep dispatches each event inside its own transaction -- deliberately, so a
 # dispatch row and the instance it records are committed together and a crashed sweep replays
 # cleanly. Ash cannot send notifications from inside a transaction, so the writes the engine
 # makes there produce "missed notification" warnings by design rather than by mistake.

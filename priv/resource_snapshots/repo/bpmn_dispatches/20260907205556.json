@@ -133,6 +133,70 @@
       "type": "uuid"
     },
     {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": {
+        "deferrable": false,
+        "destination_attribute": "id",
+        "destination_attribute_default": null,
+        "destination_attribute_generated": null,
+        "index?": false,
+        "index_where": null,
+        "match_type": null,
+        "match_with": null,
+        "multitenancy": {
+          "attribute": "organization_id",
+          "global": true,
+          "strategy": "attribute"
+        },
+        "name": "bpmn_dispatches_subscription_id_fkey",
+        "on_delete": null,
+        "on_update": null,
+        "primary_key?": true,
+        "schema": "public",
+        "table": "bpmn_subscriptions"
+      },
+      "scale": null,
+      "size": null,
+      "source": "subscription_id",
+      "type": "uuid"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": {
+        "deferrable": false,
+        "destination_attribute": "id",
+        "destination_attribute_default": null,
+        "destination_attribute_generated": null,
+        "index?": false,
+        "index_where": null,
+        "match_type": null,
+        "match_with": null,
+        "multitenancy": {
+          "attribute": "organization_id",
+          "global": true,
+          "strategy": "attribute"
+        },
+        "name": "bpmn_dispatches_waiting_token_id_fkey",
+        "on_delete": null,
+        "on_update": null,
+        "primary_key?": true,
+        "schema": "public",
+        "table": "bpmn_tokens"
+      },
+      "scale": null,
+      "size": null,
+      "source": "waiting_token_id",
+      "type": "uuid"
+    },
+    {
       "allow_nil?": false,
       "default": "nil",
       "generated?": false,
@@ -141,24 +205,48 @@
       "references": null,
       "scale": null,
       "size": null,
-      "source": "key",
-      "type": "text"
+      "source": "event_id",
+      "type": "uuid"
     },
     {
       "allow_nil?": false,
-      "default": "1",
+      "default": "nil",
       "generated?": false,
       "precision": null,
       "primary_key?": false,
       "references": null,
       "scale": null,
       "size": null,
-      "source": "version",
+      "source": "event_sequence",
       "type": "bigint"
     },
     {
       "allow_nil?": false,
-      "default": "\"draft\"",
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "event_occurred_at",
+      "type": "utc_datetime_usec"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "kind",
+      "type": "text"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
       "generated?": false,
       "precision": null,
       "primary_key?": false,
@@ -169,19 +257,7 @@
       "type": "text"
     },
     {
-      "allow_nil?": false,
-      "default": "true",
-      "generated?": false,
-      "precision": null,
-      "primary_key?": false,
-      "references": null,
-      "scale": null,
-      "size": null,
-      "source": "enabled",
-      "type": "boolean"
-    },
-    {
-      "allow_nil?": false,
+      "allow_nil?": true,
       "default": "nil",
       "generated?": false,
       "precision": null,
@@ -189,7 +265,7 @@
       "references": null,
       "scale": null,
       "size": null,
-      "source": "match_resource",
+      "source": "reason",
       "type": "text"
     },
     {
@@ -201,7 +277,7 @@
       "references": null,
       "scale": null,
       "size": null,
-      "source": "match_action",
+      "source": "process_key",
       "type": "text"
     },
     {
@@ -213,20 +289,8 @@
       "references": null,
       "scale": null,
       "size": null,
-      "source": "match_action_type",
-      "type": "text"
-    },
-    {
-      "allow_nil?": true,
-      "default": "nil",
-      "generated?": false,
-      "precision": null,
-      "primary_key?": false,
-      "references": null,
-      "scale": null,
-      "size": null,
-      "source": "guard_feel",
-      "type": "text"
+      "source": "instance_id",
+      "type": "uuid"
     },
     {
       "allow_nil?": true,
@@ -249,61 +313,146 @@
       "references": null,
       "scale": null,
       "size": null,
-      "source": "process_key",
+      "source": "fired_rule",
+      "type": "text"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "correlation_id",
       "type": "text"
     },
     {
       "allow_nil?": false,
-      "default": "%{}",
+      "default": "0",
       "generated?": false,
       "precision": null,
       "primary_key?": false,
       "references": null,
       "scale": null,
       "size": null,
-      "source": "variable_mapping",
-      "type": "map"
+      "source": "depth",
+      "type": "bigint"
     },
     {
       "allow_nil?": false,
-      "default": "1",
+      "default": "fragment(\"(now() AT TIME ZONE 'utc')\")",
       "generated?": false,
       "precision": null,
       "primary_key?": false,
       "references": null,
       "scale": null,
       "size": null,
-      "source": "max_starts_per_event",
-      "type": "bigint"
+      "source": "inserted_at",
+      "type": "utc_datetime_usec"
+    },
+    {
+      "allow_nil?": false,
+      "default": "fragment(\"(now() AT TIME ZONE 'utc')\")",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "updated_at",
+      "type": "utc_datetime_usec"
     }
   ],
   "base_filter": null,
   "check_constraints": [],
   "create_table_options": null,
-  "custom_indexes": [],
-  "custom_statements": [],
-  "has_create_action": false,
-  "hash": "D6D89307BFE7B8F33B0E7251126BDD35FC15AFA5397655C1A27668D91895B161",
-  "identities": [
+  "custom_indexes": [
     {
       "all_tenants?": false,
-      "base_filter": null,
-      "index_name": "process_triggers_unique_key_version_index",
-      "keys": [
+      "concurrently": false,
+      "error_fields": [
+        "subscription_id",
+        "event_id"
+      ],
+      "fields": [
         {
           "type": "atom",
-          "value": "key"
+          "value": "subscription_id"
         },
         {
           "type": "atom",
-          "value": "version"
+          "value": "event_id"
         }
       ],
-      "name": "unique_key_version",
-      "nils_distinct?": true,
+      "include": null,
+      "include_base_filter?": true,
+      "message": null,
+      "name": null,
+      "nulls_distinct": true,
+      "prefix": null,
+      "table": null,
+      "unique": true,
+      "using": null,
+      "where": "subscription_id IS NOT NULL"
+    },
+    {
+      "all_tenants?": false,
+      "concurrently": false,
+      "error_fields": [
+        "waiting_token_id",
+        "event_id"
+      ],
+      "fields": [
+        {
+          "type": "atom",
+          "value": "waiting_token_id"
+        },
+        {
+          "type": "atom",
+          "value": "event_id"
+        }
+      ],
+      "include": null,
+      "include_base_filter?": true,
+      "message": null,
+      "name": null,
+      "nulls_distinct": true,
+      "prefix": null,
+      "table": null,
+      "unique": true,
+      "using": null,
+      "where": "waiting_token_id IS NOT NULL"
+    },
+    {
+      "all_tenants?": false,
+      "concurrently": false,
+      "error_fields": [
+        "event_sequence"
+      ],
+      "fields": [
+        {
+          "type": "atom",
+          "value": "event_sequence"
+        }
+      ],
+      "include": null,
+      "include_base_filter?": true,
+      "message": null,
+      "name": null,
+      "nulls_distinct": true,
+      "prefix": null,
+      "table": null,
+      "unique": false,
+      "using": null,
       "where": null
     }
   ],
+  "custom_statements": [],
+  "has_create_action": true,
+  "hash": "71017F722C73281C06EE8F1CF79298CF1A48F85E300E36632AC539D998365704",
+  "identities": [],
   "multitenancy": {
     "attribute": "organization_id",
     "global": true,
@@ -311,5 +460,5 @@
   },
   "repo": "Elixir.AshEnterprise.Repo",
   "schema": null,
-  "table": "process_triggers"
+  "table": "bpmn_dispatches"
 }
