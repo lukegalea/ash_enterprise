@@ -264,6 +264,21 @@ Lookback: on park (§6), if `lookback_minutes > 0`, the parking transaction reco
 watermark; the next sweep re-scans `occurred_at >= watermark` for that signature. The
 log is the buffer; a lookup implements the TTL (FR-5.7).
 
+**As built (2026-09-07, ash_bpmn PR #8).** The batch diagram above showed one
+transaction under the lock; as built there is **one transaction per event, each holding
+the per-tenant lock**, and the cursor advances in its own locked transaction after the
+batch — prototype parity, so one bad event never aborts the batch, and the dispatch
+identity remains the real arbiter. Guard `false` records no row; `nil` ⇒ `:guard_null`
+(`:skipped`), error ⇒ `:guard_error` (`:failed`). `:no_rule_fired` is `:skipped` (TRD
+over the prototype's `:failed`). A fresh cursor reaches high-water by one paged
+`stream/3` walk — the behaviour has no latest-sequence callback (a future candidate).
+Ledger values come from the raw adapter context while FEEL sees the `to_feel_value`'d
+context. `:decision_error` also carries failed starts and unresolvable subjects with
+the verbatim message in logs — the Dispatch resource has no detail column (a future
+candidate). The index is host-started (the library owns no supervision tree) with
+`reload!/0` for prompt invalidation and the TTL as backstop; the nudge's log-row field
+names are configurable to the host's spelling.
+
 ## 6. Interpreter: the waiting state
 
 - **Park**: entering a message/signal/conditional catch node stops token advance — no
