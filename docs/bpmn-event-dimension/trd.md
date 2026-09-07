@@ -83,6 +83,15 @@ end
 - The callable reference spelling in diagrams is `"Domain.name"` (aliases resolved at
   DSL definition; diagrams never contain module aliases beyond the domain's own name).
 
+**As built (2026-09-07, ash_bpmn PR #6).** The `callables` section builder lives in a
+nested child extension `AshBpmn.Domain.Dsl` — Spark generates a `callables/1` section
+macro inside the extension module, and Elixir cannot host that macro alongside the
+`callables/1` introspection function; hosts are unaffected (`extensions: [AshBpmn.Domain]`
+pulls the child in automatically). `callable?/2` resolves `"Domain.name"` and bare
+`"name"` refs, and a non-nil first argument constrains resolution to that domain —
+mismatches and lookup failures are uniformly `false`. Ref resolution never materializes
+atoms from input: it looks up the `Elixir.`-prefixed spelling.
+
 ## 4. Resources
 
 All on the host's base via `:base`/`:base_opts` (usage rule 15; the interaction bypass

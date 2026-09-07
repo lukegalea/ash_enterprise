@@ -70,3 +70,11 @@ none should survive the phases it is nearest to. File references are to `deps/as
     publish (the `ash_decisions` snapshot already stamps its engines —
     `compiler.ex:512-608`); consider whether `latest` decision bindings in long-lived
     definitions deserve a publish-time warning.
+
+11. **`AshBpmn.Runtime.DomainResolver.existing_module!/1` binary dotted-name lookup
+    looks wrong.** Reported during Phase 2 implementation (ash_bpmn PR #6): the
+    callable-ref resolver needed `Elixir.`-prefixed spellings to find module atoms
+    (`String.to_existing_atom("A.B")` misses the alias atom), and this function appears
+    to call `String.to_existing_atom/1` on the bare dotted name when a job carries a
+    domain key in its args. **Unverified** — reproduce before fixing; if real, it
+    affects every worker that resolves a domain from binary args.
