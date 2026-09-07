@@ -226,7 +226,9 @@ the cursor already answers "was this processed".
 An `Ash.Notifier` attached to the event log resource by the host (config, not
 convention — the library never touches the host's resource). Post-commit, rescues
 everything, debounced Oban insert per tenant. Losing it costs latency, never
-correctness (G-3).
+correctness (G-3). **Property found in adoption testing:** the nudge is
+*resource-coarse* — subscriptions narrowed by `match_action_type` are invisible to it,
+and cron covers them; latency, never correctness.
 
 ### 5.2 Index (ETS)
 
@@ -372,6 +374,23 @@ The prototype's modules map to their successors as the implementation checklist:
 
 One sweep implementation ever runs against a tenant — there is no lock-name handoff to
 coordinate, and development databases re-seed rather than migrate.
+
+**As built (2026-09-07, ash_enterprise PR #5).** The adoption is complete and the gate
+green (274/274 + a dev smoke: seed → setup → 4/4 dispatches `:started`, one instance
+completed). The honest findings, stated where they live: **subscriptions resolve
+`latest_published` in-tenant — cross-tenant baseline divergence is a documented gap
+pending a loader seam** (Process's moduledoc; `bpmn.setup` publishes a local copy per
+seeded tenant so the demo runs while the gap stands). The crontab entry is spelled
+literally in `config.exs` because a function call there breaks a cold `mix setup`
+(config evaluates before deps compile). With `:base` owning tenancy, the host declares
+Cursor's one-per-tenant identity itself, and the app-domain cycle refusal
+(`Bpmn.`/`Decisions.`/`Process.` prefixes) is restated as a host validation — the
+library refuses only its own domains. The index rebuilds synchronously **after commit**
+on every subscription lifecycle act (an in-transaction rebuild reads the pre-commit
+snapshot and misses the row that caused it), skipped when the index isn't running. The
+adapter isolates the NULL-tenant chain explicitly — the log's `global? true` tenancy
+would otherwise stream every tenant as one chain, the global cursor this design
+refuses.
 
 ## 11. Testing
 
