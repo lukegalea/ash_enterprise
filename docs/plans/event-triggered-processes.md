@@ -468,3 +468,17 @@ across one audited create.
 
 Reproduce before trusting any of it — that is the point of writing down how it was measured
 rather than only what it showed.
+
+---
+
+## Correction — 2026-09-07: replaced, not migrated
+
+The successor specification, [`docs/bpmn-event-dimension/`](../bpmn-event-dimension/README.md),
+absorbs this plan's patterns into `ash_bpmn` behind an `EventSource` behaviour. An
+earlier revision of that specification assumed this design ran in production and
+specified an absorption-and-cutover sequence to protect it — dual-run with shadow
+dispatches, a one-deploy data migration, sweep-lock coordination. It does not and never
+has: this plan is built as application code with no production deployment. The successor
+now specifies direct replacement — the library lands, this code is deleted, nothing
+migrates — and the cutover machinery is gone from it. Recorded here because this plan
+is the design record the successor builds on.
