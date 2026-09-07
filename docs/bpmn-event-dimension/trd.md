@@ -152,6 +152,19 @@ Identity: `:once_per_event, [:subscription_id, :event_id]` and a second
 sides of G-1. `audit?: true` on dispatches is *refused* — a dispatch is already the
 record of an event; auditing it is a cycle with extra steps.
 
+**As built (2026-09-07, ash_bpmn PR #7).** Concessions to Spark and Ash 3.31: the
+one-per-tenant cursor identity is spelled `[:organization_id]` with `all_tenants? true`,
+conditional on `tenant?: true` (Spark rejects empty-key identities); `lag_seconds` is a
+module calculation and `advance` stamps wall-clock with `require_atomic? false` (no
+`date_diff` expression on this Ash); `publish`/`retire` carry `require_atomic? false`
+because publish-time verification does not push down. The stored compiled form is a
+`compiled` map attribute (source text + `feel_engine` stamp, the Definition-graph
+pattern). Guard boolean-ness is a *lint*: provable non-booleans refuse at publish,
+context-dependent nulls pass and are recorded at runtime as `:guard_null`. The reason
+taxonomy gains `:guard_false`, `:already_dispatched`, `:depth_exceeded` under this
+document's "…". The start-event `(definition_id, node_id)` upsert is columns-only — the
+definition-publish and sweep lanes own that contract.
+
 ### 4.4 Token (extended)
 
 New status `:waiting`. New fields on the token row (routing data, not business data —
@@ -283,6 +296,17 @@ log is the buffer; a lookup implements the TTL (FR-5.7).
   attachments (owner node, catch spec, interrupting flag), terminate ends, `ash:call`
   bindings (ref + inputs + promotes), `ash:load` lists, and the `boxic_feel` version
   stamp (FR-1.4). All expressions stored as source text, never ASTs (S-3/TRD §8).
+
+  **As built (2026-09-07, `ash:call`).** The call binding stores `"call" => %{"ref" => …}`
+  with `inputs`/`promotes` at *node level* — mirroring the decision config, so both
+  service-task bindings share one runtime shape instead of forking it; the nested
+  `%{ref, inputs, promote}` form this section originally sketched is **not** what
+  ships. `ash:call` binds on `sendTask` too (the compiler treats it as the same node
+  kind). One gap recorded for the follow-up lanes: a callable bound to a `read` action
+  resolves at publish but fails at runtime with "not invocable" — it should be a
+  publish-time refusal; and update/destroy callables build a bare-resource changeset,
+  so hosts should prefer generic/create callables (documented in the interpreter
+  moduledoc).
 - **Verification** (`verify.ex`): callable refs exist (via domain introspection);
   `ash:subscribe` match resources audited + cycle-checked (via `EventSource`);
   decision refs exist (existing mechanism); guards/keys parse and lint boolean-ness;
