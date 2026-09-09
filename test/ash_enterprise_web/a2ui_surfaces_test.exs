@@ -87,21 +87,17 @@ defmodule AshEnterpriseWeb.A2uiSurfacesTest do
   end
 
   # The data model carries the rows; the surface carries the layout. Counting
-  # rows means digging into the data model rather than the component tree.
+  # rows means digging into the data model rather than the component tree --
+  # specifically the records list. (Earlier this walked *every* list in the
+  # data model and took the longest; the experience layer now stores
+  # non-row state there too -- the empty-state and pagination visibility
+  # sentinels -- so "any list" stopped meaning "rows".)
   defp row_count(ui, actor, tenant) do
     ui
     |> AshA2ui.Info.build_data_model(actor: actor, tenant: tenant)
-    |> collect_lists()
-    |> Enum.map(&length/1)
-    |> Enum.max(fn -> 0 end)
+    |> case do
+      %{"updateDataModel" => %{"value" => %{"records" => records}}} -> length(records)
+      _other -> 0
+    end
   end
-
-  defp collect_lists(value, acc \\ [])
-  defp collect_lists(value, acc) when is_list(value), do: [value | acc]
-
-  defp collect_lists(%{} = value, acc) do
-    Enum.reduce(value, acc, fn {_k, v}, acc -> collect_lists(v, acc) end)
-  end
-
-  defp collect_lists(_other, acc), do: acc
 end

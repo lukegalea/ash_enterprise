@@ -303,6 +303,16 @@ config :logger, :default_formatter,
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
 
+# A2UI experience layer: task modes (create/view/edit), conditional
+# pagination, typed feedback, and the semantic admin catalog. App-wide by
+# config -- every surface is `AshA2ui.Standalone`-based, so nothing
+# per-surface is needed. Version 2 + `:admin_v1` is the full layer; the
+# precedence rules (admin requires v2, selection ignored otherwise) are
+# deterministic and tested upstream. See
+# docs/adr/0033-experience-layer-adoption.md for the decision and its
+# reversibility story.
+config :ash_a2ui, experience_version: 2, catalog: :admin_v1
+
 # ex_money (via ash_money). Do not auto-start the exchange-rate retriever:
 # starting it implicitly is deprecated upstream, and an enterprise system wants
 # FX rates to be a deliberate, auditable data source rather than a background
