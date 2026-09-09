@@ -162,6 +162,21 @@
   --a2ui-column-gap: 0.75rem;
 }
 
+/* The light theme's brand primary (oklch 70% orange) was tuned as a button
+ * BACKGROUND for dark content. The A2UI contract uses the accent in both
+ * roles, though: as the primary button background behind on-primary text,
+ * and (through the admin catalog's quiet row buttons) as TEXT on the light
+ * surface. At 70% lightness neither pairing clears WCAG AA inside A2UI
+ * surfaces -- the axe scan of the admin experience flags every one of them.
+ * Within A2UI surfaces only, use the 700 step of the same hue: on-primary
+ * text clears AA with room to spare, and it clears AA as text on the light
+ * surface. Dark mode keeps the theme's indigo, which already passes there.
+ * The theme script always sets a concrete data-theme, so excluding
+ * [data-theme="dark"] scopes this to the light theme exactly. */
+:root:not([data-theme="dark"]) {
+  --a2ui-color-primary: #c2410c;
+}
+
 /* A2UI's colours are written with light-dark(), which reads `color-scheme`
  * rather than any class or attribute -- and the protocol carries no dark-mode
  * signal at all, in any version. Binding color-scheme to the daisyUI data

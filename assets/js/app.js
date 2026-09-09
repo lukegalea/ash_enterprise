@@ -58,6 +58,8 @@ import {ContextProvider} from "@lit/context"
 import {renderMarkdown} from "@a2ui/markdown-it"
 import {AshA2ui, configureAshA2ui} from "../../deps/ash_a2ui/priv/js/ash_a2ui_hook.js"
 import {createAshA2uiCatalog} from "../../deps/ash_a2ui/priv/js/ash_a2ui_catalog.js"
+import {createAshAdminCatalog} from "../../deps/ash_a2ui/priv/js/ash_admin_catalog.js"
+import {z} from "zod"
 
 // The ash_a2ui catalog is a FACTORY, not a ready-made object, and it takes the
 // lit runtime as a dependency deliberately: its custom elements must register
@@ -78,19 +80,32 @@ const ashCatalog = createAshA2uiCatalog({
   lit: {html, css, nothing}
 })
 
+// The experience layer's semantic admin catalog (entityPage, dataGrid,
+// recordPanel, ...) registers under its OWN catalog id --
+// https://ash-a2ui.dev/catalogs/admin/v1 -- so it sits alongside the merged
+// catalog rather than shadowing it: the processor resolves
+// `catalogs.find(c => c.id === catalogId)`, basic-catalog surfaces keep
+// resolving to ashCatalog and admin surfaces to adminCatalog. Passing the
+// merged catalog as `basicCatalog` means the admin surfaces inherit its
+// ChoicePicker/Column upgrades too (the admin catalog extends whatever it is
+// given -- "admin adds semantic components; it does not remove primitives").
+// `z` is the zod instance the admin catalog validates its component props
+// with; lit is injected for the same single-instance reason as above.
+const ashAdminCatalog = createAshAdminCatalog({
+  Catalog,
+  basicCatalog: ashCatalog,
+  A2uiLitElement,
+  A2uiController,
+  z,
+  lit: {html, css, nothing}
+})
+
 configureAshA2ui({
   MessageProcessor,
-  // ONLY the merged catalog. It registers under the *same* catalog id the
-  // encoder emits, and resolution is first-match:
-  //
-  //     const catalog = this.catalogs.find(c => c.id === catalogId)
-  //
-  // so passing basicCatalog first shadowed ashCatalog completely and every
-  // override it exists to provide was dead code -- visible as single-choice
-  // pickers rendering a stack of radio buttons instead of a <select>. It
-  // already reuses every basic-catalog component it does not replace, so
-  // nothing is lost by dropping basicCatalog from this list.
-  catalogs: [ashCatalog],
+  // The merged catalog first (same-id first-match resolution -- see the note
+  // above), then the admin catalog as a sibling. Each surface carries the
+  // catalogId its encoder emitted, so the two never contend.
+  catalogs: [ashCatalog, ashAdminCatalog],
 
   // Without a markdown renderer the basic catalog's Text component falls back
   // to `<span class="no-markdown-renderer">`, which prints headings as literal

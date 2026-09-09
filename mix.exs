@@ -187,10 +187,16 @@ defmodule AshEnterprise.MixProject do
       # is visible in the diff.
 
       # --- Declarative, agent-renderable UI (A2UI protocol) --------------------
-      # Not published to hex, so this is a SHA-pinned git dependency. Tier 3 in
+      # Not published to hex, so this is a git dependency. Tier 3 in
       # docs/manifesto/06-reversibility.md: confined to lib/ash_enterprise_web/a2ui/
       # so removing it is a deletion, not a refactor.
-      {:ash_a2ui, github: "lukegalea/ash_a2ui", ref: "5be19664870d00d02f57ce887c3b1093686de73e"},
+      #
+      # Pinned to the `feat/catalog-admin-v1` branch rather than a ref: it
+      # stacks the experience layer (A2UI-101) and the semantic admin catalog
+      # (A2UI-101B) this adoption turns on, and neither PR has merged yet.
+      # Move to a tag (or main) once both land upstream -- see
+      # docs/adr/0033-experience-layer-adoption.md.
+      {:ash_a2ui, github: "lukegalea/ash_a2ui", branch: "feat/catalog-admin-v1"},
 
       # --- Strangler-fig migration of the legacy schema ------------------------
       # Not published to hex, so this is a git dependency. First-party rather

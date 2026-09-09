@@ -47,6 +47,14 @@ defmodule AshEnterpriseWeb.A2ui.TeamUI do
     component :form do
       fields [:name, :description, :team_type]
       create_action :create
+
+      # Teams are one of the few surfaces with a real create *and* update
+      # story: the resource's primary `update` accepts name/description (the
+      # form's `team_type` input is create-only and is dropped server-side,
+      # exactly as the resource's `accept` dictates). This is what turns the
+      # experience layer's Edit control and "Save changes" action bar on for
+      # this surface.
+      update_action :update
     end
   end
 end

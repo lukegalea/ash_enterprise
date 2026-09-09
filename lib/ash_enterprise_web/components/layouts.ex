@@ -47,7 +47,7 @@ defmodule AshEnterpriseWeb.Layouts do
     <header class="navbar px-4 sm:px-6 lg:px-8">
       <div class="flex-1">
         <a href="/" class="flex w-fit items-center gap-2">
-          <img src={~p"/images/logo.svg"} width="36" />
+          <img src={~p"/images/logo.svg"} width="36" alt="Ash Enterprise" />
           <span class="text-sm font-semibold">Ash Enterprise</span>
         </a>
       </div>
@@ -176,6 +176,7 @@ defmodule AshEnterpriseWeb.Layouts do
         class="flex p-2 cursor-pointer w-1/3"
         phx-click={JS.dispatch("phx:set-theme")}
         data-phx-theme="system"
+        aria-label="Use system theme"
       >
         <.icon name="hero-computer-desktop-micro" class="size-4 opacity-75 hover:opacity-100" />
       </button>
@@ -184,6 +185,7 @@ defmodule AshEnterpriseWeb.Layouts do
         class="flex p-2 cursor-pointer w-1/3"
         phx-click={JS.dispatch("phx:set-theme")}
         data-phx-theme="light"
+        aria-label="Use light theme"
       >
         <.icon name="hero-sun-micro" class="size-4 opacity-75 hover:opacity-100" />
       </button>
@@ -192,6 +194,7 @@ defmodule AshEnterpriseWeb.Layouts do
         class="flex p-2 cursor-pointer w-1/3"
         phx-click={JS.dispatch("phx:set-theme")}
         data-phx-theme="dark"
+        aria-label="Use dark theme"
       >
         <.icon name="hero-moon-micro" class="size-4 opacity-75 hover:opacity-100" />
       </button>
