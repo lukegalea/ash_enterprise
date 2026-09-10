@@ -116,6 +116,13 @@ defmodule AshEnterprise.Security.AccessRight do
   def for_action_type(:update), do: :write
   def for_action_type(:destroy), do: :delete
 
+  # Generic actions have no Dataverse verb. Mapped to `:read` — the
+  # least-privilege choice, and the honest one for this application's
+  # generics (classification, lookups, summaries), which read rather than
+  # mutate. A genuinely mutating generic action must declare and check its
+  # own verb explicitly, exactly like the Dataverse-only verbs above.
+  def for_action_type(:action), do: :read
+
   @doc "The full mask: every verb. Convenient for owner-team templates and tests."
   def all_mask, do: to_mask(@verbs)
 end

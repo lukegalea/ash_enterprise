@@ -350,5 +350,18 @@ defmodule AshEnterpriseWeb.Router do
 
       clarity "/"
     end
+
+    # The canvas dev surface: the same dev-only boundary as /clarity, plus
+    # the same signed-in gate every A2UI surface uses — the inspector
+    # resolves objects (records included) under the signed-in actor, so the
+    # screen must never be reachable anonymously.
+    ash_authentication_live_session :canvas_dev_surface,
+      on_mount: [{AshEnterpriseWeb.LiveUserAuth, :live_user_required}] do
+      scope "/", AshEnterpriseWeb do
+        pipe_through :browser
+
+        live "/canvas", CanvasLive
+      end
+    end
   end
 end

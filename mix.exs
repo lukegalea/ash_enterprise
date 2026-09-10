@@ -191,12 +191,15 @@ defmodule AshEnterprise.MixProject do
       # docs/manifesto/06-reversibility.md: confined to lib/ash_enterprise_web/a2ui/
       # so removing it is a deletion, not a refactor.
       #
-      # Pinned to the `feat/catalog-admin-v1` branch rather than a ref: it
-      # stacks the experience layer (A2UI-101) and the semantic admin catalog
-      # (A2UI-101B) this adoption turns on, and neither PR has merged yet.
-      # Move to a tag (or main) once both land upstream -- see
-      # docs/adr/0033-experience-layer-adoption.md.
-      {:ash_a2ui, github: "lukegalea/ash_a2ui", branch: "feat/catalog-admin-v1"},
+      # Pinned to the `feat/a2ui-stack` branch rather than a ref: the
+      # integration ref stacks the experience layer (A2UI-101), the semantic
+      # admin catalog (A2UI-101B), and the canvas graph & objects foundation
+      # (A2UI-102/103) — everything the A2UI surfaces and the dev-only
+      # /canvas screen build on. None of the three PRs has merged yet. Move
+      # to a tag (or main) once they all land upstream -- see
+      # docs/adr/0033-experience-layer-adoption.md and
+      # docs/adr/0034-canvas-dev-surface.md.
+      {:ash_a2ui, github: "lukegalea/ash_a2ui", branch: "feat/a2ui-stack"},
 
       # --- Strangler-fig migration of the legacy schema ------------------------
       # Not published to hex, so this is a git dependency. First-party rather
