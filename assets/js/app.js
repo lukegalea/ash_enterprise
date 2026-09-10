@@ -61,6 +61,14 @@ import {createAshA2uiCatalog} from "../../deps/ash_a2ui/priv/js/ash_a2ui_catalog
 import {createAshAdminCatalog} from "../../deps/ash_a2ui/priv/js/ash_admin_catalog.js"
 import {z} from "zod"
 
+// The /canvas dev surface: the AshCanvas hook hydrates the
+// <ash-canvas-graph> element with the server's structural graph payload
+// (canvas:graph) and forwards its selections as canvas:select. The element
+// module registers the custom element as an import side effect, exactly
+// like the A2UI renderer imports above.
+import {AshCanvas} from "./canvas/ash_canvas_hook.js"
+import "./canvas/ash_canvas_graph.js"
+
 // The ash_a2ui catalog is a FACTORY, not a ready-made object, and it takes the
 // lit runtime as a dependency deliberately: its custom elements must register
 // against the SAME lit instance the renderer uses. Two copies of lit in the
@@ -126,7 +134,7 @@ const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks, AshA2ui, AshBpmnDesigner, AshBpmnViewer, AshDecisionsEditor},
+  hooks: {...colocatedHooks, AshA2ui, AshBpmnDesigner, AshBpmnViewer, AshDecisionsEditor, AshCanvas},
 })
 
 // Show progress bar on live navigation and form submits
