@@ -490,6 +490,45 @@ there is no way to seek by timestamp. A tenant busy enough to write more than th
 own window will not reach all of it.
 
 
+### 6.2 Phase 4 as shipped, and the one item deferred
+
+Phase 4 is complete except for event sub-processes, at `ash_bpmn` 30f8adb: 598 tests.
+Signals, signal start and catch, conditional catches, escalate-to-process and
+non-interrupting timer boundaries are all live.
+
+**Signals are a row, not a broadcast.** A throw writes through the host's audited base and
+the sweep delivers it like any other event, because a PubSub broadcast reaches whoever is
+listening at that instant -- a restarting node quietly turns "every listener" into "every
+listener that was up", and a process that missed a signal is indistinguishable from one still
+waiting. This is the first time the engine writes to the host's log; `EventSource` stays
+read-only and needs no write callback, because a resource generated with a `:base` *is* an
+instance of that base and the log event is the consequence of an ordinary audited write.
+
+**The depth bound had a hole, and a signal would have fallen through it.** The bound rides on
+the dispatch row and, as §5's own text admits, could not reach the instance. That was
+survivable while every hop was subscription-to-instance and stops being so once a process can
+throw: the throw starts a fresh event with nothing linking it to the one that started the
+process, so the count restarted every lap and `trigger_max_depth` would never have fired. An
+instance now carries the depth it was started at and a throw inherits and increments it.
+
+**Non-interrupting boundaries are supported, and Phase 3's refusal of them is withdrawn.**
+That refusal argued there was no token topology for two concurrent branches. The real defect
+was narrower and worse: an instance completed on its *first* branch rather than its last, so
+an ordinary parallel fork whose branches each had their own end event could not run at all --
+the second branch failed `StatusIsRunning` and retried to `max_attempts`. The interpreter's
+comment claimed `complete_instance` was "idempotent about that"; it was not. With that fixed
+the topology is the ordinary fork's.
+
+**Event sub-processes are deferred, so the exit criterion is not fully met.** They are nearly
+a boundary event attached to the whole process, and the delivery machinery exists; what is
+missing is nesting. The node collector gathers elements by `//` descendant search, so a
+sub-process's children are hoisted and compiled as though they sat at process level with the
+boundary erased -- the same defect the bare-name refusal exists to prevent. Doing it properly
+means scoping collection, giving the graph a notion of scope, teaching reachability about it
+and letting the runtime spawn a token into one, together rather than in slices. That is
+comparable in size to the rest of Phase 4 combined and has no named use case yet.
+
+
 ## 7. Compiler and snapshot
 
 - **Parsing**: `intermediateCatchEvent`, `boundaryEvent`, `terminateEvent`, event
