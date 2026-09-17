@@ -106,8 +106,8 @@ defmodule AshEnterpriseWeb.A2ui.Surfaces do
       label: "Legacy parties",
       ui: A2ui.LegacyPartyUI,
       path: "/app/legacy-parties",
-      blurb: "Legacy CLM parties.",
-      description: "Legacy CLM parties through the compatibility view."
+      blurb: "Legacy Contract Lifecycle Management parties.",
+      description: "Legacy Contract Lifecycle Management parties through the compatibility view."
     },
     %{
       name: "legacy_vendor_parties",

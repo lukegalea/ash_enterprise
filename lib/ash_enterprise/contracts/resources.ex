@@ -1,5 +1,5 @@
 defmodule AshEnterprise.Contracts.Party do
-  @moduledoc "Party compatibility resource over the existing CLM party relation."
+  @moduledoc "Party compatibility resource over the existing Contract Lifecycle Management party relation."
 
   use AshEnterprise.Platform.Resource,
     domain: AshEnterprise.Contracts,
@@ -61,7 +61,8 @@ defmodule AshEnterprise.Contracts.Party do
           :version_number
         ],
         as: :null,
-        because: "The CLM party table has no modification or other platform provenance columns."
+        because:
+          "The Contract Lifecycle Management party table has no modification or other platform provenance columns."
       )
     end
   end
@@ -407,14 +408,14 @@ defmodule AshEnterprise.Contracts.Contract do
       public? true
       define_attribute? false
 
-      description "The CLM party supplying the service."
+      description "The Contract Lifecycle Management party supplying the service."
     end
 
     belongs_to :client_party, AshEnterprise.Contracts.Party do
       public? true
       define_attribute? false
 
-      description "The CLM party receiving the service."
+      description "The Contract Lifecycle Management party receiving the service."
     end
   end
 
@@ -486,7 +487,7 @@ defmodule AshEnterprise.Contracts.Contract do
         ],
         as: :null,
         because:
-          "The CLM contract table has creation time but no platform modification or provenance columns."
+          "The Contract Lifecycle Management contract table has creation time but no platform modification or provenance columns."
       )
     end
   end

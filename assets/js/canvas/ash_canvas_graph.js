@@ -58,6 +58,13 @@ const SELECT_EVENT = "ash-canvas:select";
 // build of the same revision paints identically (fit rescales into view).
 const LAYOUT_BOX = {x1: 0, y1: 0, x2: 1280, y2: 800};
 
+// Spacing for the level wrapping in `#wrapLevels`. The band gap is larger than
+// the row gap on purpose: rows within one depth should read as one block, and
+// the space between depths is what makes containment legible.
+const LEVEL_COLUMN_GAP = 28;
+const LEVEL_ROW_GAP = 26;
+const LEVEL_BAND_GAP = 48;
+
 // Declutter thresholds: resource labels hide below this zoom when the
 // graph is crowded; relationship names show above this zoom (always on
 // hover regardless).
@@ -603,22 +610,77 @@ export class AshCanvasGraph extends LitElement {
         boundingBox: LAYOUT_BOX,
         directed: true,
         padding: 56,
-        spacingFactor: 1.4,
+        spacingFactor: 1.0,
         animate: false,
         animationDuration: 0,
       });
     layout.run();
 
-    // breadthfirst anchors roots at the BOTTOM of its bounding box; flip
-    // the y axis so containment reads top-down (application → domains →
-    // resources), the orientation the legend and outline tree promise.
-    cy.batch(() => {
-      cy.nodes().positions((node) => ({y: LAYOUT_BOX.y2 - node.position().y}));
-    });
+    this.#wrapLevels();
 
     this.#fit();
     this.#applyDeclutter();
     this.#applySelectionClasses();
+  }
+
+  // breadthfirst puts every node of one depth on a single row, and this graph
+  // is short and very wide: one application, a dozen domains, and ~50 resources
+  // that all sit at depth 2. That row came out 16,478px across, so `fit()` asked
+  // for zoom 0.055, got clamped at `minZoom` 0.15, and drew nodes small and
+  // faint enough that the canvas read as empty — while the outline tree, the
+  // node count and the edge count were all correct. Every check short of looking
+  // at the pixels passed.
+  //
+  // So each depth is wrapped into rows no wider than the layout box, and the
+  // depths are stacked top-down. That keeps what the old y-flip was for —
+  // containment reading application → domains → resources, the orientation the
+  // legend and the outline tree promise — while making the graph roughly as
+  // wide as it is tall, which is the shape a viewport can actually show.
+  #wrapLevels() {
+    const cy = this.#cy;
+    if (!cy || cy.nodes().length === 0) return;
+
+    // breadthfirst anchors roots at the BOTTOM of its bounding box, so ordering
+    // levels by descending y is ordering them root-first.
+    const levels = new Map();
+    cy.nodes().forEach((node) => {
+      const key = Math.round(node.position().y);
+      if (!levels.has(key)) levels.set(key, []);
+      levels.get(key).push(node);
+    });
+    const ordered = [...levels.entries()].sort((a, b) => b[0] - a[0]).map(([, nodes]) => nodes);
+
+    const width = LAYOUT_BOX.x2 - LAYOUT_BOX.x1;
+    let y = LAYOUT_BOX.y1;
+
+    cy.batch(() => {
+      ordered.forEach((level) => {
+        // Preserve the order breadthfirst chose within the level: it puts
+        // siblings next to each other, so wrapping keeps a domain's resources
+        // together instead of scattering them.
+        level.sort((a, b) => a.position().x - b.position().x);
+
+        const columnWidth = Math.max(...level.map((node) => node.width())) + LEVEL_COLUMN_GAP;
+        const rowHeight = Math.max(...level.map((node) => node.height())) + LEVEL_ROW_GAP;
+        const columns = Math.max(1, Math.min(level.length, Math.floor(width / columnWidth)));
+
+        level.forEach((node, index) => {
+          const row = Math.floor(index / columns);
+          const column = index % columns;
+          // Centre each row, including a short final one, so a wrapped level
+          // reads as a block rather than as a ragged left edge.
+          const inThisRow = Math.min(columns, level.length - row * columns);
+          const rowWidth = inThisRow * columnWidth;
+
+          node.position({
+            x: LAYOUT_BOX.x1 + (width - rowWidth) / 2 + column * columnWidth + columnWidth / 2,
+            y: y + row * rowHeight + rowHeight / 2,
+          });
+        });
+
+        y += Math.ceil(level.length / columns) * rowHeight + LEVEL_BAND_GAP;
+      });
+    });
   }
 
   #fit() {
@@ -896,6 +958,11 @@ function cytoscapeStylesheet(palette) {
     {
       selector: "node",
       style: {
+        // Nodes carry their display name as `data.label` (see `#buildGraph`).
+        // Without this mapping cytoscape draws every node as an empty box, and
+        // the `label-hidden` declutter class below spends its time hiding a
+        // label that was never shown.
+        label: "data(label)",
         "font-family": palette.fontFamily,
         color: palette.text,
         shape: "round-rectangle",

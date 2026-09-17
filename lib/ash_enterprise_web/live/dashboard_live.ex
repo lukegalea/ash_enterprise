@@ -81,10 +81,10 @@ defmodule AshEnterpriseWeb.DashboardLive do
           id="strangler-demo"
           icon="hero-arrows-right-left"
           title="The strangler demo"
-          blurb="Two live tables over the same companies. The legacy one reads the old CLM
-            schema through a compatibility view; the canonical one reads this application's
-            own strangler resource. Open both, side by side, and make a write anywhere --
-            each table rebuilds itself."
+          blurb="Two live tables over the same companies. The legacy one reads the old
+            Contract Lifecycle Management schema through a compatibility view; the canonical
+            one reads this application's own strangler resource. Open both, side by side,
+            and make a write anywhere -- each table rebuilds itself."
           primary
         >
           <:top_right>

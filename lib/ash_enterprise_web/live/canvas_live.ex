@@ -75,11 +75,27 @@ defmodule AshEnterpriseWeb.CanvasLive do
           </p>
         </header>
 
+        <%!--
+          The height is load-bearing, not styling. `<ash-canvas-graph>` is
+          `height: 100%` against this element, and its two panes are a CSS grid
+          -- so with no definite height here, the grid's row is sized by its
+          tallest content, which is the outline list. At 68 resources that list
+          is around 1900px, the canvas frame becomes 1900px with it, and
+          Cytoscape dutifully fits the graph into that box and centres it: the
+          graph ends up ~950px down, below the fold, drawn small enough to read
+          as an empty canvas. Every check short of looking at the pixels passes,
+          because the data, the nodes and the fit are all correct.
+
+          Bounding the height puts the outline back on its own scrollbar
+          (`.cv-tree-scroll` is already `overflow-y: auto; min-height: 0`,
+          built for exactly this) and gives the graph the viewport.
+        --%>
         <div
           id="canvas-graph"
           phx-hook="AshCanvas"
           phx-update="ignore"
           aria-label="Canvas object graph"
+          class="h-[72vh] min-h-[30rem]"
         >
           <%!-- The Lit element owns this subtree (phx-update="ignore"). --%>
         </div>
