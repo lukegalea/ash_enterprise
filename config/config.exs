@@ -94,6 +94,19 @@ config :ash_decisions, ash_domains: [AshEnterprise.Decisions]
 # would not be happening inside the sweep.
 config :ash, :missed_notifications, :ignore
 
+# How `min_length` / `max_length` / `string_length` count a string. Ash 3.33
+# requires the choice to be explicit rather than inherited, because the two
+# answers disagree about what a length *is*.
+#
+# `:codepoints` is what SQL counts, so an attribute validated in Elixir and the
+# same attribute checked by Postgres agree -- and `max_length` genuinely bounds
+# how much gets stored. Under `:mixed` (the old behaviour) Elixir counts
+# graphemes while atomic updates defer to the data layer, and since one grapheme
+# can carry an unbounded run of combining characters, `max_length` stops being a
+# size bound at all. An application that treats its database as the record of
+# truth cannot have its own validation disagree with it, so: codepoints.
+config :ash, default_string_length_count: :codepoints
+
 config :ash_graphql, authorize_update_destroy_with_error?: true
 
 config :mime,

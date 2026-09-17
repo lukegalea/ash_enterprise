@@ -25,8 +25,7 @@ defmodule AshEnterprise.Process.AccessRequestDemoTest do
 
   require Ash.Query
 
-  alias AshEnterprise.Bpmn.Subscription
-  alias AshEnterprise.Bpmn.{Cursor, Dispatch, HumanTask, Instance, ProcessEvent}
+  alias AshEnterprise.Bpmn.{Cursor, Dispatch, HumanTask, Instance, ProcessEvent, Subscription}
   alias AshEnterprise.Decisions
   alias AshEnterprise.Platform.{Seeder, SystemActor}
   alias AshEnterprise.Process.Resolver
