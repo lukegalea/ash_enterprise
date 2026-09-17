@@ -193,8 +193,8 @@ was sequenced.
 
 ## Reversal
 
-**Before the first publish** it was cheap and it no longer is; the section is kept because the shape
-of the exit still matters.
+**Before the first publish** it was cheap and it no longer is; the shape
+of the exit below still holds.
 
 **To replace the engine, keeping FEEL:** rewrite `AshBpmn.Feel` and `AshDecisions.Feel` — two modules,
 `parse`/`evaluate`/`print`/`to_feel_value` between them — against a different FEEL implementation, and

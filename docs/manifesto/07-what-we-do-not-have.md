@@ -46,7 +46,7 @@ escalation, and an audit trail of who approved what: an `Ash.Resource.Change` dr
 candidate list, maker-checker exclusion applied by subtraction at candidate resolution rather than as a `forbid_if`,
 and remind/escalate/expire timers that are Oban jobs whose ids are stored on the task so they actually get cancelled.
 
-**It is adopted here now** — this entry was rewritten on 2026-08-20, later than the rest of the page. Twelve resources
+**It is adopted here now.** Twelve resources
 sit on `AshEnterprise.Platform.Resource`: six from `ash_bpmn`, two from a second first-party package `ash_decisions`,
 and four written here for triggers and bindings. An `AccessRequest` submission is one audited write; a trigger matches
 it, a FEEL guard filters it, a versioned DMN decision routes it, and a process with a business rule task, an exclusive
@@ -60,7 +60,7 @@ opening an editor. The design is in [`docs/plans/ash-bpmn-in-reference-app.md`](
 and [`docs/plans/decisions-and-feel.md`](../plans/decisions-and-feel.md); every collision it caused is in §4 of the
 first.
 
-**So this entry is no longer about approvals. It is about business rules, and seven things are missing.** In descending
+**Approvals are no longer the gap. Business rules are, and seven things are missing.** In descending
 order of how much they cost:
 
 1. **An author cannot try a decision before publishing it.** The DMN editor landed: `/app/decisions` has a

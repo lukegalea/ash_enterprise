@@ -110,9 +110,9 @@ Because of what falls out of it once it exists:
   than raise, which means inaccessible rows are invisible instead of "403 Forbidden" — the difference between a list
   that works and a list that leaks its own existence.
 
-## The cost, stated honestly
+## The cost
 
-Two things get harder, and pretending otherwise would be dishonest.
+Two things get harder.
 
 **Performance.** Naively, every policy evaluation wants to know the actor's teams, their business unit's entire subtree,
 their full privilege map, and their reporting chain. Evaluated per-check, per-row, this is ruinous. Microsoft's own

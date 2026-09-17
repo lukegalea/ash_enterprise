@@ -87,7 +87,7 @@ A secret scan before pushing came back clean: the only credentials in tracked
 config are the standard Phoenix dev/test placeholders, `runtime.exs` reads
 production values from the environment, and `.env` is gitignored.
 
-### Phases, honestly
+### Phases
 
 | Phase | State |
 |---|---|
@@ -442,9 +442,9 @@ and, through them, to the test that proves each. It renders into
 `docs/COMPLIANCE.md` and the site through the same task and the same `--check`
 gate as the roadmap tables, so a control can never claim more than the ledger
 does. **A control is scored by its weakest question, not its average** — rounding
-up would defeat the point.
+up would misrepresent the state.
 
-Two things writing it surfaced that had been invisible: *evidence of review* had
+Two gaps the mapping surfaced: *evidence of review* had
 no question at all (now `q38`, and [ADR 0025](adr/0025-log-shipping-and-review.md)),
 and cryptography appears in exactly one place in the entire repository — the
 SHA-256 over the audit chain.

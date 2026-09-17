@@ -113,8 +113,7 @@ works with a limitation stated in the answer; 🔵 means a decision is written d
 </details>
 
 The long form, with what each answer is proven by, is [`docs/QUESTIONS.md`](docs/QUESTIONS.md). The ⚪
-rows are argued at length in [thesis 7](docs/manifesto/07-what-we-do-not-have.md), which is the page to
-read before committing to any of this.
+rows are argued at length in [thesis 7](docs/manifesto/07-what-we-do-not-have.md).
 
 ## Getting started
 
@@ -139,8 +138,8 @@ Sign in with the credentials the seeder prints, then visit:
 ## What it looks like
 
 No markup was written for any of this. Every surface here is derived from the
-same resource definitions — which is the point: the screenshots are what you get
-for declaring a resource, before writing any UI.
+same resource definitions: the screenshots are what you get for declaring a
+resource, before writing any UI.
 
 **A2UI surfaces.** One page per resource, rendered from resource metadata. The
 list, the filter, the pagination and the create form are all derived; the actor
@@ -209,7 +208,7 @@ notification, so nothing downstream can tell which application wrote it:
 
 ![A legacy user row appearing in the browser moments after a plain SQL INSERT, with a banner saying another application changed these rows](docs/screenshots/legacy-live-update.gif)
 
-Nothing there is staged. The row arrives from a plain `INSERT INTO legacy.users`
+Nothing there is staged: the row arrives from a plain `INSERT INTO legacy.users`
 issued with `psql` — no Ash, no changeset, no HTTP request. See
 [`priv/legacy/README.md`](priv/legacy/README.md) for the commands.
 
@@ -339,9 +338,8 @@ Dialyzer certainty against Spark-generated code. Each is named rather than
 glossed, and the last two paragraphs of thesis 7 explain why naming them is the
 only commitment worth making about gaps.
 
-One of those needs saying plainly here: **thesis 4 currently claims field
-policies that `lib/` does not contain.** That claim is being corrected rather
-than quietly implemented — which is the whole point of keeping a ledger.
+**Thesis 4 currently claims field policies that `lib/` does not
+contain.** The claim is being corrected rather than quietly implemented.
 
 ## Licence
 

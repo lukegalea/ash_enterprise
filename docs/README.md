@@ -1,6 +1,6 @@
 # Documentation
 
-Four kinds of document live here, and the difference between them is the point.
+Four kinds of document live here.
 
 | | What it is | Read it when |
 |---|---|---|
@@ -35,7 +35,7 @@ node scripts/screenshots/capture.mjs
 `BASE_URL`, `EMAIL`, `PASSWORD` and `BROWSER` override the defaults
 (`http://localhost:4000`, `admin@example.com`, `password1234`, `firefox`).
 
-Three things about it are load-bearing rather than incidental.
+Three things about it are load-bearing.
 
 **It signs in.** Every surface worth capturing is behind `live_user_required`, so the script visits
 `/sign-in`, submits the form, and waits for the URL to change before doing anything else.
@@ -48,7 +48,7 @@ WebKit work. `BROWSER=chromium` is there for an environment where it does. The f
 dropdown: the bar already carries six items and wraps below about 1400px, so four more top-level buttons
 would put a wrapped nav in every capture.
 
-**It refuses to photograph a broken page**, which is the part worth copying into any other project. A
+**It refuses to photograph a broken page.** A
 Phoenix error page screenshots very happily — the first attempt at documenting the process surfaces
 produced a perfectly sharp, correctly cropped capture of a stacktrace and filed it as documentation. So
 the script exits non-zero when either of two things happens:
@@ -64,7 +64,7 @@ the script exits non-zero when either of two things happens:
 It also hides the Tidewave dev toolbar, because leaving it in a documentation capture shows readers
 something they will never have.
 
-One caveat, so nobody trusts the gate further than it goes: the designer capture waits for
+One caveat on the gate: the designer capture waits for
 `.bjs-powered-by` — both the signal that bpmn-js booted *and* the bpmn.io watermark the licence requires
 stay visible and unoverlapped — but a missing selector currently only warns and captures anyway, so a
 non-compliant crop would not fail the run. **Not every image in `screenshots/` comes from this script**
