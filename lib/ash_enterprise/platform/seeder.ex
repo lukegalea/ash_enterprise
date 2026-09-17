@@ -376,7 +376,21 @@ defmodule AshEnterprise.Platform.Seeder do
   # a deliberate grant rather than being available to anyone who can reach the
   # admin UI. Without a privilege row there would be nothing to grant, and the
   # policy on the resource would deny everyone including administrators.
-  defp additionally_governed, do: [AshEnterprise.Audit.EventLog]
+  # Resources the privilege catalogue governs even though they are not
+  # platform resources. The audit event log was the precedent: append-only
+  # machinery without ownership columns, whose access still must be a role
+  # grant. The compliance plane adds two of the same shape — the compliance
+  # event log the KYC reviews append to, and the finding projection the
+  # compliance door (`AshEnterpriseWeb.ComplianceAuth`) is gated on. Their
+  # ownership resolves to `:none`, so only `:global` grants are legal — an
+  # organization-level grant on an engine table would be a fiction.
+  defp additionally_governed do
+    [
+      AshEnterprise.Audit.EventLog,
+      AshEnterprise.Compliance.EventLog,
+      AshCompliance.Resources.Finding
+    ]
+  end
 
   defp platform_resource?(resource) do
     AshEnterprise.Platform.SystemAttributes in Spark.extensions(resource)
