@@ -122,13 +122,22 @@ read before committing to any of this.
 devenv up -d                            # Postgres (with pgvector)
 devenv shell -- mix setup               # deps, database, migrations
 devenv shell -- mix ash_enterprise.seed # a tenant, a role, a user
+devenv shell -- mix ash_enterprise.demo # a business-unit tree, people, teams, roles
 devenv shell -- iex-server              # the app
 ```
+
+`seed` provisions the minimum — one organization, one business unit, one
+administrator — which is what tests want and what a first run needs. `demo`
+fills it out, because most of what this platform argues for is invisible against
+a single row: grant depth needs a subtree to be measured over, and policies that
+differ per actor need a second actor. Everything it creates goes through the
+application's own actions, so the people it adds can sign in.
 
 Sign in with the credentials the seeder prints, then visit:
 
 | URL | What |
 |---|---|
+| `/app/demo` | Demo hub — every surface below, one link away |
 | `/agent` | Helper console — proposes changes for your approval, and shows or composes tables on request |
 | `/app/users`, `/app/teams`, `/app/roles`, `/app/business-units` | A2UI surfaces derived from resource metadata |
 | `/app/legacy-users` | The same, over a 2010-era Rails schema read through a compatibility view — and it updates when the old application writes |
@@ -142,10 +151,23 @@ No markup was written for any of this. Every surface here is derived from the
 same resource definitions — which is the point: the screenshots are what you get
 for declaring a resource, before writing any UI.
 
+**The demo hub** at `/app/demo` is the shortest path through all of it, and the
+place to start after seeding.
+
+![The demo hub, linking the strangler demo, the process modeller, the agents, the diagrams and the admin console](docs/screenshots/demo-dashboard.png)
+
 **A2UI surfaces.** One page per resource, rendered from resource metadata. The
-list, the filter, the pagination and the create form are all derived; the actor
-and the tenant are the only things the LiveView supplies, so each surface is
-filtered by exactly the policies that guard the API.
+grid, the filter and the tasks are all derived; the actor and the tenant are the
+only things the LiveView supplies, so each surface is filtered by exactly the
+policies that guard the API.
+
+What a surface offers is derived too, from the actions that exist. A resource
+with an update action gets `Edit` on the row; one without gets `View` alone —
+which is why `/app/legacy-users` below is read-only without anything in this
+application saying so, the strangler read model having declared `defaults [:read]`
+and nothing else. Pagination appears when there is another page to go to. A form
+appears when you start a task, headed with which task it is, and its button says
+what it will do.
 
 What *is* declared is a dozen lines of layout intent per surface — which field is
 the title, which is the status badge, what belongs in the metadata grid — because
@@ -155,7 +177,7 @@ version of the spec. Appearance comes from a CSS custom-property contract that
 `assets/css/app.css` maps onto daisyUI's tokens, so these pages follow the same
 theme and the same dark-mode toggle as the rest of the app.
 
-![The business-unit surface, showing the materialized-path hierarchy](docs/screenshots/a2ui-business-units.png)
+![The business-unit surface: seven units as a tree, each row showing its ancestry, with View and Edit per row and a Create business unit action](docs/screenshots/a2ui-business-units.png)
 
 The same generator, three more resources — users, teams and security roles:
 
