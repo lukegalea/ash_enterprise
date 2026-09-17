@@ -180,6 +180,41 @@ Claim gate: the claim action's `StatusIsActive` validation admits `:waiting` for
 delivery claims only (a distinct `:claim_waiting` action, so an advance worker can never
 race a normal claim into a waiting token).
 
+**As built (2026-09-17, `ash_bpmn` b800a54).** Three things came out differently, and the
+differences are worth stating because the text above is now wrong in each.
+
+`StatusIsActive` was **not** widened. It still admits `:active` and nothing else; a
+sibling `StatusIsWaiting` guards `:claim_waiting`. A validation named for the status it
+requires, which then admits a second status, is a trap for the next reader — and keeping
+the two guards separate is what actually delivers the property the paragraph wanted: the
+two doors cannot be confused at the call site or in the audit log.
+
+The index is `(subscription_signature, instance_id)` partial on `status = 'waiting'`, not
+signature plus `correlation_key`. The signature is the coarse equality filter the
+correlator always has; the correlation key is compared per candidate once the set is
+already small, so putting it in the index costs write amplification on every park and buys
+nothing on the read. The tenant copy leads with `organization_id`, which `AshPostgres`
+prepends automatically under attribute multitenancy. It is declared in the resource's
+`custom_indexes` rather than only in a migration, because a host gets its schema from
+`mix ash.codegen` and an index living only in `ash_bpmn`'s own test migrations would reach
+nobody's production database.
+
+Leaving the waiting state **clears** all four fields, on the transitions back into a
+running state (`claim_waiting`, `reactivate`) and deliberately not on the terminal ones. A
+consumed token that still says it waited for `invoice-42` is history and its status says
+the wait is over; a token that is `:executing` while still advertising a correlation key is
+a claim about the present that is not true. What woke a token belongs in the event log.
+
+Consume and kill both admit a waiting token. An interrupting boundary, a terminate end
+event and a cancelled instance all prune live branches, and a parked token is a live
+branch; a waiting state that could only be left through its own event would make all three
+impossible to implement.
+
+**Known defect, not fixed here.** `:dead` is overloaded. A parallel join kills the tokens
+it merges, so "cut off by a terminate" and "merged into a join" are the same status on the
+row. A branch that reached its join finished; a terminated branch did not. Today only the
+event log distinguishes them.
+
 ### 4.5 `Signal`
 
 Minimal emission resource: `name` (indexed), `payload` (:map, size-bounded), tenant.
@@ -360,6 +395,44 @@ names are configurable to the host's spelling.
 - **Conditions and expiry**: every transition out of a node — completion, expiry,
   boundary — evaluates through one gateway routine in the interpreter; the facade's
   duplicate routing and its first-flow expiry bug are deleted (hygiene #3/#4/#5).
+
+**As built (2026-09-17, `ash_bpmn` 8cda10b, 5cbce17, a057508).**
+
+*Park* applies to **user tasks** as well as catch nodes, which the list above does not say.
+It was the first thing built, because `{:park_token, true}` was a no-op: a token handed to
+a human sat at `:executing` for however long the approval took, which is also the state of
+a token whose job is running and of one whose job is lost. Nothing downstream could tell an
+open approval from a crashed worker. A user task parks with **no** signature and **no**
+correlation key — it is woken by someone completing that task, which names the token by id
+— and leaving both nil is what keeps it out of the correlator's query rather than something
+that has to be excluded from it.
+
+*Wake* replaced two read-only `token.status == :executing` checks, on task completion and on
+timer expiry. A status read says the token looked advanceable a moment ago and nothing about
+whether anyone else is advancing it, so two deliveries of one completion both passed it.
+Both now go through `claim_waiting`, which re-reads inside the transaction and admits one
+winner. This is what makes catch delivery redelivery-safe without a lock.
+
+*Entry* is recorded as `:node_entered` carrying `waiting_for` and the duration, not as a new
+`:parked` kind. A parked token is a node the token entered and has not left; a second kind
+for it would have to be kept consistent with the first.
+
+*Terminate* is built, as a distinct effect rather than a flag on `complete_instance`. The
+killing is not a detail of completing: it touches rows the terminating token knows nothing
+about. One `:instance_terminated` event names the terminating node and the branches it took
+down, rather than one row per killed token — the tokens already carry `:dead`. The open
+`HumanTask` row is **not** retracted: someone was asked to approve something and the request
+was withdrawn before they answered, and "there is no record of ever having asked you" is the
+wrong answer.
+
+*Timer catch events* are built and are the first wait that is not a person. Oban does all of
+the waiting — `Oban.Stager` holds the job until `scheduled_at` and never promotes early — so
+the worker is left with the part Oban has no opinion about: claim the token out of
+`:waiting`, and if that loses (cancelled, terminated, or a redelivery of a job that already
+ran) the wake is simply over. Losing is the normal ending, not an error.
+
+*Boundary events and error boundaries* are **not** built. The bullets above describing them
+remain a design, not a record.
 
 ## 7. Compiler and snapshot
 
