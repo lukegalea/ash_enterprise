@@ -202,12 +202,7 @@ defmodule AshEnterprise.MixProject do
       # `legacy.*` plus the notification bridge that makes a legacy write
       # visible to LiveView. See docs/plans/ash-strangler-in-reference-app.md.
       #
-      # Pinned to the `ledger-and-ingester` branch (PR #5) rather than main:
-      # the change ledger and the `gen.ingester` codegen the compliance slice
-      # builds on are exactly what that PR adds, and main does not carry them
-      # yet. When the PR merges, this reverts to plain `github:` like its
-      # siblings.
-      {:ash_strangler, github: "lukegalea/ash_strangler", branch: "ledger-and-ingester"},
+      {:ash_strangler, github: "lukegalea/ash_strangler"},
 
       # --- Rules engine and the compliance plane it powers ---------------------
       # `ash_rules` is the serializable rule IR, fact-schema DSL and evaluator
@@ -220,10 +215,7 @@ defmodule AshEnterprise.MixProject do
       # like their siblings; `ash_events_projections` (the projector engine)
       # arrives transitively through `ash_compliance` and is configured under
       # its own :ash_events_projections key.
-      # `override: true` because ash_compliance's own mix.exs still resolves
-      # ash_rules through its development path dependency; the host needs the
-      # fetched git revision, not that path.
-      {:ash_rules, github: "lukegalea/ash_rules", override: true},
+      {:ash_rules, github: "lukegalea/ash_rules"},
       {:ash_compliance, github: "lukegalea/ash_compliance"},
 
       # --- Business processes and the decisions they route on ------------------
