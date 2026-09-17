@@ -130,10 +130,28 @@ The engine must never accept a diagram whose semantics it does not implement.
 
 ### C7 — Structural composition *(Phase 5, conditional on named use cases)*
 
+Each item below now names the use case that earned it, which is what this section's
+condition asks for. The condition exists to prevent accretion — a structural feature built
+because BPMN has one is how an executable subset stops being a subset.
+
 - **FR-7.1** Call activity: start a child instance and wait for its completion.
+  **Earned by:** vendor onboarding. The compliance track an awarded vendor goes through is
+  the same track whichever award produced it, and today it can only be drawn by copying it
+  into every parent diagram — so a change to onboarding means editing each copy, and the
+  copies drift. A call activity lets it be drawn once and invoked.
 - **FR-7.2** Multi-instance: a FEEL list expression fans out tokens, sequential or
   parallel, joining on completion.
+  **Earned by:** an RFQ awarded per property. One request covers several properties and each
+  award needs its own onboarding and compliance track. The count is not known when the
+  diagram is drawn, so without fan-out the shape can only be approximated by hand-copying
+  branches for a number nobody has — or by moving the loop out of the diagram entirely, which
+  is where a process stops being the thing people reason about.
 - **FR-7.3** Send/receive task sugar over throw/catch.
+  **Earned by:** legibility rather than capability, and it is the weakest of the three.
+  Throw and catch already work; a send and a receive task are what a business analyst draws
+  for the same thing, and a subset that refuses the notation people use makes them redraw
+  their diagram to suit the engine. Worth having only because it is sugar — if it needs new
+  semantics it has not been earned.
 
 ## 4. Semantics (cross-cutting)
 
