@@ -1,22 +1,25 @@
 defmodule Mix.Tasks.AshEnterprise.Bpmn.Setup do
-  @shortdoc "Publish baselines, create triggers, and leave running processes behind"
+  @shortdoc "Publish baselines, create subscriptions, and leave running processes behind"
 
   @moduledoc """
   Makes the process surfaces show something real.
 
-  Publishes the baselines, creates the access-request trigger in each seeded tenant, and then
-  **drives four requests down all three branches of the gateway** so that every screen has
-  something on it, and no branch of the published diagram is left unexercised:
+  Publishes the baselines, creates the access-request subscription in each seeded tenant, and
+  then **drives four requests down all three branches of the gateway** so that every screen
+  has something on it, and no branch of the published diagram is left unexercised:
 
     1. `low` — granted with no human involved, proof the engine runs end to end
     2. `high`, from an elevated request with a thin justification — an executive approval
     3. `high`, from a privileged request — the same branch by a different rule
     4. `medium` — a manager approval, so the task list has a row and `ManagerApproval` runs
 
-  It also customizes one tenant's risk decision, so the drift badge on `/app/processes` has a
-  subject rather than being a feature nothing demonstrates.
+  It also gives every seeded tenant its own published copy of the access-request process,
+  because the engine's trigger lane resolves a subscription's process in the tenant alone —
+  the documented Phase-2 gap (see `AshEnterprise.Process`'s moduledoc). A tenant running only
+  the platform baseline would record `:no_definition` for every dispatch and the demo would
+  show a system that has done nothing.
 
-  The fourth request is the one to be careful with when editing: the trigger's guard is
+  The fourth request is the one to be careful with when editing: the subscription's guard is
   `string length(data.justification) > 30` and the risk table's boundary is `< 40`, so only a
   standard-tier justification of 31 to 39 characters reaches `medium` at all. Three requests
   route to `low`, `high` and `high`, which is why `ManagerApproval` had never once executed
@@ -36,9 +39,9 @@ defmodule Mix.Tasks.AshEnterprise.Bpmn.Setup do
 
   require Ash.Query
 
+  alias AshEnterprise.Bpmn.Subscription
   alias AshEnterprise.Platform.{Seeder, SystemActor}
-  alias AshEnterprise.Process.{Resolver, Trigger}
-  alias AshEnterprise.Process.Triggers.SweepWorker
+  alias AshEnterprise.Process.Resolver
   alias AshEnterprise.Security.{AccessRequest, Role}
 
   @impl Mix.Task
@@ -69,7 +72,8 @@ defmodule Mix.Tasks.AshEnterprise.Bpmn.Setup do
       n -> Mix.shell().info("  granted #{n} new privilege(s) to Administrator")
     end
 
-    ensure_trigger(organization.id)
+    ensure_local_process(organization.id)
+    ensure_subscription(organization.id)
     role = ensure_role(organization.id)
 
     case first_user(organization.id) do
@@ -78,8 +82,6 @@ defmodule Mix.Tasks.AshEnterprise.Bpmn.Setup do
 
       user ->
         seed_requests(organization.id, role, user)
-        # One tenant gets its own copy, so the catalogue has something to say about drift.
-        if organization.unique_name == "example", do: fork_for_demo(organization.id)
     end
   end
 
@@ -94,23 +96,23 @@ defmodule Mix.Tasks.AshEnterprise.Bpmn.Setup do
     |> Enum.reject(&(&1.id == platform))
   end
 
-  defp ensure_trigger(tenant) do
+  defp ensure_subscription(tenant) do
     opts = [actor: SystemActor.process(), tenant: tenant]
 
     existing =
-      Trigger
-      |> Ash.Query.for_read(:published)
-      |> Ash.Query.filter(key == "access_request.submitted")
+      Subscription
+      |> Ash.Query.for_read(:read)
+      |> Ash.Query.filter(key == "access_request.submitted" and status == :published)
       |> Ash.read!(opts)
 
     if existing == [] do
-      Trigger
+      Subscription
       |> then(fn _ ->
-        Trigger.create!(
+        Subscription.create!(
           %{
             key: "access_request.submitted",
             match_resource: "AshEnterprise.Security.AccessRequest",
-            match_action: "submit",
+            match_action: :submit,
             match_action_type: :create,
             guard_feel: "string length(data.justification) > 30",
             process_key: "access_request.grant"
@@ -118,11 +120,11 @@ defmodule Mix.Tasks.AshEnterprise.Bpmn.Setup do
           opts
         )
       end)
-      |> Trigger.publish!(opts)
+      |> Subscription.publish!(opts)
 
-      Mix.shell().info("  trigger access_request.submitted published")
+      Mix.shell().info("  subscription access_request.submitted published")
     else
-      Mix.shell().info("  trigger access_request.submitted already published")
+      Mix.shell().info("  subscription access_request.submitted already published")
     end
   end
 
@@ -156,13 +158,10 @@ defmodule Mix.Tasks.AshEnterprise.Bpmn.Setup do
     if already_seeded?(tenant) do
       Mix.shell().info("  requests already seeded")
     else
-      # Establish the cursor *before* submitting anything. A cursor created afterwards starts
-      # at the current high-water mark -- correct, because a trigger fires on what happens
-      # after it exists -- which would put every request seeded here behind it and dispatch
-      # none of them. Publishing a trigger normally does this; a tenant whose cursor was
-      # removed, or one provisioned after the trigger, needs it doing again.
-      SweepWorker.ensure_cursor(tenant)
-
+      # The cursor was established when the subscription was published -- the publish lane is
+      # the host's job, and `AshEnterprise.Bpmn.Subscription` performs it -- so everything
+      # submitted from here on sits ahead of it. A cursor created *after* these writes would
+      # start at the newer high-water mark and dispatch none of them.
       submit(
         tenant,
         role,
@@ -198,17 +197,36 @@ defmodule Mix.Tasks.AshEnterprise.Bpmn.Setup do
     end
   end
 
-  # One tenant is given its own copy of the process, so the designer opens a real diagram and
-  # the catalogue has something to say about drift. Without it every tenant runs the baseline,
-  # the customization story has no subject, and the designer -- which creates a draft from a
-  # blank template when a tenant has none -- shows an empty canvas.
-  defp fork_for_demo(tenant) do
-    case Resolver.fork(:process, "access_request.grant", tenant) do
-      {:ok, draft} ->
-        Mix.shell().info("  forked access_request.grant as draft v#{draft.version}")
+  # Each tenant gets its own published copy of the process. The engine's correlator resolves
+  # a subscription's `process_key` with `latest_published` **in the event's tenant** and, as
+  # built, offers no loader seam at start time -- the documented Phase-2 gap (see
+  # `AshEnterprise.Process`'s moduledoc). A tenant running only the platform baseline would
+  # therefore record `:no_definition` for every dispatch and start nothing, which is a demo of
+  # a system that has done nothing.
+  #
+  # Fork is idempotent (an existing draft is returned), and publishing is skipped when this
+  # tenant already runs a published copy, so re-running the task changes nothing.
+  defp ensure_local_process(tenant) do
+    opts = [actor: SystemActor.process(), tenant: tenant]
 
-      {:error, reason} ->
-        Mix.shell().info("  could not fork: #{inspect(reason)}")
+    already_published? =
+      AshEnterprise.Bpmn.Definition
+      |> Ash.Query.for_read(:read)
+      |> Ash.Query.filter(key == "access_request.grant" and status == :published)
+      |> Ash.read!(opts)
+      |> Enum.any?()
+
+    if already_published? do
+      Mix.shell().info("  local access_request.grant already published")
+    else
+      case Resolver.fork(:process, "access_request.grant", tenant) do
+        {:ok, draft} ->
+          AshEnterprise.Bpmn.Definition.publish!(draft, opts)
+          Mix.shell().info("  forked and published access_request.grant v#{draft.version}")
+
+        {:error, reason} ->
+          raise "could not fork access_request.grant for tenant #{tenant}: #{inspect(reason)}"
+      end
     end
   end
 
@@ -235,7 +253,7 @@ defmodule Mix.Tasks.AshEnterprise.Bpmn.Setup do
   # See the moduledoc. Without this every process sits on its start node and every screen
   # shows a system that has done nothing.
   defp drain(tenant) do
-    SweepWorker.perform(%Oban.Job{args: %{"tenant" => tenant}})
+    AshBpmn.Triggers.SweepWorker.perform(%Oban.Job{args: %{"tenant" => tenant}})
 
     # Both queues, not just `:bpmn`. Jobs enqueued before the queue fix landed sit on
     # `:default`, and a seed that drained only one left processes parked on their start nodes

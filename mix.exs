@@ -206,11 +206,12 @@ defmodule AshEnterprise.MixProject do
       #
       # Not published to hex, so these are git dependencies -- same as `ash_a2ui`
       # and `ash_strangler`, and first-party rather than third-party (ADR 0009).
-      # Each is pinned to a ref on its feature branch (ash_bpmn:
-      # feat/typed-nodes-linked-editors, ash_decisions: feat/designer-catalogue):
-      # a pin makes the demo reproducible while the branch is reviewed, and the
-      # branch name says what the pin is waiting to become.
-      {:ash_bpmn, github: "lukegalea/ash_bpmn", ref: "ca7405543bb339e9ecbdc4b46d7236cb4e441fdd"},
+      # ash_bpmn is pinned to the merge that brought the trigger engine; this
+      # branch (feat/adopt-trigger-engine) adopts it. ash_decisions is pinned to
+      # a ref on its feature branch (feat/designer-catalogue): a pin makes the
+      # demo reproducible while the branch is reviewed, and the branch name says
+      # what the pin is waiting to become.
+      {:ash_bpmn, github: "lukegalea/ash_bpmn", ref: "fd7b6f6b5571140538384ad2171406c5d5d6043b"},
       {:ash_decisions,
        github: "lukegalea/ash_decisions", ref: "78d6932f1ab29079f5b2aad34e1871b5b7ca4ced"},
 
