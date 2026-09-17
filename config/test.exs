@@ -4,6 +4,13 @@ config :ash_enterprise, token_signing_secret: "2W7xIBrAeWb/GPoe4MBvPxA6NFwqqjl0"
 config :bcrypt_elixir, log_rounds: 1
 config :ash, policies: [show_policy_breakdowns?: true], disable_async?: true
 
+# The drain ingests inside its own transaction, and the event appends ride it
+# (a finding's evaluation can never reference a projection that did not
+# commit). The event log's notifier hooks then fire after_transaction inside
+# that still-open transaction — by design here, noise to Ash. The sandbox
+# warning adds nothing to a suite that asserts on the committed outcome.
+config :ash, warn_on_transaction_hooks?: false
+
 # Configure your database
 #
 # The MIX_TEST_PARTITION environment variable can be used
@@ -85,3 +92,11 @@ config :ash_enterprise, trigger_index?: false
 # fired -- `AshBpmn.Runtime.Oban.TestJobs.fire!/2` fires them explicitly, which is what makes an
 # escalation test deterministic instead of a sleep.
 config :ash_bpmn, oban_testing: :inline
+
+# The projector engine runs no servers in tests. A `Server` drains on its own
+# connection outside any test's sandbox transaction, so async findings would be
+# invisible (or fatal) to the test that caused them; the compliance tests drive
+# `AshCompliance.Testing.drain_sync/2` instead — the same handler, grain and ops
+# path, folded inside the caller's transaction. Leader monitors, the PubSub
+# listener and the lag probe are all off with the servers.
+config :ash_events_projections, start_projectors?: false, start_probe?: false

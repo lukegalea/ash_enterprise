@@ -149,6 +149,15 @@ defmodule AshEnterprise.Legacy.User do
     source AshEnterprise.Legacy.Twins.Users do
       notify? true
 
+      # The durable change ledger (ADR 0035). `notify?` alone makes a legacy
+      # write visible only if the listener is up when the wake fires; with
+      # `ledger?` the trigger also writes a durable row in the legacy
+      # application's own transaction, and the wake points at that row. The
+      # drain (`AshEnterprise.Ledger.UserDrainWorker`) is at-least-once: the
+      # periodic Oban sweep is the recovery net for a missed wake. One ledger
+      # table per relation, shared by every resource mapping this twin.
+      ledger?(true)
+
       key(:id, from: :id, strategy: {:uuid_v5, namespace: "ce41843a-c056-4c3e-9c79-50e7e5f4887c"})
 
       map :legacy_id, from: :id

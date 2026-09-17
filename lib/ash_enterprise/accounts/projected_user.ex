@@ -182,4 +182,19 @@ defmodule AshEnterprise.Accounts.ProjectedUser do
     define :reproject, action: :reproject
     define :by_legacy_id, action: :read, get_by: [:legacy_id], get?: true
   end
+
+  calculations do
+    # The compliance projection, read back onto the subject (ADR 0035). The
+    # finding rows live on the `[organization_id, control_id, subject_type,
+    # subject_id]` grain — one row per control the subject's events have been
+    # evaluated under — and these calculations fold them back to the person:
+    # `kyc_status` is the worst finding, `compliant?` asks it directly, and
+    # `gap_count` counts the breaches. No rules engine in the query path:
+    # these read the projection the projector already wrote, batched one
+    # query per load. `authorize?: false` inside them is bounded to that
+    # point-lookup — see KycStatus for the argument.
+    calculate :kyc_status, :atom, {AshEnterprise.Compliance.Calculations.KycStatus, []}
+    calculate :compliant?, :boolean, expr(kyc_status == :compliant)
+    calculate :gap_count, :integer, {AshEnterprise.Compliance.Calculations.GapCount, []}
+  end
 end

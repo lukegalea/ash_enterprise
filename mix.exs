@@ -201,7 +201,30 @@ defmodule AshEnterprise.MixProject do
       # than third-party (ADR 0009), and used here for the read model over
       # `legacy.*` plus the notification bridge that makes a legacy write
       # visible to LiveView. See docs/plans/ash-strangler-in-reference-app.md.
-      {:ash_strangler, github: "lukegalea/ash_strangler"},
+      #
+      # Pinned to the `ledger-and-ingester` branch (PR #5) rather than main:
+      # the change ledger and the `gen.ingester` codegen the compliance slice
+      # builds on are exactly what that PR adds, and main does not carry them
+      # yet. When the PR merges, this reverts to plain `github:` like its
+      # siblings.
+      {:ash_strangler, github: "lukegalea/ash_strangler", branch: "ledger-and-ingester"},
+
+      # --- Rules engine and the compliance plane it powers ---------------------
+      # `ash_rules` is the serializable rule IR, fact-schema DSL and evaluator
+      # seam; `ash_compliance` compiles catalogs/profiles/waivers into
+      # immutable, content-hashed bundles and projects findings out of an
+      # event log. The KYC vertical slice (ADR 0035) is the consumer: rules in
+      # `AshEnterprise.Compliance.KycRules`, the program seeded by
+      # `AshEnterprise.Compliance.Seeds`, findings projected by
+      # `AshEnterprise.Compliance.Projector`. Not on hex, so git dependencies
+      # like their siblings; `ash_events_projections` (the projector engine)
+      # arrives transitively through `ash_compliance` and is configured under
+      # its own :ash_events_projections key.
+      # `override: true` because ash_compliance's own mix.exs still resolves
+      # ash_rules through its development path dependency; the host needs the
+      # fetched git revision, not that path.
+      {:ash_rules, github: "lukegalea/ash_rules", override: true},
+      {:ash_compliance, github: "lukegalea/ash_compliance"},
 
       # --- Business processes and the decisions they route on ------------------
       # The other half of ADR 0009. `ash_bpmn` compiles a BPMN document into an

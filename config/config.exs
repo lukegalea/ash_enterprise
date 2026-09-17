@@ -18,7 +18,11 @@ config :ash_enterprise, Oban,
   # reconciliation sweep are jobs on it, so a stuck queue is a stuck process rather than a
   # slow one -- which is why it is separate from `:default` and not sharing its budget with
   # whatever else the application enqueues.
-  queues: [default: 10, bpmn: 10],
+  #
+  # `:ash_strangler_ledger` drains the change ledger the legacy trigger writes. It is its own
+  # queue because one poison legacy row rolls its batch back and retries: a queue shared with
+  # anything latency-sensitive would inherit that backoff.
+  queues: [default: 10, bpmn: 10, ash_strangler_ledger: 10],
   repo: AshEnterprise.Repo,
   plugins: [
     # Rescues jobs left `executing` by a node that died mid-flight. Without it they stay that
@@ -53,7 +57,13 @@ config :ash_enterprise, Oban,
        # Spelled as the literal tuple `AshBpmn.Triggers.SweepWorker.cron_entry()` returns
        # rather than by calling it: this file is evaluated before dependencies are compiled,
        # so a function call into a dep would break the cold `mix setup` path.
-       {"* * * * *", AshBpmn.Triggers.CronSweep, queue: :bpmn, max_attempts: 1}
+       {"* * * * *", AshBpmn.Triggers.CronSweep, queue: :bpmn, max_attempts: 1},
+       # The ledger sweep is the *recovery net*, not the driver: the ledger trigger's
+       # pg_notify wakes the drain worker promptly, and a wake lost while the listener was
+       # down is caught here. Every five minutes; the worker's `unique: [period: 30]`
+       # collapses the overlap with wake-driven jobs.
+       {"*/5 * * * *", AshEnterprise.Ledger.UserDrainWorker,
+        queue: :ash_strangler_ledger, max_attempts: 1}
      ]}
   ]
 
@@ -83,6 +93,42 @@ config :ash_bpmn,
   trigger_tenants: {AshEnterprise.Bpmn.Subscription, :trigger_tenants, []}
 
 config :ash_decisions, ash_domains: [AshEnterprise.Decisions]
+
+# --- The compliance plane (ADR 0035) -------------------------------------------
+#
+# `ash_compliance` resolves the repo and table prefix through application env,
+# the same pattern `ash_compliance`'s own resources use and the one
+# `ash_events_projections` (the projector engine it rides on) demands here: a
+# library that must not fork its resources per host reads its wiring from the
+# host's config. The `ash_compliance_` prefix keeps the fourteen control-plane
+# and data-plane tables namespaced beside `bpmn_*` and `ash_projection_*`.
+config :ash_compliance,
+  repo: AshEnterprise.Repo,
+  table_prefix: "ash_compliance_",
+  # The drain-nudge worker fans out to these (the recovery net for a missed
+  # PubSub wake). The projector engine has its own list below — same module,
+  # two keys, because the two packages ask their own config for it.
+  projectors: [AshEnterprise.Compliance.Projector]
+
+# The projector engine: one config for the repo it drains against, the PubSub
+# server wake-ups broadcast on, the event log it scans, and the projectors it
+# boots. `event_table` names the log table the drain SELECTs — the compliance
+# log, not the central audit log (`AshEnterprise.Compliance.EventLog` exists
+# precisely because the two are different contracts; see its moduledoc).
+config :ash_events_projections,
+  repo: AshEnterprise.Repo,
+  pubsub: AshEnterprise.PubSub,
+  event_log: AshEnterprise.Compliance.EventLog,
+  event_table: "compliance_events",
+  projectors: [AshEnterprise.Compliance.Projector],
+  start_projectors?: true,
+  start_probe?: true
+
+# The strangler ledger's wake. The `pg_notify` the ledger trigger emits is
+# routed here by `AshStrangler.Listener`; the worker's own cron entry in the
+# Oban config above is the sweep that guarantees a missed wake costs delay,
+# not delivery.
+config :ash_strangler, ledger_drain: {AshEnterprise.Ledger.UserDrainWorker, :nudge}
 
 # The trigger sweep dispatches each event inside its own transaction -- deliberately, so a
 # dispatch row and the instance it records are committed together and a crashed sweep replays
@@ -217,6 +263,7 @@ config :ash_enterprise,
     AshEnterprise.Decisions,
     AshEnterprise.Process,
     AshEnterprise.Contracts,
+    AshEnterprise.Compliance,
     AshEnterprise.LegacyAgent,
     AshEnterprise.CanonicalAgent
   ],
