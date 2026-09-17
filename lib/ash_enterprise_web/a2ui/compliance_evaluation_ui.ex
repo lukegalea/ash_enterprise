@@ -20,12 +20,13 @@ defmodule AshEnterpriseWeb.A2ui.ComplianceEvaluationUI do
 
     component :table do
       fields [
-        :organization_id,
         :control_id,
         :subject_id,
         :outcome,
-        :bundle_revision,
+        :bundle_hash,
+        :missing_facts,
         :correlation_id,
+        :source_event_id,
         :evaluated_at
       ]
 
@@ -35,9 +36,17 @@ defmodule AshEnterpriseWeb.A2ui.ComplianceEvaluationUI do
       row_layout do
         title :control_id
         badge :outcome
-        meta [:evaluated_at]
-        columns 1
+        meta [:subject_id, :bundle_hash, :missing_facts, :source_event_id, :evaluated_at]
+        columns 2
       end
+    end
+
+    field :bundle_hash do
+      label "Bundle"
+    end
+
+    field :source_event_id do
+      label "Event"
     end
   end
 end

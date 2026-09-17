@@ -73,10 +73,12 @@ end)
 [loaded] =
   AshEnterprise.Accounts.ProjectedUser
   |> Ash.Query.filter(login == ^"kycdemo#{leg_id}")
-  |> Ash.Query.load([:kyc_status, :kyc_gap_count])
+  |> Ash.Query.load([:kyc_status, :compliant?, :gap_count])
   |> Ash.read!(authorize?: false, tenant: org)
 
-IO.puts("kyc_status=#{inspect(loaded.kyc_status)} kyc_gap_count=#{loaded.kyc_gap_count}")
+IO.puts(
+  "kyc_status=#{inspect(loaded.kyc_status)} compliant?=#{inspect(loaded.compliant?)} gap_count=#{loaded.gap_count}"
+)
 
 # 6. Evaluations: the auditor's truth
 evals =

@@ -28,7 +28,7 @@ defmodule AshEnterpriseWeb.A2ui.RuleSetRevisionUI do
       row_layout do
         title :name
         badge :status
-        meta [:layer, :combining]
+        meta [:layer, :revision, :combining]
         columns 1
       end
     end

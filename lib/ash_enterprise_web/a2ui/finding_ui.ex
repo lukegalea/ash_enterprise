@@ -21,14 +21,15 @@ defmodule AshEnterpriseWeb.A2ui.FindingUI do
 
     query :default do
       sortable [:status, :severity, :control_id, :subject_id]
-      default_sort status: :asc
+      # Violations and unknowns lead. A compliance screen that opens on a
+      # wall of green is a screen nobody reads.
+      default_sort status: :desc
       page_size 25
     end
 
     component :table do
       fields [
         :control_id,
-        :subject_type,
         :subject_id,
         :status,
         :severity,
@@ -42,8 +43,8 @@ defmodule AshEnterpriseWeb.A2ui.FindingUI do
       row_layout do
         title :control_id
         badge :status
-        meta [:severity, :breach_count]
-        columns 1
+        meta [:subject_id, :severity, :breach_count, :explanation]
+        columns 2
       end
     end
 
