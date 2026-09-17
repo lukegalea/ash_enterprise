@@ -206,14 +206,21 @@ defmodule AshEnterprise.MixProject do
       #
       # Not published to hex, so these are git dependencies -- same as `ash_a2ui`
       # and `ash_strangler`, and first-party rather than third-party (ADR 0009).
-      # ash_bpmn is pinned to the merge that brought the trigger engine; this
-      # branch (feat/adopt-trigger-engine) adopts it. ash_decisions is pinned to
-      # a ref on its feature branch (feat/designer-catalogue): a pin makes the
-      # demo reproducible while the branch is reviewed, and the branch name says
-      # what the pin is waiting to become.
-      {:ash_bpmn, github: "lukegalea/ash_bpmn", ref: "fd7b6f6b5571140538384ad2171406c5d5d6043b"},
-      {:ash_decisions,
-       github: "lukegalea/ash_decisions", ref: "78d6932f1ab29079f5b2aad34e1871b5b7ca4ced"},
+      #
+      # Both carried an explicit `ref:` for a while, and both said in a comment why:
+      # a pin kept the demo reproducible *while a feature branch was under review*,
+      # and the branch name recorded what the pin was waiting to become. Those two
+      # branches -- `feat/adopt-trigger-engine` and `feat/designer-catalogue` -- have
+      # merged, so the pins were waiting on nothing and had started to hide things:
+      # the `ash_bpmn` ref sat one merged PR behind its own main, which is the
+      # designer panel that Phase 2 of docs/bpmn-event-dimension counts as its own.
+      #
+      # Reproducibility does not need the ref. `mix.lock` pins the exact SHA either
+      # way; the ref only pins the *resolution*, which is the part that goes stale.
+      # So these track main like their siblings, and the lock is what has to be
+      # committed alongside any change here.
+      {:ash_bpmn, github: "lukegalea/ash_bpmn"},
+      {:ash_decisions, github: "lukegalea/ash_decisions"},
 
       # --- Observability -------------------------------------------------------
       # Ash.Tracer -> OpenTelemetry -> OTLP. opentelemetry_ash is thin (0.1.x);
