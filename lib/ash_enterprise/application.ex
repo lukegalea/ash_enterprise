@@ -95,20 +95,23 @@ defmodule AshEnterprise.Application do
     end
   end
 
-  # The trigger index: which resources any published trigger watches, so the audit-log
-  # notifier can answer "does anyone care about this write" without a query.
+  # The bpmn trigger engine's interest index: which resources any published, enabled
+  # subscription watches, so the nudge on the audit log can answer "does anyone care about
+  # this write" without a query.
   #
-  # Off in :test, for the same shape of reason the legacy listener is. It reads the database at
-  # boot, outside any test's checked-out connection, so the Ecto SQL sandbox refuses it -- and
-  # the refusal is harmless but noisy. It is also pointless there: the index exists to save a
-  # job insert per write, and a suite that rolls back has nothing to save.
+  # Off in :test, for the same shape of reason the legacy listener is. It reads the database
+  # at boot, outside any test's checked-out connection, so the Ecto SQL sandbox refuses it --
+  # and the refusal is harmless but noisy. It is also pointless there: the index exists to
+  # save a job insert per write, and a suite that rolls back has nothing to save.
   #
-  # `Index.interested?/1` returns false when the table is absent, so the notifier degrades to
+  # `Index.interested?/2` returns false when the table is absent, so the nudge degrades to
   # "nudge nobody" rather than to an error. Dispatch is unaffected either way, because the
-  # cron sweep is the driver and the nudge only shortens the wait.
+  # cron sweep is the driver and the nudge only shortens the wait. Prompt invalidation after
+  # a subscription lifecycle write is `Changes.RefreshTriggerIndex` on
+  # `AshEnterprise.Bpmn.Subscription`; this process's TTL is the backstop.
   defp trigger_index do
     if Application.get_env(:ash_enterprise, :trigger_index?, true) do
-      [AshEnterprise.Process.Triggers.Index]
+      [AshBpmn.Triggers.Index]
     else
       []
     end

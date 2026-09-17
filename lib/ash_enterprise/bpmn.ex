@@ -12,22 +12,26 @@ defmodule AshEnterprise.Bpmn do
 
   ## What is audited, and what deliberately is not
 
-  Not every one of the six carries the audit hook, and the choice is about signal rather than
-  cost. A `Definition` being published and a `HumanTask` being decided are governance events —
-  someone changed how the business works, someone approved something — and they belong in the
-  trail an auditor reads. A `Token` moving between nodes is the engine's own bookkeeping;
-  auditing it would add thousands of rows saying nothing a `ProcessEvent` does not already say
-  better, and `docs/manifesto/02` is explicit that two logs which overlap will disagree.
+  Not every one of the nine carries the audit hook, and the choice is about signal rather than
+  cost. A `Definition` being published, a `HumanTask` being decided and a `Subscription` going
+  live are governance events — someone changed how the business works, someone approved
+  something, someone changed what starts processes — and they belong in the trail an auditor
+  reads. A `Token` moving between nodes is the engine's own bookkeeping; auditing it would add
+  thousands of rows saying nothing a `ProcessEvent` does not already say better, and
+  `docs/manifesto/02` is explicit that two logs which overlap will disagree.
 
   `ProcessEvent` is itself append-only and is the engine's log, so auditing it would be
-  auditing an audit.
+  auditing an audit. The trigger trio follows the same logic in both directions: a
+  `Subscription` is audited (a deployment act), while the `Cursor` is engine bookkeeping and
+  the `Dispatch` is already the record of an event — auditing either would be a second,
+  divergent copy of something that exists.
 
   ## Not exposed over the public APIs
 
-  No `api_type`. A process definition is operational configuration and a token is engine
-  state; neither is a thing an API consumer should be reading or writing, and the surfaces
-  that *should* exist — the task list, the designer, the viewer — are LiveViews with the
-  actor's own grants behind them.
+  No `api_type`. A process definition is operational configuration, a token is engine
+  state, and a dispatch ledger is evidence; none is a thing an API consumer should be
+  reading or writing, and the surfaces that *should* exist — the task list, the designer,
+  the viewer, the catalogue — are LiveViews with the actor's own grants behind them.
   """
 
   use Ash.Domain,
@@ -45,5 +49,12 @@ defmodule AshEnterprise.Bpmn do
     resource AshEnterprise.Bpmn.HumanTask
     resource AshEnterprise.Bpmn.TaskCandidate
     resource AshEnterprise.Bpmn.ProcessEvent
+
+    # The triggers extension's three. The sweep resolves them through this
+    # domain (`config :ash_bpmn, ash_domains`), so they must be registered here
+    # and not on `AshEnterprise.Process`.
+    resource AshEnterprise.Bpmn.Subscription
+    resource AshEnterprise.Bpmn.Cursor
+    resource AshEnterprise.Bpmn.Dispatch
   end
 end

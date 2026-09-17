@@ -190,15 +190,14 @@ defmodule AshEnterprise.MixProject do
       # Not published to hex, so this is a SHA-pinned git dependency. Tier 3 in
       # docs/manifesto/06-reversibility.md: confined to lib/ash_enterprise_web/a2ui/
       # so removing it is a deletion, not a refactor.
-      {:ash_a2ui, github: "lukegalea/ash_a2ui", ref: "5be19664870d00d02f57ce887c3b1093686de73e"},
+      {:ash_a2ui, github: "lukegalea/ash_a2ui"},
 
       # --- Strangler-fig migration of the legacy schema ------------------------
       # Not published to hex, so this is a git dependency. First-party rather
       # than third-party (ADR 0009), and used here for the read model over
       # `legacy.*` plus the notification bridge that makes a legacy write
       # visible to LiveView. See docs/plans/ash-strangler-in-reference-app.md.
-      {:ash_strangler,
-       github: "lukegalea/ash_strangler", ref: "15992b7edc9601a532dadb01ff80c8d7ba7aa6fc"},
+      {:ash_strangler, github: "lukegalea/ash_strangler"},
 
       # --- Business processes and the decisions they route on ------------------
       # The other half of ADR 0009. `ash_bpmn` compiles a BPMN document into an
@@ -220,13 +219,21 @@ defmodule AshEnterprise.MixProject do
       #
       # Not published to hex, so these are git dependencies -- same as `ash_a2ui`
       # and `ash_strangler`, and first-party rather than third-party (ADR 0009).
-      # Each is pinned to a ref on its feature branch (ash_bpmn:
-      # feat/typed-nodes-linked-editors, ash_decisions: feat/designer-catalogue):
-      # a pin makes the demo reproducible while the branch is reviewed, and the
-      # branch name says what the pin is waiting to become.
-      {:ash_bpmn, github: "lukegalea/ash_bpmn", ref: "ca7405543bb339e9ecbdc4b46d7236cb4e441fdd"},
-      {:ash_decisions,
-       github: "lukegalea/ash_decisions", ref: "78d6932f1ab29079f5b2aad34e1871b5b7ca4ced"},
+      #
+      # Both carried an explicit `ref:` for a while, and both said in a comment why:
+      # a pin kept the demo reproducible *while a feature branch was under review*,
+      # and the branch name recorded what the pin was waiting to become. Those two
+      # branches -- `feat/adopt-trigger-engine` and `feat/designer-catalogue` -- have
+      # merged, so the pins were waiting on nothing and had started to hide things:
+      # the `ash_bpmn` ref sat one merged PR behind its own main, which is the
+      # designer panel that Phase 2 of docs/bpmn-event-dimension counts as its own.
+      #
+      # Reproducibility does not need the ref. `mix.lock` pins the exact SHA either
+      # way; the ref only pins the *resolution*, which is the part that goes stale.
+      # So these track main like their siblings, and the lock is what has to be
+      # committed alongside any change here.
+      {:ash_bpmn, github: "lukegalea/ash_bpmn"},
+      {:ash_decisions, github: "lukegalea/ash_decisions"},
 
       # --- Observability -------------------------------------------------------
       # Ash.Tracer -> OpenTelemetry -> OTLP. opentelemetry_ash is thin (0.1.x);
@@ -253,10 +260,12 @@ defmodule AshEnterprise.MixProject do
       {:ash_rate_limiter, "~> 1.0"},
       {:ash_money, "~> 0.2"},
       {:usage_rules, "~> 1.0", only: [:dev]},
-      {:ash_ai, "~> 1.0"},
       # ash_ai 0.8 pulled req_llm in as a hard dependency; 1.0 makes it optional.
       # The interpreter calls ReqLLM directly (key resolution, model selection),
-      # so the application owns the declaration now.
+      # so the application owns the declaration now -- and an undeclared
+      # transitive dependency would sit outside our own lock discipline, which
+      # is how an advisory goes unnoticed.
+      {:ash_ai, "~> 1.0"},
       {:req_llm, "~> 1.7"},
       {:absinthe_phoenix, "~> 2.0"},
       {:oban, "~> 2.0"},

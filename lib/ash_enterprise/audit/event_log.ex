@@ -126,11 +126,14 @@ defmodule AshEnterprise.Audit.EventLog do
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer],
     extensions: [AshEvents.EventLog],
-    # The trigger dispatcher's nudge. It runs *after* the transaction -- Ash defers
+    # The bpmn trigger engine's nudge. It runs *after* the transaction -- Ash defers
     # notifications -- so it cannot extend the per-tenant advisory lock this chain relies on.
     # It also cannot be transactional with the write, which is why it only nudges and the
-    # cron-driven sweep is what makes dispatch complete.
-    notifiers: [AshEnterprise.Process.Triggers.Notifier]
+    # cron-driven sweep (`AshBpmn.Triggers.SweepWorker`, wired in the Oban crontab) is what
+    # makes dispatch complete. The adapter over this log is
+    # `AshEnterprise.Audit.EventSource`; the nudge reads `:resource` and `:organization_id`
+    # off the row, which are the library's default field spellings.
+    notifiers: [AshBpmn.Triggers.Nudge]
 
   postgres do
     table "audit_events"

@@ -27,12 +27,33 @@ config :ash_enterprise, Oban,
     # process engine is the one failure mode that must not be possible. Found by killing a
     # seed run mid-drain and watching three instances stick.
     {Oban.Plugins.Lifeline, rescue_after: :timer.minutes(5)},
+    # Retention. Without a Pruner `oban_jobs` grows forever, and this application feeds it
+    # steadily: a cron job per tenant every minute, plus a row for every token advance and
+    # every timer. Naming `plugins:` at all suppresses Oban's defaults, so the absence here
+    # was not "the default retention" -- it was none.
+    #
+    # Seven days, not the 60-second default, and the number is a decision rather than a
+    # preference. Oban's Pruner deletes `completed`, `cancelled` and `discarded` rows, which
+    # for a process engine is exactly the history someone asks about after an incident: *was
+    # that escalation cancelled, or did it fire?* A week is long enough to answer that from
+    # the job table during the window anyone is still asking.
+    #
+    # It is deliberately **not** the audit trail. `AshEnterprise.Audit.EventLog` is, and the
+    # engine's own `ProcessEvent` rows are; both are permanent and neither is pruned. A job
+    # row is execution substrate, and seven days of it is an operational convenience, not a
+    # record we promise anybody.
+    {Oban.Plugins.Pruner, max_age: 7 * 24 * 60 * 60},
     {Oban.Plugins.Cron,
      crontab: [
-       # The trigger sweep is the *driver*, not a safety net: the notifier's nudge is
+       # The trigger sweep is the *driver*, not a safety net: the nudge on the audit log is
        # non-transactional and can be lost, so this is what guarantees an event is eventually
-       # dispatched. Every minute, one job per tenant that has a published trigger.
-       {"* * * * *", AshEnterprise.Process.Triggers.CronSweep}
+       # dispatched. Every minute, one job per tenant that has a published, enabled
+       # subscription (the fan-out reads `config :ash_bpmn, trigger_tenants`).
+       #
+       # Spelled as the literal tuple `AshBpmn.Triggers.SweepWorker.cron_entry()` returns
+       # rather than by calling it: this file is evaluated before dependencies are compiled,
+       # so a function call into a dep would break the cold `mix setup` path.
+       {"* * * * *", AshBpmn.Triggers.CronSweep, queue: :bpmn, max_attempts: 1}
      ]}
   ]
 
@@ -50,11 +71,20 @@ config :ash_bpmn,
   # Without this the engine reads an instance's definition in the instance's own tenant, which
   # cannot see a platform baseline -- and the failure is silent: the token claims and the
   # process sits at its start node forever.
-  definition_loader: AshEnterprise.Process.DefinitionLoader
+  definition_loader: AshEnterprise.Process.DefinitionLoader,
+  # The trigger engine's adapter over the audit log. Every coupling to the log lives there:
+  # the streaming cursor protocol, the published event-context contract, the per-chain
+  # ordering declaration, and the publish-time audited? check.
+  event_source: AshEnterprise.Audit.EventSource,
+  # The sweep fans out to one job per tenant, every minute (the crontab above). Enumerated
+  # from the data, the same way the prototype's cron sweep did it: every tenant with a
+  # published, enabled subscription. Evaluated per call; see
+  # `AshEnterprise.Bpmn.Subscription.trigger_tenants/0`.
+  trigger_tenants: {AshEnterprise.Bpmn.Subscription, :trigger_tenants, []}
 
 config :ash_decisions, ash_domains: [AshEnterprise.Decisions]
 
-# The trigger sweep dispatches a whole batch inside one transaction -- deliberately, so a
+# The trigger sweep dispatches each event inside its own transaction -- deliberately, so a
 # dispatch row and the instance it records are committed together and a crashed sweep replays
 # cleanly. Ash cannot send notifications from inside a transaction, so the writes the engine
 # makes there produce "missed notification" warnings by design rather than by mistake.
@@ -63,6 +93,19 @@ config :ash_decisions, ash_domains: [AshEnterprise.Decisions]
 # bookkeeping, and nothing subscribes to them. A *host* write that needed its notification
 # would not be happening inside the sweep.
 config :ash, :missed_notifications, :ignore
+
+# How `min_length` / `max_length` / `string_length` count a string. Ash 3.33
+# requires the choice to be explicit rather than inherited, because the two
+# answers disagree about what a length *is*.
+#
+# `:codepoints` is what SQL counts, so an attribute validated in Elixir and the
+# same attribute checked by Postgres agree -- and `max_length` genuinely bounds
+# how much gets stored. Under `:mixed` (the old behaviour) Elixir counts
+# graphemes while atomic updates defer to the data layer, and since one grapheme
+# can carry an unbounded run of combining characters, `max_length` stops being a
+# size bound at all. An application that treats its database as the record of
+# truth cannot have its own validation disagree with it, so: codepoints.
+config :ash, default_string_length_count: :codepoints
 
 config :ash_graphql, authorize_update_destroy_with_error?: true
 

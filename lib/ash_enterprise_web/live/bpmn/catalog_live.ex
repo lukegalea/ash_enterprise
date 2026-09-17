@@ -19,8 +19,9 @@ defmodule AshEnterpriseWeb.Bpmn.CatalogLive do
 
   require Ash.Query
 
+  alias AshEnterprise.Bpmn.Subscription
   alias AshEnterprise.Platform.SystemActor
-  alias AshEnterprise.Process.{Binding, DefinitionLoader, Resolver, Trigger}
+  alias AshEnterprise.Process.{Binding, DefinitionLoader, Resolver}
 
   @impl true
   def mount(_params, _session, socket) do
@@ -79,7 +80,7 @@ defmodule AshEnterpriseWeb.Bpmn.CatalogLive do
     do: load_definitions(socket, :decision, AshEnterprise.Decisions.Definition)
 
   defp load(socket, :triggers) do
-    assign(socket, :triggers, read(Trigger, socket))
+    assign(socket, :triggers, read(Subscription, socket))
   end
 
   defp load_definitions(socket, kind, resource) do
@@ -357,9 +358,10 @@ defmodule AshEnterpriseWeb.Bpmn.CatalogLive do
 
   defp blurb(:triggers),
     do:
-      "What starts a process. A trigger matches an audited write, checks a FEEL guard, and either names a process or asks a decision which one to start."
+      "What starts a process. A subscription matches an audited write, checks a FEEL guard, and either names a process or asks a decision which one to start. Dispatched by the engine's sweep, one cursor per tenant."
 
-  defp short(resource), do: AshEnterprise.Process.Trigger.ResourceName.short(resource || "")
+  defp short(resource),
+    do: AshBpmn.Resources.Subscription.ResourceName.short(resource || "")
 
   defp state_label(%{status: :published, enabled: true}), do: "live"
   defp state_label(%{status: :published, enabled: false}), do: "disabled"
