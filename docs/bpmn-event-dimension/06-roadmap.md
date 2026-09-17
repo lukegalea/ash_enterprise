@@ -28,6 +28,15 @@ XML.
 
 ## Phase 2 — The backbone, absorbed
 
+> **Status: built, 2026-09-07.** Library PRs #6–#9: the `EventSource` behaviour and
+> `callables` seam; Subscription/Cursor/Dispatch with the full publish-validation
+> chain; the sweep/correlator/nudge/index engine; `ash:call` end to end with its
+> designer panel. App PR #5 (merged): the app runs the engine through an
+> `AshEvents` adapter and its Process prototype is deleted in the same migration.
+> Verified 406/406 library tests, 274/274 app tests, and a dev smoke — audited
+> write → sweep → dispatch row → instance → human tasks. The exit criterion's
+> dispatch ledger answers *why did this instance start* in production shape.
+
 **Scope.** D1: the `AshEnterprise.Process` patterns move into `ash_bpmn` behind
 `AshBpmn.EventSource` (reference adapter: `ash_events`, with its ordering guarantee and
 its two caveats declared). Message start events: definition-level subscriptions with

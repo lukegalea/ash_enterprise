@@ -1,10 +1,12 @@
 # The BPMN event dimension
 
-> **Status: Phase 1 built; Phases 2–5 specified, not built.** Written 2026-09-06 after a
+> **Status: Phases 1–2 built; Phases 3–5 specified, not built.** Written 2026-09-06 after a
 > research pass over `ash_bpmn`, `ash_decisions` / `boxic_feel`, `ash_events`, the ecosystem's
 > reactive primitives, the Ash notifier seam, and Camunda 7 / Camunda 8 (Zeebe) prior art.
 > Decisions taken 2026-09-06; the PRD's open questions settled 2026-09-07 at Phase 1 review.
-> Phase 1 verification: 295/295 library tests, 48/48 app integration tests.
+> Phase 1 verification: 295/295 library tests, 48/48 app integration tests. Phase 2
+> verification: 406/406 library tests across five PRs; the app adopted the engine with its
+> Process prototype deleted — 274/274 app tests and a dev smoke of 4/4 dispatches started.
 
 This directory holds the vision for giving `ash_bpmn` the event dimension it currently
 refuses to have — message and timer events, signals, conditional catches, error routing —
