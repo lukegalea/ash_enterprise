@@ -158,9 +158,43 @@ previous_hash,hash
 1630,2026-08-19T01:28:49Z,54773a98-…,BusinessUnit,create,create,…
 `;
 
+const kycRule = `
+defmodule AshEnterprise.Compliance.KycRules do
+  use AshRules
+
+  combining :deny_overrides
+
+  fact_schema do
+    fact :status, :atom, one_of: [:active, :pending, :suspended]
+    fact :jurisdiction, :atom, one_of: [:regulated, :domestic, :unknown]
+    fact :sanctions_cleared, :boolean, missing: :unknown
+    # ... six more facts
+  end
+
+  rule "sanctions screening must clear",
+    id: "kyc.sanctions_cleared",
+    severity: :critical,
+    message: "sanctions screening has not cleared" do
+    when_requires has(:customer, :status, :active)
+    fails_when neg(:customer, :sanctions_cleared, true)
+    # no data is missing: :unknown -- never a pass
+    outcome :noncompliant, gap: "kyc.sanctions"
+  end
+
+  rule "sanctions clearance can never be waived",
+    id: "kyc.sanctions_never_waived",
+    severity: :critical do
+    # the non-waivable layer: the compiler refuses
+    # any waiver that targets this rule
+    when_requires has(:customer, :status, :suspended)
+    fails_when neg(:customer, :sanctions_cleared, true)
+    outcome :noncompliant, gap: "kyc.sanctions_floor"
+  end
+end
+`;
+
 const requireApproval = `
-# Your resource. The change is the entire integration.
-create :submit do
+# Your resource. The change is the entire integration.create :submit do
   accept [:role_id, :justification]
   change AshBpmn.Changes.RequireApproval,
     key: "access_request.grant",
@@ -1017,10 +1051,111 @@ $ devenv shell -- iex-server
     </div>
   </div>
 
+  {/* ==================== 8 · ash_rules + ash_compliance ==================== */}
+  <Section
+    id="compliance"
+    step="08"
+    eyebrow="ash_rules + ash_compliance"
+    title="Compliance is projected, not performed"
+    lead="A compliance answer computed inside a request cannot be replayed, and a replay that disagrees with the original means the trail is lying. So rules are data with verifiers at admission, obligations compile through a fixed precedence into immutable content-hashed bundles, and findings project out of an event log — with every evaluation appended beside them."
+    wide={true}
+  >
+    <Fragment slot="chips">
+      <StatusChip status={itemStatus('compliance')} label="Rules and compliance as data" />
+    </Fragment>
+
+    <div class="grid gap-8 lg:grid-cols-2">
+      <ScreenshotFigure
+        name="compliance-findings.png"
+        alt="The findings surface: unknown rows first, each naming the fact that is missing, then noncompliant rows with the rule's own explanation."
+        caption="Missing evidence reads unknown, never compliant — and the Why column names the exact fact. Every explanation is the rule's own message, projected at evaluation time."
+        loading="eager"
+      />
+      <ScreenshotFigure
+        name="compliance-evaluations.png"
+        alt="The evaluation log: one append-only row per decision with the deciding bundle hash, the missing facts and the source event."
+        caption="The auditor's truth. Each evaluation pins the content hash of the bundle that produced it; replay the same events and it is byte-identical."
+        loading="eager"
+      />
+    </div>
+
+    <div class="mt-10 grid gap-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:items-start">
+      <div>
+        <CodePanel
+          code={kycRule}
+          lang="elixir"
+          filename="a rule set: declared once, hashed, evaluated identically forever"
+        />
+        <p class="mt-5 leading-relaxed text-muted">
+          Waivers are bounded time plus an approver plus compensating controls, and the compiler
+          refuses one that targets the non-waivable layer. Tenant tailoring ranks below the
+          mandatory baseline by construction, so a tenant can strengthen but never silently
+          weaken.
+        </p>
+      </div>
+
+      <div>
+        <h3 class="text-lg font-semibold text-balance">
+          The legacy estate feeds it through the ledger
+        </h3>
+        <p class="mt-4 leading-relaxed text-muted">
+          A legacy write records itself durably, the drain projects it into the platform
+          <em>and</em> appends the KYC review in the same transaction, and the projector turns that
+          into findings. One chain, attributed end to end:
+        </p>
+        <p class="mt-3 font-mono text-sm leading-relaxed text-muted">
+          legacy write → ledger row → drain → canonical action → event → projector → finding
+        </p>
+        <ul class="mt-6 space-y-4">
+          <li class="border-l-2 border-brand/40 pl-4">
+            <strong class="font-semibold">Layering is not negotiable at compile time.</strong>
+            <span class="text-muted">
+              Non-waivable global &gt; global mandatory &gt; profile refinements &gt; tenant
+              strengthening &gt; approved overrides &gt; tenant supplements — the compiler refuses
+              ad-hoc inheritance and overreach.</span
+            >
+          </li>
+          <li class="border-l-2 border-brand/40 pl-4">
+            <strong class="font-semibold">The subject reads its own projection.</strong>
+            <span class="text-muted">
+              <code class="rounded bg-code-bg px-1 py-0.5 font-mono text-[0.9em] text-fg"
+                >kyc_status</code
+              >, <code class="rounded bg-code-bg px-1 py-0.5 font-mono text-[0.9em] text-fg"
+                >compliant?</code
+              > and <code class="rounded bg-code-bg px-1 py-0.5 font-mono text-[0.9em] text-fg"
+                >gap_count</code
+              > are ordinary calculations over the findings — no rules engine in the query path.</span
+            >
+          </li>
+          <li class="border-l-2 border-brand/40 pl-4">
+            <strong class="font-semibold">Replay determinism is the acceptance bar.</strong>
+            <span class="text-muted">
+              Activating revision 2 changes exactly the finding the change was about, and nothing
+              else — asserted, not assumed.</span
+            >
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="mt-10 grid gap-8 lg:grid-cols-2">
+      <ScreenshotFigure
+        name="compliance-rule-sets.png"
+        alt="Rule set revisions across the layering precedence: the mandatory baseline active, the non-waivable floor active, revision two in draft, the tenant strengthening set active."
+        caption="Layers are a property of the revision. Revision 2 of the baseline sits below as a draft: activating it is a reviewed act, not a deploy."
+      />
+      <ScreenshotFigure
+        name="compliance-directory.png"
+        alt="The directory surface showing projected users with their KYC status and open gap count as columns."
+        caption="The same screen answers who these people are and whether they are KYC-clean. The rows arrived through the strangler ledger; the compliance state is the projection."
+      />
+    </div>
+  </Section>
+
   {/* ==================== 7 · Surfaces ==================== */}
   <Section
     id="surfaces"
-    step="08"
+    step="09"
     eyebrow="Derived surfaces"
     title="The surfaces are already there"
     lead="Admin screens, agent-facing surfaces, JSON:API with OpenAPI, and GraphQL — all derived from the same resource metadata. No markup was written for any of it."
@@ -1087,7 +1222,7 @@ $ devenv shell -- iex-server
   {/* ==================== 8 · Agents are users ==================== */}
   <Section
     id="agents-are-users"
-    step="09"
+    step="10"
     eyebrow="Thesis 5"
     title="Agents are users, not a side door"
     lead="Ask in plain language. A change is held for your approval; a table is simply shown, because it was already filtered by your policies before a single row reached the page."
@@ -1174,7 +1309,7 @@ $ devenv shell -- iex-server
   {/* ==================== 9 · Compliance ==================== */}
   <Section
     id="compliance"
-    step="10"
+    step="11"
     eyebrow="Thesis 3"
     title="Compliance you inherit"
     lead="Authorization is data: (role, privilege, depth) rows evaluated as a pure union of grants. Three independent paths can authorize a row, and nothing anywhere takes access away."
@@ -1249,7 +1384,7 @@ $ devenv shell -- iex-server
   {/* ==================== 9b · The evidence layer ==================== */}
   <Section
     id="evidence"
-    step="11"
+    step="12"
     eyebrow="Tamper-evident audit"
     title="An audit trail that survives being tampered with"
     lead="Append-only used to be a property of the application: the resource offered only a read action, so nothing written in Elixir could rewrite history. That is not the question an auditor asks. The question is whether history can be rewritten at all — and until recently, anyone with a psql connection could."
@@ -1348,7 +1483,7 @@ $ devenv shell -- iex-server
   {/* ==================== 10 · Data flow ==================== */}
   <Section
     id="data-flow"
-    step="12"
+    step="13"
     eyebrow="Where the data comes from"
     title="Ingestion, lineage, catalog, analytics"
     lead="The half this repository is currently silent on, drawn honestly. Each choice is an ADR you can read and disagree with, and each had to clear one bar: can the tool be handed a thin generated declaration and delegate authorization back to ActorContext, or does it bring its own?"
@@ -1406,7 +1541,7 @@ $ devenv shell -- iex-server
   {/* ==================== 11 · Integration ==================== */}
   <Section
     id="integration"
-    step="13"
+    step="14"
     eyebrow="Integration hub"
     title="Integrations without M×N"
     lead="One contract per category rather than one per (your app × their API) — surfaced as ordinary Ash actions, so policies gate which actor may trigger a sync and the normal audit log records it."
@@ -1458,7 +1593,7 @@ $ devenv shell -- iex-server
   {/* ==================== 12 · Scoreboard ==================== */}
   <Section
     id="scoreboard"
-    step="14"
+    step="15"
     eyebrow="The honest scoreboard"
     title={`${tally.shipped} of ${tally.total} enterprise questions have a shipped answer`}
     lead="Nothing here is aspirational. Every row is one of four states, and the vocabulary is deliberate: a Partial is not a Shipped with an asterisk, and a Planned is not a promise — it is an argument you can read and disagree with."
