@@ -31,7 +31,13 @@ defmodule AshEnterprise.Application do
         AshEnterpriseWeb.Endpoint,
         {AshAuthentication.Supervisor, [otp_app: :ash_enterprise]},
         {Absinthe.Subscription, AshEnterpriseWeb.Endpoint},
-        AshGraphql.Subscription.Batcher
+        AshGraphql.Subscription.Batcher,
+        # The projector engine. Boots one leader-monitored `Server` per
+        # configured projector (`config :ash_events_projections, projectors:`),
+        # so the KYC finding projection drains cluster-wide with automatic
+        # failover. After PubSub, because the engine's PubSubListener subscribes
+        # to the wake topic. Off in :test — see config/test.exs.
+        AshEvents.Projections.Supervisor
       ] ++ trigger_index() ++ legacy_listener()
 
     # See https://elixir.hexdocs.pm/Supervisor.html
