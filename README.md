@@ -245,6 +245,41 @@ UI, JSON:API, GraphQL and MCP. An LLM tool is a *declaration that an existing
 action may be invoked*, not a parallel code path — which is why there is no
 agent-specific authorization, and therefore no agent-specific authorization bug.
 
+## Compliance engine
+
+Compliance is **projected from events under an immutable rule bundle**
+([ADR 0035](docs/adr/0035-compliance-is-projected-from-events.md)). Three
+first-party packages carry it; this application wires them into one vertical
+slice, customer KYC:
+
+* **`ash_rules`** — the rule engine seam: a serializable rule IR, a
+  fact-schema DSL, and evaluator behaviour. Rules are data with verifiers at
+  admission, never quoted code.
+* **`ash_compliance`** — the control plane and the data plane. Catalogs,
+  profiles, waivers and rule-set revisions compile — through a fixed,
+  non-negotiable layering precedence — into immutable, content-hashed
+  `PolicyBundle` snapshots; findings project out of a compliance event log,
+  and every evaluation is appended, pinning the bundle hash, the fact
+  snapshot and the outcome. Missing evidence is `unknown`, never compliant.
+* **`ash_strangler` (ledger)** — the change ledger the legacy trigger writes,
+  and the drain that turns a legacy write into a canonical projection plus a
+  KYC review in one transaction, attributed to the projection system actor.
+
+The chain, end to end: **legacy write → ledger row → drain → canonical action
+→ event → projector → finding.** The subject reads its own state back as
+ordinary calculations (`kyc_status`, `compliant?`, `gap_count` on
+`ProjectedUser`); auditors read the evaluation log, which no code path rewrites.
+
+Run the demo program for the legacy estate's tenant:
+
+```bash
+mix ash_enterprise.compliance.seed   # catalog, layers, profile, one bounded waiver, active bundle
+```
+
+The admin surfaces live at `/app/compliance/*` (findings, evaluations,
+bundles, rule sets, catalogs, profiles), behind the compliance door — the same
+`(role, privilege, depth)` grant the rest of the security model resolves.
+
 ## Where this is going
 
 The 🔵 rows above, sequenced. Each is an ADR you can read and disagree with rather than a promise, and

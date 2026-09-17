@@ -66,6 +66,7 @@ The concrete exit: which files change, and how much work it is.
 | [0032](0032-anonymization-config-is-generated.md) | Anonymization config is generated from the resource declarations | proposed |
 | [0033](0033-experience-layer-adoption.md) | The A2UI experience layer is adopted app-wide: experience v2 with the admin catalog | accepted |
 | [0034](0034-canvas-dev-surface.md) | The canvas starts as a dev-only object graph with a naked-object inspector | accepted |
+| [0035](0035-compliance-is-projected-from-events.md) | Compliance is projected from events under an immutable rule bundle | accepted |
 
 Records 0001–0009, 0020–0023 and 0027–0031 are `accepted` and describe code that exists.
 **0010–0019, 0024–0026 and 0032 are `proposed`: none of them is built.** They are here because a decision is cheapest to reason about — and cheapest to
