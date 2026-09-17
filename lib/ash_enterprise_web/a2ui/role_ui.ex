@@ -15,6 +15,8 @@ defmodule AshEnterpriseWeb.A2ui.RoleUI do
   a2ui do
     for_resource AshEnterprise.Security.Role
     surface_id "roles"
+    title "Roles"
+    record_label("role")
 
     query :default do
       search_fields [:name]

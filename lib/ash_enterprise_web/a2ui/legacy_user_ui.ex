@@ -45,6 +45,8 @@ defmodule AshEnterpriseWeb.A2ui.LegacyUserUI do
   a2ui do
     for_resource AshEnterprise.Legacy.User
     surface_id "legacy_users"
+    title "Legacy users"
+    record_label("legacy user")
 
     query :default do
       search_fields [:email, :login, :full_name]

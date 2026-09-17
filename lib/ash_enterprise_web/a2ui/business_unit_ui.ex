@@ -17,6 +17,8 @@ defmodule AshEnterpriseWeb.A2ui.BusinessUnitUI do
   a2ui do
     for_resource AshEnterprise.Accounts.BusinessUnit
     surface_id "business_units"
+    title "Business units"
+    record_label("business unit")
 
     query :default do
       search_fields [:name]

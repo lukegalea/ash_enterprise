@@ -5,6 +5,8 @@ defmodule AshEnterpriseWeb.A2ui.LegacyPartyUI do
   a2ui do
     for_resource(AshEnterprise.Contracts.Party)
     surface_id("legacy_parties")
+    title("Legacy parties")
+    record_label("legacy party")
 
     query :default do
       search_fields([:legal_name, :client_id])
@@ -34,6 +36,8 @@ defmodule AshEnterpriseWeb.A2ui.LegacyVendorPartyUI do
   a2ui do
     for_resource(AshEnterprise.Contracts.PartyFromVendor)
     surface_id("legacy_vendor_parties")
+    title("Legacy vendor parties")
+    record_label("legacy vendor party")
 
     query :default do
       search_fields([:legal_name, :email])
@@ -64,6 +68,8 @@ defmodule AshEnterpriseWeb.A2ui.LegacyEnterprisePartyUI do
   a2ui do
     for_resource(AshEnterprise.Contracts.PartyFromEnterprise)
     surface_id("legacy_enterprise_parties")
+    title("Legacy enterprise parties")
+    record_label("legacy enterprise party")
 
     query :default do
       search_fields([:legal_name, :data_region])
@@ -94,6 +100,8 @@ defmodule AshEnterpriseWeb.A2ui.LegacyContractingProcessUI do
   a2ui do
     for_resource(AshEnterprise.Contracts.ContractingProcess)
     surface_id("legacy_contracting_processes")
+    title("Legacy RFQs")
+    record_label("legacy RFQ")
 
     query :default do
       search_fields([:ocid, :title, :cancel_reason])
@@ -124,6 +132,8 @@ defmodule AshEnterpriseWeb.A2ui.LegacyPartyRoleUI do
   a2ui do
     for_resource(AshEnterprise.Contracts.PartyRole)
     surface_id("legacy_party_roles")
+    title("Legacy party roles")
+    record_label("legacy party role")
 
     query :default do
       search_fields([:role, :reason])
@@ -154,6 +164,8 @@ defmodule AshEnterpriseWeb.A2ui.LegacyContractUI do
   a2ui do
     for_resource(AshEnterprise.Contracts.Contract)
     surface_id("legacy_contracts")
+    title("Legacy contracts")
+    record_label("legacy contract")
 
     query :default do
       search_fields([:name, :description, :payment_term])
@@ -193,6 +205,8 @@ defmodule AshEnterpriseWeb.A2ui.LegacyContractLineUI do
   a2ui do
     for_resource(AshEnterprise.Contracts.ContractLine)
     surface_id("legacy_contract_lines")
+    title("Legacy contract lines")
+    record_label("legacy contract line")
 
     query :default do
       sortable([:legacy_rfq_id, :legacy_party_id, :total_price, :submitted])
@@ -229,6 +243,8 @@ defmodule AshEnterpriseWeb.A2ui.LegacyCommitmentUI do
   a2ui do
     for_resource(AshEnterprise.Contracts.Commitment)
     surface_id("legacy_commitments")
+    title("Legacy commitments")
+    record_label("legacy commitment")
 
     query :default do
       search_fields([:commitment_type, :status, :attachment])

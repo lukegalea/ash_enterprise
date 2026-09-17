@@ -13,6 +13,8 @@ defmodule AshEnterpriseWeb.A2ui.TeamUI do
   a2ui do
     for_resource AshEnterprise.Accounts.Team
     surface_id "teams"
+    title "Teams"
+    record_label("team")
 
     query :default do
       search_fields [:name]

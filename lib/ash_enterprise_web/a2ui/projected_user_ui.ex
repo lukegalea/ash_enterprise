@@ -47,6 +47,8 @@ defmodule AshEnterpriseWeb.A2ui.ProjectedUserUI do
   a2ui do
     for_resource AshEnterprise.Accounts.ProjectedUser
     surface_id "projected_users"
+    title "Directory"
+    record_label("directory entry")
 
     query :default do
       search_fields [:email, :login, :full_name]

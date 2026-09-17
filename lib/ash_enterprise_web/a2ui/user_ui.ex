@@ -31,6 +31,8 @@ defmodule AshEnterpriseWeb.A2ui.UserUI do
   a2ui do
     for_resource AshEnterprise.Accounts.User
     surface_id "users"
+    title "Users"
+    record_label("user")
 
     query :default do
       search_fields [:email]

@@ -5,6 +5,8 @@ defmodule AshEnterpriseWeb.A2ui.CanonicalPartyUI do
   a2ui do
     for_resource(AshEnterprise.Contracts.Party)
     surface_id("canonical_parties")
+    title("Canonical parties")
+    record_label("canonical party")
 
     query :default do
       search_fields([:legal_name, :client_id])
@@ -34,6 +36,8 @@ defmodule AshEnterpriseWeb.A2ui.CanonicalContractUI do
   a2ui do
     for_resource(AshEnterprise.Contracts.Contract)
     surface_id("canonical_contracts")
+    title("Canonical contracts")
+    record_label("canonical contract")
 
     query :default do
       search_fields([:name, :description, :payment_term])
@@ -73,6 +77,8 @@ defmodule AshEnterpriseWeb.A2ui.CanonicalCommitmentUI do
   a2ui do
     for_resource(AshEnterprise.Contracts.Commitment)
     surface_id("canonical_commitments")
+    title("Canonical commitments")
+    record_label("canonical commitment")
 
     query :default do
       search_fields([:commitment_type, :status, :attachment])
