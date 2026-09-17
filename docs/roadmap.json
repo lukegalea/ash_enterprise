@@ -564,6 +564,16 @@
       "answer": "DMN, as its own first-party package. The DMN document is the single artifact — no second copy of the rules in a table — versioned per tenant, evaluated by a business rule task or by trigger routing, and edited in dmn-js. **97.68% of the official DMN TCK** (3,414 of 3,495 asserted result nodes; level 2 96.83%, level 3 97.71%), with each remaining failure listed against a measured node count so the gate fails if it moves in either direction. Not shipped: publish-time overlap and completeness analysis, which is designed and unbuilt; no way to evaluate a decision from the editor; and `matched_rule_ids` is always empty because the engine reports what a decision returned but not which rule produced it."
     },
     {
+      "id": "compliance",
+      "title": "Rules and compliance as data",
+      "priority": 1,
+      "choice": "ash_rules (rule IR + swappable evaluators) and ash_compliance (governed layering compiled to immutable bundles, findings projected from events)",
+      "adr": "0035",
+      "status": "shipped",
+      "effort": "The KYC vertical slice is live in the reference app: catalogs, profiles, waivers and tenant policy sets compile through the fixed precedence into content-hashed bundles; the strangler ledger feeds the projector; findings and append-only evaluations answer both 'now' and 'why'. Remaining: OSCAL component-definitions, evidence-of-review, and the generated controls.json/COMPLIANCE.md mapping (the `controls` row).",
+      "bar": "Replay determinism: the same events under the same bundle produce byte-identical findings and evaluations, asserted by the test suite. A demo that could not replay would not be a compliance engine."
+    },
+    {
       "id": "catalog",
       "title": "Data catalog and governance",
       "priority": 2,
