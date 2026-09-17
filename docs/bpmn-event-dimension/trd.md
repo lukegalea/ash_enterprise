@@ -293,6 +293,25 @@ virtual clock that makes "the reminder fires before the escalation" and "nothing
 assertable; before it, `fire!/2` matched on kind and never read `scheduled_at`, so a
 thirty-minute timer scheduled thirty seconds out passed every test in both repositories.
 
+**As built (2026-09-18, `ash_bpmn` 19564eb).** The resource exists and the record/scheduler
+split held. Two departures from the shape above, both simplifications.
+
+There is no `owner_kind`. A timer belongs to some subset of an instance, a token and a task,
+and it is any subset rather than one of three kinds: a catch timer has a token and no task, a
+standalone approval's timer has a task and neither instance nor token. Nullable columns for
+each say that directly; a discriminator would have had to enumerate combinations that are not
+really alternatives.
+
+`kind` is `:remind | :escalate | :expire | :catch` -- what `TimerWorker` and
+`CatchTimerWorker` actually handle. `:boundary` is absent because boundary timers are
+cancelled through Oban's `meta` index rather than through the ledger, and
+`:boundary_no_interrupt` because non-interrupting boundaries are refused at compile time.
+
+Registered as an **optional kind** beside the trigger kinds rather than a seventh core one: a
+host that never draws a timer should not carry a table for them, so `resources.timer_job` is
+`nil` there and every writer treats that as "not installed".
+
+
 ## 5. The sweep and the correlator
 
 ```
@@ -433,6 +452,43 @@ ran) the wake is simply over. Losing is the normal ending, not an error.
 
 *Boundary events and error boundaries* are **not** built. The bullets above describing them
 remain a design, not a record.
+
+### 6.1 Phase 3 as shipped, and where it departs from this document
+
+Phase 3 is complete as of `ash_bpmn` e52e826: 563 tests, the exit criterion's three named
+cases written and passing, and two of those three found real defects when written (expiry
+took the first outgoing flow rather than evaluating conditions, so in a fixture where the
+approved flow sorts first it granted the request it was meant to withdraw; and cancelling an
+instance left its parked tokens alive, so a later event resumed a process nobody was running).
+
+Four places where the built thing differs from the design above. Each is a refusal, and each
+is recorded because a design document that quietly describes something else is worse than one
+that is out of date.
+
+**Error boundary events are refused, not built.** D5 specifies route-only error boundaries
+catching an error class. `ActionInvoker.invoke/2` returns `{:error, term()}` with no error
+code, so nothing distinguishes a modelled business error from Postgres being unreachable, and
+a catch would route a transient outage down the declined branch -- ending the process having
+decided something nobody decided. Error *end* events are built, with a distinct `:errored`
+instance status so "the integration is down" and "the answer was no" stay different findings.
+
+**`ash:timer kind="expire"` is not promoted to a boundary event.** It cannot be done
+wholesale: `RequireApproval` schedules expire timers for standalone approvals, which have no
+process instance and no graph to attach a boundary to. Where a graph does exist the rewrite
+would change routing silently, because expire leaves down the task's own flow with
+`outcome: :expired` for a following gateway to read and a boundary leaves down its own flow
+with no outcome. The two are made mutually exclusive on a user task instead.
+
+**Boundary events attach to user tasks only.** A service task's token is `:executing` inside a
+running Oban job; Oban cannot interrupt a running job and a committed Ash action cannot be
+un-run, which is compensation. Interrupting one would mean killing the token while the work
+carried on.
+
+**`lookback` is bounded by rows, not only by time.** The scan starts from the tenant's cursor
+less a fixed number of events, because the event source reads forward from a sequence and
+there is no way to seek by timestamp. A tenant busy enough to write more than that inside its
+own window will not reach all of it.
+
 
 ## 7. Compiler and snapshot
 
