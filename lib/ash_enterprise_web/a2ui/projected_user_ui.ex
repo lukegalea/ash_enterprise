@@ -58,6 +58,9 @@ defmodule AshEnterpriseWeb.A2ui.ProjectedUserUI do
     end
 
     component :table do
+      # The compliance columns read the finding projection (ADR 0035): the
+      # directory answers "who are these people" and "are they KYC-clean" in
+      # one screen, without a rules engine anywhere in the query path.
       fields [
         :legacy_id,
         :full_name,
@@ -65,6 +68,9 @@ defmodule AshEnterpriseWeb.A2ui.ProjectedUserUI do
         :email,
         :legacy_state,
         :lifecycle_status,
+        :kyc_status,
+        :compliant?,
+        :gap_count,
         :projected_at
       ]
 
@@ -73,8 +79,8 @@ defmodule AshEnterpriseWeb.A2ui.ProjectedUserUI do
 
       row_layout do
         title :full_name
-        badge :lifecycle_status
-        meta [:login, :email, :legacy_state, :projected_at]
+        badge :kyc_status
+        meta [:login, :email, :legacy_state, :gap_count, :projected_at]
         columns 3
       end
     end
@@ -85,6 +91,14 @@ defmodule AshEnterpriseWeb.A2ui.ProjectedUserUI do
 
     field :legacy_state do
       label "Legacy state"
+    end
+
+    field :kyc_status do
+      label "KYC status"
+    end
+
+    field :gap_count do
+      label "Open gaps"
     end
 
     field :projected_at do
