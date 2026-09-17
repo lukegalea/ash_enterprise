@@ -529,6 +529,38 @@ and letting the runtime spawn a token into one, together rather than in slices. 
 comparable in size to the rest of Phase 4 combined and has no named use case yet.
 
 
+### 6.3 Phase 5 as shipped
+
+All three C7 items are built, at `ash_bpmn` f15ee53: 618 tests. The gate was honoured first —
+C7 was marked conditional on named use cases and named none, so the use cases went into the
+PRD before any code was written.
+
+**Multi-instance** fans out one token per element, joining when the last finishes. The
+collection must yield **scalars**, enforced at run time: a token carries routing rather than
+business data, and fanning out records would copy the subject's contents onto N tokens and
+make the process a second source of truth about them. Sequential is refused — a loop whose
+body can wait for a person needs a cursor the parallel fan-out does not have.
+
+**Call activity** parks and starts a child; the child's completion wakes the parent directly.
+References in both directions rather than correlation, and the parked token carries *no*
+signature — a signature would advertise an interest the correlator could deliver against, and
+a call activity must be woken by its own child and nothing else. `ash:process key` rather than
+BPMN's `calledElement`, which names a process id local to one document; a child here is a
+published definition resolved by key and version.
+
+**Receive task** compiles to the same config as a message catch and dispatches through the
+same clause. That it needed no semantics of its own is the evidence it was sugar, which is the
+condition it was earned under.
+
+**Three ordering defects surfaced, none of which crashed.** The multi-instance join effect was
+prepended rather than appended, so it counted the token that had not yet been consumed and no
+fan-out ever joined. Tokens had to be created before any job was enqueued, because inline mode
+runs a job on insert and the first instance joined before its siblings existed — a crash window
+in production rather than a certainty, which is worse. And `AdvanceWorker` resolved its token
+by node and status while *documenting* that it ignored `token_id` deliberately, which was true
+of every job while a node held one token and false the moment N sat at the same node.
+
+
 ## 7. Compiler and snapshot
 
 - **Parsing**: `intermediateCatchEvent`, `boundaryEvent`, `terminateEvent`, event
