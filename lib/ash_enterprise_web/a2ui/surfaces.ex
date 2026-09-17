@@ -31,6 +31,33 @@ defmodule AshEnterpriseWeb.A2ui.Surfaces do
 
   @surfaces [
     %{
+      name: "canonical_parties",
+      label: "Canonical parties",
+      ui: A2ui.CanonicalPartyUI,
+      path: "/app/canonical-parties",
+      blurb: "Canonical parties in the contracting model.",
+      description:
+        "Parties in the canonical contracting model, served by the canonical Ash resource."
+    },
+    %{
+      name: "canonical_contracts",
+      label: "Canonical contracts",
+      ui: A2ui.CanonicalContractUI,
+      path: "/app/canonical-contracts",
+      blurb: "Contracts in the canonical contracting model.",
+      description:
+        "Contracts in the canonical contracting model, served by the canonical Ash resource."
+    },
+    %{
+      name: "canonical_commitments",
+      label: "Canonical commitments",
+      ui: A2ui.CanonicalCommitmentUI,
+      path: "/app/canonical-commitments",
+      blurb: "Commitments in the canonical contracting model.",
+      description:
+        "Commitments in the canonical contracting model, served by the canonical Ash resource."
+    },
+    %{
       name: "users",
       label: "Users",
       ui: A2ui.UserUI,
@@ -73,6 +100,70 @@ defmodule AshEnterpriseWeb.A2ui.Surfaces do
           "view. Ask for these when the request mentions the legacy system, the old " <>
           "application, or migrated data. This surface updates itself when the legacy " <>
           "application writes."
+    },
+    %{
+      name: "legacy_parties",
+      label: "Legacy parties",
+      ui: A2ui.LegacyPartyUI,
+      path: "/app/legacy-parties",
+      blurb: "Legacy CLM parties.",
+      description: "Legacy CLM parties through the compatibility view."
+    },
+    %{
+      name: "legacy_vendor_parties",
+      label: "Legacy vendor parties",
+      ui: A2ui.LegacyVendorPartyUI,
+      path: "/app/legacy-vendor-parties",
+      blurb: "Legacy vendors.",
+      description: "Legacy vendor parties through the compatibility view."
+    },
+    %{
+      name: "legacy_enterprise_parties",
+      label: "Legacy enterprise parties",
+      ui: A2ui.LegacyEnterprisePartyUI,
+      path: "/app/legacy-enterprise-parties",
+      blurb: "Legacy enterprises.",
+      description: "Legacy enterprise parties through the compatibility view."
+    },
+    %{
+      name: "legacy_contracting_processes",
+      label: "Legacy RFQs",
+      ui: A2ui.LegacyContractingProcessUI,
+      path: "/app/legacy-contracting-processes",
+      blurb: "Legacy RFQs.",
+      description: "Legacy RFQs through the compatibility view."
+    },
+    %{
+      name: "legacy_party_roles",
+      label: "Legacy party roles",
+      ui: A2ui.LegacyPartyRoleUI,
+      path: "/app/legacy-party-roles",
+      blurb: "Legacy RFQ party roles.",
+      description: "Legacy RFQ party roles through the compatibility view."
+    },
+    %{
+      name: "legacy_contracts",
+      label: "Legacy contracts",
+      ui: A2ui.LegacyContractUI,
+      path: "/app/legacy-contracts",
+      blurb: "Legacy contracts.",
+      description: "Legacy contracts through the compatibility view."
+    },
+    %{
+      name: "legacy_contract_lines",
+      label: "Legacy contract lines",
+      ui: A2ui.LegacyContractLineUI,
+      path: "/app/legacy-contract-lines",
+      blurb: "Legacy quotes.",
+      description: "Legacy quotes through the compatibility view."
+    },
+    %{
+      name: "legacy_commitments",
+      label: "Legacy commitments",
+      ui: A2ui.LegacyCommitmentUI,
+      path: "/app/legacy-commitments",
+      blurb: "Legacy compliance documents.",
+      description: "Legacy compliance documents through the compatibility view."
     }
   ]
 

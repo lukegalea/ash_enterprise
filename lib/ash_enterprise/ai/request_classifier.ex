@@ -80,7 +80,7 @@ defmodule AshEnterprise.AI.RequestClassifier do
           )
     end
 
-    action :compose_surface, :map do
+    action :compose_surface, AshEnterprise.AI.SurfaceSpec do
       description """
       Compose an ad-hoc A2UI surface spec for a request no declared surface
       answers.
@@ -105,7 +105,8 @@ defmodule AshEnterprise.AI.RequestClassifier do
             show, and how to sort and search them. The server validates every
             name you use and builds the actual interface.
 
-            Return ONLY an object matching this JSON schema:
+            Return ONLY an object with a single key "spec", whose value is the
+            JSON text of one table specification matching this schema:
 
             <%= AshEnterprise.AI.RequestClassifier.spec_schema_json() %>
 

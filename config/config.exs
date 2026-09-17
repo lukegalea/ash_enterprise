@@ -215,7 +215,10 @@ config :ash_enterprise,
     AshEnterprise.Reference,
     AshEnterprise.Bpmn,
     AshEnterprise.Decisions,
-    AshEnterprise.Process
+    AshEnterprise.Process,
+    AshEnterprise.Contracts,
+    AshEnterprise.LegacyAgent,
+    AshEnterprise.CanonicalAgent
   ],
   base_resources: [AshEnterprise.Platform.Resource]
 

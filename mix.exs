@@ -173,6 +173,19 @@ defmodule AshEnterprise.MixProject do
       # gathers rules for direct dependencies.
       {:reactor, "~> 1.0"},
 
+      # --- The four unreleased first-party packages ----------------------------
+      #
+      # `ref:` on all four, not just an entry in mix.lock. Without a ref, `github:`
+      # means "whatever that trunk says", and mix.lock only holds the resolved SHA
+      # until something makes mix re-resolve -- `mix deps.update`, a lock conflict,
+      # or a fresh checkout whose lock has been touched. Four trunks free to move
+      # under a demo is four ways for it to change overnight with nothing in the
+      # diff to show it. The refs below are exactly what mix.lock already held, so
+      # this pins the current state rather than moving anything.
+      #
+      # Bump one by editing the ref here AND running `mix deps.get`, so the change
+      # is visible in the diff.
+
       # --- Declarative, agent-renderable UI (A2UI protocol) --------------------
       # Not published to hex, so this is a SHA-pinned git dependency. Tier 3 in
       # docs/manifesto/06-reversibility.md: confined to lib/ash_enterprise_web/a2ui/
@@ -247,9 +260,11 @@ defmodule AshEnterprise.MixProject do
       {:ash_rate_limiter, "~> 1.0"},
       {:ash_money, "~> 0.2"},
       {:usage_rules, "~> 1.0", only: [:dev]},
-      # ash_ai 1.0 made its LLM backend optional, so req_llm is declared
-      # explicitly here -- we use it, and an undeclared transitive dep would
-      # not be upgraded/pinned by our own lock discipline.
+      # ash_ai 0.8 pulled req_llm in as a hard dependency; 1.0 makes it optional.
+      # The interpreter calls ReqLLM directly (key resolution, model selection),
+      # so the application owns the declaration now -- and an undeclared
+      # transitive dependency would sit outside our own lock discipline, which
+      # is how an advisory goes unnoticed.
       {:ash_ai, "~> 1.0"},
       {:req_llm, "~> 1.7"},
       {:absinthe_phoenix, "~> 2.0"},

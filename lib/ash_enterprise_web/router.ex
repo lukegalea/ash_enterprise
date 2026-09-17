@@ -103,6 +103,17 @@ defmodule AshEnterpriseWeb.Router do
   scope "/", AshEnterpriseWeb do
     pipe_through :browser
 
+    # --- Demo hub ------------------------------------------------------------
+    #
+    # The front door of the POC: one card per showcase surface, so a demo never
+    # starts from a URL nobody can remember. The root path redirects here (see
+    # PageController), which means a signed-out visitor is bounced to /sign-in
+    # by this session's on_mount while a signed-in one lands on the hub.
+    ash_authentication_live_session :demo_dashboard,
+      on_mount: [{AshEnterpriseWeb.LiveUserAuth, :live_user_required}] do
+      live "/app/demo", DashboardLive
+    end
+
     # --- A2UI surfaces -------------------------------------------------------
     #
     # Declarative, agent-renderable screens derived from resource metadata. Each
@@ -119,12 +130,41 @@ defmodule AshEnterpriseWeb.Router do
       live "/app/teams", A2uiLive.Teams
       live "/app/roles", A2uiLive.Roles
       live "/app/business-units", A2uiLive.BusinessUnits
-      live "/app/legacy-users", A2uiLive.LegacyUsers
 
       # The same people, over a table this application owns rather than a view over the legacy
       # one. Both are live, and the pair is the demonstration -- see
       # AshEnterprise.Legacy.Projection.
       live "/app/directory", A2uiLive.ProjectedUsers
+    end
+
+    ash_authentication_live_session :canonical_surfaces,
+      on_mount: [{AshEnterpriseWeb.LiveUserAuth, :live_user_required}] do
+      live "/app/canonical-parties", A2uiLive.CanonicalParties
+      live "/app/canonical-contracts", A2uiLive.CanonicalContracts
+      live "/app/canonical-commitments", A2uiLive.CanonicalCommitments
+    end
+
+    ash_authentication_live_session :canonical_agent,
+      on_mount: [{AshEnterpriseWeb.LiveUserAuth, :live_user_required}] do
+      live "/canonical/agent", CanonicalAgentLive
+    end
+
+    ash_authentication_live_session :legacy_surfaces,
+      on_mount: [{AshEnterpriseWeb.LiveUserAuth, :live_user_required}] do
+      live "/app/legacy-users", A2uiLive.LegacyUsers
+      live "/app/legacy-parties", A2uiLive.LegacyParties
+      live "/app/legacy-vendor-parties", A2uiLive.LegacyVendorParties
+      live "/app/legacy-enterprise-parties", A2uiLive.LegacyEnterpriseParties
+      live "/app/legacy-contracting-processes", A2uiLive.LegacyContractingProcesses
+      live "/app/legacy-party-roles", A2uiLive.LegacyPartyRoles
+      live "/app/legacy-contracts", A2uiLive.LegacyContracts
+      live "/app/legacy-contract-lines", A2uiLive.LegacyContractLines
+      live "/app/legacy-commitments", A2uiLive.LegacyCommitments
+    end
+
+    ash_authentication_live_session :legacy_agent,
+      on_mount: [{AshEnterpriseWeb.LiveUserAuth, :live_user_required}] do
+      live "/legacy/agent", LegacyAgentLive
     end
 
     # Process and decision surfaces. A separate live_session from the A2UI one because these
@@ -165,7 +205,10 @@ defmodule AshEnterpriseWeb.Router do
   scope "/", AshEnterpriseWeb do
     pipe_through :browser
 
-    get "/", PageController, :home
+    # The root is the demo hub rather than a landing page: this hands to
+    # /app/demo, whose live session decides what happens next (dashboard for a
+    # signed-in visitor, /sign-in for anyone else).
+    get "/", PageController, :root
     auth_routes AuthController, AshEnterprise.Accounts.User, path: "/auth"
     sign_out_route AuthController
 
@@ -222,6 +265,34 @@ defmodule AshEnterpriseWeb.Router do
     plug :set_actor, :user
     plug AshEnterpriseWeb.Plugs.LoadActorContext
     plug AshEnterpriseWeb.Plugs.RequireActor
+  end
+
+  scope "/legacy/mcp" do
+    pipe_through :mcp
+
+    forward "/", AshAi.Mcp.Router,
+      tools: [
+        :legacy_users,
+        :legacy_parties,
+        :legacy_vendor_parties,
+        :legacy_enterprise_parties,
+        :legacy_contracting_processes,
+        :legacy_party_roles,
+        :legacy_contracts,
+        :legacy_contract_lines,
+        :legacy_commitments
+      ],
+      protocol_version_statement: "2024-11-05",
+      otp_app: :ash_enterprise
+  end
+
+  scope "/canonical/mcp" do
+    pipe_through :mcp
+
+    forward "/", AshAi.Mcp.Router,
+      tools: [:canonical_parties, :canonical_contracts, :canonical_commitments],
+      protocol_version_statement: "2024-11-05",
+      otp_app: :ash_enterprise
   end
 
   scope "/mcp" do

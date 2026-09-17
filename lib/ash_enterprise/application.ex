@@ -66,8 +66,29 @@ defmodule AshEnterprise.Application do
   defp legacy_listener do
     if Application.get_env(:ash_enterprise, :legacy_listener?, true) do
       [
-        {AshStrangler.Listener,
-         repo: AshEnterprise.Repo, resources: [AshEnterprise.Legacy.User], authorize?: false}
+        {
+          AshStrangler.Listener,
+          # Every resource whose strangler source declares `notify?(true)` and
+          # whose legacy table carries the generated AFTER trigger. The payload
+          # names the resource; anything absent from this list is silently
+          # dropped by the listener, which is exactly how a surface that used
+          # to update stops updating. The triggers (strangler_*_notify) exist
+          # on legacy.users, clm_contracts, clm_parties, compliance_documents,
+          # quotes, rfqs, rfq_responses, vendors and enterprises.
+          repo: AshEnterprise.Repo,
+          authorize?: false,
+          resources: [
+            AshEnterprise.Legacy.User,
+            AshEnterprise.Contracts.Contract,
+            AshEnterprise.Contracts.Party,
+            AshEnterprise.Contracts.Commitment,
+            AshEnterprise.Contracts.ContractLine,
+            AshEnterprise.Contracts.ContractingProcess,
+            AshEnterprise.Contracts.PartyRole,
+            AshEnterprise.Contracts.PartyFromVendor,
+            AshEnterprise.Contracts.PartyFromEnterprise
+          ]
+        }
       ]
     else
       []

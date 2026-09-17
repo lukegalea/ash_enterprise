@@ -48,9 +48,27 @@ defmodule AshEnterpriseWeb.Bpmn.CatalogLive do
          |> push_navigate(to: editor_path(kind, key))}
 
       {:error, error} ->
-        {:noreply, put_flash(socket, :error, Exception.message(error))}
+        {:noreply, put_flash(socket, :error, fork_error(error))}
     end
   end
+
+  # `Resolver.fork/4` fails with bare atoms and tuples, not exceptions -- calling
+  # Exception.message/1 on them (which is what this handler used to do) is a
+  # FunctionClauseError waiting for the first failed fork. One clause per shape
+  # the resolver can return, and deliberately no catch-all: if the union grows,
+  # dialyzer names the shape that has no copy yet.
+  defp fork_error(:no_platform_organization),
+    do:
+      "The platform organization is missing, so there is no baseline to customize from. Run mix ash_enterprise.seed."
+
+  defp fork_error({:no_platform_organization, _detail}),
+    do: fork_error(:no_platform_organization)
+
+  defp fork_error({:definition_not_found, kind, key}),
+    do: "There is no #{kind} named \"#{key}\" to customize."
+
+  defp fork_error({:no_published_baseline, kind, key}),
+    do: "\"#{key}\" has no published #{kind} baseline to customize from yet."
 
   defp editor_path(:process, key), do: ~p"/app/processes/#{key}/designer"
   defp editor_path(:decision, key), do: ~p"/app/decisions/#{key}/editor"

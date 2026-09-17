@@ -14,10 +14,64 @@ config :ash_enterprise, AshEnterprise.Repo,
   password: System.get_env("DB_PASSWORD", "postgres"),
   hostname: System.get_env("PGHOST", "localhost"),
   port: String.to_integer(System.get_env("PGPORT", "5432")),
-  database: "ash_enterprise_dev",
+  database: System.get_env("DB_NAME", "ash_enterprise_dev"),
   stacktrace: true,
   show_sensitive_data_on_connection_error: true,
   pool_size: 10
+
+# --- Hosting this application inside somebody else's database ------------------
+#
+# Upstream, `mix setup` owns its whole database: it creates `ash_enterprise_dev`,
+# puts the simulated legacy estate in `legacy.*` and everything of its own in
+# `public`. That is right for the reference app and wrong for the VendorPM POC
+# (VPM-10), where the point is to run against the EXISTING `vendorpm` database --
+# the one vendorpm-apolloserver's knex migrations own -- so ash_strangler has a
+# real legacy schema to strangle rather than a simulated one.
+#
+# Sharing a database with another migration system is only safe if the two can
+# never contend for a table, so this application takes a Postgres schema of its
+# own and stays inside it. Three knobs, each defaulting to the upstream
+# behaviour, so `mix setup` outside the VendorPM workspace is unchanged:
+#
+#   DB_NAME              which database to connect to.
+#   ASH_SCHEMA           the schema this application OWNS. Every Ash migration
+#                        runs in it and `schema_migrations` lives in it, so Ash's
+#                        migration history and knex's `vendorpm.knex_migrations`
+#                        are separate objects in separate schemas. Unset, tables
+#                        land in `public` exactly as before.
+#   PG_EXTENSION_SCHEMA  where the host database installed its extensions, if not
+#                        `public`. VendorPM's has citext and uuid-ossp in the
+#                        `vendorpm` schema, and Ash's `:ci_string` attributes
+#                        compile to an unqualified `citext` column type -- so
+#                        without this on the search path, migrating fails with
+#                        `type "citext" does not exist`.
+#
+# NOTE the ordering below: the owned schema is FIRST, so an unqualified name
+# always resolves to this application's table before the host's. The trade is
+# real and deliberate -- a table this application expects but has not created
+# could resolve to a same-named legacy one (`users` exists on both sides) rather
+# than erroring. Ash creates every table it reads, so that requires a migration
+# to have been skipped; VPM-12 removes the trade entirely by declaring `schema`
+# on the resources instead of relying on a search path.
+ash_schema = System.get_env("ASH_SCHEMA")
+
+if ash_schema do
+  search_path =
+    [ash_schema, "public", System.get_env("PG_EXTENSION_SCHEMA")]
+    |> Enum.reject(&(&1 in [nil, ""]))
+    |> Enum.uniq()
+    |> Enum.join(",")
+
+  config :ash_enterprise, AshEnterprise.Repo,
+    migration_default_prefix: ash_schema,
+    parameters: [search_path: search_path]
+
+  # Oban does NOT read Ecto's `migration_default_prefix`: `Oban.Migration.up/1`
+  # and the supervisor both default to `prefix: "public"` independently. Set
+  # here so the job tables follow the rest of this application's tables instead
+  # of being the one thing left in `public`.
+  config :ash_enterprise, Oban, prefix: ash_schema
+end
 
 # For development, we disable any cache and enable
 # debugging and code reloading.
@@ -27,8 +81,18 @@ config :ash_enterprise, AshEnterprise.Repo,
 # to bundle .js and .css sources.
 config :ash_enterprise, AshEnterpriseWeb.Endpoint,
   # Binding to loopback ipv4 address prevents access from other machines.
-  # Change to `ip: {0, 0, 0, 0}` to allow access from other machines.
-  http: [ip: {127, 0, 0, 1}],
+  #
+  # PHX_IP=0.0.0.0 is how the VendorPM POC opts out: the app runs inside a dev
+  # container and the port is published from the workspace node, so a loopback
+  # bind is unreachable from the thing doing the publishing and the declared
+  # port in .sdlc/app.yaml would answer nothing. The default is unchanged.
+  http: [
+    ip:
+      case System.get_env("PHX_IP") do
+        nil -> {127, 0, 0, 1}
+        addr -> addr |> String.to_charlist() |> :inet.parse_address() |> elem(1)
+      end
+  ],
   check_origin: false,
   code_reloader: true,
   debug_errors: true,

@@ -147,12 +147,36 @@ defmodule AshEnterprise.AI.Interpreter do
 
   defp compose(request) do
     case RequestClassifier.compose_surface(request) do
-      {:ok, spec} when is_map(spec) -> {:ok, spec}
-      {:ok, other} -> {:error, "The model returned #{inspect(other)} rather than a table spec."}
-      {:error, error} -> {:error, "Could not compose a table: #{Exception.message(error)}"}
+      {:ok, %AshEnterprise.AI.SurfaceSpec{spec: json}} when is_binary(json) ->
+        decode_spec(json)
+
+      {:ok, %{"spec" => json}} when is_binary(json) ->
+        decode_spec(json)
+
+      {:ok, other} ->
+        {:error, "The model returned #{inspect(other)} rather than a table spec."}
+
+      {:error, error} ->
+        {:error, "Could not compose a table: #{Exception.message(error)}"}
     end
   rescue
     error -> {:error, "Could not compose a table: #{Exception.message(error)}"}
+  end
+
+  # The spec travels as JSON text -- see `AshEnterprise.AI.SurfaceSpec` for why
+  # it cannot be a free-form `:map` return -- so the last mile is decoding it
+  # back into the map the surface composer expects.
+  defp decode_spec(json) do
+    case Jason.decode(json) do
+      {:ok, spec} when is_map(spec) ->
+        {:ok, spec}
+
+      {:ok, other} ->
+        {:error, "The spec JSON decoded to #{inspect(other)} rather than an object."}
+
+      {:error, error} ->
+        {:error, "The spec was not valid JSON: #{Exception.message(error)}"}
+    end
   end
 
   defp infer_intent(request) do

@@ -170,4 +170,140 @@
 :root[data-theme="light"] { color-scheme: light }
 :root[data-theme="dark"] { color-scheme: dark }
 
+/* --- bpmn-js / dmn-js editors in the dark theme ----------------------------
+ *
+ * The model editors are the one place where the app's theming stops working:
+ * their host chrome (toolbars, properties panel, tabs) is HEEx with Tailwind
+ * `dark:` classes and follows data-theme like everything else, but the editors
+ * themselves are bpmn-js / dmn-js, whose stylesheets ship a fixed light palette
+ * that never looks at the page's theme. In dark mode the result was the chrome
+ * going dark around a pair of near-white panels (palette, popups, context pad),
+ * white shape bodies, and near-black external labels sitting directly on the
+ * dark canvas -- labels you cannot see.
+ *
+ * The fix works through the libraries' own theming layer, not around it:
+ *
+ *   1. diagram-js (v18-era) and dmn-js define their whole palette as CSS custom
+ *      properties -- primitives (`--color-white`, the `--color-grey-225-10-*`
+ *      scale) on `.djs-parent` / `.bjs-container` / `.dmn-js-parent`, plus
+ *      derived tokens (`--palette-background-color`, `--popup-background-color`,
+ *      `--table-cell-color`, ...) that reference them. Re-mapping the primitives
+ *      re-themes every derived token in one move. The one-selector upshift
+ *      (`[data-theme=dark]` in front) outspecifies the libraries' own
+ *      definitions even though the bundle that carries them loads after this
+ *      stylesheet -- that load order is why the overrides cannot live at :root
+ *      alone.
+ *
+ *   2. A handful of derived tokens mean "literal white ink on a saturated
+ *      accent" (hover actions, the drill-down overlay, the expression-language
+ *      badge) and must NOT follow the flipped `--color-white`; they are
+ *      re-pinned explicitly after it.
+ *
+ *   3. The diagram itself is not tokenised at all: the renderers write the
+ *      default body fill and ink into INLINE styles on every shape, glyph,
+ *      label and marker (the CSSOM serialises them as exactly `fill: white`,
+ *      `fill: rgb(34, 36, 42)`, `stroke: rgb(34, 36, 42)` in every major
+ *      browser). A stylesheet rule beats an inline style only with
+ *      !important, and matching on the style ATTRIBUTE string keeps the
+ *      !important surgical: `fill: none` flows, `stroke: none` inner circles,
+ *      and anything a modeller explicitly coloured carry different strings and
+ *      do not match. Scoped to the canvas `> svg` so palette and context-pad
+ *      chrome is never caught; the bpmn.io watermark (licence-required to stay
+ *      visible) draws with `currentColor` and matches none of these.
+ *
+ *   4. Three popup rules in diagram-js hardcode `#fff`/`#f2f3f5` past its own
+ *      token system; they get three hand-matched counterparts.
+ *
+ * Every selector below is scoped under `[data-theme=dark]` -- the same
+ * attribute the app's own toggle sets -- so light mode is untouched. The
+ * greys are the Tailwind zinc scale the editors' host chrome already uses,
+ * so a dark designer reads as one surface rather than two dark themes
+ * meeting at the canvas edge.
+ */
+
+[data-theme="dark"] .djs-parent,
+[data-theme="dark"] .bjs-container,
+[data-theme="dark"] .dmn-js-parent {
+  /* Light surfaces -> dark: canvas fill, popup/pad/search/select backgrounds,
+   * the decision table itself. */
+  --color-white: #18181b; /* zinc-900 */
+
+  /* Ink -> light: palette glyphs, popup/tab/table text, table grid lines. */
+  --color-black: #f4f4f5; /* zinc-100 */
+  --color-grey-225-10-15: #f4f4f5; /* zinc-100 */
+  --color-grey-225-10-35: #d4d4d8; /* zinc-300 */
+  --color-grey-225-10-55: #a1a1aa; /* zinc-400 */
+
+  /* Borders and hovers -> zinc borders on zinc panels. */
+  --color-grey-225-10-75: #52525b; /* zinc-600 */
+  --color-grey-225-10-80: #3f3f46; /* zinc-700 */
+  --color-grey-225-10-85: #3f3f46; /* zinc-700 */
+  --color-grey-225-10-90: #3f3f46; /* zinc-700 */
+  --color-grey-225-10-95: #27272a; /* zinc-800 */
+  --color-grey-225-10-97: #27272a; /* zinc-800: palette, breadcrumbs, hover */
+
+  /* Pastel washes -> dark washes of the same hue, so focus and error states
+   * stay states instead of becoming light rectangles. Blues and greens at
+   * full saturation read fine on dark and are left alone. */
+  --color-blue-205-100-95: hsl(205 65% 18%);
+  --color-red-360-100-92: hsl(360 45% 20%);
+  --color-red-360-100-97: hsl(360 45% 15%);
+}
+
+/* Literal-white ink on saturated accents: these referenced `--color-white`
+ * because it WAS white; after the flip above they have to say so themselves. */
+[data-theme="dark"] .bjs-container {
+  --drilldown-fill-color: #fff;
+}
+
+[data-theme="dark"] .dmn-drd-container {
+  --drill-down-overlay-color: #fff;
+}
+
+[data-theme="dark"] .dmn-decision-table-container {
+  --action-icon-hover-color: #fff;
+  --dmn-expression-language-color: #fff;
+
+  /* The add-column affordance inverts rather than keeps its ink: its background
+   * was grey-35 + white icon, which the primitive flip turns into light + light. */
+  --add-column-icon-color: #18181b;
+}
+
+/* The drawn diagram: default ink and default body fills, flipped by matching
+ * the serialised inline-style values the renderers wrote. Anything else --
+ * `fill: none` flows, `stroke: none` decorations, modeller-chosen colours --
+ * does not carry these strings and keeps exactly the styling it had. */
+[data-theme="dark"] .djs-container > svg [style*="fill: white"] {
+  fill: #18181b !important; /* zinc-900: task/event/gateway bodies, icon plates */
+}
+
+[data-theme="dark"] .djs-container > svg [style*="fill: rgb(34, 36, 42)"] {
+  fill: #d4d4d8 !important; /* zinc-300: solid glyphs, marker arrowheads */
+}
+
+[data-theme="dark"] .djs-container > svg [style*="stroke: rgb(34, 36, 42)"] {
+  stroke: #d4d4d8 !important; /* zinc-300: borders, flows, glyph outlines */
+}
+
+/* Labels a step brighter than lines and borders -- they are text, and text
+ * earns the higher contrast. */
+[data-theme="dark"] .djs-container > svg .djs-label[style*="fill: rgb(34, 36, 42)"] {
+  fill: #e4e4e7 !important; /* zinc-200 */
+}
+
+/* diagram-js's popup styles: three rules hardcode light values past the token
+ * system (docs-link chip and breadcrumb hover). Mirrored, not re-tokenised --
+ * they are few, and vendored CSS is not ours to restructure. */
+[data-theme="dark"] .djs-popup .djs-popup-breadcrumbs-item--back:hover {
+  background: #3f3f46; /* zinc-700 */
+}
+
+[data-theme="dark"] .djs-popup .djs-popup-entry-docs {
+  background: #27272a; /* zinc-800 */
+}
+
+[data-theme="dark"] .djs-popup .djs-popup-entry-docs:hover {
+  background: #3f3f46; /* zinc-700 */
+}
+
 /* This file is for your main application CSS */

@@ -17,7 +17,13 @@ defmodule AshEnterprise.Legacy.CodegenIsolationTest do
 
   use ExUnit.Case, async: true
 
-  @legacy_schemas ["legacy", "strangler"]
+  # The legacy estate is whatever the host database's own migrations own
+  # that Ash must not: the simulated estate (legacy.*), the strangler
+  # compatibility layer (strangler.*), and — since VPM-12 mapped the real
+  # schema — the knex tables themselves (vendorpm.*, plus the public.clm_*
+  # contract-management trio) per the VPM-11 dump inventory. The RULE is
+  # unchanged: Ash owns none of them, and every twin stays migrate? false.
+  @legacy_schemas ["legacy", "strangler", "public", "vendorpm"]
 
   defp legacy_resources do
     [AshEnterprise.Legacy.Twins, AshEnterprise.Legacy]

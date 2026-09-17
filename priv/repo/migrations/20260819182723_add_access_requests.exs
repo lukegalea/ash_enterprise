@@ -7,6 +7,18 @@ defmodule AshEnterprise.Repo.Migrations.AddAccessRequests do
 
   use Ecto.Migration
 
+  # `prefix: prefix()` rather than the generated `prefix: "public"`.
+  #
+  # `Ecto.Migration.prefix/0` is the migrator's own prefix, so a foreign key
+  # points at the schema this migration is creating tables in rather than at a
+  # baked-in `public`. The generator writes the literal because the resources do
+  # not declare a `schema`; with ASH_SCHEMA set (see config/dev.exs) that literal
+  # makes every reference cross into a schema this application does not own, and
+  # migrating fails with `relation "public.users" does not exist`.
+  #
+  # Regenerating migrations will reintroduce the literal. VPM-12 removes the need
+  # by declaring `schema` on the resources.
+
   def up do
     create table(:access_requests, primary_key: false) do
       add :organization_id, :uuid, null: false
@@ -44,7 +56,7 @@ defmodule AshEnterprise.Repo.Migrations.AddAccessRequests do
             column: :id,
             name: "access_requests_requested_role_id_fkey",
             type: :uuid,
-            prefix: "public",
+            prefix: prefix(),
             on_delete: :nothing
           ),
           null: false
@@ -54,7 +66,7 @@ defmodule AshEnterprise.Repo.Migrations.AddAccessRequests do
             column: :id,
             name: "access_requests_scoping_business_unit_id_fkey",
             type: :uuid,
-            prefix: "public",
+            prefix: prefix(),
             on_delete: :nothing
           )
 
