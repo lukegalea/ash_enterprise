@@ -167,6 +167,30 @@ defmodule AshEnterpriseWeb.Router do
       live "/legacy/agent", LegacyAgentLive
     end
 
+    # Compliance surfaces (ADR 0035): findings, evaluations, bundle/rule-set
+    # lifecycle, catalogs and profiles. A separate live_session because these
+    # sit behind the compliance door — `ComplianceAuth` requires the actor to
+    # hold a read grant on the compliance finding resource, the same
+    # (role, privilege, depth) tuple every other governed surface resolves —
+    # and because the surfaces read foreign `ash_compliance` resources whose
+    # access is admin-shaped.
+    #
+    # Tier 3, like the surfaces above: removing ash_compliance means deleting
+    # lib/ash_enterprise/compliance/, lib/ash_enterprise_web/a2ui/'s
+    # compliance surfaces, this live_session, and these routes.
+    ash_authentication_live_session :compliance_surfaces,
+      on_mount: [
+        {AshEnterpriseWeb.LiveUserAuth, :live_user_required},
+        {AshEnterpriseWeb.ComplianceAuth, :compliance_grant_required}
+      ] do
+      live "/app/compliance/findings", ComplianceA2uiLive.Findings
+      live "/app/compliance/evaluations", ComplianceA2uiLive.Evaluations
+      live "/app/compliance/bundles", ComplianceA2uiLive.Bundles
+      live "/app/compliance/rule-sets", ComplianceA2uiLive.RuleSets
+      live "/app/compliance/catalogs", ComplianceA2uiLive.Catalogs
+      live "/app/compliance/profiles", ComplianceA2uiLive.Profiles
+    end
+
     # Process and decision surfaces. A separate live_session from the A2UI one because these
     # need `:current_tenant` in assigns -- `ash_bpmn`'s LiveViews read it there, where the rest
     # of this application derives the tenant from the actor's context. The hook supplies it
