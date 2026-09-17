@@ -473,7 +473,7 @@ rather than only what it showed.
 
 ## Correction — 2026-09-07: replaced, not migrated
 
-The successor specification, [`docs/bpmn-event-dimension/`](../bpmn-event-dimension/README.md),
+The successor specification, [`docs/bpmn-event-dimension/`](https://github.com/lukegalea/ash_enterprise/tree/main/docs/bpmn-event-dimension),
 absorbs this plan's patterns into `ash_bpmn` behind an `EventSource` behaviour. An
 earlier revision of that specification assumed this design ran in production and
 specified an absorption-and-cutover sequence to protect it — dual-run with shadow
