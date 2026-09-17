@@ -199,6 +199,65 @@ ids, `kind` (`:remind \| :escalate \| :expire \| :catch \| :boundary \| :boundar
 completion, cancel, branch prune, boundary interrupt; usage rule 6's discipline applied
 uniformly. `:timer_cancelled` events emitted here (hygiene #7).
 
+**As decided (2026-09-17, after an Oban capability review).** The shape above survives, but
+its *justification* changes, and with it one word that matters: `TimerJob` is a **record**,
+never a scheduler. Verified against the vendored Oban 2.23.1 source (OSS; this project has no
+Pro licence and must not design against Pro features).
+
+*What Oban already does, and this must not reimplement.* Durable scheduled execution at any
+horizon — a `scheduled` row is touched by neither the Pruner nor the Lifeline, so a six-month
+timer is safe. The promotion loop (`Oban.Stager`, leader-elected, ~1 s resolution, so "fire at
+exactly T" is not on offer at any price and a timer never fires *early*). Retry and backoff.
+A best-effort kill broadcast on cancel. And — the discovery that removes a table we were about
+to build — **GIN indexes on `args` and `meta`** (`migrations/postgres/v10.ex:39-40`), so
+`Oban.cancel_all_jobs(Oban.Job.query(meta: %{token_id: id}))` is an indexed containment query.
+Cancel-every-timer-this-token-owns needs no id list of ours.
+
+That retires the `timer_job_ids` pattern for new work rather than generalizing it, and closes a
+window rather than widening one: that pattern inserts the jobs, *then* writes their ids to a
+row, and a crash in between leaves live jobs nothing can name — the task is decided, the
+escalation clock is not stopped, and no `:timer_cancelled` event records it. Writing the owner
+*into* the job closes it, because the identifying data lands in the statement that creates it.
+
+*What Oban will not do, which is the entire reason this resource exists.*
+`Oban.Plugins.Pruner` deletes `completed`, `cancelled` and `discarded` rows `max_age` after
+they land there — **60 seconds by default**. Within about ninety seconds of a timer firing *or
+being defused*, the row is gone; `Repo.delete_all`, not archived. So *"did the four-hour
+escalation fire, or was it cancelled when the task was reassigned?"* has no answer from Oban,
+and `cancelled` carries no reason at all — "task completed first", "instance terminated" and
+"timer rescheduled" collapse into one state. Raising `max_age` is a global table-size lever
+over every job in the system, not a retention policy; `DynamicPruner`, which could carve out a
+per-worker rule, is Pro. (The host now configures a 7-day Pruner, which makes this concrete
+rather than hypothetical.)
+
+*Consequences for the fields.* `oban_job_id` stays, as a pointer to the execution substrate and
+not as a handle we rely on — a pruned id resolves to nothing and `cancel_job/1` on it returns
+`:ok` having done nothing, indistinguishable from success. `status` gains a **`cancel_reason`**,
+because that is precisely the distinction Oban's `cancelled` cannot carry. The timer's
+definition as authored is recorded alongside its resolved `run_at`, since the audit question is
+usually about the definition.
+
+*Three traps the implementation must honour.* (1) A unique insert that cannot take its advisory
+lock returns `{:ok, %Job{conflict?: true, id: nil}}` **having written no row** — read as "armed",
+that silently loses a timer and strands a token forever. (2) Cancelling an *executing* job is
+best-effort and loses the race when the job completes first, so **every timer handler must
+re-validate its owner's state at the top of `perform/1`** and return `{:cancel, reason}`;
+cancellation is an optimisation, the guard is the correctness mechanism. (3) `insert_all` does
+not honour `unique:` on the Basic engine — insert timers one at a time.
+
+*And one road not taken.* AshOban is the wrong shape and is not used here: its trigger model is
+a cron-polled predicate scan ("eventually process every record matching this filter"), not
+"wake this one token at this instant"; its generated workers hardcode `unique: [period:
+:infinity, states: :incomplete]` with no keys, so a re-insert with a later `scheduled_at`
+silently returns the *original* job rather than rescheduling; and it has no cancellation API at
+all. `AshBpmn.Scope.to_job_args/2` already does the one thing worth borrowing.
+
+*Test mode.* `Oban`'s own `testing:` modes strip the stager entirely, so nothing promotes a
+scheduled job and time does not pass. `AshBpmn.Runtime.Oban.TestJobs.fire_due!/1` is the
+virtual clock that makes "the reminder fires before the escalation" and "nothing fires early"
+assertable; before it, `fire!/2` matched on kind and never read `scheduled_at`, so a
+thirty-minute timer scheduled thirty seconds out passed every test in both repositories.
+
 ## 5. The sweep and the correlator
 
 ```
