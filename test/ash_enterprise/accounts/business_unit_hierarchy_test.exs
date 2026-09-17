@@ -86,17 +86,24 @@ defmodule AshEnterprise.Accounts.BusinessUnitHierarchyTest do
              indent_of(Enum.find(rest, &String.ends_with?(&1, "Engineering")))
   end
 
-  test "the indent is non-breaking spaces, which markdown will not collapse", ctx do
+  test "the indent is real non-breaking spaces, not an HTML entity", ctx do
     eng = Ash.load!(ctx.eng, [:tree_label], authorize?: false, tenant: ctx.org)
 
-    # Literal spaces would collapse, and four of them at the start of a line
-    # would make markdown render the row as a code block instead of a heading.
-    assert eng.tree_label =~ "&nbsp;"
+    # It used to emit the `&nbsp;` entity, which assumed the value would be
+    # rendered as markdown. A grid cell is plain text, so the entity reached the
+    # screen as literal characters in front of every nested unit. A real NBSP
+    # needs no renderer's cooperation; markdown also leaves it alone, because it
+    # is not an ASCII space and so is not collapsed.
+    assert eng.tree_label =~ "\u00A0"
+    refute eng.tree_label =~ "&nbsp;"
+
+    # Plain leading spaces would be wrong in the other direction: markdown
+    # collapses runs of them, and four would open a code block.
     refute String.starts_with?(eng.tree_label, " ")
   end
 
   defp indent_of(label) do
-    label |> String.split("└─") |> hd() |> String.split("&nbsp;") |> length()
+    label |> String.split("└─") |> hd() |> String.split("\u00A0") |> length()
   end
 
   defp unit(name, parent, org) do

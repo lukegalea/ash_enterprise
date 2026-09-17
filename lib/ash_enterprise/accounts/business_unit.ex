@@ -230,11 +230,16 @@ defmodule AshEnterprise.Accounts.BusinessUnit do
     # Indentation as data, because A2UI has nowhere to put it: no component in
     # any version of the spec carries a padding, indent or spacing property, and
     # an unknown property does not degrade -- the client throws and discards the
-    # whole message. What it does have is markdown on every Text value, so the
-    # indent travels inside the string.
+    # whole message. So the indent travels inside the string.
     #
-    # `&nbsp;` rather than spaces: markdown collapses runs of spaces, and four
-    # leading spaces would make the line a code block instead.
+    # `chr(160)` -- a literal non-breaking space -- rather than the `&nbsp;`
+    # entity this used to emit. The entity assumed the value would be rendered
+    # as markdown, which was true of the basic catalog's Text component and is
+    # NOT true of the admin catalog's dataGrid: a grid cell is plain text, so
+    # the entity arrived on screen as the six characters `&NBSP;`, repeated,
+    # in front of every nested unit. A real NBSP needs no renderer's cooperation
+    # -- markdown leaves it alone rather than collapsing it, because it is not
+    # an ASCII space -- so this is correct under both catalogs and under none.
     calculate :tree_label,
               :string,
               expr(
@@ -243,7 +248,7 @@ defmodule AshEnterprise.Accounts.BusinessUnit do
                   # bigint and Postgres only has repeat(text, integer), so
                   # without it the query fails with `function repeat(unknown,
                   # bigint) does not exist`.
-                  "repeat('&nbsp;', (? * 6)::integer) || CASE WHEN ? = 0 THEN '' ELSE '└─ ' END || ?",
+                  "repeat(chr(160), (? * 6)::integer) || CASE WHEN ? = 0 THEN '' ELSE '└─ ' END || ?",
                   depth,
                   depth,
                   name
