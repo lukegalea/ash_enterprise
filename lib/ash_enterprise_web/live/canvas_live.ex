@@ -34,6 +34,7 @@ defmodule AshEnterpriseWeb.CanvasLive do
   alias AshA2ui.Canvas.Object
   alias AshEnterprise.Canvas.Registry
   alias AshEnterprise.Security.ActorContext
+  alias AshEnterpriseWeb.A2ui.Host
   alias AshEnterpriseWeb.A2ui.Surfaces
 
   @impl true
@@ -46,7 +47,9 @@ defmodule AshEnterpriseWeb.CanvasLive do
         node_count: map_size(graph.nodes),
         relationship_count: Enum.count(graph.edges, &(&1.kind == :relationship)),
         selected: nil,
-        selection_error: nil
+        selection_error: nil,
+        presentation: nil,
+        refresh_scheduled?: false
       )
 
     if connected?(socket) do
@@ -99,6 +102,21 @@ defmodule AshEnterpriseWeb.CanvasLive do
         >
           <%!-- The Lit element owns this subtree (phx-update="ignore"). --%>
         </div>
+
+        <%!--
+          The container is rendered ALWAYS and hidden with a class, never
+          removed. `Host.present/3` delivers the surface by pushing an event to
+          the `AshA2ui` hook, and a hook that does not exist yet receives
+          nothing -- so rendering this conditionally means the first selection
+          pushes into a void and the panel stays blank. Same reason AgentLive
+          keeps its container mounted.
+        --%>
+        <section
+          class={["space-y-2", if(!@presentation, do: "hidden")]}
+          aria-label="Surface for the selected resource"
+        >
+          {AshA2ui.LiveRenderer.surface_container(assigns)}
+        </section>
 
         <div id="canvas-inspector" class="space-y-3">
           <%= if @selection_error == :unknown_object do %>
@@ -201,15 +219,104 @@ defmodule AshEnterpriseWeb.CanvasLive do
 
     case select(ref, actor, tenant) do
       {:ok, object} ->
-        {:noreply, assign(socket, selected: object, selection_error: nil)}
+        socket =
+          socket
+          |> assign(selected: object, selection_error: nil)
+          |> show_surface(surface_for(object), actor, tenant)
+
+        {:noreply, socket}
 
       {:error, :unknown_object} ->
-        {:noreply, assign(socket, selected: nil, selection_error: :unknown_object)}
+        socket =
+          socket
+          |> assign(selected: nil, selection_error: :unknown_object)
+          |> show_surface(nil, actor, tenant)
+
+        {:noreply, socket}
     end
   end
 
   def handle_event("canvas:select", _malformed, socket) do
     {:noreply, assign(socket, selected: nil, selection_error: :unknown_object)}
+  end
+
+  # The client interacted with the rendered surface. Routed through `Host`
+  # rather than into an Ash action directly: the handler is what enforces the
+  # row-action allowlist, `visible_when`, and the error contract that puts
+  # validation messages on the reserved `/errors/<field>` paths.
+  def handle_event("a2ui:action", envelope, %{assigns: %{presentation: nil}} = socket) do
+    # Nothing is being shown, so there is nothing this envelope can refer to.
+    # Rebuilding a surface from something the client echoed back is the
+    # tamper-proofing hole the server-held presentation exists to close.
+    _ = envelope
+    {:noreply, socket}
+  end
+
+  def handle_event("a2ui:action", envelope, socket) do
+    actor = socket.assigns[:current_user]
+
+    {socket, presentation} =
+      Host.handle_action(socket, socket.assigns.presentation, envelope,
+        actor: actor,
+        tenant: actor && ActorContext.tenant(actor)
+      )
+
+    {:noreply, assign(socket, :presentation, presentation)}
+  end
+
+  @impl true
+  def handle_info({:ash_a2ui_host, :refresh}, %{assigns: %{presentation: nil}} = socket) do
+    {:noreply, assign(socket, :refresh_scheduled?, false)}
+  end
+
+  def handle_info({:ash_a2ui_host, :refresh}, socket) do
+    actor = socket.assigns[:current_user]
+
+    {socket, presentation} =
+      Host.refresh(socket, socket.assigns.presentation,
+        actor: actor,
+        tenant: actor && ActorContext.tenant(actor)
+      )
+
+    {:noreply,
+     socket
+     |> assign(:presentation, presentation)
+     |> assign(:refresh_scheduled?, false)}
+  end
+
+  # Anything else while a surface is subscribed is a notification on one of its
+  # topics. Ash's PubSub notifier can send a %Notification{}, a
+  # %Phoenix.Socket.Broadcast{} or a bare map depending on `broadcast_type`, so
+  # this matches on none of them and coalesces whatever arrives.
+  def handle_info(_message, %{assigns: %{presentation: nil}} = socket), do: {:noreply, socket}
+
+  def handle_info(_message, socket) do
+    case Host.schedule_refresh(socket.assigns.refresh_scheduled?) do
+      :scheduled -> {:noreply, assign(socket, :refresh_scheduled?, true)}
+      :already_scheduled -> {:noreply, socket}
+    end
+  end
+
+  # Selecting a resource that publishes a surface renders that surface, live,
+  # under the graph -- the same experience-v2 screen `/app/users` serves, built
+  # by the same host seam the helper console uses, and filtered by the selected
+  # actor's own policies.
+  #
+  # The previous selection's subscription is dropped first. Without it, walking
+  # the graph leaves the LiveView subscribed to every surface it passed through,
+  # and a write to any of them refreshes one nobody is looking at.
+  defp show_surface(socket, nil, _actor, _tenant) do
+    Host.dismiss(socket.assigns.presentation)
+    assign(socket, :presentation, nil)
+  end
+
+  defp show_surface(socket, surface, actor, tenant) do
+    Host.dismiss(socket.assigns.presentation)
+
+    {socket, presentation} =
+      Host.present(socket, Host.declared(surface), actor: actor, tenant: tenant)
+
+    assign(socket, :presentation, presentation)
   end
 
   @doc false

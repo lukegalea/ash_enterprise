@@ -162,7 +162,8 @@ defmodule AshEnterpriseWeb.CanvasLiveTest do
           node_count: 1,
           relationship_count: 0,
           selected: object,
-          selection_error: nil
+          selection_error: nil,
+          presentation: nil
         })
 
       assert html =~ "User"
@@ -188,11 +189,36 @@ defmodule AshEnterpriseWeb.CanvasLiveTest do
           node_count: 1,
           relationship_count: 0,
           selected: object,
-          selection_error: nil
+          selection_error: nil,
+          presentation: nil
         })
 
       assert html =~ "Browse in"
       assert html =~ "/app/canonical-parties"
+    end
+
+    test "the surface container is rendered even with nothing presented" do
+      # The container must exist from the first render, not appear with the
+      # first selection. `Host.present/3` delivers a surface by pushing an
+      # event to the `AshA2ui` hook, and a hook that is not mounted yet
+      # receives nothing -- so rendering the container conditionally would make
+      # the first resource a person clicks come back blank, and only the second
+      # one work. It is hidden with a class instead.
+      html =
+        render_component(&CanvasLive.render/1, %{
+          flash: %{},
+          current_scope: nil,
+          revision: "sha256:test",
+          node_count: 1,
+          relationship_count: 0,
+          selected: nil,
+          selection_error: nil,
+          presentation: nil
+        })
+
+      assert html =~ ~s(id="ash-a2ui-surface")
+      assert html =~ ~s(phx-hook="AshA2ui")
+      assert html =~ "hidden"
     end
 
     test "renders the unknown-object notice for a failed selection" do
@@ -204,7 +230,8 @@ defmodule AshEnterpriseWeb.CanvasLiveTest do
           node_count: 1,
           relationship_count: 0,
           selected: nil,
-          selection_error: :unknown_object
+          selection_error: :unknown_object,
+          presentation: nil
         })
 
       assert html =~ "Unknown object"
