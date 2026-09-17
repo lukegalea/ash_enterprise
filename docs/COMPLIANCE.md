@@ -1,6 +1,6 @@
 # Control map
 
-**Read this first.** This is an engineering document describing what the code does, expressed in the
+This is an engineering document describing what the code does, expressed in the
 vocabulary an auditor uses. It is **not** an assertion of compliance, and it does not substitute for
 an audit.
 
@@ -17,7 +17,7 @@ a compliance page that is wrong.
 
 **A control is scored by its weakest question**, not its average. A control with one open question is
 not "mostly satisfied" — it is a control an auditor is going to ask about, and rounding that up would
-defeat the purpose of writing this down.
+misrepresent it.
 
 ## Where it stands
 
@@ -61,9 +61,9 @@ defeat the purpose of writing this down.
 
 ## The honest summary
 
-Three things are unusually well covered, and it is worth saying why rather than leaving it to the
-table. **Authorization** (CC6.1, A.5.15) is data rather than code, so it is reviewable by someone who
-does not read Elixir, and a conformance suite asserts the whole truth table rather than a sample.
+Three things are unusually well covered: **Authorization** (CC6.1, A.5.15) is data rather than code, so it is
+reviewable by someone who does not read Elixir, and a conformance suite asserts the whole truth table rather than a
+sample.
 **Log completeness and integrity** (CC7.2, A.8.15) come from audit being inherited rather than wired
 per resource — a new table cannot quietly have no history — and from a hash chain a test breaks on
 purpose. **Change management of the schema** (CC8.1) is derived from the resources with a `--check`
@@ -76,11 +76,11 @@ a control" is the standard finding, and it currently applies.
 One conflict is structural and deliberate: **erasure** (GDPR Art. 17). Soft delete makes a destroy
 reversible by design, and the audit log now actively refuses `DELETE`.
 [ADR 0024](adr/0024-audit-retention-and-erasure.md) resolves it by destroying keys rather than rows,
-which is a genuine trade-off with a legal reading attached, and is stated as such rather than assumed.
+which is a genuine trade-off with a legal reading attached.
 
 ## Gaps this map found
 
-Writing it surfaced two things that were invisible while the questions were only grouped by theme:
+Two gaps became visible only when the questions were mapped to controls:
 
 - **Evidence of review had no question at all.** It became `q38`, and
   [ADR 0025](adr/0025-log-shipping-and-review.md).

@@ -265,18 +265,17 @@ work step 7 will eventually need** — the three `read_only?` mappings are still
 is the demonstration, at a fraction of the risk. It should not be read as progress along the phase
 model, because it is orthogonal to it.
 
-### Three things found by running it, which are the reason to trust the rest
+### Three things found by running it
 
-Each was found by executing something rather than by rereading code, which is the lesson
-[`../plans/README.md`](../plans/README.md) says these documents exist to teach.
+Each was found by executing something rather than by rereading code.
 
 **1. The backfill and the live projector disagreed.** The task originally rebuilt the attribute map
 itself and called the upsert directly — so it skipped the lifecycle transition, and a legacy user in
 `suspended` or `passive` sat in `projected_users` marked `:active`. Whether a given row was correct
 depended on whether anyone had edited it since the projector started. Invisible in review, obvious in
 one `SELECT`. Fixed by making `Projection.project_row/1` the only entry point, with both callers going
-through it and a comment at the call site saying why. This is the ordinary fate of a rule expressed in
-two places, and it is why `project_row/1` is public API rather than a private helper.
+through it and a comment at the call site saying why. A rule expressed in two places is a rule that
+drifts, and it is why `project_row/1` is public API rather than a private helper.
 
 **2. An ordering trap that points both ways.** `mix ash_enterprise.legacy.setup` must run *before* the
 migrations, because the strangler view cannot be created against a database where `legacy.users` has
@@ -284,7 +283,7 @@ never existed. The projection must run *after* them, because `projected_users` i
 projection into `legacy.setup` — where it looks like it belongs, next to the rest of the legacy
 plumbing — produced nine `relation "projected_users" does not exist` errors on a fresh database, each
 one reported as a **refused row**. One refusal is a data-quality finding worth printing; nine refusals
-for the same structural reason is a mistake wearing a finding's clothes. It is now sequenced after
+for the same structural reason are a bug, not a finding. It is now sequenced after
 `ash.setup` in the `setup` and `ecto.setup` aliases, and the task opens with an `ensure_table!/0` guard
 that raises and explains both orderings. The `test` alias deliberately does *not* project, because every
 test that cares seeds the estate inside its own sandbox transaction.
