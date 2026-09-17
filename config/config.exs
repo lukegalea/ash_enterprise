@@ -27,6 +27,22 @@ config :ash_enterprise, Oban,
     # process engine is the one failure mode that must not be possible. Found by killing a
     # seed run mid-drain and watching three instances stick.
     {Oban.Plugins.Lifeline, rescue_after: :timer.minutes(5)},
+    # Retention. Without a Pruner `oban_jobs` grows forever, and this application feeds it
+    # steadily: a cron job per tenant every minute, plus a row for every token advance and
+    # every timer. Naming `plugins:` at all suppresses Oban's defaults, so the absence here
+    # was not "the default retention" -- it was none.
+    #
+    # Seven days, not the 60-second default, and the number is a decision rather than a
+    # preference. Oban's Pruner deletes `completed`, `cancelled` and `discarded` rows, which
+    # for a process engine is exactly the history someone asks about after an incident: *was
+    # that escalation cancelled, or did it fire?* A week is long enough to answer that from
+    # the job table during the window anyone is still asking.
+    #
+    # It is deliberately **not** the audit trail. `AshEnterprise.Audit.EventLog` is, and the
+    # engine's own `ProcessEvent` rows are; both are permanent and neither is pruned. A job
+    # row is execution substrate, and seven days of it is an operational convenience, not a
+    # record we promise anybody.
+    {Oban.Plugins.Pruner, max_age: 7 * 24 * 60 * 60},
     {Oban.Plugins.Cron,
      crontab: [
        # The trigger sweep is the *driver*, not a safety net: the nudge on the audit log is
