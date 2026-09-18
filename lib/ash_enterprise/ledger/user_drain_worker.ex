@@ -29,6 +29,13 @@ defmodule AshEnterprise.Ledger.UserDrainWorker do
 
   use Oban.Worker, queue: :ash_strangler_ledger, max_attempts: 10, unique: [period: 30]
 
+  # Sobelow reads `@sobelow_skip` out of the source AST, so nothing in the
+  # compiled module ever consults it and Elixir reports it as "set but never
+  # used" -- which `--warnings-as-errors` turns into a failed build. Persisting
+  # it writes the value into the beam's attribute chunk, which counts as a use.
+  # Same pattern, and same reason, as AshEnterprise.Audit.Export.
+  Module.register_attribute(__MODULE__, :sobelow_skip, persist: true)
+
   alias AshEnterprise.Repo
 
   @batch_size 200
@@ -110,6 +117,15 @@ defmodule AshEnterprise.Ledger.UserDrainWorker do
     :actor_confidence
   ]
 
+  # The interpolation Sobelow flags is `@claim_columns` and `@events_table`,
+  # both module attributes defined above from literals -- there is no parameter,
+  # no assign and no request data anywhere near this string, which is why the
+  # finding is Low Confidence. The values that *do* vary are passed as $1/$2/$3.
+  #
+  # Skipped by name and at this function rather than globally: if a column list
+  # here ever becomes something a caller supplies, that is a real finding and
+  # this attribute is the thing a reviewer should question.
+  @sobelow_skip ["SQL.Query"]
   defp claim do
     %Postgrex.Result{rows: rows} =
       AshEnterprise.Repo.query!(
