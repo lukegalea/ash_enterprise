@@ -236,59 +236,78 @@ defmodule AshEnterprise.Compliance.Seeds do
     revision
   end
 
+  # Split into three find-or-creates rather than one function holding all of
+  # them. Each is the same shape -- read one, create it when absent, reconcile
+  # it when present -- and stacking three of those in a row was what put this
+  # over the complexity bound. The seeding order is the only thing the caller
+  # needs to read here.
   defp seed_profile(organization_id) do
-    profile =
-      case Profile
-           |> Ash.Query.filter(organization_id == ^organization_id and name == "kyc-tailoring")
-           |> Ash.read_one!(authorize?: false) do
-        nil ->
-          Ash.create!(Profile, %{
-            organization_id: organization_id,
-            name: "kyc-tailoring"
-          })
+    profile = seed_profile_row(organization_id)
+    revision = seed_profile_revision(profile)
+    attach_to_policy_set(organization_id, revision)
 
-        profile ->
-          profile
-      end
+    revision
+  end
 
-    operations = [
-      # Refines the STRENGTHENING rule — refining a mandatory rule is
-      # refused by the compiler, which is exactly the check to exercise.
-      %{"op" => "refine", "target" => "kyc.mfa_required", "severity" => "high"}
-    ]
+  defp seed_profile_row(organization_id) do
+    Profile
+    |> Ash.Query.filter(organization_id == ^organization_id and name == "kyc-tailoring")
+    |> Ash.read_one!(authorize?: false)
+    |> case do
+      nil ->
+        Ash.create!(Profile, %{organization_id: organization_id, name: "kyc-tailoring"})
 
-    revision =
-      case ProfileRevision
-           |> Ash.Query.filter(profile_id == ^profile.id and version == "1")
-           |> Ash.read_one!(authorize?: false) do
-        nil ->
-          Ash.create!(ProfileRevision, %{
-            profile_id: profile.id,
-            version: "1",
-            source: "seeded tailoring",
-            operations: operations,
-            content_hash: content_hash("profile-v1")
-          })
+      profile ->
+        profile
+    end
+  end
 
-        revision ->
-          # Revisions are immutable by design; when the seeded operations move
-          # on (they did once, mid-development), the correction is a corrected
-          # row behind the same version key. Direct repo write: the package
-          # ships no update action for revisions, deliberately.
-          if revision.operations != operations do
-            AshEnterprise.Repo.update!(Ecto.Changeset.change(revision, operations: operations))
+  # Refines the STRENGTHENING rule -- refining a mandatory rule is refused by
+  # the compiler, which is exactly the check to exercise.
+  defp profile_operations do
+    [%{"op" => "refine", "target" => "kyc.mfa_required", "severity" => "high"}]
+  end
 
-            revision
-          else
-            revision
-          end
-      end
+  defp seed_profile_revision(profile) do
+    operations = profile_operations()
 
-    # Attach to the tenant's policy set — creating it here when the compile
-    # flow has not made one yet, and updating the ids when it has.
-    case TenantPolicySet
-         |> Ash.Query.filter(organization_id == ^organization_id)
-         |> Ash.read_one!(authorize?: false) do
+    ProfileRevision
+    |> Ash.Query.filter(profile_id == ^profile.id and version == "1")
+    |> Ash.read_one!(authorize?: false)
+    |> case do
+      nil ->
+        Ash.create!(ProfileRevision, %{
+          profile_id: profile.id,
+          version: "1",
+          source: "seeded tailoring",
+          operations: operations,
+          content_hash: content_hash("profile-v1")
+        })
+
+      revision ->
+        reconcile_revision(revision, operations)
+    end
+  end
+
+  # Revisions are immutable by design; when the seeded operations move on (they
+  # did once, mid-development), the correction is a corrected row behind the
+  # same version key. Direct repo write: the package ships no update action for
+  # revisions, deliberately.
+  defp reconcile_revision(revision, operations) do
+    if revision.operations != operations do
+      AshEnterprise.Repo.update!(Ecto.Changeset.change(revision, operations: operations))
+    end
+
+    revision
+  end
+
+  # Attach to the tenant's policy set -- creating it here when the compile flow
+  # has not made one yet, and updating the ids when it has.
+  defp attach_to_policy_set(organization_id, revision) do
+    TenantPolicySet
+    |> Ash.Query.filter(organization_id == ^organization_id)
+    |> Ash.read_one!(authorize?: false)
+    |> case do
       nil ->
         {:ok, _} =
           Ash.create(TenantPolicySet, %{
@@ -297,13 +316,15 @@ defmodule AshEnterprise.Compliance.Seeds do
             profile_revision_ids: [revision.id]
           })
 
+        :ok
+
       policy_set ->
         AshEnterprise.Repo.update!(
           Ecto.Changeset.change(policy_set, profile_revision_ids: [revision.id])
         )
-    end
 
-    revision
+        :ok
+    end
   end
 
   defp seed_waiver(organization_id) do

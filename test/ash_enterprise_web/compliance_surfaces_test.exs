@@ -13,12 +13,12 @@ defmodule AshEnterpriseWeb.ComplianceSurfacesTest do
   use AshEnterprise.DataCase, async: false
 
   alias AshEnterprise.Security.ActorContext
+  alias AshEnterpriseWeb.A2ui.CatalogUI
   alias AshEnterpriseWeb.A2ui.ComplianceEvaluationUI
   alias AshEnterpriseWeb.A2ui.FindingUI
   alias AshEnterpriseWeb.A2ui.PolicyBundleUI
   alias AshEnterpriseWeb.A2ui.ProfileUI
   alias AshEnterpriseWeb.A2ui.RuleSetRevisionUI
-  alias AshEnterpriseWeb.A2ui.CatalogUI
   alias AshEnterpriseWeb.ComplianceAuth
 
   setup do

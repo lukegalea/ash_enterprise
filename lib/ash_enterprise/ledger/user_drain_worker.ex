@@ -66,16 +66,21 @@ defmodule AshEnterprise.Ledger.UserDrainWorker do
     AshEnterprise.Repo.transaction(fn ->
       events = claim()
 
-      Enum.each(events, fn event ->
-        case AshEnterprise.Ledger.UserIngestion.ingest(event) do
-          {:ok, _} -> :ok
-          {:error, reason} -> Repo.rollback({:ingest_failed, event.id, reason})
-        end
-      end)
+      Enum.each(events, &ingest_or_rollback/1)
 
       mark_processed(Enum.map(events, & &1.id))
       length(events)
     end)
+  end
+
+  # One event, inside the caller's transaction: a failure rolls the whole batch
+  # back rather than leaving some rows ingested and some claimed-but-not. Lifted
+  # out of `drain_batch/0` so the transaction body reads as claim, ingest, mark.
+  defp ingest_or_rollback(event) do
+    case AshEnterprise.Ledger.UserIngestion.ingest(event) do
+      {:ok, _} -> :ok
+      {:error, reason} -> Repo.rollback({:ingest_failed, event.id, reason})
+    end
   end
 
   # FOR UPDATE SKIP LOCKED: concurrent workers claim disjoint rows instead
