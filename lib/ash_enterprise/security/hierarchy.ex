@@ -79,6 +79,24 @@ defmodule AshEnterprise.Security.Hierarchy do
     config()[:mode] || :disabled
   end
 
+  # Both defaults are applied with `||` at the point of use, and that is
+  # load-bearing rather than a style. `Application.get_env(app, key, default)`
+  # applies its default inside a function that distinguishes *unset* from
+  # *present with a nil value*, and fires only for unset -- so a key written as
+  # nil (which `put_env(key, nil)` does, and which a test restoring a captured
+  # nil does by accident) reaches the caller as nil, past the default.
+  #
+  # Here that would be silent and it would matter. `max_depth` bounds how far a
+  # manager's reach extends down the subtree, and it is compared, not matched:
+  # Elixir orders numbers before atoms, so `5 > nil` is *false* and a nil bound
+  # is a bound that never fires at any depth. `mode` would fall through to
+  # `:disabled`, which is at least the fail-closed direction, but the depth one
+  # would quietly widen access.
+  #
+  # `value || default` cannot tell the two states apart and does not need to:
+  # both are falsy, both take the default. The form that looks lazier is the
+  # correct one. Rewriting either of these as `get_env(..., key, default)` would
+  # look equivalent and would not be.
   defp config, do: Application.get_env(:ash_enterprise, :hierarchy_security, [])
   defp max_depth, do: config()[:max_depth] || 3
 
