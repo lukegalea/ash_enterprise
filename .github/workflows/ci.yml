@@ -66,6 +66,44 @@ jobs:
       - name: Install xmllint
         run: sudo apt-get update -y && sudo apt-get install -y libxml2-utils
 
+      # ash_rules and ash_compliance are private, and CI has no credentials for
+      # them by default -- `mix deps.get` failed asking for a GitHub username,
+      # which stopped the job before `mix test` and meant no branch had run its
+      # tests since they were added.
+      #
+      # Each gets its own READ-ONLY deploy key, because a deploy key is scoped
+      # to one repository: one key cannot stand in for the other, and neither
+      # can reach anything else. mix.exs declares both with `github:`, which
+      # resolves to https, so each URL is rewritten to an SSH host alias bound
+      # to exactly one key. Aliases rather than a shared agent: with two keys in
+      # one agent SSH offers them in turn and the pairing is incidental, whereas
+      # this fails loudly if a key is ever wrong for its repository.
+      - name: Authorize the private first-party dependencies
+        env:
+          COMPLIANCE_KEY: ${{ secrets.ASH_COMPLIANCE_DEPLOY_KEY }}
+          RULES_KEY: ${{ secrets.ASH_RULES_DEPLOY_KEY }}
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$COMPLIANCE_KEY" > ~/.ssh/ash_compliance
+          printf '%s\n' "$RULES_KEY" > ~/.ssh/ash_rules
+          chmod 600 ~/.ssh/ash_compliance ~/.ssh/ash_rules
+          ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
+          cat >> ~/.ssh/config <<'SSHCONF'
+          Host gh-ash-compliance
+            HostName github.com
+            User git
+            IdentityFile ~/.ssh/ash_compliance
+            IdentitiesOnly yes
+          Host gh-ash-rules
+            HostName github.com
+            User git
+            IdentityFile ~/.ssh/ash_rules
+            IdentitiesOnly yes
+          SSHCONF
+          chmod 600 ~/.ssh/config
+          git config --global url."git@gh-ash-compliance:lukegalea/ash_compliance".insteadOf "https://github.com/lukegalea/ash_compliance"
+          git config --global url."git@gh-ash-rules:lukegalea/ash_rules".insteadOf "https://github.com/lukegalea/ash_rules"
+
       - run: mix deps.get
 
       # Dependencies compile in their own invocation, before the gate below.
@@ -144,6 +182,44 @@ jobs:
             priv/plts
           key: ${{ runner.os }}-dialyzer-${{ hashFiles('mix.lock') }}
           restore-keys: ${{ runner.os }}-dialyzer-
+
+      # ash_rules and ash_compliance are private, and CI has no credentials for
+      # them by default -- `mix deps.get` failed asking for a GitHub username,
+      # which stopped the job before `mix test` and meant no branch had run its
+      # tests since they were added.
+      #
+      # Each gets its own READ-ONLY deploy key, because a deploy key is scoped
+      # to one repository: one key cannot stand in for the other, and neither
+      # can reach anything else. mix.exs declares both with `github:`, which
+      # resolves to https, so each URL is rewritten to an SSH host alias bound
+      # to exactly one key. Aliases rather than a shared agent: with two keys in
+      # one agent SSH offers them in turn and the pairing is incidental, whereas
+      # this fails loudly if a key is ever wrong for its repository.
+      - name: Authorize the private first-party dependencies
+        env:
+          COMPLIANCE_KEY: ${{ secrets.ASH_COMPLIANCE_DEPLOY_KEY }}
+          RULES_KEY: ${{ secrets.ASH_RULES_DEPLOY_KEY }}
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$COMPLIANCE_KEY" > ~/.ssh/ash_compliance
+          printf '%s\n' "$RULES_KEY" > ~/.ssh/ash_rules
+          chmod 600 ~/.ssh/ash_compliance ~/.ssh/ash_rules
+          ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
+          cat >> ~/.ssh/config <<'SSHCONF'
+          Host gh-ash-compliance
+            HostName github.com
+            User git
+            IdentityFile ~/.ssh/ash_compliance
+            IdentitiesOnly yes
+          Host gh-ash-rules
+            HostName github.com
+            User git
+            IdentityFile ~/.ssh/ash_rules
+            IdentitiesOnly yes
+          SSHCONF
+          chmod 600 ~/.ssh/config
+          git config --global url."git@gh-ash-compliance:lukegalea/ash_compliance".insteadOf "https://github.com/lukegalea/ash_compliance"
+          git config --global url."git@gh-ash-rules:lukegalea/ash_rules".insteadOf "https://github.com/lukegalea/ash_rules"
 
       - run: mix deps.get
       - run: mkdir -p priv/plts
