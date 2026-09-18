@@ -141,6 +141,7 @@ Sign in with the credentials the seeder prints, then visit:
 | `/app/users`, `/app/teams`, `/app/roles`, `/app/business-units` | A2UI surfaces derived from resource metadata |
 | `/app/legacy-users` | The same, over a 2010-era Rails schema read through a compatibility view — and it updates when the old application writes |
 | `/admin` | Zero-config admin over every resource |
+| `/canvas` | The domains, resources and relationships as one object graph, with the selected resource's surface beneath it (dev only) |
 | `/clarity` | ER, class, policy and state-machine diagrams (dev only) |
 | `/api/json/swaggerui` · `/gql/playground` | JSON:API + OpenAPI, GraphQL |
 
@@ -233,6 +234,24 @@ notification, so nothing downstream can tell which application wrote it:
 Nothing there is staged: the row arrives from a plain `INSERT INTO legacy.users`
 issued with `psql` — no Ash, no changeset, no HTTP request. See
 [`priv/legacy/README.md`](priv/legacy/README.md) for the commands.
+
+**The object graph.** `/canvas` is the application's own structure: every domain,
+every resource, and the relationships between them, derived from Ash metadata
+alone. No record is ever a node — the graph is declared structure, not a query,
+so opening it reads nothing.
+
+![The canvas object graph: the application at the top, thirteen domains beneath it, and their resources below, joined by containment and relationship edges](docs/screenshots/canvas-graph.png)
+
+Selecting a node resolves it server-side into a *naked object*: what it is,
+where it came from, and — one `Ash.can?/3` per action, with your actor — what
+you may do with it. The graph focuses on the selection and its immediate
+neighbours, and the resource's own A2UI surface opens underneath, so the thing
+you just pointed at is also the thing you can now browse and edit.
+
+![The User resource selected: its neighbours highlighted and the rest of the graph dimmed, with the Users surface rendered below](docs/screenshots/canvas-selected-surface.png)
+
+It is dev-only, behind the same flag as `/clarity`, and serves the same
+audience.
 
 **AshAdmin.** Every resource, every action, no configuration.
 

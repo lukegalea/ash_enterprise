@@ -68,7 +68,11 @@ const LEVEL_BAND_GAP = 48;
 // Declutter thresholds: resource labels hide below this zoom when the
 // graph is crowded; relationship names show above this zoom (always on
 // hover regardless).
-const RESOURCE_LABEL_ZOOM = 0.8;
+// Below this zoom a crowded graph drops its resource labels. It sits under the
+// zoom a full fit lands on (about 0.75 for this application's 68 nodes) so the
+// default view is labelled: at 0.8 the whole graph arrived as rows of unnamed
+// boxes, which is decluttering applied to the one view nobody chose.
+const RESOURCE_LABEL_ZOOM = 0.7;
 const EDGE_LABEL_ZOOM = 1.15;
 const CROWDED_NODE_COUNT = 24;
 
@@ -176,7 +180,22 @@ export class AshCanvasGraph extends LitElement {
       outline: 2px solid var(--cv-focus);
       outline-offset: -2px;
     }
-    .cv-frame > div {
+    /* The cytoscape container ONLY -- matched by its part name, not by being a
+     * div. This selector used to be .cv-frame > div, which also matched
+     * .cv-empty, .cv-controls and .cv-legend, stretching each of them across
+     * the whole frame with inset: 0. Those rules then override only the sides
+     * they name -- the legend sets left and bottom and inherits top: 0 and
+     * right: 0 -- so the legend became a full-frame sheet of
+     * color-mix(in srgb, var(--cv-surface) 88%, transparent) at z-index 5,
+     * sitting on top of all three canvases. The graph was drawn correctly and
+     * then covered by 88% opaque white, which is why it read as washed out at
+     * roughly 12% strength while the canvas buffers held full-strength colour.
+     *
+     * It took as long as it did to find because pointer-events: none makes the
+     * legend invisible to elementsFromPoint, and being a sibling rather than an
+     * ancestor means no opacity or filter appears anywhere in the canvas's own
+     * computed style. */
+.cv-frame > [part="cytoscape"] {
       position: absolute;
       inset: 0;
     }
