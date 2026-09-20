@@ -126,3 +126,31 @@ enough that this branch starts drifting from the library's mainline, the
 right move is to merge upstream first and re-pin — carrying a long-lived
 fork of a tier-3 dependency is the failure mode the SHA-pinning in the base
 was chosen to avoid.
+
+## Correction — 2026-09-20: the pin landed, and the sentence is finished
+
+The branch pin described above no longer exists, so three statements in this
+record are now false and are left in place rather than edited, because what the
+decision looked like while it was still open is the part worth keeping.
+
+`feat/experience-v1` and `feat/catalog-admin-v1` both merged upstream
+(`ash_a2ui` 769a0ad, then 53c1a0c). The dependency tracks `main` and `mix.lock`
+holds the merged commit, which is the move the **Carried** section said to make
+and the resolution of **the signal to watch**. Nothing drifted: the pin was open
+for two days.
+
+Two consequences for the sections above.
+
+**The reversal ladder is shorter than it was.** "Delete the `config :ash_a2ui`
+tuple" and "set `catalog: :basic`" are unchanged and remain one-line reverts.
+What has gone is the third rung — there is no branch to unpin, so reverting the
+experience no longer implies anything about the dependency at all.
+
+**The one test that had to change has company now.** `row_count/3` was the only
+consumer-side edit at adoption. Two further defects surfaced afterwards, both
+from looking at the rendered screens rather than the payload, and both fixed
+upstream: surface headings were the resource's module short name, so
+`/app/legacy-users` was titled "User"; and enum values reached grid cells as raw
+atoms while the form picker for the same field showed labels. Neither was a
+regression from this adoption — v1 had both — but v2 is where they became
+visible, which is the argument for the acceptance tier this ADR introduced.

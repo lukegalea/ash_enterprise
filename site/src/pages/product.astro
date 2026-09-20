@@ -458,6 +458,41 @@ const btn =
           frame="tall"
         />
       </div>
+
+      <div class="mt-14">
+        <h3 class="font-display text-2xl text-ae-ink">
+          And one surface that is not a page at all
+        </h3>
+
+        <div class="mt-4 grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-start">
+          <ScreenshotFigure
+            name="canvas-projections.png"
+            alt="The canvas object graph with a BPMN process definition selected, showing its capabilities, its projections including diagram, and links to the process catalogue and the modeller."
+            caption="/canvas — a process definition resolved into an object: what it is, what you may do with it, and every way this application can show it."
+          />
+          <div class="space-y-4 leading-relaxed text-pretty text-muted">
+            <p>
+              The same metadata that produces those screens also describes the application to
+              itself. Every domain, every resource and every relationship is one object graph,
+              derived from Ash alone — no record is ever a node, so opening it reads nothing.
+            </p>
+            <p>
+              Select something and it resolves server-side into an object: where it came from, one
+              <code class="font-mono text-[0.9em]">Ash.can?/3</code> per action with your actor, and
+              the <em>projections</em> it offers — the ways it can be shown. Most are derived from
+              the actions a resource declares. Some cannot be: a process definition and a business
+              unit have indistinguishable actions, and what differs is that this application ships a
+              modeller and points it at one of them. That is a fact about the host, so the host
+              declares it.
+            </p>
+            <p>
+              Which is the point worth taking from this section. A derived table is one projection
+              of an object, not the object itself — and a process definition, whose page is a BPMN
+              modeller rather than a table, is reachable the same way and on the same terms.
+            </p>
+          </div>
+        </div>
+      </div>
     </section>
 
     {/* ==================== 6 · Tenant-safe agents ==================== */}

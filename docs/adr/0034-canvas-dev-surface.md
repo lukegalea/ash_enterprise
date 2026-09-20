@@ -103,3 +103,24 @@ decision that was dev-only was *where it lives*, not what it is.
 duplicates what the admin catalog's components already do, the "inspector is
 not a surface" line has been crossed in the wrong direction — the honest fix
 is making the inspector a projection, not growing a second renderer.
+
+## Correction — 2026-09-20: the inspector links more than browse
+
+One mechanism above is superseded by
+[ADR 0037](0037-projections-are-host-declared.md).
+
+The Decision says the inspector "turns the browse projection into a link to the
+resource's declared app surface via `AshEnterpriseWeb.A2ui.Surfaces` when one
+exists". That was the whole routing rule, and it made a node's reachability
+depend on whether its page happened to be a derived A2UI table. The process
+layer is deliberately not built that way, so every BPMN and decision resource
+appeared here as an object with nowhere to go while the application had a page
+for each of them.
+
+The inspector now renders one link per projection that has a destination, and
+the host declares the projections that action shape cannot reveal — which is
+also what finally emits `:diagram`, a kind this ADR named and nothing produced.
+
+Everything else in this record stands: records are still never graph nodes, no
+event can request one, the inspector is still server-rendered HEEx rather than
+an A2UI surface, and the surface is still dev-only behind the `/clarity` flag.

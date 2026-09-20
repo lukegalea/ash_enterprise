@@ -97,3 +97,30 @@ in the router. LiveView named `CanvasLive` under
 - ADR 0034 (`docs/adr/0034-canvas-dev-surface.md`): dev-only boundary,
   library dependency (PR #3 / stack ref), Cytoscape host-side decision,
   progressive-disclosure guarantee, a11y tree contract.
+
+## Correction — 2026-09-20: projections are host-declared, and links are plural
+
+Two statements above describe a contract that has since widened.
+
+**"When the resource has a declared app surface route … the browse projection
+renders as a link to it."** That was the whole of the routing rule, and it made
+a node's reachability depend on whether its page happened to be a derived A2UI
+table. The process layer is deliberately not built that way — a BPMN diagram is
+bpmn-js, an approvals list is an indexed candidate query — so every BPMN and
+decision resource appeared in the graph as an object with nowhere to go, while
+the application had a page for each of them all along. The inspector now renders
+one link per projection that has a destination, and a resource with a host route
+but no A2UI surface gets one.
+
+**"projections (declared kinds)"** understates what the host may say. Projections
+were derived purely from action shape, which cannot distinguish a process
+definition from a business unit: their actions are identical, and what differs is
+that this application draws one of them. `AshA2ui.Canvas.Registry.projections/2`
+(added upstream, `ash_a2ui` 825f327) lets the host choose among the declared
+kinds; the vocabulary stays the library's, so the host cannot introduce a
+projection the experience compiler has no meaning for. See
+[ADR 0037](../adr/0037-projections-are-host-declared.md).
+
+What has *not* changed: records are still never graph nodes, no event can request
+one, and audience gating is still a later phase. The registry remains the single
+place that decision will land.

@@ -243,10 +243,23 @@ so opening it reads nothing.
 ![The canvas object graph: the application at the top, thirteen domains beneath it, and their resources below, joined by containment and relationship edges](docs/screenshots/canvas-graph.png)
 
 Selecting a node resolves it server-side into a *naked object*: what it is,
-where it came from, and — one `Ash.can?/3` per action, with your actor — what
-you may do with it. The graph focuses on the selection and its immediate
-neighbours, and the resource's own A2UI surface opens underneath, so the thing
-you just pointed at is also the thing you can now browse and edit.
+where it came from, one `Ash.can?/3` per action with your actor, and the
+*projections* it offers — the ways this application can show it. The graph
+focuses on the selection and its immediate neighbours, and the object's own
+A2UI surface opens underneath, so the thing you just pointed at is also the
+thing you can now browse and edit.
+
+Projections are where the object model stops being a diagram of the database.
+Most are derived from the actions a resource declares — a read makes it
+browsable, an update makes it editable — but some cannot be. A BPMN process
+definition and a business unit have indistinguishable actions; what differs is
+that this application ships bpmn-js and points it at one of them, which is a
+fact about the host rather than the resource. So the host declares those
+([ADR 0037](docs/adr/0037-projections-are-host-declared.md)), and every
+projection that has somewhere to go renders as a link beside it. A process
+definition offers `diagram` and opens in the modeller; approvals open in the
+task list. None of those pages is a derived table, and until they were reachable
+this way the whole process layer sat in the graph as objects with nowhere to go.
 
 ![The User resource selected: its neighbours highlighted and the rest of the graph dimmed, with the Users surface rendered below](docs/screenshots/canvas-selected-surface.png)
 
