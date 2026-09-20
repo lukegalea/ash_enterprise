@@ -42,10 +42,10 @@ them during the sync and fails the build on a dead one.
 which Astro already depends on for `astro:assets`. It runs in `prebuild` and `dev`.
 
 Two reasons it is generated rather than exported from a design tool. The layout sets
-`twitter:card=summary_large_image`, so **without an image every share renders a blank rectangle** —
-which was the state until August 2026 — and a hand-made card would carry a number that goes stale the
-first time a question flips to shipped. The card reads the live scoreboard, so the first thing a
-stranger sees is the honest one.
+`twitter:card=summary_large_image`, so **without an image every share renders a blank rectangle**.
+And a hand-made card would drift from the brand the first time the headline changes — generating it
+keeps the share card in lockstep with the marketing page's Atelier design (headline, palette and
+type come from the same source of truth).
 
 `og.png` is the one generated file that belongs in `public/`: a crawler fetches it by absolute URL
 from `<meta property="og:image">`, so it must keep an exact name at an exact path and must not be

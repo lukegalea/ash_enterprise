@@ -2,10 +2,17 @@
 /**
  * A syntax-highlighted code sample with an optional filename bar.
  *
- * The panel is dark in both themes on purpose: a terminal and an editor look
- * like a terminal and an editor, and a single Shiki theme means one set of
- * tokens to check rather than two. The surrounding chrome is tokenised, so the
- * panel still sits correctly on either background.
+ * Two themes:
+ *
+ * - `default` — the dark terminal panel. Dark in both site themes on purpose:
+ *   a terminal and an editor look like a terminal and an editor, and a single
+ *   Shiki theme means one set of tokens to check rather than two.
+ * - `atelier` — the "Enterprise Atelier" paper plate (design handoff:
+ *   docs/design_handoff_ash_enterprise_hero). A mounted specimen, not a
+ *   terminal: paper background, 2px radius, hairline rule, IBM Plex Mono at
+ *   14px/1.75. Tokenised to the `--ae-*` CSS variables, so it follows the
+ *   `data-theme` dark-mode swap automatically. Elixir is tokenised here; other
+ *   languages render plain ink rather than a half-right highlighting.
  */
 import { Code } from 'astro:components';
 
@@ -14,32 +21,125 @@ interface Props {
   lang?: string;
   /** Shown in the title bar; usually a path or a shell prompt label. */
   filename?: string;
+  theme?: 'default' | 'atelier';
   class?: string;
 }
 
-const { code, lang = 'elixir', filename, class: className = '' } = Astro.props;
+const {
+  code,
+  lang = 'elixir',
+  filename,
+  theme: panelTheme = 'default',
+  class: className = '',
+} = Astro.props;
+
+/* --- Atelier token map --------------------------------------------------- */
+/*
+ * The handoff's specimen spec, one entry per token kind. Colours are the
+ * `--ae-*` variables so light and dark resolve from the same map. Keyword-list
+ * keys (`domain:`, `allow_nil?:`) deliberately stay ink — the design colours
+ * only leading-colon atoms.
+ */
+const escapeHtml = (value: string): string =>
+  value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+const ATELIER_TOKEN_MAP: Record<string, string> = {
+  keyword: 'color: var(--ae-workshop)',
+  string: 'color: var(--ae-copper)',
+  atom: 'color: var(--ae-blueprint)',
+  boolean: 'color: var(--ae-vermilion)',
+  comment: 'color: var(--ae-blueprint); font-style: italic',
+};
+
+const ATELIER_KEYWORDS = 'defmodule|defmacro|use|do|end';
+const ATELIER_TOKEN_RE = new RegExp(
+  // strings | comments | atoms | booleans | keywords — in that order, so a
+  // `#` inside a string is a string and `:true` is an atom, not a boolean.
+  `("(?:[^"\\\\]|\\\\.)*")` +
+    `|(#[^\\n]*)` +
+    `|(:[a-zA-Z_][a-zA-Z0-9_]*[?!]?)` +
+    `|\\b(true|false)\\b` +
+    `|\\b(${ATELIER_KEYWORDS})\\b`,
+  'g',
+);
+
+function highlightAtelierElixir(source: string): string {
+  let out = '';
+  let last = 0;
+  for (const match of source.matchAll(ATELIER_TOKEN_RE)) {
+    const index = match.index ?? 0;
+    out += escapeHtml(source.slice(last, index));
+    const [full, strTok, commentTok, atomTok, boolTok, keywordTok] = match;
+    const style = strTok
+      ? ATELIER_TOKEN_MAP.string
+      : commentTok
+        ? ATELIER_TOKEN_MAP.comment
+        : atomTok
+          ? ATELIER_TOKEN_MAP.atom
+          : boolTok
+            ? ATELIER_TOKEN_MAP.boolean
+            : keywordTok
+              ? ATELIER_TOKEN_MAP.keyword
+              : '';
+    out += `<span style="${style}">${escapeHtml(full)}</span>`;
+    last = index + full.length;
+  }
+  return out + escapeHtml(source.slice(last));
+}
+
+const isAtelier = panelTheme === 'atelier';
+const atelierHtml = isAtelier
+  ? lang === 'elixir'
+    ? highlightAtelierElixir(code.trim())
+    : escapeHtml(code.trim())
+  : '';
 ---
 
 <div
   class:list={[
-    'not-prose overflow-hidden rounded-xl border border-line bg-[#0d1117] shadow-card',
+    'not-prose overflow-hidden',
+    isAtelier
+      ? 'rounded-[2px] border border-ae-rule bg-ae-paper'
+      : 'rounded-xl border border-line bg-[#0d1117] shadow-card',
     className,
   ]}
 >
   {
     filename && (
-      <div class="flex items-center gap-2 border-b border-white/10 px-4 py-2.5">
-        <span class="h-2 w-2 rounded-full bg-white/20" aria-hidden="true" />
-        <span class="font-mono text-xs tracking-wide text-white/55">{filename}</span>
+      <div
+        class:list={[
+          'flex items-center gap-2 border-b px-4 py-2.5',
+          isAtelier ? 'border-ae-rule' : 'border-white/10',
+        ]}
+      >
+        {isAtelier ? (
+          <span class="font-mono text-xs tracking-wide text-ae-copper">{filename}</span>
+        ) : (
+          <>
+            <span class="h-2 w-2 rounded-full bg-white/20" aria-hidden="true" />
+            <span class="font-mono text-xs tracking-wide text-white/55">{filename}</span>
+          </>
+        )}
       </div>
     )
   }
-  <div class="overflow-guard">
-    <Code
-      code={code.trim()}
-      lang={lang as any}
-      theme="github-dark"
-      class="!bg-transparent px-4 py-4 text-[0.78125rem] leading-relaxed"
-    />
-  </div>
+  {
+    isAtelier ? (
+      <div class="overflow-guard">
+        <pre
+          class="whitespace-pre px-[30px] py-[28px] font-mono text-[14px] leading-[1.75] text-ae-ink"
+          set:html={atelierHtml}
+        />
+      </div>
+    ) : (
+      <div class="overflow-guard">
+        <Code
+          code={code.trim()}
+          lang={lang as any}
+          theme="github-dark"
+          class="!bg-transparent px-4 py-4 text-[0.78125rem] leading-relaxed"
+        />
+      </div>
+    )
+  }
 </div>

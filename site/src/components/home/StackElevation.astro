@@ -1,0 +1,274 @@
+---
+/**
+ * Fig. 1 — the stack read as an elevation (handoff §3).
+ *
+ * Five strata, read top-down 05 → 01; the reveal animation builds bottom-up
+ * 01 → 05 so the stack assembles as it enters the viewport. The chip lists are
+ * the brief's verified split (checked against mix.exs), not the handoff's.
+ *
+ * Fully static and credible without JavaScript: the strata render in their
+ * final state unless the script both runs and motion is allowed.
+ */
+const REPO = 'https://github.com/lukegalea/ash_enterprise';
+
+interface Chip {
+  label: string;
+  href: string;
+}
+
+const hex = (pkg: string): string => `https://hexdocs.pm/${pkg}/`;
+
+/** Stratum 05 — the first-party layer. One filled, the rest outlined. */
+const filledChip: Chip = {
+  label: 'AshEnterprise.Platform.Resource',
+  href: `${REPO}/blob/main/lib/ash_enterprise/platform/resource.ex`,
+};
+
+const outlinedChips: Chip[] = [
+  { label: 'ash_strangler', href: hex('ash_strangler') },
+  { label: 'ash_bpmn', href: hex('ash_bpmn') },
+  { label: 'ash_decisions', href: hex('ash_decisions') },
+  { label: 'ash_rules', href: hex('ash_rules') },
+  { label: 'ash_compliance', href: hex('ash_compliance') },
+  { label: 'ash_a2ui', href: hex('ash_a2ui') },
+  { label: 'CDM generators', href: `${REPO}/tree/main/priv/cdm` },
+  {
+    label: 'Security.ActorContext',
+    href: `${REPO}/blob/main/lib/ash_enterprise/security/actor_context.ex`,
+  },
+];
+
+/** Stratum 04 — wired in (verified present in mix.exs). */
+const wiredChips: Chip[] = [
+  { label: 'AshPostgres', href: hex('ash_postgres') },
+  { label: 'AshPhoenix', href: hex('ash_phoenix') },
+  { label: 'AshJsonApi', href: hex('ash_json_api') },
+  { label: 'AshGraphQL', href: hex('ash_graphql') },
+  { label: 'AshAdmin', href: hex('ash_admin') },
+  { label: 'AshEvents', href: hex('ash_events') },
+  { label: 'AshArchival', href: hex('ash_archival') },
+  { label: 'AshOban', href: hex('ash_oban') },
+  { label: 'AshAi', href: hex('ash_ai') },
+  { label: 'AshStateMachine', href: hex('ash_state_machine') },
+  { label: 'AshPaperTrail', href: hex('ash_paper_trail') },
+  { label: 'OpentelemetryAsh', href: hex('opentelemetry_ash') },
+];
+
+/** Stratum 04 — available on Hex, not wired into the reference app. */
+const availableChips: Chip[] = [
+  { label: 'AshMoney', href: hex('ash_money') },
+  { label: 'AshCloak', href: hex('ash_cloak') },
+  { label: 'AshRateLimiter', href: hex('ash_rate_limiter') },
+  { label: 'AshAuthentication', href: hex('ash_authentication') },
+  { label: 'Reactor', href: hex('reactor') },
+  { label: 'AshTypescript', href: hex('ash_typescript') },
+  { label: 'AshDoubleEntry', href: hex('ash_double_entry') },
+  { label: 'AshGeo', href: hex('ash_geo') },
+  {
+    label: 'AshSqlite · AshCsv · AshCubDB · AshAppSignal',
+    href: hex('ash_sqlite'),
+  },
+];
+
+/** Band heading — the handoff's 12px / 0.14em mono caps. */
+const bandHeading =
+  'font-mono text-[12px] uppercase tracking-[0.14em] font-medium';
+
+interface Stratum {
+  folio: string;
+  title: string;
+  annotation: string;
+  /** Band classes; strata alternate surface steps, 05 is keyed to workshop. */
+  bandClass: string;
+  headingClass: string;
+}
+
+const strata: Stratum[] = [
+  {
+    folio: '05',
+    title: 'Ash Enterprise',
+    annotation:
+      'The enterprise substrate Ash leaves to you: ownership hierarchy, tamper-evident audit, legacy strangling, BPMN and DMN as application data.',
+    bandClass: 'border border-ae-workshop bg-ae-paper-2 py-[22px]',
+    headingClass: 'text-ae-workshop',
+  },
+  {
+    folio: '04',
+    title: 'The Ash ecosystem',
+    annotation:
+      'Persistence, APIs, admin, jobs, events, soft deletion and LLM tools — all reading the same resources. Ash Enterprise wires twelve of them together as one system.',
+    bandClass: 'border border-ae-rule bg-ae-paper py-[22px]',
+    headingClass: 'text-ae-ink',
+  },
+  {
+    folio: '03',
+    title: 'Ash — resources, actions, policies',
+    annotation:
+      'Model your domain, derive the rest. Every extension above reads the same declarative resource.',
+    bandClass: 'border border-ae-rule bg-ae-paper-2 py-5',
+    headingClass: 'text-ae-ink',
+  },
+  {
+    folio: '02',
+    title: 'Phoenix & LiveView · Elixir & OTP',
+    annotation:
+      'Server-rendered interactivity and supervision trees, without a second runtime to operate.',
+    bandClass: 'border border-ae-rule bg-ae-paper-3 py-5',
+    headingClass: 'text-ae-ink',
+  },
+  {
+    folio: '01',
+    title: 'BEAM — the Erlang virtual machine',
+    annotation:
+      'Concurrency, isolation and fault tolerance that predate every framework above it.',
+    bandClass: 'border border-ae-rule bg-ae-paper-4 py-5',
+    headingClass: 'text-ae-ink',
+  },
+];
+
+const chipBase = 'inline-flex items-center gap-1.5 px-3 py-[7px] font-mono text-[13px]';
+---
+
+<figure id="fig1" class="overflow-guard">
+  <div class="flex flex-col">
+    {
+      strata.map((s, i) => (
+        <div
+          class:list={[
+            'fig1-stratum grid grid-cols-1 lg:grid-cols-[96px_minmax(0,1fr)_300px] lg:items-stretch lg:gap-8',
+            i > 0 && 'mt-3',
+          ]}
+        >
+          {/* Folio */}
+          <p class="font-mono text-[12px] text-ae-copper lg:pt-6">
+            <span class="lg:hidden" aria-hidden="true">stratum </span>{s.folio}
+          </p>
+
+          {/* Band */}
+          <div class:list={['min-w-0', s.bandClass]}>
+            <div class="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 px-6">
+              <h3 class:list={[bandHeading, s.headingClass]}>{s.title}</h3>
+              {s.folio === '04' && (
+                <span class="font-mono text-[11px] text-ae-blueprint">
+                  ● wired in · ○ available
+                </span>
+              )}
+            </div>
+
+            {s.folio === '05' && (
+              <div class="flex flex-wrap gap-2 px-6 pt-3.5">
+                <a
+                  class:list={[chipBase, 'bg-ae-workshop text-ae-paper transition-colors duration-150 hover:opacity-90']}
+                  href={filledChip.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {filledChip.label}
+                </a>
+                {outlinedChips.map((chip) => (
+                  <a
+                    class:list={[chipBase, 'border border-ae-workshop text-ae-ink transition-colors duration-150 hover:border-ae-workshop hover:bg-ae-paper']}
+                    href={chip.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {chip.label}
+                  </a>
+                ))}
+              </div>
+            )}
+
+            {s.folio === '04' && (
+              <div class="flex flex-wrap gap-2 px-6 pt-3.5">
+                {wiredChips.map((chip) => (
+                  <a
+                    class:list={[chipBase, 'border border-ae-rule bg-ae-paper-2 text-ae-ink transition-colors duration-150 hover:border-ae-workshop']}
+                    href={chip.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <span aria-hidden="true">●</span> {chip.label}
+                  </a>
+                ))}
+                {availableChips.map((chip) => (
+                  <a
+                    class:list={[chipBase, 'border border-dashed border-ae-rule text-ae-blueprint transition-colors duration-150 hover:border-ae-workshop hover:text-ae-ink']}
+                    href={chip.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <span aria-hidden="true">○</span> {chip.label}
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Margin annotation */}
+          <p class="mt-4 pl-0 text-[14px] leading-[1.55] text-ae-ink lg:mt-0 lg:border-l lg:border-ae-rule lg:pt-6 lg:pl-6">
+            {s.annotation}
+          </p>
+        </div>
+      ))
+    }
+  </div>
+
+  <figcaption class="mt-6 max-w-[820px] text-[14px] leading-[1.55] text-ae-blueprint">
+    Fig. 1 — The stack read as an elevation. Everything below this line is
+    already built. Nothing in strata 01–04 is ours; stratum 05 is the part a
+    small team would otherwise hand-build on every project.
+  </figcaption>
+</figure>
+
+<style>
+  /* The reveal is opt-in: the script sets data-animate only when it can run and
+   * motion is allowed, so the static render is always the final state. */
+  #fig1[data-animate] .fig1-stratum {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  .fig1-stratum {
+    transition:
+      opacity 300ms ease,
+      transform 300ms ease;
+  }
+
+  #fig1[data-animate] .fig1-stratum.is-revealed {
+    opacity: 1;
+    transform: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .fig1-stratum {
+      transition: none;
+    }
+  }
+</style>
+
+<script>
+  const fig = document.getElementById('fig1');
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  if (fig && !reduced && 'IntersectionObserver' in window) {
+    const rows = Array.from(fig.querySelectorAll<HTMLElement>('.fig1-stratum'));
+    fig.dataset.animate = '';
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) return;
+        io.disconnect();
+        // Build bottom-up: stratum 01 first, 120ms apart, 300ms each.
+        rows
+          .slice()
+          .reverse()
+          .forEach((row, i) => {
+            window.setTimeout(() => row.classList.add('is-revealed'), i * 120);
+          });
+      },
+      { threshold: 0.15 },
+    );
+
+    io.observe(fig);
+  }
+</script>

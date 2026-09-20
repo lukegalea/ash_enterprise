@@ -1,0 +1,177 @@
+---
+/**
+ * The leverage specimen — "What a declaration carries."
+ *
+ * An assembled plate of three real fragments, each in a colour-bounded box
+ * keyed to the extension that provides it. Boxes, legend chips and the
+ * outcome list all render from the data map in ./data.ts, and hover/focus on
+ * any of the three highlights the other two — the mapping is legible from
+ * colour *and* label, never colour alone.
+ */
+import CodePanel from '../CodePanel.astro';
+import { specimenFragments, keyVar } from './data';
+
+const plateCaption =
+  'mt-10 border-t border-ae-rule pt-5 font-mono text-[12px] text-ae-blueprint';
+---
+
+<div id="specimen" class="specimen-root">
+  <div class="grid gap-12 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-16">
+    {/* The plate. */}
+    <div class="flex flex-col gap-8">
+      {
+        specimenFragments.map((f) => (
+          <article
+            class="spec-box min-w-0 border border-ae-rule border-l-2 p-6 sm:p-7"
+            data-fragment={f.id}
+            style={`--key: ${keyVar[f.key]}; border-left-color: ${keyVar[f.key]};`}
+          >
+            <div class="mb-5 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
+              <a
+                class="font-mono text-[12px] font-medium tracking-[0.06em] transition-opacity duration-150 hover:opacity-80"
+                style={`color: ${keyVar[f.key]}`}
+                href={f.href}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {f.label}
+              </a>
+              <p class="font-mono text-[11px] text-ae-blueprint">{f.sourcePath}</p>
+            </div>
+
+            <CodePanel code={f.code} lang="elixir" theme="atelier" />
+
+            <p class="mt-5 max-w-[60ch] text-[14px] leading-[1.55] text-ae-ink">
+              {f.annotation}
+            </p>
+          </article>
+        ))
+      }
+    </div>
+
+    {/* The legend and what each box gives you. */}
+    <div class="lg:pt-1">
+      <p class="font-mono text-[11px] uppercase tracking-[0.18em] text-ae-copper">
+        The legend
+      </p>
+
+      <div class="mt-5 flex flex-wrap gap-2">
+        {
+          specimenFragments.map((f) => (
+            <a
+              class="spec-chip inline-flex items-center px-3 py-[7px] font-mono text-[13px] border border-ae-rule bg-ae-paper text-ae-ink transition-colors duration-150"
+              data-fragment={f.id}
+              style={`--key: ${keyVar[f.key]}`}
+              href={f.href}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {f.extension}
+            </a>
+          ))
+        }
+      </div>
+
+      <h3
+        class="mt-12 font-mono text-[11px] uppercase tracking-[0.18em] text-ae-copper"
+      >
+        What each box gives you
+      </h3>
+
+      <div class="mt-2">
+        {
+          specimenFragments.map((f) => (
+            <div class="spec-gives" data-fragment={f.id} style={`--key: ${keyVar[f.key]}`}>
+              <p class="flex items-center gap-2.5 border-t border-ae-rule pt-4 font-sans text-[15px] font-medium text-ae-ink">
+                <span
+                  class="gives-marker inline-block h-2 w-2 shrink-0"
+                  style={`border: 1px solid ${keyVar[f.key]}`}
+                  aria-hidden="true"
+                />
+                {f.extension}
+              </p>
+              <ul class="mt-2 mb-5 pl-[18px]">
+                {f.gives.map((gives) => (
+                  <li class="border-t border-ae-rule py-2 text-[14px] leading-[1.5] text-ae-ink">
+                    {gives}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  </div>
+
+  <p class={plateCaption}>
+    Boxed: what Ash Enterprise adds or injects. Unboxed: what you’d write in any
+    Ash app.
+  </p>
+</div>
+
+<style>
+  /* Keyed tints — color-mix over the paper token so dark mode follows along. */
+  .spec-box {
+    background-color: color-mix(in oklab, var(--key) 5%, var(--ae-paper));
+    transition: background-color 150ms ease;
+  }
+
+  .spec-box.is-active {
+    background-color: color-mix(in oklab, var(--key) 13%, var(--ae-paper));
+  }
+
+  .spec-chip.is-active {
+    border-color: var(--key);
+    color: var(--key);
+    background-color: color-mix(in oklab, var(--key) 10%, var(--ae-paper));
+  }
+
+  .spec-gives .gives-marker {
+    transition: background-color 150ms ease;
+  }
+
+  .spec-gives.is-active .gives-marker {
+    background-color: var(--key);
+  }
+
+  .spec-gives.is-active > p {
+    color: var(--key);
+  }
+</style>
+
+<script>
+  const root = document.getElementById('specimen');
+
+  if (root) {
+    // fragment id -> the box, the chip and the outcome entry, together.
+    const groups = new Map<string, HTMLElement[]>();
+    root.querySelectorAll<HTMLElement>('[data-fragment]').forEach((el) => {
+      const id = el.dataset.fragment;
+      if (!id) return;
+      groups.set(id, [...(groups.get(id) ?? []), el]);
+    });
+
+    const setActive = (active: string | null) => {
+      for (const [id, els] of groups) {
+        const on = id === active;
+        for (const el of els) el.classList.toggle('is-active', on);
+      }
+    };
+
+    for (const [id, els] of groups) {
+      for (const el of els) {
+        el.addEventListener('mouseenter', () => setActive(id));
+        // focusin bubbles from the links inside a box, so a chip or a box
+        // label reaching keyboard focus highlights the whole group.
+        el.addEventListener('focusin', () => setActive(id));
+      }
+    }
+
+    root.addEventListener('mouseleave', () => setActive(null));
+    root.addEventListener('focusout', (event) => {
+      const next = event.relatedTarget as HTMLElement | null;
+      if (!next || !next.closest('#specimen')) setActive(null);
+    });
+  }
+</script>

@@ -1,0 +1,139 @@
+---
+/**
+ * The fold, per the approved handoff (variation 2B): a 50/50 split — warm paper
+ * panel with the promise on the left, the declaration plate and its consequences
+ * on a deeper paper panel on the right.
+ *
+ * Copy follows the handoff with the approved changes: the "Enterprise-ready by
+ * inheritance" eyebrow, the say-what/let-the-machine H1, and CTAs to the
+ * doctrine and the source. No live-demo references.
+ */
+import CodePanel from '../CodePanel.astro';
+import { withBase } from '../../lib/roadmap';
+
+const GITHUB = 'https://github.com/lukegalea/ash_enterprise';
+
+const declaration = `defmodule AshEnterprise.Accounts.Team do
+  use AshEnterprise.Platform.Resource,
+    domain: AshEnterprise.Accounts,
+    api_type: :team,
+    ownership: :business_owned,
+    cdm_entity: "Team"
+
+  # only what is specific to Team.
+  attributes do
+    attribute :name, :string,
+      allow_nil?: false, public?: true
+  end
+end
+`;
+
+/** The derived-outputs list, in the handoff's order. */
+const derived: string[] = [
+  'Tenant-aware schema',
+  'User-or-team ownership',
+  'Provenance and lifecycle',
+  'Optimistic locking',
+  'Additive policies',
+  'Tamper-evident audit',
+  'Soft deletion, cascading',
+  'Telemetry and spans',
+  'Admin, JSON:API, GraphQL',
+  'Agent-visible actions',
+];
+
+/** Mono label above the plate and above the list — the handoff's 11px copper. */
+const label =
+  'mb-5 font-mono text-[11px] uppercase tracking-[0.18em] text-ae-copper';
+---
+
+<section id="the-fold" aria-label="Introduction">
+  <div class="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+    {/* Left cell — the promise. */}
+    <div
+      class="flex flex-col justify-center px-6 py-16 sm:px-8 lg:min-h-[740px] lg:py-24 lg:pl-14 lg:pr-16"
+    >
+      <p class="font-mono text-[12px] tracking-[0.18em] text-ae-copper uppercase">
+        Enterprise-ready by inheritance
+      </p>
+
+      <h1
+        class="mt-7 font-display text-[44px] leading-[1.05] tracking-[-0.025em] font-normal text-ae-ink sm:text-[56px] lg:mt-7 lg:text-[78px] lg:leading-[1.0]"
+      >
+        Say what the software must do.
+        <em class="text-ae-workshop">Let the machine do the rest.</em>
+      </h1>
+
+      <p
+        class="mt-7 max-w-[540px] text-[19px] leading-[1.6] text-ae-ink text-pretty"
+      >
+        The framework for small senior teams and smart agents to build ambitious
+        enterprise software. Declare the hard parts once. Inherit the controls.
+        Derive the surfaces. Keep the code worth owning.
+      </p>
+
+      <div class="mt-10 flex flex-wrap items-center gap-6">
+        <a
+          class="inline-flex items-center gap-[10px] rounded-[2px] bg-ae-vermilion px-7 py-4 font-sans text-base font-medium text-ae-paper transition-opacity duration-150 hover:opacity-90 dark:text-[#14160f]"
+          href={withBase('/docs/manifesto/')}
+        >
+          Read the doctrine <span aria-hidden="true">→</span>
+        </a>
+        <a
+          class="border-b border-ae-workshop px-1 py-4 font-sans text-base font-medium text-ae-workshop transition-colors duration-150 hover:border-ae-vermilion hover:text-ae-vermilion"
+          href={GITHUB}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Inspect the source
+        </a>
+      </div>
+
+      <p
+        class="mt-14 flex flex-wrap gap-x-8 gap-y-2 border-t border-ae-rule pt-6 font-mono text-[12px] tracking-[0.06em] text-ae-blueprint"
+      >
+        <span>Open source</span>
+        <span aria-hidden="true">·</span>
+        <span>Runs on your infrastructure</span>
+        <span aria-hidden="true">·</span>
+        <span>Enterprise-ready by inheritance</span>
+      </p>
+    </div>
+
+    {/* Right cell — the declaration and its consequences. */}
+    <div
+      class="flex flex-col justify-center border-t border-ae-rule bg-ae-paper-2 px-6 py-16 sm:px-8 lg:border-t-0 lg:border-l lg:px-14 lg:py-[72px]"
+    >
+      <p class={label}>The declaration</p>
+
+      <CodePanel code={declaration} lang="elixir" theme="atelier" />
+
+      <p class={`${label} mt-10 lg:mb-4`}>The consequences</p>
+
+      <ul
+        class="grid grid-cols-1 gap-x-8 sm:grid-cols-2"
+        aria-label="What the declaration derives"
+      >
+        {
+          derived.map((item, i) => (
+            <li
+              class:list={[
+                'border-t border-ae-rule py-2.5 font-sans text-sm text-ae-ink',
+                (i === derived.length - 1 || i === derived.length - 2) && 'border-b',
+              ]}
+            >
+              {item}
+            </li>
+          ))
+        }
+      </ul>
+
+      <a
+        class="mt-6 self-start border-b border-ae-workshop font-sans text-[15px] font-medium text-ae-workshop transition-colors duration-150 hover:border-ae-vermilion hover:text-ae-vermilion"
+        href={withBase('/proof/#generated-evidence')}
+      >
+        Open the generated evidence <span aria-hidden="true">→</span>
+      </a>
+    </div>
+  </div>
+</section>

@@ -42,7 +42,7 @@
       "id": "q1",
       "section": "identity",
       "question": "How do people prove who they are?",
-      "answer": "Password, magic link, OAuth2/OIDC and API keys via `ash_authentication`. No WebAuthn and no SAML anywhere in the ecosystem — the two gaps most likely to appear in an RFP.",
+      "answer": "Password, magic link, OAuth2/OIDC and API keys via `ash_authentication` — an integration seam for the identity provider your enterprise already runs, not a second one. Federate to Okta, Entra ID or Keycloak and the provider owns MFA, passkeys and session policy; the in-app stack is the lightweight version the reference app needs to run standalone. SAML and WebAuthn in-app are the planned seam, for deployments that must authenticate in-app.",
       "status": "partial",
       "proof": "test/ash_enterprise/accounts/sign_in_test.exs"
     },
@@ -275,7 +275,7 @@
       "id": "q29",
       "section": "identity",
       "question": "How do enterprise customers bring their own identity provider?",
-      "answer": "Open. AshAuthentication ships password, magic link, API key and OAuth2, and no SAML — which is still the format most enterprise IdPs lead with in a procurement conversation. OIDC is reachable through the existing OAuth2 strategy; SAML would need a new one.",
+      "answer": "Bringing your own IdP is the supported topology, not the exception. AshAuthentication federates to Okta, Entra ID, Keycloak or any OIDC provider through its OAuth2 strategy, and the provider — not this platform — owns MFA, password policy and directory truth. SAML is the one protocol that needs a first-party strategy; it is planned on the same seam for deployments that must authenticate in-app.",
       "status": "open",
       "item": "sso"
     },
@@ -283,7 +283,7 @@
       "id": "q30",
       "section": "identity",
       "question": "How do accounts appear and disappear when someone joins or leaves?",
-      "answer": "Open. Users are created by registration and deactivated by a lifecycle transition; nothing consumes SCIM, so a customer removing someone from their directory does not remove them here.",
+      "answer": "Joining and leaving is your directory's decision, and the IdP your enterprise runs is the system of record for it. Today users are created by registration and deactivated by a lifecycle transition; the planned SCIM seam is a resource-backed endpoint over those same actions, so the directory drives the lifecycle this platform already enforces — no parallel user store, no second copy of the truth.",
       "status": "open",
       "item": "sso"
     },
@@ -291,7 +291,7 @@
       "id": "q31",
       "section": "identity",
       "question": "What second factor is required, and how are sessions bounded?",
-      "answer": "Open. Sessions are AshAuthentication's, with no MFA enforcement, no step-up for privileged actions and no configurable session lifetime. WebAuthn was named as a gap in thesis 7 and still is.",
+      "answer": "With enterprise SSO the second factor is the provider's: Okta, Entra ID and Keycloak enforce MFA, step-up and session lifetime at the boundary this platform federates to. For the lightweight in-app login the reference app ships, MFA enforcement, step-up and configurable session lifetime are not built yet; they are planned as part of the identity seam, alongside WebAuthn.",
       "status": "open",
       "item": "sso"
     },
@@ -657,7 +657,7 @@
       "id": "sso",
       "title": "Enterprise identity: SAML, OIDC and SCIM",
       "priority": 1,
-      "choice": "AshAuthentication strategies; SCIM as a resource-backed endpoint",
+      "choice": "Federate to the enterprise IdP over OIDC today; SAML and SCIM as planned strategies on the same seam",
       "status": "planned",
       "effort": "OIDC through the existing OAuth2 strategy is small. SAML needs a new strategy and an XML signature story. SCIM is the larger piece and the more interesting one here: provisioning maps onto ordinary create and lifecycle actions, so it is an endpoint over existing actions rather than a parallel user store.",
       "bar": "Yes. An identity provider authenticates; it never authorizes. Group-to-role mapping stays here as `(role, privilege, depth)` rows, which is the difference between an IdP telling us who you are and an IdP telling us what you may do."

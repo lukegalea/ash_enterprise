@@ -9,6 +9,22 @@ too.
 
 ---
 
+## Bring your own
+
+Two kinds of absence live on this page, and they are not the same kind.
+
+The first is deliberate scope. Identity, analytics and notification delivery are places where your
+enterprise already owns the answer: the Okta, Entra ID or Keycloak that issues your sessions, the
+Grafana or Superset your operators already read, the email and SMS gateways your operations team
+already runs. Ash Enterprise does not ship a second, worse version of any of them; it provides a
+declared integration seam — an `ash_authentication` strategy, a BI tool over views already filtered
+by the same actor context — and a lightweight in-app version in the reference app, so local
+development never requires the real provider. Where your organization has the real thing, the seam
+is the whole story, and entries 1 and 2 below are scope statements first.
+
+The second is a genuine gap: something every deployment needs and nothing provides yet — retention
+and erasure, field-level security. Those are open work, and this page is where they are named.
+
 ## 1. Passkeys / WebAuthn / FIDO2
 
 **The largest gap.** `ash_authentication` has no WebAuthn strategy — not in stable 4.x, and not in the 5.0 release

@@ -12,6 +12,17 @@ export default defineConfig({
   site: 'https://lukegalea.github.io',
   base: '/ash_enterprise',
   output: 'static',
+  // The 2026-09 information-architecture restructure renamed two pages:
+  // /vision/ → /product/ and /controls/ → /proof/. In static output Astro
+  // emits a meta-refresh HTML page for each. Astro prefixes `base` on the
+  // redirect *source* (the page lands at /ash_enterprise/vision/) but NOT on
+  // the *destination*, so the base is written into the destination here —
+  // otherwise production would redirect to a bare /product/ that does not
+  // exist outside the subpath.
+  redirects: {
+    '/vision': '/ash_enterprise/product/',
+    '/controls': '/ash_enterprise/proof/',
+  },
   image: { responsiveStyles: true },
   integrations: [
     starlight({

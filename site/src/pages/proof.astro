@@ -1,0 +1,207 @@
+---
+/**
+ * The proof page: the honest evidence, generated rather than claimed.
+ *
+ * The scoreboard, the per-section bars and the full checklist all render from
+ * `docs/roadmap.json`; the control map derives its statuses from the ledger
+ * questions each control names, so this page cannot claim more than the ledger
+ * does. The disclaimer sits at the top of the control map rather than the
+ * bottom on purpose — a compliance section that leads with the good news and
+ * buries the caveat is the exact genre this repository exists to argue against.
+ *
+ * `#generated-evidence` anchors the generated-data region (the homepage links
+ * here); `#control-map` anchors the carried-over control map.
+ */
+import Base from '../layouts/Base.astro';
+import Scoreboard from '../components/Scoreboard.astro';
+import SectionScoreboard from '../components/SectionScoreboard.astro';
+import QuestionTable from '../components/QuestionTable.astro';
+import StatusChip from '../components/StatusChip.astro';
+import { inlineMarkdown } from '../components/inline';
+import {
+  frameworks,
+  controlsInFramework,
+  controlStatus,
+  questionsFor,
+  statusMeta,
+  withBase,
+  repoHref,
+} from '../lib/roadmap';
+
+const rows = frameworks.map((framework) => ({
+  framework,
+  controls: controlsInFramework(framework.id).map((control) => ({
+    control,
+    status: controlStatus(control),
+    questions: questionsFor(control),
+  })),
+}));
+
+const sectionEyebrow = 'font-mono text-xs tracking-widest text-ae-copper uppercase';
+const cardRule = 'rounded-[2px] border border-ae-rule bg-ae-paper';
+const btn =
+  'inline-flex items-center gap-2 rounded-[2px] border border-ae-rule bg-ae-paper px-4 py-2.5 text-sm font-medium text-ae-ink transition-colors hover:border-ae-copper';
+---
+
+<Base
+  title="Proof"
+  description="The enterprise checklist and the control map, generated from the same roadmap file the documentation and CI use. Built answers, named gaps, no architecture theatre."
+  active="proof"
+>
+  <div class="mx-auto max-w-5xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+    <header>
+      <p class={sectionEyebrow}>Proof</p>
+      <h1
+        class="mt-4 font-display text-4xl font-medium leading-tight tracking-tight text-balance text-ae-ink sm:text-5xl"
+      >
+        Built answers. Named gaps. No architecture theatre.
+      </h1>
+      <p class="mt-6 max-w-3xl text-lg leading-relaxed text-pretty text-muted">
+        Every status is generated from the same roadmap file used by the documentation and CI. Follow
+        any answer to its evidence — or to the gap it still names.
+      </p>
+
+      <div class="mt-10">
+        <Scoreboard variant="hero" />
+      </div>
+    </header>
+
+    {/* ==================== The generated evidence ==================== */}
+    <section id="generated-evidence" class="mt-20 scroll-mt-24 border-t border-ae-rule pt-12">
+      <p class={sectionEyebrow}>The generated evidence</p>
+      <h2 class="mt-3 font-display text-3xl font-medium tracking-tight text-balance text-ae-ink sm:text-4xl">
+        Read the rows, not the total
+      </h2>
+      <p class="mt-4 max-w-3xl leading-relaxed text-pretty text-muted">
+        One ratio across the whole checklist reports the project as uniformly half-finished, when in
+        fact evidence is nearly done and assurance has barely started — and which of those a reader
+        cares about depends entirely on why they came. The sections say which half.
+      </p>
+
+      <div class={cardRule + ' mt-8 p-6 sm:p-8'}>
+        <SectionScoreboard />
+      </div>
+
+      <div class="mt-16">
+        <QuestionTable />
+      </div>
+
+      <div class="mt-12 flex flex-wrap gap-3">
+        <a class={btn} href={withBase('/docs/questions/')}>The checklist, in prose</a>
+        <a class={btn} href={withBase('/roadmap/')}>What is planned, and why <span aria-hidden="true">→</span></a>
+      </div>
+    </section>
+
+    {/* ==================== The control map ==================== */}
+    <section id="control-map" class="mt-20 scroll-mt-24 border-t border-ae-rule pt-12">
+      <p class={sectionEyebrow}>Control map</p>
+      <h2 class="mt-3 font-display text-3xl font-medium tracking-tight text-balance text-ae-ink sm:text-4xl">
+        What an auditor asks, and where this actually stands
+      </h2>
+
+      {/* The disclaimer, first. */}
+      <div class={cardRule + ' mt-10 p-6'}>
+        <h3 class="font-mono text-xs tracking-widest text-ae-copper uppercase">What this is</h3>
+        <div class="mt-3 space-y-3 text-sm leading-relaxed text-muted">
+          <p>
+            This is an engineering document describing what the code does, written in the vocabulary an
+            auditor uses. It is <strong class="font-semibold text-ae-ink">not</strong> an assertion of
+            compliance, and it does not substitute for an audit.
+          </p>
+          <p>
+            Roughly half of any real control is not in a repository at all: the policy, the training,
+            the review cadence, the evidence that a human looked, and an auditor's judgement that all
+            of it operated continuously over a six-to-twelve-month window. What follows covers the
+            technical prerequisites — the part that is code, and can therefore be pointed at, tested,
+            and shown not to have drifted.
+          </p>
+          <p>
+            A control is scored by its <em>weakest</em> question, not its average. One open question
+            means an auditor is going to ask, and rounding that up would misrepresent it.
+          </p>
+        </div>
+      </div>
+
+      {
+        rows.map(({ framework, controls }) => (
+          <div id={`framework-${framework.id}`} class="mt-14 scroll-mt-24">
+            <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+              <h3 class="font-display text-2xl font-medium tracking-tight text-ae-ink">
+                {framework.name}
+              </h3>
+              <p class="font-mono text-xs text-muted">{framework.revision}</p>
+            </div>
+
+            <ul class="mt-6 space-y-4">
+              {controls.map(({ control, status, questions }) => (
+                <li class="rounded-[2px] border border-ae-rule bg-ae-paper p-5">
+                  <div class="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+                    <h4 class="text-base font-semibold text-balance">
+                      <span class="font-mono text-ae-copper">{control.id}</span>{' '}
+                      <span class="text-ae-ink">{control.name}</span>
+                    </h4>
+                    <StatusChip status={status} />
+                  </div>
+
+                  <p class="mt-3 text-sm leading-relaxed text-muted italic">{control.asks}</p>
+
+                  <p
+                    class="mt-3 text-sm leading-relaxed text-muted"
+                    set:html={inlineMarkdown(control.note)}
+                  />
+
+                  <div class="mt-4 flex flex-wrap items-center gap-2 border-t border-ae-rule pt-4">
+                    <span class="text-xs text-muted">Bearing on it:</span>
+                    {questions.map((question) => (
+                      <span
+                        class="inline-flex items-center gap-1.5 rounded-[2px] border border-ae-rule bg-ae-paper-2 px-2 py-1 text-xs"
+                        title={question.question}
+                      >
+                        <span aria-hidden="true">{statusMeta[question.status].icon}</span>
+                        <span class="font-mono text-muted">{question.id}</span>
+                        {question.proof ? (
+                          <a
+                            class="text-ae-copper underline-offset-4 hover:underline"
+                            href={repoHref(question.proof)}
+                          >
+                            proof
+                          </a>
+                        ) : null}
+                      </span>
+                    ))}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))
+      }
+
+      <div class={cardRule + ' mt-14 p-6 sm:p-8'}>
+        <h3 class="font-display text-xl font-medium tracking-tight text-ae-ink">
+          What writing this map found
+        </h3>
+        <div class="mt-4 space-y-4 text-sm leading-relaxed text-muted">
+          <p>
+            Mapping controls to questions is a search for holes, and it found two. <strong
+              class="font-semibold text-ae-ink">Evidence of review</strong
+            > had no question at all — logs existed, were complete, were protected, and nobody was
+            reading them, which is the single most common finding in a real engagement. And <strong
+              class="font-semibold text-ae-ink">cryptography appears in exactly one place</strong
+            >: the SHA-256 over the audit chain. Encryption at rest, in transit and key management
+            belong to the deployment, and this repository says nothing about them.
+          </p>
+          <p>
+            Both are now rows on the ledger rather than absences nobody had named, which is the only
+            useful thing a document like this does.
+          </p>
+        </div>
+
+        <div class="mt-6 flex flex-wrap gap-3">
+          <a class={btn} href={withBase('/docs/compliance/')}>The same map, in the docs</a>
+          <a class={btn} href={withBase('/docs/questions/')}>Every question, with its proof</a>
+        </div>
+      </div>
+    </section>
+  </div>
+</Base>

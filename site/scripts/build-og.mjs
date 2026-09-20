@@ -2,93 +2,175 @@
  * Generates `public/og.png` — the card that appears when someone pastes a link
  * to this site into Slack, LinkedIn or X.
  *
- * Until this existed the layout set `twitter:card=summary_large_image` and never
- * supplied an image, so every share rendered a blank rectangle. That is a poor
- * outcome for a link whose entire job is to be pasted around.
+ * The card is an Atelier headline card rather than a scoreboard: an eyebrow, a
+ * Newsreader serif headline and the trust line, on the same paper palette the
+ * marketing pages use. It used to carry the live answer count, but a number on
+ * a share card invites exactly the question the number cannot answer in
+ * context — and the card went stale the moment a question flipped status
+ * between builds anyway. The headline does not age; the honest numbers live one
+ * click away, on /proof/, where they are generated from the same roadmap file
+ * as the documentation and CI.
  *
- * The card reads its numbers from `docs/roadmap.json`, the same source as every
- * status on the site. So the thing a stranger sees first is the honest
- * scoreboard rather than a slogan, and it cannot go stale while the ledger moves
- * — which is the same argument the rendered tables make, applied to the one
- * surface that is usually hand-made and forgotten.
- *
- * Rasterised with sharp, which Astro already depends on for `astro:assets`, so
- * this adds no dependency.
+ * Pipeline: satori renders the layout to SVG with real font files, then sharp
+ * rasterises it — sharp is already a dependency for `astro:assets`, so only
+ * satori itself was added. Satori needs actual font binaries and does **not**
+ * parse WOFF2, but the @fontsource packages ship WOFF alongside the WOFF2, so
+ * the exact families the site self-hosts (Newsreader, IBM Plex Mono, Geist) are
+ * read straight out of node_modules — no system-font roulette, no second copy
+ * of the type in this repository.
  */
 
 import { readFileSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import satori from 'satori';
 import sharp from 'sharp';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..');
-const roadmap = JSON.parse(readFileSync(resolve(root, '../docs/roadmap.json'), 'utf8'));
 
-const counts = roadmap.questions.reduce((acc, q) => {
-  acc[q.status] = (acc[q.status] ?? 0) + 1;
-  return acc;
-}, {});
+/* --- Atelier palette (the `--ae-*` tokens in src/styles/global.css) -------- */
+const PAPER = '#F3EFE4';
+const INK = '#20221F';
+const COPPER = '#A5623B';
+const RULE = '#CDC6B7';
+const VERMILION = '#C94D34';
+const inkSoft = (alpha) => `rgba(32, 34, 31, ${alpha})`;
 
-const total = roadmap.questions.length;
-const shipped = counts.shipped ?? 0;
+const fontFile = (pkg, file) =>
+  readFileSync(resolve(root, 'node_modules/@fontsource', pkg, 'files', file));
 
-// Escapes text for inclusion in SVG. Titles come from a JSON file in this
-// repository rather than from user input, but a stray ampersand in a section
-// title would produce an invalid document and a confusing sharp error.
-const esc = (s) =>
-  String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const fonts = [
+  { name: 'Newsreader', data: fontFile('newsreader', 'newsreader-latin-500-normal.woff'), weight: 500, style: 'normal' },
+  { name: 'IBM Plex Mono', data: fontFile('ibm-plex-mono', 'ibm-plex-mono-latin-500-normal.woff'), weight: 500, style: 'normal' },
+  { name: 'Geist', data: fontFile('geist', 'geist-latin-400-normal.woff'), weight: 400, style: 'normal' },
+];
 
-const pill = (x, label, value, colour) => `
-  <g transform="translate(${x} 470)">
-    <rect width="250" height="96" rx="14" fill="#111827" stroke="${colour}" stroke-opacity="0.45" />
-    <text x="24" y="40" font-family="ui-sans-serif, system-ui, sans-serif" font-size="20"
-          fill="#9ca3af">${esc(label)}</text>
-    <text x="24" y="76" font-family="ui-sans-serif, system-ui, sans-serif" font-size="34"
-          font-weight="600" fill="${colour}">${esc(value)}</text>
-  </g>`;
+const element = {
+  type: 'div',
+  props: {
+    style: {
+      width: '1200px',
+      height: '630px',
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'space-between',
+      backgroundColor: PAPER,
+      borderTop: `8px solid ${VERMILION}`,
+      padding: '72px 80px 56px',
+    },
+    children: [
+      // Eyebrow — mono, tracked, copper.
+      {
+        type: 'div',
+        props: {
+          style: {
+            display: 'flex',
+            fontFamily: 'IBM Plex Mono',
+            fontWeight: 500,
+            fontSize: '21px',
+            letterSpacing: '0.3em',
+            color: COPPER,
+          },
+          children: 'ENTERPRISE-READY BY INHERITANCE',
+        },
+      },
+      // Headline + trust line, grouped above the footer rule.
+      {
+        type: 'div',
+        props: {
+          style: { display: 'flex', flexDirection: 'column' },
+          children: [
+            {
+              type: 'div',
+              props: {
+                style: {
+                  display: 'flex',
+                  flexDirection: 'column',
+                  fontFamily: 'Newsreader',
+                  fontWeight: 500,
+                  fontSize: '72px',
+                  lineHeight: '1.16',
+                  color: INK,
+                },
+                children: [
+                  { type: 'div', props: { style: { display: 'flex' }, children: 'Say what the software must do.' } },
+                  { type: 'div', props: { style: { display: 'flex' }, children: 'Let the machine do the rest.' } },
+                ],
+              },
+            },
+            {
+              type: 'div',
+              props: {
+                style: {
+                  display: 'flex',
+                  flexDirection: 'column',
+                  marginTop: '40px',
+                  paddingTop: '28px',
+                  borderTop: `1px solid ${RULE}`,
+                  fontFamily: 'Geist',
+                  fontSize: '26px',
+                  lineHeight: '1.45',
+                  color: inkSoft(0.72),
+                },
+                // Two manual lines: at one line the sentence overflows the
+                // measure and auto-wrap orphans "CI." on its own row.
+                children: [
+                  {
+                    type: 'div',
+                    props: {
+                      style: { display: 'flex' },
+                      children: 'Every status is generated from the same roadmap file',
+                    },
+                  },
+                  {
+                    type: 'div',
+                    props: {
+                      style: { display: 'flex' },
+                      children: 'used by the documentation and CI.',
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      },
+      // Footer — brand and URL, mono, on the paper.
+      {
+        type: 'div',
+        props: {
+          style: {
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'baseline',
+            fontFamily: 'IBM Plex Mono',
+            fontWeight: 500,
+            fontSize: '19px',
+            letterSpacing: '0.18em',
+            color: COPPER,
+          },
+          children: [
+            { type: 'div', props: { style: { display: 'flex' }, children: 'ASH ENTERPRISE' } },
+            {
+              type: 'div',
+              props: {
+                style: { display: 'flex', letterSpacing: '0.04em', color: inkSoft(0.55) },
+                children: 'lukegalea.github.io/ash_enterprise',
+              },
+            },
+          ],
+        },
+      },
+    ],
+  },
+};
 
-const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#0b1120" />
-      <stop offset="100%" stop-color="#111c33" />
-    </linearGradient>
-    <radialGradient id="glow" cx="0.15" cy="0.05" r="0.8">
-      <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.22" />
-      <stop offset="100%" stop-color="#38bdf8" stop-opacity="0" />
-    </radialGradient>
-  </defs>
-
-  <rect width="1200" height="630" fill="url(#bg)" />
-  <rect width="1200" height="630" fill="url(#glow)" />
-  <rect x="0" y="0" width="1200" height="6" fill="#38bdf8" />
-
-  <text x="72" y="118" font-family="ui-monospace, SFMono-Regular, monospace" font-size="22"
-        letter-spacing="3" fill="#38bdf8">ASH ENTERPRISE</text>
-
-  <text x="72" y="212" font-family="ui-sans-serif, system-ui, sans-serif" font-size="62"
-        font-weight="600" fill="#f8fafc">The cross-cutting concerns</text>
-  <text x="72" y="286" font-family="ui-sans-serif, system-ui, sans-serif" font-size="62"
-        font-weight="600" fill="#f8fafc">are declarable.</text>
-
-  <text x="72" y="356" font-family="ui-sans-serif, system-ui, sans-serif" font-size="27"
-        fill="#94a3b8">Ownership, hierarchy, audit, tenancy and policy —</text>
-  <text x="72" y="394" font-family="ui-sans-serif, system-ui, sans-serif" font-size="27"
-        fill="#94a3b8">declared once, derived everywhere.</text>
-
-  ${pill(72, 'Answered with a test', `${shipped} of ${total}`, '#34d399')}
-  ${pill(348, 'Partial, limit named', String(counts.partial ?? 0), '#fbbf24')}
-  ${pill(624, 'Decided, not built', String(counts.planned ?? 0), '#38bdf8')}
-  ${pill(900, 'Open, and said so', String(counts.open ?? 0), '#9ca3af')}
-
-  <text x="72" y="600" font-family="ui-monospace, SFMono-Regular, monospace" font-size="20"
-        fill="#64748b">lukegalea.github.io/ash_enterprise</text>
-</svg>`;
+const svg = await satori(element, { width: 1200, height: 630, fonts });
 
 const out = resolve(root, 'public/og.png');
 mkdirSync(dirname(out), { recursive: true });
 
 await sharp(Buffer.from(svg)).png().toFile(out);
 
-console.log(`og: wrote public/og.png (${shipped}/${total} shipped)`);
+console.log('og: wrote public/og.png (1200x630, Atelier headline card)');

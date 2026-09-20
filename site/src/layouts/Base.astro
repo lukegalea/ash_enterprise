@@ -18,6 +18,19 @@
  * Every internal href must go through `withBase` — see `src/README` notes.
  */
 import '../styles/global.css';
+
+/*
+ * Self-hosted fonts (no Google Fonts hotlinks), per the Atelier design handoff.
+ * These are marketing-page fonts: Starlight renders `/docs/*` from its own
+ * layout and never loads them, so the docs keep their own type.
+ */
+import '@fontsource/newsreader/400.css';
+import '@fontsource/newsreader/400-italic.css';
+import '@fontsource/geist/400.css';
+import '@fontsource/geist/500.css';
+import '@fontsource/ibm-plex-mono/400.css';
+import '@fontsource/ibm-plex-mono/500.css';
+
 import Lightbox from '../components/Lightbox.astro';
 import { withBase } from '../lib/roadmap';
 
@@ -26,8 +39,12 @@ interface Props {
   description?: string;
   /** Set on the landing page only; other pages get `"<title> · Ash Enterprise"`. */
   bare?: boolean;
-  /** Path of the current page, used to mark the active nav link. */
-  active?: 'home' | 'docs' | 'roadmap' | 'vision' | 'controls';
+  /**
+   * Path of the current page, used to mark the active nav link. `roadmap`,
+   * `vision` and `controls` are legacy: those entries left the top nav, so
+   * pages still passing them simply get no highlighted link.
+   */
+  active?: 'home' | 'product' | 'proof' | 'doctrine' | 'docs' | 'roadmap' | 'vision' | 'controls';
 }
 
 const {
@@ -47,10 +64,10 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url).href;
 const ogImage = new URL(withBase('/og.png'), Astro.site ?? Astro.url).href;
 
 const nav: { key: string; label: string; href: string; external: boolean }[] = [
-  { key: 'vision', label: 'Vision', href: withBase('/vision/'), external: false },
-  { key: 'controls', label: 'Controls', href: withBase('/controls/'), external: false },
+  { key: 'product', label: 'Product', href: withBase('/product/'), external: false },
+  { key: 'proof', label: 'Proof', href: withBase('/proof/'), external: false },
+  { key: 'doctrine', label: 'Doctrine', href: withBase('/docs/manifesto/'), external: false },
   { key: 'docs', label: 'Docs', href: withBase('/docs/'), external: false },
-  { key: 'roadmap', label: 'Roadmap', href: withBase('/roadmap/'), external: false },
   {
     key: 'github',
     label: 'GitHub',
@@ -148,8 +165,9 @@ const year = new Date().getFullYear();
               <a
                 href={link.href}
                 class:list={[
+                  // Atelier nav links: blueprint, to ink on hover.
                   'rounded-md px-3 py-2 font-medium transition-colors hover:bg-surface-2',
-                  active === link.key ? 'text-fg' : 'text-muted hover:text-fg',
+                  active === link.key ? 'text-ae-ink' : 'text-ae-blueprint hover:text-ae-ink',
                 ]}
                 aria-current={active === link.key ? 'page' : undefined}
                 {...(link.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
@@ -210,6 +228,9 @@ const year = new Date().getFullYear();
           product. MIT licensed.
         </p>
         <nav class="flex items-center gap-5" aria-label="Footer">
+          <a class="transition-colors hover:text-fg" href={withBase('/product/')}>Product</a>
+          <a class="transition-colors hover:text-fg" href={withBase('/proof/')}>Proof</a>
+          <a class="transition-colors hover:text-fg" href={withBase('/docs/manifesto/')}>Doctrine</a>
           <a class="transition-colors hover:text-fg" href={withBase('/docs/')}>Docs</a>
           <a class="transition-colors hover:text-fg" href={withBase('/docs/questions/')}>Checklist</a
           >

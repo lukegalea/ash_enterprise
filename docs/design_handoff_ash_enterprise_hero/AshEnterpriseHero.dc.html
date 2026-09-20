@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Geist:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; background: #E4DFD2; font-family: "Geist", system-ui, sans-serif; color: #20221F; }
+  a { color: #35594A; text-decoration: none; }
+  a:hover { color: #C94D34; }
+</style>
+</helmet>
+
+<div style="width:1440px; background:#F3EFE4; border:1px solid #CDC6B7">
+  <div style="display:flex; justify-content:space-between; align-items:center; padding:20px 56px; border-bottom:1px solid #CDC6B7; font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.1em; text-transform:uppercase">
+    <span style="font-weight:500">Ash Enterprise</span>
+    <span style="display:flex; gap:32px; color:#405B76">
+      <a href="#2b" style="color:#405B76">Product</a>
+      <a href="#2b" style="color:#405B76">Live Demo</a>
+      <a href="#2b" style="color:#405B76">Proof</a>
+      <a href="#2b" style="color:#405B76">Doctrine</a>
+      <a href="#2b" style="color:#405B76">Docs</a>
+      <a href="#2b" style="color:#405B76">GitHub</a>
+    </span>
+  </div>
+
+  <div style="display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); min-height:740px">
+    <div style="padding:96px 64px 96px 56px; display:flex; flex-direction:column; justify-content:center">
+      <p style="margin:0; font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.18em; text-transform:uppercase; color:#A5623B">For small senior teams and capable agents</p>
+      <h1 style="margin:28px 0 0; font-family:Newsreader,Georgia,serif; font-weight:400; font-size:78px; line-height:1.0; letter-spacing:-0.025em">Build above <span style="font-style:italic; color:#35594A">your headcount.</span></h1>
+      <p style="margin:28px 0 0; max-width:540px; font-size:19px; line-height:1.6; text-wrap:pretty">Declare the hard parts once. Inherit the controls. Derive the surfaces. Keep the code worth owning — on a stack that has been carrying serious systems for twenty-five years.</p>
+      <div style="display:flex; align-items:center; gap:24px; margin-top:40px">
+        <a href="#2b" style="display:inline-flex; align-items:center; gap:10px; background:#C94D34; color:#F3EFE4; padding:16px 28px; border-radius:2px; font-size:16px; font-weight:500">Explore the live demo <span>→</span></a>
+        <a href="#2b" style="display:inline-flex; align-items:center; padding:16px 4px; border-bottom:1px solid #35594A; font-size:16px; font-weight:500; color:#35594A">Read the doctrine</a>
+      </div>
+      <div style="margin-top:56px; padding-top:24px; border-top:1px solid #CDC6B7; display:flex; gap:40px; font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.06em; color:#405B76">
+        <span>Open source</span>
+        <span>Runs on your infrastructure</span>
+        <span>Gaps named in public</span>
+      </div>
+    </div>
+
+    <div style="background:#EDE9DC; border-left:1px solid #CDC6B7; padding:72px 56px; display:flex; flex-direction:column; justify-content:center">
+      <p style="margin:0 0 20px; font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:0.18em; text-transform:uppercase; color:#A5623B">What was written</p>
+      <pre style="margin:0; background:#F3EFE4; border:1px solid #CDC6B7; border-radius:2px; padding:28px 30px; font-family:'IBM Plex Mono',monospace; font-size:14px; line-height:1.75; white-space:pre"><span style="color:#35594A">defmodule</span> AshEnterprise.Accounts.Team <span style="color:#35594A">do</span>
+  <span style="color:#35594A">use</span> AshEnterprise.Platform.Resource,
+    domain: AshEnterprise.Accounts,
+    cdm: [entity: <span style="color:#A5623B">"Team"</span>,
+    ownership: <span style="color:#405B76">:business_owned</span>]
+
+  <span style="color:#405B76; font-style:italic"># only what is specific to Team.</span>
+  attributes <span style="color:#35594A">do</span>
+    attribute <span style="color:#405B76">:name</span>, <span style="color:#405B76">:string</span>,
+allow_nil?: <span style="color:#C94D34">false</span>, public?: <span style="color:#C94D34">true</span><span style="color:#35594A">
+  end
+end</span></pre>
+
+      <p style="margin:40px 0 16px; font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:0.18em; text-transform:uppercase; color:#A5623B">What was derived</p>
+      <ul style="margin:0; padding:0; list-style:none; display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:0 32px">
+        <li style="padding:10px 0; border-top:1px solid #CDC6B7; font-size:14px">Tenant-aware schema</li>
+        <li style="padding:10px 0; border-top:1px solid #CDC6B7; font-size:14px">User-or-team ownership</li>
+        <li style="padding:10px 0; border-top:1px solid #CDC6B7; font-size:14px">Provenance and lifecycle</li>
+        <li style="padding:10px 0; border-top:1px solid #CDC6B7; font-size:14px">Optimistic locking</li>
+        <li style="padding:10px 0; border-top:1px solid #CDC6B7; font-size:14px">Additive policies</li>
+        <li style="padding:10px 0; border-top:1px solid #CDC6B7; font-size:14px">Tamper-evident audit</li>
+        <li style="padding:10px 0; border-top:1px solid #CDC6B7; font-size:14px">Soft deletion, cascading</li>
+        <li style="padding:10px 0; border-top:1px solid #CDC6B7; font-size:14px">Telemetry and spans</li>
+        <li style="padding:10px 0; border-top:1px solid #CDC6B7; border-bottom:1px solid #CDC6B7; font-size:14px">Admin, JSON:API, GraphQL</li>
+        <li style="padding:10px 0; border-top:1px solid #CDC6B7; border-bottom:1px solid #CDC6B7; font-size:14px">Agent-visible actions</li>
+      </ul>
+      <a href="#2b" style="margin-top:24px; font-size:15px; font-weight:500; align-self:flex-start; border-bottom:1px solid #35594A">Open the generated evidence →</a>
+    </div>
+  </div>
+
+  <div style="border-top:1px solid #CDC6B7; padding:80px 56px 0; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:64px; align-items:start">
+    <div>
+      <p style="margin:0; font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:0.18em; text-transform:uppercase; color:#A5623B">Section 02 — the leverage</p>
+      <h2 style="margin:20px 0 0; font-family:Newsreader,Georgia,serif; font-weight:400; font-size:48px; line-height:1.08; letter-spacing:-0.015em">Five strata. One <code style="font-family:'IBM Plex Mono',monospace; font-size:0.72em; color:#35594A">use</code> line.</h2>
+    </div>
+    <p style="margin:0; font-size:19px; line-height:1.6; max-width:560px">Every layer below is someone else's solved problem. Ash Enterprise is the top stratum: a chosen subset of the Ash ecosystem, five packages for the parts Ash leaves to the application, and the conventions that hold them together.</p>
+  </div>
+
+  <div style="padding:56px 56px 88px">
+    <div style="display:grid; grid-template-columns:96px minmax(0,1fr) 300px; column-gap:32px; align-items:stretch">
+
+      <p style="margin:0; padding:24px 0 0; font-family:'IBM Plex Mono',monospace; font-size:12px; color:#A5623B">05</p>
+      <div style="border:1px solid #35594A; background:#EDE9DC; padding:22px 24px">
+        <p style="margin:0 0 14px; font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.14em; text-transform:uppercase; color:#35594A; font-weight:500">Ash Enterprise</p>
+        <div style="display:flex; flex-wrap:wrap; gap:8px">
+          <span style="background:#35594A; color:#F3EFE4; padding:7px 12px; font-family:'IBM Plex Mono',monospace; font-size:13px">AshEnterprise.Platform.Resource</span>
+          <span style="border:1px solid #35594A; padding:7px 12px; font-family:'IBM Plex Mono',monospace; font-size:13px">ash_strangler</span>
+          <span style="border:1px solid #35594A; padding:7px 12px; font-family:'IBM Plex Mono',monospace; font-size:13px">ash_bpmn</span>
+          <span style="border:1px solid #35594A; padding:7px 12px; font-family:'IBM Plex Mono',monospace; font-size:13px">ash_decisions</span>
+          <span style="border:1px solid #35594A; padding:7px 12px; font-family:'IBM Plex Mono',monospace; font-size:13px">ash_rules</span>
+          <span style="border:1px solid #35594A; padding:7px 12px; font-family:'IBM Plex Mono',monospace; font-size:13px">ash_compliance</span>
+          <span style="border:1px solid #35594A; padding:7px 12px; font-family:'IBM Plex Mono',monospace; font-size:13px">CDM generators</span>
+          <span style="border:1px solid #35594A; padding:7px 12px; font-family:'IBM Plex Mono',monospace; font-size:13px">Security.ActorContext</span>
+        </div>
+      </div>
+      <p style="margin:0; padding:24px 0 0; font-size:14px; line-height:1.55; color:#20221F; border-left:1px solid #CDC6B7; padding-left:24px">The enterprise substrate Ash leaves to you: ownership hierarchy, tamper-evident audit, legacy strangling, BPMN and DMN as application data.</p>
+
+      <p style="margin:0; padding:24px 0 0; font-family:'IBM Plex Mono',monospace; font-size:12px; color:#A5623B">04</p>
+      <div style="border:1px solid #CDC6B7; background:#F3EFE4; padding:22px 24px; margin-top:12px">
+        <div style="display:flex; align-items:baseline; justify-content:space-between; margin-bottom:14px">
+          <p style="margin:0; font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.14em; text-transform:uppercase; font-weight:500">The Ash ecosystem</p>
+          <p style="margin:0; font-family:'IBM Plex Mono',monospace; font-size:11px; color:#405B76">● wired in · ○ available</p>
+        </div>
+        <div style="display:flex; flex-wrap:wrap; gap:8px">
+          <span style="border:1px solid #CDC6B7; background:#EDE9DC; padding:7px 12px; font-family:'IBM Plex Mono',monospace; font-size:13px">● AshPostgres</span>
+          <span style="border:1px solid #CDC6B7; background:#EDE9DC; padding:7px 12px; font-family:'IBM Plex Mono',monospace; font-size:13px">● AshPhoenix</span>
+          <span style="border:1px solid #CDC6B7; background:#EDE9DC; padding:7px 12px; font-family:'IBM Plex Mono',monospace; font-size:13px">● AshJsonApi</span>
+          <span style="border:1px solid #CDC6B7; background:#EDE9DC; padding:7px 12px; font-family:'IBM Plex Mono',monospace; font-size:13px">● AshGraphQL</span>
+          <span style="border:1px solid #CDC6B7; background:#EDE9DC; padding:7px 12px; font-family:'IBM Plex Mono',monospace; font-size:13px">● AshAdmin</span>
+          <span style="border:1px solid #CDC6B7; background:#EDE9DC; padding:7px 12px; font-family:'IBM Plex Mono',monospace; font-size:13px">● AshEvents</span>
+          <span style="border:1px solid #CDC6B7; background:#EDE9DC; padding:7px 12px; font-family:'IBM Plex Mono',monospace; font-size:13px">● AshArchival</span>
+          <span style="border:1px solid #CDC6B7; background:#EDE9DC; padding:7px 12px; font-family:'IBM Plex Mono',monospace; font-size:13px">● AshOban</span>
+          <span style="border:1px solid #CDC6B7; background:#EDE9DC; padding:7px 12px; font-family:'IBM Plex Mono',monospace; font-size:13px">● AshAi</span>
+          <span style="border:1px solid #CDC6B7; background:#EDE9DC; padding:7px 12px; font-family:'IBM Plex Mono',monospace; font-size:13px">● OpentelemetryAsh</span>
+          <span style="border:1px solid #CDC6B7; background:#EDE9DC; padding:7px 12px; font-family:'IBM Plex Mono',monospace; font-size:13px">● UsageRules</span>
+          <span style="border:1px dashed #CDC6B7; padding:7px 12px; font-family:'IBM Plex Mono',monospace; font-size:13px; color:#405B76">○ Reactor</span>
+          <span style="border:1px dashed #CDC6B7; padding:7px 12px; font-family:'IBM Plex Mono',monospace; font-size:13px; color:#405B76">○ AshAuthentication</span>
+          <span style="border:1px dashed #CDC6B7; padding:7px 12px; font-family:'IBM Plex Mono',monospace; font-size:13px; color:#405B76">○ AshStateMachine</span>
+          <span style="border:1px dashed #CDC6B7; padding:7px 12px; font-family:'IBM Plex Mono',monospace; font-size:13px; color:#405B76">○ AshPaperTrail</span>
+          <span style="border:1px dashed #CDC6B7; padding:7px 12px; font-family:'IBM Plex Mono',monospace; font-size:13px; color:#405B76">○ AshCloak</span>
+          <span style="border:1px dashed #CDC6B7; padding:7px 12px; font-family:'IBM Plex Mono',monospace; font-size:13px; color:#405B76">○ AshMoney</span>
+          <span style="border:1px dashed #CDC6B7; padding:7px 12px; font-family:'IBM Plex Mono',monospace; font-size:13px; color:#405B76">○ AshDoubleEntry</span>
+          <span style="border:1px dashed #CDC6B7; padding:7px 12px; font-family:'IBM Plex Mono',monospace; font-size:13px; color:#405B76">○ AshTypescript</span>
+          <span style="border:1px dashed #CDC6B7; padding:7px 12px; font-family:'IBM Plex Mono',monospace; font-size:13px; color:#405B76">○ AshRateLimiter</span>
+          <span style="border:1px dashed #CDC6B7; padding:7px 12px; font-family:'IBM Plex Mono',monospace; font-size:13px; color:#405B76">○ AshGeo</span>
+          <span style="border:1px dashed #CDC6B7; padding:7px 12px; font-family:'IBM Plex Mono',monospace; font-size:13px; color:#405B76">○ AshSqlite · AshCsv · AshCubDB · AshAppSignal</span>
+        </div>
+      </div>
+      <p style="margin:0; padding:24px 0 0; font-size:14px; line-height:1.55; color:#20221F; border-left:1px solid #CDC6B7; padding-left:24px">Persistence, APIs, admin, jobs, events, soft deletion and LLM tools — all reading the same resources. Ash Enterprise picks eleven and configures them as one system.</p>
+
+      <p style="margin:0; padding:24px 0 0; font-family:'IBM Plex Mono',monospace; font-size:12px; color:#A5623B">03</p>
+      <div style="border:1px solid #CDC6B7; background:#EDE9DC; padding:20px 24px; margin-top:12px">
+        <p style="margin:0; font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.14em; text-transform:uppercase; font-weight:500">Ash — resources, actions, policies</p>
+      </div>
+      <p style="margin:0; padding:24px 0 0; font-size:14px; line-height:1.55; color:#20221F; border-left:1px solid #CDC6B7; padding-left:24px">Model your domain, derive the rest. Every extension above reads the same declarative resource.</p>
+
+      <p style="margin:0; padding:24px 0 0; font-family:'IBM Plex Mono',monospace; font-size:12px; color:#A5623B">02</p>
+      <div style="border:1px solid #CDC6B7; background:#EAE5D8; padding:20px 24px; margin-top:12px">
+        <p style="margin:0; font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.14em; text-transform:uppercase; font-weight:500">Phoenix &amp; LiveView · Elixir &amp; OTP</p>
+      </div>
+      <p style="margin:0; padding:24px 0 0; font-size:14px; line-height:1.55; color:#20221F; border-left:1px solid #CDC6B7; padding-left:24px">Server-rendered interactivity and supervision trees, without a second runtime to operate.</p>
+
+      <p style="margin:0; padding:24px 0 0; font-family:'IBM Plex Mono',monospace; font-size:12px; color:#A5623B">01</p>
+      <div style="border:1px solid #CDC6B7; background:#E4DFD2; padding:20px 24px; margin-top:12px">
+        <p style="margin:0; font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.14em; text-transform:uppercase; font-weight:500">BEAM — the Erlang virtual machine</p>
+      </div>
+      <p style="margin:0; padding:24px 0 0; font-size:14px; line-height:1.55; color:#20221F; border-left:1px solid #CDC6B7; padding-left:24px">Concurrency, isolation and fault tolerance that predate every framework above it.</p>
+    </div>
+    <p style="margin:24px 0 0; font-size:14px; line-height:1.55; color:#405B76; max-width:820px">Fig. 1 — The stack read as an elevation. Nothing in strata 01–04 is ours; stratum 05 is the part a small team would otherwise hand-build on every project.</p>
+  </div>
+</div>
+
+</x-dc>
+</body>
+</html>

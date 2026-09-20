@@ -18,7 +18,7 @@ the missing forward half.
 | 1 | Business rules and decision tables | ash_decisions — DMN, engine adopted not written | 🟡 Partial | [ADR 0028](adr/0028-decisions-are-dmn.md) |
 | 1 | Control mapping and evidence | Generated from the ledger; SOC 2, ISO 27001, GDPR | 🟡 Partial | [ADR 0021](adr/0021-control-mapping-is-generated.md) |
 | 1 | Data ingestion | Meltano (MIT); Airbyte as the fallback | 🔵 Planned | [ADR 0010](adr/0010-meltano-for-ingestion.md) |
-| 1 | Enterprise identity: SAML, OIDC and SCIM | AshAuthentication strategies; SCIM as a resource-backed endpoint | 🔵 Planned | — |
+| 1 | Enterprise identity: SAML, OIDC and SCIM | Federate to the enterprise IdP over OIDC today; SAML and SCIM as planned strategies on the same seam | 🔵 Planned | — |
 | 1 | Integration hub — avoiding M×N | Nango for the provider edge only | 🔵 Planned | [ADR 0011](adr/0011-nango-as-integration-hub.md) |
 | 1 | Legacy migration, process modelling and decisions as platform extensions | ash_strangler + ash_bpmn + ash_decisions, first-party | ✅ Shipped | [ADR 0009](adr/0009-strangler-and-bpmn-are-first-party.md) |
 | 1 | Lineage and provenance | OpenLineage + Marquez | 🔵 Planned | [ADR 0012](adr/0012-openlineage-and-marquez.md) |
@@ -143,8 +143,11 @@ which is a consequence of priority 1 rather than a precondition for it.
 These have no decision, and saying so is the point of
 [thesis 7](manifesto/07-what-we-do-not-have.md):
 
-- **WebAuthn / passkeys and SAML 2.0.** The two authentication gaps most likely to appear in an RFP.
-  No ecosystem answer exists for either; building one is real work, not a weekend.
+- **WebAuthn / passkeys and SAML 2.0.** Scope, not omission: most deployments federate to the IdP
+  their enterprise already runs — Okta, Entra ID, Keycloak — which provides SAML, passkeys and MFA,
+  and this platform meets it at the AshAuthentication seam rather than duplicating it. For the
+  deployments that must authenticate in-app, the enterprise-identity item in priority 1 is the
+  planned seam; no ecosystem answer exists yet and building one is real work, not a weekend.
 - **Retention, purge and right-to-erasure.** The hardest of the open items, because it is in genuine
   tension with [thesis 4](manifesto/04-batteries-are-inherited.md): an append-only audit log inherited
   by every resource is exactly what a GDPR Article 17 request runs into. This needs a design, not a

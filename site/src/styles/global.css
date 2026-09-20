@@ -35,6 +35,23 @@
   --ae-brand-soft: oklch(95% 0.03 268);
   --ae-code-bg: oklch(96% 0.008 260);
   --ae-shadow: 0 1px 2px oklch(21% 0.03 260 / 0.06), 0 8px 24px oklch(21% 0.03 260 / 0.06);
+
+  /*
+   * "Enterprise Atelier" palette (design handoff:
+   * docs/design_handoff_ash_enterprise_hero). Warm flax paper steps, one ink,
+   * and four accent hues. Declared alongside — not replacing — the original
+   * tokens above, under the same light/dark scheme.
+   */
+  --ae-paper: #f3efe4;
+  --ae-paper-2: #ede9dc;
+  --ae-paper-3: #eae5d8;
+  --ae-paper-4: #e4dfd2;
+  --ae-ink: #20221f;
+  --ae-workshop: #35594a;
+  --ae-copper: #a5623b;
+  --ae-vermilion: #c94d34;
+  --ae-blueprint: #405b76;
+  --ae-rule: #cdc6b7;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -51,6 +68,19 @@
     --ae-brand-soft: oklch(28% 0.05 268);
     --ae-code-bg: oklch(24% 0.022 264);
     --ae-shadow: 0 1px 2px oklch(0% 0 0 / 0.3), 0 8px 24px oklch(0% 0 0 / 0.35);
+
+    /* Atelier, dark: a straight token swap except the hues are lifted for
+     * contrast on the dark paper (see the handoff's dark-theme table). */
+    --ae-paper: #1b1d1a;
+    --ae-paper-2: #232620;
+    --ae-paper-3: #2a2e27;
+    --ae-paper-4: #32362e;
+    --ae-ink: #e8e3d6;
+    --ae-workshop: #7fa894;
+    --ae-copper: #c98a5e;
+    --ae-vermilion: #e0664a;
+    --ae-blueprint: #8faac4;
+    --ae-rule: #3d423a;
   }
 }
 
@@ -67,6 +97,18 @@
   --ae-brand-soft: oklch(28% 0.05 268);
   --ae-code-bg: oklch(24% 0.022 264);
   --ae-shadow: 0 1px 2px oklch(0% 0 0 / 0.3), 0 8px 24px oklch(0% 0 0 / 0.35);
+
+  /* Atelier, dark — must match the guarded media-query block above. */
+  --ae-paper: #1b1d1a;
+  --ae-paper-2: #232620;
+  --ae-paper-3: #2a2e27;
+  --ae-paper-4: #32362e;
+  --ae-ink: #e8e3d6;
+  --ae-workshop: #7fa894;
+  --ae-copper: #c98a5e;
+  --ae-vermilion: #e0664a;
+  --ae-blueprint: #8faac4;
+  --ae-rule: #3d423a;
 }
 
 /*
@@ -87,12 +129,33 @@
   --color-brand-soft: var(--ae-brand-soft);
   --color-code-bg: var(--ae-code-bg);
 
+  /* Atelier utilities: bg-ae-paper, text-ae-ink, border-ae-rule,
+   * text-ae-copper, bg-ae-workshop, … re-resolve per theme like the rest. */
+  --color-ae-paper: var(--ae-paper);
+  --color-ae-paper-2: var(--ae-paper-2);
+  --color-ae-paper-3: var(--ae-paper-3);
+  --color-ae-paper-4: var(--ae-paper-4);
+  --color-ae-ink: var(--ae-ink);
+  --color-ae-workshop: var(--ae-workshop);
+  --color-ae-copper: var(--ae-copper);
+  --color-ae-vermilion: var(--ae-vermilion);
+  --color-ae-blueprint: var(--ae-blueprint);
+  --color-ae-rule: var(--ae-rule);
+
   --shadow-card: var(--ae-shadow);
 
+  /*
+   * Self-hosted via @fontsource (imported in `src/layouts/Base.astro`).
+   * System stacks stay as fallbacks for the brief moment before the fonts
+   * load — and for anything Starlight renders, which never imports them.
+   */
+  --font-display: "Newsreader", ui-serif, Georgia, Cambria, "Times New Roman", serif;
   --font-sans:
-    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    sans-serif;
   --font-mono:
-    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    "IBM Plex Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono",
+    monospace;
 }
 
 /* --- Base --------------------------------------------------------------- */
