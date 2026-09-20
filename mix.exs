@@ -382,7 +382,17 @@ defmodule AshEnterprise.MixProject do
         "esbuild ash_enterprise --minify",
         "phx.digest"
       ],
-      precommit: ["compile --warnings-as-errors", "deps.unlock --unused", "format", "test"]
+      # ast.check gates the agent-facing surface: the usage-rules links in
+      # AGENTS.md (and, under MIX_ENV=dev, the action contracts agents call).
+      # Last in the list so the suite has already prepared the database that
+      # booting the app for it needs. See docs/AST-CHECK.md.
+      precommit: [
+        "compile --warnings-as-errors",
+        "deps.unlock --unused",
+        "format",
+        "test",
+        "ast.check"
+      ]
     ]
   end
 end

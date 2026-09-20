@@ -156,6 +156,16 @@ jobs:
       - name: Test
         run: mix test
 
+      # The agent-facing gate: every relative link in the composed AGENTS.md
+      # still resolves, and the semantic manifests (once any exist) still parse
+      # with valid ash:v0 symbol ids. The contract step inside it needs
+      # ash_agent_tools -- only: :dev, and a path dependency outside this
+      # repository -- so under MIX_ENV=test it reports itself skipped and the
+      # full run, contracts included, is the dev-env `mix ast.check`.
+      # See docs/AST-CHECK.md.
+      - name: Agent contracts and rules links
+        run: mix ast.check
+
   dialyzer:
     name: Dialyzer (advisory)
     runs-on: ubuntu-latest
