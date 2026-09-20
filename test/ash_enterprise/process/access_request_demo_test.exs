@@ -235,7 +235,16 @@ defmodule AshEnterprise.Process.AccessRequestDemoTest do
 
       assert [instance] = instances(ctx.tenant)
       assert instance.status == :completed
-      assert instance.outcome == :granted
+
+      # A string, where `decision_outcome` four lines below is an atom, and the
+      # two are not the same kind of thing despite reading alike. The instance's
+      # outcome is authored by the modeller -- `ash:taskConfig outcome="..."` in
+      # tenant XML -- so ash_bpmn stores it as text; it only ever worked as an
+      # atom because "granted" happened to exist as one elsewhere in this
+      # codebase, and any outcome a modeller invented would have failed at the
+      # moment the process completed. `decision_outcome` is our own Ash enum on
+      # AccessRequest, declared in code, and stays an atom.
+      assert instance.outcome == "granted"
 
       reloaded = reload(request, ctx.tenant)
       assert reloaded.risk_tier == :low
