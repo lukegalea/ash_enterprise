@@ -38,7 +38,7 @@ defmodule AshEnterprise.Application do
         # failover. After PubSub, because the engine's PubSubListener subscribes
         # to the wake topic. Off in :test — see config/test.exs.
         AshEvents.Projections.Supervisor
-      ] ++ trigger_index() ++ legacy_listener()
+      ] ++ trace_sink() ++ trigger_index() ++ legacy_listener()
 
     # See https://elixir.hexdocs.pm/Supervisor.html
     # for other strategies and supported options
@@ -118,6 +118,24 @@ defmodule AshEnterprise.Application do
   defp trigger_index do
     if Application.get_env(:ash_enterprise, :trigger_index?, true) do
       [AshBpmn.Triggers.Index]
+    else
+      []
+    end
+  end
+
+  # The bounded in-BEAM trace ring behind `mix ash_enterprise.trace` — the dev
+  # loop's source of truth for recent traces (design:
+  # docs/research/trace-storage-dev-to-prod.md §5). Off everywhere but :dev and
+  # :test, via `config :ash_enterprise, :trace_sink?` in config/dev.exs and
+  # config/test.exs — a config-gated child rather than a runtime flag, so a
+  # prod release never even contains the question. The sink consumes the span
+  # pipeline through `otel_simple_processor`; it competes with no backend and
+  # backfills nothing. See `AshEnterprise.Telemetry.TraceSink`.
+  defp trace_sink do
+    if Application.get_env(:ash_enterprise, :trace_sink?, false) do
+      # Early in the tree, so boot spans land in the ring too. Pure ETS: no
+      # dependencies on the Repo or the endpoint.
+      [AshEnterprise.Telemetry.TraceSink]
     else
       []
     end

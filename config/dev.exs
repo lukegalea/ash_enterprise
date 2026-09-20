@@ -1,6 +1,32 @@
 import Config
 config :ash, policies: [show_policy_breakdowns?: true]
 
+# --- Dev-loop trace sink (docs/research/trace-storage-dev-to-prod.md §5) -------
+#
+# The sink is a consumer of the span pipeline, not a competing pipeline: spans
+# flow through the ordinary SDK into `AshEnterprise.Telemetry.TraceSink` via
+# the SIMPLE processor (the batch processor's default 5s scheduled_delay_ms
+# would kill the sub-second read-after-write the dev loop needs — design §1).
+#
+# Why these two keys and not `processors: [...]`: the SDK merges
+# `traces_exporter` into the processor's `exporter` option, and a user-set
+# `traces_exporter` overrides processor opts outright (merge_processor_config/4
+# in otel_configuration.erl), so `traces_exporter: {Exporter, []}` is the
+# spelling the merge rules actually honour.
+#
+# Setting OTEL_EXPORTER_OTLP_ENDPOINT (config/runtime.exs) overwrites both keys
+# with the batch/OTLP wiring — the long-standing dev behaviour, preserved
+# untouched — and the sink goes quiet for that boot. No sink → backend
+# backfill, ever.
+config :opentelemetry,
+  span_processor: :simple,
+  traces_exporter: {AshEnterprise.Telemetry.TraceSink.Exporter, []}
+
+# Ring bounds (defaults shown; override to shrink for experiments — tests
+# shrink them live). See AshEnterprise.Telemetry.TraceSink.
+config :ash_enterprise, :trace_sink?, true
+config :ash_enterprise, :trace_sink, ring_size: 50, max_spans: 20_000
+
 # Configure your database.
 #
 # Connection details come from the environment rather than being hardcoded,

@@ -167,6 +167,18 @@ defmodule AshEnterprise.MixProject do
       {:ash_credo, "~> 0.17", only: [:dev, :test], runtime: false},
       {:ash_cloak, "~> 0.3"},
 
+      # Read-only Ash introspection for coding agents (dogfooding our AST lane E
+      # package; path dep until it publishes to hex).
+      {:ash_agent_tools,
+       path: Path.expand("~/ast-forks/ash_agent_tools"), only: :dev, runtime: false},
+
+      # BEAM runtime inspection for the observability plane's dev loop: recon
+      # for deep-dive process/memory questions, observer_cli for a terminal
+      # view of the supervision tree (process labels land there too). Dev-only:
+      # diagnosing the VM is a dev activity; releases carry neither.
+      {:recon, "2.5.6", only: :dev},
+      {:observer_cli, "~> 2.0", only: :dev},
+
       # Saga orchestration. Reactor arrives transitively via ash, but is declared
       # directly because we use it as an architectural component (Ash.Reactor for
       # transactional workflows with compensation) and because usage_rules only

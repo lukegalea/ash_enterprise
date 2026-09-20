@@ -83,6 +83,17 @@ config :phoenix,
 # `AshStrangler.Listener.notify/2` directly.
 config :ash_enterprise, :legacy_listener?, false
 
+# The trace sink runs in tests: the design (docs/research/trace-storage-dev-to-prod.md
+# §5) makes the ring the test-time assertion substrate, so the suite exercises the
+# same capture path the dev loop reads. Spans flow through `otel_simple_processor`
+# — synchronous export, so a read immediately after an action sees its spans.
+# Bounds are the code defaults; tests shrink them live via :trace_sink config.
+config :opentelemetry,
+  span_processor: :simple,
+  traces_exporter: {AshEnterprise.Telemetry.TraceSink.Exporter, []}
+
+config :ash_enterprise, :trace_sink?, true
+
 # The trigger index reads the database at boot, outside any test's checked-out connection,
 # which the Ecto SQL sandbox refuses. See `AshEnterprise.Application.trigger_index/0`.
 config :ash_enterprise, trigger_index?: false
