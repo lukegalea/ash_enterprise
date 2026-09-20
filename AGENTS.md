@@ -1,5 +1,26 @@
 This is a web application written using the Phoenix web framework.
 
+## Agent Tooling Mandate (opinionated)
+
+This repo ships read-only Ash introspection tooling (`ash_agent_tools`, dev-only dep).
+**Every agent session — you, reading this — must consult it BEFORE grepping source.**
+
+- Before calling any Ash action or writing a changeset/query call: run
+  `mix ash_agent.validate <Resource> <action> '<json-params>'` — it casts against the
+  real contract and reports required/optional/unknown inputs with per-path errors.
+- Before asking "what fields/actions/relationships does X have" or grepping a resource:
+  `mix ash_agent.describe <Resource> [<action>]` (types, constraints, source locations).
+- To find a symbol across the codebase: `mix ash_agent.search <term> [--kind K]`
+  before ripgrep. Grep is the fallback, not the default.
+- Before proposing a rename/migration impact guess: `mix ash_agent.diff OLD NEW` on
+  semantic manifests when present.
+
+Facts: stdout is pure JSON (parse it; don't eyeball); first invocation pays mix-boot
+(~15s) — batch your questions; `--out FILE` when capturing. If a tool can't answer what
+you need, fall back to grep AND append a one-line note to `.agents/logs/tool-gaps.log`
+(ts + question) — that log drives what we build next (kaizen loop).
+
+
 ## Project guidelines
 
 - Use `mix precommit` alias when you are done with all changes and fix any pending issues
@@ -3873,3 +3894,15 @@ mix usage_rules.search_docs "Enum.zip" --query-by title
 
 <!-- usage_rules:otp-end -->
 <!-- usage-rules-end -->
+
+## Cloned Dependency Source
+
+Read-only dependency source repositories are available under
+`.slim/clonedeps/repos/` for inspection. Do not edit these clones.
+
+- `.slim/clonedeps/repos/ash-project__spark/` - spark at v2.7.3; DSL entities/sections/options storage, transformers, source annotations, ElixirSense plugin — the semantic-manifest substrate.
+- `.slim/clonedeps/repos/ash-project__ash/` - ash at v3.33.5; resource/action/code-interface/policy definitions for the manifest projection and type contracts.
+- `.slim/clonedeps/repos/expert-lsp__expert/` - expert (main); language server we extend for Ash completion parity.
+- `.slim/clonedeps/repos/team-alembic__clarity/` - clarity at v0.6.0; semantic graph/visualization layer.
+- `.slim/clonedeps/repos/ash-project__usage_rules/` - usage_rules at v1.2.8; agent knowledge/tooling rules distribution.
+- `.slim/clonedeps/repos/tidewave-ai__tidewave_phoenix/` - tidewave_phoenix (main); MCP runtime tools and proposed tool_providers API.

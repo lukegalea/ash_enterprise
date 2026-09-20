@@ -1,0 +1,12 @@
+{
+  "version": "1.0.0",
+  "updatedAt": "2026-09-20T00:00:00.000Z",
+  "dependencies": [
+    {"name": "spark", "resolvedVersion": "2.7.3", "repoUrl": "https://github.com/ash-project/spark.git", "ref": "v2.7.3", "path": ".slim/clonedeps/repos/ash-project__spark", "reason": "Semantic manifest work: DSL entities/sections/options, transformers, source annotations, ElixirSense plugin"},
+    {"name": "ash", "resolvedVersion": "3.33.5", "repoUrl": "https://github.com/ash-project/ash.git", "ref": "v3.33.5", "path": ".slim/clonedeps/repos/ash-project__ash", "reason": "Ash manifest projection: attributes, actions, code interfaces, policies; get_by validation fix"},
+    {"name": "expert", "resolvedVersion": "main", "repoUrl": "https://github.com/expert-lsp/expert.git", "ref": "main", "path": ".slim/clonedeps/repos/expert-lsp__expert", "reason": "Lane C: Ash completion parity consuming semantic manifest"},
+    {"name": "clarity", "resolvedVersion": "0.6.0", "repoUrl": "https://github.com/team-alembic/clarity.git", "ref": "v0.6.0", "path": ".slim/clonedeps/repos/team-alembic__clarity", "reason": "Lane F: graph projection, manifest importer, ontology report proposal"},
+    {"name": "usage_rules", "resolvedVersion": "1.2.8", "repoUrl": "https://github.com/ash-project/usage_rules.git", "ref": "v1.2.8", "path": ".slim/clonedeps/repos/ash-project__usage_rules", "reason": "Lane F: agent knowledge plane, semantic-reference validation"},
+    {"name": "tidewave_phoenix", "resolvedVersion": "main", "repoUrl": "https://github.com/tidewave-ai/tidewave_phoenix.git", "ref": "main", "path": ".slim/clonedeps/repos/tidewave-ai__tidewave_phoenix", "reason": "Lane E: tool_providers extension API proposal"}
+  ]
+}

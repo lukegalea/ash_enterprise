@@ -71,3 +71,12 @@ devenv.local.yaml
 # The share card is composed from docs/roadmap.json at build time, so committing
 # it would mean a binary that goes stale every time a question changes status.
 /site/public/og.png
+# BEGIN oh-my-opencode-slim clonedeps
+.slim/clonedeps/repos/
+# END oh-my-opencode-slim clonedeps
+
+# agent job logs (local only)
+.agents/logs/
+
+# OMO worktree lanes are local scratch (configs tracked, contents not)
+.slim/worktrees/*/
