@@ -127,7 +127,7 @@ defmodule AshEnterpriseWeb.CanvasLive do
           <% end %>
 
           <%= if @selected do %>
-            <.inspector object={@selected} surface={surface_for(@selected)} />
+            <.inspector object={@selected} destinations={destinations_for(@selected)} />
           <% else %>
             <p class="text-sm opacity-60">
               Select a node in the graph to inspect it.
@@ -141,10 +141,12 @@ defmodule AshEnterpriseWeb.CanvasLive do
 
   @doc false
   # The inspector panel: label + kind badge, provenance display names,
-  # capabilities, projections, and the browse link when the resource has a
-  # declared app surface.
+  # capabilities, projections, and a link per projection that has somewhere to
+  # go. A projection badge with no destination is the object model describing a
+  # capability the application does not actually offer, so the two are rendered
+  # from the same list rather than side by side.
   attr :object, Object, required: true
-  attr :surface, :map, default: nil
+  attr :destinations, :list, default: []
 
   def inspector(assigns) do
     ~H"""
@@ -199,13 +201,16 @@ defmodule AshEnterpriseWeb.CanvasLive do
               {projection}
             </span>
           </div>
-          <.link
-            :if={@surface}
-            navigate={@surface.path}
-            class="btn btn-sm btn-primary mt-3"
-          >
-            <.icon name="hero-arrow-top-right-on-square" class="size-4" /> Browse in {@surface.label}
-          </.link>
+          <div class="mt-3 flex flex-wrap gap-2">
+            <.link
+              :for={destination <- @destinations}
+              navigate={destination.path}
+              class="btn btn-sm btn-primary"
+            >
+              <.icon name="hero-arrow-top-right-on-square" class="size-4" />
+              {destination.label}
+            </.link>
+          </div>
         </div>
       </div>
     </section>
@@ -383,13 +388,68 @@ defmodule AshEnterpriseWeb.CanvasLive do
 
   # The declared A2UI surface for a resolved resource, when one exists —
   # what turns the browse projection into a real link.
+  # Routes this application serves for a resource that has no A2UI surface. The
+  # process layer is built this way on purpose -- a BPMN diagram is bpmn-js and
+  # a task list is an indexed candidate query, neither of which is a derived
+  # table -- so without this the canvas showed those nodes as having nowhere to
+  # go while the application had a page for each of them all along.
+  @routes %{
+    AshEnterprise.Bpmn.Definition => %{browse: {"Process catalogue", "/app/processes"}},
+    AshEnterprise.Decisions.Definition => %{browse: {"Decision catalogue", "/app/decisions"}},
+    AshEnterprise.Bpmn.HumanTask => %{browse: {"Approvals", "/app/tasks"}}
+  }
+
+  # `:diagram` resolves to the same catalogue as `:browse` for a definition,
+  # because that catalogue *is* where its diagram is opened -- the designer
+  # needs a key, and picking one is what the catalogue is for. Labelled by the
+  # projection rather than the route so the inspector says which claim the link
+  # is honouring.
+  @diagram_labels %{
+    AshEnterprise.Bpmn.Definition => {"Draw a process", "/app/processes"},
+    AshEnterprise.Decisions.Definition => {"Draw a decision", "/app/decisions"}
+  }
+
+  @doc false
+  # One destination per projection the object claims and this application can
+  # actually open. A projection with no destination renders as a badge and
+  # nothing else, which is the honest depiction of a claim nothing serves.
+  def destinations_for(
+        %Object{ref: %{kind: :resource}, provenance: %{resource: resource}} = object
+      ) do
+    Enum.flat_map(object.projections, fn projection ->
+      case destination(projection, resource) do
+        nil -> []
+        {label, path} -> [%{projection: projection, label: label, path: path}]
+      end
+    end)
+  end
+
+  def destinations_for(_other_object), do: []
+
+  defp destination(:browse, resource) do
+    case a2ui_surface(resource) do
+      %{label: label, path: path} -> {"Browse in #{label}", path}
+      nil -> get_in(@routes, [resource, :browse])
+    end
+  end
+
+  defp destination(:diagram, resource), do: Map.get(@diagram_labels, resource)
+  defp destination(_projection, _resource), do: nil
+
+  # The A2UI surface for a selected object, which `show_surface/4` embeds in the
+  # canvas. Distinct from `destinations_for/1`: that answers "where can a person
+  # go from here", this answers "is there a derived surface to render in place".
   defp surface_for(%Object{ref: %{kind: :resource}, provenance: %{resource: resource}}) do
+    a2ui_surface(resource)
+  end
+
+  defp surface_for(_other_object), do: nil
+
+  defp a2ui_surface(resource) do
     Enum.find(Surfaces.all(), fn surface ->
       AshA2ui.Info.resource!(surface.ui) == resource
     end)
   rescue
     _not_an_a2ui_module -> nil
   end
-
-  defp surface_for(_other_object), do: nil
 end

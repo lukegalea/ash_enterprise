@@ -148,6 +148,19 @@ defmodule AshEnterpriseWeb.CanvasLiveTest do
     end
   end
 
+  defp inspector_html(object) do
+    render_component(&CanvasLive.render/1, %{
+      flash: %{},
+      current_scope: nil,
+      revision: "sha256:test",
+      node_count: 1,
+      relationship_count: 0,
+      selected: object,
+      selection_error: nil,
+      presentation: nil
+    })
+  end
+
   describe "inspector rendering" do
     test "renders label, kind, provenance, capabilities and projections" do
       # Team carries a destroy action, so the destructive confirmation badge
@@ -195,6 +208,43 @@ defmodule AshEnterpriseWeb.CanvasLiveTest do
 
       assert html =~ "Browse in"
       assert html =~ "/app/canonical-parties"
+    end
+
+    test "a resource whose page is not an A2UI surface still links to its page" do
+      # The process layer is not built from derived tables -- a BPMN diagram is
+      # bpmn-js and the approvals list is an indexed candidate query -- so these
+      # resources have no A2UI surface and used to render as nodes with nowhere
+      # to go, while the application had a page for each of them all along.
+      {:ok, object} = CanvasLive.select("resource:bpmn.human_task", nil, nil)
+
+      html = inspector_html(object)
+
+      assert html =~ "Approvals"
+      assert html =~ "/app/tasks"
+    end
+
+    test "a definition claims :diagram, and the claim has somewhere to go" do
+      {:ok, object} = CanvasLive.select("resource:bpmn.definition", nil, nil)
+
+      # The projection the host declares...
+      assert :diagram in object.projections
+
+      # ...and the destination that makes the claim true. A projection badge
+      # with no link is the object model asserting a capability the application
+      # does not offer, which is the defect the registry callback exists to fix
+      # rather than to relocate.
+      html = inspector_html(object)
+      assert html =~ "Draw a process"
+      assert html =~ "/app/processes"
+    end
+
+    test "a resource with no renderer does not claim :diagram" do
+      # Business units and process definitions have indistinguishable action
+      # shapes. The difference is that this application draws one of them, which
+      # is a fact about the host, and the registry is where it is stated.
+      {:ok, object} = CanvasLive.select("resource:accounts.business_unit", nil, nil)
+
+      refute :diagram in object.projections
     end
 
     test "the surface container is rendered even with nothing presented" do

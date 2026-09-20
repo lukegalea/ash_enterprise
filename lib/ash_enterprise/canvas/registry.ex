@@ -40,4 +40,33 @@ defmodule AshEnterprise.Canvas.Registry do
   def label(:application), do: "Ash Enterprise"
 
   def label(_other), do: nil
+
+  @doc """
+  Which projections an object carries, where action shape cannot say.
+
+  The library derives projections from a resource's actions — a read makes it
+  browsable, a create makes it creatable — which is everything CRUD can
+  describe and none of what makes a process definition different from a
+  business unit. Their actions are identical. What differs is that this
+  application ships a renderer for one of them, and that is a fact about the
+  host, not about the resource.
+
+  `:diagram` is declared only where a diagram genuinely exists: a BPMN process
+  definition, drawn by bpmn-js, and a DMN decision, drawn by dmn-js. It is
+  deliberately *not* declared on `Bpmn.Instance`, even though a running
+  instance is the most diagram-like thing here — a single instance is drawn on
+  the definition it pinned, at `/app/instances/:id`, and there is no route that
+  draws instances in general. A projection is a claim that something can be
+  rendered, so claiming it at resource level where only records can be rendered
+  would make the object model say something untrue.
+
+  `:history` stays unemitted for the same reason. `Bpmn.ProcessEvent` is
+  literally a process's history, but nothing in this application renders it as
+  one yet, and a projection nothing can open is the defect this callback exists
+  to fix rather than to relocate.
+  """
+  @impl true
+  def projections(AshEnterprise.Bpmn.Definition, derived), do: derived ++ [:diagram]
+  def projections(AshEnterprise.Decisions.Definition, derived), do: derived ++ [:diagram]
+  def projections(_other, _derived), do: nil
 end

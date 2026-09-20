@@ -46,16 +46,32 @@ defmodule Mix.Tasks.AshEnterprise.Demo do
     """)
   end
 
-  # The legacy estate is an Organization too, and it is usually the FIRST one --
-  # `seed_legacy_estate/0` runs before `seed_tenant/1` because the strangler view
-  # needs its ids. Taking whichever came back first therefore populates the
-  # simulated 2010-era estate with people who never existed in it, which is both
-  # wrong and invisible until someone reads the legacy screens. Exclude it by id
-  # and require the choice to be unambiguous.
+  # Two of the organizations in a seeded database are not tenants, and both would
+  # be wrong to populate.
+  #
+  # The legacy estate is usually the FIRST one -- `seed_legacy_estate/0` runs
+  # before `seed_tenant/1` because the strangler view needs its ids -- so taking
+  # whichever came back first fills the simulated 2010-era estate with people who
+  # never existed in it, wrongly and invisibly until someone reads the legacy
+  # screens.
+  #
+  # The platform organization holds the baselines this application publishes
+  # centrally. `Seeder.seed_platform_organization/0` says in its own docs that a
+  # tenant listing shown to a human should exclude it; this is such a listing,
+  # and leaving it in made the documented quickstart -- seed, then demo -- fail
+  # on a fresh database with "which one did you mean", naming two organizations
+  # a reader has no reason to be choosing between.
   defp organization!(nil) do
     legacy_id = AshEnterprise.Legacy.Estate.organization_id()
+    platform = AshEnterprise.Platform.Seeder.platform_unique_name()
 
-    case Enum.reject(all_organizations(), &(to_string(&1.id) == legacy_id)) do
+    tenants =
+      Enum.reject(all_organizations(), fn organization ->
+        to_string(organization.id) == legacy_id or
+          to_string(organization.unique_name) == platform
+      end)
+
+    case tenants do
       [organization] ->
         organization
 

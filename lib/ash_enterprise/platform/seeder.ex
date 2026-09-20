@@ -194,6 +194,18 @@ defmodule AshEnterprise.Platform.Seeder do
   end
 
   @doc """
+  The platform organization's `unique_name`.
+
+  Exposed so callers can *exclude* it. It is infrastructure rather than a
+  tenant — nobody signs into it, and it exists to hold centrally published
+  baselines — so anything enumerating tenants for a human, or picking one to
+  act on, has to be able to tell it apart from a real one by something better
+  than its display name.
+  """
+  @spec platform_unique_name() :: String.t()
+  def platform_unique_name, do: @platform_unique_name
+
+  @doc """
   Seeds the platform organization: where baseline processes and decisions are published.
 
   A baseline has to live in a tenant, because the platform base resource makes
