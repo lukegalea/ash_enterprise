@@ -1,0 +1,2225 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ash-hq.org/schemas/spark-semantic-manifest/v0.json",
+  "title": "Spark/Ash Semantic Manifest v0",
+  "description": "A portable, serializable description of one Spark DSL module's declarative surface. v0 revision 2: rebased on Ash.Info.Manifest (ash v3.33.5, schema_version 1.0.0). The type algebra, field flags, pagination, multitenancy and named-type table below are Ash's existing IR as rendered by Ash.Info.Manifest.JsonSerializer; what this schema adds on top is source spans, stable structural symbol ids, three-digest hashing, provenance chains, and the accepted-vs-normalized split. See section 3 of docs/rfc/semantic-manifest-v0.md.",
+  "type": "object",
+  "required": [
+    "manifest_version",
+    "emitter",
+    "toolchain",
+    "module",
+    "module_kind",
+    "extensions",
+    "files",
+    "hashes",
+    "symbols",
+    "relations"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "manifest_version": {
+      "description": "Major version only. Consumers may branch on this and on nothing else.",
+      "const": "0"
+    },
+    "note": {
+      "type": "string",
+      "description": "Free-form provenance note about this document itself (e.g. 'hand-authored fixture'). Never semantic."
+    },
+    "abridged": {
+      "type": "boolean",
+      "default": false,
+      "description": "True when symbols[] is a deliberate subset of the module's real surface. Emitters always set false; fixtures may set true."
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "emitter": {
+      "type": "object",
+      "required": [
+        "name",
+        "version"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      }
+    },
+    "toolchain": {
+      "description": "Recorded for diagnostics and for the invalidation key. NOT part of the compatibility contract; consumers must not gate on these.",
+      "type": "object",
+      "required": [
+        "elixir",
+        "otp",
+        "spark"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "elixir": {
+          "type": "string"
+        },
+        "otp": {
+          "type": "string"
+        },
+        "spark": {
+          "type": "string"
+        },
+        "ash": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "debug_info": {
+          "type": "boolean",
+          "description": "Whether Code.get_compiler_option(:debug_info) was true. When false, every span is null."
+        }
+      }
+    },
+    "module": {
+      "$ref": "#/$defs/moduleName"
+    },
+    "module_kind": {
+      "type": "string",
+      "description": "Open-ended: unknown values must be tolerated.",
+      "examples": [
+        "resource",
+        "domain",
+        "extension",
+        "dsl_module"
+      ]
+    },
+    "extensions": {
+      "type": "array",
+      "description": "Extension modules in application order.",
+      "items": {
+        "$ref": "#/$defs/moduleName"
+      }
+    },
+    "files": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/fileEntry"
+      }
+    },
+    "hashes": {
+      "$ref": "#/$defs/manifestHashes"
+    },
+    "symbols": {
+      "type": "array",
+      "description": "Unordered, EXCEPT that symbols sharing a dsl_path appear in declaration order (semantically significant for policies).",
+      "items": {
+        "$ref": "#/$defs/symbol"
+      }
+    },
+    "relations": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/relation"
+      }
+    },
+    "diagnostics": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/diagnostic"
+      }
+    },
+    "ash_schema_version": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The Ash.Info.Manifest.schema_version/0 of the IR this document extends, e.g. '1.0.0'. Present whenever the emitter layered spans onto an Ash-generated manifest; null for a pure-Spark DSL module with no Ash projection. Not a compatibility gate - see RFC 6.4."
+    },
+    "types": {
+      "type": "array",
+      "description": "Module-scoped named-type table, mirroring %Ash.Info.Manifest{}.types. Named type modules (Ash.Type.Enum implementations, Ash.Type.NewType subtypes, embedded resources) are hoisted here and referenced from typed slots by kind=type_ref, exactly as Ash already does. This is what prevents circular references (RFC 3.3, consolidation C2).",
+      "items": {
+        "$ref": "#/$defs/namedType"
+      }
+    }
+  },
+  "$defs": {
+    "moduleName": {
+      "type": "string",
+      "description": "An Elixir module name without the Elixir. prefix, e.g. 'AshEnterprise.Accounts.Team'.",
+      "pattern": "^[A-Z][A-Za-z0-9_]*(\\.[A-Z][A-Za-z0-9_]*)*$"
+    },
+    "atomName": {
+      "type": "string",
+      "description": "An Elixir atom rendered WITHOUT the leading colon. Consumers must not call String.to_atom/1 on this; use String.to_existing_atom/1."
+    },
+    "digest": {
+      "type": "string",
+      "description": "sha256 over the canonical JSON form of a defined subset, truncated to 128 bits.",
+      "pattern": "^sha256:[0-9a-f]{32}$"
+    },
+    "fileEntry": {
+      "type": "object",
+      "required": [
+        "path",
+        "digest",
+        "role"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Repo-relative POSIX path. Absolute paths are forbidden (RFC 4.5).",
+          "pattern": "^[^/].*$"
+        },
+        "digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "role": {
+          "type": "string",
+          "description": "declaration = the module's own source; fragment = a Spark.Dsl.Fragment; injector = a module whose __using__ macro contributed DSL. Open-ended.",
+          "examples": [
+            "declaration",
+            "fragment",
+            "injector"
+          ]
+        }
+      }
+    },
+    "manifestHashes": {
+      "type": "object",
+      "required": [
+        "inputs",
+        "manifest"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "inputs": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/digest"
+            }
+          ],
+          "description": "The invalidation key: files + extensions_digest + toolchain_digest. Recomputable without compiling."
+        },
+        "manifest": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/digest"
+            }
+          ],
+          "description": "Digest of this document minus the hashes object. Integrity only."
+        }
+      }
+    },
+    "position": {
+      "type": "object",
+      "required": [
+        "line"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "column": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        }
+      }
+    },
+    "span": {
+      "description": "Projected from :erl_anno.anno(). null whenever no annotation is available, which is the normal case when debug_info is off.",
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "required": [
+            "file",
+            "start",
+            "fidelity"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "file": {
+              "type": "string",
+              "description": "Repo-relative POSIX path.",
+              "pattern": "^[^/].*$"
+            },
+            "start": {
+              "$ref": "#/$defs/position"
+            },
+            "end": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/$defs/position"
+                }
+              ]
+            },
+            "fidelity": {
+              "enum": [
+                "exact",
+                "start_only",
+                "line_only",
+                "absent"
+              ],
+              "description": "exact = {line,column} start and an end location; start_only = column but no end; line_only = :erl_anno.location/1 returned a bare line; absent = should be represented as null instead."
+            }
+          }
+        }
+      ]
+    },
+    "propertySpans": {
+      "type": "object",
+      "description": "Option name -> span, from Spark.Dsl.Entity.property_anno/2 and Spark.Dsl.Extension.get_opt_anno/3. Lets a diagnostic underline one option rather than a whole block.",
+      "additionalProperties": {
+        "$ref": "#/$defs/span"
+      }
+    },
+    "provenanceStep": {
+      "type": "object",
+      "required": [
+        "stage"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "stage": {
+          "type": "string",
+          "description": "Open-ended; unknown stages must be tolerated.",
+          "examples": [
+            "declared",
+            "fragment",
+            "macro_injected",
+            "extension_patch",
+            "transformer_added",
+            "option_default",
+            "auto_set",
+            "generated_code"
+          ]
+        },
+        "by": {
+          "description": "The module responsible. null is legal and common: Spark records no attribution for Transformer.add_entity/4 today (RFC 4.6).",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/moduleName"
+            }
+          ]
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        },
+        "note": {
+          "type": "string"
+        },
+        "inferred": {
+          "type": "boolean",
+          "default": false,
+          "description": "True when the emitter deduced this step heuristically (e.g. 'no anno and not in a declaring file, therefore transformer_added') rather than reading recorded attribution."
+        }
+      }
+    },
+    "symbolHashes": {
+      "type": "object",
+      "required": [
+        "identity",
+        "shape",
+        "content"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "identity": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/digest"
+            }
+          ],
+          "description": "Over {module, dsl_path, name_or_ordinal, kind}."
+        },
+        "shape": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/digest"
+            }
+          ],
+          "description": "Over the semantic payload with name, id, spans and provenance removed. Equal shapes across a remove/add pair in the same dsl_path is the rename heuristic (RFC 4.4)."
+        },
+        "content": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/digest"
+            }
+          ],
+          "description": "Over the whole symbol minus hashes, span and property_spans. Moving a declaration must not invalidate a semantic cache."
+        }
+      }
+    },
+    "type": {
+      "description": "A type term. The kind vocabulary and the property names are Ash.Info.Manifest.Type's (ash lib/ash/info/manifest/type.ex), extended with six kinds Ash's runtime-oriented IR does not need - literal, literal_union, behaviour, result, page, dynamic. 'dynamic' is always a legal answer and is the mandatory sink for anything the emitter cannot prove (RFC 5.2, 8).",
+      "type": "object",
+      "required": [
+        "kind",
+        "name"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "description": "Open-ended. A consumer seeing an unknown kind must treat it as dynamic. The first thirty values are Ash.Info.Manifest.Type.kind/0 verbatim; the last six are added by this RFC for DSL-option and generated-boundary typing.",
+          "examples": [
+            "string",
+            "integer",
+            "boolean",
+            "float",
+            "decimal",
+            "uuid",
+            "date",
+            "datetime",
+            "utc_datetime",
+            "utc_datetime_usec",
+            "naive_datetime",
+            "time",
+            "time_usec",
+            "duration",
+            "binary",
+            "atom",
+            "ci_string",
+            "term",
+            "enum",
+            "union",
+            "resource",
+            "embedded_resource",
+            "map",
+            "struct",
+            "array",
+            "tuple",
+            "keyword",
+            "type_ref",
+            "any",
+            "unknown",
+            "literal",
+            "literal_union",
+            "behaviour",
+            "result",
+            "page",
+            "dynamic"
+          ]
+        },
+        "name": {
+          "type": "string",
+          "description": "Human-facing type name, as Ash sets it (e.g. 'String', 'UUID', 'Array', 'TeamType'). Ash's serializer always emits it, so it is required here."
+        },
+        "module": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/moduleName"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The Ash type module, e.g. 'Ash.Type.String'. For kind=behaviour it is the behaviour module."
+        },
+        "allow_nil": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "Replaces v0 revision 1's separate `nullable` wrapper kind (consolidation C1): Ash already carries nullability as a flag on the type itself."
+        },
+        "constraints": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "description": "The Ash type's constraints, or the Spark option schema's, minus anything prohibited by RFC 8. Ash's IR carries these but its JSON serializer currently drops them; emitting them is an additive ask on Ash - provenance: proposed.",
+          "additionalProperties": true
+        },
+        "values": {
+          "type": "array",
+          "description": "For kind=enum (Ash) and kind=literal_union (net-new). Finite and closed."
+        },
+        "members": {
+          "type": "array",
+          "description": "For kind=union.",
+          "items": {
+            "$ref": "#/$defs/typeUnionMember"
+          }
+        },
+        "fields": {
+          "type": "array",
+          "description": "For kind=map, struct, keyword. Replaces v0 revision 1's required/optional object pair (consolidation C1).",
+          "items": {
+            "$ref": "#/$defs/typeFieldDescriptor"
+          }
+        },
+        "element_types": {
+          "type": "array",
+          "description": "For kind=tuple, in position order.",
+          "items": {
+            "$ref": "#/$defs/typeFieldDescriptor"
+          }
+        },
+        "item_type": {
+          "$ref": "#/$defs/type",
+          "description": "For kind=array."
+        },
+        "instance_of": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/moduleName"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "For kind=struct: the struct module being wrapped."
+        },
+        "resource_module": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/moduleName"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "For kind=resource and kind=embedded_resource."
+        },
+        "open": {
+          "type": "boolean",
+          "description": "For kind=map and kind=keyword: whether unlisted keys are accepted. Net-new; the accepted contract (RFC 5.3) needs it. provenance: proposed as an additive field on Ash's Type."
+        },
+        "key_type": {
+          "$ref": "#/$defs/type",
+          "description": "For a {:map, k, v} Spark option type."
+        },
+        "value_type": {
+          "$ref": "#/$defs/type"
+        },
+        "symbol": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "For kind=type_ref: a symbol id in this or another module's manifest. Net-new alongside Ash's `module`, which stays authoritative when both are present."
+        },
+        "value": {
+          "description": "For kind=literal. Floats are carried as their Elixir source string (RFC 7.2)."
+        },
+        "ok": {
+          "$ref": "#/$defs/type",
+          "description": "For kind=result."
+        },
+        "error": {
+          "$ref": "#/$defs/type",
+          "description": "For kind=result."
+        },
+        "strategies": {
+          "type": "array",
+          "description": "For kind=page.",
+          "items": {
+            "enum": [
+              "offset",
+              "keyset"
+            ]
+          }
+        },
+        "reason": {
+          "type": "string",
+          "description": "Required when kind=dynamic. Machine-readable.",
+          "examples": [
+            "anonymous_function",
+            "function_reference",
+            "quoted_expression",
+            "ash_expression",
+            "custom_validator",
+            "unconstrained",
+            "redacted_sensitive",
+            "unsupported_option_type"
+          ]
+        },
+        "repr": {
+          "type": "string",
+          "description": "Bounded inspect/1 output, for display only. Never evaluated, never parsed."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "dynamic"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "required": [
+              "reason"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "literal_union"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "required": [
+              "values"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "enum"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "required": [
+              "values"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "array"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "required": [
+              "item_type"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "type_ref"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "anyOf": [
+              {
+                "required": [
+                  "module"
+                ]
+              },
+              {
+                "required": [
+                  "symbol"
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "typedSlot": {
+      "description": "Every typed position carries both contracts. They are frequently different and that is the point (RFC 5).",
+      "type": "object",
+      "required": [
+        "accepted",
+        "normalized"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "accepted": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/type"
+            }
+          ],
+          "description": "What the public boundary accepts before casting/defaulting. Ash.Type.cast_input/2's domain."
+        },
+        "normalized": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/type"
+            }
+          ],
+          "description": "What action code and callers receive after validation and defaulting."
+        }
+      }
+    },
+    "symbolBase": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "dsl_path",
+        "provenance",
+        "hashes"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "ash:v0:<module>#<dsl_path>/<name-or-ordinal>[/...]. Structural, not content-hashed (RFC 4.3).",
+          "pattern": "^ash:v0:[A-Z][A-Za-z0-9_.]*#.+$"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "name": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/atomName"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null for symbols with no name field of their own, e.g. policies."
+        },
+        "id_stability": {
+          "enum": [
+            "named",
+            "ordinal"
+          ],
+          "default": "named",
+          "description": "ordinal means the id embeds a declaration position and will shift if a sibling is inserted before it."
+        },
+        "previous_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "RESERVED. provenance: proposed - absent in v0 emitters. For a future refactoring tool to record renames."
+        },
+        "dsl_path": {
+          "type": "array",
+          "description": "The Spark section path, e.g. ['attributes'] or ['actions','create','arguments'].",
+          "items": {
+            "$ref": "#/$defs/atomName"
+          }
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        },
+        "property_spans": {
+          "$ref": "#/$defs/propertySpans"
+        },
+        "provenance": {
+          "type": "array",
+          "description": "Ordered, oldest step first.",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/provenanceStep"
+          }
+        },
+        "hashes": {
+          "$ref": "#/$defs/symbolHashes"
+        },
+        "doc": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "deprecated": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "public": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "sensitive": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "symbol": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/symbolBase"
+        }
+      ],
+      "unevaluatedProperties": false,
+      "oneOf": [
+        {
+          "$ref": "#/$defs/symbolResource"
+        },
+        {
+          "$ref": "#/$defs/symbolSection"
+        },
+        {
+          "$ref": "#/$defs/symbolAttribute"
+        },
+        {
+          "$ref": "#/$defs/symbolAction"
+        },
+        {
+          "$ref": "#/$defs/symbolArgument"
+        },
+        {
+          "$ref": "#/$defs/symbolRelationship"
+        },
+        {
+          "$ref": "#/$defs/symbolCalculation"
+        },
+        {
+          "$ref": "#/$defs/symbolAggregate"
+        },
+        {
+          "$ref": "#/$defs/symbolPolicy"
+        },
+        {
+          "$ref": "#/$defs/symbolCodeInterfaceFunction"
+        },
+        {
+          "$ref": "#/$defs/symbolUnknownKind"
+        }
+      ]
+    },
+    "symbolUnknownKind": {
+      "description": "Forward compatibility: a v0 emitter may introduce a new symbol kind without bumping manifest_version (RFC 6.2). Such a symbol still carries the common base fields; its kind-specific body is unconstrained, and consumers are required to skip it rather than error.",
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "not": {
+            "enum": [
+              "resource",
+              "section",
+              "attribute",
+              "action",
+              "argument",
+              "relationship",
+              "calculation",
+              "policy",
+              "code_interface_function",
+              "aggregate"
+            ]
+          }
+        }
+      }
+    },
+    "symbolResource": {
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "const": "resource"
+        },
+        "domain": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/moduleName"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "data_layer": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/moduleName"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "authorizers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/moduleName"
+          }
+        },
+        "primary_key": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/atomName"
+          }
+        },
+        "multitenancy": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "strategy": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/atomName"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "attribute": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/atomName"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "global": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            }
+          }
+        },
+        "struct_type": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/type"
+            }
+          ],
+          "description": "The loaded-record type this resource denotes."
+        },
+        "embedded": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "Ash.Info.Manifest.Resource.embedded?. Embedded resources are types, not resources, and appear in an Ash manifest's `types` list rather than its `resources` list."
+        },
+        "identities": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "description": "Ash.Info.Manifest.Resource.identities: name -> {keys}.",
+          "additionalProperties": {
+            "type": "object",
+            "required": [
+              "keys"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "keys": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/atomName"
+                }
+              }
+            }
+          }
+        }
+      },
+      "description": "Mirrors %Ash.Info.Manifest.Resource{} (module, embedded?, primary_key, identities, multitenancy, description) and adds the DSL-level facts Ash's runtime IR has no reason to carry: domain, data_layer, authorizers. `name` on the base carries Ash's Resource.name."
+    },
+    "symbolSection": {
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "const": "section"
+        },
+        "options": {
+          "type": "object",
+          "description": "Option name -> { value_repr, type }. Values prohibited by RFC 8 appear as a dynamic type with no value_repr.",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "value_repr": {},
+              "type": {
+                "$ref": "#/$defs/type"
+              },
+              "from_default": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "top_level": {
+          "type": "boolean"
+        }
+      }
+    },
+    "symbolAttribute": {
+      "type": "object",
+      "required": [
+        "kind",
+        "type"
+      ],
+      "properties": {
+        "kind": {
+          "const": "attribute"
+        },
+        "ash_type": {
+          "description": "The Ash type module or shorthand as written, e.g. 'Ash.Type.String' or 'AshEnterprise.Accounts.Types.TeamType'.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/moduleName"
+            },
+            {
+              "$ref": "#/$defs/atomName"
+            }
+          ]
+        },
+        "type": {
+          "$ref": "#/$defs/typedSlot"
+        },
+        "allow_nil": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "primary_key": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "writable": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "generated": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "filterable": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "sortable": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "default": {
+          "description": "null when there is no default. A non-data default (a captured function) is rendered as a dynamic type term, never as a value.",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "value_repr": {},
+                "type": {
+                  "$ref": "#/$defs/type"
+                }
+              }
+            }
+          ]
+        },
+        "constraints": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "field_kind": {
+          "const": "attribute",
+          "description": "The Ash.Info.Manifest.Field.kind this symbol projects to. Ash unifies attributes, calculations and aggregates into one Field struct; v0 keeps them as distinct symbol kinds because they are distinct DSL entities with distinct spans, and carries field_kind as the join key (consolidation C4)."
+        },
+        "has_default": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "Ash.Info.Manifest.Field.has_default?."
+        },
+        "select_by_default": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "Ash.Info.Manifest.Field.select_by_default?."
+        },
+        "filter_operators": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/applicableExpression"
+          },
+          "description": "Verbatim from Ash.Info.Manifest.Field.filter_operators. null iff filterable is false."
+        },
+        "filter_functions": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/applicableExpression"
+          }
+        },
+        "filter_custom_expressions": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/applicableExpression"
+          }
+        }
+      },
+      "description": "Projects to Ash.Info.Manifest.Field with kind=:attribute. The flag names are Ash's serialized names (allow_nil, writable, filterable, sortable, primary_key, sensitive, has_default, select_by_default). `generated` and the literal `default` are net-new: Ash records only whether a default exists, not what it is."
+    },
+    "symbolAction": {
+      "type": "object",
+      "required": [
+        "kind",
+        "action_type",
+        "accepted_input",
+        "normalized_input",
+        "returns"
+      ],
+      "properties": {
+        "kind": {
+          "const": "action"
+        },
+        "action_type": {
+          "type": "string",
+          "examples": [
+            "create",
+            "read",
+            "update",
+            "destroy",
+            "action"
+          ]
+        },
+        "primary": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "accept": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/atomName"
+              }
+            }
+          ],
+          "description": "From the action struct's :accept. null means 'not yet resolved to a list'."
+        },
+        "argument_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Symbol ids of this action's argument symbols. Ash.Info.Manifest.Action.inputs is the flattened union of these arguments AND the accepted attributes; v0 keeps them apart because they have different spans and different provenance, and records the flattening in accepted_input / normalized_input instead (consolidation C5)."
+        },
+        "accepted_input": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/type"
+            }
+          ],
+          "description": "Open map. Keys include BOTH atom and string forms, matching the persisted {:action_inputs, name} MapSet (ash lib/ash/resource/transformers/cache_action_inputs.ex:28,53). Optional inputs are optional keys."
+        },
+        "normalized_input": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/type"
+            }
+          ],
+          "description": "Closed map, atom keys, post-cast types, defaults applied."
+        },
+        "required_inputs": {
+          "type": "array",
+          "description": "From the persisted {:attributes_to_require, name}, minus anything with a default.",
+          "items": {
+            "$ref": "#/$defs/atomName"
+          }
+        },
+        "returns": {
+          "$ref": "#/$defs/type"
+        },
+        "pagination": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "description": "Ash.Info.Manifest.Pagination, field for field (consolidation C5).",
+          "additionalProperties": false,
+          "properties": {
+            "offset": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "keyset": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "required": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "countable": {
+              "type": [
+                "boolean",
+                "string",
+                "null"
+              ],
+              "description": "Ash carries :by_default here as well as a boolean."
+            },
+            "default_limit": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            },
+            "max_page_size": {
+              "type": [
+                "integer",
+                "null"
+              ]
+            }
+          }
+        },
+        "transaction": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "requires_atomic": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "changes": {
+          "type": "array",
+          "description": "Ordered. Module changes carry a module; inline/anonymous ones carry only a dynamic marker and a span.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "module": {
+                "oneOf": [
+                  {
+                    "$ref": "#/$defs/moduleName"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "opts_repr": {},
+              "on": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/atomName"
+                }
+              },
+              "span": {
+                "$ref": "#/$defs/span"
+              },
+              "opaque": {
+                "$ref": "#/$defs/type"
+              }
+            }
+          }
+        },
+        "get": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "Ash.Info.Manifest.Action.get? - a read action that returns one record."
+        },
+        "metadata": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "description": "Ash.Info.Manifest.Action.metadata: values the action attaches to its result. Carried in Ash's shape.",
+          "items": {
+            "type": "object",
+            "required": [
+              "name",
+              "type"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "$ref": "#/$defs/atomName"
+              },
+              "type": {
+                "$ref": "#/$defs/type"
+              },
+              "allow_nil": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "description": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "description": "Projects to one %Ash.Info.Manifest.Entrypoint{} - Ash pairs {resource, action} at the app level, so the join key from an Ash manifest entrypoint to this symbol is \"ash:v0:\" <> resource <> \"#actions/\" <> action.name (RFC 3.5)."
+    },
+    "symbolArgument": {
+      "type": "object",
+      "required": [
+        "kind",
+        "type"
+      ],
+      "properties": {
+        "kind": {
+          "const": "argument"
+        },
+        "ash_type": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/moduleName"
+            },
+            {
+              "$ref": "#/$defs/atomName"
+            }
+          ]
+        },
+        "type": {
+          "$ref": "#/$defs/typedSlot"
+        },
+        "allow_nil": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "default": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "value_repr": {},
+                "type": {
+                  "$ref": "#/$defs/type"
+                }
+              }
+            }
+          ]
+        },
+        "constraints": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "action_id": {
+          "type": "string"
+        },
+        "required": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "Whether a caller must SUPPLY this argument. Orthogonal to allow_nil, which is whether nil is a permitted value once supplied. Ash makes this distinction explicitly (see the Ash.Info.Manifest.Argument moduledoc); v0 revision 1 collapsed it into the action's required_inputs (consolidation C6)."
+        },
+        "has_default": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      }
+    },
+    "symbolRelationship": {
+      "type": "object",
+      "required": [
+        "kind",
+        "relationship_type",
+        "destination",
+        "cardinality"
+      ],
+      "properties": {
+        "kind": {
+          "const": "relationship"
+        },
+        "relationship_type": {
+          "type": "string",
+          "examples": [
+            "belongs_to",
+            "has_one",
+            "has_many",
+            "many_to_many"
+          ],
+          "description": "has_many | has_one | belongs_to | many_to_many. This is Ash.Info.Manifest.Relationship.type; it is spelled relationship_type here because `type` is already taken by the typed slot (consolidation C7). The shape of a filter or sort over the relationship is derivable from cardinality, per Ash's Relationship moduledoc."
+        },
+        "cardinality": {
+          "enum": [
+            "one",
+            "many"
+          ]
+        },
+        "destination": {
+          "$ref": "#/$defs/moduleName"
+        },
+        "source_attribute": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/atomName"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "destination_attribute": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/atomName"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "through": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/moduleName"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source_attribute_on_join_resource": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/atomName"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "destination_attribute_on_join_resource": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/atomName"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "allow_nil": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "defines_attribute": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            }
+          ],
+          "description": "Symbol id of the attribute a belongs_to implicitly defines (define_attribute? true)."
+        },
+        "type": {
+          "$ref": "#/$defs/typedSlot"
+        },
+        "filterable": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "Ash.Info.Manifest.Relationship.filterable?."
+        },
+        "sortable": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "Ash.Info.Manifest.Relationship.sortable?."
+        }
+      }
+    },
+    "symbolCalculation": {
+      "type": "object",
+      "required": [
+        "kind",
+        "type",
+        "calculation_kind"
+      ],
+      "properties": {
+        "kind": {
+          "const": "calculation"
+        },
+        "calculation_kind": {
+          "enum": [
+            "expression",
+            "module"
+          ],
+          "description": "expression = expr(...) (carried as a dynamic term plus a span in v0); module = {Module, opts}."
+        },
+        "ash_type": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/moduleName"
+            },
+            {
+              "$ref": "#/$defs/atomName"
+            }
+          ]
+        },
+        "type": {
+          "$ref": "#/$defs/typedSlot"
+        },
+        "calculation_module": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/moduleName"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "expression": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/type"
+            }
+          ],
+          "description": "v0 always emits kind=dynamic with reason=ash_expression. The span is what a consumer shows."
+        },
+        "argument_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "load": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/atomName"
+          }
+        },
+        "filterable": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "sortable": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "constraints": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "field_kind": {
+          "const": "calculation",
+          "description": "Join key to Ash.Info.Manifest.Field.kind."
+        },
+        "allow_nil": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "writable": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "has_default": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "Ash.Info.Manifest.Field.has_default?."
+        },
+        "select_by_default": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "Ash.Info.Manifest.Field.select_by_default?."
+        },
+        "filter_operators": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/applicableExpression"
+          },
+          "description": "Verbatim from Ash.Info.Manifest.Field.filter_operators. null iff filterable is false."
+        },
+        "filter_functions": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/applicableExpression"
+          }
+        },
+        "filter_custom_expressions": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/applicableExpression"
+          }
+        }
+      }
+    },
+    "symbolPolicy": {
+      "type": "object",
+      "required": [
+        "kind",
+        "policy_kind",
+        "ordinal",
+        "checks"
+      ],
+      "properties": {
+        "kind": {
+          "const": "policy"
+        },
+        "policy_kind": {
+          "type": "string",
+          "examples": [
+            "policy",
+            "bypass",
+            "field_policy"
+          ]
+        },
+        "ordinal": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Declaration position within the section. Policy order is semantically significant in Ash, so this is meaning, not just an id crutch."
+        },
+        "condition": {
+          "type": "array",
+          "description": "The policy's condition checks. An empty array means an unconditional policy (always()).",
+          "items": {
+            "$ref": "#/$defs/policyCheck"
+          }
+        },
+        "checks": {
+          "type": "array",
+          "description": "Ordered authorize_if / forbid_unless / ... clauses. Order is significant: the first decisive result wins.",
+          "items": {
+            "$ref": "#/$defs/policyCheck"
+          }
+        },
+        "fields": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/atomName"
+              }
+            }
+          ],
+          "description": "For policy_kind=field_policy. '*' is rendered as the string '*'."
+        },
+        "access_type": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/atomName"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error_message": {
+          "description": "A literal string, or null. A function-valued error_message is never serialized (RFC 8.1); it appears as a dynamic type here.",
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/type"
+            }
+          ]
+        }
+      }
+    },
+    "policyCheck": {
+      "type": "object",
+      "required": [
+        "decision",
+        "check_module"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "decision": {
+          "type": "string",
+          "examples": [
+            "authorize_if",
+            "forbid_if",
+            "authorize_unless",
+            "forbid_unless",
+            "condition"
+          ]
+        },
+        "check_module": {
+          "$ref": "#/$defs/moduleName"
+        },
+        "check_type": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/atomName"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "From %Ash.Policy.Check{type:} - e.g. simple, filter, manual."
+        },
+        "opts_repr": {
+          "description": "Plain-data check options only. Anything prohibited by RFC 8 is dropped and reflected in 'opaque'."
+        },
+        "opaque": {
+          "$ref": "#/$defs/type"
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        }
+      }
+    },
+    "symbolCodeInterfaceFunction": {
+      "type": "object",
+      "required": [
+        "kind",
+        "target_module",
+        "function_name",
+        "arity",
+        "action_ref"
+      ],
+      "properties": {
+        "kind": {
+          "const": "code_interface_function"
+        },
+        "target_module": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/moduleName"
+            }
+          ],
+          "description": "The module the function is defined on - usually the domain."
+        },
+        "function_name": {
+          "$ref": "#/$defs/atomName"
+        },
+        "arity": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "variant": {
+          "type": "string",
+          "description": "Which generated form this is. Derived from Ash.CodeInterface (lib/ash/code_interface.ex:1080-1180).",
+          "examples": [
+            "action",
+            "action_bang",
+            "can",
+            "can_question",
+            "subject",
+            "predicate",
+            "predicate_bang"
+          ]
+        },
+        "raising": {
+          "type": "boolean"
+        },
+        "action_ref": {
+          "type": "object",
+          "required": [
+            "resource",
+            "action"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "resource": {
+              "$ref": "#/$defs/moduleName"
+            },
+            "action": {
+              "$ref": "#/$defs/atomName"
+            },
+            "symbol": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "description": "Symbol id in the resource's own manifest."
+            }
+          }
+        },
+        "positional_args": {
+          "type": "array",
+          "description": "From %Ash.Resource.Interface{args:}, in order. These are NOT settable via the params map.",
+          "items": {
+            "type": "object",
+            "required": [
+              "name",
+              "type"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "$ref": "#/$defs/atomName"
+              },
+              "optional": {
+                "type": "boolean",
+                "default": false
+              },
+              "type": {
+                "$ref": "#/$defs/typedSlot"
+              }
+            }
+          }
+        },
+        "params": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/typedSlot"
+            }
+          ],
+          "description": "The trailing params map/keyword argument."
+        },
+        "opts": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/type"
+            }
+          ],
+          "description": "The trailing opts keyword list."
+        },
+        "success": {
+          "$ref": "#/$defs/type"
+        },
+        "error": {
+          "$ref": "#/$defs/type"
+        },
+        "get_by": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/atomName"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "relation": {
+      "type": "object",
+      "required": [
+        "from",
+        "to",
+        "kind"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "from": {
+          "type": "string",
+          "description": "A symbol id in this manifest."
+        },
+        "to": {
+          "type": "string",
+          "description": "A symbol id (possibly in another module's manifest, resolved lazily) or a bare module name."
+        },
+        "kind": {
+          "type": "string",
+          "description": "Open-ended; unknown kinds must be ignored, not rejected.",
+          "examples": [
+            "contains",
+            "generated_from",
+            "transformed_from",
+            "added_by_extension",
+            "accepts_input",
+            "returns",
+            "references_type",
+            "references_resource",
+            "guarded_by",
+            "implements_action",
+            "joins_through",
+            "references_named_type"
+          ]
+        },
+        "note": {
+          "type": "string"
+        }
+      }
+    },
+    "diagnostic": {
+      "type": "object",
+      "required": [
+        "severity",
+        "message"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "severity": {
+          "type": "string",
+          "examples": [
+            "error",
+            "warning",
+            "information",
+            "hint"
+          ]
+        },
+        "message": {
+          "type": "string"
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        },
+        "symbol": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source": {
+          "type": "string",
+          "description": "What produced it, e.g. 'spark.semantic' or a verifier module name."
+        }
+      }
+    },
+    "typeFieldDescriptor": {
+      "description": "One entry of a map/struct/keyword `fields` list or a tuple `element_types` list. The shape is Ash.Info.Manifest.Type's field descriptor as serialized by Ash.Info.Manifest.JsonSerializer (name/type/allow_nil/description). `required` is the one net-new property: Ash's runtime IR has no notion of key presence, but the accepted-vs-normalized split (RFC 5.3) needs it. provenance: proposed as an additive field on Ash's descriptor.",
+      "type": "object",
+      "required": [
+        "name",
+        "type"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/atomName"
+        },
+        "name_repr": {
+          "enum": [
+            "atom",
+            "string",
+            "atom_or_string"
+          ],
+          "description": "How the key is spelled at this boundary, per RFC 7.2 rule 5. 'atom_or_string' is the accepted contract of an Ash action: the persisted {:action_inputs, name} MapSet holds both forms (ash lib/ash/resource/transformers/cache_action_inputs.ex:28,53), so the key is listed once with this marker rather than duplicated."
+        },
+        "type": {
+          "$ref": "#/$defs/type"
+        },
+        "allow_nil": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "Whether nil is a permitted VALUE. Orthogonal to `required`."
+        },
+        "required": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "Whether the key must be PRESENT. Absent means unknown. An optional key is never modelled as required-and-nullable."
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "typeUnionMember": {
+      "description": "One member of a kind=union type. The shape is Ash.Info.Manifest.Type's union member (name/type/description, plus tag/tag_value for tagged unions - see ash lib/ash/info/manifest/generator/type_resolver.ex:233-262).",
+      "type": "object",
+      "required": [
+        "name",
+        "type"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/atomName"
+        },
+        "type": {
+          "$ref": "#/$defs/type"
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "tag": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/atomName"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tag_value": {
+          "description": "Plain data only."
+        }
+      }
+    },
+    "namedType": {
+      "description": "An entry in the module-scoped `types` table: a fully-resolved named type, not a reference. Same shape as `type`, but `module` is mandatory because the table is keyed by it - this mirrors Ash.Info.Manifest.type_lookup/1.",
+      "allOf": [
+        {
+          "$ref": "#/$defs/type"
+        },
+        {
+          "required": [
+            "module"
+          ]
+        }
+      ]
+    },
+    "applicableExpression": {
+      "description": "Pass-through of Ash.Info.Manifest.ApplicableOperator / ApplicableFunction / ApplicableCustomExpression exactly as Ash.Info.Manifest.JsonSerializer renders them. v0 does not redefine the filter vocabulary; it carries Ash's resolved per-field values verbatim (consolidation C8).",
+      "type": "object",
+      "required": [
+        "name",
+        "rhs"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/atomName"
+        },
+        "rhs": {
+          "description": "'same' | 'any' | {\"concrete\": <module>} | {\"array\": <rhs>}"
+        }
+      }
+    },
+    "symbolAggregate": {
+      "description": "Projects to Ash.Info.Manifest.Field with kind=:aggregate. Added in v0 revision 2 because Ash's Field already models aggregates; leaving them out would have meant a v0 consumer seeing fewer fields than the Ash manifest it is layered on (consolidation C4).",
+      "type": "object",
+      "required": [
+        "kind",
+        "aggregate_kind"
+      ],
+      "properties": {
+        "kind": {
+          "const": "aggregate"
+        },
+        "field_kind": {
+          "const": "aggregate"
+        },
+        "aggregate_kind": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/atomName"
+            }
+          ],
+          "description": "count | sum | exists | first | list | max | min | avg."
+        },
+        "relationship_path": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/atomName"
+          }
+        },
+        "aggregate_field": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/atomName"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ash_type": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/moduleName"
+            },
+            {
+              "$ref": "#/$defs/atomName"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "type": {
+          "$ref": "#/$defs/typedSlot"
+        },
+        "allow_nil": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "filterable": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "sortable": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "constraints": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "has_default": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "Ash.Info.Manifest.Field.has_default?."
+        },
+        "select_by_default": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "description": "Ash.Info.Manifest.Field.select_by_default?."
+        },
+        "filter_operators": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/applicableExpression"
+          },
+          "description": "Verbatim from Ash.Info.Manifest.Field.filter_operators. null iff filterable is false."
+        },
+        "filter_functions": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/applicableExpression"
+          }
+        },
+        "filter_custom_expressions": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/$defs/applicableExpression"
+          }
+        }
+      }
+    }
+  }
+}
