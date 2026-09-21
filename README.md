@@ -9,6 +9,11 @@ model over time.
 the evidence.** Several things here look unusual on purpose; the reasoning is
 written down.
 
+**The capstone is published:** a vet-clinic demo carved from this tree, showing
+agents reading an Ash codebase instead of grepping it —
+[`lukegalea/clinic-demo`](https://github.com/lukegalea/clinic-demo), with its
+story and evidence index in [`docs/capstone/storyline.md`](docs/capstone/storyline.md).
+
 ## The thesis
 
 > The cross-cutting concerns of enterprise software are declarable. Declare them

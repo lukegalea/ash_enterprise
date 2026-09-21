@@ -11,6 +11,7 @@ Four kinds of document live here.
 | [**adr/**](adr/README.md) | The decisions. Nineteen records, each with the exit from it. | You disagree with something and want to know what it would cost to change. |
 | [**plans/**](plans/README.md) | The specifications. Long-form designs for work that is proposed or partly built. | You are about to build one of them. |
 | [**HANDOFF.md**](HANDOFF.md) | The state of play, plus findings that were expensive to discover. | You are picking this up in a new session. Start here. |
+| [**capstone/storyline.md**](https://github.com/lukegalea/ash_enterprise/blob/main/docs/capstone/storyline.md) | The capstone: the published [`clinic-demo`](https://github.com/lukegalea/clinic-demo) — agents reading an Ash codebase — with the evidence set indexed. | You want the story this tree earned, in one sitting. |
 
 `roadmap.json` is the machine-readable source every status table in this repository renders from —
 including the ones in the root `README.md`. It is rewritten by `mix ash_enterprise.roadmap` and checked
