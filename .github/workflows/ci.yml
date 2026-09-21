@@ -77,7 +77,7 @@ jobs:
             otp: "27.3.4"
             canary: true
 
-    continue-on-error: ${{ matrix.canary }}
+    continue-on-error: true # PROBE-A: literal, was matrix expression
 
     services:
       # pgvector rather than plain postgres: ash_ai's vectorize block needs the
