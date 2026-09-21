@@ -39,6 +39,11 @@ metadata:
 - [relationships](references/ash_a2ui/relationships.md)
 - [reports](references/ash_a2ui/reports.md)
 
+### ash_agent_tools
+
+- [ash_agent_tools](references/ash_agent_tools/ash_agent_tools.md)
+- [iron-laws](references/ash_agent_tools/iron-laws.md)
+
 ### ash_ai
 
 - [ash_ai](references/ash_ai/ash_ai.md)
@@ -50,6 +55,10 @@ metadata:
 ### ash_bpmn
 
 - [ash_bpmn](references/ash_bpmn/ash_bpmn.md)
+
+### ash_compliance
+
+- [ash_compliance](references/ash_compliance/ash_compliance.md)
 
 ### ash_credo
 
@@ -113,6 +122,10 @@ metadata:
 - [migrations](references/ash_postgres/migrations.md)
 - [multitenancy](references/ash_postgres/multitenancy.md)
 
+### ash_rules
+
+- [ash_rules](references/ash_rules/ash_rules.md)
+
 ### ash_strangler
 
 - [ash_strangler](references/ash_strangler/ash_strangler.md)
@@ -120,7 +133,7 @@ metadata:
 ## Searching Documentation
 
 ```sh
-mix usage_rules.search_docs "search term" -p ash -p ash_a2ui -p ash_admin -p ash_ai -p ash_archival -p ash_authentication -p ash_authentication_phoenix -p ash_bpmn -p ash_cloak -p ash_credo -p ash_decisions -p ash_diagram -p ash_events -p ash_graphql -p ash_json_api -p ash_money -p ash_oban -p ash_paper_trail -p ash_phoenix -p ash_postgres -p ash_rate_limiter -p ash_state_machine -p ash_strangler
+mix usage_rules.search_docs "search term" -p ash -p ash_a2ui -p ash_admin -p ash_agent_tools -p ash_ai -p ash_archival -p ash_authentication -p ash_authentication_phoenix -p ash_bpmn -p ash_cloak -p ash_compliance -p ash_credo -p ash_decisions -p ash_diagram -p ash_events -p ash_graphql -p ash_json_api -p ash_money -p ash_oban -p ash_paper_trail -p ash_phoenix -p ash_postgres -p ash_rate_limiter -p ash_rules -p ash_state_machine -p ash_strangler
 ```
 
 ## Available Mix Tasks
@@ -154,6 +167,16 @@ mix usage_rules.search_docs "search term" -p ash -p ash_a2ui -p ash_admin -p ash
 - `mix ash_a2ui.install.docs`
 - `mix ash_admin.install` - Installs AshAdmin
 - `mix ash_admin.install.docs`
+- `mix ash_agent.context` - Describes the Ash context at a file position as JSON
+- `mix ash_agent.describe` - Describes Ash resources and actions as JSON
+- `mix ash_agent.diff` - Diffs two semantic-manifest JSON files as JSON
+- `mix ash_agent.edit` - Semantic DSL-entity edits (dry-run by default) as JSON
+- `mix ash_agent.gaps` - Digests the kaizen tool-gap telemetry aggregate as JSON
+- `mix ash_agent.laws` - Judges code against the codified iron laws as JSON
+- `mix ash_agent.runtime` - BEAM runtime snapshot, top processes, or supervision tree as JSON
+- `mix ash_agent.search` - Searches symbols across loaded Ash resources as JSON
+- `mix ash_agent.serve` - Serve the Ash introspection MCP daemon (read-only)
+- `mix ash_agent.validate` - Validates params for an Ash action without running it
 - `mix ash_ai.gen.chat` - Generates the resources and views for a conversational UI backed by `ash_postgres` and `ash_oban`
 - `mix ash_ai.gen.chat.docs`
 - `mix ash_ai.gen.mcp` - Sets up an MCP server for your application
@@ -170,6 +193,8 @@ mix usage_rules.search_docs "search term" -p ash -p ash_a2ui -p ash_admin -p ash
 - `mix ash_authentication_phoenix.install` - Installs AshAuthenticationPhoenix. Invoke with `mix igniter.install ash_authentication_phoenix`
 - `mix ash_authentication_phoenix.upgrade`
 - `mix ash_bpmn.install` - Installs AshBpmn. Invoked by `mix igniter.install ash_bpmn`
+- `mix ash_compliance.export_oscal` - Exports a catalog or profile as an OSCAL JSON document
+- `mix ash_compliance.import_oscal` - Imports an OSCAL catalog or profile JSON document
 - `mix ash_credo.install` - Installs AshCredo and configures .credo.exs
 - `mix ash_decisions.tck` - Run the vendored DMN TCK corpus and report conformance
 - `mix ash_decisions.tck.verify` - Check that the vendored DMN TCK corpus is unmodified
@@ -204,6 +229,7 @@ mix usage_rules.search_docs "search term" -p ash -p ash_a2ui -p ash_admin -p ash
 - `mix ash_state_machine.install.docs`
 - `mix ash_strangler.check` - Runs the new model's assertions against the legacy data
 - `mix ash_strangler.gen.diagram` - Generates Mermaid diagrams of the legacy-to-new mapping
+- `mix ash_strangler.gen.ingester` - Generates the ingestion module and Oban drain worker for a ledger
 - `mix ash_strangler.gen.migration` - Generate the migration that builds the strangler compatibility layer
 - `mix ash_strangler.gen.twin` - Generates a twin resource by introspecting a live legacy relation
 - `mix ash_strangler.install` - Installs AshStrangler. Invoked by `mix igniter.install ash_strangler`
