@@ -153,6 +153,11 @@ config :ash, :missed_notifications, :ignore
 # truth cannot have its own validation disagree with it, so: codepoints.
 config :ash, default_string_length_count: :codepoints
 
+# Lane D dogfood: compile-time @type/@spec generation for Ash code interfaces
+# (Ash.CodeInterface.SpecGenerator, from the ash-typed fork). Read at
+# macro-expansion time, so it lives here in config.exs, not runtime.exs.
+config :ash, :generate_interface_specs, true
+
 config :ash_graphql, authorize_update_destroy_with_error?: true
 
 config :mime,
