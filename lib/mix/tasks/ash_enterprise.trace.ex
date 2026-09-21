@@ -119,8 +119,11 @@ defmodule Mix.Tasks.AshEnterprise.Trace do
     case Code.ensure_loaded(module) do
       {:module, ^module} ->
         try do
-          report =
-            apply(module, :explain, [Enum.map(trace.spans, &explain_span/1), explain_opts()])
+          # Dot-call on a variable module rather than apply/3: same dynamic
+          # dispatch (no compile-time warning where the dep is absent), and
+          # credo --strict rightly prefers the call syntax when the arity is
+          # known.
+          report = module.explain(Enum.map(trace.spans, &explain_span/1), explain_opts())
 
           %{trace_id: hex(trace.trace_id, 32), explain: report}
         rescue
