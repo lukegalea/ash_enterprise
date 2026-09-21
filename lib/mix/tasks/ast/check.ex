@@ -152,11 +152,11 @@ defmodule Mix.Tasks.Ast.Check do
   defp check_contract(%{resource: resource, action: action, inputs: inputs}) do
     # Dynamic dispatch on purpose: ash_agent_tools is only: :dev, so under
     # :test (CI's WAE compile) a direct remote call is an undefined-function
-    # warning and fails the gate. apply/3 compiles clean everywhere, and
-    # check_contract only runs after contracts_available?/0 confirmed the
-    # module is loaded. Same pattern ash_enterprise.trace uses for
-    # AshAgentTools.Trace.explain/2.
-    described = apply(AshAgentTools, :describe_action, [resource, action])
+    # warning and fails the gate. A dot-call on a variable module compiles
+    # clean in every env, and check_contract only runs after
+    # contracts_available?/0 confirmed the module is loaded.
+    module = AshAgentTools
+    described = module.describe_action(resource, action)
 
     documented =
       described.input.required

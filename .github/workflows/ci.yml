@@ -77,7 +77,10 @@ jobs:
     # immediately. Step-level continue-on-error does take a matrix expression,
     # so the tag sits on every step: setup steps too, because a canary-leg
     # runner or cache failure is not a migration signal either and must not
-    # block a pull request.
+    # block a pull request. The comparison form (`matrix.canary == true`)
+    # matters: on the gate leg a bare `matrix.canary` renders as an EMPTY
+    # value, and the first step failure then dies with "The template is not
+    # valid ... Unexpected value ''" instead of reporting its own error.
     strategy:
       fail-fast: false
       matrix:
@@ -108,12 +111,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-        continue-on-error: ${{ matrix.canary }}
+        continue-on-error: ${{ matrix.canary == true }}
 
       # Pinned to the pairing devenv.nix uses. CI drifting from local is how
       # "works on my machine" becomes a class of bug rather than an incident.
       - uses: erlef/setup-beam@v1
-        continue-on-error: ${{ matrix.canary }}
+        continue-on-error: ${{ matrix.canary == true }}
         with:
           otp-version: ${{ matrix.otp }}
           elixir-version: ${{ matrix.elixir }}
@@ -123,7 +126,7 @@ jobs:
       # reverse -- _build is not portable across compilers, and a stale build
       # would silently skip recompiling half the project.
       - name: Restore dependency and build cache
-        continue-on-error: ${{ matrix.canary }}
+        continue-on-error: ${{ matrix.canary == true }}
         uses: actions/cache@v4
         with:
           path: |
@@ -142,7 +145,7 @@ jobs:
       # for the same reason -- see the note at the top of the Dockerfile about
       # what happens when those three disagree.
       - name: Install xmllint
-        continue-on-error: ${{ matrix.canary }}
+        continue-on-error: ${{ matrix.canary == true }}
         run: sudo apt-get update -y && sudo apt-get install -y libxml2-utils
 
       # ash_rules and ash_compliance are private, and CI has no credentials for
@@ -158,7 +161,7 @@ jobs:
       # one agent SSH offers them in turn and the pairing is incidental, whereas
       # this fails loudly if a key is ever wrong for its repository.
       - name: Authorize the private first-party dependencies
-        continue-on-error: ${{ matrix.canary }}
+        continue-on-error: ${{ matrix.canary == true }}
         env:
           COMPLIANCE_KEY: ${{ secrets.ASH_COMPLIANCE_DEPLOY_KEY }}
           RULES_KEY: ${{ secrets.ASH_RULES_DEPLOY_KEY }}
@@ -185,7 +188,7 @@ jobs:
           git config --global url."git@gh-ash-rules:lukegalea/ash_rules".insteadOf "https://github.com/lukegalea/ash_rules"
 
       - run: mix deps.get
-        continue-on-error: ${{ matrix.canary }}
+        continue-on-error: ${{ matrix.canary == true }}
 
       # Dependencies compile in their own invocation, before the gate below.
       # `mix compile --warnings-as-errors` is the static-analysis gate for THIS
@@ -196,32 +199,32 @@ jobs:
       # has single-quoted charlists. Their warnings stay visible in this log;
       # they stop pretending to be ours.
       - run: mix deps.compile
-        continue-on-error: ${{ matrix.canary }}
+        continue-on-error: ${{ matrix.canary == true }}
 
       - name: Check formatting
-        continue-on-error: ${{ matrix.canary }}
+        continue-on-error: ${{ matrix.canary == true }}
         run: mix format --check-formatted
 
       - name: Check for unused dependencies
-        continue-on-error: ${{ matrix.canary }}
+        continue-on-error: ${{ matrix.canary == true }}
         run: mix deps.unlock --check-unused
 
       # --warnings-as-errors is the real static-analysis gate in this project.
       # Elixir 1.18's type checker catches more than Dialyzer manages against
       # Spark-generated code -- see docs/manifesto/07-what-we-do-not-have.md.
       - name: Compile with warnings as errors
-        continue-on-error: ${{ matrix.canary }}
+        continue-on-error: ${{ matrix.canary == true }}
         run: mix compile --warnings-as-errors
 
       - name: Credo
-        continue-on-error: ${{ matrix.canary }}
+        continue-on-error: ${{ matrix.canary == true }}
         run: mix credo --strict
 
       # Ash derives migrations as a diff against resource snapshots. Without
       # this gate the schema silently drifts from the resources, and the failure
       # surfaces at deploy time in the worst possible place.
       - name: Check Ash-generated code is committed
-        continue-on-error: ${{ matrix.canary }}
+        continue-on-error: ${{ matrix.canary == true }}
         run: mix ash.codegen --check
 
       # docs/roadmap.json is the single source for every status table in the
@@ -229,30 +232,30 @@ jobs:
       # that can drift from its source will, and a status table that silently
       # disagrees with itself is worse than no status table.
       - name: Check the roadmap tables are rendered
-        continue-on-error: ${{ matrix.canary }}
+        continue-on-error: ${{ matrix.canary == true }}
         run: mix ash_enterprise.roadmap --check
 
       # `--skip` honours the `@sobelow_skip` attributes in the source. There is
       # exactly one, on `AshEnterprise.Audit.Export`, and it says why next to
       # itself -- which is the point of the attribute over a config file.
       - name: Security scan
-        continue-on-error: ${{ matrix.canary }}
+        continue-on-error: ${{ matrix.canary == true }}
         run: mix sobelow --config --skip --exit
 
       - name: Retired and vulnerable dependencies
-        continue-on-error: ${{ matrix.canary }}
+        continue-on-error: ${{ matrix.canary == true }}
         run: mix hex.audit
 
       # The primary leg runs mix exactly as it did before the matrix existed.
       - name: Test
-        continue-on-error: ${{ matrix.canary }}
+        continue-on-error: ${{ matrix.canary == true }}
         if: ${{ !matrix.canary }}
         run: mix test
 
       # Same suite on the canary leg, but under the CANARY_INSTRUMENT preamble
       # so long verifications print "[long verification]" lines into this log.
       - name: Test (1.20 canary)
-        continue-on-error: ${{ matrix.canary }}
+        continue-on-error: ${{ matrix.canary == true }}
         if: ${{ matrix.canary }}
         run: elixir -e "$CANARY_INSTRUMENT" -S mix test
 
@@ -264,7 +267,7 @@ jobs:
       # full run, contracts included, is the dev-env `mix ast.check`.
       # See docs/AST-CHECK.md.
       - name: Agent contracts and rules links
-        continue-on-error: ${{ matrix.canary }}
+        continue-on-error: ${{ matrix.canary == true }}
         run: mix ast.check
 
   dialyzer:

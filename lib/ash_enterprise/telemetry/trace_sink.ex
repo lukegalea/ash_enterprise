@@ -147,9 +147,8 @@ defmodule AshEnterprise.Telemetry.TraceSink do
   def trace(trace_id) when is_binary(trace_id) do
     hex = trace_id |> String.trim() |> String.trim_leading("0x") |> String.downcase()
 
-    with {int, ""} <- Integer.parse(hex, 16) do
-      trace(int)
-    else
+    case Integer.parse(hex, 16) do
+      {int, ""} -> trace(int)
       _ -> nil
     end
   end
