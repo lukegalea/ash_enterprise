@@ -316,7 +316,16 @@ defmodule AshEnterprise.MixProject do
       {:ash_authentication, "~> 4.0"},
       {:ash_postgres, "~> 2.0"},
       {:ash_phoenix, "~> 2.0"},
-      {:ash, "~> 3.0"},
+      # Lane D dogfood: the fork branch adds Ash.CodeInterface.SpecGenerator
+      # (compile-time @type/@spec generation for code interfaces; see the
+      # :generate_interface_specs flag in config/config.exs). Held on the
+      # branch, not a ref, for the same reason ash_bpmn/ash_decisions once
+      # were: the branch name records what the pin is waiting to become --
+      # this flips back to the hex dep the day the branch merges upstream.
+      # mix.lock pins the exact SHA either way. override: true --
+      # ash_agent_tools (dev, path dep) declares hex ash itself.
+      {:ash, "~> 3.0",
+       github: "lukegalea/ash", branch: "feature/generated-action-specs", override: true},
       {:igniter, "~> 0.6", only: [:dev, :test]},
       {:phoenix, "~> 1.8.9"},
       {:phoenix_ecto, "~> 4.5"},
