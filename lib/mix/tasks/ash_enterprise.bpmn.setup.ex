@@ -239,16 +239,38 @@ defmodule Mix.Tasks.AshEnterprise.Bpmn.Setup do
   end
 
   defp submit(tenant, role, user, tier, justification) do
+    # Ash.read_one! types its result as `any()`, so `role.id` is `term()` while
+    # the submit contract wants a uuid string. Narrow at the boundary so a bad
+    # id fails loudly here, not as a cast error deep inside the action.
+    requested_role_id = assert_role_id!(role.id, tenant)
+
+    # The input goes in keyword form deliberately. `config :ash,
+    # :generate_interface_specs` types submit!/2's first argument as
+    # `submit_input() | [submit_input()] | keyword() | nil`, and `submit_input()`
+    # is a *closed* map over the scalar public attributes only: `justification`
+    # and `requested_role_tier`. `requested_role_id` is a belongs_to FK input --
+    # accepted by the action but absent from every generated map type -- so a map
+    # literal carrying it can never typecheck and dialyzer reports the call as
+    # one that will not succeed. The keyword form sits inside the spec's domain
+    # and Ash.CodeInterface converts it to the same input map at runtime.
     AccessRequest.submit!(
-      %{
+      [
         justification: justification,
         requested_role_tier: tier,
-        requested_role_id: role.id
-      },
+        requested_role_id: requested_role_id
+      ],
       actor: user,
       tenant: tenant
     )
   end
+
+  defp assert_role_id!(id, _tenant) when is_binary(id), do: id
+
+  defp assert_role_id!(id, tenant),
+    do:
+      raise(
+        "expected role id to be a binary uuid, got: #{inspect(id)} (tenant #{inspect(tenant)})"
+      )
 
   # See the moduledoc. Without this every process sits on its start node and every screen
   # shows a system that has done nothing.
