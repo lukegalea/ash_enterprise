@@ -6,7 +6,7 @@
 # and records pid/session for monitoring.
 set -euo pipefail
 JOB="$1"; PROMPT="$2"; DIR="${3:-$(pwd)}"
-LOGDIR=".agents/logs"; mkdir -p "$LOGDIR"
+LOGDIR="$(pwd)/.agents/logs"; mkdir -p "$LOGDIR"
 STREAM="$LOGDIR/$JOB.stream.jsonl"
 RESULT="$LOGDIR/$JOB.result"
 META="$LOGDIR/$JOB.meta"
