@@ -149,13 +149,18 @@ defmodule Mix.Tasks.Ast.Check do
     match?({:module, _}, Code.ensure_loaded(AshAgentTools))
   end
 
+  # Referenced through a string so the module atom only exists at runtime:
+  # ash_agent_tools is only: :dev, and CI's MIX_ENV=test WAE compile must not
+  # see a compile-time reference -- Elixir 1.18 resolves even a local
+  # `module = AshAgentTools` variable back to the atom and warns. The indirection
+  # is the same one the trace task uses for AshAgentTools.Trace.
+  @agent_tools_module "Elixir.AshAgentTools"
+
   defp check_contract(%{resource: resource, action: action, inputs: inputs}) do
-    # Dynamic dispatch on purpose: ash_agent_tools is only: :dev, so under
-    # :test (CI's WAE compile) a direct remote call is an undefined-function
-    # warning and fails the gate. A dot-call on a variable module compiles
+    # Dot-call on the runtime module atom: dynamic dispatch that compiles
     # clean in every env, and check_contract only runs after
     # contracts_available?/0 confirmed the module is loaded.
-    module = AshAgentTools
+    module = String.to_atom(@agent_tools_module)
     described = module.describe_action(resource, action)
 
     documented =
