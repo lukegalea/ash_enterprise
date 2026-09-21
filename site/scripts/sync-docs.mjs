@@ -48,6 +48,7 @@ const DIRS = [
   { dir: 'manifesto', label: 'Manifesto' },
   { dir: 'adr', label: 'Decision records' },
   { dir: 'plans', label: 'Plans' },
+  { dir: 'capstone', label: 'Capstone' },
 ];
 
 /**
