@@ -291,6 +291,15 @@ in
   # project-local HEX_HOME, and fails with a confusing
   # "Could not find an SCM for dependency :ash_credo" -- mix is really telling
   # you it has no Hex at all. So point the hook back at our state directory.
+  #
+  # MIX_BUILD_ROOT keeps the hook out of `_build/dev`. `mix format` evaluates
+  # mix.exs and loads the dependency load paths, which can (re)build into the
+  # project build tree. Left at the default `_build`, every hook run with the
+  # devenv-pinned Elixir invalidates the `_build/dev` tree built by the
+  # interactive toolchain -- and the next `mix compile` invalidates it right
+  # back: two compiler versions fighting over one build directory, so every
+  # commit and every compile pays a full rebuild. The hook gets its own tree
+  # (git-ignored via `/_build/`); it warms once and never touches `_build/dev`.
   git-hooks.hooks.mix-format = {
     enable = true;
     files = "\\.(ex|exs|heex)$";
@@ -298,6 +307,7 @@ in
     entry = toString (pkgs.writeShellScript "mix-format-hook" ''
       export MIX_HOME="${stateDir}/mix"
       export HEX_HOME="${stateDir}/hex"
+      export MIX_BUILD_ROOT="$PWD/_build/hook"
       exec ${config.languages.elixir.package}/bin/mix format "$@"
     '');
   };
