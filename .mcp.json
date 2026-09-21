@@ -16,11 +16,13 @@
     "  the planned surface for the AshAgentTools bridge (Lane E: describe/validate/",
     "  context/search as custom MCP tools).",
     "",
-    "ash_agent_tools is NOT an MCP server yet -- it is reached via mix tasks",
-    "(mix ash_agent.describe|validate|search|context|edit|gaps, and",
-    "  mix ash_enterprise.trace --explain). The DX-2 daemon (supervised Bandit,",
-    "  MCP-over-Plug per Codicil/ash_ai patterns) will expose it natively; until",
-    "  then the AGENTS.md mandate covers the mix-task surface.",
+    "ash_agent (DX-2): the ash_agent_tools dev-only path dep now IS an MCP",
+    "  server -- the read-only introspection surface (describe/validate/",
+    "  search/context/forbidden/status/reload) over MCP-over-Plug. Boot it",
+    "  separately with `mix ash_agent.serve` from the repo root (compile-only;",
+    "  it must NOT share the iex-server VM), loopback :4100, no auth. Shows as",
+    "  disconnected until a daemon is listening. Pre-launch gate:",
+    "  eval/trigger_eval/ in the package (75% per tool; green 2026-09-21).",
     "",
     "Serena (optional, not configured here): if installed, point its Elixir backend",
     "at our Expert fork via ls_specific_settings.elixir.ls_path -- see",
@@ -38,6 +40,10 @@
     "ash_ai_dev": {
       "type": "http",
       "url": "http://localhost:4000/ash_ai/mcp"
+    },
+    "ash-agent": {
+      "type": "http",
+      "url": "http://127.0.0.1:4100"
     }
   }
 }
