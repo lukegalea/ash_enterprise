@@ -95,7 +95,10 @@ defmodule AshEnterprise.MixProject do
         # `:otp` aliases to the same `usage_rules` package as `:elixir` (both
         # are sub-rules of it); without `main: false` here its shared
         # top-level doc gets inlined twice.
-        {:otp, main: false}
+        {:otp, main: false},
+        # In-house dev tooling rules (incl. the iron-laws sub-rule); `main:
+        # false` keeps its top-level doc out — we only want the sub-rules.
+        {:ash_agent_tools, main: false}
       ],
       skills: [
         location: ".claude/skills",
@@ -121,7 +124,14 @@ defmodule AshEnterprise.MixProject do
   # for running Dialyzer against it, so the ignore file is seeded empirically.
   defp dialyzer do
     [
-      plt_add_apps: [:mix, :ex_unit],
+      # `ash_agent_tools` is `only: :dev, runtime: false`, so it never appears in
+      # the application tree dialyxir's default `:app_tree` mode walks: runtime
+      # deps only make it into ash_enterprise.app's :applications. Without it in
+      # the PLT, every call into the dep reports unknown_function. Listing it
+      # here both adds it to the PLT and changes the PLT hash (which covers
+      # mix.lock plus this app list -- never dep beam contents, so dep-side code
+      # changes still need `mix dialyzer.clean` to be picked up).
+      plt_add_apps: [:mix, :ex_unit, :ash_agent_tools],
       plt_file: {:no_warn, "priv/plts/dialyzer.plt"},
       ignore_warnings: ".dialyzer_ignore.exs",
       list_unused_filters: true
