@@ -1,3 +1,10 @@
+# POSTED 2026-09-22 (comment id 5770778412)
+# Final body differed from this draft: instead of asking the empty-vs-error
+# question, it reported the wire-level verification (official v0.1.10 binary,
+# expert --stdio): no crash; documentSymbol for any URI not in the open-doc
+# store returns a SUCCESS response with result: null (no temporary open in
+# this path — hover/definition only). Links oraios/serena#2098.
+
 # DRAFT — for Luke's review before posting to expert-lsp/expert#903
 
 **Post as:** comment on closed PR #903 (no reopen request, no new issue

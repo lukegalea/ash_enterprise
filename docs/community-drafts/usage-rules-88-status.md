@@ -1,3 +1,9 @@
+# RESOLVED 2026-09-22: all suggested next actions executed.
+# Zach's 3 inline comments addressed + thin-glue simplification on
+# validate-references (a995915, b894b5b); summary comment posted to Zach
+# (id 5770657461). README documents the EXTRA_DOCS pattern. No Zach reply
+# since. Remaining open question: none blocking — awaiting his review.
+
 # STATUS — usage_rules#88 (not a post; internal brief for Luke)
 
 **Checked:** 2026-09-22. No new activity from Zach since your 19:52 comment
