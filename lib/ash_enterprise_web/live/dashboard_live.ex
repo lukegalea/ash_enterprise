@@ -16,8 +16,6 @@ defmodule AshEnterpriseWeb.DashboardLive do
 
   use AshEnterpriseWeb, :live_view
 
-  require Ash.Query
-
   # Compile-time constant per env: the AshAdmin/clarity mounts in the router
   # read the same key, so the console card below agrees with what is actually
   # routed. False in test/prod, where the /admin route does not exist.

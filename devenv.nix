@@ -4,9 +4,14 @@ let
   # Pin the whole BEAM toolchain to one OTP release so Elixir, rebar3 and any
   # NIF-bearing dependency are all built against the same ERTS.
   #
-  # OTP 27 + Elixir 1.18 is deliberately the same pairing that the official
-  # ash-hq.org installer script pins, so we stay on the combination the Ash
-  # ecosystem is actually tested against.
+  # OTP 27 + Elixir 1.20 is the pairing validated by the CI canary leg and
+  # required by the current dep train (boxic_feel/boxic_dmn declare ~> 1.20.0;
+  # see issue #14 and docs/research/elixir-120-viability.md). OTP stays on 27
+  # on purpose: releases bake ERTS, and 27 is what production runs.
+  #
+  # Patch skew, accepted: nixpkgs carries 1.20.3 while CI and the Dockerfile
+  # pin 1.20.4 (same minor line; the pathologies the viability doc warns about
+  # were fixed by 1.20.3). Realign here the day nixpkgs ships 1.20.4.
   beam = pkgs.beam.packages.erlang_27;
 
   # devenv's per-project state directory (`.devenv/state`). Everything mutable
@@ -30,7 +35,7 @@ in
 
   languages.elixir = {
     enable = true;
-    package = beam.elixir_1_18;
+    package = beam.elixir_1_20;
     lsp.enable = false; # see above; `expert` is the modern alternative to elixir-ls
   };
 

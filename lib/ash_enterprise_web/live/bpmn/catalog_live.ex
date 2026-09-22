@@ -17,8 +17,6 @@ defmodule AshEnterpriseWeb.Bpmn.CatalogLive do
 
   use AshEnterpriseWeb, :live_view
 
-  require Ash.Query
-
   alias AshEnterprise.Bpmn.Subscription
   alias AshEnterprise.Platform.SystemActor
   alias AshEnterprise.Process.{Binding, DefinitionLoader, Resolver}

@@ -7,7 +7,7 @@
 # Versions are pinned to the pairing devenv.nix and CI use. If those three ever
 # disagree, "works locally" stops being evidence of anything.
 
-ARG ELIXIR_VERSION=1.18.4
+ARG ELIXIR_VERSION=1.20.4
 ARG OTP_VERSION=27.3.4
 ARG DEBIAN_VERSION=bookworm-20250520-slim
 

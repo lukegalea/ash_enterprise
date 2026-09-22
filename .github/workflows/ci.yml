@@ -13,7 +13,7 @@ concurrency:
 env:
   MIX_ENV: test
 
-  # The Elixir 1.20 canary preamble. Registers a callback through
+  # The long-verification instrument. Registers a callback through
   # Kernel.ParallelCompiler.each_long_verification_threshold/2 (falling back
   # to the setter-only /1 form) so any module whose verification runs longer
   # than 10s prints a "[long verification]" line. Large Spark-generated Ash
@@ -53,43 +53,17 @@ env:
 
 jobs:
   test:
-    name: Compile, test, and check generated code${{ matrix.canary && ' (1.20 canary)' || '' }}
+    name: Compile, test, and check generated code
     runs-on: ubuntu-latest
 
-    # Two pairings, one job definition. The 1.18.4 leg is the gate and must
-    # behave exactly as it did before the matrix existed. The 1.20.4 leg is
-    # the canary from docs/research/elixir-120-viability.md section 5(d): same
-    # suite, but continue-on-error, so its failures are information about the
-    # migration rather than blocked pull requests. Because a failing step
-    # still halts the steps after it, the canary leg reveals its gates in the
-    # plan's fix order -- first the WAE compile, then credo, then the suite --
-    # while the warning inventory below tracks the burn-down that unblocks
-    # each one. OTP stays on 27 for both legs on purpose: the canary varies
-    # the compiler, not the ERTS that releases bake (that flip is a later,
-    # single commit, per the plan).
-    #
-    # The advisory-ness lives on each STEP, not on the job. The natural
-    # spelling, job-level `continue-on-error: ${{ matrix.canary }}`, is valid
-    # per GitHub's documented expression contexts and passes actionlint -- and
-    # GitHub still silently DROPS the whole job at creation time and fails the
-    # run: run 35586031020 (2026-09-21) created only the other two jobs, and a
-    # literal `continue-on-error: true` on this same job spawned both legs
-    # immediately. Step-level continue-on-error does take a matrix expression,
-    # so the tag sits on every step: setup steps too, because a canary-leg
-    # runner or cache failure is not a migration signal either and must not
-    # block a pull request. The comparison form (`matrix.canary == true`)
-    # matters: on the gate leg a bare `matrix.canary` renders as an EMPTY
-    # value, and the first step failure then dies with "The template is not
-    # valid ... Unexpected value ''" instead of reporting its own error.
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - elixir: "1.18.4"
-            otp: "27.3"
-          - elixir: "1.20.4"
-            otp: "27.3.4"
-            canary: true
+    # Single leg: Elixir 1.20.4 / OTP 27.3.4, flipped from canary to gate in
+    # one commit together with devenv.nix, the Dockerfile and the mix.exs
+    # floor, per the fix order in docs/research/elixir-120-viability.md
+    # section 5(d) and issue #14. The 2026-09-22 canary run that justified the
+    # flip was fully green on this exact pairing, including
+    # `mix compile --warnings-as-errors` and the test suite. OTP stays on 27
+    # on purpose: releases bake ERTS, and 27 is what production runs -- the
+    # OTP-29 pairing is a separate, later conversation.
 
 
     services:
@@ -111,29 +85,28 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-        continue-on-error: ${{ matrix.canary == true }}
 
-      # Pinned to the pairing devenv.nix uses. CI drifting from local is how
-      # "works on my machine" becomes a class of bug rather than an incident.
+      # Pinned to the pairing devenv.nix uses, modulo accepted patch skew:
+      # devenv's nixpkgs carries 1.20.3, CI pins 1.20.4 (see the note in
+      # devenv.nix). CI drifting from local is how "works on my machine"
+      # becomes a class of bug rather than an incident.
       - uses: erlef/setup-beam@v1
-        continue-on-error: ${{ matrix.canary == true }}
         with:
-          otp-version: ${{ matrix.otp }}
-          elixir-version: ${{ matrix.elixir }}
+          otp-version: "27.3.4"
+          elixir-version: "1.20.4"
 
-      # Keyed per Elixir version: the legs share nothing. A cache entry
-      # written by 1.18.4 must never be restored under the 1.20.4 leg or the
-      # reverse -- _build is not portable across compilers, and a stale build
-      # would silently skip recompiling half the project.
+      # Keyed per Elixir version. _build is not portable across compilers, so
+      # the version rides the key: a cache written by an older compiler must
+      # never be restored here -- a stale build would silently skip
+      # recompiling half the project.
       - name: Restore dependency and build cache
-        continue-on-error: ${{ matrix.canary == true }}
         uses: actions/cache@v4
         with:
           path: |
             deps
             _build
-          key: ${{ runner.os }}-mix-${{ matrix.elixir }}-${{ hashFiles('mix.lock') }}
-          restore-keys: ${{ runner.os }}-mix-${{ matrix.elixir }}-
+          key: ${{ runner.os }}-mix-1.20.4-${{ hashFiles('mix.lock') }}
+          restore-keys: ${{ runner.os }}-mix-1.20.4-
 
       # `xmllint`, which `boxic_dmn` (under `ash_decisions`) shells out to when it
       # validates a DMN document against the normative XSD.
@@ -145,7 +118,6 @@ jobs:
       # for the same reason -- see the note at the top of the Dockerfile about
       # what happens when those three disagree.
       - name: Install xmllint
-        continue-on-error: ${{ matrix.canary == true }}
         run: sudo apt-get update -y && sudo apt-get install -y libxml2-utils
 
       # ash_rules and ash_compliance are private, and CI has no credentials for
@@ -161,7 +133,6 @@ jobs:
       # one agent SSH offers them in turn and the pairing is incidental, whereas
       # this fails loudly if a key is ever wrong for its repository.
       - name: Authorize the private first-party dependencies
-        continue-on-error: ${{ matrix.canary == true }}
         env:
           COMPLIANCE_KEY: ${{ secrets.ASH_COMPLIANCE_DEPLOY_KEY }}
           RULES_KEY: ${{ secrets.ASH_RULES_DEPLOY_KEY }}
@@ -188,7 +159,6 @@ jobs:
           git config --global url."git@gh-ash-rules:lukegalea/ash_rules".insteadOf "https://github.com/lukegalea/ash_rules"
 
       - run: mix deps.get
-        continue-on-error: ${{ matrix.canary == true }}
 
       # Dependencies compile in their own invocation, before the gate below.
       # `mix compile --warnings-as-errors` is the static-analysis gate for THIS
@@ -199,32 +169,26 @@ jobs:
       # has single-quoted charlists. Their warnings stay visible in this log;
       # they stop pretending to be ours.
       - run: mix deps.compile
-        continue-on-error: ${{ matrix.canary == true }}
 
       - name: Check formatting
-        continue-on-error: ${{ matrix.canary == true }}
         run: mix format --check-formatted
 
       - name: Check for unused dependencies
-        continue-on-error: ${{ matrix.canary == true }}
         run: mix deps.unlock --check-unused
 
       # --warnings-as-errors is the real static-analysis gate in this project.
       # Elixir 1.18's type checker catches more than Dialyzer manages against
       # Spark-generated code -- see docs/manifesto/07-what-we-do-not-have.md.
       - name: Compile with warnings as errors
-        continue-on-error: ${{ matrix.canary == true }}
         run: mix compile --warnings-as-errors
 
       - name: Credo
-        continue-on-error: ${{ matrix.canary == true }}
         run: mix credo --strict
 
       # Ash derives migrations as a diff against resource snapshots. Without
       # this gate the schema silently drifts from the resources, and the failure
       # surfaces at deploy time in the worst possible place.
       - name: Check Ash-generated code is committed
-        continue-on-error: ${{ matrix.canary == true }}
         run: mix ash.codegen --check
 
       # docs/roadmap.json is the single source for every status table in the
@@ -232,31 +196,23 @@ jobs:
       # that can drift from its source will, and a status table that silently
       # disagrees with itself is worse than no status table.
       - name: Check the roadmap tables are rendered
-        continue-on-error: ${{ matrix.canary == true }}
         run: mix ash_enterprise.roadmap --check
 
       # `--skip` honours the `@sobelow_skip` attributes in the source. There is
       # exactly one, on `AshEnterprise.Audit.Export`, and it says why next to
       # itself -- which is the point of the attribute over a config file.
       - name: Security scan
-        continue-on-error: ${{ matrix.canary == true }}
         run: mix sobelow --config --skip --exit
 
       - name: Retired and vulnerable dependencies
-        continue-on-error: ${{ matrix.canary == true }}
         run: mix hex.audit
 
-      # The primary leg runs mix exactly as it did before the matrix existed.
+      # The suite runs under the CANARY_INSTRUMENT preamble so long
+      # verifications print "[long verification]" lines into this log. The
+      # instrument degrades to a no-op on any Elixir without the API, so it
+      # costs nothing and keeps the diagnostics that earned their keep during
+      # the 1.20 migration.
       - name: Test
-        continue-on-error: ${{ matrix.canary == true }}
-        if: ${{ !matrix.canary }}
-        run: mix test
-
-      # Same suite on the canary leg, but under the CANARY_INSTRUMENT preamble
-      # so long verifications print "[long verification]" lines into this log.
-      - name: Test (1.20 canary)
-        continue-on-error: ${{ matrix.canary == true }}
-        if: ${{ matrix.canary }}
         run: elixir -e "$CANARY_INSTRUMENT" -S mix test
 
       # The agent-facing gate: every relative link in the composed AGENTS.md
@@ -267,7 +223,6 @@ jobs:
       # full run, contracts included, is the dev-env `mix ast.check`.
       # See docs/AST-CHECK.md.
       - name: Agent contracts and rules links
-        continue-on-error: ${{ matrix.canary == true }}
         run: mix ast.check
 
   dialyzer:
@@ -285,8 +240,8 @@ jobs:
 
       - uses: erlef/setup-beam@v1
         with:
-          otp-version: "27.3"
-          elixir-version: "1.18.4"
+          otp-version: "27.3.4"
+          elixir-version: "1.20.4"
 
       - uses: actions/cache@v4
         with:
@@ -294,8 +249,8 @@ jobs:
             deps
             _build
             priv/plts
-          key: ${{ runner.os }}-dialyzer-${{ hashFiles('mix.lock') }}
-          restore-keys: ${{ runner.os }}-dialyzer-
+          key: ${{ runner.os }}-dialyzer-1.20.4-${{ hashFiles('mix.lock') }}
+          restore-keys: ${{ runner.os }}-dialyzer-1.20.4-
 
       # ash_rules and ash_compliance are private, and CI has no credentials for
       # them by default -- `mix deps.get` failed asking for a GitHub username,
@@ -338,92 +293,3 @@ jobs:
       - run: mix deps.get
       - run: mkdir -p priv/plts
       - run: mix dialyzer --format github
-
-  # The 1.20 burn-down metric from docs/research/elixir-120-viability.md
-  # section 5(d): compile this repository on the canary pairing WITHOUT
-  # --warnings-as-errors and bucket the new-in-1.20 warning classes (redundant
-  # clause / unused require / type violation / inferred type / deprecation)
-  # into the job summary. The counts are the inventory we drive to zero before
-  # any of the flips in the plan's fix order -- not a pass/fail gate.
-  #
-  # Advisory like Dialyzer, for the same class of reason: red here is
-  # information about the migration, and must never block a pull request.
-  canary-warnings:
-    name: Elixir 1.20 canary warning inventory
-    runs-on: ubuntu-latest
-    continue-on-error: true
-
-    steps:
-      - uses: actions/checkout@v4
-
-      # The canary pairing. 1.20.4, never 1.20.0 -- the compile-time
-      # pathologies of the 1.20.0/rc line are closed as of 1.20.3+.
-      - uses: erlef/setup-beam@v1
-        with:
-          otp-version: "27.3.4"
-          elixir-version: "1.20.4"
-
-      # The same key the canary leg of the test job derives: same MIX_ENV, same
-      # pairing, so deps and _build are shared between the two 1.20 jobs.
-      - name: Restore dependency and build cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            deps
-            _build
-          key: ${{ runner.os }}-mix-1.20.4-${{ hashFiles('mix.lock') }}
-          restore-keys: ${{ runner.os }}-mix-1.20.4-
-
-      # No database service here: nothing in this job runs the suite, and
-      # compilation does not touch Postgres. The private-dependency keys are
-      # still required -- deps.get cannot resolve ash_rules or ash_compliance
-      # without them. Same block, same reasoning, as the jobs above.
-      - name: Authorize the private first-party dependencies
-        env:
-          COMPLIANCE_KEY: ${{ secrets.ASH_COMPLIANCE_DEPLOY_KEY }}
-          RULES_KEY: ${{ secrets.ASH_RULES_DEPLOY_KEY }}
-        run: |
-          mkdir -p ~/.ssh && chmod 700 ~/.ssh
-          printf '%s\n' "$COMPLIANCE_KEY" > ~/.ssh/ash_compliance
-          printf '%s\n' "$RULES_KEY" > ~/.ssh/ash_rules
-          chmod 600 ~/.ssh/ash_compliance ~/.ssh/ash_rules
-          ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
-          cat >> ~/.ssh/config <<'SSHCONF'
-          Host gh-ash-compliance
-            HostName github.com
-            User git
-            IdentityFile ~/.ssh/ash_compliance
-            IdentitiesOnly yes
-          Host gh-ash-rules
-            HostName github.com
-            User git
-            IdentityFile ~/.ssh/ash_rules
-            IdentitiesOnly yes
-          SSHCONF
-          chmod 600 ~/.ssh/config
-          git config --global url."git@gh-ash-compliance:lukegalea/ash_compliance".insteadOf "https://github.com/lukegalea/ash_compliance"
-          git config --global url."git@gh-ash-rules:lukegalea/ash_rules".insteadOf "https://github.com/lukegalea/ash_rules"
-
-      - run: mix deps.get
-
-      # Dependencies stay OUT of the inventory for the same reason they stay
-      # outside the WAE gate: oban's dead clause is oban's to fix (watch list
-      # in the report), not ours to burn down.
-      - run: mix deps.compile
-
-      # --force so a warm cache cannot hollow out the inventory: the whole
-      # project recompiles and every warning the 1.20 compiler emits lands in
-      # the captured log. Deliberately NOT --warnings-as-errors -- this is the
-      # census, not the gate. The preamble is applied so long verifications
-      # land in the same log and get their own row in the summary.
-      - name: Compile and capture the full warning output
-        run: |
-          set -o pipefail
-          elixir -e "$CANARY_INSTRUMENT" -S mix compile --force 2>&1 | tee canary-compile.log
-
-      # The buckets, as a table on the job summary, so the burn-down is
-      # visible run over run without opening the log. Runs even if the
-      # compile failed: a hard crash still leaves warnings worth counting.
-      - name: Bucket warnings into the job summary
-        if: ${{ !cancelled() }}
-        run: bash scripts/canary-warning-buckets.sh canary-compile.log >> "$GITHUB_STEP_SUMMARY"

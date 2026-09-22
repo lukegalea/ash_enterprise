@@ -35,8 +35,6 @@ defmodule AshEnterprise.Audit.Export do
   the recipient keeps the ability to re-sort and re-check.
   """
 
-  require Ash.Query
-
   alias AshEnterprise.Audit.EventLog
 
   # Sobelow reads `@sobelow_skip` out of the source AST, so nothing in the
