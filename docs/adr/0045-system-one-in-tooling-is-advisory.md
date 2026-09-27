@@ -2,6 +2,8 @@
 
 - **Status:** proposed
 - **Date:** 2026-09-27
+- **Amended:** 2026-09-28 — "local only" becomes "in-zone only"; the coding agent is itself outside the zone; offline
+  optimisation of tooling questions is a proposal
 
 ## Context
 
@@ -14,6 +16,8 @@ The facts, verified on 2026-09-27 against `ash_agent_tools` and its use here:
 - **The laws judge is grep-tier and says so.** It reports hits in three tiers — `definite`, `likely`, `review` — and
   lists seven behavioural laws it has no detector for (authorize in every event handler, jobs are idempotent, comments
   are not commit messages, and others). The tiers carry the honesty: a `review` hit is a prompt to look, not a verdict.
+- **`describe` reports a generic action's return type without its constraints**, though `validate` already shows the
+  constraints of arguments.
 - **Input validation casts against the real contract** without executing the action, and suggests corrections for
   unknown inputs by Levenshtein distance only — so `full_name` against a field called `name` is not caught.
 - **Tool gaps are recorded as telemetry** (`[:ash_agent, :tool_gap]`) and triaged by hand.
@@ -58,7 +62,9 @@ repository, reviewed like any other gate change.
 - triaging tool-gap telemetry into alias, documentation fix or new default;
 - a pre-flight check in the agent harness: deterministic allow and deny rules decide first. Only what they leave
   undecided gets a risk or intent score from System One, banded by a DMN table — and that band may only *raise* the
-  request to a human "ask"; it may never allow a call outright and never silently deny one.
+  request to a human "ask"; it may never allow a call outright and never silently deny one;
+- offline optimisation of dev-tool question wording, whose output is a proposal
+  ([ADR 0047](0047-learning-produces-proposals.md)).
 
 **Tooling judgments are best-effort.** They may skip the ledger's must-record path ([ADR 0040](0040-record-dont-recompute.md));
 when recorded, they are recorded under their own families, and they never share a calibration family with product
@@ -67,9 +73,11 @@ judgments.
 **The same optional pattern.** The System One integration is an optional dependency of the tooling, detected at runtime.
 With no instrument running, every tool behaves exactly as today.
 
-**Local only.** Tooling judgments run against a local instrument. Source code is not sent to a hosted instrument by
-default, and choosing to is the same disclosure decision as for product data
-([ADR 0042](0042-local-first-inference-hosted-is-disclosure.md)).
+**In-zone only.** Tooling judgments run against an instrument in the zone that holds the source they read. Source code
+is not sent to a hosted instrument by default, and choosing to is the same disclosure decision as for product data
+([ADR 0042](0042-in-zone-inference-leaving-the-zone-is-a-disclosure.md)). The coding agent that consumes these signals
+is typically a hosted model itself, so what it reads has already left the zone: acceptable for source code and
+synthetic fixtures, never for customer-confidential data.
 
 ## Does it consume ActorContext?
 

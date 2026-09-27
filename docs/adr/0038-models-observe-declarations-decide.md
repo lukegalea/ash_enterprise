@@ -2,6 +2,8 @@
 
 - **Status:** proposed
 - **Date:** 2026-09-27
+- **Amended:** 2026-09-28 — the generative rung is in-zone and schema-constrained (ADR 0046); learning loops end in
+  proposals (ADR 0047); a fact about local runtimes added
 
 ## Context
 
@@ -25,7 +27,10 @@ The facts, verified on 2026-09-27:
   enterprise contract rather than the default, and no self-hosted option is documented.
 - **A local instrument exists and is independent.** Ollaya is an Apache-2.0 runtime (binary `ollaya`, port 11435) that
   speaks the same wire protocol and explicitly disclaims affiliation with the vendor. Compatibility is at the API level,
-  not output parity.
+  not output parity. It serves decision models only, on ONNX Runtime and llama.cpp; it has **no generative endpoint**.
+- **Generative local runtimes constrain their output.** llama.cpp's server, Ollama and vLLM each decode under a grammar
+  compiled from a JSON Schema, and `req_llm` already reaches them (verified 2026-09-28; see
+  [ADR 0046](0046-the-declaration-is-the-output-contract.md)).
 - **The platform's existing rules forbid most of the places a model call would be convenient.** Policy checks never
   query ([thesis 3](../manifesto/03-authorization-is-data.md)); authorization is a pure union of grants with no
   `forbid_if` for row access; DMN evaluation is content-hashed, TCK-measured and time-bounded
@@ -69,6 +74,7 @@ Every probabilistic judgment in the platform follows one path, in three steps:
 | AshOban trigger or scheduled action | **Yes — preferred for materialisation** | Idempotent, retried, carries ids rather than structs. |
 | BPMN service task (`ash:call` to an evaluate action) | **Yes** | Durable, audited, with a human lane for the middle band. |
 | Developer and agent tooling | **Yes, advisory** | See [ADR 0045](0045-system-one-in-tooling-is-advisory.md). |
+| Offline optimiser or distillation job (searching question wording, mining rows) | **Yes — research and dev only; output is a proposal** | It never serves and never applies what it finds; see [ADR 0047](0047-learning-produces-proposals.md). |
 
 ### Never in a check, never a grant
 
@@ -100,10 +106,13 @@ Every question is answered on the cheapest rung that can answer it exactly:
 
 1. **Declaration** — FEEL, rules, constraints, deterministic dimension checks (amounts, dates, units, parties). Free,
    exact, explainable. Used whenever the question is not intrinsically about interpreting language.
-2. **System One** — typed, calibrated, milliseconds, local by default. Perception only: relevance, support or
-   contradiction, classification, verifying a proposed value, routing.
-3. **Generative model** — the residue: extracting open values, drafting text. Expensive, logged as a disclosure, and
-   its output is itself only ever a proposal.
+2. **System One** — typed, calibrated, milliseconds, in the data's zone by default. Perception only: relevance, support
+   or contradiction, classification, verifying a proposed value, routing.
+3. **Generative model** — the residue: extracting open values, drafting text. In-zone by default, decoded under a
+   schema derived from the Ash declaration ([ADR 0046](0046-the-declaration-is-the-output-contract.md)); leaving the
+   zone is a disclosure ([ADR 0042](0042-in-zone-inference-leaving-the-zone-is-a-disclosure.md)). Its output carries no
+   self-reported confidence, cites only by constrained id, and is only ever a proposal that a declaration or System One
+   then checks. A schema-valid answer is well-formed, not correct.
 4. **Human** — the middle band and anything high-consequence. Their verdicts are events and become the evaluation set.
 
 Descending the ladder is triggered by calibrated uncertainty declared in a band table, never by code. Where a
@@ -128,7 +137,10 @@ TCK number, the rules lattice — survives untouched, because none of them ever 
 **What it makes hard.** Everything is a step slower than calling the model inline. Observation, admission and decision
 are three places to look instead of one, and the convenient shape — "if the model says so, allow it" — is refused
 everywhere it would be convenient. A background materialisation step is needed wherever a judgment has to be available
-on a request path, which means judgments can be stale, and staleness has to be declared per question family.
+on a request path, which means judgments can be stale, and staleness has to be declared per question family. Every
+learning loop — optimising question wording, distilling overrides, fine-tuning — ends in a proposal that travels the
+approval lifecycle ([ADR 0047](0047-learning-produces-proposals.md)), so improving the model's inputs is as slow as
+changing a rule, on purpose.
 
 **What it forecloses.** Adaptive authorization driven by a live score. Model calls inside FEEL (the unwired
 `external_functions` seam in the DMN engine stays unwired for this purpose). Treating a high probability as a verdict.
@@ -140,9 +152,9 @@ verification. That is the intended claim, and the programme should be judged on 
 
 ## Reversal
 
-Nothing is built, so today the reversal is deleting this record and its seven siblings. Once built, the fence is what
-makes the reversal cheap: instruments are reached only through evaluate actions in the judgments package and its host
-modules, and every downstream consumer reads admitted facts rather than model output. Removing System One deletes the
-package, its host directory and its ledger migration; admitted facts already written stay valid as facts, and
+Nothing is built, so today the reversal is deleting this record and its nine siblings (0039–0047). Once built, the fence
+is what makes the reversal cheap: instruments are reached only through evaluate actions in the judgments package and its
+host modules, and every downstream consumer reads admitted facts rather than model output. Removing System One deletes
+the package, its host directory and its ledger migration; admitted facts already written stay valid as facts, and
 predicates that depended on future admissions fall back to `unknown` and to the human lane — a degraded feature, not a
 broken application.

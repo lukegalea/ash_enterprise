@@ -2,6 +2,8 @@
 
 - **Status:** proposed
 - **Date:** 2026-09-27
+- **Amended:** 2026-09-28 — rows carry zone and data class; generative observations record their wire schema; the
+  state-encryption deferral and its trigger
 
 ## Context
 
@@ -43,10 +45,13 @@ A row carries, at least:
 - the question's id, content hash, version and family;
 - the subject, and for evidence work the rule, predicate, atom and document-version references;
 - a hash of the state sent, and the state itself — whether it is retained encrypted at rest, or not retained at all,
-  is a proposal pending the privacy decision below, not yet decided;
+  is a proposal pending the erasure decision below, not yet decided;
 - the answer, value, distribution and confidence;
-- the instrument: profile, residency, model spec, **resolved model digest and runtime version**;
-- usage, latency, cache key, correlation id, tenant, and region;
+- the instrument: profile, zone, model spec, **resolved model digest and runtime version**;
+- for a generative observation, the hash of the exact wire schema, the grammar-capable runtime and its version, and
+  the raw reply before the Ash cast ([ADR 0046](0046-the-declaration-is-the-output-contract.md));
+- usage, latency, cache key, correlation id, tenant, **zone and data class** (the region, or jurisdiction, is the
+  zone's — [ADR 0042](0042-in-zone-inference-leaving-the-zone-is-a-disclosure.md));
 - the band and the band-table version that classified it, once it has been banded.
 
 A human verdict on a judgment is a separate, audited create that references it, carrying the question, the state
@@ -66,14 +71,15 @@ reaches the instrument.
 | **shadow** | Call a candidate instrument, record its answer against the current one, change no band | model upgrades ([ADR 0041](0041-thresholds-are-dmn-earned-by-calibration.md)) |
 
 **The instrument is part of the verdict's identity.** A verdict is a function of the rule bundle hash, the question-set
-hash, the model digest and runtime version, the band-table version, the document hash, and the parser and atomiser
-versions. A model upgrade is therefore a rule change and travels the rule-change lifecycle: shadow evaluation against
-the labelled set, approval, an effective date, and an explicit plan for which prior verdicts it invalidates. **A
-floating alias is forbidden on any path that feeds an admitted fact**; the ledger records the digest, and a profile that
-cannot report one cannot feed admission.
+hash, the model digest and runtime version (and, for a generative rung, the wire-schema hash), the band-table version,
+the document hash, and the parser and atomiser versions. A model upgrade is therefore a rule change and travels the
+rule-change lifecycle: shadow evaluation against the labelled set, approval, an effective date, and an explicit plan for
+which prior verdicts it invalidates. **A floating alias is forbidden on any path that feeds an admitted fact**; the
+ledger records the digest, and a profile that cannot report one cannot feed admission.
 
 **Must-record versus best-effort** is declared per family. A judgment that can become a fact fails closed: no ledger
-row, no fact, `unknown`. Advisory tooling judgments may be best-effort.
+row, no fact, `unknown`. A generative extraction that can become a fact is must-record, like any other. Advisory
+tooling judgments may be best-effort.
 
 **The compliance evaluation's `fact_snapshot_hash` covers the ledger ids** that produced its facts, so an evaluation
 can be proved to have used exactly those observations.
@@ -87,6 +93,10 @@ leaves a tombstoned row whose hash still proves *that* an answer was recorded ov
 longer be read or re-sent to an instrument. Replay from the ledger keeps working, because it reads the answer, not the
 state; shadow evaluation over an erased subject becomes impossible, which is the correct loss. This inherits ADR 0024's
 own caveat that crypto-shredding is not erasure in the strictest reading. It is **pending** with ADR 0024 itself.
+
+Inside a single declared zone with full-disk encryption and one operator, encrypting the ledger's `state` is
+**deferred** until the first store outside the zone or the first multi-user access to the zone. The column exists from
+the first migration, so turning encryption on is a data change, not a schema change.
 
 ## Does it consume ActorContext?
 

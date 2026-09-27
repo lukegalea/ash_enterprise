@@ -321,11 +321,11 @@ not at all, and the audit trail records the verdict without a machine-checkable 
 admissions has to be overlap-free and has to record which band fired; `ash_decisions` now does both on its own main
 branch, and this repository's lock predates both, so here the decision trail still cannot say which row matched. The
 hosted instrument is also very new — its vendor had been public for twelve days on the date of this entry — which is why
-the design is local-first.
+the design runs inference in the data's own declared zone by default.
 
-**→ Still open.** Eight records are proposed and none is built:
+**→ Still open.** Ten records are proposed and none is built:
 [ADR 0038](../adr/0038-models-observe-declarations-decide.md) through
-[ADR 0045](../adr/0045-system-one-in-tooling-is-advisory.md), sequenced in
+[ADR 0047](../adr/0047-learning-produces-proposals.md), sequenced in
 [`../plans/system-one.md`](../plans/system-one.md), with several of their own decisions marked pending inside them.
 
 ---

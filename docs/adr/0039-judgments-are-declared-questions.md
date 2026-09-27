@@ -2,6 +2,8 @@
 
 - **Status:** proposed
 - **Date:** 2026-09-27
+- **Amended:** 2026-09-28 — question lineage; what an optimiser may change (property 6); the package is named
+  `ash_judgments`
 
 ## Context
 
@@ -32,6 +34,10 @@ The facts, verified on 2026-09-27:
   options, with a practical ceiling of roughly 125–250 depending on the model. The local `laya:typed-decisions` model's
   context is **1,024 tokens** (512 for `laya:en`); `decider` is 32k; hosted Jev is 64k. Ollaya now recommends
   `winnow:e4b` as its default model.
+- **An Elixir prompt optimiser now exists** (verified 2026-09-28). `imp` 0.5.0 (MIT; first Hex release 2026-09-27) is a
+  port of DSPy; its `Optimize.Anything` (marked experimental) searches any JSON-safe structured value against an
+  evaluator you write, with the value's shape and types frozen by the seed. Its own signature language is a second,
+  JSON-Schema-subset type system with no probability type.
 
 ## Decision
 
@@ -60,7 +66,10 @@ The section name and exact grammar are the package's to settle; the properties a
    and adding an option is a schema change that shows in the manifest like any other.
 2. **Identity is a content hash.** The hash covers the instructions, the criteria, the answer type, the options and the
    version. It is the question's identity in the ledger, exactly as the DMN definition hash and the rule bundle hash are
-   theirs. Editing the wording is a new question.
+   theirs. Editing the wording is a new question. A version may be authored by a person or proposed by an optimiser.
+   The question records its lineage (parent hash, proposer, proposer version); lineage is not part of the hash, and a
+   machine-proposed version earns calibration exactly like a hand-written one
+   ([ADR 0047](0047-learning-produces-proposals.md)).
 3. **State is a projection.** A question declares what it sends. Sending a whole record because it was convenient is a
    disclosure decision made by accident ([ADR 0026](0026-ai-governance-is-disclosure.md)).
 4. **It compiles to evaluate actions.** A single-question action and a matrix action (`{:array, answer}` with runtime
@@ -68,6 +77,9 @@ The section name and exact grammar are the package's to settle; the properties a
    callable from BPMN `ash:call`, and exposable as tools.
 5. **Because it is DSL, it is visible.** The registry surfaces through the same introspection as every other
    declaration — the semantic manifest, the agent tooling's search, the documentation — without a second catalogue.
+6. **What an optimiser may change is fixed by this declaration**: instructions and per-option criteria only. The answer
+   type, the option set (drawn from constraints), the state projection and the family are promises to code and are out
+   of reach of any optimiser.
 
 **The one new answer kind worth adding is `Evidence`**: a `Choice` over the four-way disposition with fixed criteria
 text. It is generic, so it is proposed upstream to `ash_ai` rather than kept here.
@@ -75,17 +87,18 @@ text. It is generic, so it is proposed upstream to `ash_ai` rather than kept her
 **Profile resolution is host code.** The package resolves a named profile (`:local`, `:hosted`, and later an emulated
 profile over chat models) to a `req_llm` model spec at call time, through a 0-arity capture, following the existing
 `request_classifier.ex` pattern. Which profile is the default, and what each discloses, is
-[ADR 0042](0042-local-first-inference-hosted-is-disclosure.md).
+[ADR 0042](0042-in-zone-inference-leaving-the-zone-is-a-disclosure.md).
 
 **Every answer says which rung produced it.** Any surface that shows a judgment shows its provenance alongside:
 *answered by System One · model@digest · p = 0.94 · 7 ms*, or *answered by rule R-12*, or *answered by a reviewer*. A
 generative model's text is labelled commentary. The chip is derived from the ledger row, so it cannot claim more than
 was recorded.
 
-**Package boundary.** The judgments package (working name `ash_ai_systemone`; a vendor-neutral name is **pending**)
-owns the registry, profiles, the ledger fragments, cache, replay, shadow, calibration storage, the DMN bridge and
-telemetry. It never calls a model inside a check, a FEEL expression, a rule evaluation or a projector, and never holds
-a threshold in configuration.
+**Package boundary.** The judgments package, `ash_judgments` (formerly the working name `ash_ai_systemone`; the
+vendor-neutral name was decided on 2026-09-28), owns the registry, profiles, the ledger fragments, cache, replay,
+shadow, calibration storage, question lineage and revision-proposal records, the DMN bridge and telemetry. It never
+calls a model inside a check, a FEEL expression, a rule evaluation or a projector, never holds a threshold in
+configuration, and never applies a learned artefact in serving.
 
 ## Does it consume ActorContext?
 
@@ -102,11 +115,13 @@ declaration; a code review sees the wording, the options and the state it sends 
 
 **What it makes hard.** Wording is now versioned policy. Tuning a question's phrasing mints a new identity, orphans its
 calibration, and has to be re-earned ([ADR 0041](0041-thresholds-are-dmn-earned-by-calibration.md)) — which is
-correct, and slower than editing a prompt. The 1,024-token context of the default local model forces small states;
+correct, and slower than editing a prompt. Candidate wordings may be machine-proposed, which makes proposing cheap and
+does not make adopting cheap. The 1,024-token context of the default local model forces small states;
 questions that need a whole document have to be decomposed or sent to a larger instrument by declared profile.
 
 **What it forecloses.** Ad-hoc model calls with inline prompt strings in application code. Answer types defined by this
-platform in parallel with upstream's. A bespoke HTTP client for the vendor's API.
+platform in parallel with upstream's. A bespoke HTTP client for the vendor's API. Authoring questions in a third-party
+signature language and compiling them into Ash — any bridge runs one way, from Ash outwards.
 
 ## Reversal
 

@@ -2,6 +2,7 @@
 
 - **Status:** proposed
 - **Date:** 2026-09-27
+- **Amended:** 2026-09-28 — a grant names only a question version calibrated on data its optimiser never saw
 
 ## Context
 
@@ -43,7 +44,9 @@ action is a filter check over the set of `(family, risk tier)` pairs precomputed
 once per request. No query in the check, no deny rule, no ordering: adding a family is inserting a row, removing one
 is deleting it, and the union of grants is preserved ([thesis 3](../manifesto/03-authorization-is-data.md)).
 Revoking automation for a family — because a calibration run regressed, a model changed, or an auditor asked — is a
-grant change, effective on the next request, with no deploy.
+grant change, effective on the next request, with no deploy. A grant may name only a question version whose calibration
+run satisfies [ADR 0041](0041-thresholds-are-dmn-earned-by-calibration.md)'s optimisation-split rule, so a
+machine-proposed wording ([ADR 0047](0047-learning-produces-proposals.md)) cannot inherit automation it did not earn.
 
 **Attribution.** Every admitted fact records the principal as the actor and, alongside it, the ledger id, the model
 digest, the band-table version and the matched row. "The evidence admitter admitted this, because observation X from

@@ -2,6 +2,8 @@
 
 - **Status:** proposed
 - **Date:** 2026-09-27
+- **Amended:** 2026-09-28 — extract → verify is typed, in-zone and citation-constrained (ADR 0046); retrieval by
+  model-written code is foreclosed; the evidence package is named `ash_evidence`
 
 ## Context
 
@@ -68,8 +70,14 @@ baseline for a spike and a periodic audit of the retrieval path — if the sweep
 is retrieval, never a more holistic question. Production is retrieval-first.
 
 **Extract → verify.** Where a value must be pulled out of a document (a limit, a date, a named party), a generative
-model *proposes* the value and System One *verifies* it against the cited atom. Agreement is an observation; disagreement
-is a pipeline-quality event routed to review. Neither is a fact until admitted.
+model *proposes* it under a schema derived from the Ash declaration
+([ADR 0046](0046-the-declaration-is-the-output-contract.md)): `{value | null, status: found | not_found | ambiguous,
+source_ids}`, where `source_ids` is narrowed per call to the packet's atom ids, so a citation outside the packet cannot
+be decoded; the schema has no confidence field. Ash re-casts the reply with every refinement. Deterministic checks
+(units, currency, dates, parties) run next. System One then verifies the proposal against the cited atom as a `Noul`.
+The proposal and the verification are separate ledger observations; agreement is evidence, disagreement is a
+pipeline-quality event routed to review, and neither is a fact until admitted. The generative model runs in the
+document's zone by default ([ADR 0042](0042-in-zone-inference-leaving-the-zone-is-a-disclosure.md)).
 
 **Assertion, then admission, then fact.** An assertion is a proposal. Admission — by band table and authorized actor
 ([ADR 0041](0041-thresholds-are-dmn-earned-by-calibration.md), [ADR 0043](0043-automation-authority-is-a-grant.md)) —
@@ -87,7 +95,7 @@ is **pending**, because it decides how model-derived evidence appears in an OSCA
 path *reads* admitted facts and never calls an instrument.
 
 **Package boundary.** The mechanism — document versions, atoms, retrieval, packets, the assertion-to-admission flow and
-the bridges — belongs in a public evidence package (working name `ash_evidence`, **pending**). Rule semantics, compliance
+the bridges — belongs in a public evidence package, `ash_evidence` (name decided 2026-09-28). Rule semantics, compliance
 status and any domain's predicates, question wording and thresholds do not; a deployment's own rule library and
 labelled data stay in that deployment.
 
@@ -110,7 +118,8 @@ and evaluation. Compiling a rule into atomic predicates and counter-hypotheses i
 most of the accuracy is won or lost.
 
 **What it forecloses.** Whole-document "does this comply?" questions. Model-quoted evidence. Treating a top-ranked
-passage as proof of existence.
+passage as proof of existence. Retrieval driven by model-written code at run time — it is neither replayable nor
+bounded by the caller's authority.
 
 ## Reversal
 
