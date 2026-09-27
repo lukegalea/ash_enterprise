@@ -35,7 +35,9 @@ route. Removing any of these must be a deletion, never a refactor.
 
 `ash_a2ui` (unpublished, git dep) · `clarity` (self-described alpha) · `ash_diagram` · `ash_strangler` (0.1.0,
 first-party, not on hex) · `ash_bpmn` (0.1.0, first-party, not on hex) · `ash_decisions` (0.1.0, first-party, not on
-hex) · `boxic_dmn` / `boxic_feel` (0.x, Apache-2.0, one author) · everything commercial
+hex) · `boxic_dmn` / `boxic_feel` (0.x, Apache-2.0, one author) · the judgments package, working name
+`ash_ai_systemone` (first-party, proposed, not built) · the evidence package, working name `ash_evidence` (first-party,
+proposed, not built) · everything commercial
 
 The rule that makes the tiers real: **tier 3 code may not be imported by tier 1 or tier 2 code.** Dependencies point one
 way. A resource never knows that `ash_a2ui` exists.
@@ -101,6 +103,21 @@ design called for: **nothing here builds all four repositories from their workin
 diamond only at the git SHAs `mix.lock` pins, and the four-way agreement is currently checked by hand — a clean re-fetch
 of the git dependencies rather than a local path, which is the practice but not the gate. `ash_strangler` being red on
 `main` for four consecutive runs is the precedent for why "green locally" is not evidence, and it applies to this too.
+
+### `ash_ai_systemone` and `ash_evidence` — proposed, first-party, not yet built
+
+[Thesis 8](08-models-observe-declarations-decide.md) and [ADRs 0038–0045](../adr/README.md) place two more first-party
+packages in this tier before either exists: the judgments package (working name `ash_ai_systemone`) and the evidence
+package (working name `ash_evidence`). Both are **proposed only — nothing is built** — and are recorded here now
+because this thesis asks for the exit before the entrance.
+
+The seam: each is confined to its own directory and one host domain (the judgment ledger resource and its evaluate
+actions; the document, atom and assertion resources), reached only through the questions and actions each declares.
+Neither is imported by tier 1 or tier 2 code; `ash_rules` and `ash_compliance` read admitted facts through an ordinary
+fact builder, never the packages themselves. The exit: delete the package and the host resources that read it. Facts
+already admitted keep their values and lose only their provenance link; predicates that depended on future admissions
+fall back to `unknown` and the human lane, which is how they worked before either package existed
+([ADR 0038](../adr/0038-models-observe-declarations-decide.md)).
 
 ### The cost that is easy to leave out: the JavaScript surface
 
@@ -221,6 +238,13 @@ features:
 - **Camunda / Flowable** — not a licensing objection. A workflow engine is a second identity, assignment and
   authorization model, and it expresses maker-checker as a deny rule, which this repository forbids outright. →
   [ADR 0015](../adr/0015-approvals-stay-in-ash.md)
+
+**Proposed, not yet built:** a local decision-model runtime (working binary `ollaya`) and a hosted decision-model
+vendor belong in this same category, per [ADR 0042](../adr/0042-local-first-inference-hosted-is-disclosure.md). Both
+are reached only through the judgments package's evaluate action, both see only what the requesting actor already
+could, and neither holds a copy of `ActorContext` or a permission model of its own to keep in sync — which is why
+either clears rule 1. Removing either degrades triage rather than breaking anything, which clears rule 2, and is the
+whole of the hedge against a hosted vendor that is, as of this writing, twelve days old.
 
 One case does not fit comfortably, and stating it is more useful than smoothing it. **OpenMetadata's own RBAC resolves
 Allow/Deny effects with deny winning** — the exact inverse of [thesis 3](03-authorization-is-data.md)'s pure union, and

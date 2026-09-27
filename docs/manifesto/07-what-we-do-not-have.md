@@ -3,7 +3,7 @@
 > The honest list. A reference architecture that hides its gaps is marketing, not engineering.
 
 Read this one before committing to the stack. Everything below was verified in August 2026 and re-verified on
-2026-08-18; each entry says what is missing, how much it costs, and what to do about it. Five of the twelve entries now
+2026-08-18; each entry says what is missing, how much it costs, and what to do about it. Five of the thirteen entries now
 have a decision recorded in [`docs/adr/`](../adr/README.md) and say so at the end; the rest are still open, and say that
 too.
 
@@ -306,6 +306,27 @@ checks never querying applies, and the precomputed privilege map is already the 
 
 **→ Still open.** No decision taken. [The roadmap](../ROADMAP.md) lists it under what stays open rather than sequencing
 it.
+
+## 13. Probabilistic model judgments
+
+*Added 2026-09-27.* Nothing here uses a System One model — a fast model that answers a typed question with a calibrated
+probability — and nothing calls `ash_ai`'s `evaluate`, although the version this repository locks ships it. There is no
+question registry, no judgment ledger, no calibration store, no band table and no evidence package. The doctrine exists
+([thesis 8](08-models-observe-declarations-decide.md)) and the code does not.
+
+**What it costs:** documents that arrive as evidence — certificates, licences, contracts — are judged by a person or
+not at all, and the audit trail records the verdict without a machine-checkable link to the clause that justified it.
+
+**What stands in the way here, specifically:** two items in §3 above. A band table that turns probabilities into
+admissions has to be overlap-free and has to record which band fired; `ash_decisions` now does both on its own main
+branch, and this repository's lock predates both, so here the decision trail still cannot say which row matched. The
+hosted instrument is also very new — its vendor had been public for twelve days on the date of this entry — which is why
+the design is local-first.
+
+**→ Still open.** Eight records are proposed and none is built:
+[ADR 0038](../adr/0038-models-observe-declarations-decide.md) through
+[ADR 0045](../adr/0045-system-one-in-tooling-is-advisory.md), sequenced in
+[`../plans/system-one.md`](../plans/system-one.md), with several of their own decisions marked pending inside them.
 
 ---
 

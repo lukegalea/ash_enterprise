@@ -131,6 +131,16 @@ for every combination of ownership type, privilege, depth, and actor placement, 
 `Ash.can?/3`. It is not a test of our implementation so much as an executable copy of the specification — and it is the
 first thing to read when the model surprises you.
 
+## Amendment, 2026-09-27 — a probability is not a grant
+
+[Thesis 8](08-models-observe-declarations-decide.md) applies this thesis to probabilistic models, and adds nothing it did
+not already imply: a policy check that calls a model is a check that queries, and a model score that could deny row
+access would be a `forbid_if`. So no model runs inside a check or an `ActorContext` build, and a model answer is never a
+grant ([ADR 0038](../adr/0038-models-observe-declarations-decide.md)). The trust extended to automation is itself
+authorization data: an automation principal that is *subject to* grants rather than bypassing them, whose authority is
+rows an administrator can inspect and revoke ([ADR 0043](../adr/0043-automation-authority-is-a-grant.md)). Both records
+are proposed; nothing is built.
+
 ## Further reading
 
 - `lib/ash_enterprise/security/` — the checks
