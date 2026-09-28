@@ -69,7 +69,6 @@ defmodule AshEnterpriseWeb.A2ui.ProjectedUserUI do
         :legacy_state,
         :lifecycle_status,
         :kyc_status,
-        :compliant?,
         :gap_count,
         :projected_at
       ]

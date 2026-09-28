@@ -193,8 +193,15 @@ defmodule AshEnterprise.Accounts.ProjectedUser do
     # these read the projection the projector already wrote, batched one
     # query per load. `authorize?: false` inside them is bounded to that
     # point-lookup — see KycStatus for the argument.
-    calculate :kyc_status, :atom, {AshEnterprise.Compliance.Calculations.KycStatus, []}
+    # `kyc_status` and `gap_count` are public so the directory surface
+    # (ProjectedUserUI) can show them. `compliant?` stays private: GraphQL
+    # rejects the `?` in a field name, and the badge already says it.
+    calculate :kyc_status, :atom, {AshEnterprise.Compliance.Calculations.KycStatus, []},
+      public?: true
+
     calculate :compliant?, :boolean, expr(kyc_status == :compliant)
-    calculate :gap_count, :integer, {AshEnterprise.Compliance.Calculations.GapCount, []}
+
+    calculate :gap_count, :integer, {AshEnterprise.Compliance.Calculations.GapCount, []},
+      public?: true
   end
 end
