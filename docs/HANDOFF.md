@@ -21,7 +21,7 @@ This file no longer records state. Look here instead:
 | Which controls the evidence satisfies | [`COMPLIANCE.md`](COMPLIANCE.md), generated from `controls.json` through the same gate |
 | What was decided, and which decisions are built | [`adr/README.md`](adr/README.md): the index and the status legend |
 | What is deliberately missing | [thesis 7](manifesto/07-what-we-do-not-have.md) |
-| Which agent lanes are working in this repo | [`.agents/COORDINATION.md`](../.agents/COORDINATION.md) |
+| Which agent lanes are working in this repo | `.agents/COORDINATION.md` |
 | The capstone demo's storyline | [`capstone/storyline.md`](capstone/storyline.md) |
 | The System One work (model judgments) | [`plans/system-one.md`](plans/system-one.md) and [thesis 8](manifesto/08-models-observe-declarations-decide.md) |
 
@@ -31,7 +31,7 @@ true:
 - **330 tests, 0 failures** under `devenv shell -- check`, which also runs
   `--warnings-as-errors`, `mix ash.codegen --check`, `mix credo --strict`,
   `mix ash_enterprise.roadmap --check`, the iron-laws judge
-  ([`IRON-LAWS.md`](IRON-LAWS.md)) and the EXTRA_DOCS reference check. CI runs
+  (`docs/IRON-LAWS.md`) and the EXTRA_DOCS reference check. CI runs
   the same gate, plus a `cold-clone` job that fetches every dependency with no
   credentials.
 - **47 ADRs**, 0001 to 0047. The status split is in
