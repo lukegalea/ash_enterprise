@@ -245,3 +245,28 @@ jobs:
       - run: mix deps.get
       - run: mkdir -p priv/plts
       - run: mix dialyzer --format github
+
+  cold-clone:
+    name: Cold clone fetches every dependency
+    runs-on: ubuntu-latest
+    # The bar the README sets: anyone can clone this repository and build it.
+    # This job holds CI to it. No dependency cache (a restored deps/ would
+    # skip the fetch being tested), no secrets, and the checkout drops its
+    # token, so every git dependency -- the first-party packages, the dev-only
+    # ash_agent_tools, the boxic_dmn fork -- must come over anonymous https.
+    # A dependency that goes private again, or a `path:` dependency pointing
+    # at someone's machine, fails here by name.
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: "27.3.4"
+          elixir-version: "1.20.4"
+
+      - name: Fetch dependencies with no credentials
+        env:
+          GIT_TERMINAL_PROMPT: "0"
+        run: mix deps.get
