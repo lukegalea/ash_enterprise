@@ -1,6 +1,6 @@
 # ADR 0046 — The declaration is the output contract
 
-- **Status:** proposed
+- **Status:** accepted, not built (2026-09-28)
 - **Date:** 2026-09-28
 - **Amended 2026-09-28 (operator answers):** related work cited neutrally; the generative instruments are in-zone
   runtimes only

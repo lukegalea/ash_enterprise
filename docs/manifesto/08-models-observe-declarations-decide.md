@@ -3,13 +3,16 @@
 > A probabilistic model is an instrument that produces observations. Only declarations — actions, policies, decision
 > tables, rules — turn observations into anything with authority.
 
-This thesis is newer than the other seven and carries less weight of evidence: it is proposed alongside
-[ADRs 0038–0047](../adr/README.md), and **nothing it describes is built yet.** It is written now because the decision
+This thesis is newer than the other seven and carries less weight of evidence. It and
+[ADRs 0038–0047](../adr/README.md) are **accepted, not built (2026-09-28)**: the operator reviewed and approved them,
+and **nothing they describe is built yet.** It is written now because the decision
 is cheapest to reason about before the first call site exists. *Amended 2026-09-28:* the generative rung is typed by
 the same declaration and runs in the data's zone; learning loops end in proposals. *Amended 2026-09-28 (operator
 answers):* every instrument runs in the zone and the hosted model is none of them; the activating person is the author
 of record for anything learned; the inference pipeline is presented as a separate subsystem that consumes
-declarations; prior work is cited as related work rather than argued over.
+declarations; prior work is cited as related work rather than argued over. *Accepted 2026-09-28:* the automation
+principal never bypasses grants, although system actors do; the `ai` system actor loses its bypass; thesis 5's human
+decision moves to the moment a grant is made; ADR 0042 narrows ADR 0026 to flows that leave a zone.
 
 ## Why this needs saying
 
@@ -132,7 +135,8 @@ bypass in a policy file.
 [Thesis 5](05-agents-are-users.md) said writes need a human. Automatic admission is a write without a human at the
 moment it happens, and that is a real change of meaning. It is bounded rather than hidden: the human decision moves from
 the moment of the write to the moment of the grant, the grant is per question family and revocable, and whether any
-family is ever granted is still open.
+family is ever granted is still open. Under the same record the `ai` system actor loses its bypass, so no model-driven
+actor writes without either a person or a grant behind it.
 
 [Thesis 7](07-what-we-do-not-have.md) gains an entry, because none of this is built, and two of its existing items —
 the missing publish-time overlap check and the decision trail that cannot say which row fired — are preconditions for

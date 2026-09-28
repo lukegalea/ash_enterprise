@@ -11,7 +11,7 @@ The manifesto in `../manifesto/` argues the position. These record the specific 
 ```markdown
 # ADR NNNN — Title
 
-- **Status:** proposed | accepted | superseded by ADR-NNNN
+- **Status:** proposed | accepted, not built (YYYY-MM-DD) | accepted | superseded by ADR-NNNN
 - **Date:** YYYY-MM-DD
 
 ## Context
@@ -57,7 +57,7 @@ The concrete exit: which files change, and how much work it is.
 | [0023](0023-impersonation-is-attribution.md) | Impersonation adds attribution, never reach | accepted (in part) |
 | [0024](0024-audit-retention-and-erasure.md) | Audit retention: partition for age, crypto-shred for erasure | proposed |
 | [0025](0025-log-shipping-and-review.md) | Logs ship to the customer's SIEM; review is evidence | proposed |
-| [0026](0026-ai-governance-is-disclosure.md) | AI governance is disclosure, not a second authorization model | proposed |
+| [0026](0026-ai-governance-is-disclosure.md) | AI governance is disclosure, not a second authorization model | proposed (narrowed by 0042) |
 | [0027](0027-feel-is-the-expression-language.md) | FEEL is the one expression language, and the engine is adopted rather than written | accepted |
 | [0028](0028-decisions-are-dmn.md) | Decisions are DMN, measured against the TCK, in their own first-party package | accepted |
 | [0029](0029-process-configuration-is-tenant-data.md) | Process and decision configuration is tenant data, defaulting to a platform baseline | accepted |
@@ -69,19 +69,21 @@ The concrete exit: which files change, and how much work it is.
 | [0035](0035-compliance-is-projected-from-events.md) | Compliance is projected from events under an immutable rule bundle | accepted |
 | [0036](0036-converge-process-triggers-onto-projection-checkpoints.md) | Converge process triggers onto projection checkpoints | accepted |
 | [0037](0037-projections-are-host-declared.md) | Projections are host-declared, from a vocabulary the library owns | accepted |
-| [0038](0038-models-observe-declarations-decide.md) | Models observe; declarations decide | proposed |
-| [0039](0039-judgments-are-declared-questions.md) | Judgments are declared questions | proposed |
-| [0040](0040-record-dont-recompute.md) | Record, don't recompute | proposed |
-| [0041](0041-thresholds-are-dmn-earned-by-calibration.md) | Thresholds are DMN, earned by calibration | proposed |
-| [0042](0042-in-zone-inference-leaving-the-zone-is-a-disclosure.md) | In-zone inference; leaving the zone is a disclosure | proposed |
-| [0043](0043-automation-authority-is-a-grant.md) | Automation authority is a grant | proposed |
-| [0044](0044-documents-are-addressed-atoms-evidence-is-an-assertion.md) | Documents are addressed atoms; evidence is an assertion | proposed |
-| [0045](0045-system-one-in-tooling-is-advisory.md) | System One in developer and agent tooling is advisory | proposed |
-| [0046](0046-the-declaration-is-the-output-contract.md) | The declaration is the output contract | proposed |
-| [0047](0047-learning-produces-proposals.md) | Learning produces proposals | proposed |
+| [0038](0038-models-observe-declarations-decide.md) | Models observe; declarations decide | accepted, not built (2026-09-28) |
+| [0039](0039-judgments-are-declared-questions.md) | Judgments are declared questions | accepted, not built (2026-09-28) |
+| [0040](0040-record-dont-recompute.md) | Record, don't recompute | accepted, not built (2026-09-28) |
+| [0041](0041-thresholds-are-dmn-earned-by-calibration.md) | Thresholds are DMN, earned by calibration | accepted, not built (2026-09-28) |
+| [0042](0042-in-zone-inference-leaving-the-zone-is-a-disclosure.md) | In-zone inference; leaving the zone is a disclosure | accepted, not built (2026-09-28) |
+| [0043](0043-automation-authority-is-a-grant.md) | Automation authority is a grant | accepted, not built (2026-09-28) |
+| [0044](0044-documents-are-addressed-atoms-evidence-is-an-assertion.md) | Documents are addressed atoms; evidence is an assertion | accepted, not built (2026-09-28) |
+| [0045](0045-system-one-in-tooling-is-advisory.md) | System One in developer and agent tooling is advisory | accepted, not built (2026-09-28) |
+| [0046](0046-the-declaration-is-the-output-contract.md) | The declaration is the output contract | accepted, not built (2026-09-28) |
+| [0047](0047-learning-produces-proposals.md) | Learning produces proposals | accepted, not built (2026-09-28) |
 
-Records 0001–0009, 0020–0023 and 0027–0031 are `accepted` and describe code that exists.
-**0010–0019, 0024–0026, 0032 and 0038–0047 are `proposed`: none of them is built.** They are here because a decision is cheapest to reason about — and cheapest to
+Records 0001–0009, 0020–0023, 0027–0031 and 0033–0037 are `accepted` and describe code that exists.
+**0038–0047 are `accepted, not built (2026-09-28)`:** the decision is taken and none of it is built. A record with that
+status flips to plain `accepted` when its code lands, so `accepted` on its own keeps meaning code that exists.
+**0010–0019, 0024–0026 and 0032 are `proposed`: none of them is built.** They are here because a decision is cheapest to reason about — and cheapest to
 *reverse* — while the alternatives are still fresh, and because
 [thesis 6](../manifesto/06-reversibility.md) asks for the exit before the entrance. Three of them
 record an answer that changed under verification, which is the main reason to write them down early.
@@ -93,10 +95,15 @@ record whose criterion is unmet does not get promoted for being nearly right.
 Their sequencing, and the one rule they were all selected against, is [`../ROADMAP.md`](../ROADMAP.md).
 
 0038–0047 are one set for probabilistic "System One" model judgments: 0038–0045 were written together on 2026-09-27
-before any code, and on 2026-09-28 they were amended in place and 0046–0047 added. They are unaccepted, so they are
-amended rather than superseded, and each amended record says so under its date. A second pass the same day applied the
+before any code, and on 2026-09-28 they were amended in place and 0046–0047 added. While unaccepted they were amended
+rather than superseded, and each amended record says so under its date. A second pass the same day applied the
 operator's answers — no hosted instrument, residency-checked admission into a zone, the activating person as author of
 record, no novelty framing — and is marked "Amended 2026-09-28 (operator answers)" in each record it touched.
+The operator accepted the set the same day ("reviewed doctrine and approve", 2026-09-28), and the acceptance pass
+resolved four conflicts with earlier records: the automation principal never bypasses grants although system actors
+do; the `ai` system actor loses its bypass; thesis 5's human decision moves to the moment a grant is made
+([0043](0043-automation-authority-is-a-grant.md)); and 0042 narrows 0026, which both records now say. From acceptance
+on, changing one of them takes an amendment marked as such or a superseding record.
 [Thesis 8](../manifesto/08-models-observe-declarations-decide.md) argues the position and
 [`../plans/system-one.md`](../plans/system-one.md) sequences the work. They are not on the roadmap, and several of their
 own decisions are marked pending inside them.

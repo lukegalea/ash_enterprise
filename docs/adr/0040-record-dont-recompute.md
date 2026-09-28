@@ -1,6 +1,6 @@
 # ADR 0040 — Record, don't recompute
 
-- **Status:** proposed
+- **Status:** accepted, not built (2026-09-28)
 - **Date:** 2026-09-27
 - **Amended:** 2026-09-28 — rows carry zone and data class; generative observations record their wire schema; the
   state-encryption deferral and its trigger

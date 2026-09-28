@@ -1,6 +1,6 @@
 # ADR 0039 — Judgments are declared questions
 
-- **Status:** proposed
+- **Status:** accepted, not built (2026-09-28)
 - **Date:** 2026-09-27
 - **Amended:** 2026-09-28 — question lineage; what an optimiser may change (property 6); the package is named
   `ash_judgments`

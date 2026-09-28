@@ -324,7 +324,7 @@ vendor that defined the decision-model wire protocol is also very new — it had
 of this entry — which is why the design runs every instrument in the data's own declared zone and uses no hosted model
 at all.
 
-**→ Still open.** Ten records are proposed and none is built:
+**→ Still open.** Ten records are accepted, not built (2026-09-28) — the decisions are taken and none is built:
 [ADR 0038](../adr/0038-models-observe-declarations-decide.md) through
 [ADR 0047](../adr/0047-learning-produces-proposals.md), sequenced in
 [`../plans/system-one.md`](../plans/system-one.md), with several of their own decisions marked pending inside them.

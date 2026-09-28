@@ -1,6 +1,6 @@
 # ADR 0045 — System One in developer and agent tooling is advisory
 
-- **Status:** proposed
+- **Status:** accepted, not built (2026-09-28)
 - **Date:** 2026-09-27
 - **Amended:** 2026-09-28 — "local only" becomes "in-zone only"; the coding agent is itself outside the zone; offline
   optimisation of tooling questions is a proposal

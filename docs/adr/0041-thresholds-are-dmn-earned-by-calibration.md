@@ -1,6 +1,6 @@
 # ADR 0041 — Thresholds are DMN, earned by calibration
 
-- **Status:** proposed
+- **Status:** accepted, not built (2026-09-28)
 - **Date:** 2026-09-27
 - **Amended:** 2026-09-28 — region becomes the zone's jurisdiction; a fourth, disjoint *optimise* split; related work
   named

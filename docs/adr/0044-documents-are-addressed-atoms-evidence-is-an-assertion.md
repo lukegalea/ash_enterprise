@@ -1,6 +1,6 @@
 # ADR 0044 — Documents are addressed atoms; evidence is an assertion
 
-- **Status:** proposed
+- **Status:** accepted, not built (2026-09-28)
 - **Date:** 2026-09-27
 - **Amended:** 2026-09-28 — extract → verify is typed, in-zone and citation-constrained (ADR 0046); retrieval by
   model-written code is foreclosed; the evidence package is named `ash_evidence`

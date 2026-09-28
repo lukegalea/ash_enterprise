@@ -36,8 +36,8 @@ route. Removing any of these must be a deletion, never a refactor.
 `ash_a2ui` (unpublished, git dep) · `clarity` (self-described alpha) · `ash_diagram` · `ash_strangler` (0.1.0,
 first-party, not on hex) · `ash_bpmn` (0.1.0, first-party, not on hex) · `ash_decisions` (0.1.0, first-party, not on
 hex) · `boxic_dmn` / `boxic_feel` (0.x, Apache-2.0, one author) · the judgments package,
-`ash_judgments` (first-party, proposed, not built) · the evidence package, `ash_evidence` (first-party, proposed, not
-built) · everything commercial
+`ash_judgments` (first-party, accepted, not built (2026-09-28)) · the evidence package, `ash_evidence` (first-party,
+accepted, not built (2026-09-28)) · everything commercial
 
 The rule that makes the tiers real: **tier 3 code may not be imported by tier 1 or tier 2 code.** Dependencies point one
 way. A resource never knows that `ash_a2ui` exists.
@@ -104,12 +104,12 @@ diamond only at the git SHAs `mix.lock` pins, and the four-way agreement is curr
 of the git dependencies rather than a local path, which is the practice but not the gate. `ash_strangler` being red on
 `main` for four consecutive runs is the precedent for why "green locally" is not evidence, and it applies to this too.
 
-### `ash_judgments` and `ash_evidence` — proposed, first-party, not yet built
+### `ash_judgments` and `ash_evidence` — accepted, not built (2026-09-28), first-party
 
 [Thesis 8](08-models-observe-declarations-decide.md) and [ADRs 0038–0047](../adr/README.md) place two more first-party
 packages in this tier before either exists: the judgments package, `ash_judgments` (formerly the working name
-`ash_ai_systemone`), and the evidence package, `ash_evidence`. Both are **proposed only — nothing is built** — and are
-recorded here now because this thesis asks for the exit before the entrance.
+`ash_ai_systemone`), and the evidence package, `ash_evidence`. Both are **accepted, not built (2026-09-28) — the
+decision is taken and nothing is built** — and are recorded here now because this thesis asks for the exit before the entrance.
 
 The seam: each is confined to its own directory and one host domain (the judgment ledger resource and its evaluate
 actions; the document, atom and assertion resources), reached only through the questions and actions each declares.
@@ -239,7 +239,7 @@ features:
   authorization model, and it expresses maker-checker as a deny rule, which this repository forbids outright. →
   [ADR 0015](../adr/0015-approvals-stay-in-ash.md)
 
-**Proposed, not yet built:** a local decision-model runtime (working binary `ollaya`) and a local generative runtime
+**Accepted, not built (2026-09-28):** a local decision-model runtime (working binary `ollaya`) and a local generative runtime
 (llama.cpp, Ollama or vLLM), both running in the data's declared zone, belong in this same category, per
 [ADR 0042](../adr/0042-in-zone-inference-leaving-the-zone-is-a-disclosure.md). Both are reached only through the
 judgments package's actions, both see only what the requesting actor already could, and neither holds a copy of

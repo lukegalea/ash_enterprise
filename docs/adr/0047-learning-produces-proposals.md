@@ -1,9 +1,11 @@
 # ADR 0047 — Learning produces proposals
 
-- **Status:** proposed
+- **Status:** accepted, not built (2026-09-28)
 - **Date:** 2026-09-28
 - **Amended 2026-09-28 (operator answers):** the activating human is the author of record, which is what satisfies
   ADR 0028's business-authored requirement; reflection and teacher models are in-zone profiles only
+- **Amended 2026-09-28 (acceptance):** accepted by the operator ("reviewed doctrine and approve"); hosted reflection and
+  teacher models are confirmed dropped along with the hosted instrument
 
 ## Context
 

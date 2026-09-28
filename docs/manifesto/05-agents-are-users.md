@@ -147,13 +147,18 @@ with no actor is an unauthenticated API over your entire domain.
 
 ## Amendment, 2026-09-27 — observations, and the one write without a human
 
+*Accepted, not built (2026-09-28).*
+
 This thesis treats a model as a user that proposes. [Thesis 8](08-models-observe-declarations-decide.md) adds a second
 role — a model as an *instrument* whose typed, calibrated answers are recorded as observations and never act on their
 own — and one case this page did not have a row for. Admitting an observation as a fact, automatically, is a write
 without a human at the moment it happens. [ADR 0043](../adr/0043-automation-authority-is-a-grant.md) bounds it rather
 than hiding it: the admission is performed by a named automation principal holding an explicit, per-family, revocable
-grant, so the human decision moves from the moment of the write to the moment of the grant. Whether any family is ever
-granted is still open. Everything else here is unchanged — the policy at the action layer stays the single gate, and
+grant, so the human decision moves from the moment of the write to the moment of the grant: "writes need a human"
+still holds, and for this one case the human decision is the act of issuing the grant. Whether any family is ever
+granted is still open. The existing `ai` system actor loses its bypass under the same record: model-driven work runs as
+the person it serves or as a principal holding grants, never as an actor that skips them. Everything else here is
+unchanged — the policy at the action layer stays the single gate, and
 pruning a tool list with `Ash.can?` remains a convenience, not a boundary.
 
 ## Further reading

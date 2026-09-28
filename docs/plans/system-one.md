@@ -1,12 +1,14 @@
 # System One: design and execution plan
 
-Status: **proposed — nothing is built.** Doctrine drafted (thesis 8, ADRs 0038–0047, all `proposed`); no package,
-resource or call site exists. The first wave is landing work that is already written elsewhere, not new building.
+Status: **accepted, not built (2026-09-28).** The doctrine (thesis 8, ADRs 0038–0047) was reviewed and approved by the
+operator on 2026-09-28 ("reviewed doctrine and approve"); no package, resource or call site exists. The first wave is landing work that is already written elsewhere, not new building.
 *Amended 2026-09-28:* the operator's decisions are recorded, the data posture is zone-first, and a private shadow slice
 on real documents moves into W2. *Amended 2026-09-28 (operator answers):* the hosted model is never an instrument;
 a zone declares the residency restrictions it cannot satisfy and admits data only under an admissible tag; the
 activating person is the author of record for anything learned. *Amended 2026-09-28 (hardware):* the development
-zone's runtimes are placed on three machines ([below](#the-development-zones-runtimes)).
+zone's runtimes are placed on three machines ([below](#the-development-zones-runtimes)). *Accepted 2026-09-28:* the
+doctrine is accepted, not built; four conflicts with earlier doctrine are resolved in the records
+([below](#decisions-taken-2026-09-28)).
 Related: [thesis 8](../manifesto/08-models-observe-declarations-decide.md), ADR 0026, ADR 0028, ADR 0029, ADR 0035,
 ADRs 0038–0047, [`ash-rules-and-compliance.md`](ash-rules-and-compliance.md).
 
@@ -24,10 +26,10 @@ across three tracks that share one substrate:
 The unifying claim is thesis 8's: *models observe, declarations decide.* The model is the replaceable part; the
 declared question, the ledger, the band table and the evidence packet are the durable asset.
 
-## Positions proposed (pending review)
+## Positions accepted, not built (2026-09-28)
 
-These are positions taken in the proposed ADRs — none of them accepted yet. They bind this plan unless review rejects
-the ADR carrying them.
+These are positions taken in ADRs 0038–0047, accepted on 2026-09-28 and not yet built. They bind this plan; changing one
+takes an amendment to the record that carries it.
 
 - **No bespoke client.** The call is `ash_ai` 1.1.0's `evaluate`; the transport is `req_llm` 1.24.0's `typesafe`
   provider, which is how this platform calls an in-zone Ollaya; the answer types are upstream's. This plan writes no
@@ -46,7 +48,9 @@ the ADR carrying them.
   decision models served by Ollaya and in-zone generative runtimes, never a hosted model; any flow out of a zone is a
   disclosure with a recorded authorization; per-jurisdiction stacks and masking are deferred, each with a named
   trigger; the contract test pins Ollaya and the wire specification. *(ADR 0042)*
-- **Automatic admission is a grant** held by a named automation principal that does not bypass grants. *(ADR 0043)*
+- **Automatic admission is a grant** held by a named automation principal that does not bypass grants, although system
+  actors do. The `ai` system actor loses its bypass. Thesis 5's human decision moves to the moment the grant is made.
+  *(ADR 0043)*
 - **Tooling signals are advisory** and never change deterministic report fields. *(ADR 0045)*
 - **The declaration is the output contract.** Every model output shape — System One options, generative JSON Schema,
   tool input, MCP `outputSchema` — derives from Ash types and constraints through one mapping, never from typespecs or
@@ -78,6 +82,12 @@ became zone-first.
 | Who owns thresholds | DMN as the home, compliance lifecycle as the approval |
 | A labelled record-and-replay transport for demos, CI and cold clones | Allowed, labelled "replayed from recording, date, model"; a live-mode job opt-in |
 | Programme scale | One slice proves a measured review-time reduction before broad claims enter public docs |
+| Doctrine status | "Reviewed doctrine and approve." Thesis 8 and ADRs 0038–0047 are **accepted, not built**; each flips to plain `accepted` when its code lands |
+| Automation principal and system actors | System actors keep their bypass; the automation principal never has one; the `ai` system actor loses its bypass; thesis 5's human decision moves to the moment the grant is made ([ADR 0043](../adr/0043-automation-authority-is-a-grant.md)) |
+| ADR 0026 and ADR 0042 | ADR 0042 narrows ADR 0026: in-zone calls are recorded in the ledger, not logged as outbound disclosures; a flow out of a zone is a disclosure, and customer-confidential data needs the tenant's opt-in rather than lacking an opt-out |
+| Untagged data | Refused at admission until it is tagged ([ADR 0042](../adr/0042-in-zone-inference-leaving-the-zone-is-a-disclosure.md)) |
+| Hosted reflection and teacher models | Dropped along with the hosted instrument; a reflection or teacher model is an in-zone profile only ([ADR 0047](../adr/0047-learning-produces-proposals.md)) |
+| Emulated profile | If it is ever admitted, it runs only over an in-zone runtime's log-probabilities and is its own calibration family; whether it is admitted stays pending |
 
 Still pending, and marked so in the records that carry them:
 
@@ -193,7 +203,7 @@ runtimes sit on three machines. Each is registered as a zone endpoint on the lab
 | **W3 may start** | W1's dependency bump and git dependency landed; the judgment-record RFC frozen; spike 0's result and the private shadow slice's result recorded, including a negative one |
 | **A band table may publish** | the DMN overlap verifier and matched-rule recording in this repository's lock; a calibration run for the family at the model digest named, above the family's minimum n |
 | **An automation grant may be issued** | an active band table for the family; the random-audit sample running; an operator decision for that family |
-| **Data may enter a zone** | its residency tag is admissible there (ADR 0042); untagged data waits |
+| **Data may enter a zone** | its residency tag is admissible there (ADR 0042); untagged data is refused until it is tagged |
 | **Customer-confidential data may leave a zone** | a recorded authorization (the tenant's opt-in); ADR 0026's disclosure logging built; where the target is a vendor, a signed DPA and zero retention; masking decided (ADR 0042's trigger table) |
 | **An optimiser-proposed question version may activate** | a calibration run on splits disjoint from its optimise split; a shadow evaluation; an approval (ADR 0047) |
 | **Any public claim of benefit** | the one-slice measurement below, with its jurisdiction and date |

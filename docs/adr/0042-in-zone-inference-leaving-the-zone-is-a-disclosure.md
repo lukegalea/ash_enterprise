@@ -1,6 +1,6 @@
 # ADR 0042 — In-zone inference; leaving the zone is a disclosure
 
-- **Status:** proposed
+- **Status:** accepted, not built (2026-09-28)
 - **Date:** 2026-09-27
 - **Amended:** 2026-09-28 — rewritten zone-first. The residency binary becomes a declared zone with a jurisdiction and
   a classification ceiling; per-jurisdiction stacks, masking and hosted use are deferred, each with a named trigger;
@@ -11,6 +11,9 @@
   pins Ollaya and the wire specification; a zone declares the residency restrictions it cannot satisfy, and data
   admission into a zone is checked against each item's residency tag; processing outside production is not itself
   restricted; the hosted-model deferrals are removed.
+- **Amended 2026-09-28 (acceptance):** accepted by the operator ("reviewed doctrine and approve"). This record narrows
+  [ADR 0026](0026-ai-governance-is-disclosure.md), and now says so. Untagged data is refused until tagged; an emulated
+  profile, if admitted, runs only over an in-zone runtime's log-probabilities.
 
 ## Context
 
@@ -52,7 +55,9 @@ The facts, verified on 2026-09-27 and 2026-09-28:
   evaluate action reaches an in-zone Ollaya by profile; nothing on the call path depends on the vendor's service.
 - **[ADR 0026](0026-ai-governance-is-disclosure.md)** (proposed) treats a model call as an outbound disclosure to a
   sub-processor: log prompt and response under the tenant and correlation id, record vendor and version, and enforce a
-  per-tenant opt-out next to the client.
+  per-tenant opt-out next to the client. **This record narrows it.** A call to an instrument in the data's own zone is
+  not an outbound disclosure: it is recorded in the judgment ledger. ADR 0026's disclosure logging applies to flows that
+  leave a zone, and for customer-confidential data the default flips from an opt-out to a required opt-in.
 - **Jurisdiction is already a boundary.** A deployment that runs separate regional stacks must keep every observation,
   cache entry, evaluation set and metric within the region it came from; a total that silently covers one region is the
   commonest way such numbers go wrong.
@@ -157,7 +162,8 @@ a schedule and recorded with the zone.
 - the default local model (`laya`, `winnow` or another), after the licence audit and a measured spike;
 - whether an *emulated* profile — typed decisions extracted from an in-zone generative runtime's log-probabilities —
   is admitted at all.
-  If it is, it is a separate calibration family, never pooled with native System One answers.
+  If it is, it runs only over an in-zone runtime's log-probabilities, never a hosted one, and it is a separate
+  calibration family, never pooled with native System One answers.
 
 ## Does it consume ActorContext?
 

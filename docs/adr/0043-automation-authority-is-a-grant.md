@@ -1,8 +1,12 @@
 # ADR 0043 — Automation authority is a grant
 
-- **Status:** proposed
+- **Status:** accepted, not built (2026-09-28)
 - **Date:** 2026-09-27
 - **Amended:** 2026-09-28 — a grant names only a question version calibrated on data its optimiser never saw
+- **Amended 2026-09-28 (acceptance):** accepted by the operator ("reviewed doctrine and approve"). Three conflicts with
+  the existing doctrine are resolved here rather than left implied: system actors keep their bypass but the automation
+  principal never has one; the `ai` system actor loses its bypass; thesis 5's human decision moves to the moment the
+  grant is made
 
 ## Context
 
@@ -16,7 +20,8 @@ The facts, verified on 2026-09-27 against this repository:
   non-human actors (`oban`, `replay`, `migration`, `seed`, `ai`, `process`, `projection`, `system`), deliberately not a
   resource so that nobody can mint new ones at runtime. `AshEnterprise.Security.Checks.SystemActor` is used as a
   `bypass` in the shared policy set: in its own words, a system actor is "not subject to grants".
-- **One of them is `ai`**: "An AI agent acting without a human actor. Prefer the human's actor where one exists."
+- **One of them is `ai`**: "An AI agent acting without a human actor. Prefer the human's actor where one exists." As of
+  2026-09-27 it carries the same bypass as the others.
 - **[Thesis 5](../manifesto/05-agents-are-users.md) says writes need a human.** Policies answer *may this actor do
   this*; they do not answer *did anyone actually ask for this*. The agent console holds every model-proposed mutation
   for a person's approval, and the audit entry records the human.
@@ -55,8 +60,20 @@ model Y matched band Z of table version V" is one audit row, not an investigatio
 **Human entries win.** An automatic admission never overwrites or lowers a fact a human entered; it may only fill an
 absence. A reviewer's override is an ordinary action by a human, and it supersedes.
 
-**Model-driven work does not run as `ai` where it writes authoritative state.** The existing `ai` system actor stays for
-what it describes; it is never the actor of an admission.
+**System actors keep their bypass; the automation principal never has one.** The two lists stay separate on purpose.
+`oban`, `replay`, `migration`, `seed`, `process`, `projection` and `system` are deterministic platform machinery, and
+the bypass is how they already work. An automation principal acts on a model's observation, so it is governed like a
+user: no bypass, and authority only from grant rows.
+
+**The `ai` system actor loses its bypass.** It is the one entry in the system-actor list that is driven by a model, and
+a bypass for it would be exactly the ungranted, unattended write this record exists to prevent. It is removed from the
+`SystemActor` bypass. Model-driven work runs either as the person whose request it serves, or as an automation principal
+holding grants; `ai` survives, if at all, only as an attribution label with no authority of its own. It is never the
+actor of an admission.
+
+**The human decision moves to the grant.** Thesis 5's "writes need a human" is kept, and its moment changes for this one
+case: the human decision is the act of issuing the grant — per question family, risk tier and tenant, by an
+administrator holding that privilege, recorded and revocable — not a confirmation at the moment of each write.
 
 **Pending, and marked so:** whether any family is ever granted to an automation principal at all. The mechanism is the
 decision here; issuing a grant is a separate, per-family act, and the recommendation is conservative: *supports* only,
@@ -82,10 +99,12 @@ need a human" gains a scoped exception: the human decision is moved from the mom
 grant, which is a real change of meaning and is stated here rather than implied.
 
 **What it forecloses.** Automatic admission under a bypass. Automation authority expressed as a configuration flag.
-Any model-facing tool that admits, overrides or authorizes.
+Any model-facing tool that admits, overrides or authorizes. Any model-driven actor with a bypass, `ai` included.
 
 ## Reversal
 
 With no grants issued, every observation routes to the human lane and the principal is inert — which is also the
 state before this record. Removing the mechanism is deleting the principal from the list, the admission policy's
-filter check and the role rows; facts it admitted keep their attribution in the audit log.
+filter check and the role rows; facts it admitted keep their attribution in the audit log. Restoring the `ai` bypass is
+a one-line change to the system-actor check, and would need a superseding record, because it reintroduces a model-driven
+write with neither a human nor a grant behind it.

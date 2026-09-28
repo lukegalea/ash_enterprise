@@ -49,7 +49,7 @@ that where it does not, the gaps are nameable and small.
 | [5](05-agents-are-users.md) | **Agents are users** | The LLM gets the same action layer and the same policies as the web UI. Not a parallel path with parallel bugs. |
 | [6](06-reversibility.md) | **Reversibility** | Every alpha, unpublished, or commercial dependency is isolated behind a named seam, with the exit documented. |
 | [7](07-what-we-do-not-have.md) | **What we do not have** | The honest list. A reference architecture that hides its gaps is marketing, not engineering. |
-| [8](08-models-observe-declarations-decide.md) | **Models observe; declarations decide** | A probabilistic model produces observations. Only actions, policies, decision tables and rules turn them into anything with authority. *Proposed; nothing built.* |
+| [8](08-models-observe-declarations-decide.md) | **Models observe; declarations decide** | A probabilistic model produces observations. Only actions, policies, decision tables and rules turn them into anything with authority. *Accepted, not built (2026-09-28).* |
 
 ## What this repository is
 

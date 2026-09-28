@@ -133,13 +133,16 @@ first thing to read when the model surprises you.
 
 ## Amendment, 2026-09-27 — a probability is not a grant
 
+*Accepted, not built (2026-09-28).*
+
 [Thesis 8](08-models-observe-declarations-decide.md) applies this thesis to probabilistic models, and adds nothing it did
 not already imply: a policy check that calls a model is a check that queries, and a model score that could deny row
 access would be a `forbid_if`. So no model runs inside a check or an `ActorContext` build, and a model answer is never a
 grant ([ADR 0038](../adr/0038-models-observe-declarations-decide.md)). The trust extended to automation is itself
 authorization data: an automation principal that is *subject to* grants rather than bypassing them, whose authority is
-rows an administrator can inspect and revoke ([ADR 0043](../adr/0043-automation-authority-is-a-grant.md)). Both records
-are proposed; nothing is built.
+rows an administrator can inspect and revoke ([ADR 0043](../adr/0043-automation-authority-is-a-grant.md)). System actors
+keep their bypass, because they are deterministic platform machinery; the one model-driven system actor, `ai`, loses it.
+Both records are accepted, not built (2026-09-28).
 
 ## Further reading
 

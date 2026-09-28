@@ -1,6 +1,6 @@
 # ADR 0038 — Models observe; declarations decide
 
-- **Status:** proposed
+- **Status:** accepted, not built (2026-09-28)
 - **Date:** 2026-09-27
 - **Amended:** 2026-09-28 — the generative rung is in-zone and schema-constrained (ADR 0046); learning loops end in
   proposals (ADR 0047); a fact about local runtimes added

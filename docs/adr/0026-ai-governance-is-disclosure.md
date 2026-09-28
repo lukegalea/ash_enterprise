@@ -2,6 +2,10 @@
 
 - **Status:** proposed
 - **Date:** 2026-08-19
+- **Narrowed 2026-09-28 by [ADR 0042](0042-in-zone-inference-leaving-the-zone-is-a-disclosure.md):** a model call
+  to an instrument in the data's own declared zone is not an outbound disclosure; it is recorded in the judgment ledger.
+  This record's disclosure logging applies to flows that leave a zone, and for customer-confidential data the per-tenant
+  control is an opt-in rather than an opt-out. The rest of this record stands.
 
 ## Context
 
