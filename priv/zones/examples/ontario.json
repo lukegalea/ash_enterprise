@@ -1,0 +1,20 @@
+{
+  "id": "example-ontario",
+  "jurisdiction": "CA-ON",
+  "classification_ceiling": "customer_confidential",
+  "inadmissible_restrictions": ["US"],
+  "declared_by": "Example Operator",
+  "declared_at": "2026-09-28",
+  "review_by": "2026-12-27",
+  "basis": "EXAMPLE ONLY. A single-operator lab in Ontario, Canada, declared by the operator responsible for it. Data restricted to Canada or to Ontario may enter; data restricted to the United States may not, and no other country's restriction is satisfied here. Processing outside a production environment is not itself restricted. This declaration is the operator's authority for this deployment; it says nothing about what any customer agreement permits.",
+  "members": ["inference-host-1", "workstation-1"],
+  "stores": ["postgres: zone database", "filesystem: document directory"],
+  "controls": [
+    {"name": "network access limited to a private overlay network", "status": "in_place", "evidence": "firewall and overlay ACL export, dated"},
+    {"name": "zone data only on full-disk-encrypted or redundant storage", "status": "in_place", "evidence": "encryption status recorded per member"},
+    {"name": "named access list", "status": "in_place", "evidence": "one line, kept with this declaration"},
+    {"name": "no copies outside the zone (no cloud-synced folders, no repositories)", "status": "in_place", "evidence": "operator attestation"},
+    {"name": "deletion path: drop the database and the document directory", "status": "in_place", "evidence": "runbook"},
+    {"name": "hypervisor firewall", "status": "gap", "evidence": "disabled; access is gated by the overlay network instead"}
+  ]
+}
