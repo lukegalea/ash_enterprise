@@ -5,7 +5,8 @@ resource or call site exists. The first wave is landing work that is already wri
 *Amended 2026-09-28:* the operator's decisions are recorded, the data posture is zone-first, and a private shadow slice
 on real documents moves into W2. *Amended 2026-09-28 (operator answers):* the hosted model is never an instrument;
 a zone declares the residency restrictions it cannot satisfy and admits data only under an admissible tag; the
-activating person is the author of record for anything learned.
+activating person is the author of record for anything learned. *Amended 2026-09-28 (hardware):* the development
+zone's runtimes are placed on three machines ([below](#the-development-zones-runtimes)).
 Related: [thesis 8](../manifesto/08-models-observe-declarations-decide.md), ADR 0026, ADR 0028, ADR 0029, ADR 0035,
 ADRs 0038–0047, [`ash-rules-and-compliance.md`](ash-rules-and-compliance.md).
 
@@ -161,6 +162,29 @@ evidence mechanism; narrative documentation last.
 **W6 — research, under ADR 0047.** The model as a state-conditioned oracle *in a simulator only*, with fitted
 parameters as tenant data under ADR 0029; fine-tuning; distilling reviewer overrides into *proposed* rule revisions
 through the approval lifecycle; the emulated profile. Every output is a proposal record.
+
+## The development zone's runtimes
+
+*Recorded 2026-09-28.* The first zone is the maintainer's development homelab, jurisdiction Ontario, Canada. Its
+runtimes sit on three machines. Each is registered as a zone endpoint on the lab's private network:
+
+| Role | Machine | Runtime |
+|---|---|---|
+| Decision models (System One answers) | the maintainer's laptop | Ollaya |
+| Embeddings, for retrieval | a desktop with a 16 GB Radeon RX 7700 XT | Lemonade Server |
+| Generative model, for extraction and proposals | an Apple M5 Pro with 48 GB | Qwen3.8-27B at a 256k-token context |
+
+- **The laptop is a zone endpoint only while it is physically in Ontario.** Anywhere else it is outside the zone. It
+  must not receive zone data, and nothing it answers while away is admissible as an in-zone observation (ADR 0042).
+- **This replaces an earlier two-machine placement**, recorded only in the programme's tracker, which left the 7700 XT
+  unused. The 7700 XT now serves embeddings.
+- **Connection details stay out of this repository.** They live in the operator's local environment. The same goes
+  for which models each runtime has loaded: those are recorded with the zone, not here.
+- **Still to do before the zone serves a first call:**
+  - pin each runtime's version and model digests;
+  - run a smoke test proving the intended GPU ran the model, not a CPU fallback (see *Known risks*);
+  - confirm the generative runtime can constrain output to a schema (ADR 0046). The package table requires a
+    grammar-capable generative runtime.
 
 ## Entry gates
 
