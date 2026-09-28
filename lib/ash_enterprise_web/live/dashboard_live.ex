@@ -31,8 +31,12 @@ defmodule AshEnterpriseWeb.DashboardLive do
     # resource's publications rather than spelled out here -- one declaration,
     # no second spelling of the strings to drift. The dashboard is not a live
     # surface; it just refuses to show a stale count on its lead card.
-    for topic <- Surfaces.topics(AshEnterpriseWeb.A2ui.CanonicalPartyUI) do
-      Phoenix.PubSub.subscribe(AshEnterprise.PubSub, topic)
+    # Only on the connected mount: the dead render is a separate process that
+    # exits straight away, so a subscription made there is never used.
+    if connected?(socket) do
+      for topic <- Surfaces.topics(AshEnterpriseWeb.A2ui.CanonicalPartyUI) do
+        Phoenix.PubSub.subscribe(AshEnterprise.PubSub, topic)
+      end
     end
 
     {:ok, assign(socket, party_count: count_parties(socket), dev_routes?: @dev_routes?)}

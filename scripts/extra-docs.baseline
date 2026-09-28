@@ -1,0 +1,39 @@
+# Reviewed baseline for scripts/extra-docs.sh (see docs/IRON-LAWS.md).
+#
+# Each line is MESSAGE<TAB>PATH, matching one distinct ex_doc warning. Every
+# entry here is in a GENERATED file that this repository must not hand-edit:
+# `mix usage_rules.sync` rewrites AGENTS.md and the usage_rules-built skills on
+# every sync. The fix for any of them is upstream, in the package that ships
+# the text; when an upstream fix arrives and the entry stops firing, the check
+# fails until the entry is deleted here.
+#
+# Anything in hand-written docs or moduledocs is fixed, never baselined.
+
+# AGENTS.md, from dependency usage-rules.md files (inlined by usage_rules.sync).
+# ash_authentication's rules cite AshAuthentication.Info.strategies/1, which its Info
+# module does not define (the generated accessor is authentication_strategies/1);
+# phoenix's Ecto rules cite validate_number/2, which only exists as /3.
+documentation references function "AshAuthentication.Info.strategies/1" but it is undefined or private	AGENTS.md
+documentation references function "Ecto.Changeset.validate_number/2" but it is undefined or private	AGENTS.md
+
+# The ash-framework and phoenix-web skills, built by usage_rules.sync from the
+# packages' mix task lists. The list includes each installer's hidden `.docs`
+# companion module and other @moduledoc false tasks, which ex_doc cannot link.
+documentation references module "mix ash_a2ui.install.docs" but it is hidden	.claude/skills/ash-framework/SKILL.md
+documentation references module "mix ash_admin.install.docs" but it is hidden	.claude/skills/ash-framework/SKILL.md
+documentation references module "mix ash_ai.gen.chat.docs" but it is hidden	.claude/skills/ash-framework/SKILL.md
+documentation references module "mix ash_ai.gen.mcp.docs" but it is hidden	.claude/skills/ash-framework/SKILL.md
+documentation references module "mix ash_ai.gen.usage_rules" but it is hidden	.claude/skills/ash-framework/SKILL.md
+documentation references module "mix ash_ai.gen.usage_rules.docs" but it is hidden	.claude/skills/ash-framework/SKILL.md
+documentation references module "mix ash_ai.install.docs" but it is hidden	.claude/skills/ash-framework/SKILL.md
+documentation references module "mix ash_authentication.upgrade" but it is hidden	.claude/skills/ash-framework/SKILL.md
+documentation references module "mix ash_authentication_phoenix.upgrade" but it is hidden	.claude/skills/ash-framework/SKILL.md
+documentation references module "mix ash_oban.install.docs" but it is hidden	.claude/skills/ash-framework/SKILL.md
+documentation references module "mix ash_oban.set_default_module_names.docs" but it is hidden	.claude/skills/ash-framework/SKILL.md
+documentation references module "mix ash_oban.upgrade" but it is hidden	.claude/skills/ash-framework/SKILL.md
+documentation references module "mix ash_postgres.setup_vector.docs" but it is hidden	.claude/skills/ash-framework/SKILL.md
+documentation references module "mix ash_state_machine.install.docs" but it is hidden	.claude/skills/ash-framework/SKILL.md
+documentation references module "mix compile.phoenix" but it is hidden	.claude/skills/phoenix-web/SKILL.md
+documentation references module "mix phx.gen.auth.hashing_library" but it is hidden	.claude/skills/phoenix-web/SKILL.md
+documentation references module "mix phx.gen.auth.injector" but it is hidden	.claude/skills/phoenix-web/SKILL.md
+documentation references module "mix phx.gen.auth.migration" but it is hidden	.claude/skills/phoenix-web/SKILL.md

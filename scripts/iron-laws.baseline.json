@@ -1,0 +1,128 @@
+[
+  {
+    "law": "07",
+    "file": "lib/ash_enterprise/ledger/user_drain_worker.ex",
+    "text": "use Oban.Worker, queue: :ash_strangler_ledger, max_attempts: 10, unique: [period: 30]",
+    "reason": "False positive: unique: is on the same line. The window detector in ash_agent_tools 304c1c5 starts its search one line after the match (Enum.slice(lines, no, window) with 1-based no). Delete this entry when the detector is fixed upstream; the tree check will say so."
+  },
+  {
+    "law": "10",
+    "file": "lib/mix/tasks/ash_enterprise.trace.ex",
+    "text": "module = String.to_atom(@trace_explain_module)",
+    "reason": "Compile-time constant (a module attribute naming an optional dev-only module), the exception the law names. It stays a string so the WAE compile under MIX_ENV=test never references the absent module."
+  },
+  {
+    "law": "10",
+    "file": "lib/mix/tasks/ast/check.ex",
+    "text": "module = String.to_atom(@agent_tools_module)",
+    "reason": "Compile-time constant (a module attribute naming an optional dev-only module), the exception the law names. It stays a string so the WAE compile under MIX_ENV=test never references the absent module."
+  },
+  {
+    "law": "11",
+    "file": "lib/ash_enterprise_web/live/agent_live.ex",
+    "text": "def handle_event(\"propose\", %{\"request\" => request}, socket) do",
+    "reason": "Authorized through policies: the handler passes the signed-in user as actor to Ash-backed calls, which is one of the two forms the law accepts. The detector only looks for Ash.can? in the file."
+  },
+  {
+    "law": "11",
+    "file": "lib/ash_enterprise_web/live/bpmn/catalog_live.ex",
+    "text": "def handle_event(\"customize\", %{\"key\" => key}, socket) do",
+    "reason": "Authorized through policies: the handler passes the signed-in user as actor to Ash-backed calls, which is one of the two forms the law accepts. The detector only looks for Ash.can? in the file."
+  },
+  {
+    "law": "11",
+    "file": "lib/ash_enterprise_web/live/canvas_live.ex",
+    "text": "def handle_event(\"canvas:select\", %{\"ref\" => ref}, socket) when is_binary(ref) do",
+    "reason": "Authorized through policies: the handler passes the signed-in user as actor to Ash-backed calls, which is one of the two forms the law accepts. The detector only looks for Ash.can? in the file."
+  },
+  {
+    "law": "21",
+    "file": "lib/ash_enterprise_web/components/core_components.ex",
+    "text": "assign_new(assigns, :checked, fn ->",
+    "reason": "Phoenix-generated function component: assign_new on a function component's assigns sets a default for an attribute the caller omitted. The law is about LiveView mount, where assign_new hides per-mount state; the detector cannot tell the two apart."
+  },
+  {
+    "law": "21",
+    "file": "lib/ash_enterprise_web/components/core_components.ex",
+    "text": "assign_new(assigns, :class, fn ->",
+    "reason": "Phoenix-generated function component: assign_new on a function component's assigns sets a default for an attribute the caller omitted. The law is about LiveView mount, where assign_new hides per-mount state; the detector cannot tell the two apart."
+  },
+  {
+    "law": "21",
+    "file": "lib/ash_enterprise_web/components/core_components.ex",
+    "text": "assigns = assign_new(assigns, :id, fn -> \"flash-#{assigns.kind}\" end)",
+    "reason": "Phoenix-generated function component: assign_new on a function component's assigns sets a default for an attribute the caller omitted. The law is about LiveView mount, where assign_new hides per-mount state; the detector cannot tell the two apart."
+  },
+  {
+    "law": "21",
+    "file": "lib/ash_enterprise_web/components/core_components.ex",
+    "text": "|> assign_new(:name, fn -> if assigns.multiple, do: field.name <> \"[]\", else: field.name end)",
+    "reason": "Phoenix-generated function component: assign_new on a function component's assigns sets a default for an attribute the caller omitted. The law is about LiveView mount, where assign_new hides per-mount state; the detector cannot tell the two apart."
+  },
+  {
+    "law": "21",
+    "file": "lib/ash_enterprise_web/components/core_components.ex",
+    "text": "|> assign_new(:value, fn -> field.value end)",
+    "reason": "Phoenix-generated function component: assign_new on a function component's assigns sets a default for an attribute the caller omitted. The law is about LiveView mount, where assign_new hides per-mount state; the detector cannot tell the two apart."
+  },
+  {
+    "law": "23",
+    "file": "lib/mix/tasks/ash_enterprise.audit.export.ex",
+    "text": "@requirements [\"app.start\"]",
+    "reason": "Needs the running application: writes through Ash actions against the Repo (and, for some, Oban and the projectors). Converting it to app.config plus ensure_started of Repo alone is follow-up work from docs/reviews/iron-law-audit.md, fix item 3; audit.verify and bpmn.publish are the first two to convert."
+  },
+  {
+    "law": "23",
+    "file": "lib/mix/tasks/ash_enterprise.audit.verify.ex",
+    "text": "@requirements [\"app.start\"]",
+    "reason": "Needs the running application: writes through Ash actions against the Repo (and, for some, Oban and the projectors). Converting it to app.config plus ensure_started of Repo alone is follow-up work from docs/reviews/iron-law-audit.md, fix item 3; audit.verify and bpmn.publish are the first two to convert."
+  },
+  {
+    "law": "23",
+    "file": "lib/mix/tasks/ash_enterprise.bpmn.publish.ex",
+    "text": "Mix.Task.run(\"app.start\")",
+    "reason": "Needs the running application: writes through Ash actions against the Repo (and, for some, Oban and the projectors). Converting it to app.config plus ensure_started of Repo alone is follow-up work from docs/reviews/iron-law-audit.md, fix item 3; audit.verify and bpmn.publish are the first two to convert."
+  },
+  {
+    "law": "23",
+    "file": "lib/mix/tasks/ash_enterprise.bpmn.setup.ex",
+    "text": "Mix.Task.run(\"app.start\")",
+    "reason": "Needs the running application: writes through Ash actions against the Repo (and, for some, Oban and the projectors). Converting it to app.config plus ensure_started of Repo alone is follow-up work from docs/reviews/iron-law-audit.md, fix item 3; audit.verify and bpmn.publish are the first two to convert."
+  },
+  {
+    "law": "23",
+    "file": "lib/mix/tasks/ash_enterprise.compliance.seed.ex",
+    "text": "Mix.Task.run(\"app.start\")",
+    "reason": "Needs the running application: writes through Ash actions against the Repo (and, for some, Oban and the projectors). Converting it to app.config plus ensure_started of Repo alone is follow-up work from docs/reviews/iron-law-audit.md, fix item 3; audit.verify and bpmn.publish are the first two to convert."
+  },
+  {
+    "law": "23",
+    "file": "lib/mix/tasks/ash_enterprise.demo.ex",
+    "text": "@requirements [\"app.start\"]",
+    "reason": "Needs the running application: writes through Ash actions against the Repo (and, for some, Oban and the projectors). Converting it to app.config plus ensure_started of Repo alone is follow-up work from docs/reviews/iron-law-audit.md, fix item 3; audit.verify and bpmn.publish are the first two to convert."
+  },
+  {
+    "law": "23",
+    "file": "lib/mix/tasks/ash_enterprise.legacy.project.ex",
+    "text": "@requirements [\"app.start\"]",
+    "reason": "Needs the running application: writes through Ash actions against the Repo (and, for some, Oban and the projectors). Converting it to app.config plus ensure_started of Repo alone is follow-up work from docs/reviews/iron-law-audit.md, fix item 3; audit.verify and bpmn.publish are the first two to convert."
+  },
+  {
+    "law": "23",
+    "file": "lib/mix/tasks/ash_enterprise.seed.ex",
+    "text": "Mix.Task.run(\"app.start\")",
+    "reason": "Needs the running application: writes through Ash actions against the Repo (and, for some, Oban and the projectors). Converting it to app.config plus ensure_started of Repo alone is follow-up work from docs/reviews/iron-law-audit.md, fix item 3; audit.verify and bpmn.publish are the first two to convert."
+  },
+  {
+    "law": "23",
+    "file": "lib/mix/tasks/ash_enterprise.trace.ex",
+    "text": "@requirements [\"app.start\"]",
+    "reason": "Needs the running application: writes through Ash actions against the Repo (and, for some, Oban and the projectors). Converting it to app.config plus ensure_started of Repo alone is follow-up work from docs/reviews/iron-law-audit.md, fix item 3; audit.verify and bpmn.publish are the first two to convert."
+  },
+  {
+    "law": "23",
+    "file": "lib/mix/tasks/ast/check.ex",
+    "text": "@requirements [\"app.start\"]",
+    "reason": "Needs the running application: writes through Ash actions against the Repo (and, for some, Oban and the projectors). Converting it to app.config plus ensure_started of Repo alone is follow-up work from docs/reviews/iron-law-audit.md, fix item 3; audit.verify and bpmn.publish are the first two to convert."
+  }
+]

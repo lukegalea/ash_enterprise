@@ -15,8 +15,52 @@ defmodule AshEnterprise.MixProject do
       consolidate_protocols: Mix.env() != :dev,
       usage_rules: usage_rules(),
       dialyzer: dialyzer(),
+      docs: docs(),
       releases: releases()
     ]
+  end
+
+  # `mix docs` exists here to validate, not to publish: nothing hosts this
+  # application's API docs. Its job is the EXTRA_DOCS pattern from
+  # elixir-lang/ex_doc#2272 -- route the agent-facing markdown through ex_doc's
+  # extras pipeline so a reference that no longer resolves (a renamed module,
+  # a function that lost an arity) warns exactly as it would in a moduledoc.
+  #
+  #     EXTRA_DOCS=1 mix docs --warnings-as-errors        # the agent-facing set
+  #     EXTRA_DOCS='docs/adr/*.md' mix docs               # any globs, space-separated
+  #
+  # CI runs the first line; see docs/IRON-LAWS.md.
+  defp docs do
+    [
+      main: "readme",
+      extras: ["README.md"] ++ extra_docs(),
+      # Named in prose on purpose but not linkable: each is hidden (@moduledoc
+      # false or @doc false) or private in its own package. ex_doc's documented
+      # escape hatch for "highlight private modules or functions without
+      # warnings"; anything else that stops resolving still fails.
+      skip_code_autolink_to: [
+        "AshEnterprise.Application",
+        "Ash.Resource.Calculation.Expression",
+        "AshA2ui.LiveRenderer.handle_notification/3",
+        "AshEvents.AdvisoryLockKeyGenerator.Default.uuid_to_int/1"
+      ]
+    ]
+  end
+
+  @agent_docs ["AGENTS.md", "CLAUDE.md", ".claude/skills/*/SKILL.md"]
+
+  defp extra_docs do
+    globs =
+      case System.get_env("EXTRA_DOCS") do
+        nil -> []
+        "1" -> @agent_docs
+        value -> String.split(value)
+      end
+
+    globs
+    |> Enum.flat_map(&Path.wildcard/1)
+    |> Enum.uniq()
+    |> Enum.reject(&(&1 == "README.md"))
   end
 
   # Release configuration. See lib/ash_enterprise/release.ex for why migrations
@@ -180,6 +224,9 @@ defmodule AshEnterprise.MixProject do
       # Read-only Ash introspection for coding agents (dogfooding our AST lane E
       # package; a github dep until it publishes to hex, pinned by mix.lock).
       {:ash_agent_tools, github: "lukegalea/ash_agent_tools", only: :dev, runtime: false},
+
+      # Docs as a validator, not a publication: see the EXTRA_DOCS note on docs/0.
+      {:ex_doc, "~> 0.40", only: :dev, runtime: false},
 
       # BEAM runtime inspection for the observability plane's dev loop: recon
       # for deep-dive process/memory questions, observer_cli for a terminal
@@ -403,10 +450,16 @@ defmodule AshEnterprise.MixProject do
       # AGENTS.md (and, under MIX_ENV=dev, the action contracts agents call).
       # Last in the list so the suite has already prepared the database that
       # booting the app for it needs. See docs/AST-CHECK.md.
+      #
+      # scripts/iron-laws.sh runs the laws judge over what this change adds and
+      # over the tree against its reviewed baseline. It sets MIX_ENV=dev for
+      # the judge itself, since ash_agent_tools is dev-only. See
+      # docs/IRON-LAWS.md.
       precommit: [
         "compile --warnings-as-errors",
         "deps.unlock --unused",
         "format",
+        "cmd scripts/iron-laws.sh",
         "test",
         "ast.check"
       ]

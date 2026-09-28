@@ -280,6 +280,8 @@ in
       mix credo --strict
       mix ash.codegen --check
       mix test
+      "$DEVENV_ROOT"/scripts/iron-laws.sh
+      "$DEVENV_ROOT"/scripts/extra-docs.sh
     '';
   };
 

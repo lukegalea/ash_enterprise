@@ -10,7 +10,7 @@ defmodule AshEnterprise.Audit.EventSource do
 
   ## The event context is a published contract
 
-  `c:context/1` builds the map every guard, subject expression and correlation
+  `c:AshBpmn.EventSource.context/1` builds the map every guard, subject expression and correlation
   key evaluates against. Changing its shape breaks every tenant's subscriptions,
   so it is a contract rather than an internal detail (ported verbatim from the
   prototype's `Process.Triggers.Dispatch.context_for/1`):
@@ -48,7 +48,7 @@ defmodule AshEnterprise.Audit.EventSource do
 
   ## The ordering guarantee, and exactly how far it reaches
 
-  `c:order_guarantee/1` is a **declaration, not a measurement**. Returning
+  `c:AshBpmn.EventSource.order_guarantee/1` is a **declaration, not a measurement**. Returning
   `:commit_order` for a real tenant claims that within that tenant, `sequence`
   order equals commit order.
 
@@ -75,7 +75,7 @@ defmodule AshEnterprise.Audit.EventSource do
 
   ## Not a change feed
 
-  `c:audited?/1` answers whether `resource` writes **into this log**. The log is
+  `c:AshBpmn.EventSource.audited?/1` answers whether `resource` writes **into this log**. The log is
   a feed of writes that went through an audited Ash action, not of every change
   to a row: raw SQL produces no event, and a subscription watching one waits
   forever without erroring — which is why publish-time refusals call this with

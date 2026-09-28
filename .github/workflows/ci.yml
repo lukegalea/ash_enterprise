@@ -84,7 +84,11 @@ jobs:
           --health-retries 5
 
     steps:
+      # Full history: the iron-laws step judges the lines added since the merge
+      # base with the PR's target (or with the commit a push started from).
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       # Pinned to the pairing devenv.nix uses, modulo accepted patch skew:
       # devenv's nixpkgs carries 1.20.3, CI pins 1.20.4 (see the note in
@@ -224,6 +228,30 @@ jobs:
       # See docs/AST-CHECK.md.
       - name: Agent contracts and rules links
         run: mix ast.check
+
+      # The two steps below need dev-only dependencies (ash_agent_tools for the
+      # laws judge, ex_doc for the docs build), so they run under MIX_ENV=dev.
+      # They sit in this job rather than their own because this job has already
+      # fetched the private dependencies. Compiling the dev dependencies gets its
+      # own step so its log stays out of the checks' output. See
+      # docs/IRON-LAWS.md for both checks and their baselines.
+      - name: Compile dev-only dependencies
+        run: MIX_ENV=dev mix deps.compile
+
+      # Blocking from the start. The usual case for landing a new linter as
+      # advisory is false positives against existing code; here the existing
+      # hits are reviewed one by one in scripts/iron-laws.baseline.json, and
+      # the diff mode only judges lines the change adds.
+      - name: Iron laws judge
+        env:
+          IRON_LAWS_BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || github.event.before }}
+        run: scripts/iron-laws.sh
+
+      # EXTRA_DOCS=1 routes AGENTS.md, CLAUDE.md and every skill through ex_doc's
+      # extras pipeline (elixir-lang/ex_doc#2272), so a reference that stopped
+      # resolving fails here instead of misleading the next agent that reads it.
+      - name: Validate agent docs (EXTRA_DOCS)
+        run: scripts/extra-docs.sh
 
   dialyzer:
     name: Dialyzer (advisory)
