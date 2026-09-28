@@ -36,6 +36,10 @@ defmodule AshEnterprise.Zones do
   alias AshEnterprise.Zones.{Admission, Zone}
   alias AshEnterprise.Zones.Errors.{Inadmissible, UndeclaredZone}
 
+  # Sobelow reads `@sobelow_skip` from the source AST; persisting it keeps
+  # `--warnings-as-errors` from calling it unused (see Audit.Export).
+  Module.register_attribute(__MODULE__, :sobelow_skip, persist: true)
+
   @doc "The configured declaration sources."
   @spec declaration_sources() :: [String.t() | {:priv, String.t()}]
   def declaration_sources do
@@ -132,6 +136,10 @@ defmodule AshEnterprise.Zones do
 
   defp resolve(path) when is_binary(path), do: path
 
+  # Declaration paths come from application config or `priv/`, set by the
+  # operator who deploys the zone, never from a request. Skipped by name and
+  # locally: if request input ever reaches this function, that is a real finding.
+  @sobelow_skip ["Traversal.FileModule"]
   defp read(path) do
     case File.read(path) do
       {:ok, body} -> {:ok, body}
