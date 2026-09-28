@@ -244,15 +244,9 @@ defmodule Mix.Tasks.AshEnterprise.Bpmn.Setup do
     # id fails loudly here, not as a cast error deep inside the action.
     requested_role_id = assert_role_id!(role.id, tenant)
 
-    # The input goes in keyword form deliberately. `config :ash,
-    # :generate_interface_specs` types submit!/2's first argument as
-    # `submit_input() | [submit_input()] | keyword() | nil`, and `submit_input()`
-    # is a *closed* map over the scalar public attributes only: `justification`
-    # and `requested_role_tier`. `requested_role_id` is a belongs_to FK input --
-    # accepted by the action but absent from every generated map type -- so a map
-    # literal carrying it can never typecheck and dialyzer reports the call as
-    # one that will not succeed. The keyword form sits inside the spec's domain
-    # and Ash.CodeInterface converts it to the same input map at runtime.
+    # `requested_role_id` is a belongs_to FK input: accepted by the action but
+    # not a public attribute. The keyword form keeps all three inputs in one
+    # place; Ash.CodeInterface converts it to the same input map at runtime.
     AccessRequest.submit!(
       [
         justification: justification,

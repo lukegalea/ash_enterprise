@@ -9,6 +9,7 @@
 | **Extends** | `Ash.Info.Manifest`, `schema_version` `"1.0.0"` (`ash` `lib/ash/info/manifest.ex`) |
 | **Grounded against** | `spark` v2.7.3, `ash` v3.33.5 (vendored read-only clones under `.slim/clonedeps/repos/`) |
 | **Artifacts** | `docs/rfc/semantic-manifest-v0.schema.json`, `docs/rfc/fixtures/ash_enterprise_accounts_team.manifest.json` |
+| **Implementation** | Not built here. The prototype emitter sits on the `lukegalea/ash` branch `feature/manifest-semantic-export` and was never part of this app's pin. Decided 2026-09-28: it will be extracted into its own package that runs against hex Ash's `Ash.Info.Manifest`, not carried on an Ash fork. Until that exists, `priv/semantic/` is empty and `mix ast.check --semantic` has nothing to validate. |
 | **Supersedes** | nothing. It does not supersede `Ash.Info.Manifest` either — it layers on it. |
 
 ---

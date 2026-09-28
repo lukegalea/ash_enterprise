@@ -3,8 +3,11 @@
 **Target:** ash-project/ash — feature request
 **Assignee:** zachdaniel (he's the natural reviewer; assignment on an issue he'd
 review anyway is the polite loudness)
-**Status:** DRAFT — Luke files it himself. Companion to the personal note in
-`zach-ash-agent-tools-message.md` (send whichever lands naturally).
+**Status:** CLOSED. Filed as ash-project/ash#2959 and declined on 2026-09-22:
+upstream is waiting for Elixir's native type system instead. On 2026-09-28
+ash_enterprise dropped the `lukegalea/ash` fork pin and returned to hex Ash, so
+`generate_interface_specs` is gone from this repository. What follows is kept as
+a record of the proposal.
 **Filing one-liner:**
 
 ```sh
