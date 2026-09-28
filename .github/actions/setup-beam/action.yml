@@ -1,0 +1,28 @@
+name: Set up the BEAM
+description: >
+  The one place CI pins Erlang/OTP and Elixir. Every job uses this action, so
+  the toolchain cannot drift between jobs, and the version appears in cache
+  keys by reference rather than as a copied literal.
+
+outputs:
+  elixir-version:
+    description: The pinned Elixir version, for cache keys.
+    value: ${{ steps.pin.outputs.elixir-version }}
+
+runs:
+  using: composite
+  steps:
+    # Pinned to the pairing devenv.nix uses, modulo accepted patch skew:
+    # devenv's nixpkgs carries 1.20.3, CI pins 1.20.4 (see the note in
+    # devenv.nix). CI drifting from local is how "works on my machine"
+    # becomes a class of bug rather than an incident.
+    - id: pin
+      shell: bash
+      run: |
+        echo "otp-version=27.3.4" >> "$GITHUB_OUTPUT"
+        echo "elixir-version=1.20.4" >> "$GITHUB_OUTPUT"
+
+    - uses: erlef/setup-beam@v1
+      with:
+        otp-version: ${{ steps.pin.outputs.otp-version }}
+        elixir-version: ${{ steps.pin.outputs.elixir-version }}

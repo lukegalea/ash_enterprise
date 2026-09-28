@@ -90,14 +90,9 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Pinned to the pairing devenv.nix uses, modulo accepted patch skew:
-      # devenv's nixpkgs carries 1.20.3, CI pins 1.20.4 (see the note in
-      # devenv.nix). CI drifting from local is how "works on my machine"
-      # becomes a class of bug rather than an incident.
-      - uses: erlef/setup-beam@v1
-        with:
-          otp-version: "27.3.4"
-          elixir-version: "1.20.4"
+      # OTP and Elixir are pinned once, in .github/actions/setup-beam.
+      - id: beam
+        uses: ./.github/actions/setup-beam
 
       # Keyed per Elixir version. _build is not portable across compilers, so
       # the version rides the key: a cache written by an older compiler must
@@ -109,8 +104,8 @@ jobs:
           path: |
             deps
             _build
-          key: ${{ runner.os }}-mix-1.20.4-${{ hashFiles('mix.lock') }}
-          restore-keys: ${{ runner.os }}-mix-1.20.4-
+          key: ${{ runner.os }}-mix-${{ steps.beam.outputs.elixir-version }}-${{ hashFiles('mix.lock') }}
+          restore-keys: ${{ runner.os }}-mix-${{ steps.beam.outputs.elixir-version }}-
 
       # `xmllint`, which `boxic_dmn` (under `ash_decisions`) shells out to when it
       # validates a DMN document against the normative XSD.
@@ -228,10 +223,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: erlef/setup-beam@v1
-        with:
-          otp-version: "27.3.4"
-          elixir-version: "1.20.4"
+      - id: beam
+        uses: ./.github/actions/setup-beam
 
       - uses: actions/cache@v4
         with:
@@ -239,8 +232,8 @@ jobs:
             deps
             _build
             priv/plts
-          key: ${{ runner.os }}-dialyzer-1.20.4-${{ hashFiles('mix.lock') }}
-          restore-keys: ${{ runner.os }}-dialyzer-1.20.4-
+          key: ${{ runner.os }}-dialyzer-${{ steps.beam.outputs.elixir-version }}-${{ hashFiles('mix.lock') }}
+          restore-keys: ${{ runner.os }}-dialyzer-${{ steps.beam.outputs.elixir-version }}-
 
       - run: mix deps.get
       - run: mkdir -p priv/plts
@@ -261,10 +254,8 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: erlef/setup-beam@v1
-        with:
-          otp-version: "27.3.4"
-          elixir-version: "1.20.4"
+      - id: beam
+        uses: ./.github/actions/setup-beam
 
       - name: Fetch dependencies with no credentials
         env:
