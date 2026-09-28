@@ -8,7 +8,7 @@ Four kinds of document live here.
 | [**COMPLIANCE.md**](COMPLIANCE.md) | The control map: named SOC 2, ISO 27001 and GDPR controls, where each stands, and what proves it. Generated from the ledger. | Someone has sent you a security questionnaire. |
 | [**ROADMAP.md**](ROADMAP.md) | Where the gaps go, in what order, and what each choice beat. | You want to know where it is heading, or whether a decision was reasoned. |
 | [**manifesto/**](manifesto/00-index.md) | The argument. Eight theses, one of which is the honest list of what is missing. | You want to know *why* anything here is shaped the way it is. |
-| [**adr/**](adr/README.md) | The decisions. Forty-five records, each with the exit from it. | You disagree with something and want to know what it would cost to change. |
+| [**adr/**](adr/README.md) | The decisions. Forty-seven records, each with the exit from it. | You disagree with something and want to know what it would cost to change. |
 | [**plans/**](plans/README.md) | The specifications. Long-form designs for work that is proposed or partly built. | You are about to build one of them. |
 | [**HANDOFF.md**](HANDOFF.md) | The state of play, plus findings that were expensive to discover. | You are picking this up in a new session. Start here. |
 | [**capstone/storyline.md**](https://github.com/lukegalea/ash_enterprise/blob/main/docs/capstone/storyline.md) | The capstone: the published [`clinic-demo`](https://github.com/lukegalea/clinic-demo) — agents reading an Ash codebase — with the evidence set indexed. | You want the story this tree earned, in one sitting. |

@@ -25,9 +25,9 @@ every ⚪ row below.
 README. Edit the JSON, never the table.
 
 <!-- roadmap:scoreboard:start -->
-**17 of 55** enterprise questions have a shipped answer.
+**17 of 54** enterprise questions have a shipped answer.
 
-✅ Shipped 17 · 🟡 Partial 14 · 🔵 Planned 9 · ⚪ Open 15
+✅ Shipped 17 · 🟡 Partial 13 · 🔵 Planned 9 · ⚪ Open 15
 <!-- roadmap:scoreboard:end -->
 
 <!-- roadmap:sections:start -->
@@ -37,7 +37,7 @@ README. Edit the JSON, never the table.
 | What happened, and can you prove it? | 8 | 1 | 0 | 2 |
 | Whose data is it? | 2 | 1 | 0 | 3 |
 | Where does data come from, and where does it go? | 0 | 0 | 7 | 2 |
-| How does it change, and keep running? | 3 | 7 | 2 | 1 |
+| How does it change, and keep running? | 3 | 6 | 2 | 1 |
 | Can you prove it, continuously? | 0 | 3 | 0 | 3 |
 <!-- roadmap:sections:end -->
 
@@ -114,8 +114,7 @@ README. Edit the JSON, never the table.
 | 43 | Can a deploy happen without downtime, and can a migration be reversed? | Partial. Every generated migration has a `down`, and `ash_strangler`'s four-phase cutover is built precisely so a legacy migration can be reversed at any phase. What is untested is the app's own rolling deploy: nothing proves an old and a new node can serve the same schema at once, which is the property zero-downtime actually needs. | 🟡 Partial | — |
 | 44 | Does it still work for a customer with fifty thousand of something? | Open. No load test, no query budget, and no pagination requirement on read actions — the audit export is the only place in the codebase that streams rather than loads. A reference architecture that has never met a large tenant is making an untested claim. | ⚪ Open | — |
 | 45 | Can a customer change how it behaves without a deploy? | Partial, and less partial than it was. A tenant can fork a process or a decision, edit it in the browser and publish it as its own version, with no binding row meaning 'follow the platform baseline' -- so changing behaviour is data, and reverting is deleting a row. Drift from a newer baseline is reported, never merged. What is still a deploy: adding an attribute is a resource change and a migration, and a decision cannot be tried against sample inputs before it is published. | 🟡 Partial | [ADR 0029](adr/0029-process-configuration-is-tenant-data.md) |
-| 52 | How are business rules expressed, versioned, and changed without a deploy? | As DMN decisions -- decision tables and literal expressions -- held as versioned, tenant-scoped Ash resources by `ash_decisions` and evaluated by a native Elixir DMN engine measured at 3,414 of 3,495 nodes against the official DMN TCK. Every evaluation records which version decided and what it saw. Partial: the resources and the engine are here, the authoring UI is not. | 🟡 Partial | `test/ash_enterprise/bpmn/adoption_test.exs` |
-| 53 | How are business rules expressed, versioned and changed without a deploy? | As DMN, in `ash_decisions`. A decision is a DMN document -- the single artifact, with no second copy of the rules in a table to drift from it -- versioned and immutable on publish, edited in dmn-js, and evaluated either by a business rule task inside a process or by trigger routing deciding which process to start. The engine is adopted rather than written and measured at 97.68% of the official DMN TCK. `OUTPUT ORDER` and `RULE ORDER` are refused at compile time because both make document order semantically significant, which is the same order-dependence the authorization model rejects. What is missing is the proof: publish-time overlap and completeness analysis is designed and unbuilt, so a table with a gap or an overlap publishes without complaint. | 🟡 Partial | [ADR 0028](adr/0028-decisions-are-dmn.md) |
+| 53 | How are business rules expressed, versioned and changed without a deploy? | As DMN, in `ash_decisions`. A decision is a DMN document -- the single artifact, with no second copy of the rules in a table to drift from it -- versioned and immutable on publish, edited in dmn-js, and evaluated either by a business rule task inside a process or by trigger routing deciding which process to start. The engine is adopted rather than written and measured at 97.68% of the official DMN TCK. `OUTPUT ORDER` and `RULE ORDER` are refused at compile time because both make document order semantically significant, which is the same order-dependence the authorization model rejects. Publishing runs a verifier over every decision table: overlapping rules under `UNIQUE` or `ANY`, gaps in the input space and rules that can never fire are proved, an error-severity finding blocks the publish, and whatever the verifier cannot decide is recorded as an open obligation rather than reported clean. Every evaluation records which version decided, what it saw and which rules fired. What is missing is a way to run a decision against sample inputs from the editor, so an author can still publish without having watched the table fire. | 🟡 Partial | `test/ash_enterprise/process/decision_resolver_test.exs` |
 | 54 | Can a UI built on the new model be driven by a database the old application still owns? | Yes, and it is demonstrated rather than asserted: `INSERT INTO legacy.users` in `psql` reaches a surface generated from `AshEnterprise.Accounts.ProjectedUser` -- an Ash-owned table with real columns -- without a reload and without anything in that surface knowing a legacy database exists. The chain is an `AFTER` trigger, `pg_notify` on commit, a listener that re-reads through Ash so the mapped values apply, a notifier that upserts through an ordinary Ash action, and `Ash.Notifier.PubSub`. What it costs: the projection is eventually consistent, and `projected_at` is a column so the lag is on screen rather than hidden. A row that fails to project is silently absent until the backfill is re-run -- there is no retry, and the reconciliation job that would close that gap is not built. | ✅ Shipped | [ADR 0031](adr/0031-the-legacy-estate-is-projected-not-cut-over.md) |
 
 ### Can you prove it, continuously?

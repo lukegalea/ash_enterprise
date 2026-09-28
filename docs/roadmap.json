@@ -413,14 +413,6 @@
       "item": "first-party"
     },
     {
-      "id": "q52",
-      "section": "change",
-      "question": "How are business rules expressed, versioned, and changed without a deploy?",
-      "answer": "As DMN decisions -- decision tables and literal expressions -- held as versioned, tenant-scoped Ash resources by `ash_decisions` and evaluated by a native Elixir DMN engine measured at 3,414 of 3,495 nodes against the official DMN TCK. Every evaluation records which version decided and what it saw. Partial: the resources and the engine are here, the authoring UI is not.",
-      "status": "partial",
-      "proof": "test/ash_enterprise/bpmn/adoption_test.exs"
-    },
-    {
       "id": "q46",
       "section": "assurance",
       "question": "Which named controls does any of this actually satisfy?",
@@ -475,10 +467,11 @@
       "id": "q53",
       "section": "change",
       "question": "How are business rules expressed, versioned and changed without a deploy?",
-      "answer": "As DMN, in `ash_decisions`. A decision is a DMN document -- the single artifact, with no second copy of the rules in a table to drift from it -- versioned and immutable on publish, edited in dmn-js, and evaluated either by a business rule task inside a process or by trigger routing deciding which process to start. The engine is adopted rather than written and measured at 97.68% of the official DMN TCK. `OUTPUT ORDER` and `RULE ORDER` are refused at compile time because both make document order semantically significant, which is the same order-dependence the authorization model rejects. What is missing is the proof: publish-time overlap and completeness analysis is designed and unbuilt, so a table with a gap or an overlap publishes without complaint.",
+      "answer": "As DMN, in `ash_decisions`. A decision is a DMN document -- the single artifact, with no second copy of the rules in a table to drift from it -- versioned and immutable on publish, edited in dmn-js, and evaluated either by a business rule task inside a process or by trigger routing deciding which process to start. The engine is adopted rather than written and measured at 97.68% of the official DMN TCK. `OUTPUT ORDER` and `RULE ORDER` are refused at compile time because both make document order semantically significant, which is the same order-dependence the authorization model rejects. Publishing runs a verifier over every decision table: overlapping rules under `UNIQUE` or `ANY`, gaps in the input space and rules that can never fire are proved, an error-severity finding blocks the publish, and whatever the verifier cannot decide is recorded as an open obligation rather than reported clean. Every evaluation records which version decided, what it saw and which rules fired. What is missing is a way to run a decision against sample inputs from the editor, so an author can still publish without having watched the table fire.",
       "status": "partial",
       "adr": "0028",
-      "item": "decisions"
+      "item": "decisions",
+      "proof": "test/ash_enterprise/process/decision_resolver_test.exs"
     },
     {
       "id": "q54",
@@ -561,7 +554,7 @@
       "status": "partial",
       "effort": "A first-party package over `boxic_dmn`/`boxic_feel`: versioned immutable definitions, tenancy, the authorization bypass, the evaluation log, the dmn-js editor, and an independent run of the official DMN TCK as the gate. 101 tests plus 3,495 corpus assertions.",
       "bar": "The measurement, not the preference. Writing a conforming FEEL implementation is a 60–90 person-day project; an independent TCK run put the existing engine at 97.68% before any work of ours, so it was adopted. What makes a 0.x package by one author defensible is that it sits behind a single adapter module and the conformance suite is ours — replacing it is measurable rather than speculative.",
-      "answer": "DMN, as its own first-party package. The DMN document is the single artifact — no second copy of the rules in a table — versioned per tenant, evaluated by a business rule task or by trigger routing, and edited in dmn-js. **97.68% of the official DMN TCK** (3,414 of 3,495 asserted result nodes; level 2 96.83%, level 3 97.71%), with each remaining failure listed against a measured node count so the gate fails if it moves in either direction. Not shipped: publish-time overlap and completeness analysis, which is designed and unbuilt; no way to evaluate a decision from the editor; and `matched_rule_ids` is always empty because the engine reports what a decision returned but not which rule produced it."
+      "answer": "DMN, as its own first-party package. The DMN document is the single artifact — no second copy of the rules in a table — versioned per tenant, evaluated by a business rule task or by trigger routing, and edited in dmn-js. **97.68% of the official DMN TCK** (3,414 of 3,495 asserted result nodes; level 2 96.83%, level 3 97.71%), with each remaining failure listed against a measured node count so the gate fails if it moves in either direction. Publish-time verification proves overlaps, gaps and rules that can never fire, and blocks a publish on an error-severity finding; each evaluation records which rules fired. Not shipped: a way to evaluate a decision against sample inputs from the editor."
     },
     {
       "id": "compliance",

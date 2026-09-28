@@ -36,9 +36,9 @@ works with a limitation stated in the answer; 🔵 means a decision is written d
 ⚪ means a gap with no decision taken.
 
 <!-- roadmap:scoreboard:start -->
-**17 of 55** enterprise questions have a shipped answer.
+**17 of 54** enterprise questions have a shipped answer.
 
-✅ Shipped 17 · 🟡 Partial 14 · 🔵 Planned 9 · ⚪ Open 15
+✅ Shipped 17 · 🟡 Partial 13 · 🔵 Planned 9 · ⚪ Open 15
 <!-- roadmap:scoreboard:end -->
 
 <!-- roadmap:sections:start -->
@@ -48,7 +48,7 @@ works with a limitation stated in the answer; 🔵 means a decision is written d
 | What happened, and can you prove it? | 8 | 1 | 0 | 2 |
 | Whose data is it? | 2 | 1 | 0 | 3 |
 | Where does data come from, and where does it go? | 0 | 0 | 7 | 2 |
-| How does it change, and keep running? | 3 | 7 | 2 | 1 |
+| How does it change, and keep running? | 3 | 6 | 2 | 1 |
 | Can you prove it, continuously? | 0 | 3 | 0 | 3 |
 <!-- roadmap:sections:end -->
 
@@ -104,8 +104,7 @@ works with a limitation stated in the answer; 🔵 means a decision is written d
 | 43 | Can a deploy happen without downtime, and can a migration be reversed? | Partial. Every generated migration has a `down`, and `ash_strangler`'s four-phase cutover is built precisely so a legacy migration can be reversed at any phase. What is untested is the app's own rolling deploy: nothing proves an old and a new node can serve the same schema at once, which is the property zero-downtime actually needs. | 🟡 Partial |
 | 44 | Does it still work for a customer with fifty thousand of something? | Open. No load test, no query budget, and no pagination requirement on read actions — the audit export is the only place in the codebase that streams rather than loads. A reference architecture that has never met a large tenant is making an untested claim. | ⚪ Open |
 | 45 | Can a customer change how it behaves without a deploy? | Partial, and less partial than it was. A tenant can fork a process or a decision, edit it in the browser and publish it as its own version, with no binding row meaning 'follow the platform baseline' -- so changing behaviour is data, and reverting is deleting a row. Drift from a newer baseline is reported, never merged. What is still a deploy: adding an attribute is a resource change and a migration, and a decision cannot be tried against sample inputs before it is published. | 🟡 Partial |
-| 52 | How are business rules expressed, versioned, and changed without a deploy? | As DMN decisions -- decision tables and literal expressions -- held as versioned, tenant-scoped Ash resources by `ash_decisions` and evaluated by a native Elixir DMN engine measured at 3,414 of 3,495 nodes against the official DMN TCK. Every evaluation records which version decided and what it saw. Partial: the resources and the engine are here, the authoring UI is not. | 🟡 Partial |
-| 53 | How are business rules expressed, versioned and changed without a deploy? | As DMN, in `ash_decisions`. A decision is a DMN document -- the single artifact, with no second copy of the rules in a table to drift from it -- versioned and immutable on publish, edited in dmn-js, and evaluated either by a business rule task inside a process or by trigger routing deciding which process to start. The engine is adopted rather than written and measured at 97.68% of the official DMN TCK. `OUTPUT ORDER` and `RULE ORDER` are refused at compile time because both make document order semantically significant, which is the same order-dependence the authorization model rejects. What is missing is the proof: publish-time overlap and completeness analysis is designed and unbuilt, so a table with a gap or an overlap publishes without complaint. | 🟡 Partial |
+| 53 | How are business rules expressed, versioned and changed without a deploy? | As DMN, in `ash_decisions`. A decision is a DMN document -- the single artifact, with no second copy of the rules in a table to drift from it -- versioned and immutable on publish, edited in dmn-js, and evaluated either by a business rule task inside a process or by trigger routing deciding which process to start. The engine is adopted rather than written and measured at 97.68% of the official DMN TCK. `OUTPUT ORDER` and `RULE ORDER` are refused at compile time because both make document order semantically significant, which is the same order-dependence the authorization model rejects. Publishing runs a verifier over every decision table: overlapping rules under `UNIQUE` or `ANY`, gaps in the input space and rules that can never fire are proved, an error-severity finding blocks the publish, and whatever the verifier cannot decide is recorded as an open obligation rather than reported clean. Every evaluation records which version decided, what it saw and which rules fired. What is missing is a way to run a decision against sample inputs from the editor, so an author can still publish without having watched the table fire. | 🟡 Partial |
 | 54 | Can a UI built on the new model be driven by a database the old application still owns? | Yes, and it is demonstrated rather than asserted: `INSERT INTO legacy.users` in `psql` reaches a surface generated from `AshEnterprise.Accounts.ProjectedUser` -- an Ash-owned table with real columns -- without a reload and without anything in that surface knowing a legacy database exists. The chain is an `AFTER` trigger, `pg_notify` on commit, a listener that re-reads through Ash so the mapped values apply, a notifier that upserts through an ordinary Ash action, and `Ash.Notifier.PubSub`. What it costs: the projection is eventually consistent, and `projected_at` is a column so the lag is on screen rather than hidden. A row that fails to project is silently absent until the backfill is re-run -- there is no retry, and the reconciliation job that would close that gap is not built. | ✅ Shipped |
 | 46 | Which named controls does any of this actually satisfy? | Partial. `docs/COMPLIANCE.md` maps SOC 2, ISO 27001 and GDPR controls to the questions above and through them to the test that proves each — generated from the same ledger, so it cannot drift. It covers technical prerequisites only: certification also needs policy, process and an auditor, and the document says so first rather than last. | 🟡 Partial |
 | 47 | What is promised about uptime, and what happens when it is missed? | Open. No SLO, no error budget, no status page. Telemetry exists and nothing is expressed as a target, so there is nothing for an incident to be measured against. | ⚪ Open |
@@ -416,7 +415,7 @@ The reasoning, the sequencing and what stays deliberately open is [`docs/ROADMAP
 | [`docs/COMPLIANCE.md`](docs/COMPLIANCE.md) | **The control map** — SOC 2, ISO 27001 and GDPR controls, and the test that proves each |
 | [`docs/ROADMAP.md`](docs/ROADMAP.md) | Where the gaps go, in what order, and what each choice beat |
 | [`docs/HANDOFF.md`](docs/HANDOFF.md) | **Start here in a new session** — current state, and findings that cost time to discover |
-| [`docs/manifesto/`](docs/manifesto/00-index.md) | The seven theses, including [what we do not have](docs/manifesto/07-what-we-do-not-have.md) |
+| [`docs/manifesto/`](docs/manifesto/00-index.md) | The eight theses, including [what we do not have](docs/manifesto/07-what-we-do-not-have.md) |
 | [`docs/adr/`](docs/adr/README.md) | Decision records, with the reversal path for each |
 | [`docs/plans/`](docs/plans/) | Specifications: strangler-fig migrations, process modelling, API versioning |
 | [`docs/roadmap.json`](docs/roadmap.json) | The source every status table above is generated from |

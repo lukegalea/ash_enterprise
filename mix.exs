@@ -221,11 +221,12 @@ defmodule AshEnterprise.MixProject do
       {:ash_credo, "~> 0.17", only: [:dev, :test], runtime: false},
       {:ash_cloak, "~> 0.3"},
 
-      # Read-only Ash introspection for coding agents (dogfooding our AST lane E
-      # package; a github dep until it publishes to hex, pinned by mix.lock).
+      # Read-only Ash introspection for coding agents. First-party, public on
+      # GitHub and not yet on hex; mix.lock pins the SHA.
       {:ash_agent_tools, github: "lukegalea/ash_agent_tools", only: :dev, runtime: false},
 
-      # Docs as a validator, not a publication: see the EXTRA_DOCS note on docs/0.
+      # Docs as a validator, not a publication: see the EXTRA_DOCS note above
+      # `docs/0`.
       {:ex_doc, "~> 0.40", only: :dev, runtime: false},
 
       # BEAM runtime inspection for the observability plane's dev loop: recon
@@ -243,29 +244,27 @@ defmodule AshEnterprise.MixProject do
 
       # --- The unreleased first-party packages ----------------------------------
       #
-      # These track their own `main` with no `ref:`; `mix.lock` holds the exact
-      # SHA, and it is the lock that has to be committed with any change (the
-      # ash_bpmn/ash_decisions note below says why the refs were dropped). Bump
-      # them together with `mix deps.update <names>`, then run
-      # `mix ash.codegen --check`: a package that adds columns to a resource the
-      # host owns (ash_bpmn, ash_decisions) needs a generated host migration.
+      # Not on hex yet, so these are git dependencies on public GitHub repos: a
+      # fresh clone fetches them with no credentials, and CI's `cold-clone` job
+      # fails if that stops being true. They track their own `main` with no
+      # `ref:`. `mix.lock` holds the exact SHA, so it is the lock that makes a
+      # build reproducible and the lock that has to be committed with any
+      # change; a `ref:` would only pin what a branch name resolves to, which is
+      # the part that goes stale. Bump them together with
+      # `mix deps.update <names>`, then run `mix ash.codegen --check`: a package
+      # that adds columns to a resource the host owns (ash_bpmn, ash_decisions)
+      # needs a generated host migration.
 
       # --- Declarative, agent-renderable UI (A2UI protocol) --------------------
-      # Not published to hex, so this is a git dependency. Tier 3 in
-      # docs/manifesto/06-reversibility.md: confined to lib/ash_enterprise_web/a2ui/
-      # so removing it is a deletion, not a refactor.
-      # Tracks ash_a2ui main. ADR 0033 adopted the experience layer while it was
-      # still a stacked branch (`feat/catalog-admin-v1`, A2UI-101 + A2UI-101B)
-      # and said to move here once both landed upstream. They have -- the lock
-      # now holds the merged main -- so this is that move.
+      # Tier 3 in docs/manifesto/06-reversibility.md: confined to
+      # lib/ash_enterprise_web/a2ui/ so removing it is a deletion, not a
+      # refactor. ADR 0033 records the experience layer's adoption.
       {:ash_a2ui, github: "lukegalea/ash_a2ui"},
 
       # --- Strangler-fig migration of the legacy schema ------------------------
-      # Not published to hex, so this is a git dependency. First-party rather
-      # than third-party (ADR 0009), and used here for the read model over
+      # First-party (ADR 0009), and used here for the read model over
       # `legacy.*` plus the notification bridge that makes a legacy write
       # visible to LiveView. See docs/plans/ash-strangler-in-reference-app.md.
-      #
       {:ash_strangler, github: "lukegalea/ash_strangler"},
 
       # --- Rules engine and the compliance plane it powers ---------------------
@@ -275,10 +274,9 @@ defmodule AshEnterprise.MixProject do
       # event log. The KYC vertical slice (ADR 0035) is the consumer: rules in
       # `AshEnterprise.Compliance.KycRules`, the program seeded by
       # `AshEnterprise.Compliance.Seeds`, findings projected by
-      # `AshEnterprise.Compliance.Projector`. Not on hex, so git dependencies
-      # like their siblings; `ash_events_projections` (the projector engine)
-      # arrives transitively through `ash_compliance` and is configured under
-      # its own :ash_events_projections key.
+      # `AshEnterprise.Compliance.Projector`. `ash_events_projections` (the
+      # projector engine) arrives transitively through `ash_compliance` and is
+      # configured under its own :ash_events_projections key.
       {:ash_rules, github: "lukegalea/ash_rules"},
       {:ash_compliance, github: "lukegalea/ash_compliance"},
 
@@ -299,22 +297,6 @@ defmodule AshEnterprise.MixProject do
       # by shelling out to `xmllint` -- so `libxml2` is a runtime dependency of
       # this application. See `devenv.nix` and the boot check in
       # `AshEnterprise.Application`.
-      #
-      # Not published to hex, so these are git dependencies -- same as `ash_a2ui`
-      # and `ash_strangler`, and first-party rather than third-party (ADR 0009).
-      #
-      # Both carried an explicit `ref:` for a while, and both said in a comment why:
-      # a pin kept the demo reproducible *while a feature branch was under review*,
-      # and the branch name recorded what the pin was waiting to become. Those two
-      # branches -- `feat/adopt-trigger-engine` and `feat/designer-catalogue` -- have
-      # merged, so the pins were waiting on nothing and had started to hide things:
-      # the `ash_bpmn` ref sat one merged PR behind its own main, which is the
-      # designer panel that Phase 2 of docs/bpmn-event-dimension counts as its own.
-      #
-      # Reproducibility does not need the ref. `mix.lock` pins the exact SHA either
-      # way; the ref only pins the *resolution*, which is the part that goes stale.
-      # So these track main like their siblings, and the lock is what has to be
-      # committed alongside any change here.
       {:ash_bpmn, github: "lukegalea/ash_bpmn"},
       {:ash_decisions, github: "lukegalea/ash_decisions"},
 

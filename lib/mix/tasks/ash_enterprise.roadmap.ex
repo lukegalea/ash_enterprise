@@ -119,9 +119,16 @@ defmodule Mix.Tasks.AshEnterprise.Roadmap do
 
   # An unknown status would render as a blank cell rather than an error, and a
   # question pointing at a roadmap item that does not exist would render a dead
-  # link. Both are the kind of quiet wrongness this file exists to prevent.
-  defp validate!(questions, items) do
+  # link. Both are the kind of quiet wrongness this file exists to prevent. So
+  # is a question asked twice: the ledger once carried the same question under
+  # two ids, differing by a comma, with two answers that disagreed.
+  @doc false
+  def validate!(questions, items) do
     item_ids = MapSet.new(items, & &1["id"])
+
+    refuse_duplicates!(questions, "question id", & &1["id"])
+    refuse_duplicates!(items, "roadmap item id", & &1["id"])
+    refuse_duplicates!(questions, "question", &normalize_question(&1["question"]))
 
     for entry <- questions ++ items, status = entry["status"] do
       unless Map.has_key?(@status_label, status) do
@@ -142,6 +149,32 @@ defmodule Mix.Tasks.AshEnterprise.Roadmap do
     end
 
     :ok
+  end
+
+  defp refuse_duplicates!(entries, what, key_fun) do
+    entries
+    |> Enum.group_by(key_fun, & &1["id"])
+    |> Enum.filter(fn {key, ids} -> not is_nil(key) and length(ids) > 1 end)
+    |> case do
+      [] ->
+        :ok
+
+      [{_key, ids} | _] ->
+        Mix.raise(
+          "Duplicate #{what} in #{@source}: #{Enum.map_join(ids, ", ", &inspect/1)}. " <>
+            "Keep one entry and delete the other."
+        )
+    end
+  end
+
+  # Case, punctuation and spacing do not make two questions different.
+  defp normalize_question(nil), do: nil
+
+  defp normalize_question(question) do
+    question
+    |> String.downcase()
+    |> String.replace(~r/[^\p{L}\p{N}]+/u, " ")
+    |> String.trim()
   end
 
   # -- rewriting ------------------------------------------------------------

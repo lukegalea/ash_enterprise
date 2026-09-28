@@ -85,7 +85,7 @@ theses gives you the argument without the score.
 
 | Then | For |
 |---|---|
-| [`../QUESTIONS.md`](../QUESTIONS.md) | The 28 questions every enterprise application answers, and which ones this repository actually answers — shipped, partial, planned, or open. The ledger against which the theses are claims. |
+| [`../QUESTIONS.md`](../QUESTIONS.md) | The questions every enterprise application answers, and which ones this repository actually answers — shipped, partial, planned, or open. The ledger against which the theses are claims. |
 | [`../ROADMAP.md`](../ROADMAP.md) | Where the planned and open rows go, in what order, and the one selection rule every item had to clear. |
 | [`../adr/`](../adr/README.md) | The specific forks, why each was taken, and — the part worth reading — what would have to change to reverse it. |
 | [`../HANDOFF.md`](../HANDOFF.md) | For picking the work up: the environment traps, and the findings that were expensive to discover and are written down nowhere else. |

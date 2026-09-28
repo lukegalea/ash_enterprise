@@ -1,110 +1,58 @@
 # Session handoff
 
-Written 2026-08-14, at the end of the build session that created this repository.
-Sections 1, 4, 5 and 7 were re-verified and corrected on 2026-08-18; §2, §3 and §6
-are unchanged from the original.
+First written 2026-08-14. Rewritten 2026-09-28: the sections that described
+*current state* went stale within weeks (a test count, an ADR count, a "next
+session" that shipped long ago), so they are now pointers to the documents that
+are kept current by a gate or by the work itself. What stays here is what will
+waste your time and what is expensive to rediscover.
 
 Read this first in a new session, then `docs/manifesto/00-index.md`.
-
-Two documents written after this one are now the better entry points for *what
-the state is*, and this file is the better entry point for *what will waste your
-time*:
-
-- [`docs/QUESTIONS.md`](QUESTIONS.md) — the 28 enterprise questions and which
-  ones have a shipped answer, generated from `roadmap.json` and CI-checked.
-- [`docs/ROADMAP.md`](ROADMAP.md) — where the open and planned ones go, in what
-  order, and the one rule every choice had to clear.
 
 ---
 
 ## 1. Where things stand
 
-**`/home/lukegalea/ash_enterprise`** — **132 tests, 0 failures** (re-run
-2026-08-19; this said 88 on 2026-08-14 and 102 on 2026-08-18). Compiles clean
-with `--warnings-as-errors`; `mix ash.codegen --check`, `mix credo --strict`,
-`mix ash_enterprise.roadmap --check`, `mix sobelow --config --skip --exit` and
-`mix hex.audit` all clean. `mix release` builds in `MIX_ENV=prod`.
+This file no longer records state. Look here instead:
 
-**The evidence layer landed on 2026-08-19** and is the reason for the +30 tests.
-The audit log is hash-chained per tenant with a trigger refusing `UPDATE` and
-`DELETE` ([ADR 0020](adr/0020-tamper-evident-audit-log.md)); it is
-attribute-multitenant so a customer reads their own trail and no one else's
-([ADR 0022](adr/0022-audit-log-is-tenant-scoped.md)); there is a CSV export an
-auditor can be handed; and the four Dataverse provenance columns — which
-**nothing had ever written to**, verified by grep — are now filled, including the
-`*_on_behalf_by` pair when someone is acting on another user's behalf
-([ADR 0023](adr/0023-impersonation-is-attribution.md)).
-
-> **`mix sobelow` needs `--skip`.** There is exactly one `@sobelow_skip` in the
-> codebase, on `AshEnterprise.Audit.Export.to_file/4`, where the path comes from
-> a mix task flag. Without `--skip` in the CI invocation the build fails on a
-> low-confidence directory-traversal finding.
-
-**`/home/lukegalea/ash_strangler`** — **341 tests in 21 files** over ~12.7k
-lines. Standalone repo, **not vendored** into the app — though
-[ADR 0009](adr/0009-strangler-and-bpmn-are-first-party.md) now makes it a
-first-party extension this repository is meant to depend on, which has not been
-done yet.
-
-**`/home/lukegalea/ash_bpmn`** — **202 tests in 10 files** over ~8.5k lines. It
-did not exist when this file was written; see §5.5.
-
-All three are on GitHub under `lukegalea`. Verified 2026-08-18:
-
-- `github.com/lukegalea/ash_enterprise` — **public**, under an MIT `LICENSE` at
-  the repository root. This file originally recorded it as "private, as intended
-  permanently"; that was true on 2026-08-14 and is not true now. The vendored CDM
-  corpus under `priv/cdm/schemaDocuments/` keeps its own CC-BY-4.0 terms —
-  see `priv/cdm/ATTRIBUTION.md`.
-- `github.com/lukegalea/ash_strangler` — **public**, not on Hex. Its CI was red
-  on `main` for four consecutive runs and is **green as of 2026-08-18**: the
-  typed-mapping DSL added a `backfill_interlock?` option without regenerating
-  `.formatter.exs`, and `AshStrangler.Lens` specced `Ash.Query.Ref.t/0`, a type
-  `Ash.Query.Ref` does not declare — which the shared workflow's
-  `warnings: [:unknown]` turns into a build failure rather than a loose type.
-- `github.com/lukegalea/ash_bpmn` — **private**, not on Hex.
-
-`ash_enterprise` and `ash_strangler` both default to `main`. They were created on
-`master` and renamed, because the shared `ash-ci` workflow triggers on `main`
-only — on `master` it never ran at all, silently.
-
-Four things the first CI runs found that local testing could not:
-
-1. **No `.tool-versions`** — the shared workflow's `install-elixir` step reads
-   it, so every compiling job failed instantly.
-2. **`PGHOST` is set in CI** to the service-container name `postgres`, which
-   only resolves for jobs running *inside* a container. The test config read it
-   and every test failed with `non-existing domain`. The override is now
-   `DB_HOST`; `PGHOST` is libpq's own variable and other tooling sets it.
-3. **citext folding is collation-dependent** — see §3.
-4. **`ash-ci`'s credo job cannot pass on a private repo.** It declares
-   `permissions: security-events: write` and nothing else, which drops
-   `contents: read`, so checkout 404s. Every `ash-project` repo is public, so
-   upstream never hits it. This was the actual reason to go public rather than
-   any judgement about readiness.
-
-A secret scan before pushing came back clean: the only credentials in tracked
-config are the standard Phoenix dev/test placeholders, `runtime.exs` reads
-production values from the environment, and `.env` is gitignored.
-
-### Phases
-
-| Phase | State |
+| Question | Where it is answered, and what keeps it current |
 |---|---|
-| 1. devenv environment | **done** |
-| 2. App bootstrap, full dependency stack | **done** |
-| 3. CDM corpus + resolvers | **done**, including `mix cdm.gen.resource` (added 2026-08-14, see §5) |
-| 4. Platform base resource | **done**, including correlation ids and OTel |
-| 5. Accounts / Security / Audit domains | **done**; the `Reference` domain (Currency, TimeZoneDefinition, LanguageLocale) was added 2026-08-14 as the generator's proof, see §5 |
-| 6. Security engine + conformance suite | **done**, all three grant paths |
-| 7–8. APIs + UI | **done** |
-| 9–11. Skills, gates, manifesto, ADRs | **done** |
+| Which enterprise questions have a shipped answer? | [`QUESTIONS.md`](QUESTIONS.md), generated from `roadmap.json`; `mix ash_enterprise.roadmap --check` fails CI if it drifts, and refuses a question asked twice |
+| What comes next, and in what order? | [`ROADMAP.md`](ROADMAP.md), generated from the same source |
+| Which controls the evidence satisfies | [`COMPLIANCE.md`](COMPLIANCE.md), generated from `controls.json` through the same gate |
+| What was decided, and which decisions are built | [`adr/README.md`](adr/README.md): the index and the status legend |
+| What is deliberately missing | [thesis 7](manifesto/07-what-we-do-not-have.md) |
+| Which agent lanes are working in this repo | [`.agents/COORDINATION.md`](../.agents/COORDINATION.md) |
+| The capstone demo's storyline | [`capstone/storyline.md`](capstone/storyline.md) |
+| The System One work (model judgments) | [`plans/system-one.md`](plans/system-one.md) and [thesis 8](manifesto/08-models-observe-declarations-decide.md) |
 
-> ⚠️ The in-session task list still shows tasks 3, 5 and 8 as `in_progress`.
-> That is stale bookkeeping, not outstanding work — except for the two genuine
-> gaps named above.
+Verified on 2026-09-28, and dated so that a reader can tell when they stop being
+true:
+
+- **330 tests, 0 failures** under `devenv shell -- check`, which also runs
+  `--warnings-as-errors`, `mix ash.codegen --check`, `mix credo --strict`,
+  `mix ash_enterprise.roadmap --check`, the iron-laws judge
+  ([`IRON-LAWS.md`](IRON-LAWS.md)) and the EXTRA_DOCS reference check. CI runs
+  the same gate, plus a `cold-clone` job that fetches every dependency with no
+  credentials.
+- **47 ADRs**, 0001 to 0047. The status split is in
+  [`adr/README.md`](adr/README.md) rather than here.
+- **Eight theses** in [`manifesto/`](manifesto/00-index.md).
+- **Ash comes from hex.** The earlier pin to a fork of Ash is gone, and so is
+  the config flag it existed for.
+- **Every first-party package is a public GitHub dependency** tracking its own
+  `main`, with the SHA pinned by `mix.lock`: `ash_a2ui`, `ash_strangler`,
+  `ash_bpmn`, `ash_decisions`, `ash_rules`, `ash_compliance` (which brings
+  `ash_events_projections`), and `ash_agent_tools` (dev only). `mix.exs` says
+  why there is no `ref:`.
+- **`ash_strangler`, `ash_bpmn` and `ash_decisions` are adopted here**, which is
+  what moved [ADR 0009](adr/0009-strangler-and-bpmn-are-first-party.md) to
+  `accepted`. The 2026-08 plan that put this adoption first is done.
 
 ---
+
+> §2 and §3 were written between 2026-08-14 and 2026-08-19 and have not all been
+> re-verified since. Each entry names what it was verified against; check before
+> relying on a version-specific one.
 
 ## 2. Environment: things that will waste your time
 
@@ -118,7 +66,7 @@ devenv shell -- iex-server                # the app
 devenv shell -- mix ash_enterprise.seed   # tenant + admin + privileges
 ```
 
-Four traps, each of which cost time to find:
+Five traps, each of which cost time to find:
 
 1. **The Postgres port is dynamic.** devenv shifts it when 5432 is taken (Docker
    here) but rewrites only `postgresql.conf`, *not* `$PGPORT`. `enterShell`
@@ -129,10 +77,14 @@ Four traps, each of which cost time to find:
    and blocks every other mix command, and process-compose restarts it.
 4. **Long `mix` commands: run them backgrounded and poll**, don't pipe through
    `tail` — the pipe buffers and you see nothing until completion.
+5. **The iron-laws judge runs under `MIX_ENV=dev`** even inside `mix precommit`,
+   because `ash_agent_tools` is a dev-only dependency. `scripts/iron-laws.sh`
+   sets it; do not "fix" that by exporting `MIX_ENV` (trap 2).
 
-The `.claude/settings.json` codegen-drift hook is **written and verified but not
-yet loaded** — the file did not exist when the session started, so the settings
-watcher never picked it up. Open `/hooks` once, or restart, to activate it.
+The codegen-drift hook (`.claude/hooks/check-ash-codegen.sh`, wired in
+`.claude/settings.json`) reports drift only when the check actually ran and said
+so. Any other failure is reported as "the check could not run", which is not a
+reason to generate; `CLAUDE.md` says why.
 
 ---
 
@@ -246,12 +198,10 @@ These are the ones that cost real time and are not written in any upstream doc.
 
 ## 4. Architecture, in one screen
 
-The argument is `docs/manifesto/` (7 theses); the decisions are `docs/adr/`
-(**26 records**). The split matters: **0001–0008 and 0020–0023 are `accepted` and
-describe code that exists**; **0009–0019 and 0024–0026 are `proposed` and none of
-them is built.** They were
-written early on purpose — a decision is cheapest to reason about, and cheapest to
-reverse, while the alternatives are still fresh. Records 0009 onward carry one
+The argument is `docs/manifesto/` (eight theses); the decisions are `docs/adr/`,
+whose README carries the index and what each status means. In short: a record
+marked `accepted` describes code that exists, `accepted, not built` is a decision
+taken with no code yet, and `proposed` is neither. Records 0009 onward carry one
 extra mandatory section, `## Does it consume ActorContext?`, because that is the
 single bar every one of them had to clear.
 
@@ -278,131 +228,12 @@ key, because only interpretation needs one.
 
 ---
 
-## 5. What is genuinely not done
+## 5. What is not done
 
-Ordered by how likely you are to want it.
-
-1. ~~**`mix cdm.gen.resource`**~~ — **done, 2026-08-14.** `lib/mix/tasks/cdm.gen.resource.ex`
-   reads a resolved corpus entity (CDM or Dataverse format), strips every
-   attribute the platform base resource already supplies, maps the rest to Ash
-   types with required-ness/max-length/description carried over, writes the
-   resource, and creates or patches the target domain module and
-   `config :ash_enterprise, ash_domains: [...]`. It does *not* guess ownership
-   for a plain-CDM entity (no `dataverse.ownership_type` to scrape) or wire up
-   `Lookup` relationships — both are left as an explicit `--ownership` flag and
-   a commented placeholder column respectively, on purpose; see the task's
-   moduledoc and the `cdm-adopt` skill for why those stay judgment calls.
-2. ~~**The `Reference` domain**~~ — **done, 2026-08-14**, as the generator's
-   proof. `Currency`, `TimeZoneDefinition` and `LanguageLocale` were generated,
-   then hand-finished: a natural-key `identity` added to each (the generator
-   does not propose identities), and `--no-tenant` used for the two genuinely
-   global entities per the override `AshEnterprise.Platform.SystemAttributes`
-   already documented for "time zones, locales" — `Currency` stays tenant-scoped
-   since Dataverse requires `organizationid` on it. Covered by
-   `test/ash_enterprise/reference/reference_test.exs`, which asserts the tenant
-   scoping is actually enforced (same ISO code in two tenants: fine; same code
-   twice in one tenant: rejected) rather than merely that the resources compile.
-3. **`ash_strangler`** — the package is done; **adopting it here is not.** As of
-   2026-08-18 it is **341 tests in 21 files**: verifiers (twelve, compile-time),
-   view generation, the round-trip proof harness, `INSTEAD OF` triggers, the
-   notification bridge, backfill + reconciler, the `:read_from_new` reversal, and
-   a column-level lineage graph that already emits **OpenLineage** events. All
-   four phases generate SQL that has been executed, not merely inspected —
-   including a full migrate / rollback / migrate cycle.
-
-   The mapping DSL was **replaced** after this file was first written: ten typed
-   combinator entities, each a constructor whose reverse is *built* rather than
-   an expression something tries to invert, per
-   [ADR 0008](adr/0008-typed-invertible-legacy-mappings.md). If you read the
-   original plan expecting the old grammar, read the ADR first.
-
-   ⚠️ **Building it disproved the plan seven times.** Every one was found by
-   running generated SQL rather than by rereading the document, and all are
-   written up in §6.1 and §10:
-
-   - **§6.1 — the load-bearing architectural decision was wrong.**
-     `custom_statements` cannot carry DDL for a view-backed resource *at all*.
-     `migrate? true` emits a `create table` for the view's own name so the view
-     DDL fails against it; `migrate? false` stops the resource producing a
-     snapshot, and custom_statements are read only from snapshots. No setting
-     in between. Replaced by `migrate? false` (enforced, with the explanation
-     in the error) plus `mix ash_strangler.gen.migration`. **Read this
-     correction first** — the mechanism had been verified in isolation and the
-     outcome had not, which is the same mistake as §10.1 and §10.12.
-   - **§10.8** — its own mitigation ("one statement per resource containing all
-     its DDL") is impossible; one statement is one command.
-   - **§10.12** — a naive-timestamp cast was session-dependent, silently. Fixed
-     by a required `from_zone:`.
-   - **§10.13** — the primary-key declaration §5.4 prescribed broke every
-     create; needs `generated? true`, now applied by a transformer.
-   - **§10.14** — Ash's own casting diverges from what the legacy app writes,
-     so "both write paths agree" is false by construction for some columns.
-     The reconciler takes per-column normalization because of it.
-   - **§2.4's `ecto_watch` verdict** — deliberately deviated from: adopting it
-     would add `phoenix_pubsub` to a schema-mapping library and it still
-     cannot synthesize an Ash notification, which is the only part that
-     matters. The listener is built directly, zero new dependencies.
-
-4. **The legacy schema demo** in this app — `docs/plans/ash-strangler-in-reference-app.md`.
-   Still not started, and no longer optional:
-   [ADR 0009](adr/0009-strangler-and-bpmn-are-first-party.md) makes
-   `ash_strangler` a first-party extension, so the demo is what turns that claim
-   into evidence rather than a README sentence. Note the plan's own conclusion:
-   the demo must run the dual-write step **both ways**, and **authentication cuts
-   over first**, not last, because a single computed-but-writable mapping decides
-   whether sign-in still works.
-5. **Business process modelling** — no longer "fully planned, no code".
-   `docs/plans/business-process-modelling.md` (955 lines) became **`ash_bpmn`
-   0.1.0**: **176 tests in 7 files** over ~7.9k lines, against real Postgres. A
-   BPMN document compiled into an immutable versioned graph and executed by a
-   token interpreter — one row per live branch, claimed optimistically — over
-   Postgres and Oban, with an embedded bpmn-js designer; plus approvals as an
-   `Ash.Resource.Change` droppable on any action, with a materialized candidate
-   list, maker-checker exclusion by subtraction rather than `forbid_if`,
-   delegation, and escalation timers that actually get cancelled.
-
-   **The three blockers [ADR 0009](adr/0009-strangler-and-bpmn-are-first-party.md)
-   named are closed, as of 2026-08-18, in the package rather than here:**
-
-   - **It shipped no policies while running unauthorized internally** — every
-     generated resource named `Ash.Policy.Authorizer` and contained no `policies`
-     block, while the engine passed `authorize?: false` at roughly ninety call
-     sites. Engine calls now carry `AshBpmn.Scope.engine/2` (actor, tenant and a
-     private context flag) and each resource declares one bypass on
-     `AshBpmn.Checks.AshBpmnInteraction`. That is not a stronger boundary than the
-     option it replaced, and the module says so — it is a *named* one, which the
-     ninety were not.
-   - **Multitenancy was declared but not plumbed** — `AshBpmn.start_instance/2`
-     bound `:tenant` to `_tenant` and dropped it, and the test tables had no
-     `organization_id` for a test to have caught it with. The tenant now reaches
-     the instance, tokens, work items and events, travelling in the Oban payload
-     for the ones background workers create.
-   - **A work item could not sit on the platform base resource** — the macros now
-     take `:base` and `:base_opts`.
-
-   **One composition rule came out of it**, and it is Ash's semantics rather than
-   an oversight: a bypass short-circuits only the policies declared *after* it,
-   and a base resource emits its policy set from `use`, ahead of anything
-   `ash_bpmn` adds. Adopting it here therefore means either putting
-   `AshBpmn.Checks.AshBpmnInteraction` at the top of
-   `AshEnterprise.Security.Policies`, or setting `config :ash_bpmn, engine_actor:`
-   to a `SystemActor` that policy set already bypasses. ADR 0009 states the
-   trade-off between them.
-
-   **What is not done is wiring it in here**, which is now a composition task
-   rather than an authorization one.
-
-   It also depends on raw `oban` rather than `ash_oban`, and on neither
-   `ash_state_machine` nor `ash_events`, so it does not compose with this
-   repository's audit layer for free. And it declares `phoenix_live_view` as a
-   *runtime* dependency, because the designer ships with it.
-6. **Known gaps, deliberately** — `docs/manifesto/07-what-we-do-not-have.md`,
-   now twelve entries, five of which have a decision recorded in `docs/adr/` and
-   seven of which do not: no WebAuthn or SAML, no retention or erasure story for
-   the append-only audit log, no Dialyzer certainty, no i18n for content, no
-   deployment guide, and **no column-level security actually declared** — that
-   last one is new, and it is the one place a manifesto claim had run ahead of
-   the code. The scoreboard version is [`docs/QUESTIONS.md`](QUESTIONS.md).
+Not listed here any more: [`QUESTIONS.md`](QUESTIONS.md) scores every open and
+partial answer, [`ROADMAP.md`](ROADMAP.md) orders them, and
+[thesis 7](manifesto/07-what-we-do-not-have.md) names the gaps kept on purpose.
+A list in this file would be a fourth copy, and the first to go stale.
 
 ---
 
@@ -424,89 +255,13 @@ Ordered by how likely you are to want it.
 
 ---
 
-## 6b. The ledger, and the control map
+---
 
-`docs/roadmap.json` grew from 28 questions to **51** on 2026-08-19, absorbing an
-enterprise-readiness checklist covering auditability, security posture, data
-governance, reliability and procurement fit. A sixth section — *Can you prove it,
-continuously?* — carries the questions that are about **evidence** rather than
-behaviour, which is the axis the original 28 had no room for.
-
-Read the per-section rollup rather than the total. Evidence is 8/11 shipped and
-identity is 4/10; assurance is 0/6, and most of that is process rather than code.
-A single ratio across 51 questions reports the project as uniformly half-finished
-and hides which half.
-
-`docs/controls.json` maps SOC 2, ISO 27001 and GDPR controls to those questions
-and, through them, to the test that proves each. It renders into
-`docs/COMPLIANCE.md` and the site through the same task and the same `--check`
-gate as the roadmap tables, so a control can never claim more than the ledger
-does. **A control is scored by its weakest question, not its average** — rounding
-up would misrepresent the state.
-
-Two gaps the mapping surfaced: *evidence of review* had
-no question at all (now `q38`, and [ADR 0025](adr/0025-log-shipping-and-review.md)),
-and cryptography appears in exactly one place in the entire repository — the
-SHA-256 over the audit chain.
-
-## 7. Suggested next session
-
-The forward plan now lives in two documents of its own —
-[`docs/ROADMAP.md`](ROADMAP.md) sequences it, [`docs/QUESTIONS.md`](QUESTIONS.md)
-scores it — and what follows is that sequencing rather than a competing list.
-
-> **1. Adopt `ash_bpmn` and `ash_strangler` here.** This is first for one reason,
-> and it is not that it is the largest: it is the only item where the claim is
-> ahead of the code, which is the one kind of debt this repository refuses to
-> carry. The three `ash_bpmn` gaps
-> [ADR 0009](adr/0009-strangler-and-bpmn-are-first-party.md) named were closed
-> upstream on 2026-08-18 (§5.5), so what is left is composition: add both to
-> `mix.exs`, map one legacy table through `ash_strangler`, and put one approval
-> behind `ash_bpmn` on a resource that uses `AshEnterprise.Platform.Resource`.
->
-> Decide one thing on the way in. A bypass in Ash short-circuits only the
-> policies declared *after* it, and a base resource emits its policy set from
-> `use` — so either `AshBpmn.Checks.AshBpmnInteraction` goes at the top of
-> `AshEnterprise.Security.Policies` (the engine then keeps the human actor, so
-> ownership and the audit entry still name the person who approved) or
-> `config :ash_bpmn, engine_actor: {AshEnterprise.Platform.SystemActor, :system, []}`
-> reuses the `SystemActor` bypass already there, at the cost of attributing every
-> engine write to it. **The first is preferable** for exactly the reason the audit
-> log exists. Doing either, with a working approval behind it, is what moves ADR
-> 0009 from `proposed` to `accepted`.
->
-> The `ash_strangler` demo (§5.4) is the other half of the same item, and the
-> plan's warning stands: dual-write runs **both ways**, and authentication cuts
-> over **first**, not last.
->
-> **2. Then the rest of priority 1**, in the order
-> [`docs/ROADMAP.md`](ROADMAP.md) argues rather than in ADR number order:
-> ingestion ([ADR 0010](adr/0010-meltano-for-ingestion.md)) before lineage
-> ([ADR 0012](adr/0012-openlineage-and-marquez.md)), because you cannot trace
-> provenance for data that arrived by hand; and the integration hub
-> ([ADR 0011](adr/0011-nango-as-integration-hub.md)) alongside rather than after,
-> because it answers a different question — systems you talk to, not data you
-> pull.
->
-> **3. Consider `git_ops`.** Unchanged from the original list, and still
-> undecided. `ash-ci`'s `changelog-lint` job actively *fails* a build that adds
-> an `## [Unreleased]` section, because the org generates changelogs from
-> conventional commits instead. The job is currently disabled with a comment.
-> Adopting `git_ops` and dropping the Unreleased section would let it be
-> re-enabled — worth deciding before 0.1.0 rather than after.
-
-One thing that blocks nothing but should not be discovered twice: **`ash_strangler`'s
-CI was red on `main` for four consecutive runs**, from `32057721812` to
-`32065066215` (2026-08-17). This file once recorded it as "fully green", which was
-written before the first run had ever executed. It is green as of run
-`32184205780` (2026-08-18); the two failures were a `.formatter.exs` that had not
-been regenerated after the typed-mapping DSL added an option, and a spec naming
-`Ash.Query.Ref.t/0` — a type `Ash.Query.Ref` does not declare, which the shared
-workflow's `warnings: [:unknown]` fails the build over rather than degrading to
-`any()`.
+## 7. Starting a session
 
 Opening line for a new session:
 
-> Read `docs/QUESTIONS.md` and `docs/ROADMAP.md`, then `docs/HANDOFF.md` §3, and
-> start on [ADR 0009](adr/0009-strangler-and-bpmn-are-first-party.md) — adopting
-> `ash_bpmn` and `ash_strangler` here. Their side of it is done; this side is not.
+> Read `docs/HANDOFF.md` §2 and §3, then `docs/manifesto/00-index.md`. Check
+> `.agents/COORDINATION.md` for active lanes, and run `git fetch` and
+> `gh pr list` before assuming anything is unstarted: this repository runs
+> long-lived branches, and `main` is not the whole state of the project.
