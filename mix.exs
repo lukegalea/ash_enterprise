@@ -195,18 +195,14 @@ defmodule AshEnterprise.MixProject do
       # gathers rules for direct dependencies.
       {:reactor, "~> 1.0"},
 
-      # --- The four unreleased first-party packages ----------------------------
+      # --- The unreleased first-party packages ----------------------------------
       #
-      # `ref:` on all four, not just an entry in mix.lock. Without a ref, `github:`
-      # means "whatever that trunk says", and mix.lock only holds the resolved SHA
-      # until something makes mix re-resolve -- `mix deps.update`, a lock conflict,
-      # or a fresh checkout whose lock has been touched. Four trunks free to move
-      # under a demo is four ways for it to change overnight with nothing in the
-      # diff to show it. The refs below are exactly what mix.lock already held, so
-      # this pins the current state rather than moving anything.
-      #
-      # Bump one by editing the ref here AND running `mix deps.get`, so the change
-      # is visible in the diff.
+      # These track their own `main` with no `ref:`; `mix.lock` holds the exact
+      # SHA, and it is the lock that has to be committed with any change (the
+      # ash_bpmn/ash_decisions note below says why the refs were dropped). Bump
+      # them together with `mix deps.update <names>`, then run
+      # `mix ash.codegen --check`: a package that adds columns to a resource the
+      # host owns (ash_bpmn, ash_decisions) needs a generated host migration.
 
       # --- Declarative, agent-renderable UI (A2UI protocol) --------------------
       # Not published to hex, so this is a git dependency. Tier 3 in

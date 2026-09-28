@@ -2,9 +2,12 @@ defmodule AshEnterpriseWeb.Bpmn.DesignerLiveTest do
   @moduledoc """
   The host designer, fed by the host catalogue.
 
-  The properties panel must render *choices* — a decision select drawn from the keys this
-  actor can actually open in their editor, an action select drawn from the invoker's
-  registry — and the "Edit decision" deep link into the DMN editor. These are the three
+  The properties panel must render *choices* — a decision combobox whose suggestions are
+  the keys this actor can actually open in their editor, an action combobox whose
+  suggestions are the invoker's registry — and the "Edit decision" deep link into the DMN
+  editor. The pickers are text inputs over a datalist rather than selects (ash_bpmn keeps
+  manual entry open for refs that do not exist yet), so the tests assert the suggestions
+  and the absence of the "not in the catalogue" warning, not a closed list. These are the three
   catalogue MFAs arriving through the real LiveView, not through a double.
   """
 
@@ -72,10 +75,19 @@ defmodule AshEnterpriseWeb.Bpmn.DesignerLiveTest do
         }
       })
 
-    # A select drawn from the catalogue, not free text, with the entry chosen
-    assert html =~ ~s(<select id="config-decision-ref" name="decision_ref")
-    assert html =~ ~s(value="access_request.risk" selected)
-    assert html =~ "Access request risk"
+    # A combobox over the catalogue, holding the chosen entry, which the catalogue knows
+    assert has_element?(
+             view,
+             ~s(input#config-decision-ref[name="decision_ref"][list="config-decision-ref-options"][value="access_request.risk"])
+           )
+
+    assert has_element?(
+             view,
+             ~s(datalist#config-decision-ref-options option[value="access_request.risk"]),
+             "Access request risk"
+           )
+
+    refute html =~ "is not in the decision catalogue"
 
     # The publish status a modeller needs next to the choice
     assert html =~ "published v1"
@@ -101,12 +113,17 @@ defmodule AshEnterpriseWeb.Bpmn.DesignerLiveTest do
         }
       })
 
-    assert html =~ ~s(<select id="config-action" name="action")
-    assert html =~ ~s(value="record_risk" selected)
+    assert has_element?(
+             view,
+             ~s(input#config-action[name="action"][list="config-action-options"][value="record_risk"])
+           )
+
+    refute html =~ "is not in the action catalogue"
 
     # Every registry ref is on offer, and the Ash-backed one is described by its own action
-    assert html =~ ~s(value="grant_role")
-    assert html =~ ~s(value="reject_request")
+    assert has_element?(view, ~s(datalist#config-action-options option[value="record_risk"]))
+    assert has_element?(view, ~s(datalist#config-action-options option[value="grant_role"]))
+    assert has_element?(view, ~s(datalist#config-action-options option[value="reject_request"]))
     assert html =~ "Records what the risk decision returned"
 
     # `record_risk` accepts `:risk_tier` as an attribute, not an action argument, so the
