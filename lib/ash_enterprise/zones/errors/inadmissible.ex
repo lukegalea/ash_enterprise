@@ -8,6 +8,8 @@ defmodule AshEnterprise.Zones.Errors.Inadmissible do
 
   use Splode.Error, fields: [:zone, :reason, :field], class: :invalid
 
+  @type t :: %__MODULE__{zone: String.t() | nil, reason: term(), field: atom() | nil}
+
   def message(%{zone: zone, reason: reason}) do
     "refused entry to zone #{inspect(zone)}: the item " <>
       AshEnterprise.Zones.Admission.describe(reason)

@@ -8,6 +8,8 @@ defmodule AshEnterprise.Zones.Errors.UndeclaredZone do
 
   use Splode.Error, fields: [:zone], class: :invalid
 
+  @type t :: %__MODULE__{zone: String.t() | nil}
+
   def message(%{zone: nil}),
     do: "no zone is configured for this store; nothing may enter an undeclared zone"
 
