@@ -79,6 +79,64 @@ defmodule AshEnterpriseWeb.ComplianceSurfacesTest do
 
       assert row_count(FindingUI, ctx.admin, org) > 0
     end
+
+    # The published compliance screenshots show these columns; the surfaces
+    # must keep carrying them or the screenshots stop describing the app.
+    test "the evaluation surface carries the auditor's columns", ctx do
+      org = ctx.tenant
+      AshEnterprise.Compliance.Seeds.seed(org)
+
+      # One subject with full evidence (compliant findings) and one with
+      # almost none (unknowns), so the findings order has something to prove.
+      full_evidence = [
+        ["customer", "status", "active"],
+        ["customer", "jurisdiction", "regulated"],
+        ["customer", "email_domain", "example.org"],
+        ["customer", "identity_confirmed", true],
+        ["customer", "sanctions_cleared", true],
+        ["customer", "risk_tier", "low"],
+        ["customer", "review_completed", true],
+        ["customer", "mfa_enrolled", true],
+        ["customer", "open_remedications", 0]
+      ]
+
+      assert :ok =
+               AshEnterprise.Compliance.Kyc.record_review(org, "surface-2", full_evidence,
+                 actor: ctx.admin
+               )
+
+      assert :ok =
+               AshEnterprise.Compliance.Kyc.record_review(
+                 org,
+                 "surface-3",
+                 [["customer", "status", "active"]],
+                 actor: ctx.admin
+               )
+
+      :ok =
+        AshCompliance.Testing.drain_sync(AshEnterprise.Compliance.Projector, compliance_events())
+
+      [record | _] = records(ComplianceEvaluationUI, ctx.admin, org)
+
+      for column <- ~w(bundle_hash missing_facts source_event_id subject_id) do
+        assert Map.has_key?(record, column), "evaluation row lacks #{column}: #{inspect(record)}"
+      end
+
+      findings = records(FindingUI, ctx.admin, org)
+      assert Enum.all?(findings, &Map.has_key?(&1, "explanation"))
+
+      # Violations and unknowns lead: no compliant row sits above a
+      # non-compliant one.
+      statuses = Enum.map(findings, & &1["status"])
+
+      assert "Compliant" in statuses,
+             "fixture produced no compliant finding: #{inspect(statuses)}"
+
+      {green, rest} = Enum.split_while(Enum.reverse(statuses), &(&1 == "Compliant"))
+
+      assert green != [] and "Compliant" not in rest,
+             "findings open on green: #{inspect(statuses)}"
+    end
   end
 
   describe "the compliance door" do
@@ -123,12 +181,14 @@ defmodule AshEnterpriseWeb.ComplianceSurfacesTest do
     end)
   end
 
-  defp row_count(ui, actor, tenant) do
+  defp row_count(ui, actor, tenant), do: length(records(ui, actor, tenant))
+
+  defp records(ui, actor, tenant) do
     ui
     |> AshA2ui.Info.build_data_model(actor: actor, tenant: tenant)
     |> case do
-      %{"updateDataModel" => %{"value" => %{"records" => records}}} -> length(records)
-      _other -> 0
+      %{"updateDataModel" => %{"value" => %{"records" => records}}} -> records
+      _other -> []
     end
   end
 end
