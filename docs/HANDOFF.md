@@ -34,7 +34,7 @@ true:
   (`docs/IRON-LAWS.md`) and the EXTRA_DOCS reference check. CI runs
   the same gate, plus a `cold-clone` job that fetches every dependency with no
   credentials.
-- **47 ADRs**, 0001 to 0047. The status split is in
+- **48 ADRs**, 0001 to 0048. The status split is in
   [`adr/README.md`](adr/README.md) rather than here.
 - **Eight theses** in [`manifesto/`](manifesto/00-index.md).
 - **Ash comes from hex.** The earlier pin to a fork of Ash is gone, and so is

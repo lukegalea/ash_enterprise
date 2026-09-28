@@ -64,6 +64,36 @@ takes an amendment to the record that carries it.
 - **No customer data enters this public repository** — no rule content, thresholds, labelled examples or documents.
   The public demonstration runs on synthetic data.
 
+## Proposed: a judgment is a predicate over any set (ADR 0048)
+
+On 2026-09-28 the operator set a direction the accepted records had not taken: the mechanism "applies to more than just
+compliance, but also defining filters and search against any set." [ADR 0048](../adr/0048-a-judgment-is-a-predicate-over-any-set.md)
+writes it down and is **proposed**. It amends none of 0038–0047; it adds consumers, and the rules those consumers need.
+
+- **One vocabulary.** A declared question over any subject defines a predicate. Rules, filters, search, saved segments
+  and standing queries are expressions over the same fact schema, and saved expressions are content-hashed rule bundles
+  that a person activates.
+- **Membership is three-valued.** *in*, *out* and *unknown* (never assessed, withheld, in review, or stale). `unknown`
+  is always shown and never folded into either side; negation reads the *out* partition only.
+- **Queries read; instruments backfill.** A filter compiles to a database query over admitted facts. Unknowns are filled
+  in by a materialisation trigger or an explicit, budgeted assess action.
+- **Scores order; facts decide.** Unadmitted observations may order a list a person reads, labelled. Bulk actions,
+  notifications, process starts and rule outcomes read admitted facts only, at a minimum admission grade they state.
+- **Retrieval generates candidates.** Embedding and lexical search rank for exploration and choose what to assess first;
+  they never place a subject in *in* or *out*.
+- **Search grows the registry through proposals.** Natural-language search is translated into an editable filter over
+  declared predicates (a proposal). A term nothing declares may run as an exploratory question over a bounded candidate
+  set, producing observations only; a recurring one becomes a proposal for a declared, calibrated question.
+- **Facts carry subject state, validity and scope.** A changed subject makes its facts stale; an expired fact is
+  unknown; context-scoped facts are admitted and filtered per context, and a filter runs in the actor's context.
+- **One IR, three evaluators, one property test.** Per-subject (rules and explanations), set (filters and search,
+  compiled to an Ash query) and incremental (the existing Rete evaluator, for standing queries); set membership must
+  equal the per-subject outcome for every subject.
+- **The query surface is derived.** Declaring a question derives a tri-state filter field and a status field in every
+  surface that derives filters from declarations. It is a read over facts, never a model call.
+- **Interchange is open.** A published filter standard (CQL2-JSON, or DMN FEEL unary tests) is to be spiked before any
+  bespoke filter syntax is written.
+
 ## Decisions taken (2026-09-28)
 
 The operator decided the open questions on 2026-09-28. Every recommendation was taken except the data posture, which
@@ -106,18 +136,18 @@ Still pending, and marked so in the records that carry them:
 |---|---|---|---|
 | `ash_ai` (upstream) | public | the evaluate action, answer types, transport via `req_llm`; prompt output schemas derived from Ash types (exists). Proposed upstream: a string-keyed, refinement-complete schema from one mapping, per-call output constraints, MCP `outputSchema` | ledger, calibration, thresholds |
 | `req_llm` (upstream) | public | transport; per-provider schema sanitisers. Proposed upstream: string-key normalisation before sanitising | define schemas |
-| `ash_judgments` (formerly the working name `ash_ai_systemone`) | public | question registry DSL; profiles and zones; ledger resource fragments (the host defines the resource on its platform base); cache, replay and shadow; calibration runs; question lineage and revision-proposal records; the DMN bridge that flattens answers into inputs; telemetry; tool exposure of judged questions | call a model inside a check, FEEL, rules or a projector; hold thresholds in configuration; store policy; apply a learned artefact in serving |
+| `ash_judgments` (formerly the working name `ash_ai_systemone`) | public | question registry DSL (questions over any subject resource); profiles and zones; ledger resource fragments (the host defines the resource on its platform base); cache, replay and shadow; calibration runs; question lineage and revision-proposal records; the DMN bridge that flattens answers into inputs; telemetry; tool exposure of judged questions. Proposed (ADR 0048): the query surface — derived tri-state and status fields over facts, subject-state freshness, validity and scope on facts, the assess action and materialisation trigger, labelled ordering by observation, exploratory questions over bounded candidate sets | call a model inside a check, FEEL, rules or a projector; hold thresholds in configuration; store policy; apply a learned artefact in serving |
 | `ash_evidence` | public, mechanism only | document versions; addressed atoms; lexical and vector retrieval; dual-hypothesis candidates; evidence packets by source id; the assertion → admission flow; bridges to rule facts and evidence artifacts | rule semantics; compliance status; any domain's predicates or wording |
 | `ash_decisions` | public | band tables; the publish-time calibration verifier hook | model calls in FEEL |
-| `ash_rules` | publication approved, pending the operator's step | crisp evaluation over facts; the outcome lattice, unchanged | thresholds; probabilities |
-| `ash_compliance` | publication approved, pending the operator's step | the model-derived evidence convention; a fact builder that reads the ledger; `fact_snapshot_hash` covering ledger ids | live model calls on a guard path |
+| `ash_rules` | public | crisp evaluation over facts; the outcome lattice, unchanged; the IR for saved filters, segments and standing queries. Proposed (ADR 0048): a set evaluator (IR compiled to an Ash query over facts), and a property test that set membership equals the per-subject outcome; the existing Rete evaluator serves standing queries | thresholds; probabilities |
+| `ash_compliance` | public; one consumer of the predicate vocabulary among several (ADR 0048) | the model-derived evidence convention; a fact builder that reads the ledger; `fact_snapshot_hash` covering ledger ids | live model calls on a guard path |
 | `ash_bpmn` | public | a standing evaluation process: `ash:call` service task → evaluate action, a human lane for the middle band; struct and dotted-path promotion of answers onto a token | a model as a live gateway oracle |
 | `ash_events`, `ash_events_projections` | public | record-don't-recompute; "what did the model say as of X" by time travel | projectors that call models |
 | `ash_agent_tools` | public | optional, advisory consumption: a `:model` tier, behavioural-law detectors, semantic `did_you_mean`, rerank, tool-gap triage, laws and judge tools over MCP; `mix ash_agent.contracts` (declared versus inferred generic-action returns, advisory); return constraints in `describe` | change a deterministic verdict |
 | an optimiser library (`imp`, third-party) | optional; development, test or a research application only | nothing of ours: it proposes question wordings through ADR 0047 | a runtime dependency; an authoring surface; a gate; code-executing retrieval over evidence |
 | in-zone runtimes (infrastructure, not packages) | per zone | a pinned decision runtime; a grammar-capable generative runtime; a document parser; embedding and reranking models; Postgres | run outside the zone that holds the data they read |
 | this repository | public | wiring, the host ledger resource, the automation principal, zone and profile configuration, a development and test guard that casts generic-action returns on the platform base, doctrine | re-derive library machinery |
-| the public teaching demonstration (clinic-demo) | public | all three tracks on synthetic data: clinician credentials and consent forms → "appointment at risk"; a free-text complaint → `Choice` → triage DMN | real data |
+| the public teaching demonstration (clinic-demo) | public | all three tracks on synthetic data: clinician credentials and consent forms → "appointment at risk"; a free-text complaint → `Choice` → triage DMN; three-valued search over notes by a judged predicate, with the *unknown* partition, the assess action and labelled ordering shown (ADR 0048) | real data |
 | a deployment's private slice | private, in its zone | its rule library, predicates, question wording, thresholds, labelled evaluation set, the shadow-slice harness and its fixtures | anything generic |
 
 ## Waves
@@ -165,6 +195,14 @@ package first, then the package-based private slice (a supplier's documents chec
 per customer, dated, in its zone, in shadow) built on the W2 shadow slice, and its public analogue in the
 demonstration. Per-jurisdiction production waits for its trigger (ADR 0042).
 
+**W4, fourth track — selection by meaning (ADR 0048, proposed).** After the W3 substrate: the derived query surface in
+`ash_judgments`; the set evaluator and its equivalence property test in `ash_rules`; standing queries on the Rete
+evaluator emitting membership-change events to processes and notifications; the assess action and the materialisation
+trigger; labelled ordering and in-zone embedding retrieval for candidates; natural-language search as an editable filter
+proposal; exploratory questions and their promotion to question proposals. A spike on a filter interchange standard
+(CQL2-JSON or DMN FEEL unary tests) comes first. The public demonstration shows three-valued search; a deployment's
+private slice measures selection time and result quality against its current process.
+
 **W5 — the demonstration, interleaved.** A replay transport and a local-runtime devenv process after W3; the
 "answered by" provenance chip in the experience layer; audience demos alongside W4; the compliance headline after the
 evidence mechanism; narrative documentation last.
@@ -200,12 +238,14 @@ runtimes sit on three machines. Each is registered as a zone endpoint on the lab
 
 | Gate | Requires |
 |---|---|
-| **W3 may start** | W1's dependency bump and git dependency landed; the judgment-record RFC frozen; spike 0's result and the private shadow slice's result recorded, including a negative one |
+| **W3 may start** | W1's dependency bump and git dependency landed; the judgment-record RFC frozen, including the query-side requirements ADR 0048 adds (subject reference, subject-state hash, scope, validity, admission grade, indexes for the set evaluator); spike 0's result and the private shadow slice's result recorded, including a negative one |
 | **A band table may publish** | the DMN overlap verifier and matched-rule recording in this repository's lock; a calibration run for the family at the model digest named, above the family's minimum n |
 | **An automation grant may be issued** | an active band table for the family; the random-audit sample running; an operator decision for that family |
 | **Data may enter a zone** | its residency tag is admissible there (ADR 0042); untagged data is refused until it is tagged |
 | **Customer-confidential data may leave a zone** | a recorded authorization (the tenant's opt-in); ADR 0026's disclosure logging built; where the target is a vendor, a signed DPA and zero retention; masking decided (ADR 0042's trigger table) |
 | **An optimiser-proposed question version may activate** | a calibration run on splits disjoint from its optimise split; a shadow evaluation; an approval (ADR 0047) |
+| **A judged predicate may drive an action over a set** (a bulk action, notification, process start) | an active band table for its family; the set evaluator's equivalence property test passing; the action states the minimum admission grade it accepts (ADR 0048) |
+| **An exploratory question may become filterable** | declaration, calibration, a band table and activation, like any question (ADR 0047, ADR 0048) |
 | **Any public claim of benefit** | the one-slice measurement below, with its jurisdiction and date |
 
 ## How it will be measured

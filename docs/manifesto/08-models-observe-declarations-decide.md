@@ -12,7 +12,10 @@ answers):* every instrument runs in the zone and the hosted model is none of the
 of record for anything learned; the inference pipeline is presented as a separate subsystem that consumes
 declarations; prior work is cited as related work rather than argued over. *Accepted 2026-09-28:* the automation
 principal never bypasses grants, although system actors do; the `ai` system actor loses its bypass; thesis 5's human
-decision moves to the moment a grant is made; ADR 0042 narrows ADR 0026 to flows that leave a zone.
+decision moves to the moment a grant is made; ADR 0042 narrows ADR 0026 to flows that leave a zone. *Generalised
+2026-09-28 (proposed, [ADR 0048](../adr/0048-a-judgment-is-a-predicate-over-any-set.md)):* a judgment is a predicate
+over any set, so filters, search, segments and standing queries consume the same vocabulary rules do; compliance is one
+consumer among several.
 
 ## Why this needs saying
 
@@ -72,6 +75,37 @@ Three consequences are worth stating as rules, because each is a place the conve
   compliant. Uncertainty cannot become a pass anywhere on the path, and nobody had to remember to make that true.
 - **Abstention is a result; absence is not evidence.** "Insufficient" and "not found" are first-class answers. A model
   can report what it found; it can never establish that nothing exists.
+
+## Not only compliance: a judgment is a predicate over any set
+
+The records above were written with compliance in view, and the examples show it. But the path does not care what
+consumes a fact. A declared question over a subject defines a **predicate**; once admitted, "this vendor does roof work"
+is a fact exactly as "this clause states the required limit" is. A compliance rule evaluates predicates for one
+subject. A filter evaluates them over a set. A search is a filter a person composes on the spot. A segment is a filter
+somebody saved. A standing query is a filter that reports whose membership changed. They are one vocabulary with
+several consumers, and giving each its own definition of the same predicate is how definitions drift apart.
+
+The laws carry over, and two sharpen when the consumer is a set
+([ADR 0048](../adr/0048-a-judgment-is-a-predicate-over-any-set.md)):
+
+- **Membership is three-valued.** A judged predicate splits a set into *in*, *out* and *unknown* — never assessed,
+  withheld by the band table, awaiting review, or stale because the subject changed. `unknown` is always shown, as a
+  count and as an action to assess it. It never folds into either side, so "vendors that do not do roof work" means the
+  ones a fact excludes, not everyone a fact failed to include. Uncertainty collapses to excluded no more than it
+  collapses to compliant.
+- **Queries read; instruments backfill.** A filter is a database query over admitted facts, and no model runs inside
+  it. Unknowns are filled in by a materialisation job or by an explicit, budgeted action a person runs, and the query
+  re-reads.
+
+And one line is drawn that the compliance framing never needed: **scores may order what a person reads; only facts
+decide what a system does.** Ranking by an unadmitted observation is legitimate for exploration, and it is labelled as
+such. A bulk action, a notification, a process start or a rule outcome reads admitted facts only.
+
+Search also gives the registry somewhere to grow from. A term no declared question covers may be tried as an
+exploratory question, over a bounded candidate set, as an explicit action that produces observations and never facts.
+If it recurs, it becomes a proposal for a declared question, and once a person activates it, it is filterable
+everywhere the platform derives filters: JSON:API, GraphQL, filter forms, reports and agent tooling. None of those
+surfaces needs code of its own for it.
 
 ## The declaration is the shared schema
 
@@ -155,7 +189,10 @@ Every rule above moves the model further from authority. So what is it for?
 It may never grant. It may never decide a high-consequence predicate. Its thresholds must be earned on labelled data
 before they exist, and every model upgrade is a recalibration and an approval. Once fenced like this, its direct value
 narrows to two things: **triage throughput** — ordering a review queue, and admitting only boring, low-risk facts — and
-**verification**, checking a value something else proposed. That is a much smaller claim than the one the vendor's
+**verification**, checking a value something else proposed. (The generalisation to sets adds a third, **selection by
+meaning** — filtering and searching any set on predicates nobody could maintain by hand. It carries the same fence, and
+it raises the stakes of the fence: people act on a search result without reading a finding, which is why the `unknown`
+partition must be visible and why a score may order a list but never populate a set that something acts on.) That is a much smaller claim than the one the vendor's
 marketing makes, and much smaller than the one our own early design notes made, which called these models "learned
 decision tables". That phrase is the most dangerous sentence in the material: a pretrained model has not learned *our*
 policy; it estimates what a text says. Policy stays declarative.
@@ -177,6 +214,10 @@ in every loop.** The same record is the audit artifact, the reviewer's screen, t
 unit, the training example and the explanation. A reviewer who is shown the exact clause by page and character range,
 the predicate it was checked against and the reason it was routed to them is faster and more consistent than one who is
 shown a document and a rule — whether or not a model ever admits a fact on its own.
+
+The same holds for sets. An admitted fact about a vendor, a property or a note is worth having whether it was admitted
+by a band table or by a person clicking through a queue. Once it exists, every filter, segment, alert and rule reads
+it, and the platform derives the search field from the declaration without code of its own.
 
 So the model is the replaceable part and the substrate is the durable one, and the programme should be judged on the
 narrow claim first: a measured reduction in review time at a fixed error rate, on one slice, in one jurisdiction. The
@@ -203,6 +244,8 @@ model output against declared types is the subject of TypeChat (2023) and type-c
 - [ADR 0039](../adr/0039-judgments-are-declared-questions.md) to
   [ADR 0045](../adr/0045-system-one-in-tooling-is-advisory.md) — questions, the ledger, thresholds, zones,
   automation authority, evidence, tooling
+- [ADR 0048 — a judgment is a predicate over any set](../adr/0048-a-judgment-is-a-predicate-over-any-set.md) — filters,
+  search, segments and standing queries as consumers of the same vocabulary (proposed)
 - [ADR 0046 — the declaration is the output contract](../adr/0046-the-declaration-is-the-output-contract.md) and
   [ADR 0047 — learning produces proposals](../adr/0047-learning-produces-proposals.md)
 - [`../plans/system-one.md`](../plans/system-one.md) — the execution plan, and the decisions still open

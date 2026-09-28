@@ -79,11 +79,12 @@ The concrete exit: which files change, and how much work it is.
 | [0045](0045-system-one-in-tooling-is-advisory.md) | System One in developer and agent tooling is advisory | accepted, not built (2026-09-28) |
 | [0046](0046-the-declaration-is-the-output-contract.md) | The declaration is the output contract | accepted, not built (2026-09-28) |
 | [0047](0047-learning-produces-proposals.md) | Learning produces proposals | accepted, not built (2026-09-28) |
+| [0048](0048-a-judgment-is-a-predicate-over-any-set.md) | A judgment is a predicate over any set | proposed |
 
 Records 0001–0009, 0020–0023, 0027–0031 and 0033–0037 are `accepted` and describe code that exists.
 **0038–0047 are `accepted, not built (2026-09-28)`:** the decision is taken and none of it is built. A record with that
 status flips to plain `accepted` when its code lands, so `accepted` on its own keeps meaning code that exists.
-**0010–0019, 0024–0026 and 0032 are `proposed`: none of them is built.** They are here because a decision is cheapest to reason about — and cheapest to
+**0010–0019, 0024–0026, 0032 and 0048 are `proposed`: none of them is built.** They are here because a decision is cheapest to reason about — and cheapest to
 *reverse* — while the alternatives are still fresh, and because
 [thesis 6](../manifesto/06-reversibility.md) asks for the exit before the entrance. Three of them
 record an answer that changed under verification, which is the main reason to write them down early.
@@ -104,6 +105,10 @@ resolved four conflicts with earlier records: the automation principal never byp
 do; the `ai` system actor loses its bypass; thesis 5's human decision moves to the moment a grant is made
 ([0043](0043-automation-authority-is-a-grant.md)); and 0042 narrows 0026, which both records now say. From acceptance
 on, changing one of them takes an amendment marked as such or a superseding record.
+0048 extends the set, and is `proposed`: it generalises the path from compliance to any consumer that selects records
+(filters, search, segments, standing queries), following the operator's direction the same day that the mechanism
+"applies to more than just compliance". It amends none of 0038–0047; it adds a consumer and the rules that consumer
+needs (three-valued membership, no inference in reads, scores that order but never decide membership).
 [Thesis 8](../manifesto/08-models-observe-declarations-decide.md) argues the position and
 [`../plans/system-one.md`](../plans/system-one.md) sequences the work. They are not on the roadmap, and several of their
 own decisions are marked pending inside them.
