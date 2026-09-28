@@ -7,6 +7,28 @@ defmodule AshEnterprise.Repo.Migrations.RecordReferencePrefixes do
 
   use Ecto.Migration
 
+  # `prefix: prefix()` rather than the generated `prefix: "public"` (up) and
+  # `prefix: "canonical"` (down).
+  #
+  # AshPostgres writes every foreign key to a schema-less resource with a literal
+  # prefix: the destination's `schema`, else the repo's `default_prefix/0`, else
+  # "public" (`find_reference/3` and `add_schema/2` in the migration generator).
+  # There is no option that makes it emit the migrator's own prefix for a table
+  # that is not context-multitenant. `AshEnterprise.Repo.default_prefix/0` reads
+  # ASH_SCHEMA, so the literal is whatever that variable was on the machine that
+  # ran codegen: "public" for this migration's up, "canonical" for its down
+  # (the previous snapshots were generated with ASH_SCHEMA=canonical).
+  #
+  # Either literal breaks the other deployment. With ASH_SCHEMA=canonical, as the
+  # VendorPM workspace runs, the up dies on
+  # `relation "public.bpmn_definitions" does not exist`. `Ecto.Migration.prefix/0`
+  # is the schema this run is creating tables in, which is where every one of
+  # these tables is. Same fix, same generator behaviour, as
+  # 20260819162255_adopt_bpmn_and_decisions.exs and
+  # 20260903105636_schema_binding_alignment.exs. The snapshots keep "public":
+  # they describe the upstream layout, and codegen compares against them with
+  # ASH_SCHEMA unset.
+
   def up do
     drop constraint(:bpmn_instances, "bpmn_instances_definition_id_fkey")
 
@@ -16,7 +38,7 @@ defmodule AshEnterprise.Repo.Migrations.RecordReferencePrefixes do
                column: :id,
                name: "bpmn_instances_definition_id_fkey",
                type: :uuid,
-               prefix: "public"
+               prefix: prefix()
              )
     end
 
@@ -30,7 +52,7 @@ defmodule AshEnterprise.Repo.Migrations.RecordReferencePrefixes do
                column: :id,
                name: "team_memberships_user_id_fkey",
                type: :uuid,
-               prefix: "public",
+               prefix: prefix(),
                on_delete: :delete_all
              )
 
@@ -39,7 +61,7 @@ defmodule AshEnterprise.Repo.Migrations.RecordReferencePrefixes do
                column: :id,
                name: "team_memberships_team_id_fkey",
                type: :uuid,
-               prefix: "public",
+               prefix: prefix(),
                on_delete: :delete_all
              )
     end
@@ -52,7 +74,7 @@ defmodule AshEnterprise.Repo.Migrations.RecordReferencePrefixes do
                column: :id,
                name: "positions_parent_position_id_fkey",
                type: :uuid,
-               prefix: "public",
+               prefix: prefix(),
                on_delete: :restrict
              )
     end
@@ -65,7 +87,7 @@ defmodule AshEnterprise.Repo.Migrations.RecordReferencePrefixes do
                column: :id,
                name: "teams_administrator_id_fkey",
                type: :uuid,
-               prefix: "public"
+               prefix: prefix()
              )
     end
 
@@ -79,7 +101,7 @@ defmodule AshEnterprise.Repo.Migrations.RecordReferencePrefixes do
                column: :id,
                name: "access_requests_requested_role_id_fkey",
                type: :uuid,
-               prefix: "public",
+               prefix: prefix(),
                on_delete: :nothing
              )
 
@@ -88,7 +110,7 @@ defmodule AshEnterprise.Repo.Migrations.RecordReferencePrefixes do
                column: :id,
                name: "access_requests_scoping_business_unit_id_fkey",
                type: :uuid,
-               prefix: "public",
+               prefix: prefix(),
                on_delete: :nothing
              )
     end
@@ -101,7 +123,7 @@ defmodule AshEnterprise.Repo.Migrations.RecordReferencePrefixes do
                column: :id,
                name: "dmn_evaluations_definition_id_fkey",
                type: :uuid,
-               prefix: "public"
+               prefix: prefix()
              )
     end
 
@@ -117,7 +139,7 @@ defmodule AshEnterprise.Repo.Migrations.RecordReferencePrefixes do
                column: :id,
                name: "user_roles_user_id_fkey",
                type: :uuid,
-               prefix: "public",
+               prefix: prefix(),
                on_delete: :delete_all
              )
 
@@ -126,7 +148,7 @@ defmodule AshEnterprise.Repo.Migrations.RecordReferencePrefixes do
                column: :id,
                name: "user_roles_role_id_fkey",
                type: :uuid,
-               prefix: "public",
+               prefix: prefix(),
                on_delete: :delete_all
              )
 
@@ -135,7 +157,7 @@ defmodule AshEnterprise.Repo.Migrations.RecordReferencePrefixes do
                column: :id,
                name: "user_roles_scoping_business_unit_id_fkey",
                type: :uuid,
-               prefix: "public",
+               prefix: prefix(),
                on_delete: :restrict
              )
     end
@@ -148,7 +170,7 @@ defmodule AshEnterprise.Repo.Migrations.RecordReferencePrefixes do
                column: :id,
                name: "bpmn_process_events_instance_id_fkey",
                type: :uuid,
-               prefix: "public"
+               prefix: prefix()
              )
     end
 
@@ -164,7 +186,7 @@ defmodule AshEnterprise.Repo.Migrations.RecordReferencePrefixes do
                column: :id,
                name: "team_roles_team_id_fkey",
                type: :uuid,
-               prefix: "public",
+               prefix: prefix(),
                on_delete: :delete_all
              )
 
@@ -173,7 +195,7 @@ defmodule AshEnterprise.Repo.Migrations.RecordReferencePrefixes do
                column: :id,
                name: "team_roles_role_id_fkey",
                type: :uuid,
-               prefix: "public",
+               prefix: prefix(),
                on_delete: :delete_all
              )
 
@@ -182,7 +204,7 @@ defmodule AshEnterprise.Repo.Migrations.RecordReferencePrefixes do
                column: :id,
                name: "team_roles_scoping_business_unit_id_fkey",
                type: :uuid,
-               prefix: "public",
+               prefix: prefix(),
                on_delete: :restrict
              )
     end
@@ -195,7 +217,7 @@ defmodule AshEnterprise.Repo.Migrations.RecordReferencePrefixes do
                column: :id,
                name: "bpmn_task_candidates_task_id_fkey",
                type: :uuid,
-               prefix: "public"
+               prefix: prefix()
              )
     end
 
@@ -207,7 +229,7 @@ defmodule AshEnterprise.Repo.Migrations.RecordReferencePrefixes do
                column: :id,
                name: "process_trigger_dispatches_trigger_id_fkey",
                type: :uuid,
-               prefix: "public"
+               prefix: prefix()
              )
     end
 
@@ -219,7 +241,7 @@ defmodule AshEnterprise.Repo.Migrations.RecordReferencePrefixes do
                column: :id,
                name: "bpmn_tokens_instance_id_fkey",
                type: :uuid,
-               prefix: "public"
+               prefix: prefix()
              )
     end
 
@@ -233,7 +255,7 @@ defmodule AshEnterprise.Repo.Migrations.RecordReferencePrefixes do
                column: :id,
                name: "role_privileges_role_id_fkey",
                type: :uuid,
-               prefix: "public",
+               prefix: prefix(),
                on_delete: :delete_all
              )
 
@@ -242,7 +264,7 @@ defmodule AshEnterprise.Repo.Migrations.RecordReferencePrefixes do
                column: :id,
                name: "role_privileges_privilege_id_fkey",
                type: :uuid,
-               prefix: "public",
+               prefix: prefix(),
                on_delete: :restrict
              )
     end
@@ -255,7 +277,7 @@ defmodule AshEnterprise.Repo.Migrations.RecordReferencePrefixes do
                column: :id,
                name: "business_units_parent_business_unit_id_fkey",
                type: :uuid,
-               prefix: "public",
+               prefix: prefix(),
                on_delete: :restrict
              )
     end
@@ -270,7 +292,7 @@ defmodule AshEnterprise.Repo.Migrations.RecordReferencePrefixes do
                column: :id,
                name: "users_manager_id_fkey",
                type: :uuid,
-               prefix: "public"
+               prefix: prefix()
              )
 
       modify :position_id,
@@ -278,7 +300,7 @@ defmodule AshEnterprise.Repo.Migrations.RecordReferencePrefixes do
                column: :id,
                name: "users_position_id_fkey",
                type: :uuid,
-               prefix: "public"
+               prefix: prefix()
              )
     end
 
@@ -292,7 +314,7 @@ defmodule AshEnterprise.Repo.Migrations.RecordReferencePrefixes do
                column: :id,
                name: "bpmn_human_tasks_instance_id_fkey",
                type: :uuid,
-               prefix: "public"
+               prefix: prefix()
              )
 
       modify :token_id,
@@ -300,7 +322,7 @@ defmodule AshEnterprise.Repo.Migrations.RecordReferencePrefixes do
                column: :id,
                name: "bpmn_human_tasks_token_id_fkey",
                type: :uuid,
-               prefix: "public"
+               prefix: prefix()
              )
     end
   end
@@ -316,7 +338,7 @@ defmodule AshEnterprise.Repo.Migrations.RecordReferencePrefixes do
                column: :id,
                name: "bpmn_human_tasks_token_id_fkey",
                type: :uuid,
-               prefix: "canonical"
+               prefix: prefix()
              )
 
       modify :instance_id,
@@ -324,7 +346,7 @@ defmodule AshEnterprise.Repo.Migrations.RecordReferencePrefixes do
                column: :id,
                name: "bpmn_human_tasks_instance_id_fkey",
                type: :uuid,
-               prefix: "canonical"
+               prefix: prefix()
              )
     end
 
@@ -338,7 +360,7 @@ defmodule AshEnterprise.Repo.Migrations.RecordReferencePrefixes do
                column: :id,
                name: "users_position_id_fkey",
                type: :uuid,
-               prefix: "canonical"
+               prefix: prefix()
              )
 
       modify :manager_id,
@@ -346,7 +368,7 @@ defmodule AshEnterprise.Repo.Migrations.RecordReferencePrefixes do
                column: :id,
                name: "users_manager_id_fkey",
                type: :uuid,
-               prefix: "canonical"
+               prefix: prefix()
              )
     end
 
@@ -358,7 +380,7 @@ defmodule AshEnterprise.Repo.Migrations.RecordReferencePrefixes do
                column: :id,
                name: "business_units_parent_business_unit_id_fkey",
                type: :uuid,
-               prefix: "canonical",
+               prefix: prefix(),
                on_delete: :restrict
              )
     end
@@ -373,7 +395,7 @@ defmodule AshEnterprise.Repo.Migrations.RecordReferencePrefixes do
                column: :id,
                name: "role_privileges_privilege_id_fkey",
                type: :uuid,
-               prefix: "canonical",
+               prefix: prefix(),
                on_delete: :restrict
              )
 
@@ -382,7 +404,7 @@ defmodule AshEnterprise.Repo.Migrations.RecordReferencePrefixes do
                column: :id,
                name: "role_privileges_role_id_fkey",
                type: :uuid,
-               prefix: "canonical",
+               prefix: prefix(),
                on_delete: :delete_all
              )
     end
@@ -395,7 +417,7 @@ defmodule AshEnterprise.Repo.Migrations.RecordReferencePrefixes do
                column: :id,
                name: "bpmn_tokens_instance_id_fkey",
                type: :uuid,
-               prefix: "canonical"
+               prefix: prefix()
              )
     end
 
@@ -407,7 +429,7 @@ defmodule AshEnterprise.Repo.Migrations.RecordReferencePrefixes do
                column: :id,
                name: "process_trigger_dispatches_trigger_id_fkey",
                type: :uuid,
-               prefix: "canonical"
+               prefix: prefix()
              )
     end
 
@@ -419,7 +441,7 @@ defmodule AshEnterprise.Repo.Migrations.RecordReferencePrefixes do
                column: :id,
                name: "bpmn_task_candidates_task_id_fkey",
                type: :uuid,
-               prefix: "canonical"
+               prefix: prefix()
              )
     end
 
@@ -435,7 +457,7 @@ defmodule AshEnterprise.Repo.Migrations.RecordReferencePrefixes do
                column: :id,
                name: "team_roles_scoping_business_unit_id_fkey",
                type: :uuid,
-               prefix: "canonical",
+               prefix: prefix(),
                on_delete: :restrict
              )
 
@@ -444,7 +466,7 @@ defmodule AshEnterprise.Repo.Migrations.RecordReferencePrefixes do
                column: :id,
                name: "team_roles_role_id_fkey",
                type: :uuid,
-               prefix: "canonical",
+               prefix: prefix(),
                on_delete: :delete_all
              )
 
@@ -453,7 +475,7 @@ defmodule AshEnterprise.Repo.Migrations.RecordReferencePrefixes do
                column: :id,
                name: "team_roles_team_id_fkey",
                type: :uuid,
-               prefix: "canonical",
+               prefix: prefix(),
                on_delete: :delete_all
              )
     end
@@ -466,7 +488,7 @@ defmodule AshEnterprise.Repo.Migrations.RecordReferencePrefixes do
                column: :id,
                name: "bpmn_process_events_instance_id_fkey",
                type: :uuid,
-               prefix: "canonical"
+               prefix: prefix()
              )
     end
 
@@ -482,7 +504,7 @@ defmodule AshEnterprise.Repo.Migrations.RecordReferencePrefixes do
                column: :id,
                name: "user_roles_scoping_business_unit_id_fkey",
                type: :uuid,
-               prefix: "canonical",
+               prefix: prefix(),
                on_delete: :restrict
              )
 
@@ -491,7 +513,7 @@ defmodule AshEnterprise.Repo.Migrations.RecordReferencePrefixes do
                column: :id,
                name: "user_roles_role_id_fkey",
                type: :uuid,
-               prefix: "canonical",
+               prefix: prefix(),
                on_delete: :delete_all
              )
 
@@ -500,7 +522,7 @@ defmodule AshEnterprise.Repo.Migrations.RecordReferencePrefixes do
                column: :id,
                name: "user_roles_user_id_fkey",
                type: :uuid,
-               prefix: "canonical",
+               prefix: prefix(),
                on_delete: :delete_all
              )
     end
@@ -513,7 +535,7 @@ defmodule AshEnterprise.Repo.Migrations.RecordReferencePrefixes do
                column: :id,
                name: "dmn_evaluations_definition_id_fkey",
                type: :uuid,
-               prefix: "canonical"
+               prefix: prefix()
              )
     end
 
@@ -527,7 +549,7 @@ defmodule AshEnterprise.Repo.Migrations.RecordReferencePrefixes do
                column: :id,
                name: "access_requests_scoping_business_unit_id_fkey",
                type: :uuid,
-               prefix: "canonical",
+               prefix: prefix(),
                on_delete: :nothing
              )
 
@@ -536,7 +558,7 @@ defmodule AshEnterprise.Repo.Migrations.RecordReferencePrefixes do
                column: :id,
                name: "access_requests_requested_role_id_fkey",
                type: :uuid,
-               prefix: "canonical",
+               prefix: prefix(),
                on_delete: :nothing
              )
     end
@@ -549,7 +571,7 @@ defmodule AshEnterprise.Repo.Migrations.RecordReferencePrefixes do
                column: :id,
                name: "teams_administrator_id_fkey",
                type: :uuid,
-               prefix: "canonical"
+               prefix: prefix()
              )
     end
 
@@ -561,7 +583,7 @@ defmodule AshEnterprise.Repo.Migrations.RecordReferencePrefixes do
                column: :id,
                name: "positions_parent_position_id_fkey",
                type: :uuid,
-               prefix: "canonical",
+               prefix: prefix(),
                on_delete: :restrict
              )
     end
@@ -576,7 +598,7 @@ defmodule AshEnterprise.Repo.Migrations.RecordReferencePrefixes do
                column: :id,
                name: "team_memberships_team_id_fkey",
                type: :uuid,
-               prefix: "canonical",
+               prefix: prefix(),
                on_delete: :delete_all
              )
 
@@ -585,7 +607,7 @@ defmodule AshEnterprise.Repo.Migrations.RecordReferencePrefixes do
                column: :id,
                name: "team_memberships_user_id_fkey",
                type: :uuid,
-               prefix: "canonical",
+               prefix: prefix(),
                on_delete: :delete_all
              )
     end
@@ -598,7 +620,7 @@ defmodule AshEnterprise.Repo.Migrations.RecordReferencePrefixes do
                column: :id,
                name: "bpmn_instances_definition_id_fkey",
                type: :uuid,
-               prefix: "canonical"
+               prefix: prefix()
              )
     end
   end

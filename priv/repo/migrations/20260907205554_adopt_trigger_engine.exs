@@ -17,6 +17,11 @@ defmodule AshEnterprise.Repo.Migrations.AdoptTriggerEngine do
 
   use Ecto.Migration
 
+  # The two foreign keys below use `prefix: prefix()` rather than the generated
+  # `prefix: "public"`, so they resolve in the schema this run creates tables in
+  # (ASH_SCHEMA, when set). See 20260904141720_record_reference_prefixes.exs for
+  # why the generator writes the literal.
+
   def up do
     create table(:bpmn_subscriptions, primary_key: false) do
       add :organization_id, :uuid, null: false
@@ -105,7 +110,7 @@ defmodule AshEnterprise.Repo.Migrations.AdoptTriggerEngine do
             column: :id,
             name: "bpmn_dispatches_subscription_id_fkey",
             type: :uuid,
-            prefix: "public"
+            prefix: prefix()
           )
 
       add :waiting_token_id,
@@ -113,7 +118,7 @@ defmodule AshEnterprise.Repo.Migrations.AdoptTriggerEngine do
             column: :id,
             name: "bpmn_dispatches_waiting_token_id_fkey",
             type: :uuid,
-            prefix: "public"
+            prefix: prefix()
           )
 
       add :event_id, :uuid, null: false

@@ -176,6 +176,13 @@ jobs:
       - name: Test
         run: elixir -e "$CANARY_INSTRUMENT" -S mix test
 
+      # The suite migrates into `public`. The VendorPM workspace hosts this app
+      # in a schema of its own (ASH_SCHEMA), and a regenerated migration that
+      # bakes in `prefix: "public"` only fails there. Replay into `canonical`
+      # here so it fails in this repository first.
+      - name: Migrations replay into a non-public schema
+        run: scripts/schema-portable-migrations.sh
+
       # The agent-facing gate: every relative link in the composed AGENTS.md
       # still resolves, and the semantic manifests (once any exist) still parse
       # with valid ash:v0 symbol ids. The contract step inside it needs
