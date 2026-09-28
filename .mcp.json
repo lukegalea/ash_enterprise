@@ -16,7 +16,7 @@
     "  the planned surface for the AshAgentTools bridge (Lane E: describe/validate/",
     "  context/search as custom MCP tools).",
     "",
-    "ash_agent (DX-2): the ash_agent_tools dev-only path dep now IS an MCP",
+    "ash_agent (DX-2): the ash_agent_tools dev-only dependency IS an MCP",
     "  server -- the read-only introspection surface (describe/validate/",
     "  search/context/forbidden/status/reload) over MCP-over-Plug. Boot it",
     "  separately with `mix ash_agent.serve` from the repo root (compile-only;",

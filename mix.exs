@@ -178,9 +178,8 @@ defmodule AshEnterprise.MixProject do
       {:ash_cloak, "~> 0.3"},
 
       # Read-only Ash introspection for coding agents (dogfooding our AST lane E
-      # package; path dep until it publishes to hex).
-      {:ash_agent_tools,
-       path: Path.expand("~/ast-forks/ash_agent_tools"), only: :dev, runtime: false},
+      # package; a github dep until it publishes to hex, pinned by mix.lock).
+      {:ash_agent_tools, github: "lukegalea/ash_agent_tools", only: :dev, runtime: false},
 
       # BEAM runtime inspection for the observability plane's dev loop: recon
       # for deep-dive process/memory questions, observer_cli for a terminal

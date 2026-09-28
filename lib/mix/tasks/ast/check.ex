@@ -23,7 +23,7 @@ defmodule Mix.Tasks.Ast.Check do
   input contract. A rename that would silently break every agent transcript
   referencing the old name fails here instead of out in the world.
 
-  This step needs `ash_agent_tools`, which is a `only: :dev` path dependency.
+  This step needs `ash_agent_tools`, which is an `only: :dev` dependency.
   Anywhere else (:test, CI) the step is skipped with a warning rather than
   failing, and the gate still covers the remaining steps.
 
