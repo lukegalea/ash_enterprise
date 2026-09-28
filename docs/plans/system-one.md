@@ -3,7 +3,9 @@
 Status: **proposed — nothing is built.** Doctrine drafted (thesis 8, ADRs 0038–0047, all `proposed`); no package,
 resource or call site exists. The first wave is landing work that is already written elsewhere, not new building.
 *Amended 2026-09-28:* the operator's decisions are recorded, the data posture is zone-first, and a private shadow slice
-on real documents moves into W2.
+on real documents moves into W2. *Amended 2026-09-28 (operator answers):* the hosted model is never an instrument;
+a zone declares the residency restrictions it cannot satisfy and admits data only under an admissible tag; the
+activating person is the author of record for anything learned.
 Related: [thesis 8](../manifesto/08-models-observe-declarations-decide.md), ADR 0026, ADR 0028, ADR 0029, ADR 0035,
 ADRs 0038–0047, [`ash-rules-and-compliance.md`](ash-rules-and-compliance.md).
 
@@ -27,8 +29,9 @@ These are positions taken in the proposed ADRs — none of them accepted yet. Th
 the ADR carrying them.
 
 - **No bespoke client.** The call is `ash_ai` 1.1.0's `evaluate`; the transport is `req_llm` 1.24.0's `typesafe`
-  provider; the answer types are upstream's. This plan writes no HTTP client, provider behaviour or answer type. New
-  generic answer kinds (`Evidence`) and hooks (a vetoable `on_tool_start`) are proposed upstream. *(ADR 0039)*
+  provider, which is how this platform calls an in-zone Ollaya; the answer types are upstream's. This plan writes no
+  HTTP client, provider behaviour or answer type. New generic answer kinds (`Evidence`) and hooks (a vetoable
+  `on_tool_start`) are proposed upstream. *(ADR 0039)*
 - **Never in a check, never a grant, never in FEEL, rules or projectors.** *(ADR 0038)*
 - **Questions are declarations**, content-hashed; the hash is the ledger identity. *(ADR 0039)*
 - **The ledger is a host resource on the platform base**, created by a replay-safe action that accepts the answer as
@@ -36,10 +39,12 @@ the ADR carrying them.
   admission paths. *(ADR 0040)*
 - **Thresholds are DMN band tables**, published only with a supporting calibration run and activated through the
   approval lifecycle; probabilities stop at the band table. *(ADR 0041)*
-- **Zone-first.** A zone is a declared record with a jurisdiction and a classification ceiling; every profile and store
-  names its zone; inference runs in the data's zone by default; any flow out of a zone is a disclosure with a recorded
-  authorization; per-jurisdiction stacks, masking and hosted use are deferred, each with a named trigger; contract
-  tests against both instruments. *(ADR 0042)*
+- **Zone-first.** A zone is a declared record with a jurisdiction, a classification ceiling and the residency
+  restrictions it cannot satisfy; data enters a zone only if its residency tag is admissible there, and data restricted
+  to another jurisdiction never enters; every profile and store names its zone; every instrument runs in a zone —
+  decision models served by Ollaya and in-zone generative runtimes, never a hosted model; any flow out of a zone is a
+  disclosure with a recorded authorization; per-jurisdiction stacks and masking are deferred, each with a named
+  trigger; the contract test pins Ollaya and the wire specification. *(ADR 0042)*
 - **Automatic admission is a grant** held by a named automation principal that does not bypass grants. *(ADR 0043)*
 - **Tooling signals are advisory** and never change deterministic report fields. *(ADR 0045)*
 - **The declaration is the output contract.** Every model output shape — System One options, generative JSON Schema,
@@ -47,7 +52,10 @@ the ADR carrying them.
   Dialyzer; decode-time where the runtime can, the Ash cast always; schema-valid is not correct. *(ADR 0046)*
 - **Learning produces proposals.** Optimisers, distillation, rule mining, fine-tunes and simulation fits write proposal
   records with lineage; nothing learned is applied in serving; adoption is an approval and re-earns calibration on data
-  the learner never saw. *(ADR 0047)*
+  the learner never saw; the person who activates is the author of record, whoever or whatever drafted it.
+  *(ADR 0047)*
+- **The inference pipeline is a separate subsystem that consumes declarations.** It does not amend thesis 1's premise
+  that the application is derived from what is declared. *(ADR 0038, thesis 8)*
 - **No customer data enters this public repository** — no rule content, thresholds, labelled examples or documents.
   The public demonstration runs on synthetic data.
 
@@ -61,8 +69,11 @@ became zone-first.
 | Publication of the rules and compliance packages (a public clone of this repository cannot currently build without them) | Publish the mechanism; keep any deployment's rule content private. Approved; a full-history scan found nothing that must stay private, and the publication itself is pending the operator's own step |
 | Package names | Neutral: the judgments package is `ash_judgments` (formerly the working name `ash_ai_systemone`), the evidence package `ash_evidence` |
 | May automation ever finalise an outcome? | Asymmetric: *supports* only, very high probability, low-consequence families; *contradicts* at any confidence routes to a human, never a silent auto-fail; high-consequence predicates never |
-| Data posture for inference, evaluation and fine-tuning | **Zone-first**: an operator-declared zone processes customer data unmasked; leaving a zone is a disclosure; per-jurisdiction stacks, masking and hosted use are deferred with triggers ([ADR 0042](../adr/0042-in-zone-inference-leaving-the-zone-is-a-disclosure.md)) |
-| Hosted instrument during evaluation | Synthetic and public data only, until the trigger in ADR 0042 fires |
+| Data posture for inference, evaluation and fine-tuning | **Zone-first**: an operator-declared zone processes customer data unmasked; leaving a zone is a disclosure; per-jurisdiction stacks and masking are deferred with triggers ([ADR 0042](../adr/0042-in-zone-inference-leaving-the-zone-is-a-disclosure.md)) |
+| Hosted instrument | **Never** — there is no access to it. The only instruments are decision models served by Ollaya in the zone and in-zone generative runtimes; the wire specification is kept |
+| Residency in a zone | A zone declares its jurisdiction and the residency restrictions it cannot satisfy; data restricted to the zone's own jurisdiction is admissible, data restricted to another never enters; processing outside production is not, by itself, restricted ([ADR 0042](../adr/0042-in-zone-inference-leaving-the-zone-is-a-disclosure.md)) |
+| Authorship of learned artefacts | The person who activates a proposed rule bundle, band table or question revision is its author of record, which satisfies ADR 0028's business-authored requirement ([ADR 0047](../adr/0047-learning-produces-proposals.md)) |
+| Coding agents in the pipeline | Sessions carry attribution (commit trailers, tracker comments) and are excluded from the programme's cost tracking for now |
 | Who owns thresholds | DMN as the home, compliance lifecycle as the approval |
 | A labelled record-and-replay transport for demos, CI and cold clones | Allowed, labelled "replayed from recording, date, model"; a live-mode job opt-in |
 | Programme scale | One slice proves a measured review-time reduction before broad claims enter public docs |
@@ -75,8 +86,8 @@ Still pending, and marked so in the records that carry them:
 - the minimum labelled n per family, including the optimise split, and evaluation-set ownership and labelling protocol;
 - the convention for model-derived evidence in OSCAL export (recommendation: `examine`, a collector naming the model
   digest, the ledger id in custody);
-- an emulated profile over chat-model log-probabilities (recommendation: research only, never pooled with native
-  answers).
+- an emulated profile over an in-zone generative runtime's log-probabilities (recommendation: research only, never
+  pooled with native answers).
 
 ## Package boundaries
 
@@ -100,10 +111,11 @@ Still pending, and marked so in the records that carry them:
 
 ## Waves
 
-**W0 — decisions and hygiene (days).** The decisions above, taken on 2026-09-28. The zone declaration recorded as
-data: jurisdiction, ceiling, members, controls, access list, and the rule that development-agent sessions are
-out-of-zone consumers. Working research documents moved out of the public tree or triaged into `docs/research/`. Stale
-branches proposed for pruning.
+**W0 — decisions and hygiene (days).** The decisions above, taken on 2026-09-28. The zone declaration recorded as data:
+jurisdiction, ceiling, the residency restrictions it cannot satisfy, members, controls, access list, and the rule that
+development-agent sessions are out-of-zone consumers; every dataset exported into the zone tagged with its residency
+restriction before it enters. Working research documents moved out of the public tree or triaged into `docs/research/`.
+Stale branches proposed for pruning.
 
 **W1 — land what is already written (the critical path).** One integrator lane in this repository, because `_build`
 and `mix.lock` do not tolerate two. Bump the first-party packages to their mains — which brings in the DMN overlap
@@ -113,9 +125,9 @@ into CI; make a cold clone build (per the publication decision); a documentation
 notes.
 
 **W2 — foundations, alongside late W1.**
-- **Spike 0**, in the public demonstration, with no new packages: `ash_ai` `evaluate` against a pinned local Ollaya
-  and, on synthetic data only, the hosted instrument; one `Noul` over appointment notes and one `Choice` feeding a
-  triage DMN; twenty hand-labelled items. Measure band separation, latency and cold-load.
+- **Spike 0**, in the public demonstration, with no new packages: `ash_ai` `evaluate` against a pinned local Ollaya; one
+  `Noul` over appointment notes and one `Choice` feeding a triage DMN; twenty hand-labelled items. Measure band
+  separation, latency and cold-load.
 - **A private shadow slice on real documents, inside a declared zone, with no new packages**: parse to atoms,
   constrained local extraction, deterministic checks, System One verification, and comparison with the recorded human
   outcome, over a few hundred documents from one jurisdiction; then a timed review study, packet-assisted against the
@@ -157,6 +169,7 @@ through the approval lifecycle; the emulated profile. Every output is a proposal
 | **W3 may start** | W1's dependency bump and git dependency landed; the judgment-record RFC frozen; spike 0's result and the private shadow slice's result recorded, including a negative one |
 | **A band table may publish** | the DMN overlap verifier and matched-rule recording in this repository's lock; a calibration run for the family at the model digest named, above the family's minimum n |
 | **An automation grant may be issued** | an active band table for the family; the random-audit sample running; an operator decision for that family |
+| **Data may enter a zone** | its residency tag is admissible there (ADR 0042); untagged data waits |
 | **Customer-confidential data may leave a zone** | a recorded authorization (the tenant's opt-in); ADR 0026's disclosure logging built; where the target is a vendor, a signed DPA and zero retention; masking decided (ADR 0042's trigger table) |
 | **An optimiser-proposed question version may activate** | a calibration run on splits disjoint from its optimise split; a shadow evaluation; an approval (ADR 0047) |
 | **Any public claim of benefit** | the one-slice measurement below, with its jurisdiction and date |
@@ -174,7 +187,7 @@ through the approval lifecycle; the emulated profile. Every output is a proposal
   System One. The claim is judged on this number before any broader one is made.
 - **Evidence recall:** the audit sweep's full rule × atom matrix against production retrieval; evidence the sweep
   finds and retrieval misses is a retrieval defect.
-- **Wire drift:** the contract test against both instruments, run in CI.
+- **Wire drift:** the contract test against a pinned Ollaya and the wire specification, run in CI.
 - **Egress:** the disclosure log empty for customer-confidential data, per zone.
 - **Generative extraction:** the Ash cast-failure rate, and the rate at which System One verification agrees with the
   proposed value.
@@ -186,8 +199,9 @@ used as a planning threshold.
 
 ## Known risks
 
-- **The vendor is new.** Public for twelve days when this was written; self-reported claims; no public DPA or SLA. The
-  hedge is in-zone by default and a contract test, not a contract.
+- **The protocol's vendor is new.** Public for twelve days when this was written; self-reported claims; no public DPA
+  or SLA. There is no access to its hosted model and none is used; the dependency is its wire specification, through
+  an independent in-zone runtime, watched by a contract test.
 - **The local instrument is small.** A 1,024-token context for the default router model forces decomposition and
   context growth; some whole-document questions are unavailable locally.
 - **The compatibility layer has no owner in common.** Ollaya is independent of the vendor; wire compatibility can drift

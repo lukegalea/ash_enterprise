@@ -6,7 +6,10 @@
 This thesis is newer than the other seven and carries less weight of evidence: it is proposed alongside
 [ADRs 0038–0047](../adr/README.md), and **nothing it describes is built yet.** It is written now because the decision
 is cheapest to reason about before the first call site exists. *Amended 2026-09-28:* the generative rung is typed by
-the same declaration and runs in the data's zone; learning loops end in proposals; the novelty claim is narrowed.
+the same declaration and runs in the data's zone; learning loops end in proposals. *Amended 2026-09-28 (operator
+answers):* every instrument runs in the zone and the hosted model is none of them; the activating person is the author
+of record for anything learned; the inference pipeline is presented as a separate subsystem that consumes
+declarations; prior work is cited as related work rather than argued over.
 
 ## Why this needs saying
 
@@ -14,7 +17,7 @@ For most of this repository's life a model call was an event. It cost seconds an
 was tempted to put one inside an authorization check. [Thesis 5](05-agents-are-users.md) dealt with that world: the
 model is a user, it gets the same actions and the same policies, and its writes wait for a human.
 
-A new class of model changes the economics without changing the epistemics. "System One" models — the vendor's name,
+A class of model changes the economics without changing the epistemics. "System One" models — the vendor's name,
 borrowed from the fast half of Kahneman's pair — answer a typed question over a piece of text and return a probability
 instead of prose. They run in milliseconds, locally, for almost nothing. When a judgment costs that little, the
 temptation is to use it everywhere a boolean is currently hand-written: in a policy, in a decision table, in a rule, in
@@ -84,8 +87,11 @@ become the schema the model is decoded under, so an option that is not declared 
 outside the packet cannot be decoded. That fixes the *shape* of an answer and nothing more: a schema-valid answer is
 well-formed, not correct, which is why a generative answer is always a proposal that something else verifies.
 
-[Thesis 1](01-model-your-domain.md) said *declare once, derive the rest*. This thesis extends it to inference:
-**maximal declaration, minimal inference, and inference always typed and ledgered.**
+None of this changes [thesis 1](01-model-your-domain.md). *Declare once, derive the rest* stands as it is: what the
+application does is still derived from what is declared. The inference pipeline is a **separate subsystem that consumes
+those declarations** — it reads the questions, types, constraints, facts and tables the application already states,
+and adds nothing to what the application derives from them. Its own discipline is that every inference is typed by a
+declaration and recorded in a ledger.
 
 ## The ladder
 
@@ -93,7 +99,7 @@ Every question is answered on the cheapest rung that can answer it exactly. Decl
 constraints, deterministic checks on amounts, dates and parties — because they are free, exact and explainable. System
 One second, for questions that are intrinsically about interpreting language: relevance, support or contradiction,
 classification, verifying a proposed value. A generative model third, for the residue that needs text produced: in the
-data's zone by default, decoded under a schema derived from the declaration, with no self-reported confidence, citing
+data's zone, decoded under a schema derived from the declaration, with no self-reported confidence, citing
 only by constrained id, and only ever as a proposal — leaving the zone is a disclosure. A person last, for the middle
 band and for anything whose consequence is severe; their verdicts become the evaluation set.
 
@@ -102,14 +108,17 @@ declared in a table, never by a branch in code.
 
 ## Learning is a proposal
 
-Every learning loop the programme contemplates — searching a question's wording with an optimiser, distilling
-reviewer overrides into decision-table rows, mining rule revisions, fine-tuning a local model, fitting a simulator —
-ends the same way: in a proposal record with its lineage, never in a live version
-([ADR 0047](../adr/0047-learning-produces-proposals.md)). Nothing learned is applied in serving. Adoption is an
-approval by a person holding the privilege, and an adopted artefact re-earns its calibration on data its learner never
-saw. An optimiser may change only what the declaration leaves open — a question's instructions and criteria, never its
-answer type or options. Cheap local inference makes proposing nearly free; it does not make adopting any cheaper, and
-that is the point.
+Every learning loop the programme contemplates — searching a question's wording with an optimiser, distilling reviewer
+overrides into decision-table rows, mining rule revisions, fine-tuning a local model, fitting a simulator — ends the
+same way: in a proposal record with its lineage, never in a live version
+([ADR 0047](../adr/0047-learning-produces-proposals.md)). Nothing learned is applied in serving. Adoption is an approval
+by a person holding the privilege, and an adopted artefact re-earns its calibration on data its learner never saw. When
+a new rule bundle, band table or question revision is proposed, a person chooses to activate it, and that act is what is
+recorded as authorship: the requirement that decisions are business-authored
+([ADR 0028](../adr/0028-decisions-are-dmn.md)) is met by the person who activates, whoever or whatever drafted it. An
+optimiser may change only what the declaration leaves open — a question's instructions and criteria, never its answer
+type or options. Cheap local inference makes proposing nearly free; it does not make adopting any cheaper, and that is
+the point.
 
 ## What this does to the other theses
 
@@ -132,7 +141,8 @@ auditable threshold tables in this repository. Both are fixed in the decision pa
 [Thesis 4](04-batteries-are-inherited.md) is unchanged and worth restating: the judgment ledger is an ordinary platform
 resource, and the temptation to exempt "AI infrastructure" from audit for volume reasons is exactly the silent opt-out
 that thesis exists to prevent. [Thesis 6](06-reversibility.md) is unchanged too: the judgments package is tier 3, and
-both instruments are services behind a network boundary that hold no authorization model of their own.
+the in-zone runtimes — the decision-model runtime and the generative runtime — are services behind a network boundary
+that hold no authorization model of their own. There is no hosted instrument.
 
 ## The steelman against this thesis
 
@@ -146,19 +156,13 @@ marketing makes, and much smaller than the one our own early design notes made, 
 decision tables". That phrase is the most dangerous sentence in the material: a pretrained model has not learned *our*
 policy; it estimates what a text says. Policy stays declarative.
 
-There is a second objection, and it is about who we would depend on. The hosted instrument comes from a company that
-had been public for twelve days when this was written. Its accuracy figures are self-reported or reach us through a
-third party's comparison page, and none of them is about our questions.
+There is a second objection, and it is about who we would depend on. The wire protocol and this class of model come
+from a company that had been public for twelve days when this was written. Its accuracy figures are self-reported or
+reach us through a third party's comparison page, and none of them is about our questions.
 
 And a third: learning loops smuggle bias. The only observations a person reviews are the middle band, so any threshold
 tuned on reviewed data, and any rule mined from overrides, inherits that selection. Proposals distilled from it encode
 reviewer habit as much as policy.
-
-And a fourth: it isn't new. It is not, in its formal parts. Grounding predicates with a neural model and evaluating
-them with logic is DeepProbLog (2018) and Scallop (2023); the closest recent work, PL-Guard (2026), has a local model
-ground policy predicates to probabilities that ProbLog rules then combine. Validating model output against declared
-types is TypeChat (2023) and type-constrained decoding (PLDI 2025). Anyone presenting this design as a first would be
-wrong.
 
 ## Why proceed anyway
 
@@ -172,17 +176,21 @@ shown a document and a rule — whether or not a model ever admits a fact on its
 
 So the model is the replaceable part and the substrate is the durable one, and the programme should be judged on the
 narrow claim first: a measured reduction in review time at a fixed error rate, on one slice, in one jurisdiction. The
-answer to the vendor objection is structural rather than contractual — the default instrument runs in the data's zone, a
-contract test watches the wire between two parties with no agreement between them, and removing either instrument
-degrades triage rather than breaking anything. The answer to the bias objection is procedural and mandatory: random
-audit sampling of automatically admitted facts, and every mined rule a proposal that only an approval can promote.
+answer to the vendor objection is structural rather than contractual — every instrument runs in the data's zone, the
+vendor's hosted model is never one of them, what remains of the vendor is a wire specification that an independent
+runtime implements and a contract test pins, and removing an in-zone runtime degrades triage rather than breaking
+anything. The answer to the bias objection is procedural and mandatory: random audit sampling of automatically admitted
+facts, and every mined rule a proposal that only an approval can promote.
 
-The answer to the novelty objection is to claim less. We differ from the probabilistic-logic work on purpose: it
-propagates probabilities through the rules, and we do not. Our rules stay crisp over admitted facts; where a derivation
-is shown, each leaf carries its ledger id, recorded probability and band row as *provenance*, not as a value the rules
-compute with. What is distinctive here is operational rather than formal — admission as an authorized action,
-instrument identity in the ledger, band tables earned by calibration, source-addressed evidence packets — and it is
-judged on one measured slice before it is claimed anywhere else.
+## Related work
+
+Grounding predicates with a neural model and evaluating them with logic is the subject of DeepProbLog (2018) and
+Scallop (2023); PL-Guard (2026) has a local model ground policy predicates to probabilities that ProbLog rules then
+combine, and PolicyGuard (2026) describes the split between a model that grounds atomic facts and deterministic code
+that evaluates the rules. Those systems propagate probabilities through the rules; this design stops them at the
+decision table, so the rules stay crisp over admitted facts, and where a derivation is shown each leaf carries its
+ledger id, recorded probability and band row as provenance rather than as a value the rules compute with. Validating
+model output against declared types is the subject of TypeChat (2023) and type-constrained decoding (PLDI 2025).
 
 ## Further reading
 
@@ -198,7 +206,7 @@ judged on one measured slice before it is claimed anywhere else.
 - [ADR 0035 — compliance is projected from events](../adr/0035-compliance-is-projected-from-events.md)
 - [PolicyGuard: from organizational policies to neuro-symbolic compliance review engines](https://arxiv.org/abs/2606.32004)
   (arXiv 2606.32004, 2026)
-- PL-Guard (arXiv 2608.15673, 2026) — the nearest prior art: a local model grounds policy predicates to probabilities
-  that ProbLog rules combine; the difference from this design is that we do not propagate them
+- PL-Guard (arXiv 2608.15673, 2026) — a local model grounds policy predicates to probabilities that ProbLog rules
+  combine
 - [Conformal selective prediction with cost-aware deferral for safe clinical triage under distribution shift](https://www.nature.com/articles/s41598-026-40637-w)
   (*Scientific Reports*, 2026) — the statistical basis for triage bands

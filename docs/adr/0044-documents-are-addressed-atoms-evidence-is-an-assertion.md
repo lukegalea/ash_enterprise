@@ -4,6 +4,8 @@
 - **Date:** 2026-09-27
 - **Amended:** 2026-09-28 — extract → verify is typed, in-zone and citation-constrained (ADR 0046); retrieval by
   model-written code is foreclosed; the evidence package is named `ash_evidence`
+- **Amended 2026-09-28 (operator answers):** the hosted model's context size dropped (it is never an instrument);
+  documents enter a zone only under an admissible residency tag
 
 ## Context
 
@@ -15,8 +17,8 @@ shape [ADR 0038](0038-models-observe-declarations-decide.md) exists to refuse.
 The facts, verified on 2026-09-27:
 
 - **Local instruments see very little at once.** `laya:typed-decisions` has a 1,024-token context (512 for `laya:en`);
-  `decider` has 32k; hosted Jev has 64k with 32k of state. A realistic document does not fit the default local model,
-  and chunking is therefore a design decision rather than a tuning parameter.
+  `decider` has 32k. No larger hosted model is available to fall back on. A realistic document does not fit the
+  default local model, and chunking is therefore a design decision rather than a tuning parameter.
 - **`ash_rules` facts are scalar triples** compared by strict equality. Provenance — which passage, which model, which
   probability — cannot ride on a fact; it has to live beside it.
 - **`ash_compliance` already has an evidence record.** `EvidenceArtifact` carries a `method` constrained to the OSCAL
@@ -77,7 +79,8 @@ be decoded; the schema has no confidence field. Ash re-casts the reply with ever
 (units, currency, dates, parties) run next. System One then verifies the proposal against the cited atom as a `Noul`.
 The proposal and the verification are separate ledger observations; agreement is evidence, disagreement is a
 pipeline-quality event routed to review, and neither is a fact until admitted. The generative model runs in the
-document's zone by default ([ADR 0042](0042-in-zone-inference-leaving-the-zone-is-a-disclosure.md)).
+document's zone ([ADR 0042](0042-in-zone-inference-leaving-the-zone-is-a-disclosure.md)), and a document version
+enters a zone only if its residency tag is admissible there.
 
 **Assertion, then admission, then fact.** An assertion is a proposal. Admission — by band table and authorized actor
 ([ADR 0041](0041-thresholds-are-dmn-earned-by-calibration.md), [ADR 0043](0043-automation-authority-is-a-grant.md)) —

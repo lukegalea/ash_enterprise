@@ -2,6 +2,8 @@
 
 - **Status:** proposed
 - **Date:** 2026-09-28
+- **Amended 2026-09-28 (operator answers):** related work cited neutrally; the generative instruments are in-zone
+  runtimes only
 
 ## Context
 
@@ -36,7 +38,7 @@ The facts, verified on 2026-09-28 by probing the locked dependencies (`ash_ai` 1
 - **Ash does not cast hand-written generic-action returns.** A generic action declared to return an atom with
   `one_of: [:supports, :contradicts]` whose `run` returns `{:ok, :maybe}` returns `{:ok, :maybe}`; a map with a bounded
   field returned out of bounds passes unchanged. Only `prompt` and `evaluate` implementations cast.
-- **Grammar-constrained decoding is available locally.** llama.cpp's server (`json_schema`, or a raw GBNF grammar),
+- **Grammar-constrained decoding is available in the zone.** llama.cpp's server (`json_schema`, or a raw GBNF grammar),
   Ollama and vLLM compile a JSON Schema into decoding constraints, each with its own keyword coverage (llama.cpp, for
   example, supports string and array length and anchored patterns but bounds only on integers). `req_llm` reaches them.
   **Ollaya does not**: it is a decision-model runtime with no generative endpoint; its models are output-constrained by
@@ -46,10 +48,10 @@ The facts, verified on 2026-09-28 by probing the locked dependencies (`ash_ai` 1
   advisory. Elixir 1.20's inferred types are real and useful, but carry no refinements and are reachable only through
   an internal compiler chunk (`:elixir_checker_v8`) with no public API. A prompt action has no Elixir implementation to
   type in any case: the model is the producer.
-- **The idea is not new.** TypeChat (2023) validates model output against declared TypeScript types and feeds compiler
+- **Related work.** TypeChat (2023) validates model output against declared TypeScript types and feeds compiler
   diagnostics back as a repair prompt; type-constrained decoding (Mündler et al., PLDI 2025) constrains generation with
-  a type system; BAML and schema-derived structured output are standard practice. What this record adds is where the
-  source lives and what a valid answer is allowed to mean.
+  a type system; BAML and schema-derived structured output are established practice. This record decides where the
+  source lives in this platform and what a valid answer is allowed to mean.
 
 ## Decision
 

@@ -320,8 +320,9 @@ not at all, and the audit trail records the verdict without a machine-checkable 
 **What stands in the way here, specifically:** two items in §3 above. A band table that turns probabilities into
 admissions has to be overlap-free and has to record which band fired; `ash_decisions` now does both on its own main
 branch, and this repository's lock predates both, so here the decision trail still cannot say which row matched. The
-hosted instrument is also very new — its vendor had been public for twelve days on the date of this entry — which is why
-the design runs inference in the data's own declared zone by default.
+vendor that defined the decision-model wire protocol is also very new — it had been public for twelve days on the date
+of this entry — which is why the design runs every instrument in the data's own declared zone and uses no hosted model
+at all.
 
 **→ Still open.** Ten records are proposed and none is built:
 [ADR 0038](../adr/0038-models-observe-declarations-decide.md) through

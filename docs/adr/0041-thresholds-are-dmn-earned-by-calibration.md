@@ -2,8 +2,10 @@
 
 - **Status:** proposed
 - **Date:** 2026-09-27
-- **Amended:** 2026-09-28 — region becomes the zone's jurisdiction; a fourth, disjoint *optimise* split; nearest prior
-  art named
+- **Amended:** 2026-09-28 — region becomes the zone's jurisdiction; a fourth, disjoint *optimise* split; related work
+  named
+- **Amended 2026-09-28 (operator answers):** the activating human is the author of record for a band table, whoever or
+  whatever drafted it; related work cited neutrally; the hosted model's figure dropped
 
 ## Context
 
@@ -23,19 +25,18 @@ The facts, verified on 2026-09-27:
   (2026-09-04), so here, today, [thesis 7 §3](../manifesto/07-what-we-do-not-have.md#3-approval-workflows--maker-checker)
   is still accurate: `Evaluation.matched_rule_ids` is always `[]`, and a `UNIQUE` table with overlapping rows publishes.
   A band table that cannot say which band fired, or whose bands overlap, is not auditable.
-- **The vendor accuracy figures are not ours to plan on.** The figures in circulation — 0.766 for `laya:typed-decisions`,
-  0.727 for Jev 1.13, 0.591 for `decider:2b` on a "typed-decisions" benchmark — are all sourced through Ollaya's
-  comparison pages, not a benchmark published by the vendor or anyone independent. They say nothing about any
+- **Published accuracy figures are not ours to plan on.** The figures in circulation — 0.766 for
+  `laya:typed-decisions` and 0.591 for `decider:2b` on a "typed-decisions" benchmark — are sourced through Ollaya's
+  comparison pages, not a benchmark published by anyone independent. They say nothing about any
   particular question family.
 - **The statistical basis exists.** Conformal selective prediction with cost-aware deferral (*Scientific Reports*,
   February 2026, on clinical triage under distribution shift) gives set-valued predictions with finite-sample coverage
   guarantees and defers low-confidence cases — which is the formal statement of an auto-pass / escalate / auto-fail
-  band. PolicyGuard (arXiv 2606.32004, 2026-06-30) is real prior art for the neuro-symbolic split of "the model grounds
-  atomic facts, deterministic code evaluates the rules". The nearest prior art is PL-Guard (arXiv 2608.15673, August
-  2026): a local model grounds policy predicates to probabilities that are then fed into ProbLog rules. The difference
-  is deliberate: PL-Guard propagates probabilities through the rules, and this record stops them at the band table. The
-  "DMN and machine learning loop" framing used in this project's own design notes is our synthesis, not a named pattern
-  in the literature.
+  band. Related work: PolicyGuard (arXiv 2606.32004, 2026-06-30) describes the neuro-symbolic split of "the model
+  grounds atomic facts, deterministic code evaluates the rules"; PL-Guard (arXiv 2608.15673, August 2026) has a local
+  model ground policy predicates to probabilities that are then fed into ProbLog rules. This record differs from
+  PL-Guard in one design choice: it stops probabilities at the band table rather than propagating them through the
+  rules.
 - **A design reference for calibration exists in Elixir.** The `imp` optimiser library (0.5.0, MIT) ships a
   histogram calibrator fitted on disjoint splits that flags an under-sampled fit as non-authoritative
   ([ADR 0047](0047-learning-produces-proposals.md)).
@@ -76,8 +77,11 @@ split used to produce its question version. The audit split is never optimised o
 
 **Activation is a lifecycle act.** Publishing is not activating. A band table activates through the approval lifecycle
 the compliance control plane already uses for rule revisions (validate → approve → activate, with an approver and an
-effective date). A model upgrade is a new calibration run and a new band-table version, evaluated in shadow mode
-([ADR 0040](0040-record-dont-recompute.md)) before it activates.
+effective date). **The person who activates a band table is its author of record** for the purpose of
+[ADR 0028](0028-decisions-are-dmn.md)'s requirement that decisions are business-authored — whoever or whatever drafted
+it, a person, a calibration run or a distillation ([ADR 0047](0047-learning-produces-proposals.md)). A model upgrade is
+a new calibration run and a new band-table version, evaluated in shadow mode ([ADR 0040](0040-record-dont-recompute.md))
+before it activates.
 
 **Tenants tailor within bounds.** A tenant's risk tier may *raise* a threshold or remove an automatic band; it may not
 lower one below the platform baseline. The baseline-and-fork mechanics are ADR 0029's.
@@ -121,7 +125,7 @@ longer a configuration change; it is a recalibration and an approval.
 
 **What it forecloses.** Thresholds in application configuration, tool metadata or code. Probabilities inside
 `ash_rules`. A global "confidence above 0.9" rule assumed to mean the same thing for every question. Planning against
-vendor-reported accuracy.
+published accuracy figures.
 
 ## Reversal
 

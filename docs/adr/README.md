@@ -94,7 +94,9 @@ Their sequencing, and the one rule they were all selected against, is [`../ROADM
 
 0038–0047 are one set for probabilistic "System One" model judgments: 0038–0045 were written together on 2026-09-27
 before any code, and on 2026-09-28 they were amended in place and 0046–0047 added. They are unaccepted, so they are
-amended rather than superseded, and each amended record says so under its date.
+amended rather than superseded, and each amended record says so under its date. A second pass the same day applied the
+operator's answers — no hosted instrument, residency-checked admission into a zone, the activating person as author of
+record, no novelty framing — and is marked "Amended 2026-09-28 (operator answers)" in each record it touched.
 [Thesis 8](../manifesto/08-models-observe-declarations-decide.md) argues the position and
 [`../plans/system-one.md`](../plans/system-one.md) sequences the work. They are not on the roadmap, and several of their
 own decisions are marked pending inside them.

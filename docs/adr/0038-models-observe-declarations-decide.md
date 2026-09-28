@@ -4,10 +4,13 @@
 - **Date:** 2026-09-27
 - **Amended:** 2026-09-28 — the generative rung is in-zone and schema-constrained (ADR 0046); learning loops end in
   proposals (ADR 0047); a fact about local runtimes added
+- **Amended 2026-09-28 (operator answers):** the hosted model is never an instrument — the only instruments are
+  decision models served in the zone and in-zone generative runtimes; the inference pipeline is a separate subsystem
+  that consumes declarations; no novelty framing
 
 ## Context
 
-A new class of model makes a probabilistic judgment cheap enough to put almost anywhere. "System One" models — the
+A class of model makes a probabilistic judgment cheap enough to put almost anywhere. "System One" models — the
 name is the vendor's, borrowed from the fast, intuitive half of Kahneman's pair — answer a typed question (yes/no, pick
 one of N, score on a scale) over a piece of text and return a probability distribution rather than generated prose.
 They run in milliseconds and cost little enough per call that "ask the model" stops being an architectural event and
@@ -21,10 +24,12 @@ The facts, verified on 2026-09-27:
   and `Judgments` (several questions in one request), behind an `AshAi.Evaluate.Answer` behaviour.
   `AshAi.Actions.Result` wraps the answer with the *versioned* model id behind any alias, and usage. `req_llm` 1.24.0
   ships the transport as a `typesafe` provider.
-- **The hosted instrument is new.** TypeSafe AI emerged from stealth on 2026-09-15 — twelve days before this record.
-  Its model, Jev, is text-only, has a 64k-token request context (32k for the state), and is pinnable as `jev-1.13.0`;
-  the `jev-latest` alias moves. No public data-processing agreement or SLA was found, zero data retention is an
-  enterprise contract rather than the default, and no self-hosted option is documented.
+- **The wire protocol's vendor is new, and its hosted model is not available to this programme.** TypeSafe AI, which
+  defined the protocol, emerged from stealth on 2026-09-15 — twelve days before this record. No public data-processing
+  agreement or SLA was found for its hosted model, zero data retention is an enterprise contract rather than the
+  default, and no self-hosted option is documented. That vendor risk is why the design is local-first; the programme
+  has no access to the hosted model in any case, so it is **never an instrument** here. What is kept is the wire
+  specification.
 - **A local instrument exists and is independent.** Ollaya is an Apache-2.0 runtime (binary `ollaya`, port 11435) that
   speaks the same wire protocol and explicitly disclaims affiliation with the vendor. Compatibility is at the API level,
   not output parity. It serves decision models only, on ONNX Runtime and llama.cpp; it has **no generative endpoint**.
@@ -46,6 +51,11 @@ Nothing in this repository calls `evaluate` today. The decision is cheapest to m
 
 **A probabilistic model is a fact producer, never an authorizer and never an evaluator. Instruments observe; Ash
 actions admit; declarations decide.**
+
+The inference pipeline this record governs is a **separate subsystem that consumes declarations**. It reads the
+questions, types, constraints, facts and tables the application already declares, and it adds nothing to what the
+application derives from them; [thesis 1](../manifesto/01-model-your-domain.md)'s premise — declare once, derive the
+rest — is unchanged by it.
 
 Every probabilistic judgment in the platform follows one path, in three steps:
 
@@ -106,9 +116,9 @@ Every question is answered on the cheapest rung that can answer it exactly:
 
 1. **Declaration** — FEEL, rules, constraints, deterministic dimension checks (amounts, dates, units, parties). Free,
    exact, explainable. Used whenever the question is not intrinsically about interpreting language.
-2. **System One** — typed, calibrated, milliseconds, in the data's zone by default. Perception only: relevance, support
+2. **System One** — typed, calibrated, milliseconds, always in the data's zone. Perception only: relevance, support
    or contradiction, classification, verifying a proposed value, routing.
-3. **Generative model** — the residue: extracting open values, drafting text. In-zone by default, decoded under a
+3. **Generative model** — the residue: extracting open values, drafting text. Always in-zone, decoded under a
    schema derived from the Ash declaration ([ADR 0046](0046-the-declaration-is-the-output-contract.md)); leaving the
    zone is a disclosure ([ADR 0042](0042-in-zone-inference-leaving-the-zone-is-a-disclosure.md)). Its output carries no
    self-reported confidence, cites only by constrained id, and is only ever a proposal that a declaration or System One
@@ -130,7 +140,7 @@ called an instrument would be a bug of exactly the kind non-negotiable 3 names.
 ## Consequences
 
 **What this makes easy.** The model becomes a replaceable part. Because nothing authoritative depends on a live answer,
-swapping instrument, runtime or vendor is a change to what gets *observed*, reviewed like a rule change, rather than a
+swapping a model or a runtime is a change to what gets *observed*, reviewed like a rule change, rather than a
 change to what the application *does*. Every existing guarantee — the union of grants, the replayable projection, the
 TCK number, the rules lattice — survives untouched, because none of them ever sees a probability.
 

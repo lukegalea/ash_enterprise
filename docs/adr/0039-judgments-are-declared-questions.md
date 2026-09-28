@@ -4,6 +4,8 @@
 - **Date:** 2026-09-27
 - **Amended:** 2026-09-28 — question lineage; what an optimiser may change (property 6); the package is named
   `ash_judgments`
+- **Amended 2026-09-28 (operator answers):** profiles are in-zone only (no hosted profile); the author of record for a
+  question version is the human who activates it
 
 ## Context
 
@@ -25,14 +27,16 @@ The facts, verified on 2026-09-27:
   new code. Two caveats: `req_llm` does **not** read a `TYPESAFE_BASE_URL` environment variable (the base URL is a
   compile-time default unless passed per call), and its option schema is closed, so custom metadata cannot ride through
   it.
-- **There is no official Elixir SDK from the vendor**, and at least four unofficial community clients, none confirmed
-  maintained. That fact mattered before `req_llm` shipped a provider; it no longer does.
+- **There is no official Elixir SDK from the protocol's vendor**, and at least four unofficial community clients, none
+  confirmed maintained. That fact mattered before `req_llm` shipped a provider; it no longer does. The `typesafe`
+  provider is how this platform calls Ollaya: the wire specification is kept, and the vendor's hosted model is never
+  called ([ADR 0042](0042-in-zone-inference-leaving-the-zone-is-a-disclosure.md)).
 - **This repository already resolves a model per call.** `AshEnterprise.AI.RequestClassifier` passes
   `&AshEnterprise.AI.model/0` as a capture rather than a value, because a `prompt/2` argument evaluated at compile time
   baked build-time configuration into the release.
 - **Instrument limits are real and small.** Ollaya accepts at most 256 questions per request; a `Choice` takes 2–255
   options, with a practical ceiling of roughly 125–250 depending on the model. The local `laya:typed-decisions` model's
-  context is **1,024 tokens** (512 for `laya:en`); `decider` is 32k; hosted Jev is 64k. Ollaya now recommends
+  context is **1,024 tokens** (512 for `laya:en`); `decider` is 32k. Ollaya now recommends
   `winnow:e4b` as its default model.
 - **An Elixir prompt optimiser now exists** (verified 2026-09-28). `imp` 0.5.0 (MIT; first Hex release 2026-09-27) is a
   port of DSPy; its `Optimize.Anything` (marked experimental) searches any JSON-safe structured value against an
@@ -66,10 +70,11 @@ The section name and exact grammar are the package's to settle; the properties a
    and adding an option is a schema change that shows in the manifest like any other.
 2. **Identity is a content hash.** The hash covers the instructions, the criteria, the answer type, the options and the
    version. It is the question's identity in the ledger, exactly as the DMN definition hash and the rule bundle hash are
-   theirs. Editing the wording is a new question. A version may be authored by a person or proposed by an optimiser.
+   theirs. Editing the wording is a new question. A version may be drafted by a person or proposed by an optimiser.
    The question records its lineage (parent hash, proposer, proposer version); lineage is not part of the hash, and a
    machine-proposed version earns calibration exactly like a hand-written one
-   ([ADR 0047](0047-learning-produces-proposals.md)).
+   ([ADR 0047](0047-learning-produces-proposals.md)). Whoever or whatever drafted it, the **author of record** is the
+   person who activates it.
 3. **State is a projection.** A question declares what it sends. Sending a whole record because it was convenient is a
    disclosure decision made by accident ([ADR 0026](0026-ai-governance-is-disclosure.md)).
 4. **It compiles to evaluate actions.** A single-question action and a matrix action (`{:array, answer}` with runtime
@@ -84,9 +89,11 @@ The section name and exact grammar are the package's to settle; the properties a
 **The one new answer kind worth adding is `Evidence`**: a `Choice` over the four-way disposition with fixed criteria
 text. It is generic, so it is proposed upstream to `ash_ai` rather than kept here.
 
-**Profile resolution is host code.** The package resolves a named profile (`:local`, `:hosted`, and later an emulated
-profile over chat models) to a `req_llm` model spec at call time, through a 0-arity capture, following the existing
-`request_classifier.ex` pattern. Which profile is the default, and what each discloses, is
+**Profile resolution is host code.** The package resolves a named profile to a `req_llm` model spec at call time,
+through a 0-arity capture, following the existing `request_classifier.ex` pattern. Every profile is in-zone: a decision
+model served by Ollaya, or a generative model on an in-zone runtime (llama.cpp, Ollama or vLLM) — and, if it is ever
+admitted, an emulated profile over an in-zone generative runtime's log-probabilities. There is no hosted profile. Which
+profile is the default, and the zone rule each obeys, is
 [ADR 0042](0042-in-zone-inference-leaving-the-zone-is-a-disclosure.md).
 
 **Every answer says which rung produced it.** Any surface that shows a judgment shows its provenance alongside:
@@ -117,7 +124,7 @@ declaration; a code review sees the wording, the options and the state it sends 
 calibration, and has to be re-earned ([ADR 0041](0041-thresholds-are-dmn-earned-by-calibration.md)) — which is
 correct, and slower than editing a prompt. Candidate wordings may be machine-proposed, which makes proposing cheap and
 does not make adopting cheap. The 1,024-token context of the default local model forces small states;
-questions that need a whole document have to be decomposed or sent to a larger instrument by declared profile.
+questions that need a whole document have to be decomposed or sent to a larger in-zone model by declared profile.
 
 **What it forecloses.** Ad-hoc model calls with inline prompt strings in application code. Answer types defined by this
 platform in parallel with upstream's. A bespoke HTTP client for the vendor's API. Authoring questions in a third-party

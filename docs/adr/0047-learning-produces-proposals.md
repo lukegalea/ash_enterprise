@@ -2,6 +2,8 @@
 
 - **Status:** proposed
 - **Date:** 2026-09-28
+- **Amended 2026-09-28 (operator answers):** the activating human is the author of record, which is what satisfies
+  ADR 0028's business-authored requirement; reflection and teacher models are in-zone profiles only
 
 ## Context
 
@@ -54,22 +56,29 @@ saw.**
 2. **Nothing learned is applied in serving.** No optimiser operation that promotes or applies an artefact is called
    outside a research job. Adoption is an ordinary Ash action by a person holding the privilege, through the same
    validate → approve → activate lifecycle as a rule revision.
-3. **Adoption re-earns everything.** An adopted question version gets a new content hash, a shadow evaluation
+3. **The activating human is the author of record.** When a new rule bundle, band table or question revision is
+   proposed, a person chooses to deploy or activate it, and that act of activation is what the platform records as
+   authorship. [ADR 0028](0028-decisions-are-dmn.md)'s requirement that decisions are business-authored is satisfied
+   by the activating person, whoever or whatever drafted the artefact — a colleague, an optimiser, a distillation or a
+   rule miner. The drafter is kept as lineage (point 1); it is never the author of record, and no learner can hold the
+   privilege to activate.
+4. **Adoption re-earns everything.** An adopted question version gets a new content hash, a shadow evaluation
    ([ADR 0040](0040-record-dont-recompute.md)), a calibration run on splits it never saw
    ([ADR 0041](0041-thresholds-are-dmn-earned-by-calibration.md)'s optimise split is disjoint from calibration, test
    and audit) and an approval. A distilled row or a mined rule enters the DMN or rules lifecycle as a draft. A
    fine-tuned model is a new instrument with a new digest. Fitted simulation parameters are tenant data under
    [ADR 0029](0029-process-configuration-is-tenant-data.md), used in the simulator only. Re-evaluation after adoption
    produces new observations; it never rewrites old ones.
-4. **Only what the declaration leaves open may be learned.** For a question, that is instructions and per-option
+5. **Only what the declaration leaves open may be learned.** For a question, that is instructions and per-option
    criteria ([ADR 0039](0039-judgments-are-declared-questions.md) property 6). The answer type, the option set, the
    state projection and the family are out of reach.
-5. **Learners obey the zone rule.** A reflection or teacher model is a profile like any other. Sending failing passages
-   to it is a flow, and a flow out of the zone is a disclosure
+6. **Learners obey the zone rule.** A reflection or teacher model is a profile like any other, and like every
+   instrument it runs in the zone — a generative model on an in-zone runtime. Sending failing passages anywhere else
+   would be a flow out of the zone, which is a disclosure
    ([ADR 0042](0042-in-zone-inference-leaving-the-zone-is-a-disclosure.md)).
-6. **Research posture.** Every learning run has a pre-registered pass bar and kill criteria, and records negative
+7. **Research posture.** Every learning run has a pre-registered pass bar and kill criteria, and records negative
    results as findings. A lift is believed only on held-out data.
-7. **Reviewed data is biased.** Anything fit on human verdicts includes the random audit sample, not only the middle
+8. **Reviewed data is biased.** Anything fit on human verdicts includes the random audit sample, not only the middle
    band.
 
 **Where an optimiser library fits.** `imp` is an optional development or research dependency — in a research

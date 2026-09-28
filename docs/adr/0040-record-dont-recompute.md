@@ -4,6 +4,8 @@
 - **Date:** 2026-09-27
 - **Amended:** 2026-09-28 — rows carry zone and data class; generative observations record their wire schema; the
   state-encryption deferral and its trigger
+- **Amended 2026-09-28 (operator answers):** rows carry the source data's residency restriction; the alias rule is
+  stated for in-zone model tags, since the hosted model is never an instrument
 
 ## Context
 
@@ -27,8 +29,8 @@ The facts, verified on 2026-09-27:
   from `change/3` would call it again on replay, and rewrite history with a different answer.
 - **Projectors rebuild from event 0** (`ash_events_projections`' rebuilder), and time-travel and verify operations
   already answer "as of" questions over the log.
-- **Aliases move.** The vendor's `jev-latest` and `jev-preview` point at whatever is current; `jev-1.13.0` is the
-  pinnable id. `AshAi.Actions.Result` reports the versioned id behind an alias.
+- **Tags move.** A runtime's model tags and `-latest`-style aliases point at whatever is current; only a digest pins a
+  model. `AshAi.Actions.Result` reports the versioned id behind an alias.
 - **`req_llm` ships a fixture step** for tests; it is not a production replay mechanism.
 
 ## Decision
@@ -50,8 +52,8 @@ A row carries, at least:
 - the instrument: profile, zone, model spec, **resolved model digest and runtime version**;
 - for a generative observation, the hash of the exact wire schema, the grammar-capable runtime and its version, and
   the raw reply before the Ash cast ([ADR 0046](0046-the-declaration-is-the-output-contract.md));
-- usage, latency, cache key, correlation id, tenant, **zone and data class** (the region, or jurisdiction, is the
-  zone's — [ADR 0042](0042-in-zone-inference-leaving-the-zone-is-a-disclosure.md));
+- usage, latency, cache key, correlation id, tenant, **zone, data class and the source data's residency restriction**
+  (the region, or jurisdiction, is the zone's — [ADR 0042](0042-in-zone-inference-leaving-the-zone-is-a-disclosure.md));
 - the band and the band-table version that classified it, once it has been banded.
 
 A human verdict on a judgment is a separate, audited create that references it, carrying the question, the state
@@ -117,7 +119,7 @@ fixture, the calibration unit and the training example.
 free text drawn from documents, which is the worst kind of personal data to accumulate. Cache TTLs have to be chosen
 per family, and a stale-but-cached answer is a real failure mode that only a TTL and a digest change prevent.
 
-**What it forecloses.** Re-scoring history silently. Using `jev-latest`, or any alias, where an answer can become a fact.
+**What it forecloses.** Re-scoring history silently. Using a floating tag or alias where an answer can become a fact.
 Projectors or rebuilds that reach an instrument.
 
 ## Reversal

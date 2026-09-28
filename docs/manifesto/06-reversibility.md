@@ -239,12 +239,14 @@ features:
   authorization model, and it expresses maker-checker as a deny rule, which this repository forbids outright. →
   [ADR 0015](../adr/0015-approvals-stay-in-ash.md)
 
-**Proposed, not yet built:** a local decision-model runtime (working binary `ollaya`) and a hosted decision-model vendor
-belong in this same category, per [ADR 0042](../adr/0042-in-zone-inference-leaving-the-zone-is-a-disclosure.md). Both
-are reached only through the judgments package's evaluate action, both see only what the requesting actor already could,
-and neither holds a copy of `ActorContext` or a permission model of its own to keep in sync — which is why either clears
-rule 1. Removing either degrades triage rather than breaking anything, which clears rule 2, and is the whole of the
-hedge against a hosted vendor that is, as of this writing, twelve days old.
+**Proposed, not yet built:** a local decision-model runtime (working binary `ollaya`) and a local generative runtime
+(llama.cpp, Ollama or vLLM), both running in the data's declared zone, belong in this same category, per
+[ADR 0042](../adr/0042-in-zone-inference-leaving-the-zone-is-a-disclosure.md). Both are reached only through the
+judgments package's actions, both see only what the requesting actor already could, and neither holds a copy of
+`ActorContext` or a permission model of its own to keep in sync — which is why either clears rule 1. Removing either
+degrades triage rather than breaking anything, which clears rule 2. No hosted model is an instrument: the only thing
+taken from the vendor that defined the decision-model wire protocol — a vendor that is, as of this writing, twelve days
+old — is the wire specification itself, which the independent local runtime implements.
 
 One case does not fit comfortably, and stating it is more useful than smoothing it. **OpenMetadata's own RBAC resolves
 Allow/Deny effects with deny winning** — the exact inverse of [thesis 3](03-authorization-is-data.md)'s pure union, and

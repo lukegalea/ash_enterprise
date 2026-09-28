@@ -4,6 +4,8 @@
 - **Date:** 2026-09-27
 - **Amended:** 2026-09-28 — "local only" becomes "in-zone only"; the coding agent is itself outside the zone; offline
   optimisation of tooling questions is a proposal
+- **Amended 2026-09-28 (operator answers):** there is no hosted instrument; coding-agent sessions carry attribution
+  but are outside the programme's cost tracking for now
 
 ## Context
 
@@ -73,11 +75,15 @@ judgments.
 **The same optional pattern.** The System One integration is an optional dependency of the tooling, detected at runtime.
 With no instrument running, every tool behaves exactly as today.
 
-**In-zone only.** Tooling judgments run against an instrument in the zone that holds the source they read. Source code
-is not sent to a hosted instrument by default, and choosing to is the same disclosure decision as for product data
-([ADR 0042](0042-in-zone-inference-leaving-the-zone-is-a-disclosure.md)). The coding agent that consumes these signals
-is typically a hosted model itself, so what it reads has already left the zone: acceptable for source code and
-synthetic fixtures, never for customer-confidential data.
+**In-zone only.** Tooling judgments run against an instrument in the zone that holds the source they read; there is
+no hosted instrument to send source code to ([ADR 0042](0042-in-zone-inference-leaving-the-zone-is-a-disclosure.md)).
+The coding agent that consumes these signals is typically a hosted model itself, so what it reads has already left the
+zone: acceptable for source code and synthetic fixtures, never for customer-confidential data.
+
+**Coding agents are attributed, not cost-tracked.** A coding-agent session that works on this programme carries
+attribution — commit trailers and tracker comments name it — so its work is traceable like any other contributor's.
+It is excluded from the programme's per-run cost tracking for now: it is paid for as a flat subscription, not per
+call, and separate cost tracking for it is a later concern.
 
 ## Does it consume ActorContext?
 
