@@ -4,8 +4,8 @@ defmodule AshEnterpriseWeb.Plugs.CheckCodegenStatus do
   in an owned schema (`ASH_SCHEMA` set, see `config/dev.exs`).
 
   The resource snapshots record each foreign key's destination schema as
-  `AshEnterprise.Repo.default_prefix/0` returned on the machine that generated
-  them, which is `"public"`. With `ASH_SCHEMA=canonical` the same callback
+  whatever the repo's default_prefix callback returned on the machine that
+  generated them, which is `"public"`. With `ASH_SCHEMA=canonical` the same callback
   returns `"canonical"`, so the dev-time check sees every such key as changed
   and answers every request with `PendingCodegen`. That is not drift: the
   migrations resolve those keys with `prefix: prefix()` and replay cleanly into
