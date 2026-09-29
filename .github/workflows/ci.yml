@@ -217,6 +217,25 @@ jobs:
       - name: Validate agent docs (EXTRA_DOCS)
         run: scripts/extra-docs.sh
 
+      # app.js imports first-party hooks straight out of deps/ (ash_a2ui,
+      # ash_bpmn, ash_decisions), so bumping a dependency can break the bundle
+      # without touching a line in this repository. ash_a2ui 9b67282 did
+      # exactly that: it imported a class @a2ui/web_core 0.10.x does not
+      # export, and nothing noticed until a downstream workspace built assets.
+      # Placed after the MIX_ENV=dev steps so it reuses their compile, which
+      # also writes the colocated hooks that esbuild resolves from _build.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: assets/package-lock.json
+
+      - name: Build assets
+        run: |
+          npm ci --prefix assets
+          MIX_ENV=dev mix assets.setup
+          MIX_ENV=dev mix assets.build
+
   dialyzer:
     name: Dialyzer (advisory)
     runs-on: ubuntu-latest

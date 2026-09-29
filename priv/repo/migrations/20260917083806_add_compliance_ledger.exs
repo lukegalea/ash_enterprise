@@ -48,7 +48,7 @@ defmodule AshEnterprise.Repo.Migrations.AddComplianceLedger do
     """)
 
     execute("""
-    CREATE TABLE IF NOT EXISTS "public"."legacy_change_events" (
+    CREATE TABLE IF NOT EXISTS "legacy_change_events" (
       id bigserial PRIMARY KEY,
       source_system text,
       source_schema text NOT NULL,
@@ -71,12 +71,14 @@ defmodule AshEnterprise.Repo.Migrations.AddComplianceLedger do
 
     execute("""
     CREATE INDEX IF NOT EXISTS legacy_change_events_unprocessed_idx
-      ON "public"."legacy_change_events" (processed_at)
+      ON "legacy_change_events" (processed_at)
       WHERE processed_at IS NULL
     """)
 
     execute("""
-    CREATE OR REPLACE FUNCTION "public"."strangler_ledger_legacy_users"() RETURNS trigger AS $strangler$
+    CREATE OR REPLACE FUNCTION "strangler_ledger_legacy_users"() RETURNS trigger
+    SET search_path FROM CURRENT
+    AS $strangler$
     DECLARE
       event_id bigint;
       affected record;
@@ -107,7 +109,7 @@ defmodule AshEnterprise.Repo.Migrations.AddComplianceLedger do
       -- Committed WITH the legacy write or not at all: that is the whole
       -- guarantee the ledger exists for, and it is why this is a synchronous
       -- insert rather than a queue.
-      INSERT INTO "public"."legacy_change_events"
+      INSERT INTO "legacy_change_events"
         (source_schema, source_table, operation, primary_key, old_row, new_row,
          changed_columns, transaction_id, transaction_timestamp)
       VALUES
@@ -131,7 +133,7 @@ defmodule AshEnterprise.Repo.Migrations.AddComplianceLedger do
     execute("""
     CREATE OR REPLACE TRIGGER "strangler_ledger_legacy_users"
       AFTER INSERT OR UPDATE OR DELETE ON legacy.users
-      FOR EACH ROW EXECUTE FUNCTION "public"."strangler_ledger_legacy_users"();
+      FOR EACH ROW EXECUTE FUNCTION "strangler_ledger_legacy_users"();
     """)
 
     # One-time cleanup, hand-added: the 20260819 read-model migration installed
@@ -160,15 +162,15 @@ defmodule AshEnterprise.Repo.Migrations.AddComplianceLedger do
     """)
 
     execute("""
-    DROP FUNCTION IF EXISTS "public"."strangler_ledger_legacy_users"() CASCADE;
+    DROP FUNCTION IF EXISTS "strangler_ledger_legacy_users"() CASCADE;
     """)
 
     execute("""
-    DROP INDEX IF EXISTS "public"."legacy_change_events_unprocessed_idx";
+    DROP INDEX IF EXISTS "legacy_change_events_unprocessed_idx";
     """)
 
     execute("""
-    DROP TABLE IF EXISTS "public"."legacy_change_events";
+    DROP TABLE IF EXISTS "legacy_change_events";
     """)
 
     execute("""
