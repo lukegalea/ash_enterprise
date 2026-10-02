@@ -33,6 +33,64 @@ Most "workflow" requests are a single approval gate. `ash_bpmn` ships two layers
 
 You get: a human task with assignee, due date and outcome; candidates **materialized as rows**; maker-checker applied when candidates are resolved; delegation; remind/escalate/expire timers as Oban jobs that are cancelled when the task completes; and a process event log an auditor can read.
 
+## The maker-checker pair
+
+The gate will name the role `refund_approver`, and the host `AssignmentResolver` turns that clause into candidate rows by filtering `AshEnterprise.Security.UserRole` on `role.name == "refund_approver"` (`lib/ash_enterprise/process/assignment_resolver.ex`). The seeds create one administrator and no such role, so build the pair yourself — a role with exactly that name, a second user to hold it, and the assignment, in the same shape the seeder uses. Candidates are materialized **when the task is created**, so this has to exist before you propose anything.
+
+```elixir
+require Ash.Query
+
+maker = Ash.read_first!(AshEnterprise.Accounts.User, authorize?: false)
+tenant = maker.organization_id
+root = maker.owning_business_unit_id
+
+role =
+  AshEnterprise.Security.Role
+  |> Ash.Query.filter(name == "refund_approver")
+  |> Ash.read_one!(actor: maker, tenant: tenant) ||
+    AshEnterprise.Security.Role
+    |> Ash.Changeset.for_create(:create, %{name: "refund_approver", owning_business_unit_id: root},
+      actor: maker, tenant: tenant
+    )
+    |> Ash.create!()
+
+role.name
+```
+
+```elixir
+checker =
+  AshEnterprise.Accounts.User
+  |> Ash.Query.filter(email == "checker@example.com")
+  |> Ash.read_one!(authorize?: false) ||
+    AshEnterprise.Accounts.User
+    |> Ash.Changeset.for_create(:register_with_password,
+      %{email: "checker@example.com", password: "password1234", password_confirmation: "password1234"},
+      authorize?: false
+    )
+    |> Ash.create!()
+
+checker =
+  checker
+  |> Ash.Changeset.for_update(:assign_to_business_unit, %{owning_business_unit_id: root},
+    actor: maker, tenant: tenant
+  )
+  |> Ash.update!()
+
+AshEnterprise.Security.UserRole
+|> Ash.Query.filter(user_id == ^checker.id and role_id == ^role.id)
+|> Ash.read_one!(actor: maker, tenant: tenant) ||
+  AshEnterprise.Security.UserRole
+  |> Ash.Changeset.for_create(:assign,
+    %{user_id: checker.id, role_id: role.id, scoping_business_unit_id: root},
+    actor: maker, tenant: tenant
+  )
+  |> Ash.create!()
+
+"#{checker.email} holds #{role.name}"
+```
+
+The name must be exactly `"refund_approver"`: the resolver matches on it, and an almost-right name resolves to nobody — a task nobody can claim, which presents as a silent stall. (`authorize?: false` on registration is the seeder's own path: registering a user is an authentication action, not a tenant write.)
+
 ## Gate the refund
 
 Change the Refund so that proposing it opens an approval, and approval runs `:approve`:
@@ -58,8 +116,34 @@ end
 Three things to internalize:
 
 1. **Maker-checker is never a `forbid_if`.** It is `excluding:`, applied when candidate rows are built. A policy that forbids the maker is evaluated per row per request; a subtraction is done once, and the task list stays one indexed query.
-2. **`on_complete` names actions.** The host's `ActionInvoker` runs them. Your `validate attribute_equals(:status, :proposed)` from lesson 15 still guards `:approve`, for this caller and every other.
+2. **`on_complete` names actions — through an allowlist.** Actions are run by the host's `AshBpmn.ActionInvoker`, which in this app is a **closed, reviewed list in code** (`lib/ash_enterprise/process/action_invoker.ex`): a diagram is tenant-authored input, so it may only name refs the host registered, and publish-time `exists?/1` refuses anything else. Your `validate attribute_equals(:status, :proposed)` from lesson 15 still guards `:approve`, for this caller and every other.
 3. **The rule "who approves" is not here.** Today it is a fixed role. In lesson 21 it comes from the `refund_approver` decision.
+
+## Register the on_complete refs
+
+`approve` and `reject` are not in the invoker's registry yet — without them, the task completes and the refund quietly stays `:proposed`. Register both, the way the invoker's own error message tells you to:
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+# lib/ash_enterprise/process/action_invoker.ex, inside @registry
+"approve" => %{
+  run: fn ctx ->
+    AshEnterprise.Tutorial.approve_refund!(ctx[:subject], AshEnterprise.Process.EngineContext.engine_opts(ctx))
+    :ok
+  end,
+  action: {AshEnterprise.Tutorial.Refund, :approve}
+},
+"reject" => %{
+  run: fn ctx ->
+    AshEnterprise.Tutorial.reject_refund!(ctx[:subject], AshEnterprise.Process.EngineContext.engine_opts(ctx))
+    :ok
+  end,
+  action: {AshEnterprise.Tutorial.Refund, :reject}
+}
+```
+
+The `run` function is what execution calls. `engine_opts/1` swaps the engine's own actor — a struct your policies have never heard of, so a host action called with it is simply forbidden — for `AshEnterprise.Platform.SystemActor.process()`, and carries the tenant from the subject. The `action:` tuple is what the designer's panel introspects, so the catalogue cannot drift from what runs. `recompile()` in the attached node.
 
 ## Work the task
 
@@ -78,15 +162,16 @@ Propose a refund as one user, list the tasks of a second user with `AshBpmn.my_t
   ```elixir
   refund = AshEnterprise.Tutorial.propose_refund!("T-2001", Decimal.new("300"), actor: maker, tenant: tenant)
 
-  [task | _] = AshBpmn.my_tasks(AshEnterprise.Bpmn, actor: checker, tenant: tenant)
+  [task | _] =
+    AshBpmn.my_tasks(AshEnterprise.Bpmn, principal_ids: [checker.id], actor: checker, tenant: tenant)
   task = AshBpmn.claim_task!(task, actor: checker, tenant: tenant)
   AshBpmn.decide!(task, outcome: :approved, actor: checker, tenant: tenant)
 
-  AshBpmn.my_tasks(AshEnterprise.Bpmn, actor: maker, tenant: tenant)   # no refund task
-  Ash.reload!(refund, actor: checker, tenant: tenant).status          # :approved
+  AshBpmn.my_tasks(AshEnterprise.Bpmn, principal_ids: [maker.id], actor: maker, tenant: tenant)  # no refund task
+  Ash.reload!(refund, actor: checker, tenant: tenant).status                                     # :approved
   ```
 
-  Check the exact option names with `h AshBpmn.decide/2` and `h AshBpmn.my_tasks/2`. If the maker *does* see the task, the bug is in candidate resolution, so debug `excluding:` and the host `AssignmentResolver`, not policies.
+  The task list is one indexed query over candidate rows, so `my_tasks/2` wants the actor's **principal ids**, not just the actor — check the exact options with `h AshBpmn.my_tasks/2`, and the same for `decide/2`. If the maker *does* see the task, the bug is in candidate resolution, so debug `excluding:` and the host `AssignmentResolver`, not policies.
 
   </div>
 </details>
@@ -99,6 +184,8 @@ Look at the Oban jobs for the task before and after deciding. The escalation job
 import Ecto.Query
 AshEnterprise.Repo.all(from j in Oban.Job, where: j.state in ["scheduled", "available"], select: {j.worker, j.args})
 ```
+
+When you are finished with the whole tutorial, the overview's **When you're done** recipe reverts the invoker registry edit — the one tracked file this lesson touches — along with everything else.
 
 <div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
 <div class="flex">

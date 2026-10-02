@@ -25,7 +25,7 @@ SPDX-License-Identifier: MIT
 
 <!-- livebook:{"break_markdown":true} -->
 
-Runtime: **attached node** (see the overview). Start the app with `iex --sname ae --cookie tutorial -S mix phx.server` (or `iex-server` under devenv).
+Runtime: **attached node** (install and setup are in the overview). Start the app with `devenv shell -- iex --name ae@127.0.0.1 --cookie tutorial -S mix phx.server` — the long name is on purpose: Livebook runs as a long-named node and cannot reach a short-named one. If port 4000 was busy and you started with `PORT=4001`, the `localhost:4000` URLs below move with it.
 
 ## Why an agent needs more than grep
 
@@ -59,8 +59,8 @@ They are complementary by structure: the language server reads Elixir and cannot
 }
 ```
 
-* **tidewave** and **ash_ai_dev** live inside the running dev server on :4000. They show as disconnected until `iex-server` is up.
-* **ash-agent** is a *separate* VM: `mix ash_agent.serve`. It is compile-only (your app is never started: no Oban queues draining, no projectors running), loopback only on `127.0.0.1:4100`, and recompiles on file change. Do **not** run it inside the `iex-server` VM.
+* **tidewave** and **ash_ai_dev** live inside the running dev server on :4000. They show as disconnected until that server is up.
+* **ash-agent** is a *separate* VM: `mix ash_agent.serve`. It is compile-only (your app is never started: no Oban queues draining, no projectors running), loopback only on `127.0.0.1:4100`, and recompiles on file change. Do **not** run it inside the dev server's VM.
 * **Serena** is optional and not configured in the repo. If you use it, point its Elixir backend at Expert through `.serena/project.yml`:
 
 <!-- livebook:{"force_markdown":true} -->
@@ -191,12 +191,12 @@ Later lessons add layers that are hard to debug by reading code, because the beh
 | Layer | Call | Shell |
 |---|---|---|
 | State machine | `AshAgentTools.transitions(Resource)` | `mix ash_agent.transitions Resource` (with Mermaid) |
-| Rules (16) | `AshAgentTools.evaluate_rules(Module, facts)` | `mix ash_agent.rules --facts ...` |
-| Decisions (18) | `AshAgentTools.decisions/0`, `decision_evaluate(key, inputs)` | `mix ash_agent.evaluate key '{...}'`, a dry run that records nothing |
-| Processes (20) | `processes/0`, `process_graph(key)`, `process_instance(key: ...)` | `mix ash_agent.instance --key k` shows where a token is stuck |
+| Rules (17) | `AshAgentTools.evaluate_rules(Module, facts)` | `mix ash_agent.rules --facts ...` |
+| Decisions (19) | `AshAgentTools.decisions/0`, `decision_evaluate(key, inputs)` | `mix ash_agent.evaluate key '{...}'`, a dry run that records nothing |
+| Processes (21) | `processes/0`, `process_graph(key)`, `process_instance(key: ...)` | `mix ash_agent.instance --key k` shows where a token is stuck |
 | Runtime | (boots the app on purpose) | `mix ash_agent.runtime snapshot`, `top 20`, `tree AshEnterprise` |
 
-List the decision catalogue now. It may be empty until lesson 18; that is an answer too.
+List the decision catalogue now. It may be empty until lesson 19 publishes one; that is an answer too.
 
 **Enter your solution**
 

@@ -49,6 +49,118 @@ Every node resolves to a **host seam**, and the seams are where Ash lives:
 * **Conditions are FEEL** (`=` not `==`), validated at publish, stored as source text.
 * **A gateway never calls a decision.** The composition is: business rule task → promote a scalar signal → gateway reads `routing.<name>`.
 
+## Setup: the billing action moves into the app
+
+Lesson 13's billing domain only ever existed inside that notebook's `Mix.install`. The process is about to invoke it for real, so give it a home: create `lib/ash_enterprise/tutorial/billing.ex` with the lesson 13 definitions — same modules, same shapes — plus the `:idempotency_key` argument lesson 13 told you to add:
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+# lib/ash_enterprise/tutorial/billing.ex — lesson 13's domain, in the app now
+defmodule Tutorial.Billing.Client do
+  def req, do: Req.new(base_url: "https://jsonplaceholder.typicode.com", retry: :transient)
+end
+
+defmodule Tutorial.Billing.Account.Read do
+  use Ash.Resource.ManualRead
+
+  def read(query, _data_layer_query, _opts, _context) do
+    path =
+      case query.arguments do
+        %{id: id} when not is_nil(id) -> "/users/#{id}"
+        _ -> "/users"
+      end
+
+    case Req.get(Tutorial.Billing.Client.req(), url: path) do
+      {:ok, %{status: 200, body: body}} -> {:ok, body |> List.wrap() |> Enum.map(&to_record/1)}
+      {:ok, %{status: 404}} -> {:ok, []}
+      {:ok, %{status: s}} -> {:error, "billing API returned #{s}"}
+      {:error, e} -> {:error, e}
+    end
+  end
+
+  defp to_record(m),
+    do: struct(Tutorial.Billing.Account, id: m["id"], name: m["name"], email: m["email"], company: m["company"]["name"])
+end
+
+defmodule Tutorial.Billing.Account do
+  use Ash.Resource, domain: Tutorial.Billing, data_layer: Ash.DataLayer.Simple
+
+  attributes do
+    integer_primary_key :id
+    attribute :name, :string, public?: true
+    attribute :email, :ci_string, public?: true
+    attribute :company, :string, public?: true
+  end
+
+  actions do
+    read :read do
+      primary? true
+      argument :id, :integer
+      manual Tutorial.Billing.Account.Read
+    end
+
+    # The remote write: a verb, not a row. The idempotency key rides in a
+    # header, so an Oban redelivery cannot credit the same refund twice.
+    action :issue_credit, :map do
+      argument :account_id, :integer, allow_nil?: false
+      argument :amount, :decimal, allow_nil?: false, constraints: [greater_than: 0]
+      argument :idempotency_key, :string
+
+      run fn input, _ctx ->
+        body = %{userId: input.arguments.account_id, amount: Decimal.to_string(input.arguments.amount)}
+        headers =
+          if input.arguments.idempotency_key,
+            do: [{"idempotency-key", input.arguments.idempotency_key}],
+            else: []
+
+        case Req.post(Tutorial.Billing.Client.req(), url: "/posts", json: body, headers: headers) do
+          {:ok, %{status: 201, body: b}} -> {:ok, b}
+          {:ok, %{status: s}} -> {:error, "billing API returned #{s}"}
+          {:error, e} -> {:error, e}
+        end
+      end
+    end
+  end
+end
+
+defmodule Tutorial.Billing do
+  use Ash.Domain
+
+  resources do
+    resource Tutorial.Billing.Account do
+      define :list_accounts, action: :read
+      define :get_account, action: :read, args: [:id], get?: true
+      define :issue_credit, args: [:account_id, :amount, :idempotency_key]
+    end
+  end
+end
+```
+
+No table, no migration: `Ash.DataLayer.Simple` stores nothing, which is the point — this models somebody else's API (lesson 13). Save the file, `recompile()` in the attached node, and register the ref in the invoker's allowlist, the way lesson 20 registered `approve` and `reject`:
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+# lib/ash_enterprise/process/action_invoker.ex, inside @registry
+"issue_credit" => %{
+  run: fn ctx ->
+    inputs = if is_map(ctx[:inputs]), do: ctx[:inputs], else: %{}
+
+    Tutorial.Billing.issue_credit!(
+      inputs["account_id"],
+      Decimal.new(to_string(inputs["amount"])),
+      inputs["idempotency_key"] || ctx[:subject].id
+    )
+
+    :ok
+  end,
+  action: {Tutorial.Billing.Account, :issue_credit}
+}
+```
+
+`recompile()` again. Until a ref is in that registry it cannot be drawn, published or run — that is the allowlist doing its job.
+
 ## Design it
 
 In the designer, model `refund`:
@@ -56,8 +168,8 @@ In the designer, model `refund`:
 1. Start → **businessRuleTask** `Who approves?`, decision `refund_approver`, `ash:inputs` `amount = subject.amount`, `tier = subject.customer_tier`, `ash:promote` `approver`.
 2. Exclusive gateway on `routing.approver`: `"none"` → step 4; otherwise → step 3.
 3. **userTask** `Approve refund`, candidates from `routing.approver`, excluding `subject.created_by_id`. For `subject.amount > 2000`, a parallel gateway adds a second userTask for `risk`, joined after.
-4. **serviceTask** `Issue credit`, action `Tutorial.Billing.issue_credit`, inputs `account_id`, `amount`, `idempotency_key = subject.id`.
-5. **serviceTask** `Mark approved`, action `AshEnterprise.Tutorial.Refund.approve` → End.
+4. **serviceTask** `Issue credit`, action ref `issue_credit` (registered above), `ash:inputs` `account_id = 3` (the JSONPlaceholder account from lesson 13), `amount = subject.amount`, `idempotency_key = subject.id`.
+5. **serviceTask** `Mark approved`, action ref `approve` — lesson 20's ref, which runs `Refund.approve` as the process system actor → End.
 
 The action and decision fields are comboboxes fed by the host's catalogue (`AshEnterprise.Process.DesignerCatalogue`). The catalogue is the allowlist for authoring; at publish, `exists?/1` on the invoker and resolver verifies every reference, so a diagram cannot ship against an action or decision that does not exist.
 
@@ -89,6 +201,8 @@ Start an instance for a refund and follow its token with your agent.
 
   </div>
 </details>
+
+When you are finished with the whole tutorial, the overview's **When you're done** recipe removes `billing.ex` and reverts the invoker registry edit along with everything else.
 
 ## Idempotency
 

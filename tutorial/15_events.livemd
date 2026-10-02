@@ -98,13 +98,13 @@ defmodule AshEnterprise.Tutorial.Refund do
 end
 ```
 
-Add `AshEnterprise.Tutorial` to `config :ash_enterprise, ash_domains: [...]`, then:
+Three steps, and the order matters. First create the files above, then add `AshEnterprise.Tutorial` to `config :ash_enterprise, ash_domains: [...]` in `config/config.exs` — the codegen task discovers domains through that list. Then, in a normal terminal (not the attached IEx; these are mix tasks and boot their own node), generate and run the migration:
 
 ```bash
-mix ash.codegen tutorial_refunds && mix ash.migrate
+devenv shell -- mix ash.codegen --dev
 ```
 
-and `recompile()` in the attached node. Notice there is no `uuid_primary_key`, no `organization_id`, no timestamps and no `events do` block. Ask your agent (lesson 14) where they came from:
+`--dev` names the migration for you and applies it, which is what you want while learning; the overview says when to name one for real. Finally **restart the app node** (Ctrl-C twice, then the overview's start command) and reconnect Livebook's runtime, re-running the actor/tenant cell below once you are reattached. Application env is read at boot, so no amount of `recompile()` will register a domain that was added after the node started. Notice there is no `uuid_primary_key`, no `organization_id`, no timestamps and no `events do` block. Ask your agent (lesson 14) where they came from:
 
 ```elixir
 AshAgentTools.describe_resource(AshEnterprise.Tutorial.Refund)
@@ -188,6 +188,8 @@ Events are as meaningful as action names. Add `update :request_info` that accept
 
   </div>
 </details>
+
+When you are finished with the whole tutorial, the overview's **When you're done** recipe rolls back this lesson's migration and reverts its config line and snapshots.
 
 <div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
 <div class="flex">

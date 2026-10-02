@@ -80,7 +80,7 @@ defmodule AshEnterprise.Tutorial.Changes.RecordRefundEvent do
         metadata: %{"organization_id" => refund.organization_id},
         occurred_at: DateTime.utc_now()
       })
-      |> Ash.create!(actor: AshEnterprise.Platform.SystemActor.projector())
+      |> Ash.create!(actor: AshEnterprise.Platform.SystemActor.projection())
 
       {:ok, refund}
     end)
@@ -88,7 +88,7 @@ defmodule AshEnterprise.Tutorial.Changes.RecordRefundEvent do
 end
 ```
 
-Add `change {AshEnterprise.Tutorial.Changes.RecordRefundEvent, as: :refund_approved}` to the Refund's `:approve` action. (Look up the exact system actor function your checkout exposes with `mix ash_agent.search SystemActor`; do not guess.)
+Add `change {AshEnterprise.Tutorial.Changes.RecordRefundEvent, as: :refund_approved}` to the Refund's `:approve` action. The actor is the strangler projector's system actor — the writer here is the projection machinery, not a person. The set of named system actors is closed; `mix ash_agent.search SystemActor` lists them, so look before you reach for a name.
 
 ## Step 2: the shape
 
@@ -136,7 +136,7 @@ Write `AshEnterprise.Tutorial.RefundStats` with the `AshEvents.Projections.Proje
   ```
 
   The transformer derives the `:by_grain` identity from `grain_fields`. Declaring it yourself is a mistake.
-  Register it in the domain, then `mix ash.codegen tutorial_refund_stats && mix ash.migrate`.
+  Register it in the domain, then `devenv shell -- mix ash.codegen --dev` in a terminal, as in lesson 15.
 
   </div>
 </details>
@@ -229,6 +229,8 @@ Show `approved_count` for the refund's organization and day directly on a Refund
 
   </div>
 </details>
+
+When you are finished with the whole tutorial, the overview's **When you're done** recipe rolls back this lesson's table and snapshot and reverts the `projectors:` config line — forget that line and the node will not boot.
 
 <div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
 <div class="flex">
