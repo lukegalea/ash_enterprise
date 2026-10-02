@@ -65,4 +65,25 @@ defmodule AshEnterprise.Judgments.ProfileConfigTest do
     # The package's region guard refuses every profile when it is missing.
     assert Application.get_env(:ash_judgments, :region) == :ca
   end
+
+  test "the generative rung is declared in-zone and in-region (ADR 0046)" do
+    # The policy-proposal mechanism (S1-61) drafts through a generative
+    # instrument; the *_generative name is the rung marker — the profile
+    # schema carries no rung field, so the host convention carries it.
+    generative =
+      Profile.registry()
+      |> Enum.filter(&(&1.name |> Atom.to_string() |> String.ends_with?("_generative")))
+
+    assert [%{name: :winnow_generative} = profile] = generative
+
+    assert profile.residency == :in_cluster,
+           "generative instruments are in-zone runtimes only (ADR 0046, as amended)"
+
+    assert profile.region == :ca
+    assert profile.model == "winnow:e4b"
+    # Endpoints and keys ride {:system, var} indirection only — never a
+    # committed value (AST-86 wiring; §9).
+    assert {:system, _} = profile.base_url
+    assert {:system, _} = profile.api_key
+  end
 end

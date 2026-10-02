@@ -58,9 +58,18 @@ defmodule AshEnterprise.SystemOne.QuestionProposal.Transport do
     # branch from Dialyzer's success typing of model_spec/3.
     @dialyzer {:nowarn_function, resolve: 1}
     def resolve(profile) do
-      with {:ok, spec} <- Profile.model_spec(%{profile: profile, family: :policy_proposals}),
-           {:ok, req_llm_opts} <- Profile.req_llm_opts(profile) do
-        {:ok, spec, req_llm_opts}
+      # The profile machinery runs the guards that matter — residency
+      # (ADR 0042), the region rule, pin — then the transport translates
+      # to the GENERATIVE wire: the profile registry's wire vocabulary is
+      # the decision wire (`:typesafe`, /v1/systemone) and the generative
+      # in-zone runtimes speak the Ollama-compatible wire (S1-21 proved
+      # /api/generate on the M5 Pro host), which req_llm reaches with an
+      # `ollama:` spec and the profile's own transport opts.
+      with {:ok, _decision_spec} <-
+             Profile.model_spec(%{profile: profile, family: :policy_proposals}),
+           {:ok, req_llm_opts} <- Profile.req_llm_opts(profile),
+           {:ok, %Profile{} = resolved} <- Profile.fetch(profile) do
+        {:ok, "ollama:" <> resolved.model, req_llm_opts}
       end
     end
 

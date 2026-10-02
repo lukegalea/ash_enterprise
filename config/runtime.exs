@@ -83,6 +83,22 @@ config :ash_judgments,
       api_key: {:system, "OLLAYA_API_KEY"},
       residency: :in_cluster,
       region: :ca
+    ],
+    [
+      # The generative rung on the same M5 Pro host (S1-21 proved
+      # /api/generate there): policy-to-question proposals
+      # (AshEnterprise.SystemOne.QuestionProposal) draft through this
+      # profile. The profile registry's wire vocabulary is the decision
+      # wire today, so the proposal transport translates the resolved
+      # profile to the Ollama-compatible generative wire at call time —
+      # the *_generative name is the rung marker (ADR 0046: generative
+      # instruments are in-zone runtimes only).
+      name: :winnow_generative,
+      model: "winnow:e4b",
+      base_url: {:system, "S1_OLLAYA_GPU_BASE_URL"},
+      api_key: {:system, "OLLAYA_API_KEY"},
+      residency: :in_cluster,
+      region: :ca
     ]
   ],
   model_routes: %{
@@ -94,7 +110,11 @@ config :ash_judgments,
   # platform base — AshEvents audit, tenancy, policies — so every recorded
   # observation and every tombstone is an attributed audit event. See
   # `AshEnterprise.SystemOne.Judgment`.
-  ledger: AshEnterprise.SystemOne.Judgment
+  ledger: AshEnterprise.SystemOne.Judgment,
+  # The materialised-facts table the admission side routes to (RFC §7.4):
+  # `AshJudgments.Facts.Materialiser` writes here through the host
+  # resource that includes Facts.Fragment.
+  facts: AshEnterprise.SystemOne.Fact
 
 if config_env() == :dev do
   # Reload browser tabs when matching files change.

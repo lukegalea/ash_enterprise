@@ -34,10 +34,12 @@ defmodule AshEnterprise.SystemOne.QuestionProposalTest do
     # which resolves {:system, var} transport references at call time.
     System.put_env("OLLAYA_BASE_URL", "http://127.0.0.1:11435")
     System.put_env("OLLAYA_API_KEY", "local-test-only")
+    System.put_env("S1_OLLAYA_GPU_BASE_URL", "http://127.0.0.1:11435")
 
     on_exit(fn ->
       System.delete_env("OLLAYA_BASE_URL")
       System.delete_env("OLLAYA_API_KEY")
+      System.delete_env("S1_OLLAYA_GPU_BASE_URL")
     end)
 
     %{org: Ash.UUID.generate(), person: person()}
@@ -106,6 +108,40 @@ defmodule AshEnterprise.SystemOne.QuestionProposalTest do
       # else. No question appeared, and no observation / fact exists.
       assert length(Info.questions(Note)) + length(Info.questions(Standard)) == questions_before
       assert ledger_rows() == []
+    end
+
+    test "the generative in-zone profile resolves for proposals (S1-61 flag): no real call",
+         ctx do
+      Application.put_env(:ash_enterprise, :test_transport_output, {:file, "valid.json"})
+      on_exit(fn -> Application.delete_env(:ash_enterprise, :test_transport_output) end)
+
+      # The FakeTransport delegates RESOLUTION to the real transport chain
+      # (profile guards + generative-wire translation); only the model call
+      # is canned. The env vars above satisfy the {:system, var} refs.
+      assert {:ok, record} =
+               QuestionProposal.propose(
+                 source: "recordings",
+                 policy_text: @policy_text,
+                 profile: :winnow_generative,
+                 transport: FakeTransport,
+                 actor: ctx.person,
+                 tenant: ctx.org
+               )
+
+      assert record.status == :proposed
+      assert record.profile == "winnow_generative"
+      assert length(record.proposals) == 2
+    end
+
+    test "the transport translates the generative profile to the ollama wire", ctx do
+      assert {:ok, "ollama:winnow:e4b", opts} =
+               AshEnterprise.SystemOne.QuestionProposal.Transport.ReqLLM.resolve(
+                 :winnow_generative
+               )
+
+      # The transport opts carry the profile's own {:system, var}-resolved
+      # endpoint — the value the test itself set above.
+      assert Keyword.get(opts, :base_url) == "http://127.0.0.1:11435"
     end
 
     test "resolution runs the real profile machinery with a fake model", ctx do
