@@ -88,7 +88,13 @@ config :ash_judgments,
   model_routes: %{
     "laya:typed-decisions" => {:system, "OLLAYA_BASE_URL"},
     "winnow:e4b" => {:system, "S1_OLLAYA_GPU_BASE_URL"}
-  }
+  },
+  # The host ledger the registry's judge actions record into (AST-88). The
+  # package never defines the persisted resource; this one carries the
+  # platform base — AshEvents audit, tenancy, policies — so every recorded
+  # observation and every tombstone is an attributed audit event. See
+  # `AshEnterprise.SystemOne.Judgment`.
+  ledger: AshEnterprise.SystemOne.Judgment
 
 if config_env() == :dev do
   # Reload browser tabs when matching files change.

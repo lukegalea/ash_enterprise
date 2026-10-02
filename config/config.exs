@@ -265,7 +265,8 @@ config :ash_enterprise,
     AshEnterprise.Contracts,
     AshEnterprise.Compliance,
     AshEnterprise.LegacyAgent,
-    AshEnterprise.CanonicalAgent
+    AshEnterprise.CanonicalAgent,
+    AshEnterprise.SystemOne
   ],
   base_resources: [AshEnterprise.Platform.Resource]
 
