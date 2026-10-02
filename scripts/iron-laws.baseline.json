@@ -1,11 +1,5 @@
 [
   {
-    "law": "07",
-    "file": "lib/ash_enterprise/ledger/user_drain_worker.ex",
-    "text": "use Oban.Worker, queue: :ash_strangler_ledger, max_attempts: 10, unique: [period: 30]",
-    "reason": "False positive: unique: is on the same line. The window detector in ash_agent_tools 304c1c5 starts its search one line after the match (Enum.slice(lines, no, window) with 1-based no). Delete this entry when the detector is fixed upstream; the tree check will say so."
-  },
-  {
     "law": "10",
     "file": "lib/mix/tasks/ash_enterprise.trace.ex",
     "text": "module = String.to_atom(@trace_explain_module)",
