@@ -1,6 +1,6 @@
 # ADR 0048 — A judgment is a predicate over any set
 
-- **Status:** proposed (2026-09-28). The operator set the direction; the wording below has not yet been reviewed.
+- **Status:** accepted (2026-10-02, Luke on S1-52: "Accepted. Go with recommendation for Q13." — Q13: one fact carries its admission grade; consumer-specific admission grades are the model).
 - **Date:** 2026-09-28
 
 ## Context
