@@ -1,0 +1,102 @@
+{
+  "$comment": "SPDX-License-Identifier: CC0-1.0 — synthetic fixture, see README.md. All digests and identifiers are random synthetic values; the wording is the RFC's own synthetic clinic-demo framing. A failed cast is still an observation (§5.5, ADR 0046 point 3); the payload-class fields are shown erased (§10/§12 'an erased state'), and model_digest is null (§5.7 rule 3 — such a row may exist but never feeds an admit band).",
+  "id": "0192a3b4-7d01-7000-8000-000000000005",
+  "record_version": "0",
+  "envelope": {
+    "semantic_id": "ash:v0:ClinicDemo.Scheduling.Appointment#actions/judge_notes",
+    "definition_version": "sha256:7c7776a9717a796488f3c6211f2237b5eda0ee0919ff811150eea9e721dd6c6e",
+    "tenant_id": "01920f5a-b2c3-7000-8000-0000000000e1",
+    "actor_id": "01920f5a-b2c3-7000-8000-0000000000a7",
+    "system_actor": null,
+    "impersonator_id": null,
+    "input_digest": "sha256:01dc1b2f4e82bb406f697d4c0f8aac2683dd396e8f351b1f9df6f0ec4b8f49bb",
+    "output_digest": null,
+    "redaction_digest": null,
+    "dropped_fields": [],
+    "matched_rule_ids": [],
+    "policy_decision_ids": [],
+    "evidence_ids": [],
+    "correlation_id": "0192a3b4-7d00-7000-8000-0000000000c4",
+    "process_instance_id": null,
+    "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+    "span_id": "00f067aa0ba902bb",
+    "depth": 1,
+    "automation_principal": null,
+    "grant_ref": null
+  },
+  "judgment": {
+    "question": {
+      "question_id": "judgment:v0:ClinicDemo.Scheduling.Appointment#judgments/notes_document_follow_up",
+      "question_hash": "sha256:4192e6f2e69cc1a0e588d4d94e88f8c908dda282412cf248c8b514b8db9f2767",
+      "question_version": 1,
+      "family": "clinic.notes_completeness",
+      "wire_question_hash": "sha256:d70f2db623ab70e7ad22588cb7af852728a7d14e6c1b7d81f2a8b195893078aa",
+      "question_set_hash": "sha256:47032e699fc8d88ad20e65640a18f4822f43924d961008e070de28b4857f40c2"
+    },
+    "instrument": {
+      "profile": "decision_default",
+      "rung": "decision",
+      "provider": "typesafe",
+      "model_spec_requested": "laya",
+      "model_reported": null,
+      "model_digest": null,
+      "runtime": "ollaya",
+      "runtime_version": "0.9.0",
+      "accelerator": "cpu",
+      "wire_spec_version": null,
+      "wire_schema_hash": null,
+      "sampling": null,
+      "zone_id": "zone.lab"
+    },
+    "input": {
+      "input_hash": "sha256:01dc1b2f4e82bb406f697d4c0f8aac2683dd396e8f351b1f9df6f0ec4b8f49bb",
+      "state_ref": {
+        "subject": {
+          "type": "appointment",
+          "id": "0192a3b2-44dd-7000-8000-0000000000d5"
+        }
+      },
+      "subject_type": "appointment",
+      "subject_id": "0192a3b2-44dd-7000-8000-0000000000d5",
+      "data_class": "synthetic",
+      "residency_restriction": null,
+      "zone_id": "zone.lab",
+      "jurisdiction": "EX-1",
+      "state": null
+    },
+    "answer": {
+      "outcome": "cast_failed",
+      "kind": "choice",
+      "value": null,
+      "level": null,
+      "distribution": null,
+      "confidence": null,
+      "status": null,
+      "source_ids": null,
+      "raw": null,
+      "logprobs": null,
+      "error": {
+        "class": "cast",
+        "message_digest": "sha256:b78479e6d07f31ecf6006767b0f309705b7ba6f388e6dc03065f4d6071fd000d"
+      }
+    },
+    "call": {
+      "mode": "live",
+      "request_id": "0192a3b4-7d00-7000-8000-0000000000f5",
+      "cache_key": "sha256:622995e5d664e6de0900ed0be8fe8ca393f635b6607f11e2184e7c44a6d834e7",
+      "shadow_of": null,
+      "run_id": null,
+      "requested_at": "2026-10-02T14:07:52.771003Z",
+      "answered_at": "2026-10-02T14:07:52.884201Z",
+      "recorded_at": "2026-10-02T14:07:52.891772Z",
+      "latency_us": 113198,
+      "usage": {
+        "input_tokens": 177
+      }
+    },
+    "lineage": {
+      "shadow_of": null
+    }
+  },
+  "record_hash": "sha256:58f06517e237604b992daf6eaaf897163acdd9496cb0376c8e880402b385f0d8"
+}

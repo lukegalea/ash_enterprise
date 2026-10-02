@@ -1,0 +1,109 @@
+{
+  "$comment": "SPDX-License-Identifier: CC0-1.0 — synthetic fixture, see README.md. All digests and identifiers are random synthetic values; the wording is the RFC's own synthetic clinic-demo framing. A Score answer on the eval mode (§6.3): value is the probability-weighted position as a decimal string, distribution keys are level indices as decimal strings (§4.3).",
+  "id": "0192a3b4-7d01-7000-8000-000000000006",
+  "record_version": "0",
+  "envelope": {
+    "semantic_id": "ash:v0:ClinicDemo.Triage.Encounter#actions/judge_urgency",
+    "definition_version": "sha256:4a8fb3e8f5214db5098672337e2249658e3b50d1b45005bdfb261220ca732996",
+    "tenant_id": "01920f5a-b2c3-7000-8000-0000000000e1",
+    "actor_id": "01920f5a-b2c3-7000-8000-0000000000a7",
+    "system_actor": null,
+    "impersonator_id": null,
+    "input_digest": "sha256:2761efbc8882faa9032284ea7bc35587463b7a9f4bc29591deab47bef86c7efe",
+    "output_digest": "sha256:8708e1ec5191e576798b0104fbf312eb663fe13d01c439490ac54ff4940a73f0",
+    "redaction_digest": null,
+    "dropped_fields": [],
+    "matched_rule_ids": [],
+    "policy_decision_ids": [],
+    "evidence_ids": [],
+    "correlation_id": "0192a3b4-7d00-7000-8000-0000000000c5",
+    "process_instance_id": null,
+    "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+    "span_id": "00f067aa0ba902bc",
+    "depth": 1,
+    "automation_principal": null,
+    "grant_ref": null
+  },
+  "judgment": {
+    "question": {
+      "question_id": "judgment:v0:ClinicDemo.Triage.Encounter#judgments/waiting_time_pressure",
+      "question_hash": "sha256:8eea39e8855e1cbb060eda04b536b96976b33e86c9b22ac14af020dd9f364a61",
+      "question_version": 1,
+      "family": "clinic.triage",
+      "wire_question_hash": "sha256:f12f827b4d2734125be41c90896601f9c64325c7981c623498ff295f6cbeda0e",
+      "question_set_hash": "sha256:d082e5a18e869857142478a0385f7827df7a95b357e81f235458aa339e9015fb"
+    },
+    "instrument": {
+      "profile": "decision_default",
+      "rung": "decision",
+      "provider": "typesafe",
+      "model_spec_requested": "laya",
+      "model_reported": "laya:typed-decisions",
+      "model_digest": "1979f6859a0136d343c821bd187b992264bdfb602e2f886f37048fe58e0fcc2d",
+      "runtime": "ollaya",
+      "runtime_version": "0.9.0",
+      "accelerator": "gpu",
+      "wire_spec_version": null,
+      "wire_schema_hash": null,
+      "sampling": null,
+      "zone_id": "zone.lab"
+    },
+    "input": {
+      "input_hash": "sha256:2761efbc8882faa9032284ea7bc35587463b7a9f4bc29591deab47bef86c7efe",
+      "state_ref": {
+        "subject": {
+          "type": "encounter",
+          "id": "0192a3b2-55ee-7000-8000-0000000000d6"
+        }
+      },
+      "subject_type": "encounter",
+      "subject_id": "0192a3b2-55ee-7000-8000-0000000000d6",
+      "data_class": "synthetic",
+      "residency_restriction": null,
+      "zone_id": "zone.lab",
+      "jurisdiction": "EX-1",
+      "state": {
+        "queue_depth": 4,
+        "staffed_bays": 6
+      }
+    },
+    "answer": {
+      "outcome": "answered",
+      "kind": "score",
+      "value": "0.7310",
+      "level": "amber",
+      "distribution": {
+        "0": "0.2690",
+        "1": "0.7310"
+      },
+      "confidence": "0.7310",
+      "status": null,
+      "source_ids": null,
+      "raw": {
+        "type": "score",
+        "value": "0.7310"
+      },
+      "logprobs": null,
+      "error": null
+    },
+    "call": {
+      "mode": "eval",
+      "request_id": "0192a3b4-7d00-7000-8000-0000000000f6",
+      "cache_key": "sha256:d0bce0987a603cb8baa331ceb96f2cf252bdb9d11df72e7a46d051d781f37e91",
+      "shadow_of": null,
+      "run_id": "0192a3b0-9e87-7000-8000-0000000000e5",
+      "requested_at": "2026-10-02T13:59:10.330212Z",
+      "answered_at": "2026-10-02T13:59:10.337905Z",
+      "recorded_at": "2026-10-02T13:59:10.345118Z",
+      "latency_us": 7693,
+      "usage": {
+        "input_tokens": 195,
+        "output_tokens": 1
+      }
+    },
+    "lineage": {
+      "shadow_of": null
+    }
+  },
+  "record_hash": "sha256:c67af007b316d87e236203f09d494fdb2c54dca9556798e85fba6ca06b534cc6"
+}

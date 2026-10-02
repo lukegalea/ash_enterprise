@@ -1,0 +1,109 @@
+{
+  "$comment": "SPDX-License-Identifier: CC0-1.0 — synthetic fixture, see README.md. All digests and identifiers are random synthetic values; the wording is the RFC's own synthetic clinic-demo framing.",
+  "id": "0192a3b4-7d01-7000-8000-000000000002",
+  "record_version": "0",
+  "envelope": {
+    "semantic_id": "ash:v0:ClinicDemo.Triage.Encounter#actions/judge_urgency",
+    "definition_version": "sha256:3361032e6b36c41736ed275a6436894928dc2062213b644806e06ed1578bff4e",
+    "tenant_id": "01920f5a-b2c3-7000-8000-0000000000e1",
+    "actor_id": "01920f5a-b2c3-7000-8000-0000000000a7",
+    "system_actor": null,
+    "impersonator_id": null,
+    "input_digest": "sha256:3127124c38be2233e77dccaa5c75ba5afe7740df97723c11d9533b18293c26ae",
+    "output_digest": "sha256:49d958f89fd4eb4a35874ca6088513798999f5c658cd10684b8c29b508dc4c6e",
+    "redaction_digest": null,
+    "dropped_fields": [],
+    "matched_rule_ids": [],
+    "policy_decision_ids": [],
+    "evidence_ids": [],
+    "correlation_id": "0192a3b4-7d00-7000-8000-0000000000c1",
+    "process_instance_id": null,
+    "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+    "span_id": "00f067aa0ba902b8",
+    "depth": 1,
+    "automation_principal": null,
+    "grant_ref": null
+  },
+  "judgment": {
+    "question": {
+      "question_id": "judgment:v0:ClinicDemo.Triage.Encounter#judgments/chief_complaint_urgency",
+      "question_hash": "sha256:7552a8e86779064b3bfdac887e52caebd25525bc74ab9d35673bbaaf422a40ad",
+      "question_version": 2,
+      "family": "clinic.triage",
+      "wire_question_hash": "sha256:a3b9e4eace7bd9930673ada0f9fa2b0b807a9565c052261bd99315559caa4f61",
+      "question_set_hash": "sha256:3294120393676f1dd3223107946ad881803d7e63227f709894b2ed8544f377b4"
+    },
+    "instrument": {
+      "profile": "decision_default",
+      "rung": "decision",
+      "provider": "typesafe",
+      "model_spec_requested": "laya",
+      "model_reported": "laya:typed-decisions",
+      "model_digest": "41ec79cfb30bd3e066d1e1258f002ef36f80480b1f440e0a2103a32cd9a10214",
+      "runtime": "ollaya",
+      "runtime_version": "0.9.0",
+      "accelerator": "gpu",
+      "wire_spec_version": null,
+      "wire_schema_hash": null,
+      "sampling": null,
+      "zone_id": "zone.lab"
+    },
+    "input": {
+      "input_hash": "sha256:3127124c38be2233e77dccaa5c75ba5afe7740df97723c11d9533b18293c26ae",
+      "state_ref": {
+        "subject": {
+          "type": "encounter",
+          "id": "0192a3b2-22bb-7000-8000-00000000006b"
+        }
+      },
+      "subject_type": "encounter",
+      "subject_id": "0192a3b2-22bb-7000-8000-00000000006b",
+      "data_class": "synthetic",
+      "residency_restriction": null,
+      "zone_id": "zone.lab",
+      "jurisdiction": "EX-1",
+      "state": {
+        "chief_complaint_recorded": true
+      }
+    },
+    "answer": {
+      "outcome": "answered",
+      "kind": "choice",
+      "value": "soon",
+      "level": null,
+      "distribution": {
+        "routine": "0.0900",
+        "soon": "0.8230",
+        "urgent": "0.0870"
+      },
+      "confidence": "0.8230",
+      "status": null,
+      "source_ids": null,
+      "raw": {
+        "type": "choice",
+        "choice": "soon"
+      },
+      "logprobs": null,
+      "error": null
+    },
+    "call": {
+      "mode": "live",
+      "request_id": "0192a3b4-7d00-7000-8000-0000000000f2",
+      "cache_key": "sha256:de1adb185338ea04561475fe9b478aaaa17b97ce46ec21049aedb785a58bbb40",
+      "shadow_of": null,
+      "run_id": null,
+      "requested_at": "2026-10-02T14:04:02.511902Z",
+      "answered_at": "2026-10-02T14:04:02.519887Z",
+      "recorded_at": "2026-10-02T14:04:02.527104Z",
+      "latency_us": 7985,
+      "usage": {
+        "input_tokens": 189,
+        "output_tokens": 1
+      }
+    },
+    "lineage": {
+      "shadow_of": null
+    }
+  },
+  "record_hash": "sha256:bc4f1d8ca291df57c06ac9c3911b7b5e33c944bf2d88bda21ed956f4e5149619"
+}

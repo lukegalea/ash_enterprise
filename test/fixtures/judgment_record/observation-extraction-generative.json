@@ -1,0 +1,130 @@
+{
+  "$comment": "SPDX-License-Identifier: CC0-1.0 — synthetic fixture, see README.md. All digests and identifiers are random synthetic values; the wording is the RFC's own synthetic clinic-demo framing.",
+  "id": "0192a3b4-7d01-7000-8000-000000000003",
+  "record_version": "0",
+  "envelope": {
+    "semantic_id": "ash:v0:ClinicDemo.Credentials.Credential#actions/judge_credential",
+    "definition_version": "sha256:d61f79ba537bacb775c1c9a3d1c1b8c491f4d3b1ccec8f607ffd212315c7042d",
+    "tenant_id": "01920f5a-b2c3-7000-8000-0000000000e1",
+    "actor_id": "01920f5a-b2c3-7000-8000-0000000000a7",
+    "system_actor": null,
+    "impersonator_id": null,
+    "input_digest": "sha256:0367ec8b3a42a3ab5b3c1643ad1163d074ac5b8e11c5e1abc540d49490f71490",
+    "output_digest": "sha256:5f467688539100febae04dd81b4a8ad9f3ddd19598b88409cc070ee2ce45e3fb",
+    "redaction_digest": null,
+    "dropped_fields": [],
+    "matched_rule_ids": [],
+    "policy_decision_ids": [
+      "ash:v0:ClinicDemo.Credentials.Credential#policies/0:authorized"
+    ],
+    "evidence_ids": [],
+    "correlation_id": "0192a3b4-7d00-7000-8000-0000000000c2",
+    "process_instance_id": null,
+    "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+    "span_id": "00f067aa0ba902b9",
+    "depth": 1,
+    "automation_principal": null,
+    "grant_ref": null
+  },
+  "judgment": {
+    "question": {
+      "question_id": "judgment:v0:ClinicDemo.Credentials.Credential#judgments/licence_expiry_date",
+      "question_hash": "sha256:e7328d5b49149c5817c39099ca8416e468ad809617cf63a3c27b79ec2aa63348",
+      "question_version": 1,
+      "family": "clinic.credential_extraction",
+      "wire_question_hash": "sha256:2222518d4425f72eb5e01c1e9897689dd5532368fe23d2b3503fa24fbdfd562a",
+      "question_set_hash": "sha256:a39d3fc27608901c671ae82033be1274ba0869061ea36fd73e4f3e491846f07a"
+    },
+    "instrument": {
+      "profile": "generative_in_zone",
+      "rung": "generative",
+      "provider": "typesafe",
+      "model_spec_requested": "winnow",
+      "model_reported": "winnow:latest",
+      "model_digest": "0725b6b2af4d8410ac9dd7025aff32b25e993f1ed59c0c1da9e36b9e26f8c1a0",
+      "runtime": "ollaya",
+      "runtime_version": "0.7.5",
+      "accelerator": "gpu",
+      "wire_spec_version": "0.3",
+      "wire_schema_hash": "sha256:3876cf0a3d8e850d8c09556e72ce5439c8e2e598373acff419a280762ea8379f",
+      "sampling": {
+        "temperature": 0.1,
+        "seed": 7,
+        "top_p": 0.9
+      },
+      "zone_id": "zone.lab"
+    },
+    "input": {
+      "input_hash": "sha256:0367ec8b3a42a3ab5b3c1643ad1163d074ac5b8e11c5e1abc540d49490f71490",
+      "state_ref": {
+        "subject": {
+          "type": "credential",
+          "id": "0192a3b0-5e21-7000-8000-0000000000d3"
+        },
+        "document_version_hash": "sha256:e1ac33c7344ef5d8f45c4f36bef2e1602588983e5cc8acd7aa643b143c5f18db",
+        "atom_ids": [
+          "atom:12"
+        ],
+        "source_version": "3"
+      },
+      "subject_type": "credential",
+      "subject_id": "0192a3b0-5e21-7000-8000-0000000000d3",
+      "document_version_hash": "sha256:e1ac33c7344ef5d8f45c4f36bef2e1602588983e5cc8acd7aa643b143c5f18db",
+      "candidate_atom_ids": [
+        "atom:12",
+        "atom:13"
+      ],
+      "parser_version": "1.4.0",
+      "atomiser_version": "0.3.1",
+      "retrieval": {
+        "embedder_profile": "clinic_embedder",
+        "embedder_digest": "923d892325cd2109d93c16c2c662e41a5285b5880731e0a6aa0c6f23d3055819",
+        "index_version": "v7"
+      },
+      "data_class": "synthetic",
+      "residency_restriction": null,
+      "zone_id": "zone.lab",
+      "jurisdiction": "EX-1",
+      "state": {
+        "document_present": true,
+        "date_fields": 1
+      }
+    },
+    "answer": {
+      "outcome": "answered",
+      "kind": "extraction",
+      "value": "2027-03-31",
+      "level": null,
+      "distribution": null,
+      "confidence": null,
+      "status": "found",
+      "source_ids": [
+        "atom:12"
+      ],
+      "raw": {
+        "text": "2027-03-31"
+      },
+      "logprobs": null,
+      "error": null
+    },
+    "call": {
+      "mode": "calibration",
+      "request_id": "0192a3b4-7d00-7000-8000-0000000000f3",
+      "cache_key": "sha256:3b82db58cd7f976c285ea46e4a8f2432e982a211554ac0e234bf706734d1833a",
+      "shadow_of": null,
+      "run_id": "0192a3b0-9e87-7000-8000-0000000000e5",
+      "requested_at": "2026-10-02T13:58:41.004112Z",
+      "answered_at": "2026-10-02T13:58:41.987340Z",
+      "recorded_at": "2026-10-02T13:58:41.995127Z",
+      "latency_us": 983228,
+      "usage": {
+        "input_tokens": 640,
+        "output_tokens": 9
+      }
+    },
+    "lineage": {
+      "shadow_of": null
+    }
+  },
+  "record_hash": "sha256:b7116c462c9bd8502b4aea45b23c51280aacb8fcbd68c738103fbdc9a3f669e6"
+}
