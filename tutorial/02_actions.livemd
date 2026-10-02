@@ -1,0 +1,105 @@
+<!--
+SPDX-FileCopyrightText: 2026 Luke Galea
+SPDX-FileCopyrightText: 2023 ash_tutorial contributors <https://github.com/ash-project/ash_tutorial/graphs/contributors>
+
+SPDX-License-Identifier: MIT
+-->
+
+# Ash Enterprise: 2 - Actions
+
+```elixir
+Application.put_env(:ash, :validate_domain_resource_inclusion?, false)
+Application.put_env(:ash, :validate_domain_config_inclusion?, false)
+Application.put_env(:ash, :default_string_length_count, :codepoints)
+
+Mix.install([{:ash, "~> 3.0"}], consolidate_protocols: false)
+```
+
+## Where we are
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="01_resources.livemd">Resources</a>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Home</a>
+</div>
+<div class="flex">
+<a class="flex mr-2" style="color: #61758a;" href="03_querying.livemd">Querying</a>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>
+
+<!-- livebook:{"break_markdown":true} -->
+
+You finished lesson 1 with a `Tutorial.Profile` resource and its domain — and a changeset you could not yet do anything with. This lesson adds the first actions. Every later lesson in this series leans on them: actions are the only door to a resource, for humans, UIs and agents alike.
+
+## What is an Action?
+
+Actions are much simpler: an action describes a <span title="Create, Read, Update, Delete">CRUD</span> operation that can be performed on a resource, but using whatever language makes the most sense for your given resource.  For example, you may have a `publish` action on a `BlogPost` resource that changes the resource to be publicly visible.  Under CRUD, this would be an `update` operation, but calling it the "publish action" more fully conveys what the operation does.
+
+An action is defined on a resource in an `actions do ... end` block.
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+  actions do
+    create :create do
+      accept [:name]
+    end
+  end
+```
+
+<!-- livebook:{"break_markdown":true} -->
+
+Adding that to our `Resource` module from earlier,
+
+```elixir
+defmodule Tutorial.Profile do
+  use Ash.Resource,
+    domain: Tutorial
+
+  attributes do
+    uuid_primary_key :id
+    attribute :name, :string
+  end
+
+  actions do
+    create :create do
+      accept [:name]
+    end
+  end
+end
+
+defmodule Tutorial do
+  use Ash.Domain
+
+  resources do
+    resource Tutorial.Profile
+  end
+end
+```
+
+We can now use `for_create/3` to create a changeset.
+
+```elixir
+Tutorial.Profile
+|> Ash.Changeset.for_create(:create, %{name: "My Name"})
+```
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="01_resources.livemd">Resources</a>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Home</a>
+</div>
+<div class="flex">
+<a class="flex mr-2" style="color: #61758a;" href="03_querying.livemd">Querying</a>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>

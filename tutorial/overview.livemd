@@ -9,9 +9,9 @@ SPDX-License-Identifier: MIT
 
 ## Overview
 
-This tutorial picks up where the [Ash tutorial](https://github.com/ash-project/ash_tutorial) leaves off. You finished its support-desk domain across lessons 2 to 8 — `Tutorial.Support.Ticket` and `Tutorial.Support.Representative`, last used in lesson 8 (Aggregates); lesson 9 wandered off to a `Tutorial.Accounts.User` to teach calculations. We grow the support desk, one concept per lesson, into the kind of system an enterprise actually runs: audited, projected, rule-checked, decided, approved, orchestrated, rendered for agents, and migrated off a legacy schema without a big-bang cutover. The people who work the desk — upstream's `Representative` — reappear there as the app's own users, the actors who propose and approve refunds.
+This tutorial is self-contained from lesson 1: lessons 1 to 9 fork [ash_tutorial](https://github.com/ash-project/ash_tutorial)'s lessons 1 to 9 (MIT) into this repo, retargeted so the support desk carries straight through — you finish them holding `Tutorial.Support.Ticket` and `Tutorial.Support.Representative` with actions, relationships, an aggregate and calculations. We then grow the support desk, one concept per lesson, into the kind of system an enterprise actually runs: audited, projected, rule-checked, decided, approved, orchestrated, rendered for agents, and migrated off a legacy schema without a big-bang cutover. The people who work the desk — the `Representative` — reappear there as the app's own users, the actors who propose and approve refunds.
 
-One warning about numbering: the upstream tutorial may grow a lesson 10 of its own (its lesson 9 already advertises one), so its numbering can shift under you. The enterprise lessons here are numbered from their own content.
+About numbering: this series forks ash_tutorial's lessons 1-9 as lessons 1-9 here (MIT, with attribution in each file) and continues from 10 with its own numbering. The upstream repo may keep evolving on its own; these forks track the lessons as taught here.
 
 Same rules as before:
 
@@ -79,9 +79,17 @@ And a warning about people, not files: the tutorial edits tracked config and wri
 
 **Start here:** [Philosophy](00_philosophy.livemd): the moving line between human and machine code, the engineer as the bridge, and the 0 / 1 / N rule
 
-**Part I: Ash foundations** (upstream, do these first)
+**Part I: Ash foundations** (forked from [ash_tutorial](https://github.com/ash-project/ash_tutorial), MIT)
 
-0. to 9. [ash_tutorial](https://github.com/ash-project/ash_tutorial): Resources, Actions, Querying, Attributes, Customizing Actions, Relationships, Code Interfaces, Aggregates, Calculations
+1. [Resources](01_resources.livemd): resources, domains, changesets — the nouns of the app
+2. [Actions](02_actions.livemd): the only door to a resource, named after what it does
+3. [Querying](03_querying.livemd): the ETS data layer, CRUD, filters
+4. [Attributes](04_attributes.livemd): constraints, defaults, timestamps — the Ticket is born
+5. [Customizing Actions](05_customizing_actions.livemd): `:open` and `:close`, semantics in action names
+6. [Relationships](06_relationships.livemd): `belongs_to`/`has_many`, the Representative joins the desk
+7. [Code Interfaces](07_code_interfaces.livemd): domain functions instead of hand-built changesets
+8. [Aggregates](08_aggregates.livemd): `count_of_open_tickets`, summary data over relationships
+9. [Calculations](09_calculations.livemd): derived values on the desk, `expr` vs module calculations
 
 **Part II: LiveView with Ash** (before A2UI)
 

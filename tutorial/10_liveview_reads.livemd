@@ -23,7 +23,7 @@ Mix.install(
 <div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
 <div class="flex">
 <i class="ri-arrow-left-fill"></i>
-<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Overview</a>
+<a class="flex ml-2" style="color: #61758a;" href="09_calculations.livemd">Calculations</a>
 </div>
 <div class="flex">
 <i class="ri-home-fill"></i>
@@ -38,7 +38,7 @@ Mix.install(
 
 <!-- livebook:{"break_markdown":true} -->
 
-You finished the upstream tutorial with the support-desk domain from lessons 2 to 8: `Tutorial.Support.Ticket` and `Tutorial.Support.Representative`. (Lesson 9 wandered off to a `Tutorial.Accounts.User` to teach calculations; the desk is where we live.) A LiveView is just one more **caller of actions**. It gets no special access: it reads through a read action, as an actor, and the resource's policies decide what it sees. That is the whole lesson; the rest is LiveView mechanics done properly.
+You finished the support-desk domain in lessons 1 to 9 (forked from the upstream tutorial): `Tutorial.Support.Ticket` and `Tutorial.Support.Representative`, now carrying actions, relationships, an aggregate and calculations. A LiveView is just one more **caller of actions**. It gets no special access: it reads through a read action, as an actor, and the resource's policies decide what it sees. That is the whole lesson; the rest is LiveView mechanics done properly.
 
 Here is the domain, with one addition: a `policies` block, so the actor matters. Note the `Ticket` below is a trimmed redefinition of the upstream one, not a superset: `description` and `updated_at` are dropped, `created_at` is spelled `inserted_at`, and an `owner_id` replaces the representative link. These lessons re-derive from a small surface, and nothing here depends on what upstream carried.
 
@@ -209,7 +209,7 @@ Add a `?status=closed` URL parameter. Do **not** filter in the LiveView. Add an 
 <div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
 <div class="flex">
 <i class="ri-arrow-left-fill"></i>
-<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Overview</a>
+<a class="flex ml-2" style="color: #61758a;" href="09_calculations.livemd">Calculations</a>
 </div>
 <div class="flex">
 <i class="ri-home-fill"></i>
