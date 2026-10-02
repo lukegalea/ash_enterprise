@@ -14,6 +14,7 @@ defmodule AshEnterprise.SystemOne.TestSupport do
 
   resources do
     resource AshEnterprise.SystemOne.TestSupport.Note
+    resource AshEnterprise.SystemOne.TestSupport.Standard
   end
 end
 
@@ -62,6 +63,91 @@ defmodule AshEnterprise.SystemOne.TestSupport.Note do
 
   attributes do
     uuid_primary_key :id
+  end
+end
+
+defmodule AshEnterprise.SystemOne.TestSupport.Standard do
+  @moduledoc """
+  The declared landing of the confirmed proposal fixture (S1-61): the
+  person's declaration act, rendered from
+  `AshEnterprise.SystemOne.QuestionProposal.to_dsl/2` and committed at
+  version 1.
+
+  The entry below is the fixture proposal `recordings/valid.json`'s first
+  candidate, verbatim after confirmation. Its `question_hash` must equal
+  the hash the proposal stored and the hash in `priv/judgments/lock.json`
+  — `test/ash_enterprise/system_one/question_proposal_test.exs` asserts
+  the three agree, and the lock turns any wording drift into a compile
+  error from then on.
+  """
+
+  use Ash.Resource,
+    domain: AshEnterprise.SystemOne.TestSupport,
+    data_layer: Ash.DataLayer.Simple,
+    extensions: [AshAi, AshJudgments.Registry]
+
+  judgments do
+    question :commit_message_imperative do
+      type AshAi.Evaluate.Choice
+      constraints of: [:imperative, :other]
+
+      instructions(
+        "Does the commit message use the imperative mood, stating the change as a command?"
+      )
+
+      criteria(%{
+        imperative: "The message states the change as a command: add validator, fix crash.",
+        other:
+          "Any other mood: past tense, noun phrase, or a subject-only message on a non-formatting change."
+      })
+
+      version(1)
+      family(:standards_commits)
+      profile(:laya_cpu)
+    end
+  end
+
+  actions do
+    defaults [:read]
+  end
+
+  attributes do
+    uuid_primary_key :id
+  end
+end
+
+defmodule AshEnterprise.SystemOne.TestSupport.FakeTransport do
+  @moduledoc """
+  The fixed test instrument for the proposal mechanism's resolution path:
+  resolves the profile through the REAL `AshJudgments.Profile` machinery
+  (in-zone guard, region rule), then returns a canned output from
+  `Application.get_env(:ash_enterprise, :test_transport_output)` instead of
+  calling any model. The decode pipeline runs for real against the real
+  schema.
+  """
+
+  @behaviour AshEnterprise.SystemOne.QuestionProposal.Transport
+
+  @impl true
+  def resolve(profile) do
+    AshEnterprise.SystemOne.QuestionProposal.Transport.ReqLLM.resolve(profile)
+  end
+
+  @impl true
+  def generate(_spec, _opts, _schema, _prompt) do
+    case Application.get_env(:ash_enterprise, :test_transport_output) do
+      nil ->
+        {:error, "no test transport output configured"}
+
+      raw when is_binary(raw) ->
+        {:ok, raw}
+
+      {:file, name} ->
+        {:ok,
+         File.read!(
+           Path.expand("fixtures/system_one/policy/recordings/#{name}", __DIR__ <> "/..")
+         )}
+    end
   end
 end
 

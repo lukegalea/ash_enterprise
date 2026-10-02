@@ -1,0 +1,17 @@
+{
+  "_comment": "SPDX-License-Identifier: CC0-1.0 — synthetic refusal fixture. Schema-valid but vocabulary-invalid: the criteria name a word ('verbose') the options never declare — a ghost vocabulary, refused by the post-decode pass.",
+  "proposals": [
+    {
+      "clause_ref": "std-1",
+      "name": "commit_message_imperative",
+      "answer_type": "choice",
+      "options": ["imperative", "other"],
+      "instructions": "Does the commit message use the imperative mood?",
+      "criteria": {
+        "imperative": "Stated as a command.",
+        "verbose": "Descriptive rather than commanding."
+      },
+      "family": "standards_commits"
+    }
+  ]
+}

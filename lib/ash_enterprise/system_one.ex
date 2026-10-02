@@ -28,6 +28,7 @@ defmodule AshEnterprise.SystemOne do
   resources do
     resource AshEnterprise.SystemOne.Judgment
     resource AshEnterprise.SystemOne.HumanVerdict
+    resource AshEnterprise.SystemOne.QuestionProposal
   end
 
   @doc """

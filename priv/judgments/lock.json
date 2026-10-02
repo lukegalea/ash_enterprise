@@ -1,0 +1,10 @@
+{
+  "judgment:v0:AshEnterprise.SystemOne.TestSupport.Note#judgments/notes_follow_up": {
+    "hash": "sha256:f0db7a5411aaeb6684c780a945153c888540dda9d912975bb2e5f16514f70da6",
+    "version": 1
+  },
+  "judgment:v0:AshEnterprise.SystemOne.TestSupport.Standard#judgments/commit_message_imperative": {
+    "hash": "sha256:1aa515ae7aa6be21aec5de0382ca9541f3f60533996d2bdfa8e912145fda74db",
+    "version": 1
+  }
+}

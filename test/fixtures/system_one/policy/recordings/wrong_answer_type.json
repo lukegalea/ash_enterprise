@@ -1,0 +1,13 @@
+{
+  "_comment": "SPDX-License-Identifier: CC0-1.0 — synthetic refusal fixture. Schema-invalid: answer_type 'evidence' is not one of the registry's shipped types (it ships with UP-AI-EVIDENCE-TYPE) — refused, never coerced.",
+  "proposals": [
+    {
+      "clause_ref": "std-1",
+      "name": "commit_message_imperative",
+      "answer_type": "evidence",
+      "options": ["supports", "contradicts", "insufficient"],
+      "instructions": "Does the commit message use the imperative mood?",
+      "family": "standards_commits"
+    }
+  ]
+}

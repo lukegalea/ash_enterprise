@@ -1,0 +1,28 @@
+{
+  "_comment": "SPDX-License-Identifier: CC0-1.0 — synthetic fixture. The canned output the fixed test instrument returns for the valid decode path: two well-formed proposals citing std-1 and std-2 of code_standards_excerpt.md.",
+  "proposals": [
+    {
+      "clause_ref": "std-1",
+      "name": "commit_message_imperative",
+      "answer_type": "choice",
+      "options": ["imperative", "other"],
+      "instructions": "Does the commit message use the imperative mood, stating the change as a command?",
+      "criteria": {
+        "imperative": "The message states the change as a command: add validator, fix crash.",
+        "other": "Any other mood: past tense, noun phrase, or a subject-only message on a non-formatting change."
+      },
+      "family": "standards_commits",
+      "state_shape": null,
+      "pii": "none"
+    },
+    {
+      "clause_ref": "std-2",
+      "name": "test_sleeps",
+      "answer_type": "noul",
+      "instructions": "Does this test rely on a fixed delay such as Process.sleep instead of waiting on a condition?",
+      "family": "standards_tests",
+      "state_shape": null,
+      "pii": "none"
+    }
+  ]
+}

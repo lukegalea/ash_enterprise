@@ -1,0 +1,13 @@
+{
+  "_comment": "SPDX-License-Identifier: CC0-1.0 — synthetic refusal fixture. Schema-invalid: a noul carries options, but a noul's [true, false] are derived and must never be model-provided.",
+  "proposals": [
+    {
+      "clause_ref": "std-2",
+      "name": "test_sleeps",
+      "answer_type": "noul",
+      "options": ["yes", "no"],
+      "instructions": "Does this test rely on a fixed delay instead of waiting on a condition?",
+      "family": "standards_tests"
+    }
+  ]
+}

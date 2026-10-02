@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ash-hq.org/schemas/system-one/question-proposal/v1.json",
+  "title": "System One question proposal — wire schema",
+  "description": "The decode contract for candidate declared questions proposed from policy text (S1-61 / CAP2-POLICY), per ADR 0046: the schema IS the contract, a schema-valid answer is a well-formed PROPOSAL never a true one, and an undecodable answer is a refusal with the raw output retained — never a best-effort parse.",
+  "$comment": "Derivation: answer_type enum mirrors AshJudgments.Registry.Dsl's answer types (AshAi.Evaluate.Noul | Choice | Score; Evidence ships with UP-AI-EVIDENCE-TYPE and is deliberately refused until then). options carry the registry's rules: a Choice's options come from constraints (the abstain option is appended by the registry per law 7 and is NEVER model-provided, ADR 0046 point 5), a Score's levels, a Noul's [true, false] are derived — so Noul proposals must not carry options. name and family must be atom-safe: they become Spark identifiers and calibration family atoms. version is NOT model-provided: proposals are always proposed at version 1, and only a person changes a question after activation (ADR 0039 property 6). profile is NOT model-provided: the caller picks the in-zone instrument. There is no confidence field (ADR 0046 point 5). Cross-field rules JSON Schema cannot express (criteria keys equal the options; pii minimised requires a state shape) are enforced by the post-decode vocabulary pass — decode where the runtime can, validate always.",
+  "type": "object",
+  "required": ["proposals"],
+  "additionalProperties": false,
+  "properties": {
+    "_comment": {
+      "type": "string",
+      "description": "Documentation key (SPDX/REUSE annotations on fixtures and recordings). Ignored by decode."
+    },
+    "proposals": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 20,
+      "items": {
+        "$ref": "#/$defs/proposal"
+      }
+    }
+  },
+  "$defs": {
+    "proposal": {
+      "type": "object",
+      "required": ["clause_ref", "name", "answer_type", "instructions", "family"],
+      "additionalProperties": false,
+      "properties": {
+        "clause_ref": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$",
+          "description": "The id of the source clause this proposal cites (lineage: clause to question)."
+        },
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{0,63}$",
+          "description": "The question's name — atom-safe; it becomes part of the structural question id."
+        },
+        "answer_type": {
+          "enum": ["noul", "choice", "score"],
+          "description": "The registry's shipped answer types, lowercased. Anything else is refused, not coerced."
+        },
+        "options": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 12,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,63}$"
+          },
+          "description": "Choice options or Score levels, atom-safe, in declaration order (order is part of the question's identity). Absent for noul — its options are derived."
+        },
+        "instructions": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 2000,
+          "description": "The question's wording, as the model proposes it. A person edits before confirmation; the confirmed wording is the declaration."
+        },
+        "criteria": {
+          "type": ["object", "null"],
+          "description": "Per-option (or true/false) descriptions. If present, its keys must be exactly the options — checked in the vocabulary pass."
+        },
+        "family": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{0,63}$",
+          "description": "The calibration grouping, atom-safe (the registry's family is a DSL atom). Outside the question hash (RFC §3.2, Q3)."
+        },
+        "state_shape": {
+          "type": ["object", "null"],
+          "description": "The declared output shape of the state projection, if the question needs one; hashed into state_contract."
+        },
+        "pii": {
+          "enum": ["none", "minimised"],
+          "description": "minimised requires a state projection at declaration time (the registry's verifier enforces it); the vocabulary pass requires a state shape here."
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "answer_type": {
+                "const": "noul"
+              }
+            },
+            "required": ["answer_type"]
+          },
+          "then": {
+            "not": {
+              "required": ["options"]
+            },
+            "$comment": "A noul's options are derived [true, false]; a model that supplies them has misunderstood the contract."
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "answer_type": {
+                "enum": ["choice", "score"]
+              }
+            },
+            "required": ["answer_type"]
+          },
+          "then": {
+            "required": ["options"]
+          }
+        }
+      ]
+    }
+  }
+}
