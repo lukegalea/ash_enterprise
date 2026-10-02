@@ -253,9 +253,11 @@ defmodule AshEnterprise.SystemOne.JudgmentTest do
 
       assert judgment.cache_key ==
                Ledger.cache_key(%{
-                 model_version: judgment.model_version,
-                 question_hash: judgment.question_hash,
-                 state_digest: judgment.state_digest
+                 state_digest: judgment.state_digest,
+                 model_digest: judgment.model_digest,
+                 runtime_version: judgment.runtime_version,
+                 wire_question_hash: judgment.wire_question_hash,
+                 zone_id: judgment.region
                })
 
       assert judgment.record_hash =~ ~r/^sha256:[0-9a-f]{64}$/
