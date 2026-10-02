@@ -54,6 +54,8 @@ defmodule AshEnterprise.SystemOne.QuestionProposal do
   ids, statuses, clause refs — is envelope class.
   """
 
+  @type t :: %__MODULE__{}
+
   use AshEnterprise.Platform.Resource,
     domain: AshEnterprise.SystemOne,
     ownership: :none,
@@ -219,7 +221,7 @@ defmodule AshEnterprise.SystemOne.QuestionProposal do
   when nothing was proposed (profile resolution or transport failure — no
   model output existed to record).
   """
-  @spec propose(keyword()) :: {:ok, Ash.Struct.t()} | {:error, term()}
+  @spec propose(keyword()) :: {:ok, t()} | {:error, term()}
   def propose(opts) do
     transport = Keyword.get(opts, :transport, Transport.ReqLLM)
     profile = Keyword.fetch!(opts, :profile)
@@ -227,9 +229,7 @@ defmodule AshEnterprise.SystemOne.QuestionProposal do
     source = Keyword.fetch!(opts, :source)
     prompt = build_prompt(policy_text, source)
 
-    with {:ok, record} <- create_refusable(opts, prompt, profile, transport) do
-      {:ok, record}
-    end
+    create_refusable(opts, prompt, profile, transport)
   end
 
   defp create_refusable(opts, prompt, profile, transport) do
@@ -344,8 +344,8 @@ defmodule AshEnterprise.SystemOne.QuestionProposal do
   declaration — recomputes every question hash, and stamps the record.
   Registers nothing anywhere.
   """
-  @spec confirm(Ash.Struct.t(), [map()], keyword()) ::
-          {:ok, Ash.Struct.t()} | {:error, term()}
+  @spec confirm(t(), [map()], keyword()) ::
+          {:ok, t()} | {:error, term()}
   def confirm(record, entries, opts \\ []) do
     entries
     |> Enum.map(&normalise_entry/1)
@@ -434,9 +434,7 @@ defmodule AshEnterprise.SystemOne.QuestionProposal do
 
   defp criteria_line(%{"criteria" => criteria}) when is_map(criteria) and criteria != %{} do
     rendered =
-      criteria
-      |> Enum.map(fn {key, text} -> "    #{key}: #{inspect(text)}" end)
-      |> Enum.join(",\n")
+      Enum.map_join(criteria, ",\n", fn {key, text} -> "    #{key}: #{inspect(text)}" end)
 
     "  criteria(%{\n#{rendered}\n  })"
   end

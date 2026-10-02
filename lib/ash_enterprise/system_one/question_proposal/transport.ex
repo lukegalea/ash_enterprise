@@ -52,6 +52,11 @@ defmodule AshEnterprise.SystemOne.QuestionProposal.Transport do
     alias AshJudgments.Profile
 
     @impl true
+    # @dialyzer nowarn_function — genuine false positive: the ok path is
+    # proven at runtime (the resolution tests go through this exact chain),
+    # but the package's raise-heavy pin/region guards erase the success
+    # branch from Dialyzer's success typing of model_spec/3.
+    @dialyzer {:nowarn_function, resolve: 1}
     def resolve(profile) do
       with {:ok, spec} <- Profile.model_spec(%{profile: profile, family: :policy_proposals}),
            {:ok, req_llm_opts} <- Profile.req_llm_opts(profile) do
@@ -63,7 +68,7 @@ defmodule AshEnterprise.SystemOne.QuestionProposal.Transport do
     def generate(spec, req_llm_opts, schema, prompt) do
       with {:ok, response} <-
              ReqLLMDep.generate_object(spec, prompt, schema, req_llm_opts),
-           {:ok, object} <- ReqLLMDep.Response.object(response) do
+           %{} = object <- ReqLLMDep.Response.object(response) do
         {:ok, Jason.encode!(object)}
       end
     end
