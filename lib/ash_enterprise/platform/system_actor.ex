@@ -32,7 +32,11 @@ defmodule AshEnterprise.Platform.SystemActor do
     replay: "Event replay rebuilding resource state from the audit log.",
     migration: "A data migration or backfill.",
     seed: "Database seeding, including the initial tenant bootstrap.",
-    ai: "An AI agent acting without a human actor. Prefer the human's actor where one exists.",
+    ai:
+      "An attribution label for model-driven work with no human actor. No authority of its " <>
+        "own (ADR 0043): it never bypasses grants and resolves to an empty actor context. " <>
+        "Model-driven work runs as the person whose request it serves, or as an automation " <>
+        "principal holding grant rows; it is never the actor of an admission.",
     process:
       "The business process engine, resolving who may act on a task or advancing a token " <>
         "long after the request that started the process. A human decision inside a process " <>

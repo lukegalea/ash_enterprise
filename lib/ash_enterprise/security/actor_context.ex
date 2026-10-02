@@ -104,6 +104,12 @@ defmodule AshEnterprise.Security.ActorContext do
   def for_actor(actor, opts \\ [])
 
   def for_actor(%__MODULE__{} = context, _opts), do: context
+
+  # ADR 0043: `ai` is an attribution label with no authority of its own. It
+  # resolves to an empty context — no roles, no grants — so every policy check
+  # fails closed. Model-driven work runs as the requesting human or as an
+  # automation principal whose authority comes from grant rows.
+  def for_actor(%AshEnterprise.Platform.SystemActor{name: :ai}, _opts), do: %__MODULE__{}
   def for_actor(%AshEnterprise.Platform.SystemActor{}, opts), do: system(opts[:tenant])
   def for_actor(nil, _opts), do: %__MODULE__{}
 
