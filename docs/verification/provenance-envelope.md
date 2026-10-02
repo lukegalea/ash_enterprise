@@ -2,11 +2,20 @@
 
 | | |
 |---|---|
-| **Status** | Design — for review |
+| **Status** | **Superseded in part by judgment-record-v0 §3–§5** — 2026-10-02. Design — for review. |
 | **Lane** | G (enterprise verification) |
 | **Work item** | Plane project AST |
 | **Touches** | `AshEnterprise.Platform`, `AshEnterprise.Audit`, `AshEnterprise.Process`, `AshEnterprise.Decisions`, `ash_bpmn`, `ash_decisions` |
 | **Companions** | [`decision-validation.md`](decision-validation.md), [`feel-type-integration.md`](feel-type-integration.md) |
+
+**Superseded in part by judgment-record-v0 §3–§5** ([docs/rfc/judgment-record-v0.md](../rfc/judgment-record-v0.md), frozen 2026-10-02). The observation is that RFC's provenance envelope core plus a judgment extension; this document remains the design for the envelope itself. Answers carried forward from judgment-record-v0 §13:
+
+- **E1 (§4.1, its own table?)** — Yes for judgments: the ledger is its own set of tables (judgment-record-v0 §10).
+- **E2 (§4.2, truncation)** — Full 256-bit digests, never truncated (judgment-record-v0 §4.2, Q4).
+- **E3 (§4.3, `policy_decision_ids` for reads)** — Deferred to AST-9; judgment records are all writes.
+- **E4 (§4.4, composition `semantic_id`)** — One observation per question with a shared `request_id`, and the action's own `semantic_id` (judgment-record-v0 §5.1–§5.2).
+- **E5 (§4.5, `dmn:`/`bpmn:` schemes)** — Per Q2 as settled in judgment-record-v0.
+- **E6 (§4.6, retention enforcement)** — Retention classes are defined in judgment-record-v0 §10; the mechanism (time partitioning, tombstone job) remains deferred to CORE-LEDGER.
 
 ---
 
