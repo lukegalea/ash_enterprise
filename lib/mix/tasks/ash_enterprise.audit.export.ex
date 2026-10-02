@@ -20,9 +20,10 @@ defmodule Mix.Tasks.AshEnterprise.Audit.Export do
   use Mix.Task
 
   alias AshEnterprise.Audit.Export
+  alias AshEnterprise.Mix.Helpers
   alias AshEnterprise.Platform.SystemActor
 
-  @requirements ["app.start"]
+  @requirements ["app.config"]
 
   @impl Mix.Task
   def run(argv) do
@@ -30,6 +31,15 @@ defmodule Mix.Tasks.AshEnterprise.Audit.Export do
       OptionParser.parse(argv,
         strict: [from: :string, to: :string, tenant: :string, out: :string]
       )
+
+    # An export is a read through Ash against the Repo -- nothing in the
+    # supervision tree (iron law #23; docs/reviews/iron-law-audit.md, fix item 3).
+    Helpers.boot_repo()
+
+    # The window can hold events about any resource in the system, and each
+    # row's stored `action` only deserializes if the atom exists -- which it
+    # does once the resource defining that action is loaded.
+    Helpers.load_domain_resources()
 
     from = parse_date!(opts[:from], "--from")
     to = parse_date!(opts[:to], "--to")

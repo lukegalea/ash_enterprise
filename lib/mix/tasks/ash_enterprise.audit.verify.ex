@@ -17,12 +17,18 @@ defmodule Mix.Tasks.AshEnterprise.Audit.Verify do
   use Mix.Task
 
   alias AshEnterprise.Audit.Chain
+  alias AshEnterprise.Mix.Helpers
 
-  @requirements ["app.start"]
+  @requirements ["app.config"]
 
   @impl Mix.Task
   def run(argv) do
     {opts, _, _} = OptionParser.parse(argv, strict: [tenant: :string])
+
+    # Reads `audit_event_logs` through plain SQL. No Oban, no endpoint, no
+    # projectors -- and none wanted: a verifier must not drain the queues it is
+    # checking (iron law #23; docs/reviews/iron-law-audit.md, fix item 3).
+    Helpers.boot_repo()
 
     results =
       case opts[:tenant] do

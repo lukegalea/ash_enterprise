@@ -22,11 +22,17 @@ defmodule Mix.Tasks.AshEnterprise.Demo do
 
   use Mix.Task
 
-  @requirements ["app.start"]
+  alias AshEnterprise.Mix.Helpers
+
+  @requirements ["app.config"]
 
   @impl Mix.Task
   def run(args) do
     {opts, _rest, _invalid} = OptionParser.parse(args, strict: [organization: :string])
+
+    # Creates everything through the application's own actions against the
+    # Repo (iron law #23; docs/reviews/iron-law-audit.md, fix item 3).
+    Helpers.boot_repo()
 
     organization = organization!(opts[:organization])
 

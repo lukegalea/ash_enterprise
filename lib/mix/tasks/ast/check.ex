@@ -46,7 +46,12 @@ defmodule Mix.Tasks.Ast.Check do
 
   use Mix.Task
 
-  @requirements ["app.start"]
+  # Compile-and-config boot, not a started app (iron law #23): every step here
+  # is introspection or file reading. The contracts step runs
+  # `AshAgentTools.describe_action/2` over compiled domain modules and reads
+  # `config :ash_enterprise, :ast_check_contracts`; the other two steps read
+  # files. Nothing queries the Repo, so there is nothing to start.
+  @requirements ["app.config"]
 
   @switches [
     skip_contracts: :boolean,
@@ -111,6 +116,7 @@ defmodule Mix.Tasks.Ast.Check do
 
       true ->
         contracts = Application.get_env(:ash_enterprise, :ast_check_contracts, @default_contracts)
+        AshEnterprise.Mix.Helpers.load_domain_resources()
         failures = Enum.flat_map(contracts, &check_contract/1)
         finish("contracts", failures, "#{length(contracts)} agent contracts verified")
     end

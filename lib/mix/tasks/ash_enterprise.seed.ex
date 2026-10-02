@@ -29,6 +29,8 @@ defmodule Mix.Tasks.AshEnterprise.Seed do
 
   use Mix.Task
 
+  alias AshEnterprise.Mix.Helpers
+
   @switches [
     email: :string,
     password: :string,
@@ -37,11 +39,16 @@ defmodule Mix.Tasks.AshEnterprise.Seed do
     privileges_only: :boolean
   ]
 
+  @requirements ["app.config"]
+
   @impl Mix.Task
   def run(args) do
     {opts, _} = OptionParser.parse!(args, strict: @switches)
 
-    Mix.Task.run("app.start")
+    # Everything below writes through the application's own actions against
+    # the Repo. No Oban, no endpoint, no projectors (iron law #23;
+    # docs/reviews/iron-law-audit.md, fix item 3).
+    Helpers.boot_repo()
 
     count = AshEnterprise.Platform.Seeder.seed_privileges()
 

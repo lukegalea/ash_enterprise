@@ -16,12 +16,20 @@ defmodule Mix.Tasks.AshEnterprise.Compliance.Seed do
 
   use Mix.Task
 
+  alias AshEnterprise.Mix.Helpers
+
   @switches [org: :string]
+
+  @requirements ["app.config"]
 
   @impl Mix.Task
   def run(args) do
     {opts, _} = OptionParser.parse!(args, strict: @switches)
-    Mix.Task.run("app.start")
+
+    # Ash writes and reads against the Repo only; the same code is the test
+    # suite's setup, which runs without the supervision tree (iron law #23;
+    # docs/reviews/iron-law-audit.md, fix item 3).
+    Helpers.boot_repo()
 
     organization_id = opts[:org] || AshEnterprise.Legacy.Estate.organization_id()
 

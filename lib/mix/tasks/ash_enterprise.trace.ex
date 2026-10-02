@@ -35,7 +35,9 @@ defmodule Mix.Tasks.AshEnterprise.Trace do
 
   use Mix.Task
 
-  @requirements ["app.start"]
+  alias AshEnterprise.Telemetry.TraceSink
+
+  @requirements ["app.config"]
 
   @default_last 5
 
@@ -57,7 +59,16 @@ defmodule Mix.Tasks.AshEnterprise.Trace do
       bad -> Mix.raise("Unknown option(s): #{inspect(bad)}")
     end
 
-    unless AshEnterprise.Telemetry.TraceSink.running?() do
+    # The sink is pure ETS with no dependency on the Repo or the endpoint, so
+    # the task starts only that child rather than the whole tree (iron law #23;
+    # docs/reviews/iron-law-audit.md, fix item 6). One honest consequence: no
+    # OpenTelemetry pipeline is attached here, so this VM's ring collects no
+    # boot spans of its own -- the task reads whatever the VM it boots into has
+    # recorded, which for a fresh `mix` VM is nothing. Traces from a *running*
+    # dev server are reached in that VM (see the moduledoc).
+    start_sink()
+
+    unless TraceSink.running?() do
       Mix.raise("""
       The trace sink is not running. It starts only where
       `config :ash_enterprise, :trace_sink?` is true (config/dev.exs, config/test.exs).
@@ -78,21 +89,32 @@ defmodule Mix.Tasks.AshEnterprise.Trace do
     write(json, opts)
   end
 
+  # Honours the same config gate the application supervisor uses, so the sink
+  # never runs where the app itself would not have started it.
+  defp start_sink do
+    if Application.get_env(:ash_enterprise, :trace_sink?, false) do
+      case TraceSink.start_link() do
+        {:ok, _pid} -> :ok
+        {:error, {:already_started, _pid}} -> :ok
+      end
+    end
+  end
+
   # --- Selection --------------------------------------------------------------
 
   defp select(opts) do
     cond do
       id = opts[:trace_id] ->
-        case AshEnterprise.Telemetry.TraceSink.trace(id) do
+        case TraceSink.trace(id) do
           nil -> Mix.raise("No complete trace with id #{id} in the ring")
           trace -> [trace]
         end
 
       correlation = opts[:correlation] ->
-        AshEnterprise.Telemetry.TraceSink.by_correlation(correlation)
+        TraceSink.by_correlation(correlation)
 
       true ->
-        AshEnterprise.Telemetry.TraceSink.last(opts[:last] || @default_last)
+        TraceSink.last(opts[:last] || @default_last)
     end
   end
 

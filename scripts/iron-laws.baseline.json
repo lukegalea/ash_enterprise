@@ -61,62 +61,14 @@
   },
   {
     "law": "23",
-    "file": "lib/mix/tasks/ash_enterprise.audit.export.ex",
+    "file": "lib/mix/tasks/ash_enterprise.legacy.project.ex",
     "text": "@requirements [\"app.start\"]",
-    "reason": "Needs the running application: writes through Ash actions against the Repo (and, for some, Oban and the projectors). Converting it to app.config plus ensure_started of Repo alone is follow-up work from docs/reviews/iron-law-audit.md, fix item 3; audit.verify and bpmn.publish are the first two to convert."
-  },
-  {
-    "law": "23",
-    "file": "lib/mix/tasks/ash_enterprise.audit.verify.ex",
-    "text": "@requirements [\"app.start\"]",
-    "reason": "Needs the running application: writes through Ash actions against the Repo (and, for some, Oban and the projectors). Converting it to app.config plus ensure_started of Repo alone is follow-up work from docs/reviews/iron-law-audit.md, fix item 3; audit.verify and bpmn.publish are the first two to convert."
-  },
-  {
-    "law": "23",
-    "file": "lib/mix/tasks/ash_enterprise.bpmn.publish.ex",
-    "text": "Mix.Task.run(\"app.start\")",
-    "reason": "Needs the running application: writes through Ash actions against the Repo (and, for some, Oban and the projectors). Converting it to app.config plus ensure_started of Repo alone is follow-up work from docs/reviews/iron-law-audit.md, fix item 3; audit.verify and bpmn.publish are the first two to convert."
+    "reason": "Retained after review (S1-44 follow-up): the task was converted to app.config + Repo and reverted. Each projected row is a single-record Ash write, and Ash always dispatches the resulting notification (no per-call opt-out for non-bulk actions). ProjectedUser's pub_sub block broadcasts deliberately through AshEnterpriseWeb.Endpoint, which needs the endpoint process -- and starting an endpoint in a mix task binds port 4000 (runtime.exs server: true), a worse law-23 violation. The full tree is this task's honest requirement; its siblings boot minimally via AshEnterprise.Mix.Helpers.boot_repo/0."
   },
   {
     "law": "23",
     "file": "lib/mix/tasks/ash_enterprise.bpmn.setup.ex",
     "text": "Mix.Task.run(\"app.start\")",
-    "reason": "Needs the running application: writes through Ash actions against the Repo (and, for some, Oban and the projectors). Converting it to app.config plus ensure_started of Repo alone is follow-up work from docs/reviews/iron-law-audit.md, fix item 3; audit.verify and bpmn.publish are the first two to convert."
-  },
-  {
-    "law": "23",
-    "file": "lib/mix/tasks/ash_enterprise.compliance.seed.ex",
-    "text": "Mix.Task.run(\"app.start\")",
-    "reason": "Needs the running application: writes through Ash actions against the Repo (and, for some, Oban and the projectors). Converting it to app.config plus ensure_started of Repo alone is follow-up work from docs/reviews/iron-law-audit.md, fix item 3; audit.verify and bpmn.publish are the first two to convert."
-  },
-  {
-    "law": "23",
-    "file": "lib/mix/tasks/ash_enterprise.demo.ex",
-    "text": "@requirements [\"app.start\"]",
-    "reason": "Needs the running application: writes through Ash actions against the Repo (and, for some, Oban and the projectors). Converting it to app.config plus ensure_started of Repo alone is follow-up work from docs/reviews/iron-law-audit.md, fix item 3; audit.verify and bpmn.publish are the first two to convert."
-  },
-  {
-    "law": "23",
-    "file": "lib/mix/tasks/ash_enterprise.legacy.project.ex",
-    "text": "@requirements [\"app.start\"]",
-    "reason": "Needs the running application: writes through Ash actions against the Repo (and, for some, Oban and the projectors). Converting it to app.config plus ensure_started of Repo alone is follow-up work from docs/reviews/iron-law-audit.md, fix item 3; audit.verify and bpmn.publish are the first two to convert."
-  },
-  {
-    "law": "23",
-    "file": "lib/mix/tasks/ash_enterprise.seed.ex",
-    "text": "Mix.Task.run(\"app.start\")",
-    "reason": "Needs the running application: writes through Ash actions against the Repo (and, for some, Oban and the projectors). Converting it to app.config plus ensure_started of Repo alone is follow-up work from docs/reviews/iron-law-audit.md, fix item 3; audit.verify and bpmn.publish are the first two to convert."
-  },
-  {
-    "law": "23",
-    "file": "lib/mix/tasks/ash_enterprise.trace.ex",
-    "text": "@requirements [\"app.start\"]",
-    "reason": "Needs the running application: writes through Ash actions against the Repo (and, for some, Oban and the projectors). Converting it to app.config plus ensure_started of Repo alone is follow-up work from docs/reviews/iron-law-audit.md, fix item 3; audit.verify and bpmn.publish are the first two to convert."
-  },
-  {
-    "law": "23",
-    "file": "lib/mix/tasks/ast/check.ex",
-    "text": "@requirements [\"app.start\"]",
-    "reason": "Needs the running application: writes through Ash actions against the Repo (and, for some, Oban and the projectors). Converting it to app.config plus ensure_started of Repo alone is follow-up work from docs/reviews/iron-law-audit.md, fix item 3; audit.verify and bpmn.publish are the first two to convert."
+    "reason": "Retained after review (S1-44 follow-up): the task is genuinely Oban-load-bearing. It submits access requests and then drains the :bpmn and :default queues inline so the seeded processes actually run -- without the running Oban instance the demo exits with every process parked on its start node. The full supervision tree is the point of this task, unlike its siblings, which now boot minimally via AshEnterprise.Mix.Helpers.boot_repo/0 (docs/reviews/iron-law-audit.md, fix item 3; fix item 6)."
   }
 ]

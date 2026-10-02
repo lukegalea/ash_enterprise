@@ -35,12 +35,20 @@ defmodule Mix.Tasks.AshEnterprise.Bpmn.Publish do
 
   alias AshEnterprise.Bpmn
   alias AshEnterprise.Decisions
+  alias AshEnterprise.Mix.Helpers
   alias AshEnterprise.Platform.{Seeder, SystemActor}
   alias AshEnterprise.Process.Resolver
 
+  @requirements ["app.config"]
+
   @impl Mix.Task
   def run(_argv) do
-    Mix.Task.run("app.start")
+    # Publishing compiles artifacts at write time and is idempotent by content
+    # hash. It writes through Ash against the Repo and shells out to `xmllint`
+    # for validation -- no Oban, no endpoint, no projectors (iron law #23;
+    # docs/reviews/iron-law-audit.md, fix item 3). It runs on every deploy, so
+    # the boot it skips is paid back each time.
+    Helpers.boot_repo()
 
     organization = Seeder.seed_platform_organization()
     Mix.shell().info("platform organization: #{organization.id}")

@@ -38,6 +38,17 @@ defmodule Mix.Tasks.AshEnterprise.Legacy.Project do
   alias AshEnterprise.Legacy.Projection
   alias AshEnterprise.Platform.SystemActor
 
+  # app.start stays, reviewed (S1-44 follow-up): every row it projects is a
+  # single-record Ash write, and Ash always dispatches the resulting
+  # notification -- there is no per-call opt-out for non-bulk actions.
+  # `ProjectedUser`'s pub_sub block broadcasts deliberately *through the
+  # endpoint* ("so the message arrives as a %Phoenix.Socket.Broadcast{} on the
+  # pubsub server the endpoint is configured with"), which needs the endpoint
+  # process. Starting that inside a mix task is worse than what it saves:
+  # runtime.exs sets `server: true`, so the task would bind port 4000. The
+  # full tree is the honest requirement here, unlike its siblings, which boot
+  # minimally via AshEnterprise.Mix.Helpers.boot_repo/0.
+
   @requirements ["app.start"]
 
   @impl Mix.Task
