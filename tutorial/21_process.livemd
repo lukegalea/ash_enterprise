@@ -1,0 +1,128 @@
+<!--
+SPDX-FileCopyrightText: 2026 Luke Galea
+SPDX-FileCopyrightText: 2023 ash_tutorial contributors <https://github.com/ash-project/ash_tutorial/graphs/contributors>
+
+SPDX-License-Identifier: MIT
+-->
+
+# Ash Enterprise: 21 - Processes
+
+Runtime: **attached node**. Designer at `/bpmn` in the running app.
+
+## The graph orchestrates
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="20_approvals.livemd">Approvals</a>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Home</a>
+</div>
+<div class="flex">
+<a class="flex mr-2" style="color: #61758a;" href="22_judgments.livemd">Judgments</a>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>
+
+
+<!-- livebook:{"break_markdown":true} -->
+
+Refunds outgrew one gate: the approver depends on amount and tier (lesson 19's decision), refunds over 2,000 need finance **and** risk in parallel, and an approved refund must issue a credit in the billing API (lesson 13). Now a process earns its keep.
+
+> **The process graph orchestrates. It never decides, never validates, and never authorizes.**
+
+Every node resolves to a **host seam**, and the seams are where Ash lives:
+
+| Node | Seam | In ash_enterprise |
+|---|---|---|
+| `serviceTask` / `sendTask` | `AshBpmn.ActionInvoker` | `AshEnterprise.Process.ActionInvoker` runs **Ash actions** |
+| `businessRuleTask` | `AshBpmn.DecisionResolver` | `AshEnterprise.Process.DecisionResolver` asks **DMN** |
+| `userTask` | `AssignmentResolver` | `AshEnterprise.Process.AssignmentResolver` builds candidate rows |
+
+## The artifact rules
+
+* **BPMN XML is the single artifact.** No code DSL, no generated XML, no second copy.
+* **Definitions are immutable and versioned.** Instances **pin their definition for life**. A new topology is a new version (or a new key).
+* **Tokens carry routing, not business data.** Everything else is read from the subject through Ash at execution time.
+* **Conditions are FEEL** (`=` not `==`), validated at publish, stored as source text.
+* **A gateway never calls a decision.** The composition is: business rule task → promote a scalar signal → gateway reads `routing.<name>`.
+
+## Design it
+
+In the designer, model `refund`:
+
+1. Start → **businessRuleTask** `Who approves?`, decision `refund_approver`, `ash:inputs` `amount = subject.amount`, `tier = subject.customer_tier`, `ash:promote` `approver`.
+2. Exclusive gateway on `routing.approver`: `"none"` → step 4; otherwise → step 3.
+3. **userTask** `Approve refund`, candidates from `routing.approver`, excluding `subject.created_by_id`. For `subject.amount > 2000`, a parallel gateway adds a second userTask for `risk`, joined after.
+4. **serviceTask** `Issue credit`, action `Tutorial.Billing.issue_credit`, inputs `account_id`, `amount`, `idempotency_key = subject.id`.
+5. **serviceTask** `Mark approved`, action `AshEnterprise.Tutorial.Refund.approve` → End.
+
+The action and decision fields are comboboxes fed by the host's catalogue (`AshEnterprise.Process.DesignerCatalogue`). The catalogue is the allowlist for authoring; at publish, `exists?/1` on the invoker and resolver verifies every reference, so a diagram cannot ship against an action or decision that does not exist.
+
+Publish it.
+
+## Start and follow an instance
+
+Start an instance for a refund and follow its token with your agent.
+
+**Enter your solution**
+
+```elixir
+
+```
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <div class="p-4">
+
+  ```elixir
+  {:ok, instance} =
+    AshBpmn.start_instance(AshEnterprise.Bpmn,
+      key: "refund", subject: refund, actor: actor, tenant: tenant)
+
+  AshAgentTools.process_instance(key: "refund")
+  ```
+
+  `mix ash_agent.instance --key refund` shows the same read-only state from the shell, and `mix ash_agent.graph refund --version 1` shows the published graph with digests. Pass `:tenant` explicitly; background jobs carry it.
+
+  </div>
+</details>
+
+## Idempotency
+
+Node execution may run twice under Oban redelivery. The token claim gate makes double-advance safe, but the **action** must tolerate a second call. That is why `issue_credit` takes `idempotency_key`, and why `:approve` validates `status == :proposed`: the second call fails cleanly instead of crediting twice.
+
+## Events trigger processes
+
+Starting instances by hand is for the notebook. In the app, processes start from events (ADR 0030), on the same projection checkpoints as lesson 16 (ADR 0036): an event in the consumable log starts an instance, exactly once, replayably.
+
+## Exercise: where does the rule go?
+
+The business says "refunds on closed tickets must never be approved". Where do you put it?
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <div class="p-4">
+
+  A validation on `Refund.approve` (or a policy, if it is about who may act). Not a gateway condition, not the invoker, not the decision. A rule in the graph is enforced for refunds that go through this process and bypassed by every other caller: the API, an agent, a future process version.
+
+  </div>
+</details>
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="20_approvals.livemd">Approvals</a>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Home</a>
+</div>
+<div class="flex">
+<a class="flex mr-2" style="color: #61758a;" href="22_judgments.livemd">Judgments</a>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>
+

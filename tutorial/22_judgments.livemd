@@ -1,0 +1,116 @@
+<!--
+SPDX-FileCopyrightText: 2026 Luke Galea
+SPDX-FileCopyrightText: 2023 ash_tutorial contributors <https://github.com/ash-project/ash_tutorial/graphs/contributors>
+
+SPDX-License-Identifier: MIT
+-->
+
+# Ash Enterprise: 22 - Judgments
+
+Runtime: **attached node**.
+
+## Models observe, declarations decide
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="21_process.livemd">Processes</a>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Home</a>
+</div>
+<div class="flex">
+<a class="flex mr-2" style="color: #61758a;" href="23_a2ui.livemd">A2UI</a>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>
+
+
+<!-- livebook:{"break_markdown":true} -->
+
+Some facts nobody has: "is this refund reason plausibly fraud?", "which customer tier does this free-text email imply?". A model can offer an answer. The question is where that answer is allowed to go. `ash_judgments` makes it a **declared question** whose answers are **recorded observations**, and enforces four laws:
+
+1. **Observe → admit → decide.** Instruments propose observations; an authorized Ash action admits them as facts; rules evaluate facts. No model writes authoritative state. `accept_*`, `override_*` and `authorize_*` actions are never exposed to a model.
+2. **Record, don't recompute.** An answer is a ledger row with timestamp and instrument version. Replay reads the ledger; it never re-runs inference. Never call a model inside `change/3`: replay runs changes (lesson 15).
+3. **Never in a check, never a grant.** No model call in a policy check, FEEL expression, rule evaluation, projector or calculation.
+4. **Advisory in tooling.** In dev and agent tools a model is a separate, labelled signal; deterministic gates stay deterministic.
+
+## Declare the question
+
+Questions are declarations on the subject resource:
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+# on AshEnterprise.Tutorial.Refund, with extra_extensions: [AshJudgments.Registry]
+judgments do
+  question :suspected_fraud do
+    type :boolean
+    family :refund_risk
+    version 1
+    pii :minimised
+    record :must
+  end
+end
+```
+
+This generates a `judge_suspected_fraud` action that delegates to `ash_ai`'s evaluate over a **pinned instrument profile** (model id + digest, residency class, region), configured under `config :ash_judgments, profiles: [...]`. Pinning fails loudly on floating aliases.
+
+## Admit, then decide
+
+The model's answer lands in the ledger. Nothing has changed yet. Then:
+
+* `AshJudgments.Bridge.Rules` turns **admitted** judgments into `ash_rules` facts (lesson 17), so `suspected_fraud` can feed a `missing: :unknown` fact. No judgment yet is `:unknown`, never "not fraud".
+* `Bridge.Dmn` hands them to decisions as inputs; `Bridge.Bpmn` promotes them as process signals.
+
+## Exercise: spot the violation
+
+Which of these are wrong, and which law does each break?
+
+```elixir
+# A
+validate fn cs, _ -> if MyLLM.fraud?(cs.data.reason), do: {:error, "fraud"}, else: :ok end
+
+# B
+policy action(:approve), do: authorize_if MyApp.Checks.ModelSaysTrustworthy
+
+# C
+calculate :risk_label, :string, fn records, _ -> Enum.map(records, &MyLLM.label/1) end
+
+# D
+update :admit_fraud_judgment do
+  argument :judgment_id, :uuid
+  # reads the ledger row, sets suspected_fraud from it; only held by a named system actor or a human
+end
+```
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <div class="p-4">
+
+  * **A** breaks laws 1 and 2: the model decides inside the action, and replay re-runs it.
+  * **B** breaks law 3: a model in a policy check is a grant.
+  * **C** breaks law 3: a calculation re-infers on every read, so nothing is recorded or reproducible.
+  * **D** is the shape you want: an authorized action admits a recorded observation. Rules and decisions then read the admitted fact.
+
+  `mix ash_agent.laws` catches some of this; reading the four laws catches the rest.
+
+  </div>
+</details>
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="21_process.livemd">Processes</a>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Home</a>
+</div>
+<div class="flex">
+<a class="flex mr-2" style="color: #61758a;" href="23_a2ui.livemd">A2UI</a>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>
+

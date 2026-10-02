@@ -1,0 +1,222 @@
+<!--
+SPDX-FileCopyrightText: 2026 Luke Galea
+SPDX-FileCopyrightText: 2023 ash_tutorial contributors <https://github.com/ash-project/ash_tutorial/graphs/contributors>
+
+SPDX-License-Identifier: MIT
+-->
+
+# Ash Enterprise: 10 - LiveView: Reading Resources
+
+```elixir
+Application.put_env(:ash, :validate_domain_resource_inclusion?, false)
+Application.put_env(:ash, :validate_domain_config_inclusion?, false)
+
+Mix.install(
+  [{:ash, "~> 3.0"}, {:ash_phoenix, "~> 2.0"}, {:phoenix_playground, "~> 0.1"}],
+  consolidate_protocols: false
+)
+```
+
+## Where we are
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Overview</a>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Home</a>
+</div>
+<div class="flex">
+<a class="flex mr-2" style="color: #61758a;" href="11_liveview_forms.livemd">LiveView: Forms & Actions</a>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>
+
+
+<!-- livebook:{"break_markdown":true} -->
+
+In lesson 9 you finished with `Tutorial.Support.Ticket` and `Tutorial.Support.Representative`. A LiveView is just one more **caller of actions**. It gets no special access: it reads through a read action, as an actor, and the resource's policies decide what it sees. That is the whole lesson; the rest is LiveView mechanics done properly.
+
+Here is the domain, with one addition: a `policies` block, so the actor matters.
+
+```elixir
+defmodule Tutorial.Support.Ticket do
+  use Ash.Resource,
+    domain: Tutorial.Support,
+    data_layer: Ash.DataLayer.Ets,
+    authorizers: [Ash.Policy.Authorizer]
+
+  attributes do
+    uuid_primary_key :id
+    attribute :subject, :string, allow_nil?: false, public?: true
+    attribute :status, :atom, constraints: [one_of: [:open, :closed]], default: :open, public?: true
+    attribute :owner_id, :uuid, public?: true
+    create_timestamp :inserted_at, public?: true
+  end
+
+  actions do
+    defaults [:read]
+    create :open, accept: [:subject, :owner_id]
+    update :close, change: set_attribute(:status, :closed)
+
+    read :open_tickets do
+      filter expr(status == :open)
+      pagination keyset?: true, default_limit: 20, required?: false
+    end
+  end
+
+  policies do
+    policy action_type(:read) do
+      authorize_if expr(owner_id == ^actor(:id))
+    end
+
+    policy action_type([:create, :update]) do
+      authorize_if actor_present()
+    end
+  end
+end
+
+defmodule Tutorial.Support do
+  use Ash.Domain
+
+  resources do
+    resource Tutorial.Support.Ticket do
+      define :open_ticket, action: :open, args: [:subject]
+      define :list_open, action: :open_tickets
+      define :close_ticket, action: :close
+    end
+  end
+end
+```
+
+## Actors, not filters
+
+The LiveView never writes `where owner_id == current_user.id`. That rule lives in the policy, so it applies to every caller. Create two actors and a few tickets, then list as each.
+
+```elixir
+alice = %{id: Ash.UUID.generate()}
+bob = %{id: Ash.UUID.generate()}
+
+for s <- ["Printer on fire", "VPN down"],
+    do: Tutorial.Support.open_ticket!(s, %{owner_id: alice.id}, actor: alice)
+
+Tutorial.Support.open_ticket!("Bob's laptop", %{owner_id: bob.id}, actor: bob)
+:ok
+```
+
+List open tickets as `alice`, then as `bob`, using the code interface.
+
+**Enter your solution**
+
+```elixir
+
+```
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <div class="p-4">
+
+  ```elixir
+  Tutorial.Support.list_open!(actor: alice) |> Enum.map(& &1.subject)
+  Tutorial.Support.list_open!(actor: bob) |> Enum.map(& &1.subject)
+  ```
+
+  Same action, different rows. Reads filter rather than raise: a policy on a read becomes a filter.
+
+  </div>
+</details>
+
+## The LiveView rules
+
+Three rules you will be held to (they are iron laws, and lesson 14's judge checks them):
+
+1. **No queries in `mount/3`.** `mount` runs twice: once for the static render, once on connect. Load in `handle_params/3`, which also runs when the URL changes.
+2. **Collections are streams.** `stream/3` keeps the list on the client, not in server memory.
+3. **The actor comes from the socket**, set by `on_mount` auth in a real app. Here we fake it with an assign.
+
+```elixir
+defmodule TicketsLive do
+  use Phoenix.LiveView
+
+  def mount(_params, _session, socket) do
+    # static: no queries here
+    {:ok, assign(socket, current_user: Process.get(:demo_actor))}
+  end
+
+  def handle_params(_params, _uri, socket) do
+    page = Tutorial.Support.list_open!(actor: socket.assigns.current_user)
+    {:noreply, stream(socket, :tickets, page.results, reset: true)}
+  end
+
+  def render(assigns) do
+    ~H"""
+    <h1>Open tickets</h1>
+    <ul id="tickets" phx-update="stream">
+      <li :for={{dom_id, t} <- @streams.tickets} id={dom_id}>{t.subject}</li>
+    </ul>
+    """
+  end
+end
+```
+
+Because `open_tickets` is paginated with `required?: false`, the code interface returns a page when asked. Run it:
+
+```elixir
+Process.put(:demo_actor, alice)
+PhoenixPlayground.start(live: TicketsLive, port: 4010, open_browser: false)
+```
+
+Open http://localhost:4010. You should see only Alice's tickets.
+
+## Exercise: add a status filter from the URL
+
+Add a `?status=closed` URL parameter. Do **not** filter in the LiveView. Add an argument to a read action and let the action filter.
+
+**Enter your solution**
+
+```elixir
+
+```
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <div class="p-4">
+
+  Add to the resource:
+
+  ```elixir
+  read :by_status do
+    argument :status, :atom, constraints: [one_of: [:open, :closed]], default: :open
+    filter expr(status == ^arg(:status))
+  end
+  ```
+
+  and to the domain `define :list_by_status, action: :by_status, args: [:status]`. Then in `handle_params/3`:
+
+  ```elixir
+  status = Map.get(params, "status", "open")
+  tickets = Tutorial.Support.list_by_status!(status, actor: socket.assigns.current_user)
+  ```
+
+  Pass the string. The action's argument type casts and constrains it, so you never call `String.to_atom/1` on user input.
+
+  </div>
+</details>
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Overview</a>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Home</a>
+</div>
+<div class="flex">
+<a class="flex mr-2" style="color: #61758a;" href="11_liveview_forms.livemd">LiveView: Forms & Actions</a>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>
+

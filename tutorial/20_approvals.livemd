@@ -1,0 +1,117 @@
+<!--
+SPDX-FileCopyrightText: 2026 Luke Galea
+SPDX-FileCopyrightText: 2023 ash_tutorial contributors <https://github.com/ash-project/ash_tutorial/graphs/contributors>
+
+SPDX-License-Identifier: MIT
+-->
+
+# Ash Enterprise: 20 - Approvals
+
+Runtime: **attached node**.
+
+## One gate on one action
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="19_decisions.livemd">Decisions</a>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Home</a>
+</div>
+<div class="flex">
+<a class="flex mr-2" style="color: #61758a;" href="21_process.livemd">Processes</a>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>
+
+
+<!-- livebook:{"break_markdown":true} -->
+
+Most "workflow" requests are a single approval gate. `ash_bpmn` ships two layers, and the first stands alone: `AshBpmn.Changes.RequireApproval` on an action. No diagram. Reach for BPMN (lesson 21) only when routing, parallelism or joins appear.
+
+You get: a human task with assignee, due date and outcome; candidates **materialized as rows**; maker-checker applied when candidates are resolved; delegation; remind/escalate/expire timers as Oban jobs that are cancelled when the task completes; and a process event log an auditor can read.
+
+## Gate the refund
+
+Change the Refund so that proposing it opens an approval, and approval runs `:approve`:
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+create :propose do
+  accept [:ticket_ref, :amount, :reason]
+
+  change AshBpmn.Changes.RequireApproval,
+    key: "refund.approve",
+    name: "Approve refund",
+    outcomes: [:approved, :rejected],
+    candidates: [{:role, "refund_approver"}],     # the host AssignmentResolver interprets these
+    excluding: ["subject.created_by_id"],         # maker-checker, by subtraction
+    on_complete: %{approved: "approve", rejected: "reject"},
+    escalate_in: [hours: 24],
+    expire_in: [days: 7]
+end
+```
+
+Three things to internalize:
+
+1. **Maker-checker is never a `forbid_if`.** It is `excluding:`, applied when candidate rows are built. A policy that forbids the maker is evaluated per row per request; a subtraction is done once, and the task list stays one indexed query.
+2. **`on_complete` names actions.** The host's `ActionInvoker` runs them. Your `validate attribute_equals(:status, :proposed)` from lesson 15 still guards `:approve`, for this caller and every other.
+3. **The rule "who approves" is not here.** Today it is a fixed role. In lesson 21 it comes from the `refund_approver` decision.
+
+## Work the task
+
+Propose a refund as one user, list the tasks of a second user with `AshBpmn.my_tasks/2`, claim it, and decide `:approved`. Then confirm the proposer cannot see the task at all.
+
+**Enter your solution**
+
+```elixir
+
+```
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <div class="p-4">
+
+  ```elixir
+  refund = AshEnterprise.Tutorial.propose_refund!("T-2001", Decimal.new("300"), actor: maker, tenant: tenant)
+
+  [task | _] = AshBpmn.my_tasks(AshEnterprise.Bpmn, actor: checker, tenant: tenant)
+  task = AshBpmn.claim_task!(task, actor: checker, tenant: tenant)
+  AshBpmn.decide!(task, outcome: :approved, actor: checker, tenant: tenant)
+
+  AshBpmn.my_tasks(AshEnterprise.Bpmn, actor: maker, tenant: tenant)   # no refund task
+  Ash.reload!(refund, actor: checker, tenant: tenant).status          # :approved
+  ```
+
+  Check the exact option names with `h AshBpmn.decide/2` and `h AshBpmn.my_tasks/2`. If the maker *does* see the task, the bug is in candidate resolution, so debug `excluding:` and the host `AssignmentResolver`, not policies.
+
+  </div>
+</details>
+
+## Timers must be cancellable
+
+Look at the Oban jobs for the task before and after deciding. The escalation job must be gone afterwards. If you ever add another completion path, cancel the timers there too: an escalation email for a refund approved four days ago is the canonical incident.
+
+```elixir
+import Ecto.Query
+AshEnterprise.Repo.all(from j in Oban.Job, where: j.state in ["scheduled", "available"], select: {j.worker, j.args})
+```
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="19_decisions.livemd">Decisions</a>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Home</a>
+</div>
+<div class="flex">
+<a class="flex mr-2" style="color: #61758a;" href="21_process.livemd">Processes</a>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>
+

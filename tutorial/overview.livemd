@@ -1,0 +1,98 @@
+<!--
+SPDX-FileCopyrightText: 2026 Luke Galea
+SPDX-FileCopyrightText: 2023 ash_tutorial contributors <https://github.com/ash-project/ash_tutorial/graphs/contributors>
+
+SPDX-License-Identifier: MIT
+-->
+
+# Ash Enterprise: 0 - Overview
+
+## Overview
+
+This tutorial picks up exactly where the [Ash tutorial](https://github.com/ash-project/ash_tutorial) stops. You finished lesson 9 (Calculations) with a `Tutorial.Support` domain holding a `Ticket` and a `Representative`. We keep that domain and grow it, one concept per lesson, into the kind of system an enterprise actually runs: audited, projected, rule-checked, decided, approved, orchestrated, rendered for agents, and migrated off a legacy schema without a big-bang cutover.
+
+Same rules as before:
+
+* Work **sequentially**. Every lesson builds on the previous one.
+* Read the instructions, **write your own solution**, then open **Show Solution**.
+* **Do not copy paste.** The muscle memory is the point.
+
+<!-- livebook:{"break_markdown":true} -->
+
+### The Ash way, stated once
+
+Every lesson is a variation on one idea, so it is worth saying plainly before you start:
+
+> **Describe what a thing is, once, as data. Derive everything else from the description.**
+
+That idea has consequences you will meet over and over:
+
+1. **Everything is a resource.** A database table, an event log, a projection, a remote REST API, a DMN decision, a BPMN definition, a legacy table you do not own. If it has a shape and operations, it is a resource with actions.
+2. **Actions are the only door.** UIs, APIs, agents, processes and jobs all call the same actions, so policies, validations and audit apply to all of them. Nothing writes around an action.
+3. **Each layer has one job.** A process *orchestrates*, a decision *decides*, a rule *evaluates*, a policy *authorizes*, a projection *summarises*, a model *observes*. When one layer starts doing another's job, the rule ends up enforced in one place and bypassed everywhere else.
+4. **Artifacts are immutable and versioned.** Published decisions, process definitions and rule bundles are content-hashed snapshots, never edited in place.
+5. **Missing is never "fine".** Unknown facts are `:unknown`, not `false`; an unmatched decision is reported, not silently empty.
+
+<!-- livebook:{"break_markdown":true} -->
+
+### Runtimes
+
+* **Lessons 10 to 13** (LiveView and remote resources) run standalone. Each has a `Mix.install` cell using ETS and [`phoenix_playground`](https://hex.pm/packages/phoenix_playground), so no database is needed.
+* **Lessons 14 to 25** need Postgres, Oban and the enterprise packages, which are already wired together in `ash_enterprise`. Run them against the app:
+
+```bash
+# in the ash_enterprise checkout
+devenv up                                   # Postgres etc.
+mix setup
+iex --sname ae --cookie tutorial -S mix phx.server
+```
+
+Then in Livebook choose **Runtime → Attached node**, name `ae@<your-host>`, cookie `tutorial`.
+
+From lesson 15 on, the resources you write are real application code. Put them under `lib/ash_enterprise/tutorial/` in a `AshEnterprise.Tutorial` domain (lesson 15 creates it), generate migrations with `mix ash.codegen tutorial_<lesson>`, `mix ash.migrate`, and `recompile()` in the attached node. Use the notebook to explore, call actions and debug. Delete the directory and its migrations when you are done; nothing else in the app depends on it.
+
+<!-- livebook:{"break_markdown":true} -->
+
+### Lessons
+
+**Part I: Ash foundations** (upstream, do these first)
+
+0. to 9. [ash_tutorial](https://github.com/ash-project/ash_tutorial): Resources, Actions, Querying, Attributes, Customizing Actions, Relationships, Code Interfaces, Aggregates, Calculations
+
+**Part II: LiveView with Ash** (before A2UI)
+
+10. [LiveView: Reading Resources](10_liveview_reads.livemd): actors, `handle_params`, streams, no queries in `mount`
+11. [LiveView: Forms & Actions](11_liveview_forms.livemd): `AshPhoenix.Form`, validation, errors from the action
+12. [LiveView: Live Updates](12_liveview_pubsub.livemd): `Ash.Notifier.PubSub`, `connected?/1`
+13. [Remote APIs as Resources](13_remote_resources.livemd): a REST API behind actions, generic and manual actions
+
+**Part III: Working with your agent**
+
+14. [Working With Your Agent](14_agent_tools.livemd): `ash_agent_tools`, Tidewave live eval, Serena over Expert, debugging "forbidden", the iron-law judge
+
+**Part IV: The enterprise substrate**
+
+15. [Events](15_events.livemd): `ash_events`, the event log as the record of *what happened*
+16. [Projections](16_projections.livemd): `ash_events_projections`, grains, projectors, rebuilds
+17. [Rules](17_rules.livemd): `ash_rules`, facts, absence semantics, the outcome lattice
+18. [Compliance](18_compliance.livemd): `ash_compliance`, bundles, findings vs evaluations
+19. [Decisions](19_decisions.livemd): `ash_decisions`, DMN and FEEL as versioned resources
+20. [Approvals](20_approvals.livemd): `ash_bpmn` approval layer, maker-checker by subtraction
+21. [Processes](21_process.livemd): `ash_bpmn` process layer, the three host seams
+22. [Judgments](22_judgments.livemd): `ash_judgments`, models observe, declarations decide
+
+**Part V: Experience and migration**
+
+23. [A2UI](23_a2ui.livemd): `ash_a2ui`, UI surfaces derived from resources
+24. [Strangler](24_strangler.livemd): `ash_strangler`, the new model over the legacy rows
+25. [Capstone: The Ash Way](25_capstone.livemd): the whole refund flow, end to end
+
+<!-- livebook:{"break_markdown":true} -->
+
+### The story
+
+Our support desk grows a **refund** workflow. A customer opens a ticket; a representative proposes a `Refund`. The refund is audited as events (15), counted per representative by a projection (16), checked against SLA and policy rules (17, 18), routed by a DMN decision (19), gated by an approval with maker-checker (20), orchestrated as a BPMN process when it gets complicated (21), triaged by a model that may *observe* but never *decide* (22), rendered as an agent-ready UI (23), and finally migrated off the old `helpdesk.cases` table that the 2011 app still writes to (24). Along the way you debug all of it with your agent the Ash way (14). The customer's billing record lives in a remote API, and it is a resource too (13).
+
+## Contributing?
+
+_Anything missing? Any errors? Contributions are welcome in [ash_enterprise](https://github.com/lukegalea/ash_enterprise). Follow [diataxis](https://diataxis.fr/tutorials/) for tutorials._

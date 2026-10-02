@@ -1,0 +1,157 @@
+<!--
+SPDX-FileCopyrightText: 2026 Luke Galea
+SPDX-FileCopyrightText: 2023 ash_tutorial contributors <https://github.com/ash-project/ash_tutorial/graphs/contributors>
+
+SPDX-License-Identifier: MIT
+-->
+
+# Ash Enterprise: 17 - Rules
+
+```elixir
+# Pure: runs standalone too.
+Mix.install([{:ash_rules, github: "lukegalea/ash_rules"}])
+```
+
+## Rules are data
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="16_projections.livemd">Projections</a>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Home</a>
+</div>
+<div class="flex">
+<a class="flex mr-2" style="color: #61758a;" href="18_compliance.livemd">Compliance</a>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>
+
+
+<!-- livebook:{"break_markdown":true} -->
+
+Refund policy: refunds above 500 need a recorded manager approval; a refund on a ticket with no known customer tier cannot be judged. You could write that as an `if` in a change. Then it is code, cannot be shown to an auditor, cannot be tailored per tenant, and "we do not know the tier" quietly becomes "the tier is not gold".
+
+`ash_rules` compiles rules into an **immutable, content-hashed bundle**. Bundles in, verdicts out. No storage, no I/O, no side effects. Projecting results into state is someone else's job (lesson 18).
+
+> **Missing data is never a pass, and never silently a violation.**
+
+## Facts and their absence
+
+Facts are `{subject, predicate, value}` triples. Every fact declares what its absence means:
+
+| `missing:` | Absence means | Reported? |
+|---|---|---|
+| `false` (default) | the value `false` | yes, in `missing_facts` |
+| `:unknown` | every rule probing it is `:unknown` | yes |
+| `:no_fact` | an expected state, behaves like `false` | no |
+
+```elixir
+defmodule Tutorial.RefundRules do
+  use AshRules
+
+  fact_schema do
+    fact :amount_over_limit, :boolean
+    fact :manager_approved, :boolean
+    fact :customer_tier, :atom, one_of: [:standard, :gold], missing: :unknown
+  end
+
+  rule "large refunds need manager approval",
+    id: "REF-1",
+    severity: :high do
+    when_requires has(:refund, :amount_over_limit, true)
+    fails_when neg(:refund, :manager_approved, true)
+    outcome :noncompliant, gap: "refund.manager_approval"
+  end
+end
+```
+
+Every rule has an `id`, a `severity`, and, because it can fire `:noncompliant`, a `gap`: the finding is filed under something, so it can be waived, tracked and aggregated. Leave any of those out and it does not compile. Try it.
+
+## Evaluate
+
+```elixir
+{:ok, result} =
+  AshRules.evaluate(Tutorial.RefundRules, [
+    {:refund, :amount_over_limit, true},
+    {:refund, :manager_approved, false}
+  ])
+
+{result.overall, AshRules.Result.findings(result) |> Enum.map(& &1.gap)}
+```
+
+Read `overall` first. The outcome lattice is `compliant`, `noncompliant`, `unknown`, `error`. `:unknown` and `:error` never collapse to `:compliant`.
+
+## Exercise: make "unknown" bite
+
+Add a rule `REF-2`, severity `:medium`, gap `"refund.tier_check"`: refunds over the limit for customers who are not `:gold` are noncompliant. Then evaluate with **no** `customer_tier` fact and observe `overall`.
+
+**Enter your solution**
+
+```elixir
+
+```
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <div class="p-4">
+
+  ```elixir
+  rule "over-limit refunds are for gold customers",
+    id: "REF-2",
+    severity: :medium do
+    when_requires has(:refund, :amount_over_limit, true)
+    fails_when neg(:refund, :customer_tier, :gold)
+    outcome :noncompliant, gap: "refund.tier_check"
+  end
+  ```
+
+  With the tier missing, `REF-2` is `:unknown` and so is `overall`. If you had left `missing:` at its default, a missing tier would read as `false`, `neg(... :gold)` would hold, and you would file a violation against a customer whose tier you simply never loaded.
+
+  </div>
+</details>
+
+## Gate on the triple
+
+A host gating an action on a verdict refuses when `overall in [:noncompliant, :unknown, :error]`. Treat the three as one unit. A guard that blocks `:noncompliant` but passes `:unknown` reinvents the bug the lattice exists to prevent.
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+# a validation on Refund.approve, in the ash_enterprise app
+validate fn changeset, _ctx ->
+  facts = AshEnterprise.Tutorial.RefundFacts.for(changeset)
+  {:ok, r} = AshRules.evaluate(Tutorial.RefundRules, facts)
+
+  if AshRules.Outcome.blocking?(r.overall),
+    do: {:error, field: :status, message: "refund rules: #{r.overall}"},
+    else: :ok
+end
+```
+
+The rule set decides compliance; the **action** enforces. Same separation you will see for decisions (19) and processes (21).
+
+## Traps worth knowing
+
+* **Strict equality.** `80` does not match `80.0`. Declare the type the producer writes.
+* **Subjects cross the wire as strings.** A bundle that went through `AshRules.Ir.encode!/1` and `decode/1` (anything stored by a control plane) probes `"refund"`, not `:refund`. Emit facts in the post-compile spelling.
+* **The hash is the identity.** `Tutorial.RefundRules.__bundle__().content_hash` is stable across declaration order and changes whenever a rule changes. That is what lesson 18 pins evaluations to.
+* **Debugging:** `mix ash_agent.rules --facts '[...]'` evaluates from the shell without booting the app (lesson 14).
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="16_projections.livemd">Projections</a>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Home</a>
+</div>
+<div class="flex">
+<a class="flex mr-2" style="color: #61758a;" href="18_compliance.livemd">Compliance</a>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>
+

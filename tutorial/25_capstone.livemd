@@ -1,0 +1,102 @@
+<!--
+SPDX-FileCopyrightText: 2026 Luke Galea
+SPDX-FileCopyrightText: 2023 ash_tutorial contributors <https://github.com/ash-project/ash_tutorial/graphs/contributors>
+
+SPDX-License-Identifier: MIT
+-->
+
+# Ash Enterprise: 25 - Capstone: The Ash Way
+
+## One refund, every layer
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="24_strangler.livemd">Strangler</a>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Home</a>
+</div>
+<div class="flex">
+<span class="mr-2"></span>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>
+
+
+<!-- livebook:{"break_markdown":true} -->
+
+Trace a single refund end to end and name which layer does what. If you can say it without looking, you have the model.
+
+1. A customer's ticket arrives in `legacy.cases`; the strangled `Ticket` sees it and notifies (24).
+2. A rep opens the A2UI surface (23); the form submits `Refund.propose` as the rep (11).
+3. `propose` writes an audit event (15) and a consumable event (16).
+4. That event starts the `refund` process (21).
+5. A model's fraud judgment is recorded, then admitted by an authorized action (22).
+6. The business rule task asks `refund_approver` (19); the gateway routes on the promoted signal.
+7. The user task's candidates exclude the maker (20); timers are scheduled.
+8. On approval, the invoker runs `issue_credit` against the billing resource (13), idempotently, then `Refund.approve`, whose validation still guards it.
+9. The projector updates `RefundStats` (16) and the compliance projector evaluates the bundle, writing a Finding and an Evaluation (17, 18).
+10. Every step can be described, validated, dry-run and read back by your agent (14).
+
+## Final exercise
+
+For each statement, name the layer that owns it: action/validation, policy, rule bundle, decision, process, projection, judgment, or UI.
+
+* "Refunds over 2,000 need risk review in parallel."
+* "Approvers cannot approve their own refunds."
+* "Refunds over 500 without manager approval are a finding under REF-1."
+* "Gold customers' refunds up to 500 need no approver."
+* "A refund can only be approved while proposed."
+* "Only members of the organization can see its refunds."
+* "Today's approved total per organization."
+* "This reason text looks like fraud."
+* "Hide the approve button from people who cannot approve."
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <div class="p-4">
+
+  * Parallel risk review: **process** (orchestration).
+  * Self-approval: **approval candidates**, `excluding:` (never `forbid_if`).
+  * REF-1 finding: **rule bundle**, projected by **compliance**.
+  * Gold up to 500: **decision** (DMN).
+  * Only while proposed: **action validation**.
+  * Organization visibility: **policy** (inherited from the platform resource).
+  * Approved total: **projection**.
+  * Looks like fraud: **judgment**, an observation until admitted.
+  * Hide the button: **UI**, derived from policies, and still refused by the policy if sent.
+
+  </div>
+</details>
+
+## The habits to keep
+
+* Model it as a resource, even when it is remote, legacy or a document.
+* Make actions the only door, and name them for what the business did.
+* Give each concern one layer and refuse to let another layer borrow it.
+* Version artifacts; pin what must be pinned; never edit published things.
+* Treat unknown as unknown.
+* Ask the declaration, then the running system, then the code.
+* Judge your diff (`mix ash_agent.laws - --diff`) before saying done.
+
+<!-- livebook:{"break_markdown":true} -->
+
+Further reading in the repos: each package's `usage-rules.md`, the ADRs under `ash_enterprise/docs/adr`, and the [clinic-demo](https://github.com/lukegalea/clinic-demo) capstone with captured evidence.
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="24_strangler.livemd">Strangler</a>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Home</a>
+</div>
+<div class="flex">
+<span class="mr-2"></span>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>
+

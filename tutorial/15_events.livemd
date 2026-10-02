@@ -1,0 +1,206 @@
+<!--
+SPDX-FileCopyrightText: 2026 Luke Galea
+SPDX-FileCopyrightText: 2023 ash_tutorial contributors <https://github.com/ash-project/ash_tutorial/graphs/contributors>
+
+SPDX-License-Identifier: MIT
+-->
+
+# Ash Enterprise: 15 - Events
+
+Runtime: **attached node** to `ash_enterprise`. Code goes in `lib/ash_enterprise/tutorial/`.
+
+## What happened, recorded once
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="14_agent_tools.livemd">Working With Your Agent</a>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Home</a>
+</div>
+<div class="flex">
+<a class="flex mr-2" style="color: #61758a;" href="16_projections.livemd">Projections</a>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>
+
+
+<!-- livebook:{"break_markdown":true} -->
+
+A row tells you what is true now. An enterprise also has to answer *what happened, who did it, and when*: for audit, for debugging (lesson 14's step 4), and as the input every later layer consumes. Projections (16), compliance (18) and process triggers (21) all read **the event log**, not the tables.
+
+`ash_events` records every action on an audited resource as an event row, in the same transaction as the write. In `ash_enterprise` you do not add it per resource: **batteries are inherited.** `AshEnterprise.Platform.Resource` adds `AshEvents.Events` pointing at the one central log, `AshEnterprise.Audit.EventLog`, unless a resource opts out with `audit?: false`, a local, greppable decision.
+
+## The tutorial domain and the Refund
+
+Create these two files.
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+# lib/ash_enterprise/tutorial.ex
+defmodule AshEnterprise.Tutorial do
+  use Ash.Domain, otp_app: :ash_enterprise
+
+  resources do
+    resource AshEnterprise.Tutorial.Refund do
+      define :propose_refund, action: :propose, args: [:ticket_ref, :amount]
+      define :approve_refund, action: :approve
+      define :reject_refund, action: :reject
+    end
+  end
+end
+```
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+# lib/ash_enterprise/tutorial/refund.ex
+defmodule AshEnterprise.Tutorial.Refund do
+  use AshEnterprise.Platform.Resource,
+    domain: AshEnterprise.Tutorial,
+    ownership: :organization_owned,
+    lifecycle?: false
+
+  postgres do
+    table "tutorial_refunds"
+    repo AshEnterprise.Repo
+  end
+
+  attributes do
+    attribute :ticket_ref, :string, allow_nil?: false, public?: true
+    attribute :amount, :decimal, allow_nil?: false, public?: true, constraints: [greater_than: 0]
+    attribute :reason, :string, public?: true
+    attribute :status, :atom,
+      constraints: [one_of: [:proposed, :approved, :rejected]],
+      default: :proposed, allow_nil?: false, public?: true
+  end
+
+  actions do
+    defaults [:read]
+
+    create :propose do
+      accept [:ticket_ref, :amount, :reason]
+    end
+
+    update :approve do
+      validate attribute_equals(:status, :proposed)
+      change set_attribute(:status, :approved)
+    end
+
+    update :reject do
+      validate attribute_equals(:status, :proposed)
+      change set_attribute(:status, :rejected)
+    end
+  end
+end
+```
+
+Add `AshEnterprise.Tutorial` to `config :ash_enterprise, ash_domains: [...]`, then:
+
+```bash
+mix ash.codegen tutorial_refunds && mix ash.migrate
+```
+
+and `recompile()` in the attached node. Notice there is no `uuid_primary_key`, no `organization_id`, no timestamps and no `events do` block. Ask your agent (lesson 14) where they came from:
+
+```elixir
+AshAgentTools.describe_resource(AshEnterprise.Tutorial.Refund)
+|> get_in([:attributes])
+|> Enum.map(& &1.name)
+```
+
+## Write, then read the log
+
+Set up an actor and tenant from the seeded data:
+
+```elixir
+require Ash.Query
+actor = Ash.read_first!(AshEnterprise.Accounts.User, authorize?: false)
+tenant = actor.organization_id
+opts = [actor: actor, tenant: tenant]
+```
+
+Propose a refund of `25.00` for ticket `"T-1001"`, then approve it.
+
+**Enter your solution**
+
+```elixir
+
+```
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <div class="p-4">
+
+  ```elixir
+  refund = AshEnterprise.Tutorial.propose_refund!("T-1001", Decimal.new("25.00"), opts)
+  refund = AshEnterprise.Tutorial.approve_refund!(refund, opts)
+  ```
+
+  If this is forbidden, that is lesson 14: `AshAgentTools.can(AshEnterprise.Tutorial.Refund, :propose, actor)` and `explain_forbidden/2` tell you which inherited policy said no.
+
+  </div>
+</details>
+
+Now read the events for that record. The event log is a resource, so you query it with Ash:
+
+```elixir
+AshEnterprise.Audit.EventLog
+|> Ash.Query.filter(record_id == ^refund.id)
+|> Ash.Query.sort(occurred_at: :asc)
+|> Ash.read!(actor: actor, tenant: tenant)
+|> Enum.map(&{&1.action, &1.action_type, &1.data})
+```
+
+Two events: `:propose` with the accepted inputs, `:approve` with the change. Each also carries the actor, the tenant and `metadata["correlation_id"]`, which ties together all the events one request produced.
+
+## The rules of the log
+
+* **Only actions write events.** That is why lesson 11 insisted actions are the only door. An `Ecto` update around the action leaves no event, and every later layer will be wrong without knowing it.
+* **The log is append-only and tamper-evident.** `ash_enterprise` hash-chains it per tenant (ADR 0020), riding on the advisory lock `ash_events` already takes.
+* **Replay re-runs actions.** Changes still execute during replay. So nothing non-deterministic belongs in a `change`: no HTTP, no `DateTime.utc_now/0` you did not capture as input, and never a model call (you will see this as a law in lesson 22). Put remote calls in generic actions (lesson 13) whose *results* are recorded as inputs.
+
+## Exercise: name the event
+
+Events are as meaningful as action names. Add `update :request_info` that accepts `:reason` and keeps status `:proposed`. Call it, then confirm the log says `request_info`, not `update`.
+
+**Enter your solution**
+
+```elixir
+
+```
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <div class="p-4">
+
+  ```elixir
+  update :request_info do
+    accept [:reason]
+    validate attribute_equals(:status, :proposed)
+  end
+  ```
+
+  Add `define :request_refund_info, action: :request_info` to the domain. A generic `:update` with a status field would record *that something changed*; a named action records *what the business did*. Projections and process triggers key on these names.
+
+  </div>
+</details>
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="14_agent_tools.livemd">Working With Your Agent</a>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Home</a>
+</div>
+<div class="flex">
+<a class="flex mr-2" style="color: #61758a;" href="16_projections.livemd">Projections</a>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>
+

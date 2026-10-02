@@ -1,0 +1,121 @@
+<!--
+SPDX-FileCopyrightText: 2026 Luke Galea
+SPDX-FileCopyrightText: 2023 ash_tutorial contributors <https://github.com/ash-project/ash_tutorial/graphs/contributors>
+
+SPDX-License-Identifier: MIT
+-->
+
+# Ash Enterprise: 24 - Strangler
+
+Runtime: **attached node**. `mix ash_enterprise.legacy.setup` creates the legacy schema.
+
+## The legacy table is a resource too
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="23_a2ui.livemd">A2UI</a>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Home</a>
+</div>
+<div class="flex">
+<a class="flex mr-2" style="color: #61758a;" href="25_capstone.livemd">Capstone: The Ash Way</a>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>
+
+
+<!-- livebook:{"break_markdown":true} -->
+
+The 2011 helpdesk still writes `legacy.cases`: one wide table, with a lifecycle smeared across `is_closed`, `is_deleted`, `closed_at`. It will keep running for eighteen months. You want lesson 9's `Ticket`, a proper resource, **today**, without stopping the old app and with a way back at every step.
+
+`ash_strangler` maps an Ash resource onto the legacy rows through a writable Postgres view. Declare the mapping once on the resource; derive the view, `INSTEAD OF` triggers (only where needed), expression indexes, a resumable backfill, a drift reconciler and a notification bridge.
+
+The real product is the **compile-time check**: it refuses a mapping where an attribute has no legacy source, a transform has no inverse and does not say so, or a value table is not total.
+
+## Declare the mapping
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+defmodule AshEnterprise.Tutorial.Ticket do
+  use AshEnterprise.Platform.Resource,
+    domain: AshEnterprise.Tutorial,
+    extra_extensions: [AshStrangler]
+
+  strangler do
+    phase :read_from_legacy
+
+    source AshEnterprise.Legacy.Cases do
+      key :id, from: :id, strategy: {:uuid_v5, namespace: "6b1e8b2c-6f6d-4a4a-9f1a-5b0e0d3c4a71"}
+      map :subject, from: :title
+      # status from is_closed / is_deleted: see the value-table DSL in
+      # ash_strangler/documentation/dsls for the total mapping
+    end
+  end
+end
+```
+
+The `source` is itself a resource: a **twin** of the legacy table (`AshEnterprise.Legacy.Twins` has examples). Even the table you do not own is modelled the Ash way.
+
+## Exercise: make it refuse
+
+Add an attribute `:priority` with no mapping and compile. Then add a `concat` that is not decomposable without `read_only?: true` and a `because:`.
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <div class="p-4">
+
+  Both fail to compile, with the attribute named. The fix for the first is a mapping or an explicit statement that it is new-only; for the second:
+
+  ```elixir
+  concat :display, from: [:title, :ref], separator: " - ",
+    read_only?: true,
+    because: "Titles contain ' - '; no separator splits it back."
+  ```
+
+  `because:` is for the reviewer. The compiler wants the decision written down.
+
+  </div>
+</details>
+
+## Live from day one
+
+Update a row from the legacy side with raw SQL, as the old app would:
+
+```elixir
+AshEnterprise.Repo.query!("UPDATE legacy.cases SET is_closed = true WHERE id = 1")
+```
+
+`pg_notify` carries the key; Ash **re-reads through the view**, so calculations, policies and tenancy apply, and emits a real `Ash.Notifier.Notification`. Your A2UI surface (23) or LiveView (12) updates. A write from 2011 code lands in a UI you wrote last week.
+
+## Phases are the one knob
+
+| Phase | Reads from | Writes to | Safe to change |
+|---|---|---|---|
+| `:read_from_legacy` | legacy, via the view | nothing new | freely |
+| `:dual_write` | legacy | both | after backfill starts |
+| `:read_from_new` | new tables | both | **only when backfill is complete** |
+| `:decommissioned` | new tables | new tables | only when nothing writes legacy |
+
+Moving to `:read_from_new` with an incomplete backfill gives missing rows, not an error. An agent that does not know a resource's phase cannot judge whether a change is safe, so ask: `AshAgentTools.describe_resource(AshEnterprise.Tutorial.Ticket)`.
+
+In `ash_enterprise` the legacy estate is **projected, not cut over** (ADR 0031): the old system is a source the new model reads, until it is not.
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="23_a2ui.livemd">A2UI</a>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Home</a>
+</div>
+<div class="flex">
+<a class="flex mr-2" style="color: #61758a;" href="25_capstone.livemd">Capstone: The Ash Way</a>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>
+

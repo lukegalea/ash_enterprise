@@ -1,0 +1,247 @@
+<!--
+SPDX-FileCopyrightText: 2026 Luke Galea
+SPDX-FileCopyrightText: 2023 ash_tutorial contributors <https://github.com/ash-project/ash_tutorial/graphs/contributors>
+
+SPDX-License-Identifier: MIT
+-->
+
+# Ash Enterprise: 16 - Projections
+
+Runtime: **attached node**. Code goes in `lib/ash_enterprise/tutorial/`.
+
+## Read models, derived from events
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="15_events.livemd">Events</a>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Home</a>
+</div>
+<div class="flex">
+<a class="flex mr-2" style="color: #61758a;" href="17_rules.livemd">Rules</a>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>
+
+
+<!-- livebook:{"break_markdown":true} -->
+
+"How many refunds has each organization approved today, and what is the largest?" You could compute it with an aggregate on every page load. At enterprise volume you would rather keep a **projection**: a small table updated from the event log, which can be thrown away and rebuilt from the log at any time.
+
+`ash_events_projections` gives you three pieces, and each has one job:
+
+| Piece | Job | Rule |
+|---|---|---|
+| **Projection resource** | the *shape*: one row per **grain** | no business logic in it |
+| **Projector** | the *rule*: event in, ops out | the only writer |
+| **Engine** | checkpoints, advisory locks, DLQ, rebuild | at-least-once, idempotent |
+
+## One log per resource, and which log the engine reads
+
+A resource carries exactly one `events do event_log ... end`, and in this app every platform resource already points at the tamper-evident `AshEnterprise.Audit.EventLog` (lesson 15). The projection engine drains a *different* log, `AshEnterprise.Compliance.EventLog`, configured once:
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+config :ash_events_projections,
+  repo: AshEnterprise.Repo,
+  pubsub: AshEnterprise.PubSub,
+  event_log: AshEnterprise.Compliance.EventLog,
+  event_table: "compliance_events",
+  projectors: [AshEnterprise.Compliance.Projector],
+  start_projectors?: true,
+  start_probe?: true
+```
+
+Why two logs? The audit log's schema belongs to the hash chain and must never be pruned; the consumable log is shaped for its readers (`organization_id` is a real column, stamped from metadata) and wakes projectors on insert. So events meant for consumers are **appended explicitly** by a change on the action that produces them. That append is still declared on the action, so it happens for every caller.
+
+## Step 1: append a consumable event
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+# lib/ash_enterprise/tutorial/changes/record_refund_event.ex
+defmodule AshEnterprise.Tutorial.Changes.RecordRefundEvent do
+  use Ash.Resource.Change
+
+  @impl true
+  def change(changeset, opts, _ctx) do
+    Ash.Changeset.after_action(changeset, fn _cs, refund ->
+      AshEnterprise.Compliance.EventLog
+      |> Ash.Changeset.for_create(:create, %{
+        resource: AshEnterprise.Tutorial.Refund,
+        record_id: refund.id,
+        action: opts[:as],
+        action_type: :update,
+        data: %{"amount" => Decimal.to_string(refund.amount), "status" => to_string(refund.status)},
+        metadata: %{"organization_id" => refund.organization_id},
+        occurred_at: DateTime.utc_now()
+      })
+      |> Ash.create!(actor: AshEnterprise.Platform.SystemActor.projector())
+
+      {:ok, refund}
+    end)
+  end
+end
+```
+
+Add `change {AshEnterprise.Tutorial.Changes.RecordRefundEvent, as: :refund_approved}` to the Refund's `:approve` action. (Look up the exact system actor function your checkout exposes with `mix ash_agent.search SystemActor`; do not guess.)
+
+## Step 2: the shape
+
+Write `AshEnterprise.Tutorial.RefundStats` with the `AshEvents.Projections.ProjectionResource` extension, grain `[:organization_id, :day]`, and integer/decimal fields `approved_count` (default 0), `approved_total` (default 0) and `largest` (nullable). Do **not** declare an identity.
+
+**Enter your solution**
+
+```elixir
+
+```
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <div class="p-4">
+
+  ```elixir
+  defmodule AshEnterprise.Tutorial.RefundStats do
+    use Ash.Resource,
+      domain: AshEnterprise.Tutorial,
+      data_layer: AshPostgres.DataLayer,
+      extensions: [AshEvents.Projections.ProjectionResource]
+
+    postgres do
+      table "tutorial_refund_stats"
+      repo AshEnterprise.Repo
+    end
+
+    projection_resource do
+      grain_fields [:organization_id, :day]
+    end
+
+    attributes do
+      uuid_primary_key :id
+      attribute :organization_id, :uuid, allow_nil?: false, public?: true
+      attribute :day, :date, allow_nil?: false, public?: true
+      attribute :approved_count, :integer, default: 0, public?: true
+      attribute :approved_total, :decimal, default: 0, public?: true
+      attribute :largest, :decimal, public?: true
+    end
+
+    actions do
+      defaults [:read]
+    end
+  end
+  ```
+
+  The transformer derives the `:by_grain` identity from `grain_fields`. Declaring it yourself is a mistake.
+  Register it in the domain, then `mix ash.codegen tutorial_refund_stats && mix ash.migrate`.
+
+  </div>
+</details>
+
+## Step 3: the rule
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+# lib/ash_enterprise/tutorial/refund_projector.ex
+defmodule AshEnterprise.Tutorial.RefundProjector do
+  use AshEvents.Projections.Projector,
+    name: "tutorial_refund_stats_v1",
+    event_log: AshEnterprise.Compliance.EventLog,
+    projection_resource: AshEnterprise.Tutorial.RefundStats
+
+  grain fn event ->
+    %{organization_id: event.organization_id, day: DateTime.to_date(event.occurred_at)}
+  end
+
+  project AshEnterprise.Tutorial.Refund, :refund_approved, fn event ->
+    amount = Decimal.new(event.data["amount"])
+
+    [
+      {:increment, :approved_count, 1},
+      {:increment, :approved_total, amount},
+      {:max, :largest, amount}
+    ]
+  end
+end
+```
+
+Add it to `projectors:` in config and restart the node. Points to notice:
+
+* The **name is versioned** (`_v1`). Changing the rule means a `_v2` built side by side, then a switch: a blue/green deploy for read models.
+* The handler is **arity 1**: stateless, ops only. Arity 2 receives the current row, for rules that need it.
+* Return `nil` to skip an event.
+
+## Use it
+
+Approve two refunds (lesson 15), then read the projection. It is a resource, so:
+
+**Enter your solution**
+
+```elixir
+
+```
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <div class="p-4">
+
+  ```elixir
+  AshEnterprise.Tutorial.RefundStats
+  |> Ash.read!(actor: actor, tenant: tenant)
+  ```
+
+  If the row is missing, debug in order: did the event land (`Ash.read!(AshEnterprise.Compliance.EventLog, ...)` filtered by `record_id`)? Is the projector lagging or dead-lettered (`mix ash_events_projections.lag`)? Only then read the projector code.
+
+  </div>
+</details>
+
+## Operations you must know
+
+```bash
+mix ash_events_projections.lag                                     # lag + DLQ snapshot
+mix ash_events_projections.verify                                  # assertion-style sync check
+mix ash_events_projections.rebuild --projection=tutorial_refund_stats_v1   # truncate + replay
+mix ash_events_projections.dlq inspect --projection=tutorial_refund_stats_v1
+```
+
+Never use `reset` in place of `rebuild`: clearing the checkpoint without truncating makes `:increment` ops double-count. And never write to `tutorial_refund_stats` from app code; the projector and its rebuilder are the only writers.
+
+## Exercise: attach it to the parent
+
+Show `approved_count` for the refund's organization and day directly on a Refund. Use `AshEvents.Projections.AttachProjection` rather than a hand-written join.
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <div class="p-4">
+
+  ```elixir
+  # on Refund: extra_extensions: [AshEvents.Projections.AttachProjection]
+  attach_projection AshEnterprise.Tutorial.RefundProjector do
+    field :approved_today, :approved_count, default: 0
+  end
+  ```
+
+  The projector must implement `current_grain_for_record/1` so the parent knows which grain row is "its" row.
+
+  </div>
+</details>
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="15_events.livemd">Events</a>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Home</a>
+</div>
+<div class="flex">
+<a class="flex mr-2" style="color: #61758a;" href="17_rules.livemd">Rules</a>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>
+

@@ -1,0 +1,155 @@
+<!--
+SPDX-FileCopyrightText: 2026 Luke Galea
+SPDX-FileCopyrightText: 2023 ash_tutorial contributors <https://github.com/ash-project/ash_tutorial/graphs/contributors>
+
+SPDX-License-Identifier: MIT
+-->
+
+# Ash Enterprise: 18 - Compliance
+
+Runtime: **attached node**.
+
+## The "now" and the "why"
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="17_rules.livemd">Rules</a>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Home</a>
+</div>
+<div class="flex">
+<a class="flex mr-2" style="color: #61758a;" href="19_decisions.livemd">Decisions</a>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>
+
+
+<!-- livebook:{"break_markdown":true} -->
+
+Lesson 17 gave you verdicts. An auditor asks two different questions: **is this subject compliant right now**, and **what exactly did the engine decide last Tuesday at 11:00, on which facts, under which rules?** `ash_compliance` answers both with two artifacts that must never be conflated:
+
+* **Finding**: a projection (lesson 16) per `[organization_id, control_id, subject_type, subject_id]`. The "now". It changes.
+* **ComplianceEvaluation**: append-only, pinning the bundle hash, the fact snapshot and the outcome. The "why". Nothing rewrites it.
+
+Both come from the same projector, in the same transaction.
+
+## Rule changes are events, not edits
+
+Rules move through a lifecycle as resources: a `RuleSetRevision` goes `draft → validated → approved → active → retired/revoked`. Tenants tailor through profiles and waivers, compiled with a **fixed precedence**: non-waivable global > global mandatory > profile refinements > tenant strengthening > approved overrides/waivers > tenant supplements. The compiler refuses overreach and weakening. The output is an immutable, SHA-256 hashed `PolicyBundle`, the only thing that evaluates.
+
+Register `Tutorial.RefundRules` (lesson 17; move it to `lib/ash_enterprise/tutorial/refund_rules.ex`) as a global mandatory revision for your organization, take it to active, compile and activate a bundle. Everything goes through the `AshCompliance.Domain` code interfaces.
+
+**Enter your solution**
+
+```elixir
+
+```
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <div class="p-4">
+
+  ```elixir
+  bundle_src = Tutorial.RefundRules.__bundle__()
+
+  revision =
+    AshCompliance.Domain.draft_rule_set_revision!(%{
+      organization_id: tenant,
+      name: "refund-baseline",
+      layer: :global_mandatory,
+      rules_json: AshRules.Ir.encode!(bundle_src),
+      content_hash: bundle_src.content_hash
+    }, actor: actor)
+
+  revision
+  |> AshCompliance.Domain.validate_rule_set_revision!(actor: actor)
+  |> AshCompliance.Domain.approve_rule_set_revision!(actor: actor)
+  |> AshCompliance.Domain.activate_rule_set_revision!(actor: actor)
+
+  {:ok, bundle} = AshCompliance.Domain.compile_policy_bundle(%{organization_id: tenant}, actor: actor)
+  AshCompliance.Domain.activate_policy_bundle!(bundle, actor: actor)
+  ```
+
+  Note `validate → approve → activate`. Validation happens before activation, never at evaluation: a bundle that reaches production with a broken rule has defeated the design.
+
+  </div>
+</details>
+
+## Project findings from events
+
+Copy the shape of `AshEnterprise.Compliance.Projector`:
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+defmodule AshEnterprise.Tutorial.RefundComplianceProjector do
+  use AshCompliance.Projector,
+    name: "tutorial_refund_findings_v1",
+    event_log: AshEnterprise.Compliance.EventLog,
+    projection_resource: AshCompliance.Resources.Finding,
+    bundle: {AshEnterprise.Compliance.Projector, :active_bundle, []}
+
+  grain fn event ->
+    m = event.metadata || %{}
+    %{organization_id: m["organization_id"], control_id: m["control_id"],
+      subject_type: "refund", subject_id: event.record_id}
+  end
+
+  project_all [:refund_approved]
+end
+```
+
+Your `RecordRefundEvent` change (lesson 16) must now also put the **facts** in the event (`amount_over_limit`, `manager_approved`, `customer_tier`, with string subjects, because this bundle crossed the wire) and a `control_id` in metadata. The projector hydrates facts from the event, never by querying live state: replaying the log must reproduce the same findings.
+
+Approve a refund over the limit without manager approval, then read both artifacts for it.
+
+**Enter your solution**
+
+```elixir
+
+```
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <div class="p-4">
+
+  ```elixir
+  require Ash.Query
+
+  AshCompliance.Resources.Finding
+  |> Ash.Query.filter(subject_id == ^refund.id)
+  |> Ash.read!(actor: actor, tenant: tenant)
+
+  AshCompliance.Resources.ComplianceEvaluation
+  |> Ash.Query.filter(subject_id == ^refund.id)
+  |> Ash.read!(actor: actor, tenant: tenant)
+  |> Enum.map(&{&1.outcome, &1.bundle_hash})
+  ```
+
+  Approve a second time after fixing it: the Finding flips to resolved, and the evaluation log now has two rows. That is the difference between "now" and "why".
+
+  </div>
+</details>
+
+## Waivers are bounded
+
+A `PolicyOverride` (waiver) carries a time bound, an approver and compensating controls, and cannot outrank a non-waivable global. "The tenant tweaked the rule" is not a thing; a waiver is a reviewable record. If you want approval of the waiver itself, that is lesson 20.
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="17_rules.livemd">Rules</a>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Home</a>
+</div>
+<div class="flex">
+<a class="flex mr-2" style="color: #61758a;" href="19_decisions.livemd">Decisions</a>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>
+
