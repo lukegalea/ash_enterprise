@@ -1,4 +1,4 @@
-defmodule AshEnterprise.Repo.Migrations.MigrateResources1 do
+defmodule AshEnterprise.Repo.Migrations.AddSubProcessorOptIn do
   @moduledoc """
   Updates resources based on their most recent snapshots.
 
