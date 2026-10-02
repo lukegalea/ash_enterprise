@@ -55,6 +55,8 @@ From lesson 15 on, the resources you write are real application code. Put them u
 
 ### Lessons
 
+**Start here:** [Philosophy](00_philosophy.livemd): the moving line between human and machine code, the engineer as the bridge, and the 0 / 1 / N rule
+
 **Part I: Ash foundations** (upstream, do these first)
 
 0. to 9. [ash_tutorial](https://github.com/ash-project/ash_tutorial): Resources, Actions, Querying, Attributes, Customizing Actions, Relationships, Code Interfaces, Aggregates, Calculations
