@@ -273,10 +273,21 @@ defmodule AshEnterprise.Platform.DemoData do
     role
   end
 
-  defp grantable_at?(privilege, :global), do: privilege.can_be_global
-  defp grantable_at?(privilege, :deep), do: privilege.can_be_deep
-  defp grantable_at?(privilege, :local), do: privilege.can_be_local
-  defp grantable_at?(privilege, :basic), do: privilege.can_be_basic
+  # Total over the security model's four depths, failing loud on anything
+  # else for the same reason as the raise above. :basic is a real depth in
+  # the grant model (a role reaching only the holder) — the demo's three
+  # roles are simply never granted at it.
+  defp grantable_at?(privilege, depth) do
+    Map.fetch!(
+      %{
+        global: privilege.can_be_global,
+        deep: privilege.can_be_deep,
+        local: privilege.can_be_local,
+        basic: privilege.can_be_basic
+      },
+      depth
+    )
+  end
 
   # Scoped to the holder's own unit, not the root: a role assigned at the root
   # reaches the whole tenant regardless of its depth, which would hide the very

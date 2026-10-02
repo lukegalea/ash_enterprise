@@ -317,7 +317,10 @@ defmodule AshEnterprise.Telemetry.TraceSink do
     end
   end
 
-  defp index_ids(attributes, keys) when is_map(attributes) do
+  # `attributes` is always a map: `span_to_map/1` fails closed to `%{}` for
+  # any SDK shape it does not recognise, so there is no non-map case to
+  # catch here.
+  defp index_ids(attributes, keys) do
     keys
     |> Enum.flat_map(fn key ->
       case Map.get(attributes, key) do
@@ -327,8 +330,6 @@ defmodule AshEnterprise.Telemetry.TraceSink do
     end)
     |> MapSet.new()
   end
-
-  defp index_ids(_attributes, _keys), do: MapSet.new()
 
   # --- Rendering (no partial traces, ever) -------------------------------------
 
