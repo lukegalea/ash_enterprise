@@ -35,6 +35,8 @@ Mix.install([{:ash, "~> 3.0"}], consolidate_protocols: false)
 
 Every other lesson teaches a package. This one teaches the reason for the packages: **how a human and an AI should split the work of building software, and why Ash is the right place to draw the line.** It is short, it has exercises, and the last exercise is the most important one in the tutorial.
 
+One orientation note before you start: the upstream Ash tutorial's lessons 0-9 live in [its own repo](https://github.com/ash-project/ash_tutorial). This repo's numbered lessons start at 10; the chapter you are reading is lesson 0 of the enterprise series, not part of that upstream numbering.
+
 ## The moving line
 
 Since the first assembler, every program has had two audiences: the human who reads it and the machine that runs it. The history of our field is a line moving between them.
