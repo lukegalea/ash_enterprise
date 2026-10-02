@@ -5,11 +5,13 @@ SPDX-FileCopyrightText: 2023 ash_tutorial contributors <https://github.com/ash-p
 SPDX-License-Identifier: MIT
 -->
 
-# Ash Enterprise: 0 - Overview
+# Ash Enterprise: Overview
 
 ## Overview
 
-This tutorial picks up exactly where the [Ash tutorial](https://github.com/ash-project/ash_tutorial) stops. You finished lesson 9 (Calculations) with a `Tutorial.Support` domain holding a `Ticket` and a `Representative`. We keep that domain and grow it, one concept per lesson, into the kind of system an enterprise actually runs: audited, projected, rule-checked, decided, approved, orchestrated, rendered for agents, and migrated off a legacy schema without a big-bang cutover.
+This tutorial picks up where the [Ash tutorial](https://github.com/ash-project/ash_tutorial) leaves off. You finished its support-desk domain across lessons 2 to 8 — `Tutorial.Support.Ticket` and `Tutorial.Support.Representative`, last used in lesson 8 (Aggregates); lesson 9 wandered off to a `Tutorial.Accounts.User` to teach calculations. We grow the support desk, one concept per lesson, into the kind of system an enterprise actually runs: audited, projected, rule-checked, decided, approved, orchestrated, rendered for agents, and migrated off a legacy schema without a big-bang cutover. The people who work the desk — upstream's `Representative` — reappear there as the app's own users, the actors who propose and approve refunds.
+
+One warning about numbering: the upstream tutorial may grow a lesson 10 of its own (its lesson 9 already advertises one), so its numbering can shift under you. The enterprise lessons here are numbered from their own content.
 
 Same rules as before:
 
@@ -37,19 +39,39 @@ That idea has consequences you will meet over and over:
 
 ### Runtimes
 
-* **Lessons 10 to 13** (LiveView and remote resources) run standalone. Each has a `Mix.install` cell using ETS and [`phoenix_playground`](https://hex.pm/packages/phoenix_playground), so no database is needed.
-* **Lessons 14 to 25** need Postgres, Oban and the enterprise packages, which are already wired together in `ash_enterprise`. Run them against the app:
+* **Lessons 10 to 13** (LiveView and remote resources) run standalone. Each has a `Mix.install` cell using ETS and [`phoenix_playground`](https://hex.pm/packages/phoenix_playground), so no database is needed. Each installs only the deps that lesson needs, which is not always the same set the upstream cells installed.
+* **Lessons 14 to 25** need Postgres, Oban and the enterprise packages, which are already wired together in `ash_enterprise`. Run them against the app.
+
+Install Livebook once, if you have not: either the [desktop app](https://livebook.dev) or, in a terminal with Elixir on your path, `mix escript.install hex livebook`. Open the notebooks from your local clone — `livebook server <path-to-checkout>/tutorial`, or open the `tutorial` directory from Livebook's open page — so the per-lesson navigation links between files keep working.
+
+Then, in the `ash_enterprise` checkout:
 
 ```bash
-# in the ash_enterprise checkout
-devenv up                                   # Postgres etc.
-mix setup
-iex --sname ae --cookie tutorial -S mix phx.server
+devenv up                                            # Postgres etc.; leave it running
+devenv shell -- sh -c 'cd assets && npm ci'          # frontend deps `mix setup` does not install
+devenv shell -- mix setup
+devenv shell -- iex --name ae@127.0.0.1 --cookie tutorial -S mix phx.server
 ```
 
-Then in Livebook choose **Runtime → Attached node**, name `ae@<your-host>`, cookie `tutorial`.
+Then in Livebook choose **Runtime → Attached node**, name `ae@127.0.0.1`, cookie `tutorial`.
 
-From lesson 15 on, the resources you write are real application code. Put them under `lib/ash_enterprise/tutorial/` in a `AshEnterprise.Tutorial` domain (lesson 15 creates it), generate migrations with `mix ash.codegen tutorial_<lesson>`, `mix ash.migrate`, and `recompile()` in the attached node. Use the notebook to explore, call actions and debug. Delete the directory and its migrations when you are done; nothing else in the app depends on it.
+Two lines there deserve a word:
+
+* The node name is **long** (`--name ae@127.0.0.1`, not `--sname ae`). Livebook itself runs as a long-named node, and a long-named node cannot reach a short-named one, so the short form gives you a running server nothing can attach to.
+* If port 4000 is already taken (a teammate, or your own other checkout), pick another port by setting it *inside* the devenv shell — `devenv shell` does not inherit your shell's environment, so a `PORT=4001` prefix on the outside is silently dropped: `devenv shell -- sh -c 'PORT=4001 iex --name ae@127.0.0.1 --cookie tutorial -S mix phx.server'`. Attach exactly the same way; only lesson 14's MCP URLs assume :4000.
+
+From lesson 15 on, the resources you write are real application code. Put them under `lib/ash_enterprise/tutorial/` in an `AshEnterprise.Tutorial` domain (lesson 15 creates it), generate migrations with `mix ash.codegen --dev` while you are learning — name a codegen only for a change you mean to keep — and restart the node when a lesson edits config. Use the notebook to explore, call actions and debug.
+
+### When you're done
+
+Because the lessons write real application code, they leave marks a `git status` will show you: tutorial tables and their migrations, `lib/ash_enterprise/tutorial/`, the `AshEnterprise.Tutorial` entry in `config/config.exs` (lesson 15), the tutorial projector in the `:ash_events_projections` config (lesson 16), a router line and `lib/ash_enterprise_web/a2ui/` (lesson 23), resource snapshots under `priv/resource_snapshots/`, and rows in the event log. **Do not commit any of it** — a stale `ash_domains` entry or projector config in `main` breaks boot and `mix precommit` for everyone else. Undo it all:
+
+1. Roll the database back: repeat `devenv shell -- mix ecto.rollback` until the `tutorial_*` tables are gone — or, if the database is disposable, rebuild it in one step: `devenv shell -- mix ecto.reset && devenv shell -- mix ash_enterprise.seed`.
+2. Revert the tracked files the lessons edited: `git checkout -- config/ lib/ priv/`.
+3. Delete the untracked tutorial artifacts: `git clean -fd lib/ash_enterprise/tutorial lib/ash_enterprise/tutorial.ex lib/ash_enterprise_web/a2ui priv/resource_snapshots priv/repo/migrations` (skip the paths you never created).
+4. Restart the app node, so what boots is the reverted config.
+
+And a warning about people, not files: the tutorial edits tracked config and writes to one database. If a teammate runs the same lessons against the same checkout or the same Postgres, you will trample each other's tables, config and event logs. Each learner gets their own checkout, their own database, and their own node name and port.
 
 <!-- livebook:{"break_markdown":true} -->
 
@@ -93,7 +115,7 @@ From lesson 15 on, the resources you write are real application code. Put them u
 
 ### The story
 
-Our support desk grows a **refund** workflow. A customer opens a ticket; a representative proposes a `Refund`. The refund is audited as events (15), counted per representative by a projection (16), checked against SLA and policy rules (17, 18), routed by a DMN decision (19), gated by an approval with maker-checker (20), orchestrated as a BPMN process when it gets complicated (21), triaged by a model that may *observe* but never *decide* (22), rendered as an agent-ready UI (23), and finally migrated off the old `helpdesk.cases` table that the 2011 app still writes to (24). Along the way you debug all of it with your agent the Ash way (14). The customer's billing record lives in a remote API, and it is a resource too (13).
+Our support desk grows a **refund** workflow. A customer opens a ticket; a representative proposes a `Refund`. The refund is audited as events (15), counted per organization and day by a projection (16), checked against SLA and policy rules (17, 18), routed by a DMN decision (19), gated by an approval with maker-checker (20), orchestrated as a BPMN process when it gets complicated (21), triaged by a model that may *observe* but never *decide* (22), rendered as an agent-ready UI (23), and finally migrated off the old `helpdesk.cases` table that the 2011 app still writes to (24). Along the way you debug all of it with your agent the Ash way (14). The customer's billing record lives in a remote API, and it is a resource too (13).
 
 ## Contributing?
 
