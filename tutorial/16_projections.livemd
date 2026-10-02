@@ -136,7 +136,8 @@ Write `AshEnterprise.Tutorial.RefundStats` with the `AshEvents.Projections.Proje
   ```
 
   The transformer derives the `:by_grain` identity from `grain_fields`. Declaring it yourself is a mistake.
-  Register it in the domain, then `devenv shell -- mix ash.codegen --dev` in a terminal, as in lesson 15.
+  Register it in the domain, then generate and apply in a terminal as in lesson 15:
+  `devenv shell -- mix ash.codegen --dev && devenv shell -- mix ash.migrate`.
 
   </div>
 </details>

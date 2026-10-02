@@ -111,11 +111,17 @@ definition =
     {:refund, :manager_approved, true}
   ])
 
-judge = AshAgentTools.describe_action(AshEnterprise.Tutorial.Refund, :judge_suspected_fraud)
+judge =
+  try do
+    AshAgentTools.describe_action(AshEnterprise.Tutorial.Refund, :judge_suspected_fraud)
+  rescue
+    e in ArgumentError -> {:not_declared, e.message}
+  end
 
-# checkpoint — expected: :unknown overall, and the judge action lesson 22 declared on the resource.
-# (Skipped lesson 22's declaration? describe says the action does not exist — an answer too, lesson 14.)
-{unjudged.overall, judge != nil}
+# checkpoint — expected: {:unknown, true} — the tier rule (lesson 17's REF-2 exercise) is what
+# turns a missing tier into :unknown, and describe_action confirms the question lesson 22 declared.
+# It raises ArgumentError for an unknown action, so a skipped lesson 22 shows up as {:not_declared, _}.
+{unjudged.overall, is_map(judge)}
 ```
 
 **Candidates.** The same role clause feeds the standalone task, minus the maker (20):
@@ -139,8 +145,11 @@ maker_tasks =
     key: "refund", subject: refund, actor: maker, tenant: tenant
   )
 
-# checkpoint — expected: a running instance whose user task draws candidates from the same decision, minus the maker
-AshAgentTools.process_instance(key: "refund")[:status]
+report = AshAgentTools.process_instance(definition_key: "refund", tenant: tenant)
+
+# checkpoint — expected: one instance, running, whose user task draws candidates from the
+# same decision minus the maker (instance entries are string-keyed maps)
+{report.count, List.first(report.instances)["status"]}
 ```
 
 **Render.** The surface (23) is derived, and the strangled tickets (24) read through the view:
@@ -182,6 +191,8 @@ refused = AshEnterprise.Tutorial.approve_refund(approved, opts)
 # and a second approve is refused by the action's own validation
 {approved.status, match?({:error, _}, refused)}
 ```
+
+One loose end is deliberate: the orchestrated instance's own user task stays parked, because the standalone gate from lesson 20 already carried this refund through `approve`. Deciding the process task instead — with the `issue_credit` serviceTask it fans out to — is lesson 21's exercise, not a bug here.
 
 **Evidence.** The layers that watched it happen, after the fact:
 

@@ -31,10 +31,12 @@ Runtime: **attached node**. `mix ash_enterprise.legacy.setup` creates the repo's
 
 The 2011 helpdesk still writes `legacy.cases`: one wide table, with a lifecycle smeared across `is_closed` and `deleted_at`. It will keep running for eighteen months. You want lesson 8's `Ticket`, a proper resource, **today**, without stopping the old app and with a way back at every step.
 
-The repo's simulated schema (`priv/legacy/`) ships the tables its reference demo needs, and `legacy.cases` is not one of them. Create it the way `priv/legacy/schema.sql` is applied — with `psql`, never as an Ecto migration, because Ash must not own this schema (read `priv/legacy/README.md`; the rule is the whole demonstration):
+The repo's simulated schema (`priv/legacy/`) ships the tables its reference demo needs, and `legacy.cases` is not one of them. Create it the way `priv/legacy/schema.sql` is applied — with `psql`, never as an Ecto migration, because Ash must not own this schema (read `priv/legacy/README.md`; the rule is the whole demonstration). The flags are the ones the repo's own `mix ash_enterprise.legacy.setup` passes: host, port, user and database from the devenv environment (`$PGPORT` is dynamically allocated, so never hardcode 5432), and `--no-password` so a credential problem fails loudly instead of hanging on a prompt:
 
 ```bash
-devenv shell -- psql -h localhost -U postgres -d ash_enterprise_dev -c "
+devenv shell -- psql --no-password --set ON_ERROR_STOP=1 \
+  --host "${PGHOST:-localhost}" --port "$PGPORT" \
+  --username "${DB_USER:-postgres}" --dbname "$PGDATABASE" -c "
 CREATE TABLE IF NOT EXISTS legacy.cases (
   id serial PRIMARY KEY,
   title text NOT NULL,
@@ -98,7 +100,9 @@ Then the read model over it:
 defmodule AshEnterprise.Tutorial.Ticket do
   use AshEnterprise.Platform.Resource,
     domain: AshEnterprise.Tutorial,
-    ownership: :organization_owned,
+    # business_owned, like AshEnterprise.Legacy.User: only that ownership adds
+    # the owning_business_unit_id column the mapping's constant supplies.
+    ownership: :business_owned,
     lifecycle?: false,
     extra_extensions: [AshStrangler.Resource]
 
@@ -155,7 +159,7 @@ defmodule AshEnterprise.Tutorial.Ticket do
 end
 ```
 
-Read `AshEnterprise.Legacy.User` — the real strangler this tutorial's repo ships — next to what you just wrote; yours is its outline with the interesting arguments left as an exercise. `recompile()` in the attached node.
+Register both new resources in the tutorial domain alongside the Refund, then read `AshEnterprise.Legacy.User` — the real strangler this tutorial's repo ships — next to what you just wrote; yours is its outline with the interesting arguments left as an exercise. `recompile()` in the attached node.
 
 The mapping never reaches `mix ash.codegen`: `migrate? false` is what keeps it out, and a repo test refuses any codegen output that mentions `legacy` at all (`priv/legacy/README.md`). The view DDL comes from the strangler generator. In a terminal:
 

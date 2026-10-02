@@ -9,6 +9,8 @@ SPDX-License-Identifier: MIT
 
 ```elixir
 # Pure: runs standalone too.
+Application.put_env(:ash, :default_string_length_count, :codepoints)
+
 Mix.install([{:ash_rules, github: "lukegalea/ash_rules"}])
 ```
 

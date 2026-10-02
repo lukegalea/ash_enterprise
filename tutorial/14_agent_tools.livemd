@@ -193,7 +193,7 @@ Later lessons add layers that are hard to debug by reading code, because the beh
 | State machine | `AshAgentTools.transitions(Resource)` | `mix ash_agent.transitions Resource` (with Mermaid) |
 | Rules (17) | `AshAgentTools.evaluate_rules(Module, facts)` | `mix ash_agent.rules --facts ...` |
 | Decisions (19) | `AshAgentTools.decisions/0`, `decision_evaluate(key, inputs)` | `mix ash_agent.evaluate key '{...}'`, a dry run that records nothing |
-| Processes (21) | `processes/0`, `process_graph(key)`, `process_instance(key: ...)` | `mix ash_agent.instance --key k` shows where a token is stuck |
+| Processes (21) | `processes/0`, `process_graph(key)`, `process_instance(definition_key: ...)` | `mix ash_agent.instance --key k` shows where a token is stuck |
 | Runtime | (boots the app on purpose) | `mix ash_agent.runtime snapshot`, `top 20`, `tree AshEnterprise` |
 
 List the decision catalogue now. It may be empty until lesson 19 publishes one; that is an answer too.

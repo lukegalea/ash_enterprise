@@ -97,6 +97,7 @@ Build the surface for your actor and look at the stream before rendering anythin
 <!-- livebook:{"force_markdown":true} -->
 
 ```elixir
+# lib/ash_enterprise_web/a2ui/refund_a2ui_live.ex
 defmodule AshEnterpriseWeb.RefundA2uiLive do
   use AshA2ui.LiveRenderer,
     ui: AshEnterpriseWeb.A2ui.RefundUI,
@@ -104,7 +105,7 @@ defmodule AshEnterpriseWeb.RefundA2uiLive do
 end
 ```
 
-Route it inside the authenticated `live_session` and open it. Approve a refund from the notebook: the row updates live, because the renderer refreshes from `Ash.Notifier.PubSub` (lesson 12). Add `notifiers: [Ash.Notifier.PubSub]` and a `pub_sub` block to Refund if you have not.
+Route it — save it at `lib/ash_enterprise_web/a2ui/refund_a2ui_live.ex`, add the route inside the authenticated `live_session`, and open it. Approve a refund from the notebook: the row updates live, because the renderer refreshes from `Ash.Notifier.PubSub` (lesson 12). Add `notifiers: [Ash.Notifier.PubSub]` and a `pub_sub` block to Refund if you have not.
 
 ## Querying is an allowlist
 

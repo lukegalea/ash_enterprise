@@ -98,13 +98,14 @@ defmodule AshEnterprise.Tutorial.Refund do
 end
 ```
 
-Three steps, and the order matters. First create the files above, then add `AshEnterprise.Tutorial` to `config :ash_enterprise, ash_domains: [...]` in `config/config.exs` — the codegen task discovers domains through that list. Then, in a normal terminal (not the attached IEx; these are mix tasks and boot their own node), generate and run the migration:
+Three steps, and the order matters. First create the files above, then add `AshEnterprise.Tutorial` to `config :ash_enterprise, ash_domains: [...]` in `config/config.exs` — the codegen task discovers domains through that list. Then, in a normal terminal (not the attached IEx; these are mix tasks and boot their own node), generate the migration and apply it:
 
 ```bash
 devenv shell -- mix ash.codegen --dev
+devenv shell -- mix ash.migrate
 ```
 
-`--dev` names the migration for you and applies it, which is what you want while learning; the overview says when to name one for real. Finally **restart the app node** (Ctrl-C twice, then the overview's start command) and reconnect Livebook's runtime, re-running the actor/tenant cell below once you are reattached. Application env is read at boot, so no amount of `recompile()` will register a domain that was added after the node started. Notice there is no `uuid_primary_key`, no `organization_id`, no timestamps and no `events do` block. Ask your agent (lesson 14) where they came from:
+`--dev` names the migration for you, which is what you want while learning — codegen generates, migrate applies; the overview says when to name one for real. Finally **restart the app node** (Ctrl-C twice, then the overview's start command) and reconnect Livebook's runtime, re-running the actor/tenant cell below once you are reattached. Application env is read at boot, so no amount of `recompile()` will register a domain that was added after the node started. Notice there is no `uuid_primary_key`, no `organization_id`, no timestamps and no `events do` block. Ask your agent (lesson 14) where they came from:
 
 ```elixir
 AshAgentTools.describe_resource(AshEnterprise.Tutorial.Refund)

@@ -51,16 +51,21 @@ Every node resolves to a **host seam**, and the seams are where Ash lives:
 
 ## Setup: the billing action moves into the app
 
-Lesson 13's billing domain only ever existed inside that notebook's `Mix.install`. The process is about to invoke it for real, so give it a home: create `lib/ash_enterprise/tutorial/billing.ex` with the lesson 13 definitions — same modules, same shapes — plus the `:idempotency_key` argument lesson 13 told you to add:
+Lesson 13's billing domain only ever existed inside that notebook's `Mix.install`. The process is about to invoke it for real, so give it a home — four files under `lib/ash_enterprise/tutorial/billing/`, one module per file the way the rest of `lib/` is laid out, with the `:idempotency_key` argument lesson 13 told you to add:
 
 <!-- livebook:{"force_markdown":true} -->
 
 ```elixir
-# lib/ash_enterprise/tutorial/billing.ex — lesson 13's domain, in the app now
+# lib/ash_enterprise/tutorial/billing/client.ex — the only module that knows the wire
 defmodule Tutorial.Billing.Client do
   def req, do: Req.new(base_url: "https://jsonplaceholder.typicode.com", retry: :transient)
 end
+```
 
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+# lib/ash_enterprise/tutorial/billing/account/read.ex — the manual read
 defmodule Tutorial.Billing.Account.Read do
   use Ash.Resource.ManualRead
 
@@ -82,7 +87,12 @@ defmodule Tutorial.Billing.Account.Read do
   defp to_record(m),
     do: struct(Tutorial.Billing.Account, id: m["id"], name: m["name"], email: m["email"], company: m["company"]["name"])
 end
+```
 
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+# lib/ash_enterprise/tutorial/billing/account.ex — the resource
 defmodule Tutorial.Billing.Account do
   use Ash.Resource, domain: Tutorial.Billing, data_layer: Ash.DataLayer.Simple
 
@@ -123,7 +133,12 @@ defmodule Tutorial.Billing.Account do
     end
   end
 end
+```
 
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+# lib/ash_enterprise/tutorial/billing.ex — the domain
 defmodule Tutorial.Billing do
   use Ash.Domain
 
@@ -137,26 +152,40 @@ defmodule Tutorial.Billing do
 end
 ```
 
-No table, no migration: `Ash.DataLayer.Simple` stores nothing, which is the point — this models somebody else's API (lesson 13). Save the file, `recompile()` in the attached node, and register the ref in the invoker's allowlist, the way lesson 20 registered `approve` and `reject`:
+No table, no migration: `Ash.DataLayer.Simple` stores nothing, which is the point — this models somebody else's API (lesson 13). Save the files, `recompile()` in the attached node, and register the ref in the invoker's allowlist, the way lesson 20 registered `approve` and `reject`:
 
 <!-- livebook:{"force_markdown":true} -->
 
 ```elixir
-# lib/ash_enterprise/process/action_invoker.ex, inside @registry
+# lib/ash_enterprise/process/action_invoker.ex
+
+# Inside @registry, beside the existing entries:
 "issue_credit" => %{
-  run: fn ctx ->
-    inputs = if is_map(ctx[:inputs]), do: ctx[:inputs], else: %{}
-
-    Tutorial.Billing.issue_credit!(
-      inputs["account_id"],
-      Decimal.new(to_string(inputs["amount"])),
-      inputs["idempotency_key"] || ctx[:subject].id
-    )
-
-    :ok
-  end,
+  run: &__MODULE__.issue_credit_action/1,
   action: {Tutorial.Billing.Account, :issue_credit}
 }
+
+# ...and the function, beside approve_refund_action/1 from lesson 20:
+@doc """
+Issues the credit the approved refund owes, idempotently.
+
+The node's declared `ash:inputs` arrive as a string-keyed map; the idempotency
+key falls back to the subject's id, so a diagram that omits the input still
+cannot double-credit under Oban redelivery.
+"""
+def issue_credit_action(ctx) do
+  inputs = if is_map(ctx[:inputs]), do: ctx[:inputs], else: %{}
+
+  Tutorial.Billing.issue_credit!(
+    inputs["account_id"],
+    Decimal.new(to_string(inputs["amount"])),
+    inputs["idempotency_key"] || ctx[:subject].id
+  )
+
+  :ok
+rescue
+  e -> {:error, Exception.message(e)}
+end
 ```
 
 `recompile()` again. Until a ref is in that registry it cannot be drawn, published or run — that is the allowlist doing its job.
@@ -194,7 +223,10 @@ Start an instance for a refund and follow its token with your agent.
     AshBpmn.start_instance(AshEnterprise.Bpmn,
       key: "refund", subject: refund, actor: actor, tenant: tenant)
 
-  AshAgentTools.process_instance(key: "refund")
+  report = AshAgentTools.process_instance(definition_key: "refund", tenant: tenant)
+  instance_report = List.first(report.instances)
+
+  %{count: report.count, status: instance_report["status"], open_tasks: length(instance_report["open_tasks"])}
   ```
 
   `mix ash_agent.instance --key refund` shows the same read-only state from the shell, and `mix ash_agent.graph refund --version 1` shows the published graph with digests. Pass `:tenant` explicitly; background jobs carry it.
@@ -202,7 +234,7 @@ Start an instance for a refund and follow its token with your agent.
   </div>
 </details>
 
-When you are finished with the whole tutorial, the overview's **When you're done** recipe removes `billing.ex` and reverts the invoker registry edit along with everything else.
+When you are finished with the whole tutorial, the overview's **When you're done** recipe removes the tutorial billing files and reverts the invoker registry edit along with everything else.
 
 ## Idempotency
 

@@ -126,24 +126,37 @@ Three things to internalize:
 <!-- livebook:{"force_markdown":true} -->
 
 ```elixir
-# lib/ash_enterprise/process/action_invoker.ex, inside @registry
+# lib/ash_enterprise/process/action_invoker.ex
+
+# Inside @registry, beside the existing entries:
 "approve" => %{
-  run: fn ctx ->
-    AshEnterprise.Tutorial.approve_refund!(ctx[:subject], AshEnterprise.Process.EngineContext.engine_opts(ctx))
-    :ok
-  end,
+  run: &__MODULE__.approve_refund_action/1,
   action: {AshEnterprise.Tutorial.Refund, :approve}
 },
 "reject" => %{
-  run: fn ctx ->
-    AshEnterprise.Tutorial.reject_refund!(ctx[:subject], AshEnterprise.Process.EngineContext.engine_opts(ctx))
-    :ok
-  end,
+  run: &__MODULE__.reject_refund_action/1,
   action: {AshEnterprise.Tutorial.Refund, :reject}
 }
+
+# ...and the two functions, beside record_risk/1 and its siblings:
+@doc "Runs the outcome the task was decided with, as the process system actor."
+def approve_refund_action(ctx) do
+  AshEnterprise.Tutorial.approve_refund!(ctx[:subject], AshEnterprise.Process.EngineContext.engine_opts(ctx))
+  :ok
+rescue
+  e -> {:error, Exception.message(e)}
+end
+
+@doc "Runs the outcome the task was decided with, as the process system actor."
+def reject_refund_action(ctx) do
+  AshEnterprise.Tutorial.reject_refund!(ctx[:subject], AshEnterprise.Process.EngineContext.engine_opts(ctx))
+  :ok
+rescue
+  e -> {:error, Exception.message(e)}
+end
 ```
 
-The `run` function is what execution calls. `engine_opts/1` swaps the engine's own actor — a struct your policies have never heard of, so a host action called with it is simply forbidden — for `AshEnterprise.Platform.SystemActor.process()`, and carries the tenant from the subject. The `action:` tuple is what the designer's panel introspects, so the catalogue cannot drift from what runs. `recompile()` in the attached node.
+The named function is what execution calls — every registry entry carries a capture like `&__MODULE__.record_risk/1`, because an anonymous function body stored in a module attribute cannot be injected back into the code that reads the attribute, so closures never appear in `@registry`. `engine_opts/1` swaps the engine's own actor — a struct your policies have never heard of, so a host action called with it is simply forbidden — for `AshEnterprise.Platform.SystemActor.process()`, and carries the tenant from the subject. The `action:` tuple is what the designer's panel introspects, so the catalogue cannot drift from what runs. `recompile()` in the attached node.
 
 ## Work the task
 
