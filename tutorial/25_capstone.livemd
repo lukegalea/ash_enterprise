@@ -40,6 +40,171 @@ Trace a single refund end to end and name which layer does what. If you can say 
 9. The projector updates `RefundStats` (16) and the compliance projector evaluates the bundle, writing a Finding and an Evaluation (17, 18).
 10. Every step can be described, validated, dry-run and read back by your agent (14).
 
+## Walk the refund through every layer
+
+The narrative above is the map; now drive it. The cells below run on the **attached node** and assume the state lessons 15-24 built: the tutorial domain and its refunds (15), the projector and its config entry (16), the rules registered and a bundle active (17-18), a published `refund_approver` decision (19), the maker-checker pair and the gated `propose` (20), the invoker refs and the published `refund` process (21), the declared judgment question (22), the `RefundUI` surface module (23), and the `legacy.cases` twin (24). On a fresh database, do those lessons first — nothing here re-teaches them, and every call is one you have already written.
+
+Open a refund's life and follow it all the way down. First, the cast:
+
+```elixir
+require Ash.Query
+
+actor = Ash.read_first!(AshEnterprise.Accounts.User, authorize?: false)
+tenant = actor.organization_id
+opts = [actor: actor, tenant: tenant]
+
+maker = actor
+
+[checker] =
+  AshEnterprise.Accounts.User
+  |> Ash.Query.filter(email == "checker@example.com")
+  |> Ash.read!(authorize?: false)
+
+# checkpoint — expected: the lesson 20 pair, one tenant
+{maker.email, checker.email, tenant}
+```
+
+**Propose.** The gate from lesson 20 is on this action, so this one write starts everything:
+
+```elixir
+refund = AshEnterprise.Tutorial.propose_refund!("T-3001", Decimal.new("300.00"), actor: maker, tenant: tenant)
+
+# checkpoint — expected: [:propose] — the write landed in the audit log (15), in the same transaction
+AshEnterprise.Audit.EventLog
+|> Ash.Query.filter(record_id == ^refund.id)
+|> Ash.read!(opts)
+|> Enum.map(& &1.action)
+```
+
+**Evaluate.** Rules (17) answer now; the decision (19) routes:
+
+```elixir
+facts = [
+  {:refund, :amount_over_limit, Decimal.compare(refund.amount, Decimal.new(500)) == :gt},
+  {:refund, :manager_approved, false}
+]
+
+{:ok, rules} = AshRules.evaluate(Tutorial.RefundRules, facts)
+
+definition =
+  AshEnterprise.Decisions.Definition
+  |> Ash.Query.filter(key == "refund_approver" and status == :published)
+  |> Ash.Query.sort(version: :desc)
+  |> Ash.read_first!(actor: actor, tenant: tenant)
+
+{:ok, decision} =
+  AshDecisions.Evaluator.evaluate(definition, %{"amount" => refund.amount, "tier" => "standard"},
+    actor: actor, tenant: tenant
+  )
+
+# checkpoint — expected: {:compliant, "team_lead"} — under the limit, standard tier
+{rules.overall, decision.outputs["approver"]}
+```
+
+**Judge.** Lesson 22's question is declared on the Refund; the model instrument itself needs that lesson's profile config. What the capstone shows is the law underneath it — a question nobody has answered is `:unknown`, never "not fraud" (17's `missing: :unknown`, 22's law 1):
+
+```elixir
+# no tier fact, because no admitted judgment has supplied one
+{:ok, unjudged} =
+  AshRules.evaluate(Tutorial.RefundRules, [
+    {:refund, :amount_over_limit, true},
+    {:refund, :manager_approved, true}
+  ])
+
+judge = AshAgentTools.describe_action(AshEnterprise.Tutorial.Refund, :judge_suspected_fraud)
+
+# checkpoint — expected: :unknown overall, and the judge action lesson 22 declared on the resource.
+# (Skipped lesson 22's declaration? describe says the action does not exist — an answer too, lesson 14.)
+{unjudged.overall, judge != nil}
+```
+
+**Candidates.** The same role clause feeds the standalone task, minus the maker (20):
+
+```elixir
+checker_tasks =
+  AshBpmn.my_tasks(AshEnterprise.Bpmn, principal_ids: [checker.id], actor: checker, tenant: tenant)
+
+maker_tasks =
+  AshBpmn.my_tasks(AshEnterprise.Bpmn, principal_ids: [maker.id], actor: maker, tenant: tenant)
+
+# checkpoint — expected: {true, []} — the checker holds refund_approver; the maker is subtracted
+{Enum.any?(checker_tasks, &(&1.subject_id == refund.id)), maker_tasks}
+```
+
+**Orchestrate.** Start the process (21) and follow its token with the agent tools from lesson 14:
+
+```elixir
+{:ok, instance} =
+  AshBpmn.start_instance(AshEnterprise.Bpmn,
+    key: "refund", subject: refund, actor: maker, tenant: tenant
+  )
+
+# checkpoint — expected: a running instance whose user task draws candidates from the same decision, minus the maker
+AshAgentTools.process_instance(key: "refund")[:status]
+```
+
+**Render.** The surface (23) is derived, and the strangled tickets (24) read through the view:
+
+```elixir
+# checkpoint — expected: the createSurface → updateComponents → updateDataModel message triple (23)
+surface = AshA2ui.Info.build_surface(AshEnterpriseWeb.A2ui.RefundUI, actor: actor, tenant: tenant)
+
+estate_tenant = AshEnterprise.Legacy.Estate.organization_id()
+
+legacy_admin =
+  AshEnterprise.Accounts.User
+  |> Ash.Query.filter(email == "admin@legacy.example")
+  |> Ash.read_one!(authorize?: false)
+
+strangled =
+  AshEnterprise.Tutorial.Ticket
+  |> Ash.read!(actor: legacy_admin, tenant: estate_tenant)
+  |> Enum.map(&{&1.subject, &1.status})
+
+# checkpoint — expected: three A2UI messages, and lesson 24's legacy rows read as resources
+{length(surface), strangled}
+```
+
+**Decide.** Claim as the checker and approve — and the invoker, not you, runs `Refund.approve` (the registry entry from lesson 20):
+
+```elixir
+task =
+  Enum.find(checker_tasks, &(&1.subject_id == refund.id))
+  |> AshBpmn.claim_task!(actor: checker, tenant: tenant)
+
+AshBpmn.decide!(task, outcome: :approved, actor: checker, tenant: tenant)
+
+approved = Ash.reload!(refund, actor: checker, tenant: tenant)
+
+refused = AshEnterprise.Tutorial.approve_refund(approved, opts)
+
+# checkpoint — expected: {:approved, true} — the invoker ran Refund.approve,
+# and a second approve is refused by the action's own validation
+{approved.status, match?({:error, _}, refused)}
+```
+
+**Evidence.** The layers that watched it happen, after the fact:
+
+```elixir
+# checkpoint — expected: the projection counted it (16); compliance holds a Finding pinned to a bundle hash (18)
+stats = AshEnterprise.Tutorial.RefundStats |> Ash.read!(opts)
+
+findings =
+  AshCompliance.Resources.Finding
+  |> Ash.Query.filter(subject_id == ^refund.id)
+  |> Ash.read!(opts)
+
+evaluations =
+  AshCompliance.Resources.ComplianceEvaluation
+  |> Ash.Query.filter(subject_id == ^refund.id)
+  |> Ash.read!(opts)
+  |> Enum.map(& &1.bundle_hash)
+
+{stats |> Enum.map(& &1.approved_count), length(findings), evaluations}
+```
+
+If the projection row is missing or stale, the projector is lagging, not lying: `mix ash_events_projections.lag` (lesson 16) is the next command, before any code reading. If the findings list is empty, lesson 18's projector or bundle never went active — the capstone cannot fabricate the evidence, and neither can you.
+
 ## Final exercise
 
 For each statement, name the layer that owns it: action/validation, policy, rule bundle, decision, process, projection, judgment, or UI.
