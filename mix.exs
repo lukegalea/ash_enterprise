@@ -280,6 +280,17 @@ defmodule AshEnterprise.MixProject do
       {:ash_rules, github: "lukegalea/ash_rules"},
       {:ash_compliance, github: "lukegalea/ash_compliance"},
 
+      # --- The judgment substrate (System One) ---------------------------------
+      # Questions declared and answered by in-zone instruments: the registry,
+      # the ledger fragments, calibration — and the instrument profiles this
+      # host wires in `config/runtime.exs`. First-party tier 3
+      # (docs/manifesto/06-reversibility.md); zones and profiles are host
+      # configuration, never code (ADR 0042; S1-23: nothing model-specific in
+      # code). The host's residency policy lives in
+      # `AshEnterprise.Zones.ResidencyPolicy` and is registered under
+      # `:residency_policy`.
+      {:ash_judgments, github: "lukegalea/ash_judgments"},
+
       # --- Business processes and the decisions they route on ------------------
       # The other half of ADR 0009. `ash_bpmn` compiles a BPMN document into an
       # immutable versioned graph and executes it with a token interpreter over

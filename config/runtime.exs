@@ -34,6 +34,62 @@ if model = System.get_env("AI_INTERPRETER_MODEL") do
   config :ash_enterprise, :ai, interpreter_model: model
 end
 
+# ## Instrument profiles (ash_judgments) -- host configuration, not code
+#
+# The judgment substrate's instruments are declared HERE and only here:
+# which models exist, which host serves each, and under what residency.
+# Nothing model-specific may appear in code -- models are re-chosen (the
+# S1-23 model-agnostic ruling), and the homelab hosts below are prototype
+# instruments behind wire contracts, not facts about the product (ADR 0042;
+# docs/plans/system-one.md). Swapping a model, moving one between hosts or
+# retiring one is an edit to this file (or its environment variables), never
+# a code change. `{:system, "VAR"}` references resolve at call time, so a
+# release can be repointed without a rebuild; no URL, key or digest is ever
+# committed.
+#
+# The two-host reality of this deployment (the Ontario zone, ADR 0042):
+# the CPU host serves the decision router, the M5 Pro serves the larger
+# decision model. Both are in-zone (`:in_cluster`) `:ca` profiles. Digest
+# pins are deliberately absent: `pin` defaults to `:optional`, and the
+# profile layer fetches and verifies digests at warm time
+# (`AshJudgments.Profile.warm/1`). Compliance paths that feed admission
+# need a pinned digest -- enable it per profile by adding
+# `pin: :required` and `digest: {:system, "VAR"}`, never a literal.
+#
+# `:model_routes` names which host answers for which model. A configured,
+# non-empty route map is authoritative: a model with no entry fails loud
+# (`AshJudgments.Errors.RouteMissing`) rather than falling back silently.
+config :ash_judgments,
+  # The stack's region; every profile's region is guarded against it.
+  region: :ca,
+  # This host's tenant disclosure policy (ADR 0042: in-zone allowed,
+  # sub-processor only on a recorded per-tenant opt-in -- see
+  # `AshEnterprise.Zones.ResidencyPolicy` and
+  # `AshEnterprise.Accounts.Organization.sub_processor_opt_in`).
+  residency_policy: AshEnterprise.Zones.ResidencyPolicy,
+  profiles: [
+    [
+      name: :laya_cpu,
+      model: "laya:typed-decisions",
+      base_url: {:system, "OLLAYA_BASE_URL"},
+      api_key: {:system, "OLLAYA_API_KEY"},
+      residency: :in_cluster,
+      region: :ca
+    ],
+    [
+      name: :winnow_gpu,
+      model: "winnow:e4b",
+      base_url: {:system, "S1_OLLAYA_GPU_BASE_URL"},
+      api_key: {:system, "OLLAYA_API_KEY"},
+      residency: :in_cluster,
+      region: :ca
+    ]
+  ],
+  model_routes: %{
+    "laya:typed-decisions" => {:system, "OLLAYA_BASE_URL"},
+    "winnow:e4b" => {:system, "S1_OLLAYA_GPU_BASE_URL"}
+  }
+
 if config_env() == :dev do
   # Reload browser tabs when matching files change.
   config :ash_enterprise, AshEnterpriseWeb.Endpoint,

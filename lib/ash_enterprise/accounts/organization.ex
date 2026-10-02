@@ -75,6 +75,27 @@ defmodule AshEnterprise.Accounts.Organization do
       so that cross-currency reporting does not have to join exchange rates.
       """
     end
+
+    # First-party (no CDM column): ADR 0042 requires the disclosure control
+    # for data leaving a zone to be an opt-in, recorded per tenant. Recorded
+    # means data -- this column -- not config, and the update that flips it
+    # lands in the audit event log like any other. Read by
+    # `AshEnterprise.Zones.ResidencyPolicy`, next to the inference client.
+    # Not public: it is a governance record, not part of the organization's
+    # API surface.
+    attribute :sub_processor_opt_in, :boolean do
+      allow_nil? false
+      default false
+      public? false
+
+      description """
+      Whether this tenant has recorded an opt-in to customer-confidential
+      data flowing to an instrument outside every declared zone (a
+      sub-processor). Default false, and `AshEnterprise.Zones.ResidencyPolicy`
+      treats absence, unknown tenants and read failures as false: no tenant
+      opts in by silence. ADR 0042.
+      """
+    end
   end
 
   identities do
@@ -86,7 +107,13 @@ defmodule AshEnterprise.Accounts.Organization do
   actions do
     defaults [:read, :destroy]
 
-    default_accept [:name, :unique_name, :languagelocale_id, :base_currency_id]
+    default_accept [
+      :name,
+      :unique_name,
+      :languagelocale_id,
+      :base_currency_id,
+      :sub_processor_opt_in
+    ]
 
     create :create do
       primary? true
@@ -96,7 +123,7 @@ defmodule AshEnterprise.Accounts.Organization do
     update :update do
       primary? true
       # unique_name is immutable -- see the attribute description.
-      accept [:name, :languagelocale_id, :base_currency_id]
+      accept [:name, :languagelocale_id, :base_currency_id, :sub_processor_opt_in]
     end
   end
 
