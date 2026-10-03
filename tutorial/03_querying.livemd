@@ -54,7 +54,7 @@ But first you need to enable all basic **CRUD** operations.
 Do this by adding default `:read` and `:destroy` actions, as well as `:create` and `:update` actions that accept `[:name]`.
 
 <details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
-  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
   <div class="p-4">
 
   ```elixir
@@ -135,7 +135,7 @@ You can create a `Profile` by:
 *Hint: Use a pipeline*
 
 <details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
-  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
   <div class="p-4">
 
   ```elixir
@@ -160,7 +160,7 @@ Now, read all the generated Profiles.
 Call `Ash.read!/1` with the `Tutorial.Profile` module.
 
 <details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
-  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
   <div class="p-4">
 
   ```elixir
@@ -188,7 +188,7 @@ Then call `Ash.Query.filter(name == "Joe Armstrong")` with the `Tutorial.Profile
 Put the result into the `joe` variable. `Ash.read!/1` returns a list, so make sure to extract the single returned value out of that list.
 
 <details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
-  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
   <div class="p-4">
 
   ```elixir
@@ -226,7 +226,7 @@ Then apply the changeset by calling `Ash.update!/1` with the changeset.
 *Hint: Using a pipeline might be a good idea.*
 
 <details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
-  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
   <div class="p-4">
 
   ```elixir
@@ -251,7 +251,7 @@ Finally, remove `joe` from the database.
 Do this using the `Ash.destroy!/1` function.
 
 <details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
-  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
   <div class="p-4">
 
   ```elixir

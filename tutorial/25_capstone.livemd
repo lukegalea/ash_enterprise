@@ -231,7 +231,7 @@ For each statement, name the layer that owns it: action/validation, policy, rule
 * "Hide the approve button from people who cannot approve."
 
 <details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
-  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
   <div class="p-4">
 
   * Parallel risk review: **process** (orchestration).

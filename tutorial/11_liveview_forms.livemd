@@ -13,7 +13,13 @@ Application.put_env(:ash, :validate_domain_config_inclusion?, false)
 Application.put_env(:ash, :default_string_length_count, :codepoints)
 
 Mix.install(
-  [{:ash, "~> 3.0"}, {:ash_phoenix, "~> 2.0"}, {:phoenix_playground, "~> 0.1"}],
+  [
+    {:ash, "~> 3.0"},
+    {:ash_phoenix, "~> 2.0"},
+    {:phoenix_playground, "~> 0.1"},
+    # The domain carries a policies block (lesson 10), which needs a SAT solver.
+    {:simple_sat, "~> 0.1"}
+  ],
   consolidate_protocols: false
 )
 ```
@@ -40,14 +46,64 @@ Mix.install(
 
 `AshPhoenix.Form` builds a form **from an action**. The fields it accepts, the validations it runs, the errors it shows and the policies it obeys all come from that action. You do not write a schema, a changeset function or an error translator.
 
-Re-evaluate the domain from lesson 10 (copy it into the cell below; this time you may paste, it is not new material), then add a validation to `:open`:
+Here is the lesson 10 domain again, self-contained, with one addition: a `string_length` validation on `:open` — the first rule that lives in the action rather than the attribute:
 
 ```elixir
-# Paste Tutorial.Support.Ticket and Tutorial.Support from lesson 10 here,
-# and add to the :open action:
-#
-#   validate string_length(:subject, min: 5)
+defmodule Tutorial.Support.Ticket do
+  use Ash.Resource,
+    domain: Tutorial.Support,
+    data_layer: Ash.DataLayer.Ets,
+    authorizers: [Ash.Policy.Authorizer]
+
+  attributes do
+    uuid_primary_key :id
+    attribute :subject, :string, allow_nil?: false, public?: true
+    attribute :status, :atom, constraints: [one_of: [:open, :closed]], default: :open, public?: true
+    attribute :owner_id, :uuid, public?: true
+    create_timestamp :inserted_at, public?: true
+  end
+
+  actions do
+    defaults [:read]
+
+    create :open do
+      accept [:subject, :owner_id]
+      validate string_length(:subject, min: 5)
+    end
+
+    update :close, change: set_attribute(:status, :closed)
+
+    read :open_tickets do
+      filter expr(status == :open)
+      pagination keyset?: true, default_limit: 20, required?: false
+    end
+  end
+
+  policies do
+    policy action_type(:read) do
+      authorize_if expr(owner_id == ^actor(:id))
+    end
+
+    policy action_type([:create, :update]) do
+      authorize_if actor_present()
+    end
+  end
+end
+
+defmodule Tutorial.Support do
+  use Ash.Domain
+
+  resources do
+    resource Tutorial.Support.Ticket do
+      define :open_ticket, action: :open, args: [:subject]
+      define :list_open, action: :open_tickets
+      define :close_ticket, action: :close
+    end
+  end
+end
 ```
+
+(If you still have lesson 10's notebook open, editing *its* cell works too — but re-run that cell; a second cell defining the same module is a compile error, see lesson 10.)
 
 ## Build and validate a form
 
@@ -73,7 +129,7 @@ Submit a valid version of the form and get the created ticket back.
 ```
 
 <details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
-  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
   <div class="p-4">
 
   ```elixir
@@ -132,7 +188,7 @@ Building the form in `mount/3` is fine: it is a struct, not a query.
 
 ## Exercise: a close button that respects the action
 
-Add a `close` button. Rather than `Ash.Changeset.for_update(:close)` in the event handler, use `AshPhoenix.Form.for_update(ticket, :close, actor: ...)` with no params and submit it. Then add `validate attribute_equals(:status, :open)` to `:close` and watch a double close fail with an error you can render.
+Add a `close` button. Rather than `Ash.Changeset.for_update(:close)` in the event handler, use `AshPhoenix.Form.for_update(ticket, :close, actor: ...)` and submit it with `params: %{}` — the option is now effectively required, and omitting it prints a deprecation warning that looks like your mistake. Then add `validate attribute_equals(:status, :open)` to `:close` and watch a double close fail with an error you can render.
 
 **Enter your solution**
 
@@ -141,7 +197,7 @@ Add a `close` button. Rather than `Ash.Changeset.for_update(:close)` in the even
 ```
 
 <details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
-  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
   <div class="p-4">
 
   ```elixir
@@ -152,8 +208,12 @@ Add a `close` button. Rather than `Ash.Changeset.for_update(:close)` in the even
   ```
 
   ```elixir
-  {:ok, closed} = AshPhoenix.Form.for_update(ticket, :close, actor: actor) |> AshPhoenix.Form.submit()
-  {:error, form} = AshPhoenix.Form.for_update(closed, :close, actor: actor) |> AshPhoenix.Form.submit()
+  {:ok, closed} =
+    AshPhoenix.Form.for_update(ticket, :close, actor: actor) |> AshPhoenix.Form.submit(params: %{})
+
+  {:error, form} =
+    AshPhoenix.Form.for_update(closed, :close, actor: actor) |> AshPhoenix.Form.submit(params: %{})
+
   AshPhoenix.Form.errors(form)
   ```
 

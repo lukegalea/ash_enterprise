@@ -122,7 +122,7 @@ Fetch account `3` through the code interface.
 ```
 
 <details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
-  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
   <div class="p-4">
 
   ```elixir
@@ -132,9 +132,9 @@ Fetch account `3` through the code interface.
   </div>
 </details>
 
-## Filters and sorts still work
+## Filters and sorts are the read's job
 
-With `Ash.DataLayer.Simple`, Ash applies filters and sorts in memory after your manual read returns. So callers can write ordinary queries:
+With `Ash.DataLayer.Simple`, **nobody applies your filters for you**. Ash collects what the caller asked for — `query.filter`, `query.sort`, `query.limit` — and hands it to the manual read. The read above ignores all of it, so run this query:
 
 ```elixir
 require Ash.Query
@@ -146,13 +146,49 @@ Tutorial.Billing.Account
 |> Enum.map(& &1.name)
 ```
 
-For large remote sets, push the filter down instead: read `query.filter` in the manual read and translate the parts the API supports. That is an optimisation; correctness does not depend on it.
+You get **all ten users back, in API order, with no error**. A database layer would have filtered and sorted; a manual read must. Reading `query.filter` and `query.sort` is not an optimisation — skipping it returns silently wrong results, which is worse than a crash. Edit the `Tutorial.Billing.Account.Read` module in the definition cell (the original cell — a second cell defining the module is a compile error, see lesson 10) and re-run it:
+
+```elixir
+defmodule Tutorial.Billing.Account.Read do
+  use Ash.Resource.ManualRead
+
+  def read(query, _data_layer_query, _opts, _context) do
+    path =
+      case query.arguments do
+        %{id: id} when not is_nil(id) -> "/users/#{id}"
+        _ -> "/users"
+      end
+
+    case Req.get(Tutorial.Billing.Client.req(), url: path) do
+      {:ok, %{status: 200, body: body}} ->
+        # The remote API filters nothing, so the read does. These are the same
+        # runtime helpers Ash's own in-memory data layers call: the first drops
+        # records the filter rejects, the second applies the sort.
+        records = body |> List.wrap() |> Enum.map(&to_record/1)
+
+        with {:ok, matching} <-
+               Ash.Filter.Runtime.filter_matches(Tutorial.Billing, records, query.filter) do
+          {:ok, Ash.Actions.Sort.runtime_sort(matching, query.sort)}
+        end
+
+      {:ok, %{status: 404}} -> {:ok, []}
+      {:ok, %{status: s}} -> {:error, "billing API returned #{s}"}
+      {:error, e} -> {:error, e}
+    end
+  end
+
+  defp to_record(m),
+    do: struct(Tutorial.Billing.Account, id: m["id"], name: m["name"], email: m["email"], company: m["company"]["name"])
+end
+```
+
+Re-run the query above: now only the `LLC` companies, sorted. For large remote sets the real fix is to push what the API supports down into the request (a query string, a search endpoint) and apply only the remainder in memory — but that is an optimisation on top of a read that is already correct.
 
 ## Remote writes are generic actions
 
 Most APIs expose verbs, not rows. A **generic action** is a typed verb with arguments and a return type, and it gets policies and a code interface like any other action.
 
-Add a generic action `:issue_credit` to `Tutorial.Billing.Account` taking `account_id :integer` and `amount :decimal`, which POSTs to `/posts` (JSONPlaceholder echoes it back) and returns `:map`. Define `issue_credit` on the domain.
+Add a generic action `:issue_credit` to `Tutorial.Billing.Account` — edit the `Account` module in the definition cell and re-run it — taking `account_id :integer` and `amount :decimal`, which POSTs to `/posts` (JSONPlaceholder echoes it back) and returns `:map`. Define `issue_credit` on the domain.
 
 **Enter your solution**
 
@@ -161,7 +197,7 @@ Add a generic action `:issue_credit` to `Tutorial.Billing.Account` taking `accou
 ```
 
 <details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
-  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
   <div class="p-4">
 
   ```elixir

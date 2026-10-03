@@ -13,7 +13,14 @@ Application.put_env(:ash, :validate_domain_config_inclusion?, false)
 Application.put_env(:ash, :default_string_length_count, :codepoints)
 
 Mix.install(
-  [{:ash, "~> 3.0"}, {:ash_phoenix, "~> 2.0"}, {:phoenix_playground, "~> 0.1"}],
+  [
+    {:ash, "~> 3.0"},
+    {:ash_phoenix, "~> 2.0"},
+    {:phoenix_playground, "~> 0.1"},
+    # Any `policies` block needs a SAT solver at runtime; without one the
+    # first read raises "No SAT solver available".
+    {:simple_sat, "~> 0.1"}
+  ],
   consolidate_protocols: false
 )
 ```
@@ -41,6 +48,12 @@ Mix.install(
 You finished the support-desk domain in lessons 1 to 9 (forked from the upstream tutorial): `Tutorial.Support.Ticket` and `Tutorial.Support.Representative`, now carrying actions, relationships, an aggregate and calculations. A LiveView is just one more **caller of actions**. It gets no special access: it reads through a read action, as an actor, and the resource's policies decide what it sees. That is the whole lesson; the rest is LiveView mechanics done properly.
 
 Here is the domain, with one addition: a `policies` block, so the actor matters. Note the `Ticket` below is a trimmed redefinition of the upstream one, not a superset: `description` and `updated_at` are dropped, `created_at` is spelled `inserted_at`, and an `owner_id` replaces the representative link. These lessons re-derive from a small surface, and nothing here depends on what upstream carried.
+
+<div class="rounded-xl p-4" style="background-color: #fff4e5; color: #61758a;">
+
+> **Edit the original cell, never a new one.** From here on, lessons define modules in cells. To change a module — add an action, a validation, a `pub_sub` block — edit the cell that defined it and re-run that cell. Defining the same module in a *second* cell is a compile error on current Elixir (`module Tutorial.Support.Ticket is already defined`), and purging the code first does not help.
+
+</div>
 
 ```elixir
 defmodule Tutorial.Support.Ticket do
@@ -116,7 +129,7 @@ List open tickets as `alice`, then as `bob`, using the code interface.
 ```
 
 <details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
-  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
   <div class="p-4">
 
   ```elixir
@@ -131,24 +144,26 @@ List open tickets as `alice`, then as `bob`, using the code interface.
 
 ## The LiveView rules
 
-Three rules you will be held to (they are iron laws, and lesson 14's judge checks them):
+Three rules you will be held to (they are iron laws; note that lesson 14's judge has no detector for the second one — it is behavioral, so your reviewer catches it instead):
 
 1. **No queries in `mount/3`.** `mount` runs twice: once for the static render, once on connect. Load in `handle_params/3`, which also runs when the URL changes.
 2. **Collections are streams.** `stream/3` keeps the list on the client, not in server memory.
-3. **The actor comes from the socket**, set by `on_mount` auth in a real app. Here we fake it with an assign.
+3. **The actor comes from the socket**, set by `on_mount` auth in a real app. A cell's `Process.get/1` cannot cross the process boundary — `mount/3` runs in the LiveView's *own* process, so anything your notebook process put in the process dictionary is simply not there. Here we bake the actor in as a module attribute at compile time.
 
 ```elixir
 defmodule TicketsLive do
   use Phoenix.LiveView
 
+  @demo_actor alice
+
   def mount(_params, _session, socket) do
     # static: no queries here
-    {:ok, assign(socket, current_user: Process.get(:demo_actor))}
+    {:ok, assign(socket, current_user: @demo_actor)}
   end
 
   def handle_params(_params, _uri, socket) do
-    page = Tutorial.Support.list_open!(actor: socket.assigns.current_user)
-    {:noreply, stream(socket, :tickets, page.results, reset: true)}
+    tickets = Tutorial.Support.list_open!(actor: socket.assigns.current_user)
+    {:noreply, stream(socket, :tickets, tickets, reset: true)}
   end
 
   def render(assigns) do
@@ -162,10 +177,9 @@ defmodule TicketsLive do
 end
 ```
 
-Because `open_tickets` is paginated with `required?: false`, the code interface returns a page when asked. Run it:
+`list_open!` returns a **list**. `open_tickets` declares pagination, so you may *ask* for a page — `list_open!(actor: alice, page: [limit: 20])` returns an `Ash.Page.Keyset` struct whose `.results` holds the records — but unless you pass `page:`, you get the plain list, which is what the LiveView above streams. Run it:
 
 ```elixir
-Process.put(:demo_actor, alice)
 PhoenixPlayground.start(live: TicketsLive, port: 4010, open_browser: false)
 ```
 
@@ -182,7 +196,7 @@ Add a `?status=closed` URL parameter. Do **not** filter in the LiveView. Add an 
 ```
 
 <details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
-  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
   <div class="p-4">
 
   Add to the resource:

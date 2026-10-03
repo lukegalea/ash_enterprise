@@ -46,7 +46,7 @@ Inside the `relationships` block, define a `belongs_to` representative like so:
 `belongs_to :representative, Tutorial.Support.Representative`
 
 <details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
-  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
   <div class="p-4">
 
   ```elixir

@@ -13,7 +13,13 @@ Application.put_env(:ash, :validate_domain_config_inclusion?, false)
 Application.put_env(:ash, :default_string_length_count, :codepoints)
 
 Mix.install(
-  [{:ash, "~> 3.0"}, {:ash_phoenix, "~> 2.0"}, {:phoenix_playground, "~> 0.1"}],
+  [
+    {:ash, "~> 3.0"},
+    {:ash_phoenix, "~> 2.0"},
+    {:phoenix_playground, "~> 0.1"},
+    # The domain carries a policies block (lesson 10), which needs a SAT solver.
+    {:simple_sat, "~> 0.1"}
+  ],
   consolidate_protocols: false
 )
 ```
@@ -50,16 +56,72 @@ defmodule Tutorial.Endpoint do
 end
 ```
 
-Add `notifiers: [Ash.Notifier.PubSub]` to `Tutorial.Support.Ticket` (the lesson 11 version) and this block:
+Here is the lesson 11 domain again, self-contained (its `string_length` validation included), with two additions: `notifiers: [Ash.Notifier.PubSub]` on the resource, and a `pub_sub` block that says *which* actions publish on *which* topics. Both are declarations — no broadcast call anywhere:
 
 ```elixir
-# pub_sub do
-#   module Tutorial.Endpoint
-#   prefix "tickets"
-#   publish_all :create, ["created"]
-#   publish_all :update, ["updated"]
-# end
+defmodule Tutorial.Support.Ticket do
+  use Ash.Resource,
+    domain: Tutorial.Support,
+    data_layer: Ash.DataLayer.Ets,
+    authorizers: [Ash.Policy.Authorizer],
+    notifiers: [Ash.Notifier.PubSub]
+
+  attributes do
+    uuid_primary_key :id
+    attribute :subject, :string, allow_nil?: false, public?: true
+    attribute :status, :atom, constraints: [one_of: [:open, :closed]], default: :open, public?: true
+    attribute :owner_id, :uuid, public?: true
+    create_timestamp :inserted_at, public?: true
+  end
+
+  actions do
+    defaults [:read]
+
+    create :open do
+      accept [:subject, :owner_id]
+      validate string_length(:subject, min: 5)
+    end
+
+    update :close, change: set_attribute(:status, :closed)
+
+    read :open_tickets do
+      filter expr(status == :open)
+      pagination keyset?: true, default_limit: 20, required?: false
+    end
+  end
+
+  policies do
+    policy action_type(:read) do
+      authorize_if expr(owner_id == ^actor(:id))
+    end
+
+    policy action_type([:create, :update]) do
+      authorize_if actor_present()
+    end
+  end
+
+  pub_sub do
+    module Tutorial.Endpoint
+    prefix "tickets"
+    publish_all :create, ["created"]
+    publish_all :update, ["updated"]
+  end
+end
+
+defmodule Tutorial.Support do
+  use Ash.Domain
+
+  resources do
+    resource Tutorial.Support.Ticket do
+      define :open_ticket, action: :open, args: [:subject]
+      define :list_open, action: :open_tickets
+      define :close_ticket, action: :close
+    end
+  end
+end
 ```
+
+(If you already edited lesson 11's cell to add these, that cell also works — but re-run *that* cell; defining the module twice is a compile error, see lesson 10.)
 
 ## Subscribe in a test process first
 
@@ -72,7 +134,7 @@ Subscribe the notebook to `"tickets:created"`, open a ticket, and `receive` the 
 ```
 
 <details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
-  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
   <div class="p-4">
 
   ```elixir
@@ -81,11 +143,13 @@ Subscribe the notebook to `"tickets:created"`, open a ticket, and `receive` the 
   Tutorial.Support.open_ticket!("Live!", %{owner_id: actor.id}, actor: actor)
 
   receive do
-    %{event: "create", payload: %Ash.Notifier.Notification{data: t}} -> t.subject
+    %{event: "open", payload: %Ash.Notifier.Notification{data: t}} -> t.subject
   after
     1000 -> :nothing
   end
   ```
+
+  The notification's `event` is the action's **name** (`:open`), not its type (`create`) — `publish_all :create, [...]` selects actions *by type*, but the notification names the action that ran. Match `"open"`, or bind the variable and inspect it.
 
   </div>
 </details>
@@ -95,17 +159,25 @@ Subscribe the notebook to `"tickets:created"`, open a ticket, and `receive` the 
 Subscribe only when connected; otherwise the static render subscribes a process that is about to die. Re-read through the action when a notification arrives, rather than trusting the payload, so policies apply to the update too.
 
 ```elixir
+alice = %{id: Ash.UUID.generate()}
+
 defmodule LiveTicketsLive do
   use Phoenix.LiveView
 
+  # Baked in at compile time, in this process. The notebook's process
+  # dictionary is invisible to the LiveView process: mount/3 runs elsewhere,
+  # so Process.get(:demo_actor) there is always nil (and the read policy then
+  # 403s). A real app carries the actor in the session instead.
+  @demo_actor alice
+
   def mount(_params, _session, socket) do
     if connected?(socket), do: Phoenix.PubSub.subscribe(Tutorial.PubSub, "tickets:created")
-    {:ok, assign(socket, current_user: Process.get(:demo_actor))}
+    {:ok, assign(socket, current_user: @demo_actor)}
   end
 
   def handle_params(_params, _uri, socket) do
-    page = Tutorial.Support.list_open!(actor: socket.assigns.current_user)
-    {:noreply, stream(socket, :tickets, page.results, reset: true)}
+    tickets = Tutorial.Support.list_open!(actor: socket.assigns.current_user)
+    {:noreply, stream(socket, :tickets, tickets, reset: true)}
   end
 
   def handle_info(%{payload: %Ash.Notifier.Notification{data: %{id: id}}}, socket) do
@@ -124,8 +196,6 @@ defmodule LiveTicketsLive do
   end
 end
 
-alice = %{id: Ash.UUID.generate()}
-Process.put(:demo_actor, alice)
 PhoenixPlayground.start(live: LiveTicketsLive, port: 4012, open_browser: false)
 ```
 
@@ -142,7 +212,7 @@ Make closed tickets disappear live. Publish `:close` on `"tickets:closed"` and `
 ```
 
 <details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
-  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
   <div class="p-4">
 
   Resource: `publish :close, ["closed"]`. LiveView: subscribe to `"tickets:closed"` too and

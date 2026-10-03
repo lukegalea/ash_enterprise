@@ -18,6 +18,7 @@ Same rules as before:
 * Work **sequentially**. Every lesson builds on the previous one.
 * Read the instructions, **write your own solution**, then open **Show Solution**.
 * **Do not copy paste.** The muscle memory is the point.
+* **Edit the original cell, never a new one.** Lessons define modules in cells; to change a module, edit the cell that defined it and re-run that cell. Defining the same module in a second cell is a compile error on current Elixir — lesson 10 says more.
 
 <!-- livebook:{"break_markdown":true} -->
 
@@ -39,7 +40,7 @@ That idea has consequences you will meet over and over:
 
 ### Runtimes
 
-* **Lessons 10 to 13** (LiveView and remote resources) run standalone. Each has a `Mix.install` cell using ETS and [`phoenix_playground`](https://hex.pm/packages/phoenix_playground), so no database is needed. Each installs only the deps that lesson needs, which is not always the same set the upstream cells installed.
+* **Lessons 1 to 13** run standalone — no database. Lessons 1 to 9 need only `:ash` in their `Mix.install`; lessons 10 to 13 add [`phoenix_playground`](https://hex.pm/packages/phoenix_playground) (and, for the lessons with a `policies` block, a SAT solver dep). Each installs only the deps that lesson needs, which is not always the same set the upstream cells installed.
 * **Lessons 14 to 25** need Postgres, Oban and the enterprise packages, which are already wired together in `ash_enterprise`. Run them against the app.
 
 Install Livebook once, if you have not: either the [desktop app](https://livebook.dev) or, in a terminal with Elixir on your path, `mix escript.install hex livebook`. Open the notebooks from your local clone — `livebook server <path-to-checkout>/tutorial`, or open the `tutorial` directory from Livebook's open page — so the per-lesson navigation links between files keep working.
@@ -58,9 +59,12 @@ Then in Livebook choose **Runtime → Attached node**, name `ae@127.0.0.1`, cook
 Two lines there deserve a word:
 
 * The node name is **long** (`--name ae@127.0.0.1`, not `--sname ae`). Livebook itself runs as a long-named node, and a long-named node cannot reach a short-named one, so the short form gives you a running server nothing can attach to.
+* **Launch the server from the checkout root.** `devenv shell` preserves your current directory, so running the start command from a drifted shell — another checkout of the same repo, say — silently starts *that* checkout's app on the port, and Livebook then attaches to code without your lesson files. `pwd` before you launch.
 * If port 4000 is already taken (a teammate, or your own other checkout), pick another port by setting it *inside* the devenv shell — `devenv shell` does not inherit your shell's environment, so a `PORT=4001` prefix on the outside is silently dropped: `devenv shell -- sh -c 'PORT=4001 iex --name ae@127.0.0.1 --cookie tutorial -S mix phx.server'`. Attach exactly the same way; only lesson 14's MCP URLs assume :4000.
 
-From lesson 15 on, the resources you write are real application code. Put them under `lib/ash_enterprise/tutorial/` in an `AshEnterprise.Tutorial` domain (lesson 15 creates it), generate migrations with `mix ash.codegen --dev` while you are learning — name a codegen only for a change you mean to keep — and restart the node when a lesson edits config. Use the notebook to explore, call actions and debug.
+From lesson 15 on, the resources you write are real application code. Put them under `lib/ash_enterprise/tutorial/` in an `AshEnterprise.Tutorial` domain (lesson 15 creates it), generate migrations with `mix ash.codegen --dev` while you are learning — name a codegen only for a change you mean to keep — and **restart the node whenever a lesson edits config or any file under `lib/`**. `recompile()` is not enough for Ash DSL changes: a resource or domain module recompiles with its old extension state until the application restarts. Use the notebook to explore, call actions and debug.
+
+One sentence about the seed task so it does not surprise you: `mix ash_enterprise.seed` provisions a demo tenant for exploring the full app; the tutorial does not need it — lesson 15's setup cell builds the small actor/tenant fabric the lessons share, from the running node.
 
 ### When you're done
 

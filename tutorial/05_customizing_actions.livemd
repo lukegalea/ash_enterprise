@@ -80,7 +80,7 @@ Then for the `:close` action define a `change`:
 That's it, you defined your first custom actions.
 
 <details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
-  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
   <div class="p-4">
 
   ```elixir
@@ -185,7 +185,7 @@ Open a ticket.
 Remember, when creating a resource, use a changeset (`Ash.Changeset.for_create/3`), which gets passed to `Ash.create!/1`. But in this case use the `:open` argument instead of `:create`.
 
 <details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
-  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
   <div class="p-4">
 
   ```elixir
@@ -200,7 +200,7 @@ Remember, when creating a resource, use a changeset (`Ash.Changeset.for_create/3
 Try setting the `:status` to `:closed` and see if it works.
 
 <details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
-  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
   <div class="p-4">
 
   ```elixir
@@ -231,7 +231,7 @@ This is because you set the accepted attributes to `:subject` and `:description`
 Create a Ticket and store it in the `ticket` variable.
 
 <details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
-  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
   <div class="p-4">
 
   ```elixir
@@ -259,7 +259,7 @@ Remember to use `Ash.Changeset.for_update/2` with the `:close` action.
 To update use `Ash.update!/1`.
 
 <details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
-  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
   <div class="p-4">
 
   ```elixir

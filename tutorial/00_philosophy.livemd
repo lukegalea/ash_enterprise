@@ -36,7 +36,7 @@ Mix.install([{:ash, "~> 3.0"}], consolidate_protocols: false)
 
 Every other lesson teaches a package. This one teaches the reason for the packages: **how a human and an AI should split the work of building software, and why Ash is the right place to draw the line.** It is short, it has exercises, and the last exercise is the most important one in the tutorial.
 
-One orientation note before you start: the upstream Ash tutorial's lessons 0-9 live in [its own repo](https://github.com/ash-project/ash_tutorial). This repo's numbered lessons start at 10; the chapter you are reading is lesson 0 of the enterprise series, not part of that upstream numbering.
+One orientation note before you start: lessons 1 to 9 of this series are forks of [the upstream Ash tutorial](https://github.com/ash-project/ash_tutorial)'s lessons 1 to 9 (MIT, attribution in each file), retargeted so the support desk carries straight through — they live in *this* repo, and the upstream keeps evolving on its own. The chapter you are reading is lesson 0 of the enterprise series.
 
 ## The moving line
 
@@ -95,7 +95,7 @@ artifacts = [
 ```
 
 <details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
-  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
   <div class="p-4">
 
   * `:approve` action, policies, BPMN diagram: **human**. They are the model; they are short; they read like the business. (The diagram is read as a picture, not as XML.)
@@ -169,7 +169,7 @@ Now product wants the same rule on `Comment.body` and `Refund.reason`. That is N
 ```
 
 <details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
-  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
   <div class="p-4">
 
   ```elixir
