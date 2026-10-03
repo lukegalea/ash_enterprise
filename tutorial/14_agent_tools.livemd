@@ -7,6 +7,8 @@ SPDX-License-Identifier: MIT
 
 # Ash Enterprise: 14 - Working With Your Agent
 
+Effort: **medium** — five short exercises; comfortably two sittings, with a marked break in the middle. *You'll feel the questions you'd ask a senior become tool calls.*
+
 <div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
 <div class="flex">
 <i class="ri-arrow-left-fill"></i>
@@ -119,6 +121,8 @@ Describe the `:create` action of `AshEnterprise.Accounts.Organization`. (`AshEnt
   </div>
 </details>
 
+**Checkpoint.** The contract for `:create`, printed from the compiled DSL — the same answer the agent will be held to.
+
 ## Validate before you act
 
 `validate_input/3` casts each param with the same `Ash.Type.cast_input/3` machinery Ash uses at runtime, against a changeset built with `error?: false`. The data layer is never touched. The report is always returned, never raised; check `valid?`.
@@ -148,6 +152,10 @@ Validate a deliberately broken call to the same action: a camelCase key and a ma
 
   </div>
 </details>
+
+**Checkpoint.** The report came back `valid?: false` with errors and a `did_you_mean` — that exchange is the loop an agent should live in.
+
+**Look around.** Describe, validate, explain: three instruments so far, all read-only, all against the real contract. Half this lesson's tools cannot execute anything, and that is deliberate — a good place for a break before the ones that read the running system.
 
 ## Debugging "forbidden"
 
@@ -202,6 +210,8 @@ A fresh database has zero users, so make an actor first — `register_with_passw
   </div>
 </details>
 
+**Checkpoint.** A verdict with no action run: `{:ok, false}` plus the explanation is a complete debugging session.
+
 ## Debugging with the declared layers
 
 Later lessons add layers that are hard to debug by reading code, because the behaviour is data. The facade reads each of them, read-only, and only when the package is present:
@@ -232,6 +242,10 @@ List the decision catalogue now. It may be empty until lesson 19 publishes one; 
 
   </div>
 </details>
+
+**Checkpoint.** The catalogue answered — and even `[]` is an answer: no decisions published yet, and the tool said so instead of guessing.
+
+**Look around.** The catalogue, the verdict, the layers table: every layer you are about to build in lessons 15 to 25 already has a read-only window in this lesson. Nothing after this needs to be debugged blind.
 
 ## Where am I? Context at a cursor
 
@@ -319,9 +333,15 @@ end
   </div>
 </details>
 
+**Checkpoint.** Three of four sins caught by grep, one only by you — that ratio is why the laws are also a reading habit, not just a command.
+
 ## Closing the loop: kaizen
 
 When a tool misses (unknown input, search miss, context miss), `ash_agent_tools` emits `[:ash_agent, :tool_gap]` telemetry with `did_you_mean` candidates. `mix ash_agent.gaps` turns the aggregate into a worklist of aliases and doc fixes. Treat recurring agent confusion as a defect in your declarations or docs, not in the agent.
+
+<div class="rounded-xl p-4 my-4" style="background-color: #fdf6ec; border-left: 4px solid #c2410c; color: #7c2d12;">
+  <p><i class="ri-fire-fill"></i> <strong>Soot was here.</strong> A tool that misses is the system asking for better words. Writing them down is the whole loop.</p>
+</div>
 
 ## The rule for the rest of the tutorial
 

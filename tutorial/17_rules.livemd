@@ -7,6 +7,8 @@ SPDX-License-Identifier: MIT
 
 # Ash Enterprise: 17 - Rules
 
+Effort: **medium** — standalone, pure, one exercise. *You'll feel absence become an answer in its own right.*
+
 ```elixir
 # Pure: runs standalone too.
 Application.put_env(:ash, :default_string_length_count, :codepoints)
@@ -34,11 +36,17 @@ Mix.install([{:ash_rules, github: "lukegalea/ash_rules"}])
 
 <!-- livebook:{"break_markdown":true} -->
 
+*You are here: the acts are recorded (15) and counted (16); now the desk learns to judge them.*
+
 Refund policy: refunds above 500 need a recorded manager approval; a refund on a ticket with no known customer tier cannot be judged. You could write that as an `if` in a change. Then it is code, cannot be shown to an auditor, cannot be tailored per tenant, and "we do not know the tier" quietly becomes "the tier is not gold".
 
 `ash_rules` compiles rules into an **immutable, content-hashed bundle**. Bundles in, verdicts out. No storage, no I/O, no side effects. Projecting results into state is someone else's job (lesson 18).
 
 > **Missing data is never a pass, and never silently a violation.**
+
+<div class="rounded-xl p-4 my-4" style="background-color: #fdf6ec; border-left: 4px solid #c2410c; color: #7c2d12;">
+  <p><i class="ri-fire-fill"></i> <strong>Soot was here.</strong> I have been asked about every tier nobody recorded. An ember does not guess, and neither does the bundle — absence is an answer, and it is spelled <code>:unknown</code>.</p>
+</div>
 
 ## Facts and their absence
 
@@ -116,6 +124,8 @@ Add a rule `REF-2`, severity `:medium`, gap `"refund.tier_check"`: refunds over 
 
   </div>
 </details>
+
+**Checkpoint.** `overall: :unknown` with the tier gap pending — absence refused to become either a pass or a violation.
 
 ## Gate on the triple
 

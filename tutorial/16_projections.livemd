@@ -9,6 +9,8 @@ SPDX-License-Identifier: MIT
 
 Runtime: **attached node**. Code goes in `lib/ash_enterprise/tutorial/`.
 
+Effort: **medium** — three pieces, each with one job. *You'll feel a table you could throw away without fear.*
+
 ## Read models, derived from events
 
 <div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
@@ -29,7 +31,13 @@ Runtime: **attached node**. Code goes in `lib/ash_enterprise/tutorial/`.
 
 <!-- livebook:{"break_markdown":true} -->
 
+*You are here: the log exists (15); now it starts answering questions the tables would rather not.*
+
 "How many refunds has each organization approved today, and what is the largest?" You could compute it with an aggregate on every page load. At enterprise volume you would rather keep a **projection**: a small table updated from the event log, which can be thrown away and rebuilt from the log at any time.
+
+<div class="rounded-xl p-4 my-4" style="background-color: #fdf6ec; border-left: 4px solid #c2410c; color: #7c2d12;">
+  <p><i class="ri-fire-fill"></i> <strong>Soot was here.</strong> A table you can throw away without fear is a young engineer's magic trick. The log was always the truth; the table is a cache that promises nothing the log cannot repeat.</p>
+</div>
 
 `ash_events_projections` gives you three pieces, and each has one job:
 
@@ -147,6 +155,8 @@ Write `AshEnterprise.Tutorial.RefundStats` with the `AshEvents.Projections.Proje
   </div>
 </details>
 
+**Checkpoint.** The stats table exists with no identity you declared — the extension derived `:by_grain`, and the transformer refusing to let you write it wrong is the derivation working.
+
 ## Step 3: the rule
 
 <!-- livebook:{"force_markdown":true} -->
@@ -209,6 +219,10 @@ Approve two refunds (lesson 15 — its actor/tenant cell and the privilege regra
   </div>
 </details>
 
+**Checkpoint.** A row per organization and day, counted from events — queryable like any resource, discardable like any cache.
+
+**Look around.** The stats row is disposable by design: delete it, run the rebuild below, and the same row comes back from the log. A table you are not afraid of is a different kind of table.
+
 ## Operations you must know
 
 ```bash
@@ -254,6 +268,8 @@ Show `approved_count` for the refund's organization and day directly on a Refund
 
   </div>
 </details>
+
+**Checkpoint.** `Ash.load!(refund, [:approved_today])` reads the day's count off the parent — the projection is attached, and you wrote no join.
 
 When you are finished with the whole tutorial, the overview's **When you're done** recipe rolls back this lesson's table and snapshot and reverts the `projectors:` config line — forget that line and the node will not boot.
 

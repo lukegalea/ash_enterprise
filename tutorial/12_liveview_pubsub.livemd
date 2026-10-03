@@ -7,6 +7,8 @@ SPDX-License-Identifier: MIT
 
 # Ash Enterprise: 12 - LiveView: Live Updates
 
+Effort: **light** — declarations and one subscription. *You'll feel the resource announce its own changes.*
+
 ```elixir
 Application.put_env(:ash, :validate_domain_resource_inclusion?, false)
 Application.put_env(:ash, :validate_domain_config_inclusion?, false)
@@ -43,6 +45,8 @@ Mix.install(
 
 
 <!-- livebook:{"break_markdown":true} -->
+
+*You are here: the desk reads and writes (10, 11); now it announces changes instead of waiting to be asked.*
 
 You never call `Phoenix.PubSub.broadcast` after a write. You declare on the resource which actions publish, on which topic, and Ash publishes after the transaction commits, for every caller. This is the same mechanism `ash_a2ui` (lesson 23) uses to refresh surfaces, and the one `ash_strangler` (lesson 24) bridges legacy writes into.
 
@@ -154,6 +158,10 @@ Subscribe the notebook to `"tickets:created"`, open a ticket, and `receive` the 
   </div>
 </details>
 
+**Checkpoint.** The broadcast arrived with no broadcast call anywhere in the code — the declaration did it, after the transaction committed.
+
+**Look around.** The notification carried the action's *name*, not its type. Names are about to matter a great deal: lesson 15 records them, and lessons 16 and 21 route on them.
+
 ## In a LiveView: `connected?/1` first
 
 Subscribe only when connected; otherwise the static render subscribes a process that is about to die. Re-read through the action when a notification arrives, rather than trusting the payload, so policies apply to the update too.
@@ -226,6 +234,8 @@ Make closed tickets disappear live. Publish `:close` on `"tickets:closed"` and `
 
   </div>
 </details>
+
+**Checkpoint.** A closed ticket disappears live — publish, subscribe, `stream_delete`, and no re-read needed.
 
 <div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
 <div class="flex">

@@ -9,6 +9,8 @@ SPDX-License-Identifier: MIT
 
 Runtime: **attached node**.
 
+Effort: **heavy** — the longest chain of artifacts so far, and one restart. *You'll feel "prove it" split into the now and the why.*
+
 ## The "now" and the "why"
 
 <div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
@@ -29,12 +31,18 @@ Runtime: **attached node**.
 
 <!-- livebook:{"break_markdown":true} -->
 
+*You are here: verdicts exist (17); now they become evidence — with a hash, a timestamp and a revision trail.*
+
 Lesson 17 gave you verdicts. An auditor asks two different questions: **is this subject compliant right now**, and **what exactly did the engine decide last Tuesday at 11:00, on which facts, under which rules?** `ash_compliance` answers both with two artifacts that must never be conflated:
 
 * **Finding**: a projection (lesson 16) per `[organization_id, control_id, subject_type, subject_id]`. The "now". It changes.
 * **ComplianceEvaluation**: append-only, pinning the bundle hash, the fact snapshot and the outcome. The "why". Nothing rewrites it.
 
 Both come from the same projector, in the same transaction.
+
+<div class="rounded-xl p-4 my-4" style="background-color: #fdf6ec; border-left: 4px solid #c2410c; color: #7c2d12;">
+  <p><i class="ri-fire-fill"></i> <strong>Soot was here.</strong> "Now" and "why" are different questions in every enterprise I have watched, and the expensive one is always "why". Here it is a row, pinned to a hash.</p>
+</div>
 
 Prerequisite: run lesson 15's actor/tenant setup cell (and its privilege regrant) if this is a fresh Livebook session — `actor` and `tenant` below come from there. You will also move files into `lib/`, so a node restart is coming; the lesson calls it out when it is needed.
 
@@ -97,6 +105,10 @@ Register `Tutorial.RefundRules` (lesson 17; move it to `lib/ash_enterprise/tutor
 
   </div>
 </details>
+
+**Checkpoint.** The bundle is active and pinned by its hash — re-running the cell found the same artifact instead of fighting the constraint.
+
+**Look around.** The revision went `draft → validated → approved → active`, and a re-run finds it rather than re-drafting. Immutability is not friction here; it is the reason the re-run is calm.
 
 ## Project findings from events
 
@@ -173,6 +185,8 @@ Approve a refund over the limit without manager approval, then read both artifac
 
   </div>
 </details>
+
+**Checkpoint.** One Finding (the now) and ComplianceEvaluations (the why), from the same projector in the same transaction — two different questions, answered by two different artifacts.
 
 ## Waivers are bounded
 

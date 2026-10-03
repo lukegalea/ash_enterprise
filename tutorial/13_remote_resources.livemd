@@ -7,6 +7,8 @@ SPDX-License-Identifier: MIT
 
 # Ash Enterprise: 13 - Remote APIs as Resources
 
+Effort: **medium** — two exercises, one real API. *You'll feel somebody else's API become just another resource.*
+
 ```elixir
 Application.put_env(:ash, :validate_domain_resource_inclusion?, false)
 Application.put_env(:ash, :validate_domain_config_inclusion?, false)
@@ -35,7 +37,9 @@ Mix.install([{:ash, "~> 3.0"}, {:req, "~> 0.5"}], consolidate_protocols: false)
 
 <!-- livebook:{"break_markdown":true} -->
 
-Our customers' billing accounts live in somebody else's system, behind HTTP. The tempting thing is a `BillingClient` module with `get_account/1` called from wherever it is needed. Do not. That client has no types, no policies, no code interface, no notifications, no place for an agent to discover it, and every caller handles its errors differently.
+*You are here: the desk is whole but inward-facing (10-12); its last wall comes down — the billing system, somebody else's, becomes a resource.*
+
+Our customers' billing accounts live in somebody else's system, behind HTTP. One of them is Priya's — the customer whose printer opened the desk in lesson 10; her refund, from lesson 15 on, will end here as a credit. The tempting thing is a `BillingClient` module with `get_account/1` called from wherever it is needed. Do not. That client has no types, no policies, no code interface, no notifications, no place for an agent to discover it, and every caller handles its errors differently.
 
 Instead, **model it as a resource with no database**. Callers use actions, exactly like any other resource. The HTTP is an implementation detail behind those actions. When the vendor changes, or the data moves in-house, callers do not change.
 
@@ -132,6 +136,10 @@ Fetch account `3` through the code interface.
   </div>
 </details>
 
+**Checkpoint.** Account 3 arrived through a code interface, typed and loaded like any resource — the HTTP never surfaced.
+
+**Look around.** `Tutorial.Billing.get_account!(3)` reads like every other call in this series. That ordinariness is the trick: swap JSONPlaceholder for a real vendor next year, and this line does not change.
+
 ## Filters and sorts are the read's job
 
 With `Ash.DataLayer.Simple`, **nobody applies your filters for you**. Ash collects what the caller asked for — `query.filter`, `query.sort`, `query.limit` — and hands it to the manual read. The read above ignores all of it, so run this query:
@@ -222,6 +230,8 @@ Add a generic action `:issue_credit` to `Tutorial.Billing.Account` — edit the 
 
   </div>
 </details>
+
+**Checkpoint.** A typed verb with a code interface — and a negative amount is refused before any HTTP happens, because the constraint is the action's contract.
 
 ## Relate local to remote
 

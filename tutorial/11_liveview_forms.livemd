@@ -7,6 +7,8 @@ SPDX-License-Identifier: MIT
 
 # Ash Enterprise: 11 - LiveView: Forms & Actions
 
+Effort: **medium** — two exercises, one browser page. *You'll feel the action teach the form: fields, errors, refusals and all.*
+
 ```elixir
 Application.put_env(:ash, :validate_domain_resource_inclusion?, false)
 Application.put_env(:ash, :validate_domain_config_inclusion?, false)
@@ -43,6 +45,8 @@ Mix.install(
 
 
 <!-- livebook:{"break_markdown":true} -->
+
+*You are here: the desk can be read from a UI (10); now it takes writes — and refuses them — through the same door.*
 
 `AshPhoenix.Form` builds a form **from an action**. The fields it accepts, the validations it runs, the errors it shows and the policies it obeys all come from that action. You do not write a schema, a changeset function or an error translator.
 
@@ -144,6 +148,10 @@ Submit a valid version of the form and get the created ticket back.
   </div>
 </details>
 
+**Checkpoint.** The form validated against an action you wrote no validator for — the `string_length` error came from the resource, and no browser was involved.
+
+**Look around.** Re-run the validate cell with a five-character subject and watch `form.valid?` flip. The form is the action's contract, rendered; everything the browser adds is conversation.
+
 ## In a LiveView
 
 ```elixir
@@ -221,6 +229,8 @@ Add a `close` button. Rather than `Ash.Changeset.for_update(:close)` in the even
 
   </div>
 </details>
+
+**Checkpoint.** The double close now fails everywhere for the same reason — one action, one validation, every caller — and lesson 21 will not be allowed to forget it.
 
 <div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
 <div class="flex">

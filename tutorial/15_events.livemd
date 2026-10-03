@@ -9,6 +9,8 @@ SPDX-License-Identifier: MIT
 
 Runtime: **attached node** to `ash_enterprise`. Code goes in `lib/ash_enterprise/tutorial/`.
 
+Effort: **heavy** — the first attached lesson: two files, five setup steps, and one fabric every later lesson reuses. *You'll feel the difference between a row and a record.*
+
 ## What happened, recorded once
 
 <div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
@@ -29,9 +31,15 @@ Runtime: **attached node** to `ash_enterprise`. Code goes in `lib/ash_enterprise
 
 <!-- livebook:{"break_markdown":true} -->
 
+*You are here: the enterprise floor. Everything the desk did so far was behavior; from this lesson on it is also record.*
+
 A row tells you what is true now. An enterprise also has to answer *what happened, who did it, and when*: for audit, for debugging (lesson 14's step 4), and as the input every later layer consumes. Projections (16), compliance (18) and process triggers (21) all read **the event log**, not the tables.
 
 `ash_events` records every action on an audited resource as an event row, in the same transaction as the write. In `ash_enterprise` you do not add it per resource: **batteries are inherited.** `AshEnterprise.Platform.Resource` adds `AshEvents.Events` pointing at the one central log, `AshEnterprise.Audit.EventLog`, unless a resource opts out with `audit?: false`, a local, greppable decision.
+
+<div class="rounded-xl p-4 my-4" style="background-color: #fdf6ec; border-left: 4px solid #c2410c; color: #7c2d12;">
+  <p><i class="ri-fire-fill"></i> <strong>Soot was here.</strong> A write and its record now land in the same breath. Systems that learn this late pay years of archaeology for it.</p>
+</div>
 
 ## The tutorial domain and the Refund
 
@@ -99,6 +107,8 @@ defmodule AshEnterprise.Tutorial.Refund do
   end
 end
 ```
+
+This is the most setup any lesson will ask of you — everything after this rides on the fabric you build here. No asides while we do it; plumbing deserves silence.
 
 Five steps, and the order matters. (1) Create the files above. (2) Add `AshEnterprise.Tutorial` to `config :ash_enterprise, ash_domains: [...]` in `config/config.exs` — the codegen task discovers domains through that list. (3) In a normal terminal (not the attached IEx; these are mix tasks and boot their own node), generate the migration and apply it:
 
@@ -238,6 +248,10 @@ Propose a refund of `25.00` for ticket `"T-1001"`, then approve it.
   </div>
 </details>
 
+**Checkpoint.** Two rows in the log — `:propose` then `:approve` — one business act per named action, with an actor and a correlation id attached.
+
+**Look around.** Re-run the read cell above and read its output as a sentence: *proposed, then approved.* Every later layer in this series reads that same sentence — projections count it, rules judge it, processes start from it. You have just written the desk's first paragraph.
+
 Now read the events for that record. The event log is a resource, so you query it with Ash. (This cell fetches the refund itself, so it works even on a fresh run before you have written the exercise solution above):
 
 ```elixir
@@ -266,6 +280,10 @@ Two events: `:propose` with the accepted inputs, `:approve` with the change. Eac
 * **The log is append-only and tamper-evident.** `ash_enterprise` hash-chains it per tenant (ADR 0020), riding on the advisory lock `ash_events` already takes.
 * **Replay re-runs actions.** Changes still execute during replay. So nothing non-deterministic belongs in a `change`: no HTTP, no `DateTime.utc_now/0` you did not capture as input, and never a model call (you will see this as a law in lesson 22). Put remote calls in generic actions (lesson 13) whose *results* are recorded as inputs.
 
+<div class="rounded-xl p-4 my-4" style="background-color: #fdf6ec; border-left: 4px solid #c2410c; color: #7c2d12;">
+  <p><i class="ri-fire-fill"></i> <strong>Soot was here.</strong> Append-only suits a salamander: nothing I saw was ever unsaid. The hash chain means the log can make the same promise.</p>
+</div>
+
 ## Exercise: name the event
 
 Events are as meaningful as action names. Add `update :request_info` that accepts `:reason` and keeps status `:proposed`. Call it, then confirm the log says `request_info`, not `update`.
@@ -291,6 +309,8 @@ Events are as meaningful as action names. Add `update :request_info` that accept
 
   </div>
 </details>
+
+**Checkpoint.** The log now reads `request_info`, not `update` — a business act, named. Lessons 16 and 21 will key on exactly that name.
 
 When you are finished with the whole tutorial, the overview's **When you're done** recipe rolls back this lesson's migration and reverts its config line and snapshots.
 
