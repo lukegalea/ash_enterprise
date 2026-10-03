@@ -7,6 +7,8 @@ SPDX-License-Identifier: MIT
 
 # Ash Enterprise: 8 - Aggregates
 
+Effort: **medium** — summary data without summary queries. *You'll feel counts arrive over a relationship you declared once.*
+
 ```elixir
 Application.put_env(:ash, :validate_domain_resource_inclusion?, false)
 Application.put_env(:ash, :validate_domain_config_inclusion?, false)

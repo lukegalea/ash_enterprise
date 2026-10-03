@@ -7,6 +7,8 @@ SPDX-License-Identifier: MIT
 
 # Ash Enterprise: 0 - Philosophy
 
+Effort: **light** — reading and two exercises, no code you keep. *You'll leave with a rule for where human judgment lives in the stack.*
+
 ```elixir
 Application.put_env(:ash, :validate_domain_resource_inclusion?, false)
 Application.put_env(:ash, :validate_domain_config_inclusion?, false)
@@ -219,6 +221,10 @@ Not every gap should be filled by you, in this repo, today. Raise it deeper when
 * **Review reads the model, not the derivation.** Keep diffs small and declarative.
 * **Inelegance is a signal.** Once is fine; the second time, lower the foundation so it goes back to zero.
 * **Make it fun.** The goal is to spend your attention on the interesting part: understanding the real world well enough to describe it. Leave the rest to the machine you can trust.
+
+<div class="rounded-xl p-4 my-4" style="background-color: #fdf6ec; border-left: 4px solid #c2410c; color: #7c2d12;">
+  <p><i class="ri-fire-fill"></i> <strong>Soot was here.</strong> "Make it fun" sits on the list next to "the human models" on purpose: the interesting part is the real world, and the rest is derivation. Everything after this lesson is that licence, cashed.</p>
+</div>
 
 The rest of the tutorial is the platform that makes this possible, one layer at a time. Start with [the Ash tutorial](https://github.com/ash-project/ash_tutorial) if you have not, then continue to the [Overview](overview.livemd).
 

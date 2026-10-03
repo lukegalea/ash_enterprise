@@ -7,6 +7,8 @@ SPDX-License-Identifier: MIT
 
 # Ash Enterprise: 4 - Attributes
 
+Effort: **medium** — the desk's foundation stone. *You'll watch the Ticket be born and feel attributes be promises about shape.*
+
 ```elixir
 Application.put_env(:ash, :validate_domain_resource_inclusion?, false)
 Application.put_env(:ash, :validate_domain_config_inclusion?, false)

@@ -7,6 +7,8 @@ SPDX-License-Identifier: MIT
 
 # Ash Enterprise: 7 - Code Interfaces
 
+Effort: **light** — one idea, immediate payoff. *You'll feel the domain hand you the functions you'll actually call.*
+
 ```elixir
 Application.put_env(:ash, :validate_domain_resource_inclusion?, false)
 Application.put_env(:ash, :validate_domain_config_inclusion?, false)
