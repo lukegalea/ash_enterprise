@@ -79,23 +79,36 @@ defmodule AshEnterprise.SystemOne.Banding.Step do
   end
 
   # The frozen band contract compares ATOMS (`Bridge.Dmn.bands/0`), while a
-  # DMN table's output cell arrives as a string. Normalise the band to its
-  # atom before validation: the values are the contract's own frozen enum
-  # (existing atoms — never minted from arbitrary input).
+  # DMN table's output cell arrives as a string — and a single-output table
+  # arrives as the bare scalar itself (boxic unwraps it). Normalise both:
+  # wrap the scalar into {"band" => value}, then the band to its atom (the
+  # values are the contract's own frozen enum — never minted from arbitrary
+  # input).
   defp normalise_evaluation(evaluation) do
-    case evaluation.outputs do
-      %{"band" => band} when is_binary(band) ->
-        Map.update!(evaluation, :outputs, fn outputs ->
-          Map.put(outputs, "band", String.to_existing_atom(band))
-        end)
+    outputs =
+      case evaluation.outputs do
+        band when is_binary(band) -> %{"band" => band}
+        outputs when is_map(outputs) -> outputs
+        _outputs -> %{}
+      end
 
-      _outputs ->
-        evaluation
-    end
+    outputs =
+      case outputs do
+        %{"band" => band} when is_binary(band) ->
+          Map.put(outputs, "band", String.to_existing_atom(band))
+
+        outputs ->
+          outputs
+      end
+
+    Map.put(evaluation, :outputs, outputs)
   end
 
   ## The resolver seam: arity-3 MFA or function, per the
   ## Process.DecisionResolver pattern.
+
+  defp resolve_band_table(resolver, family, tenant, inputs) when is_atom(resolver),
+    do: resolver.band_table(family, tenant, inputs)
 
   defp resolve_band_table({m, f, a}, family, tenant, inputs),
     do: apply(m, f, [family, tenant, inputs | a])
@@ -126,21 +139,34 @@ defmodule AshEnterprise.SystemOne.Banding.Step do
     actor = Keyword.get(opts, :actor, SystemActor.process())
     correlation_id = Keyword.get(opts, :correlation_id) || Correlation.id()
 
+    band = band_of(evaluation)
+
     with {:ok, banding} <-
-           create_banding(evaluation, answers, inputs, opts, tenant, actor, correlation_id),
-         {:ok, materialisation} <- route(band_of(evaluation), evaluation, banding, opts) do
-      {:ok, %{banding: banding, band: band_of(evaluation), materialisation: materialisation}}
+           create_banding(evaluation, answers, inputs, band, opts, tenant, actor, correlation_id),
+         {:ok, materialisation} <- route(band, evaluation, banding, opts) do
+      {:ok, %{banding: banding, band: band, materialisation: materialisation}}
     end
   end
 
-  defp create_banding(evaluation, answers, inputs, opts, tenant, actor, correlation_id) do
+  defp create_banding(evaluation, answers, inputs, band, opts, tenant, actor, correlation_id) do
     observation_ids = Enum.map(answers, & &1.observation_id)
+
+    version =
+      evaluation.band_table["definition_version"] || evaluation.band_table[:definition_version]
+
+    # boxic v0 band tables are single-output (the band). When the table
+    # does not emit them, the step derives fact_value (the gated answer's
+    # own collapsed value — the admit is a proposal FOR that answer) and
+    # reason_code (band + definition version) — flagged for v1: compound
+    # band-table outputs in boxic.
+    fact_value = fact_value_of(evaluation) || (band == :admit && answer_value(answers)) || nil
+    reason_code = output_of(evaluation, "reason_code") || "band_#{band}_v#{version}"
 
     inputs_map =
       %{
         observation_ids: observation_ids,
-        band: band_of(evaluation),
-        reason_code: output_of(evaluation, "reason_code"),
+        band: band,
+        reason_code: reason_code,
         matched_rule_ids: evaluation.matched_rule_ids,
         band_table: evaluation.band_table,
         decision_evaluation_id: evaluation.decision_evaluation_id,
@@ -151,7 +177,7 @@ defmodule AshEnterprise.SystemOne.Banding.Step do
       # Nil-only-when-absent fields are omitted, not passed as nil: an
       # explicit nil is an input the record contract rejects.
       |> maybe_put(:id, Keyword.get(opts, :banding_id))
-      |> maybe_put(:fact_value, fact_value_of(evaluation))
+      |> maybe_put(:fact_value, fact_value)
 
     Banding
     |> Ash.Changeset.for_create(:record, inputs_map, actor: actor, tenant: tenant)
@@ -170,13 +196,15 @@ defmodule AshEnterprise.SystemOne.Banding.Step do
 
   defp route(band, evaluation, banding, opts), do: materialise(band, evaluation, banding, opts)
 
-  defp materialise(band, evaluation, banding, opts) do
+  defp materialise(band, _evaluation, banding, opts) do
+    fact_value = fact_value_of_banding(banding)
+
     decision = %{
       result: admission_result(band),
       subject: Keyword.fetch!(opts, :subject),
       predicate: Keyword.fetch!(opts, :predicate),
-      value: fact_value_of(evaluation),
-      holds: holds(fact_value_of(evaluation)),
+      value: fact_value,
+      holds: holds(fact_value, Keyword.get(opts, :holds_value, true)),
       grade: :grant,
       scope: Keyword.get(opts, :scope),
       subject_state_digest: Keyword.get(opts, :subject_state_digest),
@@ -189,6 +217,19 @@ defmodule AshEnterprise.SystemOne.Banding.Step do
     Materialiser.materialise(decision, materialiser_opts)
   end
 
+  defp fact_value_of_banding(banding), do: banding.fact_value
+
+  defp answer_value(answers) do
+    answers
+    |> Enum.map(&(&1.answer && (Map.get(&1.answer, :value) || Map.get(&1.answer, "value"))))
+    |> Enum.find(&(!is_nil(&1)))
+    |> case do
+      nil -> nil
+      value when is_atom(value) -> Atom.to_string(value)
+      value -> value
+    end
+  end
+
   # RFC §7.1 → §7.2 are different layers with different vocabularies: the
   # banding's frozen band (`admit | review | omit`) becomes the admission's
   # result (`admitted | review | omitted` — Q11's `omitted` is the
@@ -198,9 +239,9 @@ defmodule AshEnterprise.SystemOne.Banding.Step do
   defp admission_result(:omit), do: :omitted
 
   # RFC §7.4: for a judged boolean-shaped predicate, `true` is *in* and
-  # `false` is *out* — the membership reading is fixed at materialisation.
-  defp holds(true), do: true
-  defp holds(_other), do: false
+  # `false` is *out*. The predicate's declared holds value is a call-site
+  # opt (default `true`) until declarations carry it.
+  defp holds(value, holds_value), do: value == holds_value
 
   defp band_of(evaluation), do: band_value(evaluation.outputs, :band, "band")
 

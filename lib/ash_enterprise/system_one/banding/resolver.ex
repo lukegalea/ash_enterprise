@@ -82,7 +82,11 @@ defmodule AshEnterprise.SystemOne.Banding.Resolver do
     end
   end
 
-  defp band_table_key(family) do
+  @doc """
+  The definition key the family's band table publishes under - the same
+  key the publication flow (S1-62) and this resolver both resolve.
+  """
+  def band_table_key(family) do
     configured = Application.get_env(:ash_enterprise, :band_table_keys, %{})
     Map.get(configured, family, "judgments_band_#{String.replace(family, ".", "_")}")
   end

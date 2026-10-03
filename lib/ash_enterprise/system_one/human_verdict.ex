@@ -44,6 +44,15 @@ defmodule AshEnterprise.SystemOne.HumanVerdict do
     create_timestamp :recorded_at
   end
 
+  changes do
+    # The live-calibration wiring (S1-62): a labelled verdict feeds the
+    # family's accumulation slot as it lands — §7.3 basis routing inside
+    # the change (labelling/review_task/audit_sample feed; overrides do
+    # not). An after_action hook: AshEvents strips hooks during replay,
+    # so a replayed verdict appends nothing.
+    change {AshEnterprise.SystemOne.Banding.CalibrationSampleWriter, []}, on: :create
+  end
+
   policies do
     # A verdict is a person's judgement (see the module doc). The check is
     # positive — "is a user row" — so a future actor kind fails closed

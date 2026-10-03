@@ -21,9 +21,10 @@ defmodule AshEnterprise.SystemOne.BandingTest do
   alias AshEnterprise.Audit.EventLog
   alias AshEnterprise.Platform.Correlation
   alias AshEnterprise.SystemOne.Banding
-  alias AshEnterprise.SystemOne.Banding.Step
   alias AshEnterprise.SystemOne.Fact
   alias AshEnterprise.SystemOne.TestSupport.Standard
+
+  alias AshEnterprise.SystemOne.Banding.Step
   alias AshJudgments.Registry.Info
 
   setup do

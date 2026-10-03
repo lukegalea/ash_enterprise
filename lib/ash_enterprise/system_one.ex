@@ -32,6 +32,8 @@ defmodule AshEnterprise.SystemOne do
     resource AshEnterprise.SystemOne.Banding
     resource AshEnterprise.SystemOne.BandTableCertification
     resource AshEnterprise.SystemOne.Fact
+    resource AshEnterprise.SystemOne.CalibrationRun
+    resource AshEnterprise.SystemOne.CalibrationSample
   end
 
   @doc """
