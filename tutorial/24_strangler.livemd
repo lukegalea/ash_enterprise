@@ -115,7 +115,18 @@ defmodule AshEnterprise.Tutorial.Ticket do
     migrate? false
   end
 
+  actions do
+    defaults [:read]
+    default_accept []
+  end
+
   attributes do
+    # The view computes this value (uuid_v5 of the legacy key), so it is a
+    # declared primary key with no default — exactly as AshEnterprise.Legacy.User
+    # does it. Without the declaration Ash has no primary key and no read action
+    # to read through.
+    attribute :id, :uuid, primary_key?: true, allow_nil?: false, writable?: false, public?: true
+
     attribute :subject, :string, public?: true
     attribute :status, :string, public?: true
   end
@@ -159,16 +170,25 @@ defmodule AshEnterprise.Tutorial.Ticket do
 end
 ```
 
-Register both new resources in the tutorial domain alongside the Refund, then read `AshEnterprise.Legacy.User` — the real strangler this tutorial's repo ships — next to what you just wrote; yours is its outline with the interesting arguments left as an exercise. `recompile()` in the attached node.
+Register both new resources in the tutorial domain alongside the Refund, then read `AshEnterprise.Legacy.User` — the real strangler this tutorial's repo ships — next to what you just wrote; yours is its outline with the interesting arguments left as an exercise. Saving these files is a DSL change: **restart the app node** (the overview says why `recompile()` will not do).
 
 The mapping never reaches `mix ash.codegen`: `migrate? false` is what keeps it out, and a repo test refuses any codegen output that mentions `legacy` at all (`priv/legacy/README.md`). The view DDL comes from the strangler generator. In a terminal:
 
 ```bash
 devenv shell -- mix ash_strangler.gen.migration --name add_cases_compatibility_view
+```
+
+<div class="rounded-xl p-4" style="background-color: #fff4e5; color: #61758a;">
+
+> **Reduce the generated migration to your resource.** The generator re-emits the compatibility views for *every* twin in the repo, not just yours — and the repo's own `strangler.parties` view has camelCase columns (`createdAt`) that Postgres folds to lowercase in the emitted DDL, so the migration can fail on a view you never touched (`column "createdat" of relation "parties" does not exist`, ERROR 42703). The documented step is: delete every generated block except your resource's — for this lesson, the `tutorial_tickets` view, its expression index, and the notify trigger — then migrate. Do not hand-fix the generator's SQL for resources you do not own; that is what `mix ash_strangler.check` and the repo's CI are for.
+
+</div>
+
+```bash
 devenv shell -- mix ecto.migrate
 ```
 
-Review the generated file before migrating: a view in schema `strangler` over `legacy.cases`, an expression index for the uuid key, and — because `notify? true` — the `AFTER` trigger that fires `pg_notify`. The migration ran against a table that existed before it, which is the sequencing `mix.exs`' aliases exist to guarantee for `legacy.users` too. Now read through the view, as the legacy estate's own admin (the seeder provisions one):
+What survives your reduction is a view in schema `strangler` over `legacy.cases`, an expression index for the uuid key, and — because `notify? true` — the `AFTER` trigger that fires `pg_notify`. The migration ran against a table that existed before it, which is the sequencing `mix.exs`' aliases exist to guarantee for `legacy.users` too. Now read through the view, as the legacy estate's own admin. Provision that admin the way a deploy does — the platform's estate seeder is idempotent and, unlike the mix task, works from the attached node because the running server has the endpoint the confirmation email needs:
 
 ```elixir
 require Ash.Query
@@ -176,14 +196,20 @@ require Ash.Query
 estate_tenant = AshEnterprise.Legacy.Estate.organization_id()
 
 legacy_admin =
-  AshEnterprise.Accounts.User
-  |> Ash.Query.filter(email == "admin@legacy.example")
-  |> Ash.read_one!(authorize?: false)
+  case AshEnterprise.Platform.Seeder.seed_legacy_estate() do
+    %{user: user} -> user
+    :already_seeded -> nil
+  end ||
+    (AshEnterprise.Accounts.User
+     |> Ash.Query.filter(email == "admin@legacy.example")
+     |> Ash.read_one!(authorize?: false))
 
 AshEnterprise.Tutorial.Ticket
 |> Ash.read!(actor: legacy_admin, tenant: estate_tenant)
 |> Enum.map(&{&1.subject, &1.status})
 ```
+
+If `legacy_admin` comes back `nil`, a previous `mix ash_enterprise.seed` died mid-run and left the estate half-provisioned (its organization exists, its admin does not); rebuild the dev database with `mix ecto.reset` and re-run lesson 15's actor/tenant cell — it is idempotent.
 
 Even the table you do not own is modelled the Ash way: policies, tenancy and your agent's `describe` all apply.
 
@@ -192,7 +218,7 @@ Even the table you do not own is modelled the Ash way: policies, tenancy and you
 Add an attribute `:priority` with no mapping and compile. Then add a `concat` that is not decomposable without `read_only?: true` and a `because:`.
 
 <details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
-  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
   <div class="p-4">
 
   Both fail to compile, with the attribute named. The fix for the first is a mapping or an explicit statement that it is new-only; for the second:

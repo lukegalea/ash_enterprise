@@ -70,7 +70,7 @@ One sentence about the seed task so it does not surprise you: `mix ash_enterpris
 
 Because the lessons write real application code, they leave marks a `git status` will show you: tutorial tables and their migrations, `lib/ash_enterprise/tutorial/`, the `AshEnterprise.Tutorial` entry in `config/config.exs` (lesson 15), the tutorial projector in the `:ash_events_projections` config (lesson 16), a router line and `lib/ash_enterprise_web/a2ui/` (lesson 23), resource snapshots under `priv/resource_snapshots/`, and rows in the event log. **Do not commit any of it** — a stale `ash_domains` entry or projector config in `main` breaks boot and `mix precommit` for everyone else. Undo it all:
 
-1. Roll the database back: repeat `devenv shell -- mix ecto.rollback` until the `tutorial_*` tables are gone — or, if the database is disposable, rebuild it in one step: `devenv shell -- mix ecto.reset && devenv shell -- mix ash_enterprise.seed`.
+1. Roll the database back: repeat `devenv shell -- mix ecto.rollback` until the `tutorial_*` tables are gone — or, if the database is disposable, rebuild it in one step: `devenv shell -- mix ecto.reset` (run `mix ash_enterprise.seed` afterwards only if you want the full demo tenant; the tutorial does not need it).
 2. Revert the tracked files the lessons edited: `git checkout -- config/ lib/ priv/`.
 3. Delete the untracked tutorial artifacts: `git clean -fd lib/ash_enterprise/tutorial lib/ash_enterprise/tutorial.ex lib/ash_enterprise_web/a2ui priv/resource_snapshots priv/repo/migrations` (skip the paths you never created).
 4. Restart the app node, so what boots is the reverted config.

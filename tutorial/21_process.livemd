@@ -152,7 +152,7 @@ defmodule Tutorial.Billing do
 end
 ```
 
-No table, no migration: `Ash.DataLayer.Simple` stores nothing, which is the point — this models somebody else's API (lesson 13). Save the files, `recompile()` in the attached node, and register the ref in the invoker's allowlist, the way lesson 20 registered `approve` and `reject`:
+No table, no migration: `Ash.DataLayer.Simple` stores nothing, which is the point — this models somebody else's API (lesson 13). Save the files and **restart the app node** — these are Ash DSL files, and `recompile()` does not reload DSL changes reliably (see the overview). Then register the ref in the invoker's allowlist, the way lesson 20 registered `approve` and `reject`:
 
 <!-- livebook:{"force_markdown":true} -->
 
@@ -188,9 +188,11 @@ rescue
 end
 ```
 
-`recompile()` again. Until a ref is in that registry it cannot be drawn, published or run — that is the allowlist doing its job.
+`recompile()` again — this edit is plain Elixir (the registry and its functions), so recompiling is enough; only DSL files need the restart. Until a ref is in that registry it cannot be drawn, published or run — that is the allowlist doing its job.
 
 ## Design it
+
+> **No browser? You are not blocked.** The designer below is browser-only, but BPMN XML is the single artifact, and the repo ships the non-UI publishing path the deploys use: write your diagram to `priv/bpmn/<key>.bpmn` and run `mix ash_enterprise.bpmn.publish`. The filename becomes the definition key (the **last** underscore turns into a dot: `refund_flow.bpmn` publishes as `refund.flow`; a plain `refund.bpmn` publishes as `refund`), publication is idempotent by content hash, and publish-time verification still refuses diagrams referencing unregistered refs. The designer's value is the palette and the validation; it is not the only door.
 
 In the designer, model `refund`:
 
@@ -198,7 +200,7 @@ In the designer, model `refund`:
 2. Exclusive gateway on `routing.approver`: `"none"` → step 4; otherwise → step 3.
 3. **userTask** `Approve refund`, candidates from `routing.approver`, excluding `subject.created_by_id`. For `subject.amount > 2000`, a parallel gateway adds a second userTask for `risk`, joined after.
 4. **serviceTask** `Issue credit`, action ref `issue_credit` (registered above), `ash:inputs` `account_id = 3` (the JSONPlaceholder account from lesson 13), `amount = subject.amount`, `idempotency_key = subject.id`.
-5. **serviceTask** `Mark approved`, action ref `approve` — lesson 20's ref, which runs `Refund.approve` as the process system actor → End.
+5. **serviceTask** `Mark approved`, action ref `approve` — lesson 20's ref, which runs `Refund.approve` as the process system actor → End. This ref exists only if you did lesson 20's registry edits; skip them and the catalogue will not offer `approve` and publish-time verification will refuse the diagram.
 
 The action and decision fields are comboboxes fed by the host's catalogue (`AshEnterprise.Process.DesignerCatalogue`). The catalogue is the allowlist for authoring; at publish, `exists?/1` on the invoker and resolver verifies every reference, so a diagram cannot ship against an action or decision that does not exist.
 
@@ -215,7 +217,7 @@ Start an instance for a refund and follow its token with your agent.
 ```
 
 <details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
-  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
   <div class="p-4">
 
   ```elixir
@@ -249,7 +251,7 @@ Starting instances by hand is for the notebook. In the app, processes start from
 The business says "refunds on closed tickets must never be approved". Where do you put it?
 
 <details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
-  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
   <div class="p-4">
 
   A validation on `Refund.approve` (or a policy, if it is about who may act). Not a gateway condition, not the invoker, not the decision. A rule in the graph is enforced for refunds that go through this process and bypassed by every other caller: the API, an agent, a future process version.
