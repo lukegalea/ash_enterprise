@@ -41,7 +41,7 @@ Some facts nobody has: "is this refund reason plausibly fraud?", "which customer
 4. **Advisory in tooling.** In dev and agent tools a model is a separate, labelled signal; deterministic gates stay deterministic.
 
 <div class="rounded-xl p-4 my-4" style="background-color: #fdf6ec; border-left: 4px solid #c2410c; color: #7c2d12;">
-  <p><i class="ri-fire-fill"></i> <strong>Soot was here.</strong> I remember every answer I ever gave, and which version of me gave it. That is all law 2 asks of the models.</p>
+  <p><i class="ri-fire-fill"></i> <strong>Soot was here.</strong> I remember every answer I ever gave, and which version of me gave it. Law 2, as lived.</p>
 </div>
 
 ## Declare the question
