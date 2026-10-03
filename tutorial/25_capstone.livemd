@@ -42,18 +42,17 @@ Trace a single refund end to end and name which layer does what. If you can say 
 
 ## Walk the refund through every layer
 
-The narrative above is the map; now drive it. The cells below run on the **attached node** and assume the state lessons 15-24 built: the tutorial domain and its refunds (15), the projector and its config entry (16), the rules registered and a bundle active (17-18), a published `refund_approver` decision (19), the maker-checker pair and the gated `propose` (20), the invoker refs and the published `refund` process (21), the declared judgment question (22), the `RefundUI` surface module (23), and the `legacy.cases` twin (24). On a fresh database, do those lessons first — nothing here re-teaches them, and every call is one you have already written.
+The narrative above is the map; now drive it. The cells below run on the **attached node** and assume the chain the lessons built, in order: the actor/tenant fabric (15) → the `REF-2` rule exercise (17) → the active bundle and projector (18, 16) → the published `refund_approver` decision (19) → the registry entries and the maker-checker pair (20) → the invoker refs, billing domain and published `refund` process (21) → the declared judgment question (22) → the `RefundUI` surface module and route (23) → the `legacy.cases` twin and its estate admin (24). On a fresh database, do those lessons first — nothing here re-teaches them, and every call is one you have already written.
 
 Open a refund's life and follow it all the way down. First, the cast:
 
 ```elixir
 require Ash.Query
 
-actor = Ash.read_first!(AshEnterprise.Accounts.User, authorize?: false)
-tenant = actor.organization_id
-opts = [actor: actor, tenant: tenant]
-
+# Lesson 15's fabric: `actor` is your user, `tenant` your organization.
+# Re-run that cell if this is a fresh Livebook session.
 maker = actor
+opts = [actor: actor, tenant: tenant]
 
 [checker] =
   AshEnterprise.Accounts.User
@@ -158,12 +157,21 @@ report = AshAgentTools.process_instance(definition_key: "refund", tenant: tenant
 # checkpoint — expected: the createSurface → updateComponents → updateDataModel message triple (23)
 surface = AshA2ui.Info.build_surface(AshEnterpriseWeb.A2ui.RefundUI, actor: actor, tenant: tenant)
 
+# The strangled tickets read in the legacy estate's tenant, as its own admin —
+# the same provisioning chain as lesson 24 (idempotent seeder, then lookup).
 estate_tenant = AshEnterprise.Legacy.Estate.organization_id()
 
 legacy_admin =
   AshEnterprise.Accounts.User
   |> Ash.Query.filter(email == "admin@legacy.example")
-  |> Ash.read_one!(authorize?: false)
+  |> Ash.read_one!(authorize?: false) ||
+    (
+      AshEnterprise.Platform.Seeder.seed_legacy_estate()
+
+      AshEnterprise.Accounts.User
+      |> Ash.Query.filter(email == "admin@legacy.example")
+      |> Ash.read_one!(authorize?: false)
+    )
 
 strangled =
   AshEnterprise.Tutorial.Ticket

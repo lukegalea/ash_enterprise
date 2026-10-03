@@ -35,21 +35,25 @@ You get: a human task with assignee, due date and outcome; candidates **material
 
 ## The maker-checker pair
 
-The gate will name the role `refund_approver`, and the host `AssignmentResolver` turns that clause into candidate rows by filtering `AshEnterprise.Security.UserRole` on `role.name == "refund_approver"` (`lib/ash_enterprise/process/assignment_resolver.ex`). The seeds create one administrator and no such role, so build the pair yourself — a role with exactly that name, a second user to hold it, and the assignment, in the same shape the seeder uses. Candidates are materialized **when the task is created**, so this has to exist before you propose anything.
+The gate will name the role `refund_approver`, and the host `AssignmentResolver` turns that clause into candidate rows by filtering `AshEnterprise.Security.UserRole` on `role.name == "refund_approver"` (`lib/ash_enterprise/process/assignment_resolver.ex`). No seed creates that role, so build the pair on top of **lesson 15's fabric** — the same actor and tenant you set up there (re-run its setup cell if this is a fresh Livebook session). Your fabric user is the **maker**; the role gets a second user, the **checker**. Candidates are materialized **when the task is created**, so this has to exist before you propose anything.
 
 ```elixir
 require Ash.Query
 
-maker = Ash.read_first!(AshEnterprise.Accounts.User, authorize?: false)
-tenant = maker.organization_id
-root = maker.owning_business_unit_id
+# From lesson 15's fabric: `actor` (your user) and `tenant`. The maker is you.
+maker = actor
+
+root =
+  AshEnterprise.Accounts.BusinessUnit
+  |> Ash.Query.filter(name == "Tutorial Desk")
+  |> Ash.read_one!(actor: maker, tenant: tenant)
 
 role =
   AshEnterprise.Security.Role
   |> Ash.Query.filter(name == "refund_approver")
   |> Ash.read_one!(actor: maker, tenant: tenant) ||
     AshEnterprise.Security.Role
-    |> Ash.Changeset.for_create(:create, %{name: "refund_approver", owning_business_unit_id: root},
+    |> Ash.Changeset.for_create(:create, %{name: "refund_approver", owning_business_unit_id: root.id},
       actor: maker, tenant: tenant
     )
     |> Ash.create!()
@@ -71,17 +75,36 @@ checker =
 
 checker =
   checker
-  |> Ash.Changeset.for_update(:assign_to_business_unit, %{owning_business_unit_id: root},
+  |> Ash.Changeset.for_update(:assign_to_business_unit, %{owning_business_unit_id: root.id},
     actor: maker, tenant: tenant
   )
   |> Ash.update!()
 
+# Candidate resolution matches on the refund_approver role:
 AshEnterprise.Security.UserRole
 |> Ash.Query.filter(user_id == ^checker.id and role_id == ^role.id)
 |> Ash.read_one!(actor: maker, tenant: tenant) ||
   AshEnterprise.Security.UserRole
   |> Ash.Changeset.for_create(:assign,
-    %{user_id: checker.id, role_id: role.id, scoping_business_unit_id: root},
+    %{user_id: checker.id, role_id: role.id, scoping_business_unit_id: root.id},
+    actor: maker, tenant: tenant
+  )
+  |> Ash.create!()
+
+# But claiming the task, listing it and re-reading the refund are ordinary
+# authorized reads, and a role that grants nothing cannot do them. Hands come
+# from the tenant's Administrator grant, the same one lesson 15 regranted.
+administrator =
+  AshEnterprise.Security.Role
+  |> Ash.Query.filter(name == "Administrator")
+  |> Ash.read_one!(actor: maker, tenant: tenant)
+
+AshEnterprise.Security.UserRole
+|> Ash.Query.filter(user_id == ^checker.id and role_id == ^administrator.id)
+|> Ash.read_one!(actor: maker, tenant: tenant) ||
+  AshEnterprise.Security.UserRole
+  |> Ash.Changeset.for_create(:assign,
+    %{user_id: checker.id, role_id: administrator.id, scoping_business_unit_id: root.id},
     actor: maker, tenant: tenant
   )
   |> Ash.create!()
@@ -89,7 +112,7 @@ AshEnterprise.Security.UserRole
 "#{checker.email} holds #{role.name}"
 ```
 
-The name must be exactly `"refund_approver"`: the resolver matches on it, and an almost-right name resolves to nobody — a task nobody can claim, which presents as a silent stall. (`authorize?: false` on registration is the seeder's own path: registering a user is an authentication action, not a tenant write.)
+The name must be exactly `"refund_approver"`: the resolver matches on it, and an almost-right name resolves to nobody — a task nobody can claim, which presents as a silent stall. (`authorize?: false` on registration is the seeder's own path: registering a user is an authentication action, not a tenant write.) Maker-checker is candidate *subtraction*, not privilege separation — that is why the checker also holds the tenant's Administrator grant. No new privileges are needed this lesson: the gate reuses `propose`, `approve` and `reject`, whose catalogue entries and grants lesson 15's `--privileges-only` + regrant steps already made.
 
 ## Gate the refund
 
@@ -112,6 +135,8 @@ create :propose do
     expire_in: [days: 7]
 end
 ```
+
+Saving `refund.ex` is a DSL change: restart the app node (the lesson 15 rule) before proposing anything.
 
 Three things to internalize:
 
@@ -156,7 +181,7 @@ rescue
 end
 ```
 
-The named function is what execution calls — every registry entry carries a capture like `&__MODULE__.record_risk/1`, because an anonymous function body stored in a module attribute cannot be injected back into the code that reads the attribute, so closures never appear in `@registry`. `engine_opts/1` swaps the engine's own actor — a struct your policies have never heard of, so a host action called with it is simply forbidden — for `AshEnterprise.Platform.SystemActor.process()`, and carries the tenant from the subject. The `action:` tuple is what the designer's panel introspects, so the catalogue cannot drift from what runs. `recompile()` in the attached node.
+The named function is what execution calls — every registry entry carries a capture like `&__MODULE__.record_risk/1`, because an anonymous function body stored in a module attribute cannot be injected back into the code that reads the attribute, so closures never appear in `@registry`. `engine_opts/1` swaps the engine's own actor — a struct your policies have never heard of, so a host action called with it is simply forbidden — for `AshEnterprise.Platform.SystemActor.process()`, and carries the tenant from the subject. The `action:` tuple is what the designer's panel introspects, so the catalogue cannot drift from what runs. `recompile()` in the attached node — this edit is plain Elixir, so recompiling is enough; only Ash DSL files need the node restart.
 
 ## Work the task
 

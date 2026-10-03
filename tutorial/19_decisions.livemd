@@ -79,9 +79,11 @@ In the editor, create decision `refund_approver` with inputs `amount` (number) a
 
 Publish it. A construct the compiler does not execute is refused **by element id** at publish time, not ignored.
 
+> **No browser?** Unlike processes (lesson 21), this one has no drop-in escape hatch: the deploy's `mix ash_enterprise.bpmn.publish` does publish `priv/dmn/*.dmn` baselines, but into the platform organization and under its filename→key rule (`refund_approver.dmn` would publish as key `refund.approver`, which lesson 21's `refund_approver` ref and lesson 25's query will not match). The dmn-js editor at `/decisions` is required for authoring `refund_approver` in *your* tenant.
+
 ## Evaluate
 
-Evaluate the published definition for `amount: 250, tier: "standard"`.
+Evaluate the published definition for `amount: 250, tier: "standard"`, as the actor and tenant from lesson 15's fabric cell.
 
 **Enter your solution**
 
@@ -106,7 +108,7 @@ Evaluate the published definition for `amount: 250, tier: "standard"`.
     actor: actor, tenant: tenant)
   ```
 
-  For a dry run that records no `Evaluation` row, use `mix ash_agent.evaluate refund_approver '{"amount": 250, "tier": "standard"}'` (lesson 14). Field names on `Definition` vary by version; `AshAgentTools.describe_resource(AshEnterprise.Decisions.Definition)` is the authority.
+  For a dry run that records no `Evaluation` row, use `mix ash_agent.evaluate refund_approver '{"amount": 250, "tier": "standard"}'` (lesson 14). `actor` and `tenant` come from lesson 15's fabric cell. Field names on `Definition` vary by version; `AshAgentTools.describe_resource(AshEnterprise.Decisions.Definition)` is the authority.
 
   </div>
 </details>

@@ -55,7 +55,7 @@ judgments do
 end
 ```
 
-This generates a `judge_suspected_fraud` action that delegates to `ash_ai`'s evaluate over a **pinned instrument profile** (model id + digest, residency class, region), configured under `config :ash_judgments, profiles: [...]`. Pinning fails loudly on floating aliases.
+This generates a `judge_suspected_fraud` action that delegates to `ash_ai`'s evaluate over a **pinned instrument profile** (model id + digest, residency class, region), configured under `config :ash_judgments, profiles: [...]`. Pinning fails loudly on floating aliases. Declaring the question edits `refund.ex`, so it is a DSL change: save and restart the node (the lesson 15 rule) before the `judge_suspected_fraud` action exists — and note the action runs as whatever actor lesson 15's fabric gave you, which is the point: admission is an authorized action, not a model side effect.
 
 ## Admit, then decide
 

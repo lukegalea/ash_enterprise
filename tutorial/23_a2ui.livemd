@@ -49,7 +49,7 @@ defmodule AshEnterpriseWeb.A2ui.RefundUI do
     surface_id "refunds"
 
     component :table do
-      fields [:ticket_ref, :amount, :status, :inserted_at]
+      fields [:ticket_ref, :amount, :status, :created_on]
       read_action :read
       row_actions [:approve, :reject]
     end
@@ -59,7 +59,7 @@ defmodule AshEnterpriseWeb.A2ui.RefundUI do
       create_action :propose
     end
 
-    field :inserted_at do
+    field :created_on do
       label "Proposed"
       format :date
     end
@@ -87,7 +87,7 @@ Build the surface for your actor and look at the stream before rendering anythin
   AshA2ui.Info.build_surface(AshEnterpriseWeb.A2ui.RefundUI, actor: actor, tenant: tenant)
   ```
 
-  Build it again as a user without access to `:approve`: the row action is absent. The UI did not decide that; the policy did. Hiding is UX; the policy still refuses the action if a client sends it anyway.
+  `actor` and `tenant` are lesson 15's fabric (re-run that cell if this is a fresh Livebook session). Build it again as a user without access to `:approve` — lesson 20's checker with its grants removed, say — and the row action is absent. The UI did not decide that; the policy did. Hiding is UX; the policy still refuses the action if a client sends it anyway.
 
   </div>
 </details>
@@ -105,7 +105,7 @@ defmodule AshEnterpriseWeb.RefundA2uiLive do
 end
 ```
 
-Route it — save it at `lib/ash_enterprise_web/a2ui/refund_a2ui_live.ex`, add the route inside the authenticated `live_session`, and open it. Approve a refund from the notebook: the row updates live, because the renderer refreshes from `Ash.Notifier.PubSub` (lesson 12). Add `notifiers: [Ash.Notifier.PubSub]` and a `pub_sub` block to Refund if you have not.
+Route it — save it at `lib/ash_enterprise_web/a2ui/refund_a2ui_live.ex`, add the route inside the authenticated `live_session`, restart the node (router and DSL edits alike), and open it. Approve a refund from the notebook: the row updates live, because the renderer refreshes from `Ash.Notifier.PubSub` (lesson 12). Add `notifiers: [Ash.Notifier.PubSub]` and a `pub_sub` block to Refund if you have not — same rule, restart after saving.
 
 ## Querying is an allowlist
 
