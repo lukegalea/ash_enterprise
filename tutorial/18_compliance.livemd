@@ -36,6 +36,8 @@ Lesson 17 gave you verdicts. An auditor asks two different questions: **is this 
 
 Both come from the same projector, in the same transaction.
 
+Prerequisite: run lesson 15's actor/tenant setup cell (and its privilege regrant) if this is a fresh Livebook session — `actor` and `tenant` below come from there. You will also move files into `lib/`, so a node restart is coming; the lesson calls it out when it is needed.
+
 ## Rule changes are events, not edits
 
 Rules move through a lifecycle as resources: a `RuleSetRevision` goes `draft → validated → approved → active → retired/revoked`. Tenants tailor through profiles and waivers, compiled with a **fixed precedence**: non-waivable global > global mandatory > profile refinements > tenant strengthening > approved overrides/waivers > tenant supplements. The compiler refuses overreach and weakening. The output is an immutable, SHA-256 hashed `PolicyBundle`, the only thing that evaluates.
@@ -49,31 +51,49 @@ Register `Tutorial.RefundRules` (lesson 17; move it to `lib/ash_enterprise/tutor
 ```
 
 <details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
-  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
   <div class="p-4">
 
   ```elixir
+  require Ash.Query
+
   bundle_src = Tutorial.RefundRules.__bundle__()
 
+  # Rule changes are immutable revisions: a second run cannot draft the same
+  # `organization_id + name + revision` again. Find what exists before drafting.
   revision =
-    AshCompliance.Domain.draft_rule_set_revision!(%{
-      organization_id: tenant,
-      name: "refund-baseline",
-      layer: :global_mandatory,
-      rules_json: AshRules.Ir.encode!(bundle_src),
-      content_hash: bundle_src.content_hash
-    }, actor: actor)
+    AshCompliance.Resources.RuleSetRevision
+    |> Ash.Query.filter(organization_id == ^tenant and name == "refund-baseline")
+    |> Ash.read_one!(actor: actor, tenant: tenant) ||
+      AshCompliance.Domain.draft_rule_set_revision!(%{
+        organization_id: tenant,
+        name: "refund-baseline",
+        layer: :global_mandatory,
+        rules_json: AshRules.Ir.encode!(bundle_src),
+        content_hash: bundle_src.content_hash
+      }, actor: actor)
 
-  revision
-  |> AshCompliance.Domain.validate_rule_set_revision!(actor: actor)
-  |> AshCompliance.Domain.approve_rule_set_revision!(actor: actor)
-  |> AshCompliance.Domain.activate_rule_set_revision!(actor: actor)
+  unless revision.status == :active do
+    revision
+    |> AshCompliance.Domain.validate_rule_set_revision!(actor: actor)
+    |> AshCompliance.Domain.approve_rule_set_revision!(actor: actor)
+    |> AshCompliance.Domain.activate_rule_set_revision!(actor: actor)
+  end
 
-  {:ok, bundle} = AshCompliance.Domain.compile_policy_bundle(%{organization_id: tenant}, actor: actor)
-  AshCompliance.Domain.activate_policy_bundle!(bundle, actor: actor)
+  # Same for the bundle: compiling identical rules mints an identical content
+  # hash, and one bundle per hash per org is the constraint. If an active
+  # bundle is already there, that IS your answer.
+  case AshCompliance.Domain.active_policy_bundle(tenant, authorize?: false) do
+    {:ok, nil} ->
+      {:ok, bundle} = AshCompliance.Domain.compile_policy_bundle(%{organization_id: tenant}, actor: actor)
+      AshCompliance.Domain.activate_policy_bundle!(bundle, actor: actor)
+
+    {:ok, bundle} ->
+      bundle
+  end
   ```
 
-  Note `validate → approve → activate`. Validation happens before activation, never at evaluation: a bundle that reaches production with a broken rule has defeated the design.
+  Note `validate → approve → activate`. Validation happens before activation, never at evaluation: a bundle that reaches production with a broken rule has defeated the design. The guards are not boilerplate: "has already been taken" on a re-run is the immutability design working, so the flow finds its way back to the existing artifact instead of fighting the constraint.
 
   </div>
 </details>
@@ -92,17 +112,37 @@ defmodule AshEnterprise.Tutorial.RefundComplianceProjector do
     projection_resource: AshCompliance.Resources.Finding,
     bundle: {AshEnterprise.Compliance.Projector, :active_bundle, []}
 
+  # The finding grain, read from the event's metadata — the same keys the
+  # app's own AshEnterprise.Compliance.Projector uses. Drained event maps have
+  # no :record_id; the subject id rides in metadata like everything else.
   grain fn event ->
     m = event.metadata || %{}
+
     %{organization_id: m["organization_id"], control_id: m["control_id"],
-      subject_type: "refund", subject_id: event.record_id}
+      subject_type: m["subject_type"], subject_id: m["subject_id"]}
   end
 
   project_all [:refund_approved]
 end
 ```
 
-Your `RecordRefundEvent` change (lesson 16) must now also put the **facts** in the event (`amount_over_limit`, `manager_approved`, `customer_tier`, with string subjects, because this bundle crossed the wire) and a `control_id` in metadata. The projector hydrates facts from the event, never by querying live state: replaying the log must reproduce the same findings.
+Your `RecordRefundEvent` change (lesson 16) must now also fill that metadata and put the **facts** in the event. The default facts strategy reads `metadata["facts"]` as string triples — subject, predicate, value — because this bundle crossed the wire as JSON:
+
+```elixir
+metadata: %{
+  "organization_id" => refund.organization_id,
+  "control_id" => "REF-1",
+  "subject_type" => "refund",
+  "subject_id" => refund.id,
+  "facts" => [
+    ["refund", "amount_over_limit", Decimal.compare(refund.amount, 500) == :gt],
+    ["refund", "manager_approved", false],
+    ["refund", "customer_tier", "standard"]
+  ]
+}
+```
+
+The projector hydrates facts from the event, never by querying live state: replaying the log must reproduce the same findings. (A predicate the bundle's fact schema does not declare is an error, not a silent drop.) Put `AshEnterprise.Tutorial.RefundComplianceProjector` in the same `projectors:` config list lesson 16 wired — then save `refund.ex` and the new projector file and **restart the node** before approving anything; these are compile and DSL changes.
 
 Approve a refund over the limit without manager approval, then read both artifacts for it.
 
@@ -113,7 +153,7 @@ Approve a refund over the limit without manager approval, then read both artifac
 ```
 
 <details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
-  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
   <div class="p-4">
 
   ```elixir

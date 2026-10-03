@@ -101,7 +101,7 @@ Write `AshEnterprise.Tutorial.RefundStats` with the `AshEvents.Projections.Proje
 ```
 
 <details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
-  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
   <div class="p-4">
 
   ```elixir
@@ -139,6 +139,11 @@ Write `AshEnterprise.Tutorial.RefundStats` with the `AshEvents.Projections.Proje
   Register it in the domain, then generate and apply in a terminal as in lesson 15:
   `devenv shell -- mix ash.codegen --dev && devenv shell -- mix ash.migrate`.
 
+  New resource means new privileges: repeat lesson 15's two-step after the codegen —
+  `mix ash_enterprise.seed --privileges-only` in the terminal, then
+  `AshEnterprise.Platform.Seeder.regrant_administrator_privileges(tenant)` in the notebook.
+  Reads are privileged like every other verb on a platform resource.
+
   </div>
 </details>
 
@@ -155,7 +160,11 @@ defmodule AshEnterprise.Tutorial.RefundProjector do
     projection_resource: AshEnterprise.Tutorial.RefundStats
 
   grain fn event ->
-    %{organization_id: event.organization_id, day: DateTime.to_date(event.occurred_at)}
+    # Two shapes to respect: the consumable log stamps the org id into the
+    # event's metadata (there is no top-level :organization_id), and drained
+    # events carry `occurred_at` as a NaiveDateTime.
+    %{organization_id: event.metadata["organization_id"],
+      day: NaiveDateTime.to_date(event.occurred_at)}
   end
 
   project AshEnterprise.Tutorial.Refund, :refund_approved, fn event ->
@@ -178,7 +187,7 @@ Add it to `projectors:` in config and restart the node. Points to notice:
 
 ## Use it
 
-Approve two refunds (lesson 15), then read the projection. It is a resource, so:
+Approve two refunds (lesson 15 — its actor/tenant cell and the privilege regrant are prerequisites; re-run them if this is a fresh Livebook session), then read the projection. It is a resource, so:
 
 **Enter your solution**
 
@@ -187,7 +196,7 @@ Approve two refunds (lesson 15), then read the projection. It is a resource, so:
 ```
 
 <details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
-  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
   <div class="p-4">
 
   ```elixir
@@ -209,24 +218,39 @@ mix ash_events_projections.rebuild --projection=tutorial_refund_stats_v1   # tru
 mix ash_events_projections.dlq inspect --projection=tutorial_refund_stats_v1
 ```
 
-Never use `reset` in place of `rebuild`: clearing the checkpoint without truncating makes `:increment` ops double-count. And never write to `tutorial_refund_stats` from app code; the projector and its rebuilder are the only writers.
+Never use `reset` in place of `rebuild`: clearing the checkpoint without truncating makes `:increment` ops double-count. And never write to `tutorial_refund_stats` from app code; the projector and its rebuilder are the only writers. One more quirk: a rebuild on an idle node resets the checkpoint but may not re-drain until the next event lands — approve another refund after rebuilding and watch the count, rather than assuming the replay stalled.
 
 ## Exercise: attach it to the parent
 
 Show `approved_count` for the refund's organization and day directly on a Refund. Use `AshEvents.Projections.AttachProjection` rather than a hand-written join.
 
 <details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
-  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
   <div class="p-4">
 
+  On the Refund (`extra_extensions: [AshEvents.Projections.AttachProjection]`), attachments live in a `projections` section; the stats resource and the projector both name themselves; each `field` takes name, stats field **and type**:
+
   ```elixir
-  # on Refund: extra_extensions: [AshEvents.Projections.AttachProjection]
-  attach_projection AshEnterprise.Tutorial.RefundProjector do
-    field :approved_today, :approved_count, default: 0
+  projections do
+    attach_projection AshEnterprise.Tutorial.RefundStats,
+      via: AshEnterprise.Tutorial.RefundProjector do
+      field :approved_today, :approved_count, :integer, default: 0
+    end
   end
   ```
 
-  The projector must implement `current_grain_for_record/1` so the parent knows which grain row is "its" row.
+  And the projector must answer two questions for the parent resource — which stats row is "mine", and what to load before asking. The record's timestamp is the platform's `modified_on` (a `DateTime`), not `updated_at`:
+
+  ```elixir
+  # in AshEnterprise.Tutorial.RefundProjector
+  def current_grain_for_record(refund) do
+    %{organization_id: refund.organization_id, day: DateTime.to_date(refund.modified_on)}
+  end
+
+  def preload_for_grain, do: []  # the grain fields sit on the record itself
+  ```
+
+  This is a DSL change to `refund.ex`, so restart the node after saving — `recompile()` will not pick it up reliably. Then `Ash.load!(refund, [:approved_today])` reads the count off the stats row.
 
   </div>
 </details>

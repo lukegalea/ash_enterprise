@@ -86,9 +86,11 @@ Every rule has an `id`, a `severity`, and, because it can fire `:noncompliant`, 
 
 Read `overall` first. The outcome lattice is `compliant`, `noncompliant`, `unknown`, `error`. `:unknown` and `:error` never collapse to `:compliant`.
 
+One shape worth knowing before you read `findings/1` output: it lists every rule whose outcome is **not** `compliant` or `not_applicable` — so a rule blocked on missing data shows up with its gap as a *pending* finding, not a filed violation. `overall` is the verdict; `findings/1` is the worklist, and an `:unknown` entry means "resolve this before you can judge", which is precisely what you want on a compliance dashboard.
+
 ## Exercise: make "unknown" bite
 
-Add a rule `REF-2`, severity `:medium`, gap `"refund.tier_check"`: refunds over the limit for customers who are not `:gold` are noncompliant. Then evaluate with **no** `customer_tier` fact and observe `overall`.
+Add a rule `REF-2`, severity `:medium`, gap `"refund.tier_check"`: refunds over the limit for customers who are not `:gold` are noncompliant. Then evaluate with `amount_over_limit: true`, `manager_approved: true`, and **no** `customer_tier` fact — the other facts compliant, so the only open question is the tier — and observe `overall`.
 
 **Enter your solution**
 
@@ -97,7 +99,7 @@ Add a rule `REF-2`, severity `:medium`, gap `"refund.tier_check"`: refunds over 
 ```
 
 <details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
-  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
   <div class="p-4">
 
   ```elixir
@@ -110,7 +112,7 @@ Add a rule `REF-2`, severity `:medium`, gap `"refund.tier_check"`: refunds over 
   end
   ```
 
-  With the tier missing, `REF-2` is `:unknown` and so is `overall`. If you had left `missing:` at its default, a missing tier would read as `false`, `neg(... :gold)` would hold, and you would file a violation against a customer whose tier you simply never loaded.
+  With the tier missing, `REF-2` is `:unknown` and so is `overall` (`REF-1` is compliant, so nothing drags the verdict to `:noncompliant` — evaluate once more with `manager_approved: false` and watch `:noncompliant` win the lattice). `findings/1` lists the tier gap: pending, not filed. If you had left `missing:` at its default, a missing tier would read as `false`, `neg(... :gold)` would hold, and you would file a violation against a customer whose tier you simply never loaded.
 
   </div>
 </details>

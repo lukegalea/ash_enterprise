@@ -70,6 +70,8 @@ defmodule AshEnterprise.Tutorial.Refund do
   end
 
   attributes do
+    uuid_primary_key :id
+
     attribute :ticket_ref, :string, allow_nil?: false, public?: true
     attribute :amount, :decimal, allow_nil?: false, public?: true, constraints: [greater_than: 0]
     attribute :reason, :string, public?: true
@@ -98,31 +100,119 @@ defmodule AshEnterprise.Tutorial.Refund do
 end
 ```
 
-Three steps, and the order matters. First create the files above, then add `AshEnterprise.Tutorial` to `config :ash_enterprise, ash_domains: [...]` in `config/config.exs` — the codegen task discovers domains through that list. Then, in a normal terminal (not the attached IEx; these are mix tasks and boot their own node), generate the migration and apply it:
+Five steps, and the order matters. (1) Create the files above. (2) Add `AshEnterprise.Tutorial` to `config :ash_enterprise, ash_domains: [...]` in `config/config.exs` — the codegen task discovers domains through that list. (3) In a normal terminal (not the attached IEx; these are mix tasks and boot their own node), generate the migration and apply it:
 
 ```bash
 devenv shell -- mix ash.codegen --dev
 devenv shell -- mix ash.migrate
 ```
 
-`--dev` names the migration for you, which is what you want while learning — codegen generates, migrate applies; the overview says when to name one for real. Finally **restart the app node** (Ctrl-C twice, then the overview's start command) and reconnect Livebook's runtime, re-running the actor/tenant cell below once you are reattached. Application env is read at boot, so no amount of `recompile()` will register a domain that was added after the node started. Notice there is no `uuid_primary_key`, no `organization_id`, no timestamps and no `events do` block. Ask your agent (lesson 14) where they came from:
+4. Right after, refresh the **privilege catalogue** so your new resource's actions are grantable at all:
+
+```bash
+devenv shell -- mix ash_enterprise.seed --privileges-only
+```
+
+   (Eight new privileges, one per `Tutorial.Refund` verb. Run this after *every* codegen that adds actions or resources — lesson 16 adds one too.)
+
+5. Finally **restart the app node** (Ctrl-C twice, then the overview's start command) and reconnect Livebook's runtime, re-running the actor/tenant cell below once you are reattached. A restart is the only way new resource or domain modules load with their extension state: `recompile()` compiles the file but the platform's injected sections stay stale until boot. Application env — like that new `ash_domains` entry — is also read at boot.
+
+Now look at what you wrote versus what you got. The `uuid_primary_key :id` is yours — every platform resource declares its own (see `lib/ash_enterprise/accounts/organization.ex`); the platform injects timestamps (`created_on`/`modified_on`), provenance (`created_by_id` and friends), `organization_id` with attribute multitenancy, archival, the policy set and the `events do` block, but **never your primary key**. Ask your agent (lesson 14) where the rest came from:
 
 ```elixir
 AshAgentTools.describe_resource(AshEnterprise.Tutorial.Refund)
-|> get_in([:attributes])
+|> get_in([:fields])
 |> Enum.map(& &1.name)
 ```
 
-## Write, then read the log
+## Set up your actor and tenant
 
-Set up an actor and tenant from the seeded data:
+Nothing in `mix setup` seeds a sign-in-able user, and you should not need one from the demo seeder: build the small fabric every lesson from here on assumes. This cell is **idempotent** — find-or-create at every step, so re-running it after a restart is a no-op. It mirrors what `AshEnterprise.Platform.Seeder.seed_tenant/1` does for a real tenant, through the same actions:
 
 ```elixir
 require Ash.Query
-actor = Ash.read_first!(AshEnterprise.Accounts.User, authorize?: false)
-tenant = actor.organization_id
-opts = [actor: actor, tenant: tenant]
+
+alias AshEnterprise.Accounts
+alias AshEnterprise.Security
+alias AshEnterprise.Platform.SystemActor
+
+# Seeding is the one operation no role can authorize (the role model lives
+# inside the tenant being created), so bootstrap as the platform's named
+# seed actor. Every write is still attributed to it in the event log.
+boot = SystemActor.seed()
+
+organization =
+  Accounts.Organization
+  |> Ash.Query.filter(unique_name == "tutorial")
+  |> Ash.read_one!(authorize?: false) ||
+    Ash.create!(
+      Ash.Changeset.for_create(Accounts.Organization, :create, %{
+        name: "Tutorial Corp",
+        unique_name: "tutorial"
+      }, actor: boot)
+    )
+
+tenant = organization.id
+
+root =
+  Accounts.BusinessUnit
+  |> Ash.Query.filter(name == "Tutorial Desk")
+  |> Ash.read_one!(actor: boot, tenant: tenant) ||
+    Ash.create!(
+      Ash.Changeset.for_create(Accounts.BusinessUnit, :create, %{name: "Tutorial Desk"},
+        actor: boot,
+        tenant: tenant
+      )
+    )
+
+role =
+  Security.Role
+  |> Ash.Query.filter(name == "Administrator")
+  |> Ash.read_one!(actor: boot, tenant: tenant) ||
+    Ash.create!(
+      Ash.Changeset.for_create(Security.Role, :create, %{
+        name: "Administrator",
+        owning_business_unit_id: root.id
+      }, actor: boot, tenant: tenant)
+    )
+
+email = "you@tutorial.example"
+
+user =
+  Accounts.User
+  |> Ash.Query.filter(email == ^email)
+  |> Ash.read_one!(authorize?: false) ||
+    Ash.create!(
+      Ash.Changeset.for_create(Accounts.User, :register_with_password, %{
+        email: email,
+        password: "tutorial1234",
+        password_confirmation: "tutorial1234"
+      }, authorize?: false)
+    )
+
+# The scoping business unit is required explicitly: the default derives it
+# from the *acting* user's unit, and the seed actor has none.
+Security.UserRole.assign!(
+  %{user_id: user.id, role_id: role.id, scoping_business_unit_id: root.id},
+  actor: boot,
+  tenant: tenant
+)
+
+actor = user
+:ok
 ```
+
+Note what the User does **not** have: an `organization_id` attribute. Tenancy is a column on the *resources*, not on people — your tenant is `organization.id`, carried separately. That is why the cell binds `tenant` itself.
+
+Your role exists but grants nothing yet: the Administrator role links privileges at provisioning time, and your `Tutorial.Refund` privileges only came into existence with the codegen. Grant everything grantable the same way the seeder does:
+
+```elixir
+AshEnterprise.Platform.Seeder.regrant_administrator_privileges(tenant)
+```
+
+Re-run this after every future codegen that adds resources or actions (lesson 16 will need it again). If a call still comes back forbidden, that is lesson 14: `AshAgentTools.can(AshEnterprise.Tutorial.Refund, :propose, actor)` and `explain_forbidden/2` tell you which inherited policy said no.
+
+## Write, then read the log
 
 Propose a refund of `25.00` for ticket `"T-1001"`, then approve it.
 
@@ -133,22 +223,34 @@ Propose a refund of `25.00` for ticket `"T-1001"`, then approve it.
 ```
 
 <details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
-  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
   <div class="p-4">
 
   ```elixir
+  opts = [actor: actor, tenant: tenant]
+
   refund = AshEnterprise.Tutorial.propose_refund!("T-1001", Decimal.new("25.00"), opts)
   refund = AshEnterprise.Tutorial.approve_refund!(refund, opts)
   ```
 
-  If this is forbidden, that is lesson 14: `AshAgentTools.can(AshEnterprise.Tutorial.Refund, :propose, actor)` and `explain_forbidden/2` tell you which inherited policy said no.
+  If this is forbidden, that is lesson 14: `AshAgentTools.can(AshEnterprise.Tutorial.Refund, :propose, actor)` and `explain_forbidden/2` tell you which inherited policy said no — most likely a privilege your role has not been granted yet (the `regrant` call above).
 
   </div>
 </details>
 
-Now read the events for that record. The event log is a resource, so you query it with Ash:
+Now read the events for that record. The event log is a resource, so you query it with Ash. (This cell fetches the refund itself, so it works even on a fresh run before you have written the exercise solution above):
 
 ```elixir
+require Ash.Query
+
+refund =
+  AshEnterprise.Tutorial.Refund
+  |> Ash.Query.filter(ticket_ref == "T-1001")
+  |> Ash.Query.sort(created_on: :desc)
+  |> Ash.Query.limit(1)
+  |> Ash.read!(actor: actor, tenant: tenant)
+  |> List.first()
+
 AshEnterprise.Audit.EventLog
 |> Ash.Query.filter(record_id == ^refund.id)
 |> Ash.Query.sort(occurred_at: :asc)
@@ -175,7 +277,7 @@ Events are as meaningful as action names. Add `update :request_info` that accept
 ```
 
 <details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
-  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
   <div class="p-4">
 
   ```elixir
@@ -185,7 +287,7 @@ Events are as meaningful as action names. Add `update :request_info` that accept
   end
   ```
 
-  Add `define :request_refund_info, action: :request_info` to the domain. A generic `:update` with a status field would record *that something changed*; a named action records *what the business did*. Projections and process triggers key on these names.
+  Add `define :request_refund_info, action: :request_info` to the domain, restart the node (step 5 — a DSL change), and call `AshEnterprise.Tutorial.request_refund_info!(refund, %{reason: "warranty"}, actor: actor, tenant: tenant)`. A generic `:update` with a status field would record *that something changed*; a named action records *what the business did*. Projections and process triggers key on these names.
 
   </div>
 </details>
