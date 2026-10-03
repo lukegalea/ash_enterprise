@@ -1,0 +1,314 @@
+<!--
+SPDX-FileCopyrightText: 2026 Luke Galea
+SPDX-FileCopyrightText: 2023 ash_tutorial contributors <https://github.com/ash-project/ash_tutorial/graphs/contributors>
+
+SPDX-License-Identifier: MIT
+-->
+
+# Ash Enterprise: 25 - Capstone: The Ash Way
+
+Effort: **heavy** — nine cells, one refund, no new concepts. *You'll feel the whole stack answer one refund — and leave holding proof you could hand an auditor.*
+
+## One refund, every layer
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="24_strangler.livemd">Strangler</a>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Home</a>
+</div>
+<div class="flex">
+<span class="mr-2"></span>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>
+
+
+<!-- livebook:{"break_markdown":true} -->
+
+One refund. Every layer. All of it yours.
+
+The desk started with a printer on fire, and out back a 2011 app has been writing tickets like that one in two booleans the whole time. Today the same ticket arrives and everything the enterprise has learned since is waiting for it — audited, projected, rule-checked, decided, approved, orchestrated, rendered, and provable after the fact. Most of those words are layers you built.
+
+The work: trace a single refund end to end and name which layer does what. If you can say it without looking, you have the model. And at the bottom, when you read the event log back in order, it will read like the journey you just drove — that log is the document you could hand an auditor. The payoff is not a certificate. It is proof.
+
+<div class="rounded-xl p-4 my-4" style="background-color: #fdf6ec; border-left: 4px solid #c2410c; color: #7c2d12;">
+  <p><i class="ri-fire-fill"></i> <strong>Soot was here.</strong> I was there for all of it. Walk it slowly; I will wait at the end.</p>
+</div>
+
+1. Priya's ticket arrives in `legacy.cases`; the strangled `Ticket` sees it and notifies (24).
+2. A rep opens the A2UI surface (23); the form submits `Refund.propose` as the rep (11).
+3. `propose` writes an audit event (15) and a consumable event (16).
+4. That event starts the `refund` process (21).
+5. A model's fraud judgment is recorded, then admitted by an authorized action (22).
+6. The business rule task asks `refund_approver` (19); the gateway routes on the promoted signal.
+7. The user task's candidates exclude the maker (20); timers are scheduled.
+8. On approval, the invoker runs `issue_credit` against the billing resource (13), idempotently, then `Refund.approve`, whose validation still guards it.
+9. The projector updates `RefundStats` (16) and the compliance projector evaluates the bundle, writing a Finding and an Evaluation (17, 18).
+10. Every step can be described, validated, dry-run and read back by your agent (14).
+
+## Walk the refund through every layer
+
+The narrative above is the map; now drive it. The cells below run on the **attached node** and assume the chain the lessons built, in order: the actor/tenant fabric (15) → the `REF-2` rule exercise (17) → the active bundle and projector (18, 16) → the published `refund_approver` decision (19) → the registry entries and the maker-checker pair (20) → the invoker refs, billing domain and published `refund` process (21) → the declared judgment question (22) → the `RefundUI` surface module and route (23) → the `legacy.cases` twin and its estate admin (24). On a fresh database, do those lessons first — nothing here re-teaches them, and every call is one you have already written.
+
+Open a refund's life and follow it all the way down. First, the cast:
+
+```elixir
+require Ash.Query
+
+# Lesson 15's fabric: `actor` is your user, `tenant` your organization.
+# Re-run that cell if this is a fresh Livebook session.
+maker = actor
+opts = [actor: actor, tenant: tenant]
+
+[checker] =
+  AshEnterprise.Accounts.User
+  |> Ash.Query.filter(email == "checker@example.com")
+  |> Ash.read!(authorize?: false)
+
+# checkpoint — expected: the lesson 20 pair, one tenant
+{maker.email, checker.email, tenant}
+```
+
+**Propose.** The gate from lesson 20 is on this action, so this one write starts everything:
+
+```elixir
+refund = AshEnterprise.Tutorial.propose_refund!("T-3001", Decimal.new("300.00"), actor: maker, tenant: tenant)
+
+# checkpoint — expected: [:propose] — the write landed in the audit log (15), in the same transaction
+AshEnterprise.Audit.EventLog
+|> Ash.Query.filter(record_id == ^refund.id)
+|> Ash.read!(opts)
+|> Enum.map(& &1.action)
+```
+
+**Evaluate.** Rules (17) answer now; the decision (19) routes:
+
+```elixir
+facts = [
+  {:refund, :amount_over_limit, Decimal.compare(refund.amount, Decimal.new(500)) == :gt},
+  {:refund, :manager_approved, false}
+]
+
+{:ok, rules} = AshRules.evaluate(Tutorial.RefundRules, facts)
+
+definition =
+  AshEnterprise.Decisions.Definition
+  |> Ash.Query.filter(key == "refund_approver" and status == :published)
+  |> Ash.Query.sort(version: :desc)
+  |> Ash.read_first!(actor: actor, tenant: tenant)
+
+{:ok, decision} =
+  AshDecisions.Evaluator.evaluate(definition, %{"amount" => refund.amount, "tier" => "standard"},
+    actor: actor, tenant: tenant
+  )
+
+# checkpoint — expected: {:not_applicable, "team_lead"} — 300.00 is UNDER REF-1's limit,
+# so REF-1 (and REF-2, gated on the same fact) do not apply: lesson 17's lattice says
+# so, not "compliant". The decision routes to team_lead either way, and `outputs` is
+# the plain output value under the FIRST hit policy — not a map keyed by output name.
+{rules.overall, decision.outputs}
+```
+
+**Judge.** Lesson 22's question is declared on the Refund; the model instrument itself needs that lesson's profile config. What the capstone shows is the law underneath it — a question nobody has answered is `:unknown`, never "not fraud" (17's `missing: :unknown`, 22's law 1):
+
+```elixir
+# no tier fact, because no admitted judgment has supplied one
+{:ok, unjudged} =
+  AshRules.evaluate(Tutorial.RefundRules, [
+    {:refund, :amount_over_limit, true},
+    {:refund, :manager_approved, true}
+  ])
+
+judge =
+  try do
+    AshAgentTools.describe_action(AshEnterprise.Tutorial.Refund, :judge_suspected_fraud)
+  rescue
+    e in ArgumentError -> {:not_declared, e.message}
+  end
+
+# checkpoint — expected: {:unknown, true} — the tier rule (lesson 17's REF-2 exercise) is what
+# turns a missing tier into :unknown, and describe_action confirms the question lesson 22 declared.
+# It raises ArgumentError for an unknown action, so a skipped lesson 22 shows up as {:not_declared, _}.
+{unjudged.overall, is_map(judge)}
+```
+
+**Candidates.** The same role clause feeds the standalone task, minus the maker (20):
+
+```elixir
+checker_tasks =
+  AshBpmn.my_tasks(AshEnterprise.Bpmn, principal_ids: [checker.id], actor: checker, tenant: tenant)
+
+maker_tasks =
+  AshBpmn.my_tasks(AshEnterprise.Bpmn, principal_ids: [maker.id], actor: maker, tenant: tenant)
+
+# checkpoint — expected: {true, []} — the checker holds refund_approver; the maker is subtracted
+{Enum.any?(checker_tasks, &(&1.subject_id == refund.id)), maker_tasks}
+```
+
+**Orchestrate.** Start the process (21) and follow its token with the agent tools from lesson 14:
+
+```elixir
+{:ok, instance} =
+  AshBpmn.start_instance(AshEnterprise.Bpmn,
+    process: "refund", subject: refund, actor: maker, tenant: tenant
+  )
+
+report = AshAgentTools.process_instance(definition_key: "refund", tenant: tenant)
+
+# checkpoint — expected: {"running", true} — the instance we just started, reported
+# back by the same read-only export lesson 14 uses. (Assert on ours, not on the
+# total: report.count is session-cumulative, since instances persist.)
+mine = Enum.find(report.instances, &(&1["id"] == instance.id))
+
+{mine["status"], report.count >= 1}
+```
+
+**Render.** The surface (23) is derived, and the strangled tickets (24) read through the view:
+
+```elixir
+# checkpoint — expected: the createSurface → updateComponents → updateDataModel message triple (23)
+surface = AshA2ui.Info.build_surface(AshEnterpriseWeb.A2ui.RefundUI, actor: actor, tenant: tenant)
+
+# The strangled tickets read in the legacy estate's tenant, as its own admin —
+# the same provisioning chain as lesson 24 (idempotent seeder, then lookup).
+estate_tenant = AshEnterprise.Legacy.Estate.organization_id()
+
+legacy_admin =
+  AshEnterprise.Accounts.User
+  |> Ash.Query.filter(email == "admin@legacy.example")
+  |> Ash.read_one!(authorize?: false) ||
+    (
+      AshEnterprise.Platform.Seeder.seed_legacy_estate()
+
+      AshEnterprise.Accounts.User
+      |> Ash.Query.filter(email == "admin@legacy.example")
+      |> Ash.read_one!(authorize?: false)
+    )
+
+strangled =
+  AshEnterprise.Tutorial.Ticket
+  |> Ash.read!(actor: legacy_admin, tenant: estate_tenant)
+  |> Enum.map(&{&1.subject, &1.status})
+
+# checkpoint — expected: three A2UI messages, and lesson 24's legacy rows read as resources
+{length(surface), strangled}
+```
+
+**Decide.** Claim as the checker and approve — and the invoker, not you, runs `Refund.approve` (the registry entry from lesson 20):
+
+```elixir
+task =
+  Enum.find(checker_tasks, &(&1.subject_id == refund.id))
+  |> AshBpmn.claim_task!(actor: checker, tenant: tenant)
+
+AshBpmn.decide!(task, outcome: :approved, actor: checker, tenant: tenant)
+
+approved = Ash.reload!(refund, actor: checker, tenant: tenant)
+
+refused = AshEnterprise.Tutorial.approve_refund(approved, opts)
+
+# checkpoint — expected: {:approved, true} — the invoker ran Refund.approve,
+# and a second approve is refused by the action's own validation
+{approved.status, match?({:error, _}, refused)}
+```
+
+One loose end is deliberate: the orchestrated instance's own user task stays parked, because the standalone gate from lesson 20 already carried this refund through `approve`. Deciding the process task instead — with the `issue_credit` serviceTask it fans out to — is lesson 21's exercise, not a bug here. And one line of noise is expected: deciding prints an Ash `warn_on_transaction_hooks?` warning — that is lesson 16's event-recording `after_action` hook being announced, not an error. Read the checkpoint value, not the warning.
+
+**Evidence.** The layers that watched it happen, after the fact:
+
+```elixir
+# checkpoint — expected: the projection counted it (16); compliance holds a Finding pinned to a bundle hash (18)
+stats = AshEnterprise.Tutorial.RefundStats |> Ash.read!(opts)
+
+findings =
+  AshCompliance.Resources.Finding
+  |> Ash.Query.filter(subject_id == ^refund.id)
+  |> Ash.read!(opts)
+
+evaluations =
+  AshCompliance.Resources.ComplianceEvaluation
+  |> Ash.Query.filter(subject_id == ^refund.id)
+  |> Ash.read!(opts)
+  |> Enum.map(& &1.bundle_hash)
+
+{stats |> Enum.map(&to_string(&1.approved_count)), length(findings), evaluations}
+```
+
+(The count is a string deliberately: a bare one-element integer list survives notebooks and terminals poorly — `~c"\a"` has embarrassed better people than us.)
+
+If the projection row is missing or stale, the projector is lagging, not lying: `mix ash_events_projections.lag` (lesson 16) is the next command, before any code reading. If the findings list is empty, lesson 18's projector or bundle never went active — the capstone cannot fabricate the evidence, and neither can you.
+
+**Checkpoint.** Read the three cells above as one document: a count, a finding, an evaluation pinned to a bundle hash — the refund, provable after the fact. That is what the whole floor was for.
+
+## Final exercise
+
+For each statement, name the layer that owns it: action/validation, policy, rule bundle, decision, process, projection, judgment, or UI.
+
+* "Refunds over 2,000 need risk review in parallel."
+* "Approvers cannot approve their own refunds."
+* "Refunds over 500 without manager approval are a finding under REF-1."
+* "Gold customers' refunds up to 500 need no approver."
+* "A refund can only be approved while proposed."
+* "Only members of the organization can see its refunds."
+* "Today's approved total per organization."
+* "This reason text looks like fraud."
+* "Hide the approve button from people who cannot approve."
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
+  <div class="p-4">
+
+  * Parallel risk review: **process** (orchestration).
+  * Self-approval: **approval candidates**, `excluding:` (never `forbid_if`).
+  * REF-1 finding: **rule bundle**, projected by **compliance**.
+  * Gold up to 500: **decision** (DMN).
+  * Only while proposed: **action validation**.
+  * Organization visibility: **policy** (inherited from the platform resource).
+  * Approved total: **projection**.
+  * Looks like fraud: **judgment**, an observation until admitted.
+  * Hide the button: **UI**, derived from policies, and still refused by the policy if sent.
+
+  </div>
+</details>
+
+## The habits to keep
+
+* Model it as a resource, even when it is remote, legacy or a document.
+* Make actions the only door, and name them for what the business did.
+* Give each concern one layer and refuse to let another layer borrow it.
+* Version artifacts; pin what must be pinned; never edit published things.
+* Treat unknown as unknown.
+* Ask the declaration, then the running system, then the code.
+* Judge your diff (`mix ash_agent.laws - --diff`) before saying done.
+
+<!-- livebook:{"break_markdown":true} -->
+
+Further reading in the repos: each package's `usage-rules.md`, the ADRs under `ash_enterprise/docs/adr`, and the [clinic-demo](https://github.com/lukegalea/clinic-demo) capstone with captured evidence.
+
+<!-- livebook:{"break_markdown":true} -->
+
+One last handover. This repo is a base template — meant to be cloned and grown, not depended upon — and somewhere in your company something just as old as the 2011 app is still running. Clone it. Grow your own desk. The habits are the seven you just read.
+
+<div class="rounded-xl p-4 my-4" style="background-color: #fdf6ec; border-left: 4px solid #c2410c; color: #7c2d12;">
+  <p><i class="ri-fire-fill"></i> <strong>Soot was here, one last time.</strong> Everything you just drove is still on the log, and will be tomorrow. I will keep the embers.</p>
+</div>
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="24_strangler.livemd">Strangler</a>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Home</a>
+</div>
+<div class="flex">
+<span class="mr-2"></span>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>
+

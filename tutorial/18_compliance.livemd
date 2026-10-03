@@ -1,0 +1,220 @@
+<!--
+SPDX-FileCopyrightText: 2026 Luke Galea
+SPDX-FileCopyrightText: 2023 ash_tutorial contributors <https://github.com/ash-project/ash_tutorial/graphs/contributors>
+
+SPDX-License-Identifier: MIT
+-->
+
+# Ash Enterprise: 18 - Compliance
+
+Runtime: **attached node**.
+
+Effort: **heavy** — the longest chain of artifacts so far, and one restart. *You'll feel "prove it" split into the now and the why.*
+
+## The "now" and the "why"
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="17_rules.livemd">Rules</a>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Home</a>
+</div>
+<div class="flex">
+<a class="flex mr-2" style="color: #61758a;" href="19_decisions.livemd">Decisions</a>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>
+
+
+<!-- livebook:{"break_markdown":true} -->
+
+*You are here: verdicts exist (17); now they become evidence — with a hash, a timestamp and a revision trail.*
+
+Lesson 17 gave you verdicts. An auditor asks two different questions: **is this subject compliant right now**, and **what exactly did the engine decide last Tuesday at 11:00, on which facts, under which rules?** `ash_compliance` answers both with two artifacts that must never be conflated:
+
+* **Finding**: a projection (lesson 16) per `[organization_id, control_id, subject_type, subject_id]`. The "now". It changes.
+* **ComplianceEvaluation**: append-only, pinning the bundle hash, the fact snapshot and the outcome. The "why". Nothing rewrites it.
+
+Both come from the same projector, in the same transaction.
+
+<div class="rounded-xl p-4 my-4" style="background-color: #fdf6ec; border-left: 4px solid #c2410c; color: #7c2d12;">
+  <p><i class="ri-fire-fill"></i> <strong>Soot was here.</strong> "Now" and "why" are different questions in every enterprise I have watched, and the expensive one is always "why". Here it is a row, pinned to a hash.</p>
+</div>
+
+Prerequisite: run lesson 15's actor/tenant setup cell (and its privilege regrant) if this is a fresh Livebook session — `actor` and `tenant` below come from there. You will also move files into `lib/`, so a node restart is coming; the lesson calls it out when it is needed.
+
+## Rule changes are events, not edits
+
+Rules move through a lifecycle as resources: a `RuleSetRevision` goes `draft → validated → approved → active → retired/revoked`. Tenants tailor through profiles and waivers, compiled with a **fixed precedence**: non-waivable global > global mandatory > profile refinements > tenant strengthening > approved overrides/waivers > tenant supplements. The compiler refuses overreach and weakening. The output is an immutable, SHA-256 hashed `PolicyBundle`, the only thing that evaluates.
+
+Register `Tutorial.RefundRules` (lesson 17; move it to `lib/ash_enterprise/tutorial/refund_rules.ex`) as a global mandatory revision for your organization, take it to active, compile and activate a bundle. Everything goes through the `AshCompliance.Domain` code interfaces.
+
+**Enter your solution**
+
+```elixir
+
+```
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
+  <div class="p-4">
+
+  ```elixir
+  require Ash.Query
+
+  bundle_src = Tutorial.RefundRules.__bundle__()
+
+  # Rule changes are immutable revisions: a second run cannot draft the same
+  # `organization_id + name + revision` again. Find what exists before drafting.
+  revision =
+    AshCompliance.Resources.RuleSetRevision
+    |> Ash.Query.filter(organization_id == ^tenant and name == "refund-baseline")
+    |> Ash.read_one!(actor: actor, tenant: tenant) ||
+      AshCompliance.Domain.draft_rule_set_revision!(%{
+        organization_id: tenant,
+        name: "refund-baseline",
+        layer: :global_mandatory,
+        rules_json: AshRules.Ir.encode!(bundle_src),
+        content_hash: bundle_src.content_hash
+      }, actor: actor)
+
+  unless revision.status == :active do
+    revision
+    |> AshCompliance.Domain.validate_rule_set_revision!(actor: actor)
+    |> AshCompliance.Domain.approve_rule_set_revision!(actor: actor)
+    |> AshCompliance.Domain.activate_rule_set_revision!(actor: actor)
+  end
+
+  # Same for the bundle: compiling identical rules mints an identical content
+  # hash, and one bundle per hash per org is the constraint. If an active
+  # bundle is already there, that IS your answer.
+  case AshCompliance.Domain.active_policy_bundle(tenant, authorize?: false) do
+    {:ok, nil} ->
+      {:ok, bundle} = AshCompliance.Domain.compile_policy_bundle(%{organization_id: tenant}, actor: actor)
+      AshCompliance.Domain.activate_policy_bundle!(bundle, actor: actor)
+
+    {:ok, bundle} ->
+      bundle
+  end
+  ```
+
+  Note `validate → approve → activate`. Validation happens before activation, never at evaluation: a bundle that reaches production with a broken rule has defeated the design. The guards are not boilerplate: "has already been taken" on a re-run is the immutability design working, so the flow finds its way back to the existing artifact instead of fighting the constraint.
+
+  </div>
+</details>
+
+**Checkpoint.** The bundle is active and pinned by its hash — re-running the cell found the same artifact instead of fighting the constraint.
+
+**Look around.** The revision went `draft → validated → approved → active`, and a re-run finds it rather than re-drafting. Immutability is not friction here; it is the reason the re-run is calm.
+
+## Project findings from events
+
+Copy the shape of `AshEnterprise.Compliance.Projector`:
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+defmodule AshEnterprise.Tutorial.RefundComplianceProjector do
+  use AshCompliance.Projector,
+    name: "tutorial_refund_findings_v1",
+    event_log: AshEnterprise.Compliance.EventLog,
+    projection_resource: AshCompliance.Resources.Finding,
+    bundle: {AshEnterprise.Compliance.Projector, :active_bundle, []}
+
+  # The finding grain, read from the event's metadata — the same keys the
+  # app's own AshEnterprise.Compliance.Projector uses. Drained event maps have
+  # no :record_id; the subject id rides in metadata like everything else.
+  grain fn event ->
+    m = event.metadata || %{}
+
+    %{organization_id: m["organization_id"], control_id: m["control_id"],
+      subject_type: m["subject_type"], subject_id: m["subject_id"]}
+  end
+
+  project_all [:refund_approved]
+end
+```
+
+Your `RecordRefundEvent` change (lesson 16) must now also fill that metadata and put the **facts** in the event. The default facts strategy reads `metadata["facts"]` as string triples — subject, predicate, value — because this bundle crossed the wire as JSON:
+
+```elixir
+metadata: %{
+  "organization_id" => refund.organization_id,
+  "control_id" => "REF-1",
+  "subject_type" => "refund",
+  "subject_id" => refund.id,
+  "facts" => [
+    ["refund", "amount_over_limit", Decimal.compare(refund.amount, 500) == :gt],
+    ["refund", "manager_approved", false],
+    ["refund", "customer_tier", "standard"]
+  ]
+}
+```
+
+The projector hydrates facts from the event, never by querying live state: replaying the log must reproduce the same findings. (A predicate the bundle's fact schema does not declare is an error, not a silent drop.) Put `AshEnterprise.Tutorial.RefundComplianceProjector` in the same `projectors:` config list lesson 16 wired — then save `refund.ex` and the new projector file and **restart the node** before approving anything; these are compile and DSL changes.
+
+Approve a refund over the limit without manager approval, then read both artifacts for it.
+
+**Enter your solution**
+
+```elixir
+
+```
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
+  <div class="p-4">
+
+  ```elixir
+  require Ash.Query
+
+  # The projector drains asynchronously — right after the approve the artifacts
+  # simply are not there yet, and lag shows 0 once it has drained. Wait for the
+  # Finding instead of racing it.
+  finding =
+    Enum.reduce_while(1..10, nil, fn _i, _acc ->
+      case
+        AshCompliance.Resources.Finding
+        |> Ash.Query.filter(subject_id == ^refund.id)
+        |> Ash.read!(actor: actor, tenant: tenant)
+      do
+        [] -> Process.sleep(500); {:cont, nil}
+        findings -> {:halt, findings}
+      end
+    end)
+
+  AshCompliance.Resources.ComplianceEvaluation
+  |> Ash.Query.filter(subject_id == ^refund.id)
+  |> Ash.read!(actor: actor, tenant: tenant)
+  |> Enum.map(&{&1.outcome, &1.bundle_hash})
+  ```
+
+  Approve a second time after fixing it: the Finding flips to resolved, and the evaluation log now has two rows. Fixing it means the facts must change — the change module above hardcodes `manager_approved: false`, so edit that fact to `true` first (a DSL change, so restart), or the "fixed" approval re-files the same finding.
+
+  </div>
+</details>
+
+**Checkpoint.** One Finding (the now) and ComplianceEvaluations (the why), from the same projector in the same transaction — two different questions, answered by two different artifacts.
+
+## Waivers are bounded
+
+A `PolicyOverride` (waiver) carries a time bound, an approver and compensating controls, and cannot outrank a non-waivable global. "The tenant tweaked the rule" is not a thing; a waiver is a reviewable record. If you want approval of the waiver itself, that is lesson 20.
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="17_rules.livemd">Rules</a>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Home</a>
+</div>
+<div class="flex">
+<a class="flex mr-2" style="color: #61758a;" href="19_decisions.livemd">Decisions</a>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>
+

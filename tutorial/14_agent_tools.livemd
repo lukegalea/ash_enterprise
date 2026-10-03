@@ -1,0 +1,366 @@
+<!--
+SPDX-FileCopyrightText: 2026 Luke Galea
+SPDX-FileCopyrightText: 2023 ash_tutorial contributors <https://github.com/ash-project/ash_tutorial/graphs/contributors>
+
+SPDX-License-Identifier: MIT
+-->
+
+# Ash Enterprise: 14 - Working With Your Agent
+
+Effort: **medium** — five short exercises; comfortably two sittings, with a marked break in the middle. *You'll feel the questions you'd ask a senior become tool calls.*
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="13_remote_resources.livemd">Remote APIs as Resources</a>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Home</a>
+</div>
+<div class="flex">
+<a class="flex mr-2" style="color: #61758a;" href="15_events.livemd">Events</a>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>
+
+
+<!-- livebook:{"break_markdown":true} -->
+
+Runtime: **attached node** (install and setup are in the overview). Start the app with `devenv shell -- iex --name ae@127.0.0.1 --cookie tutorial -S mix phx.server` — the long name is on purpose: Livebook runs as a long-named node and cannot reach a short-named one. If port 4000 was busy and you started with `PORT=4001`, the `localhost:4000` URLs below move with it.
+
+## Why an agent needs more than grep
+
+From here on the tutorial gets dense: events, projections, rules, decisions, processes. You will almost certainly pair with a coding agent through it. This lesson teaches you to make that agent **ask the system** instead of guessing, and to debug the way Ash wants you to: by reading the declared contract first, then the running state, and only then the code.
+
+An Ash action is not a function. Try it: there is no `def complete` anywhere for a `:complete` action. A language server that searches for the symbol correctly returns nothing. An agent that greps `def create` and guesses is doing what a new hire does on day one.
+
+So we give the agent **three instruments**, each answering a different question:
+
+| Question | Instrument | Reads |
+|---|---|---|
+| "What does this action accept? Why was I forbidden? Which rule/decision/process applies?" | `ash_agent_tools` (`mix ash_agent.*`, MCP `ash-agent`) | the compiled Spark DSL |
+| "What is the value right now? What does this code return?" | Tidewave `project_eval` / this Livebook | the **running** VM |
+| "Where is this function, who calls it, rename it safely" | Serena over **Expert** (the Elixir LSP) | Elixir source |
+
+They are complementary by structure: the language server reads Elixir and cannot read Ash DSL blocks (they are opaque text to it); the introspection layer reads Ash and does not see function bodies.
+
+## Wiring it up
+
+`ash_enterprise/.mcp.json` already declares the project servers:
+
+<!-- livebook:{"force_markdown":true} -->
+
+```json
+{
+  "mcpServers": {
+    "tidewave":   { "type": "http", "url": "http://localhost:4000/tidewave/mcp" },
+    "ash_ai_dev": { "type": "http", "url": "http://localhost:4000/ash_ai/mcp" },
+    "ash-agent":  { "type": "http", "url": "http://127.0.0.1:4100" }
+  }
+}
+```
+
+* **tidewave** and **ash_ai_dev** live inside the running dev server on :4000. They show as disconnected until that server is up.
+* **ash-agent** is a *separate* VM: `mix ash_agent.serve`. It is compile-only (your app is never started: no Oban queues draining, no projectors running), loopback only on `127.0.0.1:4100`, and recompiles on file change. Do **not** run it inside the dev server's VM.
+* **Serena** is optional and not configured in the repo. If you use it, point its Elixir backend at Expert through `.serena/project.yml`:
+
+<!-- livebook:{"force_markdown":true} -->
+
+```yaml
+# .serena/project.yml
+languages: [elixir]
+ls_specific_settings:
+  elixir:
+    ls_path: /path/to/expert   # the Expert build you use; Serena runs `expert --stdio`
+```
+
+Expert needs a compiled project and pays a ~10 s cross-file index wait once; after that, reference lookups are tens of milliseconds.
+
+Finally, make sure the agent has read the rules it will be judged by:
+
+```bash
+mix usage_rules.sync    # regenerates AGENTS.md from every ash_* package's usage-rules.md
+```
+
+## The facade: the same answers, in the VM
+
+Everything the Mix tasks and MCP tools return is a plain map from `AshAgentTools`, so you can use it here directly. Nothing below executes an action.
+
+```elixir
+AshAgentTools.describe_resource(AshEnterprise.Decisions.Definition)
+|> Map.take([:name, :actions])
+```
+
+## Describe before you write
+
+Ask for the exact input contract of an action: required, optional and private keys with normalized types, plus the source location.
+
+Describe the `:create` action of `AshEnterprise.Accounts.Organization`. (`AshEnterprise.Contracts` cannot give you one: it is read-only by design — describe it with `describe_resource/1` and look at its actions list. `AshAgentTools.list_resources/0` is how you find candidates.)
+
+**Enter your solution**
+
+```elixir
+
+```
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
+  <div class="p-4">
+
+  ```elixir
+  resource =
+    AshAgentTools.list_resources()
+    |> Enum.find(&(&1 == AshEnterprise.Accounts.Organization))
+
+  AshAgentTools.describe_action(resource, :create)
+  ```
+
+  The shell equivalent is `mix ash_agent.describe <Resource> create`.
+
+  </div>
+</details>
+
+**Checkpoint.** The contract for `:create`, printed from the compiled DSL — the same answer the agent will be held to.
+
+## Validate before you act
+
+`validate_input/3` casts each param with the same `Ash.Type.cast_input/3` machinery Ash uses at runtime, against a changeset built with `error?: false`. The data layer is never touched. The report is always returned, never raised; check `valid?`.
+
+Validate a deliberately broken call to the same action: a camelCase key and a malformed UUID. Read the `errors` and any `did_you_mean`.
+
+**Enter your solution**
+
+```elixir
+
+```
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
+  <div class="p-4">
+
+  ```elixir
+  report =
+    AshAgentTools.validate_input(resource, :create, %{
+      "organizationId" => "not-a-uuid"
+    })
+
+  {report.valid?, report.errors}
+  ```
+
+  This is the loop you want an agent in: validate, read the error, fix the input, validate again, *then* call the code interface. Shell: `mix ash_agent.validate <Resource> create '{"organizationId": "x"}'`.
+
+  </div>
+</details>
+
+**Checkpoint.** The report came back `valid?: false` with errors and a `did_you_mean` — that exchange is the loop an agent should live in.
+
+**Look around.** Describe, validate, explain: three instruments so far, all read-only, all against the real contract. Half this lesson's tools cannot execute anything, and that is deliberate — a good place for a break before the ones that read the running system.
+
+## Debugging "forbidden"
+
+The most common Ash debugging session is "why was I forbidden?". Do it in two steps, and do not skip the second.
+
+1. **What can deny?** `explain_forbidden/2` lists the policies that can forbid an action, in readable form. It lists; it does not rule.
+2. **What is the verdict for this actor?** `can/4` evaluates the policies for a real actor and returns a verdict, without running the action. It wraps `Ash.can?/3`.
+
+```elixir
+AshAgentTools.explain_forbidden(AshEnterprise.Decisions.Definition, :publish)
+```
+
+A fresh database has zero users, so make an actor first — `register_with_password` is a real create action on `AshEnterprise.Accounts.User` (find-or-create, so the cell re-runs). Then ask for the verdict on a **read** of the same resource.
+
+**Enter your solution**
+
+```elixir
+
+```
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
+  <div class="p-4">
+
+  ```elixir
+  require Ash.Query
+
+  email = "you@tutorial.example"
+
+  actor =
+    AshEnterprise.Accounts.User
+    |> Ash.Query.filter(email == ^email)
+    |> Ash.read_one!(authorize?: false) ||
+      Ash.create!(
+        Ash.Changeset.for_create(
+          AshEnterprise.Accounts.User,
+          :register_with_password,
+          %{email: email, password: "tutorial1234", password_confirmation: "tutorial1234"},
+          authorize?: false
+        )
+      )
+
+  AshAgentTools.can(AshEnterprise.Decisions.Definition, :read, actor)
+  ```
+
+  Why a read? `can/3` for an **update or destroy** action with no `record:` option evaluates the action against the actor's *own record* — so `can(Definition, :publish, actor)` asks "can this user publish *themselves*?" and fails with `no such update action on AshEnterprise.Accounts.User: :publish`. Pass `record:` to target a real record, or ask about a read, which needs no target. Lesson 15 will give this actor roles and privileges; for now `{:ok, false}` with an `explain_forbidden/2` listing is exactly the expected answer.
+
+  Shell: `mix ash_agent.can AshEnterprise.Decisions.Definition read --actor AshEnterprise.Accounts.User:<id>`.
+
+  Note what you just did: `authorize?: false` in a notebook is debugging. In `lib/`, the enterprise packages fail the build if a second `authorize?: false` appears. Engine calls go through each package's `Scope` instead.
+
+  </div>
+</details>
+
+**Checkpoint.** A verdict with no action run: `{:ok, false}` plus the explanation is a complete debugging session.
+
+## Debugging with the declared layers
+
+Later lessons add layers that are hard to debug by reading code, because the behaviour is data. The facade reads each of them, read-only, and only when the package is present:
+
+| Layer | Call | Shell |
+|---|---|---|
+| State machine | `AshAgentTools.transitions(Resource)` | `mix ash_agent.transitions Resource` (with Mermaid) |
+| Rules (17) | `AshAgentTools.evaluate_rules(Module, facts)` | `mix ash_agent.rules --facts ...` |
+| Decisions (19) | `AshAgentTools.decisions/0`, `decision_evaluate(key, inputs)` | `mix ash_agent.evaluate key '{...}'`, a dry run that records nothing |
+| Processes (21) | `processes/0`, `process_graph(key)`, `process_instance(definition_key: ...)` | `mix ash_agent.instance --key k` shows where a token is stuck |
+| Runtime | (boots the app on purpose) | `mix ash_agent.runtime snapshot`, `top 20`, `tree AshEnterprise` |
+
+List the decision catalogue now. It may be empty until lesson 19 publishes one; that is an answer too.
+
+**Enter your solution**
+
+```elixir
+
+```
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
+  <div class="p-4">
+
+  ```elixir
+  AshAgentTools.decisions()
+  ```
+
+  </div>
+</details>
+
+**Checkpoint.** The catalogue answered — and even `[]` is an answer: no decisions published yet, and the tool said so instead of guessing.
+
+**Look around.** The catalogue, the verdict, the layers table: every layer you are about to build in lessons 15 to 25 already has a read-only window in this lesson. Nothing after this needs to be debugged blind.
+
+## Where am I? Context at a cursor
+
+When an agent (or you) is looking at line 42 of a file, `context/3` says what Ash entity lives there: which resource, which section, which action or policy. `resolve/1` goes the other way, from a **name path** to a span with a digest. A name path is `Module`, or `Module/dsl_path/name` — one segment level, so name the action too:
+
+```elixir
+AshAgentTools.resolve("AshEnterprise.Decisions.Definition/actions/publish")
+```
+
+`.../actions` alone is malformed — the grammar is `Module` or `Module/dsl_path/name[index]` (unnamed entities like policies are addressed by occurrence: `.../policies/policy[0]`). Serena addresses `Module/function`; `ash_agent_tools` addresses `Resource/section/entity`.
+
+## Editing the DSL safely
+
+Agents corrupt DSL blocks by text-patching them. `mix ash_agent.edit` (and `AshAgentTools.Edit`) edits by name path instead, with a **read-before-edit digest handshake**: you must present the digest you read, so an edit against a stale view is refused. After writing, it compiles and validates, and **reverts on failure**. It is dry-run by default.
+
+```bash
+mix ash_agent.edit replace AshEnterprise.Tutorial.Refund/actions/approve --file new_block.ex      # dry run
+mix ash_agent.edit replace AshEnterprise.Tutorial.Refund/actions/approve --file new_block.ex --apply
+```
+
+Use Serena for Elixir symbols (rename a function, find callers of a module); use `ash_agent.edit` for DSL entities. Neither replaces the other.
+
+## Live code: evaluate, do not speculate
+
+The running VM is the truth about values. Tidewave's `project_eval` (or this attached Livebook) runs code in the app:
+
+```elixir
+# What is the active Oban config? What projectors are registered? Ask, don't grep.
+{Application.get_env(:ash_enterprise, Oban) |> Keyword.take([:queues]),
+ Application.get_env(:ash_events_projections, :projectors)}
+```
+
+A debugging loop that works, in order:
+
+1. **Contract**: `describe_action` / `validate_input`. Most "bugs" are inputs.
+2. **Authorization**: `explain_forbidden`, then `can` with the real actor.
+3. **Declared behaviour**: transitions, rules, decision dry-run, process instance.
+4. **Running state**: `project_eval`, `mix ash_agent.runtime`, the event log (lesson 15 onward). Read the events before reading the code: they tell you which action actually ran, by whom, with what.
+5. **Code**: only now, Serena `find_symbol` / references over Expert, and `dbg/1` or `IEx.pry` in a change module.
+6. **Prove it**: a failing test, then the fix.
+
+```elixir
+# dbg/1 inside a pipeline shows every intermediate step
+AshEnterprise.Decisions.Definition
+|> Ash.Query.limit(1)
+|> dbg()
+|> Ash.read!(authorize?: false)
+```
+
+## Judge before you claim done
+
+The **26 Iron Laws** are checked by a deterministic, grep-tier judge: no LLM, no keys, no compile. It reports violations only, at three tiers: `definite`, `likely`, `review`.
+
+```bash
+git diff main | mix ash_agent.laws - --diff
+mix ash_agent.laws lib/ash_enterprise_web/live/dashboard_live.ex
+```
+
+Judge this deliberately bad LiveView. Before running it, predict which laws fire.
+
+**Enter your solution**
+
+```elixir
+code = """
+defmodule BadLive do
+  use Phoenix.LiveView
+  def mount(_p, _s, socket) do
+    Phoenix.PubSub.subscribe(MyApp.PubSub, "tickets")
+    {:ok, assign(socket, tickets: Ash.read!(MyApp.Ticket), kind: String.to_atom("x"))}
+  end
+end
+"""
+```
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
+  <div class="p-4">
+
+  ```elixir
+  AshAgentTools.judge_laws(code)
+  ```
+
+  Expect **three** violations: the query in `mount/3` (law 1 — it runs twice, once for the dead render and once on connect), `subscribe` without `connected?/1` (law 3), and `String.to_atom/1` (law 10). The fourth sin — assigning the list instead of streaming it — is law 2, and it is *behavioral*: the judge has no detector for it, so it fires nothing and you have to spot it yourself. You fixed all four by hand in lessons 10 and 12; the judge catches three of them. "Grep-tier" means read each hit's context before acting.
+
+  </div>
+</details>
+
+**Checkpoint.** Three of four sins caught by grep, one only by you — that ratio is why the laws are also a reading habit, not just a command.
+
+## Closing the loop: kaizen
+
+When a tool misses (unknown input, search miss, context miss), `ash_agent_tools` emits `[:ash_agent, :tool_gap]` telemetry with `did_you_mean` candidates. `mix ash_agent.gaps` turns the aggregate into a worklist of aliases and doc fixes. Treat recurring agent confusion as a defect in your declarations or docs, not in the agent.
+
+<div class="rounded-xl p-4 my-4" style="background-color: #fdf6ec; border-left: 4px solid #c2410c; color: #7c2d12;">
+  <p><i class="ri-fire-fill"></i> <strong>Soot was here.</strong> A tool that misses is the system asking for better words. Writing them down is the whole loop.</p>
+</div>
+
+## The rule for the rest of the tutorial
+
+> **Ask the declaration, then the running system, then the code.**
+
+In every lesson that follows, when something surprises you, describe it, validate it, dry-run it, read its events, and only then open the source.
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="13_remote_resources.livemd">Remote APIs as Resources</a>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Home</a>
+</div>
+<div class="flex">
+<a class="flex mr-2" style="color: #61758a;" href="15_events.livemd">Events</a>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>
+

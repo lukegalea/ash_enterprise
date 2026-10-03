@@ -1,0 +1,292 @@
+<!--
+SPDX-FileCopyrightText: 2026 Luke Galea
+SPDX-FileCopyrightText: 2023 ash_tutorial contributors <https://github.com/ash-project/ash_tutorial/graphs/contributors>
+
+SPDX-License-Identifier: MIT
+-->
+
+# Ash Enterprise: 21 - Processes
+
+Runtime: **attached node**. Designer at `/bpmn` in the running app.
+
+Effort: **heavy** — the longest lesson: four files, one diagram, one process. *You'll feel the whole journey become one drawable picture.*
+
+## The graph orchestrates
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="20_approvals.livemd">Approvals</a>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Home</a>
+</div>
+<div class="flex">
+<a class="flex mr-2" style="color: #61758a;" href="22_judgments.livemd">Judgments</a>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>
+
+
+<!-- livebook:{"break_markdown":true} -->
+
+*You are here: one gate and one decision (19, 20); now the whole journey becomes one picture.*
+
+The refund outgrew its gate. Priya's 300 refund needs one team lead's eyes; a 2,400 refund needs finance **and** risk looking at it at the same time — the approver depends on amount and tier (lesson 19's decision) — and once it is approved, the billing API (lesson 13) owes a credit. You could hold all of that in your head, the way the 2011 app holds a whole lifecycle in two booleans. The desk is bigger than one head now.
+
+So: a process. Drawn as a picture, versioned like an artifact, executed by the platform.
+
+> **The process graph orchestrates. It never decides, never validates, and never authorizes.** It is the conductor, not the judge: every node hands the real decision to a seam where Ash lives.
+
+<div class="rounded-xl p-4 my-4" style="background-color: #fdf6ec; border-left: 4px solid #c2410c; color: #7c2d12;">
+  <p><i class="ri-fire-fill"></i> <strong>Soot was here.</strong> The 2011 app would have needed this once, and had nowhere to put it. A new way of working is a new version, published — never the old one, edited.</p>
+</div>
+
+Every node resolves to a **host seam**, and the seams are where Ash lives:
+
+| Node | Seam | In ash_enterprise |
+|---|---|---|
+| `serviceTask` / `sendTask` | `AshBpmn.ActionInvoker` | `AshEnterprise.Process.ActionInvoker` runs **Ash actions** |
+| `businessRuleTask` | `AshBpmn.DecisionResolver` | `AshEnterprise.Process.DecisionResolver` asks **DMN** |
+| `userTask` | `AssignmentResolver` | `AshEnterprise.Process.AssignmentResolver` builds candidate rows |
+
+## The artifact rules
+
+* **BPMN XML is the single artifact.** No code DSL, no generated XML, no second copy.
+* **Definitions are immutable and versioned.** Instances **pin their definition for life**. A new topology is a new version (or a new key).
+* **Tokens carry routing, not business data.** Everything else is read from the subject through Ash at execution time.
+* **Conditions are FEEL** (`=` not `==`), validated at publish, stored as source text.
+* **A gateway never calls a decision.** The composition is: business rule task → promote a scalar signal → gateway reads `routing.<name>`.
+
+## Setup: the billing action moves into the app
+
+Lesson 13's billing domain only ever existed inside that notebook's `Mix.install`. The process is about to invoke it for real, so give it a home — four files under `lib/ash_enterprise/tutorial/billing/`, one module per file the way the rest of `lib/` is laid out, with the `:idempotency_key` argument lesson 13 told you to add:
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+# lib/ash_enterprise/tutorial/billing/client.ex — the only module that knows the wire
+defmodule Tutorial.Billing.Client do
+  def req, do: Req.new(base_url: "https://jsonplaceholder.typicode.com", retry: :transient)
+end
+```
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+# lib/ash_enterprise/tutorial/billing/account/read.ex — the manual read
+defmodule Tutorial.Billing.Account.Read do
+  use Ash.Resource.ManualRead
+
+  def read(query, _data_layer_query, _opts, _context) do
+    path =
+      case query.arguments do
+        %{id: id} when not is_nil(id) -> "/users/#{id}"
+        _ -> "/users"
+      end
+
+    case Req.get(Tutorial.Billing.Client.req(), url: path) do
+      {:ok, %{status: 200, body: body}} -> {:ok, body |> List.wrap() |> Enum.map(&to_record/1)}
+      {:ok, %{status: 404}} -> {:ok, []}
+      {:ok, %{status: s}} -> {:error, "billing API returned #{s}"}
+      {:error, e} -> {:error, e}
+    end
+  end
+
+  defp to_record(m),
+    do: struct(Tutorial.Billing.Account, id: m["id"], name: m["name"], email: m["email"], company: m["company"]["name"])
+end
+```
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+# lib/ash_enterprise/tutorial/billing/account.ex — the resource
+defmodule Tutorial.Billing.Account do
+  use Ash.Resource, domain: Tutorial.Billing, data_layer: Ash.DataLayer.Simple
+
+  attributes do
+    integer_primary_key :id
+    attribute :name, :string, public?: true
+    attribute :email, :ci_string, public?: true
+    attribute :company, :string, public?: true
+  end
+
+  actions do
+    read :read do
+      primary? true
+      argument :id, :integer
+      manual Tutorial.Billing.Account.Read
+    end
+
+    # The remote write: a verb, not a row. The idempotency key rides in a
+    # header, so an Oban redelivery cannot credit the same refund twice.
+    action :issue_credit, :map do
+      argument :account_id, :integer, allow_nil?: false
+      argument :amount, :decimal, allow_nil?: false, constraints: [greater_than: 0]
+      argument :idempotency_key, :string
+
+      run fn input, _ctx ->
+        body = %{userId: input.arguments.account_id, amount: Decimal.to_string(input.arguments.amount)}
+        headers =
+          if input.arguments.idempotency_key,
+            do: [{"idempotency-key", input.arguments.idempotency_key}],
+            else: []
+
+        case Req.post(Tutorial.Billing.Client.req(), url: "/posts", json: body, headers: headers) do
+          {:ok, %{status: 201, body: b}} -> {:ok, b}
+          {:ok, %{status: s}} -> {:error, "billing API returned #{s}"}
+          {:error, e} -> {:error, e}
+        end
+      end
+    end
+  end
+end
+```
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+# lib/ash_enterprise/tutorial/billing.ex — the domain
+defmodule Tutorial.Billing do
+  use Ash.Domain
+
+  resources do
+    resource Tutorial.Billing.Account do
+      define :list_accounts, action: :read
+      define :get_account, action: :read, args: [:id], get?: true
+      define :issue_credit, args: [:account_id, :amount, :idempotency_key]
+    end
+  end
+end
+```
+
+No table, no migration: `Ash.DataLayer.Simple` stores nothing, which is the point — this models somebody else's API (lesson 13). Save the files and **restart the app node** — these are Ash DSL files, and `recompile()` does not reload DSL changes reliably (see the overview). Then register the ref in the invoker's allowlist, the way lesson 20 registered `approve` and `reject`:
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+# lib/ash_enterprise/process/action_invoker.ex
+
+# Inside @registry, beside the existing entries:
+"issue_credit" => %{
+  run: &__MODULE__.issue_credit_action/1,
+  action: {Tutorial.Billing.Account, :issue_credit}
+}
+
+# ...and the function, beside approve_refund_action/1 from lesson 20:
+@doc """
+Issues the credit the approved refund owes, idempotently.
+
+The node's declared `ash:inputs` arrive as a string-keyed map; the idempotency
+key falls back to the subject's id, so a diagram that omits the input still
+cannot double-credit under Oban redelivery.
+"""
+def issue_credit_action(ctx) do
+  inputs = if is_map(ctx[:inputs]), do: ctx[:inputs], else: %{}
+
+  Tutorial.Billing.issue_credit!(
+    inputs["account_id"],
+    Decimal.new(to_string(inputs["amount"])),
+    inputs["idempotency_key"] || ctx[:subject].id
+  )
+
+  :ok
+rescue
+  e -> {:error, Exception.message(e)}
+end
+```
+
+`recompile()` again — this edit is plain Elixir (the registry and its functions), so recompiling is enough; only DSL files need the restart. Until a ref is in that registry it cannot be drawn, published or run — that is the allowlist doing its job.
+
+## Design it
+
+> **No browser? You are not blocked — twice over.** The designer below is browser-only, but BPMN XML is the single artifact. The repo ships the non-UI publishing path the deploys use: write your diagram to `priv/bpmn/<key>.bpmn` and run `mix ash_enterprise.bpmn.publish`. The filename becomes the definition key (the **last** underscore turns into a dot: `refund_flow.bpmn` publishes as `refund.flow`; a plain `refund.bpmn` publishes as `refund`), content is deduplicated per key+hash (though each publish run still mints a new **version** — the count grows), and publish-time verification refuses diagrams referencing unregistered refs. **But the task publishes into the *platform* organization**, and `start_instance` resolves definitions within the *caller's* tenant — a platform-org baseline is invisible to the notebook flow below. So publish again in your own tenant, exactly like lesson 19's decision: read the XML back and drive `AshEnterprise.Bpmn.Definition` — `for_create(:create, %{key: "refund", name: "Refund", xml: xml})` then `publish!`, both with `actor: maker, tenant: tenant` (find the published one first and skip if it exists). The designer's value is the palette and the validation; it is not the only door.
+
+In the designer, model `refund`:
+
+1. Start → **businessRuleTask** `Who approves?`, decision `refund_approver`, `ash:inputs` `amount = subject.amount`, `tier = subject.customer_tier`, `ash:promote` `approver`.
+2. Exclusive gateway on `routing.approver`: `"none"` → step 4; otherwise → step 3.
+3. **userTask** `Approve refund`, candidates from `routing.approver`, excluding `subject.created_by_id`. For `subject.amount > 2000`, a parallel gateway adds a second userTask for `risk`, joined after.
+4. **serviceTask** `Issue credit`, action ref `issue_credit` (registered above), `ash:inputs` `account_id = 3` (the JSONPlaceholder account from lesson 13), `amount = subject.amount`, `idempotency_key = subject.id`.
+5. **serviceTask** `Mark approved`, action ref `approve` — lesson 20's ref, which runs `Refund.approve` as the process system actor → End. This ref exists only if you did lesson 20's registry edits; skip them and the catalogue will not offer `approve` and publish-time verification will refuse the diagram.
+
+The action and decision fields are comboboxes fed by the host's catalogue (`AshEnterprise.Process.DesignerCatalogue`). The catalogue is the allowlist for authoring; at publish, `exists?/1` on the invoker and resolver verifies every reference, so a diagram cannot ship against an action or decision that does not exist.
+
+Publish it.
+
+## Start and follow an instance
+
+Start an instance for a refund and follow its token with your agent.
+
+**Enter your solution**
+
+```elixir
+
+```
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
+  <div class="p-4">
+
+  ```elixir
+  {:ok, instance} =
+    AshBpmn.start_instance(AshEnterprise.Bpmn,
+      process: "refund", subject: refund, actor: actor, tenant: tenant)
+
+  report = AshAgentTools.process_instance(definition_key: "refund", tenant: tenant)
+  instance_report = List.first(report.instances)
+
+  %{count: report.count, status: instance_report["status"], open_tasks: length(instance_report["open_tasks"])}
+  ```
+
+  The option is `process:` — `key:` is silently rejected (`start_instance` wants one of `:process`, `:definition` or `:definition_id`, and `:definition` expects the definition struct, not a key). `mix ash_agent.instance --key refund` shows the same read-only state from the shell, and `mix ash_agent.graph refund --version 1` shows the published graph with digests. Pass `:tenant` explicitly; background jobs carry it.
+
+  </div>
+</details>
+
+**Checkpoint.** One instance, running, its user task drawing candidates from the decision minus the maker — and the token is visible to your agent without reading a line of engine code.
+
+When you are finished with the whole tutorial, the overview's **When you're done** recipe removes the tutorial billing files and reverts the invoker registry edit along with everything else.
+
+## Idempotency
+
+Node execution may run twice under Oban redelivery. The token claim gate makes double-advance safe, but the **action** must tolerate a second call. That is why `issue_credit` takes `idempotency_key`, and why `:approve` validates `status == :proposed`: the second call fails cleanly instead of crediting twice.
+
+## Events trigger processes
+
+Starting instances by hand is for the notebook. In the app, processes start from events (ADR 0030), on the same projection checkpoints as lesson 16 (ADR 0036): an event in the consumable log starts an instance, exactly once, replayably.
+
+<div class="rounded-xl p-4 my-4" style="background-color: #fdf6ec; border-left: 4px solid #c2410c; color: #7c2d12;">
+  <p><i class="ri-fire-fill"></i> <strong>Soot was here.</strong> Exactly once, replayably — the two promises are one promise. The log does not count deliveries; it records what happened.</p>
+</div>
+
+## Exercise: where does the rule go?
+
+The business says "refunds on closed tickets must never be approved". Where do you put it?
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
+  <div class="p-4">
+
+  A validation on `Refund.approve` (or a policy, if it is about who may act). Not a gateway condition, not the invoker, not the decision. A rule in the graph is enforced for refunds that go through this process and bypassed by every other caller: the API, an agent, a future process version.
+
+  </div>
+</details>
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="20_approvals.livemd">Approvals</a>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Home</a>
+</div>
+<div class="flex">
+<a class="flex mr-2" style="color: #61758a;" href="22_judgments.livemd">Judgments</a>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>
+

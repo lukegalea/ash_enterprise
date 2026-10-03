@@ -1,0 +1,276 @@
+<!--
+SPDX-FileCopyrightText: 2026 Luke Galea
+SPDX-FileCopyrightText: 2023 ash_tutorial contributors <https://github.com/ash-project/ash_tutorial/graphs/contributors>
+
+SPDX-License-Identifier: MIT
+-->
+
+# Ash Enterprise: 9 - Calculations
+
+Effort: **medium** — derived values, two flavors. *You'll feel data be computed where it is asked for.*
+
+```elixir
+Application.put_env(:ash, :validate_domain_resource_inclusion?, false)
+Application.put_env(:ash, :validate_domain_config_inclusion?, false)
+Application.put_env(:ash, :default_string_length_count, :codepoints)
+Mix.install([{:ash, "~> 3.0"}], consolidate_protocols: false)
+```
+
+## Where we are
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="08_aggregates.livemd">Aggregates</a>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Home</a>
+</div>
+<div class="flex">
+<a class="flex mr-2" style="color: #61758a;" href="10_liveview_reads.livemd">LiveView: Reading Resources</a>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>
+
+<!-- livebook:{"break_markdown":true} -->
+
+Upstream's version of this lesson wandered off to a throwaway `Tutorial.Accounts.User` with a `full_name` calculation. In this fork the desk you have been building keeps the lesson: you will add derived values to the very `Ticket` and `Representative` resources from lessons 4 to 8, because lesson 10 opens a LiveView on exactly these resources. Nothing new is introduced — only calculated.
+
+## Calculations
+
+[Calculations](https://hexdocs.pm/ash/calculations.html) in Ash allow for displaying complex values as a top level value of a resource.
+
+There are two ways to define one:
+
+* **An `expr/1` calculation** — one expression over attributes, aggregates and other calculations. Ash understands the expression, so it can filter and sort on it, and push it down to the data layer when one is in use.
+* **A module calculation** — a module implementing `Ash.Resource.Calculation` (`load/3` to declare what it needs, `calculate/3` to compute in Elixir) for anything an expression cannot say.
+
+Both are declared in a `calculations do ... end` block, loaded with `Ash.load!/2` or the `load:` option, and usable like attributes everywhere else. Exercise 1 below is your first "1" in the 0 / 1 / N sense (lesson 0): date arithmetic beyond the expression catalog, which is exactly what the module form exists for. Exercise 2 stays a single `expr`.
+
+### Exercise 1: how long has that ticket been sitting there?
+
+Every ticket carries a `created_at` timestamp since lesson 4. Derive from it: add a `calculations do ... end` block to `Tutorial.Support.Ticket` with
+
+`calculate :age_in_days, :integer, {Tutorial.Support.Calculations.AgeInDays, []}`
+
+and write the `Tutorial.Support.Calculations.AgeInDays` module next to the resource: `use Ash.Resource.Calculation`, `load/3` declaring that it needs `[:created_at]`, and `calculate/3` returning one age per record — `DateTime.diff(DateTime.utc_now(), t.created_at) |> div(86_400)`. Whole days between then and now is date arithmetic, and the expression catalog has no `date_diff` on current Ash — this is precisely the "when an expression is not enough" door the intro pointed at.
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
+  <div class="p-4">
+
+  ```elixir
+  defmodule Tutorial.Support.Calculations.AgeInDays do
+    use Ash.Resource.Calculation
+
+    @impl true
+    def load(_query, _opts, _ctx), do: [:created_at]
+
+    @impl true
+    def calculate(records, _opts, _ctx) do
+      Enum.map(records, fn t ->
+        DateTime.diff(DateTime.utc_now(), t.created_at) |> div(86_400)
+      end)
+    end
+  end
+  ```
+
+  and on the Ticket:
+
+  ```elixir
+  calculations do
+    calculate :age_in_days, :integer, {Tutorial.Support.Calculations.AgeInDays, []}
+  end
+  ```
+
+  The `{Module, opts}` tuple is the tell: an `expr` calculation declares a formula, a module calculation declares a *program* — with `load/3` saying which attributes it reads.
+
+  </div>
+</details>
+
+### Exercise 2: who is overloaded?
+
+Lesson 8 gave every representative a `count_of_open_tickets` aggregate. A number nobody can act on is just trivia; a named judgment is part of the model. Add a calculation to `Tutorial.Support.Representative` that reads like the business:
+
+`calculate :overloaded?, :boolean, expr(count_of_open_tickets > 3)`
+
+Note that a calculation can reference an aggregate — Ash loads what the expression needs.
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
+  <div class="p-4">
+
+  ```elixir
+  calculations do
+    calculate :overloaded?, :boolean, expr(count_of_open_tickets > 3)
+  end
+  ```
+
+  </div>
+</details>
+
+### Enter your solution
+
+```elixir
+defmodule Tutorial.Support.Ticket do
+  use Ash.Resource,
+    domain: Tutorial.Support,
+    data_layer: Ash.DataLayer.Ets
+
+  actions do
+    defaults [:read]
+
+    # On creation set the representative by providing the id
+    create :open do
+      accept [:subject, :description, :representative_id]
+    end
+
+    update :close do
+      accept []
+      change set_attribute(:status, :closed)
+    end
+
+    update :assign do
+      accept [:representative_id]
+    end
+  end
+
+  attributes do
+    uuid_primary_key(:id)
+    attribute :subject, :string, allow_nil?: false
+    attribute :description, :string, allow_nil?: true
+
+    attribute :status, :atom do
+      constraints one_of: [:open, :closed]
+      default :open
+      allow_nil? false
+    end
+
+    create_timestamp :created_at
+    update_timestamp :updated_at
+  end
+
+  relationships do
+    belongs_to :representative, Tutorial.Support.Representative
+  end
+
+  code_interface do
+    define :assign, args: [:representative_id]
+    define :open, args: [:subject, :description, :representative_id]
+    define :close, args: []
+  end
+
+  # <--- Add the calculations here
+end
+
+defmodule Tutorial.Support.Representative do
+  use Ash.Resource,
+    domain: Tutorial.Support,
+    data_layer: Ash.DataLayer.Ets
+
+  actions do
+    defaults [:read]
+
+    create :create do
+      accept [:name]
+    end
+  end
+
+  attributes do
+    uuid_primary_key :id
+    attribute :name, :string
+  end
+
+  relationships do
+    has_many :tickets, Tutorial.Support.Ticket
+  end
+
+  code_interface do
+    define :create, args: [:name]
+  end
+
+  aggregates do
+    count :count_of_open_tickets, :tickets do
+      filter expr(status == :open)
+    end
+  end
+
+  # <--- Add the calculations here
+end
+```
+
+```elixir
+defmodule Tutorial.Support do
+  use Ash.Domain
+
+  resources do
+    resource Tutorial.Support.Ticket
+    resource Tutorial.Support.Representative
+  end
+end
+```
+
+## See the calculations work
+
+Open a ticket and load its age in days. It was created moments ago, so it should be __0__.
+
+```elixir
+ticket =
+  Tutorial.Support.Ticket
+  |> Ash.Changeset.for_create(:open, %{subject: "My spoon is too big!"})
+  |> Ash.create!()
+  |> Ash.load!([:age_in_days])
+
+ticket.age_in_days
+```
+
+Now the representative. Give Joe three open tickets — not enough to be overloaded:
+
+```elixir
+joe = Tutorial.Support.Representative.create!("Joe Armstrong")
+
+[
+  %{subject: "I can't see my eyes!", representative_id: joe.id},
+  %{subject: "I can't find my hand!", representative_id: joe.id},
+  %{subject: "My fridge is flying away!", representative_id: joe.id}
+]
+|> Ash.bulk_create(Tutorial.Support.Ticket, :open, return_records?: true)
+
+joe = Ash.load!(joe, [:count_of_open_tickets, :overloaded?])
+joe.count_of_open_tickets
+joe.overloaded?
+```
+
+The result should be __false__: three open tickets, and the bar sits at *more than* three. Add a fourth and check again:
+
+```elixir
+Tutorial.Support.Ticket.open!("My bed is invisible!", nil, joe.id)
+
+joe = Ash.load!(joe, [:count_of_open_tickets, :overloaded?])
+joe.count_of_open_tickets
+joe.overloaded?
+```
+
+The result should be __true__. Nothing recompiled, nothing was stored: the value is derived, every time, from the description.
+
+Note the two forms you just used side by side: `overloaded?` is one expression over an aggregate, so `expr` carries it and Ash can reason about it (filter, sort, push down). `age_in_days` needed plain Elixir, so it is a module — and the price is that Ash treats it as opaque beyond what `load/3` declares. When a calculation starts needing arguments or anything the catalog cannot say, that is the trade you are choosing. More on both inside the [documentation](https://hexdocs.pm/ash/calculations.html).
+
+That completes the desk. You now hold `Tutorial.Support.Ticket` and `Tutorial.Support.Representative` with actions, relationships, aggregates and calculations — the exact domain the next lesson renders as a LiveView.
+
+<!-- livebook:{"break_markdown":true} -->
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="08_aggregates.livemd">Aggregates</a>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Home</a>
+</div>
+<div class="flex">
+<a class="flex mr-2" style="color: #61758a;" href="10_liveview_reads.livemd">LiveView: Reading Resources</a>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>

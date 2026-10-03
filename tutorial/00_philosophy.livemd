@@ -1,0 +1,245 @@
+<!--
+SPDX-FileCopyrightText: 2026 Luke Galea
+SPDX-FileCopyrightText: 2023 ash_tutorial contributors <https://github.com/ash-project/ash_tutorial/graphs/contributors>
+
+SPDX-License-Identifier: MIT
+-->
+
+# Ash Enterprise: 0 - Philosophy
+
+Effort: **light** — reading and two exercises, no code you keep. *You'll leave with a rule for where human judgment lives in the stack.*
+
+```elixir
+Application.put_env(:ash, :validate_domain_resource_inclusion?, false)
+Application.put_env(:ash, :validate_domain_config_inclusion?, false)
+Application.put_env(:ash, :default_string_length_count, :codepoints)
+Mix.install([{:ash, "~> 3.0"}], consolidate_protocols: false)
+```
+
+## Before any code
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<span class="ml-2"></span>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Home</a>
+</div>
+<div class="flex">
+<a class="flex mr-2" style="color: #61758a;" href="overview.livemd">Overview</a>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>
+
+
+<!-- livebook:{"break_markdown":true} -->
+
+Every other lesson teaches a package. This one teaches the reason for the packages: **how a human and an AI should split the work of building software, and why Ash is the right place to draw the line.** It is short, it has exercises, and the last exercise is the most important one in the tutorial.
+
+One orientation note before you start: lessons 1 to 9 of this series are forks of [the upstream Ash tutorial](https://github.com/ash-project/ash_tutorial)'s lessons 1 to 9 (MIT, attribution in each file), retargeted so the support desk carries straight through — they live in *this* repo, and the upstream keeps evolving on its own. The chapter you are reading is lesson 0 of the enterprise series.
+
+## The moving line
+
+Since the first assembler, every program has had two audiences: the human who reads it and the machine that runs it. The history of our field is a line moving between them.
+
+| Era | The human reads and writes | The machine's part (nobody reads it) |
+|---|---|---|
+| Assembler | mnemonics | machine code |
+| Linker, loader | modules | addresses, relocations |
+| Compiler | C | assembly |
+| VM, JIT | Erlang, Java | bytecode, native code |
+| ORM, framework | models, routes | SQL, wiring |
+
+Each time the line moved, it moved for the same reason: the artifact below it became **trustworthy enough to stop reading**. Nobody reviews the BEAM file `mix compile` produced. Nobody was reckless for not doing so. The compiler earned that trust with determinism and a test suite larger than any of us will write.
+
+## The strange part about today
+
+AI now writes a large share of our code. Notice which code: HTML, JavaScript, Elixir, SQL. Those are not machine artifacts. They are artifacts **for both audiences**, written in languages designed for humans to read. So we have built a generator whose output we still feel obliged to read line by line, which is the opposite of what every previous step did.
+
+There are two ways out:
+
+1. **Read everything the AI writes.** The human becomes the bottleneck and a tired reviewer of code they did not author. That does not scale and it is not fun.
+2. **Raise the level the human reads at**, and make what is below it trustworthy enough to skim or skip.
+
+Ash is the second option. A resource is a **digital twin** of something real: a refund, a ticket, a billing account, a legacy table. It is written in high-level concepts (attributes, actions, policies, relationships, calculations), and from that description Ash *derives* the queries, changesets, APIs, forms, events and UIs. The description is for the human. The derivation is for the machine, and it is deterministic, tested framework code, not fresh AI output.
+
+## The engineer is the bridge
+
+In this split the engineer's job changes. You are less a typist and more the **bridge between the real world and a rich model of it**:
+
+* **You** know what a refund *is*, who may approve one, what "unknown tier" should mean, and which rule is a decision versus a validation.
+* **The resource metadata** carries that knowledge in a form every tool can read: Ash itself, `ash_agent_tools`, A2UI renderers, process designers, compliance compilers.
+* **The AI** is very good at filling in the declared shape, and much better at it when the shape is declared, because it can ask the system (lesson 14) instead of guessing.
+
+The measure of success is simple:
+
+> **Minimize the code a human reviewer has to read to trust the change.**
+
+A good change touches a few DSL lines that read like the business. A bad change is three hundred lines of plausible Elixir that only a careful reading can clear.
+
+## Exercise: who reads it?
+
+For each artifact, decide who must read it for you to trust the system: **human**, **machine**, or **both, for now**.
+
+```elixir
+artifacts = [
+  "the :approve action with its validations",
+  "the SQL Ash generates for a filtered read",
+  "the policies block on Refund",
+  "a 200-line hand-written LiveView",
+  "the BPMN XML for the refund process",
+  "the INSTEAD OF trigger ash_strangler generated",
+  "an AI-written change module with an HTTP call",
+  "the migration ash.codegen produced"
+]
+```
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
+  <div class="p-4">
+
+  * `:approve` action, policies, BPMN diagram: **human**. They are the model; they are short; they read like the business. (The diagram is read as a picture, not as XML.)
+  * Generated SQL, generated trigger: **machine**. Derived from a declaration by tested code, and checked at compile time. Read it when debugging, not when reviewing.
+  * The migration: **machine, glanced at by a human**. It is derived, but it touches data irreversibly, so a quick look is cheap insurance.
+  * The hand-written LiveView and the HTTP change module: **both, for now**. Nothing derived them, so the only trust they have is your reading. That is the cost the next section is about lowering.
+
+  </div>
+</details>
+
+## Zero, one, many
+
+The model will not always fit. You will go to express a requirement and find the platform has no elegant way to say it. `ash_enterprise` follows the **0 / 1 / N** rule for that moment:
+
+* **0:** the platform already says it. Use the DSL. Done.
+* **1:** the first time the platform cannot say it, an inelegant expression is fine. A custom `change`, an anonymous `validate fn`, a manual action. Ship it, leave a one-line comment naming the missing concept.
+* **N:** the moment it is **about to repeat**, stop. Do not write the second copy. Drop down a layer or two and extend the foundation so the next use is back at **0**:
+  * a reusable `Ash.Resource.Change` / `Validation` / `Preparation` module with options;
+  * a builtin on the base resource (`AshEnterprise.Platform.Resource`) so every resource inherits it;
+  * a Spark DSL extension, transformer or verifier, so it is declared and checked at compile time;
+  * or, if it belongs below us, a package change upstream (`ash_*`) or a flag raised in its usage rules or an ADR.
+
+Each step down costs more once and makes every future use cheaper to write **and to review**. That is the trade: you read a foundation once, carefully; after that you read one declarative line per use.
+
+## Exercise: climb from 1 to 0
+
+Here is a "1": ticket subjects must not shout. It is inelegant but fine, the first time.
+
+```elixir
+defmodule Tutorial.Support.Ticket do
+  use Ash.Resource, domain: Tutorial.Support, data_layer: Ash.DataLayer.Ets
+
+  attributes do
+    uuid_primary_key :id
+    attribute :subject, :string, allow_nil?: false, public?: true
+  end
+
+  actions do
+    defaults [:read]
+
+    create :open do
+      accept [:subject]
+
+      # 1: no "no shouting" concept yet
+      validate fn changeset, _ctx ->
+        s = Ash.Changeset.get_attribute(changeset, :subject) || ""
+        if s == String.upcase(s) and String.length(s) > 3,
+          do: {:error, field: :subject, message: "please don't shout"},
+          else: :ok
+      end
+    end
+  end
+end
+
+defmodule Tutorial.Support do
+  use Ash.Domain
+  resources do
+    resource Tutorial.Support.Ticket
+  end
+end
+
+Tutorial.Support.Ticket |> Ash.Changeset.for_create(:open, %{subject: "PRINTER ON FIRE"}) |> Ash.create()
+```
+
+Now product wants the same rule on `Comment.body` and `Refund.reason`. That is N. Write a reusable validation `Tutorial.Validations.NoShouting` taking an `attribute:` option, and use it on `:open` as one declarative line.
+
+**Enter your solution**
+
+```elixir
+
+```
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
+  <div class="p-4">
+
+  ```elixir
+  defmodule Tutorial.Validations.NoShouting do
+    use Ash.Resource.Validation
+
+    @impl true
+    def init(opts) do
+      if is_atom(opts[:attribute]), do: {:ok, opts}, else: {:error, "attribute is required"}
+    end
+
+    @impl true
+    def validate(changeset, opts, _ctx) do
+      s = Ash.Changeset.get_attribute(changeset, opts[:attribute]) || ""
+
+      if s == String.upcase(s) and String.length(s) > 3,
+        do: {:error, field: opts[:attribute], message: "please don't shout"},
+        else: :ok
+    end
+  end
+  ```
+
+  and in the action:
+
+  ```elixir
+  validate {Tutorial.Validations.NoShouting, attribute: :subject}
+  ```
+
+  The reviewer of the next three resources reads one line each. They read the module once. If it spreads to every text field, go one layer further: declare it on the base resource, or make it an attribute constraint via a custom type, and it becomes inherited.
+
+  </div>
+</details>
+
+## When to raise a flag instead
+
+Not every gap should be filled by you, in this repo, today. Raise it deeper when:
+
+* the missing concept belongs to a package (`ash_bpmn` cannot express a pattern you need twice): open an issue or ADR there, and keep your "1" with a link to it;
+* the fix would let a layer do another layer's job (a gateway that validates, a decision that acts): that is not a missing feature, it is the design saying no;
+* an agent keeps getting the same thing wrong: that is a documentation gap. Fix the usage rules or let `mix ash_agent.gaps` (lesson 14) show you the miss.
+
+## How humans and AI work best, in one list
+
+* **The human models.** Names, boundaries, which layer owns which rule, what absence means.
+* **The AI fills in declared shapes**, asking the system before writing (describe, validate, dry-run).
+* **The platform derives** everything mechanical, deterministically.
+* **Review reads the model, not the derivation.** Keep diffs small and declarative.
+* **Inelegance is a signal.** Once is fine; the second time, lower the foundation so it goes back to zero.
+* **Make it fun.** The goal is to spend your attention on the interesting part: understanding the real world well enough to describe it. Leave the rest to the machine you can trust.
+
+<div class="rounded-xl p-4 my-4" style="background-color: #fdf6ec; border-left: 4px solid #c2410c; color: #7c2d12;">
+  <p><i class="ri-fire-fill"></i> <strong>Soot was here.</strong> "Make it fun" sits on the list next to "the human models" on purpose: the interesting part is the real world, and the rest is derivation. Everything after this lesson is that licence, cashed.</p>
+</div>
+
+The rest of the tutorial is the platform that makes this possible, one layer at a time. Start with [the Ash tutorial](https://github.com/ash-project/ash_tutorial) if you have not, then continue to the [Overview](overview.livemd).
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<span class="ml-2"></span>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Home</a>
+</div>
+<div class="flex">
+<a class="flex mr-2" style="color: #61758a;" href="overview.livemd">Overview</a>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>
+

@@ -1,0 +1,159 @@
+<!--
+SPDX-FileCopyrightText: 2026 Luke Galea
+SPDX-FileCopyrightText: 2023 ash_tutorial contributors <https://github.com/ash-project/ash_tutorial/graphs/contributors>
+
+SPDX-License-Identifier: MIT
+-->
+
+# Ash Enterprise: 23 - A2UI
+
+Runtime: **attached node**.
+
+Effort: **medium** — one surface module, one route, one render. *You'll feel lessons 10 to 12 come back as data.*
+
+## UI derived from the resource
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="22_judgments.livemd">Judgments</a>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Home</a>
+</div>
+<div class="flex">
+<a class="flex mr-2" style="color: #61758a;" href="24_strangler.livemd">Strangler</a>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>
+
+
+<!-- livebook:{"break_markdown":true} -->
+
+*You are here: the machinery is done (15-22); the last three lessons are what people see, and what gets retired.*
+
+In lessons 10 to 12 you hand-built a LiveView: streams, forms, PubSub, actor from the socket. Every piece of it was derivable from what the resource already knew: attributes, types, actions, policies, notifications. `ash_a2ui` derives it.
+
+It emits [A2UI](https://github.com/a2ui-project/a2ui) protocol messages (v0.9.1 default, v1.0 opt-in per surface) that any A2UI renderer turns into UI: a browser via the shipped LiveView hook, an agent canvas, a chat surface. Client interactions come back as `action` envelopes routed into **your Ash actions**, with the actor and policies applied. That is lessons 10 to 12, as data.
+
+<div class="rounded-xl p-4 my-4" style="background-color: #fdf6ec; border-left: 4px solid #c2410c; color: #7c2d12;">
+  <p><i class="ri-fire-fill"></i> <strong>Soot was here.</strong> The desk has drawn itself. I watched three lessons of hand-built LiveView become a declaration, and the declaration is shorter.</p>
+</div>
+
+## Declare a surface
+
+Keep UI out of the shared domain resource with a standalone module:
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+# lib/ash_enterprise_web/a2ui/refund_ui.ex
+defmodule AshEnterpriseWeb.A2ui.RefundUI do
+  use AshA2ui.Standalone
+
+  a2ui do
+    for_resource AshEnterprise.Tutorial.Refund
+    surface_id "refunds"
+
+    component :table do
+      fields [:ticket_ref, :amount, :status, :created_on]
+      read_action :read
+      row_actions [:approve, :reject]
+    end
+
+    component :form do
+      fields [:ticket_ref, :amount, :reason]
+      create_action :propose
+    end
+
+    field :created_on do
+      label "Proposed"
+      format :date
+    end
+  end
+end
+```
+
+Reference a field or action that does not exist and it fails at compile time. Strictness matters more when you emit a wire protocol.
+
+## See the messages
+
+Build the surface for your actor and look at the stream before rendering anything:
+
+**Enter your solution**
+
+```elixir
+
+```
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
+  <div class="p-4">
+
+  ```elixir
+  AshA2ui.Info.build_surface(AshEnterpriseWeb.A2ui.RefundUI, actor: actor, tenant: tenant)
+  ```
+
+  `actor` and `tenant` are lesson 15's fabric (re-run that cell if this is a fresh Livebook session). Build it again as a user without access to `:approve` — lesson 20's checker with its grants removed, say — and the row action is absent. The UI did not decide that; the policy did. Hiding is UX; the policy still refuses the action if a client sends it anyway.
+
+  </div>
+</details>
+
+**Checkpoint.** The surface came back as protocol messages, no HTML written — and an actor without `:approve` would see fewer row actions, not an error.
+
+## Render it
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+# lib/ash_enterprise_web/a2ui/refund_a2ui_live.ex
+defmodule AshEnterpriseWeb.RefundA2uiLive do
+  use AshA2ui.LiveRenderer,
+    ui: AshEnterpriseWeb.A2ui.RefundUI,
+    actor_fn: & &1.assigns.current_user
+end
+```
+
+Route it — save it at `lib/ash_enterprise_web/a2ui/refund_a2ui_live.ex`, add the route inside the authenticated `live_session`, restart the node (router and DSL edits alike), and open it. Approve a refund from the notebook: the row updates live, because the renderer refreshes from `Ash.Notifier.PubSub` (lesson 12). Add `notifiers: [Ash.Notifier.PubSub]` and a `pub_sub` block to Refund if you have not — same rule, restart after saving.
+
+## Querying is an allowlist
+
+Clients may not send arbitrary sort or filter params. Declare a named query; the client references it by name, and anything else is rejected before Ash is called.
+
+Add a `query :default` with `search_fields [:ticket_ref, :reason]`.
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
+  <div class="p-4">
+
+  ```elixir
+  query :default do
+    search_fields [:ticket_ref, :reason]
+  end
+  ```
+
+  The full DSL (sorts, filters, pagination, layout, relationships) is in `ash_a2ui`'s `usage-rules/` sub-rules; sync them with `mix usage_rules.sync` and let your agent read `ash_a2ui:queries` on demand.
+
+  </div>
+</details>
+
+## Where A2UI stops
+
+`ash_admin` remains the operator back office; A2UI is the experience layer (ADR 0005). Things that are not CRUD-shaped keep their own pages: a BPMN diagram is bpmn-js, a task list is an indexed candidate query. The host declares which projections (`:diagram`, `:history`, ...) an object carries, from a vocabulary the library owns (ADR 0037).
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="22_judgments.livemd">Judgments</a>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Home</a>
+</div>
+<div class="flex">
+<a class="flex mr-2" style="color: #61758a;" href="24_strangler.livemd">Strangler</a>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>
+

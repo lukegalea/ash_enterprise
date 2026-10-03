@@ -1,0 +1,254 @@
+<!--
+SPDX-FileCopyrightText: 2026 Luke Galea
+SPDX-FileCopyrightText: 2023 ash_tutorial contributors <https://github.com/ash-project/ash_tutorial/graphs/contributors>
+
+SPDX-License-Identifier: MIT
+-->
+
+# Ash Enterprise: 12 - LiveView: Live Updates
+
+Effort: **light** — declarations and one subscription. *You'll feel the resource announce its own changes.*
+
+```elixir
+Application.put_env(:ash, :validate_domain_resource_inclusion?, false)
+Application.put_env(:ash, :validate_domain_config_inclusion?, false)
+Application.put_env(:ash, :default_string_length_count, :codepoints)
+
+Mix.install(
+  [
+    {:ash, "~> 3.0"},
+    {:ash_phoenix, "~> 2.0"},
+    {:phoenix_playground, "~> 0.1"},
+    # The domain carries a policies block (lesson 10), which needs a SAT solver.
+    {:simple_sat, "~> 0.1"}
+  ],
+  consolidate_protocols: false
+)
+```
+
+## Notifications are declared
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="11_liveview_forms.livemd">LiveView: Forms & Actions</a>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Home</a>
+</div>
+<div class="flex">
+<a class="flex mr-2" style="color: #61758a;" href="13_remote_resources.livemd">Remote APIs as Resources</a>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>
+
+
+<!-- livebook:{"break_markdown":true} -->
+
+*You are here: the desk reads and writes (10, 11); now it announces changes instead of waiting to be asked.*
+
+You never call `Phoenix.PubSub.broadcast` after a write. You declare on the resource which actions publish, on which topic, and Ash publishes after the transaction commits, for every caller. This is the same mechanism `ash_a2ui` (lesson 23) uses to refresh surfaces, and the one `ash_strangler` (lesson 24) bridges legacy writes into.
+
+```elixir
+Phoenix.PubSub.Supervisor.start_link(name: Tutorial.PubSub)
+
+defmodule Tutorial.Endpoint do
+  # Ash.Notifier.PubSub needs a module with broadcast/3; an endpoint has one.
+  def broadcast(topic, event, payload),
+    do: Phoenix.PubSub.broadcast(Tutorial.PubSub, topic, %{event: event, payload: payload})
+end
+```
+
+Here is the lesson 11 domain again, self-contained (its `string_length` validation included), with two additions: `notifiers: [Ash.Notifier.PubSub]` on the resource, and a `pub_sub` block that says *which* actions publish on *which* topics. Both are declarations — no broadcast call anywhere:
+
+```elixir
+defmodule Tutorial.Support.Ticket do
+  use Ash.Resource,
+    domain: Tutorial.Support,
+    data_layer: Ash.DataLayer.Ets,
+    authorizers: [Ash.Policy.Authorizer],
+    notifiers: [Ash.Notifier.PubSub]
+
+  attributes do
+    uuid_primary_key :id
+    attribute :subject, :string, allow_nil?: false, public?: true
+    attribute :status, :atom, constraints: [one_of: [:open, :closed]], default: :open, public?: true
+    attribute :owner_id, :uuid, public?: true
+    create_timestamp :inserted_at, public?: true
+  end
+
+  actions do
+    defaults [:read]
+
+    create :open do
+      accept [:subject, :owner_id]
+      validate string_length(:subject, min: 5)
+    end
+
+    update :close, change: set_attribute(:status, :closed)
+
+    read :open_tickets do
+      filter expr(status == :open)
+      pagination keyset?: true, default_limit: 20, required?: false
+    end
+  end
+
+  policies do
+    policy action_type(:read) do
+      authorize_if expr(owner_id == ^actor(:id))
+    end
+
+    policy action_type([:create, :update]) do
+      authorize_if actor_present()
+    end
+  end
+
+  pub_sub do
+    module Tutorial.Endpoint
+    prefix "tickets"
+    publish_all :create, ["created"]
+    publish_all :update, ["updated"]
+  end
+end
+
+defmodule Tutorial.Support do
+  use Ash.Domain
+
+  resources do
+    resource Tutorial.Support.Ticket do
+      define :open_ticket, action: :open, args: [:subject]
+      define :list_open, action: :open_tickets
+      define :close_ticket, action: :close
+    end
+  end
+end
+```
+
+(If you already edited lesson 11's cell to add these, that cell also works — but re-run *that* cell; defining the module twice is a compile error, see lesson 10.)
+
+## Subscribe in a test process first
+
+Subscribe the notebook to `"tickets:created"`, open a ticket, and `receive` the notification.
+
+**Enter your solution**
+
+```elixir
+
+```
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
+  <div class="p-4">
+
+  ```elixir
+  Phoenix.PubSub.subscribe(Tutorial.PubSub, "tickets:created")
+  actor = %{id: Ash.UUID.generate()}
+  Tutorial.Support.open_ticket!("Live!", %{owner_id: actor.id}, actor: actor)
+
+  receive do
+    %{event: "open", payload: %Ash.Notifier.Notification{data: t}} -> t.subject
+  after
+    1000 -> :nothing
+  end
+  ```
+
+  The notification's `event` is the action's **name** (`:open`), not its type (`create`) — `publish_all :create, [...]` selects actions *by type*, but the notification names the action that ran. Match `"open"`, or bind the variable and inspect it.
+
+  </div>
+</details>
+
+**Checkpoint.** The broadcast arrived with no broadcast call anywhere in the code — the declaration did it, after the transaction committed.
+
+**Look around.** The notification carried the action's *name*, not its type. Names are about to matter a great deal: lesson 15 records them, and lessons 16 and 21 route on them.
+
+## In a LiveView: `connected?/1` first
+
+Subscribe only when connected; otherwise the static render subscribes a process that is about to die. Re-read through the action when a notification arrives, rather than trusting the payload, so policies apply to the update too.
+
+```elixir
+alice = %{id: Ash.UUID.generate()}
+
+defmodule LiveTicketsLive do
+  use Phoenix.LiveView
+
+  # Baked in at compile time, in this process. The notebook's process
+  # dictionary is invisible to the LiveView process: mount/3 runs elsewhere,
+  # so Process.get(:demo_actor) there is always nil (and the read policy then
+  # 403s). A real app carries the actor in the session instead.
+  @demo_actor alice
+
+  def mount(_params, _session, socket) do
+    if connected?(socket), do: Phoenix.PubSub.subscribe(Tutorial.PubSub, "tickets:created")
+    {:ok, assign(socket, current_user: @demo_actor)}
+  end
+
+  def handle_params(_params, _uri, socket) do
+    tickets = Tutorial.Support.list_open!(actor: socket.assigns.current_user)
+    {:noreply, stream(socket, :tickets, tickets, reset: true)}
+  end
+
+  def handle_info(%{payload: %Ash.Notifier.Notification{data: %{id: id}}}, socket) do
+    case Ash.get(Tutorial.Support.Ticket, id, actor: socket.assigns.current_user) do
+      {:ok, t} -> {:noreply, stream_insert(socket, :tickets, t, at: 0)}
+      _not_visible -> {:noreply, socket}
+    end
+  end
+
+  def render(assigns) do
+    ~H"""
+    <ul id="tickets" phx-update="stream">
+      <li :for={{id, t} <- @streams.tickets} id={id}>{t.subject}</li>
+    </ul>
+    """
+  end
+end
+
+PhoenixPlayground.start(live: LiveTicketsLive, port: 4012, open_browser: false)
+```
+
+Open http://localhost:4012, then create tickets for Alice and for someone else from the notebook. Only Alice's appear.
+
+## Exercise
+
+Make closed tickets disappear live. Publish `:close` on `"tickets:closed"` and `stream_delete` on receipt.
+
+**Enter your solution**
+
+```elixir
+
+```
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
+  <div class="p-4">
+
+  Resource: `publish :close, ["closed"]`. LiveView: subscribe to `"tickets:closed"` too and
+
+  ```elixir
+  def handle_info(%{event: "close", payload: %{data: t}}, socket),
+    do: {:noreply, stream_delete(socket, :tickets, t)}
+  ```
+
+  (Put this clause above the general one.) Deleting needs no re-read: removing a row reveals nothing.
+
+  </div>
+</details>
+
+**Checkpoint.** A closed ticket disappears live — publish, subscribe, `stream_delete`, and no re-read needed.
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="11_liveview_forms.livemd">LiveView: Forms & Actions</a>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Home</a>
+</div>
+<div class="flex">
+<a class="flex mr-2" style="color: #61758a;" href="13_remote_resources.livemd">Remote APIs as Resources</a>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>
+

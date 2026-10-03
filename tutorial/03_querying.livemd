@@ -1,0 +1,285 @@
+<!--
+SPDX-FileCopyrightText: 2026 Luke Galea
+SPDX-FileCopyrightText: 2023 ash_tutorial contributors <https://github.com/ash-project/ash_tutorial/graphs/contributors>
+
+SPDX-License-Identifier: MIT
+-->
+
+# Ash Enterprise: 3 - Querying
+
+Effort: **medium** — many small steps, one loop. *You'll feel filters, sorts and reads become vocabulary instead of plumbing.*
+
+```elixir
+Application.put_env(:ash, :validate_domain_resource_inclusion?, false)
+Application.put_env(:ash, :validate_domain_config_inclusion?, false)
+Application.put_env(:ash, :default_string_length_count, :codepoints)
+Mix.install([{:ash, "~> 3.0"}], consolidate_protocols: false)
+```
+
+## Where we are
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="02_actions.livemd">Actions</a>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Home</a>
+</div>
+<div class="flex">
+<a class="flex mr-2" style="color: #61758a;" href="04_attributes.livemd">Attributes</a>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>
+
+<!-- livebook:{"break_markdown":true} -->
+
+Lesson 2 gave `Tutorial.Profile` a create action, but nothing has been stored yet. This lesson adds a data layer and walks the whole CRUD loop. It is the last lesson on `Profile` — from the next one on, you start building the support desk that carries the rest of the series.
+
+## But First, Data Persistence
+
+So far we have just created changesets, but we have not actually created any instances of a resource, also known as records.  Before we can play around with querying, we need to add a data layer.  It is much more common to use [Postgres](https://github.com/ash-project/ash_postgres) in production, but we will use [ETS data layer](https://hexdocs.pm/ash/dsl-ash-datalayer-ets.html#ets) for the remainder of this tutorial to keep dependencies to a minimum.
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+ use Ash.Resource,
+      domain: YourDomain,
+      data_layer: Ash.DataLayer.Ets
+```
+
+## In this tutorial you will do basic Query and CRUD operations
+
+But first you need to enable all basic **CRUD** operations.
+
+Do this by adding default `:read` and `:destroy` actions, as well as `:create` and `:update` actions that accept `[:name]`.
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
+  <div class="p-4">
+
+  ```elixir
+  defmodule Tutorial.Profile do
+    use Ash.Resource,
+      domain: Tutorial,
+      data_layer: Ash.DataLayer.Ets
+
+    actions do
+      defaults [:read, :destroy]
+
+      create :create do
+        accept [:name]
+      end
+
+      update :update do
+        accept [:name]
+      end
+    end
+
+    attributes do
+      uuid_primary_key :id
+      attribute :name, :string
+    end
+  end
+
+  defmodule Tutorial do
+    use Ash.Domain
+
+    resources do
+      resource Tutorial.Profile
+    end
+  end
+  ```
+
+  </div>
+</details>
+
+### Enter your solution
+
+```elixir
+defmodule Tutorial.Profile do
+  use Ash.Resource,
+    domain: Tutorial,
+    data_layer: Ash.DataLayer.Ets
+
+  actions do
+    # <--- Create your actions here
+  end
+
+  attributes do
+    uuid_primary_key :id
+    attribute :name, :string
+  end
+end
+
+defmodule Tutorial do
+  use Ash.Domain
+
+  resources do
+    resource Tutorial.Profile
+  end
+end
+```
+
+## Creating
+
+Add 2 Profiles to the database.
+
+* One with the name "Joe Armstrong"
+* One with your name
+
+You can create a `Profile` by:
+
+* Creating a Changeset with `Ash.Changeset.for_create(Tutorial.Profile, :create, %{name: "Your Name"})`,
+* Then giving the changeset to `Ash.create!()`.
+
+*Hint: Use a pipeline*
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
+  <div class="p-4">
+
+  ```elixir
+  Tutorial.Profile
+  |> Ash.Changeset.for_create(:create, %{name: "The Name"})
+  |> Ash.create!()
+  ```
+
+  </div>
+</details>
+
+**Enter your solution**
+
+```elixir
+
+```
+
+## Reading
+
+Now, read all the generated Profiles.
+
+Call `Ash.read!/1` with the `Tutorial.Profile` module.
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
+  <div class="p-4">
+
+  ```elixir
+  Tutorial.Profile
+  |> Ash.read!()
+  ```
+
+  </div>
+</details>
+
+**Enter your solution**
+
+```elixir
+
+```
+
+Now fetch the "Joe Armstrong" Profile.
+
+You can achieve this by introducing a filter.
+
+First you'll need to `require Ash.Query`
+
+Then call `Ash.Query.filter(name == "Joe Armstrong")` with the `Tutorial.Profile`.
+
+Put the result into the `joe` variable. `Ash.read!/1` returns a list, so make sure to extract the single returned value out of that list.
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
+  <div class="p-4">
+
+  ```elixir
+  require Ash.Query
+
+  [joe] =
+    Tutorial.Profile
+    |> Ash.Query.filter(name == "Joe Armstrong")
+    |> Ash.read!()
+  ```
+
+  </div>
+</details>
+
+**Enter your solution**
+
+```elixir
+
+```
+
+You'll use the `joe` variable in the next sections.
+
+## Updating
+
+Now change `Joe Armstrong`'s name to `Neil Armstrong`.
+
+You can do this by providing the `Ash.Changeset.for_update/3` with:
+
+* the resource you want to change, in this case `joe`
+* the `:update` atom
+* a map of the values you want to change, in this case `%{name: "Neil Armstrong"}`
+
+Then apply the changeset by calling `Ash.update!/1` with the changeset.
+
+*Hint: Using a pipeline might be a good idea.*
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
+  <div class="p-4">
+
+  ```elixir
+  joe
+  |> Ash.Changeset.for_update(:update, %{name: "Neil Armstrong"})
+  |> Ash.update!()
+  ```
+
+  </div>
+</details>
+
+**Enter your solution**
+
+```elixir
+
+```
+
+## Destroying
+
+Finally, remove `joe` from the database.
+
+Do this using the `Ash.destroy!/1` function.
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
+  <div class="p-4">
+
+  ```elixir
+  Ash.destroy!(joe)
+  ```
+
+  </div>
+</details>
+
+**Enter your solution**
+
+```elixir
+
+```
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="02_actions.livemd">Actions</a>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Home</a>
+</div>
+<div class="flex">
+<a class="flex mr-2" style="color: #61758a;" href="04_attributes.livemd">Attributes</a>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>

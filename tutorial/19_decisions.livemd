@@ -1,0 +1,224 @@
+<!--
+SPDX-FileCopyrightText: 2026 Luke Galea
+SPDX-FileCopyrightText: 2023 ash_tutorial contributors <https://github.com/ash-project/ash_tutorial/graphs/contributors>
+
+SPDX-License-Identifier: MIT
+-->
+
+# Ash Enterprise: 19 - Decisions
+
+Runtime: **attached node**.
+
+Effort: **medium** — half-time; one table, one publish. *You'll feel a business rule become a table the business can edit.*
+
+## A decision decides
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="18_compliance.livemd">Compliance</a>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Home</a>
+</div>
+<div class="flex">
+<a class="flex mr-2" style="color: #61758a;" href="20_approvals.livemd">Approvals</a>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>
+
+
+<!-- livebook:{"break_markdown":true} -->
+
+*You are here: the desk remembers and judges (15-18); half-time on the enterprise floor. Now it learns who decides.*
+
+### Half-time
+
+Four lessons ago the desk gained a memory: every act is an event (15), counted (16), judged (17) and provable after the fact (18). That is already more enterprise substrate than most systems ever grow — and if you stopped any night this week, that is the work working, not you failing.
+
+Now the floor's second half: judgment. Who approves a refund is a question whose answer changes quarterly, and the desk is about to hold it as data.
+
+<!-- livebook:{"break_markdown":true} -->
+
+Who should approve a refund? Under 100, nobody; up to 500, the team lead; above that, finance; gold customers one level lower. That table changes every quarter and the business wants to change it without a deploy. It is a **decision**, and in this stack decisions are DMN.
+
+> **A decision decides. It never acts, never validates, and never authorizes.**
+
+The decision answers "who approves?". The action (lesson 20) acts on the answer. A rule that guards a mutation belongs in the action; put it in a decision and every caller that does not ask the decision bypasses it.
+
+<div class="rounded-xl p-4 my-4" style="background-color: #fdf6ec; border-left: 4px solid #c2410c; color: #7c2d12;">
+  <p><i class="ri-fire-fill"></i> <strong>Soot was here.</strong> The approval table changed every quarter in 2013, and in 2019, and it will again. Now it changes by publishing, not by deploying.</p>
+</div>
+
+## Decisions are resources
+
+`ash_decisions` provides two resource macros. The host already has both:
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+defmodule AshEnterprise.Decisions.Definition do
+  use AshDecisions.Resources.Definition,
+    domain: AshEnterprise.Decisions,
+    repo: AshEnterprise.Repo,
+    table: "dmn_definitions",
+    base: AshEnterprise.Platform.Resource,
+    base_opts: [ownership: :organization_owned, lifecycle?: false, audit?: true, archival?: false]
+end
+```
+
+* `Definition`: the DMN document, versioned, `draft → published → retired`. Publishing is one-way and audited.
+* `Evaluation`: append-only evidence of what each invoked decision saw and decided.
+
+Note `base: AshEnterprise.Platform.Resource`: the package's resources inherit your platform (tenancy, audit, policies) instead of bringing their own.
+
+## The rules of the artifact
+
+1. **The DMN XML is the single artifact.** Author it in the embedded dmn-js editor at `/app/decisions` (each definition's editor lives at `/app/decisions/<key>/editor`), or hand-write the XML — the fallback cell below is the proven headless path. There is no rule table in Postgres and no code DSL to keep in sync.
+2. **Published definitions are immutable.** A change is a new version.
+3. **Callers float to the latest published version by default**, and may pin. That is the opposite of processes (lesson 21), deliberately: a process version is a *shape* in-flight tokens stand on; a decision is a *rule* the business wants to take effect now.
+4. **FEEL numbers are decimal.** Every context value goes through `AshDecisions.Feel.to_feel_value/2`. A raw Elixir integer makes `< 1000` a type error, which is `null`, which a table reads as "no rule matched": silently empty.
+5. **`OUTPUT ORDER` and `RULE ORDER` hit policies are refused**, since they make rule sequence meaningful. Use `UNIQUE`, `ANY`, `FIRST`, `PRIORITY` or `COLLECT`.
+
+## Author and publish
+
+In the editor, create decision `refund_approver` with inputs `amount` (number) and `tier` (string), output `approver` (string), hit policy `FIRST`:
+
+| amount | tier | approver |
+|---|---|---|
+| `< 100` | `-` | `"none"` |
+| `<= 500` | `"gold"` | `"none"` |
+| `<= 500` | `-` | `"team_lead"` |
+| `-` | `"gold"` | `"team_lead"` |
+| `-` | `-` | `"finance"` |
+
+Publish it. A construct the compiler does not execute is refused **by element id** at publish time, not ignored.
+
+> **No browser? Unlike processes (lesson 21), there is no mix-task path for *your tenant* here** — the deploy's `mix ash_enterprise.bpmn.publish` publishes `priv/dmn/*.dmn` baselines into the platform organization under its filename→key rule (`refund_approver.dmn` would land as key `refund.approver`, which lesson 21's ref and the query below will not match). The dmn-js editor at `/app/decisions` is the sanctioned UI; the cell below is the sanctioned headless fallback, driving the same resource the editor drives.
+
+If you have no browser, author the XML by hand and publish through the resource — validate the inputs first, exactly as lesson 14 teaches:
+
+```elixir
+xml = """
+<definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/"
+             id="refund_approver_definitions"
+             name="Refund approver"
+             namespace="https://ash-enterprise.example/dmn/refund-approver"
+             expressionLanguage="https://www.omg.org/spec/DMN/20230324/FEEL/"
+             typeLanguage="https://www.omg.org/spec/DMN/20230324/FEEL/">
+  <inputData id="input_amount" name="amount">
+    <variable id="var_amount" name="amount" typeRef="number"/>
+  </inputData>
+  <inputData id="input_tier" name="tier">
+    <variable id="var_tier" name="tier" typeRef="string"/>
+  </inputData>
+  <decision id="decision_refund_approver" name="Refund approver">
+    <variable id="var_approver" name="approver" typeRef="string"/>
+    <informationRequirement id="req_amount"><requiredInput href="#input_amount"/></informationRequirement>
+    <informationRequirement id="req_tier"><requiredInput href="#input_tier"/></informationRequirement>
+    <decisionTable id="table_refund_approver" hitPolicy="FIRST" outputLabel="approver">
+      <input id="clause_amount" label="Amount">
+        <inputExpression id="expr_amount" typeRef="number"><text>amount</text></inputExpression>
+      </input>
+      <input id="clause_tier" label="Tier">
+        <inputExpression id="expr_tier" typeRef="string"><text>tier</text></inputExpression>
+      </input>
+      <output id="clause_approver" name="approver" typeRef="string"/>
+      <rule id="rule_small"><inputEntry id="e_small_amt"><text>&lt; 100</text></inputEntry><inputEntry id="e_small_tier"><text>-</text></inputEntry><outputEntry id="o_small"><text>"none"</text></outputEntry></rule>
+      <rule id="rule_gold_mid"><inputEntry id="e_gold_mid_amt"><text>&lt;= 500</text></inputEntry><inputEntry id="e_gold_mid_tier"><text>"gold"</text></inputEntry><outputEntry id="o_gold_mid"><text>"none"</text></outputEntry></rule>
+      <rule id="rule_mid"><inputEntry id="e_mid_amt"><text>&lt;= 500</text></inputEntry><inputEntry id="e_mid_tier"><text>-</text></inputEntry><outputEntry id="o_mid"><text>"team_lead"</text></outputEntry></rule>
+      <rule id="rule_gold_high"><inputEntry id="e_gold_high_amt"><text>-</text></inputEntry><inputEntry id="e_gold_high_tier"><text>"gold"</text></inputEntry><outputEntry id="o_gold_high"><text>"team_lead"</text></outputEntry></rule>
+      <rule id="rule_finance"><inputEntry id="e_fin_amt"><text>-</text></inputEntry><inputEntry id="e_fin_tier"><text>-</text></inputEntry><outputEntry id="o_fin"><text>"finance"</text></outputEntry></rule>
+    </decisionTable>
+  </decision>
+</definitions>
+"""
+
+# The contract, from the tool: create takes {key, name, xml}.
+AshAgentTools.validate_input(AshEnterprise.Decisions.Definition, :create, %{
+  "key" => "refund_approver",
+  "name" => "Refund approver",
+  "xml" => xml
+}).valid?
+
+# Find what you (or the editor) already published, else create the draft and publish.
+definition =
+  AshEnterprise.Decisions.Definition
+  |> Ash.Query.filter(key == "refund_approver" and status == :published)
+  |> Ash.Query.sort(version: :desc)
+  |> Ash.read_first!(actor: actor, tenant: tenant)
+
+definition ||
+  AshEnterprise.Decisions.Definition
+  |> Ash.Changeset.for_create(:create, %{key: "refund_approver", name: "Refund approver", xml: xml})
+  |> Ash.create!(actor: actor, tenant: tenant)
+  |> AshEnterprise.Decisions.Definition.publish!(actor: actor, tenant: tenant)
+```
+
+Note `create` is **not** the primary action, so `Ash.create!/2` with no `action:` refuses — go through `for_create(:create, ...)`, exactly as written. The draft carries the compiler's findings in `verification`; publish compiles again and refuses real errors.
+
+## Evaluate
+
+Evaluate the published definition for `amount: 250, tier: "standard"`, as the actor and tenant from lesson 15's fabric cell.
+
+**Enter your solution**
+
+```elixir
+
+```
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
+  <div class="p-4">
+
+  ```elixir
+  require Ash.Query
+
+  definition =
+    AshEnterprise.Decisions.Definition
+    |> Ash.Query.filter(key == "refund_approver" and status == :published)
+    |> Ash.Query.sort(version: :desc)
+    |> Ash.read_first!(actor: actor, tenant: tenant)
+
+  AshDecisions.Evaluator.evaluate(definition, %{"amount" => Decimal.new(250), "tier" => "standard"},
+    actor: actor, tenant: tenant)
+  ```
+
+  For a dry run that records no `Evaluation` row, use `mix ash_agent.evaluate refund_approver '{"amount": 250, "tier": "standard"}'` (lesson 14). `actor` and `tenant` come from lesson 15's fabric cell. Field names on `Definition` vary by version; `AshAgentTools.describe_resource(AshEnterprise.Decisions.Definition)` is the authority. Two shapes to expect in the result: `outputs` is the **plain output value** under the FIRST hit policy (`"team_lead"`, not a map keyed by output name), and `matched_rule_ids` **over-reports** — it lists the matched rule *and* the catch-all that also matched, though only the first rule's output is used. Audit the outcome, not the id list.
+
+  </div>
+</details>
+
+**Checkpoint.** The published table answered `team_lead` — and the dry run recorded nothing, so tuning the rule is still free.
+
+## The host seam
+
+Processes (21) do not call the evaluator. They call the host's `AshEnterprise.Process.DecisionResolver`, which implements `decide/3` and `exists?/1`. `exists?/1` lets a BPMN diagram be verified at publish time against decisions that exist. Read it now — and note the tooling boundary: `AshAgentTools.resolve/1` addresses **Ash resources only**, and this is a plain behaviour module, so resolve raises on it. Read the file:
+
+```elixir
+path = Path.join(File.cwd!(), "lib/ash_enterprise/process/decision_resolver.ex")
+
+path |> File.read!() |> String.split("\n") |> Enum.take(40) |> Enum.join("\n")
+```
+
+## Two things the engine will not tell you
+
+* **Which rule fired is not recorded.** Do not compute a second opinion in Elixir: an answer that disagrees with the engine that actually decided is worse than none.
+* **Every expression is hostile input.** Tenant admins write these. Size and depth are bounded, evaluation times out, external functions are refused. There is no escape hatch to call host code.
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="18_compliance.livemd">Compliance</a>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Home</a>
+</div>
+<div class="flex">
+<a class="flex mr-2" style="color: #61758a;" href="20_approvals.livemd">Approvals</a>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>
+
