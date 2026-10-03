@@ -16,7 +16,7 @@ defmodule AshEnterprise.SystemOne.BandTablePublication do
   from this moment the family's live bandings flow through the earned
   thresholds.
 
-  The verifier's refusal paths (`AshJudgments.Calibration.verify/4`):
+  The verifier's refusal paths (`AshJudgments.Calibration.verify/3`):
   `:not_certified`, `:no_calibration_run`, `:n_below_min`,
   `:n_per_class_below_min`, digest/runtime mismatch, region mismatch,
   a missing eval-set hash, and run age — each returned as structured
