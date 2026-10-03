@@ -94,7 +94,7 @@ AshAgentTools.describe_resource(AshEnterprise.Decisions.Definition)
 
 Ask for the exact input contract of an action: required, optional and private keys with normalized types, plus the source location.
 
-Describe the `:create` action of any resource in `AshEnterprise.Contracts`. Use `AshAgentTools.list_resources/0` to find one first.
+Describe the `:create` action of `AshEnterprise.Accounts.Organization`. (`AshEnterprise.Contracts` cannot give you one: it is read-only by design — describe it with `describe_resource/1` and look at its actions list. `AshAgentTools.list_resources/0` is how you find candidates.)
 
 **Enter your solution**
 
@@ -103,13 +103,13 @@ Describe the `:create` action of any resource in `AshEnterprise.Contracts`. Use 
 ```
 
 <details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
-  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
   <div class="p-4">
 
   ```elixir
   resource =
     AshAgentTools.list_resources()
-    |> Enum.find(&String.starts_with?(inspect(&1), "AshEnterprise.Contracts"))
+    |> Enum.find(&(&1 == AshEnterprise.Accounts.Organization))
 
   AshAgentTools.describe_action(resource, :create)
   ```
@@ -132,7 +132,7 @@ Validate a deliberately broken call to the same action: a camelCase key and a ma
 ```
 
 <details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
-  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
   <div class="p-4">
 
   ```elixir
@@ -160,7 +160,7 @@ The most common Ash debugging session is "why was I forbidden?". Do it in two st
 AshAgentTools.explain_forbidden(AshEnterprise.Decisions.Definition, :publish)
 ```
 
-Find a user (`Ash.read_first!/2` with `authorize?: false` is fine here; you are in a debugging session, not app code) and ask for the verdict on the same action.
+A fresh database has zero users, so make an actor first — `register_with_password` is a real create action on `AshEnterprise.Accounts.User` (find-or-create, so the cell re-runs). Then ask for the verdict on a **read** of the same resource.
 
 **Enter your solution**
 
@@ -169,15 +169,33 @@ Find a user (`Ash.read_first!/2` with `authorize?: false` is fine here; you are 
 ```
 
 <details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
-  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
   <div class="p-4">
 
   ```elixir
-  actor = Ash.read_first!(AshEnterprise.Accounts.User, authorize?: false)
-  AshAgentTools.can(AshEnterprise.Decisions.Definition, :publish, actor)
+  require Ash.Query
+
+  email = "you@tutorial.example"
+
+  actor =
+    AshEnterprise.Accounts.User
+    |> Ash.Query.filter(email == ^email)
+    |> Ash.read_one!(authorize?: false) ||
+      Ash.create!(
+        Ash.Changeset.for_create(
+          AshEnterprise.Accounts.User,
+          :register_with_password,
+          %{email: email, password: "tutorial1234", password_confirmation: "tutorial1234"},
+          authorize?: false
+        )
+      )
+
+  AshAgentTools.can(AshEnterprise.Decisions.Definition, :read, actor)
   ```
 
-  Shell: `mix ash_agent.can AshEnterprise.Decisions.Definition publish --actor AshEnterprise.Accounts.User:<id>`.
+  Why a read? `can/3` for an **update or destroy** action with no `record:` option evaluates the action against the actor's *own record* — so `can(Definition, :publish, actor)` asks "can this user publish *themselves*?" and fails with `no such update action on AshEnterprise.Accounts.User: :publish`. Pass `record:` to target a real record, or ask about a read, which needs no target. Lesson 15 will give this actor roles and privileges; for now `{:ok, false}` with an `explain_forbidden/2` listing is exactly the expected answer.
+
+  Shell: `mix ash_agent.can AshEnterprise.Decisions.Definition read --actor AshEnterprise.Accounts.User:<id>`.
 
   Note what you just did: `authorize?: false` in a notebook is debugging. In `lib/`, the enterprise packages fail the build if a second `authorize?: false` appears. Engine calls go through each package's `Scope` instead.
 
@@ -205,7 +223,7 @@ List the decision catalogue now. It may be empty until lesson 19 publishes one; 
 ```
 
 <details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
-  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
   <div class="p-4">
 
   ```elixir
@@ -217,13 +235,13 @@ List the decision catalogue now. It may be empty until lesson 19 publishes one; 
 
 ## Where am I? Context at a cursor
 
-When an agent (or you) is looking at line 42 of a file, `context/3` says what Ash entity lives there: which resource, which section, which action or policy. `resolve/1` goes the other way, from a **name path** to a span with a digest:
+When an agent (or you) is looking at line 42 of a file, `context/3` says what Ash entity lives there: which resource, which section, which action or policy. `resolve/1` goes the other way, from a **name path** to a span with a digest. A name path is `Module`, or `Module/dsl_path/name` — one segment level, so name the action too:
 
 ```elixir
-AshAgentTools.resolve("AshEnterprise.Decisions.Definition/actions")
+AshAgentTools.resolve("AshEnterprise.Decisions.Definition/actions/publish")
 ```
 
-Name paths (`MyApp.Post/actions/by_tag`, `.../policies/policy[0]`) are Serena's addressing idea applied to Spark DSL. Serena addresses `Module/function`; `ash_agent_tools` addresses `Resource/section/entity`.
+`.../actions` alone is malformed — the grammar is `Module` or `Module/dsl_path/name[index]` (unnamed entities like policies are addressed by occurrence: `.../policies/policy[0]`). Serena addresses `Module/function`; `ash_agent_tools` addresses `Resource/section/entity`.
 
 ## Editing the DSL safely
 
@@ -289,14 +307,14 @@ end
 ```
 
 <details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
-  <summary class="cursor-pointer font-bold p-4"></i>Show Solution</summary>
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
   <div class="p-4">
 
   ```elixir
   AshAgentTools.judge_laws(code)
   ```
 
-  Expect: a query in `mount/3` (it runs twice, once for the dead render and once on connect), `subscribe` without `connected?/1`, a list assign instead of a stream, and `String.to_atom/1`. You fixed all four of these by hand in lessons 10 and 12. "Grep-tier" means read each hit's context before acting.
+  Expect **three** violations: the query in `mount/3` (law 1 — it runs twice, once for the dead render and once on connect), `subscribe` without `connected?/1` (law 3), and `String.to_atom/1` (law 10). The fourth sin — assigning the list instead of streaming it — is law 2, and it is *behavioral*: the judge has no detector for it, so it fires nothing and you have to spot it yourself. You fixed all four by hand in lessons 10 and 12; the judge catches three of them. "Grep-tier" means read each hit's context before acting.
 
   </div>
 </details>
