@@ -171,9 +171,20 @@ Approve a refund over the limit without manager approval, then read both artifac
   ```elixir
   require Ash.Query
 
-  AshCompliance.Resources.Finding
-  |> Ash.Query.filter(subject_id == ^refund.id)
-  |> Ash.read!(actor: actor, tenant: tenant)
+  # The projector drains asynchronously — right after the approve the artifacts
+  # simply are not there yet, and lag shows 0 once it has drained. Wait for the
+  # Finding instead of racing it.
+  finding =
+    Enum.reduce_while(1..10, nil, fn _i, _acc ->
+      case
+        AshCompliance.Resources.Finding
+        |> Ash.Query.filter(subject_id == ^refund.id)
+        |> Ash.read!(actor: actor, tenant: tenant)
+      do
+        [] -> Process.sleep(500); {:cont, nil}
+        findings -> {:halt, findings}
+      end
+    end)
 
   AshCompliance.Resources.ComplianceEvaluation
   |> Ash.Query.filter(subject_id == ^refund.id)
@@ -181,7 +192,7 @@ Approve a refund over the limit without manager approval, then read both artifac
   |> Enum.map(&{&1.outcome, &1.bundle_hash})
   ```
 
-  Approve a second time after fixing it: the Finding flips to resolved, and the evaluation log now has two rows. That is the difference between "now" and "why".
+  Approve a second time after fixing it: the Finding flips to resolved, and the evaluation log now has two rows. Fixing it means the facts must change — the change module above hardcodes `manager_approved: false`, so edit that fact to `true` first (a DSL change, so restart), or the "fixed" approval re-files the same finding.
 
   </div>
 </details>

@@ -134,17 +134,21 @@ Change the Refund so that proposing it opens an approval, and approval runs `:ap
 create :propose do
   accept [:ticket_ref, :amount, :reason]
 
-  change AshBpmn.Changes.RequireApproval,
-    key: "refund.approve",
-    name: "Approve refund",
-    outcomes: [:approved, :rejected],
-    candidates: [{:role, "refund_approver"}],     # the host AssignmentResolver interprets these
-    excluding: ["subject.created_by_id"],         # maker-checker, by subtraction
-    on_complete: %{approved: "approve", rejected: "reject"},
-    escalate_in: [hours: 24],
-    expire_in: [days: 7]
+  change {AshBpmn.Changes.RequireApproval,
+   [
+     key: "refund.approve",
+     name: "Approve refund",
+     outcomes: [:approved, :rejected],
+     candidates: [{:role, "refund_approver"}],     # the host AssignmentResolver interprets these
+     excluding: ["subject.created_by_id"],         # maker-checker, by subtraction
+     on_complete: %{approved: "approve", rejected: "reject"},
+     escalate_in: [hours: 24],
+     expire_in: [days: 7]
+   ]}
 end
 ```
+
+The options ride in the change **tuple**, not as bare `change` options: `change AshBpmn.Changes.RequireApproval, key: ...` fails node boot, because Spark reads those as *its own* change options and reports one unknown option at a time (`[:expire_in]`, then `[:escalate_in]`, ...) — each boot naming a different culprit.
 
 Saving `refund.ex` is a DSL change: restart the app node (the lesson 15 rule) before proposing anything.
 

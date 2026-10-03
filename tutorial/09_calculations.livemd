@@ -46,25 +46,45 @@ There are two ways to define one:
 * **An `expr/1` calculation** — one expression over attributes, aggregates and other calculations. Ash understands the expression, so it can filter and sort on it, and push it down to the data layer when one is in use.
 * **A module calculation** — a module implementing `Ash.Resource.Calculation` (`load/3` to declare what it needs, `calculate/3` to compute in Elixir) for anything an expression cannot say.
 
-Both are declared in a `calculations do ... end` block, loaded with `Ash.load!/2` or the `load:` option, and usable like attributes everywhere else. This lesson stays with `expr/1`; reach for the module form when you meet your first "1" in the 0 / 1 / N sense (lesson 0).
+Both are declared in a `calculations do ... end` block, loaded with `Ash.load!/2` or the `load:` option, and usable like attributes everywhere else. Exercise 1 below is your first "1" in the 0 / 1 / N sense (lesson 0): date arithmetic beyond the expression catalog, which is exactly what the module form exists for. Exercise 2 stays a single `expr`.
 
 ### Exercise 1: how long has that ticket been sitting there?
 
 Every ticket carries a `created_at` timestamp since lesson 4. Derive from it: add a `calculations do ... end` block to `Tutorial.Support.Ticket` with
 
-`calculate :age_in_days, :integer, expr(date_diff(^now(), created_at, :day))`
+`calculate :age_in_days, :integer, {Tutorial.Support.Calculations.AgeInDays, []}`
 
-`^now()` is the current time, and `date_diff/3` counts whole days between two points in time.
+and write the `Tutorial.Support.Calculations.AgeInDays` module next to the resource: `use Ash.Resource.Calculation`, `load/3` declaring that it needs `[:created_at]`, and `calculate/3` returning one age per record — `DateTime.diff(DateTime.utc_now(), t.created_at) |> div(86_400)`. Whole days between then and now is date arithmetic, and the expression catalog has no `date_diff` on current Ash — this is precisely the "when an expression is not enough" door the intro pointed at.
 
 <details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
   <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
   <div class="p-4">
 
   ```elixir
-  calculations do
-    calculate :age_in_days, :integer, expr(date_diff(^now(), created_at, :day))
+  defmodule Tutorial.Support.Calculations.AgeInDays do
+    use Ash.Resource.Calculation
+
+    @impl true
+    def load(_query, _opts, _ctx), do: [:created_at]
+
+    @impl true
+    def calculate(records, _opts, _ctx) do
+      Enum.map(records, fn t ->
+        DateTime.diff(DateTime.utc_now(), t.created_at) |> div(86_400)
+      end)
+    end
   end
   ```
+
+  and on the Ticket:
+
+  ```elixir
+  calculations do
+    calculate :age_in_days, :integer, {Tutorial.Support.Calculations.AgeInDays, []}
+  end
+  ```
+
+  The `{Module, opts}` tuple is the tell: an `expr` calculation declares a formula, a module calculation declares a *program* — with `load/3` saying which attributes it reads.
 
   </div>
 </details>
@@ -234,7 +254,7 @@ joe.overloaded?
 
 The result should be __true__. Nothing recompiled, nothing was stored: the value is derived, every time, from the description.
 
-This is the most basic kind of calculation — a single `expr`. Calculations can do any arbitrary operation on the resource: they can take arguments, and when an expression is not enough you write a module calculation. More on this inside the [documentation](https://hexdocs.pm/ash/calculations.html).
+Note the two forms you just used side by side: `overloaded?` is one expression over an aggregate, so `expr` carries it and Ash can reason about it (filter, sort, push down). `age_in_days` needed plain Elixir, so it is a module — and the price is that Ash treats it as opaque beyond what `load/3` declares. When a calculation starts needing arguments or anything the catalog cannot say, that is the trade you are choosing. More on both inside the [documentation](https://hexdocs.pm/ash/calculations.html).
 
 That completes the desk. You now hold `Tutorial.Support.Ticket` and `Tutorial.Support.Representative` with actions, relationships, aggregates and calculations — the exact domain the next lesson renders as a LiveView.
 

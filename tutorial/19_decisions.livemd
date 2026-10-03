@@ -75,7 +75,7 @@ Note `base: AshEnterprise.Platform.Resource`: the package's resources inherit yo
 
 ## The rules of the artifact
 
-1. **The DMN XML is the single artifact.** Author it in the embedded dmn-js editor at `/decisions` (or in XML). There is no rule table in Postgres and no code DSL to keep in sync.
+1. **The DMN XML is the single artifact.** Author it in the embedded dmn-js editor at `/app/decisions` (each definition's editor lives at `/app/decisions/<key>/editor`), or hand-write the XML — the fallback cell below is the proven headless path. There is no rule table in Postgres and no code DSL to keep in sync.
 2. **Published definitions are immutable.** A change is a new version.
 3. **Callers float to the latest published version by default**, and may pin. That is the opposite of processes (lesson 21), deliberately: a process version is a *shape* in-flight tokens stand on; a decision is a *rule* the business wants to take effect now.
 4. **FEEL numbers are decimal.** Every context value goes through `AshDecisions.Feel.to_feel_value/2`. A raw Elixir integer makes `< 1000` a type error, which is `null`, which a table reads as "no rule matched": silently empty.
@@ -95,7 +95,68 @@ In the editor, create decision `refund_approver` with inputs `amount` (number) a
 
 Publish it. A construct the compiler does not execute is refused **by element id** at publish time, not ignored.
 
-> **No browser?** Unlike processes (lesson 21), this one has no drop-in escape hatch: the deploy's `mix ash_enterprise.bpmn.publish` does publish `priv/dmn/*.dmn` baselines, but into the platform organization and under its filename→key rule (`refund_approver.dmn` would publish as key `refund.approver`, which lesson 21's `refund_approver` ref and lesson 25's query will not match). The dmn-js editor at `/decisions` is required for authoring `refund_approver` in *your* tenant.
+> **No browser? Unlike processes (lesson 21), there is no mix-task path for *your tenant* here** — the deploy's `mix ash_enterprise.bpmn.publish` publishes `priv/dmn/*.dmn` baselines into the platform organization under its filename→key rule (`refund_approver.dmn` would land as key `refund.approver`, which lesson 21's ref and the query below will not match). The dmn-js editor at `/app/decisions` is the sanctioned UI; the cell below is the sanctioned headless fallback, driving the same resource the editor drives.
+
+If you have no browser, author the XML by hand and publish through the resource — validate the inputs first, exactly as lesson 14 teaches:
+
+```elixir
+xml = """
+<definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/"
+             id="refund_approver_definitions"
+             name="Refund approver"
+             namespace="https://ash-enterprise.example/dmn/refund-approver"
+             expressionLanguage="https://www.omg.org/spec/DMN/20230324/FEEL/"
+             typeLanguage="https://www.omg.org/spec/DMN/20230324/FEEL/">
+  <inputData id="input_amount" name="amount">
+    <variable id="var_amount" name="amount" typeRef="number"/>
+  </inputData>
+  <inputData id="input_tier" name="tier">
+    <variable id="var_tier" name="tier" typeRef="string"/>
+  </inputData>
+  <decision id="decision_refund_approver" name="Refund approver">
+    <variable id="var_approver" name="approver" typeRef="string"/>
+    <informationRequirement id="req_amount"><requiredInput href="#input_amount"/></informationRequirement>
+    <informationRequirement id="req_tier"><requiredInput href="#input_tier"/></informationRequirement>
+    <decisionTable id="table_refund_approver" hitPolicy="FIRST" outputLabel="approver">
+      <input id="clause_amount" label="Amount">
+        <inputExpression id="expr_amount" typeRef="number"><text>amount</text></inputExpression>
+      </input>
+      <input id="clause_tier" label="Tier">
+        <inputExpression id="expr_tier" typeRef="string"><text>tier</text></inputExpression>
+      </input>
+      <output id="clause_approver" name="approver" typeRef="string"/>
+      <rule id="rule_small"><inputEntry id="e_small_amt"><text>&lt; 100</text></inputEntry><inputEntry id="e_small_tier"><text>-</text></inputEntry><outputEntry id="o_small"><text>"none"</text></outputEntry></rule>
+      <rule id="rule_gold_mid"><inputEntry id="e_gold_mid_amt"><text>&lt;= 500</text></inputEntry><inputEntry id="e_gold_mid_tier"><text>"gold"</text></inputEntry><outputEntry id="o_gold_mid"><text>"none"</text></outputEntry></rule>
+      <rule id="rule_mid"><inputEntry id="e_mid_amt"><text>&lt;= 500</text></inputEntry><inputEntry id="e_mid_tier"><text>-</text></inputEntry><outputEntry id="o_mid"><text>"team_lead"</text></outputEntry></rule>
+      <rule id="rule_gold_high"><inputEntry id="e_gold_high_amt"><text>-</text></inputEntry><inputEntry id="e_gold_high_tier"><text>"gold"</text></inputEntry><outputEntry id="o_gold_high"><text>"team_lead"</text></outputEntry></rule>
+      <rule id="rule_finance"><inputEntry id="e_fin_amt"><text>-</text></inputEntry><inputEntry id="e_fin_tier"><text>-</text></inputEntry><outputEntry id="o_fin"><text>"finance"</text></outputEntry></rule>
+    </decisionTable>
+  </decision>
+</definitions>
+"""
+
+# The contract, from the tool: create takes {key, name, xml}.
+AshAgentTools.validate_input(AshEnterprise.Decisions.Definition, :create, %{
+  "key" => "refund_approver",
+  "name" => "Refund approver",
+  "xml" => xml
+}).valid?
+
+# Find what you (or the editor) already published, else create the draft and publish.
+definition =
+  AshEnterprise.Decisions.Definition
+  |> Ash.Query.filter(key == "refund_approver" and status == :published)
+  |> Ash.Query.sort(version: :desc)
+  |> Ash.read_first!(actor: actor, tenant: tenant)
+
+definition ||
+  AshEnterprise.Decisions.Definition
+  |> Ash.Changeset.for_create(:create, %{key: "refund_approver", name: "Refund approver", xml: xml})
+  |> Ash.create!(actor: actor, tenant: tenant)
+  |> AshEnterprise.Decisions.Definition.publish!(actor: actor, tenant: tenant)
+```
+
+Note `create` is **not** the primary action, so `Ash.create!/2` with no `action:` refuses — go through `for_create(:create, ...)`, exactly as written. The draft carries the compiler's findings in `verification`; publish compiles again and refuses real errors.
 
 ## Evaluate
 
@@ -124,7 +185,7 @@ Evaluate the published definition for `amount: 250, tier: "standard"`, as the ac
     actor: actor, tenant: tenant)
   ```
 
-  For a dry run that records no `Evaluation` row, use `mix ash_agent.evaluate refund_approver '{"amount": 250, "tier": "standard"}'` (lesson 14). `actor` and `tenant` come from lesson 15's fabric cell. Field names on `Definition` vary by version; `AshAgentTools.describe_resource(AshEnterprise.Decisions.Definition)` is the authority.
+  For a dry run that records no `Evaluation` row, use `mix ash_agent.evaluate refund_approver '{"amount": 250, "tier": "standard"}'` (lesson 14). `actor` and `tenant` come from lesson 15's fabric cell. Field names on `Definition` vary by version; `AshAgentTools.describe_resource(AshEnterprise.Decisions.Definition)` is the authority. Two shapes to expect in the result: `outputs` is the **plain output value** under the FIRST hit policy (`"team_lead"`, not a map keyed by output name), and `matched_rule_ids` **over-reports** — it lists the matched rule *and* the catch-all that also matched, though only the first rule's output is used. Audit the outcome, not the id list.
 
   </div>
 </details>
@@ -133,10 +194,12 @@ Evaluate the published definition for `amount: 250, tier: "standard"`, as the ac
 
 ## The host seam
 
-Processes (21) do not call the evaluator. They call the host's `AshEnterprise.Process.DecisionResolver`, which implements `decide(ref, inputs, ctx)` and `exists?(ref)`. `exists?/1` lets a BPMN diagram be verified at publish time against decisions that exist. Read it now:
+Processes (21) do not call the evaluator. They call the host's `AshEnterprise.Process.DecisionResolver`, which implements `decide/3` and `exists?/1`. `exists?/1` lets a BPMN diagram be verified at publish time against decisions that exist. Read it now — and note the tooling boundary: `AshAgentTools.resolve/1` addresses **Ash resources only**, and this is a plain behaviour module, so resolve raises on it. Read the file:
 
 ```elixir
-AshAgentTools.resolve("AshEnterprise.Process.DecisionResolver")
+path = Path.join(File.cwd!(), "lib/ash_enterprise/process/decision_resolver.ex")
+
+path |> File.read!() |> String.split("\n") |> Enum.take(40) |> Enum.join("\n")
 ```
 
 ## Two things the engine will not tell you

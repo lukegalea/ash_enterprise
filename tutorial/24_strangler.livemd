@@ -176,6 +176,17 @@ end
 
 Register both new resources in the tutorial domain alongside the Refund, then read `AshEnterprise.Legacy.User` — the real strangler this tutorial's repo ships — next to what you just wrote; yours is its outline with the interesting arguments left as an exercise. Saving these files is a DSL change: **restart the app node** (the overview says why `recompile()` will not do).
 
+Two new resources mean new privileges, and this lesson reads across **two** tenants — run lesson 15's privilege recipe for both, in the notebook after the restart:
+
+```elixir
+estate_tenant = AshEnterprise.Legacy.Estate.organization_id()
+
+AshEnterprise.Platform.Seeder.regrant_administrator_privileges(tenant)
+AshEnterprise.Platform.Seeder.regrant_administrator_privileges(estate_tenant)
+```
+
+(and `devenv shell -- mix ash_enterprise.seed --privileges-only` in the terminal first, as in lessons 15 and 16). Skip this and the strangler read below does not fail — it returns `[]`, silently, because reads narrow instead of raising and your role simply reaches nothing in the estate.
+
 The mapping never reaches `mix ash.codegen`: `migrate? false` is what keeps it out, and a repo test refuses any codegen output that mentions `legacy` at all (`priv/legacy/README.md`). The view DDL comes from the strangler generator. In a terminal:
 
 ```bash
@@ -213,7 +224,7 @@ AshEnterprise.Tutorial.Ticket
 |> Enum.map(&{&1.subject, &1.status})
 ```
 
-If `legacy_admin` comes back `nil`, a previous `mix ash_enterprise.seed` died mid-run and left the estate half-provisioned (its organization exists, its admin does not); rebuild the dev database with `mix ecto.reset` and re-run lesson 15's actor/tenant cell — it is idempotent.
+If `legacy_admin` comes back `nil`, a previous run left the estate half-provisioned: `seed_legacy_estate/0` short-circuits to `:already_seeded` as soon as the estate *organization* exists, without checking that its admin user does. Complete the pair by hand — create the admin via `register_with_password` (lesson 15's fabric shape), assign the estate's Administrator role, and re-run the estate regrant above — rather than reaching for `mix ecto.reset`, which would destroy the whole session's state.
 
 Even the table you do not own is modelled the Ash way: policies, tenancy and your agent's `describe` all apply.
 

@@ -242,12 +242,11 @@ Show `approved_count` for the refund's organization and day directly on a Refund
   <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
   <div class="p-4">
 
-  On the Refund (`extra_extensions: [AshEvents.Projections.AttachProjection]`), attachments live in a `projections` section; the stats resource and the projector both name themselves; each `field` takes name, stats field **and type**:
+  On the Refund (`extra_extensions: [AshEvents.Projections.AttachProjection]`), attachments live in a `projections` section; the stats resource and the projector are **both positional arguments** (`via:` as a keyword option is refused by the extension's schema — expect a cryptic Spark error if you write it that way); each `field` takes name, stats field **and type**:
 
   ```elixir
   projections do
-    attach_projection AshEnterprise.Tutorial.RefundStats,
-      via: AshEnterprise.Tutorial.RefundProjector do
+    attach_projection AshEnterprise.Tutorial.RefundStats, AshEnterprise.Tutorial.RefundProjector do
       field :approved_today, :approved_count, :integer, default: 0
     end
   end

@@ -106,8 +106,11 @@ definition =
     actor: actor, tenant: tenant
   )
 
-# checkpoint — expected: {:compliant, "team_lead"} — under the limit, standard tier
-{rules.overall, decision.outputs["approver"]}
+# checkpoint — expected: {:not_applicable, "team_lead"} — 300.00 is UNDER REF-1's limit,
+# so REF-1 (and REF-2, gated on the same fact) do not apply: lesson 17's lattice says
+# so, not "compliant". The decision routes to team_lead either way, and `outputs` is
+# the plain output value under the FIRST hit policy — not a map keyed by output name.
+{rules.overall, decision.outputs}
 ```
 
 **Judge.** Lesson 22's question is declared on the Refund; the model instrument itself needs that lesson's profile config. What the capstone shows is the law underneath it — a question nobody has answered is `:unknown`, never "not fraud" (17's `missing: :unknown`, 22's law 1):
@@ -151,14 +154,17 @@ maker_tasks =
 ```elixir
 {:ok, instance} =
   AshBpmn.start_instance(AshEnterprise.Bpmn,
-    key: "refund", subject: refund, actor: maker, tenant: tenant
+    process: "refund", subject: refund, actor: maker, tenant: tenant
   )
 
 report = AshAgentTools.process_instance(definition_key: "refund", tenant: tenant)
 
-# checkpoint — expected: one instance, running, whose user task draws candidates from the
-# same decision minus the maker (instance entries are string-keyed maps)
-{report.count, List.first(report.instances)["status"]}
+# checkpoint — expected: {"running", true} — the instance we just started, reported
+# back by the same read-only export lesson 14 uses. (Assert on ours, not on the
+# total: report.count is session-cumulative, since instances persist.)
+mine = Enum.find(report.instances, &(&1["id"] == instance.id))
+
+{mine["status"], report.count >= 1}
 ```
 
 **Render.** The surface (23) is derived, and the strangled tickets (24) read through the view:
@@ -210,7 +216,7 @@ refused = AshEnterprise.Tutorial.approve_refund(approved, opts)
 {approved.status, match?({:error, _}, refused)}
 ```
 
-One loose end is deliberate: the orchestrated instance's own user task stays parked, because the standalone gate from lesson 20 already carried this refund through `approve`. Deciding the process task instead — with the `issue_credit` serviceTask it fans out to — is lesson 21's exercise, not a bug here.
+One loose end is deliberate: the orchestrated instance's own user task stays parked, because the standalone gate from lesson 20 already carried this refund through `approve`. Deciding the process task instead — with the `issue_credit` serviceTask it fans out to — is lesson 21's exercise, not a bug here. And one line of noise is expected: deciding prints an Ash `warn_on_transaction_hooks?` warning — that is lesson 16's event-recording `after_action` hook being announced, not an error. Read the checkpoint value, not the warning.
 
 **Evidence.** The layers that watched it happen, after the fact:
 
@@ -229,8 +235,10 @@ evaluations =
   |> Ash.read!(opts)
   |> Enum.map(& &1.bundle_hash)
 
-{stats |> Enum.map(& &1.approved_count), length(findings), evaluations}
+{stats |> Enum.map(&to_string(&1.approved_count)), length(findings), evaluations}
 ```
+
+(The count is a string deliberately: a bare one-element integer list survives notebooks and terminals poorly — `~c"\a"` has embarrassed better people than us.)
 
 If the projection row is missing or stale, the projector is lagging, not lying: `mix ash_events_projections.lag` (lesson 16) is the next command, before any code reading. If the findings list is empty, lesson 18's projector or bundle never went active — the capstone cannot fabricate the evidence, and neither can you.
 

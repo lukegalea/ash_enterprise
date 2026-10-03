@@ -68,12 +68,27 @@ One sentence about the seed task so it does not surprise you: `mix ash_enterpris
 
 ### When you're done
 
-Because the lessons write real application code, they leave marks a `git status` will show you: tutorial tables and their migrations, `lib/ash_enterprise/tutorial/`, the `AshEnterprise.Tutorial` entry in `config/config.exs` (lesson 15), the tutorial projector in the `:ash_events_projections` config (lesson 16), a router line and `lib/ash_enterprise_web/a2ui/` (lesson 23), resource snapshots under `priv/resource_snapshots/`, and rows in the event log. **Do not commit any of it** — a stale `ash_domains` entry or projector config in `main` breaks boot and `mix precommit` for everyone else. Undo it all:
+Because the lessons write real application code, they leave marks a `git status` will show you: tutorial tables and their migrations, `lib/ash_enterprise/tutorial/`, the `AshEnterprise.Tutorial` entry in `config/config.exs` (lesson 15), the tutorial projectors in the `:ash_events_projections` config (lessons 16 and 18), the `issue_credit` registry entry and functions in `lib/ash_enterprise/process/action_invoker.ex` (lessons 20-21), a router line and `lib/ash_enterprise_web/a2ui/` (lesson 23), resource snapshots under `priv/resource_snapshots/`, and rows in the event logs. **Do not commit any of it** — a stale `ash_domains` entry or projector config in `main` breaks boot and `mix precommit` for everyone else. Undo it all:
 
-1. Roll the database back: repeat `devenv shell -- mix ecto.rollback` until the `tutorial_*` tables are gone — or, if the database is disposable, rebuild it in one step: `devenv shell -- mix ecto.reset` (run `mix ash_enterprise.seed` afterwards only if you want the full demo tenant; the tutorial does not need it).
-2. Revert the tracked files the lessons edited: `git checkout -- config/ lib/ priv/`.
-3. Delete the untracked tutorial artifacts: `git clean -fd lib/ash_enterprise/tutorial lib/ash_enterprise/tutorial.ex lib/ash_enterprise_web/a2ui priv/resource_snapshots priv/repo/migrations` (skip the paths you never created).
-4. Restart the app node, so what boots is the reverted config.
+1. Roll the database back: repeat `devenv shell -- mix ecto.rollback` until the `tutorial_*` tables are gone — then **stop**. Rollback does not error at the pre-tutorial tip (check `priv/repo/migrations` for the last non-tutorial timestamp, `2026100205…`-era), and one rollback too many silently starts eating the application's own migrations. If the database is disposable, rebuild in one step instead: `devenv shell -- mix ecto.reset` (run `mix ash_enterprise.seed` afterwards only if you want the full demo tenant; the tutorial does not need it).
+2. Clear the shared-table residue rollback cannot touch. The projection registry, checkpoints, dead letters and the consumable event log are shared tables the migrations never created for you — stale `active` registry rows collide with the same projection names next time. With the `psql` flags from lesson 24:
+
+   <!-- livebook:{"force_markdown":true} -->
+
+   ```bash
+   devenv shell -- psql --no-password --set ON_ERROR_STOP=1 \
+     --host "${PGHOST:-localhost}" --port "$PGPORT" \
+     --username "${DB_USER:-postgres}" --dbname "$PGDATABASE" -c "
+   DELETE FROM ash_projection_registry    WHERE name            LIKE 'tutorial_%';
+   DELETE FROM ash_projection_checkpoints WHERE projection_name LIKE 'tutorial_%';
+   DELETE FROM ash_projection_dead_letter_events WHERE projection_name LIKE 'tutorial_%';
+   DELETE FROM compliance_events WHERE resource LIKE 'Elixir.AshEnterprise.Tutorial%';"
+   ```
+
+   (The `compliance_events.resource` column stores fully qualified module names, `Elixir.` prefix included — filter on it, or your first "0 rows" is a filter artifact, not a clean table.)
+3. Revert the tracked files the lessons edited: `git checkout -- config/ lib/ priv/`.
+4. Delete the untracked tutorial artifacts: `git clean -fd lib/ash_enterprise/tutorial lib/ash_enterprise/tutorial.ex lib/ash_enterprise_web/a2ui priv/resource_snapshots priv/repo/migrations` (skip the paths you never created).
+5. Restart the app node, so what boots is the reverted config.
 
 And a warning about people, not files: the tutorial edits tracked config and writes to one database. If a teammate runs the same lessons against the same checkout or the same Postgres, you will trample each other's tables, config and event logs. Each learner gets their own checkout, their own database, and their own node name and port.
 

@@ -54,16 +54,19 @@ Questions are declarations on the subject resource:
 # on AshEnterprise.Tutorial.Refund, with extra_extensions: [AshJudgments.Registry]
 judgments do
   question :suspected_fraud do
-    type :boolean
+    profile :laya_cpu
+    type AshAi.Evaluate.Noul
+    instructions "Does this refund's reason text look like fraud? Answer yes or no."
     family :refund_risk
     version 1
-    pii :minimised
     record :must
   end
 end
 ```
 
-This generates a `judge_suspected_fraud` action that delegates to `ash_ai`'s evaluate over a **pinned instrument profile** (model id + digest, residency class, region), configured under `config :ash_judgments, profiles: [...]`. Pinning fails loudly on floating aliases. Declaring the question edits `refund.ex`, so it is a DSL change: save and restart the node (the lesson 15 rule) before the `judge_suspected_fraud` action exists — and note the action runs as whatever actor lesson 15's fabric gave you, which is the point: admission is an authorized action, not a model side effect.
+The declaration is honest about its own machinery: `profile` names an instrument from `config :ash_judgments, profiles:` (this repo declares them in `config/runtime.exs`, never in code), `type` is one of the three answer types — `AshAi.Evaluate.Noul` is the yes/no one, and a plain `:boolean` is refused at compile — and `instructions` is the question's wording, part of the content hash. (`pii :minimised` is available too, but only with a `state_projection` module declared alongside — the verifier enforces the pair at compile.)
+
+This generates a `judge_suspected_fraud` action that delegates to `ash_ai`'s evaluate over a **pinned instrument profile** (model id + digest, residency class, region). Pinning fails loudly on floating aliases. Declaring the question edits `refund.ex`, so it is a DSL change: save and restart the node (the lesson 15 rule) before the `judge_suspected_fraud` action exists — and note the action runs as whatever actor lesson 15's fabric gave you, which is the point: admission is an authorized action, not a model side effect.
 
 ## Admit, then decide
 

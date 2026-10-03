@@ -202,7 +202,7 @@ end
 
 ## Design it
 
-> **No browser? You are not blocked.** The designer below is browser-only, but BPMN XML is the single artifact, and the repo ships the non-UI publishing path the deploys use: write your diagram to `priv/bpmn/<key>.bpmn` and run `mix ash_enterprise.bpmn.publish`. The filename becomes the definition key (the **last** underscore turns into a dot: `refund_flow.bpmn` publishes as `refund.flow`; a plain `refund.bpmn` publishes as `refund`), publication is idempotent by content hash, and publish-time verification still refuses diagrams referencing unregistered refs. The designer's value is the palette and the validation; it is not the only door.
+> **No browser? You are not blocked — twice over.** The designer below is browser-only, but BPMN XML is the single artifact. The repo ships the non-UI publishing path the deploys use: write your diagram to `priv/bpmn/<key>.bpmn` and run `mix ash_enterprise.bpmn.publish`. The filename becomes the definition key (the **last** underscore turns into a dot: `refund_flow.bpmn` publishes as `refund.flow`; a plain `refund.bpmn` publishes as `refund`), content is deduplicated per key+hash (though each publish run still mints a new **version** — the count grows), and publish-time verification refuses diagrams referencing unregistered refs. **But the task publishes into the *platform* organization**, and `start_instance` resolves definitions within the *caller's* tenant — a platform-org baseline is invisible to the notebook flow below. So publish again in your own tenant, exactly like lesson 19's decision: read the XML back and drive `AshEnterprise.Bpmn.Definition` — `for_create(:create, %{key: "refund", name: "Refund", xml: xml})` then `publish!`, both with `actor: maker, tenant: tenant` (find the published one first and skip if it exists). The designer's value is the palette and the validation; it is not the only door.
 
 In the designer, model `refund`:
 
@@ -233,7 +233,7 @@ Start an instance for a refund and follow its token with your agent.
   ```elixir
   {:ok, instance} =
     AshBpmn.start_instance(AshEnterprise.Bpmn,
-      key: "refund", subject: refund, actor: actor, tenant: tenant)
+      process: "refund", subject: refund, actor: actor, tenant: tenant)
 
   report = AshAgentTools.process_instance(definition_key: "refund", tenant: tenant)
   instance_report = List.first(report.instances)
@@ -241,7 +241,7 @@ Start an instance for a refund and follow its token with your agent.
   %{count: report.count, status: instance_report["status"], open_tasks: length(instance_report["open_tasks"])}
   ```
 
-  `mix ash_agent.instance --key refund` shows the same read-only state from the shell, and `mix ash_agent.graph refund --version 1` shows the published graph with digests. Pass `:tenant` explicitly; background jobs carry it.
+  The option is `process:` — `key:` is silently rejected (`start_instance` wants one of `:process`, `:definition` or `:definition_id`, and `:definition` expects the definition struct, not a key). `mix ash_agent.instance --key refund` shows the same read-only state from the shell, and `mix ash_agent.graph refund --version 1` shows the published graph with digests. Pass `:tenant` explicitly; background jobs carry it.
 
   </div>
 </details>
