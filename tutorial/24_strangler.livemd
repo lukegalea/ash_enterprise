@@ -9,6 +9,8 @@ SPDX-License-Identifier: MIT
 
 Runtime: **attached node**. `mix ash_enterprise.legacy.setup` creates the repo's simulated legacy schema; this lesson adds one table to it, the same way the repo does.
 
+Effort: **medium** — SQL you do not own, a view you do, one restart. *You'll feel the oldest system in the building start reading like a resource.*
+
 ## The legacy table is a resource too
 
 <div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
@@ -29,7 +31,9 @@ Runtime: **attached node**. `mix ash_enterprise.legacy.setup` creates the repo's
 
 <!-- livebook:{"break_markdown":true} -->
 
-The 2011 helpdesk still writes `legacy.cases`: one wide table, with a lifecycle smeared across `is_closed` and `deleted_at`. It will keep running for eighteen months. You want lesson 8's `Ticket`, a proper resource, **today**, without stopping the old app and with a way back at every step.
+*You are here: the new desk is whole (15-23); the oldest system in the building is next.*
+
+The 2011 helpdesk still writes `legacy.cases`: one wide table, with a lifecycle smeared across `is_closed` and `deleted_at`. It will keep running for eighteen months. It gets the respect an elder system is owed: nobody stops it, nobody mocks it, and every step away from it keeps a way back. You want lesson 8's `Ticket`, a proper resource, **today**, without stopping the old app and with a way back at every step.
 
 The repo's simulated schema (`priv/legacy/`) ships the tables its reference demo needs, and `legacy.cases` is not one of them. Create it the way `priv/legacy/schema.sql` is applied — with `psql`, never as an Ecto migration, because Ash must not own this schema (read `priv/legacy/README.md`; the rule is the whole demonstration). The flags are the ones the repo's own `mix ash_enterprise.legacy.setup` passes: host, port, user and database from the devenv environment (`$PGPORT` is dynamically allocated, so never hardcode 5432), and `--no-password` so a credential problem fails loudly instead of hanging on a prompt:
 
@@ -234,6 +238,8 @@ Add an attribute `:priority` with no mapping and compile. Then add a `concat` th
   </div>
 </details>
 
+**Checkpoint.** Two compile errors, each naming the missing mapping or the missing `because:` — the refusal is the product.
+
 ## Live from day one
 
 Update a row from the legacy side with raw SQL, as the old app would:
@@ -243,6 +249,10 @@ AshEnterprise.Repo.query!("UPDATE legacy.cases SET is_closed = true WHERE id = 1
 ```
 
 `pg_notify` carries the key; Ash **re-reads through the view**, so calculations, policies and tenancy apply, and emits a real `Ash.Notifier.Notification`. Your A2UI surface (23) or LiveView (12) updates. A write from 2011 code lands in a UI you wrote last week.
+
+<div class="rounded-xl p-4 my-4" style="background-color: #fdf6ec; border-left: 4px solid #c2410c; color: #7c2d12;">
+  <p><i class="ri-fire-fill"></i> <strong>Soot was here.</strong> The 2011 app is my old neighbor. Tonight one of its writes walked into the new world wearing a uuid, and nobody stopped the old app to do it. The phases have a retirement in them; no funeral required.</p>
+</div>
 
 ## Phases are the one knob
 

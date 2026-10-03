@@ -9,6 +9,8 @@ SPDX-License-Identifier: MIT
 
 Runtime: **attached node**.
 
+Effort: **medium** — one surface module, one route, one render. *You'll feel lessons 10 to 12 come back as data.*
+
 ## UI derived from the resource
 
 <div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
@@ -29,9 +31,15 @@ Runtime: **attached node**.
 
 <!-- livebook:{"break_markdown":true} -->
 
+*You are here: the machinery is done (15-22); the last three lessons are what people see, and what gets retired.*
+
 In lessons 10 to 12 you hand-built a LiveView: streams, forms, PubSub, actor from the socket. Every piece of it was derivable from what the resource already knew: attributes, types, actions, policies, notifications. `ash_a2ui` derives it.
 
 It emits [A2UI](https://github.com/a2ui-project/a2ui) protocol messages (v0.9.1 default, v1.0 opt-in per surface) that any A2UI renderer turns into UI: a browser via the shipped LiveView hook, an agent canvas, a chat surface. Client interactions come back as `action` envelopes routed into **your Ash actions**, with the actor and policies applied. That is lessons 10 to 12, as data.
+
+<div class="rounded-xl p-4 my-4" style="background-color: #fdf6ec; border-left: 4px solid #c2410c; color: #7c2d12;">
+  <p><i class="ri-fire-fill"></i> <strong>Soot was here.</strong> The desk has drawn itself. I watched three lessons of hand-built LiveView become a declaration, and the declaration is shorter.</p>
+</div>
 
 ## Declare a surface
 
@@ -91,6 +99,8 @@ Build the surface for your actor and look at the stream before rendering anythin
 
   </div>
 </details>
+
+**Checkpoint.** The surface came back as protocol messages, no HTML written — and an actor without `:approve` would see fewer row actions, not an error.
 
 ## Render it
 

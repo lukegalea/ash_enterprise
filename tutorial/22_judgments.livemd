@@ -9,6 +9,8 @@ SPDX-License-Identifier: MIT
 
 Runtime: **attached node**.
 
+Effort: **light** — short, and the most important laws in the series. *You'll feel a model be given eyes but no hands.*
+
 ## Models observe, declarations decide
 
 <div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
@@ -29,12 +31,18 @@ Runtime: **attached node**.
 
 <!-- livebook:{"break_markdown":true} -->
 
+*You are here: rules, decisions and processes are in place (17-21); this short lesson draws the line all of them depend on.*
+
 Some facts nobody has: "is this refund reason plausibly fraud?", "which customer tier does this free-text email imply?". A model can offer an answer. The question is where that answer is allowed to go. `ash_judgments` makes it a **declared question** whose answers are **recorded observations**, and enforces four laws:
 
 1. **Observe → admit → decide.** Instruments propose observations; an authorized Ash action admits them as facts; rules evaluate facts. No model writes authoritative state. `accept_*`, `override_*` and `authorize_*` actions are never exposed to a model.
 2. **Record, don't recompute.** An answer is a ledger row with timestamp and instrument version. Replay reads the ledger; it never re-runs inference. Never call a model inside `change/3`: replay runs changes (lesson 15).
 3. **Never in a check, never a grant.** No model call in a policy check, FEEL expression, rule evaluation, projector or calculation.
 4. **Advisory in tooling.** In dev and agent tools a model is a separate, labelled signal; deterministic gates stay deterministic.
+
+<div class="rounded-xl p-4 my-4" style="background-color: #fdf6ec; border-left: 4px solid #c2410c; color: #7c2d12;">
+  <p><i class="ri-fire-fill"></i> <strong>Soot was here.</strong> I remember every answer I ever gave, and which version of me gave it. That is all law 2 asks of the models.</p>
+</div>
 
 ## Declare the question
 

@@ -7,6 +7,8 @@ SPDX-License-Identifier: MIT
 
 # Ash Enterprise: 25 - Capstone: The Ash Way
 
+Effort: **heavy** — nine cells, one refund, no new concepts. *You'll feel the whole stack answer one refund — and leave holding proof you could hand an auditor.*
+
 ## One refund, every layer
 
 <div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
@@ -27,9 +29,17 @@ SPDX-License-Identifier: MIT
 
 <!-- livebook:{"break_markdown":true} -->
 
-Trace a single refund end to end and name which layer does what. If you can say it without looking, you have the model.
+One refund. Every layer. All of it yours.
 
-1. A customer's ticket arrives in `legacy.cases`; the strangled `Ticket` sees it and notifies (24).
+The desk started with a printer on fire, and out back a 2011 app has been writing tickets like that one in two booleans the whole time. Today the same ticket arrives and everything the enterprise has learned since is waiting for it — audited, projected, rule-checked, decided, approved, orchestrated, rendered, and provable after the fact. Most of those words are layers you built.
+
+The work: trace a single refund end to end and name which layer does what. If you can say it without looking, you have the model. And at the bottom, when you read the event log back in order, it will read like the journey you just drove — that log is the document you could hand an auditor. The payoff is not a certificate. It is proof.
+
+<div class="rounded-xl p-4 my-4" style="background-color: #fdf6ec; border-left: 4px solid #c2410c; color: #7c2d12;">
+  <p><i class="ri-fire-fill"></i> <strong>Soot was here.</strong> I was there for all of it. Walk it slowly; I will wait at the end.</p>
+</div>
+
+1. Priya's ticket arrives in `legacy.cases`; the strangled `Ticket` sees it and notifies (24).
 2. A rep opens the A2UI surface (23); the form submits `Refund.propose` as the rep (11).
 3. `propose` writes an audit event (15) and a consumable event (16).
 4. That event starts the `refund` process (21).
@@ -224,6 +234,8 @@ evaluations =
 
 If the projection row is missing or stale, the projector is lagging, not lying: `mix ash_events_projections.lag` (lesson 16) is the next command, before any code reading. If the findings list is empty, lesson 18's projector or bundle never went active — the capstone cannot fabricate the evidence, and neither can you.
 
+**Checkpoint.** Read the three cells above as one document: a count, a finding, an evaluation pinned to a bundle hash — the refund, provable after the fact. That is what the whole floor was for.
+
 ## Final exercise
 
 For each statement, name the layer that owns it: action/validation, policy, rule bundle, decision, process, projection, judgment, or UI.
@@ -268,6 +280,14 @@ For each statement, name the layer that owns it: action/validation, policy, rule
 <!-- livebook:{"break_markdown":true} -->
 
 Further reading in the repos: each package's `usage-rules.md`, the ADRs under `ash_enterprise/docs/adr`, and the [clinic-demo](https://github.com/lukegalea/clinic-demo) capstone with captured evidence.
+
+<!-- livebook:{"break_markdown":true} -->
+
+One last handover. This repo is a base template — meant to be cloned and grown, not depended upon — and somewhere in your company something just as old as the 2011 app is still running. Clone it. Grow your own desk. The habits are the seven you just read.
+
+<div class="rounded-xl p-4 my-4" style="background-color: #fdf6ec; border-left: 4px solid #c2410c; color: #7c2d12;">
+  <p><i class="ri-fire-fill"></i> <strong>Soot was here, one last time.</strong> Everything you just drove is still on the log, and will be tomorrow. I will keep the embers.</p>
+</div>
 
 <div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
 <div class="flex">

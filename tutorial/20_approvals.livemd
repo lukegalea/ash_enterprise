@@ -9,6 +9,8 @@ SPDX-License-Identifier: MIT
 
 Runtime: **attached node**.
 
+Effort: **medium** — a pair to build, a gate to declare, a registry edit. *You'll feel a second pair of eyes arrive on the action itself.*
+
 ## One gate on one action
 
 <div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
@@ -29,6 +31,8 @@ Runtime: **attached node**.
 
 <!-- livebook:{"break_markdown":true} -->
 
+*You are here: the routing rule exists as a decision (19); now a second pair of eyes arrives on the action itself.*
+
 Most "workflow" requests are a single approval gate. `ash_bpmn` ships two layers, and the first stands alone: `AshBpmn.Changes.RequireApproval` on an action. No diagram. Reach for BPMN (lesson 21) only when routing, parallelism or joins appear.
 
 You get: a human task with assignee, due date and outcome; candidates **materialized as rows**; maker-checker applied when candidates are resolved; delegation; remind/escalate/expire timers as Oban jobs that are cancelled when the task completes; and a process event log an auditor can read.
@@ -36,6 +40,8 @@ You get: a human task with assignee, due date and outcome; candidates **material
 ## The maker-checker pair
 
 The gate will name the role `refund_approver`, and the host `AssignmentResolver` turns that clause into candidate rows by filtering `AshEnterprise.Security.UserRole` on `role.name == "refund_approver"` (`lib/ash_enterprise/process/assignment_resolver.ex`). No seed creates that role, so build the pair on top of **lesson 15's fabric** — the same actor and tenant you set up there (re-run its setup cell if this is a fresh Livebook session). Your fabric user is the **maker**; the role gets a second user, the **checker**. Candidates are materialized **when the task is created**, so this has to exist before you propose anything.
+
+In the overview's cast these are Dee the representative and Vik the checker; here the maker is your own fabric user and the checker is `checker@example.com`. The roles are the terms that matter — the names are just handles.
 
 ```elixir
 require Ash.Query
@@ -113,6 +119,10 @@ AshEnterprise.Security.UserRole
 ```
 
 The name must be exactly `"refund_approver"`: the resolver matches on it, and an almost-right name resolves to nobody — a task nobody can claim, which presents as a silent stall. (`authorize?: false` on registration is the seeder's own path: registering a user is an authentication action, not a tenant write.) Maker-checker is candidate *subtraction*, not privilege separation — that is why the checker also holds the tenant's Administrator grant. No new privileges are needed this lesson: the gate reuses `propose`, `approve` and `reject`, whose catalogue entries and grants lesson 15's `--privileges-only` + regrant steps already made.
+
+<div class="rounded-xl p-4 my-4" style="background-color: #fdf6ec; border-left: 4px solid #c2410c; color: #7c2d12;">
+  <p><i class="ri-fire-fill"></i> <strong>Soot was here.</strong> Four eyes is older than every framework in this building. The subtraction, not the policy, is just the newest way of counting them.</p>
+</div>
 
 ## Gate the refund
 
@@ -213,6 +223,8 @@ Propose a refund as one user, list the tasks of a second user with `AshBpmn.my_t
 
   </div>
 </details>
+
+**Checkpoint.** The checker decided, the invoker ran `:approve`, the refund is `:approved` — and the maker's task list never showed the task at all.
 
 ## Timers must be cancellable
 

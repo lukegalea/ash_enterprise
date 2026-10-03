@@ -9,6 +9,8 @@ SPDX-License-Identifier: MIT
 
 Runtime: **attached node**.
 
+Effort: **medium** — half-time; one table, one publish. *You'll feel a business rule become a table the business can edit.*
+
 ## A decision decides
 
 <div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
@@ -29,11 +31,25 @@ Runtime: **attached node**.
 
 <!-- livebook:{"break_markdown":true} -->
 
+*You are here: the desk remembers and judges (15-18); half-time on the enterprise floor. Now it learns who decides.*
+
+### Half-time
+
+Four lessons ago the desk gained a memory: every act is an event (15), counted (16), judged (17) and provable after the fact (18). That is already more enterprise substrate than most systems ever grow — and if you stopped any night this week, that is the work working, not you failing.
+
+Now the floor's second half: judgment. Who approves a refund is a question whose answer changes quarterly, and the desk is about to hold it as data.
+
+<!-- livebook:{"break_markdown":true} -->
+
 Who should approve a refund? Under 100, nobody; up to 500, the team lead; above that, finance; gold customers one level lower. That table changes every quarter and the business wants to change it without a deploy. It is a **decision**, and in this stack decisions are DMN.
 
 > **A decision decides. It never acts, never validates, and never authorizes.**
 
 The decision answers "who approves?". The action (lesson 20) acts on the answer. A rule that guards a mutation belongs in the action; put it in a decision and every caller that does not ask the decision bypasses it.
+
+<div class="rounded-xl p-4 my-4" style="background-color: #fdf6ec; border-left: 4px solid #c2410c; color: #7c2d12;">
+  <p><i class="ri-fire-fill"></i> <strong>Soot was here.</strong> The approval table changed every quarter in 2013, and in 2019, and it will again. Now it changes by publishing, not by deploying.</p>
+</div>
 
 ## Decisions are resources
 
@@ -112,6 +128,8 @@ Evaluate the published definition for `amount: 250, tier: "standard"`, as the ac
 
   </div>
 </details>
+
+**Checkpoint.** The published table answered `team_lead` — and the dry run recorded nothing, so tuning the rule is still free.
 
 ## The host seam
 
