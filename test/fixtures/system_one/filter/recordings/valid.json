@@ -1,0 +1,14 @@
+{
+  "_comment": "SPDX-License-Identifier: CC0-1.0 — synthetic valid translation fixture (S1-65): a Basic CQL2 document over the declared queryables (one crisp attribute, one judged predicate).",
+  "op": "and",
+  "args": [
+    { "op": "=", "args": [{ "property": "city" }, "Toronto"] },
+    {
+      "op": "=",
+      "args": [
+        { "property": "judgment:v0:AshEnterprise.SystemOne.TestSupport.Note#judgments/notes_follow_up" },
+        true
+      ]
+    }
+  ]
+}

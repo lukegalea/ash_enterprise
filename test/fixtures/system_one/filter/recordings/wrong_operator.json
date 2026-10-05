@@ -1,0 +1,5 @@
+{
+  "_comment": "SPDX-License-Identifier: CC0-1.0 — synthetic refusal fixture (S1-65): operator 'like' is outside the Basic profile — refused, never approximated.",
+  "op": "like",
+  "args": [{ "property": "city" }, "Tor%"]
+}

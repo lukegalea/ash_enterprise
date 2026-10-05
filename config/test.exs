@@ -111,3 +111,13 @@ config :ash_bpmn, oban_testing: :inline
 # path, folded inside the caller's transaction. Leader monitors, the PubSub
 # listener and the lag probe are all off with the servers.
 config :ash_events_projections, start_projectors?: false, start_probe?: false
+
+# The declared subject resources whose registry questions are queryable
+# predicates of the facts surface (S1-65): the filter proposal mechanism
+# derives its vocabulary from THESE declarations — host configuration,
+# never discovery (the same posture as `config :ash_judgments, :ledger`).
+# The test-support subjects are the only ones declaring questions today.
+config :ash_enterprise, :system_one_subject_resources, [
+  AshEnterprise.SystemOne.TestSupport.Note,
+  AshEnterprise.SystemOne.TestSupport.Standard
+]

@@ -1,0 +1,5 @@
+{
+  "_comment": "SPDX-License-Identifier: CC0-1.0 — synthetic refusal fixture (S1-65): 'service_category' is not a declared queryable — a ghost property is a refusal, never a silent skip.",
+  "op": "=",
+  "args": [{ "property": "service_category" }, "roofing"]
+}
