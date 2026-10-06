@@ -269,6 +269,8 @@ defmodule AshEnterprise.MixProject do
       {:ash_strangler, github: "lukegalea/ash_strangler"},
       # Epic E2 / ADR 0012: OpenLineage emission from action notifications.
       {:ash_open_lineage, github: "lukegalea/ash_open_lineage"},
+      # Epic E3 (dogfood §7): ACP server wire adapter.
+      {:ash_acp, github: "lukegalea/ash_acp"},
 
       # --- Rules engine and the compliance plane it powers ---------------------
       # `ash_rules` is the serializable rule IR, fact-schema DSL and evaluator

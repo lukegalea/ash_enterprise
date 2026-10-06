@@ -28,6 +28,9 @@ defmodule AshEnterprise.Application do
         # Supervised per Iron Law #14: a crash in a lineage POST must never
         # take a caller down with it, and the supervisor isolates exactly that.
         {Task.Supervisor, name: AshEnterprise.TaskSupervisor},
+        # Owns the ACP session/approval ETS tables (epic E3) so they outlive
+        # any transient handler process.
+        AshEnterprise.Acp.Store,
         # The trigger index. Started after the Repo because it loads published triggers.
         # Start a worker by calling: AshEnterprise.Worker.start_link(arg)
         # {AshEnterprise.Worker, arg},

@@ -139,6 +139,13 @@ config :ash_open_lineage,
   correlation_provider: AshEnterprise.Platform.Correlation,
   transport: AshEnterprise.Lineage.Transport
 
+# Epic E3 (dogfood §7): the ACP wire adapter's host seams. The session store is
+# in-memory until epic E5 swaps in the durable AgentSession resources.
+config :ash_acp,
+  session_store: AshEnterprise.Acp.SessionStore,
+  prompt_target: AshEnterprise.Acp.SessionStore,
+  permission_request: AshEnterprise.Acp.Approvals
+
 # The trigger sweep dispatches each event inside its own transaction -- deliberately, so a
 # dispatch row and the instance it records are committed together and a crashed sweep replays
 # cleanly. Ash cannot send notifications from inside a transaction, so the writes the engine
