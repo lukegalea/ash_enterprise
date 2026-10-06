@@ -91,7 +91,12 @@ config :ash_enterprise, AshEnterprise.Ingestion,
       "command" =>
         "cd #{File.cwd!()}/tmp/ingestion/dogfood_tap && #{System.user_home!()}/ash_enterprise/.devenv/state/venv/bin/meltano invoke tap-postgres",
       "external_system" => "postgres"
-    }
+    },
+    # Epic E4: the deterministic calendar fixture — no OAuth, no external
+    # account, byte-identical Singer output every run. TapWorker bypasses the
+    # runner for fixture pipelines; Projection.replay(:calendar) turns the
+    # landed rows into CalendarEvents.
+    "calendar_dev" => %{"fixture" => true, "external_system" => "calendar"}
   }
 
 if ash_schema do

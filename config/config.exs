@@ -284,7 +284,8 @@ config :ash_enterprise,
     AshEnterprise.LegacyAgent,
     AshEnterprise.CanonicalAgent,
     AshEnterprise.SystemOne,
-    AshEnterprise.Ingestion
+    AshEnterprise.Ingestion,
+    AshEnterprise.Canonical
   ],
   base_resources: [AshEnterprise.Platform.Resource]
 

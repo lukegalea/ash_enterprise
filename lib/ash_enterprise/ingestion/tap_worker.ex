@@ -21,6 +21,15 @@ defmodule AshEnterprise.Ingestion.TapWorker do
           }
         }
 
+  ## In-app fixture sources (epic E4)
+
+  A pipeline whose config declares `"fixture" => true` has no `"command"`:
+  the runner is bypassed and `AshEnterprise.Ingestion.FixtureTap`'s Singer
+  output is used verbatim. Parsing and landing are identical to a shelled-out
+  tap — a fixture run is a real pipeline run, lineage events included.
+
+      "calendar_dev" => %{"fixture" => true, "external_system" => "calendar"}
+
   Enqueue: `AshEnterprise.Ingestion.TapWorker.new(%{"pipeline" => "app_db"}) |> Oban.insert()`.
   """
 
@@ -50,9 +59,18 @@ defmodule AshEnterprise.Ingestion.TapWorker do
 
   defp run_pipeline(name, config) do
     external_system = Map.fetch!(config, "external_system")
-    command = Map.fetch!(config, "command")
 
-    job_name = "tap_postgres.#{name}"
+    # In-app fixture sources (epic E4) declare "fixture" and carry no command:
+    # the runner is bypassed and the fixture's Singer output is used verbatim.
+    # See AshEnterprise.Ingestion.FixtureTap.
+    tap_kind =
+      if Map.has_key?(config, "fixture") do
+        "fixture"
+      else
+        "tap_postgres"
+      end
+
+    job_name = "#{tap_kind}.#{name}"
     inputs = ["#{external_system}.source"]
     outputs = ["#{external_system}.ingestion_source_objects"]
 
@@ -66,7 +84,7 @@ defmodule AshEnterprise.Ingestion.TapWorker do
              inputs: inputs,
              outputs: outputs
            ),
-         {:ok, output} <- TapRunner.runner().run(command),
+         {:ok, output} <- tap_output(config),
          {:ok, parsed} <- parse_singer(output, "pipeline #{inspect(name)}") do
       land(parsed.records, external_system, parsed.state, name)
 
@@ -87,6 +105,17 @@ defmodule AshEnterprise.Ingestion.TapWorker do
         )
 
         error
+    end
+  end
+
+  # Where a pipeline's Singer output comes from: the fixture's in-process
+  # output for `"fixture" => true` pipelines, the configured runner (a shell
+  # out) for everything else.
+  defp tap_output(config) do
+    if Map.has_key?(config, "fixture") do
+      {:ok, AshEnterprise.Ingestion.FixtureTap.singer_output()}
+    else
+      TapRunner.runner().run(Map.fetch!(config, "command"))
     end
   end
 

@@ -91,6 +91,25 @@ defmodule AshEnterprise.Ingestion.SourceObject do
       filter expr(external_system == ^arg(:external_system))
     end
 
+    read :by_external do
+      description """
+      The identity lookup canonical projections link back through: one raw row
+      by `(external_system, external_id)`.
+
+      KNOWN GAP (E1 review, fix owned by a dedicated E1 follow-up): this
+      identity does not include the stream, so two streams landing the same
+      external id collide into one row. Consumers mitigate by also matching
+      `source_metadata["stream"]` when they select rows for projection; this
+      lookup cannot, and that is the gap the E1 follow-up closes.
+      """
+
+      get? true
+      argument :external_system, :string, allow_nil?: false
+      argument :external_id, :string, allow_nil?: false
+
+      filter expr(external_system == ^arg(:external_system) and external_id == ^arg(:external_id))
+    end
+
     create :land do
       description """
       Idempotent landing of one raw record. Upserts on the source identity so a
@@ -134,5 +153,10 @@ defmodule AshEnterprise.Ingestion.SourceObject do
     define :advance_cursor, action: :advance_cursor
     define :reset_cursor, action: :reset_cursor
     define :by_system, action: :by_system, args: [:external_system]
+
+    define :by_external,
+      action: :by_external,
+      args: [:external_system, :external_id],
+      not_found_error?: false
   end
 end

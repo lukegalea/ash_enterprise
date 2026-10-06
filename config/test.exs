@@ -2,10 +2,12 @@ import Config
 config :ash_enterprise, Oban, testing: :manual
 
 # Epic E1: the tap worker test drives the real parsing/landing path with an
-# injected runner; only the pipeline registration is config.
+# injected runner; only the pipeline registration is config. Epic E4 adds the
+# deterministic calendar fixture the same way the dev config registers it.
 config :ash_enterprise, AshEnterprise.Ingestion,
   pipelines: %{
-    "test_pipeline" => %{"command" => "unused-in-tests", "external_system" => "postgres"}
+    "test_pipeline" => %{"command" => "unused-in-tests", "external_system" => "postgres"},
+    "calendar_dev" => %{"fixture" => true, "external_system" => "calendar"}
   }
 
 config :ash_enterprise, token_signing_secret: "2W7xIBrAeWb/GPoe4MBvPxA6NFwqqjl0"
