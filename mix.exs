@@ -16,14 +16,7 @@ defmodule AshEnterprise.MixProject do
       usage_rules: usage_rules(),
       dialyzer: dialyzer(),
       docs: docs(),
-      releases: releases(),
-      # EEF-CVE-2026-94201 (HIGH, published after the 2026-10-03 green run):
-      # filtering an :atom attribute with unsafe_to_atom? can exhaust the
-      # BEAM atom table — fixed in ash 3.34.x. Acknowledged, not ignored
-      # quietly: the fix is a framework bump (ash ~> 3.34), which is its own
-      # coordinated change across the forks that pin ash, not a rider on a
-      # feature ticket. This entry comes OUT the moment that bump lands.
-      hex: [ignore_advisories: ["EEF-CVE-2026-94201"]]
+      releases: releases()
     ]
   end
 
@@ -368,7 +361,7 @@ defmodule AshEnterprise.MixProject do
       {:ash_authentication, "~> 4.0"},
       {:ash_postgres, "~> 2.0"},
       {:ash_phoenix, "~> 2.0"},
-      {:ash, "~> 3.33 and >= 3.33.11"},
+      {:ash, "~> 3.34"},
       {:igniter, "~> 0.6", only: [:dev, :test]},
       {:phoenix, "~> 1.8.9"},
       {:phoenix_ecto, "~> 4.5"},

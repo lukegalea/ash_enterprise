@@ -364,6 +364,10 @@ defmodule AshEnterprise.SystemOne.FilterProposal do
   end
 
   defp decode(raw_output) do
+    # Every step here is typed `{:error, String.t()}` on failure — parse_json
+    # wraps its exception into a readable string, and both the schema
+    # validation and the document decode return binary refusals — so one
+    # clause covers every failure shape.
     with {:ok, document} <- parse_json(raw_output),
          :ok <- Filter.Schema.validate_document(document),
          {:ok, _ast} <- Document.decode(document, Queryables.all()) do
@@ -371,9 +375,6 @@ defmodule AshEnterprise.SystemOne.FilterProposal do
     else
       {:error, reason} when is_binary(reason) ->
         {:refused, reason, raw_output}
-
-      {:error, error} ->
-        {:refused, "undecodable output: " <> Exception.message(error), raw_output}
     end
   end
 
