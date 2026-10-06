@@ -144,7 +144,8 @@ config :ash_open_lineage,
 config :ash_acp,
   session_store: AshEnterprise.Acp.SessionStore,
   prompt_target: AshEnterprise.Acp.SessionStore,
-  permission_request: AshEnterprise.Acp.Approvals
+  permission_request: AshEnterprise.Acp.Approvals,
+  surface_provider: AshEnterprise.Acp.Surfaces
 
 # The trigger sweep dispatches each event inside its own transaction -- deliberately, so a
 # dispatch row and the instance it records are committed together and a crashed sweep replays
