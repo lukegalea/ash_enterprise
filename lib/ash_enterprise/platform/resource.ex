@@ -85,7 +85,12 @@ defmodule AshEnterprise.Platform.Resource do
     extensions =
       [
         AshEnterprise.Platform.SystemAttributes,
-        AshAdmin.Resource
+        AshAdmin.Resource,
+        # ADR 0012 / epic E2: every platform resource emits OpenLineage
+        # RunEvents on successful writes, through the host transport (which is
+        # a silent no-op until `:http_base_url` is configured). Table-level
+        # names only — the leak rule forbids actor/tenant/value facets.
+        AshOpenLineage.Extension
       ]
       |> maybe_add(audit?, AshEvents.Events)
       |> maybe_add(archival?, AshArchival.Resource)
@@ -134,6 +139,10 @@ defmodule AshEnterprise.Platform.Resource do
             quote do: cdm_entity(unquote(cdm_entity))
           end
         )
+      end
+
+      lineage do
+        transport(AshEnterprise.Lineage.Transport)
       end
 
       unquote(

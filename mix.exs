@@ -132,6 +132,7 @@ defmodule AshEnterprise.MixProject do
         # somebody is touching the legacy mapping, and AGENTS.md is read into
         # every session whether or not anyone is.
         {:ash_strangler, link: :markdown},
+        {:ash_open_lineage, link: :markdown},
         :phoenix,
         :igniter,
         :reactor,
@@ -266,6 +267,8 @@ defmodule AshEnterprise.MixProject do
       # `legacy.*` plus the notification bridge that makes a legacy write
       # visible to LiveView. See docs/plans/ash-strangler-in-reference-app.md.
       {:ash_strangler, github: "lukegalea/ash_strangler"},
+      # Epic E2 / ADR 0012: OpenLineage emission from action notifications.
+      {:ash_open_lineage, github: "lukegalea/ash_open_lineage"},
 
       # --- Rules engine and the compliance plane it powers ---------------------
       # `ash_rules` is the serializable rule IR, fact-schema DSL and evaluator

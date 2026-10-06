@@ -1528,6 +1528,10 @@ _An Ash extension that generates A2UI (Agent to UI) v0.9.1 payloads from Ash res
 ## ash_a2ui:reports usage
 [ash_a2ui:reports usage rules](deps/ash_a2ui/usage-rules/reports.md)
 <!-- ash_a2ui:reports-end -->
+<!-- ash_a2ui:zero-jank-start -->
+## ash_a2ui:zero-jank usage
+[ash_a2ui:zero-jank usage rules](deps/ash_a2ui/usage-rules/zero-jank.md)
+<!-- ash_a2ui:zero-jank-end -->
 <!-- ash_bpmn-start -->
 ## ash_bpmn usage
 _BPMN-designed, Ash-executed business processes: an embedded bpmn-js designer, a
@@ -3184,6 +3188,15 @@ _Strangler-fig migrations for Ash: map an Ash resource onto a legacy Postgres sc
 
 [ash_strangler usage rules](deps/ash_strangler/usage-rules.md)
 <!-- ash_strangler-end -->
+<!-- ash_open_lineage-start -->
+## ash_open_lineage usage
+_The first Elixir OpenLineage emitter. A Spark extension + Ash.Notifier that
+emits spec 2-0-2 RunEvents for resource actions, and a small public API for
+non-Ash jobs. Facets carry structural names only — never actor, tenant or
+data values._
+
+[ash_open_lineage usage rules](deps/ash_open_lineage/usage-rules.md)
+<!-- ash_open_lineage-end -->
 <!-- phoenix:ecto-start -->
 ## phoenix:ecto usage
 ## Ecto Guidelines

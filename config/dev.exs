@@ -81,6 +81,19 @@ config :ash_enterprise, AshEnterprise.Repo,
 # on the resources instead of relying on a search path.
 ash_schema = System.get_env("ASH_SCHEMA")
 
+# Epic E1 (ADR 0010): the development ingestion pipeline. `tap-postgres` reads
+# this app's own dev database (deterministic, no external account needed) and
+# lands `public.privileges` rows as immutable `Ingestion.SourceObject`s. The
+# command lives here, never in job args — a job only names the pipeline.
+config :ash_enterprise, AshEnterprise.Ingestion,
+  pipelines: %{
+    "app_db" => %{
+      "command" =>
+        "cd #{File.cwd!()}/tmp/ingestion/dogfood_tap && #{System.user_home!()}/ash_enterprise/.devenv/state/venv/bin/meltano invoke tap-postgres",
+      "external_system" => "postgres"
+    }
+  }
+
 if ash_schema do
   search_path =
     [ash_schema, "public", System.get_env("PG_EXTENSION_SCHEMA")]

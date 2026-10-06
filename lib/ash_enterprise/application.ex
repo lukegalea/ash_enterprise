@@ -24,6 +24,10 @@ defmodule AshEnterprise.Application do
            Application.fetch_env!(:ash_enterprise, Oban)
          )},
         {Phoenix.PubSub, name: AshEnterprise.PubSub},
+        # Fire-and-forget OpenLineage posts (AshEnterprise.Lineage.Transport).
+        # Supervised per Iron Law #14: a crash in a lineage POST must never
+        # take a caller down with it, and the supervisor isolates exactly that.
+        {Task.Supervisor, name: AshEnterprise.TaskSupervisor},
         # The trigger index. Started after the Repo because it loads published triggers.
         # Start a worker by calling: AshEnterprise.Worker.start_link(arg)
         # {AshEnterprise.Worker, arg},

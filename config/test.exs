@@ -1,5 +1,13 @@
 import Config
 config :ash_enterprise, Oban, testing: :manual
+
+# Epic E1: the tap worker test drives the real parsing/landing path with an
+# injected runner; only the pipeline registration is config.
+config :ash_enterprise, AshEnterprise.Ingestion,
+  pipelines: %{
+    "test_pipeline" => %{"command" => "unused-in-tests", "external_system" => "postgres"}
+  }
+
 config :ash_enterprise, token_signing_secret: "2W7xIBrAeWb/GPoe4MBvPxA6NFwqqjl0"
 config :bcrypt_elixir, log_rounds: 1
 config :ash, policies: [show_policy_breakdowns?: true], disable_async?: true

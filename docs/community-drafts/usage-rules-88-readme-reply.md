@@ -1,0 +1,1 @@
+Agreed, this is a package-author tool. I moved it into For Package Authors as a "Validating references" subsection, with the example pointed at a package's own `usage-rules.md` and `usage-rules/*.md`, and the no-argument (synced files) mode mentioned only as an aside. The EXTRA_DOCS alternative moved along with it.

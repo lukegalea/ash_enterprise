@@ -22,7 +22,7 @@ config :ash_enterprise, Oban,
   # `:ash_strangler_ledger` drains the change ledger the legacy trigger writes. It is its own
   # queue because one poison legacy row rolls its batch back and retries: a queue shared with
   # anything latency-sensitive would inherit that backoff.
-  queues: [default: 10, bpmn: 10, ash_strangler_ledger: 10],
+  queues: [default: 10, bpmn: 10, ash_strangler_ledger: 10, ingestion: 5],
   repo: AshEnterprise.Repo,
   plugins: [
     # Rescues jobs left `executing` by a node that died mid-flight. Without it they stay that
@@ -129,6 +129,15 @@ config :ash_events_projections,
 # Oban config above is the sweep that guarantees a missed wake costs delay,
 # not delivery.
 config :ash_strangler, ledger_drain: {AshEnterprise.Ledger.UserDrainWorker, :nudge}
+
+# ADR 0012 / epic E2: the lineage runId IS the audit correlation id, so
+# "lineage for this audit entry" is a lookup rather than a join across
+# vocabularies. The transport host (`AshEnterprise.Lineage.Transport`) stays a
+# no-op until `:http_base_url` is set, e.g. for the local Marquez:
+#   config :ash_open_lineage, http_base_url: "http://localhost:5000"
+config :ash_open_lineage,
+  correlation_provider: AshEnterprise.Platform.Correlation,
+  transport: AshEnterprise.Lineage.Transport
 
 # The trigger sweep dispatches each event inside its own transaction -- deliberately, so a
 # dispatch row and the instance it records are committed together and a crashed sweep replays
@@ -266,7 +275,8 @@ config :ash_enterprise,
     AshEnterprise.Compliance,
     AshEnterprise.LegacyAgent,
     AshEnterprise.CanonicalAgent,
-    AshEnterprise.SystemOne
+    AshEnterprise.SystemOne,
+    AshEnterprise.Ingestion
   ],
   base_resources: [AshEnterprise.Platform.Resource]
 

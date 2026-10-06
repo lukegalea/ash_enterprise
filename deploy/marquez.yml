@@ -1,0 +1,46 @@
+# Epic E2 (ADR 0012): local Marquez for lineage, internal network only.
+#
+# Run once, by the operator: `docker compose -f deploy/marquez.yml up -d`.
+# ADR 0012 names Marquez nearly dormant; the exit is a base-URL change to
+# DataHub's native OpenLineage endpoint, so nothing here is load-bearing beyond
+# dev. Do NOT publish 5438/5000 beyond loopback: Marquez has no authentication,
+# anyone who reaches the API reads the whole graph.
+
+services:
+  marquez-db:
+    image: postgres:14-alpine
+    environment:
+      POSTGRES_USER: marquez
+      POSTGRES_PASSWORD: marquez
+      POSTGRES_DB: marquez
+    volumes:
+      - marquez-db-data:/var/lib/postgresql/data
+    # Loopback only; reachable from the marquez service over the compose network.
+    ports:
+      - "127.0.0.1:5438:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U marquez"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  marquez:
+    image: marquezproject/marquez:0.50.0
+    depends_on:
+      marquez-db:
+        condition: service_healthy
+    environment:
+      MARQUEZ_PORT: "5000"
+      MARQUEZ_ADMIN_PORT: "5001"
+      POSTGRES_HOST: marquez-db
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: marquez
+      POSTGRES_USER: marquez
+      POSTGRES_PASSWORD: marquez
+    ports:
+      # Loopback only — see the ADR: internal network, never a public surface.
+      - "127.0.0.1:5000:5000"
+      - "127.0.0.1:5001:5001"
+
+volumes:
+  marquez-db-data:

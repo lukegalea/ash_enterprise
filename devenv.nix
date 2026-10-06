@@ -57,6 +57,11 @@ in
     openssl
     jq
     curl
+    # zlib is a runtime dependency of pip-built C extensions that link it
+    # (psycopg2 inside Meltano/Singer tap venvs — epic E1's ingestion runtime).
+    # The nix python's rpath does not reach the system copy in /usr/lib, so the
+    # tap fails with `ImportError: libz.so.1` without this.
+    zlib
     graphviz # AshDiagram's Graphviz renderer (Mermaid renders client-side)
 
     # `xmllint`, for DMN. `boxic_dmn` -- the engine under `ash_decisions` -- validates a DMN
