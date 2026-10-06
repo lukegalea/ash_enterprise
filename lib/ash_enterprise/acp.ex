@@ -46,11 +46,15 @@ defmodule AshEnterprise.Acp do
   end
 
   @doc """
-  The actor ACP sessions run as. Until authentication lands with E5, this is a
-  fixed local operator identity and the server must only be reachable from the
-  operator's own machine (stdio from their console, or loopback HTTP).
+  The actor ACP sessions run as: the deployment's seeded operator user
+  (`admin@example.com`), read through the normal policies — a surface is
+  client-visible data, so it must be produced under real authorization, never
+  a bypass. Sessions are local-operator-only until authentication lands with
+  E5 (stdio from the operator's console, or loopback HTTP).
   """
   def system_actor do
-    %{id: "acp-operator", email: "operator@localhost", name: "ACP operator"}
+    # Raises if the deployment has not been seeded: an ACP session without a
+    # real actor would silently render unauthorized empty surfaces.
+    AshEnterprise.Accounts.get_user_by_email!("admin@example.com", authorize?: false)
   end
 end

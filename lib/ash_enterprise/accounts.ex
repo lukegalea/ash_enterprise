@@ -77,7 +77,10 @@ defmodule AshEnterprise.Accounts do
 
   resources do
     resource AshEnterprise.Accounts.Token
-    resource AshEnterprise.Accounts.User
+
+    resource AshEnterprise.Accounts.User do
+      define :get_user_by_email, action: :get_by_email, args: [:email]
+    end
 
     # The organizational structure. Order here is documentation, not dependency:
     # Organization is the tenant, BusinessUnit is the access hierarchy inside it,
