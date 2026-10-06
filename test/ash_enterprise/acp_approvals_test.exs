@@ -21,8 +21,9 @@ defmodule AshEnterprise.Acp.ApprovalsTest do
     s
   end
 
+  # A write: writes always pend (dogfood §5), whatever the actor's grants.
   defp action_spec do
-    %{resource: AshEnterprise.Reference.LanguageLocale, action: :read, label: "List locales"}
+    %{resource: AshEnterprise.Reference.LanguageLocale, action: :create, label: "Create locale"}
   end
 
   test "the owning session's allow_once approves the pending ref" do
@@ -71,6 +72,18 @@ defmodule AshEnterprise.Acp.ApprovalsTest do
                %{"outcome" => "selected", "optionId" => "allow_once"},
                session
              )
+  end
+
+  test "an authorized read auto-approves without a pending record" do
+    session = session("op-read")
+
+    spec = %{
+      resource: AshEnterprise.Accounts.BusinessUnit,
+      action: :read,
+      label: "List business units"
+    }
+
+    assert {:approved, _} = Approvals.request(session, spec, %{})
   end
 
   test "sessions persist through the store (create stores, load restores)" do

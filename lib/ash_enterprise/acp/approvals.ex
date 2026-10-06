@@ -16,20 +16,38 @@ defmodule AshEnterprise.Acp.Approvals do
   @impl true
   def request(session, action_spec, inputs) do
     Acp.ensure_tables!()
-    ref = Ash.UUID.generate()
 
-    :ets.insert(
-      Acp.approvals_table(),
-      {ref,
-       %{
-         session_id: session.session_id,
-         action_spec: action_spec,
-         inputs: inputs,
-         status: :pending
-       }}
-    )
+    actor = session.actor
+    tenant = Acp.tenant_of(actor)
 
-    {:pending, ref}
+    # ADR 0015 seam: approvals gate *privileged* operations. An action policy
+    # already authorizes runs without a modal — else every authorized read
+    # nags. Only actions policy does not authorize become pending approvals.
+    action = Ash.Resource.Info.action(action_spec.resource, action_spec.action)
+
+    authorized? = Ash.can?({action_spec.resource, action_spec.action}, actor, tenant: tenant)
+
+    # Reads run without a modal when authorized. Writes always pend — dogfood
+    # §5's capability-transition rule: consequential operations are approvals,
+    # even for the operator.
+    if authorized? and action.type == :read do
+      {:approved, %{auto: :policy_authorized, tenant: tenant}}
+    else
+      ref = Ash.UUID.generate()
+
+      :ets.insert(
+        Acp.approvals_table(),
+        {ref,
+         %{
+           session_id: session.session_id,
+           action_spec: action_spec,
+           inputs: inputs,
+           status: :pending
+         }}
+      )
+
+      {:pending, ref}
+    end
   end
 
   @impl true
