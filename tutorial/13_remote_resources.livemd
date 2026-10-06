@@ -1,0 +1,261 @@
+<!--
+SPDX-FileCopyrightText: 2026 Luke Galea
+SPDX-FileCopyrightText: 2023 ash_tutorial contributors <https://github.com/ash-project/ash_tutorial/graphs/contributors>
+
+SPDX-License-Identifier: MIT
+-->
+
+# Ash Enterprise: 13 - Remote APIs as Resources
+
+Effort: **medium** — two exercises, one real API. *You'll feel somebody else's API become just another resource.*
+
+```elixir
+Application.put_env(:ash, :validate_domain_resource_inclusion?, false)
+Application.put_env(:ash, :validate_domain_config_inclusion?, false)
+Application.put_env(:ash, :default_string_length_count, :codepoints)
+
+Mix.install([{:ash, "~> 3.0"}, {:req, "~> 0.5"}], consolidate_protocols: false)
+```
+
+## A REST API is a resource
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="12_liveview_pubsub.livemd">LiveView: Live Updates</a>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Home</a>
+</div>
+<div class="flex">
+<a class="flex mr-2" style="color: #61758a;" href="14_agent_tools.livemd">Working With Your Agent</a>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>
+
+
+<!-- livebook:{"break_markdown":true} -->
+
+*You are here: the desk is whole but inward-facing (10-12); its last wall comes down — the billing system, somebody else's, becomes a resource.*
+
+Our customers' billing accounts live in somebody else's system, behind HTTP. One of them is Priya's — the customer whose printer opened the desk in lesson 10; her refund, from lesson 15 on, will end here as a credit. The tempting thing is a `BillingClient` module with `get_account/1` called from wherever it is needed. Do not. That client has no types, no policies, no code interface, no notifications, no place for an agent to discover it, and every caller handles its errors differently.
+
+Instead, **model it as a resource with no database**. Callers use actions, exactly like any other resource. The HTTP is an implementation detail behind those actions. When the vendor changes, or the data moves in-house, callers do not change.
+
+We will use [JSONPlaceholder](https://jsonplaceholder.typicode.com/users) as the "billing system".
+
+## A manual read
+
+`Ash.DataLayer.Simple` means "no storage of my own". A `manual` read implements fetching; Ash still handles arguments, policies, calculations, and loading.
+
+```elixir
+defmodule Tutorial.Billing.Client do
+  # The only module that knows the wire. Swap it in tests with Req.Test.
+  def req, do: Req.new(base_url: "https://jsonplaceholder.typicode.com", retry: :transient)
+end
+
+defmodule Tutorial.Billing.Account.Read do
+  use Ash.Resource.ManualRead
+
+  def read(query, _data_layer_query, _opts, _context) do
+    path =
+      case query.arguments do
+        %{id: id} when not is_nil(id) -> "/users/#{id}"
+        _ -> "/users"
+      end
+
+    case Req.get(Tutorial.Billing.Client.req(), url: path) do
+      {:ok, %{status: 200, body: body}} -> {:ok, body |> List.wrap() |> Enum.map(&to_record/1)}
+      {:ok, %{status: 404}} -> {:ok, []}
+      {:ok, %{status: s}} -> {:error, "billing API returned #{s}"}
+      {:error, e} -> {:error, e}
+    end
+  end
+
+  defp to_record(m),
+    do: struct(Tutorial.Billing.Account, id: m["id"], name: m["name"], email: m["email"], company: m["company"]["name"])
+end
+
+defmodule Tutorial.Billing.Account do
+  use Ash.Resource, domain: Tutorial.Billing, data_layer: Ash.DataLayer.Simple
+
+  attributes do
+    integer_primary_key :id
+    attribute :name, :string, public?: true
+    attribute :email, :ci_string, public?: true
+    attribute :company, :string, public?: true
+  end
+
+  actions do
+    read :read do
+      primary? true
+      argument :id, :integer
+      manual Tutorial.Billing.Account.Read
+    end
+  end
+
+  calculations do
+    # An Elixir calculation: there is no SQL behind this resource, so no fragments.
+    calculate :email_domain, :string, fn records, _ctx ->
+      Enum.map(records, &(&1.email |> to_string() |> String.split("@") |> List.last()))
+    end
+  end
+end
+
+defmodule Tutorial.Billing do
+  use Ash.Domain
+
+  resources do
+    resource Tutorial.Billing.Account do
+      define :list_accounts, action: :read
+      define :get_account, action: :read, args: [:id], get?: true
+    end
+  end
+end
+```
+
+Note what we did not write: no JSON-to-type casting for `email` beyond the struct (Ash types it), no pagination glue for callers, no error shape per caller.
+
+Fetch account `3` through the code interface.
+
+**Enter your solution**
+
+```elixir
+
+```
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
+  <div class="p-4">
+
+  ```elixir
+  Tutorial.Billing.get_account!(3)
+  ```
+
+  </div>
+</details>
+
+**Checkpoint.** Account 3 arrived through a code interface, typed and loaded like any resource — the HTTP never surfaced.
+
+**Look around.** `Tutorial.Billing.get_account!(3)` reads like every other call in this series. That ordinariness is the trick: swap JSONPlaceholder for a real vendor next year, and this line does not change.
+
+## Filters and sorts are the read's job
+
+With `Ash.DataLayer.Simple`, **nobody applies your filters for you**. Ash collects what the caller asked for — `query.filter`, `query.sort`, `query.limit` — and hands it to the manual read. The read above ignores all of it, so run this query:
+
+```elixir
+require Ash.Query
+
+Tutorial.Billing.Account
+|> Ash.Query.filter(contains(company, "LLC"))
+|> Ash.Query.sort(name: :desc)
+|> Ash.read!()
+|> Enum.map(& &1.name)
+```
+
+You get **all ten users back, in API order, with no error**. A database layer would have filtered and sorted; a manual read must. Reading `query.filter` and `query.sort` is not an optimisation — skipping it returns silently wrong results, which is worse than a crash. Edit the `Tutorial.Billing.Account.Read` module in the definition cell (the original cell — a second cell defining the module is a compile error, see lesson 10) and re-run it:
+
+```elixir
+defmodule Tutorial.Billing.Account.Read do
+  use Ash.Resource.ManualRead
+
+  def read(query, _data_layer_query, _opts, _context) do
+    path =
+      case query.arguments do
+        %{id: id} when not is_nil(id) -> "/users/#{id}"
+        _ -> "/users"
+      end
+
+    case Req.get(Tutorial.Billing.Client.req(), url: path) do
+      {:ok, %{status: 200, body: body}} ->
+        # The remote API filters nothing, so the read does. These are the same
+        # runtime helpers Ash's own in-memory data layers call: the first drops
+        # records the filter rejects, the second applies the sort.
+        records = body |> List.wrap() |> Enum.map(&to_record/1)
+
+        with {:ok, matching} <-
+               Ash.Filter.Runtime.filter_matches(Tutorial.Billing, records, query.filter) do
+          {:ok, Ash.Actions.Sort.runtime_sort(matching, query.sort)}
+        end
+
+      {:ok, %{status: 404}} -> {:ok, []}
+      {:ok, %{status: s}} -> {:error, "billing API returned #{s}"}
+      {:error, e} -> {:error, e}
+    end
+  end
+
+  defp to_record(m),
+    do: struct(Tutorial.Billing.Account, id: m["id"], name: m["name"], email: m["email"], company: m["company"]["name"])
+end
+```
+
+Re-run the query above: now only the `LLC` companies, sorted. For large remote sets the real fix is to push what the API supports down into the request (a query string, a search endpoint) and apply only the remainder in memory — but that is an optimisation on top of a read that is already correct.
+
+## Remote writes are generic actions
+
+Most APIs expose verbs, not rows. A **generic action** is a typed verb with arguments and a return type, and it gets policies and a code interface like any other action.
+
+Add a generic action `:issue_credit` to `Tutorial.Billing.Account` — edit the `Account` module in the definition cell and re-run it — taking `account_id :integer` and `amount :decimal`, which POSTs to `/posts` (JSONPlaceholder echoes it back) and returns `:map`. Define `issue_credit` on the domain.
+
+**Enter your solution**
+
+```elixir
+
+```
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
+  <div class="p-4">
+
+  ```elixir
+  action :issue_credit, :map do
+    argument :account_id, :integer, allow_nil?: false
+    argument :amount, :decimal, allow_nil?: false, constraints: [greater_than: 0]
+
+    run fn input, _ctx ->
+      body = %{userId: input.arguments.account_id, amount: Decimal.to_string(input.arguments.amount)}
+
+      case Req.post(Tutorial.Billing.Client.req(), url: "/posts", json: body) do
+        {:ok, %{status: 201, body: b}} -> {:ok, b}
+        {:ok, %{status: s}} -> {:error, "billing API returned #{s}"}
+        {:error, e} -> {:error, e}
+      end
+    end
+  end
+  ```
+
+  Domain: `define :issue_credit, args: [:account_id, :amount]`. Then `Tutorial.Billing.issue_credit!(3, Decimal.new("25.00"))`.
+  The `greater_than: 0` constraint refuses a negative credit before any HTTP happens.
+
+  </div>
+</details>
+
+**Checkpoint.** A typed verb with a code interface — and a negative amount is refused before any HTTP happens, because the constraint is the action's contract.
+
+## Relate local to remote
+
+A `Ticket` (local, ETS or Postgres) can `belongs_to :billing_account, Tutorial.Billing.Account`, attribute type `:integer`. Ash loads across data layers, so `Ash.load!(ticket, :billing_account)` calls your manual read. The rest of the tutorial treats the billing system as just another resource.
+
+## Why this matters later
+
+* **Agents (14, 22):** `ash_agent_tools` describes `issue_credit` like any action, and an agent can validate inputs before calling it.
+* **Processes (21):** a BPMN service task invokes actions through the host's `ActionInvoker`. "Issue the credit" is an action, so the process never sees HTTP.
+* **Idempotency:** process nodes may run twice under Oban redelivery. Real credit APIs need an idempotency key. Add an `:idempotency_key` argument and send it as a header; that is the action's contract, not the caller's problem.
+* **Integration hubs:** in `ash_enterprise`, third-party APIs arrive through an integration hub (ADR 0011). The hub is plumbing; the resource is still the interface.
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="12_liveview_pubsub.livemd">LiveView: Live Updates</a>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Home</a>
+</div>
+<div class="flex">
+<a class="flex mr-2" style="color: #61758a;" href="14_agent_tools.livemd">Working With Your Agent</a>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>
+

@@ -1,0 +1,249 @@
+<!--
+SPDX-FileCopyrightText: 2026 Luke Galea
+SPDX-FileCopyrightText: 2023 ash_tutorial contributors <https://github.com/ash-project/ash_tutorial/graphs/contributors>
+
+SPDX-License-Identifier: MIT
+-->
+
+# Ash Enterprise: 11 - LiveView: Forms & Actions
+
+Effort: **medium** — two exercises, one browser page. *You'll feel the action teach the form: fields, errors, refusals and all.*
+
+```elixir
+Application.put_env(:ash, :validate_domain_resource_inclusion?, false)
+Application.put_env(:ash, :validate_domain_config_inclusion?, false)
+Application.put_env(:ash, :default_string_length_count, :codepoints)
+
+Mix.install(
+  [
+    {:ash, "~> 3.0"},
+    {:ash_phoenix, "~> 2.0"},
+    {:phoenix_playground, "~> 0.1"},
+    # The domain carries a policies block (lesson 10), which needs a SAT solver.
+    {:simple_sat, "~> 0.1"}
+  ],
+  consolidate_protocols: false
+)
+```
+
+## Forms are actions
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="10_liveview_reads.livemd">LiveView: Reading Resources</a>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Home</a>
+</div>
+<div class="flex">
+<a class="flex mr-2" style="color: #61758a;" href="12_liveview_pubsub.livemd">LiveView: Live Updates</a>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>
+
+
+<!-- livebook:{"break_markdown":true} -->
+
+*You are here: the desk can be read from a UI (10); now it takes writes — and refuses them — through the same door.*
+
+`AshPhoenix.Form` builds a form **from an action**. The fields it accepts, the validations it runs, the errors it shows and the policies it obeys all come from that action. You do not write a schema, a changeset function or an error translator.
+
+Here is the lesson 10 domain again, self-contained, with one addition: a `string_length` validation on `:open` — the first rule that lives in the action rather than the attribute:
+
+```elixir
+defmodule Tutorial.Support.Ticket do
+  use Ash.Resource,
+    domain: Tutorial.Support,
+    data_layer: Ash.DataLayer.Ets,
+    authorizers: [Ash.Policy.Authorizer]
+
+  attributes do
+    uuid_primary_key :id
+    attribute :subject, :string, allow_nil?: false, public?: true
+    attribute :status, :atom, constraints: [one_of: [:open, :closed]], default: :open, public?: true
+    attribute :owner_id, :uuid, public?: true
+    create_timestamp :inserted_at, public?: true
+  end
+
+  actions do
+    defaults [:read]
+
+    create :open do
+      accept [:subject, :owner_id]
+      validate string_length(:subject, min: 5)
+    end
+
+    update :close, change: set_attribute(:status, :closed)
+
+    read :open_tickets do
+      filter expr(status == :open)
+      pagination keyset?: true, default_limit: 20, required?: false
+    end
+  end
+
+  policies do
+    policy action_type(:read) do
+      authorize_if expr(owner_id == ^actor(:id))
+    end
+
+    policy action_type([:create, :update]) do
+      authorize_if actor_present()
+    end
+  end
+end
+
+defmodule Tutorial.Support do
+  use Ash.Domain
+
+  resources do
+    resource Tutorial.Support.Ticket do
+      define :open_ticket, action: :open, args: [:subject]
+      define :list_open, action: :open_tickets
+      define :close_ticket, action: :close
+    end
+  end
+end
+```
+
+(If you still have lesson 10's notebook open, editing *its* cell works too — but re-run that cell; a second cell defining the same module is a compile error, see lesson 10.)
+
+## Build and validate a form
+
+```elixir
+actor = %{id: Ash.UUID.generate()}
+
+form =
+  Tutorial.Support.Ticket
+  |> AshPhoenix.Form.for_create(:open, actor: actor, params: %{"owner_id" => actor.id})
+
+form = AshPhoenix.Form.validate(form, %{"subject" => "Hi"})
+{form.valid?, AshPhoenix.Form.errors(form)}
+```
+
+The error came from `validate string_length/2` in the action, not from anything in the UI.
+
+Submit a valid version of the form and get the created ticket back.
+
+**Enter your solution**
+
+```elixir
+
+```
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
+  <div class="p-4">
+
+  ```elixir
+  {:ok, ticket} =
+    form
+    |> AshPhoenix.Form.validate(%{"subject" => "Printer on fire", "owner_id" => actor.id})
+    |> AshPhoenix.Form.submit()
+
+  ticket.subject
+  ```
+
+  </div>
+</details>
+
+**Checkpoint.** The form validated against an action you wrote no validator for — the `string_length` error came from the resource, and no browser was involved.
+
+**Look around.** Re-run the validate cell with a five-character subject and watch `form.valid?` flip. The form is the action's contract, rendered; everything the browser adds is conversation.
+
+## In a LiveView
+
+```elixir
+defmodule NewTicketLive do
+  use Phoenix.LiveView
+
+  def mount(_params, _session, socket) do
+    actor = %{id: Ash.UUID.generate()}
+    form = AshPhoenix.Form.for_create(Tutorial.Support.Ticket, :open, actor: actor) |> to_form()
+    {:ok, assign(socket, current_user: actor, form: form, created: nil)}
+  end
+
+  def handle_event("validate", %{"form" => params}, socket) do
+    {:noreply, assign(socket, form: AshPhoenix.Form.validate(socket.assigns.form, params))}
+  end
+
+  def handle_event("save", %{"form" => params}, socket) do
+    params = Map.put(params, "owner_id", socket.assigns.current_user.id)
+
+    case AshPhoenix.Form.submit(socket.assigns.form, params: params) do
+      {:ok, ticket} -> {:noreply, assign(socket, created: ticket.subject)}
+      {:error, form} -> {:noreply, assign(socket, form: form)}
+    end
+  end
+
+  def render(assigns) do
+    ~H"""
+    <.form for={@form} phx-change="validate" phx-submit="save">
+      <input name={@form[:subject].name} value={@form[:subject].value} />
+      <p :for={{msg, _} <- @form[:subject].errors}>{msg}</p>
+      <button>Open ticket</button>
+    </.form>
+    <p :if={@created}>Created: {@created}</p>
+    """
+  end
+end
+
+PhoenixPlayground.start(live: NewTicketLive, port: 4011, open_browser: false)
+```
+
+Building the form in `mount/3` is fine: it is a struct, not a query.
+
+## Exercise: a close button that respects the action
+
+Add a `close` button. Rather than `Ash.Changeset.for_update(:close)` in the event handler, use `AshPhoenix.Form.for_update(ticket, :close, actor: ...)` and submit it with `params: %{}` — the option is now effectively required, and omitting it prints a deprecation warning that looks like your mistake. Then add `validate attribute_equals(:status, :open)` to `:close` and watch a double close fail with an error you can render.
+
+**Enter your solution**
+
+```elixir
+
+```
+
+<details class="rounded-lg my-4" style="background-color: #96ef86; color: #040604;">
+  <summary class="cursor-pointer font-bold p-4">Show Solution</summary>
+  <div class="p-4">
+
+  ```elixir
+  update :close do
+    validate attribute_equals(:status, :open), message: "is already closed"
+    change set_attribute(:status, :closed)
+  end
+  ```
+
+  ```elixir
+  {:ok, closed} =
+    AshPhoenix.Form.for_update(ticket, :close, actor: actor) |> AshPhoenix.Form.submit(params: %{})
+
+  {:error, form} =
+    AshPhoenix.Form.for_update(closed, :close, actor: actor) |> AshPhoenix.Form.submit(params: %{})
+
+  AshPhoenix.Form.errors(form)
+  ```
+
+  The rule "you cannot close a closed ticket" now holds for the UI, the API, an agent and a background job alike. Keep that in mind in lesson 21: a BPMN gateway is **not** where this rule goes.
+
+  </div>
+</details>
+
+**Checkpoint.** The double close now fails everywhere for the same reason — one action, one validation, every caller — and lesson 21 will not be allowed to forget it.
+
+<div class="flex items-center w-full flex-start justify-between rounded-xl p-4" style="background-color: #f0f5f9; color: #61758a;">
+<div class="flex">
+<i class="ri-arrow-left-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="10_liveview_reads.livemd">LiveView: Reading Resources</a>
+</div>
+<div class="flex">
+<i class="ri-home-fill"></i>
+<a class="flex ml-2" style="color: #61758a;" href="overview.livemd">Home</a>
+</div>
+<div class="flex">
+<a class="flex mr-2" style="color: #61758a;" href="12_liveview_pubsub.livemd">LiveView: Live Updates</a>
+<i class="ri-arrow-right-fill"></i>
+</div>
+</div>
+

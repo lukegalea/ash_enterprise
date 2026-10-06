@@ -1,0 +1,192 @@
+<!--
+SPDX-FileCopyrightText: 2026 Luke Galea
+SPDX-FileCopyrightText: 2023 ash_tutorial contributors <https://github.com/ash-project/ash_tutorial/graphs/contributors>
+
+SPDX-License-Identifier: MIT
+-->
+
+# Ash Enterprise: Overview
+
+## Overview
+
+This tutorial is self-contained from lesson 1: lessons 1 to 9 fork [ash_tutorial](https://github.com/ash-project/ash_tutorial)'s lessons 1 to 9 (MIT) into this repo, retargeted so the support desk carries straight through — you finish them holding `Tutorial.Support.Ticket` and `Tutorial.Support.Representative` with actions, relationships, an aggregate and calculations. We then grow the support desk, one concept per lesson, into the kind of system an enterprise actually runs: audited, projected, rule-checked, decided, approved, orchestrated, rendered for agents, and migrated off a legacy schema without a big-bang cutover. The people who work the desk — the `Representative` — reappear there as the app's own users, the actors who propose and approve refunds.
+
+About numbering: this series forks ash_tutorial's lessons 1-9 as lessons 1-9 here (MIT, with attribution in each file) and continues from 10 with its own numbering. The upstream repo may keep evolving on its own; these forks track the lessons as taught here.
+
+Same rules as before:
+
+* Work **sequentially**. Every lesson builds on the previous one.
+* Read the instructions, **write your own solution**, then open **Show Solution**.
+* **Do not copy paste.** The muscle memory is the point.
+* **Edit the original cell, never a new one.** Lessons define modules in cells; to change a module, edit the cell that defined it and re-run that cell. Defining the same module in a second cell is a compile error on current Elixir — lesson 10 says more.
+
+<!-- livebook:{"break_markdown":true} -->
+
+### The Ash way, stated once
+
+Every lesson is a variation on one idea, so it is worth saying plainly before you start:
+
+> **Describe what a thing is, once, as data. Derive everything else from the description.**
+
+That idea has consequences you will meet over and over:
+
+1. **Everything is a resource.** A database table, an event log, a projection, a remote REST API, a DMN decision, a BPMN definition, a legacy table you do not own. If it has a shape and operations, it is a resource with actions.
+2. **Actions are the only door.** UIs, APIs, agents, processes and jobs all call the same actions, so policies, validations and audit apply to all of them. Nothing writes around an action.
+3. **Each layer has one job.** A process *orchestrates*, a decision *decides*, a rule *evaluates*, a policy *authorizes*, a projection *summarises*, a model *observes*. When one layer starts doing another's job, the rule ends up enforced in one place and bypassed everywhere else.
+4. **Artifacts are immutable and versioned.** Published decisions, process definitions and rule bundles are content-hashed snapshots, never edited in place.
+5. **Missing is never "fine".** Unknown facts are `:unknown`, not `false`; an unmatched decision is reported, not silently empty.
+
+<!-- livebook:{"break_markdown":true} -->
+
+### Runtimes
+
+* **Lessons 1 to 13** run standalone — no database. Lessons 1 to 9 need only `:ash` in their `Mix.install`; lessons 10 to 13 add [`phoenix_playground`](https://hex.pm/packages/phoenix_playground) (and, for the lessons with a `policies` block, a SAT solver dep). Each installs only the deps that lesson needs, which is not always the same set the upstream cells installed.
+* **Lessons 14 to 25** need Postgres, Oban and the enterprise packages, which are already wired together in `ash_enterprise`. Run them against the app.
+
+Install Livebook once, if you have not: either the [desktop app](https://livebook.dev) or, in a terminal with Elixir on your path, `mix escript.install hex livebook`. Open the notebooks from your local clone — `livebook server <path-to-checkout>/tutorial`, or open the `tutorial` directory from Livebook's open page — so the per-lesson navigation links between files keep working.
+
+Then, in the `ash_enterprise` checkout:
+
+```bash
+devenv up                                            # Postgres etc.; leave it running
+devenv shell -- sh -c 'cd assets && npm ci'          # frontend deps `mix setup` does not install
+devenv shell -- mix setup
+devenv shell -- iex --name ae@127.0.0.1 --cookie tutorial -S mix phx.server
+```
+
+Then in Livebook choose **Runtime → Attached node**, name `ae@127.0.0.1`, cookie `tutorial`.
+
+Two lines there deserve a word:
+
+* The node name is **long** (`--name ae@127.0.0.1`, not `--sname ae`). Livebook itself runs as a long-named node, and a long-named node cannot reach a short-named one, so the short form gives you a running server nothing can attach to.
+* **Launch the server from the checkout root.** `devenv shell` preserves your current directory, so running the start command from a drifted shell — another checkout of the same repo, say — silently starts *that* checkout's app on the port, and Livebook then attaches to code without your lesson files. `pwd` before you launch.
+* If port 4000 is already taken (a teammate, or your own other checkout), pick another port by setting it *inside* the devenv shell — `devenv shell` does not inherit your shell's environment, so a `PORT=4001` prefix on the outside is silently dropped: `devenv shell -- sh -c 'PORT=4001 iex --name ae@127.0.0.1 --cookie tutorial -S mix phx.server'`. Attach exactly the same way; only lesson 14's MCP URLs assume :4000.
+
+From lesson 15 on, the resources you write are real application code. Put them under `lib/ash_enterprise/tutorial/` in an `AshEnterprise.Tutorial` domain (lesson 15 creates it), generate migrations with `mix ash.codegen --dev` while you are learning — name a codegen only for a change you mean to keep — and **restart the node whenever a lesson edits config or any file under `lib/`**. `recompile()` is not enough for Ash DSL changes: a resource or domain module recompiles with its old extension state until the application restarts. Use the notebook to explore, call actions and debug.
+
+One sentence about the seed task so it does not surprise you: `mix ash_enterprise.seed` provisions a demo tenant for exploring the full app; the tutorial does not need it — lesson 15's setup cell builds the small actor/tenant fabric the lessons share, from the running node.
+
+### When you're done
+
+Because the lessons write real application code, they leave marks a `git status` will show you: tutorial tables and their migrations, `lib/ash_enterprise/tutorial/`, the `AshEnterprise.Tutorial` entry in `config/config.exs` (lesson 15), the tutorial projectors in the `:ash_events_projections` config (lessons 16 and 18), the `issue_credit` registry entry and functions in `lib/ash_enterprise/process/action_invoker.ex` (lessons 20-21), a router line and `lib/ash_enterprise_web/a2ui/` (lesson 23), resource snapshots under `priv/resource_snapshots/`, and rows in the event logs. **Do not commit any of it** — a stale `ash_domains` entry or projector config in `main` breaks boot and `mix precommit` for everyone else. Undo it all:
+
+1. Roll the database back: repeat `devenv shell -- mix ecto.rollback` until the `tutorial_*` tables are gone — then **stop**. Rollback does not error at the pre-tutorial tip (check `priv/repo/migrations` for the last non-tutorial timestamp, `2026100205…`-era), and one rollback too many silently starts eating the application's own migrations. If the database is disposable, rebuild in one step instead: `devenv shell -- mix ecto.reset` (run `mix ash_enterprise.seed` afterwards only if you want the full demo tenant; the tutorial does not need it).
+2. Clear the shared-table residue rollback cannot touch. The projection registry, checkpoints, dead letters and the consumable event log are shared tables the migrations never created for you — stale `active` registry rows collide with the same projection names next time. With the `psql` flags from lesson 24:
+
+   <!-- livebook:{"force_markdown":true} -->
+
+   ```bash
+   devenv shell -- psql --no-password --set ON_ERROR_STOP=1 \
+     --host "${PGHOST:-localhost}" --port "$PGPORT" \
+     --username "${DB_USER:-postgres}" --dbname "$PGDATABASE" -c "
+   DELETE FROM ash_projection_registry    WHERE name            LIKE 'tutorial_%';
+   DELETE FROM ash_projection_checkpoints WHERE projection_name LIKE 'tutorial_%';
+   DELETE FROM ash_projection_dead_letter_events WHERE projection_name LIKE 'tutorial_%';
+   DELETE FROM compliance_events WHERE resource LIKE 'Elixir.AshEnterprise.Tutorial%';"
+   ```
+
+   (The `compliance_events.resource` column stores fully qualified module names, `Elixir.` prefix included — filter on it, or your first "0 rows" is a filter artifact, not a clean table.)
+3. Revert the tracked files the lessons edited: `git checkout -- config/ lib/ priv/`.
+4. Delete the untracked tutorial artifacts: `git clean -fd lib/ash_enterprise/tutorial lib/ash_enterprise/tutorial.ex lib/ash_enterprise_web/a2ui priv/resource_snapshots priv/repo/migrations` (skip the paths you never created).
+5. Restart the app node, so what boots is the reverted config.
+
+And a warning about people, not files: the tutorial edits tracked config and writes to one database. If a teammate runs the same lessons against the same checkout or the same Postgres, you will trample each other's tables, config and event logs. Each learner gets their own checkout, their own database, and their own node name and port.
+
+<!-- livebook:{"break_markdown":true} -->
+
+### Lessons
+
+**Start here:** [Philosophy](00_philosophy.livemd): the moving line between human and machine code, the engineer as the bridge, and the 0 / 1 / N rule
+
+**Part I: Ash foundations** (forked from [ash_tutorial](https://github.com/ash-project/ash_tutorial), MIT)
+
+1. [Resources](01_resources.livemd): resources, domains, changesets — the nouns of the app
+2. [Actions](02_actions.livemd): the only door to a resource, named after what it does
+3. [Querying](03_querying.livemd): the ETS data layer, CRUD, filters
+4. [Attributes](04_attributes.livemd): constraints, defaults, timestamps — the Ticket is born
+5. [Customizing Actions](05_customizing_actions.livemd): `:open` and `:close`, semantics in action names
+6. [Relationships](06_relationships.livemd): `belongs_to`/`has_many`, the Representative joins the desk
+7. [Code Interfaces](07_code_interfaces.livemd): domain functions instead of hand-built changesets
+8. [Aggregates](08_aggregates.livemd): `count_of_open_tickets`, summary data over relationships
+9. [Calculations](09_calculations.livemd): derived values on the desk, `expr` vs module calculations
+
+**Part II: LiveView with Ash** (before A2UI)
+
+10. [LiveView: Reading Resources](10_liveview_reads.livemd): actors, `handle_params`, streams, no queries in `mount`
+11. [LiveView: Forms & Actions](11_liveview_forms.livemd): `AshPhoenix.Form`, validation, errors from the action
+12. [LiveView: Live Updates](12_liveview_pubsub.livemd): `Ash.Notifier.PubSub`, `connected?/1`
+13. [Remote APIs as Resources](13_remote_resources.livemd): a REST API behind actions, generic and manual actions
+
+**Part III: Working with your agent**
+
+14. [Working With Your Agent](14_agent_tools.livemd): `ash_agent_tools`, Tidewave live eval, Serena over Expert, debugging "forbidden", the iron-law judge
+
+**Part IV: The enterprise substrate**
+
+15. [Events](15_events.livemd): `ash_events`, the event log as the record of *what happened*
+16. [Projections](16_projections.livemd): `ash_events_projections`, grains, projectors, rebuilds
+17. [Rules](17_rules.livemd): `ash_rules`, facts, absence semantics, the outcome lattice
+18. [Compliance](18_compliance.livemd): `ash_compliance`, bundles, findings vs evaluations
+19. [Decisions](19_decisions.livemd): `ash_decisions`, DMN and FEEL as versioned resources
+20. [Approvals](20_approvals.livemd): `ash_bpmn` approval layer, maker-checker by subtraction
+21. [Processes](21_process.livemd): `ash_bpmn` process layer, the three host seams
+22. [Judgments](22_judgments.livemd): `ash_judgments`, models observe, declarations decide
+
+**Part V: Experience and migration**
+
+23. [A2UI](23_a2ui.livemd): `ash_a2ui`, UI surfaces derived from resources
+24. [Strangler](24_strangler.livemd): `ash_strangler`, the new model over the legacy rows
+25. [Capstone: The Ash Way](25_capstone.livemd): the whole refund flow, end to end
+
+<!-- livebook:{"break_markdown":true} -->
+
+### The story
+
+Our support desk grows a **refund** workflow. A customer opens a ticket; a representative proposes a `Refund`. The refund is audited as events (15), counted per organization and day by a projection (16), checked against SLA and policy rules (17, 18), routed by a DMN decision (19), gated by an approval with maker-checker (20), orchestrated as a BPMN process when it gets complicated (21), triaged by a model that may *observe* but never *decide* (22), rendered as an agent-ready UI (23), and finally migrated off the old `legacy.cases` table that the 2011 app still writes to (24). Along the way you debug all of it with your agent the Ash way (14). The customer's billing record lives in a remote API, and it is a resource too (13).
+
+<!-- livebook:{"break_markdown":true} -->
+
+### The refund's journey
+
+```
+              The refund's journey: 25 lessons, five parts
+ ----------------------------------------------------------------
+ Part I    the desk is founded (1-9)
+           1-3    a resource, its actions, its queries
+           4-6    the Ticket is born, named acts, the Representative joins
+           7-9    code interfaces, aggregates, calculations
+ ----------------------------------------------------------------
+ Part II   the desk gets a face (10-13)
+           10-11  read it, form it                (LiveView)
+           12-13  hear it change, reach billing   (pubsub, remote resources)
+ ----------------------------------------------------------------
+ Part III  you get a colleague (14)
+           14     meet your agent                 (describe, validate, judge)
+ ==================  THE ENTERPRISE FLOOR  ======================
+ Part IV   the desk grows up (15-22)   the heavy middle
+           15     the first ember                   events
+           16     what it adds up to                projections
+           17     is it allowed?                    rules
+           18     prove it later                    compliance
+           - - - - - - - -  half-time  - - - - - - - - - - - - -
+           19     who approves?                     decisions
+           20     a second pair of eyes             approvals
+           21     the whole journey, drawn          processes
+           22     a model looks, never touches      judgments
+ ===================  OUT TO THE WORLD  =========================
+ Part V    the inheritance (23-25)
+           23     the desk draws itself             A2UI
+           24     the 2011 app retires               strangler
+           25     one refund, every layer           capstone
+ ----------------------------------------------------------------
+```
+
+**Pacing, stated once.** Parts I and II are gentle; one or two lessons a sitting is comfortable. Part IV is the heavy middle — plan it as four sittings (**15-16, 17-18, 19-20, 21-22**), with lesson 19's half-time as the marked halfway line. Stopping at a sitting boundary is the intended rhythm, not a failure: every lesson's first lines tell you where you are and how heavy the going gets.
+
+**The cast.** The refund story has a small cast, and each maps to a name the lessons already use. **Priya** is the customer — her printer fire opens the first ticket, and her refund is the one the whole series carries. **Dee** is the representative in the story, the maker by trade; in the lessons the maker is *your* fabric user (lesson 15), and **Vik** stands in for `checker@example.com`, the checker who wants every approval citable to a rule and a version. **Soot** is a salamander who has lived in the warm parts of this stack since the 2011 app was deployed — it appears in amber boxes, remembers everything, and never does any work. And **the 2011 app** itself is a character: still writing `legacy.cases`, elderly and loud, treated with respect until lesson 24 gives it a way to retire. When a lesson uses a role word — customer, maker, checker, approver — the role is the term that matters; the names are just handles.
+
+**How this series talks.** Lessons state a rule, then show what breaks. That dry voice is the voice of record: instructions, reference and error paths are always plain, and the jokes, where they exist, are consequences. Story lives in the margins — the cast above, and the salamander — and never carries a fact you need. Skip every amber box and every lesson still teaches in full.
+
+## Contributing?
+
+_Anything missing? Any errors? Contributions are welcome in [ash_enterprise](https://github.com/lukegalea/ash_enterprise). Follow [diataxis](https://diataxis.fr/tutorials/) for tutorials._
