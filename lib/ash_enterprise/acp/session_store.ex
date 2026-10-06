@@ -54,11 +54,16 @@ defmodule AshEnterprise.Acp.SessionStore do
   # -- AshAcp.PromptTarget ----------------------------------------------------
 
   @impl true
-  def resolve(_session_id, prompt_text, _ctx) do
+  def resolve(_session_id, prompt_text, ctx) do
     case String.downcase(String.trim(prompt_text)) do
-      "list locales" ->
+      "list business units" ->
         {:ok,
-         %{resource: AshEnterprise.Reference.LanguageLocale, action: :read, label: "List locales"}}
+         %{
+           resource: AshEnterprise.Accounts.BusinessUnit,
+           action: :read,
+           label: "List business units",
+           tenant: AshEnterprise.Acp.tenant_of(ctx["session"].actor)
+         }}
 
       _other ->
         {:error, :no_matching_action}

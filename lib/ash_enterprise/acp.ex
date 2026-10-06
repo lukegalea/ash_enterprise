@@ -57,4 +57,34 @@ defmodule AshEnterprise.Acp do
     # real actor would silently render unauthorized empty surfaces.
     AshEnterprise.Accounts.get_user_by_email!("admin@example.com", authorize?: false)
   end
+
+  @doc """
+  The organization tenant an actor's data lives under: the actor's own
+  organization when present, else the one their business unit belongs to.
+  Same resolution `AshEnterprise.Security.ActorContext.build/2` uses.
+  """
+  def tenant_of(actor) do
+    case Map.get(actor, :organization_id) do
+      nil ->
+        case Map.get(actor, :owning_business_unit_id) do
+          nil ->
+            nil
+
+          bu_id ->
+            require Ash.Query
+
+            AshEnterprise.Accounts.BusinessUnit
+            |> Ash.Query.select([:organization_id])
+            |> Ash.Query.filter(id == ^bu_id)
+            |> Ash.read_one(authorize?: false)
+            |> case do
+              {:ok, %{organization_id: organization_id}} -> organization_id
+              _ -> nil
+            end
+        end
+
+      organization_id ->
+        organization_id
+    end
+  end
 end
