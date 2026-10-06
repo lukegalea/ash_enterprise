@@ -1,0 +1,108 @@
+{
+  "$comment": "SPDX-License-Identifier: CC0-1.0 — synthetic fixture, see README.md. All digests and identifiers are random synthetic values; the wording is the RFC's own synthetic clinic-demo framing.",
+  "id": "0192a3b4-7d01-7000-8000-000000000002",
+  "record_version": "0",
+  "envelope": {
+    "semantic_id": "ash:v0:ClinicDemo.Scheduling.Appointment#actions/judge_notes",
+    "definition_version": "sha256:3b8b57d7571f8e21c44e4396cc584948f2371245e2e0ba24988a22fb38a9037d",
+    "tenant_id": "01920f5a-b2c3-7000-8000-0000000000e1",
+    "actor_id": "01920f5a-b2c3-7000-8000-0000000000a7",
+    "system_actor": null,
+    "impersonator_id": null,
+    "input_digest": "sha256:7c4d4b10603dd9f950f5babf78c0a59be58d58fda8e96d5d70b5668f4408cd96",
+    "output_digest": "sha256:05432289bbd1a1e8773c587448843d9e9351efc045c31d6abf5db4c3f3fc9bee",
+    "redaction_digest": null,
+    "dropped_fields": [],
+    "matched_rule_ids": [],
+    "policy_decision_ids": [],
+    "evidence_ids": [],
+    "correlation_id": "0192a3b4-7d00-7000-8000-0000000000c1",
+    "process_instance_id": null,
+    "trace_id": "4bf92f3577b34da6a3ce929d0e0e4737",
+    "span_id": "00f067aa0ba902b8",
+    "depth": 1,
+    "automation_principal": null,
+    "grant_ref": null
+  },
+  "judgment": {
+    "question": {
+      "question_id": "judgment:v0:ClinicDemo.Scheduling.Appointment#judgments/notes_document_follow_up",
+      "question_hash": "sha256:0227af26996bd9b7fcc0836919bfe0f03cfda140d9f02e748dec7758a171bd66",
+      "question_version": 1,
+      "family": "clinic.notes_completeness",
+      "wire_question_hash": "sha256:32a231a32010df4beb6e1327cd98363ba22770a7ce9cf2fe903839824f3eabf5",
+      "question_set_hash": "sha256:892e852f4d251004d12dff51509dd13c51839a381a419a90d4f827803e981b5f"
+    },
+    "instrument": {
+      "profile": "decision_default",
+      "rung": "decision",
+      "provider": "typesafe",
+      "model_spec_requested": "laya",
+      "model_reported": "laya:typed-decisions",
+      "model_digest": "1979f6859a0136d343c821bd187b992264bdfb602e2f886f37048fe58e0fcc2d",
+      "runtime": "ollaya",
+      "runtime_version": "0.9.0",
+      "accelerator": "gpu",
+      "wire_spec_version": null,
+      "wire_schema_hash": null,
+      "sampling": null,
+      "zone_id": "zone.lab"
+    },
+    "input": {
+      "input_hash": "sha256:7c4d4b10603dd9f950f5babf78c0a59be58d58fda8e96d5d70b5668f4408cd96",
+      "state_ref": {
+        "subject": {
+          "type": "appointment",
+          "id": "0192a3b2-11aa-7000-8000-00000000005b"
+        }
+      },
+      "subject_type": "appointment",
+      "subject_id": "0192a3b2-11aa-7000-8000-00000000005b",
+      "data_class": "synthetic",
+      "residency_restriction": null,
+      "zone_id": "zone.lab",
+      "jurisdiction": "EX-1",
+      "state": {
+        "note_present": true,
+        "word_count": 41
+      }
+    },
+    "answer": {
+      "outcome": "answered",
+      "kind": "noul",
+      "value": null,
+      "level": null,
+      "distribution": {
+        "false": "0.09999999999999998",
+        "true": "0.9"
+      },
+      "confidence": null,
+      "status": null,
+      "source_ids": null,
+      "raw": {
+        "type": "boolean",
+        "probability": 0.9
+      },
+      "logprobs": null,
+      "error": null
+    },
+    "call": {
+      "mode": "live",
+      "request_id": "0192a3b4-7d00-7000-8000-0000000000f2",
+      "cache_key": "sha256:693e518307c4a09d789ae730c1eb932d99704bd7b8b719af5be776bf770e013a",
+      "shadow_of": null,
+      "run_id": null,
+      "requested_at": "2026-10-02T14:06:42.884210Z",
+      "answered_at": "2026-10-02T14:06:42.891077Z",
+      "recorded_at": "2026-10-02T14:06:42.898334Z",
+      "latency_us": 6867,
+      "usage": {
+        "input_tokens": 198
+      }
+    },
+    "lineage": {
+      "shadow_of": null
+    }
+  },
+  "record_hash": "sha256:490b2ee0abe5b4bf6c65b67c963cbcd370300e393c1c020519c52c44845df454"
+}

@@ -1,6 +1,6 @@
 defmodule AshEnterprise.JudgmentRecordGoldenTest do
   @moduledoc """
-  Golden hashes for the frozen v0 judgment-record artefacts.
+  Golden hashes for the frozen judgment-record artefacts.
 
   RFC S1-24 is **"ACCEPTED — v0 FROZEN"**: v0 never changes, so the bytes of
   the RFC text, the JSON Schema and every synthetic fixture are pinned here.
@@ -8,6 +8,11 @@ defmodule AshEnterprise.JudgmentRecordGoldenTest do
   fixture touched by accident — fails this suite. The only sanctioned way to
   change any of these files is a deliberate, reviewed re-pin of this table in
   the same commit.
+
+  v1 (2026-10-05 freeze) extends the table without re-pinning anything v0:
+  the frozen v1 text lands at `docs/rfc/judgment-record-v1.md` and the `1 − p`
+  decimal fixture (RFC §4.3, A4) joins the fixture set. Per AC-3, the schema
+  and every v0 fixture byte stay unchanged from v0.
   """
 
   use ExUnit.Case, async: true
@@ -18,6 +23,8 @@ defmodule AshEnterprise.JudgmentRecordGoldenTest do
   @golden %{
     "docs/rfc/judgment-record-v0.md" =>
       "70eb819295e7f05f92d036b09dd2989f521dbbc3fc2e30dd72fa7e7d1051f160",
+    "docs/rfc/judgment-record-v1.md" =>
+      "69f0f3337a466b41cc6f96e299bed613f12cd983c4b59b8ad5788552238fd03a",
     "priv/judgment_record/schema.json" =>
       "79d4a08a08320e7895d508dd377063acb0087ed2dab2f6f08364ccec5c1b881b",
     "test/fixtures/judgment_record/README.md" =>
@@ -32,11 +39,14 @@ defmodule AshEnterprise.JudgmentRecordGoldenTest do
       "e80a2fe661df1f0467f56d36b58de532f4c604493105fd071bbcaa9ede7a6ec3",
     "test/fixtures/judgment_record/observation-noul-live.json" =>
       "94a99e9029b026c6f6d014476fe9e78e70ab5b7d268d61993f1ab06819b133de",
+    "test/fixtures/judgment_record/observation-noul-1-minus-p.json" =>
+      "1618c0db7debf0c3de281886b4ee5bea43febf3deba12422ebd1ebb5e8a8d34f",
     "test/fixtures/judgment_record/observation-score-eval.json" =>
       "6a55462cdb6d2b6edfcd47f36f329f4ae7fa87a0959d40a636f3e49f7668e653"
   }
 
   @rfc_doc Path.join(@repo_root, "docs/rfc/judgment-record-v0.md")
+  @rfc_v1_doc Path.join(@repo_root, "docs/rfc/judgment-record-v1.md")
 
   describe "frozen bytes" do
     test "every pinned artefact is byte-identical to its frozen sha256" do
@@ -62,6 +72,11 @@ defmodule AshEnterprise.JudgmentRecordGoldenTest do
     test "the RFC still carries the frozen status header" do
       assert File.exists?(@rfc_doc)
       assert File.read!(@rfc_doc) =~ "ACCEPTED — v0 FROZEN"
+    end
+
+    test "the v1 RFC carries its frozen status header (v1 freeze, 2026-10-05)" do
+      assert File.exists?(@rfc_v1_doc)
+      assert File.read!(@rfc_v1_doc) =~ "v1 — FROZEN"
     end
   end
 
