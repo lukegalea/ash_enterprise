@@ -24,6 +24,10 @@ defmodule AshEnterprise.Repo do
       # UUIDv7 primary keys need gen_random_uuid()-adjacent helpers; uuid-ossp
       # is the conventional companion and costs nothing to have present.
       "uuid-ossp",
+      # btree_gist: lets GiST index plain scalar columns, which is what range
+      # EXCLUSION constraints need ("no overlapping validity range per key").
+      # Prerequisite for the Ash temporal-resources work; harmless otherwise.
+      "btree_gist",
       # pgvector, required by ash_ai's vectorize block.
       #
       # NOTE: this list is about `CREATE EXTENSION` in migrations, so pgvector
@@ -44,17 +48,15 @@ defmodule AshEnterprise.Repo do
     false
   end
 
-  # The generator set this to whatever `postgres -V` reported on the machine
-  # that ran it (17.10). That is the wrong default for a template: it makes Ash
-  # emit SQL that silently requires the newest server anyone happened to have
-  # installed. Declare the OLDEST server we intend to support instead, so the
-  # generated migrations stay portable.
+  # Declare the OLDEST server we intend to support, so the generated migrations
+  # stay portable and Ash knows which SQL features it may emit.
   #
-  # 14 is the floor here because pgvector needs 13+, and 14 is the oldest
-  # release still receiving upstream security fixes. Raise it deliberately if
-  # you want a newer feature; do not raise it by accident.
+  # Raised to 18 as Phase 0 of the Ash temporal-resources work: dev now runs
+  # PostgreSQL 18 exclusively (devenv.nix), and the temporal surface wants the
+  # newest range/GiST behaviour as its floor. This is a deliberate floor, not
+  # an accident -- do not raise it without saying why.
   @impl true
   def min_pg_version do
-    %Version{major: 14, minor: 0, patch: 0}
+    %Version{major: 18, minor: 0, patch: 0}
   end
 end

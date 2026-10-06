@@ -4,6 +4,7 @@
     "ash-functions",
     "citext",
     "uuid-ossp",
+    "btree_gist",
     "vector",
     "ash_money_v5"
   ]

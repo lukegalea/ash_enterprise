@@ -69,9 +69,11 @@ jobs:
     services:
       # pgvector rather than plain postgres: ash_ai's vectorize block needs the
       # extension to exist, and the repo declares it in installed_extensions, so
-      # `mix ash.setup` fails without it.
+      # `mix ash.setup` fails without it. pg18 because the repo declares
+      # `min_pg_version` 18 (PostgreSQL 18 is the Phase 0 floor for the
+      # temporal-resources work); AshPostgres refuses older servers at boot.
       postgres:
-        image: pgvector/pgvector:pg17
+        image: pgvector/pgvector:pg18
         env:
           POSTGRES_PASSWORD: postgres
           POSTGRES_USER: postgres

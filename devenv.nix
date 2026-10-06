@@ -185,7 +185,11 @@ in
   # ---------------------------------------------------------------------------
   services.postgres = {
     enable = true;
-    package = pkgs.postgresql_17;
+    # PostgreSQL 18: Phase 0 of the Ash temporal-resources work -- the temporal
+    # surface builds on range types + GiST/btree_gist behaviour that we want
+    # pinned to the server we actually develop against. Changing this package
+    # requires reinitializing the data directory: `rm -rf .devenv/state/postgres`.
+    package = pkgs.postgresql_18;
 
     # `extensions` is a FUNCTION from the extension set to a list of packages;
     # devenv applies it as `package.withPackages extensions`. Do not pre-wrap
