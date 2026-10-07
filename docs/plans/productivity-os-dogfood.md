@@ -57,9 +57,12 @@ ADR 0035/0037 (event projections), `docs/dogfood_enterprise.md` §6–§11.
   into PROD tickets; `docs/roadmap.json` status updates + `mix ash_enterprise.roadmap`; HANDOFF.md
   "genuinely not done" refresh; CLIN demo-ticket sweep with the operator.
 
-## Dependencies
+## Dependencies: E1 → E2; {E1, E3} → E4 → E5 → E6. Each epic leaves its repos green (`mix precommit` / `pytest`).
 
-E1 → {E2, E3} → E4 → E5 → E6. Each epic leaves its repos green (`mix precommit` / `pytest`).
+Design sources: [ADR 0010](../adr/0010-meltano-for-ingestion.md),
+[ADR 0011](../adr/0011-nango-as-integration-hub.md),
+[ADR 0012](../adr/0012-openlineage-and-marquez.md), ADR 0015 (approvals),
+ADR 0035/0037 (projections), `docs/dogfood_enterprise.md` §6–§11.
 
 ## Operator involvement (minimized)
 

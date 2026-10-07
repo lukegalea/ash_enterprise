@@ -510,8 +510,8 @@
       "priority": 1,
       "choice": "Meltano (MIT); Airbyte as the fallback",
       "adr": "0010",
-      "status": "planned",
-      "effort": "A `mix meltano.gen.resource` mirroring the CDM generator, carrying its refusals across: ownership is never guessed and foreign keys are never invented. Promotion out of the staging schema is an ordinary Ash action — the only place ingested data acquires ownership, tenancy and audit.",
+      "status": "partial",
+      "effort": "Landed: an Oban wrapper job runs a Meltano/Singer tap and lands raw rows immutably as SourceObject records (refresh-in-place upsert on the source identity), with a deterministic fixture calendar pipeline in dev and lineage Job events from the wrapper. Pending: real provider taps (Gmail/Calendar/Slack via Nango, ADR 0011) and resolving the open design notes — the identity does not yet include the stream, landing is upsert rather than append-only, and Zones admission (ADR 0042) is not on the land path.",
       "bar": "No, by refusal: Meltano is kept outside the boundary where authorization applies, so there is no second model to synchronize. The cost is that staging rows are unauthorized at rest, and a pipeline landing two tenants into one table is a defect the platform cannot detect."
     },
     {
@@ -520,8 +520,8 @@
       "priority": 1,
       "choice": "Nango for the provider edge only",
       "adr": "0011",
-      "status": "planned",
-      "effort": "Verification inverted the design: Nango's free self-hosted edition covers auth and proxy but gates syncs, actions and webhooks, so generating an action per Nango sync would put the mechanism behind a paid tier. Nango holds the provider edge; sync logic stays here as Ash actions over Oban.",
+      "status": "partial",
+      "effort": "Compose for a loopback-only Nango (deploy/nango.yml, from Nango's official self-hosting reference) is written and awaiting operator approval + OAuth connects. Sync logic stays here as Ash actions over Oban per the load-bearing rule below; the connection id is still never an action argument.",
       "bar": "Yes, with one load-bearing rule: the Nango connection id is never an action argument — it is derived from the actor's tenant. Otherwise the policy engine authorizes the operation while the caller picks whose credentials to spend. The residual is stated, not wrapped away: anyone holding the Nango secret key bypasses every policy."
     },
     {
@@ -530,8 +530,8 @@
       "priority": 1,
       "choice": "OpenLineage + Marquez",
       "adr": "0012",
-      "status": "planned",
-      "effort": "A notifier whose OpenLineage `runId` *is* the existing correlation id and whose parent facet derives from the existing depth counter. It runs inside the action, after authorization, so lineage records authorized effects rather than a privileged crawl. `ash_strangler` already ships a columnLineage emitter.",
+      "status": "shipped",
+      "effort": "Shipped as ash_open_lineage (github.com/lukegalea/ash_open_lineage): a Spark `lineage` extension + notifier on the platform base resource, spec 2-0-2 fixture conformance, a red-green leak test, and live verification against a local Marquez (tap runs input→output, failing taps emit FAIL). Two deliberate deviations from this entry's original wording: runIds are per-(correlation, job) — sha256(correlation/namespace/job) — because one correlation spans many jobs and a shared runId collapses them in consumers; the raw correlation id rides the producer facet so the audit↔lineage lookup still holds. Decimal/money serialization is string-exact.",
       "bar": "Marquez has no authorization model at all — which forces two rules: deploy it like `clarity`, behind the same boundary, and never put a value, actor or tenant into a facet. No verifier enforces the second."
     },
     {
