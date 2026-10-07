@@ -78,4 +78,11 @@ defmodule AshEnterprise.Platform.Changes.StampProvenance do
       changeset
     end
   end
+
+  # Temporal safety (AST-149, the VPM-49 audit's judgment carried to the
+  # SystemOne facts host): the stamps come from the action context's actor
+  # — never from the wall clock or an implicit "now" — so the same stamps
+  # are derived for a write made as of any instant.
+  @impl true
+  def temporal_safe?(_opts), do: true
 end

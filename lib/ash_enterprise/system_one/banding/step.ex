@@ -57,7 +57,9 @@ defmodule AshEnterprise.SystemOne.Banding.Step do
   (string), `:tenant`, `:subject` (composite map), `:predicate`. Optional:
   `:risk_tier`, `:jurisdiction`, `:scope`, `:subject_state_digest`,
   `:valid_until`, `:mode` (`:live | :shadow`), `:correlation_id`,
-  `:resolver` (default `AshEnterprise.SystemOne.Banding.Resolver`),
+  `:effective_at` (the admission's §7.2 instant — the temporal period's
+  split point; now by default; the §5.2 replay re-admits at the recorded
+  instant), `:resolver` (default `AshEnterprise.SystemOne.Banding.Resolver`),
   `:facts_resource`, `:banding_id` (an idempotency key for the write).
 
   Returns `{:ok, %{banding:, band:, materialisation:}}`, or
@@ -211,6 +213,15 @@ defmodule AshEnterprise.SystemOne.Banding.Step do
       valid_until: Keyword.get(opts, :valid_until),
       admission_id: banding.id
     }
+
+    # §7.2: the admission carries the instant its fact takes effect — the
+    # temporal period's split/truncate point. Absent means now (the
+    # materialiser's default); the §5.2 replay passes the recorded instant.
+    decision =
+      case Keyword.get(opts, :effective_at) do
+        nil -> decision
+        effective_at -> Map.put(decision, :effective_at, effective_at)
+      end
 
     materialiser_opts = Keyword.take(opts, [:facts_resource])
 

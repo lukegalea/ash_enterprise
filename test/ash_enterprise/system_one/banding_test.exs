@@ -124,7 +124,10 @@ defmodule AshEnterprise.SystemOne.BandingTest do
       assert fact.predicate == @question.question_id
       assert fact.admission_grade == :grant
       assert fact.admission_id == banding.id
-      assert is_nil(fact.superseded_by)
+      # Temporal (AST-149): the fact is current because the read IS the
+      # as-of-now read — what the legacy `is_nil(superseded_by)` asked is
+      # now derived. The period is open: it has an opening instant.
+      refute is_nil(fact.valid_at)
     end
 
     test "review records the banding, materialises no fact", ctx do
@@ -146,10 +149,21 @@ defmodule AshEnterprise.SystemOne.BandingTest do
           ["DecisionRule_1"]
         )
 
-      assert {:ok, %{banding: admitted, materialisation: :materialised}} =
-               Step.band([answer()], band_opts(ctx.org, resolver: resolver))
+      # The admission's §7.2 instant is explicit, so the period's bounds
+      # are deterministic regardless of clock granularity: the fact's
+      # period opens at T and the omission truncates it at T + 1h.
+      admit_at = ~U[2026-06-01 12:00:00Z]
 
-      assert [_] = facts_for(ctx.org, "commit-1")
+      assert {:ok, %{banding: admitted, materialisation: :materialised}} =
+               Step.band(
+                 [answer()],
+                 band_opts(ctx.org, resolver: resolver, effective_at: admit_at)
+               )
+
+      # Read the pre-omission fact through the as-of-now read and pin the
+      # as-of probe to its period's own opening instant.
+      assert [fact] = facts_for(ctx.org, "commit-1")
+      assert DateTime.compare(fact.valid_at.lower, admit_at) == :eq
 
       omit_resolver =
         stub_resolver(%{"band" => "omit", "reason_code" => "withdrawn"}, ["DecisionRule_3"])
@@ -157,11 +171,25 @@ defmodule AshEnterprise.SystemOne.BandingTest do
       assert {:ok, %{band: :omit, materialisation: :superseded}} =
                Step.band(
                  [answer()],
-                 band_opts(ctx.org, resolver: omit_resolver, banding_id: Ash.UUID.generate())
+                 band_opts(ctx.org,
+                   resolver: omit_resolver,
+                   banding_id: Ash.UUID.generate(),
+                   effective_at: DateTime.add(admit_at, 3600, :second)
+                 )
                )
 
-      [fact] = facts_for(ctx.org, "commit-1")
-      refute is_nil(fact.superseded_by), "the current fact is superseded, never deleted"
+      # Temporal (AST-149): omission TRUNCATES the period — the predicate
+      # returns to unknown (the as-of-now read sees no fact), but the
+      # pre-omission period is preserved, never deleted (§7.2 n.4).
+      assert facts_for(ctx.org, "commit-1") == []
+
+      assert [superseded] =
+               Fact
+               |> Ash.Query.filter(subject_id == "commit-1")
+               |> Ash.Query.as_of(admit_at)
+               |> Ash.read!(authorize?: false)
+
+      assert superseded.value == true
     end
 
     test "matched_rule_ids empty is a refusal: no banding row is written", ctx do

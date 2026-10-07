@@ -456,10 +456,11 @@ defmodule AshEnterprise.SystemOne.FilterRunTest do
   end
 
   defp current_holds(subject_id, predicate) do
+    # Temporal (AST-149): a plain read IS the as-of-now read — the
+    # versions returned are the current ones by derivation, so the
+    # legacy `is_nil(superseded_by)` clause is gone, not translated.
     Fact
-    |> Ash.Query.filter(
-      subject_id == ^subject_id and predicate == ^predicate and is_nil(superseded_by)
-    )
+    |> Ash.Query.filter(subject_id == ^subject_id and predicate == ^predicate)
     |> Ash.read!(authorize?: false)
     |> Enum.map(& &1.holds)
     |> case do

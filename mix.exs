@@ -294,7 +294,10 @@ defmodule AshEnterprise.MixProject do
       # code). The host's residency policy lives in
       # `AshEnterprise.Zones.ResidencyPolicy` and is registered under
       # `:residency_policy`.
-      {:ash_judgments, github: "lukegalea/ash_judgments"},
+      # Pinned to main for the facts temporal-swap (AST-147/148: the
+      # TemporalFragment + the equivalence battery). 0.x while hosts soak —
+      # same declaration as vpm_poc (VPM-49/51), so the family moves together.
+      {:ash_judgments, github: "lukegalea/ash_judgments", branch: "main"},
 
       # --- Business processes and the decisions they route on ------------------
       # The other half of ADR 0009. `ash_bpmn` compiles a BPMN document into an
@@ -352,7 +355,16 @@ defmodule AshEnterprise.MixProject do
       {:oban, "~> 2.0"},
       {:open_api_spex, "~> 3.0"},
       {:ash_state_machine, "~> 0.2"},
-      {:ash_events, "~> 0.7"},
+      # The as_of capture/replay fork (ash_events#103, upstream PR #104
+      # pending): a write's as_of is recorded on its event and restored on
+      # replay, and the replay wrappers declare temporal_safe? — required
+      # for audited TEMPORAL resources, which this host now has (the
+      # SystemOne facts table; AST-149). Same pin as vpm_poc (VPM-49);
+      # drop for the first ash_events release carrying it. `override: true`
+      # because ash_judgments also depends on ash_events and one package
+      # cannot resolve from both hex and git.
+      {:ash_events,
+       github: "lukegalea/ash_events", branch: "temporal-as-of-support-0.7", override: true},
       {:ash_paper_trail, "~> 0.6"},
       {:ash_archival, "~> 2.0"},
       {:ash_oban, "~> 0.8"},
