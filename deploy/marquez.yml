@@ -42,5 +42,20 @@ services:
       - "127.0.0.1:5000:5000"
       - "127.0.0.1:5001:5001"
 
+  marquez-web:
+    # Read-only UI over the API; loopback only. Env names/shape from
+    # MarquezProject/marquez 0.50.0 docker-compose.web.yml (MARQUEZ_HOST is a
+    # bare container host, MARQUEZ_PORT is the API's port number, WEB_PORT is
+    # the UI's listen port).
+    image: marquezproject/marquez-web:0.50.0
+    environment:
+      MARQUEZ_HOST: marquez
+      MARQUEZ_PORT: "5000"
+      WEB_PORT: "3000"
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      - marquez
+
 volumes:
   marquez-db-data:
