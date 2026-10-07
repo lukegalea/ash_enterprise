@@ -512,7 +512,7 @@
       "adr": "0010",
       "status": "partial",
       "effort": "Landed: an Oban wrapper job runs a Meltano/Singer tap and lands raw rows as SourceObject records — refresh-in-place upsert on the source identity (append-only landing and a stream-aware identity are open design notes), with a deterministic fixture calendar pipeline in dev and lineage Job events from the wrapper. Pending: real provider taps (Gmail/Calendar/Slack via Nango, ADR 0011), Zones admission (ADR 0042) on the land path.",
-      "bar": "No, by refusal: Meltano is kept outside the boundary where authorization applies, so there is no second model to synchronize. The cost is that staging rows are unauthorized at rest, and a pipeline landing two tenants into one table is a defect the platform cannot detect."
+      "bar": "No, by refusal: Meltano is kept outside the boundary where authorization applies, so there is no second model to synchronize. Raw rows land as platform resources (tenant-scoped, policy-gated on read); the residual is that landing writes run system-side with authorize?: false, and a pipeline landing two tenants into one table is a defect the platform cannot detect."
     },
     {
       "id": "integration",

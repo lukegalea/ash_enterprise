@@ -80,6 +80,22 @@ Five traps, each of which cost time to find:
 5. **The iron-laws judge runs under `MIX_ENV=dev`** even inside `mix precommit`,
    because `ash_agent_tools` is a dev-only dependency. `scripts/iron-laws.sh`
    sets it; do not "fix" that by exporting `MIX_ENV` (trap 2).
+6. **`$PGPORT` can disagree with reality** even when `enterShell` reads the
+   conf: a concurrent `devenv up` rewrites `postgresql.conf`, and the re-export
+   clobbers an outer `PGPORT`. Check `ss -ltnp | grep 543` against the actual
+   listener, and export the verified port *inside* the shell.
+7. **Foreign databases share this machine.** :5432 is a socat forward to an
+   unknown target; :5434 was another checkout's devenv Postgres (`PGDATA` in
+   `/proc/<pid>/environ` identifies the owner). A script that drops its
+   `PGPORT` export can write into someone else's database.
+8. **:4000 may be taken** by another project's Phoenix, which makes
+   `app.start`-dependent seeds fail building confirmation URLs. The endpoint
+   port is not read from `PORT` — override the endpoint config
+   (`Application.put_env(:ash_enterprise, AshEnterpriseWeb.Endpoint,
+   http: [...])`) before starting.
+9. **`mix ash_acp.stdio` stdout is a wire.** Host Logger output must stay off
+   stdout (the task re-adds the default handler at `:error` on stderr); a host
+   that re-raises log levels puts debug SQL onto the ACP line.
 
 The codegen-drift hook (`.claude/hooks/check-ash-codegen.sh`, wired in
 `.claude/settings.json`) reports drift only when the check actually ran and said
