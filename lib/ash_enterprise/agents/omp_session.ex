@@ -7,17 +7,32 @@ defmodule AshEnterprise.Agents.OmpSession do
   ## Wire contract
 
   Newline-delimited JSON over the port's stdio (E3's stdio seam, one process
-  per run). What the bridge writes:
+  per run). Frames OMP speaks are authoritative in
+  `@oh-my-pi/pi-coding-agent` `src/modes/rpc/rpc-types.ts` (`--mode rpc`
+  accepts `{id?, type, ...}` commands and streams responses/events); frames
+  the bridge adds on top are the bridge dialect, spoken by the fake
+  executable in tests and available to any future adapter.
 
-      {"type":"prompt","text":<run prompt>}                     — on start
-      {"type":"tool_response","id":<id>,"approved":true|false}  — on a ToolGate decision
+  What the bridge writes:
 
-  What the bridge understands coming back (anything unparsable is kept as a
-  verbatim :agent message — agent output is never dropped):
+      {"id":<corr>,"type":"prompt","message":<run prompt>}      — on start (OMP protocol)
+      {"type":"tool_response","id":<id>,"approved":true|false}  — on a ToolGate decision (bridge dialect)
 
-      {"type":"message","text":...}                             → :agent message
-      {"type":"tool_request","id":...,"tool":...,"input":{...}} → pending ToolInvocation, run paused
-      {"type":"tool_result","id":...,"result":{...}}            → invocation completed
+  What the bridge understands coming back:
+
+      {"type":"message","text":...}                             → :agent message (bridge dialect)
+      {"type":"tool_request","id":...,"tool":...,"input":{...}} → pending ToolInvocation, run paused (bridge dialect)
+      {"type":"tool_result","id":...,"result":{...}}            → invocation completed (bridge dialect)
+      {"type":"response",...,success:false}                     → :tool diagnostic (OMP protocol)
+      {"type":"prompt_result",status:"error",...}               → :tool diagnostic (OMP protocol)
+      {"type":"message_end","message":{role:"assistant",...}}   → assistant text parts → :agent message (OMP protocol)
+
+  Every other frame (`ready`, `response` success acks, `extension_ui_request`,
+  `advisor_cost_changed`, command updates, ...) is the runtime's *state*, not
+  the conversation: dogfood §6's division of labor keeps it out of the
+  transcript — debug-logged, never an AgentMessage. Non-JSON lines (the
+  process speaking for itself, stderr merged into the channel) are kept
+  verbatim as :agent messages so agent output is never dropped.
 
   A tool request pauses the run: no further writes go to the port until
   `AshEnterprise.Agents.ToolGate` resolves the pending invocation, which is
@@ -50,6 +65,10 @@ defmodule AshEnterprise.Agents.OmpSession do
   alias AshEnterprise.Agents.ToolInvocation
 
   @line_bytes 65_536
+  # How long an eof waits for its exit_status before "went mute while alive"
+  # is the conclusion. Far longer than the driver takes to reap an exited
+  # child, far shorter than anyone waits on a mute agent.
+  @eof_grace_ms 100
   @binary_env :omp_binary
 
   # --- client API --------------------------------------------------------------
@@ -123,6 +142,42 @@ defmodule AshEnterprise.Agents.OmpSession do
     end
   end
 
+  @doc """
+  Fails every `:running` run that has no live session process — work orphaned
+  by a bridge restart (BEAM restart, crashed session). The exit_status that
+  would finalize such a run died with the old instance, so nothing in-process
+  can ever deliver it; the sweep is what runs at boot instead. Supervised
+  one-shot task child next to `AshEnterprise.Agents.OmpSupervisor`.
+  """
+  @spec fail_orphaned_runs() :: :ok
+  def fail_orphaned_runs do
+    require Ash.Query
+
+    running = Ash.read!(Ash.Query.filter(AgentRun, status == :running), authorize?: false)
+
+    for run <- running do
+      if Registry.lookup(AshEnterprise.Agents.Registry, run.id) == [] do
+        append_message!(
+          run.id,
+          :tool,
+          "agent process exited (bridge restarted before the run finished)",
+          run.organization_id,
+          run.owner_id
+        )
+
+        case AgentRun.fail(run, tenant: run.organization_id, authorize?: false) do
+          {:ok, _} ->
+            :ok
+
+          {:error, error} ->
+            Logger.error("could not fail orphaned run #{run.id}: #{inspect(error)}")
+        end
+      end
+    end
+
+    :ok
+  end
+
   # --- GenServer ---------------------------------------------------------------
 
   @doc false
@@ -150,6 +205,7 @@ defmodule AshEnterprise.Agents.OmpSession do
           :exit_status,
           :use_stdio,
           :stderr_to_stdout,
+          :eof,
           {:line, @line_bytes},
           {:args, ["--mode", "rpc"]},
           {:cd, workspace_path}
@@ -157,13 +213,19 @@ defmodule AshEnterprise.Agents.OmpSession do
       )
 
     writer = spawn_link(fn -> writer_loop(port, false, []) end)
-    write_line(writer, Jason.encode!(%{type: "prompt", text: run.prompt}))
+
+    # OMP's `prompt` command (rpc-types.ts): {id?, type: "prompt", message}.
+    # The id correlates the eventual prompt_result/response; `message` is the
+    # text field — OMP trims it on arrival, so nothing else will do.
+    prompt_id = Ash.UUID.generate()
+    write_line(writer, Jason.encode!(%{id: prompt_id, type: "prompt", message: run.prompt}))
 
     {:ok,
      %{
        run_id: run.id,
        tenant: tenant,
        owner_id: run.owner_id,
+       prompt_id: prompt_id,
        port: port,
        writer: writer,
        buffer: <<>>,
@@ -214,8 +276,41 @@ defmodule AshEnterprise.Agents.OmpSession do
   def handle_info({port, :eof}, %{port: port} = state) do
     # An unterminated final line is still a line.
     buffer = state.buffer
-    {:noreply, process_line(%{state | buffer: <<>>}, buffer)}
+    state = process_line(%{state | buffer: <<>>}, buffer)
+
+    # stdout closed. Two very different cases share this moment: a process
+    # that exited (its exit_status is right behind the eof — let it finalize
+    # the run) and a process that went mute while still alive (a dead
+    # protocol that must never leave an eternal :running row). A short grace
+    # period tells them apart without racing the driver's reaping.
+    Process.send_after(self(), {:eof_check, port}, @eof_grace_ms)
+    {:noreply, state}
   end
+
+  def handle_info({:eof_check, port}, %{port: port, terminated?: false} = state) do
+    # Backstop for an eof that was never followed by an exit_status — the
+    # driver lost the exit (abnormal reaping). In practice ERTS keeps a
+    # hidden dup of the child's pipe, so eof arrives only at process death,
+    # paired with the exit_status that finalizes the run first; a process
+    # that goes mute while alive produces NO port signal at all. That class
+    # is covered by cancel/2 (the operator's act) and fail_orphaned_runs/0
+    # (the boot sweep), not by anything observable on the port.
+    state = %{stop_child(state) | terminated?: true}
+
+    terminal_state(state, fn run ->
+      append_message!(
+        run.id,
+        :tool,
+        "agent process exited (closed its output before finishing)",
+        state.tenant,
+        state.owner_id
+      )
+
+      AgentRun.fail(run, tenant: state.tenant, authorize?: false)
+    end)
+  end
+
+  def handle_info({:eof_check, _port}, state), do: {:noreply, state}
 
   def handle_info({port, {:exit_status, status}}, %{port: port} = state) do
     if state.terminated? do
@@ -269,7 +364,10 @@ defmodule AshEnterprise.Agents.OmpSession do
     end
   end
 
-  # Each inbound shape has one home; anything unparsable is kept verbatim.
+  # Each frame has one home. Conversational text becomes transcript; the
+  # runtime's control/state frames stay state (debug-logged, per dogfood §6's
+  # division of labor); non-JSON output is kept verbatim so the process is
+  # never silenced.
   defp apply_line(%{tenant: tenant} = state, line) do
     case Jason.decode(line) do
       {:ok, %{"type" => "message", "text" => text}} ->
@@ -283,8 +381,31 @@ defmodule AshEnterprise.Agents.OmpSession do
         complete_invocation(state, id, result)
         state
 
+      {:ok, %{"type" => "response", "success" => false, "command" => command} = response} ->
+        append_message!(
+          state.run_id,
+          :tool,
+          "omp rejected #{command}: #{response["error"]}",
+          tenant,
+          state.owner_id
+        )
+
+        state
+
+      {:ok, %{"type" => "prompt_result", "status" => "error"} = frame} ->
+        message = get_in(frame, ["error", "message"]) || "prompt failed"
+
+        append_message!(state.run_id, :tool, "prompt failed: #{message}", tenant, state.owner_id)
+        state
+
+      {:ok, %{"type" => "message_end", "message" => message}} ->
+        append_conversation_text!(state, message)
+        state
+
       {:ok, decoded} when is_map(decoded) ->
-        append_message!(state.run_id, :agent, Jason.encode!(decoded), tenant, state.owner_id)
+        # ready, response acks, extension_ui_request, advisor_cost_changed,
+        # command updates, ... — the runtime talking about itself.
+        Logger.debug(fn -> "run #{state.run_id} frame: #{inspect(decoded, limit: 10)}" end)
         state
 
       {:error, _} ->
@@ -292,6 +413,26 @@ defmodule AshEnterprise.Agents.OmpSession do
         state
     end
   end
+
+  # An OMP assistant message_end carries the full message: text lives in
+  # content parts of `type: "text"`. Anything else (roles, shapes) is state.
+  defp append_conversation_text!(state, %{"role" => "assistant", "content" => content})
+       when is_list(content) do
+    text =
+      content
+      |> Enum.flat_map(fn
+        %{"type" => "text", "text" => text} when is_binary(text) -> [text]
+        _ -> []
+      end)
+      |> Enum.join("\n")
+      |> String.trim()
+
+    unless text == "" do
+      append_message!(state.run_id, :agent, text, state.tenant, state.owner_id)
+    end
+  end
+
+  defp append_conversation_text!(_state, _message), do: :ok
 
   # Records the request as a pending invocation and pauses the run: from here
   # the writer buffers until the gate resolves and the response write is the
@@ -396,8 +537,9 @@ defmodule AshEnterprise.Agents.OmpSession do
     case Port.info(state.port, :os_pid) do
       {:os_pid, os_pid} ->
         # The child was started here; SIGTERM on cancel/exit keeps a slow
-        # agent from outliving its run. A dead pid just exits nonzero.
-        System.cmd("kill", ["-TERM", Integer.to_string(os_pid)])
+        # agent from outliving its run. A dead pid just exits nonzero, and
+        # the message it prints about that is noise — captured, not shown.
+        System.cmd("kill", ["-TERM", Integer.to_string(os_pid)], stderr_to_stdout: true)
 
       _ ->
         :ok

@@ -67,6 +67,7 @@ defmodule AshEnterprise.AgentsTest do
     } do
       write_omp(dir, """
       read -r line
+      printf '%s\\n' "$line" > prompt-frame.json
       echo '{"type":"message","text":"line one"}'
       echo '{"type":"message","text":"line two"}'
       """)
@@ -91,6 +92,15 @@ defmodule AshEnterprise.AgentsTest do
       assert {:user, "rewrite the parser"} in texts
       assert {:agent, "line one"} in texts
       assert {:agent, "line two"} in texts
+
+      # The prompt frame is OMP's actual `prompt` command shape (rpc-types.ts):
+      # {id, type: "prompt", message} — the id correlates prompt_result, and
+      # the text lives in `message`. The old {type, text} shape is what real
+      # omp rejected with "undefined is not an object (evaluating 'le.trim')".
+      frame = dir |> Path.join("prompt-frame.json") |> File.read!() |> Jason.decode!()
+
+      assert %{"type" => "prompt", "id" => id, "message" => "rewrite the parser"} = frame
+      assert is_binary(id) and id != ""
     end
 
     test "a nonzero exit fails the run", %{dir: dir, tenant: tenant, actor: actor} do
@@ -113,6 +123,75 @@ defmodule AshEnterprise.AgentsTest do
       texts = Enum.map(AgentMessage.for_run!(run.id, authorize?: false), & &1.text)
       assert "about to blow up" in texts
       assert Enum.any?(texts, &(&1 =~ "exited with status 3"))
+    end
+
+    test "the orphan sweep fails a run whose session died, but not one that is live", %{
+      dir: dir,
+      tenant: tenant,
+      actor: actor
+    } do
+      # The sweep's guard matters as much as its action: a live session must
+      # survive a sweep call (the boot task can race a fresh run), while the
+      # run orphaned by a dead bridge instance gets failed.
+      write_omp(dir, """
+      read -r line
+      echo '{"type":"message","text":"still here"}'
+      exec sleep 30
+      """)
+
+      live = start_run!(dir, "live run", tenant, actor)
+
+      eventually(fn ->
+        run = AgentRun.by_id!(live.id, authorize?: false)
+        if run.status == :running, do: {:ok, :running}, else: :retry
+      end)
+
+      # Orphan a second run the way a BEAM restart would: terminate the
+      # session (terminate, not kill — a restart would re-run init and
+      # re-spawn OMP against the same run).
+      write_omp(dir, """
+      read -r line
+      exec sleep 60
+      """)
+
+      doomed = start_run!(dir, "doomed run", tenant, actor)
+
+      pid =
+        eventually(fn ->
+          case Registry.lookup(AshEnterprise.Agents.Registry, doomed.id) do
+            [{pid, _}] -> {:ok, pid}
+            [] -> :retry
+          end
+        end)
+
+      :ok = DynamicSupervisor.terminate_child(AshEnterprise.Agents.OmpSupervisor, pid)
+
+      :ok = OmpSession.fail_orphaned_runs()
+
+      live = AgentRun.by_id!(live.id, tenant: tenant, authorize?: false)
+      assert live.status == :running
+
+      doomed = AgentRun.by_id!(doomed.id, tenant: tenant, authorize?: false)
+      assert doomed.status == :failed
+      assert doomed.finished_at
+
+      texts = Enum.map(AgentMessage.for_run!(doomed.id, authorize?: false), & &1.text)
+      assert Enum.any?(texts, &(&1 =~ "bridge restarted"))
+
+      # Cleanup: the live run's sleeper must not outlive the test — and the
+      # session must finish its terminal transition before the sandbox owner
+      # stops, or a straggler Ash call from it poisons the shared connection
+      # for the next test.
+      assert {:ok, :cancelling} = OmpSession.cancel(live)
+
+      eventually(fn ->
+        if Registry.lookup(AshEnterprise.Agents.Registry, live.id) == [],
+          do: {:ok, :gone},
+          else: :retry
+      end)
+
+      live = AgentRun.by_id!(live.id, tenant: tenant, authorize?: false)
+      assert live.status == :cancelled
     end
 
     test "cancelling a live run stops the session and marks the run cancelled", %{
@@ -213,7 +292,7 @@ defmodule AshEnterprise.AgentsTest do
       read -r line
       echo '{"type":"tool_request","id":"req-1","tool":"shell","input":{"cmd":"rm -rf /"}}'
       read -r response
-      echo "$response"
+      printf '%s\\n' "$response" > tool-response.json
       echo '{"type":"message","text":"got the rejection"}'
       """)
 
@@ -240,17 +319,16 @@ defmodule AshEnterprise.AgentsTest do
       assert invocation.status == :rejected
       refute invocation.result
 
-      # The process heard the rejection on the wire: it echoed the
-      # tool_response line back, and the bridge kept it as a transcript row.
-      assert Enum.any?(AgentMessage.for_run!(run.id, authorize?: false), fn message ->
-               case Jason.decode(message.text) do
-                 {:ok, %{"type" => "tool_response", "id" => "req-1", "approved" => false}} ->
-                   true
+      # The process heard the rejection on the wire: it wrote the exact
+      # tool_response line it received to the workspace.
+      response_frame =
+        dir |> Path.join("tool-response.json") |> File.read!() |> Jason.decode!()
 
-                 _ ->
-                   false
-               end
-             end)
+      assert response_frame == %{
+               "type" => "tool_response",
+               "id" => "req-1",
+               "approved" => false
+             }
 
       assert Enum.any?(
                AgentMessage.for_run!(run.id, authorize?: false),
@@ -337,7 +415,10 @@ defmodule AshEnterprise.AgentsTest do
     Registry.lookup(AshEnterprise.Agents.Registry, run_id) == []
   end
 
-  defp eventually(fun, tries \\ 200)
+  # 15s under load: focused runs finish in seconds, but sibling suites on
+  # this box can starve the port-and-database dance; the happy path pays
+  # nothing (the first check usually wins).
+  defp eventually(fun, tries \\ 600)
 
   defp eventually(fun, tries) do
     case fun.() do

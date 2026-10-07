@@ -16,8 +16,10 @@ defmodule AshEnterprise.Agents do
   other caller — the no-nesting rule: OMP's model → typed Ash action →
   deterministic result, never agent → agent.
 
-  Exposing only *reads* and `start_agent_run` is deliberate: prompting an
-  agent is the operator's act; approving its privileged tools happens through
+  Exposing only *reads* is deliberate: prompting an agent is the operator's
+  act (the code interface behind it, or a future privileged-and-approved
+  tool — never a plain tool an agent session could call, which would be
+  agent-to-agent nesting); approving its privileged tools happens through
   `AshEnterprise.Agents.ToolGate`, which is not a tool — an agent must never
   be able to approve its own tool invocations.
   """

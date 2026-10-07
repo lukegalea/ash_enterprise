@@ -36,6 +36,10 @@ defmodule AshEnterprise.Application do
         # are operator events, not boot-time facts.
         {Registry, keys: :unique, name: AshEnterprise.Agents.Registry},
         AshEnterprise.Agents.OmpSupervisor,
+        # Runs whose process died with a previous bridge instance can never
+        # receive the exit_status that would finalize them — sweep them to
+        # :failed once at boot. One-shot supervised task; exits normally.
+        {Task, &AshEnterprise.Agents.OmpSession.fail_orphaned_runs/0},
         # The trigger index. Started after the Repo because it loads published triggers.
         # Start a worker by calling: AshEnterprise.Worker.start_link(arg)
         # {AshEnterprise.Worker, arg},
