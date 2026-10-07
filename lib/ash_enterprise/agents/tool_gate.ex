@@ -13,6 +13,15 @@ defmodule AshEnterprise.Agents.ToolGate do
 
   These are person acts and deliberately *not* ash_ai tools: an agent must
   never be able to approve its own tool invocations.
+
+  Scope: this gate governs the **bridge-dialect** `tool_request` frames of the
+  OMP rpc port (spoken by the fake executable in tests and available to any
+  future adapter). OMP's `--mode rpc` itself has no tool-approval frame — its
+  permission gate (bash/edit/delete/move, allow_once/allow_always/reject_*)
+  activates only when an **ACP client** is connected, which is exactly where
+  epic E3's `AshEnterprise.Acp.Approvals` already maps permission requests
+  (ADR 0015). An OMP session's live tool approvals therefore ride `omp acp`,
+  not this port.
   """
 
   alias AshEnterprise.Agents.OmpSession

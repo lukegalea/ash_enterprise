@@ -125,6 +125,88 @@ defmodule AshEnterprise.AgentsTest do
       assert Enum.any?(texts, &(&1 =~ "exited with status 3"))
     end
 
+    test "prompt_result completes the run while the process stays alive", %{
+      dir: dir,
+      tenant: tenant,
+      actor: actor
+    } do
+      # The real OMP keeps serving turns after one finishes: the run is the
+      # prompt, so its prompt_result (correlated on the id we sent) — not the
+      # process exit — is what settles the run. The fake echoes our id back
+      # from the prompt frame, exactly as omp correlates it, then idles.
+      write_omp(dir, """
+      read -r line
+      printf '%s\\n' "$line" > prompt-frame.json
+      ID=$(printf '%s' "$line" | grep -o '"id":"[a-f0-9-]*"' | cut -d'"' -f4)
+      echo "{\\"type\\":\\"prompt_result\\",\\"id\\":\\"$ID\\",\\"agentInvoked\\":true,\\"status\\":\\"completed\\",\\"sessionSettled\\":true}"
+      exec sleep 30
+      """)
+
+      run = start_run!(dir, "one unit of work", tenant, actor)
+
+      run =
+        eventually(fn ->
+          run = AgentRun.by_id!(run.id, tenant: tenant, authorize?: false)
+          if run.status == :completed, do: {:ok, run}
+        end)
+
+      assert run.finished_at
+
+      # Process still alive, run already terminal — cancel is just shutdown
+      # now, and it must not move the terminal row.
+      eventually(fn ->
+        if Registry.lookup(AshEnterprise.Agents.Registry, run.id) != [],
+          do: {:ok, :live},
+          else: :retry
+      end)
+
+      assert {:ok, :cancelling} = OmpSession.cancel(run)
+
+      eventually(fn ->
+        if Registry.lookup(AshEnterprise.Agents.Registry, run.id) == [],
+          do: {:ok, :gone},
+          else: :retry
+      end)
+
+      run = AgentRun.by_id!(run.id, tenant: tenant, authorize?: false)
+      assert run.status == :completed
+    end
+
+    test "prompt_result error fails the run with the provider's message", %{
+      dir: dir,
+      tenant: tenant,
+      actor: actor
+    } do
+      write_omp(dir, """
+      read -r line
+      ID=$(printf '%s' "$line" | grep -o '"id":"[a-f0-9-]*"' | cut -d'"' -f4)
+      echo "{\\"type\\":\\"prompt_result\\",\\"id\\":\\"$ID\\",\\"status\\":\\"error\\",\\"error\\":{\\"message\\":\\"provider down\\"}}"
+      exec sleep 30
+      """)
+
+      run = start_run!(dir, "will error", tenant, actor)
+
+      run =
+        eventually(fn ->
+          run = AgentRun.by_id!(run.id, tenant: tenant, authorize?: false)
+          if run.status == :failed, do: {:ok, run}
+        end)
+
+      assert run.finished_at
+
+      texts = Enum.map(AgentMessage.for_run!(run.id, authorize?: false), & &1.text)
+      assert Enum.any?(texts, &(&1 == "prompt failed: provider down"))
+
+      # Run terminal, process still alive: cancel is pure shutdown now.
+      assert {:ok, :cancelling} = OmpSession.cancel(run)
+
+      eventually(fn ->
+        if Registry.lookup(AshEnterprise.Agents.Registry, run.id) == [],
+          do: {:ok, :gone},
+          else: :retry
+      end)
+    end
+
     test "the orphan sweep fails a run whose session died, but not one that is live", %{
       dir: dir,
       tenant: tenant,

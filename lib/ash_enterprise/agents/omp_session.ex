@@ -24,8 +24,25 @@ defmodule AshEnterprise.Agents.OmpSession do
       {"type":"tool_request","id":...,"tool":...,"input":{...}} → pending ToolInvocation, run paused (bridge dialect)
       {"type":"tool_result","id":...,"result":{...}}            → invocation completed (bridge dialect)
       {"type":"response",...,success:false}                     → :tool diagnostic (OMP protocol)
-      {"type":"prompt_result",status:"error",...}               → :tool diagnostic (OMP protocol)
+      {"type":"prompt_result",...}                              → run terminal state (OMP protocol)
       {"type":"message_end","message":{role:"assistant",...}}   → assistant text parts → :agent message (OMP protocol)
+
+  `prompt_result` is the terminal frame for the run's prompt (correlated on
+  the command id the bridge generated): `status: "completed"` completes the
+  run, `"error"` fails it, `"aborted"` cancels it — even though the process
+  itself stays alive for the next turn. A completed run's process exiting
+  later is routine and transitions nothing.
+
+  ## Tool approvals: bridge dialect only, deliberately
+
+  OMP's `--mode rpc` has **no tool-approval request frame** — its own
+  permission gate (`session/acp-permission-gate.ts`, bash/edit/delete/move,
+  allow_once/allow_always/reject_*) activates only when an **ACP client** is
+  connected, which is exactly where epic E3's `AshEnterprise.Acp.Approvals`
+  already maps permission requests (ADR 0015). So the ToolGate on this
+  transport governs the bridge-dialect `tool_request` frames (spoken by the
+  fake executable and available to future adapters); an OMP session's live
+  tool approvals ride `omp acp`, not this port.
 
   Every other frame (`ready`, `response` success acks, `extension_ui_request`,
   `advisor_cost_changed`, command updates, ...) is the runtime's *state*, not
@@ -147,7 +164,14 @@ defmodule AshEnterprise.Agents.OmpSession do
   by a bridge restart (BEAM restart, crashed session). The exit_status that
   would finalize such a run died with the old instance, so nothing in-process
   can ever deliver it; the sweep is what runs at boot instead. Supervised
-  one-shot task child next to `AshEnterprise.Agents.OmpSupervisor`.
+  one-shot task child next to `AshEnterprise.Agents.OmpSupervisor`, gated by
+  `config :ash_enterprise, :agents, sweep_orphans_on_boot?:` (default true).
+
+  The registry is local, so the sweep cannot see another VM's live sessions.
+  On a deployment where several BEAMs share one database (Main's two-VM dev
+  gate), turn the flag off on the second VM — a first boot would sweep the
+  first VM's live runs. The real fix is lease-based liveness (an instance
+  heartbeat in the database); the flag is the honest stopgap.
   """
   @spec fail_orphaned_runs() :: :ok
   def fail_orphaned_runs do
@@ -230,6 +254,7 @@ defmodule AshEnterprise.Agents.OmpSession do
        writer: writer,
        buffer: <<>>,
        pending: MapSet.new(),
+       run_terminal?: false,
        terminated?: false
      }}
   end
@@ -238,9 +263,15 @@ defmodule AshEnterprise.Agents.OmpSession do
   def handle_cast(:cancel, state) do
     state = stop_child(state)
 
-    terminal_state(state, fn run ->
-      AgentRun.cancel(run, tenant: state.tenant, authorize?: false)
-    end)
+    if state.run_terminal? do
+      # The run is already terminal (prompt_result); cancelling just stops
+      # the now-idle process.
+      {:stop, :normal, %{state | terminated?: true}}
+    else
+      terminal_state(state, fn run ->
+        AgentRun.cancel(run, tenant: state.tenant, authorize?: false)
+      end)
+    end
   end
 
   def handle_cast({:tool_response, request_id, approved?}, state) do
@@ -287,6 +318,15 @@ defmodule AshEnterprise.Agents.OmpSession do
     {:noreply, state}
   end
 
+  def handle_info(
+        {:eof_check, port},
+        %{port: port, terminated?: false, run_terminal?: true} = state
+      ) do
+    # Run already settled by prompt_result; the output closing is routine.
+    state = stop_child(state)
+    {:stop, :normal, %{state | terminated?: true}}
+  end
+
   def handle_info({:eof_check, port}, %{port: port, terminated?: false} = state) do
     # Backstop for an eof that was never followed by an exit_status — the
     # driver lost the exit (abnormal reaping). In practice ERTS keeps a
@@ -318,25 +358,36 @@ defmodule AshEnterprise.Agents.OmpSession do
     else
       buffer = state.buffer
 
-      state
-      |> Map.put(:buffer, <<>>)
-      |> process_line(buffer)
-      |> stop_child()
-      |> terminal_state(fn run ->
-        if status == 0 do
-          AgentRun.complete(run, tenant: state.tenant, authorize?: false)
-        else
+      state =
+        state
+        |> Map.put(:buffer, <<>>)
+        |> process_line(buffer)
+        |> stop_child()
+
+      cond do
+        # The prompt_result already settled the run; the process exiting is
+        # just the process exiting.
+        state.run_terminal? ->
+          {:stop, :normal, %{state | terminated?: true}}
+
+        status == 0 ->
+          terminal_state(state, fn run ->
+            AgentRun.complete(run, tenant: state.tenant, authorize?: false)
+          end)
+
+        true ->
           append_message!(
-            run.id,
+            state.run_id,
             :tool,
             "omp exited with status #{status}",
             state.tenant,
             state.owner_id
           )
 
-          AgentRun.fail(run, tenant: state.tenant, authorize?: false)
-        end
-      end)
+          terminal_state(state, fn run ->
+            AgentRun.fail(run, tenant: state.tenant, authorize?: false)
+          end)
+      end
     end
   end
 
@@ -392,11 +443,8 @@ defmodule AshEnterprise.Agents.OmpSession do
 
         state
 
-      {:ok, %{"type" => "prompt_result", "status" => "error"} = frame} ->
-        message = get_in(frame, ["error", "message"]) || "prompt failed"
-
-        append_message!(state.run_id, :tool, "prompt failed: #{message}", tenant, state.owner_id)
-        state
+      {:ok, %{"type" => "prompt_result"} = frame} ->
+        settle_prompt_result(state, frame)
 
       {:ok, %{"type" => "message_end", "message" => message}} ->
         append_conversation_text!(state, message)
@@ -411,6 +459,72 @@ defmodule AshEnterprise.Agents.OmpSession do
       {:error, _} ->
         append_message!(state.run_id, :agent, line, tenant, state.owner_id)
         state
+    end
+  end
+
+  # The terminal frame for the run's prompt (rpc-types.ts, correlated on the
+  # command id the bridge generated). The run is the prompt: its status here
+  # is the run's terminal state even though the process stays alive for the
+  # next turn — so the eventual process exit transitions nothing.
+  defp settle_prompt_result(%{prompt_id: prompt_id} = state, frame) do
+    if Map.get(frame, "id") not in [nil, prompt_id] do
+      Logger.debug(
+        "prompt_result for foreign id #{inspect(Map.get(frame, "id"))} on run #{state.run_id}"
+      )
+
+      state
+    else
+      transition =
+        case frame["status"] do
+          "completed" ->
+            fn run -> AgentRun.complete(run, tenant: state.tenant, authorize?: false) end
+
+          "aborted" ->
+            fn run -> AgentRun.cancel(run, tenant: state.tenant, authorize?: false) end
+
+          "error" ->
+            message = get_in(frame, ["error", "message"]) || "prompt failed"
+
+            append_message!(
+              state.run_id,
+              :tool,
+              "prompt failed: #{message}",
+              state.tenant,
+              state.owner_id
+            )
+
+            fn run -> AgentRun.fail(run, tenant: state.tenant, authorize?: false) end
+
+          other ->
+            Logger.warning(
+              "run #{state.run_id}: unknown prompt_result status #{inspect(other)}; run left as-is"
+            )
+
+            nil
+        end
+
+      if transition do
+        transition_run(state, transition)
+        %{state | run_terminal?: true}
+      else
+        state
+      end
+    end
+  end
+
+  # Shared terminal-transition body: read fresh, transition, never crash into
+  # a respawn over an already-terminal row.
+  defp transition_run(state, transition) do
+    run = AgentRun.by_id!(state.run_id, tenant: state.tenant, authorize?: false)
+
+    case transition.(run) do
+      {:ok, _run} ->
+        :ok
+
+      {:error, error} ->
+        # Almost always "already terminal" (a cancellation racing the process
+        # exit). The resource row is the record; never crash into a respawn.
+        Logger.warning("run #{state.run_id} terminal transition failed: #{inspect(error)}")
     end
   end
 
@@ -516,18 +630,7 @@ defmodule AshEnterprise.Agents.OmpSession do
   # --- terminal handling -------------------------------------------------------
 
   defp terminal_state(state, transition) do
-    run = AgentRun.by_id!(state.run_id, tenant: state.tenant, authorize?: false)
-
-    case transition.(run) do
-      {:ok, _run} ->
-        :ok
-
-      {:error, error} ->
-        # Almost always "already terminal" (a cancellation racing the process
-        # exit). The resource row is the record; never crash into a respawn.
-        Logger.warning("run #{state.run_id} terminal transition failed: #{inspect(error)}")
-    end
-
+    transition_run(state, transition)
     {:stop, :normal, %{state | terminated?: true}}
   end
 

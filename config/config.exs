@@ -290,6 +290,13 @@ config :ash_enterprise,
   ],
   base_resources: [AshEnterprise.Platform.Resource]
 
+# The OMP bridge's boot sweep fails :running runs whose session process is
+# gone (orphans of a BEAM restart). Default on. The registry it checks is
+# LOCAL — where several BEAMs share one database (e.g. a two-VM live gate),
+# set this false on every instance but one, or the first boot will fail the
+# other instance's live runs. See AshEnterprise.Agents.OmpSession.
+config :ash_enterprise, :agents, sweep_orphans_on_boot?: true
+
 # Configure the endpoint
 config :ash_enterprise, AshEnterpriseWeb.Endpoint,
   url: [host: "localhost"],

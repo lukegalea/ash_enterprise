@@ -36,10 +36,6 @@ defmodule AshEnterprise.Application do
         # are operator events, not boot-time facts.
         {Registry, keys: :unique, name: AshEnterprise.Agents.Registry},
         AshEnterprise.Agents.OmpSupervisor,
-        # Runs whose process died with a previous bridge instance can never
-        # receive the exit_status that would finalize them — sweep them to
-        # :failed once at boot. One-shot supervised task; exits normally.
-        {Task, &AshEnterprise.Agents.OmpSession.fail_orphaned_runs/0},
         # The trigger index. Started after the Repo because it loads published triggers.
         # Start a worker by calling: AshEnterprise.Worker.start_link(arg)
         # {AshEnterprise.Worker, arg},
@@ -54,7 +50,7 @@ defmodule AshEnterprise.Application do
         # failover. After PubSub, because the engine's PubSubListener subscribes
         # to the wake topic. Off in :test — see config/test.exs.
         AshEvents.Projections.Supervisor
-      ] ++ trace_sink() ++ trigger_index() ++ legacy_listener()
+      ] ++ orphans_sweep() ++ trace_sink() ++ trigger_index() ++ legacy_listener()
 
     # See https://elixir.hexdocs.pm/Supervisor.html
     # for other strategies and supported options
@@ -134,6 +130,18 @@ defmodule AshEnterprise.Application do
   defp trigger_index do
     if Application.get_env(:ash_enterprise, :trigger_index?, true) do
       [AshBpmn.Triggers.Index]
+    else
+      []
+    end
+  end
+
+  # The OMP bridge's orphan sweep (see AshEnterprise.Agents.OmpSession). The
+  # registry it checks is LOCAL: with several BEAMs sharing one database,
+  # leave this off everywhere but the "real" instance.
+  defp orphans_sweep do
+    if Application.get_env(:ash_enterprise, :agents, [])
+       |> Keyword.get(:sweep_orphans_on_boot?, true) do
+      [{Task, &AshEnterprise.Agents.OmpSession.fail_orphaned_runs/0}]
     else
       []
     end
