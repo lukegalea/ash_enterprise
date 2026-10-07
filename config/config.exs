@@ -285,7 +285,8 @@ config :ash_enterprise,
     AshEnterprise.CanonicalAgent,
     AshEnterprise.SystemOne,
     AshEnterprise.Ingestion,
-    AshEnterprise.Canonical
+    AshEnterprise.Canonical,
+    AshEnterprise.Agents
   ],
   base_resources: [AshEnterprise.Platform.Resource]
 

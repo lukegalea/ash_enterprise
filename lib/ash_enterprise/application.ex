@@ -31,6 +31,11 @@ defmodule AshEnterprise.Application do
         # Owns the ACP session/approval ETS tables (epic E3) so they outlive
         # any transient handler process.
         AshEnterprise.Acp.Store,
+        # Epic E5: the OMP bridge. The registry names one OmpSession per run
+        # id; the dynamic supervisor owns the sessions themselves — children
+        # are operator events, not boot-time facts.
+        {Registry, keys: :unique, name: AshEnterprise.Agents.Registry},
+        AshEnterprise.Agents.OmpSupervisor,
         # The trigger index. Started after the Repo because it loads published triggers.
         # Start a worker by calling: AshEnterprise.Worker.start_link(arg)
         # {AshEnterprise.Worker, arg},

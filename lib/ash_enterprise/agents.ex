@@ -1,0 +1,54 @@
+defmodule AshEnterprise.Agents do
+  @moduledoc """
+  Agent workflows (Productivity OS Dogfood epic E5; dogfood §6).
+
+  The Ash side of the mainframe's coding-coprocessor bridge: sessions, runs,
+  transcripts and tool approvals are resources, and the OMP process is
+  machinery behind `AshEnterprise.Agents.OmpSession` — never the other way
+  round. The division of labor dogfood §6 fixes: Ash owns identity, state,
+  policy and audit; OMP owns the coding conversation.
+
+  ## ash_ai exposure
+
+  The tools below are what an OMP session (or any MCP client) can call as
+  typed actions: list the sessions and runs it may see, and start a run.
+  Execution goes through these declared actions and the same policies as any
+  other caller — the no-nesting rule: OMP's model → typed Ash action →
+  deterministic result, never agent → agent.
+
+  Exposing only *reads* and `start_agent_run` is deliberate: prompting an
+  agent is the operator's act; approving its privileged tools happens through
+  `AshEnterprise.Agents.ToolGate`, which is not a tool — an agent must never
+  be able to approve its own tool invocations.
+  """
+
+  use Ash.Domain,
+    otp_app: :ash_enterprise,
+    extensions: [AshAi]
+
+  tools do
+    tool :list_agent_sessions, AshEnterprise.Agents.AgentSession, :read do
+      description "List coding-agent sessions (workspace, provider, status)."
+    end
+
+    tool :list_agent_runs, AshEnterprise.Agents.AgentRun, :read do
+      description "List coding-agent runs with their status and timestamps."
+    end
+
+    tool :start_agent_run, AshEnterprise.Agents.AgentRun, :start do
+      description """
+      Start one coding-agent run: hand `prompt` to the agent process of the
+      session named by `session_id`, in that session's workspace. Returns the
+      run; read its messages afterwards to see the transcript. Privileged tool
+      use inside the run is paused for human approval.
+      """
+    end
+  end
+
+  resources do
+    resource AshEnterprise.Agents.AgentSession
+    resource AshEnterprise.Agents.AgentRun
+    resource AshEnterprise.Agents.AgentMessage
+    resource AshEnterprise.Agents.ToolInvocation
+  end
+end
