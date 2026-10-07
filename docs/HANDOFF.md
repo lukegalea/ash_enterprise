@@ -66,7 +66,7 @@ devenv shell -- iex-server                # the app
 devenv shell -- mix ash_enterprise.seed   # tenant + admin + privileges
 ```
 
-Five traps, each of which cost time to find:
+Nine traps, each of which cost time to find:
 
 1. **The Postgres port is dynamic.** devenv shifts it when 5432 is taken (Docker
    here) but rewrites only `postgresql.conf`, *not* `$PGPORT`. `enterShell`
