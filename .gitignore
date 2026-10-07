@@ -80,3 +80,7 @@ devenv.local.yaml
 
 # OMO worktree lanes are local scratch (configs tracked, contents not)
 .slim/worktrees/*/
+
+# Private research artifacts live in ~/system-one-program/private-docs, not in
+# this public tree (AST-105: vendorpm CFO deck must never reappear in docs/)
+docs/*.pptx
