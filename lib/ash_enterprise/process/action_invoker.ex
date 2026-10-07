@@ -90,6 +90,18 @@ defmodule AshEnterprise.Process.ActionInvoker do
     "reject_request" => %{
       run: &__MODULE__.reject_request/1,
       action: {AshEnterprise.Security.AccessRequest, :reject}
+    },
+    "compose_brief" => %{
+      run: &__MODULE__.compose_brief/1,
+      action: {AshEnterprise.Agents.MorningBrief, :compose_brief}
+    },
+    "approve_brief" => %{
+      run: &__MODULE__.approve_brief/1,
+      action: {AshEnterprise.Agents.MorningBrief, :approve}
+    },
+    "reject_brief" => %{
+      run: &__MODULE__.reject_brief/1,
+      action: {AshEnterprise.Agents.MorningBrief, :reject}
     }
   }
 
@@ -207,6 +219,40 @@ defmodule AshEnterprise.Process.ActionInvoker do
   @doc "Records that the request was refused."
   def reject_request(ctx) do
     AshEnterprise.Security.AccessRequest.reject!(ctx[:subject], engine_opts(ctx))
+
+    :ok
+  rescue
+    e -> {:error, Exception.message(e)}
+  end
+
+  # ── the morning brief (epic E5) ──────────────────────────────────────────
+  #
+  # The subject is the `AshEnterprise.Agents.MorningBrief` row, so every one of
+  # these is "make this true" on that row and idempotent by construction: a
+  # re-approve writes the same status, and re-composing recomputes the same
+  # deterministic template.
+
+  @doc "Composes the deterministic draft for the subject's `brief_date`."
+  def compose_brief(ctx) do
+    AshEnterprise.Agents.MorningBrief.compose_brief!(ctx[:subject], engine_opts(ctx))
+
+    :ok
+  rescue
+    e -> {:error, Exception.message(e)}
+  end
+
+  @doc "Lands the approval task's `approved` outcome on the brief."
+  def approve_brief(ctx) do
+    AshEnterprise.Agents.MorningBrief.approve!(ctx[:subject], engine_opts(ctx))
+
+    :ok
+  rescue
+    e -> {:error, Exception.message(e)}
+  end
+
+  @doc "Lands the approval task's `rejected` outcome on the brief."
+  def reject_brief(ctx) do
+    AshEnterprise.Agents.MorningBrief.reject!(ctx[:subject], engine_opts(ctx))
 
     :ok
   rescue

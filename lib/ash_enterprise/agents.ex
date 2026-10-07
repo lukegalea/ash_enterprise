@@ -48,5 +48,6 @@ defmodule AshEnterprise.Agents do
     resource AshEnterprise.Agents.AgentRun
     resource AshEnterprise.Agents.AgentMessage
     resource AshEnterprise.Agents.ToolInvocation
+    resource AshEnterprise.Agents.MorningBrief
   end
 end

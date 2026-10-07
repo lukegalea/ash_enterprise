@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn2:definitions xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:ash="https://github.com/lukegalea/ash_bpmn/ns"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   id="Definitions_morning_brief"
+                   targetNamespace="https://ash-enterprise.example/bpmn">
+  <bpmn2:process id="Process_morning_brief" name="Morning brief" isExecutable="true">
+
+    <bpmn2:startEvent id="Start">
+      <bpmn2:outgoing>Flow_to_compose</bpmn2:outgoing>
+    </bpmn2:startEvent>
+
+    <bpmn2:serviceTask id="ComposeDraft" name="Compose the draft brief">
+      <bpmn2:extensionElements>
+        <!-- Deterministic template over the day's canonical calendar events.
+             No LLM: summarization is a deferred operator decision and will be
+             its own approved step, never a silent substitution. -->
+        <ash:taskConfig action="compose_brief"/>
+      </bpmn2:extensionElements>
+      <bpmn2:incoming>Flow_to_compose</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_to_approve</bpmn2:outgoing>
+    </bpmn2:serviceTask>
+
+    <bpmn2:userTask id="ApproveBrief" name="Approve the brief">
+      <bpmn2:extensionElements>
+        <ash:taskConfig>
+          <ash:candidates>
+            <!-- The brief's owner: the row carries its owner like any
+                 user-owned record, so no role lookup is involved. -->
+            <ash:candidate kind="user" of="subject.owner_id"/>
+          </ash:candidates>
+          <ash:outcomes>
+            <ash:outcome name="approved"/>
+            <ash:outcome name="rejected"/>
+          </ash:outcomes>
+        </ash:taskConfig>
+      </bpmn2:extensionElements>
+      <bpmn2:incoming>Flow_to_approve</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_approved</bpmn2:outgoing>
+      <bpmn2:outgoing>Flow_rejected</bpmn2:outgoing>
+    </bpmn2:userTask>
+
+    <bpmn2:serviceTask id="MarkApproved" name="Record the approval">
+      <bpmn2:extensionElements>
+        <ash:taskConfig action="approve_brief"/>
+      </bpmn2:extensionElements>
+      <bpmn2:incoming>Flow_approved</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_to_end_approved</bpmn2:outgoing>
+    </bpmn2:serviceTask>
+
+    <bpmn2:serviceTask id="MarkRejected" name="Record the rejection">
+      <bpmn2:extensionElements>
+        <ash:taskConfig action="reject_brief"/>
+      </bpmn2:extensionElements>
+      <bpmn2:incoming>Flow_rejected</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_to_end_rejected</bpmn2:outgoing>
+    </bpmn2:serviceTask>
+
+    <bpmn2:endEvent id="EndApproved">
+      <bpmn2:extensionElements><ash:taskConfig outcome="approved"/></bpmn2:extensionElements>
+      <bpmn2:incoming>Flow_to_end_approved</bpmn2:incoming>
+    </bpmn2:endEvent>
+
+    <bpmn2:endEvent id="EndRejected">
+      <bpmn2:extensionElements><ash:taskConfig outcome="rejected"/></bpmn2:extensionElements>
+      <bpmn2:incoming>Flow_to_end_rejected</bpmn2:incoming>
+    </bpmn2:endEvent>
+
+    <bpmn2:sequenceFlow id="Flow_to_compose" sourceRef="Start" targetRef="ComposeDraft"/>
+    <bpmn2:sequenceFlow id="Flow_to_approve" sourceRef="ComposeDraft" targetRef="ApproveBrief"/>
+    <bpmn2:sequenceFlow id="Flow_approved" sourceRef="ApproveBrief" targetRef="MarkApproved">
+      <bpmn2:conditionExpression xsi:type="bpmn2:tFormalExpression"
+        language="feel">task.outcome = "approved"</bpmn2:conditionExpression>
+    </bpmn2:sequenceFlow>
+    <bpmn2:sequenceFlow id="Flow_rejected" sourceRef="ApproveBrief" targetRef="MarkRejected">
+      <bpmn2:conditionExpression xsi:type="bpmn2:tFormalExpression"
+        language="feel">task.outcome = "rejected"</bpmn2:conditionExpression>
+    </bpmn2:sequenceFlow>
+    <bpmn2:sequenceFlow id="Flow_to_end_approved" sourceRef="MarkApproved" targetRef="EndApproved"/>
+    <bpmn2:sequenceFlow id="Flow_to_end_rejected" sourceRef="MarkRejected" targetRef="EndRejected"/>
+  </bpmn2:process>
+
+  <bpmndi:BPMNDiagram id="Diagram_1">
+    <bpmndi:BPMNPlane id="Plane_1" bpmnElement="Process_morning_brief">
+      <bpmndi:BPMNShape id="Shape_Start" bpmnElement="Start">
+        <dc:Bounds x="150" y="202" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ComposeDraft" bpmnElement="ComposeDraft">
+        <dc:Bounds x="240" y="180" width="110" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_ApproveBrief" bpmnElement="ApproveBrief">
+        <dc:Bounds x="410" y="180" width="120" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_MarkApproved" bpmnElement="MarkApproved">
+        <dc:Bounds x="600" y="90" width="110" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_MarkRejected" bpmnElement="MarkRejected">
+        <dc:Bounds x="600" y="270" width="110" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_EndApproved" bpmnElement="EndApproved">
+        <dc:Bounds x="770" y="112" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_EndRejected" bpmnElement="EndRejected">
+        <dc:Bounds x="770" y="292" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_to_compose" bpmnElement="Flow_to_compose">
+        <di:waypoint x="186" y="220"/>
+        <di:waypoint x="240" y="220"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_to_approve" bpmnElement="Flow_to_approve">
+        <di:waypoint x="350" y="220"/>
+        <di:waypoint x="410" y="220"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_approved" bpmnElement="Flow_approved">
+        <di:waypoint x="470" y="180"/>
+        <di:waypoint x="470" y="130"/>
+        <di:waypoint x="600" y="130"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_rejected" bpmnElement="Flow_rejected">
+        <di:waypoint x="470" y="260"/>
+        <di:waypoint x="470" y="310"/>
+        <di:waypoint x="600" y="310"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_to_end_approved" bpmnElement="Flow_to_end_approved">
+        <di:waypoint x="710" y="130"/>
+        <di:waypoint x="770" y="130"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_to_end_rejected" bpmnElement="Flow_to_end_rejected">
+        <di:waypoint x="710" y="310"/>
+        <di:waypoint x="770" y="310"/>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn2:definitions>
