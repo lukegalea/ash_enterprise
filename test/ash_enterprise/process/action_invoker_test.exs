@@ -169,7 +169,15 @@ defmodule AshEnterprise.Process.ActionInvokerTest do
     test "offers exactly the refs invoke/2 dispatches on" do
       refs = Enum.map(ActionInvoker.catalogue(), & &1.ref)
 
-      assert Enum.sort(refs) == Enum.sort(["record_risk", "grant_role", "reject_request"])
+      assert Enum.sort(refs) ==
+               Enum.sort([
+                 "record_risk",
+                 "grant_role",
+                 "reject_request",
+                 "compose_brief",
+                 "approve_brief",
+                 "reject_brief"
+               ])
 
       for ref <- refs do
         assert ActionInvoker.exists?(ref), "#{ref} is offered but not permitted"
