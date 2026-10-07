@@ -288,18 +288,12 @@ defmodule AshEnterprise.AgentsTest do
   end
 
   describe "ash_ai exposure" do
-    test "the read actions and start_run are declared as typed tools" do
+    test "only the read actions are typed tools — never run-start (no nesting)" do
       tools = AshAi.Info.tools(Agents)
       names = MapSet.new(tools, & &1.name)
 
-      assert MapSet.subset?(
-               MapSet.new([:list_agent_sessions, :list_agent_runs, :start_agent_run]),
-               names
-             )
-
-      start = Enum.find(tools, &(&1.name == :start_agent_run))
-      assert start.resource == AgentRun
-      assert start.action == :start
+      assert MapSet.subset?(MapSet.new([:list_agent_sessions, :list_agent_runs]), names)
+      refute :start_agent_run in names
 
       assert Enum.find(tools, &(&1.name == :list_agent_sessions)).resource == AgentSession
       assert Enum.find(tools, &(&1.name == :list_agent_runs)).resource == AgentRun
