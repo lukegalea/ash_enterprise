@@ -3,10 +3,11 @@ defmodule AshEnterprise.SystemOne.Checks.FactMaterialiser do
   Passes when the facts materialiser is the caller.
 
   `AshJudgments.Facts.Materialiser` — the sole sanctioned writer of the
-  facts fragment's machinery actions (`:materialise`, `:supersede`, and
-  its own `:for_subject` read) — deliberately passes no actor: the write
-  is the admission pipeline's, attributed through the admission id the
-  decision carries. With policies on, a plain `Ash.create!/1` with no
+  facts fragment's machinery actions (`:materialise`, and — on the
+  temporal fragment, AST-149 — the period verbs `:revise`/`:truncate`,
+  plus its own `:for_subject` read) — deliberately passes no actor: the
+  write is the admission pipeline's, attributed through the admission id
+  the decision carries. With policies on, a plain `Ash.create!/1` with no
   actor would be forbidden, so the resource declares the materialiser's
   authority HERE:
 
@@ -27,7 +28,7 @@ defmodule AshEnterprise.SystemOne.Checks.FactMaterialiser do
 
   use Ash.Policy.SimpleCheck
 
-  @machinery [:materialise, :supersede, :for_subject]
+  @machinery [:materialise, :revise, :truncate, :for_subject]
 
   @impl true
   def describe(_opts),

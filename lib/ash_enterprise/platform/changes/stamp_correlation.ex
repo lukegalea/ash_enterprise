@@ -44,4 +44,11 @@ defmodule AshEnterprise.Platform.Changes.StampCorrelation do
   # global grant) would otherwise stamp the wrong one.
   defp put_tenant(metadata, nil), do: metadata
   defp put_tenant(metadata, tenant), do: Map.put(metadata, "organization_id", to_string(tenant))
+
+  # Temporal safety (AST-149, the VPM-49 audit's judgment carried to the
+  # SystemOne facts host): pure changeset-context plumbing — the
+  # correlation id and tenant move into audit metadata; nothing reads the
+  # clock, and the stamped context touches no row column.
+  @impl true
+  def temporal_safe?(_opts), do: true
 end

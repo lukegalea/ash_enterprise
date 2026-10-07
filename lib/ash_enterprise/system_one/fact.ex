@@ -5,12 +5,25 @@ defmodule AshEnterprise.SystemOne.Fact do
   facts land here through `AshJudgments.Facts.Materialiser` — the sole
   intended caller, which the host's banding step routes to.
 
-  `AshJudgments.Facts.Fragment` supplies the set-evaluator contract
-  (subject/predicate/value), the §7.4 columns and the freshness
-  calculations; the platform base supplies the audit and tenancy. Facts
-  are superseded, never edited (`:supersede` is the one sanctioned
-  update); writes are machinery (the materialiser runs as a system actor),
-  reads are role-gated.
+  `AshJudgments.Facts.TemporalFragment` supplies the set-evaluator
+  contract (subject/predicate/value), the §7.4 columns and the freshness
+  calculations — with **record validity carried as a period** (the facts
+  temporal-swap, design note §2; AST-149 host cut-over): a revision is a
+  period split at the admission's `effective_at`, an omission truncates
+  the period (history preserved, the predicate returns to unknown), and
+  the `WITHOUT OVERLAPS` identity on
+  `(subject_type, subject_id, predicate, scope_hash)` enforces one open
+  period per subject+predicate+scope at any instant. Supersession
+  bookkeeping (`superseded_by`, `:supersede`, `current?`, the `:current`
+  filter) is deleted: a plain read IS the as-of-now read (`strategy
+  :context`). `valid_until` remains the SECOND axis — domain validity (a
+  licence expires on a date), deliberately not the period. The platform
+  base supplies the audit and tenancy; the table is AshEvents-audited, so
+  the as_of capture/replay harness works over its events and the §5.2
+  migration replays the legacy table's recorded writes. Facts are never
+  edited — a revision is a new period, enforced by the database. Writes
+  are machinery (the materialiser runs as a system actor), reads are
+  role-gated.
   """
 
   # Not multitenant, on purpose, at this stage: the package's materialiser
@@ -25,7 +38,7 @@ defmodule AshEnterprise.SystemOne.Fact do
     lifecycle?: false,
     archival?: false,
     policies?: false,
-    fragments: [AshJudgments.Facts.Fragment]
+    fragments: [AshJudgments.Facts.TemporalFragment]
 
   postgres do
     table "system_one_facts"
