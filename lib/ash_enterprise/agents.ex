@@ -35,14 +35,10 @@ defmodule AshEnterprise.Agents do
       description "List coding-agent runs with their status and timestamps."
     end
 
-    tool :start_agent_run, AshEnterprise.Agents.AgentRun, :start do
-      description """
-      Start one coding-agent run: hand `prompt` to the agent process of the
-      session named by `session_id`, in that session's workspace. Returns the
-      run; read its messages afterwards to see the transcript. Privileged tool
-      use inside the run is paused for human approval.
-      """
-    end
+    # Deliberately NO start_agent_run tool: prompting an agent is the
+    # operator's act (amber_console / ACP). Exposing it as a tool would let an
+    # OMP session start another coding-agent run — the agent-to-agent nesting
+    # dogfood §6 forbids.
   end
 
   resources do
