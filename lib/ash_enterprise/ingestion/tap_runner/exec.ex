@@ -18,7 +18,7 @@ defmodule AshEnterprise.Ingestion.TapRunner.Exec do
   # configured pipeline, not compose one (see the moduledoc). Skipped by
   # name and locally: if request input ever reaches this function, that is
   # a real finding.
-  @sobelow_skip ["DOS.Run"]
+  @sobelow_skip ["CI.System"]
   @impl true
   def run(command) do
     case System.shell(command, into: "", stderr_to_stdout: true) do
