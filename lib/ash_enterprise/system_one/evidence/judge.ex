@@ -86,7 +86,7 @@ defmodule AshEnterprise.SystemOne.Evidence.Judge do
 
     judge_input =
       resource
-      |> Ash.ActionInput.for_action(:"judge_#{name}", %{"input" => state_args})
+      |> Ash.ActionInput.for_action(judge_action(name), %{"input" => state_args})
       |> Map.replace!(:context, judge_context(opts))
 
     ctx = judge_context(opts)
@@ -118,7 +118,7 @@ defmodule AshEnterprise.SystemOne.Evidence.Judge do
 
     judge_input =
       resource
-      |> Ash.ActionInput.for_action(:"judge_#{name}_matrix", %{
+      |> Ash.ActionInput.for_action(judge_action(name, "_matrix"), %{
         "input" => state_args,
         "questions" => runtime_questions
       })
@@ -201,6 +201,14 @@ defmodule AshEnterprise.SystemOne.Evidence.Judge do
         }
         |> Map.merge(Keyword.get(opts, :judgments) || %{})
     )
+  end
+
+  # The action names the registry generated for the declared question —
+  # `String.to_existing_atom` is the safe spelling (law 10): the atoms
+  # exist for every declared question, and an undeclared name fails loud
+  # at the seam instead of minting an atom.
+  defp judge_action(name, suffix \\ "") do
+    String.to_existing_atom("judge_#{Atom.to_string(name)}#{suffix}")
   end
 
   defp atom_texts(atoms), do: Map.new(atoms, &{&1.id, &1.text})
