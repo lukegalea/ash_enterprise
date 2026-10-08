@@ -36,6 +36,19 @@ config :ash_enterprise, AshEnterprise.Repo,
   pool: Ecto.Adapters.SQL.Sandbox,
   pool_size: System.schedulers_online() * 2
 
+# The evidence substrate's repo rides the SAME test database (the adjudication
+# orchestrator joins its packets to the host's ledger rows in one sandbox), so
+# the sandbox below is switched for both. Credentials mirror the host repo's;
+# `priv` stays the package's own migration set (config.exs).
+config :ash_evidence, AshEvidence.Repo,
+  username: System.get_env("DB_USER", "postgres"),
+  password: System.get_env("DB_PASSWORD", "postgres"),
+  hostname: System.get_env("PGHOST", "localhost"),
+  port: String.to_integer(System.get_env("PGPORT", "5432")),
+  database: "ash_enterprise_test#{System.get_env("MIX_TEST_PARTITION")}",
+  pool: Ecto.Adapters.SQL.Sandbox,
+  pool_size: System.schedulers_online() * 2
+
 # The VendorPM-workspace knobs, mirroring config/dev.exs. Since VPM-12 the
 # migration set includes strangler views over the real legacy tables, so the
 # test database has to be a restored copy of the legacy dump -- and that dump
@@ -53,6 +66,10 @@ if ash_schema do
     |> Enum.join(",")
 
   config :ash_enterprise, AshEnterprise.Repo,
+    migration_default_prefix: ash_schema,
+    parameters: [search_path: search_path]
+
+  config :ash_evidence, AshEvidence.Repo,
     migration_default_prefix: ash_schema,
     parameters: [search_path: search_path]
 

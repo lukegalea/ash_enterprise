@@ -30,6 +30,7 @@ defmodule AshEnterprise.SystemOne do
     resource AshEnterprise.SystemOne.HumanVerdict
     resource AshEnterprise.SystemOne.QuestionProposal
     resource AshEnterprise.SystemOne.Banding
+    resource AshEnterprise.SystemOne.EvidenceAssertion
     resource AshEnterprise.SystemOne.BandTableCertification
     resource AshEnterprise.SystemOne.Fact
     resource AshEnterprise.SystemOne.CalibrationRun

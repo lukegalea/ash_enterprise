@@ -15,6 +15,7 @@ defmodule AshEnterprise.SystemOne.TestSupport do
   resources do
     resource AshEnterprise.SystemOne.TestSupport.Note
     resource AshEnterprise.SystemOne.TestSupport.Standard
+    resource AshEnterprise.SystemOne.TestSupport.EvidenceFile
   end
 end
 
@@ -29,6 +30,39 @@ defmodule AshEnterprise.SystemOne.TestSupport.Projections.NoteText do
 
   @impl true
   def project(input, _context), do: %{"text" => input.arguments.input["text"]}
+end
+
+defmodule AshEnterprise.SystemOne.TestSupport.Projections.PacketState do
+  @moduledoc """
+  The shape A (per-candidate Evidence) state projection: the model sees the
+  packet — the batch's candidate atoms (id → text) — and the claim, and
+  nothing else.
+  """
+
+  @behaviour AshJudgments.Registry.StateProjection
+
+  @impl true
+  def project(input, _context),
+    do: %{
+      "packet" => input.arguments.input["packet"],
+      "claim" => input.arguments.input["claim"]
+    }
+end
+
+defmodule AshEnterprise.SystemOne.TestSupport.Projections.WholeDocument do
+  @moduledoc """
+  The shape B (whole-document) state projection: the model sees the tagged
+  document text and the claim, and nothing else.
+  """
+
+  @behaviour AshJudgments.Registry.StateProjection
+
+  @impl true
+  def project(input, _context),
+    do: %{
+      "document" => input.arguments.input["document"],
+      "claim" => input.arguments.input["claim"]
+    }
 end
 
 defmodule AshEnterprise.SystemOne.TestSupport.Note do
@@ -113,6 +147,102 @@ defmodule AshEnterprise.SystemOne.TestSupport.Standard do
 
   attributes do
     uuid_primary_key :id
+  end
+end
+
+defmodule AshEnterprise.SystemOne.TestSupport.EvidenceFile do
+  @moduledoc """
+  A synthetic document subject carrying the adjudication orchestrator's
+  declared questions (AST-152):
+
+    * `:packet_supports` — shape A: the per-candidate Evidence question.
+      Declared WITHOUT a `source_enum` on purpose: the packet arrives per
+      run, so the narrowing is enforced per batch at the pipeline boundary
+      (the orchestrator refuses any reply citing an atom outside the
+      packet) — a compile-time enum could not name a per-run packet.
+    * `:document_localisation` — shape B: the tagged-id `Choice`. Its
+      options ARE the document's region tags (the tagging vocabulary is
+      declared, never per-run); the whole document rides the state.
+    * `:document_contains` — shape B: the existence `Noul`.
+  """
+
+  use Ash.Resource,
+    domain: AshEnterprise.SystemOne.TestSupport,
+    data_layer: Ash.DataLayer.Simple,
+    extensions: [AshAi, AshJudgments.Registry]
+
+  judgments do
+    question :packet_supports do
+      type AshJudgments.Evaluate.Evidence
+      instructions("Does the evidence in the packet support or contradict the claim?")
+      version(1)
+      family(:evidence_packets)
+      profile(:laya_cpu)
+      pii(:minimised)
+      state_projection(AshEnterprise.SystemOne.TestSupport.Projections.PacketState)
+
+      state_shape(%{
+        "packet" => %{"string" => "string"},
+        "claim" => "string"
+      })
+    end
+
+    question :document_localisation do
+      type AshAi.Evaluate.Choice
+
+      # The tagging vocabulary derives from THIS resource's own attribute
+      # constraint (the options_from discipline — the same one_of that
+      # validates the attribute is the option list of the Choice). A
+      # separate Ash.Type.Enum module would race the registry transformer's
+      # compile-time option resolution, and a plain `of:` list cannot build
+      # the upstream wire question. Declared criteria carry the per-tag
+      # descriptions, which is what upstream's Choice needs to build the
+      # question when no enum type narrows `of`.
+      options_from({AshEnterprise.SystemOne.TestSupport.EvidenceFile, :region_tag})
+
+      criteria(%{
+        preamble: "The document's identification and parties.",
+        obligations: "What each party must or must not do.",
+        remedies: "What happens when an obligation is breached.",
+        other: "Anything outside the named regions."
+      })
+
+      instructions("Which region of the document carries the material relevant to the claim?")
+
+      version(1)
+      family(:evidence_whole_document)
+      profile(:laya_cpu)
+      pii(:minimised)
+      state_projection(AshEnterprise.SystemOne.TestSupport.Projections.WholeDocument)
+      state_shape(%{"document" => "string", "claim" => "string"})
+    end
+
+    question :document_contains do
+      type AshAi.Evaluate.Noul
+      instructions("Does the document contain evidence bearing on the claim at all?")
+      version(1)
+      family(:evidence_whole_document)
+      profile(:laya_cpu)
+      pii(:minimised)
+      state_projection(AshEnterprise.SystemOne.TestSupport.Projections.WholeDocument)
+      state_shape(%{"document" => "string", "claim" => "string"})
+    end
+  end
+
+  actions do
+    defaults [:read]
+  end
+
+  attributes do
+    uuid_primary_key :id
+
+    # The tagging vocabulary, as data: the localisation question derives its
+    # options from this constraint (the options_from sibling of the Choice's
+    # own attribute contract).
+    attribute :region_tag, :atom do
+      constraints one_of: [:preamble, :obligations, :remedies, :other]
+      public? true
+    end
   end
 end
 
@@ -268,6 +398,54 @@ defmodule AshEnterprise.SystemOne.Support do
     Ash.read!(Judgment, authorize?: false)
   end
 
+  @doc """
+  A recorded raw reply from the adjudication fixtures — the orchestrator
+  tests' recorded instrument transcripts
+  (`test/fixtures/system_one/evidence/recordings/`). `bindings` replaces
+  `"__KEY__"` placeholders (the atom ids a recorded citation names are
+  per-run data; the transcript's shape is the recorded part).
+  """
+  def fixture_reply(name, bindings \\ %{}) do
+    path = Path.expand("fixtures/system_one/evidence/recordings/#{name}", __DIR__ <> "/..")
+
+    path
+    |> File.read!()
+    |> then(fn body ->
+      Enum.reduce(bindings, body, fn {key, value}, acc ->
+        String.replace(acc, "__#{String.upcase(Atom.to_string(key))}__", to_string(value))
+      end)
+    end)
+    |> Jason.decode!()
+  end
+
+  @doc """
+  Seeds one synthetic document version with `texts` as its addressed atoms
+  (seq in order), through the evidence domain's code interfaces. Returns
+  `%{version_id:, atom_ids:}` — the orchestrator's input.
+  """
+  def evidence_document(texts) do
+    bytes = "synthetic bytes: " <> inspect(texts)
+
+    # The version's identity is its content hash: different texts, different
+    # versions (the unique-content index refuses a collision).
+    sha256 =
+      "sha256:" <> Base.encode16(:crypto.hash(:sha256, bytes), case: :lower)
+
+    {:ok, version} = AshEvidence.Domain.ingest_document("markdown", bytes, sha256)
+
+    parse_run = AshEvidence.Domain.start_parse_run!(version.id, "test-ingester")
+
+    atom_ids =
+      Enum.with_index(texts, 1)
+      |> Enum.map(fn {text, seq} ->
+        AshEvidence.Domain.ingest_atom!(version.id, parse_run.id, seq, text).id
+      end)
+
+    AshEvidence.Domain.mark_parse_run_ok!(parse_run)
+
+    %{version_id: version.id, atom_ids: atom_ids}
+  end
+
   @doc "The audit events AshEvents wrote for one ledger action on one row."
   def ledger_events(action, record_id) do
     EventLog
@@ -349,14 +527,66 @@ defmodule AshEnterprise.SystemOne.TestSupport.FakeReqLLM do
   the test drives the real judge→recorder path with zero model calls. It
   runs in the caller's process, so `send(self(), ...)` hands the capture
   to the test.
+
+  ## The recorded-reply queue (the adjudication tests' recorded fixtures)
+
+  The canned replies above are per-kind; the adjudication orchestrator
+  needs per-run recorded REPLIES (an `insufficient` first pass, the growth
+  round's answer, a localisation tag). Tests queue raw replies — maps, or
+  `{:file, name}` under
+  `test/fixtures/system_one/evidence/recordings/` — via
+  `queue_replies/1`; each runtime QUESTION pops the next reply in order
+  (one runtime question per candidate in a matrix batch, so the queue is
+  the run's recorded transcript). An empty queue falls back to the
+  per-kind canned behaviour, so the existing judge tests are untouched.
+
+  `calls/0` counts instrument invocations in the calling process — the
+  AC-2 proof's zero-model-calls counter.
   """
+
+  alias AshEnterprise.SystemOne.Support
 
   def evaluate(model_spec, state, questions, _opts) do
     send(self(), {:judge_call, model_spec, state, questions})
+    count_call()
 
-    object = Map.new(questions, fn {key, question} -> {key, canned_answer(question)} end)
+    object = Map.new(questions, fn {key, question} -> {key, next_reply(question)} end)
 
     {:ok, %{object: object}}
+  end
+
+  @doc "How many instrument calls this process has made through the fake."
+  def calls, do: Process.get({__MODULE__, :calls}, 0)
+
+  @doc "Zeroes the call counter (the AC-2 replay proof's baseline)."
+  def reset_calls, do: Process.put({__MODULE__, :calls}, 0)
+
+  @doc "Queues recorded raw replies (maps or `{:file, name}`), in order."
+  def queue_replies(replies),
+    do: Application.put_env(:ash_enterprise, :fake_req_llm_queue, replies)
+
+  @doc "Drops any queued replies — back to the per-kind canned behaviour."
+  def clear_replies, do: Application.delete_env(:ash_enterprise, :fake_req_llm_queue)
+
+  defp count_call, do: Process.put({__MODULE__, :calls}, calls() + 1)
+
+  defp next_reply(question) do
+    queue = Application.get_env(:ash_enterprise, :fake_req_llm_queue, [])
+
+    case queue do
+      [next | rest] ->
+        Application.put_env(:ash_enterprise, :fake_req_llm_queue, rest)
+        resolve_reply(next)
+
+      [] ->
+        canned_answer(question)
+    end
+  end
+
+  defp resolve_reply(reply) when is_map(reply), do: reply
+
+  defp resolve_reply({:file, name}) do
+    Support.fixture_reply(name)
   end
 
   defp canned_answer(question) do

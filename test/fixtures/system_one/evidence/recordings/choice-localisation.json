@@ -1,0 +1,5 @@
+{
+  "choice": "obligations",
+  "probabilities": {"obligations": 0.85, "preamble": 0.05, "remedies": 0.04, "other": 0.06},
+  "confidence": 0.8
+}

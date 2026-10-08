@@ -17,6 +17,10 @@ defmodule AshEnterprise.Application do
         {AshEnterprise.Hammer, [clean_period: 60_000]},
         AshEnterpriseWeb.Telemetry,
         AshEnterprise.Repo,
+        # The evidence substrate's repo (AST-152): package-owned module on
+        # this host's database — the adjudication orchestrator joins its
+        # packets to the host's ledger rows. See config/config.exs.
+        AshEvidence.Repo,
         {DNSCluster, query: Application.get_env(:ash_enterprise, :dns_cluster_query) || :ignore},
         {Oban,
          AshOban.config(

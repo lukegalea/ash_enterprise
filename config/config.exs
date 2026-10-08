@@ -22,7 +22,12 @@ config :ash_enterprise, Oban,
   # `:ash_strangler_ledger` drains the change ledger the legacy trigger writes. It is its own
   # queue because one poison legacy row rolls its batch back and retries: a queue shared with
   # anything latency-sensitive would inherit that backoff.
-  queues: [default: 10, bpmn: 10, ash_strangler_ledger: 10, ingestion: 5],
+  #
+  # `:system_one` runs the System One service tasks (the adjudication
+  # orchestrator, AST-152) — model-bound work that must never run in a
+  # request, a guard path or a policy check (law 3). Its own budget so a slow
+  # instrument lane cannot starve token advances.
+  queues: [default: 10, bpmn: 10, ash_strangler_ledger: 10, ingestion: 5, system_one: 5],
   repo: AshEnterprise.Repo,
   plugins: [
     # Rescues jobs left `executing` by a node that died mid-flight. Without it they stay that
@@ -266,8 +271,19 @@ config :opentelemetry,
 # Teach Postgrex about the pgvector wire type. See lib/ash_enterprise/postgrex_types.ex.
 config :ash_enterprise, AshEnterprise.Repo, types: AshEnterprise.PostgrexTypes
 
+# The evidence substrate's repo (AST-152): package-owned module, host-owned
+# credentials and database (residency is the host's concern — ADR 0042).
+# The migrations stay the package's: a host's config files are the only ones
+# evaluated, so this host pins the package's own versioned migration set
+# (`priv/test_repo` — ecto resolves it against the dep's app dir), and the
+# shared database tracks them under their own timestamps. The repo is in
+# `:ecto_repos` above, so it migrates together with the host's own. The
+# pgvector encode/decode rides the package's PostgrexTypes — this host's own
+# types module is separate.
+config :ash_evidence, AshEvidence.Repo, priv: "priv/test_repo"
+
 config :ash_enterprise,
-  ecto_repos: [AshEnterprise.Repo],
+  ecto_repos: [AshEnterprise.Repo, AshEvidence.Repo],
   generators: [timestamp_type: :utc_datetime],
   ash_domains: [
     AshEnterprise.Legacy,
@@ -296,6 +312,25 @@ config :ash_enterprise,
 # set this false on every instance but one, or the first boot will fail the
 # other instance's live runs. See AshEnterprise.Agents.OmpSession.
 config :ash_enterprise, :agents, sweep_orphans_on_boot?: true
+
+# The adjudication orchestrator's plumbing knobs (AST-152). Two numbers, and
+# neither is a threshold in the law-4 sense: nothing here decides what is
+# admitted — bands stay versioned DMN band tables, the assertion records what
+# the aggregation composed. These bound the TRANSPORT and the RETRIEVAL
+# budget:
+#
+#   * `max_questions_per_call` — how many runtime questions ride ONE
+#     instrument request (the profile cap, AC-5). Candidates beyond the cap
+#     are chunked into further calls; nothing is ever dropped. Pure transport
+#     plumbing, like an Oban concurrency.
+#   * `max_expansion_steps` — the proof-growth budget: how many times an
+#     insufficient aggregate may re-retrieve before the packet is closed with
+#     `requires_expansion: true` and the thinness is reported, never hidden.
+#     Retrieval economics, not admission policy — the disposition that comes
+#     out is whatever the evidence says.
+config :ash_enterprise, :system_one_evidence,
+  max_questions_per_call: 5,
+  max_expansion_steps: 1
 
 # Configure the endpoint
 config :ash_enterprise, AshEnterpriseWeb.Endpoint,
