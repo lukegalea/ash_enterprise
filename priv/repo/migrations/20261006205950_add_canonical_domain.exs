@@ -202,7 +202,7 @@ defmodule AshEnterprise.Repo.Migrations.AddCanonicalDomain do
             column: :id,
             name: "canonical_messages_conversation_id_fkey",
             type: :uuid,
-            prefix: "public"
+            prefix: prefix()
           )
     end
 
@@ -216,7 +216,7 @@ defmodule AshEnterprise.Repo.Migrations.AddCanonicalDomain do
             column: :id,
             name: "canonical_messages_sender_id_fkey",
             type: :uuid,
-            prefix: "public"
+            prefix: prefix()
           )
     end
 
@@ -309,7 +309,7 @@ defmodule AshEnterprise.Repo.Migrations.AddCanonicalDomain do
             column: :id,
             name: "canonical_calendar_events_organizer_id_fkey",
             type: :uuid,
-            prefix: "public"
+            prefix: prefix()
           )
     end
 

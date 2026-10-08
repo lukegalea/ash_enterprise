@@ -43,7 +43,11 @@ tables_sql="select schemaname || '.' || tablename from pg_tables
   where schemaname not in ('pg_catalog', 'information_schema');"
 before=$(psql_q "$tables_sql")
 
-mix ash.setup --quiet
+# The portability gate covers THIS HOST's migrations — the evidence
+# substrate's package-owned set (ash_evidence's own priv, pinned layout)
+# is the dependency's schema contract, replayed by the normal suite, not
+# re-judged here.
+mix ash.migrate --repo AshEnterprise.Repo
 
 outside=$(comm -13 <(printf '%s\n' "$before" | sort) <(psql_q "$tables_sql" | sort) |
   grep -v "^$ASH_SCHEMA\." || true)

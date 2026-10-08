@@ -157,7 +157,7 @@ defmodule AshEnterprise.Repo.Migrations.AddAgentsDomain do
                column: :id,
                name: "agent_messages_run_id_fkey",
                type: :uuid,
-               prefix: "public"
+               prefix: prefix()
              )
     end
 
@@ -167,7 +167,7 @@ defmodule AshEnterprise.Repo.Migrations.AddAgentsDomain do
                column: :id,
                name: "agent_tool_invocations_run_id_fkey",
                type: :uuid,
-               prefix: "public"
+               prefix: prefix()
              )
     end
 
@@ -190,7 +190,7 @@ defmodule AshEnterprise.Repo.Migrations.AddAgentsDomain do
             column: :id,
             name: "agent_runs_session_id_fkey",
             type: :uuid,
-            prefix: "public"
+            prefix: prefix()
           ),
           null: false
     end
