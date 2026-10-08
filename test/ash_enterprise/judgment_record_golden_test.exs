@@ -13,6 +13,12 @@ defmodule AshEnterprise.JudgmentRecordGoldenTest do
   the frozen v1 text lands at `docs/rfc/judgment-record-v1.md` and the `1 − p`
   decimal fixture (RFC §4.3, A4) joins the fixture set. Per AC-3, the schema
   and every v0 fixture byte stay unchanged from v0.
+
+  v2 (2026-10-08 freeze, S1-68) extends the table the same way: the frozen
+  v2 text lands at `docs/rfc/judgment-record-v2.md` (the temporal field
+  table, §7.4). v2 supersedes nothing — v1 remains the frozen contract of
+  record for v1 implementations — so v0's and v1's pins and sentinels stay
+  byte-untouched.
   """
 
   use ExUnit.Case, async: true
@@ -25,6 +31,8 @@ defmodule AshEnterprise.JudgmentRecordGoldenTest do
       "70eb819295e7f05f92d036b09dd2989f521dbbc3fc2e30dd72fa7e7d1051f160",
     "docs/rfc/judgment-record-v1.md" =>
       "69f0f3337a466b41cc6f96e299bed613f12cd983c4b59b8ad5788552238fd03a",
+    "docs/rfc/judgment-record-v2.md" =>
+      "06496522c42fdee8b45b10e2de2d012ed31d9522fb213603c1918c63d25fd337",
     "priv/judgment_record/schema.json" =>
       "79d4a08a08320e7895d508dd377063acb0087ed2dab2f6f08364ccec5c1b881b",
     "test/fixtures/judgment_record/README.md" =>
@@ -47,6 +55,7 @@ defmodule AshEnterprise.JudgmentRecordGoldenTest do
 
   @rfc_doc Path.join(@repo_root, "docs/rfc/judgment-record-v0.md")
   @rfc_v1_doc Path.join(@repo_root, "docs/rfc/judgment-record-v1.md")
+  @rfc_v2_doc Path.join(@repo_root, "docs/rfc/judgment-record-v2.md")
 
   describe "frozen bytes" do
     test "every pinned artefact is byte-identical to its frozen sha256" do
@@ -77,6 +86,11 @@ defmodule AshEnterprise.JudgmentRecordGoldenTest do
     test "the v1 RFC carries its frozen status header (v1 freeze, 2026-10-05)" do
       assert File.exists?(@rfc_v1_doc)
       assert File.read!(@rfc_v1_doc) =~ "v1 — FROZEN"
+    end
+
+    test "the v2 RFC carries its frozen status header (v2 freeze, 2026-10-08)" do
+      assert File.exists?(@rfc_v2_doc)
+      assert File.read!(@rfc_v2_doc) =~ "v2 — FROZEN"
     end
   end
 
