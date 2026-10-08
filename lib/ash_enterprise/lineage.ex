@@ -43,20 +43,22 @@ defmodule AshEnterprise.Lineage do
 
     @impl true
     def send(event) do
+      # Fire-and-forget: a lineage POST must never take a caller down (the
+      # supervisor isolates it); unconfigured, the transport is a no-op.
       if Application.get_env(:ash_open_lineage, :http_base_url) do
-        Task.Supervisor.start_child(AshEnterprise.TaskSupervisor, fn ->
-          case AshOpenLineage.Transport.Req.send(event) do
-            :ok ->
-              :ok
+        Task.Supervisor.start_child(AshEnterprise.TaskSupervisor, fn -> send_async(event) end)
+      end
 
-            {:error, error} ->
-              Logger.warning("AshOpenLineage: transport dropped event: #{inspect(error)}")
-          end
-        end)
+      :ok
+    end
 
-        :ok
-      else
-        :ok
+    defp send_async(event) do
+      case AshOpenLineage.Transport.Req.send(event) do
+        :ok ->
+          :ok
+
+        {:error, error} ->
+          Logger.warning("AshOpenLineage: transport dropped event: #{inspect(error)}")
       end
     end
   end

@@ -32,9 +32,7 @@ defmodule AshEnterprise.Acp do
 
   @doc false
   def ensure_tables! do
-    unless :ets.whereis(@table) == :undefined do
-      :ok
-    else
+    if :ets.whereis(@table) == :undefined do
       :ets.new(@table, [:named_table, :set, :public, read_concurrency: true])
     end
 
@@ -65,26 +63,23 @@ defmodule AshEnterprise.Acp do
   """
   def tenant_of(actor) do
     case Map.get(actor, :organization_id) do
-      nil ->
-        case Map.get(actor, :owning_business_unit_id) do
-          nil ->
-            nil
+      nil -> business_unit_tenant(Map.get(actor, :owning_business_unit_id))
+      organization_id -> organization_id
+    end
+  end
 
-          bu_id ->
-            require Ash.Query
+  defp business_unit_tenant(nil), do: nil
 
-            AshEnterprise.Accounts.BusinessUnit
-            |> Ash.Query.select([:organization_id])
-            |> Ash.Query.filter(id == ^bu_id)
-            |> Ash.read_one(authorize?: false)
-            |> case do
-              {:ok, %{organization_id: organization_id}} -> organization_id
-              _ -> nil
-            end
-        end
+  defp business_unit_tenant(bu_id) do
+    require Ash.Query
 
-      organization_id ->
-        organization_id
+    AshEnterprise.Accounts.BusinessUnit
+    |> Ash.Query.select([:organization_id])
+    |> Ash.Query.filter(id == ^bu_id)
+    |> Ash.read_one(authorize?: false)
+    |> case do
+      {:ok, %{organization_id: organization_id}} -> organization_id
+      _ -> nil
     end
   end
 end

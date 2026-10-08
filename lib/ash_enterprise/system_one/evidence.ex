@@ -250,12 +250,10 @@ defmodule AshEnterprise.SystemOne.Evidence do
       persist?: true
     ]
 
-    with {:ok, result} <- AshEvidence.retrieve(version_id, claim, initial_opts) do
-      judge_step(opts, atoms, result, 0, [], [])
-    else
-      {:error, error, state} -> {:error, error, state}
-      {:error, error} -> {:error, error, nil}
-    end
+    # Retrieval is deterministic over the version (it never errors — bad
+    # opts raise at the seam); the judge step carries the error threading.
+    result = AshEvidence.retrieve!(version_id, claim, initial_opts)
+    judge_step(opts, atoms, result, 0, [], [])
   end
 
   ## Shape B — tagged localisation Choice + existence Noul
@@ -270,51 +268,15 @@ defmodule AshEnterprise.SystemOne.Evidence do
            Judge.single(opts, :localisation_question, state_args),
          {:ok, existence, existence_ref} <-
            Judge.single(opts, :existence_question, state_args) do
-      candidate_ids = Enum.map(atoms, & &1.id)
-
-      selected =
-        case value_atom(localisation.value) do
-          nil -> []
-          tag -> Enum.filter(Map.get(regions, tag, []), &(&1 in candidate_ids))
-        end
-
-      # The whole-document shape's per-atom join: the atoms the
-      # localisation NAMED were adjudicated by the Choice observation; the
-      # rest ride the existence observation (what it covered: the document
-      # as a whole). Ids and hashes only — never copied answers.
-      joins =
-        Map.new(candidate_ids, fn id ->
-          ref = if id in selected, do: localisation_ref, else: existence_ref
-
-          {id, %{"observation_id" => ref.observation_id, "question_hash" => ref.question_hash}}
-        end)
-
-      # The existence answer composes into the evidence vocabulary
-      # deterministically (see the moduledoc: shape B cannot see
-      # contradiction). A missing probability composes as no evidence.
-      p =
-        case existence.probability do
-          nil -> 0.0
-          p -> p * 1.0
-        end
-
-      disposition = if p >= 0.5, do: :supports, else: :insufficient
-
       {:ok,
-       %{
-         candidate_set_ids: [],
-         expansion_steps: [],
-         candidate_ids: candidate_ids,
-         answers: [existence],
-         observation_refs: [existence_ref],
-         extra_observation_ids: [localisation_ref.observation_id],
-         joins: joins,
-         selected: selected,
-         limiting: [],
-         aggregation_observations: [
-           %{value: disposition, probabilities: %{"supports" => p, "insufficient" => 1 - p}}
-         ]
-       }}
+       whole_document_round(
+         localisation,
+         localisation_ref,
+         existence,
+         existence_ref,
+         atoms,
+         regions
+       )}
     else
       # A failed shape-B judgment: the recorded observation(s) ride the
       # ledger; the run row records only completed loops.
@@ -322,64 +284,147 @@ defmodule AshEnterprise.SystemOne.Evidence do
     end
   end
 
+  defp whole_document_round(
+         localisation,
+         localisation_ref,
+         existence,
+         existence_ref,
+         atoms,
+         regions
+       ) do
+    candidate_ids = Enum.map(atoms, & &1.id)
+    selected = named_atoms(localisation.value, regions, candidate_ids)
+
+    # The whole-document shape's per-atom join: the atoms the localisation
+    # NAMED were adjudicated by the Choice observation; the rest ride the
+    # existence observation (what it covered: the document as a whole).
+    # Ids and hashes only — never copied answers.
+    joins = document_joins(candidate_ids, selected, localisation_ref, existence_ref)
+
+    %{
+      candidate_set_ids: [],
+      expansion_steps: [],
+      candidate_ids: candidate_ids,
+      answers: [existence],
+      observation_refs: [existence_ref],
+      extra_observation_ids: [localisation_ref.observation_id],
+      joins: joins,
+      selected: selected,
+      limiting: [],
+      aggregation_observations: [existence_observation(existence.probability)]
+    }
+  end
+
+  defp named_atoms(value, regions, candidate_ids) do
+    case value_atom(value) do
+      nil -> []
+      tag -> Enum.filter(Map.get(regions, tag, []), &(&1 in candidate_ids))
+    end
+  end
+
+  defp document_joins(candidate_ids, selected, localisation_ref, existence_ref) do
+    Map.new(candidate_ids, fn id ->
+      ref = if id in selected, do: localisation_ref, else: existence_ref
+
+      {id, %{"observation_id" => ref.observation_id, "question_hash" => ref.question_hash}}
+    end)
+  end
+
+  # The existence answer composes into the evidence vocabulary
+  # deterministically (see the moduledoc: shape B cannot see contradiction).
+  # A missing probability composes as no evidence.
+  defp existence_observation(nil), do: existence_observation(0.0)
+
+  defp existence_observation(p) do
+    p = p * 1.0
+    disposition = if p >= 0.5, do: :supports, else: :insufficient
+
+    %{value: disposition, probabilities: %{"supports" => p, "insufficient" => 1 - p}}
+  end
+
   # One judged retrieval step: the freshly surfaced candidates go through
   # the matrix judge action in capped batches; the step's proof and its
   # observation ids accumulate onto the evaluation's bookkeeping.
   defp judge_step(opts, atoms, result, step, rounds, steps) do
-    with :ok <- check_candidates(result, atoms) do
-      packet_candidates = Enum.map(result.candidates, & &1.atom_id)
-      judged = rounds |> Enum.flat_map(& &1.judged_ids)
-      fresh = Enum.reject(packet_candidates, &(&1 in judged))
-
-      case Judge.matrix_batch(opts, atoms, fresh, packet_candidates) do
-        {:ok, answers, refs} ->
-          round = %{
-            candidate_set_id: result.candidate_set_id,
-            candidate_ids: packet_candidates,
-            judged_ids: fresh,
-            answers: answers,
-            refs: refs
-          }
-
-          # The initial retrieval is not an expansion — it is cited via
-          # candidate_set_ids; expansion_steps records the GROWTH steps.
-          step_record =
-            if step == 0 do
-              nil
-            else
-              %{
-                step: step,
-                candidate_set_id: result.candidate_set_id,
-                observation_ids: Enum.map(refs, & &1.observation_id)
-              }
-            end
-
-          rounds = rounds ++ [round]
-          steps = if step_record, do: steps ++ [step_record], else: steps
-
-          {:ok,
-           %{
-             opts: opts,
-             rounds: rounds,
-             steps: steps,
-             candidate_set_ids: Enum.map(rounds, & &1.candidate_set_id)
-           }}
-
-        {:error, error} ->
-          # The batch refused (a citation outside the packet): the run
-          # fails with whatever earlier rounds gathered — those rows are
-          # recorded, so the failed run records too.
-          {:error, error,
-           %{
-             opts: opts,
-             rounds: rounds,
-             steps: steps,
-             candidate_set_ids: Enum.map(rounds, & &1.candidate_set_id)
-           }}
-      end
-    else
+    case check_candidates(result, atoms) do
+      :ok -> judge_fresh(opts, atoms, result, step, rounds, steps)
+      # A candidate outside the version cannot decode into an assertion.
       {:error, error} -> {:error, error, nil}
     end
+  end
+
+  defp judge_fresh(opts, atoms, result, step, rounds, steps) do
+    packet_candidates = Enum.map(result.candidates, & &1.atom_id)
+    judged = rounds |> Enum.flat_map(& &1.judged_ids)
+    fresh = Enum.reject(packet_candidates, &(&1 in judged))
+
+    case Judge.matrix_batch(opts, atoms, fresh, packet_candidates) do
+      {:ok, answers, refs} ->
+        {:ok,
+         record_round(opts, rounds, steps, packet_candidates, %{
+           result: result,
+           step: step,
+           fresh: fresh,
+           answers: answers,
+           refs: refs
+         })}
+
+      {:error, error} ->
+        # The batch refused (a citation outside the packet): the run fails
+        # with whatever earlier rounds gathered — those rows are recorded,
+        # so the failed run records too.
+        {:error, error, unrecorded(opts, rounds, steps)}
+    end
+  end
+
+  defp record_round(opts, rounds, steps, packet_candidates, %{
+         result: result,
+         step: step,
+         fresh: fresh,
+         answers: answers,
+         refs: refs
+       }) do
+    round = %{
+      candidate_set_id: result.candidate_set_id,
+      candidate_ids: packet_candidates,
+      judged_ids: fresh,
+      answers: answers,
+      refs: refs
+    }
+
+    rounds = rounds ++ [round]
+    steps = append_step(steps, step, result.candidate_set_id, refs)
+
+    %{
+      opts: opts,
+      rounds: rounds,
+      steps: steps,
+      candidate_set_ids: Enum.map(rounds, & &1.candidate_set_id)
+    }
+  end
+
+  # The initial retrieval is not an expansion — it is cited via
+  # candidate_set_ids; expansion_steps records the GROWTH steps.
+  defp append_step(steps, 0, _candidate_set_id, _refs), do: steps
+
+  defp append_step(steps, step, candidate_set_id, refs) do
+    steps ++
+      [
+        %{
+          step: step,
+          candidate_set_id: candidate_set_id,
+          observation_ids: Enum.map(refs, & &1.observation_id)
+        }
+      ]
+  end
+
+  defp unrecorded(opts, rounds, steps) do
+    %{
+      opts: opts,
+      rounds: rounds,
+      steps: steps,
+      candidate_set_ids: Enum.map(rounds, & &1.candidate_set_id)
+    }
   end
 
   # The proof-growth loop. Aggregates what is gathered so far; an
@@ -395,50 +440,46 @@ defmodule AshEnterprise.SystemOne.Evidence do
 
   defp do_grow(opts, atoms, state, budget) do
     case Aggregation.aggregate(live_aggregation_observations(state)) do
-      {:ok, %{disposition: :insufficient}} ->
-        # Steps number the ROUNDS: the initial retrieval is round 0 (never
-        # recorded as an expansion), the first growth round is step 1.
-        step = length(state.rounds)
-        claim = Keyword.fetch!(opts, :claim)
-        version_id = Keyword.fetch!(opts, :document_version_id)
+      {:ok, %{disposition: :insufficient}} -> grow_one(opts, atoms, state, budget)
+      {:ok, _aggregate} -> finalise(opts, state)
+      {:error, _error} -> finalise(opts, state)
+    end
+  end
 
-        # The growth framing: the hypothesis the first pass did not run,
-        # and a doubled k.
-        growth_opts = [
-          hypotheses: [:supports, :contradicts, :exception],
-          k: retrieval_k() * 2,
-          persist?: true
-        ]
+  # One expansion: the growth framing — the hypothesis the first pass did
+  # not run, and a doubled k.
+  defp grow_one(opts, atoms, state, budget) do
+    # Steps number the ROUNDS: the initial retrieval is round 0 (never
+    # recorded as an expansion), the first growth round is step 1.
+    step = length(state.rounds)
+    claim = Keyword.fetch!(opts, :claim)
+    version_id = Keyword.fetch!(opts, :document_version_id)
 
-        case AshEvidence.retrieve(version_id, claim, growth_opts) do
-          {:ok, result} ->
-            case judge_step(opts, atoms, result, step, state.rounds, state.steps) do
-              {:ok, grown} ->
-                last = List.last(grown.rounds)
+    growth_opts = [
+      hypotheses: [:supports, :contradicts, :exception],
+      k: retrieval_k() * 2,
+      persist?: true
+    ]
 
-                # Nothing new surfaced: re-retrieving identical framings
-                # cannot grow the proof — the budget stops here.
-                if last.judged_ids == [] and length(grown.rounds) > 1 do
-                  finalise(opts, grown)
-                else
-                  do_grow(opts, atoms, grown, budget - 1)
-                end
+    result = AshEvidence.retrieve!(version_id, claim, growth_opts)
 
-              # A failed expansion keeps the evidence already gathered; the
-              # packet closes with what the earlier rounds saw.
-              {:error, _error, _partial} ->
-                finalise(opts, state)
-            end
+    case judge_step(opts, atoms, result, step, state.rounds, state.steps) do
+      {:ok, grown} -> settle_growth(opts, atoms, grown, budget)
+      # A failed expansion keeps the evidence already gathered; the packet
+      # closes with what the earlier rounds saw.
+      {:error, _error, _partial} -> finalise(opts, state)
+    end
+  end
 
-          {:error, _error} ->
-            finalise(opts, state)
-        end
+  defp settle_growth(opts, atoms, grown, budget) do
+    last = List.last(grown.rounds)
 
-      {:ok, _aggregate} ->
-        finalise(opts, state)
-
-      {:error, _error} ->
-        finalise(opts, state)
+    # Nothing new surfaced: re-retrieving identical framings cannot grow
+    # the proof — the budget stops here.
+    if last.judged_ids == [] and length(grown.rounds) > 1 do
+      finalise(opts, grown)
+    else
+      do_grow(opts, atoms, grown, budget - 1)
     end
   end
 
@@ -534,41 +575,26 @@ defmodule AshEnterprise.SystemOne.Evidence do
   ## Close: aggregate → assertion → evaluation terminal state
 
   defp close(evaluation, opts, round, packet) do
-    question_set_hash = evaluation.question_set_hash
-
     case Aggregation.aggregate(round.aggregation_observations) do
-      {:ok, aggregate} ->
-        case record_assertion(evaluation, opts, round, packet, aggregate, question_set_hash) do
-          {:ok, assertion} ->
-            with {:ok, evaluation} <- AshEvidence.Domain.mark_evaluation_ok(evaluation) do
-              {:ok,
-               %{
-                 evaluation: evaluation,
-                 packet: packet,
-                 assertion: assertion,
-                 disposition: aggregate.disposition,
-                 distribution: aggregate.distribution,
-                 observation_ids: observation_ids(round),
-                 expansion_steps: round.expansion_steps,
-                 candidate_set_ids: round.candidate_set_ids
-               }}
-            end
-
-          {:error, error} ->
-            fail(evaluation, error)
-        end
-
+      {:ok, aggregate} -> close_composed(evaluation, opts, round, packet, aggregate)
       # Nothing to compose (retrieval found nothing, budget spent): the
       # packet recorded requires_expansion; there is nothing to assert.
-      {:error, :no_observations} ->
+      {:error, :no_observations} -> close_empty(evaluation, round, packet)
+      {:error, error} -> fail(evaluation, error)
+    end
+  end
+
+  defp close_composed(evaluation, opts, round, packet, aggregate) do
+    case record_assertion(evaluation, opts, round, packet, aggregate) do
+      {:ok, assertion} ->
         with {:ok, evaluation} <- AshEvidence.Domain.mark_evaluation_ok(evaluation) do
           {:ok,
            %{
              evaluation: evaluation,
              packet: packet,
-             assertion: nil,
-             disposition: nil,
-             distribution: nil,
+             assertion: assertion,
+             disposition: aggregate.disposition,
+             distribution: aggregate.distribution,
              observation_ids: observation_ids(round),
              expansion_steps: round.expansion_steps,
              candidate_set_ids: round.candidate_set_ids
@@ -580,6 +606,22 @@ defmodule AshEnterprise.SystemOne.Evidence do
     end
   end
 
+  defp close_empty(evaluation, round, packet) do
+    with {:ok, evaluation} <- AshEvidence.Domain.mark_evaluation_ok(evaluation) do
+      {:ok,
+       %{
+         evaluation: evaluation,
+         packet: packet,
+         assertion: nil,
+         disposition: nil,
+         distribution: nil,
+         observation_ids: observation_ids(round),
+         expansion_steps: round.expansion_steps,
+         candidate_set_ids: round.candidate_set_ids
+       }}
+    end
+  end
+
   defp observation_ids(round) do
     Enum.map(round.observation_refs, & &1.observation_id) ++ round.extra_observation_ids
   end
@@ -587,7 +629,7 @@ defmodule AshEnterprise.SystemOne.Evidence do
   # The assertion create — INPUTS ONLY. The aggregation ran above, in the
   # orchestrator; the create's only change derives `record_hash` from these
   # inputs (pure, replay-identical). Nothing here calls anything (AC-2).
-  defp record_assertion(evaluation, opts, round, packet, aggregate, question_set_hash) do
+  defp record_assertion(evaluation, opts, round, packet, aggregate) do
     tenant = Keyword.fetch!(opts, :tenant)
     actor = Keyword.get(opts, :actor, SystemActor.process())
 
@@ -602,7 +644,7 @@ defmodule AshEnterprise.SystemOne.Evidence do
       "subject" => string_subject(Keyword.fetch!(opts, :subject)),
       "predicate" => Keyword.fetch!(opts, :predicate),
       "subject_state_digest" => subject_state_digest(opts, round),
-      "question_set_hash" => question_set_hash
+      "question_set_hash" => evaluation.question_set_hash
     }
 
     case EvidenceAssertion
@@ -622,14 +664,19 @@ defmodule AshEnterprise.SystemOne.Evidence do
       "rule_ref" => Keyword.get(opts, :rule_ref),
       "document_version_id" => Keyword.fetch!(opts, :document_version_id),
       "question_set_hash" => question_set_hash(opts),
-      "candidate_set_ids" => (round && Map.get(round, :candidate_set_ids)) || [],
-      "expansion_steps" => (round && Map.get(round, :expansion_steps)) || [],
+      "candidate_set_ids" => round_bookkeeping(round, :candidate_set_ids),
+      "expansion_steps" => round_bookkeeping(round, :expansion_steps),
       "profile" => profile_name(Keyword.get(opts, :profile)),
       "call_shape" => Keyword.fetch!(opts, :call_shape)
     }
 
     AshEvidence.Domain.start_evaluation(inputs)
   end
+
+  # The finalised round carries both keys; a partial round (a run that
+  # failed mid-loop) carries only what had accumulated — the default-safe
+  # get fills those.
+  defp round_bookkeeping(round, key), do: Map.get(round, key, [])
 
   defp fail(evaluation, error) do
     _ = AshEvidence.Domain.mark_evaluation_failed(evaluation)

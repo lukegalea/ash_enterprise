@@ -24,8 +24,8 @@ defmodule AshEnterprise.SystemOne.EvidenceTest do
   alias AshEnterprise.Platform.Correlation
   alias AshEnterprise.SystemOne.Evidence
   alias AshEnterprise.SystemOne.EvidenceAssertion
-  alias AshEnterprise.SystemOne.TestSupport.EvidenceFile
   alias AshEnterprise.SystemOne.Judgment
+  alias AshEnterprise.SystemOne.TestSupport.EvidenceFile
   alias AshEnterprise.SystemOne.TestSupport.FakeReqLLM
   alias AshEvidence.Assertions
 

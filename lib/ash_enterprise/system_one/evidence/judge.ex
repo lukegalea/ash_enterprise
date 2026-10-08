@@ -43,26 +43,35 @@ defmodule AshEnterprise.SystemOne.Evidence.Judge do
         {:ok, [], []}
 
       ids ->
-        cap =
-          keyword(
-            opts,
-            :max_questions_per_call,
-            AshEnterprise.SystemOne.Evidence.max_questions_per_call()
-          )
-
-        texts = atom_texts(atoms)
-        chunks = Enum.chunk_every(ids, cap)
-
-        Enum.reduce_while(chunks, {:ok, [], []}, fn chunk, {:ok, answers, refs} ->
-          case matrix_call(opts, chunk, texts, packet_candidates) do
-            {:ok, chunk_answers, chunk_refs} ->
-              {:cont, {:ok, answers ++ chunk_answers, refs ++ chunk_refs}}
-
-            {:error, error} ->
-              {:halt, {:error, error}}
-          end
-        end)
+        judge_chunks(opts, atoms, Enum.chunk_every(ids, per_call_cap(opts)), packet_candidates)
     end
+  end
+
+  defp per_call_cap(opts) do
+    keyword(
+      opts,
+      :max_questions_per_call,
+      AshEnterprise.SystemOne.Evidence.max_questions_per_call()
+    )
+  end
+
+  defp judge_chunks(opts, atoms, chunks, packet_candidates) do
+    texts = atom_texts(atoms)
+    Enum.reduce_while(chunks, {:ok, [], []}, &judge_chunk(&1, &2, opts, texts, packet_candidates))
+  end
+
+  defp judge_chunk(chunk, {:ok, answers, refs}, opts, texts, packet_candidates) do
+    case matrix_call(opts, chunk, texts, packet_candidates) do
+      {:ok, chunk_answers, chunk_refs} ->
+        {:cont, {:ok, answers ++ chunk_answers, refs ++ chunk_refs}}
+
+      {:error, error} ->
+        {:halt, {:error, error}}
+    end
+  end
+
+  defp judge_chunk(_chunk, {:error, error}, _opts, _texts, _packet_candidates) do
+    {:halt, {:error, error}}
   end
 
   @doc """

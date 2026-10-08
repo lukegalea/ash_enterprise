@@ -36,37 +36,42 @@ defmodule AshEnterprise.SystemOne.Evidence.Worker do
   alias AshEnterprise.SystemOne.Evidence
 
   @impl true
-  def perform(%Oban.Job{args: args}) do
-    with %{
-           "claim" => claim,
-           "tenant" => tenant,
-           "document_version_id" => version_id,
-           "call_shape" => call_shape,
-           "subject" => subject,
-           "predicate" => predicate,
-           "profile" => profile
-         } <- args do
-      # Args carry the run's input set; the wiring — the declared questions
-      # and the test fake — comes from application config, the same way a
-      # deployment routes its lane.
-      opts =
-        opts()
-        |> Keyword.merge(
-          tenant: tenant,
-          document_version_id: version_id,
-          call_shape: String.to_existing_atom(call_shape),
-          subject: subject,
-          predicate: predicate,
-          profile: profile
-        )
+  def perform(%Oban.Job{args: %{"claim" => claim} = args}) do
+    case run_args(args) do
+      {:ok, opts} -> adjudicate(claim, opts)
+      {:error, message} -> {:error, message}
+    end
+  end
 
-      case Evidence.adjudicate(claim, opts) do
-        {:ok, _summary} -> :ok
-        {:error, error} -> {:error, error}
-      end
-    else
-      args ->
-        {:error, "adjudication job args missing keys, got: #{inspect(args)}"}
+  # Args carry the run's input set; the wiring — the declared questions and
+  # the test fake — comes from application config, the same way a deployment
+  # routes its lane.
+  defp run_args(%{
+         "tenant" => tenant,
+         "document_version_id" => version_id,
+         "call_shape" => call_shape,
+         "subject" => subject,
+         "predicate" => predicate,
+         "profile" => profile
+       }) do
+    {:ok,
+     opts()
+     |> Keyword.merge(
+       tenant: tenant,
+       document_version_id: version_id,
+       call_shape: String.to_existing_atom(call_shape),
+       subject: subject,
+       predicate: predicate,
+       profile: profile
+     )}
+  end
+
+  defp run_args(args), do: {:error, "adjudication job args missing keys, got: #{inspect(args)}"}
+
+  defp adjudicate(claim, opts) do
+    case Evidence.adjudicate(claim, opts) do
+      {:ok, _summary} -> :ok
+      {:error, error} -> {:error, error}
     end
   end
 
