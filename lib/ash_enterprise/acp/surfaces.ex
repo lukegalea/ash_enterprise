@@ -31,16 +31,16 @@ defmodule AshEnterprise.Acp.Surfaces do
 
   @impl true
   def surface(session, _meta) do
-    with {:ok, surface} <-
-           AshA2ui.Dynamic.resolve(@spec_spec,
-             allowlist: %{"BusinessUnit" => AshEnterprise.Accounts.BusinessUnit}
-           ) do
-      AshA2ui.Dynamic.build_surface(surface,
-        actor: session.actor,
-        authorize?: true,
-        tenant: AshEnterprise.Acp.tenant_of(session.actor)
-      )
-    else
+    case AshA2ui.Dynamic.resolve(@spec_spec,
+           allowlist: %{"BusinessUnit" => AshEnterprise.Accounts.BusinessUnit}
+         ) do
+      {:ok, surface} ->
+        AshA2ui.Dynamic.build_surface(surface,
+          actor: session.actor,
+          authorize?: true,
+          tenant: AshEnterprise.Acp.tenant_of(session.actor)
+        )
+
       {:error, errors} ->
         Logger.warning("AshEnterprise.Acp.Surfaces: A2UI resolve failed: #{inspect(errors)}")
 

@@ -180,27 +180,31 @@ defmodule AshEnterprise.Agents.OmpSession do
     running = Ash.read!(Ash.Query.filter(AgentRun, status == :running), authorize?: false)
 
     for run <- running do
-      if Registry.lookup(AshEnterprise.Agents.Registry, run.id) == [] do
-        append_message!(
-          run.id,
-          :tool,
-          "agent process exited (bridge restarted before the run finished)",
-          run.organization_id,
-          run.owner_id
-        )
-
-        case AgentRun.fail(run, tenant: run.organization_id, authorize?: false) do
-          {:ok, _} ->
-            :ok
-
-          {:error, error} ->
-            Logger.error("could not fail orphaned run #{run.id}: #{inspect(error)}")
-        end
-      end
+      fail_orphaned(run, Registry.lookup(AshEnterprise.Agents.Registry, run.id))
     end
 
     :ok
   end
+
+  defp fail_orphaned(run, [] = _no_live_session) do
+    append_message!(
+      run.id,
+      :tool,
+      "agent process exited (bridge restarted before the run finished)",
+      run.organization_id,
+      run.owner_id
+    )
+
+    case AgentRun.fail(run, tenant: run.organization_id, authorize?: false) do
+      {:ok, _} ->
+        :ok
+
+      {:error, error} ->
+        Logger.error("could not fail orphaned run #{run.id}: #{inspect(error)}")
+    end
+  end
+
+  defp fail_orphaned(_run, _live), do: :ok
 
   # --- GenServer ---------------------------------------------------------------
 
@@ -356,38 +360,7 @@ defmodule AshEnterprise.Agents.OmpSession do
     if state.terminated? do
       {:noreply, state}
     else
-      buffer = state.buffer
-
-      state =
-        state
-        |> Map.put(:buffer, <<>>)
-        |> process_line(buffer)
-        |> stop_child()
-
-      cond do
-        # The prompt_result already settled the run; the process exiting is
-        # just the process exiting.
-        state.run_terminal? ->
-          {:stop, :normal, %{state | terminated?: true}}
-
-        status == 0 ->
-          terminal_state(state, fn run ->
-            AgentRun.complete(run, tenant: state.tenant, authorize?: false)
-          end)
-
-        true ->
-          append_message!(
-            state.run_id,
-            :tool,
-            "omp exited with status #{status}",
-            state.tenant,
-            state.owner_id
-          )
-
-          terminal_state(state, fn run ->
-            AgentRun.fail(run, tenant: state.tenant, authorize?: false)
-          end)
-      end
+      settle_exit(%{state | buffer: <<>>} |> process_line(state.buffer) |> stop_child(), status)
     end
   end
 
@@ -395,6 +368,33 @@ defmodule AshEnterprise.Agents.OmpSession do
   # drop it rather than crash into a respawn loop.
   def handle_info({other_port, _message}, %{port: port} = state) when other_port != port do
     {:noreply, state}
+  end
+
+  defp settle_exit(state, status) do
+    cond do
+      # The prompt_result already settled the run; the process exiting is
+      # just the process exiting.
+      state.run_terminal? ->
+        {:stop, :normal, %{state | terminated?: true}}
+
+      status == 0 ->
+        terminal_state(state, fn run ->
+          AgentRun.complete(run, tenant: state.tenant, authorize?: false)
+        end)
+
+      true ->
+        append_message!(
+          state.run_id,
+          :tool,
+          "omp exited with status #{status}",
+          state.tenant,
+          state.owner_id
+        )
+
+        terminal_state(state, fn run ->
+          AgentRun.fail(run, tenant: state.tenant, authorize?: false)
+        end)
+    end
   end
 
   @impl true
@@ -467,48 +467,55 @@ defmodule AshEnterprise.Agents.OmpSession do
   # is the run's terminal state even though the process stays alive for the
   # next turn — so the eventual process exit transitions nothing.
   defp settle_prompt_result(%{prompt_id: prompt_id} = state, frame) do
-    if Map.get(frame, "id") not in [nil, prompt_id] do
+    if Map.get(frame, "id") in [nil, prompt_id] do
+      settle_own_prompt(state, frame)
+    else
       Logger.debug(
         "prompt_result for foreign id #{inspect(Map.get(frame, "id"))} on run #{state.run_id}"
       )
 
       state
+    end
+  end
+
+  defp settle_own_prompt(state, frame) do
+    transition = prompt_transition(state, frame)
+
+    if transition do
+      transition_run(state, transition)
+      %{state | run_terminal?: true}
     else
-      transition =
-        case frame["status"] do
-          "completed" ->
-            fn run -> AgentRun.complete(run, tenant: state.tenant, authorize?: false) end
+      state
+    end
+  end
 
-          "aborted" ->
-            fn run -> AgentRun.cancel(run, tenant: state.tenant, authorize?: false) end
+  defp prompt_transition(state, frame) do
+    case frame["status"] do
+      "completed" ->
+        fn run -> AgentRun.complete(run, tenant: state.tenant, authorize?: false) end
 
-          "error" ->
-            message = get_in(frame, ["error", "message"]) || "prompt failed"
+      "aborted" ->
+        fn run -> AgentRun.cancel(run, tenant: state.tenant, authorize?: false) end
 
-            append_message!(
-              state.run_id,
-              :tool,
-              "prompt failed: #{message}",
-              state.tenant,
-              state.owner_id
-            )
+      "error" ->
+        message = get_in(frame, ["error", "message"]) || "prompt failed"
 
-            fn run -> AgentRun.fail(run, tenant: state.tenant, authorize?: false) end
+        append_message!(
+          state.run_id,
+          :tool,
+          "prompt failed: #{message}",
+          state.tenant,
+          state.owner_id
+        )
 
-          other ->
-            Logger.warning(
-              "run #{state.run_id}: unknown prompt_result status #{inspect(other)}; run left as-is"
-            )
+        fn run -> AgentRun.fail(run, tenant: state.tenant, authorize?: false) end
 
-            nil
-        end
+      other ->
+        Logger.warning(
+          "run #{state.run_id}: unknown prompt_result status #{inspect(other)}; run left as-is"
+        )
 
-      if transition do
-        transition_run(state, transition)
-        %{state | run_terminal?: true}
-      else
-        state
-      end
+        nil
     end
   end
 

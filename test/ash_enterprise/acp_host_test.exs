@@ -94,23 +94,14 @@ defmodule AshEnterprise.AcpHostTest do
 
     # The seeded admin is authorized for the read: no permission request, and
     # the turn completes with the rows.
-    Enum.each(updates, fn u ->
-      if u["method"] == "session/update" do
-        u2 = u["params"]["update"]
-
-        if u2["sessionUpdate"] == "tool_call_update" and u2["status"] not in [nil, "completed"] do
-          IO.inspect(u2["content"] || u2["rawOutput"], label: "tool_call content", limit: 6)
-        end
-      end
-    end)
-
     refute Enum.any?(updates, &(&1["method"] == "session/request_permission")),
            "authorized admin must not trigger a permission request"
 
     tool_calls =
-      updates
-      |> Enum.filter(&(&1["method"] == "session/update"))
-      |> Enum.filter(&(&1["params"]["update"]["sessionUpdate"] == "tool_call_update"))
+      Enum.filter(updates, fn u ->
+        u["method"] == "session/update" and
+          u["params"]["update"]["sessionUpdate"] == "tool_call_update"
+      end)
 
     assert tool_calls != [],
            "expected tool_call_update rows, got: #{inspect(Enum.map(updates, & &1["method"]))}"

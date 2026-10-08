@@ -1,0 +1,6 @@
+{
+  "choice": "insufficient",
+  "probabilities": {"insufficient": 0.71, "supports": 0.2, "contradicts": 0.09},
+  "confidence": 0.4,
+  "source_ids": []
+}

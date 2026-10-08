@@ -44,6 +44,11 @@ defmodule AshEnterprise.SystemOne.FactReplay do
 
   require Ash.Query
 
+  # Sobelow reads `@sobelow_skip` out of the source AST (the export.ex
+  # pattern); persisting it writes the value into the beam's attribute
+  # chunk, which is what the scanner reads.
+  Module.register_attribute(__MODULE__, :sobelow_skip, persist: true)
+
   alias AshEnterprise.Audit.EventLog
   alias AshEnterprise.Repo
   alias AshEnterprise.SystemOne.Fact
@@ -156,7 +161,12 @@ defmodule AshEnterprise.SystemOne.FactReplay do
   @doc """
   Replays from a JSONL file (one decision per line — the admission-ledger
   wire shape); blank lines skipped.
+
+  The path is operator input (a mix-task/ops argument), never a request.
+  Skipped by name and locally: if request input ever reaches this
+  function, that is a real finding.
   """
+  @sobelow_skip ["Traversal.FileModule"]
   def replay_file(path, opts \\ []) do
     decisions =
       path
@@ -173,7 +183,13 @@ defmodule AshEnterprise.SystemOne.FactReplay do
   rename, never drop. Returns the archived name. (The AST-149 cut-over
   migration already archived this host's table; this helper is for
   standalone/ops use.)
+
+  The table name is operator input (an ops/mix-task argument), never a
+  request — the same posture as every identifier this module names.
+  Skipped by name and locally: if request input ever reaches this
+  function, that is a real finding.
   """
+  @sobelow_skip ["SQL.Query"]
   def archive_legacy_table(table_name) when is_binary(table_name) do
     archived =
       "#{table_name}_legacy_" <> (System.system_time(:second) |> Integer.to_string())

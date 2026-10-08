@@ -9,6 +9,8 @@ defmodule AshEnterprise.Agents.Changes.ComposeDraft do
 
   use Ash.Resource.Change
 
+  require Ash.Query
+
   alias AshEnterprise.Agents.MorningBrief
   alias AshEnterprise.Canonical.CalendarEvent
 

@@ -1,0 +1,6 @@
+{
+  "choice": "contradicts",
+  "probabilities": {"contradicts": 0.86, "supports": 0.05, "insufficient": 0.09},
+  "confidence": 0.88,
+  "source_ids": ["__ATOM_ID__"]
+}

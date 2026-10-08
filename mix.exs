@@ -299,6 +299,16 @@ defmodule AshEnterprise.MixProject do
       # same declaration as vpm_poc (VPM-49/51), so the family moves together.
       {:ash_judgments, github: "lukegalea/ash_judgments", branch: "main"},
 
+      # --- The evidence pipeline substrate (System One adjudication) -----------
+      # Document versions, addressed atoms, candidate sets, packets and the
+      # assertion fragment the adjudication orchestrator composes (AST-51a;
+      # pinned to main at fe056c7). Same 0.x first-party declaration as
+      # ash_judgments: package-owned records, host-owned orchestration — the
+      # orchestrator (AST-152) is this application's code, the records are
+      # the package's. The package never calls an instrument; this host
+      # supplies the judge actions and the embeddings.
+      {:ash_evidence, github: "lukegalea/ash_evidence", branch: "main"},
+
       # --- Business processes and the decisions they route on ------------------
       # The other half of ADR 0009. `ash_bpmn` compiles a BPMN document into an
       # immutable versioned graph and executes it with a token interpreter over

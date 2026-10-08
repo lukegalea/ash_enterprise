@@ -17,30 +17,19 @@ defmodule AshEnterprise.Agents.Changes.SpawnOmpProcess do
 
   use Ash.Resource.Change
 
-  require Logger
-
   alias AshEnterprise.Agents.OmpSession
 
   @impl true
   def change(changeset, _opts, _context) do
     Ash.Changeset.after_transaction(changeset, fn
       _changeset, {:ok, run} ->
+        # The two outcomes start_run returns: the bridge took the run, or
+        # the omp binary is absent (dev machines need not have it) — the run
+        # stays :running for an operator to cancel, louder than silently
+        # failing the action after the fact.
         case OmpSession.start_run(run) do
-          {:ok, _pid} ->
-            {:ok, run}
-
-          {:error, :omp_binary_missing} ->
-            {:ok, run}
-
-          {:error, other} ->
-            # The run row committed; the bridge could not take it. The run
-            # stays :running for an operator to cancel — louder than silently
-            # failing the action after the fact.
-            Logger.error(
-              "run #{run.id} committed but the OMP process could not start: #{inspect(other)}"
-            )
-
-            {:ok, run}
+          {:ok, _pid} -> {:ok, run}
+          {:error, :omp_binary_missing} -> {:ok, run}
         end
 
       _changeset, {:error, _} = error ->
