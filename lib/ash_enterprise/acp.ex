@@ -53,7 +53,10 @@ defmodule AshEnterprise.Acp do
   def system_actor do
     # Raises if the deployment has not been seeded: an ACP session without a
     # real actor would silently render unauthorized empty surfaces.
-    AshEnterprise.Accounts.get_user_by_email!("admin@example.com", authorize?: false)
+    email =
+      Application.get_env(:ash_enterprise, :acp_operator_email, "admin@example.com")
+
+    AshEnterprise.Accounts.get_user_by_email!(email, authorize?: false)
   end
 
   @doc """
