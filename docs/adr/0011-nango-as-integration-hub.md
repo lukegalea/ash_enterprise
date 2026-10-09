@@ -2,6 +2,7 @@
 
 - **Status:** proposed
 - **Date:** 2026-08-18
+- **Amended (deviations recorded):** 2026-10-09 — see [Dogfood deviations](#dogfood-deviations-2026-10-09) at the end of this document.
 
 ## Context
 
@@ -155,3 +156,26 @@ imported by tier 1 or tier 2 code, so this is a deletion rather than a refactor.
 **The signal to reverse** is the free tier narrowing to exclude the proxy, or the provider count staying below
 about three — at which point per-provider `Req` clients are less machinery for the same result, and this ADR
 should be superseded rather than defended.
+
+## Dogfood deviations (2026-10-09)
+
+Recorded during the Productivity OS Dogfood program (PROD-4/E4; extraction ticket AST-155). Two deliberate
+deviations from the decision above; neither weakens the confused-deputy rule.
+
+1. **Per-user connection derivation.** This ADR derives the connection id from `ActorContext.tenant(actor)`
+   — a per-tenant connection model for multi-tenant enterprise hosts. The dogfood program derives it from the
+   actor's **linked-account resource** instead: a personal productivity OS has one human actor with several
+   of their own accounts (work Gmail, personal Gmail), so the unit of credential ownership is the *user
+   account*, not the tenant. The invariant is unchanged and remains absolute: **the connection id is never an
+   action argument**; it is resolved inside the action from the actor. Enterprise hosts adopting the extension
+   keep the tenant derivation as the default.
+
+2. **Auth edge only for v1 — narrower than this ADR.** ADR 0011 adopts Nango for "auth and the proxy", with
+   one generated Ash action per declared provider operation. The dogfood v1 verticals (Calendar, Gmail,
+   Slack) use Nango for the **auth edge only** — OAuth connect and token custody — and poll provider APIs on
+   Oban schedules. No operations are declared yet, so the proxy-action mechanism prescribed here is designed
+   but unexercised; when the Calendar vertical exercises the pattern (AST-155), the generated action must be
+   the call path, not an ad-hoc `Req` call, or the program has violated this ADR's central claim.
+
+Extraction sequencing: the extension is built from the first concrete vertical, not speculatively — exercise
+once, then promote (or stay in-repo with a recorded justification).
