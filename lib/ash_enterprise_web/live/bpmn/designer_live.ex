@@ -13,6 +13,11 @@ defmodule AshEnterpriseWeb.Bpmn.DesignerLive do
   A key this tenant has stored nothing for opens on the platform baseline, read-only, with a
   Customize button that forks it (`AshEnterpriseWeb.Bpmn.Baselines`). Opening writes nothing.
 
+  "Discard draft" deletes the tenant's draft through the definition's `:discard` action -- the
+  same actor and authority as a save, audited like any other write, and refused for anything
+  that is not a draft -- and the view falls back to the tenant's published version, the
+  baseline, or the starter.
+
   The three catalogue options feed the properties panel its choices: the decision keys this
   actor can see, the actions the invoker's registry permits (the panel and the allowlist are
   one list — see `AshEnterprise.Process.DesignerCatalogue`), and the deep link into the DMN

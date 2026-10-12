@@ -16,6 +16,7 @@ defmodule AshEnterpriseWeb.Bpmn.BaselineEditorsTest do
 
   require Ash.Query
 
+  alias AshEnterprise.Audit.EventLog
   alias AshEnterprise.Platform.{Seeder, SystemActor}
   alias AshEnterprise.Process.Resolver
 
@@ -35,7 +36,7 @@ defmodule AshEnterpriseWeb.Bpmn.BaselineEditorsTest do
         email: "baseline-#{System.unique_integer([:positive])}@example.com"
       )
 
-    %{conn: sign_in(conn, seeded.user), tenant: seeded.organization.id}
+    %{conn: sign_in(conn, seeded.user), tenant: seeded.organization.id, user: seeded.user}
   end
 
   defp publish!(resource, key, xml, tenant) do
@@ -121,6 +122,58 @@ defmodule AshEnterpriseWeb.Bpmn.BaselineEditorsTest do
                tenant_rows(AshEnterprise.Decisions.Definition, "access_request.risk", ctx.tenant)
 
       assert has_element?(view, "#decision-save")
+    end
+  end
+
+  describe "discarding a draft" do
+    test "the designer discards the tenant's draft, audited as the user, and shows the baseline again",
+         ctx do
+      {:ok, view, _html} = live(ctx.conn, "/app/processes/morning.brief/designer")
+      view |> element("#bpmn-customize-btn") |> render_click()
+      assert [draft] = tenant_rows(AshEnterprise.Bpmn.Definition, "morning.brief", ctx.tenant)
+
+      view |> element("#bpmn-discard-btn") |> render_click()
+
+      assert tenant_rows(AshEnterprise.Bpmn.Definition, "morning.brief", ctx.tenant) == []
+      assert has_element?(view, "#bpmn-customize-btn")
+      assert has_element?(view, "#bpmn-origin", "baseline v1")
+
+      event =
+        EventLog
+        |> Ash.Query.filter(record_id == ^draft.id and action == :discard)
+        |> Ash.read_one!(authorize?: false)
+
+      assert event.user_id == ctx.user.id
+    end
+
+    test "the action never removes a published definition, even through a stale draft", ctx do
+      opts = [actor: SystemActor.process(), tenant: ctx.tenant]
+      {:ok, draft} = Resolver.fork(:process, "morning.brief", ctx.tenant, nil)
+      published = AshEnterprise.Bpmn.Definition.publish!(draft, opts)
+
+      assert {:error, _} = AshEnterprise.Bpmn.Definition.discard(published, opts)
+      # A struct that was a draft when loaded and has been published since: refused before
+      # anything runs, so no audit event claims a discard that deleted nothing.
+      assert {:error, _} = AshEnterprise.Bpmn.Definition.discard(draft, opts)
+
+      refute EventLog
+             |> Ash.Query.filter(record_id == ^draft.id and action == :discard)
+             |> Ash.read_one!(authorize?: false)
+
+      assert [%{status: :published}] =
+               tenant_rows(AshEnterprise.Bpmn.Definition, "morning.brief", ctx.tenant)
+    end
+
+    test "the decision editor discards the tenant's draft and shows the baseline again", ctx do
+      {:ok, view, _html} = live(ctx.conn, "/app/decisions/access_request.risk/editor")
+      view |> element("#decision-customize") |> render_click()
+
+      view |> element("#decision-discard") |> render_click()
+
+      assert tenant_rows(AshEnterprise.Decisions.Definition, "access_request.risk", ctx.tenant) ==
+               []
+
+      assert has_element?(view, "#decision-customize")
     end
   end
 end
