@@ -25,20 +25,33 @@ defmodule AshEnterprise.Acp.Attach do
 
   @doc """
   Serves one ACP connection whose wire is the calling process's group leader
-  (or `opts[:device]`), until EOF. Other options pass through to
-  `AshAcp.run_stdio/1`.
+  (or `opts[:device]`), until EOF.
+
+  For the connection's lifetime the calling process's group leader is moved
+  to `opts[:group_leader]` (default: this node's `:user`, i.e. the server's
+  own stdout). The default logger handler writes through the *logging*
+  process's group leader, so without the move every log line a session emits
+  (Ecto's SQL debug included) would travel back over distribution onto the
+  wire. The wire itself is handed to the endpoint explicitly as its device.
+  Other options pass through to `AshAcp.run_stdio/1`.
   """
   @spec serve(keyword()) :: :ok
   def serve(opts \\ []) do
-    wire = Keyword.get(opts, :device) || Process.group_leader()
+    {wire, opts} = Keyword.pop(opts, :device)
+    wire = wire || Process.group_leader()
+    {local_io, opts} = Keyword.pop_lazy(opts, :group_leader, fn -> Process.whereis(:user) end)
+    previous_leader = Process.group_leader()
     handler = :logger.get_handler_config(:default)
     owner = self()
     device = spawn(fn -> start_proxy(owner, wire, handler) end)
+
+    if is_pid(local_io), do: Process.group_leader(self(), local_io)
 
     try do
       AshAcp.run_stdio(Keyword.put(opts, :device, device))
     after
       send(device, :stop)
+      Process.group_leader(self(), previous_leader)
     end
   end
 
