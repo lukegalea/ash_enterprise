@@ -34,16 +34,41 @@ defmodule AshEnterprise.Agents.MorningBrief do
   `lifecycle?`/`archival?` are opted out for the same reasons as
   `AshEnterprise.Agents.AgentRun`: `status` is the lifecycle, and a decided
   brief is history, not soft-deleted data.
+
+  ## How a brief comes to exist
+
+  `compose_today` is the one entry point: it opens the owner's brief for the
+  day and starts `morning.brief` with it as subject, in one transaction
+  (`AshEnterprise.Agents.Actions.ComposeToday`). Two callers use it, both as
+  the owner: the daily scheduler (`AshEnterprise.Agents.MorningBriefScheduler`,
+  06:30 on the display zone's clock) and the operator on demand (Today's
+  Compose button, the ACP `compose brief` prompt). One brief per owner per
+  day (`one_per_owner_per_day`); there is no recompose — the process has no
+  path back from its approval task to its compose step. See
+  `docs/runbooks/morning-brief.md`.
   """
 
   use AshEnterprise.Platform.Resource,
     domain: AshEnterprise.Agents,
     lifecycle?: false,
-    archival?: false
+    archival?: false,
+    notifiers: [Ash.Notifier.PubSub]
 
   postgres do
     table "agent_morning_briefs"
     repo AshEnterprise.Repo
+  end
+
+  # What keeps Today live: a brief composed by the scheduler, the compose step
+  # landing its events, and the decision landing its status each refresh the
+  # open page (`AshEnterpriseWeb.A2ui.Surfaces.topics/1` reads these). The
+  # broadcast carries no row; every page re-reads as its own actor.
+  pub_sub do
+    module AshEnterpriseWeb.Endpoint
+    prefix "morning_briefs"
+
+    publish_all :create, ["created"]
+    publish_all :update, ["updated"]
   end
 
   attributes do
@@ -78,6 +103,15 @@ defmodule AshEnterprise.Agents.MorningBrief do
     update_timestamp :updated_at
   end
 
+  identities do
+    # Per tenant (attribute multitenancy adds `organization_id`): what makes
+    # the scheduler and the Compose button idempotent, and a double click a
+    # refusal rather than a second approval task.
+    identity :one_per_owner_per_day, [:owner_id, :brief_date] do
+      message "you already have a morning brief for that day"
+    end
+  end
+
   actions do
     defaults [:read]
 
@@ -91,6 +125,29 @@ defmodule AshEnterprise.Agents.MorningBrief do
       accept [:brief_date]
 
       change set_attribute(:owner_id, actor(:id))
+    end
+
+    action :compose_today, :string do
+      description """
+      Compose the actor's morning brief: open it for the day and start the
+      `morning.brief` process with it as subject, in one transaction. A day
+      that already has the actor's brief is left alone and reported (there is
+      no recompose). Returns a status line.
+      """
+
+      transaction? true
+
+      argument :brief_date, :date do
+        allow_nil? true
+
+        description """
+        The day to brief. Defaults to today on the display zone's clock; the
+        scheduler pins the day it scheduled, so a job that runs late does not
+        brief the wrong day.
+        """
+      end
+
+      run AshEnterprise.Agents.Actions.ComposeToday
     end
 
     update :compose_brief do
@@ -163,6 +220,7 @@ defmodule AshEnterprise.Agents.MorningBrief do
 
   code_interface do
     define :start_for_date, args: [:brief_date]
+    define :compose_today
     define :compose_brief
     define :approve
     define :reject

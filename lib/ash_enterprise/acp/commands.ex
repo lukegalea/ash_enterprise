@@ -11,6 +11,8 @@ defmodule AshEnterprise.Acp.Commands do
   | Prompt | Action | Surface |
   |---|---|---|
   | `today` | `Console.today` | `TodayUI` |
+  | `brief` / `compose brief` — today has no brief | `MorningBrief.compose_today` | `TodayUI` |
+  | `brief` / `compose brief` — today has one | `Console.today` | `TodayUI` |
   | `calendar [today\\|tomorrow\\|week\\|upcoming]` | `Console.agenda` | `CalendarUI`, that window |
   | `inbox` / `slack` | `Console.inbox` | `InboxUI` / `SlackUI` |
   | `people [search]` | `Console.people` | `PeopleUI`, searched |
@@ -21,19 +23,21 @@ defmodule AshEnterprise.Acp.Commands do
   | `erasure` | `Scope.scopes_digest` | `ErasureReadOnlyUI` — no shred over ACP |
   | `help` | `Console.help` | none |
 
-  Decisions and syncs are consequential: `AshEnterprise.Acp.Approvals` turns
-  them into `session/request_permission` (ADR 0015) before they run. Shred is
-  not routable at all — it exists only on the web, behind a typed
-  confirmation.
+  Decisions, syncs and composing a brief are consequential:
+  `AshEnterprise.Acp.Approvals` turns them into `session/request_permission`
+  (ADR 0015) before they run. Shred is not routable at all — it exists only
+  on the web, behind a typed confirmation.
   """
 
   require Ash.Query
 
+  alias AshEnterprise.Agents.Actions.ComposeToday
   alias AshEnterprise.Agents.{Console, MorningBrief}
   alias AshEnterprise.Bpmn.Actions.QueueDigest
   alias AshEnterprise.Bpmn.HumanTask
   alias AshEnterprise.Erasure.Scope
   alias AshEnterprise.Integration.LinkedAccount
+  alias AshEnterprise.Platform.LocalTime
   alias AshEnterprise.Security.ActorContext
   alias AshEnterpriseWeb.A2ui
 
@@ -79,8 +83,19 @@ defmodule AshEnterprise.Acp.Commands do
 
   defp do_route(command, actor, tenant)
 
-  defp do_route(command, _actor, tenant) when command in ["today", "brief", "day"] do
+  defp do_route(command, _actor, tenant) when command in ["today", "day"] do
     ok(Console, :today, %{}, "Today", tenant, {A2ui.TodayUI, []})
+  end
+
+  # "My brief": compose today's when there is none, otherwise show the day.
+  # There is no recompose (one brief per day), so neither spelling asks
+  # permission for a compose that would only report the brief that exists.
+  defp do_route(command, actor, tenant)
+       when command in ["brief", "compose brief", "compose", "brief compose"] do
+    case ComposeToday.existing(LocalTime.today(), actor, actor: actor, tenant: tenant) do
+      {:ok, nil} -> compose_brief(tenant)
+      _brief_or_unreadable -> ok(Console, :today, %{}, "Today", tenant, {A2ui.TodayUI, []})
+    end
   end
 
   defp do_route("calendar" <> rest, _actor, tenant) do
@@ -168,6 +183,14 @@ defmodule AshEnterprise.Acp.Commands do
   defp do_route(_command, _actor, _tenant),
     do: {:error, "unknown command — say `help` for the list"}
 
+  # A write (it opens a brief and starts its process), so it is consequential
+  # and asks first; a day that already has one answers with that instead.
+  defp compose_brief(tenant) do
+    ok(MorningBrief, :compose_today, %{}, "Compose today's brief", tenant, {A2ui.TodayUI, []},
+      kind: :execute
+    )
+  end
+
   # `approve 2` / `reject brief`: the target is resolved as the actor, from
   # the same read the `approvals` list shows (so the number is the one they
   # saw), and the decision runs only after the permission request is allowed.
@@ -186,7 +209,7 @@ defmodule AshEnterprise.Acp.Commands do
   defp decision_target("brief", opts) do
     with {:ok, %MorningBrief{} = brief} <- AshEnterprise.Agents.Today.latest_brief(opts),
          {:ok, task} <- AshEnterprise.Agents.BriefDecision.open_task(brief, opts) do
-      {:ok, task, "Morning brief · #{AshEnterprise.Platform.LocalTime.day(brief.brief_date)}"}
+      {:ok, task, "Morning brief · #{LocalTime.day(brief.brief_date)}"}
     else
       _ -> {:error, "no morning brief is waiting on you"}
     end
@@ -254,6 +277,7 @@ defmodule AshEnterprise.Acp.Commands do
   @spec consequential?(module(), atom()) :: boolean()
   def consequential?(HumanTask, action) when action in [:approve, :reject], do: true
   def consequential?(LinkedAccount, :sync_now), do: true
+  def consequential?(MorningBrief, :compose_today), do: true
   def consequential?(_resource, _action), do: false
 
   @doc "The command list as text, pruned to what `actor` may run (`help`)."

@@ -27,6 +27,7 @@ page serves (`AshEnterprise.Acp.Commands`; web routes in brackets):
 | Prompt | What you get |
 |---|---|
 | `today` | agenda, latest morning brief, approvals waiting, sync health (`/app/today`) |
+| `brief` / `compose brief` | composes today's morning brief after a permission modal, or shows Today if it exists ([morning-brief.md](morning-brief.md)) |
 | `calendar [today\|tomorrow\|week\|upcoming]` | the agenda for that window (`/app/calendar`) |
 | `inbox` / `slack` | conversations, newest first (`/app/inbox`, `/app/slack`) |
 | `people [name or email]` | the directory, optionally searched (`/app/people`) |

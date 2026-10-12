@@ -79,7 +79,14 @@ config :ash_enterprise, Oban,
         args: %{"integration" => "google-calendar"}},
        {"*/5 * * * *", AshEnterprise.Integration.SyncScheduler,
         args: %{"integration" => "google-mail"}},
-       {"*/5 * * * *", AshEnterprise.Integration.SyncScheduler, args: %{"integration" => "slack"}}
+       {"*/5 * * * *", AshEnterprise.Integration.SyncScheduler,
+        args: %{"integration" => "slack"}},
+       # The morning brief: every fifteen minutes in UTC, a no-op until
+       # `:morning_brief_compose_at` (below) on the display zone's clock, then
+       # one compose per calendar owner per local day. A tick, not a 06:30
+       # entry, because the zone is runtime config and the day must survive
+       # DST and a node that was down at 06:30 — see the scheduler's moduledoc.
+       {"*/15 * * * *", AshEnterprise.Agents.MorningBriefScheduler}
      ]}
   ]
 
@@ -162,6 +169,10 @@ config :ash_open_lineage,
 # stays UTC. `DISPLAY_TIME_ZONE` overrides it at boot (config/runtime.exs).
 config :ash_enterprise, :display_time_zone, "America/Toronto"
 
+# When the daily morning brief is composed, on that clock
+# (`AshEnterprise.Agents.MorningBriefScheduler`).
+config :ash_enterprise, :morning_brief_compose_at, ~T[06:30:00]
+
 config :ash_acp,
   session_store: AshEnterprise.Acp.SessionStore,
   prompt_target: AshEnterprise.Acp.SessionStore,
@@ -177,6 +188,12 @@ config :ash_acp,
       action: {AshEnterprise.Agents.Console, :today},
       name: "today",
       description: "Your day: agenda, morning brief, approvals, sync health"
+    },
+    %{
+      action: {AshEnterprise.Agents.MorningBrief, :compose_today},
+      name: "compose",
+      description: "Compose today's morning brief, if you have none yet (asks first)",
+      input: %{"hint" => "brief"}
     },
     %{
       action: {AshEnterprise.Agents.Console, :agenda},

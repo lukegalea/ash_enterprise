@@ -23,6 +23,8 @@ defmodule AshEnterprise.Agents.Today do
   alias AshEnterprise.Integration.LinkedAccount
   alias AshEnterprise.Platform.LocalTime
 
+  @no_brief "No morning brief yet today — say `compose brief` to compose one."
+
   @doc "Today's events as report rows."
   @spec agenda(keyword()) :: {:ok, [map()]} | {:error, term()}
   def agenda(opts) do
@@ -62,10 +64,10 @@ defmodule AshEnterprise.Agents.Today do
             if(brief.status == :pending_approval,
               do: " — say `approve brief` or `reject brief`.",
               else: ""
-            )
+            ) <> if(brief.brief_date == LocalTime.today(), do: "", else: "\n" <> @no_brief)
 
         _none ->
-          "No morning brief yet today."
+          @no_brief
       end
 
     agenda =

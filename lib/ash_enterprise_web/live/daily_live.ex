@@ -20,6 +20,13 @@ defmodule AshEnterpriseWeb.DailyLive do
       kind of empty it is — held back by the zone gate (ADR 0042), nothing
       admitted yet for a linked account, or no account linked
       (`AshEnterprise.Canonical.Admission`). It disappears once there is mail.
+    * **Compose today's brief.** Today offers a Compose button while the
+      signed-in person has no brief for the day (the brief table has no row
+      to hang the action on until one exists). The click runs
+      `MorningBrief.compose_today` as them, off the LiveView process; the new
+      brief reaches the table through the resource's PubSub refresh, and the
+      process's compose and decision steps do the same. One brief per day:
+      the button does not come back once there is one.
   """
 
   defmodule Surface do
@@ -29,6 +36,7 @@ defmodule AshEnterpriseWeb.DailyLive do
       ui = Keyword.fetch!(opts, :ui)
       reports = Keyword.get(opts, :reports, [])
       inbox = Keyword.get(opts, :inbox)
+      compose_brief? = Keyword.get(opts, :compose_brief?, false)
 
       quote do
         use AshA2ui.LiveRenderer,
@@ -45,6 +53,7 @@ defmodule AshEnterpriseWeb.DailyLive do
 
         @daily_reports unquote(reports)
         @daily_inbox unquote(inbox)
+        @daily_compose_brief unquote(compose_brief?)
 
         def actor(socket), do: socket.assigns[:current_user]
         def tenant(socket), do: ActorContext.tenant(socket.assigns[:current_user])
@@ -54,7 +63,10 @@ defmodule AshEnterpriseWeb.DailyLive do
           {:ok, socket} =
             AshA2ui.LiveRenderer.mount(__ash_a2ui_config__(), params, session, socket)
 
-          {:ok, DailyLive.mount_inbox_notice(socket, @daily_inbox)}
+          {:ok,
+           socket
+           |> DailyLive.mount_inbox_notice(@daily_inbox)
+           |> DailyLive.mount_brief_prompt(@daily_compose_brief)}
         end
 
         @impl true
@@ -76,6 +88,16 @@ defmodule AshEnterpriseWeb.DailyLive do
         def handle_async(:daily_inbox_notice, result, socket),
           do: {:noreply, DailyLive.put_inbox_notice(socket, result)}
 
+        def handle_async(:daily_brief_prompt, result, socket),
+          do: {:noreply, DailyLive.put_brief_prompt(socket, result)}
+
+        def handle_async(:daily_compose_brief, result, socket) do
+          {:noreply,
+           socket
+           |> DailyLive.composed_brief(result)
+           |> DailyLive.run_reports(unquote(ui), @daily_reports)}
+        end
+
         @impl true
         def handle_event("a2ui:action", envelope, socket) do
           {:noreply, socket} =
@@ -88,6 +110,13 @@ defmodule AshEnterpriseWeb.DailyLive do
           do:
             AshA2ui.LiveRenderer.handle_function_response(__ash_a2ui_config__(), payload, socket)
 
+        # Only Today offers it; the action itself is authorized as the actor.
+        def handle_event("compose_brief", _params, socket) do
+          if @daily_compose_brief,
+            do: {:noreply, DailyLive.compose_brief(socket)},
+            else: {:noreply, socket}
+        end
+
         @impl true
         def render(assigns), do: DailyLive.page(assigns)
       end
@@ -96,11 +125,18 @@ defmodule AshEnterpriseWeb.DailyLive do
 
   use Phoenix.Component
 
-  import AshEnterpriseWeb.CoreComponents, only: [callout: 1]
-  import Phoenix.LiveView, only: [connected?: 1, push_event: 3, start_async: 3]
+  require Logger
 
+  import AshEnterpriseWeb.CoreComponents, only: [button: 1, callout: 1]
+
+  import Phoenix.LiveView,
+    only: [connected?: 1, push_event: 3, put_flash: 3, start_async: 3]
+
+  alias AshEnterprise.Agents.Actions.ComposeToday
+  alias AshEnterprise.Agents.MorningBrief
   alias AshEnterprise.Canonical.{Admission, Conversation}
   alias AshEnterprise.Integration.LinkedAccount
+  alias AshEnterprise.Platform.LocalTime
   alias AshEnterprise.Security.ActorContext
   alias AshEnterpriseWeb.Layouts
 
@@ -110,6 +146,20 @@ defmodule AshEnterpriseWeb.DailyLive do
     <Layouts.app flash={@flash} width="max-w-7xl">
       <.callout :if={@inbox_notice} id="inbox-notice" kind={:warning} role="status">
         {@inbox_notice}
+      </.callout>
+      <.callout :if={@brief_prompt} id="brief-prompt" kind={:info} role="status">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <span>No morning brief yet today.</span>
+          <.button
+            id="compose-brief"
+            phx-click="compose_brief"
+            variant="primary"
+            size="sm"
+            disabled={@brief_prompt == :composing}
+          >
+            {if @brief_prompt == :composing, do: "Composing…", else: "Compose today's brief"}
+          </.button>
+        </div>
       </.callout>
       {AshA2ui.LiveRenderer.surface_container(assigns)}
     </Layouts.app>
@@ -150,6 +200,80 @@ defmodule AshEnterpriseWeb.DailyLive do
 
   # A failed report read is a missing section, not a crashed page.
   def push_reports(socket, {:exit, _reason}), do: socket
+
+  @doc false
+  def mount_brief_prompt(socket, false), do: assign(socket, :brief_prompt, nil)
+
+  def mount_brief_prompt(socket, true) do
+    socket = assign(socket, :brief_prompt, nil)
+
+    if connected?(socket) do
+      opts = actor_opts(socket)
+      start_async(socket, :daily_brief_prompt, fn -> brief_prompt(opts) end)
+    else
+      socket
+    end
+  end
+
+  @doc """
+  `:compose` when the actor has no morning brief for today on the display
+  zone's clock, else nil. Read as the actor.
+  """
+  def brief_prompt(opts) do
+    case ComposeToday.existing(LocalTime.today(), opts[:actor], opts) do
+      {:ok, nil} -> :compose
+      _brief_or_unreadable -> nil
+    end
+  end
+
+  @doc false
+  def put_brief_prompt(socket, {:ok, prompt}), do: assign(socket, :brief_prompt, prompt)
+  def put_brief_prompt(socket, {:exit, _reason}), do: socket
+
+  @doc false
+  # One compose in flight: a second click while composing (or after) is a
+  # no-op here, and the action's one-per-day identity refuses it anyway.
+  def compose_brief(%{assigns: %{brief_prompt: :compose}} = socket) do
+    opts = actor_opts(socket)
+
+    socket
+    |> assign(:brief_prompt, :composing)
+    |> start_async(:daily_compose_brief, fn -> MorningBrief.compose_today(opts) end)
+  end
+
+  def compose_brief(socket), do: socket
+
+  @doc false
+  def composed_brief(socket, {:ok, {:ok, _status_line}}) do
+    socket
+    |> assign(:brief_prompt, nil)
+    |> put_flash(:info, "Composing today's brief — it will wait for your approval here.")
+  end
+
+  def composed_brief(socket, {:ok, {:error, error}}) do
+    message =
+      case Ash.Error.to_error_class(error) do
+        %Ash.Error.Forbidden{} ->
+          "You are not allowed to compose a morning brief."
+
+        class ->
+          Logger.error("compose_today failed: #{Exception.message(class)}")
+          "Today's brief could not be composed — the server log says why."
+      end
+
+    socket
+    |> assign(:brief_prompt, :compose)
+    |> put_flash(:error, message)
+  end
+
+  def composed_brief(socket, {:exit, _reason}) do
+    socket
+    |> assign(:brief_prompt, :compose)
+    |> put_flash(:error, "Today's brief could not be composed. Try again.")
+  end
+
+  defp actor_opts(socket),
+    do: [actor: socket.assigns.ash_a2ui_actor, tenant: socket.assigns.ash_a2ui_tenant]
 
   @doc false
   def mount_inbox_notice(socket, nil), do: assign(socket, :inbox_notice, nil)
@@ -200,7 +324,8 @@ defmodule AshEnterpriseWeb.DailyLive do
     @moduledoc "`/app/today` — the day: latest morning brief, today's agenda, the pulse."
     use AshEnterpriseWeb.DailyLive.Surface,
       ui: AshEnterpriseWeb.A2ui.TodayUI,
-      reports: [:agenda, :pulse]
+      reports: [:agenda, :pulse],
+      compose_brief?: true
   end
 
   defmodule Calendar do
