@@ -51,6 +51,7 @@ defmodule AshEnterprise.Canonical.Projection do
   """
 
   alias AshEnterprise.Canonical.{CalendarEvent, Person}
+  alias AshEnterprise.Erasure.Shredded
   alias AshEnterprise.Ingestion.SourceObject
 
   require Ash.Query
@@ -117,8 +118,13 @@ defmodule AshEnterprise.Canonical.Projection do
       |> Ash.Query.sort(:external_id)
       |> Ash.read!(authorize?: false)
 
+    # A source whose erasure scope has been shredded has no payload left to
+    # project. Its canonical rows were sealed under the same scope, so they
+    # are already unreadable; skipping is the only honest projection.
+    {shredded, live} = Enum.split_with(sources, &Shredded.shredded?(&1.raw_payload))
+
     people =
-      sources
+      live
       |> Enum.reduce(MapSet.new(), fn source, seen ->
         project_calendar_event(source, context, seen)
       end)
@@ -126,7 +132,8 @@ defmodule AshEnterprise.Canonical.Projection do
 
     %{
       source_objects: length(sources),
-      calendar_events: length(sources),
+      calendar_events: length(live),
+      shredded: length(shredded),
       people: people
     }
   end
@@ -173,6 +180,9 @@ defmodule AshEnterprise.Canonical.Projection do
         ends_at: required_datetime(payload, ["end", "dateTime"], source),
         location: payload["location"],
         organizer_id: organizer && organizer.id,
+        # The canonical copy is sealed under the same key as its raw source,
+        # so one shred reaches both (ADR 0024).
+        erasure_scope_id: source.erasure_scope_id,
         owner_id: context.owner_id,
         owner_type: :user,
         owning_user_id: context.owner_id,

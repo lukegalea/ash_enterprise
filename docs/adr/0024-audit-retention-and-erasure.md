@@ -1,7 +1,8 @@
 # ADR 0024 — Audit retention: partition for age, crypto-shred for erasure
 
-- **Status:** proposed
+- **Status:** proposed (erasure half built, 2026-10-12; partitioning not built)
 - **Date:** 2026-08-19
+- **Implementation note:** 2026-10-12, at the end of this record
 
 ## Context
 
@@ -71,3 +72,54 @@ have to be reattached first. Encryption is worse than invasive — it is one-way
 has already been destroyed, which is the point. **This is the least reversible decision in the set,
 and that is the strongest argument for designing it before it is urgent rather than during an
 incident.**
+
+## Implementation note — the erasure half (2026-10-12)
+
+Built because the dogfood deployment was about to receive real third-party content: the operator's VendorPM company
+Slack and his personal Gmail and Calendar, through Nango (ADR 0011's dogfood deviations). The requirement was to be able
+to "forget the key" for everything one connection brought in, including its audit trail, without breaking the chain.
+**Partitioning is not built.** Nothing here changes how long `audit_events` keeps rows, so q36 stays open.
+
+**What was built** (`AshEnterprise.Erasure`, `test/ash_enterprise/erasure_test.exs`,
+[runbook](../runbooks/crypto-shredding.md)):
+
+- **The unit is a scope, not only a data subject.** `Erasure.Scope` is `(kind, ref)` with
+  `kind ∈ {connection, data_subject}`. The Decision above names the data subject. Ingested content needed a second
+  unit, everything that came in through one connection, because provenance is the one fact every landed row knows
+  about itself. One Slack message is about several people at once. Each row is sealed under exactly one scope.
+- **Keys are data, wrapped.** `Erasure.Key` holds one AES-256-GCM data key per scope. The key is wrapped under a master
+  key from configuration (`ERASURE_MASTER_KEY` in production; generated into `.devenv/state` in dev and per run in
+  test; never committed), and the scope id is the additional authenticated data. Key reuse is refused three ways: a
+  unique identity on `scope_id`, a unique identity on a fingerprint of the key bytes, and the AAD binding (a key moved
+  to another scope does not unwrap). Sealed values carry their scope id in an authenticated header, so a rewritten
+  header fails authentication instead of decrypting under the wrong key.
+- **Encryption at rest is `ash_cloak`'s structure with a per-scope key.** `ash_cloak` supplies the `encrypted_*`
+  columns, the sensitive arguments and the decrypting calculation. Its vault contract (`encrypt!/1`, no record) cannot
+  reach a per-scope key, so `Erasure.Changes.SealUnderScope` does the encrypting from the changeset. Covered:
+  `SourceObject.raw_payload`, `Message.body`, `Conversation.subject`/`participants`, `CalendarEvent.title`/`location`.
+- **The audit log needed no `cloak_vault`.** The Decision points at AshEvents' `cloak_vault`, but that option encrypts
+  the whole event under one vault key and cannot shred per scope. It was not needed: with the event log not cloaked,
+  AshEvents records a sensitive argument as `null` in `data`, and `changed_attributes` carries `encrypted_*`, which is
+  ciphertext already sealed under the scope key. Destroying the key therefore reaches the audit copy without touching
+  an audit row, and the chain verifies unchanged (tested). `metadata` carries correlation and tenant ids only.
+- **The shred** is `Scope.shred` (`Erasure.shred_scope/4`, `mix ash_enterprise.erasure.shred`). It is policy-gated to
+  a human holding a global `write` grant, with no system-actor path and no `forbid_if`. The caller must type the ref to
+  confirm. It deletes the key row and marks the scope shredded in one transaction. The shred is audited on `Scope`.
+  The key is `audit?: false`, because a key recorded in a permanent log would survive every shred. After a shred, sealed
+  values read as `%Erasure.Shredded{}`, a shredded scope refuses new writes, and it is never reopened.
+
+**What it does not reach**, stated here because a regulator will ask. The runbook has the full list:
+
+- backups, WAL and dead tuples that still hold the *wrapped* key, which the master key can open until they age out;
+- plaintext in audit events written before sealing existed;
+- `Canonical.Person` names and emails (cross-source, upserted on email, so not sealable under one connection);
+- Nango's own copies and tokens, until the connection is deleted;
+- the provider's originals;
+- logs and error reports;
+- anything derived outside the sealed resources.
+
+`data_subject` scopes exist in the model, but nothing writes under one yet. Per-person erasure (q14) is therefore
+partial, not shipped.
+
+Status stays `proposed`. This record is not an `accepted, not built` one, so landing code does not flip it, and half
+of its Decision is still unbuilt.

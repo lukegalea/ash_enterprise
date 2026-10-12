@@ -55,7 +55,7 @@ The concrete exit: which files change, and how much work it is.
 | [0021](0021-control-mapping-is-generated.md) | The compliance control map is generated from the ledger | accepted |
 | [0022](0022-audit-log-is-tenant-scoped.md) | The audit log is tenant-scoped by multitenancy, not a special check | accepted |
 | [0023](0023-impersonation-is-attribution.md) | Impersonation adds attribution, never reach | accepted (in part) |
-| [0024](0024-audit-retention-and-erasure.md) | Audit retention: partition for age, crypto-shred for erasure | proposed |
+| [0024](0024-audit-retention-and-erasure.md) | Audit retention: partition for age, crypto-shred for erasure | proposed (erasure half built, 2026-10-12) |
 | [0025](0025-log-shipping-and-review.md) | Logs ship to the customer's SIEM; review is evidence | proposed |
 | [0026](0026-ai-governance-is-disclosure.md) | AI governance is disclosure, not a second authorization model | proposed (narrowed by 0042) |
 | [0027](0027-feel-is-the-expression-language.md) | FEEL is the one expression language, and the engine is adopted rather than written | accepted |
@@ -84,7 +84,7 @@ The concrete exit: which files change, and how much work it is.
 Records 0001–0009, 0020–0023, 0027–0031 and 0033–0037 are `accepted` and describe code that exists.
 **0038–0047 are `accepted, not built (2026-09-28)`:** the decision is taken and none of it is built. A record with that
 status flips to plain `accepted` when its code lands, so `accepted` on its own keeps meaning code that exists.
-**0010–0019, 0024–0026, 0032 and 0048 are `proposed`: none of them is built.** They are here because a decision is cheapest to reason about — and cheapest to
+**0010–0019, 0024–0026, 0032 and 0048 are `proposed`: none of them is built**, except the erasure half of 0024 (crypto-shredding, built 2026-10-12; its partitioning half is not), which its implementation note describes. They are here because a decision is cheapest to reason about — and cheapest to
 *reverse* — while the alternatives are still fresh, and because
 [thesis 6](../manifesto/06-reversibility.md) asks for the exit before the entrance. Three of them
 record an answer that changed under verification, which is the main reason to write them down early.

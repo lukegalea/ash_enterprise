@@ -145,8 +145,11 @@
       "id": "q14",
       "section": "tenancy",
       "question": "Can you erase a person on request?",
-      "answer": "No. `ash_archival` is soft delete only — there is no purge schedule, no anonymization pipeline, and an append-only audit log is exactly what a right-to-erasure request runs into.",
-      "status": "open"
+      "answer": "Partly, by crypto-shredding (ADR 0024's erasure half). Content that arrives through an external connection -- raw landings, canonical messages, conversations and calendar events, and the copies of that content in the audit log -- is sealed under that connection's erasure-scope key, and `shred_scope` destroys the key: rows, structural columns and the audit hash chain survive, the content reads as an explicit `shredded` marker. What is missing for a *person*: nothing yet lands under a `data_subject` scope, `Canonical.Person` names and emails are not sealed, core platform resources (users, organizations) are not covered, and soft delete is still the only delete. Backups and WAL keep the wrapped key until they age out.",
+      "status": "partial",
+      "adr": "0024",
+      "item": "retention",
+      "proof": "test/ash_enterprise/erasure_test.exs"
     },
     {
       "id": "q15",
@@ -632,8 +635,8 @@
       "priority": 1,
       "choice": "Time-partitioned hot/cold split; erasure by crypto-shredding",
       "adr": "0024",
-      "status": "planned",
-      "effort": "Monthly partitions on `audit_events`, ninety days hot, the rest detached to cheaper storage and still chain-verifiable. The hard half is not partitioning: it is that erasure and an append-only log are in direct conflict, and the resolution has to preserve the chain — which points at encrypting subject data per person and destroying the key rather than deleting rows.",
+      "status": "partial",
+      "effort": "Erasure is built: per-scope data keys wrapped under a configured master key, one key per scope enforced by constraint, content sealed into `ash_cloak` columns under its scope's key, and a policy-gated, audited `shred_scope` that leaves the audit chain verifying (`AshEnterprise.Erasure`, `docs/runbooks/crypto-shredding.md`). Retention by age is not: monthly partitions on `audit_events`, ninety days hot, the rest detached to cheaper storage and still chain-verifiable, are still planned.",
       "bar": "No external tool. Retention is a property of the log, and the log is the thing this platform's audit story rests on — handing it to something outside the boundary would put the evidence chain outside it too."
     },
     {

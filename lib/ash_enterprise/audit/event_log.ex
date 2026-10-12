@@ -114,11 +114,18 @@ defmodule AshEnterprise.Audit.EventLog do
 
   ## Retention
 
-  ⚠️ There is still no retention or purge policy, and the immutability trigger
-  above makes the collision with a GDPR erasure request sharper rather than
-  softer: the log now actively refuses the `DELETE` that erasure implies. Named
-  in `docs/manifesto/07-what-we-do-not-have.md#5-data-retention-purge-and-right-to-erasure`
-  and designed in ADR 0024 rather than pretended away.
+  ⚠️ There is still no retention or purge policy: nothing expires and nothing is
+  partitioned (ADR 0024's age half, not built).
+
+  Erasure does not delete from this log, and must not. Content from an external
+  connection reaches it only as ciphertext sealed under that connection's
+  erasure-scope key (`changed_attributes` → `encrypted_*`; the plaintext argument
+  is sensitive and recorded as `nil` in `data`). Destroying the key
+  (`AshEnterprise.Erasure.shred_scope/4`) makes that content unreadable here
+  without changing a row, so the chain verifies unchanged. This log is
+  deliberately **not** `cloak_vault`-encrypted: one vault key for every event
+  could not be shredded per scope. See ADR 0024's implementation note and
+  `docs/runbooks/crypto-shredding.md`.
   """
 
   use Ash.Resource,

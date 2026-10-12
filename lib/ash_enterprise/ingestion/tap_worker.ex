@@ -30,13 +30,23 @@ defmodule AshEnterprise.Ingestion.TapWorker do
 
       "calendar_dev" => %{"fixture" => true, "external_system" => "calendar"}
 
+  ## Erasure scope (ADR 0024)
+
+  Every record a pipeline lands is sealed under the pipeline's erasure scope:
+  `kind: :connection`, `ref: "pipeline:<name>"` unless the pipeline config names
+  one with `"erasure_scope" => ref`. The scope is ensured once per run, as the
+  `oban` system actor; if it has been shredded, the run fails at the first
+  record instead of landing anything.
+
   Enqueue: `AshEnterprise.Ingestion.TapWorker.new(%{"pipeline" => "app_db"}) |> Oban.insert()`.
   """
 
   use Oban.Worker, queue: :ingestion, max_attempts: 5, unique: [period: 30]
 
+  alias AshEnterprise.Erasure
   alias AshEnterprise.Ingestion.SourceObject
   alias AshEnterprise.Ingestion.TapRunner
+  alias AshEnterprise.Platform.SystemActor
 
   @impl true
   def perform(%Oban.Job{args: %{"pipeline" => name}}) do
@@ -86,7 +96,7 @@ defmodule AshEnterprise.Ingestion.TapWorker do
            ),
          {:ok, output} <- tap_output(config),
          {:ok, parsed} <- parse_singer(output, "pipeline #{inspect(name)}") do
-      land(parsed.records, external_system, parsed.state, name)
+      land(parsed.records, external_system, parsed.state, erasure_scope!(name, config))
 
       AshEnterprise.Lineage.ingestion_event(:complete, "ingestion", job_name,
         run_id: run_id,
@@ -160,14 +170,24 @@ defmodule AshEnterprise.Ingestion.TapWorker do
   defp event_time(%{"time_recorded" => t}) when is_binary(t), do: t
   defp event_time(_), do: nil
 
-  defp land(records, external_system, state, _pipeline) do
+  # One scope per pipeline: a pipeline is one connection to one source.
+  defp erasure_scope!(name, config) do
+    ref = Map.get(config, "erasure_scope", "pipeline:#{name}")
+
+    Erasure.ensure_scope!(:connection, ref, %{label: "ingestion pipeline #{name}"},
+      actor: SystemActor.oban()
+    )
+  end
+
+  defp land(records, external_system, state, scope) do
     cursor = state
     now = DateTime.utc_now()
 
     Enum.each(records, fn %{record: record, stream: stream, time: time} ->
       fetched_at = parse_time(time) || now
 
-      SourceObject.land!(
+      SourceObject.land_under!(
+        scope.id,
         %{
           external_system: external_system,
           external_id: external_id(record),

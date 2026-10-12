@@ -131,6 +131,41 @@ if config_env() == :dev do
         ~r"lib/ash_enterprise_web/(controllers|live|components)/.*\.(ex|heex)$"
       ]
     ]
+
+  # The crypto-shredding master key (ADR 0024, AshEnterprise.Erasure.Crypto).
+  # ERASURE_MASTER_KEY wins when set. Otherwise one is generated on first use
+  # into the devenv state directory, beside the Postgres data directory whose
+  # keys it wraps, and reused on every boot after that. Never committed.
+  #
+  # Deleting this file is an irreversible shred of every erasure scope in the
+  # dev database at once -- which is coherent if the database goes with it
+  # (`rm -rf .devenv/state`), and data loss if it does not.
+  # An empty ERASURE_MASTER_KEY (what `cp .env.example .env` style templates
+  # leave behind) counts as unset rather than as a malformed key.
+  erasure_master_key =
+    case System.get_env("ERASURE_MASTER_KEY") do
+      key when key not in [nil, ""] ->
+        key
+
+      _unset ->
+        state_dir =
+          case System.get_env("DEVENV_STATE") do
+            dir when dir not in [nil, ""] -> dir
+            _ -> Path.expand("../.devenv/state", __DIR__)
+          end
+
+        key_path = Path.join([state_dir, "erasure", "master.key"])
+
+        unless File.exists?(key_path) do
+          File.mkdir_p!(Path.dirname(key_path))
+          File.write!(key_path, Base.encode64(:crypto.strong_rand_bytes(32)))
+          File.chmod!(key_path, 0o600)
+        end
+
+        key_path |> File.read!() |> String.trim()
+    end
+
+  config :ash_enterprise, AshEnterprise.Erasure, master_key: erasure_master_key
 end
 
 if config_env() == :prod do
@@ -190,6 +225,16 @@ if config_env() == :prod do
     token_signing_secret:
       System.get_env("TOKEN_SIGNING_SECRET") ||
         raise("Missing environment variable `TOKEN_SIGNING_SECRET`!")
+
+  # The crypto-shredding master key (ADR 0024): base64 of 32 random bytes,
+  # e.g. `openssl rand -base64 32`. It wraps every erasure scope's key, so
+  # losing it is an irreversible shred of everything at once, and leaking it
+  # with a database copy makes every live scope readable. Same class of secret
+  # as the database password; there is deliberately no default.
+  config :ash_enterprise, AshEnterprise.Erasure,
+    master_key:
+      System.get_env("ERASURE_MASTER_KEY") ||
+        raise("Missing environment variable `ERASURE_MASTER_KEY`!")
 
   # ## SSL Support
   #

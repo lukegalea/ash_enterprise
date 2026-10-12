@@ -300,6 +300,7 @@ config :ash_enterprise,
     AshEnterprise.LegacyAgent,
     AshEnterprise.CanonicalAgent,
     AshEnterprise.SystemOne,
+    AshEnterprise.Erasure,
     AshEnterprise.Ingestion,
     AshEnterprise.Canonical,
     AshEnterprise.Agents

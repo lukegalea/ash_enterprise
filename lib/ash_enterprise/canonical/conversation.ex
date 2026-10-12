@@ -18,11 +18,31 @@ defmodule AshEnterprise.Canonical.Conversation do
     ownership: :organization_owned,
     tenant?: true,
     lifecycle?: false,
-    archival?: false
+    archival?: false,
+    extra_extensions: [AshCloak]
 
   postgres do
     table "canonical_conversations"
     repo AshEnterprise.Repo
+
+    references do
+      reference :erasure_scope, on_delete: :restrict
+    end
+  end
+
+  # `subject` and `participants` are content and personal data (participant
+  # emails): sealed under the erasure scope of the source this conversation was
+  # projected from (ADR 0024; see AshEnterprise.Canonical.Message).
+  cloak do
+    vault({AshEnterprise.Erasure.Vault, :resolve, []})
+    attributes [:subject, :participants]
+    decrypt_by_default([:subject, :participants])
+    encrypt_nil?(false)
+  end
+
+  changes do
+    change {AshEnterprise.Erasure.Changes.SealUnderScope, fields: [:subject, :participants]},
+      on: [:create, :update]
   end
 
   attributes do
@@ -63,6 +83,17 @@ defmodule AshEnterprise.Canonical.Conversation do
     update_timestamp :updated_at
   end
 
+  relationships do
+    belongs_to :erasure_scope, AshEnterprise.Erasure.Scope do
+      allow_nil? false
+      public? true
+      attribute_public? true
+      attribute_writable? true
+
+      description "The scope of the source this conversation was projected from; its key seals the content."
+    end
+  end
+
   identities do
     # Nullable columns: Postgres leaves multiple NULLs distinct, so an
     # operator-logged conversation (no external identity) never collides.
@@ -93,11 +124,11 @@ defmodule AshEnterprise.Canonical.Conversation do
 
     create :upsert_from_source do
       description "The replay write path: upsert on the source identity."
-      accept [:subject, :participants, :external_system, :external_id]
+      accept [:subject, :participants, :external_system, :external_id, :erasure_scope_id]
 
       upsert? true
       upsert_identity :unique_external
-      upsert_fields [:subject, :participants]
+      upsert_fields [:encrypted_subject, :encrypted_participants, :erasure_scope_id]
     end
   end
 

@@ -50,7 +50,13 @@ defmodule AshEnterprise.MorningBriefTest do
   end
 
   defp seed_event!(external_id, summary, starts_at, ends_at) do
-    SourceObject.land!(
+    scope =
+      AshEnterprise.Erasure.ensure_scope!(:connection, "test:morning-brief-calendar", %{},
+        actor: SystemActor.oban()
+      )
+
+    SourceObject.land_under!(
+      scope.id,
       %{
         external_system: "calendar",
         external_id: external_id,

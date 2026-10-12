@@ -204,7 +204,10 @@ guarantee working, and it means the retention design can no longer be postponed 
 might not meet.
 
 **→ Roadmap:** [ADR 0024 — retention: partition for age, crypto-shred for erasure](../adr/0024-audit-retention-and-erasure.md).
-Proposed, not built. It is the hardest decision in the set and the least reversible — encryption is one-way for anyone
+Proposed. Its erasure half was built on 2026-10-12. Content that arrives through an external connection is sealed
+under that connection's key, and destroying the key makes the content unreadable, including in the audit log, with the
+chain intact (`AshEnterprise.Erasure`, [runbook](../runbooks/crypto-shredding.md)). Per-person erasure, purge
+schedules and partitioning are still not built. It is the hardest decision in the set and the least reversible — encryption is one-way for anyone
 whose key has already been destroyed — which is the argument for designing it before it is urgent rather than during an
 incident.
 

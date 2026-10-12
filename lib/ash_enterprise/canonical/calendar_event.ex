@@ -14,6 +14,11 @@ defmodule AshEnterprise.Canonical.CalendarEvent do
   would ghost the upsert identity, and an event's lifecycle is the provider's
   (confirmed/cancelled lives in the raw payload, to be projected when the
   operator's real calendar lands).
+
+  `title` and `location` are content: sealed under the erasure scope of the
+  SourceObject the event was projected from (ADR 0024,
+  `AshEnterprise.Erasure.Changes.SealUnderScope`), and read as
+  `AshEnterprise.Erasure.Shredded` once that scope is shredded.
   """
 
   use AshEnterprise.Platform.Resource,
@@ -21,11 +26,28 @@ defmodule AshEnterprise.Canonical.CalendarEvent do
     ownership: :user_owned,
     tenant?: true,
     lifecycle?: false,
-    archival?: false
+    archival?: false,
+    extra_extensions: [AshCloak]
 
   postgres do
     table "canonical_calendar_events"
     repo AshEnterprise.Repo
+
+    references do
+      reference :erasure_scope, on_delete: :restrict
+    end
+  end
+
+  cloak do
+    vault({AshEnterprise.Erasure.Vault, :resolve, []})
+    attributes [:title, :location]
+    decrypt_by_default([:title, :location])
+    encrypt_nil?(false)
+  end
+
+  changes do
+    change {AshEnterprise.Erasure.Changes.SealUnderScope, fields: [:title, :location]},
+      on: [:create, :update]
   end
 
   attributes do
@@ -86,6 +108,15 @@ defmodule AshEnterprise.Canonical.CalendarEvent do
 
       description "The Person projected from the organizer's email. Nil when the payload had no address."
     end
+
+    belongs_to :erasure_scope, AshEnterprise.Erasure.Scope do
+      allow_nil? false
+      public? true
+      attribute_public? true
+      attribute_writable? true
+
+      description "The scope of the SourceObject this event was projected from; its key seals the content."
+    end
   end
 
   identities do
@@ -127,6 +158,7 @@ defmodule AshEnterprise.Canonical.CalendarEvent do
         :external_system,
         :external_id,
         :organizer_id,
+        :erasure_scope_id,
         :owner_id,
         :owner_type,
         :owning_user_id,
@@ -137,12 +169,13 @@ defmodule AshEnterprise.Canonical.CalendarEvent do
       upsert_identity :unique_external
 
       upsert_fields [
-        :title,
+        :encrypted_title,
         :starts_at,
         :ends_at,
-        :location,
+        :encrypted_location,
         :external_uid,
-        :organizer_id
+        :organizer_id,
+        :erasure_scope_id
       ]
     end
   end

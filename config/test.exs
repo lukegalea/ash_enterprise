@@ -11,6 +11,12 @@ config :ash_enterprise, AshEnterprise.Ingestion,
   }
 
 config :ash_enterprise, token_signing_secret: "2W7xIBrAeWb/GPoe4MBvPxA6NFwqqjl0"
+
+# A fresh crypto-shredding master key every run (ADR 0024). Nothing sealed in
+# a test outlives the sandbox transaction, so nothing needs a stable key.
+config :ash_enterprise, AshEnterprise.Erasure,
+  master_key: Base.encode64(:crypto.strong_rand_bytes(32))
+
 config :bcrypt_elixir, log_rounds: 1
 config :ash, policies: [show_policy_breakdowns?: true], disable_async?: true
 
