@@ -1,6 +1,6 @@
 # ADR 0024 — Audit retention: partition for age, crypto-shred for erasure
 
-- **Status:** proposed (erasure half built, 2026-10-12; partitioning not built)
+- **Status:** accepted (2026-10-12). The erasure half is built and in use; the partitioning half is accepted, not built
 - **Date:** 2026-08-19
 - **Implementation note:** 2026-10-12, at the end of this record
 
@@ -103,7 +103,10 @@ to "forget the key" for everything one connection brought in, including its audi
   ciphertext already sealed under the scope key. Destroying the key therefore reaches the audit copy without touching
   an audit row, and the chain verifies unchanged (tested). `metadata` carries correlation and tenant ids only.
 - **The shred** is `Scope.shred` (`Erasure.shred_scope/4`, `mix ash_enterprise.erasure.shred`). It is policy-gated to
-  a human holding a global `write` grant, with no system-actor path and no `forbid_if`. The caller must type the ref to
+  a human holding a global `write` grant on `Erasure.Scope`, with no system-actor path and no `forbid_if`. That
+  privilege is operator-only (`Security.Privilege.operator_only?/1`, along with `Erasure.Key` and
+  `Ingestion.SourceObject`): no tenant role can carry it, so a tenant Administrator cannot shred, and it is granted to
+  the platform operator by `mix ash_enterprise.platform.grant_operator`. The caller must type the ref to
   confirm. It deletes the key row and marks the scope shredded in one transaction. The shred is audited on `Scope`.
   The key is `audit?: false`, because a key recorded in a permanent log would survive every shred. After a shred, sealed
   values read as `%Erasure.Shredded{}`, a shredded scope refuses new writes (re-checked under a lock inside the write's
@@ -141,11 +144,13 @@ a regression test in `erasure_test.exs` or `ingestion_test.exs`:
 
 **Known follow-ups** (low severity, not built):
 
-- *Landing identity excludes the scope.* `SourceObject` and the canonical upserts are unique on
-  `[external_system, external_id]`, so a second connection landing the same pair takes the row over and re-seals it
-  under its own scope; which shred reaches it then depends on sync order. Adapters must qualify `external_id` per
-  connection (the `Erasure` moduledoc's Slack example now does). The fix is the scope in the identity, or refusing an
-  upsert that changes `erasure_scope_id`.
+- ~~*Landing identity excludes the scope.*~~ **Resolved 2026-10-12 (E4).** `SourceObject.land` now carries
+  `Ingestion.Changes.KeepErasureScope`, which makes the upsert conditional on the existing row naming the same scope
+  (inside the `INSERT … ON CONFLICT … DO UPDATE … WHERE`), so a landing under another scope fails and leaves the row,
+  its scope and its ciphertext untouched. Every Integration vertical also namespaces `external_id` by the linked
+  account it fetched through (the calendar's is a SHA-256 of the linked account id and Google's calendar id), so the
+  same calendar or channel reached through two accounts lands as two rows under two scopes. The canonical upserts
+  (`CalendarEvent.upsert_from_source`) rely on that namespacing and do not carry the guard themselves.
 - *Person sealing.* A keyed blind index (HMAC of the normalized email under a scope-independent key) as the upsert
   identity, with `name`/`email` sealed under a per-person `data_subject` scope, would let a shred reach the row.
 - *Error scrubbing.* Removing `max_length` closes the known constraint path; a shared step that replaces the value on
@@ -155,5 +160,16 @@ a regression test in `erasure_test.exs` or `ingestion_test.exs`:
 `data_subject` scopes exist in the model, but nothing writes under one yet. Per-person erasure (q14) is therefore
 partial, not shipped.
 
-Status stays `proposed`. This record is not an `accepted, not built` one, so landing code does not flip it, and half
-of its Decision is still unbuilt.
+**Wired to the Nango adapters (E4, 2026-10-12).** Each `Integration.LinkedAccount` gets its own `connection` scope
+(`connection:<linked account id>`), and everything its sync brings in is sealed under it: raw provider records,
+processed calendar events, and their audit copies. A step opens its scope (`Integration.Landing.open/1`) before its
+first provider call, so a step for a shredded scope cancels without asking the provider anything, and
+`Integration.SyncBlock` then stops scheduling the account. `Erasure.LiveScope` serializes the unsealed derived writes
+(`Canonical.Person`) against a shred. One end-to-end test per adapter (Calendar,
+Gmail, Slack) syncs, shreds, then sweeps the raw tables, `audit_events` included, for fixture content. The dogfood
+instance runs this against live Google Calendar, Gmail and VendorPM Slack, with VendorPM Slack under its own scope so
+it can be forgotten on its own (`mix ash_enterprise.erasure.scopes`, `mix ash_enterprise.erasure.shred`).
+
+**Status: accepted, 2026-10-12.** The erasure mechanism is the one the deployment now depends on to hold third-party
+content it must be able to forget, so the decision is no longer a proposal. The partitioning half is accepted with
+it and stays unbuilt (q36 open). Per-subject erasure (`data_subject` scopes) is partial, as above.

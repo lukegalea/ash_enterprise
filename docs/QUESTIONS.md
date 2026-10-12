@@ -27,7 +27,7 @@ README. Edit the JSON, never the table.
 <!-- roadmap:scoreboard:start -->
 **17 of 54** enterprise questions have a shipped answer.
 
-✅ Shipped 17 · 🟡 Partial 14 · 🔵 Planned 9 · ⚪ Open 14
+✅ Shipped 17 · 🟡 Partial 15 · 🔵 Planned 8 · ⚪ Open 14
 <!-- roadmap:scoreboard:end -->
 
 <!-- roadmap:sections:start -->
@@ -36,7 +36,7 @@ README. Edit the JSON, never the table.
 | Who are you, and what may you do? | 4 | 2 | 0 | 4 |
 | What happened, and can you prove it? | 8 | 1 | 0 | 2 |
 | Whose data is it? | 2 | 2 | 0 | 2 |
-| Where does data come from, and where does it go? | 0 | 0 | 7 | 2 |
+| Where does data come from, and where does it go? | 0 | 1 | 6 | 2 |
 | How does it change, and keep running? | 3 | 6 | 2 | 1 |
 | Can you prove it, continuously? | 0 | 3 | 0 | 3 |
 <!-- roadmap:sections:end -->
@@ -91,7 +91,7 @@ README. Edit the JSON, never the table.
 | # | Question | Our answer | Status | Proven by |
 |---|---|---|---|---|
 | 16 | How does data get in from systems you do not own? | Meltano lands rows in a staging schema as an external producer; a generator turns the declared target schema into an ordinary platform resource, so ingested data inherits ownership, tenancy and audit. | 🔵 Planned | [ADR 0010](adr/0010-meltano-for-ingestion.md) |
-| 17 | How do you integrate N SaaS systems without writing N×M integrations? | One contract per category rather than one per (your app × their API). Nango holds the provider edge — OAuth, token refresh, the proxy — and the sync logic stays here as Ash actions over Oban, so a policy gates which actor may trigger a sync and the ordinary audit log records it. Nango's free self-hosted edition gates syncs and webhooks, which is why the design is split that way rather than generated wholesale. | 🔵 Planned | [ADR 0011](adr/0011-nango-as-integration-hub.md) |
+| 17 | How do you integrate N SaaS systems without writing N×M integrations? | One contract per category rather than one per (your app × their API). Nango holds the provider edge — OAuth, token refresh, the proxy — and the sync logic stays here as Ash actions over Oban, so a policy gates which actor may trigger a sync and the ordinary audit log records it. Nango's free self-hosted edition gates syncs and webhooks, which is why the design is split that way rather than generated wholesale. Built for Google Calendar, Gmail and Slack (2026-10-12); webhooks are not. | 🟡 Partial | [ADR 0011](adr/0011-nango-as-integration-hub.md) |
 | 18 | Can you trace a value back to the system it came from? | OpenLineage events whose run id *is* the correlation id the audit log already carries — lineage as a second consumer of existing telemetry rather than a parallel system. `ash_strangler` already ships the emitter for column-level mappings. Neither Meltano nor Airbyte emits OpenLineage, so the graph has a hole exactly where external data enters, and that is stated rather than drawn over. | 🔵 Planned | [ADR 0012](adr/0012-openlineage-and-marquez.md) |
 | 19 | What data do you have, and who owns it? | A catalogue populated from codegen — every resource already declares its CDM provenance, ownership type and tenancy scope, so it is a read-only projection rather than a second source of truth. It is an internal tool only: its own RBAC resolves deny-wins, which is the inverse of this project's model. | 🔵 Planned | [ADR 0013](adr/0013-openmetadata-as-catalog.md) |
 | 20 | How do people get reports out of it? | Superset over views already filtered by the same actor context, so the BI tool's row-level security is a formality rather than a duplicate authorization model. Metabase loses because its RLS is paywalled. | 🔵 Planned | [ADR 0014](adr/0014-superset-over-metabase.md) |

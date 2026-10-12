@@ -1,8 +1,9 @@
 # ADR 0011 — Nango as the integration hub, wrapped as Ash actions
 
-- **Status:** proposed
+- **Status:** accepted (2026-10-12; built for Google Calendar, Gmail and Slack, see the implementation note)
 - **Date:** 2026-08-18
 - **Amended (deviations recorded):** 2026-10-09 — see [Dogfood deviations](#dogfood-deviations-2026-10-09) at the end of this document.
+- **Implementation note:** 2026-10-12, at the end of this record
 
 ## Context
 
@@ -170,12 +171,43 @@ deviations from the decision above; neither weakens the confused-deputy rule.
    action argument**; it is resolved inside the action from the actor. Enterprise hosts adopting the extension
    keep the tenant derivation as the default.
 
-2. **Auth edge only for v1 — narrower than this ADR.** ADR 0011 adopts Nango for "auth and the proxy", with
-   one generated Ash action per declared provider operation. The dogfood v1 verticals (Calendar, Gmail,
-   Slack) use Nango for the **auth edge only** — OAuth connect and token custody — and poll provider APIs on
-   Oban schedules. No operations are declared yet, so the proxy-action mechanism prescribed here is designed
-   but unexercised; when the Calendar vertical exercises the pattern (AST-155), the generated action must be
-   the call path, not an ad-hoc `Req` call, or the program has violated this ADR's central claim.
+2. **~~Auth edge only for v1~~ — superseded 2026-10-12.** This deviation said the v1 verticals would use Nango
+   for OAuth and token custody only and poll provider APIs directly. They do not: the verticals as built call
+   the provider through Nango's proxy, via declared operation actions, exactly as the Decision prescribes (see the
+   implementation note). The deviation is kept here as history.
 
 Extraction sequencing: the extension is built from the first concrete vertical, not speculatively — exercise
 once, then promote (or stay in-repo with a recorded justification).
+
+## Implementation note (2026-10-12)
+
+Built in the Productivity OS Dogfood program (E4), and running against live Google Calendar, Gmail and VendorPM Slack
+connections in the dogfood instance.
+
+- **Provider operations are declared, and the generated action is the call path.** The
+  `AshEnterprise.Integration.Nango` extension (`lib/ash_enterprise/integration/nango/`) turns each `operation` into an
+  Ash action whose run step is `Nango.RunOperation`. Declared today: `GoogleCalendar` (`list_calendars`,
+  `list_events`), `Gmail` (`get_profile`, `list_history`, `list_messages`, `get_message`) and `Slack`
+  (`list_conversations`, `conversation_history`, `user_info`). `Nango.Proxy` holds the only HTTP client (`Req`) on
+  the integration path. Nothing calls a provider API directly.
+- **The connection id is never an argument.** `RunOperation` resolves it from the actor's own active
+  `Integration.LinkedAccount` for the integration, read under the actor's policies and tenant (deviation 1). A
+  `linked_account_id` argument can only choose among the actor's own accounts, so one person can link several
+  accounts for one provider. A system actor owns no linked account and so resolves none. `connection_id` is readable
+  only through the owner-scoped `:for_operation` and `:mine` reads (a field policy), and a connection can be linked
+  once in the whole deployment (`identity :unique_connection`, across all tenants).
+- **Sync logic stays in Ash.** `Integration.SyncScheduler` runs on Oban cron (calendar every 10 minutes, Gmail and
+  Slack every 5, queue `:ingestion`). It enqueues one step per active linked account. A cursor resource per
+  vertical holds the resume point. A 429 snoozes the step with the provider's `Retry-After` and costs no retry.
+  `Integration.SyncBlock` stops polling an account after a terminal cancel: a revoked token, a deleted connection,
+  a shredded scope or an inactive owner.
+- **Landed data is shreddable per account.** Every linked account has its own erasure scope (`connection:<linked
+  account id>`, ADR 0024). Raw provider records land as sealed `Ingestion.SourceObject` rows, and Calendar
+  projects into `Canonical.CalendarEvent` with sealed title and location. Gmail and Slack land as sealed source
+  objects only: projection waits on zone admission ([ADR 0042](0042-in-zone-inference-leaving-the-zone-is-a-disclosure.md),
+  not built), so their zone gates deny by default. See `docs/runbooks/crypto-shredding.md`.
+- **Operator tooling** (dev): `mix ash_enterprise.integration.link`, `.accounts` and `.sync` (counts only, never
+  content).
+
+Not built: webhooks (everything polls), Nango-side syncs (deliberately: sync logic stays in Ash), and promoting the
+extension out of this app into its own package (AST-155).

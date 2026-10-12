@@ -171,8 +171,8 @@
       "id": "q17",
       "section": "flow",
       "question": "How do you integrate N SaaS systems without writing N×M integrations?",
-      "answer": "One contract per category rather than one per (your app × their API). Nango holds the provider edge — OAuth, token refresh, the proxy — and the sync logic stays here as Ash actions over Oban, so a policy gates which actor may trigger a sync and the ordinary audit log records it. Nango's free self-hosted edition gates syncs and webhooks, which is why the design is split that way rather than generated wholesale.",
-      "status": "planned",
+      "answer": "One contract per category rather than one per (your app × their API). Nango holds the provider edge — OAuth, token refresh, the proxy — and the sync logic stays here as Ash actions over Oban, so a policy gates which actor may trigger a sync and the ordinary audit log records it. Nango's free self-hosted edition gates syncs and webhooks, which is why the design is split that way rather than generated wholesale. Built for Google Calendar, Gmail and Slack (2026-10-12); webhooks are not.",
+      "status": "partial",
       "adr": "0011",
       "item": "integration"
     },
@@ -523,9 +523,9 @@
       "priority": 1,
       "choice": "Nango for the provider edge only",
       "adr": "0011",
-      "status": "planned",
-      "effort": "Compose for a loopback-only Nango (deploy/nango.yml, from Nango's official self-hosting reference) is written and awaiting operator approval + OAuth connects. Sync logic stays here as Ash actions over Oban per the load-bearing rule below; the connection id is still never an action argument.",
-      "bar": "Yes, with one load-bearing rule: the Nango connection id is never an action argument — it is derived from the actor's tenant. Otherwise the policy engine authorizes the operation while the caller picks whose credentials to spend. The residual is stated, not wrapped away: anyone holding the Nango secret key bypasses every policy."
+      "status": "partial",
+      "effort": "Built for Google Calendar, Gmail and Slack (E4, 2026-10-12) and running against live connections in the dogfood instance: provider operations are declared and generated as Ash actions that call Nango's proxy (`AshEnterprise.Integration.Nango`), an Oban cron scheduler runs one sync step per linked account, and everything a sync lands is sealed under that account's erasure scope (ADR 0024). Not built: webhooks (everything polls), a production Nango deployment (deploy/nango.yml is loopback-only), and promoting the extension into its own package.",
+      "bar": "Yes, with one load-bearing rule: the Nango connection id is never an action argument — it is resolved inside the action from the actor's own linked account (ADR 0011, deviation 1). Otherwise the policy engine authorizes the operation while the caller picks whose credentials to spend. The residual is stated, not wrapped away: anyone holding the Nango secret key bypasses every policy."
     },
     {
       "id": "lineage",
