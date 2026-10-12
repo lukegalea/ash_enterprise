@@ -116,6 +116,7 @@ defmodule AshEnterprise.Security.Privilege do
   the validations and the tests cannot disagree about it.
   """
   def legal_depths(:user_owned), do: [:basic, :local, :deep, :global]
+  def legal_depths(:owner_only), do: [:basic]
   def legal_depths(:business_owned), do: [:local, :deep, :global]
   def legal_depths(:organization_owned), do: [:global]
   def legal_depths(:none), do: [:global]
@@ -148,4 +149,62 @@ defmodule AshEnterprise.Security.Privilege do
   @doc "The resource names `operator_only?/1` is true for."
   @spec operator_only_resources() :: [String.t()]
   def operator_only_resources, do: @operator_only
+
+  # User-owned rows holding one person's own mail and Slack, projected from
+  # the linked accounts they own (ADR 0042, ADR 0024): readable by that person
+  # and nobody else in the tenant. Every privilege on them is grantable at
+  # `:basic` only — "I own it" — so no role, an Administrator's included,
+  # reaches another user's rows, and hierarchy security does not widen them
+  # (`AshEnterprise.Security.Checks.HierarchyGrant`). Sharing a row stays the
+  # owner's own act (`SharedWithActor`).
+  @owner_only [
+    "AshEnterprise.Canonical.Conversation",
+    "AshEnterprise.Canonical.Message",
+    "AshEnterprise.Canonical.Person"
+  ]
+
+  @doc """
+  Whether privileges on `resource_name` (the module's `inspect/1`) are
+  owner-only: grantable at `:basic` depth and no wider, whatever the
+  resource's ownership model would otherwise allow.
+  """
+  @spec owner_only?(String.t()) :: boolean()
+  def owner_only?(resource_name) when is_binary(resource_name),
+    do: resource_name in @owner_only
+
+  @doc "The resource names `owner_only?/1` is true for."
+  @spec owner_only_resources() :: [String.t()]
+  def owner_only_resources, do: @owner_only
+
+  @doc """
+  The legal depths for privileges on `resource` (a module) with the given
+  ownership model: `legal_depths/1`, narrowed to `:basic` for an owner-only
+  resource.
+  """
+  @spec legal_depths_for(module(), atom()) :: [atom()]
+  def legal_depths_for(resource, ownership) do
+    if owner_only?(inspect(resource)),
+      do: legal_depths(:owner_only),
+      else: legal_depths(ownership)
+  end
+
+  @doc """
+  The widest depth a privilege can be granted at (`:global` down to
+  `:basic`), or nil if none. What an Administrator is auto-granted.
+  """
+  @spec widest_depth(%{
+          can_be_global: boolean(),
+          can_be_deep: boolean(),
+          can_be_local: boolean(),
+          can_be_basic: boolean()
+        }) :: atom() | nil
+  def widest_depth(privilege) do
+    cond do
+      privilege.can_be_global -> :global
+      privilege.can_be_deep -> :deep
+      privilege.can_be_local -> :local
+      privilege.can_be_basic -> :basic
+      true -> nil
+    end
+  end
 end

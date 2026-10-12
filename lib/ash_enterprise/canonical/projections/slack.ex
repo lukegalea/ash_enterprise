@@ -26,31 +26,31 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
 
   ## Zone admission — DENY by default (ADR 0042)
 
-  Slack content is personal and confidential data. **Nothing is projected**
-  unless the deployment declares the zone the canonical store lives in and the
-  tags Slack data carries:
+  Slack content is personal and confidential data. Every landed record is put
+  to the configured `AshEnterprise.Canonical.Projections.ZoneGate` before
+  anything is derived from it, and only admitted records are projected:
 
       config :ash_enterprise, AshEnterprise.Canonical.Projections.Slack,
-        zone: "my-zone",              # a zone id declared under AshEnterprise.Zones
-        data_class: :customer_confidential,
-        residency: "CA"
+        zone_gate: AshEnterprise.Canonical.Projections.ZoneAdmission
 
-  With no zone (the default), an undeclared zone, untagged data or tags the
-  zone cannot hold, `project/3` and `replay/2` return `{:error, {:not_admitted,
-  reason}}` and write nothing — checked before a single raw row is read.
+  The default gate admits nothing. `ZoneAdmission` admits a record on its
+  linked account's tags (`data_class`, `residency`, set by the operator)
+  against the canonical store's declared zone, so an untagged account, an
+  undeclared zone or tags the zone cannot hold project nothing. Refusals are
+  counted by reason (`denied`, `denied_by`) and logged as counts.
 
   ## Only public channels, for now
 
-  `Conversation` is **organization-owned**: any member with a read grant on it
-  sees every row. A DM's subject (`"Direct message with <name>"`) or a private
-  channel's name, and the participants' emails, are one user's private data,
-  so IMs, MPIMs and private channels are **not projected** — neither the
-  conversation nor its messages — until `Conversation` can carry a per-user
-  owner. A conversation is public only when its landed `conversations.list`
-  record says so (`is_channel`, `is_private: false`, not an IM or MPIM);
-  messages of a conversation with no landed record are not projected either,
-  because nothing says it is public. They stay landed raw, under the account's
-  shred scope.
+  `Conversation`, `Message` and `Person` are user-owned and owner-only
+  (`AshEnterprise.Security.Privilege.owner_only?/1`), so nothing projected
+  here is readable by another user. IMs, MPIMs and private channels are still
+  **not projected** — neither the conversation nor its messages: whether one
+  user's direct messages belong in the canonical model at all is a separate
+  decision from whether they are admissible. A conversation is public only
+  when its landed `conversations.list` record says so (`is_channel`,
+  `is_private: false`, not an IM or MPIM); messages of a conversation with no
+  landed record are not projected either, because nothing says it is public.
+  They stay landed raw, under the account's shred scope.
 
   ## The account's own Slack user
 
@@ -93,13 +93,12 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
   """
 
   alias AshEnterprise.Canonical.{Conversation, Message, Person}
-  alias AshEnterprise.Canonical.Projections.Write
+  alias AshEnterprise.Canonical.Projections.{Write, ZoneGate}
   alias AshEnterprise.Erasure.{LiveScope, Shredded}
   alias AshEnterprise.Ingestion.SourceObject
   alias AshEnterprise.Integration.LinkedAccount
   alias AshEnterprise.Integration.Slack.Records
   alias AshEnterprise.Security.ActorContext
-  alias AshEnterprise.Zones
 
   require Ash.Query
 
@@ -116,28 +115,14 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
   @email_max 320
 
   @type counts :: %{
+          admitted: non_neg_integer(),
+          denied: non_neg_integer(),
+          denied_by: %{atom() => pos_integer()},
           conversations: non_neg_integer(),
           messages: non_neg_integer(),
           people: non_neg_integer(),
           failed: non_neg_integer()
         }
-
-  @doc """
-  Whether Slack data may enter the canonical store's zone, under the configured
-  tags. `:ok`, or `{:error, {:not_admitted, reason}}` naming the rule, never
-  the data.
-  """
-  @spec admit() :: :ok | {:error, {:not_admitted, atom()}}
-  def admit do
-    config = Application.get_env(:ash_enterprise, __MODULE__, [])
-    tags = %{data_class: config[:data_class], residency: config[:residency]}
-
-    case Zones.admit(config[:zone], tags) do
-      :ok -> :ok
-      {:error, %{reason: reason}} when is_atom(reason) -> {:error, {:not_admitted, reason}}
-      {:error, _undeclared} -> {:error, {:not_admitted, :undeclared_zone}}
-    end
-  end
 
   @doc """
   Replay everything landed for one of the actor's own Slack linked accounts
@@ -146,8 +131,7 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
   @spec replay(struct(), Ash.UUID.t() | nil, keyword()) ::
           {:ok, counts()} | {:error, term()}
   def replay(actor, linked_account_id \\ nil, opts \\ []) do
-    with :ok <- admit(),
-         {:ok, account} <- own_account(actor, linked_account_id) do
+    with {:ok, account} <- own_account(actor, linked_account_id) do
       sources =
         SourceObject
         |> Ash.Query.filter(external_system == ^Records.external_system())
@@ -163,90 +147,105 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
   Project landed Slack records (`SourceRecord`s or `SourceObject` rows — both
   carry `external_id`, `raw_payload` and `source_metadata`) fetched through
   `linked_account`. Records of another linked account are ignored, as are
-  records whose scope is shredded or unknown (see "Erasure").
+  records whose scope is shredded or unknown (see "Erasure"); the rest are
+  projected only if the zone gate admits them.
 
   Options: `:self_user_id`, `:erasure_scope_id` (the scope `SourceRecord`s,
   which carry none of their own, were landed under).
   """
-  @spec project([map()], struct(), keyword()) ::
-          {:ok, counts()} | {:error, term()}
+  @spec project([map()], struct(), keyword()) :: {:ok, counts()}
   def project(records, %LinkedAccount{} = account, opts \\ []) do
-    with :ok <- admit() do
-      context = context(account)
-      default_scope = Keyword.get(opts, :erasure_scope_id)
+    context = context(account)
 
-      streams =
-        records
-        |> Enum.filter(&(get_in(&1.source_metadata, ["linked_account_id"]) == account.id))
-        |> Enum.reject(&Shredded.shredded?(&1.raw_payload))
-        |> Enum.map(&{&1, Map.get(&1, :erasure_scope_id) || default_scope})
-        |> Enum.filter(fn {_record, scope_id} -> is_binary(scope_id) end)
-        |> Enum.sort_by(fn {record, _scope_id} -> record.external_id end)
-        |> Enum.group_by(fn {record, _scope_id} -> get_in(record.source_metadata, ["stream"]) end)
+    {admitted, denied_by} =
+      ZoneGate.partition(
+        ZoneGate.configured(__MODULE__),
+        Enum.filter(records, &(get_in(&1.source_metadata, ["linked_account_id"]) == account.id)),
+        context
+      )
 
-      conversations =
-        streams
-        |> Map.get(Records.stream(:conversations), [])
-        |> Map.new(fn {record, _scope_id} -> {record.raw_payload["id"], record.raw_payload} end)
+    ZoneGate.log_refusals(:slack, denied_by)
 
-      conversation_scopes =
-        streams
-        |> Map.get(Records.stream(:conversations), [])
-        |> Map.new(fn {record, scope_id} -> {record.raw_payload["id"], scope_id} end)
+    {:ok,
+     admitted
+     |> project_admitted(context, Keyword.get(opts, :erasure_scope_id), opts)
+     |> Map.merge(%{
+       admitted: length(admitted),
+       denied: denied_by |> Map.values() |> Enum.sum(),
+       denied_by: denied_by
+     })}
+  end
 
-      messages =
-        streams
-        |> Map.get(Records.stream(:messages), [])
-        |> Enum.map(fn {record, scope_id} ->
-          {get_in(record.source_metadata, ["channel_id"]),
-           Map.put(record.raw_payload, @scope_key, scope_id)}
-        end)
-        |> Enum.filter(fn {channel, message} ->
-          is_binary(channel) and Records.ts?(message["ts"])
-        end)
+  defp project_admitted(records, context, default_scope, opts) do
+    streams =
+      records
+      |> Enum.reject(&Shredded.shredded?(&1.raw_payload))
+      |> Enum.map(&{&1, Map.get(&1, :erasure_scope_id) || default_scope})
+      |> Enum.filter(fn {_record, scope_id} -> is_binary(scope_id) end)
+      |> Enum.sort_by(fn {record, _scope_id} -> record.external_id end)
+      |> Enum.group_by(fn {record, _scope_id} -> get_in(record.source_metadata, ["stream"]) end)
 
-      user_records = Map.get(streams, Records.stream(:users), [])
+    conversations =
+      streams
+      |> Map.get(Records.stream(:conversations), [])
+      |> Map.new(fn {record, _scope_id} -> {record.raw_payload["id"], record.raw_payload} end)
 
-      users =
-        Map.new(user_records, fn {record, _scope_id} ->
-          {record.raw_payload["id"], record.raw_payload}
-        end)
+    conversation_scopes =
+      streams
+      |> Map.get(Records.stream(:conversations), [])
+      |> Map.new(fn {record, scope_id} -> {record.raw_payload["id"], scope_id} end)
 
-      self_user_id =
-        Keyword.get_lazy(opts, :self_user_id, fn -> infer_self(conversations, messages) end)
+    messages =
+      streams
+      |> Map.get(Records.stream(:messages), [])
+      |> Enum.map(fn {record, scope_id} ->
+        {get_in(record.source_metadata, ["channel_id"]),
+         Map.put(record.raw_payload, @scope_key, scope_id)}
+      end)
+      |> Enum.filter(fn {channel, message} ->
+        is_binary(channel) and Records.ts?(message["ts"])
+      end)
 
-      {people, people_failed} = project_people(user_records, context)
+    user_records = Map.get(streams, Records.stream(:users), [])
 
-      public =
-        Map.filter(conversations, fn {_id, conversation} -> public_channel?(conversation) end)
+    users =
+      Map.new(user_records, fn {record, _scope_id} ->
+        {record.raw_payload["id"], record.raw_payload}
+      end)
 
-      public_messages =
-        Enum.filter(messages, fn {channel, _} -> Map.has_key?(public, channel) end)
+    self_user_id =
+      Keyword.get_lazy(opts, :self_user_id, fn -> infer_self(conversations, messages) end)
 
-      {conversation_rows, conversations_failed} =
-        project_conversations(
-          public,
-          conversation_scopes,
-          public_messages,
-          users,
-          people,
-          context
-        )
+    {people, people_failed} = project_people(user_records, context)
 
-      {projected, messages_failed} =
-        public_messages
-        |> Enum.filter(fn {_channel, message} -> message["subtype"] in @projected_subtypes end)
-        |> Enum.map(&project_message(&1, conversation_rows, people, self_user_id, context))
-        |> Enum.split_with(&match?({:ok, _}, &1))
+    public =
+      Map.filter(conversations, fn {_id, conversation} -> public_channel?(conversation) end)
 
-      {:ok,
-       %{
-         conversations: map_size(conversation_rows),
-         messages: length(projected),
-         people: map_size(people),
-         failed: people_failed + conversations_failed + length(messages_failed)
-       }}
-    end
+    public_messages =
+      Enum.filter(messages, fn {channel, _} -> Map.has_key?(public, channel) end)
+
+    {conversation_rows, conversations_failed} =
+      project_conversations(
+        public,
+        conversation_scopes,
+        public_messages,
+        users,
+        people,
+        context
+      )
+
+    {projected, messages_failed} =
+      public_messages
+      |> Enum.filter(fn {_channel, message} -> message["subtype"] in @projected_subtypes end)
+      |> Enum.map(&project_message(&1, conversation_rows, people, self_user_id, context))
+      |> Enum.split_with(&match?({:ok, _}, &1))
+
+    %{
+      conversations: map_size(conversation_rows),
+      messages: length(projected),
+      people: map_size(people),
+      failed: people_failed + conversations_failed + length(messages_failed)
+    }
   end
 
   # --- people ---------------------------------------------------------------------
@@ -407,7 +406,12 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
           external_id: Records.conversation_id(context.linked_account_id, channel),
           subject: subject(conversation),
           participants: participants,
-          erasure_scope_id: Map.fetch!(scopes, channel)
+          erasure_scope_id: Map.fetch!(scopes, channel),
+          # INSERT-time only, as on messages: owner columns are not upsert fields.
+          owner_id: context.owner_id,
+          owner_type: :user,
+          owning_user_id: context.owner_id,
+          owning_business_unit_id: context.business_unit_id
         },
         tenant: context.tenant_id,
         authorize?: false
@@ -528,6 +532,7 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
 
   defp context(account) do
     %{
+      linked_accounts: %{account.id => account},
       linked_account_id: account.id,
       owner_id: account.owner_id,
       business_unit_id: account.owning_business_unit_id,

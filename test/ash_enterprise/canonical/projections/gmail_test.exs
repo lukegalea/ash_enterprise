@@ -23,14 +23,14 @@ defmodule AshEnterprise.Canonical.Projections.GmailTest do
 
   defmodule AdmitAll do
     @moduledoc false
-    @behaviour AshEnterprise.Canonical.Projections.Gmail.ZoneGate
+    @behaviour AshEnterprise.Canonical.Projections.ZoneGate
     @impl true
     def admit(_source, _context), do: :ok
   end
 
   defmodule AdmitTagged do
     @moduledoc false
-    @behaviour AshEnterprise.Canonical.Projections.Gmail.ZoneGate
+    @behaviour AshEnterprise.Canonical.Projections.ZoneGate
     @impl true
     def admit(%{source_metadata: %{"residency" => "admissible"}}, _context), do: :ok
     def admit(_source, _context), do: {:deny, :untagged}
@@ -157,36 +157,37 @@ defmodule AshEnterprise.Canonical.Projections.GmailTest do
              ])
   end
 
-  test "the organization-owned conversation is a bare thread key: no subject, no participants",
+  test "the conversation is the owner's: subject and participants, sealed under the scope",
        ctx do
     Application.put_env(:ash_enterprise, @projection_env, zone_gate: AdmitAll)
 
-    # A row an earlier projection filled with mailbox content is cleared.
-    Conversation.upsert_from_source!(
-      %{
-        external_system: "gmail",
-        external_id: Sync.external_id(ctx.linked.id, "thread-a-#{ctx.unique}"),
-        subject: "SYNTHETIC-SUBJECT-A",
-        participants: %{"emails" => ["sender.one@example.synthetic.test"]},
-        erasure_scope_id:
-          AshEnterprise.Erasure.scope_by_ref!(:connection, ctx.linked.id, authorize?: false).id
-      },
-      tenant: ctx.org.id,
-      authorize?: false
-    )
-
     assert {:ok, _counts} = Projection.replay(owner: ctx.owner, tenant: ctx.org)
 
-    conversations = canonical(ctx).conversations
-    assert length(conversations) == 2
+    thread_a = conversation!(ctx, ctx.linked, "thread-a-#{ctx.unique}")
+    assert thread_a.owner_id == ctx.owner.id
+    assert thread_a.subject == "SYNTHETIC-SUBJECT-A"
 
-    for conversation <- conversations do
-      assert conversation.subject == nil
-      assert conversation.participants == %{}
-    end
+    assert thread_a.participants["emails"] ==
+             Enum.sort([
+               "cc@example.synthetic.test",
+               GmailSyntheticMailbox.owner(),
+               "sender.one@example.synthetic.test"
+             ])
 
-    refute inspect(conversations) =~ "SYNTHETIC"
-    refute inspect(conversations) =~ "synthetic.test"
+    assert length(thread_a.participants["person_ids"]) == 3
+
+    scope = AshEnterprise.Erasure.scope_by_ref!(:connection, ctx.linked.id, authorize?: false)
+    assert thread_a.erasure_scope_id == scope.id
+
+    # Sealed at rest: the table holds ciphertext, never the subject.
+    %{rows: [[ciphertext]]} =
+      AshEnterprise.Repo.query!(
+        "SELECT encrypted_subject FROM canonical_conversations WHERE id = $1::uuid",
+        [Ecto.UUID.dump!(thread_a.id)]
+      )
+
+    assert is_binary(ciphertext)
+    refute String.contains?(ciphertext, "SYNTHETIC-SUBJECT-A")
   end
 
   test "replay is deterministic: a second pass converges on the same rows", ctx do

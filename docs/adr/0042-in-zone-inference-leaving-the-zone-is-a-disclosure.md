@@ -1,6 +1,7 @@
 # ADR 0042 — In-zone inference; leaving the zone is a disclosure
 
-- **Status:** accepted, not built (2026-09-28)
+- **Status:** accepted (2026-09-28); admission half built and in use for Gmail and Slack projection in the dogfood
+  deployment (2026-10-12); the flow rule — leaving the zone is a disclosure — not built
 - **Date:** 2026-09-27
 - **Amended:** 2026-09-28 — rewritten zone-first. The residency binary becomes a declared zone with a jurisdiction and
   a classification ceiling; per-jurisdiction stacks, masking and hosted use are deferred, each with a named trigger;
@@ -214,3 +215,44 @@ would take a superseding record, access this programme does not have, and the di
 describes; the change to the resolver would be the smallest part. Relaxing the admission rule is a change to the zone
 declaration, recorded like the declaration itself. Dropping the local runtime is removing a process from the zone and a
 profile from configuration; the ledger keeps every answer it already recorded.
+
+## Implementation note (2026-10-12)
+
+**Built: the admission half, for Gmail and Slack.** Approved by the operator on 2026-10-12 ("Let's accept ADR 0042 …
+DONE. Approved.").
+
+- **Zone declarations** are data (`AshEnterprise.Zones.Zone`, one JSON file per zone, listed under
+  `config :ash_enterprise, AshEnterprise.Zones, declarations: [...]`), checked by the pure rule
+  `AshEnterprise.Zones.Admission`. The template ships one example (`priv/zones/examples/ontario.json`) and no real
+  declaration; a deployment's declaration lives with that deployment, outside the repository.
+- **Tags at the source.** Every record landed through a linked account carries that account's `data_class` and
+  `residency` (`AshEnterprise.Integration.LinkedAccount`, set by the operator with `:tag_for_zone` /
+  `mix ash_enterprise.integration.tag`, audited like any update). Tags are the operator's statement about the
+  account, never inferred from content. Both start nil; an untagged account's records are refused.
+- **The gate.** `AshEnterprise.Canonical.Projections.ZoneAdmission` admits a landed record iff `Zones.admit/3` passes
+  for the canonical store's configured zone and the record's tags. The Gmail and Slack projections ask it per record
+  (`config ..., Projections.Gmail / .Slack, zone_gate: ...`); the template default is `ZoneGate.DenyAll`. Refusals are
+  atoms, counted by reason and logged as counts — never ids or content.
+- **Owner-only reads.** What those projections write — `Canonical.Conversation` (now user-owned), `Message`,
+  `Person` — is owner-only (`AshEnterprise.Security.Privilege.owner_only?/1`): grantable at `:basic` and no wider, so
+  no Administrator and no manager through hierarchy security reads another user's mail or Slack. Existing wider
+  grants are narrowed by `Seeder.seed_privileges/0`.
+- **In use** in the operator's dogfood deployment: a declared single-operator zone (jurisdiction `CA-ON`, ceiling
+  `customer_confidential`, `US` inadmissible) whose controls are recorded as *operator to confirm* until verified; a
+  personal Gmail and Google Calendar tagged `internal` / `CA`, and a company Slack tagged `customer_confidential` /
+  `CA` (residency confirmed by the operator, 2026-10-12).
+
+**Deviations from the decision as written.**
+
+- Admission is checked where a record is **projected into the canonical store**, not where it first lands. Raw
+  provider records still land in `Ingestion.SourceObject` before any admission check — sealed per linked account
+  (ADR 0024), operator-only, never readable by a tenant role. The decision puts the check at the first write; moving
+  it to the land path (refusing an untagged account's sync outright) is pending.
+- Tags live on the linked account and are derived for each record, rather than stored on every row. A re-tag changes
+  what the next projection admits; it does not withdraw rows already projected (shred the scope for that).
+
+**Not built.** The flow rule and everything on the "leaving the zone" side: no profile resolver checks a target's
+zone, there is no egress log, and no model or agent path reads the admitted data. The jurisdiction dimension on ledger
+rows, caches and metrics; the Ollaya contract test; the deferred items. A development agent that reads the zone's
+database through a development tool is still outside the zone, closed by practice only, as "Our own development agents
+are outside the zone" says.

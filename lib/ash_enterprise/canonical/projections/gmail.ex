@@ -21,10 +21,13 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
   ## Gated by zone admission, deny by default (ADR 0042)
 
   Every landed record is put to the configured
-  `AshEnterprise.Canonical.Projections.Gmail.ZoneGate` before anything is
-  derived from it. The default gate admits nothing, so out of the box this
-  module reads, refuses and writes **no** canonical row. A refused record is
-  counted, never projected and never partially projected.
+  `AshEnterprise.Canonical.Projections.ZoneGate` before anything is derived
+  from it. The default gate admits nothing, so out of the box this module
+  reads, refuses and writes **no** canonical row. A deployment that declares
+  the canonical store's zone points `:zone_gate` at
+  `AshEnterprise.Canonical.Projections.ZoneAdmission`, which admits a record
+  on its linked account's tags. A refused record is counted by reason
+  (`denied_by`), never projected and never partially projected.
 
   ## Erasure (ADR 0024)
 
@@ -65,7 +68,8 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
   | Canonical | From the `users.messages.get` payload |
   |---|---|
   | `Conversation.external_id` | `<linked_account_id>:<threadId>` |
-  | `Conversation.subject`, `.participants` | **not projected** (see below) |
+  | `Conversation.subject` | the thread's first message's `Subject` header |
+  | `Conversation.participants` | every address in the thread, and the owner's people among them |
   | `Message.external_id` | `<linked_account_id>:<id>` |
   | `Message.sent_at` | `internalDate` (epoch ms) |
   | `Message.direction` | `:outbound` when labelled `SENT`, else `:inbound` |
@@ -73,14 +77,12 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
   | `Message.sender` | the `From` address's Person, when that Person is the owner's |
   | `Person.email` / `.name` | each address, with the display name when one was given |
 
-  ## What stays off shared rows
+  ## Whose rows these are
 
-  `Conversation` is organization-owned: anyone in the tenant with a
-  Conversation read grant reaches it at organization depth. A personal
-  thread's subject and participant list are mailbox content, so the Gmail
-  conversation is a bare thread key (external identity only; `subject` nil,
-  `participants` empty) until a user-owned conversation exists. Content stays
-  on the owner's own `Message` rows.
+  `Conversation`, `Message` and `Person` are user-owned and owner-only
+  (`AshEnterprise.Security.Privilege.owner_only?/1`): the replay owner reads
+  them, and no role grants another user more than their own. The thread's
+  subject and participants are sealed under the scope like the bodies.
 
   `Person` is user-owned but unique on email per tenant, and its owner is set
   at insert only. A Person another user already owns is neither renamed from
@@ -99,7 +101,7 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
   """
 
   alias AshEnterprise.Canonical.{Conversation, Message, Person}
-  alias AshEnterprise.Canonical.Projections.Write
+  alias AshEnterprise.Canonical.Projections.{Write, ZoneGate}
   alias AshEnterprise.Erasure.{LiveScope, Shredded}
   alias AshEnterprise.Ingestion.SourceObject
   alias AshEnterprise.Integration.Gmail.Sync
@@ -121,6 +123,7 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
           unscoped: non_neg_integer(),
           admitted: non_neg_integer(),
           denied: non_neg_integer(),
+          denied_by: %{atom() => pos_integer()},
           failed: non_neg_integer(),
           conversations: non_neg_integer(),
           messages: non_neg_integer(),
@@ -146,14 +149,17 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
   @spec project([map()], keyword()) :: {:ok, counts()}
   def project(sources, opts) do
     context = context(opts)
-    gate = zone_gate()
+    gate = ZoneGate.configured(__MODULE__)
     sources = Enum.filter(sources, &(stream_of(&1) == @stream))
-    accounts = owned_accounts(context)
+    linked_accounts = owned_accounts(context)
+    accounts = linked_accounts |> Map.keys() |> MapSet.new()
+    context = Map.put(context, :linked_accounts, linked_accounts)
 
     {owned, foreign} = Enum.split_with(sources, &MapSet.member?(accounts, account_of(&1)))
     {shredded, readable} = Enum.split_with(owned, &Shredded.shredded?(&1.raw_payload))
     {scoped, unscoped} = Enum.split_with(readable, &is_binary(Map.get(&1, :erasure_scope_id)))
-    {admitted, denied} = Enum.split_with(scoped, &(gate.admit(&1, context) == :ok))
+    {admitted, denied_by} = ZoneGate.partition(gate, scoped, context)
+    ZoneGate.log_refusals(:gmail, denied_by)
 
     {parsed, unparseable} =
       admitted
@@ -202,7 +208,8 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
        shredded: totals.shredded,
        unscoped: length(unscoped),
        admitted: length(admitted),
-       denied: length(denied),
+       denied: denied_by |> Map.values() |> Enum.sum(),
+       denied_by: denied_by,
        failed: totals.failed,
        conversations: totals.conversations,
        messages: totals.messages,
@@ -230,7 +237,7 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
 
   defp write_thread(thread_id, messages, scope_id, context) do
     with {:ok, people} <- upsert_people(messages, context),
-         {:ok, conversation} <- write_conversation(thread_id, scope_id, context),
+         {:ok, conversation} <- write_conversation(thread_id, messages, people, scope_id, context),
          :ok <- upsert_messages(messages, conversation, people, context) do
       {:ok, {:projected, people |> Map.values() |> Enum.map(& &1.id)}}
     end
@@ -257,20 +264,31 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
     end)
   end
 
-  # Organization-owned, so a bare thread key: subject and participants are
-  # mailbox content. Written empty, which also clears a row an earlier
-  # projection filled.
-  defp write_conversation(thread_id, scope_id, context) do
+  # The owner's, sealed under the thread's scope: the first message's subject,
+  # and every address in the thread with the owner's people among them.
+  defp write_conversation(thread_id, messages, people, scope_id, context) do
+    emails =
+      messages
+      |> Enum.flat_map(&[&1.from | &1.to ++ &1.cc])
+      |> Enum.reject(&is_nil/1)
+      |> Enum.map(& &1.email)
+      |> Enum.uniq()
+      |> Enum.sort()
+
     Conversation
     |> Ash.Changeset.for_create(
       :upsert_from_source,
       %{
         external_system: @external_system,
         external_id: thread_id,
-        subject: nil,
-        participants: %{},
+        subject: hd(messages).subject,
+        participants: %{
+          "emails" => emails,
+          "person_ids" => people |> Map.values() |> Enum.map(& &1.id) |> Enum.sort()
+        },
         erasure_scope_id: scope_id
-      },
+      }
+      |> Map.merge(owner_attributes(context)),
       tenant: context.tenant_id,
       authorize?: false
     )
@@ -398,6 +416,7 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
       id: Sync.external_id(account, gmail_id),
       erasure_scope_id: source.erasure_scope_id,
       thread_id: Sync.external_id(account, present(payload["threadId"]) || gmail_id),
+      subject: headers |> Map.get("subject") |> present(),
       from: headers |> Map.get("from") |> addresses() |> List.first(),
       to: headers |> Map.get("to") |> addresses(),
       cc: headers |> Map.get("cc") |> addresses(),
@@ -526,12 +545,6 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
 
   # --- config and context ------------------------------------------------------
 
-  defp zone_gate do
-    :ash_enterprise
-    |> Application.get_env(__MODULE__, [])
-    |> Keyword.get(:zone_gate, AshEnterprise.Canonical.Projections.Gmail.DenyAll)
-  end
-
   defp context(opts) do
     owner = Keyword.fetch!(opts, :owner)
     tenant = Keyword.fetch!(opts, :tenant)
@@ -577,7 +590,7 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
   defp owned_accounts(context) do
     context.owner_id
     |> LinkedAccount.owned_by!(@integration, tenant: context.tenant_id, authorize?: false)
-    |> MapSet.new(& &1.id)
+    |> Map.new(&{&1.id, &1})
   end
 
   defp present(value) when is_binary(value) and value != "", do: value

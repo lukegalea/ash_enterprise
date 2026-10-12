@@ -8,7 +8,7 @@ defmodule Mix.Tasks.AshEnterprise.Integration.Accounts do
 
       mix ash_enterprise.integration.accounts --email you@example.com
 
-      9b0f…  google-mail  work  active  connection ****a1b2  scope connection:9b0f… (active)
+      9b0f…  google-mail  work  active  connection ****a1b2  zone tags internal/CA  scope connection:9b0f… (active)
 
   The scope is `connection:<linked account id>`: pass it to
   `mix ash_enterprise.erasure.shred` to erase everything that came in through
@@ -66,6 +66,7 @@ defmodule Mix.Tasks.AshEnterprise.Integration.Accounts do
         account.label || "-",
         account.lifecycle_status,
         "connection #{Console.masked(account.connection_id)}",
+        "zone tags #{account.data_class || "-"}/#{account.residency || "-"}",
         "scope #{scope} (#{status})"
       ],
       "  "

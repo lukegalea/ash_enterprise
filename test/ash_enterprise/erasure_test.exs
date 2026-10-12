@@ -352,6 +352,10 @@ defmodule AshEnterprise.ErasureTest do
       conversation =
         Conversation.upsert_from_source!(
           %{
+            owner_id: ctx.operator_user.id,
+            owner_type: :user,
+            owning_user_id: ctx.operator_user.id,
+            owning_business_unit_id: ctx.bu.id,
             subject: "#leadership-private",
             participants: %{"emails" => ["ceo@vendorpm.example"]},
             external_system: "slack",

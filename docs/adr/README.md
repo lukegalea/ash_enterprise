@@ -73,7 +73,7 @@ The concrete exit: which files change, and how much work it is.
 | [0039](0039-judgments-are-declared-questions.md) | Judgments are declared questions | accepted, not built (2026-09-28) |
 | [0040](0040-record-dont-recompute.md) | Record, don't recompute | accepted, not built (2026-09-28) |
 | [0041](0041-thresholds-are-dmn-earned-by-calibration.md) | Thresholds are DMN, earned by calibration | accepted, not built (2026-09-28) |
-| [0042](0042-in-zone-inference-leaving-the-zone-is-a-disclosure.md) | In-zone inference; leaving the zone is a disclosure | accepted, not built (2026-09-28) |
+| [0042](0042-in-zone-inference-leaving-the-zone-is-a-disclosure.md) | In-zone inference; leaving the zone is a disclosure | accepted; admission built for Gmail/Slack projection (2026-10-12), flow rule not built |
 | [0043](0043-automation-authority-is-a-grant.md) | Automation authority is a grant | accepted, not built (2026-09-28) |
 | [0044](0044-documents-are-addressed-atoms-evidence-is-an-assertion.md) | Documents are addressed atoms; evidence is an assertion | accepted, not built (2026-09-28) |
 | [0045](0045-system-one-in-tooling-is-advisory.md) | System One in developer and agent tooling is advisory | accepted, not built (2026-09-28) |

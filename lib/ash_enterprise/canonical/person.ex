@@ -9,10 +9,12 @@ defmodule AshEnterprise.Canonical.Person do
   address is not linked at all; a duplicate email merges automatically by
   upsert, and nobody pretends that is entity resolution.
 
-  PERSONAL DATA (ADR 0042): when the Gmail/Slack verticals start projecting
-  correspondents from real mailboxes, zone admission must already gate the
-  SourceObject land path. See the TODO on
-  `AshEnterprise.Canonical.Projection` before wiring those projectors.
+  PERSONAL DATA (ADR 0042): the Gmail and Slack projectors write
+  correspondents only from records their zone gate admits
+  (`AshEnterprise.Canonical.Projections.ZoneGate`). **Owner-only**: no role
+  can be granted more than `:basic` on it
+  (`AshEnterprise.Security.Privilege.owner_only?/1`), so a person row is
+  readable by the user whose sources produced it and nobody else.
 
   ## Erasure (ADR 0024)
 

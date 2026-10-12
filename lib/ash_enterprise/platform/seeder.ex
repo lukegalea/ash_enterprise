@@ -48,6 +48,10 @@ defmodule AshEnterprise.Platform.Seeder do
     # on them (see `revoke_operator_privileges_from_administrators/0`).
     revoke_operator_privileges_from_administrators()
 
+    # ...and where a grant made before a resource became owner-only is
+    # narrowed to the one depth it may now hold.
+    narrow_owner_only_grants()
+
     written
   end
 
@@ -55,7 +59,7 @@ defmodule AshEnterprise.Platform.Seeder do
     for resource <- platform_resources(),
         verb <- AshEnterprise.Security.AccessRight.verbs() do
       ownership = ownership_of(resource)
-      legal = Security.Privilege.legal_depths(ownership)
+      legal = Security.Privilege.legal_depths_for(resource, ownership)
 
       Security.Privilege
       |> Ash.Changeset.for_create(
@@ -78,7 +82,8 @@ defmodule AshEnterprise.Platform.Seeder do
 
   @doc """
   Provisions a tenant: organization, root business unit, default team, an
-  administrator role granting everything at `:global`, and an admin user.
+  administrator role granting everything at `:global` (bar the operator-only
+  privileges, and `:basic` on the owner-only ones), and an admin user.
 
   Returns `%{organization: _, business_unit: _, role: _, user: _}`.
   """
@@ -184,6 +189,46 @@ defmodule AshEnterprise.Platform.Seeder do
       |> Ash.read!(actor: actor)
       |> Enum.map(fn grant ->
         Ash.destroy!(grant, actor: actor, tenant: grant.organization_id)
+      end)
+      |> length()
+    end
+  end
+
+  @doc """
+  Narrows every role grant on an owner-only resource
+  (`AshEnterprise.Security.Privilege.owner_only?/1`) to `:basic`, in every
+  tenant.
+
+  Owner-only resources hold one person's own mail and Slack. A grant wider
+  than `:basic` on them — an Administrator's `:global` from before they were
+  owner-only — reaches every user's rows in the tenant. Run by
+  `seed_privileges/0` on every deploy, after the catalogue is rewritten.
+  Idempotent; returns the number of grants narrowed.
+  """
+  @spec narrow_owner_only_grants() :: non_neg_integer()
+  def narrow_owner_only_grants do
+    actor = SystemActor.seed()
+
+    owner_only_ids =
+      Security.Privilege
+      |> Ash.Query.filter(resource_name in ^Security.Privilege.owner_only_resources())
+      |> Ash.read!(actor: actor)
+      |> Enum.map(& &1.id)
+
+    if owner_only_ids == [] do
+      0
+    else
+      # Across tenants, as revoke_operator_privileges_from_administrators/0.
+      Security.RolePrivilege
+      |> Ash.Query.filter(privilege_id in ^owner_only_ids and depth != :basic)
+      |> Ash.read!(actor: actor)
+      |> Enum.map(fn grant ->
+        grant
+        |> Ash.Changeset.for_update(:update, %{depth: :basic},
+          actor: actor,
+          tenant: grant.organization_id
+        )
+        |> Ash.update!()
       end)
       |> length()
     end
@@ -308,16 +353,20 @@ defmodule AshEnterprise.Platform.Seeder do
         |> MapSet.new(& &1.privilege_id)
 
       Security.Privilege
-      |> Ash.Query.filter(can_be_global == true)
       |> Ash.read!(actor: actor)
       |> Enum.reject(
-        &(Security.Privilege.operator_only?(&1.resource_name) or MapSet.member?(held, &1.id))
+        &(Security.Privilege.operator_only?(&1.resource_name) or MapSet.member?(held, &1.id) or
+            is_nil(Security.Privilege.widest_depth(&1)))
       )
       |> Enum.map(fn privilege ->
         Security.RolePrivilege
         |> Ash.Changeset.for_create(
           :create,
-          %{role_id: role.id, privilege_id: privilege.id, depth: :global},
+          %{
+            role_id: role.id,
+            privilege_id: privilege.id,
+            depth: Security.Privilege.widest_depth(privilege)
+          },
           opts
         )
         |> Ash.create!()
@@ -420,10 +469,10 @@ defmodule AshEnterprise.Platform.Seeder do
   defp force_id(changeset, nil), do: changeset
   defp force_id(changeset, id), do: Ash.Changeset.force_change_attribute(changeset, :id, id)
 
-  # An administrator role granting every privilege at :global -- but only at
-  # depths each privilege actually supports, so the grant is never one of the
-  # "reaches nothing while looking like a restriction" combinations that
-  # DepthLegalForPrivilege rejects.
+  # An administrator role granting every privilege at the widest depth it
+  # supports -- :global, except :basic on the owner-only resources -- so the
+  # grant is never one of the "reaches nothing while looking like a
+  # restriction" combinations that DepthLegalForPrivilege rejects.
   defp seed_admin_role(root, tenant, actor) do
     role =
       Security.Role
@@ -447,7 +496,8 @@ defmodule AshEnterprise.Platform.Seeder do
     grantable =
       Enum.filter(
         privileges,
-        &(&1.can_be_global and not Security.Privilege.operator_only?(&1.resource_name))
+        &(not Security.Privilege.operator_only?(&1.resource_name) and
+            not is_nil(Security.Privilege.widest_depth(&1)))
       )
 
     if grantable == [] do
@@ -466,7 +516,11 @@ defmodule AshEnterprise.Platform.Seeder do
       Security.RolePrivilege
       |> Ash.Changeset.for_create(
         :create,
-        %{role_id: role.id, privilege_id: privilege.id, depth: :global},
+        %{
+          role_id: role.id,
+          privilege_id: privilege.id,
+          depth: Security.Privilege.widest_depth(privilege)
+        },
         actor: actor,
         tenant: tenant
       )

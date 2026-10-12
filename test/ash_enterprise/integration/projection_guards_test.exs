@@ -31,7 +31,7 @@ defmodule AshEnterprise.Integration.ProjectionGuardsTest do
   defmodule AdmitAll do
     @moduledoc false
     # Test-only zone admission for Gmail; synthetic data only.
-    @behaviour AshEnterprise.Canonical.Projections.Gmail.ZoneGate
+    @behaviour AshEnterprise.Canonical.Projections.ZoneGate
     @impl true
     def admit(_source, _context), do: :ok
   end
@@ -84,7 +84,16 @@ defmodule AshEnterprise.Integration.ProjectionGuardsTest do
 
     setup ctx do
       declare_slack_zone(ctx.tmp_dir)
-      account = link!(ctx, "slack")
+
+      # The operator's tags for the account: admissible in the test zone.
+      account =
+        ctx
+        |> link!("slack")
+        |> LinkedAccount.tag_for_zone!(%{data_class: :customer_confidential, residency: "CA"},
+          tenant: ctx.org.id,
+          authorize?: false
+        )
+
       {:ok, scope} = Landing.open(account)
       %{account: account, scope: scope}
     end
@@ -335,17 +344,15 @@ defmodule AshEnterprise.Integration.ProjectionGuardsTest do
 
     previous_zones = Application.get_env(:ash_enterprise, AshEnterprise.Zones)
     previous_slack = Application.get_env(:ash_enterprise, Projections.Slack)
+    previous_gate = Application.get_env(:ash_enterprise, Projections.ZoneAdmission)
     Application.put_env(:ash_enterprise, AshEnterprise.Zones, declarations: [path])
-
-    Application.put_env(:ash_enterprise, Projections.Slack,
-      zone: "guards-slack-zone",
-      data_class: :customer_confidential,
-      residency: "CA"
-    )
+    Application.put_env(:ash_enterprise, Projections.ZoneAdmission, zone: "guards-slack-zone")
+    Application.put_env(:ash_enterprise, Projections.Slack, zone_gate: Projections.ZoneAdmission)
 
     on_exit(fn ->
       restore_env(AshEnterprise.Zones, previous_zones)
       restore_env(Projections.Slack, previous_slack)
+      restore_env(Projections.ZoneAdmission, previous_gate)
     end)
   end
 

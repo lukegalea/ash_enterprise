@@ -41,11 +41,12 @@ defmodule AshEnterprise.Canonical.Projection do
 
   ## Zones — READ BEFORE ADDING A PROJECTOR (ADR 0042)
 
-  Gmail and Slack SourceObjects are personal data NOT admitted into any
-  declared zone — zone admission is not yet on the SourceObject land path (an
-  E1 follow-up owns that). Their projectors live in
-  `AshEnterprise.Canonical.Projections.Gmail` / `.Slack`, behind zone gates
-  that deny by default; do not add them here. The `:calendar` projector is
+  Gmail and Slack SourceObjects are personal data. Their projectors live in
+  `AshEnterprise.Canonical.Projections.Gmail` / `.Slack`, behind a configured
+  zone gate (`AshEnterprise.Canonical.Projections.ZoneGate`) that denies by
+  default; do not add them here. Admission is checked when a record is
+  projected into the canonical store, on its linked account's tags; the raw
+  landing into `SourceObject` (sealed, operator-only) is not gated yet. The `:calendar` projector is
   exempt: its SourceObjects come from the deterministic fixture tap, synthetic
   data with no residency exposure. (The operator's real Google Calendar is
   `AshEnterprise.Canonical.Projections.Calendar`, `external_system:

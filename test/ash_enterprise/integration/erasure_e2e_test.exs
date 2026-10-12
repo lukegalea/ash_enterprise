@@ -47,17 +47,9 @@ defmodule AshEnterprise.Integration.ErasureE2ETest do
     AshEnterprise.Integration.Gmail.Sync,
     AshEnterprise.Canonical.Projections.Gmail,
     AshEnterprise.Canonical.Projections.Slack,
+    AshEnterprise.Canonical.Projections.ZoneAdmission,
     AshEnterprise.Zones
   ]
-
-  defmodule AdmitAll do
-    @moduledoc false
-    # Test-only zone admission: ADR 0042's check is not built, and the default
-    # gate admits nothing. Synthetic data only.
-    @behaviour AshEnterprise.Canonical.Projections.Gmail.ZoneGate
-    @impl true
-    def admit(_source, _context), do: :ok
-  end
 
   setup do
     previous_secret = System.get_env("NANGO_SECRET_KEY")
@@ -217,7 +209,8 @@ defmodule AshEnterprise.Integration.ErasureE2ETest do
   # --- Gmail ---------------------------------------------------------------------------
 
   describe "Gmail" do
-    test "sync, land, project behind a test-only admit gate, shred: nothing readable is left",
+    @tag :tmp_dir
+    test "sync, land, admit on the account's tags, project, shred: nothing readable is left",
          ctx do
       account = link_via_task!(ctx, "google-mail", "conn-mail-e2e-#{ctx.unique}")
 
@@ -244,22 +237,44 @@ defmodule AshEnterprise.Integration.ErasureE2ETest do
       assert {:ok, %{admitted: 0, messages: 0}} =
                Projections.Gmail.replay(owner: ctx.user, tenant: ctx.org)
 
-      Application.put_env(:ash_enterprise, Projections.Gmail, zone_gate: AdmitAll)
+      # The real gate, a declared zone, and an untagged account: refused.
+      declare_test_zone(ctx.tmp_dir)
 
-      assert {:ok, %{admitted: 2, messages: 2}} =
+      assert {:ok, %{admitted: 0, messages: 0, denied_by: %{untagged_data_class: 2}}} =
+               Projections.Gmail.replay(owner: ctx.user, tenant: ctx.org)
+
+      # The operator tags the account; its records are admitted on those tags.
+      tag_via_task!(ctx, account, "internal", "CA")
+
+      assert {:ok, %{admitted: 2, denied: 0, messages: 2, conversations: 2}} =
                Projections.Gmail.replay(owner: ctx.user, tenant: ctx.org)
 
       messages = messages(ctx)
       assert Enum.all?(messages, &(&1.erasure_scope_id == scope.id))
       assert Enum.any?(messages, &(&1.body == "E2E-SYNTHETIC-BODY-1 the churn number"))
       assert Enum.all?(conversations(ctx), &(&1.erasure_scope_id == scope.id))
+      assert Enum.all?(conversations(ctx), &(&1.owner_id == ctx.user.id))
+      assert Enum.any?(conversations(ctx), &(&1.subject == "E2E-SYNTHETIC-SUBJECT-1"))
       assert_no_plaintext(content)
 
       shred_via_task!(ctx, account)
 
       assert Enum.all?(landed("gmail"), &Shredded.shredded?(&1.raw_payload))
       assert Enum.all?(messages(ctx), &Shredded.shredded?(&1.body))
+
+      assert Enum.all?(
+               conversations(ctx),
+               &(Shredded.shredded?(&1.subject) and Shredded.shredded?(&1.participants))
+             )
+
       assert_no_plaintext(content)
+
+      # The documented gap (runbook, "Not reached"): a correspondent's Person
+      # row outlives the shred -- owner-only, but not sealed.
+      assert Person
+             |> Ash.read!(tenant: ctx.org.id, authorize?: false)
+             |> Enum.any?(&(to_string(&1.email) == "e2e.sender1@example.synthetic.test"))
+
       assert_no_audit_event_spells(content)
 
       assert {:ok, %{shredded: 2, admitted: 0, messages: 0}} =
@@ -279,7 +294,7 @@ defmodule AshEnterprise.Integration.ErasureE2ETest do
 
   describe "Slack" do
     @tag :tmp_dir
-    test "sync, land, project behind a test-only zone, shred: nothing readable is left",
+    test "sync, land, admit on the account's tags, project, shred: nothing readable is left",
          ctx do
       account = link_via_task!(ctx, "slack", "conn-slack-e2e-#{ctx.unique}")
       stub_slack()
@@ -291,16 +306,20 @@ defmodule AshEnterprise.Integration.ErasureE2ETest do
       assert length(landed("slack")) == 5
       assert Enum.all?(landed("slack"), &(&1.erasure_scope_id == scope.id))
 
-      # Deny by default: no zone declared, nothing projected.
-      assert {:error, {:not_admitted, _}} = Projections.Slack.replay(ctx.actor, account.id)
+      # Deny by default: no gate wired, nothing projected.
+      assert {:ok, %{admitted: 0, conversations: 0, messages: 0}} =
+               Projections.Slack.replay(ctx.actor, account.id)
 
+      # A zone, the real gate, and the operator's tags for the account.
       declare_test_zone(ctx.tmp_dir)
+      tag_via_task!(ctx, account, "customer_confidential", "CA")
 
-      assert {:ok, %{conversations: 1, messages: 2}} =
+      assert {:ok, %{admitted: 5, denied: 0, conversations: 1, messages: 2}} =
                Projections.Slack.replay(ctx.actor, account.id)
 
       assert [conversation] = conversations(ctx)
       assert conversation.erasure_scope_id == scope.id
+      assert conversation.owner_id == ctx.user.id
       assert conversation.subject == "#e2e-synthetic-channel"
       assert Enum.all?(messages(ctx), &(&1.erasure_scope_id == scope.id))
       assert Enum.any?(messages(ctx), &(&1.body == "E2E-SYNTHETIC-SLACK-1 VendorPM pricing"))
@@ -772,8 +791,8 @@ defmodule AshEnterprise.Integration.ErasureE2ETest do
     ]
   end
 
-  # A zone for the test only (ADR 0042 admission is not wired); the default
-  # remains deny.
+  # A zone for the test only, declared as the canonical store's, with the
+  # real gate on both projections. The default remains deny.
   defp declare_test_zone(tmp_dir) do
     today = Date.utc_today()
 
@@ -794,10 +813,25 @@ defmodule AshEnterprise.Integration.ErasureE2ETest do
 
     Application.put_env(:ash_enterprise, AshEnterprise.Zones, declarations: [path])
 
-    Application.put_env(:ash_enterprise, Projections.Slack,
-      zone: "e2e-slack-zone",
-      data_class: :customer_confidential,
-      residency: "CA"
-    )
+    Application.put_env(:ash_enterprise, Projections.ZoneAdmission, zone: "e2e-slack-zone")
+    Application.put_env(:ash_enterprise, Projections.Gmail, zone_gate: Projections.ZoneAdmission)
+    Application.put_env(:ash_enterprise, Projections.Slack, zone_gate: Projections.ZoneAdmission)
+  end
+
+  # The operator's tags for an account, through the operator task.
+  defp tag_via_task!(ctx, account, data_class, residency) do
+    Mix.Tasks.AshEnterprise.Integration.Tag.run([
+      "--email",
+      ctx.email,
+      "--linked-account",
+      account.id,
+      "--data-class",
+      data_class,
+      "--residency",
+      residency
+    ])
+
+    assert_received {:mix_shell, :info, [line]}
+    assert line =~ "data_class=#{data_class} residency=#{residency}"
   end
 end

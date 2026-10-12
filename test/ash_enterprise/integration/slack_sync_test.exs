@@ -19,6 +19,7 @@ defmodule AshEnterprise.Integration.SlackSyncTest do
 
   alias AshEnterprise.Canonical.{Conversation, Message, Person}
   alias AshEnterprise.Canonical.Projections.Slack, as: Projection
+  alias AshEnterprise.Canonical.Projections.ZoneAdmission
   alias AshEnterprise.Ingestion.SourceObject
   alias AshEnterprise.Integration.{Landing, LinkedAccount, Slack}
   alias AshEnterprise.Integration.Nango.Proxy
@@ -756,22 +757,25 @@ defmodule AshEnterprise.Integration.SlackSyncTest do
     test "is denied by default: no zone, nothing projected", ctx do
       assert {:ok, _} = step(ctx)
 
-      assert {:error, {:not_admitted, :undeclared_zone}} = Projection.replay(ctx.alice)
+      assert {:ok, %{admitted: 0, denied: denied, messages: 0}} = Projection.replay(ctx.alice)
+      assert denied > 0
       assert Conversation.read!(tenant: ctx.org.id, authorize?: false) == []
       assert Message.read!(tenant: ctx.org.id, authorize?: false) == []
     end
 
     test "is denied when the zone cannot hold Slack's tags", ctx do
-      declare_zone(ctx.tmp_dir, data_class: :customer_confidential, residency: "US")
+      declare_zone(ctx, data_class: :customer_confidential, residency: "US")
       assert {:ok, _} = step(ctx)
 
-      assert {:error, {:not_admitted, :inadmissible_restriction}} = Projection.replay(ctx.alice)
+      assert {:ok, %{admitted: 0, denied_by: %{inadmissible_restriction: _}}} =
+               Projection.replay(ctx.alice)
+
       assert Message.read!(tenant: ctx.org.id, authorize?: false) == []
     end
 
     test "once admitted, projects public channels, their messages and emailed people deterministically",
          ctx do
-      declare_zone(ctx.tmp_dir, data_class: :customer_confidential, residency: "CA")
+      declare_zone(ctx, data_class: :customer_confidential, residency: "CA")
       assert {:ok, _} = step(ctx)
 
       assert {:ok, %{conversations: 1, messages: 3, people: 2}} = Projection.replay(ctx.alice)
@@ -815,7 +819,7 @@ defmodule AshEnterprise.Integration.SlackSyncTest do
 
     test "never writes a DM, group DM or private channel into the organization-owned table",
          ctx do
-      declare_zone(ctx.tmp_dir, data_class: :customer_confidential, residency: "CA")
+      declare_zone(ctx, data_class: :customer_confidential, residency: "CA")
 
       add_channels(ctx.world, [
         %{
@@ -1159,7 +1163,11 @@ defmodule AshEnterprise.Integration.SlackSyncTest do
     Enum.reject(texts ++ names ++ channel_names, &is_nil/1)
   end
 
-  defp declare_zone(tmp_dir, tags) do
+  # Declares a test zone as the canonical store's, points the Slack projection
+  # at the real gate, and tags Alice's Slack account with `tags` -- the
+  # operator's statement, through the account's own action.
+  defp declare_zone(ctx, tags) do
+    tmp_dir = ctx.tmp_dir
     today = Date.utc_today()
 
     declaration = %{
@@ -1184,10 +1192,20 @@ defmodule AshEnterprise.Integration.SlackSyncTest do
         else: Application.delete_env(:ash_enterprise, AshEnterprise.Zones)
     end)
 
-    Application.put_env(
-      :ash_enterprise,
-      @projection_env,
-      Keyword.merge([zone: "test-slack-zone"], tags)
+    previous_gate = Application.get_env(:ash_enterprise, ZoneAdmission)
+    Application.put_env(:ash_enterprise, ZoneAdmission, zone: "test-slack-zone")
+
+    on_exit(fn ->
+      if previous_gate,
+        do: Application.put_env(:ash_enterprise, ZoneAdmission, previous_gate),
+        else: Application.delete_env(:ash_enterprise, ZoneAdmission)
+    end)
+
+    Application.put_env(:ash_enterprise, @projection_env, zone_gate: ZoneAdmission)
+
+    LinkedAccount.tag_for_zone!(ctx.alice_slack, Map.new(tags),
+      tenant: ctx.org.id,
+      authorize?: false
     )
   end
 

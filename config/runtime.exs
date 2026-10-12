@@ -52,6 +52,35 @@ case System.get_env("PRODUCT_NAME") do
   _ -> :ok
 end
 
+# ## Zone admission (ADR 0042) -- deployment configuration
+#
+# `ZONE_DECLARATIONS`: comma-separated paths of this deployment's zone
+# declarations (`AshEnterprise.Zones`). A real declaration describes somebody's
+# infrastructure, so it lives with the deployment (a gitignored path), never
+# in this repository.
+#
+# `CANONICAL_ZONE`: the id of the declared zone the canonical store is in.
+# Setting it points the Gmail and Slack projections at the real gate
+# (`AshEnterprise.Canonical.Projections.ZoneAdmission`), which admits a landed
+# record on its linked account's tags. Unset, both keep the template default
+# and admit nothing. Never in test: tests declare their own zones.
+if config_env() != :test do
+  if declarations = System.get_env("ZONE_DECLARATIONS") do
+    config :ash_enterprise, AshEnterprise.Zones,
+      declarations: declarations |> String.split(",", trim: true) |> Enum.map(&String.trim/1)
+  end
+
+  if zone = System.get_env("CANONICAL_ZONE") do
+    config :ash_enterprise, AshEnterprise.Canonical.Projections.ZoneAdmission, zone: zone
+
+    config :ash_enterprise, AshEnterprise.Canonical.Projections.Gmail,
+      zone_gate: AshEnterprise.Canonical.Projections.ZoneAdmission
+
+    config :ash_enterprise, AshEnterprise.Canonical.Projections.Slack,
+      zone_gate: AshEnterprise.Canonical.Projections.ZoneAdmission
+  end
+end
+
 # ## Instrument profiles (ash_judgments) -- host configuration, not code
 #
 # The judgment substrate's instruments are declared HERE and only here:

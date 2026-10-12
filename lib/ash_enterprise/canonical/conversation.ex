@@ -4,9 +4,11 @@ defmodule AshEnterprise.Canonical.Conversation do
   operator logged (dogfood §11). Messages (`AshEnterprise.Canonical.Message`)
   belong to one.
 
-  PERSONAL DATA (ADR 0042): the Gmail/Slack verticals must not enable their
-  projectors until zone admission gates the SourceObject land path. See the
-  TODO on `AshEnterprise.Canonical.Projection`.
+  PERSONAL DATA (ADR 0042). Projected only from landed records a zone gate
+  admits (`AshEnterprise.Canonical.Projections.ZoneGate`), and **owner-only**:
+  user-owned, and no role can be granted more than `:basic` on it
+  (`AshEnterprise.Security.Privilege.owner_only?/1`), so a thread is readable
+  by the user it was projected for and nobody else in the tenant.
 
   Projection-derived, so `archival?`/`lifecycle?` are opted out for the same
   reasons as `AshEnterprise.Canonical.Person`: replay reconstructs, soft delete
@@ -15,7 +17,7 @@ defmodule AshEnterprise.Canonical.Conversation do
 
   use AshEnterprise.Platform.Resource,
     domain: AshEnterprise.Canonical,
-    ownership: :organization_owned,
+    ownership: :user_owned,
     tenant?: true,
     lifecycle?: false,
     archival?: false,
@@ -126,7 +128,21 @@ defmodule AshEnterprise.Canonical.Conversation do
 
     create :upsert_from_source do
       description "The replay write path: upsert on the source identity."
-      accept [:subject, :participants, :external_system, :external_id, :erasure_scope_id]
+
+      accept [
+        :subject,
+        :participants,
+        :external_system,
+        :external_id,
+        :erasure_scope_id,
+        # The ownership columns are NOT NULL; a projector has no actor to
+        # derive them from, so it passes them (as Message's does). INSERT-time
+        # only: they are not upsert fields.
+        :owner_id,
+        :owner_type,
+        :owning_user_id,
+        :owning_business_unit_id
+      ]
 
       upsert? true
       upsert_identity :unique_external

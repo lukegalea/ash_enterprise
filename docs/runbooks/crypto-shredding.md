@@ -1,7 +1,8 @@
 # Runbook: crypto-shredding an erasure scope
 
 Written 2026-10-12, against the erasure half of [ADR 0024](../adr/0024-audit-retention-and-erasure.md).
-Updated 2026-10-12 when the provider syncs (Google Calendar, Gmail, Slack via Nango, epic E4) were wired to it.
+Updated 2026-10-12 when the provider syncs (Google Calendar, Gmail, Slack via Nango, epic E4) were wired to it, and
+again the same day when Gmail and Slack projection went live behind zone admission (ADR 0042).
 Code: `AshEnterprise.Erasure` (`lib/ash_enterprise/erasure.ex` and `lib/ash_enterprise/erasure/`), and
 `AshEnterprise.Integration.Landing` / `Landing.Scoped` for the provider syncs. Tests:
 `test/ash_enterprise/erasure_test.exs`, `test/ash_enterprise/integration/erasure_e2e_test.exs` (one end-to-end shred per
@@ -56,7 +57,7 @@ shred. The label is `linked account (<integration>)` and nothing else.
 
 ```bash
 devenv shell -- mix ash_enterprise.integration.accounts --email you@example.com
-# 9b0f…  slack  work  active  connection ****a1b2  scope connection:9b0f… (active)
+# 9b0f…  slack  work  active  connection ****a1b2  zone tags customer_confidential/CA  scope connection:9b0f… (active)
 ```
 
 The last column is what `mix ash_enterprise.erasure.shred` takes. `mix ash_enterprise.erasure.scopes` lists the same
@@ -65,7 +66,11 @@ scope is still listed, but only by that id and its integration.
 
 The scope opens when the account is linked with `mix ash_enterprise.integration.link` (or at its first sync), so it is
 shreddable before anything has landed. Gmail and Slack content lands raw (sealed) but is projected only behind a zone
-gate, which denies by default (ADR 0042 admission is not wired).
+gate (ADR 0042). The template default denies everything; a deployment that declares the canonical store's zone uses
+`AshEnterprise.Canonical.Projections.ZoneAdmission`, which admits a record on its linked account's tags
+(`mix ash_enterprise.integration.tag`). Everything projected — `Conversation`, `Message`, `Person` — is owner-only:
+readable by the account's owner and nobody else in the tenant. A shred makes the sealed columns unreadable; re-tagging
+or untagging an account does not withdraw rows already projected.
 
 ### Operator setup
 
@@ -191,7 +196,9 @@ Be honest with whoever asked for the erasure about these. Each is a real copy of
   tables hold rows, because `erasure_scope_id` is `NOT NULL`. Those rows are reconstructible (re-run the tap, then
   `Projection.replay`), so empty them first. Their old audit events are the plaintext caveat above.
 - **`Canonical.Person` rows.** Every organizer's, attendee's, sender's, recipient's and Slack member's name and email
-  address stays readable in `canonical_people`. They are not sealed: a person is shared across sources and upserts on
+  address stays readable in `canonical_people` — since 2026-10-12 including every Gmail correspondent and Slack member
+  (with a profile email) projected through zone admission. The rows are owner-only (`Privilege.owner_only?/1`), so only
+  the account's owner reads them through the application; the database still holds them in plaintext. They are not sealed: a person is shared across sources and upserts on
   email, so it cannot carry one connection's key. They are `sensitive?`, so the audit log records them as `null`, and
   removing a person is an ordinary row delete — but a shred does not do it. A `data_subject` scope with a blind-index
   identity is the intended fix; nothing writes under one yet. Two things limit the spread. A projector writes people

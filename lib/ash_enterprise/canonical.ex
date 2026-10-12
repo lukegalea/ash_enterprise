@@ -21,11 +21,12 @@ defmodule AshEnterprise.Canonical do
 
   ## Zones (ADR 0042)
 
-  `Person`, `Conversation` and `Message` are personal data. The Gmail/Slack
-  verticals must not enable their projectors until zone admission is checked on
-  the SourceObject land path; see the TODO on
-  `AshEnterprise.Canonical.Projection`. The calendar fixture is deterministic
-  synthetic data and needs no admission.
+  `Person`, `Conversation` and `Message` are personal data, and owner-only
+  (`AshEnterprise.Security.Privilege.owner_only?/1`). The Gmail and Slack
+  projectors write them only from landed records a zone gate admits
+  (`AshEnterprise.Canonical.Projections.ZoneGate`; deny by default,
+  `ZoneAdmission` for a deployment that declares the store's zone). The
+  calendar fixture is deterministic synthetic data and needs no admission.
   """
 
   use Ash.Domain,

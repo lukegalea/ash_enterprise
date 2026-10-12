@@ -48,6 +48,15 @@ defmodule AshEnterprise.Integration.LinkedAccount do
   is sealed under that scope's key. Deactivating stops the syncs; shredding the
   scope destroys the content; unlinking forgets the mapping. In that order.
 
+  ## Zone tags (ADR 0042)
+
+  `data_class` and `residency` are the tags every record landed through the
+  account carries, by derivation: zone admission
+  (`AshEnterprise.Canonical.Projections.ZoneAdmission`) reads them from here
+  for each landed record. Set with `:tag_for_zone` (or at `:link`); both start
+  nil, and an untagged account's records are refused. They are an operator's
+  statement about the account, not a classification of its content.
+
   ## Residual
 
   `:link` trusts that the connection id the actor supplies is theirs. Nango
@@ -97,6 +106,23 @@ defmodule AshEnterprise.Integration.LinkedAccount do
       sensitive? true
       constraints max_length: 128
       description "The operator's name for the account: work, personal. Never audited."
+    end
+
+    # The zone tags (ADR 0042). Everything landed through this account carries
+    # them: a landed record is admitted into a zone on its account's tags,
+    # never on a guess from its content. Nil is *untagged*, which the
+    # admission rule refuses — so an account nobody has tagged projects nothing.
+    attribute :data_class, AshEnterprise.Zones.Types.DataClass do
+      public? true
+
+      description "How sensitive everything synced through this account is (ADR 0042). Nil: untagged, refused."
+    end
+
+    attribute :residency, :string do
+      public? true
+      constraints match: AshEnterprise.Zones.Residency.pattern()
+
+      description ~S|Where its data may be: "unrestricted" or an ISO 3166 code ("CA"). Nil: untagged, refused.|
     end
 
     attribute :sync_blocked_reason, :string do
@@ -157,8 +183,22 @@ defmodule AshEnterprise.Integration.LinkedAccount do
       Nango connection. The owner is the acting human; it is not an input.
       """
 
-      accept [:provider_config_key, :connection_id, :label, :account_id]
+      accept [:provider_config_key, :connection_id, :label, :account_id, :data_class, :residency]
       change AshEnterprise.Integration.Changes.OwnedByActor
+    end
+
+    update :tag_for_zone do
+      description """
+      Declare the zone tags (ADR 0042) of everything synced through this
+      account: its data class and its residency restriction. The operator's
+      statement about the account, recorded and audited like any other update;
+      never inferred from content. Projections admit a landed record into the
+      canonical store's zone on these tags
+      (`AshEnterprise.Canonical.Projections.ZoneAdmission`); clearing either
+      (nil) refuses the account's records from the next replay on.
+      """
+
+      accept [:data_class, :residency]
     end
 
     update :relabel do
@@ -270,6 +310,7 @@ defmodule AshEnterprise.Integration.LinkedAccount do
   code_interface do
     define :link
     define :relabel
+    define :tag_for_zone
     define :block_sync, args: [:reason]
     define :unblock_sync
     define :unlink
