@@ -7,11 +7,12 @@ defmodule AshEnterprise.Integration.Slack.Syncer do
   A step:
 
     1. **Refuses before any request** unless scoped landing is wired
-       (`AshEnterprise.Integration.Landing`'s `:lander` is not the default
-       `NotWired`): nothing is fetched that could not be landed under a shred
-       scope.
+       (`AshEnterprise.Integration.Landing.wired?/0`): nothing is fetched that
+       could not be landed under a shred scope.
     2. Resolves the linked account under the actor's own policies
-       (`LinkedAccount.for_operation`); the connection is never an input.
+       (`LinkedAccount.for_operation`); the connection is never an input. Then
+       opens the account's erasure scope (`Landing.open/1`) — a shredded scope
+       cancels the step (`:scope_shredded`) before anything is fetched.
     3. `conversations.list` (public and private channels, MPIMs, IMs), keeping
        only conversations the user is a member of; lands each as
        `slack.conversations`.
@@ -22,10 +23,11 @@ defmodule AshEnterprise.Integration.Slack.Syncer do
        then `users.info` for the members that are due — never fetched, or not
        within the refresh interval; lands each as `slack.users`.
 
-  Every record is landed with `Landing.land(record, scope: Landing.scope(id))`
-  — one scope per linked account, so shredding that scope removes exactly that
-  account's Slack data (`AshEnterprise.Integration.Slack.Records` explains the
-  ids that make it exact).
+  Every record is landed with `Landing.land(record, scope: scope)` under the
+  scope opened in step 2 — one scope per linked account, so shredding that
+  scope removes exactly that account's Slack data
+  (`AshEnterprise.Integration.Slack.Records` explains the ids that make it
+  exact).
 
   ## Budgets
 
@@ -143,7 +145,9 @@ defmodule AshEnterprise.Integration.Slack.Syncer do
     :bad_request,
     :not_configured,
     :policy_forbidden,
-    :scoped_landing_not_wired
+    :scoped_landing_not_wired,
+    :scope_shredded,
+    :cross_scope_landing
   ]
 
   # History failures that are about the account or the edge rather than one
@@ -232,19 +236,12 @@ defmodule AshEnterprise.Integration.Slack.Syncer do
 
   # --- 1. landing must be wired --------------------------------------------------
 
-  # Read-only peek at the edge's landing config: a step that cannot land under
-  # a scope must not fetch content in the first place.
+  # A step that cannot land under a scope must not fetch content in the first
+  # place.
   defp require_landing(state) do
-    lander =
-      :ash_enterprise
-      |> Application.get_env(Landing, [])
-      |> Keyword.get(:lander, Landing.NotWired)
-
-    if lander == Landing.NotWired do
-      {:stop, {:cancel, :scoped_landing_not_wired}, state}
-    else
-      {:ok, state}
-    end
+    if Landing.wired?(),
+      do: {:ok, state},
+      else: {:stop, {:cancel, :scoped_landing_not_wired}, state}
   end
 
   # --- 2. the linked account, under the actor's policies ------------------------
@@ -260,7 +257,7 @@ defmodule AshEnterprise.Integration.Slack.Syncer do
                tenant: tenant
              ) do
           {:ok, [account]} ->
-            {:ok, %{state | linked_account_id: account.id, scope: Landing.scope(account)}}
+            open_scope(%{state | linked_account_id: account.id}, account)
 
           {:ok, []} ->
             {:stop, {:cancel, :no_linked_account}, state}
@@ -274,6 +271,16 @@ defmodule AshEnterprise.Integration.Slack.Syncer do
           {:error, _} ->
             {:stop, {:error, :linked_account_lookup_failed}, state}
         end
+    end
+  end
+
+  # One scope per linked account, opened once per step. A shredded scope stops
+  # the step before the first fetch.
+  defp open_scope(state, account) do
+    case Landing.open(account) do
+      {:ok, scope} -> {:ok, %{state | scope: scope}}
+      {:error, reason} when reason in @terminal -> {:stop, {:cancel, reason}, state}
+      {:error, _reason} -> {:stop, {:error, :landing_failed}, state}
     end
   end
 
@@ -658,7 +665,7 @@ defmodule AshEnterprise.Integration.Slack.Syncer do
   defp land(record, state) do
     case Landing.land(record, scope: state.scope) do
       {:ok, _} -> :ok
-      {:error, :scoped_landing_not_wired} -> {:stop, {:cancel, :scoped_landing_not_wired}, state}
+      {:error, reason} when reason in @terminal -> {:stop, {:cancel, reason}, state}
       {:error, _details} -> {:stop, {:error, :landing_failed}, state}
     end
   end

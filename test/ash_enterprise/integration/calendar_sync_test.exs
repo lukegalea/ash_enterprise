@@ -7,9 +7,9 @@ defmodule AshEnterprise.Integration.CalendarSyncTest do
 
   No network and no real data: every request is answered by a `Req.Test`
   stub over `AshEnterprise.Test.CalendarFixtures` (synthetic payloads shaped
-  from Google's public reference), and the lander is a test lander that lands
-  those synthetic records into `SourceObject` so idempotency can be checked
-  on the real landing table.
+  from Google's public reference). The lander is the real scoped lander
+  (`Landing.Scoped`), wrapped so the test also hears what landed under which
+  scope; idempotency is checked on the real, sealed landing table.
   """
 
   # Application env, the OS environment and the Logger level are global.
@@ -44,27 +44,22 @@ defmodule AshEnterprise.Integration.CalendarSyncTest do
 
   defmodule SourceObjectLander do
     @moduledoc false
-    # Lands the (synthetic) record into the real landing table, so re-landing
-    # is checked against the real upsert identity, and tells the test what
-    # landed under which scope.
+    # The real scoped lander (sealed into the real landing table, so re-landing
+    # is checked against the real upsert identity), which also tells the test
+    # what landed under which scope ref.
     @behaviour AshEnterprise.Integration.Landing
 
-    @impl true
-    def land(record, scope_ref) do
-      if pid = Process.get(:calendar_test_pid),
-        do: send(pid, {:landed, record.external_id, scope_ref})
+    alias AshEnterprise.Integration.Landing.Scoped
 
-      AshEnterprise.Ingestion.SourceObject.land(
-        %{
-          external_system: record.external_system,
-          external_id: record.external_id,
-          raw_payload: record.raw_payload,
-          source_metadata: Map.put(record.source_metadata, "stream", record.stream),
-          cursor: record.cursor,
-          fetched_at: record.fetched_at
-        },
-        authorize?: false
-      )
+    @impl true
+    defdelegate open_scope(ref, attrs), to: Scoped
+
+    @impl true
+    def land(record, scope) do
+      if pid = Process.get(:calendar_test_pid),
+        do: send(pid, {:landed, record.external_id, scope.ref})
+
+      Scoped.land(record, scope)
     end
   end
 
@@ -222,7 +217,7 @@ defmodule AshEnterprise.Integration.CalendarSyncTest do
       stub_google(first_sync_routes())
       {:ok, _} = Sync.run_step(%{linked_account_id: ctx.alice_cal.id}, actor: ctx.alice)
 
-      planning = event!(ctx.org, external_id(ctx.alice, F.primary_calendar(), "synthev0001"))
+      planning = event!(ctx.org, external_id(ctx.alice_cal, F.primary_calendar(), "synthev0001"))
       assert planning.title == "#{F.marker()} planning block"
       assert planning.starts_at == ~U[2026-10-13 13:00:00.000000Z]
       assert planning.ends_at == ~U[2026-10-13 13:30:00.000000Z]
@@ -234,7 +229,7 @@ defmodule AshEnterprise.Integration.CalendarSyncTest do
       assert organizer.name == "Ada #{F.marker()}"
       assert organizer.owner_id == ctx.alice.id
 
-      offsite = event!(ctx.org, external_id(ctx.alice, F.primary_calendar(), "synthev0003"))
+      offsite = event!(ctx.org, external_id(ctx.alice_cal, F.primary_calendar(), "synthev0003"))
       assert offsite.starts_at == ~U[2026-10-16 00:00:00.000000Z]
       assert offsite.ends_at == ~U[2026-10-17 00:00:00.000000Z]
 
@@ -263,22 +258,19 @@ defmodule AshEnterprise.Integration.CalendarSyncTest do
 
       assert summary.landed == 5
       assert summary.projection.projected == 4
+      assert summary.projection.cancelled == 1
 
-      if Projector.status_supported?() do
-        assert summary.projection.cancelled == 1
-      else
-        # No status to record it with: nothing is created.
-        assert summary.projection.skipped == 1
+      deleted =
+        CalendarEvent.by_external!(
+          "google_calendar",
+          external_id(ctx.alice_cal, F.team_calendar(), "synthev0004"),
+          tenant: ctx.org.id,
+          authorize?: false
+        )
 
-        assert CalendarEvent.by_external!(
-                 "google_calendar",
-                 external_id(ctx.alice, F.team_calendar(), "synthev0004"),
-                 tenant: ctx.org.id,
-                 authorize?: false
-               ) == nil
-
-        assert length(events(ctx.org)) == 4
-      end
+      # Recorded, but recorded as cancelled: it never looks live.
+      assert deleted.status == :cancelled
+      assert length(events(ctx.org)) == 5
     end
 
     test "the page budget stops mid-pass and the next step resumes from the page token", ctx do
@@ -356,7 +348,7 @@ defmodule AshEnterprise.Integration.CalendarSyncTest do
       primary = cursor_for(ctx, F.primary_calendar())
       assert primary.sync_token == "sync-primary-2"
 
-      review = event!(ctx.org, external_id(ctx.alice, F.primary_calendar(), "synthev0002"))
+      review = event!(ctx.org, external_id(ctx.alice_cal, F.primary_calendar(), "synthev0002"))
       assert review.title == "#{F.marker()} design review (moved)"
       assert length(events(ctx.org)) == 4
       assert source_object_count() == 4
@@ -376,20 +368,15 @@ defmodule AshEnterprise.Integration.CalendarSyncTest do
       assert {:ok, summary} =
                Sync.run_step(%{linked_account_id: ctx.alice_cal.id}, actor: ctx.alice)
 
-      review = event!(ctx.org, external_id(ctx.alice, F.primary_calendar(), "synthev0002"))
+      review = event!(ctx.org, external_id(ctx.alice_cal, F.primary_calendar(), "synthev0002"))
 
       # The row survives with its title and times.
       assert review.title == "#{F.marker()} design review"
       assert review.starts_at == ~U[2026-10-14 14:00:00.000000Z]
       assert length(events(ctx.org)) == 4
 
-      if Projector.status_supported?() do
-        assert summary.projection.cancelled == 1
-        assert Map.get(review, :status) == :cancelled
-      else
-        # CalendarEvent has no status attribute yet: the gap is reported, not hidden.
-        assert summary.projection.cancelled_unrecorded == 1
-      end
+      assert summary.projection.cancelled == 1
+      assert review.status == :cancelled
     end
 
     test "a calendar that leaves the list is un-listed, not deleted, and not synced", ctx do
@@ -544,11 +531,17 @@ defmodule AshEnterprise.Integration.CalendarSyncTest do
         |> Ash.Query.sort(:external_id)
         |> Ash.read!(authorize?: false)
 
+      # Each landed row carries its own scope, which the canonical row inherits.
       assert {:ok, %{projected: 4}} =
-               Projector.replay(sources, %{
+               Projector.replay(sources, %{owner_id: ctx.alice.id, tenant_id: ctx.org.id})
+
+      assert snapshot(ctx.org) == before
+
+      # The same replay, read back through the decrypting path for the account.
+      assert {:ok, %{projected: 4, shredded: 0}} =
+               Projector.replay_landed(ctx.alice_cal.id, %{
                  owner_id: ctx.alice.id,
-                 tenant_id: ctx.org.id,
-                 allow_audited_content?: true
+                 tenant_id: ctx.org.id
                })
 
       assert snapshot(ctx.org) == before
@@ -680,63 +673,19 @@ defmodule AshEnterprise.Integration.CalendarSyncTest do
   # --- the audit log -------------------------------------------------------------------
 
   describe "the audit log" do
-    test "while content would be audited in plaintext, the step refuses before any request",
-         ctx do
-      assert Projector.audit_exposure() != [],
-             "event content is no longer audited in plaintext: drop the " <>
-               "allow_audited_content? override from put_calendar_env/1 and this test"
-
-      Application.put_env(:ash_enterprise, @calendar_env, actor_loader: GrantedLoader)
-      tripwire_stub()
-
-      assert {:error, error} =
-               Sync.run_step(%{linked_account_id: ctx.alice_cal.id}, actor: ctx.alice)
-
-      assert %SyncError{reason: :content_would_be_audited} = SyncError.unwrap(error)
-      refute_received :http_called
-      assert cursors(ctx) == []
-      assert events(ctx.org) == []
-
-      assert {:cancel, "content_would_be_audited"} =
-               perform_job(SyncWorker, SyncWorker.args(ctx.alice_cal))
-
-      assert {:error, :content_would_be_audited} =
-               Projector.replay(
-                 [
-                   %{
-                     external_system: Projector.external_system(),
-                     external_id: "gcal:synthetic/synthev0001",
-                     raw_payload: F.planning_event()
-                   }
-                 ],
-                 %{owner_id: ctx.alice.id, tenant_id: ctx.org.id}
-               )
-
-      assert events(ctx.org) == []
-      assert people(ctx.org) == []
-    end
-
-    test "no content reaches the event log except through an attribute audit_exposure names",
-         ctx do
+    test "no audit event spells any event content: it reaches the log only sealed", ctx do
       stub_google(first_sync_routes())
       {:ok, _} = Sync.run_step(%{linked_account_id: ctx.alice_cal.id}, actor: ctx.alice)
 
-      exposure = Projector.audit_exposure()
+      rows = Ash.read!(AshEnterprise.Audit.EventLog, authorize?: false)
+      assert Enum.any?(rows, &(&1.resource == CalendarEvent))
 
-      rows =
-        AshEnterprise.Audit.EventLog
-        |> Ash.Query.filter(resource in [^CalendarEvent, ^Person])
-        |> Ash.read!(tenant: ctx.org.id, authorize?: false)
+      for row <- rows do
+        text = Jason.encode!(%{d: row.data, c: row.changed_attributes, m: row.metadata})
 
-      assert rows != []
-
-      # Once audit_exposure/0 is empty this is the plain assertion that the
-      # event log holds none of the fixture content.
-      for row <- rows, {field, value} <- row.data, is_binary(value) do
-        if Enum.any?(F.content_strings(), &String.contains?(value, &1)) do
-          assert {row.resource, String.to_existing_atom(to_string(field))} in exposure,
-                 "#{inspect(row.resource)}.#{field} reached the event log in plaintext " <>
-                   "but audit_exposure/0 does not report it"
+        for content <- F.content_strings() do
+          refute text =~ content,
+                 "#{inspect(row.resource)} #{row.action} audit event spells #{inspect(content)}"
         end
       end
     end
@@ -880,10 +829,10 @@ defmodule AshEnterprise.Integration.CalendarSyncTest do
   # --- relinking ---------------------------------------------------------------------------
 
   describe "unlink and relink" do
-    test "relinking the same Google account re-syncs into the same canonical rows", ctx do
+    test "relinking is a new account under a new scope: its events land afresh beside the old",
+         ctx do
       stub_google(first_sync_routes())
       {:ok, _} = Sync.run_step(%{linked_account_id: ctx.alice_cal.id}, actor: ctx.alice)
-      before = snapshot(ctx.org)
       assert length(events(ctx.org)) == 4
 
       LinkedAccount.unlink!(ctx.alice_cal, tenant: ctx.org.id, authorize?: false)
@@ -898,8 +847,17 @@ defmodule AshEnterprise.Integration.CalendarSyncTest do
       new_cursors = SyncCursor.for_account!(relinked.id, tenant: ctx.org.id, authorize?: false)
       assert length(new_cursors) == 2
 
-      assert snapshot(ctx.org) == before
-      assert source_object_count() == 4
+      # One row per (account, calendar, event), each under its own account's
+      # scope: shredding the old account's scope reaches exactly its 4 rows.
+      old_scope =
+        AshEnterprise.Erasure.scope_by_ref!(:connection, ctx.alice_cal.id, authorize?: false)
+
+      new_scope = AshEnterprise.Erasure.scope_by_ref!(:connection, relinked.id, authorize?: false)
+
+      assert source_object_count() == 8
+
+      assert events(ctx.org) |> Enum.frequencies_by(& &1.erasure_scope_id) ==
+               %{old_scope.id => 4, new_scope.id => 4}
     end
   end
 
@@ -935,7 +893,7 @@ defmodule AshEnterprise.Integration.CalendarSyncTest do
       assert ada_after.name == "Ada #{F.marker()}"
       assert ada_after.owner_id == ctx.alice.id
 
-      bobs = event!(ctx.org, external_id(ctx.bob, F.team_calendar(), "synthev0001"))
+      bobs = event!(ctx.org, external_id(ctx.bob_cal, F.team_calendar(), "synthev0001"))
       assert bobs.owner_id == ctx.bob.id
       assert bobs.organizer_id == ada.id
     end
@@ -1126,19 +1084,10 @@ defmodule AshEnterprise.Integration.CalendarSyncTest do
     |> Ash.count!(authorize?: false)
   end
 
-  # Every fixture here is synthetic, so this suite may project content that
-  # the audit log would record in plaintext (see "the audit log" below for the
-  # test that the guard holds without this override).
-  defp put_calendar_env(opts) do
-    Application.put_env(
-      :ash_enterprise,
-      @calendar_env,
-      Keyword.put_new(opts, :allow_audited_content?, true)
-    )
-  end
+  defp put_calendar_env(opts), do: Application.put_env(:ash_enterprise, @calendar_env, opts)
 
-  defp external_id(owner, calendar_id, event_id) do
-    Projector.external_id(Projector.calendar_key(owner.id, calendar_id), event_id)
+  defp external_id(linked_account, calendar_id, event_id) do
+    Projector.external_id(Projector.calendar_key(linked_account.id, calendar_id), event_id)
   end
 
   defp actor(user, org, grants \\ grants()) do

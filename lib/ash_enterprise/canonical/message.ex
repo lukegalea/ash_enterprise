@@ -3,13 +3,14 @@ defmodule AshEnterprise.Canonical.Message do
   The §11 email/Slack message row: one sent or received item in a conversation,
   with its sender, timestamp and direction.
 
-  PERSONAL DATA — DO NOT WIRE A REAL PROJECTOR YET (ADR 0042). Gmail and Slack
-  SourceObjects are personal data that is NOT admitted into any declared zone:
-  zone admission is not on the SourceObject land path (an E1 follow-up owns
-  that). TODO(E4/Gmail+Slack verticals): before enabling a Message projector,
-  zone admission must check each landed item's residency tag at `land` time.
-  The fixture calendar adapter is exempt — deterministic synthetic data, no
-  admission required.
+  PERSONAL DATA (ADR 0042). Gmail and Slack SourceObjects are personal data
+  that is NOT admitted into any declared zone: zone admission is not on the
+  SourceObject land path (an E1 follow-up owns that). The Gmail and Slack
+  projectors (`AshEnterprise.Canonical.Projections.Gmail` / `.Slack`) therefore
+  project only what a zone gate admits, and their default gates admit nothing.
+  Do not change a default to admit before that check exists. The fixture
+  calendar adapter is exempt — deterministic synthetic data, no admission
+  required.
 
   Projection-derived, so `archival?`/`lifecycle?` are opted out for the same
   reasons as `AshEnterprise.Canonical.Person`: replay reconstructs, soft delete

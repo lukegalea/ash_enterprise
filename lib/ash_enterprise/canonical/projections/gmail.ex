@@ -26,6 +26,17 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
   module reads, refuses and writes **no** canonical row. A refused record is
   counted, never projected and never partially projected.
 
+  ## Erasure (ADR 0024)
+
+  Every canonical row carries the `erasure_scope_id` of the landed record it
+  was projected from — one scope per linked account — so the message body
+  (and the conversation's sealed columns) are under the same key as the raw
+  landing, and one shred reaches all of them. Records are read back through
+  `SourceObject`'s decrypting path; a record whose scope has been shredded
+  reads as `AshEnterprise.Erasure.Shredded`, is counted as `shredded` and
+  projects nothing. A record with no scope at all (a bare map that was never
+  landed) is counted as `unscoped` and never projected.
+
   ## Deterministic
 
   Everything projected is a function of the admitted payloads and the replay
@@ -78,6 +89,7 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
   """
 
   alias AshEnterprise.Canonical.{Conversation, Message, Person}
+  alias AshEnterprise.Erasure.Shredded
   alias AshEnterprise.Ingestion.SourceObject
   alias AshEnterprise.Integration.Gmail.Sync
   alias AshEnterprise.Integration.LinkedAccount
@@ -90,6 +102,8 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
   @type counts :: %{
           source_objects: non_neg_integer(),
           foreign: non_neg_integer(),
+          shredded: non_neg_integer(),
+          unscoped: non_neg_integer(),
           admitted: non_neg_integer(),
           denied: non_neg_integer(),
           conversations: non_neg_integer(),
@@ -121,7 +135,9 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
     accounts = owned_accounts(context)
 
     {owned, foreign} = Enum.split_with(sources, &MapSet.member?(accounts, account_of(&1)))
-    {admitted, denied} = Enum.split_with(owned, &(gate.admit(&1, context) == :ok))
+    {shredded, readable} = Enum.split_with(owned, &Shredded.shredded?(&1.raw_payload))
+    {scoped, unscoped} = Enum.split_with(readable, &is_binary(Map.get(&1, :erasure_scope_id)))
+    {admitted, denied} = Enum.split_with(scoped, &(gate.admit(&1, context) == :ok))
 
     threads =
       admitted
@@ -138,6 +154,8 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
      %{
        source_objects: length(sources),
        foreign: length(foreign),
+       shredded: length(shredded),
+       unscoped: length(unscoped),
        admitted: length(admitted),
        denied: length(denied),
        conversations: length(threads),
@@ -173,14 +191,16 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
 
     # Organization-owned, so a bare thread key: subject and participants are
     # mailbox content. Written empty, which also clears a row an earlier
-    # projection filled.
+    # projection filled. The thread id is namespaced by the linked account, so
+    # all of its messages share one scope; the first message's is the thread's.
     conversation =
       Conversation.upsert_from_source!(
         %{
           external_system: @external_system,
           external_id: thread_id,
           subject: nil,
-          participants: %{}
+          participants: %{},
+          erasure_scope_id: hd(messages).erasure_scope_id
         },
         tenant: context.tenant_id,
         authorize?: false
@@ -204,16 +224,16 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
         sent_at: message.sent_at,
         direction: message.direction,
         conversation_id: conversation.id,
-        sender_id: sender && sender.id
-      },
+        sender_id: sender && sender.id,
+        # The body is sealed under the same key as the raw landing (ADR 0024).
+        erasure_scope_id: message.erasure_scope_id
+      }
+      # The owner is the replay context's, INSERT-time only (owner columns are
+      # not in the action's upsert_fields).
+      |> Map.merge(owner_attributes(context)),
       tenant: context.tenant_id,
       authorize?: false
     )
-    # `upsert_from_source` does not accept the owner columns, and Message is
-    # user-owned; the owner is the replay context's, INSERT-time only (owner
-    # columns are not in the action's upsert_fields). Forced after
-    # `for_create`, which refuses attributes the action does not accept.
-    |> Ash.Changeset.force_change_attributes(owner_attributes(context))
     |> Ash.create!()
   end
 
@@ -280,6 +300,7 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
 
     %{
       id: Sync.external_id(account, gmail_id),
+      erasure_scope_id: source.erasure_scope_id,
       thread_id: Sync.external_id(account, present(payload["threadId"]) || gmail_id),
       from: headers |> Map.get("from") |> addresses() |> List.first(),
       to: headers |> Map.get("to") |> addresses(),

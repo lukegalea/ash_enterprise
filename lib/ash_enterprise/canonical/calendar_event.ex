@@ -11,9 +11,10 @@ defmodule AshEnterprise.Canonical.CalendarEvent do
 
   Projection-derived, so `archival?`/`lifecycle?` are opted out for the same
   reasons as `AshEnterprise.Canonical.Person`: replay reconstructs, soft delete
-  would ghost the upsert identity, and an event's lifecycle is the provider's
-  (confirmed/cancelled lives in the raw payload, to be projected when the
-  operator's real calendar lands).
+  would ghost the upsert identity, and an event's lifecycle is the provider's.
+  That lifecycle is `status` (confirmed / tentative / cancelled), projected
+  from the provider payload: a cancellation flips it rather than deleting the
+  row.
 
   `title` and `location` are content: sealed under the erasure scope of the
   SourceObject the event was projected from (ADR 0024,
@@ -78,6 +79,19 @@ defmodule AshEnterprise.Canonical.CalendarEvent do
       public? true
       # Unbounded for the same reason as `title`.
       description "Where, when the event says."
+    end
+
+    attribute :status, :atom do
+      allow_nil? false
+      public? true
+      default :confirmed
+      constraints one_of: [:confirmed, :tentative, :cancelled]
+
+      description """
+      The provider's event status. A cancelled event keeps its row (and its
+      title and times) with this set to `:cancelled`, so a deleted meeting
+      never silently vanishes and never looks live.
+      """
     end
 
     attribute :external_uid, :string do
@@ -156,6 +170,7 @@ defmodule AshEnterprise.Canonical.CalendarEvent do
         :starts_at,
         :ends_at,
         :location,
+        :status,
         :external_uid,
         :external_system,
         :external_id,
@@ -175,6 +190,7 @@ defmodule AshEnterprise.Canonical.CalendarEvent do
         :starts_at,
         :ends_at,
         :encrypted_location,
+        :status,
         :external_uid,
         :organizer_id,
         :erasure_scope_id

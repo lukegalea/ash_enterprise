@@ -10,6 +10,15 @@ config :ash_enterprise, AshEnterprise.Ingestion,
     "calendar_dev" => %{"fixture" => true, "external_system" => "calendar"}
   }
 
+# The Nango edge never reaches the network in tests: every proxied request is
+# answered by a `Req.Test` stub named after the proxy module. A test that does
+# not stub it gets a loud `Req.Test` ownership error, not a real request.
+config :ash_enterprise, AshEnterprise.Integration.Nango,
+  base_url: "http://nango.test",
+  req_options: [plug: {Req.Test, AshEnterprise.Integration.Nango.Proxy}],
+  base_backoff_ms: 1,
+  max_retry_delay_ms: 5_000
+
 config :ash_enterprise, token_signing_secret: "2W7xIBrAeWb/GPoe4MBvPxA6NFwqqjl0"
 
 # A fresh crypto-shredding master key every run (ADR 0024). Nothing sealed in

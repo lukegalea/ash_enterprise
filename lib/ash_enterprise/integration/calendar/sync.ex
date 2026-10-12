@@ -23,7 +23,7 @@ defmodule AshEnterprise.Integration.Calendar.Sync do
   """
 
   use AshEnterprise.Platform.Resource,
-    domain: AshEnterprise.Integration.Calendar,
+    domain: AshEnterprise.Integration,
     data_layer: Ash.DataLayer.Simple,
     ownership: :none,
     tenant?: false,

@@ -24,7 +24,7 @@ defmodule AshEnterprise.Integration.Slack.Sync do
   """
 
   use AshEnterprise.Platform.Resource,
-    domain: AshEnterprise.Integration.Slack.Domain,
+    domain: AshEnterprise.Integration,
     data_layer: Ash.DataLayer.Simple,
     ownership: :none,
     tenant?: false,

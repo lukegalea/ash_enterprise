@@ -21,10 +21,10 @@ defmodule AshEnterprise.Integration.Gmail.SyncTest do
   import ExUnit.CaptureLog
 
   alias AshEnterprise.Integration.{Gmail, LinkedAccount}
-  alias AshEnterprise.Integration.Gmail.{MessageList, Sync, SyncState, SyncWorker}
+  alias AshEnterprise.Integration.Gmail.{Sync, SyncState, SyncWorker}
   alias AshEnterprise.Integration.Nango.Proxy
-  alias AshEnterprise.Platform.{Seeder, SystemActor}
-  alias AshEnterprise.Security.{AccessRight, ActorContext, Privilege}
+  alias AshEnterprise.Platform.Seeder
+  alias AshEnterprise.Security.ActorContext
   alias AshEnterprise.Security.ActorContext.Grant
   alias AshEnterprise.Test.{GmailRecordingLander, GmailSyntheticMailbox}
 
@@ -83,7 +83,8 @@ defmodule AshEnterprise.Integration.Gmail.SyncTest do
         email: "gmail-sync-#{unique}@example.test"
       )
 
-    grant_vertical_privileges(org.id)
+    # `seed_tenant` seeds the privilege catalogue from the configured domains,
+    # the Integration domain included, and grants the Administrator all of it.
     actor = actor_for(user.id)
 
     linked =
@@ -114,7 +115,7 @@ defmodule AshEnterprise.Integration.Gmail.SyncTest do
       refute m1 in GmailRecordingLander.landed_ids()
 
       for {record, scope} <- GmailRecordingLander.landings() do
-        assert scope == "integration.linked_account:" <> ctx.linked.id
+        assert scope == ctx.linked.id
         assert record.external_system == "gmail"
         assert record.stream == "gmail.messages"
         assert record.external_id == Sync.external_id(ctx.linked.id, record.raw_payload["id"])
@@ -217,10 +218,8 @@ defmodule AshEnterprise.Integration.Gmail.SyncTest do
       assert Enum.map(landings, fn {record, scope} ->
                {record.external_id, record.source_metadata["linked_account_id"], scope}
              end) == [
-               {Sync.external_id(ctx.linked.id, id), ctx.linked.id,
-                "integration.linked_account:" <> ctx.linked.id},
-               {Sync.external_id(other.id, id), other.id,
-                "integration.linked_account:" <> other.id}
+               {Sync.external_id(ctx.linked.id, id), ctx.linked.id, ctx.linked.id},
+               {Sync.external_id(other.id, id), other.id, other.id}
              ]
     end
   end
@@ -251,13 +250,13 @@ defmodule AshEnterprise.Integration.Gmail.SyncTest do
 
     test "a backfill resumed after its window restarts instead of replaying since its capture",
          ctx do
-      # A backfill that stalls: landing is not wired, so the step cancels with
-      # the historyId captured and the backfill unfinished.
-      Application.delete_env(:ash_enterprise, @landing_env)
+      # A backfill that stalls: the lander refuses every record, so the step
+      # cancels with the historyId captured and the backfill unfinished.
+      Application.put_env(:ash_enterprise, @landing_env, lander: __MODULE__.RefusingLander)
       for _ <- 1..3, do: GmailSyntheticMailbox.add_message(ctx.box)
       stale_cursor = GmailSyntheticMailbox.history_id(ctx.box)
 
-      assert {:cancel, :scoped_landing_not_wired} = run_step(ctx)
+      assert {:cancel, :scope_shredded} = run_step(ctx)
       stalled = sync_state!(ctx)
       assert stalled.phase == :backfill
       assert stalled.backfill_history_id == stale_cursor
@@ -295,9 +294,9 @@ defmodule AshEnterprise.Integration.Gmail.SyncTest do
     end
 
     test "a backfill resumed within its window carries on", ctx do
-      Application.delete_env(:ash_enterprise, @landing_env)
+      Application.put_env(:ash_enterprise, @landing_env, lander: __MODULE__.RefusingLander)
       GmailSyntheticMailbox.add_message(ctx.box)
-      assert {:cancel, :scoped_landing_not_wired} = run_step(ctx)
+      assert {:cancel, :scope_shredded} = run_step(ctx)
       captured = sync_state!(ctx).backfill_history_id
 
       Application.put_env(:ash_enterprise, @landing_env, lander: GmailRecordingLander)
@@ -365,12 +364,21 @@ defmodule AshEnterprise.Integration.Gmail.SyncTest do
       assert length(GmailRecordingLander.landed_ids()) == 1
     end
 
-    test "until scoped landing is wired, nothing lands and the cursor does not move", ctx do
+    test "with no lander wired, the step refuses before any request and opens no cursor", ctx do
       Application.delete_env(:ash_enterprise, @landing_env)
       GmailSyntheticMailbox.add_message(ctx.box)
 
       assert {:cancel, :scoped_landing_not_wired} = run_step(ctx)
       assert GmailRecordingLander.landed_ids() == []
+      assert GmailSyntheticMailbox.requests(ctx.box) == []
+      assert sync_state!(ctx) == nil
+    end
+
+    test "a lander that refuses mid-backfill leaves the cursor where it was", ctx do
+      Application.put_env(:ash_enterprise, @landing_env, lander: __MODULE__.RefusingLander)
+      GmailSyntheticMailbox.add_message(ctx.box)
+
+      assert {:cancel, :scope_shredded} = run_step(ctx)
 
       state = sync_state!(ctx)
       assert state.phase == :backfill
@@ -509,7 +517,7 @@ defmodule AshEnterprise.Integration.Gmail.SyncTest do
   end
 
   test "the backfill operation is a generated edge action like the edge's own" do
-    action = Ash.Resource.Info.action(MessageList, :list_messages)
+    action = Ash.Resource.Info.action(Gmail, :list_messages)
     assert action.type == :action
 
     assert Enum.map(action.arguments, & &1.name) -- [:linked_account_id] ==
@@ -542,41 +550,6 @@ defmodule AshEnterprise.Integration.Gmail.SyncTest do
     |> Enum.map(fn {_path, query} -> query end)
   end
 
-  # The privilege rows a role can grant on the vertical's resources. Not in
-  # the catalogue yet because the integration domains are not in
-  # `config :ash_enterprise, :ash_domains` (an integration step); once they
-  # are, `Seeder.seed_privileges/0` writes exactly these.
-  defp grant_vertical_privileges(tenant) do
-    for {resource, ownership} <- [
-          {LinkedAccount, :user_owned},
-          {Gmail, :none},
-          {MessageList, :none},
-          {SyncState, :user_owned}
-        ],
-        verb <- AccessRight.verbs() do
-      legal = Privilege.legal_depths(ownership)
-      entity = resource |> Module.split() |> List.last()
-
-      Privilege
-      |> Ash.Changeset.for_create(
-        :create,
-        %{
-          resource_name: inspect(resource),
-          access_right: verb,
-          name: "prv#{verb |> to_string() |> Macro.camelize()}#{entity}",
-          can_be_basic: :basic in legal,
-          can_be_local: :local in legal,
-          can_be_deep: :deep in legal,
-          can_be_global: :global in legal
-        },
-        actor: SystemActor.seed()
-      )
-      |> Ash.create!()
-    end
-
-    Seeder.regrant_administrator_privileges(tenant)
-  end
-
   # The grants a dogfood operator holds, precomputed the way LoadActorContext
   # would: Basic on their own linked accounts and cursor, Global read (= may
   # call) on the operation resources.
@@ -593,8 +566,7 @@ defmodule AshEnterprise.Integration.Gmail.SyncTest do
         {inspect(SyncState), :read} => basic,
         {inspect(SyncState), :create} => basic,
         {inspect(SyncState), :write} => basic,
-        {inspect(Gmail), :read} => global,
-        {inspect(MessageList), :read} => global
+        {inspect(Gmail), :read} => global
       }
     })
   end
@@ -602,6 +574,16 @@ defmodule AshEnterprise.Integration.Gmail.SyncTest do
   defp actor_for(user_id) do
     user = Ash.get!(AshEnterprise.Accounts.User, user_id, authorize?: false)
     ActorContext.attach(user, ActorContext.build(user))
+  end
+
+  defmodule RefusingLander do
+    @moduledoc false
+    # A lander that refuses every record, the way the scoped lander does once a
+    # shred races the step: a device for stalling a backfill part-way.
+    @behaviour AshEnterprise.Integration.Landing
+
+    @impl true
+    def land(_record, _scope), do: {:error, :scope_shredded}
   end
 
   defp restore_os_env(name, nil), do: System.delete_env(name)

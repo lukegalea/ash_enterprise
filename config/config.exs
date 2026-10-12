@@ -68,7 +68,16 @@ config :ash_enterprise, Oban,
        # down is caught here. Every five minutes; the worker's `unique: [period: 30]`
        # collapses the overlap with wake-driven jobs.
        {"*/5 * * * *", AshEnterprise.Ledger.UserDrainWorker,
-        queue: :ash_strangler_ledger, max_attempts: 1}
+        queue: :ash_strangler_ledger, max_attempts: 1},
+       # Epic E4: one sync step per active linked account per vertical. The
+       # scheduler only enqueues; each vertical's worker is unique per linked
+       # account, so a tick that lands while a step is still queued, running
+       # or snoozed through a long backfill collapses into it.
+       {"*/10 * * * *", AshEnterprise.Integration.SyncScheduler,
+        args: %{"integration" => "google-calendar"}},
+       {"*/5 * * * *", AshEnterprise.Integration.SyncScheduler,
+        args: %{"integration" => "google-mail"}},
+       {"*/5 * * * *", AshEnterprise.Integration.SyncScheduler, args: %{"integration" => "slack"}}
      ]}
   ]
 
@@ -303,9 +312,17 @@ config :ash_enterprise,
     AshEnterprise.Erasure,
     AshEnterprise.Ingestion,
     AshEnterprise.Canonical,
+    AshEnterprise.Integration,
     AshEnterprise.Agents
   ],
   base_resources: [AshEnterprise.Platform.Resource]
+
+# Epic E4: every record a provider sync fetches lands sealed under the erasure
+# scope of the linked account it came through (ADR 0024). Leaving `:lander`
+# unset falls back to `Landing.NotWired`, which refuses every landing (and so
+# every sync) rather than land content outside a scope.
+config :ash_enterprise, AshEnterprise.Integration.Landing,
+  lander: AshEnterprise.Integration.Landing.Scoped
 
 # The OMP bridge's boot sweep fails :running runs whose session process is
 # gone (orphans of a BEAM restart). Default on. The registry it checks is
@@ -409,7 +426,9 @@ config :tailwind,
 # Configure Elixir's Logger
 config :logger, :default_formatter,
   format: "$time $metadata[$level] $message\n",
-  metadata: [:request_id]
+  # `linked_account_id` / `channel_id`: the Slack sync's structural log
+  # metadata (ids only, never content).
+  metadata: [:request_id, :linked_account_id, :channel_id]
 
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason

@@ -60,7 +60,7 @@ defmodule AshEnterprise.Integration.Calendar.SyncCursor do
   """
 
   use AshEnterprise.Platform.Resource,
-    domain: AshEnterprise.Integration.Calendar,
+    domain: AshEnterprise.Integration,
     ownership: :user_owned,
     tenant?: true,
     lifecycle?: false,

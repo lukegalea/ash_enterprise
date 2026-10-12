@@ -29,6 +29,13 @@ defmodule AshEnterprise.Integration.LinkedAccount do
       would keep the `(provider_config_key, connection_id)` identity occupied and
       block relinking the same connection.
 
+  ## Erasure (ADR 0024)
+
+  Each linked account is one erasure scope, `connection:<this row's id>`
+  (`AshEnterprise.Integration.Landing.scope/1`): everything synced through it
+  is sealed under that scope's key. Deactivating stops the syncs; shredding the
+  scope destroys the content; unlinking forgets the mapping. In that order.
+
   ## Residual
 
   `:link` trusts that the connection id the actor supplies is theirs. Nango
@@ -113,7 +120,13 @@ defmodule AshEnterprise.Integration.LinkedAccount do
     end
 
     destroy :unlink do
-      description "Forget the mapping. The Nango connection itself is not touched."
+      description """
+      Forget the mapping and the vertical's sync cursors. The Nango connection
+      itself is not touched, and nothing landed through the account is erased:
+      shred its erasure scope (`connection:<this id>`) for that, before
+      unlinking (docs/runbooks/crypto-shredding.md, "Forgetting a linked
+      account").
+      """
     end
 
     read :mine do
@@ -146,6 +159,23 @@ defmodule AshEnterprise.Integration.LinkedAccount do
              )
     end
 
+    read :active_for_integration do
+      description """
+      Every *active* linked account for one integration, across tenants, for
+      the sync scheduler (`AshEnterprise.Integration.SyncScheduler`, a system
+      actor). A human calling it is still filtered by their own grants. The
+      scheduler enqueues ids; each step then re-resolves its account as the
+      owning human.
+      """
+
+      argument :provider_config_key, :string, allow_nil?: false
+
+      filter expr(
+               lifecycle_status == :active and
+                 provider_config_key == ^arg(:provider_config_key)
+             )
+    end
+
     read :for_operation do
       description """
       Connection resolution for a provider action: the actor's own *active*
@@ -173,5 +203,6 @@ defmodule AshEnterprise.Integration.LinkedAccount do
     define :mine, args: [{:optional, :provider_config_key}]
     define :for_operation, args: [:provider_config_key, {:optional, :linked_account_id}]
     define :owned_by, args: [:owner_id, :provider_config_key]
+    define :active_for_integration, args: [:provider_config_key]
   end
 end

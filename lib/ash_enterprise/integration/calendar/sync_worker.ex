@@ -31,7 +31,7 @@ defmodule AshEnterprise.Integration.Calendar.SyncWorker do
   | complete | `{:ok, summary}` |
   | page budget used up, more to fetch, or a cursor superseded mid-step | `{:snooze, 1}` — continue promptly |
   | `:rate_limited` | `{:snooze, retry_after}` (60s when the provider gave none) |
-  | `:unauthorized`, `:forbidden`, `:connection_not_found`, `:no_linked_account`, `:ambiguous_linked_account`, `:not_configured`, a missing policy grant, a refused landing, content that would be audited in plaintext | `{:cancel, reason}` — retrying cannot help |
+  | `:unauthorized`, `:forbidden`, `:connection_not_found`, `:no_linked_account`, `:ambiguous_linked_account`, `:not_configured`, a missing policy grant, a refused landing (not wired, scope shredded, cross-scope) | `{:cancel, reason}` — retrying cannot help |
   | anything else | `{:error, "calendar sync: <reason>"}` — Oban retries |
 
   Every error the job returns is a structural string or atom. Oban persists
@@ -127,9 +127,6 @@ defmodule AshEnterprise.Integration.Calendar.SyncWorker do
 
   defp failure(nil, %SyncError{reason: :landing_refused, detail: detail}),
     do: {:cancel, "landing_refused: #{detail}"}
-
-  defp failure(nil, %SyncError{reason: :content_would_be_audited}),
-    do: {:cancel, "content_would_be_audited"}
 
   defp failure(nil, %SyncError{reason: reason}), do: {:error, "calendar sync: #{reason}"}
   defp failure(nil, nil), do: {:error, "calendar sync: failed"}

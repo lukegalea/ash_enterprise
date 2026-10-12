@@ -40,7 +40,7 @@ defmodule AshEnterprise.Integration.Slack.ConversationCursor do
   """
 
   use AshEnterprise.Platform.Resource,
-    domain: AshEnterprise.Integration.Slack.Domain,
+    domain: AshEnterprise.Integration,
     ownership: :none,
     tenant?: false,
     lifecycle?: false,

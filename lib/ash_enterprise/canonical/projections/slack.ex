@@ -59,17 +59,23 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
   conversation's `user` is the account holder) when that yields exactly one
   id, and every message is `:inbound` when it does not.
 
-  ## Not yet carried
+  ## Erasure (ADR 0024)
 
-  The rows are written under the linked account's owner and tenant, but not
-  under its shred scope: `Conversation`/`Message`/`Person` have no scope column
-  yet. `context.scope` is computed and is where the per-scope encryption work
-  plugs in.
+  Every `Conversation` and `Message` is written with the `erasure_scope_id` of
+  the landed record it was projected from (the linked account's scope), so its
+  sealed content — subject, participants, body — is under the same key as the
+  raw landing and one shred reaches all of it. Pass landed `SourceObject` rows
+  (`replay/3` reads them through the decrypting path), or `SourceRecord`s with
+  `erasure_scope_id:` in the options. A record whose scope has been shredded
+  reads as `AshEnterprise.Erasure.Shredded` and projects nothing; a record
+  with no scope is never projected. `Person` rows are not sealed (their name
+  and email are `sensitive?`, so the audit log records them as `nil`).
   """
 
   alias AshEnterprise.Canonical.{Conversation, Message, Person}
+  alias AshEnterprise.Erasure.Shredded
   alias AshEnterprise.Ingestion.SourceObject
-  alias AshEnterprise.Integration.{Landing, LinkedAccount}
+  alias AshEnterprise.Integration.LinkedAccount
   alias AshEnterprise.Integration.Slack.Records
   alias AshEnterprise.Security.ActorContext
   alias AshEnterprise.Zones
@@ -79,6 +85,10 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
   # Notices about the conversation rather than messages in it: landed raw,
   # not projected.
   @projected_subtypes [nil, "thread_broadcast", "file_share", "bot_message", "me_message"]
+
+  # Where a message's erasure scope rides alongside its payload inside this
+  # module. Not a Slack key; never written anywhere.
+  @scope_key "__erasure_scope_id__"
 
   @type counts :: %{
           conversations: non_neg_integer(),
@@ -126,29 +136,45 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
   @doc """
   Project landed Slack records (`SourceRecord`s or `SourceObject` rows — both
   carry `external_id`, `raw_payload` and `source_metadata`) fetched through
-  `linked_account`. Records of another linked account are ignored.
+  `linked_account`. Records of another linked account are ignored, as are
+  records whose scope is shredded or unknown (see "Erasure").
+
+  Options: `:self_user_id`, `:erasure_scope_id` (the scope `SourceRecord`s,
+  which carry none of their own, were landed under).
   """
   @spec project([map()], struct(), keyword()) ::
           {:ok, counts()} | {:error, term()}
   def project(records, %LinkedAccount{} = account, opts \\ []) do
     with :ok <- admit() do
       context = context(account)
+      default_scope = Keyword.get(opts, :erasure_scope_id)
 
       streams =
         records
         |> Enum.filter(&(get_in(&1.source_metadata, ["linked_account_id"]) == account.id))
-        |> Enum.sort_by(& &1.external_id)
-        |> Enum.group_by(&get_in(&1.source_metadata, ["stream"]))
+        |> Enum.reject(&Shredded.shredded?(&1.raw_payload))
+        |> Enum.map(&{&1, Map.get(&1, :erasure_scope_id) || default_scope})
+        |> Enum.filter(fn {_record, scope_id} -> is_binary(scope_id) end)
+        |> Enum.sort_by(fn {record, _scope_id} -> record.external_id end)
+        |> Enum.group_by(fn {record, _scope_id} -> get_in(record.source_metadata, ["stream"]) end)
 
       conversations =
         streams
         |> Map.get(Records.stream(:conversations), [])
-        |> Map.new(&{&1.raw_payload["id"], &1.raw_payload})
+        |> Map.new(fn {record, _scope_id} -> {record.raw_payload["id"], record.raw_payload} end)
+
+      conversation_scopes =
+        streams
+        |> Map.get(Records.stream(:conversations), [])
+        |> Map.new(fn {record, scope_id} -> {record.raw_payload["id"], scope_id} end)
 
       messages =
         streams
         |> Map.get(Records.stream(:messages), [])
-        |> Enum.map(&{get_in(&1.source_metadata, ["channel_id"]), &1.raw_payload})
+        |> Enum.map(fn {record, scope_id} ->
+          {get_in(record.source_metadata, ["channel_id"]),
+           Map.put(record.raw_payload, @scope_key, scope_id)}
+        end)
         |> Enum.filter(fn {channel, message} ->
           is_binary(channel) and Records.ts?(message["ts"])
         end)
@@ -156,7 +182,7 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
       users =
         streams
         |> Map.get(Records.stream(:users), [])
-        |> Map.new(&{&1.raw_payload["id"], &1.raw_payload})
+        |> Map.new(fn {record, _scope_id} -> {record.raw_payload["id"], record.raw_payload} end)
 
       self_user_id =
         Keyword.get_lazy(opts, :self_user_id, fn -> infer_self(conversations, messages) end)
@@ -169,7 +195,15 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
       public_messages =
         Enum.filter(messages, fn {channel, _} -> Map.has_key?(public, channel) end)
 
-      conversation_rows = project_conversations(public, public_messages, users, people, context)
+      conversation_rows =
+        project_conversations(
+          public,
+          conversation_scopes,
+          public_messages,
+          users,
+          people,
+          context
+        )
 
       projected =
         public_messages
@@ -253,7 +287,7 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
 
   def public_channel?(_conversation), do: false
 
-  defp project_conversations(conversations, messages, users, people, context) do
+  defp project_conversations(conversations, scopes, messages, users, people, context) do
     authors_by_channel =
       Enum.group_by(messages, &elem(&1, 0), fn {_channel, message} -> message["user"] end)
 
@@ -283,7 +317,8 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
             external_system: Records.external_system(),
             external_id: Records.conversation_id(context.linked_account_id, channel),
             subject: subject(conversation),
-            participants: participants
+            participants: participants,
+            erasure_scope_id: Map.fetch!(scopes, channel)
           },
           tenant: context.tenant_id,
           authorize?: false
@@ -313,21 +348,19 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
         direction:
           if(is_binary(author) and author == self_user_id, do: :outbound, else: :inbound),
         conversation_id: conversations |> Map.fetch!(channel) |> Map.get(:id),
-        sender_id: people |> person_id(author) |> List.first()
+        sender_id: people |> person_id(author) |> List.first(),
+        # Sealed under the same key as the raw landing it came from.
+        erasure_scope_id: Map.fetch!(message, @scope_key),
+        # On a conflict the owner is not in `upsert_fields`, so the first
+        # projection wins, as everywhere else in this domain.
+        owner_id: context.owner_id,
+        owner_type: :user,
+        owning_user_id: context.owner_id,
+        owning_business_unit_id: context.business_unit_id
       },
       tenant: context.tenant_id,
       authorize?: false
     )
-    # `Message.upsert_from_source` does not accept the owner context (Person's
-    # does), but a user-owned row must have one, so it is forced onto the
-    # validated changeset. On a conflict the owner is not in `upsert_fields`,
-    # so the first projection wins, as everywhere else in this domain.
-    |> Ash.Changeset.force_change_attributes(%{
-      owner_id: context.owner_id,
-      owner_type: :user,
-      owning_user_id: context.owner_id,
-      owning_business_unit_id: context.business_unit_id
-    })
     |> Ash.create!()
   end
 
@@ -394,8 +427,7 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
       linked_account_id: account.id,
       owner_id: account.owner_id,
       business_unit_id: account.owning_business_unit_id,
-      tenant_id: account.organization_id,
-      scope: Landing.scope(account)
+      tenant_id: account.organization_id
     }
   end
 end

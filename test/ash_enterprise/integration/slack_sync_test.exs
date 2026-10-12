@@ -223,7 +223,7 @@ defmodule AshEnterprise.Integration.SlackSyncTest do
       landed = drain_landed()
       scope = Landing.scope(ctx.alice_slack)
       assert Enum.all?(landed, &(&1.scope == scope))
-      assert scope == "integration.linked_account:" <> ctx.alice_slack.id
+      assert scope == ctx.alice_slack.id
 
       by_stream = Enum.group_by(landed, & &1.stream, & &1.external_id)
       la = ctx.alice_slack.id
@@ -908,15 +908,19 @@ defmodule AshEnterprise.Integration.SlackSyncTest do
       case respond(state, conn.request_path, query) do
         {:status, status, headers, body} ->
           conn
-          |> then(fn conn ->
-            Enum.reduce(headers, conn, fn {k, v}, c -> Plug.Conn.put_resp_header(c, k, v) end)
-          end)
+          |> put_resp_headers(headers)
           |> Plug.Conn.put_status(status)
           |> Req.Test.json(body)
 
         body ->
           Req.Test.json(conn, body)
       end
+    end)
+  end
+
+  defp put_resp_headers(conn, headers) do
+    Enum.reduce(headers, conn, fn {key, value}, conn ->
+      Plug.Conn.put_resp_header(conn, key, value)
     end)
   end
 
@@ -1047,26 +1051,21 @@ defmodule AshEnterprise.Integration.SlackSyncTest do
 
   defmodule StoreLander do
     @moduledoc false
-    # Stands in for the scoped lander the crypto-shred work provides: lands
-    # into SourceObject (synthetic data only) and reports what it landed.
+    # The real scoped lander (sealed into SourceObject; synthetic data only),
+    # which also reports what it landed under which scope ref.
     @behaviour AshEnterprise.Integration.Landing
 
-    @impl true
-    def land(record, scope_ref) do
-      AshEnterprise.Ingestion.SourceObject.land!(
-        %{
-          external_system: record.external_system,
-          external_id: record.external_id,
-          raw_payload: record.raw_payload,
-          source_metadata: record.source_metadata,
-          cursor: record.cursor,
-          fetched_at: record.fetched_at
-        },
-        authorize?: false
-      )
+    alias AshEnterprise.Integration.Landing.Scoped
 
-      send(Process.get(:landed_to), {:landed, record.stream, record.external_id, scope_ref})
-      {:ok, :landed}
+    @impl true
+    defdelegate open_scope(ref, attrs), to: Scoped
+
+    @impl true
+    def land(record, scope) do
+      with {:ok, landed} <- Scoped.land(record, scope) do
+        send(Process.get(:landed_to), {:landed, record.stream, record.external_id, scope.ref})
+        {:ok, landed}
+      end
     end
   end
 

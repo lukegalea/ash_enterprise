@@ -10,6 +10,10 @@ defmodule AshEnterprise.Integration.Gmail do
       `nextPageToken`, `historyId`. A `start_history_id` older than Gmail
       retains returns **404**, surfaced as `:not_found`: the adapter's cue to
       reset the cursor (`get_profile` for a fresh `historyId`).
+    * `list_messages` — `users.messages.list`. Body: `messages`
+      (`[%{"id", "threadId"}]`, may be absent), `nextPageToken`,
+      `resultSizeEstimate`. Ids only; the bounded bootstrap backfill fetches
+      each with `get_message`.
     * `get_message` — `users.messages.get`. `format` is `:metadata` (default;
       headers only, narrowed by `metadata_headers`) or `:full`.
 
@@ -52,6 +56,15 @@ defmodule AshEnterprise.Integration.Gmail do
         constraints: [
           items: [one_of: [:messageAdded, :messageDeleted, :labelAdded, :labelRemoved]]
         ]
+    end
+
+    operation :list_messages, :get, "/gmail/v1/users/me/messages" do
+      description "users.messages.list: message ids matching a query, newest first."
+      param :q, :string
+      param :page_token, :string, as: "pageToken"
+      param :max_results, :integer, as: "maxResults", constraints: [min: 1, max: 500]
+      param :label_ids, {:array, :string}, as: "labelIds"
+      param :include_spam_trash, :boolean, as: "includeSpamTrash"
     end
 
     operation :get_message, :get, "/gmail/v1/users/me/messages/{id}" do

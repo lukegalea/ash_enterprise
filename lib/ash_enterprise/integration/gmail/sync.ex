@@ -20,7 +20,7 @@ defmodule AshEnterprise.Integration.Gmail.Sync do
     1. `:bootstrap` — `Gmail.get_profile` for the mailbox's current
        `historyId`, recorded *before* the backfill so that nothing arriving
        during it is missed.
-    2. `:backfill` — `MessageList.list_messages` with `q: "newer_than:<N>d"`,
+    2. `:backfill` — `Gmail.list_messages` with `q: "newer_than:<N>d"`,
        capped at `backfill_max_messages`, one page at a time; each id fetched
        with `Gmail.get_message` and landed. The page token is the resume point.
        At the end the captured `historyId` becomes the incremental cursor.
@@ -45,10 +45,12 @@ defmodule AshEnterprise.Integration.Gmail.Sync do
   ## What is never done
 
     * Nothing is logged here. Errors are reasons (atoms), never bodies.
-    * A cursor is never advanced past a message that failed to land. Until
-      scoped landing is wired, `Landing.land/2` refuses everything, so a step
-      lands nothing and commits no incremental progress (`{:cancel,
-      :scoped_landing_not_wired}`).
+    * A cursor is never advanced past a message that failed to land.
+    * Nothing is fetched that could not be landed under the account's
+      erasure scope (ADR 0024): the step opens the scope (`Landing.open/1`)
+      before its first provider call, and stops with `{:cancel,
+      :scoped_landing_not_wired}` or `{:cancel, :scope_shredded}` when it
+      cannot. A shred racing the step refuses the next landing the same way.
     * Drafts (`DRAFT` label) are not landed: a draft is not a message anyone
       sent or received. A message deleted between listing and fetching (404)
       is skipped.
@@ -66,7 +68,7 @@ defmodule AshEnterprise.Integration.Gmail.Sync do
   """
 
   alias AshEnterprise.Integration.{Gmail, Landing, LinkedAccount, ProxyError, SourceRecord}
-  alias AshEnterprise.Integration.Gmail.{MessageList, SyncState}
+  alias AshEnterprise.Integration.Gmail.SyncState
   alias AshEnterprise.Security.ActorContext
 
   @integration "google-mail"
@@ -91,7 +93,9 @@ defmodule AshEnterprise.Integration.Gmail.Sync do
     :ambiguous_linked_account,
     :not_configured,
     :scoped_landing_not_wired,
-    :scope_required
+    :scope_required,
+    :scope_shredded,
+    :cross_scope_landing
   ]
 
   @default_snooze_ms 60_000
@@ -140,7 +144,7 @@ defmodule AshEnterprise.Integration.Gmail.Sync do
       actor: actor,
       ash: [actor: actor, tenant: ActorContext.tenant(actor)],
       linked_account_id: linked_account_id,
-      scope: Landing.scope(linked_account_id),
+      scope: nil,
       config: Keyword.merge(@defaults, Keyword.merge(config(), opts))
     }
 
@@ -153,7 +157,9 @@ defmodule AshEnterprise.Integration.Gmail.Sync do
       pages_left: ctx.config[:max_pages_per_step]
     }
 
-    with :ok <- resolve_account(ctx),
+    with {:ok, account} <- resolve_account(ctx),
+         {:ok, scope} <- Landing.open(account),
+         ctx = %{ctx | scope: scope},
          {:ok, state} <- open_state(ctx) do
       state
       |> run(ctx, acc)
@@ -171,7 +177,7 @@ defmodule AshEnterprise.Integration.Gmail.Sync do
   # deactivated or unlinked account stops the sync rather than erroring.
   defp resolve_account(ctx) do
     case LinkedAccount.for_operation(@integration, ctx.linked_account_id, ctx.ash) do
-      {:ok, [_account]} -> :ok
+      {:ok, [account]} -> {:ok, account}
       {:ok, []} -> {:error, :no_linked_account}
       {:ok, _several} -> {:error, :ambiguous_linked_account}
       {:error, error} -> {:error, error}
@@ -243,31 +249,39 @@ defmodule AshEnterprise.Integration.Gmail.Sync do
       }
       |> put_present(:page_token, state.backfill_page_token)
 
-    with {:ok, body} <- MessageList.list_messages(params, ctx.ash) do
-      ids =
-        body
-        |> Map.get("messages")
-        |> List.wrap()
-        |> Enum.map(& &1["id"])
-        |> Enum.filter(&is_binary/1)
-        |> Enum.uniq()
-        |> Enum.take(remaining)
+    cursor = %{"phase" => "backfill", "historyId" => state.backfill_history_id}
 
-      cursor = %{"phase" => "backfill", "historyId" => state.backfill_history_id}
+    with {:ok, body} <- Gmail.list_messages(params, ctx.ash),
+         ids = backfill_ids(body, remaining),
+         {:ok, acc} <- fetch_and_land(ids, cursor, ctx, acc_page(acc)) do
+      next_backfill_page(
+        state,
+        ctx,
+        acc,
+        present(body["nextPageToken"]),
+        state.backfill_landed + length(ids)
+      )
+    end
+  end
 
-      with {:ok, acc} <- fetch_and_land(ids, cursor, ctx, acc_page(acc)) do
-        consumed = state.backfill_landed + length(ids)
-        next = present(body["nextPageToken"])
+  defp backfill_ids(body, remaining) do
+    body
+    |> Map.get("messages")
+    |> List.wrap()
+    |> Enum.map(& &1["id"])
+    |> Enum.filter(&is_binary/1)
+    |> Enum.uniq()
+    |> Enum.take(remaining)
+  end
 
-        if next && consumed < ctx.config[:backfill_max_messages] do
-          with {:ok, state} <-
-                 advance(state, ctx, %{backfill_page_token: next, backfill_landed: consumed}) do
-            run(state, ctx, acc)
-          end
-        else
-          complete_backfill(%{state | backfill_landed: consumed}, ctx, acc)
-        end
+  defp next_backfill_page(state, ctx, acc, next, consumed) do
+    if next && consumed < ctx.config[:backfill_max_messages] do
+      with {:ok, state} <-
+             advance(state, ctx, %{backfill_page_token: next, backfill_landed: consumed}) do
+        run(state, ctx, acc)
       end
+    else
+      complete_backfill(%{state | backfill_landed: consumed}, ctx, acc)
     end
   end
 
@@ -289,31 +303,31 @@ defmodule AshEnterprise.Integration.Gmail.Sync do
 
   # `start` stays the request's startHistoryId across its pages (a page token
   # belongs to the request that issued it); the committed cursor moves on.
+  defp incremental_page(state, _ctx, %{pages_left: left} = acc, _start, _page_token)
+       when left <= 0,
+       do: {:ok, state, %{acc | more?: true}}
+
   defp incremental_page(state, ctx, acc, start, page_token) do
-    if acc.pages_left <= 0 do
-      {:ok, state, %{acc | more?: true}}
-    else
-      params =
-        %{
-          start_history_id: start,
-          history_types: [:messageAdded],
-          max_results: ctx.config[:page_size],
-          linked_account_id: ctx.linked_account_id
-        }
-        |> put_present(:page_token, page_token)
+    params =
+      %{
+        start_history_id: start,
+        history_types: [:messageAdded],
+        max_results: ctx.config[:page_size],
+        linked_account_id: ctx.linked_account_id
+      }
+      |> put_present(:page_token, page_token)
 
-      case Gmail.list_history(params, ctx.ash) do
-        {:ok, body} ->
-          incremental_landed(state, ctx, acc, start, body)
-
-        {:error, error} ->
-          if ProxyError.reason(error) == :not_found and not acc.reset? do
-            resync(state, ctx, acc)
-          else
-            {:error, error}
-          end
-      end
+    case Gmail.list_history(params, ctx.ash) do
+      {:ok, body} -> incremental_landed(state, ctx, acc, start, body)
+      {:error, error} -> history_failed(error, state, ctx, acc)
     end
+  end
+
+  # 404: Gmail no longer retains the cursor. Resync once per step.
+  defp history_failed(error, state, ctx, acc) do
+    if ProxyError.reason(error) == :not_found and not acc.reset?,
+      do: resync(state, ctx, acc),
+      else: {:error, error}
   end
 
   defp incremental_landed(state, ctx, acc, start, body) do
@@ -329,25 +343,24 @@ defmodule AshEnterprise.Integration.Gmail.Sync do
     cursor = %{"phase" => "incremental", "startHistoryId" => start}
     next = present(body["nextPageToken"])
 
-    with {:ok, acc} <- fetch_and_land(ids, cursor, ctx, acc_page(acc)) do
-      committed =
-        if next do
-          last_record_id(records) || state.history_id
-        else
-          stringify(body["historyId"]) || last_record_id(records) || state.history_id
-        end
-
-      changes =
-        if next,
-          do: %{history_id: committed},
-          else: %{history_id: committed, last_synced_at: DateTime.utc_now()}
-
-      with {:ok, state} <- advance(state, ctx, changes) do
-        if next,
-          do: incremental_page(state, ctx, acc, start, next),
-          else: {:ok, state, acc}
-      end
+    with {:ok, acc} <- fetch_and_land(ids, cursor, ctx, acc_page(acc)),
+         {:ok, state} <- advance(state, ctx, incremental_changes(state, body, records, next)) do
+      if next,
+        do: incremental_page(state, ctx, acc, start, next),
+        else: {:ok, state, acc}
     end
+  end
+
+  # Mid-pass: the last history record's id (startHistoryId is exclusive). On
+  # the last page: the response's historyId.
+  defp incremental_changes(state, _body, records, next) when is_binary(next),
+    do: %{history_id: last_record_id(records) || state.history_id}
+
+  defp incremental_changes(state, body, records, nil) do
+    %{
+      history_id: stringify(body["historyId"]) || last_record_id(records) || state.history_id,
+      last_synced_at: DateTime.utc_now()
+    }
   end
 
   # Gmail no longer retains the cursor: an explicit reset, then a bounded
@@ -374,19 +387,18 @@ defmodule AshEnterprise.Integration.Gmail.Sync do
   defp fetch_and_land(ids, cursor, ctx, acc) do
     Enum.reduce_while(ids, {:ok, acc}, fn id, {:ok, acc} ->
       case fetch_message(id, ctx) do
-        {:ok, :skip} ->
-          {:cont, {:ok, %{acc | skipped: acc.skipped + 1}}}
-
-        {:ok, message} ->
-          case Landing.land(source_record(id, message, cursor, ctx), scope: ctx.scope) do
-            {:ok, _landed} -> {:cont, {:ok, %{acc | landed: acc.landed + 1}}}
-            {:error, reason} -> {:halt, {:error, reason}}
-          end
-
-        {:error, error} ->
-          {:halt, {:error, error}}
+        {:ok, :skip} -> {:cont, {:ok, %{acc | skipped: acc.skipped + 1}}}
+        {:ok, message} -> land_message(id, message, cursor, ctx, acc)
+        {:error, error} -> {:halt, {:error, error}}
       end
     end)
+  end
+
+  defp land_message(id, message, cursor, ctx, acc) do
+    case Landing.land(source_record(id, message, cursor, ctx), scope: ctx.scope) do
+      {:ok, _landed} -> {:cont, {:ok, %{acc | landed: acc.landed + 1}}}
+      {:error, reason} -> {:halt, {:error, reason}}
+    end
   end
 
   defp fetch_message(id, ctx) do

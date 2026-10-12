@@ -6,11 +6,12 @@ defmodule AshEnterprise.Canonical.Projections.Calendar do
 
   Input is anything carrying `external_system`, `external_id` and
   `raw_payload` — an `AshEnterprise.Integration.SourceRecord` the sync step has
-  just landed, or a (decrypted) `AshEnterprise.Ingestion.SourceObject` read
-  back for replay. The payload is one item of Google's `events.list` response,
-  verbatim. Everything written is a function of that payload plus the replay
-  context (whose rows these are); no clock, no actor state, so replaying the
-  same sources converges on the same rows.
+  just landed, or an `AshEnterprise.Ingestion.SourceObject` read back for
+  replay (`replay_landed/2`, which reads through the decrypting path). The
+  payload is one item of Google's `events.list` response, verbatim. Everything
+  written is a function of that payload plus the replay context (whose rows
+  these are, and which erasure scope seals them); no clock, no actor state, so
+  replaying the same sources converges on the same rows.
 
   ## Mapping (v1, deliberately crude)
 
@@ -20,7 +21,7 @@ defmodule AshEnterprise.Canonical.Projections.Calendar do
   | `starts_at` / `ends_at` | `start`/`end` `.dateTime` (offset → UTC), or all-day `.date` at 00:00 UTC |
   | `location` | `location` |
   | `organizer` | `Person` upserted on `organizer.email` |
-  | status | `status`: confirmed / tentative / cancelled — see "Cancellation" |
+  | `status` | `status`: confirmed / tentative / cancelled — see "Cancellation" |
 
   Attendees become `Person` rows on their email, the v1 linkage key; room and
   equipment attendees (`resource: true`) are not people and are skipped. There
@@ -36,20 +37,13 @@ defmodule AshEnterprise.Canonical.Projections.Calendar do
   return events deleted long ago, sometimes with their full start, end and
   summary. So:
 
-    * the event already has a canonical row → the row is kept, its title and
-      times untouched, and its status set to cancelled;
-    * it has none, the payload is complete, and `CalendarEvent` can record a
-      status → it is created cancelled;
-    * it has none, and either the payload is bare or no status can be
-      recorded → nothing is created; counted as `:skipped`. Without a status
-      attribute, a created row would make a deleted meeting look live to
-      every reader of `CalendarEvent`.
-
-  `CalendarEvent` does not have a status attribute yet (that file belongs to
-  another change). Until it accepts `:status` on `:upsert_from_source`, the
-  status is computed but not written, and a kept row's outcome is
-  `:cancelled_unrecorded` so the gap is visible in every sync summary rather
-  than silent. `status_supported?/0` reports which world this is.
+    * the payload is complete → the row is written (or created) with
+      `status: :cancelled`;
+    * the payload is bare and the event already has a canonical row → the row
+      is kept, its title and times untouched, and its status set to
+      cancelled;
+    * the payload is bare and there is no row → nothing is created; counted
+      as `:skipped`. There is nothing to show for a meeting never seen.
 
   ## People are not rewritten across owners
 
@@ -61,16 +55,23 @@ defmodule AshEnterprise.Canonical.Projections.Calendar do
   scoped per owner or per linked account is an open question for
   `AshEnterprise.Canonical.Person`.
 
-  ## Content and the audit log
+  ## Erasure (ADR 0024)
 
-  `CalendarEvent` and `Person` are audited (`AshEvents`). The event log stores
-  each write's params as `data` and masks only `sensitive?` attributes. Today
-  title, location, name and email are not sensitive, so every projection
-  would copy them into the central event log in plaintext. That copy sits
-  outside the landing scope, so shredding the account would not erase it.
-  `audit_exposure/0` lists the exposed attributes. `project/2` and `replay/2`
-  refuse to write while that list is non-empty, unless the context sets
-  `allow_audited_content?: true`. Only tests over synthetic data set it.
+  Every `CalendarEvent` is written with the `erasure_scope_id` of the source it
+  was projected from — the source's own (a landed `SourceObject`), or the
+  context's (`:erasure_scope_id`, the scope the sync step just landed the
+  record under). Its `title` and `location` are sealed under that scope's key,
+  so shredding the linked account's scope reaches the raw landing, the
+  canonical row and the ciphertext their audit events carry, in one key
+  destroy. A projection without a scope is refused (`:erasure_scope_required`).
+  A source whose scope is already shredded has nothing left to project and is
+  counted as `:shredded`.
+
+  `Person` rows are not sealed (`AshEnterprise.Canonical.Person`, "Erasure"):
+  their name and email are `sensitive?`, so the audit log records them as
+  `nil`; the rows themselves outlive a shred. The end-to-end erasure test
+  (`test/ash_enterprise/integration/erasure_e2e_test.exs`) sweeps the whole
+  audit log for every synthetic content string after a shred.
 
   ## The iCalUID is not written (yet)
 
@@ -81,16 +82,17 @@ defmodule AshEnterprise.Canonical.Projections.Calendar do
   of any shared meeting fail its upsert. Until that identity is scoped, the
   iCalUID stays in the raw payload only.
 
-  ## Zones and scope (ADR 0042, ADR 0024)
+  ## Zones (ADR 0042)
 
   These are real people's events. The sync step projects only records that
-  `AshEnterprise.Integration.Landing.land/2` accepted, which by default is
-  none: the default lander refuses until scoped (crypto-shredded) landing is
-  wired. The landing scope travels into every canonical write as changeset
-  context (`:landing_scope`) for the scoped-encryption work to pick up.
+  `AshEnterprise.Integration.Landing.land/2` accepted under the linked
+  account's scope. Calendar is the one vertical projected without a zone gate:
+  the dogfood decision is that the operator's own calendar is admitted.
   """
 
   alias AshEnterprise.Canonical.{CalendarEvent, Person}
+  alias AshEnterprise.Erasure.Shredded
+  alias AshEnterprise.Ingestion.SourceObject
 
   require Ash.Query
 
@@ -109,11 +111,10 @@ defmodule AshEnterprise.Canonical.Projections.Calendar do
           required(:tenant_id) => Ash.UUID.t(),
           optional(:business_unit_id) => Ash.UUID.t() | nil,
           optional(:actor) => term(),
-          optional(:scope) => String.t() | nil,
-          optional(:allow_audited_content?) => boolean()
+          optional(:erasure_scope_id) => Ash.UUID.t() | nil
         }
 
-  @type outcome :: :projected | :cancelled | :cancelled_unrecorded | :skipped
+  @type outcome :: :projected | :cancelled | :skipped | :shredded
 
   @doc "The `external_system` this projector owns."
   def external_system, do: @external_system
@@ -141,71 +142,33 @@ defmodule AshEnterprise.Canonical.Projections.Calendar do
   end
 
   @doc """
-  The opaque, stable key of one provider calendar as one owner sees it:
-  `"gcal:"` plus a SHA-256 of the owner id and Google's calendar id. It is the
-  first half of every landed event's external id (`external_id/2`).
+  The opaque, stable key of one provider calendar as one linked account sees
+  it: `"gcal:"` plus a SHA-256 of the linked account id and Google's calendar
+  id. It is the first half of every landed event's external id
+  (`external_id/2`).
 
-  It depends only on who owns the linked account and which calendar it is,
-  not on the linked account row or its sync cursor. So unlinking and
-  relinking the same Google account converges on the same canonical rows
-  instead of duplicating them. Two linked accounts of the same person that
-  both show one calendar share its rows. A primary calendar's id is an email
-  address, which is why the key is a digest and not the id itself.
+  Keyed by the **linked account**, not its owner, because every landed row
+  lives under exactly one erasure scope, one per linked account (ADR 0024), and
+  a landing never moves a row to another scope. Two linked accounts that both
+  show one calendar therefore land (and project) two copies, each erased with
+  its own account. Relinking an account is a new linked account and a new
+  scope: its events land afresh, and the old account's rows stay under the old
+  scope until that is shredded. A primary calendar's id is an email address,
+  which is why the key is a digest and not the id itself.
   """
   @spec calendar_key(Ash.UUID.t(), String.t()) :: String.t()
-  def calendar_key(owner_id, calendar_id) when is_binary(owner_id) and is_binary(calendar_id) do
+  def calendar_key(linked_account_id, calendar_id)
+      when is_binary(linked_account_id) and is_binary(calendar_id) do
     digest =
-      :crypto.hash(:sha256, ["ash_enterprise.calendar_key.v1", 0, owner_id, 0, calendar_id])
+      :crypto.hash(:sha256, [
+        "ash_enterprise.calendar_key.v2",
+        0,
+        linked_account_id,
+        0,
+        calendar_id
+      ])
 
     "gcal:" <> Base.encode16(digest, case: :lower)
-  end
-
-  # The content attributes a calendar projection writes, per resource.
-  @content_attributes [
-    {CalendarEvent, [:title, :location]},
-    {Person, [:name, :email]}
-  ]
-
-  @doc """
-  The content attributes a projection would copy into the central audit log
-  in plaintext, as `{resource, attribute}` pairs (see "Content and the audit
-  log"). Empty once each one is `sensitive?`, the event log is cloaked, or the
-  resource is no longer audited.
-  """
-  @spec audit_exposure() :: [{module(), atom()}]
-  def audit_exposure do
-    for {resource, names} <- @content_attributes,
-        audited_in_plaintext?(resource),
-        name <- names,
-        attribute = Ash.Resource.Info.attribute(resource, name),
-        not is_nil(attribute) and not attribute.sensitive? do
-      {resource, name}
-    end
-  end
-
-  defp audited_in_plaintext?(resource) do
-    AshEvents.Events in Spark.extensions(resource) and
-      case AshEvents.Events.Info.events_event_log(resource) do
-        {:ok, event_log} -> not AshEvents.EventLog.Info.cloaked?(event_log)
-        :error -> true
-      end
-  end
-
-  @doc """
-  Whether a projection under `context` may write: nothing would reach the
-  audit log in plaintext, or the context explicitly allows it.
-  """
-  @spec audit_safe?(map()) :: boolean()
-  def audit_safe?(context) do
-    Map.get(context, :allow_audited_content?, false) == true or audit_exposure() == []
-  end
-
-  @doc """
-  Whether `CalendarEvent` can record a status yet (see "Cancellation").
-  """
-  @spec status_supported?() :: boolean()
-  def status_supported? do
-    :status in Ash.Resource.Info.action(CalendarEvent, :upsert_from_source).accept
   end
 
   @doc """
@@ -248,27 +211,41 @@ defmodule AshEnterprise.Canonical.Projections.Calendar do
   Returns `{:ok, %{outcome: outcome, people: [person_id]}}`, or
   `{:error, error}` when a canonical write fails (the error is an Ash error;
   callers must not log or persist it verbatim — it can carry the payload).
-  Returns `{:error, :content_would_be_audited}` and writes nothing while
-  `audit_safe?/1` is false for `context`.
+  Returns `{:error, :erasure_scope_required}` and writes nothing when neither
+  the source nor the context names an erasure scope.
   """
   @spec project(map(), context()) ::
           {:ok, %{outcome: outcome(), people: [Ash.UUID.t()]}} | {:error, term()}
-  def project(%{external_system: system, external_id: external_id, raw_payload: payload}, context)
-      when is_binary(external_id) and is_map(payload) do
-    if audit_safe?(context),
-      do: project_payload(system, external_id, payload, context),
-      else: {:error, :content_would_be_audited}
+  def project(
+        %{external_system: system, external_id: external_id, raw_payload: payload} = source,
+        context
+      )
+      when is_binary(external_id) do
+    cond do
+      Shredded.shredded?(payload) ->
+        {:ok, %{outcome: :shredded, people: []}}
+
+      not is_map(payload) ->
+        {:ok, %{outcome: :skipped, people: []}}
+
+      true ->
+        case Map.get(source, :erasure_scope_id) || Map.get(context, :erasure_scope_id) do
+          nil ->
+            {:error, :erasure_scope_required}
+
+          scope_id ->
+            project_payload(
+              system,
+              external_id,
+              payload,
+              Map.put(context, :erasure_scope_id, scope_id)
+            )
+        end
+    end
   end
 
   defp project_payload(system, external_id, payload, context) do
     case event_attributes(payload) do
-      # Never create a row for a cancelled event that cannot be marked
-      # cancelled (see "Cancellation").
-      {:ok, %{status: :cancelled} = attrs} ->
-        if status_supported?(),
-          do: write_complete(system, external_id, attrs, context),
-          else: cancel_existing(system, external_id, context)
-
       {:ok, attrs} ->
         write_complete(system, external_id, attrs, context)
 
@@ -286,17 +263,11 @@ defmodule AshEnterprise.Canonical.Projections.Calendar do
   """
   @spec replay([map()], context()) :: {:ok, map()} | {:error, term()}
   def replay(sources, context) do
-    if audit_safe?(context),
-      do: replay_all(sources, context),
-      else: {:error, :content_would_be_audited}
-  end
-
-  defp replay_all(sources, context) do
     initial = %{
       projected: 0,
       cancelled: 0,
-      cancelled_unrecorded: 0,
       skipped: 0,
+      shredded: 0,
       people: MapSet.new()
     }
 
@@ -318,6 +289,23 @@ defmodule AshEnterprise.Canonical.Projections.Calendar do
       {:ok, acc} -> {:ok, %{acc | people: MapSet.size(acc.people)}}
       error -> error
     end
+  end
+
+  @doc """
+  Replay everything landed through one linked account: its `SourceObject` rows
+  on this projector's stream, read back through the decrypting path (each row
+  carries its own `erasure_scope_id`, which the canonical rows inherit). Rows
+  whose scope has been shredded are counted as `:shredded`, never projected.
+  """
+  @spec replay_landed(Ash.UUID.t(), context()) :: {:ok, map()} | {:error, term()}
+  def replay_landed(linked_account_id, context) when is_binary(linked_account_id) do
+    SourceObject
+    |> Ash.Query.filter(external_system == ^@external_system)
+    |> Ash.Query.filter(source_metadata["stream"] == ^@stream)
+    |> Ash.Query.filter(source_metadata["linked_account_id"] == ^linked_account_id)
+    |> Ash.Query.sort(:external_id)
+    |> Ash.read!(authorize?: false)
+    |> replay(Map.delete(context, :erasure_scope_id))
   end
 
   # --- writes ------------------------------------------------------------------
@@ -360,6 +348,10 @@ defmodule AshEnterprise.Canonical.Projections.Calendar do
       {:ok, nil} ->
         {:ok, %{outcome: :skipped, people: []}}
 
+      # Its scope is gone; there is no title left to keep.
+      {:ok, %CalendarEvent{title: %Shredded{}}} ->
+        {:ok, %{outcome: :shredded, people: []}}
+
       {:ok, event} ->
         with {:ok, _event} <-
                upsert_event(
@@ -387,26 +379,18 @@ defmodule AshEnterprise.Canonical.Projections.Calendar do
     attrs =
       attrs
       |> Map.merge(owner_attrs(context))
-      |> maybe_put_status(status)
+      |> Map.merge(%{status: status, erasure_scope_id: context.erasure_scope_id})
 
     CalendarEvent
     |> Ash.Changeset.for_create(:upsert_from_source, attrs,
       tenant: context.tenant_id,
       actor: Map.get(context, :actor),
-      authorize?: false,
-      context: write_context(context)
+      authorize?: false
     )
     |> Ash.create()
   end
 
-  defp maybe_put_status(attrs, status) do
-    if status_supported?(), do: Map.put(attrs, :status, status), else: attrs
-  end
-
-  defp outcome_for(:cancelled) do
-    if status_supported?(), do: :cancelled, else: :cancelled_unrecorded
-  end
-
+  defp outcome_for(:cancelled), do: :cancelled
   defp outcome_for(_status), do: :projected
 
   defp upsert_people(contacts, context) do
@@ -462,8 +446,7 @@ defmodule AshEnterprise.Canonical.Projections.Calendar do
       Map.merge(%{email: email, name: name}, owner_attrs(context)),
       tenant: context.tenant_id,
       actor: Map.get(context, :actor),
-      authorize?: false,
-      context: write_context(context)
+      authorize?: false
     )
     |> Ash.create(
       upsert?: true,
@@ -479,13 +462,6 @@ defmodule AshEnterprise.Canonical.Projections.Calendar do
       owning_user_id: context.owner_id,
       owning_business_unit_id: Map.get(context, :business_unit_id)
     }
-  end
-
-  defp write_context(context) do
-    case Map.get(context, :scope) do
-      nil -> %{}
-      scope -> %{landing_scope: scope}
-    end
   end
 
   # --- payload readers -----------------------------------------------------------

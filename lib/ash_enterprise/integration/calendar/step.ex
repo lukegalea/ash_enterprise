@@ -27,19 +27,18 @@ defmodule AshEnterprise.Integration.Calendar.Step do
   after a reset still sees cancellations; incremental syncs include them
   regardless).
 
-  ## Nothing lands by default
+  ## Sealed under the account's erasure scope, or not at all
 
-  `Landing.land/2` refuses every record until scoped landing is wired. The
-  step checks for that before anything else and returns `SyncError`
-  `:landing_refused`. It makes no provider call and writes no cursor row (a
-  cursor holds a calendar id, which is often an email address). A lander
-  that refuses a record later still stops the step before that record is
-  projected or the cursor advances.
-
-  The same preflight refuses with `:content_would_be_audited` while the
-  projection would copy event content into the audit log in plaintext
-  (`Projections.Calendar.audit_exposure/0`). The `:allow_audited_content?`
-  option overrides it; only tests over synthetic data set it.
+  Before anything else the step opens the linked account's erasure scope
+  (`Landing.open/1`, ADR 0024). If landing is not wired, or the scope has been
+  shredded, the step stops with `SyncError` `:landing_refused` (detail
+  `:scoped_landing_not_wired` / `:scope_shredded`): it makes no provider call
+  and writes no cursor row (a cursor holds a calendar id, which is often an
+  email address). Every event is then landed sealed under that scope and
+  projected with its `erasure_scope_id`, so one shred reaches both copies. A
+  lander that refuses a record later (a shred racing the step, a cross-scope
+  landing) still stops the step before that record is projected or the cursor
+  advances.
 
   ## Concurrent steps and resets
 
@@ -98,47 +97,31 @@ defmodule AshEnterprise.Integration.Calendar.Step do
   Options (each defaulting to `config :ash_enterprise,
   AshEnterprise.Integration.Calendar`): `:page_size` (events per request,
   default #{@default_page_size}), `:max_pages` (events pages per step, default
-  #{@default_max_pages}), `:project?` (default `true`),
-  `:allow_audited_content?` (default `false`; see "Nothing lands by default").
+  #{@default_max_pages}), `:project?` (default `true`).
   """
   @spec run(term(), Ash.UUID.t() | nil, keyword()) :: {:ok, summary()} | {:error, Exception.t()}
   def run(actor, linked_account_id, opts \\ []) do
-    with {:ok, account} <- resolve_account(actor, linked_account_id) do
-      state = init(actor, account, opts)
+    with {:ok, account} <- resolve_account(actor, linked_account_id),
+         {:ok, scope} <- open_scope(account) do
+      state = init(actor, account, scope, opts)
 
-      with :ok <- preflight(state),
-           {:ok, cursors} <- refresh_calendars(state) do
+      with {:ok, cursors} <- refresh_calendars(state) do
         sync(cursors, state)
       end
     end
   end
 
   # Refuse before the first provider call or cursor write, so a step that
-  # cannot land or project leaves nothing behind (not even a cursor row, whose
-  # calendar id is an email address).
-  defp preflight(state) do
-    cond do
-      not landing_wired?() ->
-        {:error, SyncError.exception(reason: :landing_refused, detail: :scoped_landing_not_wired)}
+  # cannot land leaves nothing behind (not even a cursor row, whose calendar id
+  # is an email address).
+  defp open_scope(account) do
+    case Landing.open(account) do
+      {:ok, scope} ->
+        {:ok, scope}
 
-      state.project? and not Projector.audit_safe?(state.projection_context) ->
-        {:error, SyncError.exception(reason: :content_would_be_audited)}
-
-      true ->
-        :ok
+      {:error, reason} ->
+        {:error, SyncError.exception(reason: :landing_refused, detail: reason_atom(reason))}
     end
-  end
-
-  # `Landing` keeps its lander private, so this reads the same config key and
-  # treats the default as unwired. A `Landing.wired?/0` on the edge would
-  # replace it.
-  defp landing_wired? do
-    lander =
-      :ash_enterprise
-      |> Application.get_env(Landing, [])
-      |> Keyword.get(:lander, Landing.NotWired)
-
-    lander != Landing.NotWired
   end
 
   @doc """
@@ -188,9 +171,8 @@ defmodule AshEnterprise.Integration.Calendar.Step do
 
   # --- state -------------------------------------------------------------------
 
-  defp init(actor, account, opts) do
+  defp init(actor, account, scope, opts) do
     actor_context = ActorContext.for_actor(actor)
-    scope = Landing.scope(account)
 
     %{
       actor: actor,
@@ -205,17 +187,19 @@ defmodule AshEnterprise.Integration.Calendar.Step do
         tenant_id: account.organization_id,
         business_unit_id: actor_context.business_unit_id,
         actor: actor,
-        scope: scope,
-        allow_audited_content?: option(opts, :allow_audited_content?, false) == true
+        erasure_scope_id: erasure_scope_id(scope)
       },
       pages: 0,
       landed: 0,
       resets: 0,
       superseded: 0,
       more?: false,
-      projection: %{projected: 0, cancelled: 0, cancelled_unrecorded: 0, skipped: 0}
+      projection: %{projected: 0, cancelled: 0, skipped: 0, shredded: 0}
     }
   end
+
+  defp erasure_scope_id(%{id: id}), do: id
+  defp erasure_scope_id(_ref), do: nil
 
   # Cursor bookkeeping runs in this trusted step, attributed to the actor: the
   # account's ownership was established by `resolve_account/2` under the
@@ -363,26 +347,26 @@ defmodule AshEnterprise.Integration.Calendar.Step do
 
   defp recover(_reason, error, _cursor, _state, _reset?), do: {:error, error}
 
-  defp advance(cursor, body, state, reset?) do
-    case body do
-      %{"nextPageToken" => token} when is_binary(token) and token != "" ->
-        case guarded_write(SyncCursor.page(cursor, token, read_as(cursor), state.cursor_opts)) do
-          {:ok, cursor} -> sync_calendar(cursor, state, reset?)
-          :superseded -> {:ok, superseded(state)}
-          error -> error
-        end
-
-      %{"nextSyncToken" => token} when is_binary(token) and token != "" ->
-        case guarded_write(SyncCursor.complete(cursor, token, read_as(cursor), state.cursor_opts)) do
-          {:ok, _cursor} -> {:ok, state}
-          :superseded -> {:ok, superseded(state)}
-          error -> error
-        end
-
-      _ ->
-        {:error, SyncError.exception(reason: :protocol)}
+  defp advance(cursor, %{"nextPageToken" => token}, state, reset?)
+       when is_binary(token) and token != "" do
+    case guarded_write(SyncCursor.page(cursor, token, read_as(cursor), state.cursor_opts)) do
+      {:ok, cursor} -> sync_calendar(cursor, state, reset?)
+      :superseded -> {:ok, superseded(state)}
+      error -> error
     end
   end
+
+  defp advance(cursor, %{"nextSyncToken" => token}, state, _reset?)
+       when is_binary(token) and token != "" do
+    case guarded_write(SyncCursor.complete(cursor, token, read_as(cursor), state.cursor_opts)) do
+      {:ok, _cursor} -> {:ok, state}
+      :superseded -> {:ok, superseded(state)}
+      error -> error
+    end
+  end
+
+  defp advance(_cursor, _body, _state, _reset?),
+    do: {:error, SyncError.exception(reason: :protocol)}
 
   # What this step read: the compare half of every compare-and-set cursor
   # write (`AshEnterprise.Integration.Calendar.Changes.CursorUnchanged`).
@@ -430,7 +414,7 @@ defmodule AshEnterprise.Integration.Calendar.Step do
       external_system: Projector.external_system(),
       external_id:
         Projector.external_id(
-          Projector.calendar_key(state.account.owner_id, cursor.calendar_id),
+          Projector.calendar_key(state.account.id, cursor.calendar_id),
           event_id
         ),
       stream: Projector.stream(),
@@ -464,9 +448,6 @@ defmodule AshEnterprise.Integration.Calendar.Step do
     case Projector.project(record, state.projection_context) do
       {:ok, %{outcome: outcome}} ->
         {:ok, bump(state, outcome)}
-
-      {:error, :content_would_be_audited} ->
-        {:error, SyncError.exception(reason: :content_would_be_audited)}
 
       {:error, _dropped_because_it_can_carry_the_payload} ->
         {:error, SyncError.exception(reason: :projection_failed)}

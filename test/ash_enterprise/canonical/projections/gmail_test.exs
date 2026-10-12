@@ -167,7 +167,9 @@ defmodule AshEnterprise.Canonical.Projections.GmailTest do
         external_system: "gmail",
         external_id: Sync.external_id(ctx.linked.id, "thread-a-#{ctx.unique}"),
         subject: "SYNTHETIC-SUBJECT-A",
-        participants: %{"emails" => ["sender.one@example.synthetic.test"]}
+        participants: %{"emails" => ["sender.one@example.synthetic.test"]},
+        erasure_scope_id:
+          AshEnterprise.Erasure.scope_by_ref!(:connection, ctx.linked.id, authorize?: false).id
       },
       tenant: ctx.org.id,
       authorize?: false
@@ -361,17 +363,27 @@ defmodule AshEnterprise.Canonical.Projections.GmailTest do
   # Lands a synthetic record the way Sync lands one: identity namespaced by the
   # linked account, which is also named in the metadata. `nil` lands a record
   # that names no account.
+  # Landed exactly as the scoped lander lands: sealed under the linked
+  # account's erasure scope (ref = the account's uuid), or a stand-in scope for
+  # a record that came through no account.
   defp land!(message, linked, metadata \\ %{}) do
-    {external_id, account_metadata} =
+    {external_id, account_metadata, scope_ref} =
       case linked do
         nil ->
-          {"no-account:" <> message["id"], %{}}
+          {"no-account:" <> message["id"], %{}, "gmail-test-no-account"}
 
         linked ->
-          {Sync.external_id(linked.id, message["id"]), %{"linked_account_id" => linked.id}}
+          {Sync.external_id(linked.id, message["id"]), %{"linked_account_id" => linked.id},
+           linked.id}
       end
 
-    SourceObject.land!(
+    scope =
+      AshEnterprise.Erasure.ensure_scope!(:connection, scope_ref, %{label: "gmail test"},
+        actor: AshEnterprise.Platform.SystemActor.oban()
+      )
+
+    SourceObject.land_under!(
+      scope.id,
       %{
         external_system: "gmail",
         external_id: external_id,

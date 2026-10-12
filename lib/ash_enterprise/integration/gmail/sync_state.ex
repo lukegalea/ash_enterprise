@@ -47,7 +47,7 @@ defmodule AshEnterprise.Integration.Gmail.SyncState do
   """
 
   use AshEnterprise.Platform.Resource,
-    domain: AshEnterprise.Integration.Gmail.SyncDomain,
+    domain: AshEnterprise.Integration,
     ownership: :user_owned,
     tenant?: true,
     lifecycle?: false,

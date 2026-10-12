@@ -18,7 +18,9 @@ defmodule AshEnterprise.Ingestion.SourceObject do
   Identity: `unique_source_object` on `[external_system, external_id]`. The
   `land` action upserts on it, which is what makes re-running a pipeline
   idempotent — a repeated tap pass updates payload/cursor in place instead of
-  duplicating rows.
+  duplicating rows. The upsert is conditional on the scope: a landing under a
+  different erasure scope than the existing row's is refused, never silently
+  re-scoped (`AshEnterprise.Ingestion.Changes.KeepErasureScope`).
 
   ## Erasure: every landing is sealed under a scope (ADR 0024)
 
@@ -165,7 +167,9 @@ defmodule AshEnterprise.Ingestion.SourceObject do
       place rather than duplicating the row.
 
       `erasure_scope_id` is required: the record is sealed under that scope's
-      key, and refused if the scope has been shredded.
+      key, and refused if the scope has been shredded. A row that already
+      exists under a different scope is never re-scoped: the landing fails
+      with `Ash.Error.Changes.StaleRecord` and the row is left untouched.
       """
 
       accept [
@@ -181,15 +185,18 @@ defmodule AshEnterprise.Ingestion.SourceObject do
       upsert? true
       upsert_identity :unique_source_object
 
-      # The scope moves with the payload: a row's ciphertext and its
-      # `erasure_scope_id` always name the same scope.
+      # A row never changes scope: the upsert only updates a row already under
+      # the landing's scope, and a landing under another scope is refused
+      # (`KeepErasureScope`). So `erasure_scope_id` is not an upsert field, and
+      # a row's ciphertext and its `erasure_scope_id` always name the same scope.
       upsert_fields [
-        :erasure_scope_id,
         :encrypted_raw_payload,
         :source_metadata,
         :cursor,
         :fetched_at
       ]
+
+      change AshEnterprise.Ingestion.Changes.KeepErasureScope
     end
 
     update :advance_cursor do

@@ -41,13 +41,15 @@ defmodule AshEnterprise.Canonical.Projection do
 
   ## Zones — READ BEFORE ADDING A PROJECTOR (ADR 0042)
 
-  TODO(E4, Gmail/Slack verticals): Gmail and Slack SourceObjects are personal
-  data NOT admitted into any declared zone — zone admission is not yet on the
-  SourceObject land path (an E1 follow-up owns that). Do NOT add projectors for
-  `external_system: "gmail"` or `"slack"` until admission checks each landed
-  item's residency tag at `land` time. The `:calendar` projector is exempt:
-  its SourceObjects come from the deterministic fixture tap, synthetic data
-  with no residency exposure.
+  Gmail and Slack SourceObjects are personal data NOT admitted into any
+  declared zone — zone admission is not yet on the SourceObject land path (an
+  E1 follow-up owns that). Their projectors live in
+  `AshEnterprise.Canonical.Projections.Gmail` / `.Slack`, behind zone gates
+  that deny by default; do not add them here. The `:calendar` projector is
+  exempt: its SourceObjects come from the deterministic fixture tap, synthetic
+  data with no residency exposure. (The operator's real Google Calendar is
+  `AshEnterprise.Canonical.Projections.Calendar`, `external_system:
+  "google_calendar"`.)
   """
 
   alias AshEnterprise.Canonical.{CalendarEvent, Person}

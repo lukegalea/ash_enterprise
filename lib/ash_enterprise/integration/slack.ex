@@ -17,8 +17,9 @@ defmodule AshEnterprise.Integration.Slack do
   (`invalid_auth` → `:unauthorized`, `channel_not_found` → `:not_found`,
   `ratelimited` → `:rate_limited`, `invalid_cursor` → `:gone`).
 
-  VendorPM workspace content may not land anywhere until crypto-shredding
-  (ADR 0024) is on main; `AshEnterprise.Integration.Landing` refuses by default.
+  VendorPM workspace content lands only sealed under the linked account's
+  erasure scope (ADR 0024, `AshEnterprise.Integration.Landing`), so one shred
+  forgets it.
   """
 
   use AshEnterprise.Platform.Resource,

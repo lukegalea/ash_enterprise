@@ -1,8 +1,11 @@
 # Runbook: crypto-shredding an erasure scope
 
 Written 2026-10-12, against the erasure half of [ADR 0024](../adr/0024-audit-retention-and-erasure.md).
-Code: `AshEnterprise.Erasure` (`lib/ash_enterprise/erasure.ex` and `lib/ash_enterprise/erasure/`). Tests:
-`test/ash_enterprise/erasure_test.exs`.
+Updated 2026-10-12 when the provider syncs (Google Calendar, Gmail, Slack via Nango, epic E4) were wired to it.
+Code: `AshEnterprise.Erasure` (`lib/ash_enterprise/erasure.ex` and `lib/ash_enterprise/erasure/`), and
+`AshEnterprise.Integration.Landing` / `Landing.Scoped` for the provider syncs. Tests:
+`test/ash_enterprise/erasure_test.exs`, `test/ash_enterprise/integration/erasure_e2e_test.exs` (one end-to-end shred per
+vertical) and `test/ash_enterprise/integration/landing_scoped_test.exs`.
 
 ## What a shred does
 
@@ -29,26 +32,87 @@ A scope is `(kind, ref)`, unique, with exactly one key for its whole life:
 
 | kind | covers | ref |
 |---|---|---|
-| `connection` | everything that came in through one linked account / Nango connection / tap pipeline | the connection's stable id, e.g. the Nango connection id for the VendorPM Slack, or `pipeline:<name>` for a configured tap |
+| `connection` | everything that came in through one linked account, or one tap pipeline | for a provider sync, the **linked account's id** (a uuid); for a configured tap, `pipeline:<name>` |
 | `data_subject` | content belonging to one person | the subject's stable id |
 
 Each row is sealed under exactly one scope. Shredding a `connection` scope does not reach a person's data that came in
 through a *different* connection, and nothing lands under a `data_subject` scope yet (see "Not reached" below).
 
+A row never changes scope. A landing whose `(external_system, external_id)` already exists under a different scope is
+refused (`AshEnterprise.Ingestion.Changes.KeepErasureScope`; the provider syncs report it as `cross_scope_landing` and
+cancel). Every provider sync namespaces its external ids by the linked account, so two accounts that can see the same
+message or meeting land two rows, each erased with its own account.
+
+### Provider syncs: one scope per linked account
+
+Every record the Calendar, Gmail and Slack syncs fetch is landed by `AshEnterprise.Integration.Landing.Scoped`, sealed
+under the scope `connection:<linked account id>`, and every canonical row projected from it (`CalendarEvent`,
+`Message`, `Conversation`) carries the same `erasure_scope_id`. The ref is the linked account's uuid: opaque, never the
+Nango connection id, an email address or a channel name, because a scope's ref and label are audited and outlive its
+shred. The label is `linked account (<integration>)` and nothing else.
+
+**Find a linked account's scope ref:**
+
+```bash
+devenv shell -- mix ash_enterprise.integration.accounts --email you@example.com
+# 9b0f…  slack  work  active  connection ****a1b2  scope connection:9b0f… (active)
+```
+
+The last column is what `mix ash_enterprise.erasure.shred` takes. `mix ash_enterprise.erasure.scopes` lists the same
+scope as `connection:<id>  active  linked account (slack)`. Note the ref down **before** unlinking: after an unlink the
+scope is still listed, but only by that id and its integration.
+
+The scope opens when the account is linked with `mix ash_enterprise.integration.link` (or at its first sync), so it is
+shreddable before anything has landed. Gmail and Slack content lands raw (sealed) but is projected only behind a zone
+gate, which denies by default (ADR 0042 admission is not wired).
+
+### Operator setup
+
+```bash
+devenv shell -- mix ash_enterprise.seed --privileges-only
+# then, in IEx: AshEnterprise.Platform.Seeder.regrant_administrator_privileges(org_id)
+devenv shell -- mix ash_enterprise.integration.link --email you@example.com \
+  --integration slack --connection-id <nango connection id> [--label work]
+devenv shell -- mix ash_enterprise.integration.sync --linked-account <id> [--steps 3]   # dev only; counts only
+```
+
+The privilege catalogue now includes the Integration resources, and the regrant gives a tenant's Administrator what it
+needs to link accounts, run syncs (`read` on the operation resources and on each vertical's `Sync`, the cursors) and
+shred (`write` on `AshEnterprise.Erasure.Scope`). The link is made as the user named by `--email`: a linked account is
+always owned by the person whose account it is. The connection id is never printed back in full.
+
+The scheduler (`AshEnterprise.Integration.SyncScheduler`, Oban cron) enqueues one step per **active** linked account
+per vertical every 5–10 minutes on the `:ingestion` queue. Each worker is unique per linked account, so overlapping
+ticks collapse into the step already queued or running.
+
 ## Before you shred: stop new data arriving
 
 Shredding stops nothing from arriving. A shredded scope refuses any further writes under it (checked again under a
-lock inside each write's transaction, so a sync racing the shred is refused or reached, never left readable), so a
-connection that is still live would make its next sync fail loudly rather than land data. Do these first:
+lock inside each write's transaction, so a sync racing the shred is refused or reached, never left readable), and a
+provider sync whose scope is shredded cancels before its first provider request (`scope_shredded`). Still, stop the
+source first.
 
-1. **Delete the Nango connection** for the account (Nango dashboard, environment `dev`, integration `slack` /
+### Forgetting a linked account, in order
+
+1. **Deactivate the linked account** (IEx: `Ash.Changeset.for_update(account, :deactivate, %{}, actor: owner,
+   tenant: org_id) |> Ash.update!()`). The scheduler stops enqueuing it, and a step already queued cancels with
+   `no_linked_account` without a request. Deactivating erases nothing; the content is still readable.
+2. **Note the scope ref** (`mix ash_enterprise.integration.accounts --email …`): it is `connection:<linked account id>`.
+3. **Delete the Nango connection** for the account (Nango dashboard, environment `dev`, integration `slack` /
    `google-mail` / `google-calendar` → the connection → delete), or `DELETE /connection/{connectionId}` (with its
    `provider_config_key`) against the Nango API. This also deletes the OAuth tokens Nango holds for it.
-2. **Revoke the provider's grant:**
+4. **Revoke the provider's grant:**
    - Slack: revoke the app's tokens in the workspace (workspace settings → Manage apps → the app → Remove app, or
      `auth.revoke` with the token). Removing the app from the VendorPM workspace stops any token that survived Nango.
    - Google: <https://myaccount.google.com/permissions> → the app → Remove access.
-3. Remove or disable the pipeline/linked-account config that would start a new sync.
+5. **Shred** the scope (next section). This is the step that destroys content.
+6. **Unlink** the account (`LinkedAccount.unlink`), optional but tidy: it forgets the connection mapping and deletes
+   the vertical's sync cursors (a Calendar cursor holds the calendar id, which for a primary calendar is the owner's
+   address). The shredded scope stays as the tombstone, still named by the account's id.
+
+For a tap pipeline, step 1 is removing or disabling the pipeline config.
+
+`test/ash_enterprise/integration/erasure_e2e_test.exs` ("forgetting a linked account") runs this order.
 
 ## Shred
 
@@ -107,12 +171,16 @@ Be honest with whoever asked for the erasure about these. Each is a real copy of
   one connection's key. They are `sensitive?`, so the audit log records them as `null`, and removing a person is an
   ordinary row delete — but a shred does not do it. A `data_subject` scope with a blind-index identity is the intended
   fix; nothing writes under one yet.
-- **The same record from two connections.** Landings are unique on `(external_system, external_id)`, not on the scope.
-  If two connections deliver the same pair, the last one to land owns the row and its key, so which shred reaches it
-  depends on sync order. Adapters must make `external_id` unique per connection (for Slack, team/channel/ts).
+- **The same record from two connections.** Landings are unique on `(external_system, external_id)`, not on the scope,
+  and a landing under a second scope is refused rather than taking the row over. So a pair is erased only by the
+  shred of the scope it first landed under. The provider syncs namespace every external id by linked account, so
+  this does not arise for them; a new adapter must do the same.
+- **Sync cursors.** A Calendar sync cursor stores the calendar id (a primary calendar's id is the owner's email
+  address) in plaintext. It is bookkeeping, `sensitive?` and never audited, and it is deleted when the linked account
+  is unlinked (step 6 above), not by the shred. Gmail and Slack cursors hold ids and positions only.
 - **Scope refs and labels.** `kind`, `ref` and `label` are structural and are audited when a scope opens, so they
-  outlive the shred. Use opaque ids (a Nango connection id, a Slack team id), never an email address or a person's
-  name.
+  outlive the shred. Use opaque ids (a linked account's uuid, a Slack team id), never an email address or a person's
+  name. The provider syncs use the linked account's uuid and the label `linked account (<integration>)`.
 - **Tenancy.** Scopes are not tenant-scoped (nor are raw landings). A global write grant on `Scope` reaches every
   scope in the deployment, so in a multi-tenant deployment one tenant's Administrator could shred another tenant's
   connection. That is acceptable for the single-operator dogfood deployment. Make scopes tenant-scoped before any

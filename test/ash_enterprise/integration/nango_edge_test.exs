@@ -187,6 +187,7 @@ defmodule AshEnterprise.Integration.NangoEdgeTest do
       assert Enum.map(Info.operations(Gmail), & &1.name) == [
                :get_profile,
                :list_history,
+               :list_messages,
                :get_message
              ]
 
@@ -555,9 +556,15 @@ defmodule AshEnterprise.Integration.NangoEdgeTest do
   end
 
   describe "landing" do
-    test "refuses by default: nothing lands until scoped landing is wired", ctx do
+    test "with no lander configured, nothing lands", ctx do
+      Application.put_env(:ash_enterprise, @landing_env, [])
+
+      refute Landing.wired?()
+
       assert {:error, :scoped_landing_not_wired} =
                Landing.land(synthetic_record(), scope: Landing.scope(ctx.alice_cal))
+
+      assert {:error, :scoped_landing_not_wired} = Landing.open(ctx.alice_cal)
     end
 
     test "a scope is required" do
@@ -575,7 +582,7 @@ defmodule AshEnterprise.Integration.NangoEdgeTest do
 
       assert {:ok, :captured} = Landing.land(record, scope: scope)
       assert_received {:landed, ^record, ^scope}
-      assert scope == "integration.linked_account:" <> ctx.alice_cal.id
+      assert scope == ctx.alice_cal.id
       refute scope =~ "conn-"
     end
   end

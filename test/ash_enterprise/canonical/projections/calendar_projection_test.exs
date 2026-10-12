@@ -47,12 +47,12 @@ defmodule AshEnterprise.Canonical.Projections.CalendarTest do
   end
 
   describe "calendar_key/2" do
-    test "depends only on the owner and the calendar, and carries no calendar id" do
-      owner = Ecto.UUID.generate()
-      key = Projector.calendar_key(owner, F.primary_calendar())
+    test "depends only on the linked account and the calendar, and carries no calendar id" do
+      account = Ecto.UUID.generate()
+      key = Projector.calendar_key(account, F.primary_calendar())
 
-      assert key == Projector.calendar_key(owner, F.primary_calendar())
-      assert key != Projector.calendar_key(owner, F.team_calendar())
+      assert key == Projector.calendar_key(account, F.primary_calendar())
+      assert key != Projector.calendar_key(account, F.team_calendar())
       assert key != Projector.calendar_key(Ecto.UUID.generate(), F.primary_calendar())
       assert "gcal:" <> hex = key
       assert byte_size(hex) == 64
@@ -106,30 +106,33 @@ defmodule AshEnterprise.Canonical.Projections.CalendarTest do
           }
         end
 
-      # Synthetic data only, so the audit guard may be overridden here.
-      context = %{owner_id: owner.id, tenant_id: org.id, allow_audited_content?: true}
+      scope =
+        AshEnterprise.Erasure.ensure_scope!(
+          :connection,
+          "projection-test-#{System.unique_integer([:positive])}",
+          %{label: "projection test"},
+          actor: AshEnterprise.Platform.SystemActor.oban()
+        )
+
+      context = %{owner_id: owner.id, tenant_id: org.id, erasure_scope_id: scope.id}
 
       %{org: org, owner: owner, context: context, sources: sources}
     end
 
-    test "a deleted event with its full payload is not created while status is unrecorded",
-         ctx do
+    test "a deleted event with its full payload is recorded as cancelled", ctx do
       source = %{
         external_system: Projector.external_system(),
         external_id: Projector.external_id("cal-key-synthetic", "synthev0004"),
         raw_payload: F.deleted_event()
       }
 
-      if Projector.status_supported?() do
-        assert {:ok, %{cancelled: 1}} = Projector.replay([source], ctx.context)
-      else
-        assert {:ok, %{skipped: 1, projected: 0}} = Projector.replay([source], ctx.context)
-        assert CalendarEvent |> Ash.read!(tenant: ctx.org.id, authorize?: false) == []
-        assert Person |> Ash.read!(tenant: ctx.org.id, authorize?: false) == []
-      end
+      assert {:ok, %{cancelled: 1}} = Projector.replay([source], ctx.context)
+      assert [event] = CalendarEvent |> Ash.read!(tenant: ctx.org.id, authorize?: false)
+      assert event.status == :cancelled
+      assert event.erasure_scope_id == ctx.context.erasure_scope_id
     end
 
-    test "a deleted event that already has a row keeps the row", ctx do
+    test "a deleted event that already has a row keeps the row, cancelled", ctx do
       live = %{
         external_system: Projector.external_system(),
         external_id: Projector.external_id("cal-key-synthetic", "synthev0004"),
@@ -139,20 +142,20 @@ defmodule AshEnterprise.Canonical.Projections.CalendarTest do
       assert {:ok, %{projected: 1}} = Projector.replay([live], ctx.context)
       [row] = CalendarEvent |> Ash.read!(tenant: ctx.org.id, authorize?: false)
 
-      deleted = %{live | raw_payload: F.deleted_event()}
-      assert {:ok, %{projected: 0}} = Projector.replay([deleted], ctx.context)
+      assert row.status == :confirmed
+
+      bare = %{live | raw_payload: F.bare_cancellation("synthev0004")}
+      assert {:ok, %{projected: 0, cancelled: 1}} = Projector.replay([bare], ctx.context)
 
       assert [kept] = CalendarEvent |> Ash.read!(tenant: ctx.org.id, authorize?: false)
       assert kept.id == row.id
       assert kept.title == row.title
+      assert kept.status == :cancelled
     end
 
-    test "without the override, a projection writes nothing while content would be audited",
-         ctx do
-      assert Projector.audit_exposure() != []
-
-      assert {:error, :content_would_be_audited} =
-               Projector.replay(ctx.sources, Map.delete(ctx.context, :allow_audited_content?))
+    test "a projection without an erasure scope writes nothing", ctx do
+      assert {:error, :erasure_scope_required} =
+               Projector.replay(ctx.sources, Map.delete(ctx.context, :erasure_scope_id))
 
       assert CalendarEvent |> Ash.read!(tenant: ctx.org.id, authorize?: false) == []
       assert Person |> Ash.read!(tenant: ctx.org.id, authorize?: false) == []
