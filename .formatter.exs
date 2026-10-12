@@ -26,6 +26,16 @@
     :ecto_sql,
     :phoenix
   ],
+  # The provider-operation DSL (AshEnterprise.Integration.Nango.Operations) is
+  # an in-repo Spark extension with no package to import_deps from.
+  locals_without_parens: [
+    integration: 1,
+    errors: 1,
+    operation: 3,
+    operation: 4,
+    param: 2,
+    param: 3
+  ],
   subdirectories: ["priv/*/migrations"],
   plugins: [Absinthe.Formatter, Spark.Formatter, Phoenix.LiveView.HTMLFormatter],
   inputs: ["*.{heex,ex,exs}", "{config,lib,test}/**/*.{heex,ex,exs}", "priv/*/seeds.exs"]
