@@ -61,7 +61,7 @@ defmodule AshEnterprise.AI.RequestClassifier do
                 update themselves. Put the surface's name in `surface`, copied
                 exactly from this list:
 
-            <%= AshEnterpriseWeb.A2ui.Surfaces.catalogue() %>
+            <%= AshEnterprise.Surfaces.catalogue() %>
 
               - :design_surface -- the request is for a table, but no declared
                 surface answers it: it asks for particular columns, a filter, a
@@ -138,7 +138,7 @@ defmodule AshEnterprise.AI.RequestClassifier do
   key, and the symptom would be a model producing specs the server refuses.
   """
   def spec_schema_json do
-    AshEnterpriseWeb.A2ui.Surfaces.dynamic_allowlist()
+    AshEnterprise.Surfaces.dynamic_allowlist()
     |> AshA2ui.Dynamic.spec_schema()
     |> JSON.encode!()
   end
@@ -156,7 +156,7 @@ defmodule AshEnterprise.AI.RequestClassifier do
   is given, which raises on a list of maps rather than rendering one.
   """
   def resource_descriptions do
-    AshEnterpriseWeb.A2ui.Surfaces.dynamic_allowlist()
+    AshEnterprise.Surfaces.dynamic_allowlist()
     |> AshA2ui.Dynamic.describe_resources()
     |> JSON.encode!()
   end

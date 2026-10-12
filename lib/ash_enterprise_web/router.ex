@@ -103,19 +103,26 @@ defmodule AshEnterpriseWeb.Router do
   scope "/", AshEnterpriseWeb do
     pipe_through :browser
 
-    # --- Operator hub --------------------------------------------------------
+    # --- The launcher --------------------------------------------------------
     #
-    # The front door: the surfaces an operator uses day to day, so nobody starts
-    # from a URL they cannot remember. The root path redirects here (see
-    # PageController), which means a signed-out visitor is bounced to /sign-in
-    # by this session's on_mount while a signed-in one lands on the hub. The
-    # hub's old address, /app/demo, redirects too.
-    ash_authentication_live_session :demo_dashboard,
-      on_mount: [{AshEnterpriseWeb.LiveUserAuth, :live_user_required}] do
-      live "/app/hub", DashboardLive
+    # The front door: every surface in the registry (AshEnterprise.Surfaces),
+    # grouped, with Today leading. Sign-in lands here, and the root path, the
+    # old operator hub (/app/hub) and its older address (/app/demo) redirect
+    # here. A signed-out visitor is bounced to /sign-in by the on_mount.
+    #
+    # Every surface live_session below runs `SurfaceDoor` after the sign-in
+    # check: it finds the registry entry for the LiveView, checks its door
+    # (the same predicate ACP checks), and assigns the grouped nav.
+    ash_authentication_live_session :launcher,
+      on_mount: [
+        {AshEnterpriseWeb.LiveUserAuth, :live_user_required},
+        AshEnterpriseWeb.SurfaceDoor
+      ] do
+      live "/app", LauncherLive
     end
 
-    get "/app/demo", PageController, :legacy_hub
+    get "/app/hub", PageController, :launcher
+    get "/app/demo", PageController, :launcher
 
     # --- A2UI surfaces -------------------------------------------------------
     #
@@ -127,7 +134,10 @@ defmodule AshEnterpriseWeb.Router do
     # deleting lib/ash_enterprise_web/a2ui/, this live_session, and these
     # routes. Every screen has an /admin equivalent, so nothing breaks meanwhile.
     ash_authentication_live_session :a2ui_surfaces,
-      on_mount: [{AshEnterpriseWeb.LiveUserAuth, :live_user_required}] do
+      on_mount: [
+        {AshEnterpriseWeb.LiveUserAuth, :live_user_required},
+        AshEnterpriseWeb.SurfaceDoor
+      ] do
       live "/agent", AgentLive
       live "/app/users", A2uiLive.Users
       live "/app/teams", A2uiLive.Teams
@@ -142,11 +152,14 @@ defmodule AshEnterpriseWeb.Router do
 
     # --- The daily loop (Productivity OS dogfood, epic E6) --------------------
     #
-    # The operator's day: Today is where sign-in lands. Each page is an A2UI
+    # The operator's day. Each page is an A2UI
     # surface that the ACP server also serves (AshEnterprise.Acp), read as the
     # signed-in actor. See AshEnterpriseWeb.DailyLive.
     ash_authentication_live_session :daily_surfaces,
-      on_mount: [{AshEnterpriseWeb.LiveUserAuth, :live_user_required}] do
+      on_mount: [
+        {AshEnterpriseWeb.LiveUserAuth, :live_user_required},
+        AshEnterpriseWeb.SurfaceDoor
+      ] do
       live "/app/today", DailyLive.Today
       live "/app/calendar", DailyLive.Calendar
       live "/app/inbox", DailyLive.Inbox
@@ -154,32 +167,35 @@ defmodule AshEnterpriseWeb.Router do
       live "/app/people", DailyLive.People
       live "/app/approvals", DailyLive.Approvals
       live "/app/accounts", DailyLive.Accounts
-    end
 
-    # Operator-only: erasure scopes and the irreversible, typed-confirmation
-    # shred. The door explains itself to anyone else; the policies decide.
-    ash_authentication_live_session :operator_surfaces,
-      on_mount: [
-        {AshEnterpriseWeb.LiveUserAuth, :live_user_required},
-        {AshEnterpriseWeb.OperatorAuth, :erasure_operator_required}
-      ] do
+      # Operator-only (the registry's `:operator` door): erasure scopes and the
+      # irreversible, typed-confirmation shred.
       live "/app/erasure", DailyLive.Erasure
     end
 
     ash_authentication_live_session :canonical_surfaces,
-      on_mount: [{AshEnterpriseWeb.LiveUserAuth, :live_user_required}] do
+      on_mount: [
+        {AshEnterpriseWeb.LiveUserAuth, :live_user_required},
+        AshEnterpriseWeb.SurfaceDoor
+      ] do
       live "/app/canonical-parties", A2uiLive.CanonicalParties
       live "/app/canonical-contracts", A2uiLive.CanonicalContracts
       live "/app/canonical-commitments", A2uiLive.CanonicalCommitments
     end
 
     ash_authentication_live_session :canonical_agent,
-      on_mount: [{AshEnterpriseWeb.LiveUserAuth, :live_user_required}] do
+      on_mount: [
+        {AshEnterpriseWeb.LiveUserAuth, :live_user_required},
+        AshEnterpriseWeb.SurfaceDoor
+      ] do
       live "/canonical/agent", CanonicalAgentLive
     end
 
     ash_authentication_live_session :legacy_surfaces,
-      on_mount: [{AshEnterpriseWeb.LiveUserAuth, :live_user_required}] do
+      on_mount: [
+        {AshEnterpriseWeb.LiveUserAuth, :live_user_required},
+        AshEnterpriseWeb.SurfaceDoor
+      ] do
       live "/app/legacy-users", A2uiLive.LegacyUsers
       live "/app/legacy-parties", A2uiLive.LegacyParties
       live "/app/legacy-vendor-parties", A2uiLive.LegacyVendorParties
@@ -192,17 +208,20 @@ defmodule AshEnterpriseWeb.Router do
     end
 
     ash_authentication_live_session :legacy_agent,
-      on_mount: [{AshEnterpriseWeb.LiveUserAuth, :live_user_required}] do
+      on_mount: [
+        {AshEnterpriseWeb.LiveUserAuth, :live_user_required},
+        AshEnterpriseWeb.SurfaceDoor
+      ] do
       live "/legacy/agent", LegacyAgentLive
     end
 
     # Compliance surfaces (ADR 0035): findings, evaluations, bundle/rule-set
     # lifecycle, catalogs and profiles. A separate live_session because these
-    # sit behind the compliance door — `ComplianceAuth` requires the actor to
-    # hold a read grant on the compliance finding resource, the same
-    # (role, privilege, depth) tuple every other governed surface resolves —
-    # and because the surfaces read foreign `ash_compliance` resources whose
-    # access is admin-shaped.
+    # sit behind the registry's `:compliance` door (AshEnterprise.Surfaces.Doors,
+    # checked by SurfaceDoor) — a read grant on the compliance finding resource,
+    # the same (role, privilege, depth) tuple every other governed surface
+    # resolves — because the surfaces read foreign `ash_compliance` resources
+    # whose access is admin-shaped.
     #
     # Tier 3, like the surfaces above: removing ash_compliance means deleting
     # lib/ash_enterprise/compliance/, lib/ash_enterprise_web/a2ui/'s
@@ -210,7 +229,7 @@ defmodule AshEnterpriseWeb.Router do
     ash_authentication_live_session :compliance_surfaces,
       on_mount: [
         {AshEnterpriseWeb.LiveUserAuth, :live_user_required},
-        {AshEnterpriseWeb.ComplianceAuth, :compliance_grant_required}
+        AshEnterpriseWeb.SurfaceDoor
       ] do
       live "/app/compliance/findings", ComplianceA2uiLive.Findings
       live "/app/compliance/evaluations", ComplianceA2uiLive.Evaluations
@@ -230,7 +249,8 @@ defmodule AshEnterpriseWeb.Router do
     ash_authentication_live_session :process_surfaces,
       on_mount: [
         {AshEnterpriseWeb.LiveUserAuth, :live_user_required},
-        {AshEnterpriseWeb.Bpmn.Helpers, :assign_tenant}
+        {AshEnterpriseWeb.Bpmn.Helpers, :assign_tenant},
+        AshEnterpriseWeb.SurfaceDoor
       ] do
       live "/app/tasks", Bpmn.TaskListLive
       live "/app/processes", Bpmn.CatalogLive, :processes
@@ -258,8 +278,8 @@ defmodule AshEnterpriseWeb.Router do
   scope "/", AshEnterpriseWeb do
     pipe_through :browser
 
-    # The root is the operator hub rather than a landing page: this hands to
-    # /app/hub, whose live session decides what happens next (the hub for a
+    # The root is the launcher rather than a landing page: this hands to /app,
+    # whose live session decides what happens next (the launcher for a
     # signed-in visitor, /sign-in for anyone else).
     get "/", PageController, :root
     auth_routes AuthController, AshEnterprise.Accounts.User, path: "/auth"
@@ -413,7 +433,10 @@ defmodule AshEnterpriseWeb.Router do
     # resolves objects (records included) under the signed-in actor, so the
     # screen must never be reachable anonymously.
     ash_authentication_live_session :canvas_dev_surface,
-      on_mount: [{AshEnterpriseWeb.LiveUserAuth, :live_user_required}] do
+      on_mount: [
+        {AshEnterpriseWeb.LiveUserAuth, :live_user_required},
+        AshEnterpriseWeb.SurfaceDoor
+      ] do
       scope "/", AshEnterpriseWeb do
         pipe_through :browser
 

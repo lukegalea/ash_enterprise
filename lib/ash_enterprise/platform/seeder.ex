@@ -38,7 +38,9 @@ defmodule AshEnterprise.Platform.Seeder do
   @doc """
   Seeds the privilege catalogue from the configured domains.
 
-  Returns the number of privileges written. Safe to re-run.
+  Returns the number of privileges written — only the missing or changed
+  ones, so a re-run against an up-to-date catalogue writes nothing. Safe to
+  re-run; runs at every boot (`AshEnterprise.Platform.PrivilegeSync`).
   """
   def seed_privileges do
     written = write_privileges()
@@ -55,29 +57,52 @@ defmodule AshEnterprise.Platform.Seeder do
     written
   end
 
+  # Writes only what is missing or has changed (a resource added, or its
+  # legal depths moved), so a re-run against an up-to-date catalogue is one
+  # read — cheap enough to run at every boot (`AshEnterprise.Platform.PrivilegeSync`).
   defp write_privileges do
-    for resource <- platform_resources(),
-        verb <- AshEnterprise.Security.AccessRight.verbs() do
-      ownership = ownership_of(resource)
-      legal = Security.Privilege.legal_depths_for(resource, ownership)
+    actor = SystemActor.seed()
 
+    existing =
       Security.Privilege
-      |> Ash.Changeset.for_create(
-        :create,
-        %{
-          resource_name: inspect(resource),
-          access_right: verb,
-          name: privilege_name(resource, verb),
-          can_be_basic: :basic in legal,
-          can_be_local: :local in legal,
-          can_be_deep: :deep in legal,
-          can_be_global: :global in legal
-        },
-        actor: SystemActor.seed()
-      )
+      |> Ash.read!(actor: actor)
+      |> Map.new(&{{&1.resource_name, &1.access_right}, privilege_fields(&1)})
+
+    for resource <- platform_resources(),
+        verb <- AshEnterprise.Security.AccessRight.verbs(),
+        fields = desired_privilege(resource, verb),
+        Map.get(existing, {fields.resource_name, verb}) != fields do
+      Security.Privilege
+      |> Ash.Changeset.for_create(:create, fields, actor: actor)
       |> Ash.create!()
     end
     |> length()
+  end
+
+  defp desired_privilege(resource, verb) do
+    legal = Security.Privilege.legal_depths_for(resource, ownership_of(resource))
+
+    %{
+      resource_name: inspect(resource),
+      access_right: verb,
+      name: privilege_name(resource, verb),
+      can_be_basic: :basic in legal,
+      can_be_local: :local in legal,
+      can_be_deep: :deep in legal,
+      can_be_global: :global in legal
+    }
+  end
+
+  defp privilege_fields(privilege) do
+    Map.take(privilege, [
+      :resource_name,
+      :access_right,
+      :name,
+      :can_be_basic,
+      :can_be_local,
+      :can_be_deep,
+      :can_be_global
+    ])
   end
 
   @doc """
@@ -586,7 +611,7 @@ defmodule AshEnterprise.Platform.Seeder do
   # machinery without ownership columns, whose access still must be a role
   # grant. The compliance plane adds two of the same shape — the compliance
   # event log the KYC reviews append to, and the finding projection the
-  # compliance door (`AshEnterpriseWeb.ComplianceAuth`) is gated on. Their
+  # compliance door (`AshEnterprise.Surfaces.Doors`) is gated on. Their
   # ownership resolves to `:none`, so only `:global` grants are legal — an
   # organization-level grant on an engine table would be a fiction.
   defp additionally_governed do

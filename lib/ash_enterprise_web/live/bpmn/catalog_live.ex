@@ -170,11 +170,13 @@ defmodule AshEnterpriseWeb.Bpmn.CatalogLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={assigns[:current_scope]} width="max-w-7xl">
+    <Layouts.app
+      flash={@flash}
+      page={assigns[:page]}
+      current_scope={assigns[:current_scope]}
+      width="max-w-7xl"
+    >
       <div class="space-y-6">
-        <h1 class="text-2xl font-heading tracking-tight">{title(@live_action)}</h1>
-        <p class="max-w-3xl text-sm text-foreground/70">{blurb(@live_action)}</p>
-
         <%= if @live_action == :triggers do %>
           <div class="overflow-auto rounded-base border-2 border-border shadow-shadow">
             <table class={table_class()} id="triggers-table">
@@ -344,22 +346,6 @@ defmodule AshEnterpriseWeb.Bpmn.CatalogLive do
     </Layouts.app>
     """
   end
-
-  defp title(:processes), do: "Processes"
-  defp title(:decisions), do: "Decisions"
-  defp title(:triggers), do: "Triggers"
-
-  defp blurb(:processes),
-    do:
-      "Every process this tenant can run. A baseline is the platform's, published from a reviewed file; a customization is this tenant's own, authored in the designer."
-
-  defp blurb(:decisions),
-    do:
-      "DMN decisions a process routes on. Unlike a process, a decision is resolved when it is asked rather than pinned for the life of an instance -- changing a rule takes effect without restarting what is already running."
-
-  defp blurb(:triggers),
-    do:
-      "What starts a process. A subscription matches an audited write, checks a FEEL guard, and either names a process or asks a decision which one to start. Dispatched by the engine's sweep, one cursor per tenant."
 
   defp short(resource),
     do: AshBpmn.Resources.Subscription.ResourceName.short(resource || "")

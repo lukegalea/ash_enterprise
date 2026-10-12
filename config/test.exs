@@ -167,3 +167,7 @@ config :ash_enterprise, :system_one_subject_resources, [
   AshEnterprise.SystemOne.TestSupport.Note,
   AshEnterprise.SystemOne.TestSupport.Standard
 ]
+
+# The boot-time privilege sync (AshEnterprise.Platform.PrivilegeSync) writes
+# outside any test's sandbox; each test seeds the privileges it needs instead.
+config :ash_enterprise, privilege_sync?: false

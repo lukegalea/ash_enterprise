@@ -126,7 +126,7 @@ defmodule AshEnterpriseWeb.AgentLive do
   # and the console should still be useful when no API key is configured, which
   # is the state a fresh checkout is in.
   def handle_event("show-surface", %{"name" => name}, socket) do
-    case AshEnterpriseWeb.A2ui.Surfaces.fetch(name) do
+    case AshEnterprise.Surfaces.fetch_helper(name, socket.assigns.current_user) do
       nil ->
         {:noreply, assign(socket, :error, "No surface named #{inspect(name)}.")}
 
@@ -261,7 +261,11 @@ defmodule AshEnterpriseWeb.AgentLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} width={if(@presentation, do: "max-w-7xl", else: "max-w-3xl")}>
+    <Layouts.app
+      flash={@flash}
+      page={assigns[:page]}
+      width={if(@presentation, do: "max-w-7xl", else: "max-w-3xl")}
+    >
       <div class="space-y-6">
         <header>
           <h1 class="text-2xl font-heading tracking-tight">Helper</h1>
@@ -292,10 +296,10 @@ defmodule AshEnterpriseWeb.AgentLive do
         <div class="flex flex-wrap items-center gap-2">
           <span class="text-foreground/70 text-xs">or open one directly:</span>
           <.button
-            :for={surface <- AshEnterpriseWeb.A2ui.Surfaces.all()}
+            :for={surface <- AshEnterprise.Surfaces.helper()}
             phx-click="show-surface"
-            phx-value-name={surface.name}
-            id={"open-#{surface.name}"}
+            phx-value-name={surface.key}
+            id={"open-#{surface.key}"}
             size="xs"
           >
             {surface.label}

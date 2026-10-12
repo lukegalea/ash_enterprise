@@ -5,7 +5,8 @@ defmodule AshEnterpriseWeb.ComplianceSurfacesTest do
   exactly the actors it should.
 
   The door matters more than the rendering. The compliance resources carry no
-  row policies of their own (ADR 0035), so `ComplianceAuth` is the only thing
+  row policies of their own (ADR 0035), so the `:compliance` door
+  (`AshEnterprise.Surfaces.Doors`) is the only thing
   between a signed-in user and the findings ledger — a test that only asserted
   "the surface renders" would pass with the door wired open.
   """
@@ -13,13 +14,13 @@ defmodule AshEnterpriseWeb.ComplianceSurfacesTest do
   use AshEnterprise.DataCase, async: false
 
   alias AshEnterprise.Security.ActorContext
+  alias AshEnterprise.Surfaces.Doors
   alias AshEnterpriseWeb.A2ui.CatalogUI
   alias AshEnterpriseWeb.A2ui.ComplianceEvaluationUI
   alias AshEnterpriseWeb.A2ui.FindingUI
   alias AshEnterpriseWeb.A2ui.PolicyBundleUI
   alias AshEnterpriseWeb.A2ui.ProfileUI
   alias AshEnterpriseWeb.A2ui.RuleSetRevisionUI
-  alias AshEnterpriseWeb.ComplianceAuth
 
   setup do
     seeded =
@@ -141,7 +142,7 @@ defmodule AshEnterpriseWeb.ComplianceSurfacesTest do
 
   describe "the compliance door" do
     test "an administrator with the finding grant passes", ctx do
-      assert ComplianceAuth.authorized?(ctx.admin)
+      assert Doors.open?(:compliance, ctx.admin)
     end
 
     test "an actor with no roles is turned away" do
@@ -158,8 +159,8 @@ defmodule AshEnterpriseWeb.ComplianceSurfacesTest do
         )
         |> Ash.create!()
 
-      refute ComplianceAuth.authorized?(stranger)
-      refute ComplianceAuth.authorized?(nil)
+      refute Doors.open?(:compliance, stranger)
+      refute Doors.open?(:compliance, nil)
     end
   end
 

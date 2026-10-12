@@ -186,11 +186,17 @@ defmodule AshEnterpriseWeb.CoreComponents do
   ## Examples
 
       <.badge tone="green">Published</.badge>
+      <.badge status={:pending_approval}>Waiting</.badge>
       <.badge>v3</.badge>
   """
   attr :tone, :string,
     values: ~w(neutral main yellow pink green orange violet cyan red) ++ [nil],
     default: nil
+
+  attr :status, :any,
+    default: nil,
+    doc:
+      "a record status (atom or string); picks the tone via `status_tone/1` unless `tone` is given"
 
   attr :sticker, :boolean, default: false
   attr :class, :any, default: nil
@@ -198,6 +204,8 @@ defmodule AshEnterpriseWeb.CoreComponents do
   slot :inner_block, required: true
 
   def badge(assigns) do
+    assigns = assign(assigns, :tone, assigns.tone || status_tone(assigns.status))
+
     ~H"""
     <span
       class={[
@@ -230,6 +238,129 @@ defmodule AshEnterpriseWeb.CoreComponents do
       },
       tone
     )
+  end
+
+  @success ~w(active approved published live confirmed completed complete healthy ok done succeeded enabled)
+  @warning ~w(pending pending_approval waiting tentative stale degraded needs_attention paused held)
+  @danger ~w(failed failure error rejected cancelled canceled breach breached blocked expired revoked)
+  @info ~w(in_progress running syncing open new queued scheduled)
+  @inert ~w(draft inactive archived disabled closed superseded unknown)
+
+  @doc """
+  The badge tone for a record status, so a status reads the same colour on
+  every page: success green, waiting yellow, failure red, in-flight blue,
+  inert neutral. Unknown statuses get the quiet surface badge (`nil`).
+
+      iex> AshEnterpriseWeb.CoreComponents.status_tone(:pending_approval)
+      "yellow"
+  """
+  @spec status_tone(atom() | String.t() | nil) :: String.t() | nil
+  def status_tone(nil), do: nil
+  def status_tone(status) when is_atom(status), do: status |> Atom.to_string() |> status_tone()
+
+  def status_tone(status) when is_binary(status) do
+    status = status |> String.downcase() |> String.replace([" ", "-"], "_")
+
+    cond do
+      status in @success -> "green"
+      status in @warning -> "yellow"
+      status in @danger -> "red"
+      status in @info -> "main"
+      status in @inert -> "neutral"
+      true -> nil
+    end
+  end
+
+  @doc """
+  Renders a surface's page header: the registry's label as the `h1`, its blurb,
+  an optional toolbar, and an as-of line — "Live" with a pulse for a surface
+  that refreshes itself, otherwise when the page was loaded.
+
+  `AshEnterpriseWeb.Layouts.app/1` draws it for every registry surface, so a
+  page only supplies the toolbar.
+  """
+  attr :id, :string, default: nil
+  attr :title, :string, required: true
+  attr :blurb, :string, default: nil
+  attr :icon, :string, default: nil
+  attr :as_of, DateTime, default: nil
+  attr :live, :boolean, default: false
+  slot :toolbar
+
+  def page_header(assigns) do
+    ~H"""
+    <header id={@id} class="flex flex-wrap items-end justify-between gap-4 pb-2">
+      <div class="flex items-start gap-3">
+        <span
+          :if={@icon}
+          class="mt-1 grid size-10 shrink-0 place-items-center rounded-base border-2 border-border bg-yellow text-on-vivid shadow-press"
+          aria-hidden="true"
+        >
+          <.icon name={@icon} class="size-5" />
+        </span>
+        <div class="space-y-1">
+          <h1 class="font-display text-3xl leading-tight tracking-tight">{@title}</h1>
+          <p :if={@blurb} class="max-w-3xl text-sm text-foreground/70">{@blurb}</p>
+        </div>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        {render_slot(@toolbar)}
+        <span
+          :if={@live}
+          id={@id && "#{@id}-live"}
+          class="inline-flex items-center gap-1.5 text-xs text-foreground/70"
+          title="Refreshes itself when the rows change"
+        >
+          <span class="relative flex size-2">
+            <span class="absolute inline-flex size-2 motion-safe:animate-ping rounded-full bg-green opacity-70" />
+            <span class="relative inline-flex size-2 rounded-full bg-green" />
+          </span>
+          Live
+        </span>
+        <span
+          :if={!@live && @as_of}
+          id={@id && "#{@id}-as-of"}
+          class="text-xs text-foreground/70"
+        >
+          As of {AshEnterprise.Platform.LocalTime.time(@as_of)}
+        </span>
+      </div>
+    </header>
+    """
+  end
+
+  @doc """
+  Renders an empty state: a dashed panel with a dotted tile and an icon, for
+  the "nothing here yet" moments that would otherwise be a bare sentence. The
+  dashes say "this space is waiting"; the dot tile keeps the panel from
+  reading as an unfinished card.
+
+  ## Examples
+
+      <.empty_state icon="hero-inbox">Nothing is waiting on you.</.empty_state>
+  """
+  attr :icon, :string, default: "hero-magnifying-glass"
+  attr :class, :any, default: nil
+  attr :rest, :global
+  slot :inner_block, required: true
+
+  def empty_state(assigns) do
+    ~H"""
+    <div
+      class={[
+        "flex flex-col items-center gap-3 rounded-base border-2 border-dashed border-border bg-background px-6 py-10 text-center",
+        @class
+      ]}
+      {@rest}
+    >
+      <div class="grid size-16 place-items-center rounded-base border-2 border-border bg-secondary-background">
+        <div class="bg-dots grid size-10 place-items-center rounded-base text-foreground/30">
+          <.icon name={@icon} class="size-5 text-foreground" />
+        </div>
+      </div>
+      <p class="max-w-sm text-sm text-foreground/70">{render_slot(@inner_block)}</p>
+    </div>
+    """
   end
 
   @doc """

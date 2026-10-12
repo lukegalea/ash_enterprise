@@ -40,16 +40,35 @@ defmodule AshEnterpriseWeb.Layouts do
     entirely, which is how they ended up with no navbar at all.
     """
 
+  attr :page, :map,
+    default: nil,
+    doc: """
+    The chrome `AshEnterpriseWeb.SurfaceDoor` assigns: `%{surface:, nav:, as_of:}`.
+    `nav` draws the grouped menus (only the surfaces whose door is open for the
+    viewer); `surface` marks the current item and, when present, draws the page
+    header -- the registry's label and blurb, and the as-of line.
+    """
+
+  slot :toolbar, doc: "controls on the right of the page header (surface pages only)"
   slot :inner_block, required: true
 
   def app(assigns) do
+    page = assigns.page || %{}
+
+    assigns =
+      assigns
+      |> assign(:surface, page[:surface])
+      |> assign(:as_of, page[:as_of])
+      |> assign(:menus, menus(page[:nav] || [], page[:surface]))
+
     ~H"""
     <%!-- Sticky header on the page colour, ruled off with the ink border.
-          The nav is chunky pills that lift on hover and press on click, with
-          one primary call to action at the end. --%>
+          Today is pinned; every other surface sits in one of four menus
+          derived from the registry (AshEnterprise.Surfaces), and the launcher
+          is the one primary call to action. --%>
     <header class="sticky top-0 z-40 border-b-2 border-border bg-background">
       <div class="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 sm:px-6 lg:px-8">
-        <a href="/" class="flex w-fit items-center gap-2.5">
+        <a href="/app" class="flex w-fit items-center gap-2.5">
           <img src={~p"/images/logo.svg"} width="32" alt="" />
           <span class="font-display text-lg leading-none tracking-tight">
             {AshEnterprise.Brand.product_name()}
@@ -61,88 +80,68 @@ defmodule AshEnterpriseWeb.Layouts do
         </a>
         <nav class="ms-auto" aria-label="Main">
           <ul class="flex flex-wrap items-center gap-1.5">
-            <%!-- The daily loop (AshEnterpriseWeb.DailyLive): Today first, because
-                  it is where sign-in lands; the rest of the day behind one menu,
-                  with the operator's surfaces grouped at its foot. --%>
-            <li><a id="nav-today" href="/app/today" class={nav_pill()}>Today</a></li>
-            <li>
+            <li :if={@menus != []}>
+              <a
+                id="nav-today"
+                href="/app/today"
+                class={[nav_pill(), current?(@surface, :today) && current_pill()]}
+                aria-current={current?(@surface, :today) && "page"}
+              >
+                Today
+              </a>
+            </li>
+            <li :for={menu <- @menus}>
               <details class="group relative">
                 <summary
-                  id="nav-day"
-                  class={[nav_pill(), "list-none [&::-webkit-details-marker]:hidden"]}
+                  id={"nav-#{menu.key}"}
+                  class={[
+                    nav_pill(),
+                    "list-none [&::-webkit-details-marker]:hidden",
+                    menu.current? && current_pill()
+                  ]}
                 >
-                  My day
+                  {menu.label}
                   <.icon
                     name="hero-chevron-down-micro"
                     class="size-4 transition-transform group-open:rotate-180"
                   />
                 </summary>
-                <ul class="absolute right-0 z-50 mt-2 w-52 rounded-base border-2 border-border bg-secondary-background p-1.5 shadow-shadow">
-                  <li><a href="/app/calendar" class={menu_item()}>Calendar</a></li>
-                  <li><a href="/app/inbox" class={menu_item()}>Inbox</a></li>
-                  <li><a href="/app/slack" class={menu_item()}>Slack</a></li>
-                  <li><a href="/app/people" class={menu_item()}>People</a></li>
-                  <li><a href="/app/approvals" class={menu_item()}>Approvals</a></li>
-                  <li
-                    id="nav-operator"
-                    class="mt-1.5 border-t-2 border-border px-3 pt-2 pb-1 text-xs font-heading uppercase tracking-wide text-foreground/70"
-                  >
-                    Operator
-                  </li>
-                  <li><a href="/app/accounts" class={menu_item()}>Accounts &amp; syncs</a></li>
-                  <li><a href="/app/erasure" class={menu_item()}>Erasure scopes</a></li>
+                <ul class="absolute right-0 z-50 mt-2 max-h-[70vh] w-60 overflow-y-auto rounded-base border-2 border-border bg-secondary-background p-1.5 shadow-shadow">
+                  <%= for {group, index} <- Enum.with_index(menu.groups) do %>
+                    <li
+                      :if={length(menu.groups) > 1}
+                      id={"nav-group-#{group.key}"}
+                      class={[
+                        "px-3 pt-2 pb-1 text-xs font-heading uppercase tracking-wide text-foreground/70",
+                        index > 0 && "mt-1.5 border-t-2 border-border"
+                      ]}
+                    >
+                      {group.label}
+                    </li>
+                    <li :for={surface <- group.surfaces}>
+                      <a
+                        id={"nav-#{surface.key}"}
+                        href={surface.path}
+                        class={[menu_item(), current?(@surface, surface.key) && current_item()]}
+                        aria-current={current?(@surface, surface.key) && "page"}
+                      >
+                        {surface.label}
+                      </a>
+                    </li>
+                  <% end %>
                 </ul>
               </details>
             </li>
-            <%!--
-              Administration. These are A2UI surfaces derived from resource
-              metadata, not hand-written screens -- see
-              lib/ash_enterprise_web/a2ui/. Each is filtered by the signed-in
-              actor's policies, so a user with no grants sees an empty table
-              rather than a 403.
-            --%>
-            <li><a href="/agent" class={nav_pill()}>Helper</a></li>
-            <li><a href="/app/users" class={nav_pill()}>Users</a></li>
-            <li><a href="/app/teams" class={nav_pill()}>Teams</a></li>
-            <li><a href="/app/roles" class={nav_pill()}>Roles</a></li>
-            <li>
-              <a href="/app/business-units" class={nav_pill()}>Business units</a>
-            </li>
-            <li>
-              <a href="/app/legacy-users" class={nav_pill()}>Legacy users</a>
-            </li>
-            <li>
-              <a href="/app/directory" class={nav_pill()}>Directory</a>
-            </li>
-            <%!-- Grouped rather than four more top-level pills: the bar already carries
-                  seven and wraps below about 1400px, which is narrower than the width
-                  the documentation screenshots are captured at. --%>
-            <li>
-              <details class="group relative">
-                <summary class={[nav_pill(), "list-none [&::-webkit-details-marker]:hidden"]}>
-                  Workflow
-                  <.icon
-                    name="hero-chevron-down-micro"
-                    class="size-4 transition-transform group-open:rotate-180"
-                  />
-                </summary>
-                <ul class="absolute right-0 z-50 mt-2 w-52 rounded-base border-2 border-border bg-secondary-background p-1.5 shadow-shadow">
-                  <li><a href="/app/tasks" class={menu_item()}>My tasks</a></li>
-                  <li><a href="/app/processes" class={menu_item()}>Processes</a></li>
-                  <li><a href="/app/decisions" class={menu_item()}>Decisions</a></li>
-                  <li><a href="/app/triggers" class={menu_item()}>Triggers</a></li>
-                </ul>
-              </details>
-            </li>
-            <li><a href="/admin" class={nav_pill()}>Admin</a></li>
+            <li :if={@menus != []}><a href="/agent" class={nav_pill()}>Helper</a></li>
+            <%!-- /admin is mounted only under `dev_routes`; a link to it anywhere
+                  else is a link to a 404. --%>
+            <li :if={dev_routes?()}><a href="/admin" class={nav_pill()}>Admin</a></li>
             <li class="ps-1">
               <.theme_toggle />
             </li>
             <li class="ps-1">
-              <%!-- The operator hub replaces the generated "Get Started" CTA: this
-                    app's front door is its own home page, not the framework's docs. --%>
-              <.button href={~p"/app/hub"} variant="primary" size="sm">
-                Operator hub <span aria-hidden="true">&rarr;</span>
+              <.button href="/app" variant="primary" size="sm" id="nav-launcher">
+                <.icon name="hero-squares-2x2-micro" class="size-4" /> All apps
               </.button>
             </li>
           </ul>
@@ -152,6 +151,17 @@ defmodule AshEnterpriseWeb.Layouts do
 
     <main class="px-4 py-10 sm:px-6 lg:px-8">
       <div class={["mx-auto space-y-4", @width]}>
+        <.page_header
+          :if={@surface}
+          id="page-header"
+          title={@surface.label}
+          blurb={@surface.blurb}
+          icon={@surface.icon}
+          as_of={@as_of}
+          live={AshEnterprise.Surfaces.live?(@surface)}
+        >
+          <:toolbar>{render_slot(@toolbar)}</:toolbar>
+        </.page_header>
         {render_slot(@inner_block)}
       </div>
     </main>
@@ -160,14 +170,44 @@ defmodule AshEnterpriseWeb.Layouts do
     """
   end
 
+  # The nav's menus, from the registry groups the viewer may open: each menu
+  # (`AshEnterprise.Surfaces.menus/0`) with its non-empty groups. Today is
+  # pinned as its own pill, so it is left out of its menu.
+  defp menus(nav, surface) do
+    for {menu, label} <- AshEnterprise.Surfaces.menus(),
+        groups = menu_groups(nav, menu),
+        groups != [] do
+      current? = Enum.any?(groups, fn group -> Enum.any?(group.surfaces, &(&1 == surface)) end)
+      %{key: menu, label: label, groups: groups, current?: current?}
+    end
+  end
+
+  defp menu_groups(nav, menu) do
+    for %{menu: ^menu} = group <- nav,
+        surfaces = Enum.reject(group.surfaces, &(&1.key == :today)),
+        surfaces != [],
+        do: %{group | surfaces: surfaces}
+  end
+
+  defp current?(%{key: key}, key), do: true
+  defp current?(_surface, _key), do: false
+
+  # The router mounts /admin under the same key. Read at runtime: a compile-time
+  # constant here is a type warning in whichever env makes it always true.
+  defp dev_routes?, do: Application.get_env(:ash_enterprise, :dev_routes, false)
+
   # Static strings so Tailwind's scanner sees every class.
   defp nav_pill do
     "inline-flex h-8 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-full border-2 border-border bg-secondary-background px-3 text-sm font-base text-foreground shadow-press transition-all hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-shadow focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:translate-x-0 active:translate-y-0 active:shadow-none"
   end
 
+  defp current_pill, do: "bg-main text-main-foreground"
+
   defp menu_item do
     "block rounded-[3px] border-2 border-transparent px-3 py-1.5 text-sm font-base text-foreground hover:border-border hover:bg-main hover:text-main-foreground focus-visible:outline-hidden focus-visible:border-border focus-visible:bg-main focus-visible:text-main-foreground"
   end
+
+  defp current_item, do: "border-border bg-main text-main-foreground"
 
   @doc """
   Shows the flash group with standard titles and content.

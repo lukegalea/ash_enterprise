@@ -140,7 +140,7 @@ Sign in with the credentials the seeder prints, then visit:
 
 | URL | What |
 |---|---|
-| `/app/hub` | Operator hub — every surface below, one link away (`/app/demo` redirects here) |
+| `/app` | The launcher — every surface in the registry (`AshEnterprise.Surfaces`), grouped, Today leading; sign-in lands here (`/app/hub` and `/app/demo` redirect here) |
 | `/agent` | Helper console — proposes changes for your approval, and shows or composes tables on request |
 | `/app/users`, `/app/teams`, `/app/roles`, `/app/business-units` | A2UI surfaces derived from resource metadata |
 | `/app/legacy-users` | The same, over a 2010-era Rails schema read through a compatibility view — and it updates when the old application writes |
@@ -155,8 +155,9 @@ No markup was written for any of this. Every surface here is derived from the
 same resource definitions: the screenshots are what you get for declaring a
 resource, before writing any UI.
 
-**The operator hub** at `/app/hub` is the shortest path through all of it, and the
-place to start after seeding.
+**The launcher** at `/app` is the shortest path through all of it, and the
+place to start after seeding. It, the nav and the ACP command palette are all
+derived from one surface registry, `AshEnterprise.Surfaces`.
 
 ![The demo hub, linking the strangler demo, the process modeller, the agents, the diagrams and the admin console](docs/screenshots/demo-dashboard.png)
 

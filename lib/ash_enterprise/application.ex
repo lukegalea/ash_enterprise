@@ -55,7 +55,9 @@ defmodule AshEnterprise.Application do
         # failover. After PubSub, because the engine's PubSubListener subscribes
         # to the wake topic. Off in :test — see config/test.exs.
         AshEvents.Projections.Supervisor
-      ] ++ orphans_sweep() ++ trace_sink() ++ trigger_index() ++ legacy_listener()
+      ] ++
+        orphans_sweep() ++
+        trace_sink() ++ trigger_index() ++ legacy_listener() ++ privilege_sync()
 
     # See https://elixir.hexdocs.pm/Supervisor.html
     # for other strategies and supported options
@@ -113,6 +115,18 @@ defmodule AshEnterprise.Application do
           ]
         }
       ]
+    else
+      []
+    end
+  end
+
+  # Brings the privilege catalogue and each tenant's Administrator grants up to
+  # this build's resources, once per boot, off the boot path. See
+  # AshEnterprise.Platform.PrivilegeSync. Off in :test, where every test seeds
+  # inside its own sandbox and a boot-time writer would race them.
+  defp privilege_sync do
+    if Application.get_env(:ash_enterprise, :privilege_sync?, true) do
+      [AshEnterprise.Platform.PrivilegeSync]
     else
       []
     end

@@ -33,7 +33,7 @@ defmodule AshEnterpriseWeb.A2ui.Host do
 
   import Phoenix.LiveView, only: [push_event: 3]
 
-  alias AshEnterpriseWeb.A2ui.Surfaces
+  alias AshEnterprise.Surfaces
 
   @messages_event "a2ui:messages"
   @refresh_message {:ash_a2ui_host, :refresh}

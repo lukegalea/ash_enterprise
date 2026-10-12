@@ -40,7 +40,7 @@ defmodule AshEnterpriseWeb.A2uiLive do
 
     def page(assigns) do
       ~H"""
-      <Layouts.app flash={@flash} width="max-w-7xl">
+      <Layouts.app flash={@flash} page={assigns[:page]} width="max-w-7xl">
         {AshA2ui.LiveRenderer.surface_container(assigns)}
       </Layouts.app>
       """
@@ -206,7 +206,7 @@ defmodule AshEnterpriseWeb.A2uiLive do
     publications a resource declares -- so they have to come from somewhere.
     Writing them out here would make them a second spelling of the `pub_sub`
     block, and a typo in either would produce a surface that silently never
-    updates. `AshEnterpriseWeb.A2ui.Surfaces.topics/1` reads them off the
+    updates. `AshEnterprise.Surfaces.topics/1` reads them off the
     publications instead, so there is one declaration and the subscription is
     derived from it.
 
@@ -254,7 +254,7 @@ defmodule AshEnterpriseWeb.A2uiLive do
       tenant_fn: &__MODULE__.tenant/1,
       pubsub: [
         module: AshEnterprise.PubSub,
-        topics: AshEnterpriseWeb.A2ui.Surfaces.topics(AshEnterpriseWeb.A2ui.LegacyUserUI)
+        topics: AshEnterprise.Surfaces.topics(AshEnterpriseWeb.A2ui.LegacyUserUI)
       ]
 
     alias AshEnterprise.Security.ActorContext
@@ -302,7 +302,7 @@ defmodule AshEnterpriseWeb.A2uiLive do
     @impl true
     def render(assigns) do
       ~H"""
-      <Layouts.app flash={@flash} width="max-w-7xl">
+      <Layouts.app flash={@flash} page={assigns[:page]} width="max-w-7xl">
         <Cue.banner
           cue={@cue}
           id_prefix="legacy"
@@ -351,7 +351,7 @@ defmodule AshEnterpriseWeb.A2uiLive do
       tenant_fn: &__MODULE__.tenant/1,
       pubsub: [
         module: AshEnterprise.PubSub,
-        topics: AshEnterpriseWeb.A2ui.Surfaces.topics(AshEnterpriseWeb.A2ui.ProjectedUserUI)
+        topics: AshEnterprise.Surfaces.topics(AshEnterpriseWeb.A2ui.ProjectedUserUI)
       ]
 
     alias AshEnterprise.Security.ActorContext
@@ -391,7 +391,7 @@ defmodule AshEnterpriseWeb.A2uiLive do
     @impl true
     def render(assigns) do
       ~H"""
-      <Layouts.app flash={@flash} width="max-w-7xl">
+      <Layouts.app flash={@flash} page={assigns[:page]} width="max-w-7xl">
         <Cue.banner
           cue={@cue}
           id_prefix="projected"

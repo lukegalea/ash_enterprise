@@ -45,7 +45,7 @@ defmodule AshEnterpriseWeb.DailyLive do
           tenant_fn: &__MODULE__.tenant/1,
           pubsub: [
             module: AshEnterprise.PubSub,
-            topics: AshEnterpriseWeb.A2ui.Surfaces.topics(unquote(ui))
+            topics: AshEnterprise.Surfaces.topics(unquote(ui))
           ]
 
         alias AshEnterprise.Security.ActorContext
@@ -143,7 +143,7 @@ defmodule AshEnterpriseWeb.DailyLive do
   @doc false
   def page(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} width="max-w-7xl">
+    <Layouts.app flash={@flash} page={assigns[:page]} width="max-w-7xl">
       <.callout :if={@inbox_notice} id="inbox-notice" kind={:warning} role="status">
         {@inbox_notice}
       </.callout>

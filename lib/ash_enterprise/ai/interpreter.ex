@@ -39,7 +39,7 @@ defmodule AshEnterprise.AI.Interpreter do
 
   alias AshEnterprise.AI.Proposal
   alias AshEnterprise.AI.RequestClassifier
-  alias AshEnterpriseWeb.A2ui.Surfaces
+  alias AshEnterprise.Surfaces
 
   @typedoc """
   What the console should do about a request.
@@ -84,8 +84,8 @@ defmodule AshEnterprise.AI.Interpreter do
     end
   end
 
-  defp to_plan(%{kind: :show_surface} = intent, _request, _actor, _tenant) do
-    case Surfaces.fetch(intent.surface) do
+  defp to_plan(%{kind: :show_surface} = intent, _request, actor, _tenant) do
+    case Surfaces.fetch_helper(intent.surface, actor) do
       nil ->
         # The model named a surface that does not exist. Listing the real names
         # rather than apologising, because the next thing the person will do is

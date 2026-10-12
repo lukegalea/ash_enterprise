@@ -1,0 +1,250 @@
+defmodule AshEnterpriseWeb.LauncherLive do
+  @moduledoc """
+  The launcher at `/app`: the front door, where sign-in lands.
+
+  A grid of the key interfaces, rendered from the surface registry
+  (`AshEnterprise.Surfaces`) — grouped as the registry groups them, and only
+  the surfaces whose door is open for the viewer. Nothing on this page names a
+  surface by hand, so a surface added to the registry appears here (and in the
+  nav, and over ACP) without anybody remembering to link it.
+
+  Today leads, full width, with its live summary: the day's pulse
+  (`AshEnterprise.Agents.Today.pulse/1`) and the morning brief's status. The
+  same pulse puts a short signal on the cards it speaks for — approvals
+  waiting, the next event, conversation counts, linked accounts. Every number
+  is an ordinary read as the viewer, run off the LiveView process once the
+  socket connects (the dead render shows the grid without them), and re-read
+  when a brief or a task changes.
+
+  Replaces the operator hub (`/app/hub`, and `/app/demo` before it), which
+  both redirect here.
+  """
+
+  use AshEnterpriseWeb, :live_view
+
+  alias AshEnterprise.Agents.{MorningBrief, Today}
+  alias AshEnterprise.Bpmn.HumanTask
+  alias AshEnterprise.Security.ActorContext
+  alias AshEnterprise.Surfaces
+  alias AshEnterpriseWeb.Layouts
+
+  # Which pulse line speaks for which card.
+  @signal_cards %{
+    "Approvals" => :approvals,
+    "Next up" => :calendar,
+    "Inbox" => :inbox,
+    "Slack" => :slack
+  }
+
+  @impl true
+  def mount(_params, _session, socket) do
+    actor = socket.assigns[:current_user]
+    groups = Surfaces.grouped(actor)
+
+    socket =
+      assign(socket,
+        page_title: "Key interfaces",
+        product_name: AshEnterprise.Brand.product_name(),
+        email: actor && to_string(actor.email),
+        today: Enum.find_value(groups, &Enum.find(&1.surfaces, fn s -> s.key == :today end)),
+        groups:
+          Enum.map(
+            groups,
+            &%{&1 | surfaces: Enum.reject(&1.surfaces, fn s -> s.key == :today end)}
+          ),
+        pulse: nil,
+        brief: nil,
+        signals: %{},
+        dev_routes?: Application.get_env(:ash_enterprise, :dev_routes, false)
+      )
+
+    if connected?(socket) do
+      for topic <- Surfaces.topics(MorningBrief) ++ Surfaces.topics(HumanTask) do
+        Phoenix.PubSub.subscribe(AshEnterprise.PubSub, topic)
+      end
+
+      {:ok, load_signals(socket)}
+    else
+      {:ok, socket}
+    end
+  end
+
+  # A brief or a task changed: re-read the summary. Whatever arrives on those
+  # topics (a Notification, a Broadcast, a bare map) means the same thing.
+  @impl true
+  def handle_info(_notification, socket), do: {:noreply, load_signals(socket)}
+
+  @impl true
+  def handle_async(:signals, {:ok, {pulse, brief}}, socket) do
+    signals =
+      Enum.reduce(pulse, %{}, fn row, acc ->
+        case signal_card(row.signal) do
+          nil -> acc
+          :accounts -> Map.update(acc, :accounts, 1, &(&1 + 1))
+          key -> Map.put(acc, key, row.value)
+        end
+      end)
+      |> Map.update(:accounts, nil, &"#{&1} linked")
+
+    {:noreply, assign(socket, pulse: pulse, brief: brief, signals: signals)}
+  end
+
+  # A summary that could not be read is a quieter card, not a broken page.
+  def handle_async(:signals, {:exit, _reason}, socket), do: {:noreply, socket}
+
+  defp load_signals(socket) do
+    actor = socket.assigns[:current_user]
+    opts = [actor: actor, tenant: ActorContext.tenant(actor)]
+
+    start_async(socket, :signals, fn ->
+      {:ok, pulse} = Today.pulse(opts)
+
+      brief =
+        case Today.latest_brief(opts) do
+          {:ok, %MorningBrief{} = brief} -> brief
+          _none -> nil
+        end
+
+      {pulse, brief}
+    end)
+  end
+
+  defp signal_card(signal) do
+    cond do
+      Map.has_key?(@signal_cards, signal) -> @signal_cards[signal]
+      String.ends_with?(signal, " sync") -> :accounts
+      true -> nil
+    end
+  end
+
+  @impl true
+  def render(assigns) do
+    ~H"""
+    <Layouts.app flash={@flash} page={assigns[:page]} width="max-w-7xl">
+      <div class="space-y-10">
+        <header class="space-y-1">
+          <h1 class="font-display text-3xl tracking-tight">Key interfaces</h1>
+          <p class="max-w-3xl text-sm text-foreground/70">
+            Everything you run in {@product_name}, one link away<span :if={@email}>
+              — signed in as <span class="font-heading text-foreground">{@email}</span></span>.
+          </p>
+        </header>
+
+        <%!-- The lead: Today, with the day's pulse. Full width and in the
+              primary tone, because the day is why you opened the app. --%>
+        <.link
+          :if={@today}
+          id="launch-today"
+          navigate={@today.path}
+          class="group block rounded-base focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        >
+          <.card accent="main" class="transition-transform group-hover:-translate-y-0.5">
+            <div class="flex flex-wrap items-start justify-between gap-3">
+              <h2 class="flex items-center gap-3 text-xl font-heading">
+                <span class="grid size-10 shrink-0 place-items-center rounded-base border-2 border-border bg-main text-on-vivid">
+                  <.icon name={@today.icon} class="size-5" />
+                </span>
+                {@today.label}
+              </h2>
+              <.badge :if={@brief} id="launch-brief" status={@brief.status} sticker>
+                Morning brief · {Today.brief_status(@brief.status)}
+              </.badge>
+              <.badge :if={@pulse && !@brief} id="launch-brief" tone="yellow" sticker>
+                No morning brief yet
+              </.badge>
+            </div>
+            <p class="max-w-3xl text-sm text-foreground/75">{@today.blurb}</p>
+            <dl
+              :if={@pulse}
+              id="launch-pulse"
+              class="grid gap-x-6 gap-y-1.5 pt-1 text-sm sm:grid-cols-2 lg:grid-cols-3"
+            >
+              <div :for={row <- @pulse} class="flex min-w-0 gap-2">
+                <dt class="shrink-0 font-heading">{row.signal}</dt>
+                <dd class="truncate text-foreground/75">{row.value}</dd>
+              </div>
+            </dl>
+            <p :if={!@pulse} class="text-sm text-foreground/60">Reading your day…</p>
+          </.card>
+        </.link>
+
+        <section :for={group <- @groups} id={"launch-group-#{group.key}"} class="space-y-3">
+          <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <h2 class="font-heading text-lg">{group.label}</h2>
+            <p class="text-sm text-foreground/60">{group.blurb}</p>
+          </div>
+          <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <li :for={surface <- group.surfaces}>
+              <.link
+                id={"launch-#{surface.key}"}
+                navigate={surface.path}
+                class="group block h-full rounded-base focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              >
+                <.card
+                  accent={accent(group.key)}
+                  class="h-full transition-transform group-hover:-translate-y-0.5"
+                >
+                  <div class="flex items-start justify-between gap-3">
+                    <h3 class="flex items-center gap-2.5 font-heading">
+                      <span class="grid size-8 shrink-0 place-items-center rounded-base border-2 border-border bg-background">
+                        <.icon name={surface.icon} class="size-4" />
+                      </span>
+                      {surface.label}
+                    </h3>
+                    <.badge :if={@signals[surface.key]} id={"launch-#{surface.key}-signal"}>
+                      {@signals[surface.key]}
+                    </.badge>
+                  </div>
+                  <p class="text-sm text-foreground/75">{surface.blurb}</p>
+                </.card>
+              </.link>
+            </li>
+          </ul>
+        </section>
+
+        <.empty_state :if={!@today and @groups == []} icon="hero-lock-closed">
+          Nothing is open to you yet. An administrator grants access by role.
+        </.empty_state>
+
+        <%!-- Not registry surfaces: the conversational consoles, and (only where
+              its routes exist) the developer console. Plain hrefs for the dev
+              routes, which a verified `~p` would warn about in test and prod. --%>
+        <section id="launch-more" class="space-y-3 border-t-2 border-border pt-6">
+          <h2 class="font-heading text-lg">Helpers</h2>
+          <div class="flex flex-wrap items-center gap-2.5">
+            <.button navigate={~p"/agent"} variant="primary" size="sm">Helper</.button>
+            <.button navigate={~p"/canonical/agent"} size="sm">Canonical helper</.button>
+            <.button navigate={~p"/legacy/agent"} size="sm">Legacy helper</.button>
+            <%= if @dev_routes? do %>
+              <span class="ms-2 text-xs font-heading uppercase tracking-wide text-foreground/60">
+                Console
+              </span>
+              <.button href="/admin" variant="ghost" size="xs">Admin</.button>
+              <.button
+                href="/clarity/architect/application:ash-enterprise/ash-diagram-clarity-content-er-diagram"
+                variant="ghost"
+                size="xs"
+              >
+                Domain diagram
+              </.button>
+              <.button href="/canvas" variant="ghost" size="xs">Canvas</.button>
+              <.button href="/dev/dashboard" variant="ghost" size="xs">Live dashboard</.button>
+            <% end %>
+          </div>
+        </section>
+      </div>
+    </Layouts.app>
+    """
+  end
+
+  # One accent per group, so a group reads as a group across the grid.
+  defp accent(:day), do: "main"
+  defp accent(:operator), do: "orange"
+  defp accent(:processes), do: "violet"
+  defp accent(:compliance), do: "red"
+  defp accent(:org), do: "green"
+  defp accent(:data), do: "cyan"
+  defp accent(:canonical), do: "yellow"
+  defp accent(:legacy), do: "pink"
+  defp accent(_group), do: nil
+end

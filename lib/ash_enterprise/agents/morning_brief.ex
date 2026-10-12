@@ -61,7 +61,7 @@ defmodule AshEnterprise.Agents.MorningBrief do
 
   # What keeps Today live: a brief composed by the scheduler, the compose step
   # landing its events, and the decision landing its status each refresh the
-  # open page (`AshEnterpriseWeb.A2ui.Surfaces.topics/1` reads these). The
+  # open page (`AshEnterprise.Surfaces.topics/1` reads these). The
   # broadcast carries no row; every page re-reads as its own actor.
   pub_sub do
     module AshEnterpriseWeb.Endpoint

@@ -25,7 +25,7 @@ defmodule AshEnterpriseWeb.CanvasLive do
   because its job is to *show what the library knows* (provenance,
   capabilities, projections) rather than to be one of the projections it
   describes. Where a resource has a declared app surface, the browse
-  projection becomes a link to it via `AshEnterpriseWeb.A2ui.Surfaces`.
+  projection becomes a link to it via `AshEnterprise.Surfaces`.
   """
 
   use AshEnterpriseWeb, :live_view
@@ -34,8 +34,8 @@ defmodule AshEnterpriseWeb.CanvasLive do
   alias AshA2ui.Canvas.Object
   alias AshEnterprise.Canvas.Registry
   alias AshEnterprise.Security.ActorContext
+  alias AshEnterprise.Surfaces
   alias AshEnterpriseWeb.A2ui.Host
-  alias AshEnterpriseWeb.A2ui.Surfaces
 
   @impl true
   def mount(_params, _session, socket) do
@@ -62,7 +62,12 @@ defmodule AshEnterpriseWeb.CanvasLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={assigns[:current_scope]} width="max-w-7xl">
+    <Layouts.app
+      flash={@flash}
+      page={assigns[:page]}
+      current_scope={assigns[:current_scope]}
+      width="max-w-7xl"
+    >
       <div class="space-y-4">
         <header class="space-y-1">
           <h1 class="text-2xl font-heading tracking-tight">Canvas</h1>
@@ -436,11 +441,5 @@ defmodule AshEnterpriseWeb.CanvasLive do
 
   defp surface_for(_other_object), do: nil
 
-  defp a2ui_surface(resource) do
-    Enum.find(Surfaces.all(), fn surface ->
-      AshA2ui.Info.resource!(surface.ui) == resource
-    end)
-  rescue
-    _not_an_a2ui_module -> nil
-  end
+  defp a2ui_surface(resource), do: Enum.find(Surfaces.helper(), &(&1.resource == resource))
 end

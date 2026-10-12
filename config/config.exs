@@ -173,89 +173,25 @@ config :ash_enterprise, :display_time_zone, "America/Toronto"
 # (`AshEnterprise.Agents.MorningBriefScheduler`).
 config :ash_enterprise, :morning_brief_compose_at, ~T[06:30:00]
 
+# Clarity content providers this application contributes. ash_strangler ships
+# its mapping diagram (legacy relation -> resource, column by column) as a
+# provider but does not register it, because a package cannot know whether
+# the host wants it; this host does, so the "Strangler Mapping" tab appears on
+# strangled resources and their domain in /clarity.
+config :ash_enterprise, :clarity_content_providers, [
+  AshStrangler.ClarityContent.MappingDiagram
+]
+
 config :ash_acp,
   session_store: AshEnterprise.Acp.SessionStore,
   prompt_target: AshEnterprise.Acp.SessionStore,
   permission_request: AshEnterprise.Acp.Approvals,
   surface_provider: AshEnterprise.Acp.Surfaces,
-  agent_info: %{name: "ash_enterprise", version: "0.1.0"},
-  # The command palette (`available_commands_update`): the daily-loop prompts
-  # routed by `AshEnterprise.Acp.Commands`, each pruned per actor with
-  # `Ash.can?/3` against the action it runs — so an operator-only command
-  # (erasure) never shows to anyone else. `help` prints the same list.
-  candidate_actions: [
-    %{
-      action: {AshEnterprise.Agents.Console, :today},
-      name: "today",
-      description: "Your day: agenda, morning brief, approvals, sync health"
-    },
-    %{
-      action: {AshEnterprise.Agents.MorningBrief, :compose_today},
-      name: "compose",
-      description: "Compose today's morning brief, if you have none yet (asks first)",
-      input: %{"hint" => "brief"}
-    },
-    %{
-      action: {AshEnterprise.Agents.Console, :agenda},
-      name: "calendar",
-      description: "Agenda for a window",
-      input: %{"hint" => "today | tomorrow | week | upcoming"}
-    },
-    %{
-      action: {AshEnterprise.Agents.Console, :inbox},
-      name: "inbox",
-      description: "Gmail threads, newest first"
-    },
-    %{
-      action: {AshEnterprise.Agents.Console, :inbox},
-      name: "slack",
-      description: "Slack conversations, newest first"
-    },
-    %{
-      action: {AshEnterprise.Agents.Console, :people},
-      name: "people",
-      description: "The people directory",
-      input: %{"hint" => "[name or email]"}
-    },
-    %{
-      action: {AshEnterprise.Agents.Console, :approvals},
-      name: "approvals",
-      description: "Tasks waiting on you, numbered"
-    },
-    %{
-      action: {AshEnterprise.Bpmn.HumanTask, :approve},
-      name: "approve",
-      description: "Approve a waiting task (asks first)",
-      input: %{"hint" => "N | brief"}
-    },
-    %{
-      action: {AshEnterprise.Bpmn.HumanTask, :reject},
-      name: "reject",
-      description: "Reject a waiting task (asks first)",
-      input: %{"hint" => "N | brief"}
-    },
-    %{
-      action: {AshEnterprise.Agents.Console, :accounts},
-      name: "accounts",
-      description: "Linked accounts and sync health"
-    },
-    %{
-      action: {AshEnterprise.Integration.LinkedAccount, :sync_now},
-      name: "sync",
-      description: "Sync an account now (asks first)",
-      input: %{"hint" => "calendar | gmail | slack"}
-    },
-    %{
-      action: {AshEnterprise.Erasure.Scope, :scopes_digest},
-      name: "erasure",
-      description: "Erasure scopes (read-only; shred is web-only)"
-    },
-    %{
-      action: {AshEnterprise.Agents.Console, :help},
-      name: "help",
-      description: "This list"
-    }
-  ]
+  # The command palette (`available_commands_update`) is not configured here:
+  # it is derived from the surface registry (`AshEnterprise.Surfaces.
+  # candidate_actions/0`) by `AshEnterprise.Acp.server_config/0`, and pruned
+  # per actor with `Ash.can?/3` against the action each command runs.
+  agent_info: %{name: "ash_enterprise", version: "0.1.0"}
 
 # The trigger sweep dispatches each event inside its own transaction -- deliberately, so a
 # dispatch row and the instance it records are committed together and a crashed sweep replays

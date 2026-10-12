@@ -40,7 +40,9 @@ defmodule AshEnterpriseWeb.DailyLiveTest do
       assert html =~ ~s(phx-update="ignore")
       assert has_element?(view, "#nav-today"), page
       assert has_element?(view, "#nav-day"), page
-      assert has_element?(view, "#nav-operator"), page
+      assert has_element?(view, "#nav-group-operator"), page
+      assert has_element?(view, "#nav-#{page}[aria-current=page]"), page
+      assert has_element?(view, "#page-header h1"), page
 
       assert pushed(view) =~ "createSurface", page
     end
@@ -101,17 +103,17 @@ defmodule AshEnterpriseWeb.DailyLiveTest do
     admin = tenant!()
     conn = sign_in(build_conn(), admin.user)
 
-    assert {:error, {:redirect, %{to: "/app/today", flash: flash}}} = live(conn, "/app/erasure")
+    assert {:error, {:redirect, %{to: "/app", flash: flash}}} = live(conn, "/app/erasure")
     assert flash["error"] =~ "platform operator"
   end
 
-  test "signing in lands on Today", %{ctx: ctx} do
+  test "signing in lands on the launcher", %{ctx: ctx} do
     conn =
       build_conn()
       |> Plug.Test.init_test_session(%{})
       |> Phoenix.ConnTest.fetch_flash()
       |> AshEnterpriseWeb.AuthController.success({:password, :sign_in}, ctx.user, nil)
 
-    assert redirected_to(conn) == "/app/today"
+    assert redirected_to(conn) == "/app"
   end
 end

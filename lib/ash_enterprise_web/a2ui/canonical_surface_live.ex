@@ -11,7 +11,7 @@ defmodule AshEnterpriseWeb.A2uiLive.CanonicalSurface do
         tenant_fn: &__MODULE__.tenant/1,
         pubsub: [
           module: AshEnterprise.PubSub,
-          topics: AshEnterpriseWeb.A2ui.Surfaces.topics(unquote(ui))
+          topics: AshEnterprise.Surfaces.topics(unquote(ui))
         ]
 
       alias AshEnterprise.Security.ActorContext

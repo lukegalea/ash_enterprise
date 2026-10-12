@@ -21,7 +21,14 @@ defmodule AshEnterprise.Acp.Commands do
   | `accounts` | `Console.accounts` | `AccountsUI` |
   | `sync calendar\\|gmail\\|slack` | `LinkedAccount.sync_now` | `AccountsUI` |
   | `erasure` | `Scope.scopes_digest` | `ErasureReadOnlyUI` — no shred over ACP |
+  | any other surface's command, or `open <surface>` | `Console.open` | that surface's UI, if it has one |
   | `help` | `Console.help` | none |
+
+  The surfaces, their commands and their doors come from the registry
+  (`AshEnterprise.Surfaces`): a prompt that names a surface is matched there
+  first (longest command or alias wins), and a surface whose door is closed
+  for the actor is refused — the same door the web checks. What is left are
+  the verbs: `brief`, `approve`, `reject`, `sync`, `help`.
 
   Decisions, syncs and composing a brief are consequential:
   `AshEnterprise.Acp.Approvals` turns them into `session/request_permission`
@@ -39,6 +46,8 @@ defmodule AshEnterprise.Acp.Commands do
   alias AshEnterprise.Integration.LinkedAccount
   alias AshEnterprise.Platform.LocalTime
   alias AshEnterprise.Security.ActorContext
+  alias AshEnterprise.Surfaces
+  alias AshEnterprise.Surfaces.Doors
   alias AshEnterpriseWeb.A2ui
 
   @windows %{
@@ -67,10 +76,25 @@ defmodule AshEnterprise.Acp.Commands do
   @spec route(String.t(), term()) :: {:ok, route()} | {:error, String.t()}
   def route(text, actor) do
     tenant = ActorContext.tenant(actor)
+    command = normalize(text)
 
-    text
-    |> normalize()
-    |> do_route(actor, tenant)
+    case Surfaces.match_command(String.replace_prefix(command, "open ", "")) do
+      {surface, rest} -> open_route(surface, rest, actor, tenant)
+      nil -> do_route(command, actor, tenant)
+    end
+  end
+
+  @doc """
+  The route that opens registry surface `key` for `actor`, with no further
+  prompt text — what a direct "open this surface" request (an ACP extension
+  method, a link) resolves to. Refused when the surface's door is closed.
+  """
+  @spec open(atom() | String.t(), term()) :: {:ok, route()} | {:error, String.t()}
+  def open(key, actor) do
+    case Surfaces.fetch(key) do
+      nil -> {:error, "no surface named #{inspect(key)} — say `help` for yours"}
+      surface -> open_route(surface, "", actor, ActorContext.tenant(actor))
+    end
   end
 
   defp normalize(text) do
@@ -81,25 +105,22 @@ defmodule AshEnterprise.Acp.Commands do
     |> String.replace(~r/\s+/, " ")
   end
 
-  defp do_route(command, actor, tenant)
-
-  defp do_route(command, _actor, tenant) when command in ["today", "day"] do
-    ok(Console, :today, %{}, "Today", tenant, {A2ui.TodayUI, []})
-  end
-
-  # "My brief": compose today's when there is none, otherwise show the day.
-  # There is no recompose (one brief per day), so neither spelling asks
-  # permission for a compose that would only report the brief that exists.
-  defp do_route(command, actor, tenant)
-       when command in ["brief", "compose brief", "compose", "brief compose"] do
-    case ComposeToday.existing(LocalTime.today(), actor, actor: actor, tenant: tenant) do
-      {:ok, nil} -> compose_brief(tenant)
-      _brief_or_unreadable -> ok(Console, :today, %{}, "Today", tenant, {A2ui.TodayUI, []})
+  # Every registry surface opens here, behind its door: the door is the same
+  # predicate the web's `SurfaceDoor` checks, so a surface closed on the web is
+  # closed here too.
+  defp open_route(surface, rest, actor, tenant) do
+    if Surfaces.open?(surface, actor) do
+      surface_route(surface.key, rest, surface, tenant)
+    else
+      {:error, "#{surface.label} is for #{Doors.audience(surface.door)}."}
     end
   end
 
-  defp do_route("calendar" <> rest, _actor, tenant) do
-    case Map.fetch(@windows, String.trim(rest)) do
+  defp surface_route(:today, _rest, _surface, tenant),
+    do: ok(Console, :today, %{}, "Today", tenant, {A2ui.TodayUI, []})
+
+  defp surface_route(:calendar, rest, _surface, tenant) do
+    case Map.fetch(@windows, rest) do
       {:ok, window} ->
         ok(
           Console,
@@ -115,53 +136,52 @@ defmodule AshEnterprise.Acp.Commands do
     end
   end
 
-  defp do_route(command, _actor, tenant) when command in ["inbox", "mail", "gmail"] do
-    ok(Console, :inbox, %{system: :gmail}, "Inbox", tenant, {A2ui.InboxUI, []})
-  end
+  defp surface_route(:inbox, _rest, _surface, tenant),
+    do: ok(Console, :inbox, %{system: :gmail}, "Inbox", tenant, {A2ui.InboxUI, []})
 
-  defp do_route("slack", _actor, tenant) do
-    ok(Console, :inbox, %{system: :slack}, "Slack", tenant, {A2ui.SlackUI, []})
-  end
+  defp surface_route(:slack, _rest, _surface, tenant),
+    do: ok(Console, :inbox, %{system: :slack}, "Slack", tenant, {A2ui.SlackUI, []})
 
-  defp do_route("people" <> rest, _actor, tenant) do
-    search = String.trim(rest)
+  defp surface_route(:people, search, _surface, tenant) do
     inputs = if search == "", do: %{}, else: %{search: search}
     query_state = if search == "", do: nil, else: %{"search" => search}
 
-    ok(
-      Console,
-      :people,
-      inputs,
-      "People",
-      tenant,
-      {A2ui.PeopleUI, query_state: query_state}
-    )
+    ok(Console, :people, inputs, "People", tenant, {A2ui.PeopleUI, query_state: query_state})
   end
 
-  defp do_route(command, _actor, tenant) when command in ["approvals", "tasks"] do
-    ok(Console, :approvals, %{}, "Approvals", tenant, {A2ui.ApprovalsUI, []})
+  defp surface_route(:approvals, _rest, _surface, tenant),
+    do: ok(Console, :approvals, %{}, "Approvals", tenant, {A2ui.ApprovalsUI, []})
+
+  defp surface_route(:accounts, _rest, _surface, tenant),
+    do: ok(Console, :accounts, %{}, "Accounts & syncs", tenant, {A2ui.AccountsUI, []})
+
+  defp surface_route(:erasure, _rest, surface, tenant),
+    do: ok(Scope, :scopes_digest, %{}, "Erasure scopes", tenant, {Surfaces.acp_ui(surface), []})
+
+  # Every other surface: `Console.open` says which (and, for a hand-written
+  # page, where it lives on the web), and the pane shows its A2UI surface.
+  defp surface_route(key, _rest, surface, tenant) do
+    pane = if ui = Surfaces.acp_ui(surface), do: {ui, []}
+    ok(Console, :open, %{surface: Atom.to_string(key)}, surface.label, tenant, pane)
+  end
+
+  # The verbs: prompts that are not a surface.
+  defp do_route(command, actor, tenant)
+
+  # "My brief": compose today's when there is none, otherwise show the day.
+  # There is no recompose (one brief per day), so neither spelling asks
+  # permission for a compose that would only report the brief that exists.
+  defp do_route(command, actor, tenant)
+       when command in ["brief", "compose brief", "compose", "brief compose"] do
+    case ComposeToday.existing(LocalTime.today(), actor, actor: actor, tenant: tenant) do
+      {:ok, nil} -> compose_brief(tenant)
+      _brief_or_unreadable -> ok(Console, :today, %{}, "Today", tenant, {A2ui.TodayUI, []})
+    end
   end
 
   defp do_route("approve " <> which, actor, tenant), do: decide(:approve, which, actor, tenant)
   defp do_route("reject " <> which, actor, tenant), do: decide(:reject, which, actor, tenant)
-
-  defp do_route(command, _actor, tenant) when command in ["accounts", "syncs", "sync status"] do
-    ok(Console, :accounts, %{}, "Accounts & syncs", tenant, {A2ui.AccountsUI, []})
-  end
-
   defp do_route("sync " <> provider, actor, tenant), do: sync(provider, actor, tenant)
-
-  defp do_route(command, _actor, tenant)
-       when command in ["erasure", "scopes", "erasure scopes"] do
-    ok(
-      Scope,
-      :scopes_digest,
-      %{},
-      "Erasure scopes",
-      tenant,
-      {A2ui.ErasureReadOnlyUI, []}
-    )
-  end
 
   defp do_route(command, _actor, tenant) when command in ["help", "?", "commands"] do
     ok(Console, :help, %{}, "Help", tenant, nil)
@@ -280,13 +300,15 @@ defmodule AshEnterprise.Acp.Commands do
   def consequential?(MorningBrief, :compose_today), do: true
   def consequential?(_resource, _action), do: false
 
-  @doc "The command list as text, pruned to what `actor` may run (`help`)."
+  @doc """
+  The command list as text, pruned to what `actor` may run (`help`): the
+  palette (`AshEnterprise.Surfaces.candidate_actions/0`, pruned with
+  `Ash.can?/3`), then every other surface whose door is open for them.
+  """
   @spec help(term()) :: String.t()
   def help(actor) do
     commands =
-      AshAcp.AvailableActions.for_actor(
-        actor,
-        Application.get_env(:ash_acp, :candidate_actions, []),
+      AshAcp.AvailableActions.for_actor(actor, Surfaces.candidate_actions(),
         tenant: ActorContext.tenant(actor)
       )
 
@@ -301,6 +323,16 @@ defmodule AshEnterprise.Acp.Commands do
         "  #{command["name"]}#{hint} — #{command["description"]}"
       end)
 
-    Enum.join(["Commands (what your access allows):" | lines], "\n")
+    surfaces =
+      for group <- Surfaces.grouped(actor),
+          words = for(%{acp: %{command: c} = acp} <- group.surfaces, !acp[:palette?], do: c),
+          words != [],
+          do: "  #{group.label}: #{Enum.join(words, ", ")}"
+
+    Enum.join(
+      ["Commands (what your access allows):" | lines] ++
+        ["", "Surfaces (say the name, or `open <name>`):" | surfaces],
+      "\n"
+    )
   end
 end

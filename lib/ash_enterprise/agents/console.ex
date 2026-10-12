@@ -11,6 +11,7 @@ defmodule AshEnterprise.Agents.Console do
     * `people` — the directory, optionally searched (`Canonical.Actions.DirectoryDigest`)
     * `approvals` — tasks waiting on the actor, numbered (`Bpmn.Actions.QueueDigest`)
     * `accounts` — linked accounts and sync health (`Integration.Actions.HealthDigest`)
+    * `open` — any registry surface, behind its door (`Agents.Actions.OpenSurface`)
     * `help` — the commands the actor may run
 
   Why a resource of its own rather than generic actions on the resources they
@@ -86,6 +87,12 @@ defmodule AshEnterprise.Agents.Console do
       run AshEnterprise.Integration.Actions.HealthDigest
     end
 
+    action :open, :string do
+      description "Open a registry surface by key; says which, and where it lives on the web."
+      argument :surface, :string, allow_nil?: false
+      run AshEnterprise.Agents.Actions.OpenSurface
+    end
+
     action :help, :string do
       description "The ACP commands the actor may run."
       run fn _input, context -> {:ok, AshEnterprise.Acp.Commands.help(context.actor)} end
@@ -108,6 +115,7 @@ defmodule AshEnterprise.Agents.Console do
     define :people, args: [{:optional, :search}]
     define :approvals
     define :accounts
+    define :open, args: [:surface]
     define :help
   end
 end
