@@ -178,8 +178,9 @@ the title, which is the status badge, what belongs in the metadata grid — beca
 a derived screen still has to be told what matters. Nothing in that declaration
 is styling; A2UI's components carry no spacing or colour props at all, in any
 version of the spec. Appearance comes from a CSS custom-property contract that
-`assets/css/app.css` maps onto daisyUI's tokens, so these pages follow the same
-theme and the same dark-mode toggle as the rest of the app.
+`assets/css/neobrutalism.css` maps onto the app's design tokens, so these pages
+follow the same theme and the same dark/light toggle as the rest of the app
+([ADR 0050](docs/adr/0050-neobrutalism-design-system.md)).
 
 ![The business-unit surface: seven units as a tree, each row showing its ancestry, with View and Edit per row and a Create business unit action](docs/screenshots/a2ui-business-units.png)
 

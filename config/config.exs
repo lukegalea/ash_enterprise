@@ -8,7 +8,9 @@
 import Config
 
 config :mdex_native, syntax_highlighter: :lumis
-config :cinder, default_theme: "daisy_ui"
+# No Cinder theme is configured: no page renders a Cinder table today, and its
+# daisy_ui theme went with daisyUI (ADR 0050). A Cinder table added later needs
+# a theme written in the design-system tokens (a `use Cinder.Theme` module).
 config :ash_oban, pro?: false
 
 config :ash_enterprise, Oban,

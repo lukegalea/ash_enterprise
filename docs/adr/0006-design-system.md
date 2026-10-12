@@ -1,6 +1,6 @@
 # ADR 0006 — daisyUI 5 + Phoenix core_components as the design system
 
-- **Status:** accepted
+- **Status:** superseded by [ADR 0050](0050-neobrutalism-design-system.md) (2026-10-12)
 - **Date:** 2026-08-13
 
 ## Context

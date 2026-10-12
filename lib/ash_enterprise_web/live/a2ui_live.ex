@@ -107,7 +107,7 @@ defmodule AshEnterpriseWeb.A2uiLive do
       ~H"""
       <div :if={@cue} id={"#{@id_prefix}-cue-#{@cue}"} class="mb-4">
         <div
-          class="flex items-center gap-2 rounded-lg border border-amber-400/60 bg-amber-50 px-4 py-2 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-950/60 dark:text-amber-100"
+          class="flex items-center gap-2.5 rounded-base border-2 border-border bg-yellow px-4 py-2 text-sm text-on-vivid shadow-shadow"
           phx-mounted={
             JS.transition(
               {"transition-all duration-500 ease-out", "opacity-0 -translate-y-1",
@@ -117,12 +117,12 @@ defmodule AshEnterpriseWeb.A2uiLive do
           }
         >
           <span class="relative flex size-2">
-            <span class="absolute inline-flex size-2 animate-ping rounded-full bg-amber-500 opacity-75" />
-            <span class="relative inline-flex size-2 rounded-full bg-amber-500" />
+            <span class="absolute inline-flex size-2 animate-ping rounded-full bg-on-vivid opacity-60" />
+            <span class="relative inline-flex size-2 rounded-full bg-on-vivid" />
           </span>
           <span>
             {@message}
-            <span :if={@cue > 1} class="font-semibold">({@cue} updates)</span>
+            <span :if={@cue > 1} class="font-heading">({@cue} updates)</span>
           </span>
         </div>
       </div>

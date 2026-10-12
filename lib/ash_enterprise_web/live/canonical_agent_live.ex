@@ -14,15 +14,15 @@ defmodule AshEnterpriseWeb.CanonicalAgentLive do
     <AshEnterpriseWeb.Layouts.app flash={@flash} width="max-w-3xl">
       <div class="space-y-6">
         <header>
-          <h1 class="text-2xl font-semibold">Canonical helper</h1>
-          <p class="text-base-content/70 text-sm">
+          <h1 class="text-2xl font-heading tracking-tight">Canonical helper</h1>
+          <p class="text-foreground/70 text-sm">
             This helper exposes only read actions in the canonical contracting vocabulary.
           </p>
         </header>
         <ul class="list-disc pl-6">
           <li :for={tool <- canonical_tools()}>{tool}</li>
         </ul>
-        <p class="text-base-content/70 text-sm">
+        <p class="text-foreground/70 text-sm">
           Every action runs with the signed-in actor through the canonical resource policies.
         </p>
       </div>

@@ -37,7 +37,7 @@ The concrete exit: which files change, and how much work it is.
 | [0003](0003-attribute-multitenancy.md) | Attribute-based multitenancy plus business-unit hierarchy | accepted |
 | [0004](0004-reactor-over-oban-pro.md) | Reactor for transactional orchestration, Oban for durability | accepted |
 | [0005](0005-admin-and-a2ui-division-of-labour.md) | ash_admin and ash_a2ui: division of labour | accepted |
-| [0006](0006-design-system.md) | daisyUI 5 + Phoenix core_components as the design system | accepted |
+| [0006](0006-design-system.md) | daisyUI 5 + Phoenix core_components as the design system | superseded by 0050 |
 | [0007](0007-dialyzer-non-blocking.md) | Dialyzer runs, and does not gate | accepted |
 | [0008](0008-typed-invertible-legacy-mappings.md) | Legacy mappings are typed expressions with proven inverses | accepted |
 | [0009](0009-strangler-and-bpmn-are-first-party.md) | `ash_strangler`, `ash_bpmn` and `ash_decisions` are first-party platform extensions | accepted |
@@ -80,6 +80,7 @@ The concrete exit: which files change, and how much work it is.
 | [0046](0046-the-declaration-is-the-output-contract.md) | The declaration is the output contract | accepted, not built (2026-09-28) |
 | [0047](0047-learning-produces-proposals.md) | Learning produces proposals | accepted, not built (2026-09-28) |
 | [0048](0048-a-judgment-is-a-predicate-over-any-set.md) | A judgment is a predicate over any set | proposed |
+| [0050](0050-neobrutalism-design-system.md) | A neobrutalism token system, dark by default, replaces daisyUI | accepted |
 
 Records 0001–0009, 0020–0023, 0027–0031 and 0033–0037 are `accepted` and describe code that exists.
 **0038–0047 are `accepted, not built (2026-09-28)`:** the decision is taken and none of it is built. A record with that

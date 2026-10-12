@@ -264,25 +264,25 @@ defmodule AshEnterpriseWeb.AgentLive do
     <Layouts.app flash={@flash} width={if(@presentation, do: "max-w-7xl", else: "max-w-3xl")}>
       <div class="space-y-6">
         <header>
-          <h1 class="text-2xl font-semibold">Helper</h1>
-          <p class="text-base-content/70 text-sm">
+          <h1 class="text-2xl font-heading tracking-tight">Helper</h1>
+          <p class="text-foreground/70 text-sm">
             Ask for an administrative change. Nothing happens until you approve it.
           </p>
         </header>
 
-        <form phx-submit="propose" class="join w-full" id="agent-request">
+        <form phx-submit="propose" class="flex w-full gap-3" id="agent-request">
           <input
             type="text"
             name="request"
             value={@request}
             placeholder="Show me the legacy users"
-            class="input input-bordered join-item w-full"
+            class="h-10 w-full rounded-base border-2 border-border bg-secondary-background px-3 py-2 text-sm font-base text-foreground placeholder:text-foreground/60 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             autocomplete="off"
           />
-          <button type="submit" class="btn btn-primary join-item">Ask</button>
+          <.button type="submit" variant="primary">Ask</.button>
         </form>
 
-        <p class="text-base-content/50 text-xs">
+        <p class="text-foreground/70 text-xs">
           Try: <span class="font-mono">show me the legacy users</span>
           · <span class="font-mono">list all roles</span>
           · <span class="font-mono">legacy users, just login and email, sorted by login</span>
@@ -290,25 +290,25 @@ defmodule AshEnterpriseWeb.AgentLive do
         </p>
 
         <div class="flex flex-wrap items-center gap-2">
-          <span class="text-base-content/50 text-xs">or open one directly:</span>
-          <button
+          <span class="text-foreground/70 text-xs">or open one directly:</span>
+          <.button
             :for={surface <- AshEnterpriseWeb.A2ui.Surfaces.all()}
             phx-click="show-surface"
             phx-value-name={surface.name}
             id={"open-#{surface.name}"}
-            class="btn btn-xs btn-outline"
+            size="xs"
           >
             {surface.label}
-          </button>
+          </.button>
         </div>
 
-        <div :if={@error} class="alert alert-error" role="alert">
+        <.callout :if={@error} kind={:error} role="alert">
           <span class="whitespace-pre-line">{@error}</span>
-        </div>
+        </.callout>
 
-        <div :if={@result} class="alert alert-success" role="status">
+        <.callout :if={@result} kind={:success} role="status">
           <span>{@result}</span>
-        </div>
+        </.callout>
 
         <%!--
         The confirmation. This is the human-in-the-loop step: the proposal is
@@ -316,13 +316,12 @@ defmodule AshEnterpriseWeb.AgentLive do
         user as the actor -- so the audit entry names the person who decided,
         not the model that suggested.
       --%>
-        <div :if={@proposal} class="card border border-base-300 bg-base-100" data-role="proposal">
-          <div class="card-body gap-4">
-            <h2 class="card-title text-base">Confirm this change</h2>
+        <.card :if={@proposal} accent="yellow" class="gap-4" data-role="proposal">
+          <h2 class="text-base font-heading">Confirm this change</h2>
 
-            <p class="text-lg">{@proposal.summary}</p>
+          <p class="text-lg">{@proposal.summary}</p>
 
-            <%!--
+          <%!--
             `display: contents` rather than a `<template>`. A `<template>` element
             is inert: the browser parses its children into a document fragment and
             never renders them, so the details -- the concrete user, role and scope
@@ -331,23 +330,22 @@ defmodule AshEnterpriseWeb.AgentLive do
             would also break the two-column grid, since the dt/dd pairs would no
             longer be grid items; `contents` keeps both.
           --%>
-            <dl class="grid grid-cols-[8rem_1fr] gap-x-4 gap-y-1 text-sm">
-              <div :for={{label, value} <- @proposal.details} class="contents">
-                <dt class="text-base-content/60">{label |> to_string() |> String.capitalize()}</dt>
-                <dd>{value}</dd>
-              </div>
-            </dl>
-
-            <p class="text-base-content/60 text-xs">
-              Runs as you, through the same permissions as the admin UI, and is recorded in the audit log.
-            </p>
-
-            <div class="card-actions justify-end">
-              <button phx-click="reject" class="btn btn-ghost">Cancel</button>
-              <button phx-click="approve" class="btn btn-primary" data-role="approve">Approve</button>
+          <dl class="grid grid-cols-[8rem_1fr] gap-x-4 gap-y-1 text-sm">
+            <div :for={{label, value} <- @proposal.details} class="contents">
+              <dt class="text-foreground/70">{label |> to_string() |> String.capitalize()}</dt>
+              <dd>{value}</dd>
             </div>
+          </dl>
+
+          <p class="text-foreground/70 text-xs">
+            Runs as you, through the same permissions as the admin UI, and is recorded in the audit log.
+          </p>
+
+          <div class="flex justify-end gap-3">
+            <.button phx-click="reject" variant="ghost">Cancel</.button>
+            <.button phx-click="approve" data-role="approve" variant="primary">Approve</.button>
           </div>
-        </div>
+        </.card>
 
         <%!--
         The surface the agent chose or composed. The container is always in the
@@ -359,28 +357,27 @@ defmodule AshEnterpriseWeb.AgentLive do
         <div :if={@presentation} class="space-y-3" data-role="surface">
           <div class="flex items-start justify-between gap-4">
             <div>
-              <h2 class="flex items-center gap-2 text-lg font-semibold">
+              <h2 class="flex items-center gap-2 text-lg font-heading">
                 {@presentation.title}
-                <span
+                <.badge
                   :if={@presentation.kind == :dynamic}
-                  class="badge badge-outline badge-sm"
                   title="Composed for this request, then validated against the schema"
                 >
                   composed
-                </span>
-                <span
+                </.badge>
+                <.badge
                   :if={@presentation.topics != []}
-                  class="badge badge-success badge-sm badge-outline"
+                  tone="green"
                   title="This surface updates itself when the underlying rows change"
                 >
                   live
-                </span>
+                </.badge>
               </h2>
-              <p :if={@presentation.subtitle} class="text-base-content/60 text-sm">
+              <p :if={@presentation.subtitle} class="text-foreground/70 text-sm">
                 {@presentation.subtitle}
               </p>
             </div>
-            <button phx-click="dismiss-surface" class="btn btn-ghost btn-sm">Dismiss</button>
+            <.button phx-click="dismiss-surface" variant="ghost" size="sm">Dismiss</.button>
           </div>
 
           <%!--
@@ -390,7 +387,7 @@ defmodule AshEnterpriseWeb.AgentLive do
         --%>
           <div :if={@cue} id={"agent-cue-#{@cue}"}>
             <div
-              class="flex items-center gap-2 rounded-lg border border-amber-400/60 bg-amber-50 px-4 py-2 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-950/60 dark:text-amber-100"
+              class="flex items-center gap-2.5 rounded-base border-2 border-border bg-yellow px-4 py-2 text-sm text-on-vivid shadow-shadow"
               phx-mounted={
                 JS.transition(
                   {"transition-all duration-500 ease-out", "opacity-0 -translate-y-1",
@@ -400,12 +397,12 @@ defmodule AshEnterpriseWeb.AgentLive do
               }
             >
               <span class="relative flex size-2">
-                <span class="absolute inline-flex size-2 animate-ping rounded-full bg-amber-500 opacity-75" />
-                <span class="relative inline-flex size-2 rounded-full bg-amber-500" />
+                <span class="absolute inline-flex size-2 animate-ping rounded-full bg-on-vivid opacity-60" />
+                <span class="relative inline-flex size-2 rounded-full bg-on-vivid" />
               </span>
               <span>
                 Another application changed these rows. The table was rebuilt
-                <span :if={@cue > 1} class="font-semibold">({@cue} updates)</span>
+                <span :if={@cue > 1} class="font-heading">({@cue} updates)</span>
               </span>
             </div>
           </div>

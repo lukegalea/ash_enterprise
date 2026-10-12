@@ -1,0 +1,379 @@
+/* ---------------------------------------------------------------------------
+ * Neobrutalism design tokens, dark by default.
+ *
+ * The system is clinic-demo's neobrutalism sheet (itself the "blue" scheme
+ * from neobrutalism.dev): one ink colour shared by text, borders, shadows and
+ * focus rings; 2px borders; a hard 4px offset shadow; 5px radii; DM Sans at
+ * 500 for body and 700 for headings, with Archivo Black reserved for the
+ * loudest tier; a lift/press motion pair; and vivid poster secondaries.
+ *
+ * This copy adds a dark palette and makes it the default. See
+ * docs/adr/0050-neobrutalism-design-system.md for the palette decision and
+ * the measured contrast ratios.
+ *
+ * The sheet has three parts:
+ *
+ *   1. Raw custom properties, per theme. They are real, inheritable CSS
+ *      variables, not build-time constants, because two consumers can only
+ *      read runtime variables: the A2UI shadow-DOM components (bridged at
+ *      the bottom of this file) and the bpmn-js / dmn-js editors (app.css).
+ *
+ *   2. A Tailwind v4 `@theme inline` block that maps the raw tokens onto
+ *      utility namespaces: bg-main, text-foreground, border-border,
+ *      rounded-base, shadow-shadow, shadow-lift, font-heading and so on.
+ *      `inline` makes each utility embed `var(--token)`, so utilities follow
+ *      the theme switch at runtime.
+ *
+ *   3. The --a2ui-* and --ash-admin-* bridges.
+ *
+ * Theme selection: the root layout's script always sets
+ * `data-theme="dark"|"light"` on <html>, and it falls back to dark when
+ * nothing is stored. The bare `:root` block is dark as well, so a page whose
+ * script did not run is still dark.
+ * ------------------------------------------------------------------------- */
+
+/* ---- Dark (default) ---------------------------------------------------- */
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* Page background: deep navy, the dark counterpart of the light theme's
+   * pale blue, so both themes read as one product. */
+  --background: #0e1525;
+  /* Cards, inputs, tables and other raised surfaces: one step lighter. */
+  --secondary-background: #1a2338;
+  /* Ink. In light the ink is black; in dark it inverts to a blue-white.
+   * Text, borders, shadows and focus rings all use it, which is what makes
+   * the style recognisable. A black border or shadow on a navy surface
+   * measures about 1.2:1, so on dark the hard edges have to be light to be
+   * seen at all. */
+  --foreground: #eef2fb;
+  --border: #e6ecf8;
+  --shadow-color: #e6ecf8;
+  --ring: #eef2fb;
+
+  /* The accent and the vivid fills keep the light theme's exact values and
+   * keep black ink in both themes. Each one measures at least 6.2:1 with
+   * black text and at least 5.4:1 against the dark page, so the fills
+   * work as identity colours on dark without being toned down. */
+  --main: hsl(217, 100%, 66%);
+  --main-foreground: oklch(0% 0 0);
+  /* Ink for any vivid fill (badges, stickers, warning cues). In light this
+   * is the same as --foreground, but in dark --foreground is light, so a
+   * yellow badge has to name its ink explicitly or it ends up with light
+   * text on yellow. */
+  --on-vivid: oklch(0% 0 0);
+
+  --overlay: oklch(0% 0 0 / 0.75);
+
+  /* Form errors and destructive text. Raised in lightness against navy:
+   * 6.6:1 on the page, 5.6:1 on raised surfaces. */
+  --error: hsl(0, 100%, 71%);
+
+  --yellow: hsl(48, 100%, 61%);
+  --pink: hsl(328, 100%, 71%);
+  --green: hsl(135, 72%, 55%);
+  --orange: hsl(31, 100%, 58%);
+  --violet: hsl(262, 100%, 78%);
+  --cyan: hsl(187, 95%, 55%);
+  --red: hsl(0, 100%, 64%);
+  /* Quiet fill for inert states. The light theme's near-white would read
+   * as loud on navy, so dark uses a mid slate that still carries black ink
+   * (9.6:1). */
+  --neutral: hsl(220, 12%, 70%);
+}
+
+/* ---- Light (clinic-demo's palette) ------------------------------------- */
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --background: hsl(214, 95%, 93%);
+  --secondary-background: oklch(100% 0 0);
+  --foreground: oklch(0% 0 0);
+  --border: oklch(0% 0 0);
+  --shadow-color: oklch(0% 0 0);
+  --ring: oklch(0% 0 0);
+
+  --main: hsl(217, 100%, 66%);
+  --main-foreground: oklch(0% 0 0);
+  --on-vivid: oklch(0% 0 0);
+
+  --overlay: oklch(0% 0 0 / 0.8);
+
+  /* clinic-demo's hsl(0 100% 45%) measures 3.99:1 on the pale page and
+   * fails AA for small text. Five points darker it passes on both the page
+   * and white surfaces. */
+  --error: hsl(0, 100%, 40%);
+
+  --yellow: hsl(48, 100%, 61%);
+  --pink: hsl(328, 100%, 71%);
+  --green: hsl(135, 72%, 55%);
+  --orange: hsl(31, 100%, 58%);
+  --violet: hsl(262, 100%, 78%);
+  --cyan: hsl(187, 95%, 55%);
+  --red: hsl(0, 100%, 64%);
+  --neutral: hsl(220, 14%, 91%);
+}
+
+/* ---- Theme-independent tokens ------------------------------------------ */
+:root {
+  --radius-base: 5px;
+
+  /* The shadow ladder: resting, hover lift, active press. */
+  --shadow: 4px 4px 0px 0px var(--shadow-color);
+  --shadow-lift: 6px 6px 0px 0px var(--shadow-color);
+  --shadow-press: 2px 2px 0px 0px var(--shadow-color);
+
+  /* DM Sans and Archivo Black are self-hosted (@font-face in app.css).
+   * Body copy is 500 rather than 400 because the style wants heavy text. */
+  --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-weight-base: 500;
+  --font-weight-heading: 700;
+}
+
+@theme inline {
+  /* ---- Colour -> utilities (bg-*, text-*, border-*, ring-*) ----------- */
+  --color-background: var(--background);
+  --color-secondary-background: var(--secondary-background);
+  --color-foreground: var(--foreground);
+  --color-main: var(--main);
+  --color-main-foreground: var(--main-foreground);
+  --color-on-vivid: var(--on-vivid);
+  --color-border: var(--border);
+  --color-ring: var(--ring);
+  --color-overlay: var(--overlay);
+  --color-error: var(--error);
+
+  --color-yellow: var(--yellow);
+  --color-pink: var(--pink);
+  --color-green: var(--green);
+  --color-orange: var(--orange);
+  --color-violet: var(--violet);
+  --color-cyan: var(--cyan);
+  --color-red: var(--red);
+  --color-neutral: var(--neutral);
+
+  /* ---- Typography ------------------------------------------------------ */
+  /* The raw --font-sans above overrides Tailwind's layered default, so both
+   * font-sans and preflight's default family resolve to DM Sans. */
+  --font-weight-base: 500;
+  --font-weight-heading: 700;
+  /* The display face, for the loudest tier only (page titles, the brand). */
+  --font-display: "Archivo Black", "DM Sans", ui-sans-serif, system-ui, sans-serif;
+
+  /* ---- Radius ---------------------------------------------------------- */
+  --radius-base: 5px;
+
+  /* ---- Shadow ---------------------------------------------------------- */
+  /* shadow-shadow at rest; hover grows it in place (shadow-lift); active
+   * presses down into a 2px shadow (shadow-press). */
+  --shadow-shadow: var(--shadow);
+  --shadow-lift: 6px 6px 0px 0px var(--shadow-color);
+  --shadow-press: 2px 2px 0px 0px var(--shadow-color);
+  /* Coloured lifts at hover depth, for accent cards: hover:shadow-yellow.
+   * An accent, never the default. */
+  --shadow-main: 6px 6px 0px 0px var(--main);
+  --shadow-yellow: 6px 6px 0px 0px var(--yellow);
+  --shadow-pink: 6px 6px 0px 0px var(--pink);
+  --shadow-green: 6px 6px 0px 0px var(--green);
+  --shadow-orange: 6px 6px 0px 0px var(--orange);
+  --shadow-violet: 6px 6px 0px 0px var(--violet);
+  --shadow-cyan: 6px 6px 0px 0px var(--cyan);
+  --shadow-red: 6px 6px 0px 0px var(--red);
+}
+
+/* ---------------------------------------------------------------------------
+ * Pattern utilities. Texture is drawn in currentColor, so the colour and
+ * density come from a text-* utility on the same element:
+ * `bg-dots text-on-vivid/20` is black dots at 20% over any fill.
+ * ------------------------------------------------------------------------- */
+@utility bg-dots {
+  background-image: radial-gradient(currentColor 1.5px, transparent 1.5px);
+  background-size: 16px 16px;
+}
+
+@utility bg-stripes {
+  background-image: repeating-linear-gradient(-45deg, currentColor 0 2px, transparent 2px 12px);
+}
+
+@utility bg-grid {
+  background-image:
+    linear-gradient(currentColor 1px, transparent 1px),
+    linear-gradient(90deg, currentColor 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* ---------------------------------------------------------------------------
+ * A2UI theme bridge.
+ *
+ * A2UI's components render inside shadow DOM, which page CSS cannot reach.
+ * Custom properties inherit through shadow boundaries, so A2UI is themed by
+ * mapping its --a2ui-* contract onto the tokens above. The tokens flip per
+ * theme, so one mapping covers both themes.
+ *
+ * Must be imported AFTER ash_a2ui's neutral theme (see app.css). Both land
+ * at :root specificity, so the later declaration wins.
+ * ------------------------------------------------------------------------- */
+:root {
+  --a2ui-color-background: var(--background);
+  --a2ui-color-on-background: var(--foreground);
+  --a2ui-color-surface: var(--secondary-background);
+  --a2ui-color-on-surface: var(--foreground);
+  --a2ui-color-primary: var(--main);
+  --a2ui-color-on-primary: var(--main-foreground);
+  /* Secondary chrome (default buttons, chips) is the raised surface with
+   * ink text, matching the app's neutral buttons. clinic-demo uses yellow
+   * with black ink here, which only holds in a light theme: A2UI's basic
+   * Button always draws its text in --a2ui-color-on-secondary, and the
+   * admin catalog's action bar sets that button's background to
+   * transparent, so black ink lands on the navy surface (1.3:1, flagged by
+   * the axe scan of the create panel). With the ink as on-secondary, every
+   * default button reads on whatever it sits on. The yellow stays an
+   * app-side accent (button variant="accent"). Blue stays primary. */
+  --a2ui-color-secondary: color-mix(in srgb, var(--foreground) 10%, var(--secondary-background));
+  --a2ui-color-on-secondary: var(--foreground);
+  /* The basic Button's background falls back to the surface; named so the
+   * pairing is explicit. Its hover defaults are a light grey and a pink, so
+   * both hovers are named too. */
+  --a2ui-button-background: var(--secondary-background);
+  --a2ui-color-secondary-hover: color-mix(in srgb, var(--foreground) 12%, var(--secondary-background));
+  --a2ui-color-primary-hover: color-mix(in srgb, var(--main) 82%, white);
+  --a2ui-color-input: var(--secondary-background);
+  --a2ui-color-on-input: var(--foreground);
+  --a2ui-color-border: var(--border);
+
+  --a2ui-border-width: 2px;
+  --a2ui-border-radius: var(--radius-base);
+  --a2ui-button-border-radius: var(--radius-base);
+  --a2ui-textfield-border-radius: var(--radius-base);
+  --a2ui-card-border-radius: var(--radius-base);
+  --a2ui-choicepicker-select-border-radius: var(--radius-base);
+  --a2ui-chip-border-radius: var(--radius-base);
+
+  /* No :hover seam crosses shadow DOM, so inside A2UI the hard shadow is
+   * constant rather than interactive. */
+  --a2ui-card-box-shadow: var(--shadow);
+  --a2ui-button-box-shadow: var(--shadow);
+  --a2ui-combobox-box-shadow: var(--shadow);
+  --a2ui-modal-box-shadow: var(--shadow);
+  --a2ui-modal-backdrop-bg: var(--overlay);
+
+  /* Admin density: the stock rhythm gives a one-line row a ~76px card. */
+  --a2ui-button-margin: 0;
+  --a2ui-card-margin: 0;
+  --a2ui-card-padding: 0.625rem;
+  --a2ui-button-padding: 0.5rem 1rem;
+  --a2ui-list-gap: 0.5rem;
+  --a2ui-row-gap: 1rem;
+  --a2ui-column-gap: 0.75rem;
+
+  --a2ui-button-font-weight: 500;
+  --a2ui-label-font-weight: 700;
+  --a2ui-font-family-title: var(--font-sans);
+
+  --a2ui-combobox-max-height: 18rem;
+  --a2ui-combobox-z-index: 30;
+  --a2ui-chip-selected-background: var(--main);
+  --a2ui-chip-selected-color: var(--main-foreground);
+
+  --a2ui-tabs-header-background-active: var(--main);
+  --a2ui-tabs-header-color-active: var(--main-foreground);
+
+  --a2ui-textfield-color-error: var(--error);
+  --a2ui-checkbox-color-error: var(--error);
+}
+
+/* ---------------------------------------------------------------------------
+ * Admin-catalog bridge (--ash-admin-*).
+ *
+ * The admin catalog (/app/users, /app/teams, /app/directory, ...) reads
+ * --ash-admin-* first and --a2ui-* second, and several of its roles (muted
+ * text, strong borders, feedback colours, elevation) have no --a2ui-* word.
+ * Their literal fallbacks are a light-only slate palette, so on dark they
+ * would put #475569 text on navy. This layer sets every one of those roles
+ * from the tokens.
+ * ------------------------------------------------------------------------- */
+:root {
+  --ash-admin-surface: var(--secondary-background);
+  --ash-admin-surface-sunken: var(--background);
+  --ash-admin-surface-raised: var(--secondary-background);
+  --ash-admin-text: var(--foreground);
+  /* Muted and faint text as ink mixed into the surface: 7.9:1 and 6.2:1 on
+   * dark raised surfaces, 9.2:1 and 6.2:1 on white. */
+  --ash-admin-text-muted: color-mix(in srgb, var(--foreground) 72%, var(--secondary-background));
+  --ash-admin-text-faint: color-mix(in srgb, var(--foreground) 62%, var(--secondary-background));
+  --ash-admin-border: var(--border);
+  --ash-admin-border-strong: var(--border);
+
+  --ash-admin-primary: var(--main);
+  --ash-admin-on-primary: var(--main-foreground);
+  /* Hover lightens the fill rather than darkening it, so the black ink only
+   * gains contrast. */
+  --ash-admin-primary-hover: color-mix(in srgb, var(--main) 82%, white);
+  /* The catalog's quiet buttons (View, Edit) use the primary as TEXT on this
+   * wash, and it is also the row hover. At 8% main-blue text still measures
+   * 4.7:1 on it; at the 14-22% a wash usually takes it drops below AA. */
+  --ash-admin-primary-subtle: color-mix(in srgb, var(--main) 8%, var(--secondary-background));
+
+  /* Destructive is used both as a fill (with on-destructive ink) and as
+   * quiet-button text. On dark the error red does both: black ink on it
+   * measures 7.6:1, and as text on the surface 5.6:1. */
+  --ash-admin-destructive: var(--error);
+  --ash-admin-on-destructive: var(--on-vivid);
+  --ash-admin-destructive-hover: color-mix(in srgb, var(--error) 82%, white);
+  --ash-admin-destructive-subtle: color-mix(in srgb, var(--error) 12%, var(--secondary-background));
+
+  --ash-admin-hover-tint: color-mix(in srgb, var(--main) 8%, var(--secondary-background));
+  --ash-admin-focus: var(--ring);
+
+  /* Surface titles match the app's page titles (text-2xl, heading weight);
+   * the catalog's xl size is used by its page title only. */
+  --ash-admin-font-size-xl: 1.5rem;
+  --ash-admin-font-weight-semibold: var(--font-weight-heading);
+
+  --ash-admin-radius-s: var(--radius-base);
+  --ash-admin-radius-m: var(--radius-base);
+  --ash-admin-radius-l: var(--radius-base);
+
+  --ash-admin-shadow-1: var(--shadow-press);
+  --ash-admin-shadow-2: var(--shadow);
+  --ash-admin-shadow-3: var(--shadow-lift);
+}
+
+/* Feedback colours are used as TEXT on a subtle wash of themselves (status
+ * pills, banners), so each theme needs its own text strength: the vivid
+ * fills on navy, deep shades on white. */
+:root,
+:root[data-theme="dark"] {
+  --ash-admin-success: var(--green);
+  --ash-admin-success-subtle: color-mix(in srgb, var(--green) 14%, var(--secondary-background));
+  --ash-admin-warning: var(--yellow);
+  --ash-admin-warning-subtle: color-mix(in srgb, var(--yellow) 14%, var(--secondary-background));
+  --ash-admin-error: var(--error);
+  --ash-admin-error-subtle: color-mix(in srgb, var(--red) 16%, var(--secondary-background));
+  --ash-admin-error-strong: var(--error);
+}
+
+:root[data-theme="light"] {
+  /* Light-only: the catalog uses its primary as both a fill and as quiet-
+   * button text, and main-blue as text on white is 2.9:1. A deeper blue
+   * with white ink holds 6.7:1 in both roles. This is the one place the
+   * light theme departs from "black ink on every fill", and only inside the
+   * admin catalog. Destructive follows the same rule with the error red. */
+  --ash-admin-primary: #1d4ed8;
+  --ash-admin-on-primary: #ffffff;
+  --ash-admin-primary-hover: color-mix(in srgb, #1d4ed8 85%, black);
+  --ash-admin-primary-subtle: color-mix(in srgb, #1d4ed8 12%, white);
+  --ash-admin-destructive: var(--error);
+  --ash-admin-on-destructive: #ffffff;
+  --ash-admin-destructive-hover: color-mix(in srgb, var(--error) 85%, black);
+  --ash-admin-destructive-subtle: color-mix(in srgb, var(--error) 12%, white);
+
+  --ash-admin-success: #046c32;
+  --ash-admin-success-subtle: #e3f9e8;
+  --ash-admin-warning: #8a5a00;
+  --ash-admin-warning-subtle: #fff6d6;
+  --ash-admin-error: var(--error);
+  --ash-admin-error-subtle: #ffe5e5;
+  --ash-admin-error-strong: #990000;
+}

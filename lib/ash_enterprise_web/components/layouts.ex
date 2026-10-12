@@ -44,66 +44,78 @@ defmodule AshEnterpriseWeb.Layouts do
 
   def app(assigns) do
     ~H"""
-    <header class="navbar px-4 sm:px-6 lg:px-8">
-      <div class="flex-1">
-        <a href="/" class="flex w-fit items-center gap-2">
-          <img src={~p"/images/logo.svg"} width="36" alt="Ash Enterprise" />
-          <span class="text-sm font-semibold">Ash Enterprise</span>
+    <%!-- Sticky header on the page colour, ruled off with the ink border.
+          The nav is chunky pills that lift on hover and press on click, with
+          one primary call to action at the end. --%>
+    <header class="sticky top-0 z-40 border-b-2 border-border bg-background">
+      <div class="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 sm:px-6 lg:px-8">
+        <a href="/" class="flex w-fit items-center gap-2.5">
+          <img src={~p"/images/logo.svg"} width="32" alt="" />
+          <span class="font-display text-lg leading-none tracking-tight">Ash Enterprise</span>
+          <span
+            class="inline-block size-3 -rotate-12 rounded-[3px] border-2 border-border bg-yellow"
+            aria-hidden="true"
+          />
         </a>
-      </div>
-      <div class="flex-none">
-        <ul class="flex flex-column px-1 space-x-2 items-center">
-          <%!--
-            Administration. These are A2UI surfaces derived from resource
-            metadata, not hand-written screens -- see
-            lib/ash_enterprise_web/a2ui/. Each is filtered by the signed-in
-            actor's policies, so a user with no grants sees an empty table
-            rather than a 403.
-          --%>
-          <li><a href="/agent" class="btn btn-ghost btn-sm">Helper</a></li>
-          <li><a href="/app/users" class="btn btn-ghost btn-sm">Users</a></li>
-          <li><a href="/app/teams" class="btn btn-ghost btn-sm">Teams</a></li>
-          <li><a href="/app/roles" class="btn btn-ghost btn-sm">Roles</a></li>
-          <li>
-            <a href="/app/business-units" class="btn btn-ghost btn-sm">Business units</a>
-          </li>
-          <li>
-            <a href="/app/legacy-users" class="btn btn-ghost btn-sm">Legacy users</a>
-          </li>
-          <li>
-            <a href="/app/directory" class="btn btn-ghost btn-sm">Directory</a>
-          </li>
-          <%!-- Grouped rather than four more top-level buttons: the bar already carries six
-                and wraps below about 1400px, which is narrower than the width the
-                documentation screenshots are captured at. A wrapped nav would appear in
-                every one of them. --%>
-          <li>
-            <details class="dropdown">
-              <summary class="btn btn-ghost btn-sm">Workflow</summary>
-              <ul class="dropdown-content menu z-10 w-52 rounded-box bg-base-100 p-2 shadow">
-                <li><a href="/app/tasks">My tasks</a></li>
-                <li><a href="/app/processes">Processes</a></li>
-                <li><a href="/app/decisions">Decisions</a></li>
-                <li><a href="/app/triggers">Triggers</a></li>
-              </ul>
-            </details>
-          </li>
-          <li><a href="/admin" class="btn btn-ghost btn-sm">Admin</a></li>
-          <li>
-            <.theme_toggle />
-          </li>
-          <li>
-            <%!-- The demo hub replaces the generated "Get Started" CTA: this app's
-                  front door is its own dashboard, not the framework's docs. --%>
-            <a href={~p"/app/demo"} class="btn btn-primary">
-              Demo hub <span aria-hidden="true">&rarr;</span>
-            </a>
-          </li>
-        </ul>
+        <nav class="ms-auto" aria-label="Main">
+          <ul class="flex flex-wrap items-center gap-1.5">
+            <%!--
+              Administration. These are A2UI surfaces derived from resource
+              metadata, not hand-written screens -- see
+              lib/ash_enterprise_web/a2ui/. Each is filtered by the signed-in
+              actor's policies, so a user with no grants sees an empty table
+              rather than a 403.
+            --%>
+            <li><a href="/agent" class={nav_pill()}>Helper</a></li>
+            <li><a href="/app/users" class={nav_pill()}>Users</a></li>
+            <li><a href="/app/teams" class={nav_pill()}>Teams</a></li>
+            <li><a href="/app/roles" class={nav_pill()}>Roles</a></li>
+            <li>
+              <a href="/app/business-units" class={nav_pill()}>Business units</a>
+            </li>
+            <li>
+              <a href="/app/legacy-users" class={nav_pill()}>Legacy users</a>
+            </li>
+            <li>
+              <a href="/app/directory" class={nav_pill()}>Directory</a>
+            </li>
+            <%!-- Grouped rather than four more top-level pills: the bar already carries
+                  seven and wraps below about 1400px, which is narrower than the width
+                  the documentation screenshots are captured at. --%>
+            <li>
+              <details class="group relative">
+                <summary class={[nav_pill(), "list-none [&::-webkit-details-marker]:hidden"]}>
+                  Workflow
+                  <.icon
+                    name="hero-chevron-down-micro"
+                    class="size-4 transition-transform group-open:rotate-180"
+                  />
+                </summary>
+                <ul class="absolute right-0 z-50 mt-2 w-52 rounded-base border-2 border-border bg-secondary-background p-1.5 shadow-shadow">
+                  <li><a href="/app/tasks" class={menu_item()}>My tasks</a></li>
+                  <li><a href="/app/processes" class={menu_item()}>Processes</a></li>
+                  <li><a href="/app/decisions" class={menu_item()}>Decisions</a></li>
+                  <li><a href="/app/triggers" class={menu_item()}>Triggers</a></li>
+                </ul>
+              </details>
+            </li>
+            <li><a href="/admin" class={nav_pill()}>Admin</a></li>
+            <li class="ps-1">
+              <.theme_toggle />
+            </li>
+            <li class="ps-1">
+              <%!-- The demo hub replaces the generated "Get Started" CTA: this app's
+                    front door is its own dashboard, not the framework's docs. --%>
+              <.button href={~p"/app/demo"} variant="primary" size="sm">
+                Demo hub <span aria-hidden="true">&rarr;</span>
+              </.button>
+            </li>
+          </ul>
+        </nav>
       </div>
     </header>
 
-    <main class="px-4 py-20 sm:px-6 lg:px-8">
+    <main class="px-4 py-10 sm:px-6 lg:px-8">
       <div class={["mx-auto space-y-4", @width]}>
         {render_slot(@inner_block)}
       </div>
@@ -111,6 +123,15 @@ defmodule AshEnterpriseWeb.Layouts do
 
     <.flash_group flash={@flash} />
     """
+  end
+
+  # Static strings so Tailwind's scanner sees every class.
+  defp nav_pill do
+    "inline-flex h-8 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-full border-2 border-border bg-secondary-background px-3 text-sm font-base text-foreground shadow-press transition-all hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-shadow focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:translate-x-0 active:translate-y-0 active:shadow-none"
+  end
+
+  defp menu_item do
+    "block rounded-[3px] border-2 border-transparent px-3 py-1.5 text-sm font-base text-foreground hover:border-border hover:bg-main hover:text-main-foreground focus-visible:outline-hidden focus-visible:border-border focus-visible:bg-main focus-visible:text-main-foreground"
   end
 
   @doc """
@@ -163,40 +184,44 @@ defmodule AshEnterpriseWeb.Layouts do
   end
 
   @doc """
-  Provides dark vs light theme toggle based on themes defined in app.css.
+  Provides the system / light / dark theme toggle. The palettes are the
+  token sets in assets/css/neobrutalism.css; dark is the default.
 
   See <head> in root.html.heex which applies the theme before page load.
   """
   def theme_toggle(assigns) do
     ~H"""
-    <div class="card relative flex flex-row items-center border-2 border-base-300 bg-base-300 rounded-full">
-      <div class="absolute w-1/3 h-full rounded-full border-1 border-base-200 bg-base-100 brightness-200 left-0 [[data-theme=light]_&]:left-1/3 [[data-theme=dark]_&]:left-2/3 [[data-theme-source=system]_&]:!left-0 transition-[left]" />
+    <%!-- A segmented control: the blue block slides under the active choice,
+          and the active icon switches to black ink so it reads on the blue.
+          Dark is active when nothing is stored (data-theme-source="default"). --%>
+    <div class="relative flex h-8 w-[6.5rem] flex-row items-center overflow-hidden rounded-full border-2 border-border bg-secondary-background shadow-press">
+      <div class="absolute left-0 h-full w-1/3 rounded-full bg-main transition-[left] [[data-theme=light]_&]:left-1/3 [[data-theme=dark]_&]:left-2/3 [[data-theme-source=system]_&]:!left-0" />
 
       <button
-        class="flex p-2 cursor-pointer w-1/3"
+        class="relative flex w-1/3 cursor-pointer justify-center p-1.5 text-foreground [[data-theme-source=system]_&]:text-on-vivid"
         phx-click={JS.dispatch("phx:set-theme")}
         data-phx-theme="system"
         aria-label="Use system theme"
       >
-        <.icon name="hero-computer-desktop-micro" class="size-4 opacity-75 hover:opacity-100" />
+        <.icon name="hero-computer-desktop-micro" class="size-4" />
       </button>
 
       <button
-        class="flex p-2 cursor-pointer w-1/3"
+        class="relative flex w-1/3 cursor-pointer justify-center p-1.5 text-foreground [html[data-theme=light]:not([data-theme-source=system])_&]:text-on-vivid"
         phx-click={JS.dispatch("phx:set-theme")}
         data-phx-theme="light"
         aria-label="Use light theme"
       >
-        <.icon name="hero-sun-micro" class="size-4 opacity-75 hover:opacity-100" />
+        <.icon name="hero-sun-micro" class="size-4" />
       </button>
 
       <button
-        class="flex p-2 cursor-pointer w-1/3"
+        class="relative flex w-1/3 cursor-pointer justify-center p-1.5 text-foreground [html[data-theme=dark]:not([data-theme-source=system])_&]:text-on-vivid"
         phx-click={JS.dispatch("phx:set-theme")}
         data-phx-theme="dark"
         aria-label="Use dark theme"
       >
-        <.icon name="hero-moon-micro" class="size-4 opacity-75 hover:opacity-100" />
+        <.icon name="hero-moon-micro" class="size-4" />
       </button>
     </div>
     """

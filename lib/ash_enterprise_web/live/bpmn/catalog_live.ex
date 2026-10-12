@@ -189,69 +189,72 @@ defmodule AshEnterpriseWeb.Bpmn.CatalogLive do
     ~H"""
     <Layouts.app flash={@flash} current_scope={assigns[:current_scope]} width="max-w-7xl">
       <div class="space-y-6">
-        <h1 class="text-2xl font-semibold">{title(@live_action)}</h1>
-        <p class="max-w-3xl text-sm opacity-70">{blurb(@live_action)}</p>
+        <h1 class="text-2xl font-heading tracking-tight">{title(@live_action)}</h1>
+        <p class="max-w-3xl text-sm text-foreground/70">{blurb(@live_action)}</p>
 
         <%= if @live_action == :triggers do %>
-          <table class="table table-zebra" id="triggers-table">
-            <thead>
-              <tr>
-                <th>Key</th>
-                <th>Watches</th>
-                <th>Guard</th>
-                <th>Starts</th>
-                <th>State</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr :for={t <- @triggers} id={"trigger-#{t.id}"}>
-                <td class="font-mono text-xs">
-                  {t.key} <span class="opacity-50">v{t.version}</span>
-                </td>
-                <td class="font-mono text-xs">
-                  {short(t.match_resource)}<span :if={t.match_action} class="opacity-60">.{t.match_action}</span>
-                </td>
-                <td class="font-mono text-xs opacity-70">{t.guard_feel || "—"}</td>
-                <td class="font-mono text-xs">{t.decision_key || t.process_key}</td>
-                <td>
-                  <span class={["badge badge-sm", state_class(t)]}>{state_label(t)}</span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+          <div class="overflow-auto rounded-base border-2 border-border shadow-shadow">
+            <table class={table_class()} id="triggers-table">
+              <thead>
+                <tr>
+                  <th>Key</th>
+                  <th>Watches</th>
+                  <th>Guard</th>
+                  <th>Starts</th>
+                  <th>State</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr :for={t <- @triggers} id={"trigger-#{t.id}"}>
+                  <td class="font-mono text-xs">
+                    {t.key} <span class="text-foreground/70">v{t.version}</span>
+                  </td>
+                  <td class="font-mono text-xs">
+                    {short(t.match_resource)}<span :if={t.match_action} class="text-foreground/70">.{t.match_action}</span>
+                  </td>
+                  <td class="font-mono text-xs text-foreground/70">{t.guard_feel || "—"}</td>
+                  <td class="font-mono text-xs">{t.decision_key || t.process_key}</td>
+                  <td>
+                    <.badge tone={state_tone(t)}>{state_label(t)}</.badge>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         <% else %>
-          <table class="table table-zebra" id="catalog-table">
-            <thead>
-              <tr>
-                <th>Key</th>
-                <th>Running</th>
-                <th>Source</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr :for={row <- @rows} id={"catalog-#{row.key}"}>
-                <td class="font-mono text-xs">{row.key}</td>
-                <td>v{row.version} <span class="opacity-50 text-xs">{row.status}</span></td>
-                <td>
-                  <span class={[
-                    "badge badge-sm",
-                    if(row.source == :tenant, do: "badge-warning", else: "badge-ghost")
-                  ]}>
-                    {if row.source == :tenant, do: "customized", else: "platform baseline"}
-                  </span>
-                  <%!-- The whole reason this page exists: a fork that has fallen behind is
+          <div class="overflow-auto rounded-base border-2 border-border shadow-shadow">
+            <table class={table_class()} id="catalog-table">
+              <thead>
+                <tr>
+                  <th>Key</th>
+                  <th>Running</th>
+                  <th>Source</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr :for={row <- @rows} id={"catalog-#{row.key}"}>
+                  <td class="font-mono text-xs">{row.key}</td>
+                  <td>v{row.version} <span class="text-foreground/70 text-xs">{row.status}</span></td>
+                  <td>
+                    <.badge tone={if(row.source == :tenant, do: "yellow")}>
+                      {if row.source == :tenant, do: "customized", else: "platform baseline"}
+                    </.badge>
+                    <%!-- The whole reason this page exists: a fork that has fallen behind is
                         invisible everywhere else, and this is where somebody decides whether
                         to care. Deliberately not a merge button -- the two documents have
                         diverged and reconciling them is the round-tripping problem again. --%>
-                  <span :if={drift = @drift[{@kind, row.key}]} class="ml-2 text-xs opacity-70">
-                    <%= if drift.behind_by && drift.behind_by > 0 do %>
-                      forked from platform v{drift.forked_from_version} · platform is now v{drift.platform_version}
-                    <% end %>
-                  </span>
-                </td>
-                <td class="space-x-1 text-right">
-                  <%!-- Customizing is an explicit act, not a side effect of opening an editor.
+                    <span
+                      :if={drift = @drift[{@kind, row.key}]}
+                      class="ml-2 text-xs text-foreground/70"
+                    >
+                      <%= if drift.behind_by && drift.behind_by > 0 do %>
+                        forked from platform v{drift.forked_from_version} · platform is now v{drift.platform_version}
+                      <% end %>
+                    </span>
+                  </td>
+                  <td class="space-x-1 text-right">
+                    <%!-- Customizing is an explicit act, not a side effect of opening an editor.
                         Both editors create a draft on first visit if none exists, seeded from a
                         blank template -- which is right for a key nobody has ever published and
                         wrong here, where the answer should be a copy of the baseline. So the
@@ -261,80 +264,91 @@ defmodule AshEnterpriseWeb.Bpmn.CatalogLive do
                         It also keeps the default honest. Absence of a binding means "follow the
                         baseline"; a design where merely looking at a decision forked it would
                         turn every visit into a customization. --%>
-                  <button
-                    :if={row.source == :platform}
-                    type="button"
-                    class="btn btn-ghost btn-xs"
-                    phx-click="customize"
-                    phx-value-key={row.key}
-                  >
-                    Customize
-                  </button>
-                  <.link
-                    :if={@kind == :process and row.source == :tenant}
-                    navigate={~p"/app/processes/#{row.key}/designer"}
-                    class="btn btn-ghost btn-xs"
-                  >
-                    Open designer
-                  </.link>
-                  <.link
-                    :if={@kind == :decision and row.source == :tenant}
-                    navigate={~p"/app/decisions/#{row.key}/editor"}
-                    class="btn btn-ghost btn-xs"
-                  >
-                    Open editor
-                  </.link>
-                  <%!-- A baseline is readable but not editable from here: publishing into the
+                    <.button
+                      :if={row.source == :platform}
+                      type="button"
+                      phx-click="customize"
+                      phx-value-key={row.key}
+                      variant="ghost"
+                      size="xs"
+                    >
+                      Customize
+                    </.button>
+                    <.button
+                      :if={@kind == :process and row.source == :tenant}
+                      navigate={~p"/app/processes/#{row.key}/designer"}
+                      variant="ghost"
+                      size="xs"
+                    >
+                      Open designer
+                    </.button>
+                    <.button
+                      :if={@kind == :decision and row.source == :tenant}
+                      navigate={~p"/app/decisions/#{row.key}/editor"}
+                      variant="ghost"
+                      size="xs"
+                    >
+                      Open editor
+                    </.button>
+                    <%!-- A baseline is readable but not editable from here: publishing into the
                         platform organization is `mix ash_enterprise.bpmn.publish` and nothing
                         else. See ADR 0029. --%>
-                  <.link
-                    :if={@kind == :process and row.source == :platform}
-                    navigate={~p"/app/processes/#{row.key}/designer"}
-                    class="btn btn-ghost btn-xs"
-                  >
-                    View
-                  </.link>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-
-          <%!-- Running instances. See `running_instances/1`: without this the instance viewer
-                had no inbound link from anywhere in the application. --%>
-          <div :if={@kind == :process} class="space-y-2">
-            <h2 class="text-lg font-semibold">Running now</h2>
-            <p class="max-w-3xl text-sm opacity-70">
-              Each one is pinned to the definition version it started on and keeps running it,
-              so rebinding a key never migrates work that is already in flight.
-            </p>
-
-            <p :if={@instances == []} class="text-sm opacity-60" id="no-instances">
-              Nothing running. `mix ash_enterprise.bpmn.setup` leaves some behind.
-            </p>
-
-            <table :if={@instances != []} class="table table-zebra" id="instances-table">
-              <thead>
-                <tr>
-                  <th>Process</th>
-                  <th>Started</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr :for={row <- @instances} id={"instance-#{row.instance.id}"}>
-                  <td class="font-mono text-xs">{row.key || "(definition not found)"}</td>
-                  <td class="text-xs opacity-70">{row.instance.created_on}</td>
-                  <td class="text-right">
-                    <.link
-                      navigate={~p"/app/instances/#{row.instance.id}"}
-                      class="btn btn-ghost btn-xs"
+                    <.button
+                      :if={@kind == :process and row.source == :platform}
+                      navigate={~p"/app/processes/#{row.key}/designer"}
+                      variant="ghost"
+                      size="xs"
                     >
-                      View tokens
-                    </.link>
+                      View
+                    </.button>
                   </td>
                 </tr>
               </tbody>
             </table>
+          </div>
+
+          <%!-- Running instances. See `running_instances/1`: without this the instance viewer
+                had no inbound link from anywhere in the application. --%>
+          <div :if={@kind == :process} class="space-y-2">
+            <h2 class="text-lg font-heading">Running now</h2>
+            <p class="max-w-3xl text-sm text-foreground/70">
+              Each one is pinned to the definition version it started on and keeps running it,
+              so rebinding a key never migrates work that is already in flight.
+            </p>
+
+            <p :if={@instances == []} class="text-sm text-foreground/70" id="no-instances">
+              Nothing running. `mix ash_enterprise.bpmn.setup` leaves some behind.
+            </p>
+
+            <div
+              :if={@instances != []}
+              class="overflow-auto rounded-base border-2 border-border shadow-shadow"
+            >
+              <table class={table_class()} id="instances-table">
+                <thead>
+                  <tr>
+                    <th>Process</th>
+                    <th>Started</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr :for={row <- @instances} id={"instance-#{row.instance.id}"}>
+                    <td class="font-mono text-xs">{row.key || "(definition not found)"}</td>
+                    <td class="text-xs text-foreground/70">{row.instance.created_on}</td>
+                    <td class="text-right">
+                      <.button
+                        navigate={~p"/app/instances/#{row.instance.id}"}
+                        variant="ghost"
+                        size="xs"
+                      >
+                        View tokens
+                      </.button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         <% end %>
       </div>
@@ -365,7 +379,7 @@ defmodule AshEnterpriseWeb.Bpmn.CatalogLive do
   defp state_label(%{status: :published, enabled: false}), do: "disabled"
   defp state_label(%{status: status}), do: to_string(status)
 
-  defp state_class(%{status: :published, enabled: true}), do: "badge-success"
-  defp state_class(%{status: :published, enabled: false}), do: "badge-warning"
-  defp state_class(_), do: "badge-ghost"
+  defp state_tone(%{status: :published, enabled: true}), do: "green"
+  defp state_tone(%{status: :published, enabled: false}), do: "yellow"
+  defp state_tone(_), do: "neutral"
 end

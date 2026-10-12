@@ -14,15 +14,15 @@ defmodule AshEnterpriseWeb.LegacyAgentLive do
     <AshEnterpriseWeb.Layouts.app flash={@flash} width="max-w-3xl">
       <div class="space-y-6">
         <header>
-          <h1 class="text-2xl font-semibold">Legacy helper</h1>
-          <p class="text-base-content/70 text-sm">
+          <h1 class="text-2xl font-heading tracking-tight">Legacy helper</h1>
+          <p class="text-foreground/70 text-sm">
             This helper exposes only read actions named in the legacy vocabulary.
           </p>
         </header>
         <ul class="list-disc pl-6">
           <li :for={tool <- legacy_tools()}>{tool}</li>
         </ul>
-        <p class="text-base-content/70 text-sm">
+        <p class="text-foreground/70 text-sm">
           Every action runs with the signed-in actor through the compatibility-view policies.
         </p>
       </div>
