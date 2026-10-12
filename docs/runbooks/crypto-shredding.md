@@ -69,7 +69,9 @@ shreddable before anything has landed. Gmail and Slack content lands raw (sealed
 gate (ADR 0042). The template default denies everything; a deployment that declares the canonical store's zone uses
 `AshEnterprise.Canonical.Projections.ZoneAdmission`, which admits a record on its linked account's tags
 (`mix ash_enterprise.integration.tag`). Everything projected — `Conversation`, `Message`, `Person` — is owner-only:
-readable by the account's owner and nobody else in the tenant. A shred makes the sealed columns unreadable; re-tagging
+readable by the account's owner and nobody else in the tenant. Slack projects every conversation the account is in:
+public and private channels, group DMs and DMs, all sealed under the account's scope the same way (a DM's subject is
+the other participants' names, sealed like a channel name). A shred makes the sealed columns unreadable; re-tagging
 or untagging an account does not withdraw rows already projected.
 
 ### Operator setup
@@ -228,7 +230,9 @@ Be honest with whoever asked for the erasure about these. Each is a real copy of
   erasure.
 - **Structural columns.** External ids, Slack channel ids, iCal UIDs, timestamps and the audit `data` for non-content
   inputs stay readable by design. A Slack channel *name* that is used as a conversation subject is content and is
-  sealed. A channel *id* is not.
+  sealed, as are the participant names a DM or group DM is titled with. A channel *id* is not, and nor is a
+  conversation's `kind` (`public_channel`, `private_channel`, `group_dm`, `dm`): after a shred it still says the account
+  had a DM, though not with whom — the messages' `sender_id` says that (see "Correspondence metadata").
 - **Nango.** Its own database holds the connection, its tokens, and any records cached by its syncs, until the
   connection is deleted (step 1 above).
 - **The provider.** The Slack and Google originals are untouched. This erases VendorPM's copy, not Slack's.

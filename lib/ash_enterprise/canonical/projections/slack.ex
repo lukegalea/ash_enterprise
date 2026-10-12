@@ -7,14 +7,16 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
   (`AshEnterprise.Integration.Slack.Records`): the `slack.conversations`,
   `slack.messages` and `slack.users` streams. Output:
 
-    * one `Conversation` per **public channel** — `external_id` is the
-      conversation record's id, `subject` `"#name"`; `participants` the Slack
-      user ids that appear in it, plus the emails and person ids resolved for
-      them;
-    * one `Message` per projected message in a public channel — body is
-      Slack's `text`, `sent_at` its `ts`, `direction` `:outbound` when the
-      author is the account's own Slack user, `:inbound` otherwise;
-      join/leave/topic notices are landed raw but not projected;
+    * one `Conversation` per public channel, private channel, group DM
+      (MPIM) or DM with at least one message to project — `external_id` is
+      the conversation record's id, `kind` which of the four it is (see
+      "Every kind of conversation"), `subject` its display name, and
+      `participants` the Slack user ids that appear in it, plus the emails and
+      person ids resolved for them;
+    * one `Message` per projected message — body is Slack's `text`, `sent_at`
+      its `ts`, `direction` `:outbound` when the author is the account's own
+      Slack user, `:inbound` otherwise; join/leave/topic notices are landed raw
+      but not projected;
     * one `Person` per member whose profile carries an email (the v1 linkage
       key, exactly as the calendar projector: no email, no person — a
       name-only row would be re-minted on every replay).
@@ -39,18 +41,35 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
   undeclared zone or tags the zone cannot hold project nothing. Refusals are
   counted by reason (`denied`, `denied_by`) and logged as counts.
 
-  ## Only public channels, for now
+  ## Every kind of conversation
 
-  `Conversation`, `Message` and `Person` are user-owned and owner-only
-  (`AshEnterprise.Security.Privilege.owner_only?/1`), so nothing projected
-  here is readable by another user. IMs, MPIMs and private channels are still
-  **not projected** — neither the conversation nor its messages: whether one
-  user's direct messages belong in the canonical model at all is a separate
-  decision from whether they are admissible. A conversation is public only
-  when its landed `conversations.list` record says so (`is_channel`,
-  `is_private: false`, not an IM or MPIM); messages of a conversation with no
-  landed record are not projected either, because nothing says it is public.
-  They stay landed raw, under the account's shred scope.
+  Public channels, private channels, group DMs and DMs are all projected, the
+  same way: through the same gate, sealed under the same scope, and
+  owner-only — `Conversation`, `Message` and `Person` are user-owned and
+  owner-only (`AshEnterprise.Security.Privilege.owner_only?/1`), so nothing
+  projected here, a DM least of all, is readable by another user. The kind
+  comes from the conversation's own landed `conversations.list` record
+  (`kind/1`): `is_im` is a `:dm`, `is_mpim` a `:group_dm`, a private channel
+  (`is_private`, and `is_channel` or the legacy `is_group`) a
+  `:private_channel`, and `is_channel` with `is_private: false` a
+  `:public_channel`. A record that says none of these, and the messages of a
+  conversation with no landed record, are not projected; they stay landed
+  raw, under the account's shred scope.
+
+  A conversation is written only when it has a message to write, in a replay
+  as in an incremental step, so a DM Slack lists with nothing in the backfill
+  window never becomes an empty row.
+
+  ## Names
+
+  A channel's `subject` is `"#" <> name`. A DM's or group DM's is the other
+  participants' names, sorted and joined with `", "`: a DM's other party is its
+  record's `user`; a group DM's are the authors seen in it, less the account's
+  own Slack user. Each name is the owner's `Person` for that member, else the
+  member's own Slack profile, and the raw Slack user id only when neither has
+  a name. A group DM with no other author yet is named after the member
+  handles in its Slack name (`mpdm-alice--bob-1`). The subject is sealed like
+  any other.
 
   ## The account's own Slack user
 
@@ -169,9 +188,9 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
     * a `Person` is written only for an `only:` member record; the other
       members link to the `Person` the owner already has for their email, if
       any (read, never written);
-    * a `Conversation` is written only for a public channel with at least one
-      new message to project, with its participants from every message passed
-      in;
+    * a `Conversation` is written only when it has at least one new message
+      to project, with its participants (and so a DM's name) from every
+      message passed in;
     * only `only:` messages are written;
     * every count is about the `only:` records, or the rows written for them;
       records outside `only:` go through the zone gate (a refused one is never
@@ -264,8 +283,6 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
   end
 
   defp project_admitted(marked, context, default_scope, opts) do
-    incremental? = Keyword.has_key?(opts, :only)
-
     streams =
       marked
       |> Enum.reject(fn {record, _counted?} -> Shredded.shredded?(record.raw_payload) end)
@@ -319,31 +336,28 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
     {written_people, people_failed} = project_people(new_users, context)
     people = Map.merge(known_people(known_users, context), written_people)
 
-    public =
-      Map.filter(conversations, fn {_id, conversation} -> public_channel?(conversation) end)
+    projectable =
+      Map.filter(conversations, fn {_id, conversation} -> kind(conversation) != nil end)
 
-    public_messages =
-      Enum.filter(messages, fn {channel, _} -> Map.has_key?(public, channel) end)
+    projectable_messages =
+      Enum.filter(messages, fn {channel, _} -> Map.has_key?(projectable, channel) end)
 
     to_write =
-      Enum.filter(public_messages, fn {_channel, message} ->
+      Enum.filter(projectable_messages, fn {_channel, message} ->
         message[@counted_key] and message["subtype"] in @projected_subtypes
       end)
 
-    # Incrementally, a conversation is rewritten only when it has something
-    # new to hold; a full projection writes every public channel.
-    written_channels =
-      if incremental?,
-        do: Map.take(public, Enum.map(to_write, &elem(&1, 0))),
-        else: public
+    # A conversation is written only when it has a message to write: in a
+    # replay as in an incremental step, so the two converge, and the many DMs
+    # Slack lists with nothing in the backfill window never become empty rows.
+    written_channels = Map.take(projectable, Enum.map(to_write, &elem(&1, 0)))
 
     {conversation_rows, conversations_failed} =
       project_conversations(
         written_channels,
         conversation_scopes,
-        public_messages,
-        users,
-        people,
+        projectable_messages,
+        %{users: users, people: people, self_user_id: self_user_id},
         context
       )
 
@@ -511,14 +525,23 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
   # --- conversations ------------------------------------------------------------------
 
   @doc false
-  # Public in the workspace, per the conversation's own landed record. Anything
-  # else — IM, MPIM, private channel, or a record that does not say — is not.
-  def public_channel?(%{"is_channel" => true, "is_private" => false} = conversation),
-    do: conversation["is_im"] != true and conversation["is_mpim"] != true
+  # What sort of conversation the landed `conversations.list` record says this
+  # is, or nil when it does not say (nothing is projected for it). IM and MPIM
+  # flags first: an MPIM is also `is_group` and `is_private`.
+  def kind(%{"is_im" => true}), do: :dm
+  def kind(%{"is_mpim" => true}), do: :group_dm
 
-  def public_channel?(_conversation), do: false
+  def kind(%{"is_private" => true} = conversation),
+    do: if(channel?(conversation), do: :private_channel)
 
-  defp project_conversations(conversations, scopes, messages, users, people, context) do
+  def kind(%{"is_channel" => true, "is_private" => false}), do: :public_channel
+  def kind(_conversation), do: nil
+
+  # A modern private channel is `is_channel`; a legacy one is `is_group`.
+  defp channel?(conversation),
+    do: conversation["is_channel"] == true or conversation["is_group"] == true
+
+  defp project_conversations(conversations, scopes, messages, naming, context) do
     authors_by_channel =
       Enum.group_by(messages, &elem(&1, 0), fn {_channel, message} -> message["user"] end)
 
@@ -527,6 +550,7 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
     channels
     |> Enum.map(fn channel ->
       conversation = Map.fetch!(conversations, channel)
+      kind = kind(conversation)
 
       user_ids =
         [conversation["user"] | Map.get(authors_by_channel, channel, [])]
@@ -537,8 +561,10 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
       participants = %{
         "slack_user_ids" => user_ids,
         "emails" =>
-          user_ids |> Enum.flat_map(&List.wrap(email(Map.get(users, &1, %{})))) |> Enum.sort(),
-        "person_ids" => user_ids |> Enum.flat_map(&person_id(people, &1)) |> Enum.sort()
+          user_ids
+          |> Enum.flat_map(&List.wrap(email(Map.get(naming.users, &1, %{}))))
+          |> Enum.sort(),
+        "person_ids" => user_ids |> Enum.flat_map(&person_id(naming.people, &1)) |> Enum.sort()
       }
 
       Conversation
@@ -547,7 +573,8 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
         %{
           external_system: Records.external_system(),
           external_id: Records.conversation_id(context.linked_account_id, channel),
-          subject: subject(conversation),
+          kind: kind,
+          subject: subject(kind, conversation, user_ids, naming),
           participants: participants,
           erasure_scope_id: Map.fetch!(scopes, channel),
           # INSERT-time only, as on messages: owner columns are not upsert fields.
@@ -568,8 +595,57 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
     end)
   end
 
-  defp subject(%{"name" => name}) when is_binary(name) and name != "", do: "#" <> name
-  defp subject(_conversation), do: nil
+  # Channels by name; DMs and group DMs by who else is in them (sealed like
+  # any subject).
+  defp subject(kind, %{"name" => name}, _user_ids, _naming)
+       when kind in [:public_channel, :private_channel] and is_binary(name) and name != "",
+       do: "#" <> name
+
+  defp subject(kind, conversation, user_ids, naming) when kind in [:dm, :group_dm] do
+    case others(kind, conversation, user_ids, naming.self_user_id) do
+      [] -> mpdm_handles(conversation)
+      ids -> ids |> Enum.map(&member_name(&1, naming)) |> Enum.sort() |> Enum.join(", ")
+    end
+  end
+
+  defp subject(_kind, _conversation, _user_ids, _naming), do: nil
+
+  # A DM's other party is its record's `user` (the account holder, for a DM
+  # with themselves). A group DM's are the participants seen in it, less the
+  # account holder when known.
+  defp others(:dm, %{"user" => counterpart}, _user_ids, _self)
+       when is_binary(counterpart) and counterpart != "",
+       do: [counterpart]
+
+  defp others(_kind, _conversation, user_ids, self_user_id), do: user_ids -- [self_user_id]
+
+  # The owner's Person for the member, else the member's own profile, else
+  # (no name anywhere) the Slack user id.
+  defp member_name(user_id, naming) do
+    case Map.get(naming.people, user_id) do
+      %Person{name: name} when is_binary(name) and name != "" ->
+        name
+
+      _ ->
+        naming.users |> Map.get(user_id, %{}) |> display_name() || user_id
+    end
+  end
+
+  # A group DM nobody else has written in yet: Slack names it after its
+  # members' handles (`mpdm-alice--bob--carol-1`).
+  defp mpdm_handles(%{"name" => "mpdm-" <> rest}) do
+    rest
+    |> String.replace(~r/-\d+\z/, "")
+    |> String.split("--", trim: true)
+    |> Enum.sort()
+    |> Enum.join(", ")
+    |> case do
+      "" -> nil
+      handles -> handles
+    end
+  end
+
+  defp mpdm_handles(_conversation), do: nil
 
   # --- messages ------------------------------------------------------------------------
 

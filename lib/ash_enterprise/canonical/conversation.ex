@@ -1,8 +1,9 @@
 defmodule AshEnterprise.Canonical.Conversation do
   @moduledoc """
-  A thread: a Gmail thread, a Slack channel or DM thread, or a face-to-face the
-  operator logged (dogfood §11). Messages (`AshEnterprise.Canonical.Message`)
-  belong to one.
+  A thread: a Gmail thread, a Slack channel, private channel, group DM or DM,
+  or a face-to-face the operator logged (dogfood §11). Messages
+  (`AshEnterprise.Canonical.Message`) belong to one. `kind` says which of the
+  Slack sorts it is.
 
   PERSONAL DATA (ADR 0042). Projected only from landed records a zone gate
   admits (`AshEnterprise.Canonical.Projections.ZoneGate`), and **owner-only**:
@@ -69,6 +70,18 @@ defmodule AshEnterprise.Canonical.Conversation do
       """
 
       default %{}
+    end
+
+    attribute :kind, :atom do
+      public? true
+      constraints one_of: [:public_channel, :private_channel, :group_dm, :dm]
+
+      description """
+      What sort of Slack conversation this is: `:public_channel`,
+      `:private_channel`, `:group_dm` (a multi-person DM) or `:dm`. Nil for
+      conversations from other sources (a Gmail thread, a logged face-to-face).
+      Structural, not sealed: it says a DM exists, not with whom.
+      """
     end
 
     attribute :external_system, :string do
@@ -191,6 +204,7 @@ defmodule AshEnterprise.Canonical.Conversation do
       accept [
         :subject,
         :participants,
+        :kind,
         :external_system,
         :external_id,
         :erasure_scope_id,
@@ -205,7 +219,7 @@ defmodule AshEnterprise.Canonical.Conversation do
 
       upsert? true
       upsert_identity :unique_external
-      upsert_fields [:encrypted_subject, :encrypted_participants, :erasure_scope_id]
+      upsert_fields [:encrypted_subject, :encrypted_participants, :kind, :erasure_scope_id]
     end
   end
 

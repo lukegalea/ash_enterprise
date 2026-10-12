@@ -81,7 +81,14 @@ defmodule AshEnterprise.Integration.AutoProjectionTest do
 
     declare_zone(ctx.tmp_dir)
 
-    %{org: seeded.organization, user: seeded.user, actor: actor, email: email, unique: unique}
+    %{
+      org: seeded.organization,
+      user: seeded.user,
+      actor: actor,
+      email: email,
+      unique: unique,
+      seeded: seeded
+    }
   end
 
   # --- Gmail -------------------------------------------------------------------------
@@ -246,12 +253,25 @@ defmodule AshEnterprise.Integration.AutoProjectionTest do
   # --- Slack -------------------------------------------------------------------------
 
   @channel "C0APSYNTH"
+  @dm "D0APSYNTH"
+  @mpim "G0APSYNTHMP"
+  @private_channel "C0APSYNTHPRV"
   @self_user "U0APSELF"
   @other_user "U0APOTHER"
+  @third_user "U0APTHIRD"
 
   describe "Slack" do
     setup ctx do
-      history = start_supervised!({Agent, fn -> [] end})
+      channel = %{
+        "id" => @channel,
+        "name" => "ap-synthetic-channel",
+        "is_channel" => true,
+        "is_private" => false,
+        "is_archived" => false,
+        "is_member" => true
+      }
+
+      history = start_supervised!({Agent, fn -> %{channels: [channel], messages: %{}} end})
       stub_slack(history)
       Map.put(ctx, :history, history)
     end
@@ -296,16 +316,89 @@ defmodule AshEnterprise.Integration.AutoProjectionTest do
       assert snapshot(ctx) == incremental
     end
 
+    test "DMs, group DMs and private channels project incrementally and owner-only", ctx do
+      account = link!(ctx, "slack") |> tag!(ctx)
+      add_conversation(ctx.history, %{"id" => @dm, "is_im" => true, "user" => @other_user})
+
+      add_conversation(ctx.history, %{
+        "id" => @mpim,
+        "name" => "mpdm-apself--apother--apthird-1",
+        "is_mpim" => true,
+        "is_group" => true,
+        "is_private" => true
+      })
+
+      add_conversation(ctx.history, %{
+        "id" => @private_channel,
+        "name" => "ap-synthetic-private",
+        "is_channel" => true,
+        "is_private" => true,
+        "is_member" => true
+      })
+
+      post(ctx.history, @other_user, "AP-SLACK-PUB-1", 6)
+      post(ctx.history, @dm, @other_user, "AP-SLACK-DM-1", 5)
+      post(ctx.history, @dm, @self_user, "AP-SLACK-DM-2", 4)
+      post(ctx.history, @mpim, @third_user, "AP-SLACK-MPIM-1", 3)
+      post(ctx.history, @mpim, @other_user, "AP-SLACK-MPIM-2", 2)
+      post(ctx.history, @private_channel, @other_user, "AP-SLACK-PRV-1", 2)
+
+      assert {:ok, %{projection: %{projected: 6, failed: 0}}} =
+               Slack.Sync.sync_step(%{linked_account_id: account.id}, actor: ctx.actor)
+
+      assert conversations(ctx) |> Map.new(&{&1.kind, &1.subject}) == %{
+               public_channel: "#ap-synthetic-channel",
+               private_channel: "#ap-synthetic-private",
+               # AP Other from their Person; AP Third (no email) from the profile.
+               group_dm: "AP Other, AP Third",
+               dm: "AP Other"
+             }
+
+      dm = Enum.find(conversations(ctx), &(&1.kind == :dm))
+      assert Enum.find(messages(ctx), &(&1.body == "AP-SLACK-DM-2")).direction == :outbound
+
+      # One new DM message: only the DM is rewritten.
+      before = Map.new(conversations(ctx), &{&1.id, &1.updated_at})
+      post(ctx.history, @dm, @other_user, "AP-SLACK-DM-3", 1)
+
+      assert {:ok, %{projection: %{projected: 1, failed: 0}}} =
+               Slack.Sync.sync_step(%{linked_account_id: account.id}, actor: ctx.actor)
+
+      assert Enum.find(messages(ctx), &(&1.body == "AP-SLACK-DM-3")).conversation_id == dm.id
+
+      for conversation <- conversations(ctx),
+          conversation.id != dm.id,
+          do: assert(conversation.updated_at == Map.fetch!(before, conversation.id))
+
+      # The incremental rows are the replay's.
+      incremental = snapshot(ctx)
+
+      assert {:ok, %{conversations: 4, messages: 7}} =
+               Projections.Slack.replay(ctx.actor, account.id)
+
+      assert snapshot(ctx) == incremental
+
+      # The owner reads all of it; another Administrator of the tenant, none.
+      admin = administrator!(ctx)
+
+      assert length(read_as(Conversation, ctx.actor, ctx.org.id)) == 4
+      assert length(read_as(Message, ctx.actor, ctx.org.id)) == 7
+      assert read_as(Conversation, admin, ctx.org.id) == []
+      assert read_as(Message, admin, ctx.org.id) == []
+    end
+
     test "an untagged account's records are counted by reason, not projected", ctx do
       account = link!(ctx, "slack")
+      add_conversation(ctx.history, %{"id" => @dm, "is_im" => true, "user" => @other_user})
       post(ctx.history, @other_user, "AP-SLACK-UNTAGGED", 1)
+      post(ctx.history, @dm, @other_user, "AP-SLACK-UNTAGGED-DM", 1)
 
       capture_log(fn ->
         assert {:ok, %{projection: %{projected: 0, denied_by: denied_by}}} =
                  Slack.Sync.sync_step(%{linked_account_id: account.id}, actor: ctx.actor)
 
-        # The conversation, the message and its author.
-        assert denied_by == %{untagged_data_class: 3}
+        # The channel and the DM, a message in each, and their author.
+        assert denied_by == %{untagged_data_class: 5}
       end)
 
       assert messages(ctx) == []
@@ -397,6 +490,49 @@ defmodule AshEnterprise.Integration.AutoProjectionTest do
              Erasure.scope_by_ref!(:connection, account.id, authorize?: false)
   end
 
+  # A second Administrator of the tenant, as the owner-only test builds one.
+  defp administrator!(ctx) do
+    admin =
+      AshEnterprise.Accounts.User
+      |> Ash.Changeset.for_create(
+        :register_with_password,
+        %{
+          email: "admin-#{ctx.unique}@autoproj.synthetic.test",
+          password: "password1234",
+          password_confirmation: "password1234"
+        },
+        authorize?: false
+      )
+      |> Ash.create!()
+      |> Ash.Changeset.for_update(
+        :assign_to_business_unit,
+        %{owning_business_unit_id: ctx.seeded.business_unit.id},
+        authorize?: false
+      )
+      |> Ash.update!()
+
+    AshEnterprise.Security.UserRole
+    |> Ash.Changeset.for_create(
+      :assign,
+      %{
+        user_id: admin.id,
+        role_id: ctx.seeded.role.id,
+        scoping_business_unit_id: ctx.seeded.business_unit.id
+      },
+      tenant: ctx.org.id,
+      authorize?: false
+    )
+    |> Ash.create!()
+
+    ActorContext.attach(admin, ActorContext.build(admin, tenant: ctx.org.id))
+  end
+
+  defp read_as(resource, actor, org_id) do
+    resource
+    |> Ash.Query.for_read(:read, %{}, actor: actor, tenant: org_id)
+    |> Ash.read!()
+  end
+
   defp messages(ctx), do: Message.read!(tenant: ctx.org.id, authorize?: false)
   defp conversations(ctx), do: Conversation.read!(tenant: ctx.org.id, authorize?: false)
   defp people(ctx), do: Person.read!(tenant: ctx.org.id, authorize?: false)
@@ -406,7 +542,7 @@ defmodule AshEnterprise.Integration.AutoProjectionTest do
       conversations:
         ctx
         |> conversations()
-        |> Enum.map(&Map.take(&1, [:id, :external_id, :subject, :participants]))
+        |> Enum.map(&Map.take(&1, [:id, :external_id, :kind, :subject, :participants]))
         |> Enum.sort_by(& &1.external_id),
       messages:
         ctx
@@ -456,49 +592,48 @@ defmodule AshEnterprise.Integration.AutoProjectionTest do
 
   # --- the Slack stub --------------------------------------------------------------------
 
-  defp post(history, user, text, hours_ago) do
+  defp post(history, user, text, hours_ago), do: post(history, @channel, user, text, hours_ago)
+
+  defp post(history, channel, user, text, hours_ago) do
     ts =
       DateTime.utc_now()
       |> DateTime.add(-hours_ago * 3600, :second)
       |> Records.datetime_to_ts()
 
-    Agent.update(
-      history,
-      &[%{"type" => "message", "user" => user, "text" => text, "ts" => ts} | &1]
-    )
+    message = %{"type" => "message", "user" => user, "text" => text, "ts" => ts}
+    Agent.update(history, &update_in(&1, [:messages, channel], fn ms -> [message | ms || []] end))
   end
 
-  defp stub_slack(history) do
-    channel = %{
-      "id" => @channel,
-      "name" => "ap-synthetic-channel",
-      "is_channel" => true,
-      "is_private" => false,
-      "is_archived" => false,
-      "is_member" => true
-    }
+  defp add_conversation(history, conversation),
+    do: Agent.update(history, &%{&1 | channels: &1.channels ++ [conversation]})
 
+  defp stub_slack(history) do
     users = %{
       @self_user => slack_user(@self_user, "AP Self", "self@autoproj.synthetic.test"),
-      @other_user => slack_user(@other_user, "AP Other", "other@autoproj.synthetic.test")
+      @other_user => slack_user(@other_user, "AP Other", "other@autoproj.synthetic.test"),
+      @third_user => slack_user(@third_user, "AP Third", nil)
     }
 
     Req.Test.stub(Proxy, fn conn ->
       conn = Plug.Conn.fetch_query_params(conn)
+      state = Agent.get(history, & &1)
 
       body =
         case conn.request_path do
           "/proxy/conversations.list" ->
             %{
               "ok" => true,
-              "channels" => [channel],
+              "channels" => state.channels,
               "response_metadata" => %{"next_cursor" => ""}
             }
 
           "/proxy/conversations.history" ->
             %{
               "ok" => true,
-              "messages" => newer_than(Agent.get(history, & &1), conn.query_params["oldest"]),
+              "messages" =>
+                state.messages
+                |> Map.get(conn.query_params["channel"], [])
+                |> newer_than(conn.query_params["oldest"]),
               "has_more" => false,
               "response_metadata" => %{"next_cursor" => ""}
             }

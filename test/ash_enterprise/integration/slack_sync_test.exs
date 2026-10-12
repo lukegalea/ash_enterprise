@@ -785,14 +785,16 @@ defmodule AshEnterprise.Integration.SlackSyncTest do
       assert Message.read!(tenant: ctx.org.id, authorize?: false) == []
     end
 
-    test "once admitted, projects public channels, their messages and emailed people deterministically",
+    test "once admitted, projects every member conversation, its messages and emailed people deterministically",
          ctx do
       declare_zone(ctx, data_class: :customer_confidential, residency: "CA")
       assert {:ok, _} = step(ctx)
 
-      assert {:ok, %{conversations: 1, messages: 3, people: 2}} = Projection.replay(ctx.alice)
+      # #general, the private channel and the DM; three, one and two messages.
+      assert {:ok, %{conversations: 3, messages: 6, people: 2}} = Projection.replay(ctx.alice)
 
-      assert [general] = Conversation.read!(tenant: ctx.org.id, authorize?: false)
+      conversations = Conversation.read!(tenant: ctx.org.id, authorize?: false)
+      general = Enum.find(conversations, &(&1.kind == :public_channel))
       assert general.subject == "#synthetic-general"
 
       assert general.participants["slack_user_ids"] == [@alice_slack, @bob_slack, @carol_slack]
@@ -806,17 +808,22 @@ defmodule AshEnterprise.Integration.SlackSyncTest do
                ["alice.synthetic@example.test", "bob.synthetic@example.test"]
 
       messages = Message.read!(tenant: ctx.org.id, authorize?: false)
+      in_general = Enum.filter(messages, &(&1.conversation_id == general.id))
 
-      assert messages |> Enum.map(& &1.body) |> Enum.sort() ==
+      assert in_general |> Enum.map(& &1.body) |> Enum.sort() ==
                ["SYNTHETIC-TEXT-GEN-1", "SYNTHETIC-TEXT-GEN-2", "SYNTHETIC-TEXT-GEN-4"]
 
       assert Enum.all?(messages, &(&1.owner_id == ctx.alice.id))
-      assert Enum.all?(messages, &(&1.conversation_id == general.id))
 
-      # Alice is the account holder (inferred from the DM, which is read for
-      # that but not projected): her messages are outbound.
-      outbound = messages |> Enum.filter(&(&1.direction == :outbound)) |> Enum.map(& &1.body)
-      assert outbound == ["SYNTHETIC-TEXT-GEN-1"]
+      # Alice is the account holder (inferred from the DM): her messages are
+      # outbound.
+      outbound =
+        messages
+        |> Enum.filter(&(&1.direction == :outbound))
+        |> Enum.map(& &1.body)
+        |> Enum.sort()
+
+      assert outbound == ["SYNTHETIC-TEXT-DM-2", "SYNTHETIC-TEXT-GEN-1"]
 
       bob_message = Enum.find(messages, &(&1.body == "SYNTHETIC-TEXT-GEN-2"))
       assert bob_message.sent_at == Records.ts_to_datetime(ts(9))
@@ -825,21 +832,28 @@ defmodule AshEnterprise.Integration.SlackSyncTest do
 
       # Replay converges: same rows, same values.
       snapshot = canonical_snapshot(ctx.org)
-      assert {:ok, %{conversations: 1, messages: 3, people: 2}} = Projection.replay(ctx.alice)
+      assert {:ok, %{conversations: 3, messages: 6, people: 2}} = Projection.replay(ctx.alice)
       assert canonical_snapshot(ctx.org) == snapshot
     end
 
-    test "never writes a DM, group DM or private channel into the organization-owned table",
-         ctx do
+    test "projects private channels, group DMs and DMs with their kind and a name", ctx do
       declare_zone(ctx, data_class: :customer_confidential, residency: "CA")
 
       add_channels(ctx.world, [
         %{
           "id" => "G0SYNTH0MPM",
-          "name" => "mpdm-synthetic-group",
+          "name" => "mpdm-alice--bob--carol-1",
+          "is_mpim" => true,
+          "is_group" => true,
+          "is_private" => true,
+          "created" => 1_700_000_000
+        },
+        # Only the account holder has written here: named from its handles.
+        %{
+          "id" => "G0SYNTH0MP2",
+          "name" => "mpdm-alice--dave-1",
           "is_mpim" => true,
           "is_private" => true,
-          "is_member" => true,
           "created" => 1_700_000_000
         },
         # A modern private channel: is_channel true, but private.
@@ -850,48 +864,93 @@ defmodule AshEnterprise.Integration.SlackSyncTest do
           "is_private" => true,
           "is_member" => true,
           "created" => 1_700_000_000
+        },
+        # A DM with nothing in the backfill window: listed, landed, not projected.
+        %{
+          "id" => "D0SYNTH0DM2",
+          "is_im" => true,
+          "user" => @carol_slack,
+          "created" => 1_700_000_000
         }
       ])
 
-      add_messages(ctx.world, "G0SYNTH0MPM", [msg(@bob_slack, 2, "SYNTHETIC-TEXT-MPIM-1")])
+      add_messages(ctx.world, "G0SYNTH0MPM", [
+        msg(@bob_slack, 3, "SYNTHETIC-TEXT-MPIM-1"),
+        msg(@carol_slack, 2, "SYNTHETIC-TEXT-MPIM-2"),
+        msg(@alice_slack, 1, "SYNTHETIC-TEXT-MPIM-3")
+      ])
+
+      add_messages(ctx.world, "G0SYNTH0MP2", [msg(@alice_slack, 2, "SYNTHETIC-TEXT-MPIM-SOLO")])
       add_messages(ctx.world, "C0SYNTH0PRV", [msg(@bob_slack, 2, "SYNTHETIC-TEXT-PRV-2")])
 
-      assert {:ok, %{conversations: 5}} = step(ctx)
-      assert {:ok, %{conversations: 1}} = Projection.replay(ctx.alice)
+      assert {:ok, %{conversations: 7}} = step(ctx)
+      assert {:ok, %{conversations: 6, messages: 11}} = Projection.replay(ctx.alice)
 
-      private_ids = [@dm, @private, "G0SYNTH0MPM", "C0SYNTH0PRV"]
+      by_channel =
+        Conversation.read!(tenant: ctx.org.id, authorize?: false)
+        |> Map.new(fn c -> {c.external_id |> String.split("/") |> List.last(), c} end)
 
-      conversations = Conversation.read!(tenant: ctx.org.id, authorize?: false)
-      assert Enum.map(conversations, & &1.subject) == ["#synthetic-general"]
+      assert Map.new(by_channel, fn {id, c} -> {id, {c.kind, c.subject}} end) == %{
+               @general => {:public_channel, "#synthetic-general"},
+               @private => {:private_channel, "#synthetic-private"},
+               "C0SYNTH0PRV" => {:private_channel, "#synthetic-private-modern"},
+               # Bob from his Person; Carol (no email, no Person) from her profile.
+               "G0SYNTH0MPM" => {:group_dm, "Bob Synthetic, Carol Synthetic"},
+               "G0SYNTH0MP2" => {:group_dm, "alice, dave"},
+               @dm => {:dm, "Bob Synthetic"}
+             }
 
-      refute Enum.any?(conversations, fn c ->
-               Enum.any?(private_ids, &String.ends_with?(c.external_id, "/" <> &1))
-             end)
+      refute Map.has_key?(by_channel, "D0SYNTH0DM2")
 
-      bodies = Message.read!(tenant: ctx.org.id, authorize?: false) |> Enum.map(& &1.body)
+      assert by_channel["G0SYNTH0MPM"].participants["slack_user_ids"] ==
+               [@alice_slack, @bob_slack, @carol_slack]
+
+      scope_ids = by_channel |> Map.values() |> Enum.map(& &1.erasure_scope_id) |> Enum.uniq()
+      assert [_one_scope] = scope_ids
+
+      messages = Message.read!(tenant: ctx.org.id, authorize?: false)
+      assert Enum.all?(messages, &(&1.owner_id == ctx.alice.id))
+      assert Enum.all?(messages, &(&1.erasure_scope_id in scope_ids))
+
+      bodies = Enum.map(messages, & &1.body)
 
       for body <- [
             "SYNTHETIC-TEXT-DM-1",
             "SYNTHETIC-TEXT-DM-2",
             "SYNTHETIC-TEXT-PRV-1",
             "SYNTHETIC-TEXT-PRV-2",
-            "SYNTHETIC-TEXT-MPIM-1"
+            "SYNTHETIC-TEXT-MPIM-1",
+            "SYNTHETIC-TEXT-MPIM-SOLO"
           ],
-          do: refute(body in bodies)
+          do: assert(body in bodies)
 
-      # Unprojected is not unlanded: the raw records stay under the shred scope.
-      assert Enum.any?(slack_source_objects(), fn {_, external_id, _} ->
-               String.ends_with?(external_id, "/conversation/" <> @dm)
-             end)
+      mpim_out = Enum.find(messages, &(&1.body == "SYNTHETIC-TEXT-MPIM-3"))
+      assert mpim_out.direction == :outbound
+      assert mpim_out.conversation_id == by_channel["G0SYNTH0MPM"].id
+
+      # The subject and participants are sealed like any other: no DM name or
+      # handle is stored in the clear.
+      %{rows: rows} =
+        AshEnterprise.Repo.query!("SELECT row_to_json(c)::text FROM canonical_conversations c")
+
+      stored = rows |> List.flatten() |> Enum.join("\n")
+
+      for name <- ["Bob Synthetic", "Carol Synthetic", "alice, dave", "synthetic-private"],
+          do: refute(String.contains?(stored, name))
     end
 
-    test "public_channel? reads only the conversation's own record" do
-      assert Projection.public_channel?(%{"is_channel" => true, "is_private" => false})
-      refute Projection.public_channel?(%{"is_channel" => true, "is_private" => true})
-      refute Projection.public_channel?(%{"is_channel" => true})
-      refute Projection.public_channel?(%{"is_im" => true})
-      refute Projection.public_channel?(%{"is_mpim" => true, "is_private" => true})
-      refute Projection.public_channel?(%{"is_group" => true, "is_private" => true})
+    test "kind reads only the conversation's own record" do
+      assert Projection.kind(%{"is_channel" => true, "is_private" => false}) == :public_channel
+      assert Projection.kind(%{"is_channel" => true, "is_private" => true}) == :private_channel
+      assert Projection.kind(%{"is_group" => true, "is_private" => true}) == :private_channel
+
+      assert Projection.kind(%{"is_mpim" => true, "is_group" => true, "is_private" => true}) ==
+               :group_dm
+
+      assert Projection.kind(%{"is_im" => true}) == :dm
+      assert Projection.kind(%{"is_channel" => true}) == nil
+      assert Projection.kind(%{"is_private" => true}) == nil
+      assert Projection.kind(%{}) == nil
     end
   end
 

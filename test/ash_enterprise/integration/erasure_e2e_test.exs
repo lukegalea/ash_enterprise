@@ -303,7 +303,8 @@ defmodule AshEnterprise.Integration.ErasureE2ETest do
       assert :ok = perform_job(Slack.SyncWorker, job)
 
       scope = scope!(account)
-      assert length(landed("slack")) == 5
+      # A public channel, a private channel and a DM; five messages; two members.
+      assert length(landed("slack")) == 10
       assert Enum.all?(landed("slack"), &(&1.erasure_scope_id == scope.id))
 
       # Deny by default: no gate wired, nothing projected.
@@ -314,14 +315,20 @@ defmodule AshEnterprise.Integration.ErasureE2ETest do
       declare_test_zone(ctx.tmp_dir)
       tag_via_task!(ctx, account, "customer_confidential", "CA")
 
-      assert {:ok, %{admitted: 5, denied: 0, conversations: 1, messages: 2}} =
+      assert {:ok, %{admitted: 10, denied: 0, conversations: 3, messages: 5}} =
                Projections.Slack.replay(ctx.actor, account.id)
 
-      assert [conversation] = conversations(ctx)
-      assert conversation.erasure_scope_id == scope.id
-      assert conversation.owner_id == ctx.user.id
-      assert conversation.subject == "#e2e-synthetic-channel"
+      assert Enum.all?(conversations(ctx), &(&1.erasure_scope_id == scope.id))
+      assert Enum.all?(conversations(ctx), &(&1.owner_id == ctx.user.id))
+
+      assert conversations(ctx) |> Map.new(&{&1.kind, &1.subject}) == %{
+               public_channel: "#e2e-synthetic-channel",
+               private_channel: "#e2e-synthetic-private",
+               dm: "E2E Synthetic Colleague"
+             }
+
       assert Enum.all?(messages(ctx), &(&1.erasure_scope_id == scope.id))
+      assert Enum.any?(messages(ctx), &(&1.body == "E2E-SYNTHETIC-SLACK-DM-1 salary figures"))
       assert Enum.any?(messages(ctx), &(&1.body == "E2E-SYNTHETIC-SLACK-1 VendorPM pricing"))
       assert_no_plaintext(slack_content())
 
@@ -329,7 +336,13 @@ defmodule AshEnterprise.Integration.ErasureE2ETest do
 
       assert Enum.all?(landed("slack"), &Shredded.shredded?(&1.raw_payload))
       assert Enum.all?(messages(ctx), &Shredded.shredded?(&1.body))
-      assert [%{subject: %Shredded{}, participants: %Shredded{}}] = conversations(ctx)
+      assert length(conversations(ctx)) == 3
+
+      assert Enum.all?(
+               conversations(ctx),
+               &match?(%{subject: %Shredded{}, participants: %Shredded{}}, &1)
+             )
+
       assert_no_plaintext(slack_content())
       assert_no_audit_event_spells(slack_content())
 
@@ -339,7 +352,7 @@ defmodule AshEnterprise.Integration.ErasureE2ETest do
       tripwire()
       assert {:cancel, :scope_shredded} = perform_job(Slack.SyncWorker, job)
       refute_received {:provider_request, _path}
-      assert length(landed("slack")) == 5
+      assert length(landed("slack")) == 10
     end
   end
 
@@ -690,6 +703,8 @@ defmodule AshEnterprise.Integration.ErasureE2ETest do
   end
 
   @channel "C0E2ESYNTH"
+  @private_channel "C0E2ESYNTHPRV"
+  @dm "D0E2ESYNTH"
   @self_user "U0E2ESELF"
   @other_user "U0E2EOTHER"
 
@@ -697,7 +712,11 @@ defmodule AshEnterprise.Integration.ErasureE2ETest do
     [
       "E2E-SYNTHETIC-SLACK-1 VendorPM pricing",
       "E2E-SYNTHETIC-SLACK-2 contract terms",
+      "E2E-SYNTHETIC-SLACK-DM-1 salary figures",
+      "E2E-SYNTHETIC-SLACK-DM-2 offer letter",
+      "E2E-SYNTHETIC-SLACK-PRV-1 board notes",
       "e2e-synthetic-channel",
+      "e2e-synthetic-private",
       "E2E Synthetic Colleague",
       "colleague.e2e@example.synthetic.test"
     ]
@@ -717,20 +736,32 @@ defmodule AshEnterprise.Integration.ErasureE2ETest do
       "is_member" => true
     }
 
-    messages = [
-      %{
-        "type" => "message",
-        "user" => @other_user,
-        "text" => "E2E-SYNTHETIC-SLACK-2 contract terms",
-        "ts" => ts.(1)
-      },
-      %{
-        "type" => "message",
-        "user" => @self_user,
-        "text" => "E2E-SYNTHETIC-SLACK-1 VendorPM pricing",
-        "ts" => ts.(2)
-      }
-    ]
+    private_channel = %{
+      "id" => @private_channel,
+      "name" => "e2e-synthetic-private",
+      "is_channel" => true,
+      "is_private" => true,
+      "is_archived" => false,
+      "is_member" => true
+    }
+
+    dm = %{"id" => @dm, "is_im" => true, "user" => @other_user}
+
+    message = fn user, text, hours ->
+      %{"type" => "message", "user" => user, "text" => text, "ts" => ts.(hours)}
+    end
+
+    messages = %{
+      @channel => [
+        message.(@other_user, "E2E-SYNTHETIC-SLACK-2 contract terms", 1),
+        message.(@self_user, "E2E-SYNTHETIC-SLACK-1 VendorPM pricing", 2)
+      ],
+      @dm => [
+        message.(@self_user, "E2E-SYNTHETIC-SLACK-DM-2 offer letter", 3),
+        message.(@other_user, "E2E-SYNTHETIC-SLACK-DM-1 salary figures", 4)
+      ],
+      @private_channel => [message.(@other_user, "E2E-SYNTHETIC-SLACK-PRV-1 board notes", 5)]
+    }
 
     users = %{
       @self_user =>
@@ -748,14 +779,14 @@ defmodule AshEnterprise.Integration.ErasureE2ETest do
           "/proxy/conversations.list" ->
             %{
               "ok" => true,
-              "channels" => [channel],
+              "channels" => [channel, private_channel, dm],
               "response_metadata" => %{"next_cursor" => ""}
             }
 
           "/proxy/conversations.history" ->
             %{
               "ok" => true,
-              "messages" => messages,
+              "messages" => Map.get(messages, conn.query_params["channel"], []),
               "has_more" => false,
               "response_metadata" => %{"next_cursor" => ""}
             }

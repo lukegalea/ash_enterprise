@@ -237,6 +237,9 @@ DONE. Approved.").
   `Person` — is owner-only (`AshEnterprise.Security.Privilege.owner_only?/1`): grantable at `:basic` and no wider, so
   no Administrator and no manager through hierarchy security reads another user's mail or Slack. Existing wider
   grants are narrowed by `Seeder.seed_privileges/0`.
+- **Every Slack conversation kind.** Slack projection covers public and private channels, group DMs and DMs (operator
+  request, 2026-10-12: "include DMs and private channels too"), through the same gate, sealed under the same scope and
+  owner-only. `Conversation.kind` records which; a DM is titled with the other participants' names, sealed.
 - **In use** in the operator's dogfood deployment: a declared single-operator zone (jurisdiction `CA-ON`, ceiling
   `customer_confidential`, `US` inadmissible) whose controls are recorded as *operator to confirm* until verified; a
   personal Gmail and Google Calendar tagged `internal` / `CA`, and a company Slack tagged `customer_confidential` /
