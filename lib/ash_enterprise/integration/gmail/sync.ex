@@ -42,6 +42,16 @@ defmodule AshEnterprise.Integration.Gmail.Sync do
   A step does at most `max_pages_per_step` list pages; `more?: true` says it
   stopped on the budget, not on the end.
 
+  ## Projection
+
+  A step that lands cleanly then projects, as the account's owner, every
+  record the account has landed since the last successful projection
+  (`AshEnterprise.Canonical.Projections.Pending`, through the configured zone
+  gate) and reports the counts under `:projection`. The provider cursor has
+  already moved; projection keeps its own watermark, so a projection that
+  fails leaves its records for the next step rather than losing them.
+  `project?: false` skips it.
+
   ## What is never done
 
     * Nothing is logged here. Errors are reasons (atoms), never bodies.
@@ -62,11 +72,13 @@ defmodule AshEnterprise.Integration.Gmail.Sync do
         backfill_max_messages: 200,
         page_size: 100,
         max_pages_per_step: 10,
-        message_format: :full
+        message_format: :full,
+        project?: true
 
   read with `Application.get_env/3`; `step/3`'s `opts` override it.
   """
 
+  alias AshEnterprise.Canonical.Projections.Pending
   alias AshEnterprise.Integration.{Gmail, Landing, LinkedAccount, ProxyError, SourceRecord}
   alias AshEnterprise.Integration.Gmail.SyncState
   alias AshEnterprise.Security.ActorContext
@@ -80,7 +92,8 @@ defmodule AshEnterprise.Integration.Gmail.Sync do
     backfill_max_messages: 200,
     page_size: 100,
     max_pages_per_step: 10,
-    message_format: :full
+    message_format: :full,
+    project?: true
   ]
 
   # Reasons that need a person (re-link, re-consent, configure) rather than a
@@ -101,11 +114,12 @@ defmodule AshEnterprise.Integration.Gmail.Sync do
   @default_snooze_ms 60_000
 
   @type summary :: %{
-          phase: :bootstrap | :backfill | :incremental,
-          landed: non_neg_integer(),
-          skipped: non_neg_integer(),
-          more?: boolean(),
-          reset?: boolean()
+          required(:phase) => :bootstrap | :backfill | :incremental,
+          required(:landed) => non_neg_integer(),
+          required(:skipped) => non_neg_integer(),
+          required(:more?) => boolean(),
+          required(:reset?) => boolean(),
+          optional(:projection) => Pending.summary()
         }
 
   @type result ::
@@ -164,6 +178,7 @@ defmodule AshEnterprise.Integration.Gmail.Sync do
       state
       |> run(ctx, acc)
       |> finish()
+      |> project(account, ctx)
     else
       {:error, reason} -> classify(reason)
     end
@@ -196,6 +211,18 @@ defmodule AshEnterprise.Integration.Gmail.Sync do
     do: {:ok, %{Map.drop(acc, [:pages_left]) | phase: state.phase}}
 
   defp finish({:error, reason}), do: classify(reason)
+
+  # What this step (and any earlier step whose projection did not finish)
+  # landed, projected as the account's owner through the zone gate. Only after
+  # a step that landed cleanly; a step that stopped part-way leaves its
+  # landings to the next one, which projects everything past the watermark.
+  defp project({:ok, summary}, account, %{config: config} = ctx) do
+    if config[:project?],
+      do: {:ok, Map.put(summary, :projection, Pending.project(account, owner: ctx.actor))},
+      else: {:ok, summary}
+  end
+
+  defp project(result, _account, _ctx), do: result
 
   # --- phases ------------------------------------------------------------------
 

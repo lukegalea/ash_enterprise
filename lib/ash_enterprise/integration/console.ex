@@ -1,14 +1,16 @@
 defmodule AshEnterprise.Integration.Console do
   @moduledoc """
   What the operator mix tasks share (`mix ash_enterprise.integration.link`,
-  `.accounts`, `.sync`): resolving a person into an actor, describing a linked
-  account without its secrets, and running one sync step of any vertical.
+  `.accounts`, `.sync`, `.project`): resolving a person into an actor,
+  describing a linked account without its secrets, running one sync step of
+  any vertical, and the projection catch-up.
 
   Everything here returns or prints **structure only** — ids, integration
   keys, statuses, counts and reason atoms. Never a connection id in full, never
   content: these run at a shell whose scrollback is outside every erasure scope.
   """
 
+  alias AshEnterprise.Canonical.Projections.Pending
   alias AshEnterprise.Erasure
   alias AshEnterprise.Erasure.Scope
   alias AshEnterprise.Integration.{Calendar, Gmail, Landing, LinkedAccount, ProxyError, Slack}
@@ -110,6 +112,7 @@ defmodule AshEnterprise.Integration.Console do
       {:ok, summary} ->
         summary
         |> Map.take([:phase, :landed, :skipped, :reset?])
+        |> Map.merge(Map.get(summary, :projection, %{}))
         |> Map.put(:status, if(summary.more?, do: :more, else: :complete))
 
       {:snooze, ms} ->
@@ -128,6 +131,7 @@ defmodule AshEnterprise.Integration.Console do
       {:ok, %{outcome: :ok} = summary} ->
         summary
         |> Map.take([:conversations, :messages, :users, :resets, :skipped])
+        |> Map.merge(Map.get(summary, :projection, %{}))
         |> Map.put(:status, if(summary.more?, do: :more, else: :complete))
 
       {:ok, %{outcome: :rate_limited, retry_after_seconds: seconds}} ->
@@ -161,15 +165,50 @@ defmodule AshEnterprise.Integration.Console do
       else: fallback
   end
 
-  @doc "A step result as one line: `key=value` pairs, sorted, status first."
+  @doc """
+  Project everything `account` has landed (Gmail or Slack) as its owner,
+  `actor`, through the zone gate: the operator's catch-up, for records landed
+  before projection ran with the sync, or refused while the account was
+  untagged. Counts only (`AshEnterprise.Canonical.Projections.Pending`), with
+  a `:status` of `:complete`, or `:failed` and a `:reason`.
+  """
+  @spec project(LinkedAccount.t(), term()) :: map()
+  def project(%LinkedAccount{provider_config_key: key} = account, actor) do
+    if key in Pending.integrations() do
+      case Pending.project(account, owner: actor, all?: true) do
+        %{projection_error: reason} = counts ->
+          counts |> Map.delete(:projection_error) |> Map.merge(%{status: :failed, reason: reason})
+
+        counts ->
+          Map.put(counts, :status, :complete)
+      end
+    else
+      %{status: :failed, reason: :not_projected_here}
+    end
+  end
+
+  @doc """
+  A step result as one line: `key=value` pairs, sorted, status first. A map
+  value (`denied_by`) prints as `reason:count` pairs, or `none`.
+  """
   @spec format(map()) :: String.t()
   def format(%{status: status} = result) do
     rest =
       result
       |> Map.delete(:status)
       |> Enum.sort()
-      |> Enum.map_join(" ", fn {key, value} -> "#{key}=#{value}" end)
+      |> Enum.map_join(" ", fn {key, value} -> "#{key}=#{format_value(value)}" end)
 
     String.trim("status=#{status} #{rest}")
   end
+
+  defp format_value(value) when is_map(value) and map_size(value) == 0, do: "none"
+
+  defp format_value(value) when is_map(value) do
+    value
+    |> Enum.sort()
+    |> Enum.map_join(",", fn {key, count} -> "#{key}:#{count}" end)
+  end
+
+  defp format_value(value), do: value
 end

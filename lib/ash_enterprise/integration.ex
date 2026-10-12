@@ -32,6 +32,9 @@ defmodule AshEnterprise.Integration do
     * Slack — `Slack.Sync` (entry points), `Slack.ConversationCursor`,
       `Slack.KnownMember`, `Slack.SyncWorker`, `Slack.Syncer`; projected
       (zone-gated, deny by default) by `AshEnterprise.Canonical.Projections.Slack`.
+    * Gmail and Slack project what a step landed at the end of that step
+      (`AshEnterprise.Canonical.Projections.Pending`), keeping their position
+      in `AshEnterprise.Integration.ProjectionCursor`.
     * `AshEnterprise.Integration.SyncScheduler` enqueues one step per active
       linked account per vertical, on a cron.
 
@@ -65,5 +68,7 @@ defmodule AshEnterprise.Integration do
     resource AshEnterprise.Integration.Slack.Sync
     resource AshEnterprise.Integration.Slack.ConversationCursor
     resource AshEnterprise.Integration.Slack.KnownMember
+
+    resource AshEnterprise.Integration.ProjectionCursor
   end
 end

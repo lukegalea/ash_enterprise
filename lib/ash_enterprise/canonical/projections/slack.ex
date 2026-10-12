@@ -110,6 +110,10 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
   # module. Not a Slack key; never written anywhere.
   @scope_key "__erasure_scope_id__"
 
+  # Whether a message is one of the records being counted (see `only:` under
+  # `project/3`). Likewise internal only.
+  @counted_key "__counted__"
+
   # `Person.name` / `Person.email` limits.
   @name_max 256
   @email_max 320
@@ -151,23 +155,50 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
   projected only if the zone gate admits them.
 
   Options: `:self_user_id`, `:erasure_scope_id` (the scope `SourceRecord`s,
-  which carry none of their own, were landed under).
+  which carry none of their own, were landed under), `:only`.
+
+  ## `only:` — the incremental form
+
+  `only:` (a set of `external_id`s) is how a sync step projects just what it
+  landed (`AshEnterprise.Canonical.Projections.Pending`). A conversation's
+  participants come from every message in it, a message's sender from the
+  member records, and the account's own Slack user from its IMs, so the step
+  passes the new records together with that context (`with_context/2`) and
+  names the new ones in `only:`. Then:
+
+    * a `Person` is written only for an `only:` member record; the other
+      members link to the `Person` the owner already has for their email, if
+      any (read, never written);
+    * a `Conversation` is written only for a public channel with at least one
+      new message to project, with its participants from every message passed
+      in;
+    * only `only:` messages are written;
+    * every count is about the `only:` records, or the rows written for them;
+      records outside `only:` go through the zone gate (a refused one is never
+      used) but their refusals are not counted.
+
+  Without `only:` every record passed in is both written and counted.
   """
   @spec project([map()], struct(), keyword()) :: {:ok, counts()}
   def project(records, %LinkedAccount{} = account, opts \\ []) do
     context = context(account)
+    gate = ZoneGate.configured(__MODULE__)
 
-    {admitted, denied_by} =
-      ZoneGate.partition(
-        ZoneGate.configured(__MODULE__),
-        Enum.filter(records, &(get_in(&1.source_metadata, ["linked_account_id"]) == account.id)),
-        context
-      )
+    {counted, context_records} =
+      records
+      |> Enum.filter(&(get_in(&1.source_metadata, ["linked_account_id"]) == account.id))
+      |> Enum.split_with(counted_fun(Keyword.get(opts, :only)))
+
+    {admitted, denied_by} = ZoneGate.partition(gate, counted, context)
+    {admitted_context, _not_counted} = ZoneGate.partition(gate, context_records, context)
 
     ZoneGate.log_refusals(:slack, denied_by)
 
+    marked =
+      Enum.map(admitted, &{&1, true}) ++ Enum.map(admitted_context, &{&1, false})
+
     {:ok,
-     admitted
+     marked
      |> project_admitted(context, Keyword.get(opts, :erasure_scope_id), opts)
      |> Map.merge(%{
        admitted: length(admitted),
@@ -176,47 +207,117 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
      })}
   end
 
-  defp project_admitted(records, context, default_scope, opts) do
+  defp counted_fun(nil), do: fn _record -> true end
+  defp counted_fun(%MapSet{} = only), do: &MapSet.member?(only, &1.external_id)
+  defp counted_fun(only) when is_list(only), do: counted_fun(MapSet.new(only))
+
+  @doc """
+  The records an incremental projection of `delta` (records newly landed
+  through `linked_account_id`) needs alongside it — see "`only:`" under
+  `project/3`. When `delta` holds a message, that is every conversation record
+  of the account, every message of the conversations it touches and of the
+  account's IMs (for the account's own Slack user), and every member record;
+  otherwise `delta` alone. Read through the decrypting path, as trusted
+  infrastructure narrowed to the one account.
+  """
+  @spec with_context([map()], Ash.UUID.t()) :: [map()]
+  def with_context(delta, linked_account_id) do
+    channels =
+      for record <- delta,
+          get_in(record.source_metadata, ["stream"]) == Records.stream(:messages),
+          channel = get_in(record.source_metadata, ["channel_id"]),
+          is_binary(channel),
+          uniq: true,
+          do: channel
+
+    if channels == [] do
+      delta
+    else
+      conversations = landed(linked_account_id, :conversations)
+
+      ims =
+        for %{raw_payload: %{"is_im" => true, "id" => id}} <- conversations,
+            is_binary(id),
+            do: id
+
+      messages = landed(linked_account_id, :messages, Enum.uniq(channels ++ ims))
+      users = landed(linked_account_id, :users)
+
+      Enum.uniq_by(delta ++ conversations ++ messages ++ users, & &1.external_id)
+    end
+  end
+
+  defp landed(linked_account_id, kind, channels \\ nil) do
+    stream = Records.stream(kind)
+
+    SourceObject
+    |> Ash.Query.filter(external_system == ^Records.external_system())
+    |> Ash.Query.filter(source_metadata["linked_account_id"] == ^linked_account_id)
+    |> Ash.Query.filter(source_metadata["stream"] == ^stream)
+    |> then(fn query ->
+      if channels,
+        do: Ash.Query.filter(query, source_metadata["channel_id"] in ^channels),
+        else: query
+    end)
+    |> Ash.Query.sort(:external_id)
+    |> Ash.read!(authorize?: false)
+  end
+
+  defp project_admitted(marked, context, default_scope, opts) do
+    incremental? = Keyword.has_key?(opts, :only)
+
     streams =
-      records
-      |> Enum.reject(&Shredded.shredded?(&1.raw_payload))
-      |> Enum.map(&{&1, Map.get(&1, :erasure_scope_id) || default_scope})
-      |> Enum.filter(fn {_record, scope_id} -> is_binary(scope_id) end)
-      |> Enum.sort_by(fn {record, _scope_id} -> record.external_id end)
-      |> Enum.group_by(fn {record, _scope_id} -> get_in(record.source_metadata, ["stream"]) end)
+      marked
+      |> Enum.reject(fn {record, _counted?} -> Shredded.shredded?(record.raw_payload) end)
+      |> Enum.map(fn {record, counted?} ->
+        {record, Map.get(record, :erasure_scope_id) || default_scope, counted?}
+      end)
+      |> Enum.filter(fn {_record, scope_id, _counted?} -> is_binary(scope_id) end)
+      |> Enum.sort_by(fn {record, _scope_id, _counted?} -> record.external_id end)
+      |> Enum.group_by(fn {record, _scope_id, _counted?} ->
+        get_in(record.source_metadata, ["stream"])
+      end)
+
+    conversation_records = Map.get(streams, Records.stream(:conversations), [])
 
     conversations =
-      streams
-      |> Map.get(Records.stream(:conversations), [])
-      |> Map.new(fn {record, _scope_id} -> {record.raw_payload["id"], record.raw_payload} end)
+      Map.new(conversation_records, fn {record, _scope_id, _counted?} ->
+        {record.raw_payload["id"], record.raw_payload}
+      end)
 
     conversation_scopes =
-      streams
-      |> Map.get(Records.stream(:conversations), [])
-      |> Map.new(fn {record, scope_id} -> {record.raw_payload["id"], scope_id} end)
+      Map.new(conversation_records, fn {record, scope_id, _counted?} ->
+        {record.raw_payload["id"], scope_id}
+      end)
 
     messages =
       streams
       |> Map.get(Records.stream(:messages), [])
-      |> Enum.map(fn {record, scope_id} ->
+      |> Enum.map(fn {record, scope_id, counted?} ->
         {get_in(record.source_metadata, ["channel_id"]),
-         Map.put(record.raw_payload, @scope_key, scope_id)}
+         record.raw_payload
+         |> Map.put(@scope_key, scope_id)
+         |> Map.put(@counted_key, counted?)}
       end)
       |> Enum.filter(fn {channel, message} ->
         is_binary(channel) and Records.ts?(message["ts"])
       end)
 
-    user_records = Map.get(streams, Records.stream(:users), [])
+    {new_users, known_users} =
+      streams
+      |> Map.get(Records.stream(:users), [])
+      |> Enum.split_with(fn {_record, _scope_id, counted?} -> counted? end)
 
     users =
-      Map.new(user_records, fn {record, _scope_id} ->
+      Map.new(new_users ++ known_users, fn {record, _scope_id, _counted?} ->
         {record.raw_payload["id"], record.raw_payload}
       end)
 
     self_user_id =
       Keyword.get_lazy(opts, :self_user_id, fn -> infer_self(conversations, messages) end)
 
-    {people, people_failed} = project_people(user_records, context)
+    {written_people, people_failed} = project_people(new_users, context)
+    people = Map.merge(known_people(known_users, context), written_people)
 
     public =
       Map.filter(conversations, fn {_id, conversation} -> public_channel?(conversation) end)
@@ -224,9 +325,21 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
     public_messages =
       Enum.filter(messages, fn {channel, _} -> Map.has_key?(public, channel) end)
 
+    to_write =
+      Enum.filter(public_messages, fn {_channel, message} ->
+        message[@counted_key] and message["subtype"] in @projected_subtypes
+      end)
+
+    # Incrementally, a conversation is rewritten only when it has something
+    # new to hold; a full projection writes every public channel.
+    written_channels =
+      if incremental?,
+        do: Map.take(public, Enum.map(to_write, &elem(&1, 0))),
+        else: public
+
     {conversation_rows, conversations_failed} =
       project_conversations(
-        public,
+        written_channels,
         conversation_scopes,
         public_messages,
         users,
@@ -235,17 +348,47 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
       )
 
     {projected, messages_failed} =
-      public_messages
-      |> Enum.filter(fn {_channel, message} -> message["subtype"] in @projected_subtypes end)
+      to_write
       |> Enum.map(&project_message(&1, conversation_rows, people, self_user_id, context))
       |> Enum.split_with(&match?({:ok, _}, &1))
 
     %{
       conversations: map_size(conversation_rows),
       messages: length(projected),
-      people: map_size(people),
+      people: map_size(written_people),
       failed: people_failed + conversations_failed + length(messages_failed)
     }
+  end
+
+  # The owner's existing people for members whose records are context, not
+  # new: read, never written, so an incremental step does not rewrite every
+  # member of every conversation it touches. One query for all of them.
+  defp known_people([], _context), do: %{}
+
+  defp known_people(user_records, context) do
+    by_email =
+      user_records
+      |> Enum.flat_map(fn {record, _scope_id, _counted?} ->
+        case email(record.raw_payload) do
+          nil -> []
+          email -> [{String.downcase(email), record.raw_payload["id"]}]
+        end
+      end)
+      |> Map.new()
+
+    emails = Map.keys(by_email)
+    owner_id = context.owner_id
+
+    Person
+    |> Ash.Query.filter(email in ^emails and owner_id == ^owner_id)
+    |> Ash.read!(tenant: context.tenant_id, authorize?: false)
+    |> Enum.flat_map(fn person ->
+      case Map.fetch(by_email, person.email |> to_string() |> String.downcase()) do
+        {:ok, user_id} -> [{user_id, person}]
+        :error -> []
+      end
+    end)
+    |> Map.new()
   end
 
   # --- people ---------------------------------------------------------------------
@@ -257,8 +400,8 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
   # Returns the people by Slack user id, and how many writes failed.
   defp project_people(user_records, context) do
     user_records
-    |> Enum.sort_by(fn {record, _scope_id} -> to_string(record.raw_payload["id"]) end)
-    |> Enum.reduce({%{}, 0}, fn {record, scope_id}, {people, failed} ->
+    |> Enum.sort_by(fn {record, _scope_id, _counted?} -> to_string(record.raw_payload["id"]) end)
+    |> Enum.reduce({%{}, 0}, fn {record, scope_id, _counted?}, {people, failed} ->
       user = record.raw_payload
 
       with email when is_binary(email) <- email(user),

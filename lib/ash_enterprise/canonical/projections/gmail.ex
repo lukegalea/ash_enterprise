@@ -43,8 +43,8 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
   ## One bad record does not stop a replay
 
   Each thread is written in one transaction. A write that fails (or a payload
-  with no message id or `internalDate`) is counted as `failed` and the replay
-  carries on; the failure is reduced to the resource and field names
+  with no message id or `internalDate`, also counted as `unparseable`) is
+  counted as `failed` and the replay carries on; the failure is reduced to the resource and field names
   (`AshEnterprise.Canonical.Projections.Write`), because an Ash error quotes
   the value it rejected, and the value is mailbox content. Display names are
   clipped to `Person.name`'s 256 characters and over-long addresses are not
@@ -96,7 +96,9 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
 
   `replay/1` reads the landed `gmail.messages` SourceObjects; `project/2`
   takes landed records from elsewhere (for instance the scoped lander's
-  decrypting reader). Both need `owner:` and `tenant:`, and both project only
+  decrypting reader). A sync step projects what it landed itself
+  (`AshEnterprise.Canonical.Projections.Pending`, through `with_threads/2` and
+  `project/2`'s `only:`). Both need `owner:` and `tenant:`, and both project only
   the records of the owner's own linked accounts in that tenant.
   """
 
@@ -106,6 +108,8 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
   alias AshEnterprise.Ingestion.SourceObject
   alias AshEnterprise.Integration.Gmail.Sync
   alias AshEnterprise.Integration.LinkedAccount
+
+  require Ash.Query
 
   @integration "google-mail"
 
@@ -125,6 +129,7 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
           denied: non_neg_integer(),
           denied_by: %{atom() => pos_integer()},
           failed: non_neg_integer(),
+          unparseable: non_neg_integer(),
           conversations: non_neg_integer(),
           messages: non_neg_integer(),
           people: non_neg_integer()
@@ -145,11 +150,30 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
   `raw_payload` and `source_metadata`). Records on other streams are ignored;
   records not from one of the owner's linked accounts in the tenant are
   counted as `foreign` and not projected.
+
+  ## `only:` — the incremental form
+
+  `only:` (a set of `external_id`s) is how a sync step projects just what it
+  landed (`AshEnterprise.Canonical.Projections.Pending`). A Gmail thread is
+  projected whole — its conversation's subject and participants are derived
+  from every message in it — so the step passes the new records *and* the rest
+  of their threads, and names the new ones in `only:`. Then:
+
+    * only threads holding at least one admitted `only:` record are written
+      (whole, from every admitted record passed in);
+    * every count is about the `only:` records alone — `messages` is how many
+      of them were written, `denied_by` how many of them the gate refused —
+      except `conversations` and `people`, which count the rows written;
+    * records outside `only:` are put to the zone gate like any other (a
+      refused one is never written), but their refusals are not counted.
+
+  Without `only:` every record passed in is both written and counted.
   """
   @spec project([map()], keyword()) :: {:ok, counts()}
   def project(sources, opts) do
     context = context(opts)
     gate = ZoneGate.configured(__MODULE__)
+    counted? = counted_fun(Keyword.get(opts, :only))
     sources = Enum.filter(sources, &(stream_of(&1) == @stream))
     linked_accounts = owned_accounts(context)
     accounts = linked_accounts |> Map.keys() |> MapSet.new()
@@ -158,64 +182,108 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
     {owned, foreign} = Enum.split_with(sources, &MapSet.member?(accounts, account_of(&1)))
     {shredded, readable} = Enum.split_with(owned, &Shredded.shredded?(&1.raw_payload))
     {scoped, unscoped} = Enum.split_with(readable, &is_binary(Map.get(&1, :erasure_scope_id)))
-    {admitted, denied_by} = ZoneGate.partition(gate, scoped, context)
+    {counted_scoped, context_scoped} = Enum.split_with(scoped, counted?)
+    {admitted, denied_by} = ZoneGate.partition(gate, counted_scoped, context)
+    {admitted_context, _not_counted} = ZoneGate.partition(gate, context_scoped, context)
     ZoneGate.log_refusals(:gmail, denied_by)
 
     {parsed, unparseable} =
-      admitted
-      |> Enum.map(&parse/1)
+      (admitted ++ admitted_context)
+      |> Enum.map(&parse(&1, counted?))
       |> Enum.split_with(&match?({:ok, _}, &1))
+
+    unparseable = Enum.count(unparseable, &match?({:error, :unparseable, true}, &1))
 
     threads =
       parsed
       |> Enum.map(fn {:ok, message} -> message end)
       |> Enum.group_by(& &1.thread_id)
+      |> Enum.filter(fn {_thread_id, messages} -> Enum.any?(messages, & &1.counted?) end)
       |> Enum.sort_by(fn {thread_id, _messages} -> thread_id end)
 
     initial = %{
       people: MapSet.new(),
       conversations: 0,
       messages: 0,
-      shredded: length(shredded),
-      failed: length(unparseable)
+      shredded: Enum.count(shredded, counted?),
+      failed: unparseable
     }
 
     totals =
       Enum.reduce(threads, initial, fn {thread_id, messages}, acc ->
+        new = Enum.count(messages, & &1.counted?)
+
         case project_thread(thread_id, messages, context) do
           {:ok, {:projected, person_ids}} ->
             %{
               acc
               | people: Enum.into(person_ids, acc.people),
                 conversations: acc.conversations + 1,
-                messages: acc.messages + length(messages)
+                messages: acc.messages + new
             }
 
           {:ok, :shredded} ->
-            %{acc | shredded: acc.shredded + length(messages)}
+            %{acc | shredded: acc.shredded + new}
 
           # Structural only (`Projections.Write`): the thread is rolled back
           # whole, counted, and the replay carries on.
           {:error, _reason} ->
-            %{acc | failed: acc.failed + length(messages)}
+            %{acc | failed: acc.failed + new}
         end
       end)
 
     {:ok,
      %{
-       source_objects: length(sources),
-       foreign: length(foreign),
+       source_objects: Enum.count(sources, counted?),
+       foreign: Enum.count(foreign, counted?),
        shredded: totals.shredded,
-       unscoped: length(unscoped),
+       unscoped: Enum.count(unscoped, counted?),
        admitted: length(admitted),
        denied: denied_by |> Map.values() |> Enum.sum(),
        denied_by: denied_by,
        failed: totals.failed,
+       unparseable: unparseable,
        conversations: totals.conversations,
        messages: totals.messages,
        people: MapSet.size(totals.people)
      }}
   end
+
+  @doc """
+  `delta` (records newly landed through `linked_account_id`) with the rest of
+  the threads they belong to — what an incremental projection passes to
+  `project/2` alongside `only:`. The thread is read from the bookkeeping the
+  sync lands with each message (`source_metadata["thread_id"]`), so finding
+  it decrypts nothing but the thread itself.
+  """
+  @spec with_threads([map()], Ash.UUID.t()) :: [map()]
+  def with_threads(delta, linked_account_id) do
+    thread_ids =
+      for record <- delta,
+          thread_id = get_in(record.source_metadata, ["thread_id"]),
+          is_binary(thread_id),
+          uniq: true,
+          do: thread_id
+
+    threads =
+      if thread_ids == [] do
+        []
+      else
+        SourceObject
+        |> Ash.Query.filter(external_system == ^@external_system)
+        |> Ash.Query.filter(source_metadata["linked_account_id"] == ^linked_account_id)
+        |> Ash.Query.filter(source_metadata["stream"] == ^@stream)
+        |> Ash.Query.filter(source_metadata["thread_id"] in ^thread_ids)
+        |> Ash.Query.sort(:external_id)
+        |> Ash.read!(authorize?: false)
+      end
+
+    Enum.uniq_by(delta ++ threads, & &1.external_id)
+  end
+
+  defp counted_fun(nil), do: fn _source -> true end
+  defp counted_fun(%MapSet{} = only), do: &MapSet.member?(only, &1.external_id)
+  defp counted_fun(only) when is_list(only), do: counted_fun(MapSet.new(only))
 
   # --- one thread --------------------------------------------------------------
 
@@ -397,23 +465,27 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
 
   # --- payload reading ---------------------------------------------------------
 
-  # `{:ok, message}`, or `{:error, :unparseable}` for a payload with no
-  # message id or no usable `internalDate`: counted as failed, never guessed.
-  defp parse(source) do
+  # `{:ok, message}`, or `{:error, :unparseable, counted?}` for a payload
+  # with no message id or no usable `internalDate`: counted as failed, never
+  # guessed.
+  defp parse(source, counted?) do
     payload = source.raw_payload
 
     with {:ok, gmail_id} <- gmail_id(payload),
          {:ok, sent_at} <- sent_at(payload) do
-      {:ok, parsed(source, payload, gmail_id, sent_at)}
+      {:ok, parsed(source, payload, gmail_id, sent_at, counted?.(source))}
+    else
+      {:error, :unparseable} -> {:error, :unparseable, counted?.(source)}
     end
   end
 
-  defp parsed(source, payload, gmail_id, sent_at) do
+  defp parsed(source, payload, gmail_id, sent_at, counted?) do
     headers = headers(payload)
     account = account_of(source)
 
     %{
       id: Sync.external_id(account, gmail_id),
+      counted?: counted?,
       erasure_scope_id: source.erasure_scope_id,
       thread_id: Sync.external_id(account, present(payload["threadId"]) || gmail_id),
       subject: headers |> Map.get("subject") |> present(),

@@ -212,13 +212,25 @@ defmodule AshEnterprise.Integration.SlackSyncTest do
          ctx do
       assert {:ok, summary} = step(ctx)
 
+      # The step then projects what it landed; with no zone gate wired, the
+      # default refuses all of it (13 records: 3 conversations, 7 messages,
+      # 3 members), counted by reason and never projected.
       assert summary == %{
                conversations: 3,
                messages: 7,
                users: 3,
                resets: 0,
                skipped: 0,
-               more?: false
+               more?: false,
+               projection: %{
+                 pending: 13,
+                 projected: 0,
+                 people: 0,
+                 denied: 13,
+                 denied_by: %{zone_admission_not_wired: 13},
+                 shredded: 0,
+                 failed: 0
+               }
              }
 
       landed = drain_landed()

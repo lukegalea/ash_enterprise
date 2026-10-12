@@ -112,6 +112,7 @@ defmodule AshEnterprise.Integration.Slack.Syncer do
   scope for v1.
   """
 
+  alias AshEnterprise.Canonical.Projections.Pending
   alias AshEnterprise.Integration.{Landing, LinkedAccount, ProxyError, Slack}
   alias AshEnterprise.Integration.Slack.{ConversationCursor, KnownMember, Records}
   alias AshEnterprise.Security.ActorContext
@@ -130,7 +131,8 @@ defmodule AshEnterprise.Integration.Slack.Syncer do
     max_user_lookups_per_step: 50,
     member_refresh_after_seconds: 7 * 24 * 60 * 60,
     backfill_days: 30,
-    rate_limit_snooze_seconds: 60
+    rate_limit_snooze_seconds: 60,
+    project?: true
   ]
 
   # Reasons retrying cannot fix: the account needs re-linking or a new consent,
@@ -174,12 +176,13 @@ defmodule AshEnterprise.Integration.Slack.Syncer do
   @lineage_outputs ["slack.ingestion_source_objects"]
 
   @type summary :: %{
-          conversations: non_neg_integer(),
-          messages: non_neg_integer(),
-          users: non_neg_integer(),
-          resets: non_neg_integer(),
-          skipped: non_neg_integer(),
-          more?: boolean()
+          required(:conversations) => non_neg_integer(),
+          required(:messages) => non_neg_integer(),
+          required(:users) => non_neg_integer(),
+          required(:resets) => non_neg_integer(),
+          required(:skipped) => non_neg_integer(),
+          required(:more?) => boolean(),
+          optional(:projection) => Pending.summary()
         }
 
   @type outcome ::
@@ -202,8 +205,9 @@ defmodule AshEnterprise.Integration.Slack.Syncer do
            state = load_noted(state),
            {:ok, conversations, state} <- list_conversations(state),
            {:ok, state} <- land_conversations(conversations, state),
-           {:ok, state} <- sync_conversations(conversations, state) do
-        sync_members(state)
+           {:ok, state} <- sync_conversations(conversations, state),
+           {:ok, state} <- sync_members(state) do
+        project(state)
       end
 
     finish(result, run_id)
@@ -223,12 +227,14 @@ defmodule AshEnterprise.Integration.Slack.Syncer do
       config: config,
       now: Keyword.get_lazy(opts, :now, &DateTime.utc_now/0),
       linked_account_id: nil,
+      account: nil,
       scope: nil,
       budget: config.max_pages_per_step,
       noted: MapSet.new(),
       more?: false,
       list_truncated?: false,
-      counts: %{conversations: 0, messages: 0, users: 0, resets: 0, skipped: 0}
+      counts: %{conversations: 0, messages: 0, users: 0, resets: 0, skipped: 0},
+      projection: nil
     }
   end
 
@@ -257,7 +263,7 @@ defmodule AshEnterprise.Integration.Slack.Syncer do
                tenant: tenant
              ) do
           {:ok, [account]} ->
-            open_scope(%{state | linked_account_id: account.id}, account)
+            open_scope(%{state | linked_account_id: account.id, account: account}, account)
 
           {:ok, []} ->
             {:stop, {:cancel, :no_linked_account}, state}
@@ -619,6 +625,17 @@ defmodule AshEnterprise.Integration.Slack.Syncer do
     end)
   end
 
+  # --- 6. projection ----------------------------------------------------------------
+
+  # Everything the account landed since the last successful projection (this
+  # step's landings among it), projected as its owner through the zone gate.
+  # The cursors above have already moved; projection keeps its own watermark,
+  # so a failed projection is retried by the next step, never lost.
+  defp project(%{config: %{project?: true}} = state),
+    do: {:ok, %{state | projection: Pending.project(state.account, owner: state.actor)}}
+
+  defp project(state), do: {:ok, state}
+
   # --- the edge, and the landing seam ----------------------------------------------
 
   defp call(state, operation, params) do
@@ -684,7 +701,13 @@ defmodule AshEnterprise.Integration.Slack.Syncer do
   defp finish({:ok, state}, run_id), do: report({:ok, summary(state)}, state, run_id)
   defp finish({:stop, outcome, state}, run_id), do: report(outcome, state, run_id)
 
-  defp summary(state), do: Map.put(state.counts, :more?, state.more?)
+  defp summary(%{projection: nil} = state), do: Map.put(state.counts, :more?, state.more?)
+
+  defp summary(state) do
+    state.counts
+    |> Map.put(:more?, state.more?)
+    |> Map.put(:projection, state.projection)
+  end
 
   defp report(outcome, state, run_id) do
     label = outcome_label(outcome)
@@ -704,7 +727,8 @@ defmodule AshEnterprise.Integration.Slack.Syncer do
     Logger.info(
       "slack sync step outcome=#{label} conversations=#{counts.conversations} " <>
         "messages=#{counts.messages} users=#{counts.users} resets=#{counts.resets} " <>
-        "skipped=#{counts.skipped} more=#{state.more?} list_truncated=#{state.list_truncated?}",
+        "skipped=#{counts.skipped} more=#{state.more?} list_truncated=#{state.list_truncated?}" <>
+        projection_log(state.projection),
       linked_account_id: state.linked_account_id
     )
 
@@ -715,6 +739,13 @@ defmodule AshEnterprise.Integration.Slack.Syncer do
     end
 
     outcome
+  end
+
+  defp projection_log(nil), do: ""
+
+  defp projection_log(projection) do
+    " projected=#{projection.projected} denied=#{projection.denied} " <>
+      "projection_failed=#{projection.failed}"
   end
 
   defp outcome_label({:ok, _}), do: :ok
