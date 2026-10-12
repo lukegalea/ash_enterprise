@@ -15,6 +15,10 @@ defmodule AshEnterprise.Canonical do
       tasks, manual projects) — `external_system`/`external_id` stay nil for
       these, which is why the external identity is nullable on every resource.
 
+  What *happened* — a meeting scheduled, moved or cancelled, a message
+  received or sent, a conversation started — is derived from these writes
+  into `AshEnterprise.BusinessEvents` (ADR 0051), in the same transaction.
+
   Linkage is deliberately v1-crude: external id + email only. There is no fuzzy
   entity resolution — that is the roadmap's P4 item, and a wrong automatic merge
   is far more expensive than a duplicate person row.

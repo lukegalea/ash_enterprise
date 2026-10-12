@@ -273,6 +273,11 @@ defmodule AshEnterprise.MixProject do
       {:ash_strangler, github: "lukegalea/ash_strangler"},
       # Epic E2 / ADR 0012: OpenLineage emission from action notifications.
       {:ash_open_lineage, github: "lukegalea/ash_open_lineage"},
+      # ADR 0051: the business-event ledger (BIZEV). Its `:ledger` resource
+      # macro is instantiated on the platform base as
+      # `AshEnterprise.BusinessEvents.Ledger`; events are derived from the
+      # canonical store's writes.
+      {:ash_discrete_business_events, github: "lukegalea/ash_discrete_business_events"},
       # Epic E3 (dogfood §7): ACP server wire adapter.
       {:ash_acp, github: "lukegalea/ash_acp"},
 

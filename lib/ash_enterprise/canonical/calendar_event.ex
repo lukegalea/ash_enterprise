@@ -218,6 +218,9 @@ defmodule AshEnterprise.Canonical.CalendarEvent do
         :organizer_id,
         :erasure_scope_id
       ]
+
+      # The business events this write implies, in its transaction (ADR 0051).
+      change {AshEnterprise.BusinessEvents.Changes.Derive, subject: :calendar_event}
     end
   end
 

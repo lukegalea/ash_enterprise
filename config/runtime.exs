@@ -81,6 +81,34 @@ if config_env() != :test do
   end
 end
 
+# ## The business-event ledger (ADR 0051)
+#
+# `BUSINESS_EVENTS_REGION`: the ledger region its rows, chain and feed live in
+# (one of ca, us, eu, local; default local). Set it before the first event is
+# recorded: a row's region is permanent, and a change starts a new chain.
+# The rows' residency tag is the canonical store's zone (`CANONICAL_ZONE`),
+# because the facts are derived from that store and live where it does.
+if config_env() != :test do
+  business_events =
+    [
+      region:
+        case System.get_env("BUSINESS_EVENTS_REGION") do
+          nil -> nil
+          "ca" -> :ca
+          "us" -> :us
+          "eu" -> :eu
+          "local" -> :local
+          other -> raise "BUSINESS_EVENTS_REGION must be ca, us, eu or local, got: #{other}"
+        end,
+      residency_tag: System.get_env("CANONICAL_ZONE")
+    ]
+    |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+
+  if business_events != [] do
+    config :ash_enterprise, AshEnterprise.BusinessEvents, business_events
+  end
+end
+
 # The zone the daily-loop surfaces cut "today" in and print times in
 # (`AshEnterprise.Platform.LocalTime`). An IANA name; the default is set in
 # config/config.exs. Read at boot.

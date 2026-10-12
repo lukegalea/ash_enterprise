@@ -344,10 +344,19 @@ config :ash_enterprise,
     AshEnterprise.Erasure,
     AshEnterprise.Ingestion,
     AshEnterprise.Canonical,
+    AshEnterprise.BusinessEvents,
     AshEnterprise.Integration,
     AshEnterprise.Agents
   ],
   base_resources: [AshEnterprise.Platform.Resource]
+
+# ADR 0051: the business-event ledger. `region` partitions its chain, lock and
+# feed; `residency_tag` is what every row declares. Runtime overrides both from
+# BUSINESS_EVENTS_REGION / CANONICAL_ZONE (config/runtime.exs).
+config :ash_enterprise, AshEnterprise.BusinessEvents,
+  region: :local,
+  residency_tag: "local",
+  emit?: true
 
 # Epic E4: every record a provider sync fetches lands sealed under the erasure
 # scope of the linked account it came through (ADR 0024). Leaving `:lander`

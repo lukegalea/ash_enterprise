@@ -31,6 +31,13 @@ config :bcrypt_elixir, log_rounds: 1
 # Day boundaries and printed times in UTC, so time-of-day assertions do not
 # depend on the deployment's display zone (`AshEnterprise.Platform.LocalTime`).
 config :ash_enterprise, :display_time_zone, "Etc/UTC"
+
+# ADR 0051: projections do not record business events in tests by default.
+# The ledger's region lock is transaction-scoped, and a sandboxed test's
+# transaction lasts the whole test, so every async test that projects a row
+# would serialize on one lock. The tests that exercise the ledger are
+# `async: false` and switch it on.
+config :ash_enterprise, AshEnterprise.BusinessEvents, emit?: false, region: :test
 config :ash, policies: [show_policy_breakdowns?: true], disable_async?: true
 
 # The drain ingests inside its own transaction, and the event appends ride it

@@ -186,6 +186,9 @@ defmodule AshEnterprise.Canonical.Message do
         :sender_id,
         :erasure_scope_id
       ]
+
+      # The business events this write implies, in its transaction (ADR 0051).
+      change {AshEnterprise.BusinessEvents.Changes.Derive, subject: :message}
     end
   end
 

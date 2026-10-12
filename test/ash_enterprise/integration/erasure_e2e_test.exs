@@ -25,6 +25,8 @@ defmodule AshEnterprise.Integration.ErasureE2ETest do
 
   require Ash.Query
 
+  alias AshDiscreteBusinessEvents.Ledger.VerifyChains
+  alias AshEnterprise.BusinessEvents
   alias AshEnterprise.Canonical.{CalendarEvent, Conversation, Message, Person}
   alias AshEnterprise.Canonical.Projections
   alias AshEnterprise.Erasure
@@ -48,7 +50,8 @@ defmodule AshEnterprise.Integration.ErasureE2ETest do
     AshEnterprise.Canonical.Projections.Gmail,
     AshEnterprise.Canonical.Projections.Slack,
     AshEnterprise.Canonical.Projections.ZoneAdmission,
-    AshEnterprise.Zones
+    AshEnterprise.Zones,
+    AshEnterprise.BusinessEvents
   ]
 
   setup do
@@ -58,6 +61,8 @@ defmodule AshEnterprise.Integration.ErasureE2ETest do
     System.put_env("NANGO_SECRET_KEY", @fake_secret)
     # The real actor loaders, the real lander, deny-by-default zone gates.
     Enum.each(@app_envs, &Application.delete_env(:ash_enterprise, &1))
+    # Projections record business events (ADR 0051); the ledger is swept too.
+    Application.put_env(:ash_enterprise, BusinessEvents, region: :test, residency_tag: "test")
     Mix.shell(Mix.Shell.Process)
 
     on_exit(fn ->
@@ -159,6 +164,7 @@ defmodule AshEnterprise.Integration.ErasureE2ETest do
       assert Enum.all?(calendar_events(ctx), &Shredded.shredded?(&1.title))
       assert_no_plaintext(F.content_strings(), calendar_ids())
       assert_no_audit_event_spells(F.content_strings())
+      assert_business_events_outlive_shred(ctx, [:"calendar_event.scheduled"])
       assert_accounts_task_lists(ctx, account, "shredded")
 
       # A replay finds nothing left to project.
@@ -276,6 +282,7 @@ defmodule AshEnterprise.Integration.ErasureE2ETest do
              |> Enum.any?(&(to_string(&1.email) == "e2e.sender1@example.synthetic.test"))
 
       assert_no_audit_event_spells(content)
+      assert_business_events_outlive_shred(ctx, [:"message.received", :"conversation.started"])
 
       assert {:ok, %{shredded: 2, admitted: 0, messages: 0}} =
                Projections.Gmail.replay(owner: ctx.user, tenant: ctx.org)
@@ -345,6 +352,7 @@ defmodule AshEnterprise.Integration.ErasureE2ETest do
 
       assert_no_plaintext(slack_content())
       assert_no_audit_event_spells(slack_content())
+      assert_business_events_outlive_shred(ctx, [:"conversation.started"])
 
       assert {:ok, %{conversations: 0, messages: 0}} =
                Projections.Slack.replay(ctx.actor, account.id)
@@ -620,7 +628,7 @@ defmodule AshEnterprise.Integration.ErasureE2ETest do
   # name and email are not sealed (runbook, "Not reached"), and the test below
   # says so rather than pretending otherwise.
   @swept_tables ~w(ingestion_source_objects canonical_calendar_events canonical_messages
-                   canonical_conversations integration_linked_accounts erasure_scopes
+                   canonical_conversations business_events integration_linked_accounts erasure_scopes
                    integration_calendar_sync_cursors integration_gmail_sync_states
                    integration_slack_conversation_cursors integration_slack_known_members
                    oban_jobs)
@@ -644,6 +652,19 @@ defmodule AshEnterprise.Integration.ErasureE2ETest do
   end
 
   defp calendar_ids, do: [F.primary_calendar(), F.team_calendar()]
+
+  # The projection recorded its facts (ADR 0051), the shred left them in place
+  # and every chain verifiable; `@swept_tables` already proves they spell
+  # nothing.
+  defp assert_business_events_outlive_shred(ctx, kinds) do
+    facts = BusinessEvents.Ledger.by_region!(:test, tenant: ctx.org.id, authorize?: false)
+    recorded = MapSet.new(facts, & &1.action)
+
+    for kind <- kinds, do: assert(kind in recorded, "no #{kind} fact recorded")
+    assert Enum.all?(facts, &(&1.owner_id == ctx.user.id))
+    assert %{findings: [], checked: checked} = VerifyChains.verify(BusinessEvents.Ledger, :test)
+    assert checked == length(facts)
+  end
 
   # The whole audit log, every column, as stored.
   defp assert_no_audit_event_spells(strings) do
