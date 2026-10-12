@@ -31,9 +31,26 @@ defmodule AshEnterprise.Integration.Slack.Syncer do
 
   A step is bounded (`max_pages_per_step` history pages in total, at most
   `max_pages_per_conversation` per conversation, `max_user_lookups_per_step`
-  profiles) and reports `more?: true` when it stopped on a budget, which the
-  worker turns into a short snooze. The per-conversation cap is what keeps a
-  first backfill of one busy channel from starving the others.
+  profiles). The per-conversation cap is what keeps a first backfill of one
+  busy channel from starving the others.
+
+  Conversations take turns: a step visits the never-visited ones first, then
+  the rest least-recently-visited first (the cursor row's `updated_at`, which
+  every visit writes — a landed page, a finished pass, a reset or a skip). So
+  an account with more conversations than the page budget is covered over
+  successive steps instead of re-polling the same first few forever.
+
+  `more?: true` means there is **known outstanding work**: a pass left part-way
+  (a page cursor is saved), a conversation never visited yet, or members still
+  due for a lookup. The worker turns it into a short snooze. Up-to-date
+  conversations the budget did not reach are *not* outstanding work: they are
+  first in line on the next scheduled step, and reporting them would keep the
+  job snoozing forever on an account bigger than the budget.
+
+  `conversations.list` is cut off after `max_list_pages`; a step that stopped
+  there reports `list_truncated?: true` in its telemetry metadata and log line
+  (with a user token the list includes every public channel in the workspace,
+  joined or not, and membership is filtered here).
 
   The defaults sit inside Slack's tiers for an internal app: 40 history pages
   per step against `conversations.history`'s Tier 3 (~50/min), 20 list pages
@@ -53,10 +70,18 @@ defmodule AshEnterprise.Integration.Slack.Syncer do
       or a new consent, the actor lacks a grant, or landing is not wired.
     * `{:error, reason}` — transient; Oban retries with backoff.
 
-  Per-conversation failures do not stop the step: an `invalid_cursor` page
-  (`:gone`) triggers the explicit `ConversationCursor.reset_pass`, and a
-  conversation Slack no longer shows us (`channel_not_found`,
-  `not_in_channel`) is skipped.
+  Per-conversation failures do not stop the step. An `invalid_cursor` page
+  (`:gone`) triggers the explicit `ConversationCursor.reset_pass`. Any other
+  failure that is about *this conversation* — `channel_not_found`,
+  `not_in_channel`, `access_denied`, `ekm_access_denied`, an unmapped Slack
+  code — skips it: it is counted in `skipped`, its in-progress pass (if any) is
+  dropped while its high-water mark is kept, and it goes to the back of the
+  turn order, so it can neither block the conversations after it nor keep the
+  job snoozing. Only account-level failures stop the step: the token or
+  consent (`:unauthorized`, `:forbidden` with `missing_scope`,
+  `not_allowed_token_type` or no code), rate limiting, the edge or Nango
+  (`:not_configured`, `:connection_not_found`, `:nango_error`, `:transport`,
+  `:server_error`), or the actor's own grants.
 
   ## What never leaves the step
 
@@ -121,6 +146,25 @@ defmodule AshEnterprise.Integration.Slack.Syncer do
     :scoped_landing_not_wired
   ]
 
+  # History failures that are about the account or the edge rather than one
+  # conversation: they stop the step (and are classified by `outcome/2`).
+  @account_level [
+    :unauthorized,
+    :rate_limited,
+    :not_configured,
+    :connection_not_found,
+    :nango_error,
+    :transport,
+    :server_error,
+    :policy_forbidden,
+    :no_linked_account,
+    :ambiguous_linked_account,
+    :unknown
+  ]
+
+  # `:forbidden` codes that mean the token or its consent, not one channel.
+  @account_forbidden_codes [nil, "missing_scope", "not_allowed_token_type"]
+
   @lineage_job "slack.sync"
   @lineage_inputs ["slack.source"]
   @lineage_outputs ["slack.ingestion_source_objects"]
@@ -179,6 +223,7 @@ defmodule AshEnterprise.Integration.Slack.Syncer do
       budget: config.max_pages_per_step,
       noted: MapSet.new(),
       more?: false,
+      list_truncated?: false,
       counts: %{conversations: 0, messages: 0, users: 0, resets: 0, skipped: 0}
     }
   end
@@ -250,16 +295,24 @@ defmodule AshEnterprise.Integration.Slack.Syncer do
         acc = acc ++ Enum.filter(List.wrap(body["channels"]), &Records.member?/1)
         next = next_cursor(body)
 
-        if next && pages + 1 < state.config.max_list_pages do
-          list_conversations(state, next, acc, pages + 1)
-        else
-          {:ok, acc |> Enum.uniq_by(& &1["id"]) |> Enum.sort_by(& &1["id"]), state}
+        cond do
+          next && pages + 1 < state.config.max_list_pages ->
+            list_conversations(state, next, acc, pages + 1)
+
+          next ->
+            {:ok, distinct(acc), %{state | list_truncated?: true}}
+
+          true ->
+            {:ok, distinct(acc), state}
         end
 
       {:error, failure} ->
         {:stop, outcome(failure, state), state}
     end
   end
+
+  defp distinct(conversations),
+    do: conversations |> Enum.uniq_by(& &1["id"]) |> Enum.sort_by(& &1["id"])
 
   defp land_conversations(conversations, state) do
     Enum.reduce_while(conversations, {:ok, state}, fn conversation, {:ok, state} ->
@@ -288,17 +341,41 @@ defmodule AshEnterprise.Integration.Slack.Syncer do
       |> ConversationCursor.for_account!(authorize?: false)
       |> Map.new(&{&1.channel_id, &1})
 
-    Enum.reduce_while(conversations, {:ok, state}, fn %{"id" => channel}, {:ok, state} ->
-      if state.budget <= 0 do
-        {:halt, {:ok, %{state | more?: true}}}
-      else
-        case sync_conversation(channel, Map.get(cursors, channel), state) do
-          {:ok, state} -> {:cont, {:ok, state}}
-          {:stop, _, _} = stop -> {:halt, stop}
-        end
+    conversations
+    |> in_turn(cursors)
+    |> sync_in_turn(cursors, state)
+  end
+
+  # Never-visited conversations first (by id, for determinism), then the rest
+  # least-recently-visited first. Every visit writes the cursor row, so
+  # `updated_at` is the time of the last visit.
+  defp in_turn(conversations, cursors) do
+    Enum.sort_by(conversations, fn %{"id" => channel} ->
+      case Map.get(cursors, channel) do
+        nil -> {0, 0, channel}
+        %ConversationCursor{updated_at: at} -> {1, DateTime.to_unix(at, :microsecond), channel}
       end
     end)
   end
+
+  defp sync_in_turn([], _cursors, state), do: {:ok, state}
+
+  defp sync_in_turn([%{"id" => channel} | rest] = remaining, cursors, state) do
+    if state.budget <= 0 do
+      outstanding? = Enum.any?(remaining, &outstanding?(Map.get(cursors, &1["id"])))
+      {:ok, %{state | more?: state.more? or outstanding?}}
+    else
+      case sync_conversation(channel, Map.get(cursors, channel), state) do
+        {:ok, state} -> sync_in_turn(rest, cursors, state)
+        {:stop, _, _} = stop -> stop
+      end
+    end
+  end
+
+  # Work the budget left undone: a conversation never visited, or a pass left
+  # part-way. An up-to-date conversation is not outstanding work.
+  defp outstanding?(nil), do: true
+  defp outstanding?(%ConversationCursor{page_cursor: page}), do: is_binary(page)
 
   defp sync_conversation(channel, cursor, state) do
     pass =
@@ -391,15 +468,37 @@ defmodule AshEnterprise.Integration.Slack.Syncer do
     {:ok, bump(state, :resets)}
   end
 
-  # The conversation is gone, or we are no longer in it: skip it this step.
-  defp history_failure(_channel, _pass, %{reason: :not_found}, state),
-    do: {:ok, bump(state, :skipped)}
+  # The token, the consent, the edge or the actor: nothing else can succeed.
+  defp history_failure(_channel, _pass, %{reason: reason} = failure, state)
+       when reason in @account_level,
+       do: {:stop, outcome(failure, state), state}
 
-  defp history_failure(_channel, _pass, %{reason: :forbidden, code: "not_in_channel"}, state),
-    do: {:ok, bump(state, :skipped)}
+  defp history_failure(_channel, _pass, %{reason: :forbidden, code: code} = failure, state)
+       when code in @account_forbidden_codes,
+       do: {:stop, outcome(failure, state), state}
 
-  defp history_failure(_channel, _pass, failure, state),
-    do: {:stop, outcome(failure, state), state}
+  # Anything else is about this conversation (gone, left, access denied to it,
+  # an unmapped code): skip it, drop its in-progress pass, keep its high-water
+  # mark, and send it to the back of the turn order. Codes and ids only.
+  defp history_failure(channel, pass, failure, state) do
+    record = pass.record
+
+    save_position!(state, channel, %{
+      latest_ts: record && record.latest_ts,
+      pass_oldest: nil,
+      page_cursor: nil,
+      pass_latest_ts: nil,
+      synced_at: record && record.synced_at
+    })
+
+    Logger.warning(
+      "slack sync skipped a conversation reason=#{failure.reason} code=#{failure.code}",
+      linked_account_id: state.linked_account_id,
+      channel_id: channel
+    )
+
+    {:ok, bump(state, :skipped)}
+  end
 
   defp land_messages(channel, messages, oldest, state) do
     cursor = %{"oldest" => oldest}
@@ -587,13 +686,18 @@ defmodule AshEnterprise.Integration.Slack.Syncer do
     :telemetry.execute(
       [:ash_enterprise, :integration, :slack, :sync_step],
       counts,
-      %{linked_account_id: state.linked_account_id, outcome: label, more?: state.more?}
+      %{
+        linked_account_id: state.linked_account_id,
+        outcome: label,
+        more?: state.more?,
+        list_truncated?: state.list_truncated?
+      }
     )
 
     Logger.info(
       "slack sync step outcome=#{label} conversations=#{counts.conversations} " <>
         "messages=#{counts.messages} users=#{counts.users} resets=#{counts.resets} " <>
-        "skipped=#{counts.skipped} more=#{state.more?}",
+        "skipped=#{counts.skipped} more=#{state.more?} list_truncated=#{state.list_truncated?}",
       linked_account_id: state.linked_account_id
     )
 

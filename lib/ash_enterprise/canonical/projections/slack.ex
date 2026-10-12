@@ -7,15 +7,14 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
   (`AshEnterprise.Integration.Slack.Records`): the `slack.conversations`,
   `slack.messages` and `slack.users` streams. Output:
 
-    * one `Conversation` per conversation — `external_id` is the conversation
-      record's id, `subject` `"#name"` for a channel, `"Direct message with …"`
-      for an IM, `"Group direct message"` for an MPIM; `participants` the
-      Slack user ids that appear in it, plus the emails and person ids resolved
-      for them;
-    * one `Message` per projected message — body is Slack's `text`, `sent_at`
-      its `ts`, `direction` `:outbound` when the author is the account's own
-      Slack user, `:inbound` otherwise; join/leave/topic notices are landed
-      raw but not projected;
+    * one `Conversation` per **public channel** — `external_id` is the
+      conversation record's id, `subject` `"#name"`; `participants` the Slack
+      user ids that appear in it, plus the emails and person ids resolved for
+      them;
+    * one `Message` per projected message in a public channel — body is
+      Slack's `text`, `sent_at` its `ts`, `direction` `:outbound` when the
+      author is the account's own Slack user, `:inbound` otherwise;
+      join/leave/topic notices are landed raw but not projected;
     * one `Person` per member whose profile carries an email (the v1 linkage
       key, exactly as the calendar projector: no email, no person — a
       name-only row would be re-minted on every replay).
@@ -39,6 +38,19 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
   With no zone (the default), an undeclared zone, untagged data or tags the
   zone cannot hold, `project/3` and `replay/2` return `{:error, {:not_admitted,
   reason}}` and write nothing — checked before a single raw row is read.
+
+  ## Only public channels, for now
+
+  `Conversation` is **organization-owned**: any member with a read grant on it
+  sees every row. A DM's subject (`"Direct message with <name>"`) or a private
+  channel's name, and the participants' emails, are one user's private data,
+  so IMs, MPIMs and private channels are **not projected** — neither the
+  conversation nor its messages — until `Conversation` can carry a per-user
+  owner. A conversation is public only when its landed `conversations.list`
+  record says so (`is_channel`, `is_private: false`, not an IM or MPIM);
+  messages of a conversation with no landed record are not projected either,
+  because nothing says it is public. They stay landed raw, under the account's
+  shred scope.
 
   ## The account's own Slack user
 
@@ -150,10 +162,17 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
         Keyword.get_lazy(opts, :self_user_id, fn -> infer_self(conversations, messages) end)
 
       people = project_people(users, context)
-      conversation_rows = project_conversations(conversations, messages, users, people, context)
+
+      public =
+        Map.filter(conversations, fn {_id, conversation} -> public_channel?(conversation) end)
+
+      public_messages =
+        Enum.filter(messages, fn {channel, _} -> Map.has_key?(public, channel) end)
+
+      conversation_rows = project_conversations(public, public_messages, users, people, context)
 
       projected =
-        messages
+        public_messages
         |> Enum.filter(fn {_channel, message} -> message["subtype"] in @projected_subtypes end)
         |> Enum.map(&project_message(&1, conversation_rows, people, self_user_id, context))
 
@@ -226,18 +245,22 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
 
   # --- conversations ------------------------------------------------------------------
 
+  @doc false
+  # Public in the workspace, per the conversation's own landed record. Anything
+  # else — IM, MPIM, private channel, or a record that does not say — is not.
+  def public_channel?(%{"is_channel" => true, "is_private" => false} = conversation),
+    do: conversation["is_im"] != true and conversation["is_mpim"] != true
+
+  def public_channel?(_conversation), do: false
+
   defp project_conversations(conversations, messages, users, people, context) do
     authors_by_channel =
       Enum.group_by(messages, &elem(&1, 0), fn {_channel, message} -> message["user"] end)
 
-    channels =
-      (Map.keys(conversations) ++ Map.keys(authors_by_channel))
-      |> Enum.filter(&is_binary/1)
-      |> Enum.uniq()
-      |> Enum.sort()
+    channels = conversations |> Map.keys() |> Enum.filter(&is_binary/1) |> Enum.sort()
 
     Map.new(channels, fn channel ->
-      conversation = Map.get(conversations, channel, %{})
+      conversation = Map.fetch!(conversations, channel)
 
       user_ids =
         [conversation["user"] | Map.get(authors_by_channel, channel, [])]
@@ -259,7 +282,7 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
           %{
             external_system: Records.external_system(),
             external_id: Records.conversation_id(context.linked_account_id, channel),
-            subject: subject(conversation, users),
+            subject: subject(conversation),
             participants: participants
           },
           tenant: context.tenant_id,
@@ -271,13 +294,8 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
     end)
   end
 
-  defp subject(%{"is_im" => true, "user" => user_id}, users) do
-    "Direct message with " <> (users |> Map.get(user_id, %{}) |> display_name() || user_id)
-  end
-
-  defp subject(%{"is_mpim" => true}, _users), do: "Group direct message"
-  defp subject(%{"name" => name}, _users) when is_binary(name) and name != "", do: "#" <> name
-  defp subject(_conversation, _users), do: nil
+  defp subject(%{"name" => name}) when is_binary(name) and name != "", do: "#" <> name
+  defp subject(_conversation), do: nil
 
   # --- messages ------------------------------------------------------------------------
 

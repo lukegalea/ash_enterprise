@@ -323,6 +323,54 @@ defmodule AshEnterprise.Integration.SlackSyncTest do
              ) == 1
     end
 
+    test "more conversations than the page budget: every one is reached and the job finishes",
+         ctx do
+      # 3 base member conversations + 6 more, against a budget of 3 pages a step.
+      extra = extra_channels(ctx.world, 6)
+      members = Enum.sort([@general, @private, @dm | extra])
+      Application.put_env(:ash_enterprise, Syncer, max_pages_per_step: 3)
+      args = %{"user_id" => ctx.alice.id, "linked_account_id" => ctx.alice_slack.id}
+
+      outcomes =
+        Enum.reduce_while(1..10, [], fn _, acc ->
+          case perform_job(SyncWorker, args) do
+            :ok -> {:halt, [:ok | acc]}
+            other -> {:cont, [other | acc]}
+          end
+        end)
+
+      # 9 never-visited conversations at 3 a step: snooze, snooze, then done.
+      assert Enum.reverse(outcomes) == [{:snooze, 5}, {:snooze, 5}, :ok]
+      assert history_channels(ctx.world) |> Enum.uniq() |> Enum.sort() == members
+      assert ctx.alice_slack |> cursors() |> Map.keys() |> Enum.sort() == members
+
+      # Everything is up to date now: a step that cannot reach every
+      # conversation is not "more work", and the next step takes the ones it
+      # did not reach — least recently visited first.
+      reset_requests(ctx.world)
+      assert {:ok, %{more?: false}} = Syncer.step(ctx.alice, nil, now: @now)
+      first = history_channels(ctx.world)
+      assert length(first) == 3
+
+      reset_requests(ctx.world)
+      assert :ok = perform_job(SyncWorker, args)
+      second = history_channels(ctx.world)
+      assert length(second) == 3
+      assert MapSet.disjoint?(MapSet.new(first), MapSet.new(second))
+
+      reset_requests(ctx.world)
+      assert :ok = perform_job(SyncWorker, args)
+      third = history_channels(ctx.world)
+      assert Enum.sort(first ++ second ++ third) == members
+    end
+
+    test "a pass left part-way by the budget is still more work", ctx do
+      assert {:ok, %{more?: true}} =
+               step(ctx, history_limit: 1, max_pages_per_step: 1, max_pages_per_conversation: 5)
+
+      assert cursors(ctx.alice_slack)[@general].page_cursor == "page:1"
+    end
+
     test "members seen in a step without lookup budget are still fetched later", ctx do
       assert {:ok, %{users: 1, more?: true}} = step(ctx, max_user_lookups_per_step: 1)
       # No new messages: the remaining members come from the noted backlog.
@@ -467,6 +515,78 @@ defmodule AshEnterprise.Integration.SlackSyncTest do
       # Once Slack lets us back in, the step picks up where it stopped.
       rate_limit_history(ctx.world, nil)
       assert {:ok, %{messages: 7, users: 3}} = step(ctx)
+    end
+
+    @tag :capture_log
+    test "a conversation that keeps failing is skipped and does not block the others", ctx do
+      # Sorted first by id, and failing with codes that are about the channel.
+      fail_history(ctx.world, @general, "ekm_access_denied")
+      fail_history(ctx.world, @private, "synthetic_unmapped_code")
+
+      assert {:ok, %{skipped: 2, messages: 2, users: 2, more?: false}} = step(ctx)
+
+      cursors = cursors(ctx.alice_slack)
+      assert cursors[@dm].latest_ts == ts(4)
+      # Skipped conversations are visited (so they rotate to the back) but not synced.
+      assert is_nil(cursors[@general].latest_ts) and is_nil(cursors[@general].synced_at)
+      assert is_nil(cursors[@private].latest_ts)
+
+      # The worker finishes rather than retrying or cancelling the account.
+      args = %{"user_id" => ctx.alice.id, "linked_account_id" => ctx.alice_slack.id}
+      assert :ok = perform_job(SyncWorker, args)
+
+      # Once the channel recovers it backfills from the window as normal.
+      fail_history(ctx.world, @general, nil)
+      fail_history(ctx.world, @private, nil)
+      assert {:ok, %{skipped: 0, messages: 5}} = step(ctx)
+      assert cursors(ctx.alice_slack)[@general].latest_ts == ts(7)
+    end
+
+    @tag :capture_log
+    test "a skipped conversation drops its part-way pass but keeps its high-water mark", ctx do
+      assert {:ok, _} = step(ctx)
+
+      add_messages(ctx.world, @general, [
+        msg(@bob_slack, 3, "SYNTHETIC-TEXT-GEN-6"),
+        msg(@bob_slack, 2, "SYNTHETIC-TEXT-GEN-7")
+      ])
+
+      assert {:ok, %{more?: true}} = step(ctx, history_limit: 1, max_pages_per_conversation: 1)
+      assert cursors(ctx.alice_slack)[@general].page_cursor == "page:1"
+
+      fail_history(ctx.world, @general, "access_denied")
+      assert {:ok, %{skipped: 1, more?: false}} = step(ctx)
+
+      general = cursors(ctx.alice_slack)[@general]
+      assert is_nil(general.page_cursor)
+      assert general.latest_ts == ts(7)
+    end
+
+    test "account-level history failures still stop the step", ctx do
+      fail_history(ctx.world, @dm, "missing_scope")
+      assert {:cancel, :forbidden} = step(ctx)
+    end
+
+    test "a truncated conversations.list is reported, not silently dropped", ctx do
+      test_pid = self()
+      handler = "slack-sync-truncation-#{System.unique_integer([:positive])}"
+
+      :telemetry.attach(
+        handler,
+        [:ash_enterprise, :integration, :slack, :sync_step],
+        fn _event, _measurements, metadata, _ -> send(test_pid, {:telemetry, metadata}) end,
+        nil
+      )
+
+      try do
+        assert {:ok, _} = step(ctx, list_limit: 1, max_list_pages: 2)
+        assert_received {:telemetry, %{list_truncated?: true}}
+
+        assert {:ok, _} = step(ctx)
+        assert_received {:telemetry, %{list_truncated?: false}}
+      after
+        :telemetry.detach(handler)
+      end
     end
 
     test "a revoked token cancels: retrying cannot help", ctx do
@@ -649,22 +769,19 @@ defmodule AshEnterprise.Integration.SlackSyncTest do
       assert Message.read!(tenant: ctx.org.id, authorize?: false) == []
     end
 
-    test "once admitted, projects conversations, messages and emailed people deterministically",
+    test "once admitted, projects public channels, their messages and emailed people deterministically",
          ctx do
       declare_zone(ctx.tmp_dir, data_class: :customer_confidential, residency: "CA")
       assert {:ok, _} = step(ctx)
 
-      assert {:ok, %{conversations: 3, messages: 6, people: 2}} = Projection.replay(ctx.alice)
+      assert {:ok, %{conversations: 1, messages: 3, people: 2}} = Projection.replay(ctx.alice)
 
-      conversations = Conversation.read!(tenant: ctx.org.id, authorize?: false)
+      assert [general] = Conversation.read!(tenant: ctx.org.id, authorize?: false)
+      assert general.subject == "#synthetic-general"
 
-      assert conversations |> Enum.map(& &1.subject) |> Enum.sort() ==
-               ["#synthetic-general", "#synthetic-private", "Direct message with Bob Synthetic"]
+      assert general.participants["slack_user_ids"] == [@alice_slack, @bob_slack, @carol_slack]
 
-      dm = Enum.find(conversations, &(&1.subject == "Direct message with Bob Synthetic"))
-      assert dm.participants["slack_user_ids"] == [@alice_slack, @bob_slack]
-
-      assert dm.participants["emails"] ==
+      assert general.participants["emails"] ==
                ["alice.synthetic@example.test", "bob.synthetic@example.test"]
 
       people = Person.read!(tenant: ctx.org.id, authorize?: false)
@@ -673,27 +790,92 @@ defmodule AshEnterprise.Integration.SlackSyncTest do
                ["alice.synthetic@example.test", "bob.synthetic@example.test"]
 
       messages = Message.read!(tenant: ctx.org.id, authorize?: false)
-      assert length(messages) == 6
-      refute Enum.any?(messages, &(&1.body =~ "has joined"))
+
+      assert messages |> Enum.map(& &1.body) |> Enum.sort() ==
+               ["SYNTHETIC-TEXT-GEN-1", "SYNTHETIC-TEXT-GEN-2", "SYNTHETIC-TEXT-GEN-4"]
+
       assert Enum.all?(messages, &(&1.owner_id == ctx.alice.id))
+      assert Enum.all?(messages, &(&1.conversation_id == general.id))
 
-      # Alice is the account holder (inferred from the DM): her messages are outbound.
+      # Alice is the account holder (inferred from the DM, which is read for
+      # that but not projected): her messages are outbound.
       outbound = messages |> Enum.filter(&(&1.direction == :outbound)) |> Enum.map(& &1.body)
-      assert Enum.sort(outbound) == ["SYNTHETIC-TEXT-DM-2", "SYNTHETIC-TEXT-GEN-1"]
+      assert outbound == ["SYNTHETIC-TEXT-GEN-1"]
 
-      dm_message = Enum.find(messages, &(&1.body == "SYNTHETIC-TEXT-DM-1"))
-      assert dm_message.conversation_id == dm.id
-      assert dm_message.sent_at == Records.ts_to_datetime(ts(5))
+      bob_message = Enum.find(messages, &(&1.body == "SYNTHETIC-TEXT-GEN-2"))
+      assert bob_message.sent_at == Records.ts_to_datetime(ts(9))
       bob = Enum.find(people, &(to_string(&1.email) == "bob.synthetic@example.test"))
-      assert dm_message.sender_id == bob.id
-
-      carol_message = Enum.find(messages, &(&1.body == "SYNTHETIC-TEXT-PRV-1"))
-      assert is_nil(carol_message.sender_id)
+      assert bob_message.sender_id == bob.id
 
       # Replay converges: same rows, same values.
       snapshot = canonical_snapshot(ctx.org)
-      assert {:ok, %{conversations: 3, messages: 6, people: 2}} = Projection.replay(ctx.alice)
+      assert {:ok, %{conversations: 1, messages: 3, people: 2}} = Projection.replay(ctx.alice)
       assert canonical_snapshot(ctx.org) == snapshot
+    end
+
+    test "never writes a DM, group DM or private channel into the organization-owned table",
+         ctx do
+      declare_zone(ctx.tmp_dir, data_class: :customer_confidential, residency: "CA")
+
+      add_channels(ctx.world, [
+        %{
+          "id" => "G0SYNTH0MPM",
+          "name" => "mpdm-synthetic-group",
+          "is_mpim" => true,
+          "is_private" => true,
+          "is_member" => true,
+          "created" => 1_700_000_000
+        },
+        # A modern private channel: is_channel true, but private.
+        %{
+          "id" => "C0SYNTH0PRV",
+          "name" => "synthetic-private-modern",
+          "is_channel" => true,
+          "is_private" => true,
+          "is_member" => true,
+          "created" => 1_700_000_000
+        }
+      ])
+
+      add_messages(ctx.world, "G0SYNTH0MPM", [msg(@bob_slack, 2, "SYNTHETIC-TEXT-MPIM-1")])
+      add_messages(ctx.world, "C0SYNTH0PRV", [msg(@bob_slack, 2, "SYNTHETIC-TEXT-PRV-2")])
+
+      assert {:ok, %{conversations: 5}} = step(ctx)
+      assert {:ok, %{conversations: 1}} = Projection.replay(ctx.alice)
+
+      private_ids = [@dm, @private, "G0SYNTH0MPM", "C0SYNTH0PRV"]
+
+      conversations = Conversation.read!(tenant: ctx.org.id, authorize?: false)
+      assert Enum.map(conversations, & &1.subject) == ["#synthetic-general"]
+
+      refute Enum.any?(conversations, fn c ->
+               Enum.any?(private_ids, &String.ends_with?(c.external_id, "/" <> &1))
+             end)
+
+      bodies = Message.read!(tenant: ctx.org.id, authorize?: false) |> Enum.map(& &1.body)
+
+      for body <- [
+            "SYNTHETIC-TEXT-DM-1",
+            "SYNTHETIC-TEXT-DM-2",
+            "SYNTHETIC-TEXT-PRV-1",
+            "SYNTHETIC-TEXT-PRV-2",
+            "SYNTHETIC-TEXT-MPIM-1"
+          ],
+          do: refute(body in bodies)
+
+      # Unprojected is not unlanded: the raw records stay under the shred scope.
+      assert Enum.any?(slack_source_objects(), fn {_, external_id, _} ->
+               String.ends_with?(external_id, "/conversation/" <> @dm)
+             end)
+    end
+
+    test "public_channel? reads only the conversation's own record" do
+      assert Projection.public_channel?(%{"is_channel" => true, "is_private" => false})
+      refute Projection.public_channel?(%{"is_channel" => true, "is_private" => true})
+      refute Projection.public_channel?(%{"is_channel" => true})
+      refute Projection.public_channel?(%{"is_im" => true})
+      refute Projection.public_channel?(%{"is_mpim" => true, "is_private" => true})
+      refute Projection.public_channel?(%{"is_group" => true, "is_private" => true})
     end
   end
 
@@ -706,6 +888,7 @@ defmodule AshEnterprise.Integration.SlackSyncTest do
       messages: initial_messages(),
       requests: [],
       invalid_cursors: MapSet.new(),
+      history_errors: %{},
       rate_limit_history: nil,
       revoked?: false
     }
@@ -752,6 +935,9 @@ defmodule AshEnterprise.Integration.SlackSyncTest do
       MapSet.member?(state.invalid_cursors, query["cursor"]) ->
         %{"ok" => false, "error" => "invalid_cursor"}
 
+      code = Map.get(state.history_errors, query["channel"]) ->
+        %{"ok" => false, "error" => code}
+
       true ->
         oldest = query["oldest"]
 
@@ -796,6 +982,45 @@ defmodule AshEnterprise.Integration.SlackSyncTest do
     Agent.update(world, fn state ->
       update_in(state, [:messages, channel], &((&1 || []) ++ messages))
     end)
+  end
+
+  defp add_channels(world, channels),
+    do: Agent.update(world, &%{&1 | channels: &1.channels ++ channels})
+
+  defp fail_history(world, channel, nil),
+    do: Agent.update(world, &%{&1 | history_errors: Map.delete(&1.history_errors, channel)})
+
+  defp fail_history(world, channel, code),
+    do: Agent.update(world, &%{&1 | history_errors: Map.put(&1.history_errors, channel, code)})
+
+  defp history_channels(world) do
+    world
+    |> requests()
+    |> Enum.filter(&(&1.path == "/proxy/conversations.history"))
+    |> Enum.map(& &1.query["channel"])
+  end
+
+  # Joined public channels beyond the base workspace, one message each.
+  defp extra_channels(world, n) do
+    ids = for i <- 1..n, do: "C1SYNTH0X" <> String.pad_leading(Integer.to_string(i), 2, "0")
+
+    add_channels(
+      world,
+      for id <- ids do
+        %{
+          "id" => id,
+          "name" => "synthetic-extra-#{String.downcase(id)}",
+          "is_channel" => true,
+          "is_private" => false,
+          "is_archived" => false,
+          "is_member" => true,
+          "created" => 1_700_000_000
+        }
+      end
+    )
+
+    for id <- ids, do: add_messages(world, id, [msg(@bob_slack, 2, "SYNTHETIC-TEXT-EXTRA")])
+    ids
   end
 
   defp invalidate_cursor(world, cursor),

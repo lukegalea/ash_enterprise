@@ -18,9 +18,12 @@ defmodule AshEnterprise.Integration.Slack.SyncWorker do
   Outcomes map onto Oban's:
 
     * a finished step → `:ok`;
-    * a step that stopped on its budget (`more?: true`) → snooze
-      `continue_after_seconds` (default 5) and carry on — snoozing keeps the
-      one job, so uniqueness holds through a long backfill;
+    * a step that stopped on its budget with known outstanding work
+      (`more?: true`: a pass left part-way, a conversation never visited, or
+      members still due) → snooze `continue_after_seconds` (default 5) and
+      carry on — snoozing keeps the one job, so uniqueness holds through a long
+      backfill. Up-to-date conversations the budget did not reach are not
+      outstanding work, so the job always reaches `:ok`;
     * Slack rate limiting → snooze for its `Retry-After`;
     * re-link / consent / grant / not-wired → `{:cancel, reason}`;
     * anything transient → `{:error, reason}`, retried with backoff.
