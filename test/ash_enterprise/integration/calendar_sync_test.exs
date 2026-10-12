@@ -121,7 +121,7 @@ defmodule AshEnterprise.Integration.CalendarSyncTest do
     )
 
     Application.put_env(:ash_enterprise, @landing_env, lander: SourceObjectLander)
-    Application.put_env(:ash_enterprise, @calendar_env, actor_loader: GrantedLoader)
+    put_calendar_env(actor_loader: GrantedLoader)
     Process.put(:calendar_test_pid, self())
 
     on_exit(fn ->
@@ -222,9 +222,7 @@ defmodule AshEnterprise.Integration.CalendarSyncTest do
       stub_google(first_sync_routes())
       {:ok, _} = Sync.run_step(%{linked_account_id: ctx.alice_cal.id}, actor: ctx.alice)
 
-      primary = cursor_for(ctx, F.primary_calendar())
-
-      planning = event!(ctx.org, Projector.external_id(primary.id, "synthev0001"))
+      planning = event!(ctx.org, external_id(ctx.alice, F.primary_calendar(), "synthev0001"))
       assert planning.title == "#{F.marker()} planning block"
       assert planning.starts_at == ~U[2026-10-13 13:00:00.000000Z]
       assert planning.ends_at == ~U[2026-10-13 13:30:00.000000Z]
@@ -236,7 +234,7 @@ defmodule AshEnterprise.Integration.CalendarSyncTest do
       assert organizer.name == "Ada #{F.marker()}"
       assert organizer.owner_id == ctx.alice.id
 
-      offsite = event!(ctx.org, Projector.external_id(primary.id, "synthev0003"))
+      offsite = event!(ctx.org, external_id(ctx.alice, F.primary_calendar(), "synthev0003"))
       assert offsite.starts_at == ~U[2026-10-16 00:00:00.000000Z]
       assert offsite.ends_at == ~U[2026-10-17 00:00:00.000000Z]
 
@@ -249,6 +247,38 @@ defmodule AshEnterprise.Integration.CalendarSyncTest do
                  "linus@example.test",
                  F.primary_calendar()
                ])
+    end
+
+    test "a deleted event that a full sync returns in full is not created as a live row", ctx do
+      stub_google(
+        put_in(
+          first_sync_routes(),
+          [:events, {F.team_calendar(), nil, nil}],
+          {200, F.events_page([F.planning_event(), F.deleted_event()], {:sync, "sync-team-1"})}
+        )
+      )
+
+      assert {:ok, summary} =
+               Sync.run_step(%{linked_account_id: ctx.alice_cal.id}, actor: ctx.alice)
+
+      assert summary.landed == 5
+      assert summary.projection.projected == 4
+
+      if Projector.status_supported?() do
+        assert summary.projection.cancelled == 1
+      else
+        # No status to record it with: nothing is created.
+        assert summary.projection.skipped == 1
+
+        assert CalendarEvent.by_external!(
+                 "google_calendar",
+                 external_id(ctx.alice, F.team_calendar(), "synthev0004"),
+                 tenant: ctx.org.id,
+                 authorize?: false
+               ) == nil
+
+        assert length(events(ctx.org)) == 4
+      end
     end
 
     test "the page budget stops mid-pass and the next step resumes from the page token", ctx do
@@ -326,7 +356,7 @@ defmodule AshEnterprise.Integration.CalendarSyncTest do
       primary = cursor_for(ctx, F.primary_calendar())
       assert primary.sync_token == "sync-primary-2"
 
-      review = event!(ctx.org, Projector.external_id(primary.id, "synthev0002"))
+      review = event!(ctx.org, external_id(ctx.alice, F.primary_calendar(), "synthev0002"))
       assert review.title == "#{F.marker()} design review (moved)"
       assert length(events(ctx.org)) == 4
       assert source_object_count() == 4
@@ -346,8 +376,7 @@ defmodule AshEnterprise.Integration.CalendarSyncTest do
       assert {:ok, summary} =
                Sync.run_step(%{linked_account_id: ctx.alice_cal.id}, actor: ctx.alice)
 
-      primary = cursor_for(ctx, F.primary_calendar())
-      review = event!(ctx.org, Projector.external_id(primary.id, "synthev0002"))
+      review = event!(ctx.org, external_id(ctx.alice, F.primary_calendar(), "synthev0002"))
 
       # The row survives with its title and times.
       assert review.title == "#{F.marker()} design review"
@@ -516,7 +545,11 @@ defmodule AshEnterprise.Integration.CalendarSyncTest do
         |> Ash.read!(authorize?: false)
 
       assert {:ok, %{projected: 4}} =
-               Projector.replay(sources, %{owner_id: ctx.alice.id, tenant_id: ctx.org.id})
+               Projector.replay(sources, %{
+                 owner_id: ctx.alice.id,
+                 tenant_id: ctx.org.id,
+                 allow_audited_content?: true
+               })
 
       assert snapshot(ctx.org) == before
     end
@@ -617,10 +650,10 @@ defmodule AshEnterprise.Integration.CalendarSyncTest do
   # --- landing and authorization ----------------------------------------------------
 
   describe "nothing lands without scoped landing" do
-    test "the default lander refuses: nothing persisted, no cursor advanced, the job cancels",
+    test "the default lander refuses before any request: no rows, no cursors, the job cancels",
          ctx do
       Application.delete_env(:ash_enterprise, @landing_env)
-      stub_google(first_sync_routes())
+      tripwire_stub()
 
       assert {:error, error} =
                Sync.run_step(%{linked_account_id: ctx.alice_cal.id}, actor: ctx.alice)
@@ -628,17 +661,283 @@ defmodule AshEnterprise.Integration.CalendarSyncTest do
       assert %SyncError{reason: :landing_refused, detail: :scoped_landing_not_wired} =
                SyncError.unwrap(error)
 
+      refute_received :http_called
       assert source_object_count() == 0
       assert events(ctx.org) == []
       assert people(ctx.org) == []
 
-      for cursor <- cursors(ctx) do
-        assert cursor.sync_token == nil
-        assert cursor.page_token == nil
-      end
+      # Not even a cursor row: its calendar id is often an email address.
+      assert cursors(ctx) == []
 
       assert {:cancel, "landing_refused: scoped_landing_not_wired"} =
                perform_job(SyncWorker, SyncWorker.args(ctx.alice_cal))
+
+      refute_received :http_called
+      assert cursors(ctx) == []
+    end
+  end
+
+  # --- the audit log -------------------------------------------------------------------
+
+  describe "the audit log" do
+    test "while content would be audited in plaintext, the step refuses before any request",
+         ctx do
+      assert Projector.audit_exposure() != [],
+             "event content is no longer audited in plaintext: drop the " <>
+               "allow_audited_content? override from put_calendar_env/1 and this test"
+
+      Application.put_env(:ash_enterprise, @calendar_env, actor_loader: GrantedLoader)
+      tripwire_stub()
+
+      assert {:error, error} =
+               Sync.run_step(%{linked_account_id: ctx.alice_cal.id}, actor: ctx.alice)
+
+      assert %SyncError{reason: :content_would_be_audited} = SyncError.unwrap(error)
+      refute_received :http_called
+      assert cursors(ctx) == []
+      assert events(ctx.org) == []
+
+      assert {:cancel, "content_would_be_audited"} =
+               perform_job(SyncWorker, SyncWorker.args(ctx.alice_cal))
+
+      assert {:error, :content_would_be_audited} =
+               Projector.replay(
+                 [
+                   %{
+                     external_system: Projector.external_system(),
+                     external_id: "gcal:synthetic/synthev0001",
+                     raw_payload: F.planning_event()
+                   }
+                 ],
+                 %{owner_id: ctx.alice.id, tenant_id: ctx.org.id}
+               )
+
+      assert events(ctx.org) == []
+      assert people(ctx.org) == []
+    end
+
+    test "no content reaches the event log except through an attribute audit_exposure names",
+         ctx do
+      stub_google(first_sync_routes())
+      {:ok, _} = Sync.run_step(%{linked_account_id: ctx.alice_cal.id}, actor: ctx.alice)
+
+      exposure = Projector.audit_exposure()
+
+      rows =
+        AshEnterprise.Audit.EventLog
+        |> Ash.Query.filter(resource in [^CalendarEvent, ^Person])
+        |> Ash.read!(tenant: ctx.org.id, authorize?: false)
+
+      assert rows != []
+
+      # Once audit_exposure/0 is empty this is the plain assertion that the
+      # event log holds none of the fixture content.
+      for row <- rows, {field, value} <- row.data, is_binary(value) do
+        if Enum.any?(F.content_strings(), &String.contains?(value, &1)) do
+          assert {row.resource, String.to_existing_atom(to_string(field))} in exposure,
+                 "#{inspect(row.resource)}.#{field} reached the event log in plaintext " <>
+                   "but audit_exposure/0 does not report it"
+        end
+      end
+    end
+  end
+
+  # --- concurrent writers ----------------------------------------------------------------
+
+  describe "concurrent writers" do
+    setup ctx do
+      stub_google(first_sync_routes())
+      {:ok, _} = Sync.run_step(%{linked_account_id: ctx.alice_cal.id}, actor: ctx.alice)
+      _ = collect_landed()
+      _ = events_requests()
+      :ok
+    end
+
+    test "an operator reset during an in-flight step is not undone by it", ctx do
+      reset_mid_flight = fn ->
+        {:ok, %{reset: 2}} =
+          Sync.reset_sync(%{linked_account_id: ctx.alice_cal.id}, actor: ctx.alice)
+
+        {200,
+         F.events_page(
+           [F.review_event("#{F.marker()} design review (moved)")],
+           {:sync, "sync-primary-2"}
+         )}
+      end
+
+      stub_google(%{
+        calendar_list: {200, F.calendar_list()},
+        events: %{
+          {F.primary_calendar(), "sync-primary-1", nil} => reset_mid_flight,
+          {F.team_calendar(), "sync-team-1", nil} =>
+            {200, F.events_page([], {:sync, "sync-team-2"})}
+        }
+      })
+
+      assert {:ok, summary} =
+               Sync.run_step(%{linked_account_id: ctx.alice_cal.id}, actor: ctx.alice)
+
+      # Both cursors were reset under the step; neither write went through.
+      assert summary.status == :more
+      assert summary.superseded == 2
+
+      for cursor <- cursors(ctx) do
+        assert cursor.sync_token == nil
+        assert cursor.page_token == nil
+        assert cursor.reset_count == 1
+      end
+
+      # The worker would snooze, and the next step is the full sync the reset asked for.
+      _ = events_requests()
+      stub_google(first_sync_routes())
+
+      assert {:ok, %{status: :complete, superseded: 0}} =
+               Sync.run_step(%{linked_account_id: ctx.alice_cal.id}, actor: ctx.alice)
+
+      assert Enum.all?(events_requests(), &(not Map.has_key?(&1.query, "syncToken")))
+      assert cursor_for(ctx, F.primary_calendar()).sync_token == "sync-primary-1"
+    end
+
+    test "a step that lost the race leaves the winner's tokens, never a mixed pair", ctx do
+      {:ok, _} = Sync.reset_sync(%{linked_account_id: ctx.alice_cal.id}, actor: ctx.alice)
+
+      # Another step got to the primary calendar's cursor first and is on its own
+      # second page by the time this step's last page comes back.
+      other_step_advances = fn ->
+        row = cursor_for(ctx, F.primary_calendar())
+
+        SyncCursor.page!(
+          row,
+          "page-other-pass-synthetic",
+          %{
+            expected_sync_token: row.sync_token,
+            expected_page_token: row.page_token,
+            expected_reset_count: row.reset_count
+          },
+          tenant: ctx.org.id,
+          authorize?: false
+        )
+
+        {200, F.events_page([F.offsite_event()], {:sync, "sync-primary-mine"})}
+      end
+
+      stub_google(
+        put_in(
+          first_sync_routes(),
+          [:events, {F.primary_calendar(), nil, "page-2-synthetic"}],
+          other_step_advances
+        )
+      )
+
+      assert {:ok, %{status: :more, superseded: 1}} =
+               Sync.run_step(%{linked_account_id: ctx.alice_cal.id}, actor: ctx.alice)
+
+      primary = cursor_for(ctx, F.primary_calendar())
+      assert primary.sync_token == nil
+      assert primary.page_token == "page-other-pass-synthetic"
+
+      # The other calendar was not involved and completed normally.
+      assert cursor_for(ctx, F.team_calendar()).sync_token == "sync-team-1"
+    end
+
+    test "a 410 reset does not discard a token another writer stored meanwhile", ctx do
+      completes_elsewhere = fn ->
+        row = cursor_for(ctx, F.primary_calendar())
+
+        SyncCursor.complete!(
+          row,
+          "sync-primary-elsewhere",
+          %{
+            expected_sync_token: row.sync_token,
+            expected_page_token: row.page_token,
+            expected_reset_count: row.reset_count
+          },
+          tenant: ctx.org.id,
+          authorize?: false
+        )
+
+        {410, F.gone()}
+      end
+
+      stub_google(%{
+        calendar_list: {200, F.calendar_list()},
+        events: %{
+          {F.primary_calendar(), "sync-primary-1", nil} => completes_elsewhere,
+          {F.team_calendar(), "sync-team-1", nil} =>
+            {200, F.events_page([], {:sync, "sync-team-2"})}
+        }
+      })
+
+      assert {:ok, %{status: :more, superseded: 1, resets: 0}} =
+               Sync.run_step(%{linked_account_id: ctx.alice_cal.id}, actor: ctx.alice)
+
+      primary = cursor_for(ctx, F.primary_calendar())
+      assert primary.sync_token == "sync-primary-elsewhere"
+      assert primary.reset_count == 0
+    end
+  end
+
+  # --- relinking ---------------------------------------------------------------------------
+
+  describe "unlink and relink" do
+    test "relinking the same Google account re-syncs into the same canonical rows", ctx do
+      stub_google(first_sync_routes())
+      {:ok, _} = Sync.run_step(%{linked_account_id: ctx.alice_cal.id}, actor: ctx.alice)
+      before = snapshot(ctx.org)
+      assert length(events(ctx.org)) == 4
+
+      LinkedAccount.unlink!(ctx.alice_cal, tenant: ctx.org.id, authorize?: false)
+      assert cursors(ctx) == []
+
+      relinked = link!(ctx.alice, "google-calendar", "conn-cal-alice-relinked-synthetic")
+      assert relinked.id != ctx.alice_cal.id
+
+      assert {:ok, %{status: :complete, landed: 4}} =
+               Sync.run_step(%{linked_account_id: relinked.id}, actor: ctx.alice)
+
+      new_cursors = SyncCursor.for_account!(relinked.id, tenant: ctx.org.id, authorize?: false)
+      assert length(new_cursors) == 2
+
+      assert snapshot(ctx.org) == before
+      assert source_object_count() == 4
+    end
+  end
+
+  # --- people across owners ----------------------------------------------------------------
+
+  describe "people across owners" do
+    test "another owner's sync links to an existing person without rewriting it", ctx do
+      stub_google(first_sync_routes())
+      {:ok, _} = Sync.run_step(%{linked_account_id: ctx.alice_cal.id}, actor: ctx.alice)
+
+      ada = Enum.find(people(ctx.org), &(to_string(&1.email) == "ada@example.test"))
+      assert ada.owner_id == ctx.alice.id
+      assert ada.name == "Ada #{F.marker()}"
+
+      renamed =
+        F.planning_event()
+        |> put_in(["organizer", "displayName"], "Ada renamed #{F.marker()}")
+        |> put_in(["attendees"], [
+          %{"email" => "ada@example.test", "displayName" => "Ada renamed #{F.marker()}"}
+        ])
+
+      stub_google(%{
+        calendar_list: {200, F.calendar_list([F.team_calendar()])},
+        events: %{
+          {F.team_calendar(), nil, nil} => {200, F.events_page([renamed], {:sync, "sync-bob-1"})}
+        }
+      })
+
+      assert {:ok, %{landed: 1}} =
+               Sync.run_step(%{linked_account_id: ctx.bob_cal.id}, actor: ctx.bob)
+
+      ada_after = Ash.get!(Person, ada.id, tenant: ctx.org.id, authorize?: false)
+      assert ada_after.name == "Ada #{F.marker()}"
+      assert ada_after.owner_id == ctx.alice.id
+
+      bobs = event!(ctx.org, external_id(ctx.bob, F.team_calendar(), "synthev0001"))
+      assert bobs.owner_id == ctx.bob.id
+      assert bobs.organizer_id == ada.id
     end
   end
 
@@ -706,7 +1005,9 @@ defmodule AshEnterprise.Integration.CalendarSyncTest do
 
   # Answers calendarList and events.list from a route table keyed on
   # {calendar_id, syncToken, pageToken}; anything unrouted is a 404 so a test
-  # that forgets a route fails loudly.
+  # that forgets a route fails loudly. A route may be a zero-arity function,
+  # called while the request is in flight, which is how the race tests make
+  # another writer act between a step's fetch and its cursor write.
   defp stub_google(routes) do
     test_pid = self()
 
@@ -722,7 +1023,7 @@ defmodule AshEnterprise.Integration.CalendarSyncTest do
 
       send(test_pid, {:request, summary})
 
-      {status, body} =
+      route =
         case summary do
           %{path: @calendar_list_path} ->
             routes.calendar_list
@@ -735,11 +1036,16 @@ defmodule AshEnterprise.Integration.CalendarSyncTest do
             )
         end
 
+      {status, body} = respond(route)
+
       conn
       |> Plug.Conn.put_status(status)
       |> Req.Test.json(body)
     end)
   end
+
+  defp respond(route) when is_function(route, 0), do: route.()
+  defp respond(route), do: route
 
   defp calendar_of(path) do
     case Regex.run(~r{^/proxy/calendar/v3/calendars/([^/]+)/events$}, path) do
@@ -820,8 +1126,19 @@ defmodule AshEnterprise.Integration.CalendarSyncTest do
     |> Ash.count!(authorize?: false)
   end
 
+  # Every fixture here is synthetic, so this suite may project content that
+  # the audit log would record in plaintext (see "the audit log" below for the
+  # test that the guard holds without this override).
   defp put_calendar_env(opts) do
-    Application.put_env(:ash_enterprise, @calendar_env, opts)
+    Application.put_env(
+      :ash_enterprise,
+      @calendar_env,
+      Keyword.put_new(opts, :allow_audited_content?, true)
+    )
+  end
+
+  defp external_id(owner, calendar_id, event_id) do
+    Projector.external_id(Projector.calendar_key(owner.id, calendar_id), event_id)
   end
 
   defp actor(user, org, grants \\ grants()) do

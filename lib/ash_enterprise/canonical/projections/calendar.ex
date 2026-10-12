@@ -31,19 +31,46 @@ defmodule AshEnterprise.Canonical.Projections.Calendar do
   ## Cancellation
 
   A cancelled event must not vanish. Incremental syncs report a deletion as a
-  bare `{"id", "status": "cancelled"}` item, so:
+  bare `{"id", "status": "cancelled"}` item. A full sync (the first one, and
+  every resync after a reset) asks for `showDeleted=true`, so it can also
+  return events deleted long ago, sometimes with their full start, end and
+  summary. So:
 
     * the event already has a canonical row → the row is kept, its title and
       times untouched, and its status set to cancelled;
-    * it has none, but the payload is complete → it is created cancelled;
-    * it has none and the payload is bare → nothing to keep; counted as
-      `:skipped`.
+    * it has none, the payload is complete, and `CalendarEvent` can record a
+      status → it is created cancelled;
+    * it has none, and either the payload is bare or no status can be
+      recorded → nothing is created; counted as `:skipped`. Without a status
+      attribute, a created row would make a deleted meeting look live to
+      every reader of `CalendarEvent`.
 
   `CalendarEvent` does not have a status attribute yet (that file belongs to
   another change). Until it accepts `:status` on `:upsert_from_source`, the
-  status is computed but not written, and the outcome is
+  status is computed but not written, and a kept row's outcome is
   `:cancelled_unrecorded` so the gap is visible in every sync summary rather
   than silent. `status_supported?/0` reports which world this is.
+
+  ## People are not rewritten across owners
+
+  `Person` is unique on email across the whole tenant. A contact first
+  projected from one user's calendar is owned by that user and was written
+  under that user's landing scope. When another owner's event names the same
+  address, the event links to the existing row and leaves the row alone, so
+  no other owner's display name overwrites it. Whether people should be
+  scoped per owner or per linked account is an open question for
+  `AshEnterprise.Canonical.Person`.
+
+  ## Content and the audit log
+
+  `CalendarEvent` and `Person` are audited (`AshEvents`). The event log stores
+  each write's params as `data` and masks only `sensitive?` attributes. Today
+  title, location, name and email are not sensitive, so every projection
+  would copy them into the central event log in plaintext. That copy sits
+  outside the landing scope, so shredding the account would not erase it.
+  `audit_exposure/0` lists the exposed attributes. `project/2` and `replay/2`
+  refuse to write while that list is non-empty, unless the context sets
+  `allow_audited_content?: true`. Only tests over synthetic data set it.
 
   ## The iCalUID is not written (yet)
 
@@ -65,6 +92,8 @@ defmodule AshEnterprise.Canonical.Projections.Calendar do
 
   alias AshEnterprise.Canonical.{CalendarEvent, Person}
 
+  require Ash.Query
+
   @external_system "google_calendar"
   @stream "calendar.events"
 
@@ -80,7 +109,8 @@ defmodule AshEnterprise.Canonical.Projections.Calendar do
           required(:tenant_id) => Ash.UUID.t(),
           optional(:business_unit_id) => Ash.UUID.t() | nil,
           optional(:actor) => term(),
-          optional(:scope) => String.t() | nil
+          optional(:scope) => String.t() | nil,
+          optional(:allow_audited_content?) => boolean()
         }
 
   @type outcome :: :projected | :cancelled | :cancelled_unrecorded | :skipped
@@ -92,8 +122,8 @@ defmodule AshEnterprise.Canonical.Projections.Calendar do
   def stream, do: @stream
 
   @doc """
-  The external id an event lands under: the opaque calendar key (the sync
-  cursor's id) plus Google's event id. Event ids are unique per calendar only,
+  The external id an event lands under: the opaque calendar key
+  (`calendar_key/2`) plus Google's event id. Event ids are unique per calendar only,
   and the same meeting carries the same id on every attendee's calendar, so the
   bare event id would collide across calendars and accounts.
 
@@ -108,6 +138,66 @@ defmodule AshEnterprise.Canonical.Projections.Calendar do
     else
       calendar_key <> "/sha256:" <> Base.encode16(:crypto.hash(:sha256, event_id), case: :lower)
     end
+  end
+
+  @doc """
+  The opaque, stable key of one provider calendar as one owner sees it:
+  `"gcal:"` plus a SHA-256 of the owner id and Google's calendar id. It is the
+  first half of every landed event's external id (`external_id/2`).
+
+  It depends only on who owns the linked account and which calendar it is,
+  not on the linked account row or its sync cursor. So unlinking and
+  relinking the same Google account converges on the same canonical rows
+  instead of duplicating them. Two linked accounts of the same person that
+  both show one calendar share its rows. A primary calendar's id is an email
+  address, which is why the key is a digest and not the id itself.
+  """
+  @spec calendar_key(Ash.UUID.t(), String.t()) :: String.t()
+  def calendar_key(owner_id, calendar_id) when is_binary(owner_id) and is_binary(calendar_id) do
+    digest =
+      :crypto.hash(:sha256, ["ash_enterprise.calendar_key.v1", 0, owner_id, 0, calendar_id])
+
+    "gcal:" <> Base.encode16(digest, case: :lower)
+  end
+
+  # The content attributes a calendar projection writes, per resource.
+  @content_attributes [
+    {CalendarEvent, [:title, :location]},
+    {Person, [:name, :email]}
+  ]
+
+  @doc """
+  The content attributes a projection would copy into the central audit log
+  in plaintext, as `{resource, attribute}` pairs (see "Content and the audit
+  log"). Empty once each one is `sensitive?`, the event log is cloaked, or the
+  resource is no longer audited.
+  """
+  @spec audit_exposure() :: [{module(), atom()}]
+  def audit_exposure do
+    for {resource, names} <- @content_attributes,
+        audited_in_plaintext?(resource),
+        name <- names,
+        attribute = Ash.Resource.Info.attribute(resource, name),
+        not is_nil(attribute) and not attribute.sensitive? do
+      {resource, name}
+    end
+  end
+
+  defp audited_in_plaintext?(resource) do
+    AshEvents.Events in Spark.extensions(resource) and
+      case AshEvents.Events.Info.events_event_log(resource) do
+        {:ok, event_log} -> not AshEvents.EventLog.Info.cloaked?(event_log)
+        :error -> true
+      end
+  end
+
+  @doc """
+  Whether a projection under `context` may write: nothing would reach the
+  audit log in plaintext, or the context explicitly allows it.
+  """
+  @spec audit_safe?(map()) :: boolean()
+  def audit_safe?(context) do
+    Map.get(context, :allow_audited_content?, false) == true or audit_exposure() == []
   end
 
   @doc """
@@ -158,12 +248,27 @@ defmodule AshEnterprise.Canonical.Projections.Calendar do
   Returns `{:ok, %{outcome: outcome, people: [person_id]}}`, or
   `{:error, error}` when a canonical write fails (the error is an Ash error;
   callers must not log or persist it verbatim — it can carry the payload).
+  Returns `{:error, :content_would_be_audited}` and writes nothing while
+  `audit_safe?/1` is false for `context`.
   """
   @spec project(map(), context()) ::
           {:ok, %{outcome: outcome(), people: [Ash.UUID.t()]}} | {:error, term()}
   def project(%{external_system: system, external_id: external_id, raw_payload: payload}, context)
       when is_binary(external_id) and is_map(payload) do
+    if audit_safe?(context),
+      do: project_payload(system, external_id, payload, context),
+      else: {:error, :content_would_be_audited}
+  end
+
+  defp project_payload(system, external_id, payload, context) do
     case event_attributes(payload) do
+      # Never create a row for a cancelled event that cannot be marked
+      # cancelled (see "Cancellation").
+      {:ok, %{status: :cancelled} = attrs} ->
+        if status_supported?(),
+          do: write_complete(system, external_id, attrs, context),
+          else: cancel_existing(system, external_id, context)
+
       {:ok, attrs} ->
         write_complete(system, external_id, attrs, context)
 
@@ -181,6 +286,12 @@ defmodule AshEnterprise.Canonical.Projections.Calendar do
   """
   @spec replay([map()], context()) :: {:ok, map()} | {:error, term()}
   def replay(sources, context) do
+    if audit_safe?(context),
+      do: replay_all(sources, context),
+      else: {:error, :content_would_be_audited}
+  end
+
+  defp replay_all(sources, context) do
     initial = %{
       projected: 0,
       cancelled: 0,
@@ -317,9 +428,34 @@ defmodule AshEnterprise.Canonical.Projections.Calendar do
   # identity, and a name-less contact never blanks an existing name. The full
   # upsert option set is repeated at call time on purpose (see the comment in
   # Projection.upsert_person/2).
+  #
+  # A person another owner already has is linked, not written (see "People
+  # are not rewritten across owners"). The read and the upsert are separate
+  # statements, so two owners racing to create the same person both reach the
+  # upsert and the later name wins. That is the plain upsert's behaviour, and
+  # only on that first insert.
   defp upsert_person(nil, _context), do: {:ok, nil}
 
-  defp upsert_person(%{email: email, name: name}, context) do
+  defp upsert_person(%{email: email} = contact, context) do
+    case existing_person(email, context) do
+      {:ok, %Person{owner_id: owner_id} = person} when owner_id != context.owner_id ->
+        {:ok, person}
+
+      {:ok, _own_or_none} ->
+        write_person(contact, context)
+
+      {:error, _} = error ->
+        error
+    end
+  end
+
+  defp existing_person(email, context) do
+    Person
+    |> Ash.Query.filter(email == ^email)
+    |> Ash.read_one(tenant: context.tenant_id, authorize?: false)
+  end
+
+  defp write_person(%{email: email, name: name}, context) do
     Person
     |> Ash.Changeset.for_create(
       :upsert_from_source,

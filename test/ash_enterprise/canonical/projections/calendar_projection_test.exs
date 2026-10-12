@@ -10,8 +10,6 @@ defmodule AshEnterprise.Canonical.Projections.CalendarTest do
   alias AshEnterprise.Canonical.Projections.Calendar, as: Projector
   alias AshEnterprise.Test.CalendarFixtures, as: F
 
-  require Ash.Query
-
   describe "event_attributes/1 (pure)" do
     test "timed events convert their offset to UTC; the room is not a person" do
       assert {:ok, attrs} = Projector.event_attributes(F.planning_event())
@@ -45,6 +43,20 @@ defmodule AshEnterprise.Canonical.Projections.CalendarTest do
     test "an unknown status is read as confirmed, never turned into an atom" do
       payload = Map.put(F.review_event(), "status", "something-new")
       assert {:ok, %{status: :confirmed}} = Projector.event_attributes(payload)
+    end
+  end
+
+  describe "calendar_key/2" do
+    test "depends only on the owner and the calendar, and carries no calendar id" do
+      owner = Ecto.UUID.generate()
+      key = Projector.calendar_key(owner, F.primary_calendar())
+
+      assert key == Projector.calendar_key(owner, F.primary_calendar())
+      assert key != Projector.calendar_key(owner, F.team_calendar())
+      assert key != Projector.calendar_key(Ecto.UUID.generate(), F.primary_calendar())
+      assert "gcal:" <> hex = key
+      assert byte_size(hex) == 64
+      refute key =~ "example.test"
     end
   end
 
@@ -94,7 +106,56 @@ defmodule AshEnterprise.Canonical.Projections.CalendarTest do
           }
         end
 
-      %{org: org, context: %{owner_id: owner.id, tenant_id: org.id}, sources: sources}
+      # Synthetic data only, so the audit guard may be overridden here.
+      context = %{owner_id: owner.id, tenant_id: org.id, allow_audited_content?: true}
+
+      %{org: org, owner: owner, context: context, sources: sources}
+    end
+
+    test "a deleted event with its full payload is not created while status is unrecorded",
+         ctx do
+      source = %{
+        external_system: Projector.external_system(),
+        external_id: Projector.external_id("cal-key-synthetic", "synthev0004"),
+        raw_payload: F.deleted_event()
+      }
+
+      if Projector.status_supported?() do
+        assert {:ok, %{cancelled: 1}} = Projector.replay([source], ctx.context)
+      else
+        assert {:ok, %{skipped: 1, projected: 0}} = Projector.replay([source], ctx.context)
+        assert CalendarEvent |> Ash.read!(tenant: ctx.org.id, authorize?: false) == []
+        assert Person |> Ash.read!(tenant: ctx.org.id, authorize?: false) == []
+      end
+    end
+
+    test "a deleted event that already has a row keeps the row", ctx do
+      live = %{
+        external_system: Projector.external_system(),
+        external_id: Projector.external_id("cal-key-synthetic", "synthev0004"),
+        raw_payload: Map.put(F.deleted_event(), "status", "confirmed")
+      }
+
+      assert {:ok, %{projected: 1}} = Projector.replay([live], ctx.context)
+      [row] = CalendarEvent |> Ash.read!(tenant: ctx.org.id, authorize?: false)
+
+      deleted = %{live | raw_payload: F.deleted_event()}
+      assert {:ok, %{projected: 0}} = Projector.replay([deleted], ctx.context)
+
+      assert [kept] = CalendarEvent |> Ash.read!(tenant: ctx.org.id, authorize?: false)
+      assert kept.id == row.id
+      assert kept.title == row.title
+    end
+
+    test "without the override, a projection writes nothing while content would be audited",
+         ctx do
+      assert Projector.audit_exposure() != []
+
+      assert {:error, :content_would_be_audited} =
+               Projector.replay(ctx.sources, Map.delete(ctx.context, :allow_audited_content?))
+
+      assert CalendarEvent |> Ash.read!(tenant: ctx.org.id, authorize?: false) == []
+      assert Person |> Ash.read!(tenant: ctx.org.id, authorize?: false) == []
     end
 
     test "is deterministic: delete everything, replay, and the rows come back the same", ctx do

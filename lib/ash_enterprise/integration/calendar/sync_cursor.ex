@@ -31,14 +31,32 @@ defmodule AshEnterprise.Integration.Calendar.SyncCursor do
       the tokens into the event log. Resets are still visible on the row
       (`last_reset_at`, `reset_count`).
     * **`archival?: false`, `lifecycle?: false`**: a calendar that leaves the
-      calendar list is `:unlist`ed, not soft-deleted, so its row (and therefore
-      the cursor id baked into its events' external ids) survives being
-      re-added. Unlinking the account deletes its cursors by foreign key.
+      calendar list is `:unlist`ed, not soft-deleted, so its row and its sync
+      token survive being re-added. Unlinking the account deletes its cursors
+      by foreign key.
 
-  The cursor's `id` is also the opaque calendar key in every landed event's
-  external id (`AshEnterprise.Canonical.Projections.Calendar.external_id/2`):
-  unique per account and calendar, and — unlike the calendar id — carries no
-  email address.
+  ## Concurrent writers
+
+  `run_step` and `reset_sync` are public actions and can run while a
+  `SyncWorker` step is in flight on the same account; the worker's Oban
+  uniqueness only covers other jobs. So the step's writes (`:page`,
+  `:complete`, and its own 410 `:reset`) are compare-and-set on the tokens
+  and `reset_count` it read
+  (`AshEnterprise.Integration.Calendar.Changes.CursorUnchanged`). A write
+  that lost the race fails as stale. The step then stops on that calendar and
+  reports `:more`, so the next step starts from whatever the row holds now. An
+  operator reset can therefore never be undone by a step that was already
+  running, and two racing steps cannot leave a sync token from one pass next
+  to a page token from another.
+
+  ## The calendar key is not the cursor id
+
+  Landed events are keyed by
+  `AshEnterprise.Canonical.Projections.Calendar.calendar_key/2` (a digest of
+  the owner and the provider calendar id), not by this row's id. Unlinking an
+  account deletes its cursors, and relinking creates new ones with new ids.
+  A key derived from the cursor id would then mint a second copy of every
+  event.
   """
 
   use AshEnterprise.Platform.Resource,
@@ -150,14 +168,33 @@ defmodule AshEnterprise.Integration.Calendar.SyncCursor do
     end
 
     update :page do
-      description "Persist the next page of the in-flight pass, after this page landed."
+      description """
+      Persist the next page of the in-flight pass, after this page landed.
+      Compare-and-set: applies only if the row still holds what the step read.
+      """
+
       accept [:page_token]
+
+      argument :expected_sync_token, :string, allow_nil?: true, sensitive?: true
+      argument :expected_page_token, :string, allow_nil?: true, sensitive?: true
+      argument :expected_reset_count, :integer, allow_nil?: false
+
+      change AshEnterprise.Integration.Calendar.Changes.CursorUnchanged
     end
 
     update :complete do
-      description "A pass finished: keep its nextSyncToken, clear the page token."
+      description """
+      A pass finished: keep its nextSyncToken, clear the page token.
+      Compare-and-set: applies only if the row still holds what the step read.
+      """
 
       accept [:sync_token]
+
+      argument :expected_sync_token, :string, allow_nil?: true, sensitive?: true
+      argument :expected_page_token, :string, allow_nil?: true, sensitive?: true
+      argument :expected_reset_count, :integer, allow_nil?: false
+
+      change AshEnterprise.Integration.Calendar.Changes.CursorUnchanged
       change set_attribute(:page_token, nil)
       change set_attribute(:last_synced_at, &DateTime.utc_now/0)
     end
@@ -166,9 +203,19 @@ defmodule AshEnterprise.Integration.Calendar.SyncCursor do
       description """
       The explicit sync-reset: forget both tokens so the next pass is a full
       sync. Called on 410 Gone and by `Sync.reset_sync`; never implicit.
+
+      The step's 410 reset passes the `expected_*` values it read, so it
+      cannot discard a newer token another writer stored. The operator's reset
+      passes none: it is unconditional and wins over any in-flight step.
       """
 
       accept []
+
+      argument :expected_sync_token, :string, allow_nil?: true, sensitive?: true
+      argument :expected_page_token, :string, allow_nil?: true, sensitive?: true
+      argument :expected_reset_count, :integer, allow_nil?: true
+
+      change AshEnterprise.Integration.Calendar.Changes.CursorUnchanged
       change set_attribute(:sync_token, nil)
       change set_attribute(:page_token, nil)
       change set_attribute(:last_reset_at, &DateTime.utc_now/0)

@@ -29,9 +29,27 @@ defmodule AshEnterprise.Integration.Calendar.Step do
 
   ## Nothing lands by default
 
-  `Landing.land/2` refuses every record until scoped landing is wired; the
-  step then stops before projecting anything or advancing any cursor, and
-  returns `SyncError` `:landing_refused`.
+  `Landing.land/2` refuses every record until scoped landing is wired. The
+  step checks for that before anything else and returns `SyncError`
+  `:landing_refused`. It makes no provider call and writes no cursor row (a
+  cursor holds a calendar id, which is often an email address). A lander
+  that refuses a record later still stops the step before that record is
+  projected or the cursor advances.
+
+  The same preflight refuses with `:content_would_be_audited` while the
+  projection would copy event content into the audit log in plaintext
+  (`Projections.Calendar.audit_exposure/0`). The `:allow_audited_content?`
+  option overrides it; only tests over synthetic data set it.
+
+  ## Concurrent steps and resets
+
+  The cursor writes are compare-and-set on what this step read (see
+  `SyncCursor`, "Concurrent writers"). When one loses, because an operator
+  reset or another step changed the cursor in the meantime, the step stops
+  on that calendar, counts it in `:superseded`, and reports `status: :more`.
+  The next step then starts from the cursor as it now stands. Anything the
+  step already landed from that page stays landed. Landing is an upsert on
+  the source identity, so the next pass re-lands it in place.
 
   ## No content leaves this module
 
@@ -66,6 +84,7 @@ defmodule AshEnterprise.Integration.Calendar.Step do
           pages: non_neg_integer(),
           landed: non_neg_integer(),
           resets: non_neg_integer(),
+          superseded: non_neg_integer(),
           projection: %{atom() => non_neg_integer()}
         }
 
@@ -79,17 +98,47 @@ defmodule AshEnterprise.Integration.Calendar.Step do
   Options (each defaulting to `config :ash_enterprise,
   AshEnterprise.Integration.Calendar`): `:page_size` (events per request,
   default #{@default_page_size}), `:max_pages` (events pages per step, default
-  #{@default_max_pages}), `:project?` (default `true`).
+  #{@default_max_pages}), `:project?` (default `true`),
+  `:allow_audited_content?` (default `false`; see "Nothing lands by default").
   """
   @spec run(term(), Ash.UUID.t() | nil, keyword()) :: {:ok, summary()} | {:error, Exception.t()}
   def run(actor, linked_account_id, opts \\ []) do
     with {:ok, account} <- resolve_account(actor, linked_account_id) do
       state = init(actor, account, opts)
 
-      with {:ok, cursors} <- refresh_calendars(state) do
+      with :ok <- preflight(state),
+           {:ok, cursors} <- refresh_calendars(state) do
         sync(cursors, state)
       end
     end
+  end
+
+  # Refuse before the first provider call or cursor write, so a step that
+  # cannot land or project leaves nothing behind (not even a cursor row, whose
+  # calendar id is an email address).
+  defp preflight(state) do
+    cond do
+      not landing_wired?() ->
+        {:error, SyncError.exception(reason: :landing_refused, detail: :scoped_landing_not_wired)}
+
+      state.project? and not Projector.audit_safe?(state.projection_context) ->
+        {:error, SyncError.exception(reason: :content_would_be_audited)}
+
+      true ->
+        :ok
+    end
+  end
+
+  # `Landing` keeps its lander private, so this reads the same config key and
+  # treats the default as unwired. A `Landing.wired?/0` on the edge would
+  # replace it.
+  defp landing_wired? do
+    lander =
+      :ash_enterprise
+      |> Application.get_env(Landing, [])
+      |> Keyword.get(:lander, Landing.NotWired)
+
+    lander != Landing.NotWired
   end
 
   @doc """
@@ -156,11 +205,13 @@ defmodule AshEnterprise.Integration.Calendar.Step do
         tenant_id: account.organization_id,
         business_unit_id: actor_context.business_unit_id,
         actor: actor,
-        scope: scope
+        scope: scope,
+        allow_audited_content?: option(opts, :allow_audited_content?, false) == true
       },
       pages: 0,
       landed: 0,
       resets: 0,
+      superseded: 0,
       more?: false,
       projection: %{projected: 0, cancelled: 0, cancelled_unrecorded: 0, skipped: 0}
     }
@@ -292,8 +343,10 @@ defmodule AshEnterprise.Integration.Calendar.Step do
 
   # 410 Gone: the explicit reset, then a full sync of this calendar — once.
   defp recover(:gone, _error, cursor, state, false) do
-    with {:ok, cursor} <- cursor_write(SyncCursor.reset(cursor, state.cursor_opts)) do
-      sync_calendar(cursor, %{state | resets: state.resets + 1}, true)
+    case guarded_write(SyncCursor.reset(cursor, read_as(cursor), state.cursor_opts)) do
+      {:ok, cursor} -> sync_calendar(cursor, %{state | resets: state.resets + 1}, true)
+      :superseded -> {:ok, superseded(state)}
+      error -> error
     end
   end
 
@@ -313,18 +366,38 @@ defmodule AshEnterprise.Integration.Calendar.Step do
   defp advance(cursor, body, state, reset?) do
     case body do
       %{"nextPageToken" => token} when is_binary(token) and token != "" ->
-        with {:ok, cursor} <- cursor_write(SyncCursor.page(cursor, token, state.cursor_opts)) do
-          sync_calendar(cursor, state, reset?)
+        case guarded_write(SyncCursor.page(cursor, token, read_as(cursor), state.cursor_opts)) do
+          {:ok, cursor} -> sync_calendar(cursor, state, reset?)
+          :superseded -> {:ok, superseded(state)}
+          error -> error
         end
 
       %{"nextSyncToken" => token} when is_binary(token) and token != "" ->
-        with {:ok, _cursor} <- cursor_write(SyncCursor.complete(cursor, token, state.cursor_opts)) do
-          {:ok, state}
+        case guarded_write(SyncCursor.complete(cursor, token, read_as(cursor), state.cursor_opts)) do
+          {:ok, _cursor} -> {:ok, state}
+          :superseded -> {:ok, superseded(state)}
+          error -> error
         end
 
       _ ->
         {:error, SyncError.exception(reason: :protocol)}
     end
+  end
+
+  # What this step read: the compare half of every compare-and-set cursor
+  # write (`AshEnterprise.Integration.Calendar.Changes.CursorUnchanged`).
+  defp read_as(cursor) do
+    %{
+      expected_sync_token: cursor.sync_token,
+      expected_page_token: cursor.page_token,
+      expected_reset_count: cursor.reset_count
+    }
+  end
+
+  # The cursor moved on under this step: stop on this calendar and let the
+  # next step start from the row as it now stands.
+  defp superseded(state) do
+    %{state | superseded: state.superseded + 1, more?: true}
   end
 
   defp fetch_page(cursor, state) do
@@ -355,7 +428,11 @@ defmodule AshEnterprise.Integration.Calendar.Step do
        when is_binary(event_id) and event_id != "" do
     record = %SourceRecord{
       external_system: Projector.external_system(),
-      external_id: Projector.external_id(cursor.id, event_id),
+      external_id:
+        Projector.external_id(
+          Projector.calendar_key(state.account.owner_id, cursor.calendar_id),
+          event_id
+        ),
       stream: Projector.stream(),
       raw_payload: item,
       cursor: nil,
@@ -388,6 +465,9 @@ defmodule AshEnterprise.Integration.Calendar.Step do
       {:ok, %{outcome: outcome}} ->
         {:ok, bump(state, outcome)}
 
+      {:error, :content_would_be_audited} ->
+        {:error, SyncError.exception(reason: :content_would_be_audited)}
+
       {:error, _dropped_because_it_can_carry_the_payload} ->
         {:error, SyncError.exception(reason: :projection_failed)}
     end
@@ -404,6 +484,7 @@ defmodule AshEnterprise.Integration.Calendar.Step do
       pages: state.pages,
       landed: state.landed,
       resets: state.resets,
+      superseded: state.superseded,
       projection: state.projection
     }
   end
@@ -412,6 +493,16 @@ defmodule AshEnterprise.Integration.Calendar.Step do
 
   defp cursor_write({:ok, _} = ok), do: ok
   defp cursor_write({:error, _}), do: {:error, SyncError.exception(reason: :cursor_write_failed)}
+
+  defp guarded_write({:ok, _} = ok), do: ok
+
+  defp guarded_write({:error, error} = result) do
+    if stale?(error), do: :superseded, else: cursor_write(result)
+  end
+
+  defp stale?(%Ash.Error.Changes.StaleRecord{}), do: true
+  defp stale?(%{errors: errors}) when is_list(errors), do: Enum.any?(errors, &stale?/1)
+  defp stale?(_error), do: false
 
   defp put_present(map, _key, nil), do: map
   defp put_present(map, key, value), do: Map.put(map, key, value)

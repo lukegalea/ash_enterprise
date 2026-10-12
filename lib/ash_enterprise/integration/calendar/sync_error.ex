@@ -7,6 +7,7 @@ defmodule AshEnterprise.Integration.Calendar.SyncError do
   | `reason` | Meaning |
   |---|---|
   | `:landing_refused` | `Landing.land/2` refused a record; `detail` is the lander's reason atom (`:scoped_landing_not_wired` by default) |
+  | `:content_would_be_audited` | the projection would copy event content into the audit log in plaintext (`Projections.Calendar.audit_exposure/0`); refused before any provider call |
   | `:projection_failed` | a canonical write failed; the cursor did not advance past that page |
   | `:cursor_write_failed` | persisting the cursor failed |
   | `:protocol` | a final events page carried neither `nextPageToken` nor `nextSyncToken` |
@@ -20,6 +21,7 @@ defmodule AshEnterprise.Integration.Calendar.SyncError do
 
   @type reason ::
           :landing_refused
+          | :content_would_be_audited
           | :projection_failed
           | :cursor_write_failed
           | :protocol

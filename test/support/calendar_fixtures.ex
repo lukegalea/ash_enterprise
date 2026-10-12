@@ -26,6 +26,7 @@ defmodule AshEnterprise.Test.CalendarFixtures do
       "#{@marker} design review",
       "#{@marker} design review (moved)",
       "#{@marker} offsite",
+      "#{@marker} retired standup",
       "#{@marker} room 4",
       "Ada #{@marker}",
       "ada@example.test",
@@ -107,6 +108,24 @@ defmodule AshEnterprise.Test.CalendarFixtures do
       "start" => %{"date" => "2026-10-16"},
       "end" => %{"date" => "2026-10-17"},
       "organizer" => %{"email" => @primary, "self" => true}
+    }
+  end
+
+  @doc """
+  A deleted event as a `showDeleted=true` full sync can return it: status
+  cancelled, but with its summary and times still present.
+  """
+  def deleted_event do
+    %{
+      "kind" => "calendar#event",
+      "etag" => "\"3300000000000004\"",
+      "id" => "synthev0004",
+      "status" => "cancelled",
+      "summary" => "#{@marker} retired standup",
+      "iCalUID" => "synthev0004@google.com",
+      "start" => %{"dateTime" => "2026-10-15T15:00:00Z"},
+      "end" => %{"dateTime" => "2026-10-15T15:15:00Z"},
+      "organizer" => %{"email" => "grace@example.test"}
     }
   end
 
