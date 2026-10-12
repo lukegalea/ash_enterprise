@@ -24,9 +24,11 @@ defmodule AshEnterprise.Canonical.Projections.Calendar do
   | `status` | `status`: confirmed / tentative / cancelled — see "Cancellation" |
 
   Attendees become `Person` rows on their email, the v1 linkage key; room and
-  equipment attendees (`resource: true`) are not people and are skipped. There
-  is no attendee join on `CalendarEvent` yet, so attendance itself is not
-  projected. A recurring event is projected as its master (first occurrence's
+  equipment attendees (`resource: true`) are not people and are skipped.
+  Attendance itself — who is invited, and their `responseStatus` — is derived
+  into `AshEnterprise.Canonical.EventAttendee` joins in the event's own upsert
+  (`AshEnterprise.Canonical.Changes.DeriveAttendees`); a bare cancellation
+  leaves an event's attendees as they were. A recurring event is projected as its master (first occurrence's
   times); modified instances are their own rows, and so is a cancelled
   occurrence (see "Cancellation").
 
@@ -207,7 +209,7 @@ defmodule AshEnterprise.Canonical.Projections.Calendar do
            |> Map.get("attendees", [])
            |> List.wrap()
            |> Enum.reject(&(is_map(&1) and &1["resource"] == true))
-           |> Enum.map(&contact/1)
+           |> Enum.map(&attendee/1)
            |> Enum.reject(&is_nil/1)
        }}
     else
@@ -347,7 +349,10 @@ defmodule AshEnterprise.Canonical.Projections.Calendar do
                starts_at: attrs.starts_at,
                ends_at: attrs.ends_at,
                location: attrs.location,
-               organizer_id: organizer && organizer.id
+               organizer_id: organizer && organizer.id,
+               # The derived attendee joins (`EventAttendee`), reconciled in
+               # the event's own transaction: ids and the answer, nothing sealed.
+               attendees: attendance(attrs.attendees, attendees)
              },
              attrs.status,
              context
@@ -467,6 +472,16 @@ defmodule AshEnterprise.Canonical.Projections.Calendar do
 
   defp outcome_for(:cancelled), do: :cancelled
   defp outcome_for(_status), do: :projected
+
+  # Each attendee contact's person (owned here or another owner's, as
+  # `upsert_person/2` links them), with their answer. Matched on the address.
+  defp attendance(contacts, people) do
+    by_email = Map.new(people, &{&1.email |> to_string() |> String.downcase(), &1.id})
+
+    for %{email: email} = contact <- contacts,
+        person_id = Map.get(by_email, String.downcase(email)),
+        do: %{person_id: person_id, response_status: contact[:response_status]}
+  end
 
   defp upsert_people(contacts, context) do
     contacts
@@ -608,4 +623,12 @@ defmodule AshEnterprise.Canonical.Projections.Calendar do
   end
 
   defp contact(_), do: nil
+
+  # An attendee is a contact plus their answer (`responseStatus`).
+  defp attendee(payload) do
+    case contact(payload) do
+      nil -> nil
+      contact -> Map.put(contact, :response_status, payload["responseStatus"])
+    end
+  end
 end

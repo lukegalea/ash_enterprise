@@ -1,12 +1,14 @@
 defmodule Mix.Tasks.AshEnterprise.Integration.Project do
-  @shortdoc "Projects everything a Gmail or Slack linked account has landed, printing counts only"
+  @shortdoc "Projects everything a linked account has landed, printing counts only"
 
   @moduledoc """
-  The operator's catch-up: projects every record one Gmail or Slack linked
-  account has landed into the canonical model, as the account's owner,
-  through the configured zone gate — the same projection each sync step runs
-  on what it just landed (`AshEnterprise.Canonical.Projections.Pending`), over
-  everything instead of what is new.
+  The operator's catch-up: projects every record one linked account has
+  landed into the canonical model, as the account's owner — Gmail and Slack
+  through the configured zone gate, the same projection each sync step runs on
+  what it just landed (`AshEnterprise.Canonical.Projections.Pending`), over
+  everything instead of what is new; Google Calendar by replaying its landed
+  events. Every pass re-derives the joins (`EventAttendee`,
+  `ConversationParticipant`), so this is also their backfill.
 
       mix ash_enterprise.integration.project --linked-account <id>
 

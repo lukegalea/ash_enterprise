@@ -3,9 +3,11 @@ defmodule AshEnterprise.Acp do
   Host seam for `ash_acp` (Productivity OS Dogfood epic E3; dogfood §7 mapping).
 
   Split across this module (shared tables + helpers), `AshEnterprise.Acp.SessionStore`
-  (`AshAcp.SessionStore` + `AshAcp.PromptTarget`) and `AshEnterprise.Acp.Approvals`
+  (`AshAcp.SessionStore` + `AshAcp.PromptTarget`), `AshEnterprise.Acp.Approvals`
   (`AshAcp.PermissionRequest`; separate module because its `resolve/3` collides with
-  `PromptTarget.resolve/3`).
+  `PromptTarget.resolve/3`) and `AshEnterprise.Acp.ExtMethods` (the `ash` extension
+  methods: list surfaces, open one — a record selected — without a model turn, and
+  act on it, writes behind a permission request).
 
   **The stores here are deliberately in-memory ETS**, owned by the supervised
   `AshEnterprise.Acp.Store` process so they outlive any transient handler. E3's

@@ -22,6 +22,7 @@ defmodule AshEnterprise.Acp.Commands do
   | `sync calendar\\|gmail\\|slack` | `LinkedAccount.sync_now` | `AccountsUI` |
   | `erasure` | `Scope.scopes_digest` | `ErasureReadOnlyUI` — no shred over ACP |
   | any other surface's command, or `open <surface>` | `Console.open` | that surface's UI, if it has one |
+  | `open <surface> <id>` / `open <surface> <n>` | `Console.open` | that surface with the record (by id, or the nth row) selected |
   | `help` | `Console.help` | none |
 
   The surfaces, their commands and their doors come from the registry
@@ -47,7 +48,7 @@ defmodule AshEnterprise.Acp.Commands do
   alias AshEnterprise.Platform.LocalTime
   alias AshEnterprise.Security.ActorContext
   alias AshEnterprise.Surfaces
-  alias AshEnterprise.Surfaces.Doors
+  alias AshEnterprise.Surfaces.{Doors, Records}
   alias AshEnterpriseWeb.A2ui
 
   @windows %{
@@ -77,10 +78,17 @@ defmodule AshEnterprise.Acp.Commands do
   def route(text, actor) do
     tenant = ActorContext.tenant(actor)
     command = normalize(text)
+    open? = String.starts_with?(command, "open ")
 
     case Surfaces.match_command(String.replace_prefix(command, "open ", "")) do
-      {surface, rest} -> open_route(surface, rest, actor, tenant)
-      nil -> do_route(command, actor, tenant)
+      {surface, rest} ->
+        case record_ref(rest, open?) do
+          nil -> open_route(surface, rest, actor, tenant)
+          ref -> record_route(surface, ref, actor, tenant)
+        end
+
+      nil ->
+        do_route(command, actor, tenant)
     end
   end
 
@@ -94,6 +102,76 @@ defmodule AshEnterprise.Acp.Commands do
     case Surfaces.fetch(key) do
       nil -> {:error, "no surface named #{inspect(key)} — say `help` for yours"}
       surface -> open_route(surface, "", actor, ActorContext.tenant(actor))
+    end
+  end
+
+  # `open <surface> <id>` (any spelling, any surface) or `open <surface> <n>`
+  # — the nth row of the surface as the actor sees it. A bare number without
+  # `open` stays the surface's own argument (`people 2` searches for "2").
+  defp record_ref(rest, open?) do
+    cond do
+      Regex.match?(~r/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/, rest) ->
+        {:id, rest}
+
+      open? and Regex.match?(~r/^#?[1-9][0-9]*$/, rest) ->
+        {:nth, rest |> String.trim_leading("#") |> String.to_integer()}
+
+      true ->
+        nil
+    end
+  end
+
+  # One record on its surface, re-authorized as the actor
+  # (`AshEnterprise.Surfaces.Records`): the pane shows the surface with it
+  # selected. A surface with no detail opens as itself.
+  defp record_route(surface, {:nth, n}, actor, tenant) do
+    case nth_id(surface, n, actor, tenant) do
+      {:ok, id} -> record_route(surface, {:id, id}, actor, tenant)
+      :error -> {:error, "no row #{n} on #{surface.label}"}
+    end
+  end
+
+  defp record_route(surface, {:id, id}, actor, tenant) do
+    case Records.open(surface.key, id, actor) do
+      {:ok, %{surface: home, context_state: state}} ->
+        ok(
+          Console,
+          :open,
+          %{surface: Atom.to_string(home.key)},
+          home.label,
+          tenant,
+          {Surfaces.acp_ui(home), context_state: state}
+        )
+
+      {:error, {:no_detail, _surface}} ->
+        open_route(surface, "", actor, tenant)
+
+      {:error, error} ->
+        {:error, Records.message(error)}
+    end
+  end
+
+  # The nth row of the surface's first table, read exactly as its pane would
+  # show it (the surface's own read, query defaults and policies).
+  defp nth_id(%{ui: nil}, _n, _actor, _tenant), do: :error
+
+  defp nth_id(surface, n, actor, tenant) do
+    model =
+      surface
+      |> Surfaces.acp_ui()
+      |> AshA2ui.Info.build_data_model(actor: actor, tenant: tenant)
+      |> get_in(["updateDataModel", "value"])
+
+    rows =
+      case model && model["records"] do
+        rows when is_list(rows) -> rows
+        %{"table" => rows} when is_list(rows) -> rows
+        _other -> []
+      end
+
+    case Enum.at(rows, n - 1) do
+      %{"id" => id} when is_binary(id) -> {:ok, id}
+      _none -> :error
     end
   end
 
@@ -128,7 +206,9 @@ defmodule AshEnterprise.Acp.Commands do
           %{window: window},
           "Calendar · #{window_label(window)}",
           tenant,
-          {A2ui.CalendarUI, query_state: %{"preset" => to_string(window)}}
+          # Calendar is multi-table (the agenda and an event's attendees), so
+          # its query state is keyed by table.
+          {A2ui.CalendarUI, query_state: %{"table" => %{"preset" => to_string(window)}}}
         )
 
       :error ->
@@ -144,7 +224,8 @@ defmodule AshEnterprise.Acp.Commands do
 
   defp surface_route(:people, search, _surface, tenant) do
     inputs = if search == "", do: %{}, else: %{search: search}
-    query_state = if search == "", do: nil, else: %{"search" => search}
+    # People is multi-table (the directory and a person's related tables).
+    query_state = if search == "", do: nil, else: %{"table" => %{"search" => search}}
 
     ok(Console, :people, inputs, "People", tenant, {A2ui.PeopleUI, query_state: query_state})
   end

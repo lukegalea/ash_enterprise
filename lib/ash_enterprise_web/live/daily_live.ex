@@ -41,6 +41,7 @@ defmodule AshEnterpriseWeb.DailyLive do
       quote do
         use AshA2ui.LiveRenderer,
           ui: unquote(ui),
+          deep_link: true,
           actor_fn: &__MODULE__.actor/1,
           tenant_fn: &__MODULE__.tenant/1,
           pubsub: [
@@ -109,6 +110,11 @@ defmodule AshEnterpriseWeb.DailyLive do
         def handle_event("a2ui:function_response", payload, socket),
           do:
             AshA2ui.LiveRenderer.handle_function_response(__ash_a2ui_config__(), payload, socket)
+
+        # A reference link: the renderer navigates to the deep link, which
+        # re-authorizes the record (`AshEnterpriseWeb.RecordController`).
+        def handle_event("a2ui:open_surface", args, socket),
+          do: AshA2ui.LiveRenderer.handle_open_surface(__ash_a2ui_config__(), args, socket)
 
         # Only Today offers it; the action itself is authorized as the actor.
         def handle_event("compose_brief", _params, socket) do

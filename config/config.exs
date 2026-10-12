@@ -187,6 +187,9 @@ config :ash_acp,
   prompt_target: AshEnterprise.Acp.SessionStore,
   permission_request: AshEnterprise.Acp.Approvals,
   surface_provider: AshEnterprise.Acp.Surfaces,
+  # The `ash` extension methods: list surfaces, open one directly (a record
+  # selected, no model turn), act on it as the session actor.
+  ext_methods: AshEnterprise.Acp.ExtMethods,
   # The command palette (`available_commands_update`) is not configured here:
   # it is derived from the surface registry (`AshEnterprise.Surfaces.
   # candidate_actions/0`) by `AshEnterprise.Acp.server_config/0`, and pruned
@@ -484,6 +487,13 @@ config :phoenix, :json_library, Jason
 # docs/adr/0033-experience-layer-adoption.md for the decision and its
 # reversibility story.
 config :ash_a2ui, experience_version: 2, catalog: :admin_v1
+
+# Reference links (`link` / `links` fields): the registry decides which surface
+# a link opens, per actor, and every link carries a server-built href to the
+# deep link that re-authorizes the record (`AshEnterprise.Surfaces.Records`).
+config :ash_a2ui,
+  link_resolver: AshEnterprise.Surfaces.LinkResolver,
+  open_surface_url: "/app/r/{surface}/{recordId}"
 
 # ex_money (via ash_money). Do not auto-start the exchange-rate retriever:
 # starting it implicitly is deprecated upstream, and an enterprise system wants

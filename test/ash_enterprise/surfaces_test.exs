@@ -63,7 +63,17 @@ defmodule AshEnterprise.SurfacesTest do
       assert [%{key: :people, context: :person}] =
                Surfaces.for_resource(AshEnterprise.Canonical.Person)
 
-      assert [] = Surfaces.for_resource(AshEnterprise.Accounts.User)
+      # Roles list but open no single record.
+      assert [] = Surfaces.for_resource(AshEnterprise.Security.Role)
+
+      # Two surfaces over conversations: each record lands on the one it matches.
+      assert [%{key: :inbox}, %{key: :slack}] =
+               Surfaces.for_resource(AshEnterprise.Canonical.Conversation)
+
+      assert %{key: :slack} =
+               Surfaces.record_surface(AshEnterprise.Canonical.Conversation, %{
+                 external_system: "slack"
+               })
     end
 
     test "every ACP action, and every command word, is real and unambiguous" do

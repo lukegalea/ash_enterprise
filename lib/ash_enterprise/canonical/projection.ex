@@ -156,11 +156,8 @@ defmodule AshEnterprise.Canonical.Projection do
       |> Map.get("organizer", %{})
       |> upsert_person(context)
 
-    attendees =
-      payload
-      |> Map.get("attendees", [])
-      |> List.wrap()
-      |> Enum.map(&upsert_person(&1, context))
+    attendee_contacts = payload |> Map.get("attendees", []) |> List.wrap()
+    attendees = Enum.map(attendee_contacts, &upsert_person(&1, context))
 
     # Distinct person ids touched by this replay — ids, not structs: the same
     # row returned by two upserts can carry different timestamps, and the
@@ -183,6 +180,17 @@ defmodule AshEnterprise.Canonical.Projection do
         ends_at: required_datetime(payload, ["end", "dateTime"], source),
         location: payload["location"],
         organizer_id: organizer && organizer.id,
+        # Who is invited and how they answered: derived `EventAttendee` joins.
+        attendees:
+          attendee_contacts
+          |> Enum.zip(attendees)
+          |> Enum.flat_map(fn
+            {_contact, nil} ->
+              []
+
+            {contact, person} ->
+              [%{person_id: person.id, response_status: contact["responseStatus"]}]
+          end),
         # The canonical copy is sealed under the same key as its raw source,
         # so one shred reaches both (ADR 0024).
         erasure_scope_id: source.erasure_scope_id,

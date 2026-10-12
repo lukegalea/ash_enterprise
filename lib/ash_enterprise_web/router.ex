@@ -124,6 +124,11 @@ defmodule AshEnterpriseWeb.Router do
     get "/app/hub", PageController, :launcher
     get "/app/demo", PageController, :launcher
 
+    # The deep link every reference link carries: one record on its registry
+    # surface, re-authorized as the signed-in person, then a redirect to the
+    # surface with the record selected. See AshEnterpriseWeb.RecordController.
+    get "/app/r/:surface/:id", RecordController, :show
+
     # --- A2UI surfaces -------------------------------------------------------
     #
     # Declarative, agent-renderable screens derived from resource metadata. Each

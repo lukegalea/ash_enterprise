@@ -52,8 +52,10 @@ defmodule AshEnterprise.Acp.AttachTest do
     {_input, output} = StringIO.contents(wire)
     lines = String.split(output, "\n", trim: true)
 
+    # Responses only: ash_acp also sends the session's commands before
+    # `session/new` answers (a notification, no id).
     assert [%{"id" => 1}, %{"id" => 2, "result" => %{"sessionId" => "s-1"}}] =
-             Enum.map(lines, &Jason.decode!/1)
+             lines |> Enum.map(&Jason.decode!/1) |> Enum.filter(&Map.has_key?(&1, "id"))
 
     assert {_, "not the wire\n"} = StringIO.contents(local_io)
     assert Process.group_leader() == leader

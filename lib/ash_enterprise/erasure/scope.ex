@@ -132,6 +132,20 @@ defmodule AshEnterprise.Erasure.Scope do
       description "When the key was destroyed, on the operator's wall clock; `never` while active."
     end
 
+    calculate :opened_by_label,
+              :string,
+              {AshEnterprise.Platform.Calculations.UserLabel, field: :created_by_id} do
+      public? true
+      description "Who opened the scope, by email (nil for a system actor)."
+    end
+
+    calculate :changed_by_label,
+              :string,
+              {AshEnterprise.Platform.Calculations.UserLabel, field: :modified_by_id} do
+      public? true
+      description "Who last changed it — on a shredded scope, who shred it — by email."
+    end
+
     calculate :opened_on,
               :string,
               {AshEnterprise.Platform.Calculations.LocalStamp, field: :inserted_at} do
@@ -144,6 +158,53 @@ defmodule AshEnterprise.Erasure.Scope do
     has_one :key, AshEnterprise.Erasure.Key do
       destination_attribute :scope_id
       public? false
+    end
+
+    # A `:connection` scope's ref is its linked account's id
+    # (`AshEnterprise.Integration.Landing.scope/1`). The account is read as the
+    # reader under its own policies: an operator sees the accounts they may.
+    has_one :linked_account, AshEnterprise.Integration.LinkedAccount do
+      public? true
+      no_attributes? true
+      filter expr(parent(kind) == :connection and type(id, :string) == parent(ref))
+      description "The linked account a connection scope covers, when the reader may see it."
+    end
+
+    # What the scope seals: the canonical rows projected under it. Owner-only
+    # rows, so a reader sees only their own.
+    has_many :conversations, AshEnterprise.Canonical.Conversation do
+      public? true
+      destination_attribute :erasure_scope_id
+      description "Conversations sealed under this scope."
+    end
+
+    has_many :messages, AshEnterprise.Canonical.Message do
+      public? true
+      destination_attribute :erasure_scope_id
+      description "Messages sealed under this scope."
+    end
+
+    has_many :calendar_events, AshEnterprise.Canonical.CalendarEvent do
+      public? true
+      destination_attribute :erasure_scope_id
+      description "Calendar events sealed under this scope."
+    end
+  end
+
+  aggregates do
+    count :conversation_count, :conversations do
+      public? true
+      description "How many conversations it seals (that the reader may see)."
+    end
+
+    count :message_count, :messages do
+      public? true
+      description "How many messages it seals (that the reader may see)."
+    end
+
+    count :calendar_event_count, :calendar_events do
+      public? true
+      description "How many calendar events it seals (that the reader may see)."
     end
   end
 

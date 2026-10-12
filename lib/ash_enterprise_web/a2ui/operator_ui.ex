@@ -25,6 +25,11 @@ defmodule AshEnterpriseWeb.A2ui.AccountsUI do
     record_label "linked account"
     spec_version "1.0"
 
+    context :account do
+      resource AshEnterprise.Integration.LinkedAccount
+      picker false
+    end
+
     component :table do
       fields [
         :provider,
@@ -40,6 +45,7 @@ defmodule AshEnterpriseWeb.A2ui.AccountsUI do
 
       read_action :read
       row_actions [:sync_now, :unblock_sync, :deactivate, :activate]
+      select_context :account
 
       row_layout do
         title :provider
@@ -48,6 +54,23 @@ defmodule AshEnterpriseWeb.A2ui.AccountsUI do
         meta [:label, :health, :last_sync, :reach, :projection, :data_class, :residency]
         columns 2
       end
+    end
+
+    component :detail, :account_detail do
+      context :account
+
+      fields [
+        :provider,
+        :lifecycle_status,
+        :label,
+        :health,
+        :last_sync,
+        :reach,
+        :projection,
+        :data_class,
+        :residency,
+        :scope
+      ]
     end
 
     action :sync_now do
@@ -101,13 +124,23 @@ defmodule AshEnterpriseWeb.A2ui.AccountsUI do
     field :residency do
       label "Residency"
     end
+
+    # Operator-only: the link (and its label) is there only for a reader who
+    # may read erasure scopes.
+    field :scope do
+      label "Erasure scope"
+      link :erasure_scope
+      link_label :label
+    end
   end
 end
 
 defmodule AshEnterpriseWeb.A2ui.ErasureUI do
   @moduledoc """
   Erasure scopes — every crypto-shredding scope (ADR 0024): kind, ref, label,
-  status, when shredded and why. Operator-only by policy (the scope privileges
+  status, when shredded and why. A scope opens in detail with its linked
+  account, who opened and last changed it (links to Users), and how many of
+  the reader's conversations, messages and events it seals. Operator-only by policy (the scope privileges
   are reserved to the Platform Operator), so anyone else sees an empty list.
 
   Shred is irreversible. It is a row action with a typed confirmation — the
@@ -140,6 +173,7 @@ defmodule AshEnterpriseWeb.A2ui.ErasureUI do
       read_action :read
       query :scopes
       row_actions [:shred]
+      select_context :scope
 
       row_layout do
         title :label
@@ -148,6 +182,31 @@ defmodule AshEnterpriseWeb.A2ui.ErasureUI do
         meta [:kind, :ref, :opened_on, :shredded_on, :shred_reason]
         columns 2
       end
+    end
+
+    context :scope do
+      resource AshEnterprise.Erasure.Scope
+      picker false
+    end
+
+    component :detail, :scope_detail do
+      context :scope
+
+      fields [
+        :label,
+        :status,
+        :kind,
+        :ref,
+        :account,
+        :opened_on,
+        :opened_by_label,
+        :shredded_on,
+        :changed_by_label,
+        :shred_reason,
+        :conversation_count,
+        :message_count,
+        :calendar_event_count
+      ]
     end
 
     action :shred do
@@ -176,6 +235,34 @@ defmodule AshEnterpriseWeb.A2ui.ErasureUI do
 
     field :shred_reason do
       label "Reason"
+    end
+
+    field :account do
+      label "Linked account"
+      link :linked_account
+      link_label :label
+    end
+
+    field :opened_by_label do
+      label "Opened by"
+      link {:users, :created_by_id}
+    end
+
+    field :changed_by_label do
+      label "Last changed by"
+      link {:users, :modified_by_id}
+    end
+
+    field :conversation_count do
+      label "Conversations sealed"
+    end
+
+    field :message_count do
+      label "Messages sealed"
+    end
+
+    field :calendar_event_count do
+      label "Events sealed"
     end
   end
 end
@@ -210,6 +297,32 @@ defmodule AshEnterpriseWeb.A2ui.ErasureReadOnlyUI do
       fields [:label, :status, :kind, :ref, :opened_on, :shredded_on, :shred_reason]
       read_action :read
       query :scopes
+      select_context :scope
+    end
+
+    context :scope do
+      resource AshEnterprise.Erasure.Scope
+      picker false
+    end
+
+    component :detail, :scope_detail do
+      context :scope
+
+      fields [
+        :label,
+        :status,
+        :kind,
+        :ref,
+        :account,
+        :opened_on,
+        :opened_by_label,
+        :shredded_on,
+        :changed_by_label,
+        :shred_reason,
+        :conversation_count,
+        :message_count,
+        :calendar_event_count
+      ]
     end
 
     field :label do
@@ -226,6 +339,34 @@ defmodule AshEnterpriseWeb.A2ui.ErasureReadOnlyUI do
 
     field :shred_reason do
       label "Reason"
+    end
+
+    field :account do
+      label "Linked account"
+      link :linked_account
+      link_label :label
+    end
+
+    field :opened_by_label do
+      label "Opened by"
+      link {:users, :created_by_id}
+    end
+
+    field :changed_by_label do
+      label "Last changed by"
+      link {:users, :modified_by_id}
+    end
+
+    field :conversation_count do
+      label "Conversations sealed"
+    end
+
+    field :message_count do
+      label "Messages sealed"
+    end
+
+    field :calendar_event_count do
+      label "Events sealed"
     end
   end
 end

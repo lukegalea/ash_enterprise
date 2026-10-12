@@ -134,6 +134,7 @@ defmodule AshEnterpriseWeb.A2uiLive do
     @moduledoc "A2UI surface for users."
     use AshA2ui.LiveRenderer,
       ui: AshEnterpriseWeb.A2ui.UserUI,
+      deep_link: true,
       actor_fn: &__MODULE__.actor/1,
       tenant_fn: &__MODULE__.tenant/1
 
@@ -151,6 +152,7 @@ defmodule AshEnterpriseWeb.A2uiLive do
     @moduledoc "A2UI surface for security roles."
     use AshA2ui.LiveRenderer,
       ui: AshEnterpriseWeb.A2ui.RoleUI,
+      deep_link: true,
       actor_fn: &__MODULE__.actor/1,
       tenant_fn: &__MODULE__.tenant/1
 
@@ -168,6 +170,7 @@ defmodule AshEnterpriseWeb.A2uiLive do
     @moduledoc "A2UI surface for teams."
     use AshA2ui.LiveRenderer,
       ui: AshEnterpriseWeb.A2ui.TeamUI,
+      deep_link: true,
       actor_fn: &__MODULE__.actor/1,
       tenant_fn: &__MODULE__.tenant/1
 
@@ -250,6 +253,7 @@ defmodule AshEnterpriseWeb.A2uiLive do
     """
     use AshA2ui.LiveRenderer,
       ui: AshEnterpriseWeb.A2ui.LegacyUserUI,
+      deep_link: true,
       actor_fn: &__MODULE__.actor/1,
       tenant_fn: &__MODULE__.tenant/1,
       pubsub: [
@@ -347,6 +351,7 @@ defmodule AshEnterpriseWeb.A2uiLive do
     """
     use AshA2ui.LiveRenderer,
       ui: AshEnterpriseWeb.A2ui.ProjectedUserUI,
+      deep_link: true,
       actor_fn: &__MODULE__.actor/1,
       tenant_fn: &__MODULE__.tenant/1,
       pubsub: [
@@ -407,6 +412,7 @@ defmodule AshEnterpriseWeb.A2uiLive do
     @moduledoc "A2UI surface for the business-unit hierarchy."
     use AshA2ui.LiveRenderer,
       ui: AshEnterpriseWeb.A2ui.BusinessUnitUI,
+      deep_link: true,
       actor_fn: &__MODULE__.actor/1,
       tenant_fn: &__MODULE__.tenant/1
 

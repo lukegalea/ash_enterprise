@@ -11,7 +11,12 @@ defmodule AshEnterprise.Surfaces do
     * the ACP grammar (`AshEnterprise.Acp.Commands`), which opens any entry by
       its command and refuses one whose door is closed;
     * the ACP command palette (`candidate_actions/0`) and the `help` text;
-    * the helper agent's catalogue (`catalogue/0`, `names/0`, `helper/0`).
+    * the helper agent's catalogue (`catalogue/0`, `names/0`, `helper/0`);
+    * reference links and deep links: the surface that shows one record of a
+      resource (`record_surface/2`), which the link resolver
+      (`AshEnterprise.Surfaces.LinkResolver`), the web's `/app/r/:surface/:id`
+      and ACP's `_ash/surface/open` all open through
+      `AshEnterprise.Surfaces.Records`.
 
   ## Why it lives here and not under `AshEnterpriseWeb`
 
@@ -106,6 +111,7 @@ defmodule AshEnterprise.Surfaces do
       live: DailyLive.Today,
       ui: A2ui.TodayUI,
       resource: MorningBrief,
+      context: :brief,
       acp: %{
         command: "today",
         aliases: ["day"],
@@ -133,6 +139,7 @@ defmodule AshEnterprise.Surfaces do
       live: DailyLive.Calendar,
       ui: A2ui.CalendarUI,
       resource: AshEnterprise.Canonical.CalendarEvent,
+      context: :event,
       acp: %{
         command: "calendar",
         aliases: ["agenda"],
@@ -154,6 +161,7 @@ defmodule AshEnterprise.Surfaces do
       ui: A2ui.InboxUI,
       resource: AshEnterprise.Canonical.Conversation,
       context: :thread,
+      record_match: [external_system: "gmail"],
       acp: %{
         command: "inbox",
         aliases: ["mail", "gmail"],
@@ -174,6 +182,7 @@ defmodule AshEnterprise.Surfaces do
       ui: A2ui.SlackUI,
       resource: AshEnterprise.Canonical.Conversation,
       context: :conversation,
+      record_match: [external_system: "slack"],
       acp: %{
         command: "slack",
         action: {Console, :inbox},
@@ -248,6 +257,7 @@ defmodule AshEnterprise.Surfaces do
       live: DailyLive.Accounts,
       ui: A2ui.AccountsUI,
       resource: LinkedAccount,
+      context: :account,
       acp: %{
         command: "accounts",
         aliases: ["syncs", "sync status"],
@@ -275,6 +285,7 @@ defmodule AshEnterprise.Surfaces do
       live: DailyLive.Erasure,
       ui: A2ui.ErasureUI,
       resource: AshEnterprise.Erasure.Scope,
+      context: :scope,
       door: :operator,
       acp: %{
         command: "erasure",
@@ -407,6 +418,7 @@ defmodule AshEnterprise.Surfaces do
       live: ComplianceA2uiLive.Catalogs,
       ui: A2ui.CatalogUI,
       resource: AshCompliance.Resources.Catalog,
+      context: :catalog,
       door: :compliance,
       acp: %{command: "catalogs"}
     },
@@ -439,6 +451,7 @@ defmodule AshEnterprise.Surfaces do
       live: A2uiLive.Users,
       ui: A2ui.UserUI,
       resource: AshEnterprise.Accounts.User,
+      context: :user,
       acp: %{command: "users"}
     },
     %Surface{
@@ -453,6 +466,7 @@ defmodule AshEnterprise.Surfaces do
       live: A2uiLive.Teams,
       ui: A2ui.TeamUI,
       resource: AshEnterprise.Accounts.Team,
+      context: :team,
       acp: %{command: "teams"}
     },
     %Surface{
@@ -481,6 +495,7 @@ defmodule AshEnterprise.Surfaces do
       live: A2uiLive.BusinessUnits,
       ui: A2ui.BusinessUnitUI,
       resource: AshEnterprise.Accounts.BusinessUnit,
+      context: :business_unit,
       acp: %{command: "business units"}
     },
 
@@ -513,6 +528,7 @@ defmodule AshEnterprise.Surfaces do
       live: A2uiLive.CanonicalParties,
       ui: A2ui.CanonicalPartyUI,
       resource: AshEnterprise.Contracts.Party,
+      context: :party,
       acp: %{command: "canonical parties", aliases: ["parties"]}
     },
     %Surface{
@@ -528,6 +544,7 @@ defmodule AshEnterprise.Surfaces do
       live: A2uiLive.CanonicalContracts,
       ui: A2ui.CanonicalContractUI,
       resource: AshEnterprise.Contracts.Contract,
+      context: :contract,
       acp: %{command: "canonical contracts", aliases: ["contracts"]}
     },
     %Surface{
@@ -736,6 +753,28 @@ defmodule AshEnterprise.Surfaces do
   @spec for_resource(module()) :: [Surface.t()]
   def for_resource(resource),
     do: Enum.filter(@sorted, &(&1.resource == resource and not is_nil(&1.context)))
+
+  @doc """
+  The surface that shows one record of `resource` in detail (the first of
+  `for_resource/1`), or `nil`. With a `record`, the surface whose
+  `record_match` the record satisfies — a Slack conversation opens in Slack,
+  a Gmail thread in the Inbox — falling back to the first.
+  """
+  @spec record_surface(module(), struct() | nil) :: Surface.t() | nil
+  def record_surface(resource, record \\ nil)
+
+  def record_surface(resource, nil), do: resource |> for_resource() |> List.first()
+
+  def record_surface(resource, record) do
+    candidates = for_resource(resource)
+
+    Enum.find(candidates, &(&1.record_match != [] and matches?(&1.record_match, record))) ||
+      Enum.find(candidates, &(&1.record_match == [])) ||
+      List.first(candidates)
+  end
+
+  defp matches?(match, record),
+    do: Enum.all?(match, fn {attribute, value} -> Map.get(record, attribute) == value end)
 
   @doc "The surfaces whose door is open for `actor`."
   @spec visible(term()) :: [Surface.t()]

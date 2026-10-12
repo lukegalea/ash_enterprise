@@ -27,5 +27,12 @@ defmodule AshEnterpriseWeb.A2ui.ProfileUI do
         columns 1
       end
     end
+
+    # `Profile` is a foreign resource with no relationship to declare, so the
+    # catalog is a bare-id link; its cell is the id, its target the catalog.
+    field :catalog_id do
+      label "Catalog"
+      link {:catalogs, :catalog_id}
+    end
   end
 end

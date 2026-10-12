@@ -214,6 +214,15 @@ Be honest with whoever asked for the erasure about these. Each is a real copy of
   holder and when. Tell whoever asked for the erasure. To remove it as well, delete the account's canonical
   `Message` and `CalendarEvent` rows (they carry the scope's `erasure_scope_id`) and the Person rows only that account
   produced. Nothing does that automatically yet.
+- **Derived joins: who attends what, who talks with whom.** Since 2026-10-12 the canonical model derives first-class
+  joins from what it projects: `EventAttendee` (an event's attendees and their responses) and
+  `ConversationParticipant` (a conversation's people). They hold ids and a response status — nothing sealed — so a
+  key destroy alone would leave them saying who met and wrote with whom, even after the content is gone. **The shred
+  deletes them**: in the same transaction that destroys the key, every attendee row of the events and every
+  participant row of the conversations sealed under the scope is deleted
+  (`AshEnterprise.Canonical.Derive.forget_scope/1`). They are `audit?: false`, so no audit event keeps them either.
+  Re-landing the account's data under a new scope re-derives them. What they pointed at — the Person rows and the
+  per-message `sender_id` — is the "Correspondence metadata" above, and a shred still does not remove it.
 - **The same record from two connections.** Landings are unique on `(external_system, external_id)`, not on the scope,
   and a landing under a second scope is refused rather than taking the row over. So a pair is erased only by the
   shred of the scope it first landed under. The provider syncs namespace every external id by linked account, so

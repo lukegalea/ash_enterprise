@@ -1,7 +1,9 @@
 defmodule AshEnterprise.Canonical.OwnerOnlyTest do
   @moduledoc """
   One person's projected mail and Slack — `Conversation`, `Message`, `Person`
-  — is readable by that person and nobody else in the tenant (ADR 0042,
+  — and the joins derived from them (`ConversationParticipant`,
+  `EventAttendee`: who talks with whom, who meets whom) are readable by that
+  person and nobody else in the tenant (ADR 0042,
   `AshEnterprise.Security.Privilege.owner_only?/1`): not another
   Administrator, not a manager through hierarchy security, and no role can be
   granted wider than `:basic` on them.
@@ -12,13 +14,22 @@ defmodule AshEnterprise.Canonical.OwnerOnlyTest do
   require Ash.Query
 
   alias AshEnterprise.Accounts.User
-  alias AshEnterprise.Canonical.{Conversation, Message, Person}
+
+  alias AshEnterprise.Canonical.{
+    CalendarEvent,
+    Conversation,
+    ConversationParticipant,
+    EventAttendee,
+    Message,
+    Person
+  }
+
   alias AshEnterprise.Integration.{Landing, LinkedAccount}
   alias AshEnterprise.Platform.Seeder
   alias AshEnterprise.Security
   alias AshEnterprise.Security.ActorContext
 
-  @owner_only [Conversation, Message, Person]
+  @owner_only [Conversation, ConversationParticipant, EventAttendee, Message, Person]
 
   setup do
     unique = System.unique_integer([:positive])
@@ -221,6 +232,29 @@ defmodule AshEnterprise.Canonical.OwnerOnlyTest do
         opts
       )
 
-    %{Person => person, Conversation => conversation, Message => message}
+    CalendarEvent.upsert_from_source!(
+      Map.merge(owner_attrs, %{
+        external_system: "google_calendar",
+        external_id: "owner-only-event-#{unique}",
+        title: "SYNTHETIC-OWNER-ONLY-EVENT",
+        starts_at: ~U[2026-10-01 12:00:00.000000Z],
+        ends_at: ~U[2026-10-01 13:00:00.000000Z],
+        erasure_scope_id: scope_id,
+        attendees: [%{person_id: person.id, response_status: "accepted"}]
+      }),
+      opts
+    )
+
+    # The derived joins, written by the parents' upserts.
+    [participant] = Ash.read!(ConversationParticipant, opts)
+    [attendee] = Ash.read!(EventAttendee, opts)
+
+    %{
+      Person => person,
+      Conversation => conversation,
+      Message => message,
+      ConversationParticipant => participant,
+      EventAttendee => attendee
+    }
   end
 end

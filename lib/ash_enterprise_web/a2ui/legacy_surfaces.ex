@@ -177,6 +177,8 @@ defmodule AshEnterpriseWeb.A2ui.LegacyContractUI do
     component :table do
       fields([
         :name,
+        :provider,
+        :client,
         :description,
         :effective_date,
         :expiry_date,
@@ -194,6 +196,20 @@ defmodule AshEnterpriseWeb.A2ui.LegacyContractUI do
         meta([:effective_date, :expiry_date, :value, :payment_term])
         columns(2)
       end
+    end
+
+    # The parties open on the canonical surface (the registry's record surface
+    # for Party), under its own door.
+    field :provider do
+      label("Provider")
+      source([:service_provider_party, :legal_name])
+      link(:service_provider_party)
+    end
+
+    field :client do
+      label("Client")
+      source([:client_party, :legal_name])
+      link(:client_party)
     end
   end
 end

@@ -157,7 +157,11 @@ defmodule AshEnterprise.AcpDailyTest do
     turn = prompt(s, "erasure")
     encoded = JSON.encode!(turn.surface)
     refute encoded =~ ~s("shred")
-    refute Enum.any?(components(turn.surface), &(Map.get(&1, "rowActions", []) != []))
+    # The only row action is opening a scope's detail (context_select): nothing writes.
+    row_actions = Enum.flat_map(components(turn.surface), &Map.get(&1, "rowActions", []))
+    refute JSON.encode!(row_actions) =~ "shred"
+    refute JSON.encode!(row_actions) =~ ~s("invoke")
+    refute JSON.encode!(row_actions) =~ ~s("prompt")
   end
 
   test "a zone-gated, empty inbox says why it is empty" do

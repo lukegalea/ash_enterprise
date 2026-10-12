@@ -87,8 +87,9 @@ defmodule AshEnterprise.DailyLoopTest do
 
       assert ada.organized_event_count == 1
       assert ada.next_event =~ "Planning"
-      assert %{events_text: events} = Ash.load!(ada, :events_text, opts(ctx))
-      assert events =~ "Planning"
+
+      assert %{organized_events: [%{title: "Planning"}]} =
+               Ash.load!(ada, :organized_events, opts(ctx))
     end
   end
 
@@ -163,10 +164,12 @@ defmodule AshEnterprise.DailyLoopTest do
       assert thread.message_count == 1
       assert thread.latest_message == "Sender: Can we move it to Thursday?"
 
-      # The detail pane's read: the whole thread, newest last.
-      assert %{messages_text: text} = Ash.load!(thread, :messages_text, opts(ctx))
-      assert text =~ "**Sender** ←"
-      assert text =~ "Can we move it to Thursday?"
+      # The detail's related table reads the thread's messages, senders linked.
+      assert %{messages: [message]} =
+               Ash.load!(thread, [messages: [:sender_label, :preview]], opts(ctx))
+
+      assert message.sender_label == "Sender"
+      assert message.preview == "Can we move it to Thursday?"
 
       assert {:ok, text} = Console.inbox(:slack, opts(ctx))
       assert text =~ "#eng"

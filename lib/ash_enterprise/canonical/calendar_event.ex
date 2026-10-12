@@ -133,11 +133,33 @@ defmodule AshEnterprise.Canonical.CalendarEvent do
 
       description "The scope of the SourceObject this event was projected from; its key seals the content."
     end
+
+    has_many :attendees, AshEnterprise.Canonical.EventAttendee do
+      public? true
+      destination_attribute :event_id
+      description "Who is invited, with their responses (derived joins)."
+    end
+
+    many_to_many :people, AshEnterprise.Canonical.Person do
+      public? true
+      through AshEnterprise.Canonical.EventAttendee
+      join_relationship :attendees
+      source_attribute_on_join_resource :event_id
+      destination_attribute_on_join_resource :person_id
+      description "The people invited to this event."
+    end
   end
 
   identities do
     identity :unique_external, [:external_system, :external_id]
     identity :unique_provider_uid, [:external_system, :external_uid]
+  end
+
+  aggregates do
+    count :attendee_count, :attendees do
+      public? true
+      description "How many people are invited."
+    end
   end
 
   actions do
@@ -204,6 +226,19 @@ defmodule AshEnterprise.Canonical.CalendarEvent do
         :owning_user_id,
         :owning_business_unit_id
       ]
+
+      argument :attendees, {:array, :map} do
+        allow_nil? true
+
+        description """
+        The attendees the projector resolved: `%{person_id, response_status}`
+        maps. Derived into `AshEnterprise.Canonical.EventAttendee` rows in the
+        same transaction; omitted (nil), the event's attendees are left as
+        they are.
+        """
+      end
+
+      change AshEnterprise.Canonical.Changes.DeriveAttendees
 
       upsert? true
       upsert_identity :unique_external

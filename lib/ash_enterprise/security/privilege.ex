@@ -151,8 +151,10 @@ defmodule AshEnterprise.Security.Privilege do
   def operator_only_resources, do: @operator_only
 
   # User-owned rows holding one person's own mail and Slack, projected from
-  # the linked accounts they own (ADR 0042, ADR 0024), and the business events
-  # derived from them (ADR 0051): readable by that person
+  # the linked accounts they own (ADR 0042, ADR 0024), the business events
+  # derived from them (ADR 0051), and the joins derived from them (who takes
+  # part in a conversation, who attends an event — who-talks-to-whom, as
+  # plainly as the rows they join): readable by that person
   # and nobody else in the tenant. Every privilege on them is grantable at
   # `:basic` only — "I own it" — so no role, an Administrator's included,
   # reaches another user's rows, and hierarchy security does not widen them
@@ -161,6 +163,8 @@ defmodule AshEnterprise.Security.Privilege do
   @owner_only [
     "AshEnterprise.BusinessEvents.Ledger",
     "AshEnterprise.Canonical.Conversation",
+    "AshEnterprise.Canonical.ConversationParticipant",
+    "AshEnterprise.Canonical.EventAttendee",
     "AshEnterprise.Canonical.Message",
     "AshEnterprise.Canonical.Person"
   ]

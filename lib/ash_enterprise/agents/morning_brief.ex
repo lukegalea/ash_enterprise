@@ -103,6 +103,34 @@ defmodule AshEnterprise.Agents.MorningBrief do
     update_timestamp :updated_at
   end
 
+  relationships do
+    # The brief's events: the ids the compose step recorded (no join table —
+    # the selection is the brief's own fact). Read as the reader, so an event
+    # they cannot see is simply not there.
+    has_many :events, AshEnterprise.Canonical.CalendarEvent do
+      public? true
+      no_attributes? true
+      filter expr(id in parent(event_ids))
+      sort starts_at: :asc
+      description "The calendar events the brief covers, in start order."
+    end
+
+    # Its approval: the human task of the `morning.brief` process run with this
+    # brief as subject (the engine records the subject on the instance).
+    has_one :approval_task, AshEnterprise.Bpmn.HumanTask do
+      public? true
+      no_attributes? true
+
+      filter expr(
+               instance.subject_type == "Elixir.AshEnterprise.Agents.MorningBrief" and
+                 instance.subject_id == parent(id)
+             )
+
+      sort inserted_at: :desc
+      description "The approval task deciding this brief."
+    end
+  end
+
   identities do
     # Per tenant (attribute multitenancy adds `organization_id`): what makes
     # the scheduler and the Compose button idempotent, and a double click a

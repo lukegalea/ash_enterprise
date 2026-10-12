@@ -7,6 +7,7 @@ defmodule AshEnterpriseWeb.A2uiLive.CanonicalSurface do
     quote do
       use AshA2ui.LiveRenderer,
         ui: unquote(ui),
+        deep_link: true,
         actor_fn: &__MODULE__.actor/1,
         tenant_fn: &__MODULE__.tenant/1,
         pubsub: [

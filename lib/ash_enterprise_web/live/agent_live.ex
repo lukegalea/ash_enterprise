@@ -171,6 +171,10 @@ defmodule AshEnterpriseWeb.AgentLive do
     {:noreply, assign(socket, :presentation, presentation)}
   end
 
+  # A reference link in the hosted surface: navigate to its deep link, which
+  # re-authorizes the record (`AshEnterpriseWeb.RecordController`).
+  def handle_event("a2ui:open_surface", args, socket), do: Host.open_surface(args, socket)
+
   @impl true
   def handle_info(:clear_cue, socket) do
     {:noreply, assign(socket, cue: nil, cue_ref: nil)}

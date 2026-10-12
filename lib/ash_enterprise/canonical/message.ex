@@ -121,6 +121,16 @@ defmodule AshEnterprise.Canonical.Message do
   end
 
   calculations do
+    calculate :sent, :string, {AshEnterprise.Platform.Calculations.LocalStamp, field: :sent_at} do
+      public? true
+      description "When it was sent, on the operator's wall clock."
+    end
+
+    calculate :preview, :string, AshEnterprise.Canonical.Calculations.MessagePreview do
+      public? true
+      description "The body on one line, clipped — for a row in a list of messages."
+    end
+
     calculate :sender_label,
               :string,
               {AshEnterprise.Canonical.Calculations.PersonLabel, relationship: :sender} do

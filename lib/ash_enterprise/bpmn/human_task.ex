@@ -81,6 +81,31 @@ defmodule AshEnterprise.Bpmn.HumanTask do
       description "The subject's content for the decider — a morning brief's draft."
     end
 
+    calculate :subject_ref,
+              :string,
+              {AshEnterprise.Bpmn.Calculations.SubjectSummary, field: :ref} do
+      public? true
+
+      description """
+      The subject as a typed record reference, `<surface>:<id>` — what a
+      surface links the task's subject through (the `record` link target).
+      """
+    end
+
+    calculate :decided_by_label,
+              :string,
+              {AshEnterprise.Platform.Calculations.UserLabel, field: :decided_by_id} do
+      public? true
+      description "Who decided the task, by email (as the reader may see users)."
+    end
+
+    calculate :assignee_label,
+              :string,
+              {AshEnterprise.Platform.Calculations.UserLabel, field: :assignee_id} do
+      public? true
+      description "Who claimed the task, by email."
+    end
+
     calculate :waiting_since,
               :string,
               {AshEnterprise.Platform.Calculations.LocalStamp,

@@ -80,12 +80,56 @@ defmodule AshEnterprise.Canonical.Person do
       destination_attribute :organizer_id
       description "The calendar events this person organizes."
     end
+
+    has_many :sent_messages, AshEnterprise.Canonical.Message do
+      public? true
+      destination_attribute :sender_id
+      description "The messages this person sent."
+    end
+
+    has_many :attendances, AshEnterprise.Canonical.EventAttendee do
+      public? true
+      description "Their attendance at events, with their responses (a derived join)."
+    end
+
+    many_to_many :attended_events, AshEnterprise.Canonical.CalendarEvent do
+      public? true
+      through AshEnterprise.Canonical.EventAttendee
+      join_relationship :attendances
+      source_attribute_on_join_resource :person_id
+      destination_attribute_on_join_resource :event_id
+      description "The events they are invited to."
+    end
+
+    has_many :participations, AshEnterprise.Canonical.ConversationParticipant do
+      public? true
+      description "Their part in conversations (a derived join)."
+    end
+
+    many_to_many :conversations, AshEnterprise.Canonical.Conversation do
+      public? true
+      through AshEnterprise.Canonical.ConversationParticipant
+      join_relationship :participations
+      source_attribute_on_join_resource :person_id
+      destination_attribute_on_join_resource :conversation_id
+      description "The threads and Slack conversations they take part in."
+    end
   end
 
   aggregates do
     count :organized_event_count, :organized_events do
       public? true
       description "How many calendar events this person organizes."
+    end
+
+    count :sent_message_count, :sent_messages do
+      public? true
+      description "How many messages they sent."
+    end
+
+    count :conversation_count, :participations do
+      public? true
+      description "How many conversations they take part in."
     end
   end
 
@@ -98,15 +142,6 @@ defmodule AshEnterprise.Canonical.Person do
     calculate :next_event, :string, AshEnterprise.Canonical.Calculations.NextEvent do
       public? true
       description "The next not-cancelled event they organize, on the operator's wall clock."
-    end
-
-    calculate :events_text, :string, AshEnterprise.Canonical.Calculations.PersonEvents do
-      public? true
-
-      description """
-      The events they organize, nearest first, as a Markdown list in the
-      operator's display zone — for a person's detail pane.
-      """
     end
   end
 

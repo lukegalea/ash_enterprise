@@ -34,6 +34,13 @@ defmodule AshEnterpriseWeb.A2ui.UserUI do
     title "Users"
     record_label("user")
 
+    # A user opens in detail: the target of every "who" link (decided by,
+    # opened by, a team's administrator, a user's manager).
+    context :user do
+      resource AshEnterprise.Accounts.User
+      picker false
+    end
+
     query :default do
       search_fields [:email]
       sortable [:email, :created_on]
@@ -56,6 +63,7 @@ defmodule AshEnterpriseWeb.A2ui.UserUI do
       fields [:email, :lifecycle_status, :created_on]
       read_action :read
       query :default
+      select_context :user
 
       # Flat rows carry no `weight`, so each cell is content-sized and nothing
       # lines up between rows. This is the only encoder path that emits weights.
@@ -65,6 +73,23 @@ defmodule AshEnterpriseWeb.A2ui.UserUI do
         meta [:created_on]
         columns 1
       end
+    end
+
+    component :detail, :user_detail do
+      context :user
+      fields [:email, :lifecycle_status, :created_on, :manager, :reports]
+    end
+
+    field :manager do
+      label "Manager"
+      link :manager
+      link_label :email
+    end
+
+    field :reports do
+      label "Direct reports"
+      links :direct_reports
+      link_label :email
     end
 
     field :created_on do

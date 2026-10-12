@@ -14,6 +14,11 @@ defmodule AshEnterprise.Acp.Approvals do
   alias AshEnterprise.Acp
 
   @impl true
+  # An extension method asks only for what is consequential — a write through
+  # a surface (`AshEnterprise.Acp.ExtMethods`) — so it always pends: the
+  # person decides, and the action then still runs under their policies.
+  def request(session, %{ext: _} = action_spec, inputs), do: pend(session, action_spec, inputs)
+
   def request(session, action_spec, inputs) do
     Acp.ensure_tables!()
 
@@ -35,21 +40,26 @@ defmodule AshEnterprise.Acp.Approvals do
     if authorized? and read_only?(action, action_spec) do
       {:approved, %{auto: :policy_authorized, tenant: tenant}}
     else
-      ref = Ash.UUID.generate()
-
-      :ets.insert(
-        Acp.approvals_table(),
-        {ref,
-         %{
-           session_id: session.session_id,
-           action_spec: action_spec,
-           inputs: inputs,
-           status: :pending
-         }}
-      )
-
-      {:pending, ref}
+      pend(session, action_spec, inputs)
     end
+  end
+
+  defp pend(session, action_spec, inputs) do
+    Acp.ensure_tables!()
+    ref = Ash.UUID.generate()
+
+    :ets.insert(
+      Acp.approvals_table(),
+      {ref,
+       %{
+         session_id: session.session_id,
+         action_spec: action_spec,
+         inputs: inputs,
+         status: :pending
+       }}
+    )
+
+    {:pending, ref}
   end
 
   defp read_only?(%{type: :read}, _spec), do: true

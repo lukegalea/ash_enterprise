@@ -9,6 +9,11 @@ defmodule AshEnterprise.Erasure.Changes.DestroyScopeKey do
   active would read as a lost key. Either outcome is worse than a failed shred,
   so a shred that cannot find a key to destroy fails and rolls back.
 
+  The same transaction deletes the derived joins of the rows sealed under the
+  scope (`AshEnterprise.Canonical.Derive.forget_scope/1`): they carry ids, not
+  sealed values, so the key's destruction alone would leave who-meets-whom
+  readable.
+
   The `DELETE` is a real one (`Key` is not archivable). What it does not reach —
   dead tuples before `VACUUM`, WAL, backups, replicas — is listed in
   `docs/runbooks/crypto-shredding.md`. Each of those still holds only the
@@ -25,7 +30,7 @@ defmodule AshEnterprise.Erasure.Changes.DestroyScopeKey do
       case Key.for_scope(scope.id, authorize?: false) do
         {:ok, %Key{} = key} ->
           :ok = Key.destroy_for_shred!(key, authorize?: false)
-          {:ok, scope}
+          forget_derived(scope)
 
         {:ok, nil} ->
           {:error,
@@ -38,5 +43,22 @@ defmodule AshEnterprise.Erasure.Changes.DestroyScopeKey do
           {:error, error}
       end
     end)
+  end
+
+  # The derived joins (who attends which event, who takes part in which
+  # conversation) hold ids, not sealed values, so destroying the key does not
+  # reach them: they are deleted, in the same transaction, for every event and
+  # conversation sealed under this scope.
+  defp forget_derived(scope) do
+    case AshEnterprise.Canonical.Derive.forget_scope(scope.id) do
+      :ok ->
+        {:ok, scope}
+
+      {:error, {resource, reason}} ->
+        {:error,
+         Ash.Error.Changes.InvalidChanges.exception(
+           message: "could not delete #{inspect(resource)} rows for the shred (#{reason})"
+         )}
+    end
   end
 end

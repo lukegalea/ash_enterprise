@@ -16,6 +16,7 @@ defmodule AshEnterprise.Surfaces.Surface do
   | `ui` | The `AshA2ui` UI module the page renders, or `nil` for a hand-written page |
   | `resource` | The Ash resource the surface is about |
   | `context` | The A2UI context on `ui` that selects one `resource` record for detail, or `nil` |
+  | `record_match` | Attribute values a record must have to be *this* surface's, when several surfaces show the same resource (Inbox and Slack over `Conversation`); `[]` matches any |
   | `door` | `:signed_in`, `:operator` or `:compliance`; checked by `AshEnterprise.Surfaces.Doors` on web and ACP |
   | `acp` | `nil` or the ACP command spec, see below |
 
@@ -51,6 +52,7 @@ defmodule AshEnterprise.Surfaces.Surface do
     :resource,
     :context,
     :acp,
+    record_match: [],
     icon: "hero-squares-2x2",
     door: :signed_in
   ]
@@ -73,6 +75,7 @@ defmodule AshEnterprise.Surfaces.Surface do
           ui: module() | nil,
           resource: module() | nil,
           context: atom() | nil,
+          record_match: keyword(),
           door: door(),
           acp: map() | nil
         }

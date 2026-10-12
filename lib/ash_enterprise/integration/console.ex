@@ -10,6 +10,7 @@ defmodule AshEnterprise.Integration.Console do
   content: these run at a shell whose scrollback is outside every erasure scope.
   """
 
+  alias AshEnterprise.Canonical.Projections.Calendar, as: CalendarProjection
   alias AshEnterprise.Canonical.Projections.Pending
   alias AshEnterprise.Erasure
   alias AshEnterprise.Erasure.Scope
@@ -169,10 +170,29 @@ defmodule AshEnterprise.Integration.Console do
   Project everything `account` has landed (Gmail or Slack) as its owner,
   `actor`, through the zone gate: the operator's catch-up, for records landed
   before projection ran with the sync, or refused while the account was
-  untagged. Counts only (`AshEnterprise.Canonical.Projections.Pending`), with
+  untagged. A Google Calendar account replays everything it landed (no gate:
+  the calendar vertical is admitted), which is also how its events' attendee
+  joins are backfilled. Counts only (`AshEnterprise.Canonical.Projections.Pending`), with
   a `:status` of `:complete`, or `:failed` and a `:reason`.
   """
   @spec project(LinkedAccount.t(), term()) :: map()
+  def project(%LinkedAccount{provider_config_key: "google-calendar"} = account, actor) do
+    # Calendar projects each event as it lands, so its catch-up is a replay of
+    # everything landed: what re-derives the attendee joins (EventAttendee)
+    # for events projected before they existed.
+    context = %{
+      owner_id: account.owner_id,
+      tenant_id: account.organization_id,
+      business_unit_id: ActorContext.for_actor(actor).business_unit_id,
+      actor: actor
+    }
+
+    case CalendarProjection.replay_landed(account.id, context) do
+      {:ok, counts} -> Map.put(counts, :status, :complete)
+      {:error, _reason} -> %{status: :failed, reason: :projection_failed}
+    end
+  end
+
   def project(%LinkedAccount{provider_config_key: key} = account, actor) do
     if key in Pending.integrations() do
       case Pending.project(account, owner: actor, all?: true) do

@@ -167,6 +167,19 @@ defmodule AshEnterprise.Integration.LinkedAccount do
     has_one :projection_cursor, AshEnterprise.Integration.ProjectionCursor do
       description "Gmail and Slack: how far landed records have been projected."
     end
+
+    # One erasure scope per linked account (`AshEnterprise.Integration.Landing.scope/1`):
+    # kind `:connection`, ref the account's id. No foreign key: the scope is
+    # opened by the first landing and outlives the account's rows, so the link
+    # is the (kind, ref) identity. Nil until something has landed. Reading it
+    # still needs a grant on erasure scopes (operator-only), so for anyone else
+    # it is simply not there.
+    has_one :erasure_scope, AshEnterprise.Erasure.Scope do
+      public? true
+      no_attributes? true
+      filter expr(kind == :connection and ref == type(parent(id), :string))
+      description "The erasure scope everything landed through this account is sealed under."
+    end
   end
 
   aggregates do

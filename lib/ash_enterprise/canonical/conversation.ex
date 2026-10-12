@@ -44,6 +44,11 @@ defmodule AshEnterprise.Canonical.Conversation do
   end
 
   changes do
+    # Who takes part, as first-class joins: derived from the participants the
+    # projector resolved, in the same transaction (ConversationParticipant).
+    # Before the seal, which consumes the `participants` argument.
+    change AshEnterprise.Canonical.Changes.DeriveParticipants, on: [:create, :update]
+
     change {AshEnterprise.Erasure.Changes.SealUnderScope, fields: [:subject, :participants]},
       on: [:create, :update]
   end
@@ -64,9 +69,10 @@ defmodule AshEnterprise.Canonical.Conversation do
 
       description """
       Who is in the thread, keyed by role: `%{"emails" => [...], "person_ids" =>
-      [...]}`. A map rather than a join table for v1 — linkage is email-based
-      (no entity resolution, roadmap P4), so the honest shape is the emails the
-      source system carried, plus person ids resolved so far.
+      [...]}` — the emails (or Slack ids) the source system carried, plus the
+      person ids resolved so far. Sealed. The resolved people are also derived
+      into `AshEnterprise.Canonical.ConversationParticipant` joins (ids only),
+      which is what `people` reads.
       """
 
       default %{}
@@ -104,6 +110,20 @@ defmodule AshEnterprise.Canonical.Conversation do
     has_many :messages, AshEnterprise.Canonical.Message do
       public? true
       description "The messages in this thread."
+    end
+
+    has_many :participations, AshEnterprise.Canonical.ConversationParticipant do
+      public? true
+      description "Who takes part, as derived joins (`AshEnterprise.Canonical.Derive`)."
+    end
+
+    many_to_many :people, AshEnterprise.Canonical.Person do
+      public? true
+      through AshEnterprise.Canonical.ConversationParticipant
+      join_relationship :participations
+      source_attribute_on_join_resource :conversation_id
+      destination_attribute_on_join_resource :person_id
+      description "The owner's people taking part in this conversation."
     end
 
     belongs_to :erasure_scope, AshEnterprise.Erasure.Scope do
@@ -145,13 +165,6 @@ defmodule AshEnterprise.Canonical.Conversation do
               AshEnterprise.Canonical.Calculations.LatestMessage do
       public? true
       description "The newest message in one line: sender and the start of the body."
-    end
-
-    calculate :messages_text,
-              :string,
-              AshEnterprise.Canonical.Calculations.ConversationMessages do
-      public? true
-      description "The latest messages as Markdown, newest last — for a detail pane."
     end
   end
 

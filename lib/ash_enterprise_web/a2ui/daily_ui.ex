@@ -2,8 +2,9 @@ defmodule AshEnterpriseWeb.A2ui.TodayUI do
   @moduledoc """
   Today — the operator's home for the day (Productivity OS dogfood, epic E6).
 
-  Anchored on the latest `MorningBrief`: its draft is rendered on read, and
-  its Approve / Reject row actions are delegated (`via`) to
+  Anchored on the latest `MorningBrief`: its draft is rendered on read, its
+  detail links the events it covers and its approval task, and its Approve /
+  Reject row actions are delegated (`via`) to
   `AshEnterprise.Agents.BriefDecision`, which decides the brief's BPMN
   approval task as the actor — the process records the outcome, nothing here
   writes the brief. Two reports frame it: today's agenda and the day's pulse
@@ -22,10 +23,17 @@ defmodule AshEnterpriseWeb.A2ui.TodayUI do
     record_label "morning brief"
     spec_version "1.0"
 
+    # The brief opens in detail: its events and its approval, as links.
+    context :brief do
+      resource AshEnterprise.Agents.MorningBrief
+      picker false
+    end
+
     component :table, :brief do
       fields [:headline, :status, :summary]
       read_action :latest
       row_actions [:approve, :reject]
+      select_context :brief
 
       row_layout do
         title :headline
@@ -38,6 +46,11 @@ defmodule AshEnterpriseWeb.A2ui.TodayUI do
         meta [:summary]
         columns 1
       end
+    end
+
+    component :detail, :brief_detail do
+      context :brief
+      fields [:headline, :status, :summary, :brief_events, :approval]
     end
 
     component :report, :agenda do
@@ -67,6 +80,18 @@ defmodule AshEnterpriseWeb.A2ui.TodayUI do
     field :summary do
       label "Outline"
     end
+
+    field :brief_events do
+      label "Events"
+      links :events
+      link_label :title
+    end
+
+    field :approval do
+      label "Approval"
+      link :approval_task
+      link_label :status
+    end
   end
 end
 
@@ -74,7 +99,9 @@ defmodule AshEnterpriseWeb.A2ui.CalendarUI do
   @moduledoc """
   Calendar — the agenda by window: today (the default), tomorrow, this week
   or the next two weeks, each a named preset over its own `CalendarEvent`
-  read, cut in the operator's display zone; filterable by status. Read-only.
+  read, cut in the operator's display zone; filterable by status. An event
+  opens in detail with its organizer and attendees as links to People.
+  Read-only.
 
   Served at `/app/calendar` and, as the `calendar` prompt, over ACP.
   """
@@ -87,6 +114,11 @@ defmodule AshEnterpriseWeb.A2ui.CalendarUI do
     title "Calendar"
     record_label "event"
     spec_version "1.0"
+
+    context :event do
+      resource AshEnterprise.Canonical.CalendarEvent
+      picker false
+    end
 
     # One agenda, three windows: the window is a named preset (the read
     # action behind it is cut in the display zone), so switching days is a
@@ -118,6 +150,7 @@ defmodule AshEnterpriseWeb.A2ui.CalendarUI do
       fields [:title, :status, :when, :location, :organizer_label]
       read_action :today
       query :agenda
+      select_context :event
 
       row_layout do
         title :title
@@ -126,6 +159,19 @@ defmodule AshEnterpriseWeb.A2ui.CalendarUI do
         meta [:when, :location, :organizer_label]
         columns 3
       end
+    end
+
+    component :detail, :event_detail do
+      context :event
+      fields [:title, :status, :when, :location, :organizer_label, :attendee_count]
+    end
+
+    # Who is invited, and how they answered: the derived attendee joins.
+    component :table, :attendees do
+      resource AshEnterprise.Canonical.EventAttendee
+      fields [:attendee, :response_label]
+      context_filter event_id: :event
+      require_context [:event]
     end
 
     field :title do
@@ -142,6 +188,21 @@ defmodule AshEnterpriseWeb.A2ui.CalendarUI do
 
     field :organizer_label do
       label "Organizer"
+      link :organizer
+    end
+
+    field :attendee_count do
+      label "Invited"
+    end
+
+    field :attendee do
+      label "Attendee"
+      source [:person, :label]
+      link :person
+    end
+
+    field :response_label do
+      label "Response"
     end
   end
 end
@@ -149,8 +210,11 @@ end
 defmodule AshEnterpriseWeb.A2ui.PeopleUI do
   @moduledoc """
   People — the canonical people directory: search by name or address, and a
-  person's detail with the events they organize (on the operator's wall
-  clock). Read-only; people are projected, never typed in here.
+  person's detail with what the canonical model knows about them, as related
+  tables: the events they organize and are invited to (with their answer),
+  the conversations they take part in, and the messages they sent — every row
+  a link to its event, thread or conversation. Read-only; people are
+  projected, never typed in here.
 
   Served at `/app/people` and, as the `people` prompt, over ACP.
   """
@@ -182,6 +246,20 @@ defmodule AshEnterpriseWeb.A2ui.PeopleUI do
       max_page_size 100
     end
 
+    query :events do
+      sortable [:starts_at]
+      default_sort starts_at: :desc
+      page_size 10
+      max_page_size 50
+    end
+
+    query :messages do
+      sortable [:sent_at]
+      default_sort sent_at: :desc
+      page_size 10
+      max_page_size 50
+    end
+
     component :table do
       fields [:label, :email, :next_event, :organized_event_count]
       read_action :read
@@ -197,7 +275,45 @@ defmodule AshEnterpriseWeb.A2ui.PeopleUI do
 
     component :detail, :person_detail do
       context :person
-      fields [:label, :email, :next_event, :organized_event_count, :events_text]
+
+      fields [
+        :label,
+        :email,
+        :next_event,
+        :organized_event_count,
+        :conversation_count,
+        :sent_message_count
+      ]
+    end
+
+    component :table, :organized do
+      resource AshEnterprise.Canonical.CalendarEvent
+      fields [:title, :when, :status]
+      query :events
+      context_filter organizer_id: :person
+      require_context [:person]
+    end
+
+    component :table, :invited do
+      resource AshEnterprise.Canonical.EventAttendee
+      fields [:invited_event, :invited_when, :response_label]
+      context_filter person_id: :person
+      require_context [:person]
+    end
+
+    component :table, :conversations do
+      resource AshEnterprise.Canonical.ConversationParticipant
+      fields [:conversation, :conversation_kind, :conversation_activity]
+      context_filter person_id: :person
+      require_context [:person]
+    end
+
+    component :table, :sent do
+      resource AshEnterprise.Canonical.Message
+      fields [:sent, :thread, :preview]
+      query :messages
+      context_filter sender_id: :person
+      require_context [:person]
     end
 
     field :next_event do
@@ -216,16 +332,76 @@ defmodule AshEnterpriseWeb.A2ui.PeopleUI do
       label "Events organized"
     end
 
-    field :events_text do
-      label "Their events"
+    field :conversation_count do
+      label "Conversations"
+    end
+
+    field :sent_message_count do
+      label "Messages sent"
+    end
+
+    # An organized event's row links to the event itself.
+    field :title do
+      label "Organizes"
+      link {:calendar, :id}
+    end
+
+    field :when do
+      label "When"
+    end
+
+    field :invited_event do
+      label "Invited to"
+      source [:event, :title]
+      link :event
+    end
+
+    field :invited_when do
+      label "When"
+      source [:event, :when]
+    end
+
+    field :response_label do
+      label "Response"
+    end
+
+    field :conversation do
+      label "Takes part in"
+      source [:conversation, :subject]
+      link :conversation
+    end
+
+    field :conversation_kind do
+      label "Kind"
+      source [:conversation, :kind_label]
+    end
+
+    field :conversation_activity do
+      label "Last activity"
+      source [:conversation, :last_activity]
+    end
+
+    field :sent do
+      label "Sent"
+    end
+
+    field :thread do
+      label "In"
+      source [:conversation, :subject]
+      link :conversation
+    end
+
+    field :preview do
+      label "Message"
     end
   end
 end
 
 defmodule AshEnterpriseWeb.A2ui.InboxUI do
   @moduledoc """
-  Inbox — Gmail threads from the canonical model, newest activity first, with
-  a thread's latest messages in its detail. Search reaches correspondents by
+  Inbox — Gmail threads from the canonical model, newest activity first. A
+  thread opens in detail with its people (links to People) and its messages
+  as a related table, each sender a link. Search reaches correspondents by
   name or address (subjects and bodies are sealed under their account's
   erasure scope, so the database cannot search them).
 
@@ -258,6 +434,13 @@ defmodule AshEnterpriseWeb.A2ui.InboxUI do
       max_page_size 100
     end
 
+    query :messages do
+      sortable [:sent_at]
+      default_sort sent_at: :asc
+      page_size 50
+      max_page_size 200
+    end
+
     component :table do
       fields [:subject, :latest_message, :last_activity, :message_count]
       read_action :gmail
@@ -273,7 +456,16 @@ defmodule AshEnterpriseWeb.A2ui.InboxUI do
 
     component :detail, :thread_detail do
       context :thread
-      fields [:subject, :last_activity, :message_count, :messages_text]
+      fields [:subject, :last_activity, :message_count, :people]
+    end
+
+    # The thread's messages, oldest first, each sender a link to People.
+    component :table, :messages do
+      resource AshEnterprise.Canonical.Message
+      fields [:sent, :sender_label, :preview]
+      query :messages
+      context_filter conversation_id: :thread
+      require_context [:thread]
     end
 
     field :latest_message do
@@ -288,8 +480,23 @@ defmodule AshEnterpriseWeb.A2ui.InboxUI do
       label "Messages"
     end
 
-    field :messages_text do
-      label "Latest messages"
+    field :people do
+      label "People"
+      links :people
+      link_label :label
+    end
+
+    field :sent do
+      label "Sent"
+    end
+
+    field :sender_label do
+      label "From"
+      link :sender
+    end
+
+    field :preview do
+      label "Message"
     end
   end
 end
@@ -298,8 +505,9 @@ defmodule AshEnterpriseWeb.A2ui.SlackUI do
   @moduledoc """
   Slack — Slack conversations from the canonical model, newest activity
   first, each labelled by kind (channel, private channel, group DM, DM — from
-  the conversation's `kind` once the projection records it), with a
-  conversation's latest messages in its detail. Search reaches senders by
+  the conversation's `kind` once the projection records it). A conversation
+  opens in detail with its people and its messages as a related table, each
+  sender a link to People. Search reaches senders by
   name or address.
 
   Empty until the Slack zone gate admits content (ADR 0042); the host says
@@ -331,6 +539,13 @@ defmodule AshEnterpriseWeb.A2ui.SlackUI do
       max_page_size 100
     end
 
+    query :messages do
+      sortable [:sent_at]
+      default_sort sent_at: :asc
+      page_size 50
+      max_page_size 200
+    end
+
     component :table do
       fields [:subject, :kind_label, :latest_message, :last_activity, :message_count]
       read_action :slack
@@ -347,7 +562,16 @@ defmodule AshEnterpriseWeb.A2ui.SlackUI do
 
     component :detail, :conversation_detail do
       context :conversation
-      fields [:subject, :kind_label, :last_activity, :message_count, :messages_text]
+      fields [:subject, :kind_label, :last_activity, :message_count, :people]
+    end
+
+    # The conversation's messages, oldest first, each sender a link to People.
+    component :table, :messages do
+      resource AshEnterprise.Canonical.Message
+      fields [:sent, :sender_label, :preview]
+      query :messages
+      context_filter conversation_id: :conversation
+      require_context [:conversation]
     end
 
     field :kind_label do
@@ -370,8 +594,23 @@ defmodule AshEnterpriseWeb.A2ui.SlackUI do
       label "Messages"
     end
 
-    field :messages_text do
-      label "Latest messages"
+    field :people do
+      label "People"
+      links :people
+      link_label :label
+    end
+
+    field :sent do
+      label "Sent"
+    end
+
+    field :sender_label do
+      label "From"
+      link :sender
+    end
+
+    field :preview do
+      label "Message"
     end
   end
 end
@@ -418,7 +657,15 @@ defmodule AshEnterpriseWeb.A2ui.ApprovalsUI do
 
     component :detail, :task_detail do
       context :task
-      fields [:subject_label, :name, :status, :waiting_since, :subject_detail]
+
+      fields [
+        :subject_label,
+        :name,
+        :status,
+        :waiting_since,
+        :assignee_label,
+        :subject_detail
+      ]
     end
 
     action :reject do
@@ -426,8 +673,16 @@ defmodule AshEnterpriseWeb.A2ui.ApprovalsUI do
       prompt_title "Reject — add a note for the record (optional)"
     end
 
+    # The subject is polymorphic: a typed reference (`<surface>:<id>`) the
+    # `record` link target resolves when it is opened.
     field :subject_label do
       label "About"
+      link {:record, :subject_ref}
+    end
+
+    field :assignee_label do
+      label "Claimed by"
+      link {:users, :assignee_id}
     end
 
     field :subject_outline do

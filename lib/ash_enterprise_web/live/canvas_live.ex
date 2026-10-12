@@ -265,6 +265,10 @@ defmodule AshEnterpriseWeb.CanvasLive do
     {:noreply, assign(socket, :presentation, presentation)}
   end
 
+  # A reference link in the hosted surface: navigate to its deep link, which
+  # re-authorizes the record (`AshEnterpriseWeb.RecordController`).
+  def handle_event("a2ui:open_surface", args, socket), do: Host.open_surface(args, socket)
+
   @impl true
   def handle_info({:ash_a2ui_host, :refresh}, %{assigns: %{presentation: nil}} = socket) do
     {:noreply, assign(socket, :refresh_scheduled?, false)}
