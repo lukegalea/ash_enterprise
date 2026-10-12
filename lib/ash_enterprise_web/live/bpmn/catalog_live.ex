@@ -20,6 +20,7 @@ defmodule AshEnterpriseWeb.Bpmn.CatalogLive do
   alias AshEnterprise.Bpmn.Subscription
   alias AshEnterprise.Platform.SystemActor
   alias AshEnterprise.Process.{Binding, DefinitionLoader, Resolver}
+  alias AshEnterpriseWeb.Bpmn.Baselines
 
   @impl true
   def mount(_params, _session, socket) do
@@ -46,27 +47,9 @@ defmodule AshEnterpriseWeb.Bpmn.CatalogLive do
          |> push_navigate(to: editor_path(kind, key))}
 
       {:error, error} ->
-        {:noreply, put_flash(socket, :error, fork_error(error))}
+        {:noreply, put_flash(socket, :error, Baselines.fork_error(error))}
     end
   end
-
-  # `Resolver.fork/4` fails with bare atoms and tuples, not exceptions -- calling
-  # Exception.message/1 on them (which is what this handler used to do) is a
-  # FunctionClauseError waiting for the first failed fork. One clause per shape
-  # the resolver can return, and deliberately no catch-all: if the union grows,
-  # dialyzer names the shape that has no copy yet.
-  defp fork_error(:no_platform_organization),
-    do:
-      "The platform organization is missing, so there is no baseline to customize from. Run mix ash_enterprise.seed."
-
-  defp fork_error({:no_platform_organization, _detail}),
-    do: fork_error(:no_platform_organization)
-
-  defp fork_error({:definition_not_found, kind, key}),
-    do: "There is no #{kind} named \"#{key}\" to customize."
-
-  defp fork_error({:no_published_baseline, kind, key}),
-    do: "\"#{key}\" has no published #{kind} baseline to customize from yet."
 
   defp editor_path(:process, key), do: ~p"/app/processes/#{key}/designer"
   defp editor_path(:decision, key), do: ~p"/app/decisions/#{key}/editor"
@@ -255,11 +238,9 @@ defmodule AshEnterpriseWeb.Bpmn.CatalogLive do
                   </td>
                   <td class="space-x-1 text-right">
                     <%!-- Customizing is an explicit act, not a side effect of opening an editor.
-                        Both editors create a draft on first visit if none exists, seeded from a
-                        blank template -- which is right for a key nobody has ever published and
-                        wrong here, where the answer should be a copy of the baseline. So the
-                        fork happens on this button, and the editor is only ever opened on a
-                        draft that already exists.
+                        Opening either editor on a baseline key writes nothing and shows the
+                        baseline read-only (`AshEnterpriseWeb.Bpmn.Baselines`); the fork happens
+                        here or on the editor's own Customize button, which make the same call.
 
                         It also keeps the default honest. Absence of a binding means "follow the
                         baseline"; a design where merely looking at a decision forked it would
@@ -296,6 +277,14 @@ defmodule AshEnterpriseWeb.Bpmn.CatalogLive do
                     <.button
                       :if={@kind == :process and row.source == :platform}
                       navigate={~p"/app/processes/#{row.key}/designer"}
+                      variant="ghost"
+                      size="xs"
+                    >
+                      View
+                    </.button>
+                    <.button
+                      :if={@kind == :decision and row.source == :platform}
+                      navigate={~p"/app/decisions/#{row.key}/editor"}
                       variant="ghost"
                       size="xs"
                     >

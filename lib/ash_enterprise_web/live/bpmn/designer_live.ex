@@ -10,6 +10,9 @@ defmodule AshEnterpriseWeb.Bpmn.DesignerLive do
   definition into another tenant, and baselines are unreachable from the web entirely
   (`mix ash_enterprise.bpmn.publish` is the only way in).
 
+  A key this tenant has stored nothing for opens on the platform baseline, read-only, with a
+  Customize button that forks it (`AshEnterpriseWeb.Bpmn.Baselines`). Opening writes nothing.
+
   The three catalogue options feed the properties panel its choices: the decision keys this
   actor can see, the actions the invoker's registry permits (the panel and the allowlist are
   one list — see `AshEnterprise.Process.DesignerCatalogue`), and the deep link into the DMN
@@ -21,5 +24,7 @@ defmodule AshEnterpriseWeb.Bpmn.DesignerLive do
     actor: {AshEnterpriseWeb.Bpmn.Helpers, :current_actor, []},
     decisions: {AshEnterprise.Process.DesignerCatalogue, :decisions, []},
     actions: {AshEnterprise.Process.DesignerCatalogue, :actions, []},
-    decision_editor: {AshEnterprise.Process.DesignerCatalogue, :decision_editor_path, []}
+    decision_editor: {AshEnterprise.Process.DesignerCatalogue, :decision_editor_path, []},
+    baseline: {AshEnterpriseWeb.Bpmn.Baselines, :process_baseline, []},
+    customize: {AshEnterpriseWeb.Bpmn.Baselines, :customize_process, []}
 end
