@@ -74,6 +74,15 @@ root="${file%%/lib/*}"
 # to fix, so it should not reach the agent at all.
 [ -f "$root/devenv.nix" ] && [ -f "$root/mix.exs" ] || exit 0
 
+# Sub-agent worktrees are mid-build by definition: drift there is the agent's
+# own unfinished codegen, which its gate (`mix ash.codegen --check`) closes
+# before it commits. Checking them here only wakes the parent session about
+# work it does not own, and starts a second devenv shell racing the agent's own
+# for the GC root and the `_build` lock.
+case "$root" in
+  */.claude/worktrees/*) exit 0 ;;
+esac
+
 cd "$root" || exit 0
 
 # Reports "the check could not run" and exits. $1 is a one-line reason, the
@@ -125,12 +134,34 @@ if command -v timeout >/dev/null 2>&1; then
   timeout_cmd="timeout 240"
 fi
 
-stderr_file="$(mktemp)"
-# shellcheck disable=SC2086
-stdout="$($timeout_cmd devenv shell -- mix ash.codegen --check 2>"$stderr_file")"
-status=$?
-stderr="$(cat "$stderr_file")"
-rm -f "$stderr_file"
+# Concurrent `devenv shell` starts in one checkout race on the `.devenv/gc/shell`
+# GC-root symlink — each removes and recreates it — and the loser dies with
+# "Failed to remove existing GC root: No such file or directory" before mix runs.
+# Edits arrive in bursts, and a sub-agent's worktree also has the agent's own
+# devenv shells in flight, so this race is the common case, not a corner one.
+#
+# Two defences. A per-checkout flock serialises this hook's own runs (a burst of
+# edits checks once at a time rather than racing itself). And because the agent
+# working in the checkout does not take that lock, a run that still loses the
+# race is retried after a short backoff — the GC root is rebuilt by whichever
+# shell won, so the retry starts cleanly.
+lock_file="$root/.devenv/.codegen-hook.lock"
+mkdir -p "$root/.devenv"
+
+stdout=""
+stderr=""
+status=1
+for attempt in 1 2 3; do
+  stderr_file="$(mktemp)"
+  # shellcheck disable=SC2086
+  stdout="$(flock -w 240 "$lock_file" $timeout_cmd devenv shell -- mix ash.codegen --check 2>"$stderr_file")"
+  status=$?
+  stderr="$(cat "$stderr_file")"
+  rm -f "$stderr_file"
+
+  printf '%s\n%s' "$stdout" "$stderr" | grep -qF "Failed to remove existing GC root" || break
+  sleep $((attempt * 5))
+done
 
 # In sync. Nothing to say.
 [ "$status" -eq 0 ] && exit 0
