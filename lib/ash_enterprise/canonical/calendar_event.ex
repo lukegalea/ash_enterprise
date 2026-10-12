@@ -143,6 +143,29 @@ defmodule AshEnterprise.Canonical.CalendarEvent do
   actions do
     defaults [:read]
 
+    # The agenda windows the daily-loop surfaces read (Today, Calendar; ACP
+    # `today` / `calendar`). Cut in the display zone, in start order — see
+    # `AshEnterprise.Canonical.Preparations.AgendaWindow`.
+    read :today do
+      description "Events overlapping today, in the operator's display zone, in start order."
+      prepare {AshEnterprise.Canonical.Preparations.AgendaWindow, window: :today}
+    end
+
+    read :tomorrow do
+      description "Events overlapping tomorrow, in the operator's display zone, in start order."
+      prepare {AshEnterprise.Canonical.Preparations.AgendaWindow, window: :tomorrow}
+    end
+
+    read :this_week do
+      description "Events overlapping today and the next six days, in start order."
+      prepare {AshEnterprise.Canonical.Preparations.AgendaWindow, window: :this_week}
+    end
+
+    read :upcoming do
+      description "Events from now to fourteen days out, in start order."
+      prepare {AshEnterprise.Canonical.Preparations.AgendaWindow, window: :upcoming}
+    end
+
     read :by_external do
       description """
       Look up the canonical row projected from one raw SourceObject.
@@ -198,9 +221,31 @@ defmodule AshEnterprise.Canonical.CalendarEvent do
     end
   end
 
+  calculations do
+    calculate :time_range,
+              :string,
+              {AshEnterprise.Canonical.Calculations.EventTime, format: :range} do
+      public? true
+      description "`09:00–09:30`, in the operator's display zone."
+    end
+
+    calculate :when, :string, {AshEnterprise.Canonical.Calculations.EventTime, format: :span} do
+      public? true
+      description "`Mon 12 Oct · 09:00–09:30`, in the operator's display zone."
+    end
+
+    calculate :organizer_label,
+              :string,
+              {AshEnterprise.Canonical.Calculations.PersonLabel, relationship: :organizer} do
+      public? true
+      description "The organizer's name, else their address."
+    end
+  end
+
   code_interface do
     define :by_external, args: [:system, :id], not_found_error?: false
     define :upsert_from_source
     define :read
+    define :today
   end
 end

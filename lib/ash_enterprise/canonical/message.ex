@@ -120,6 +120,15 @@ defmodule AshEnterprise.Canonical.Message do
     end
   end
 
+  calculations do
+    calculate :sender_label,
+              :string,
+              {AshEnterprise.Canonical.Calculations.PersonLabel, relationship: :sender} do
+      public? true
+      description "The sender's name, else their address."
+    end
+  end
+
   identities do
     identity :unique_external, [:external_system, :external_id]
   end

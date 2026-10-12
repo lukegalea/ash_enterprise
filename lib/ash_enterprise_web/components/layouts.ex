@@ -61,6 +61,39 @@ defmodule AshEnterpriseWeb.Layouts do
         </a>
         <nav class="ms-auto" aria-label="Main">
           <ul class="flex flex-wrap items-center gap-1.5">
+            <%!-- The daily loop (AshEnterpriseWeb.DailyLive): Today first, because
+                  it is where sign-in lands; the rest of the day behind one menu,
+                  with the operator's surfaces grouped at its foot. --%>
+            <li><a id="nav-today" href="/app/today" class={nav_pill()}>Today</a></li>
+            <li>
+              <details class="group relative">
+                <summary
+                  id="nav-day"
+                  class={[nav_pill(), "list-none [&::-webkit-details-marker]:hidden"]}
+                >
+                  My day
+                  <.icon
+                    name="hero-chevron-down-micro"
+                    class="size-4 transition-transform group-open:rotate-180"
+                  />
+                </summary>
+                <ul class="absolute right-0 z-50 mt-2 w-52 rounded-base border-2 border-border bg-secondary-background p-1.5 shadow-shadow">
+                  <li><a href="/app/calendar" class={menu_item()}>Calendar</a></li>
+                  <li><a href="/app/inbox" class={menu_item()}>Inbox</a></li>
+                  <li><a href="/app/slack" class={menu_item()}>Slack</a></li>
+                  <li><a href="/app/people" class={menu_item()}>People</a></li>
+                  <li><a href="/app/approvals" class={menu_item()}>Approvals</a></li>
+                  <li
+                    id="nav-operator"
+                    class="mt-1.5 border-t-2 border-border px-3 pt-2 pb-1 text-xs font-heading uppercase tracking-wide text-foreground/70"
+                  >
+                    Operator
+                  </li>
+                  <li><a href="/app/accounts" class={menu_item()}>Accounts &amp; syncs</a></li>
+                  <li><a href="/app/erasure" class={menu_item()}>Erasure scopes</a></li>
+                </ul>
+              </details>
+            </li>
             <%!--
               Administration. These are A2UI surfaces derived from resource
               metadata, not hand-written screens -- see

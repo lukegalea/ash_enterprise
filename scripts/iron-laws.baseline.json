@@ -38,12 +38,6 @@
   {
     "law": "21",
     "file": "lib/ash_enterprise_web/components/core_components.ex",
-    "text": "assign_new(assigns, :class, fn ->",
-    "reason": "Phoenix-generated function component: assign_new on a function component's assigns sets a default for an attribute the caller omitted. The law is about LiveView mount, where assign_new hides per-mount state; the detector cannot tell the two apart."
-  },
-  {
-    "law": "21",
-    "file": "lib/ash_enterprise_web/components/core_components.ex",
     "text": "assigns = assign_new(assigns, :id, fn -> \"flash-#{assigns.kind}\" end)",
     "reason": "Phoenix-generated function component: assign_new on a function component's assigns sets a default for an attribute the caller omitted. The law is about LiveView mount, where assign_new hides per-mount state; the detector cannot tell the two apart."
   },
@@ -70,5 +64,11 @@
     "file": "lib/mix/tasks/ash_enterprise.bpmn.setup.ex",
     "text": "Mix.Task.run(\"app.start\")",
     "reason": "Retained after review (S1-44 follow-up): the task is genuinely Oban-load-bearing. It submits access requests and then drains the :bpmn and :default queues inline so the seeded processes actually run -- without the running Oban instance the demo exits with every process parked on its start node. The full supervision tree is the point of this task, unlike its siblings, which now boot minimally via AshEnterprise.Mix.Helpers.boot_repo/0 (docs/reviews/iron-law-audit.md, fix item 3; fix item 6)."
+  },
+  {
+    "law": "11",
+    "file": "lib/ash_enterprise_web/live/daily_live.ex",
+    "text": "def handle_event(\"a2ui:action\", envelope, socket) do",
+    "reason": "Authorized through policies: the handler delegates to AshA2ui.LiveRenderer.handle_action/3, which routes the envelope through AshA2ui.ActionHandler with the signed-in actor and authorize?: true (the row-action allowlist and visible_when re-check included). The detector only looks for Ash.can? in the file."
   }
 ]

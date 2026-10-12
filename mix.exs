@@ -261,6 +261,10 @@ defmodule AshEnterprise.MixProject do
       # lib/ash_enterprise_web/a2ui/ so removing it is a deletion, not a
       # refactor. ADR 0033 records the experience layer's adoption.
       {:ash_a2ui, github: "lukegalea/ash_a2ui"},
+      # IANA zone data for the daily-loop surfaces' wall clock
+      # (`AshEnterprise.Platform.LocalTime`). Already in the lock through
+      # boxic_feel; declared because this app calls it directly.
+      {:tz, "~> 0.28"},
 
       # --- Strangler-fig migration of the legacy schema ------------------------
       # First-party (ADR 0009), and used here for the read model over

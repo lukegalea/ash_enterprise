@@ -74,6 +74,42 @@ defmodule AshEnterprise.Canonical.Person do
     update_timestamp :updated_at
   end
 
+  relationships do
+    has_many :organized_events, AshEnterprise.Canonical.CalendarEvent do
+      public? true
+      destination_attribute :organizer_id
+      description "The calendar events this person organizes."
+    end
+  end
+
+  aggregates do
+    count :organized_event_count, :organized_events do
+      public? true
+      description "How many calendar events this person organizes."
+    end
+  end
+
+  calculations do
+    calculate :label, :string, expr(name || type(email, :string)) do
+      public? true
+      description "Their display name, else their address."
+    end
+
+    calculate :next_event, :string, AshEnterprise.Canonical.Calculations.NextEvent do
+      public? true
+      description "The next not-cancelled event they organize, on the operator's wall clock."
+    end
+
+    calculate :events_text, :string, AshEnterprise.Canonical.Calculations.PersonEvents do
+      public? true
+
+      description """
+      The events they organize, nearest first, as a Markdown list in the
+      operator's display zone — for a person's detail pane.
+      """
+    end
+  end
+
   identities do
     # "Unique on email where present": Postgres unique indexes leave multiple
     # NULLs alone, so name-only contacts do not collide.

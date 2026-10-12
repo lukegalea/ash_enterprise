@@ -88,6 +88,11 @@ defmodule AshEnterprise.Canonical.Conversation do
   end
 
   relationships do
+    has_many :messages, AshEnterprise.Canonical.Message do
+      public? true
+      description "The messages in this thread."
+    end
+
     belongs_to :erasure_scope, AshEnterprise.Erasure.Scope do
       allow_nil? false
       public? true
@@ -95,6 +100,45 @@ defmodule AshEnterprise.Canonical.Conversation do
       attribute_writable? true
 
       description "The scope of the source this conversation was projected from; its key seals the content."
+    end
+  end
+
+  aggregates do
+    count :message_count, :messages do
+      public? true
+      description "How many messages the thread holds."
+    end
+
+    max :last_message_at, :messages, :sent_at do
+      public? true
+      description "When the thread's newest message was sent."
+    end
+  end
+
+  calculations do
+    calculate :last_activity, :string, AshEnterprise.Canonical.Calculations.LastActivity do
+      public? true
+      description "When the newest message was sent, on the operator's wall clock."
+    end
+
+    calculate :kind_label, :string, AshEnterprise.Canonical.Calculations.ConversationKind do
+      public? true
+
+      description "Channel, Private channel, Group DM, DM — or Thread / Conversation when the source does not say."
+    end
+
+    calculate :latest_message,
+              :string,
+              AshEnterprise.Canonical.Calculations.LatestMessage do
+      public? true
+      description "The newest message in one line: sender and the start of the body."
+    end
+
+    calculate :messages_text,
+              :string,
+              AshEnterprise.Canonical.Calculations.ConversationMessages do
+      public? true
+      description "The latest messages as Markdown, newest last — for a detail pane."
     end
   end
 
@@ -106,6 +150,21 @@ defmodule AshEnterprise.Canonical.Conversation do
 
   actions do
     defaults [:read]
+
+    # One read per message vertical, newest activity first: the Inbox and Slack
+    # surfaces (and the ACP `inbox` / `slack` prompts) list these. Empty until
+    # the vertical's zone gate admits content (`AshEnterprise.Canonical.Admission`).
+    read :gmail do
+      description "Gmail threads, newest activity first."
+      filter expr(external_system == "gmail")
+      prepare build(sort: [last_message_at: :desc_nils_last])
+    end
+
+    read :slack do
+      description "Slack conversations, newest activity first."
+      filter expr(external_system == "slack")
+      prepare build(sort: [last_message_at: :desc_nils_last])
+    end
 
     read :by_external do
       description """

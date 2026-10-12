@@ -27,10 +27,12 @@ defmodule AshEnterprise.Acp.Approvals do
 
     authorized? = Ash.can?({action_spec.resource, action_spec.action}, actor, tenant: tenant)
 
-    # Reads run without a modal when authorized. Writes always pend — dogfood
+    # Reads — and the read-only generic actions behind the daily-loop prompts
+    # (digests, help) — run without a modal when authorized. Writes and the
+    # consequential generics (a task decision, a sync) always pend — dogfood
     # §5's capability-transition rule: consequential operations are approvals,
     # even for the operator.
-    if authorized? and action.type == :read do
+    if authorized? and read_only?(action, action_spec) do
       {:approved, %{auto: :policy_authorized, tenant: tenant}}
     else
       ref = Ash.UUID.generate()
@@ -49,6 +51,13 @@ defmodule AshEnterprise.Acp.Approvals do
       {:pending, ref}
     end
   end
+
+  defp read_only?(%{type: :read}, _spec), do: true
+
+  defp read_only?(%{type: :action}, spec),
+    do: not AshEnterprise.Acp.Commands.consequential?(spec.resource, spec.action)
+
+  defp read_only?(_action, _spec), do: false
 
   @impl true
   def resolve(ref, outcome, session) when is_binary(ref) do

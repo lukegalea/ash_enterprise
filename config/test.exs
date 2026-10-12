@@ -27,6 +27,10 @@ config :ash_enterprise, AshEnterprise.Erasure,
   master_key: Base.encode64(:crypto.strong_rand_bytes(32))
 
 config :bcrypt_elixir, log_rounds: 1
+
+# Day boundaries and printed times in UTC, so time-of-day assertions do not
+# depend on the deployment's display zone (`AshEnterprise.Platform.LocalTime`).
+config :ash_enterprise, :display_time_zone, "Etc/UTC"
 config :ash, policies: [show_policy_breakdowns?: true], disable_async?: true
 
 # The drain ingests inside its own transaction, and the event appends ride it

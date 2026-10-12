@@ -44,6 +44,24 @@ defmodule AshEnterprise.Acp do
   end
 
   @doc """
+  The `AshAcp.Server` configuration this host serves: `AshAcp.config/0` plus
+  the `:candidate_actions` command palette from `config :ash_acp`.
+
+  `AshAcp.config/0` only resolves its own fixed keys, so the documented
+  `candidate_actions` setting never reaches the server through it and every
+  `available_commands_update` would be empty. Transports in this application
+  build their state from this instead (`AshEnterprise.Acp.Attach.serve/1`).
+  """
+  @spec server_config() :: map()
+  def server_config do
+    Map.put(
+      AshAcp.config(),
+      :candidate_actions,
+      Application.get_env(:ash_acp, :candidate_actions, [])
+    )
+  end
+
+  @doc """
   The actor ACP sessions run as: the deployment's operator user, named by
   `config :ash_enterprise, :acp_operator_email` (`ACP_OPERATOR_EMAIL` at boot,
   see `config/runtime.exs`; default `admin@example.com`), read through the

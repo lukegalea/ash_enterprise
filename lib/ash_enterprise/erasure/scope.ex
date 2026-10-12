@@ -123,6 +123,23 @@ defmodule AshEnterprise.Erasure.Scope do
     update_timestamp :updated_at
   end
 
+  calculations do
+    calculate :shredded_on,
+              :string,
+              {AshEnterprise.Platform.Calculations.LocalStamp, field: :shredded_at} do
+      public? true
+
+      description "When the key was destroyed, on the operator's wall clock; `never` while active."
+    end
+
+    calculate :opened_on,
+              :string,
+              {AshEnterprise.Platform.Calculations.LocalStamp, field: :inserted_at} do
+      public? true
+      description "When the scope was opened, on the operator's wall clock."
+    end
+  end
+
   relationships do
     has_one :key, AshEnterprise.Erasure.Key do
       destination_attribute :scope_id
@@ -174,6 +191,15 @@ defmodule AshEnterprise.Erasure.Scope do
       run AshEnterprise.Erasure.Actions.EnsureScope
     end
 
+    action :scopes_digest, :string do
+      description """
+      Every scope the actor can read, as plain text for a terminal transcript.
+      Read-only; there is deliberately no terminal path to `shred`.
+      """
+
+      run AshEnterprise.Erasure.Actions.ScopesDigest
+    end
+
     update :shred do
       description """
       Destroy the scope's key, irreversibly. Every value sealed under it — raw
@@ -202,6 +228,10 @@ defmodule AshEnterprise.Erasure.Scope do
       change set_attribute(:shred_reason, arg(:reason))
       change AshEnterprise.Erasure.Changes.DestroyScopeKey
     end
+  end
+
+  code_interface do
+    define :scopes_digest
   end
 
   # Declared in full rather than inherited (`policies?: false`) for one reason:

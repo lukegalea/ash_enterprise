@@ -47,8 +47,13 @@ defmodule AshEnterprise.Acp.Attach do
 
     if is_pid(local_io), do: Process.group_leader(self(), local_io)
 
+    opts =
+      opts
+      |> Keyword.put(:device, device)
+      |> Keyword.put_new_lazy(:config, &AshEnterprise.Acp.server_config/0)
+
     try do
-      AshAcp.run_stdio(Keyword.put(opts, :device, device))
+      AshAcp.run_stdio(opts)
     after
       send(device, :stop)
       Process.group_leader(self(), previous_leader)

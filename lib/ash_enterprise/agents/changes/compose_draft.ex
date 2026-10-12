@@ -36,9 +36,11 @@ defmodule AshEnterprise.Agents.Changes.ComposeDraft do
     end)
   end
 
+  # The brief's day is the operator's local day (`LocalTime`), cut in the
+  # display zone, so an evening meeting is in the brief for the day it happens
+  # on rather than the next UTC day's.
   defp events_for(date, tenant) do
-    day_start = DateTime.new!(date, ~T[00:00:00], "Etc/UTC")
-    day_end = DateTime.add(day_start, 1, :day)
+    {day_start, day_end} = AshEnterprise.Platform.LocalTime.days(date, 1)
 
     CalendarEvent
     |> Ash.Query.filter(starts_at >= ^day_start and starts_at < ^day_end)

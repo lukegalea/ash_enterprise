@@ -81,6 +81,13 @@ if config_env() != :test do
   end
 end
 
+# The zone the daily-loop surfaces cut "today" in and print times in
+# (`AshEnterprise.Platform.LocalTime`). An IANA name; the default is set in
+# config/config.exs. Read at boot.
+if display_time_zone = System.get_env("DISPLAY_TIME_ZONE") do
+  config :ash_enterprise, :display_time_zone, display_time_zone
+end
+
 # ## Instrument profiles (ash_judgments) -- host configuration, not code
 #
 # The judgment substrate's instruments are declared HERE and only here:

@@ -53,7 +53,7 @@ defmodule AshEnterprise.Agents.MorningBrief do
       allow_nil? false
       public? true
 
-      description "The day the brief covers, in UTC."
+      description "The day the brief covers: a local day in the display zone (`LocalTime`)."
     end
 
     attribute :event_ids, {:array, :uuid} do
@@ -105,6 +105,24 @@ defmodule AshEnterprise.Agents.MorningBrief do
       change AshEnterprise.Agents.Changes.ComposeDraft
     end
 
+    read :latest do
+      description "The actor's own most recent brief: what the Today surface leads with."
+      prepare AshEnterprise.Agents.Preparations.OwnBriefs
+    end
+
+    # The Today surface's reports and the ACP `today` digest: reads as the
+    # calling actor over calendar, approvals, syncs and inbox — see
+    # `AshEnterprise.Agents.Today`. Nothing here writes.
+    action :agenda, {:array, :map} do
+      description "Today's calendar events as report rows (time, title, where, status)."
+      run {AshEnterprise.Agents.Actions.TodayReport, report: :agenda}
+    end
+
+    action :pulse, {:array, :map} do
+      description "The day's signals as report rows: approvals, next event, sync health, inbox."
+      run {AshEnterprise.Agents.Actions.TodayReport, report: :pulse}
+    end
+
     update :approve do
       description "The human task's `approved` outcome lands here."
       accept []
@@ -121,6 +139,18 @@ defmodule AshEnterprise.Agents.MorningBrief do
   end
 
   calculations do
+    calculate :headline,
+              :string,
+              {AshEnterprise.Platform.Calculations.LocalStamp, field: :brief_date} do
+      public? true
+      description "The brief's day, `Mon 12 Oct`."
+    end
+
+    calculate :summary, :string, AshEnterprise.Agents.Calculations.BriefSummary do
+      public? true
+      description "The brief in one line: event count, span and cancellations. No titles."
+    end
+
     calculate :draft_text, :string, AshEnterprise.Agents.Calculations.RenderDraft do
       public? true
 
@@ -157,7 +187,9 @@ defmodule AshEnterprise.Agents.MorningBrief do
     "Morning brief for #{Date.to_iso8601(date)}\n\n#{lines}"
   end
 
-  defp format_time(datetime), do: Calendar.strftime(datetime, "%H:%M")
+  # The operator's wall clock (`AshEnterprise.Platform.LocalTime`), the same
+  # zone the brief's day is cut in.
+  defp format_time(datetime), do: AshEnterprise.Platform.LocalTime.time(datetime)
 
   defp location_suffix(nil), do: ""
   defp location_suffix(location), do: "  (#{location})"

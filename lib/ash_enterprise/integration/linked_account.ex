@@ -148,6 +148,79 @@ defmodule AshEnterprise.Integration.LinkedAccount do
       allow_nil? true
       description "The canonical identity this connection reaches, once observed."
     end
+
+    # The verticals' sync cursors, read for sync health only (the Accounts &
+    # syncs surface): when each last synced and how much it reaches. Their
+    # tokens stay on the cursor rows; nothing here selects them.
+    has_many :calendar_cursors, AshEnterprise.Integration.Calendar.SyncCursor do
+      description "Google Calendar: one cursor per synced calendar."
+    end
+
+    has_one :gmail_sync_state, AshEnterprise.Integration.Gmail.SyncState do
+      description "Gmail: the mailbox's one cursor row."
+    end
+
+    has_many :slack_cursors, AshEnterprise.Integration.Slack.ConversationCursor do
+      description "Slack: one cursor per synced conversation."
+    end
+
+    has_one :projection_cursor, AshEnterprise.Integration.ProjectionCursor do
+      description "Gmail and Slack: how far landed records have been projected."
+    end
+  end
+
+  aggregates do
+    max :calendar_synced_at, :calendar_cursors, :last_synced_at
+    count :calendar_count, :calendar_cursors
+    first :gmail_synced_at, :gmail_sync_state, :last_synced_at
+    first :gmail_phase, :gmail_sync_state, :phase
+    max :slack_synced_at, :slack_cursors, :synced_at
+    count :slack_conversation_count, :slack_cursors
+    first :projected_at, :projection_cursor, :projected_at
+  end
+
+  calculations do
+    calculate :provider,
+              :string,
+              {AshEnterprise.Integration.Calculations.AccountHealth, field: :provider} do
+      public? true
+      description "The provider's display name."
+    end
+
+    calculate :health,
+              :string,
+              {AshEnterprise.Integration.Calculations.AccountHealth, field: :health} do
+      public? true
+      description "Syncing, Blocked · <reason>, Paused, or Not synced yet."
+    end
+
+    calculate :last_sync,
+              :string,
+              {AshEnterprise.Integration.Calculations.AccountHealth, field: :last_sync} do
+      public? true
+      description "The newest cursor sync, on the operator's wall clock, and how long ago."
+    end
+
+    calculate :reach,
+              :string,
+              {AshEnterprise.Integration.Calculations.AccountHealth, field: :reach} do
+      public? true
+      description "What the sync covers so far: calendars, conversations, or the mailbox phase."
+    end
+
+    calculate :projection,
+              :string,
+              {AshEnterprise.Integration.Calculations.AccountHealth, field: :projection} do
+      public? true
+
+      description "Gmail and Slack: when landed records were last projected into the canonical model."
+    end
+
+    calculate :blocked, :boolean, expr(not is_nil(sync_blocked_at)) do
+      public? true
+
+      description "True while a sync block waits for a person (see `AshEnterprise.Integration.SyncBlock`)."
+    end
   end
 
   identities do
@@ -238,6 +311,22 @@ defmodule AshEnterprise.Integration.LinkedAccount do
       """
     end
 
+    action :sync_now, :string do
+      description """
+      Sync now: enqueue one step of this account's vertical through that
+      vertical's own `request_sync`, as the actor (so it is gated as that
+      action is). Unique per account — a second click while one is queued is a
+      no-op. Returns a status line.
+      """
+
+      argument :record_id, :uuid do
+        allow_nil? false
+        description "The linked account to sync (one the actor can read)."
+      end
+
+      run AshEnterprise.Integration.Actions.RequestAccountSync
+    end
+
     read :mine do
       description "The actor's own linked accounts, optionally for one integration."
 
@@ -318,5 +407,6 @@ defmodule AshEnterprise.Integration.LinkedAccount do
     define :for_operation, args: [:provider_config_key, {:optional, :linked_account_id}]
     define :owned_by, args: [:owner_id, :provider_config_key]
     define :active_for_integration, args: [:provider_config_key]
+    define :sync_now, args: [:record_id]
   end
 end

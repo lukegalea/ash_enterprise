@@ -140,6 +140,32 @@ defmodule AshEnterpriseWeb.Router do
       live "/app/directory", A2uiLive.ProjectedUsers
     end
 
+    # --- The daily loop (Productivity OS dogfood, epic E6) --------------------
+    #
+    # The operator's day: Today is where sign-in lands. Each page is an A2UI
+    # surface that the ACP server also serves (AshEnterprise.Acp), read as the
+    # signed-in actor. See AshEnterpriseWeb.DailyLive.
+    ash_authentication_live_session :daily_surfaces,
+      on_mount: [{AshEnterpriseWeb.LiveUserAuth, :live_user_required}] do
+      live "/app/today", DailyLive.Today
+      live "/app/calendar", DailyLive.Calendar
+      live "/app/inbox", DailyLive.Inbox
+      live "/app/slack", DailyLive.Slack
+      live "/app/people", DailyLive.People
+      live "/app/approvals", DailyLive.Approvals
+      live "/app/accounts", DailyLive.Accounts
+    end
+
+    # Operator-only: erasure scopes and the irreversible, typed-confirmation
+    # shred. The door explains itself to anyone else; the policies decide.
+    ash_authentication_live_session :operator_surfaces,
+      on_mount: [
+        {AshEnterpriseWeb.LiveUserAuth, :live_user_required},
+        {AshEnterpriseWeb.OperatorAuth, :erasure_operator_required}
+      ] do
+      live "/app/erasure", DailyLive.Erasure
+    end
+
     ash_authentication_live_session :canonical_surfaces,
       on_mount: [{AshEnterpriseWeb.LiveUserAuth, :live_user_required}] do
       live "/app/canonical-parties", A2uiLive.CanonicalParties

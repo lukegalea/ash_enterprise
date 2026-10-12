@@ -14,9 +14,32 @@ cd ~/amber_console && uv sync    # first time only
 uv run amber --command ~/ash_enterprise-dogfood/scripts/acp-attach --cwd ~/ash_enterprise-dogfood
 ```
 
-It connects on start (status bar `READY`). Then `/new` opens a session, and
-`list business units` returns the business units the operator can see, as an
-A2UI table. `/help` lists the keys.
+It connects on start (status bar `READY`). Then `/new` opens a session. `/help`
+lists the console's keys; the agent's commands are in the palette (`ctrl+p`)
+and in `help`.
+
+## The daily loop
+
+Each prompt runs one declared Ash action as the operator, prints its answer in
+the transcript, and fills the surface pane with the same A2UI surface the web
+page serves (`AshEnterprise.Acp.Commands`; web routes in brackets):
+
+| Prompt | What you get |
+|---|---|
+| `today` | agenda, latest morning brief, approvals waiting, sync health (`/app/today`) |
+| `calendar [today\|tomorrow\|week\|upcoming]` | the agenda for that window (`/app/calendar`) |
+| `inbox` / `slack` | conversations, newest first (`/app/inbox`, `/app/slack`) |
+| `people [name or email]` | the directory, optionally searched (`/app/people`) |
+| `approvals` | tasks waiting on you, numbered (`/app/approvals`) |
+| `approve N` / `reject N` / `approve brief` / `reject brief` | decides through the process engine, after a permission modal |
+| `accounts` | linked accounts and sync health (`/app/accounts`) |
+| `sync calendar\|gmail\|slack` | enqueues a sync step, after a permission modal |
+| `erasure` | erasure scopes, read-only (`/app/erasure`; shred is web-only) |
+| `help` | the commands your access allows |
+
+A `/name` the agent advertises works as well (`/today`). Times are on the
+display zone's clock: `DISPLAY_TIME_ZONE` (an IANA name, default
+`America/Toronto`), read at boot.
 
 ## How it works
 
@@ -70,11 +93,15 @@ The script is `tests/live_dogfood.py` on amber_console's `dogfood` branch.
 This drives amber headless. It checks for `READY`, a session, an A2UI table with
 rows, and the detail pane, and prints counts only: dogfood holds real data.
 
+`tests/live_surfaces.py NODE_ATTACH NODE` (same branch) runs every daily-loop
+prompt and checks each surface renders as a table rather than the JSON
+inspector, then approves the morning brief through the permission modal — so
+point it only at a server with synthetic data, never the dogfood instance.
+
 ## Limits
 
-- The prompt target maps one phrase, `list business units`
-  (`AshEnterprise.Acp.SessionStore.resolve/3`). Any other prompt gets
-  `no_matching_action`.
+- Commands are a fixed grammar, not language understanding: anything else gets
+  `unknown command — say help for the list`.
 - Sessions live in memory (ETS) in the server and are not closed when the
   client disconnects. They are gone after a server restart. Durable sessions
   arrive with epic E5.
