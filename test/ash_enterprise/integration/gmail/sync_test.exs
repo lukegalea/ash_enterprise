@@ -87,14 +87,23 @@ defmodule AshEnterprise.Integration.Gmail.SyncTest do
     # the Integration domain included, and grants the Administrator all of it.
     actor = actor_for(user.id)
 
+    connection_id = "conn-mail-synthetic-#{unique}"
+
     linked =
       LinkedAccount.link!(
-        %{provider_config_key: "google-mail", connection_id: "conn-mail-synthetic-#{unique}"},
+        %{provider_config_key: "google-mail", connection_id: connection_id},
         actor: actor,
         tenant: org.id
       )
 
-    %{box: box, org: org, user: user, actor: actor, linked: linked}
+    %{
+      box: box,
+      org: org,
+      user: user,
+      actor: actor,
+      linked: linked,
+      connection_id: connection_id
+    }
   end
 
   describe "first sync" do
@@ -508,7 +517,7 @@ defmodule AshEnterprise.Integration.Gmail.SyncTest do
             Base.url_encode64("SYNTHETIC-BODY", padding: false),
             "synthetic.test",
             "Synthetic Sender",
-            ctx.linked.connection_id,
+            ctx.connection_id,
             @fake_secret
           ] do
         refute log =~ forbidden, "log contains #{inspect(forbidden)}"

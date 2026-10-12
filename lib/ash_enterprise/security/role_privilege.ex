@@ -89,6 +89,7 @@ defmodule AshEnterprise.Security.RolePrivilege do
       upsert_identity :unique_grant
 
       validate AshEnterprise.Security.Validations.DepthLegalForPrivilege
+      validate AshEnterprise.Security.Validations.OperatorPrivilegeNeedsSystemActor
     end
 
     update :update do

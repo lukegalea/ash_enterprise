@@ -41,6 +41,17 @@ defmodule AshEnterprise.Platform.Seeder do
   Returns the number of privileges written. Safe to re-run.
   """
   def seed_privileges do
+    written = write_privileges()
+
+    # Every deploy runs this, so it is also where a deployment provisioned
+    # before operator-only privileges existed loses the Administrator grants
+    # on them (see `revoke_operator_privileges_from_administrators/0`).
+    revoke_operator_privileges_from_administrators()
+
+    written
+  end
+
+  defp write_privileges do
     for resource <- platform_resources(),
         verb <- AshEnterprise.Security.AccessRight.verbs() do
       ownership = ownership_of(resource)
@@ -136,13 +147,135 @@ defmodule AshEnterprise.Platform.Seeder do
 
   @platform_unique_name "platform"
 
+  @operator_role "Platform Operator"
+
+  @doc """
+  Removes every operator-only privilege
+  (`AshEnterprise.Security.Privilege.operator_only?/1`) from every tenant's
+  Administrator role.
+
+  Before those privileges were reserved, `seed_tenant/1` and
+  `regrant_administrator_privileges/1` granted them to every Administrator at
+  `:global` — and a `:global` grant on an untenanted resource reaches every
+  tenant's rows: any tenant's Administrator could read every other tenant's
+  raw provider landings, decrypted, and shred any tenant's erasure scope.
+  Idempotent; returns the number of grants removed. Grant the operator their
+  own role with `grant_platform_operator/1`.
+  """
+  @spec revoke_operator_privileges_from_administrators() :: non_neg_integer()
+  def revoke_operator_privileges_from_administrators do
+    actor = SystemActor.seed()
+
+    operator_privilege_ids =
+      Security.Privilege
+      |> Ash.Query.filter(resource_name in ^Security.Privilege.operator_only_resources())
+      |> Ash.read!(actor: actor)
+      |> Enum.map(& &1.id)
+
+    if operator_privilege_ids == [] do
+      0
+    else
+      # Across tenants: grants are tenant data, and the seed actor reads them
+      # without a tenant (platform multitenancy is `global?`).
+      Security.RolePrivilege
+      |> Ash.Query.filter(
+        privilege_id in ^operator_privilege_ids and role.name == "Administrator"
+      )
+      |> Ash.read!(actor: actor)
+      |> Enum.map(fn grant ->
+        Ash.destroy!(grant, actor: actor, tenant: grant.organization_id)
+      end)
+      |> length()
+    end
+  end
+
+  @doc """
+  Makes `user` the platform operator: a `#{@operator_role}` role in their
+  tenant holding every operator-only privilege at `:global` (read raw
+  landings, open and shred erasure scopes), assigned to them.
+
+  The only path to those privileges: a tenant role cannot be granted them by
+  anyone but a system actor (`OperatorPrivilegeNeedsSystemActor`), and this
+  runs as the `seed` system actor. Behind
+  `mix ash_enterprise.platform.grant_operator --email <operator>`. Idempotent.
+
+  The grant reaches every tenant (the resources are untenanted). Anyone
+  holding `write` on user roles in the operator's tenant can assign the role
+  to someone else there, so keep that tenant's administrators to platform
+  staff.
+  """
+  @spec grant_platform_operator(Accounts.User.t()) :: %{
+          role: struct(),
+          granted: non_neg_integer()
+        }
+  def grant_platform_operator(user) do
+    actor = SystemActor.seed()
+    context = Security.ActorContext.build(user)
+    tenant = context.organization_id
+    business_unit_id = context.business_unit_id
+
+    if is_nil(tenant) or is_nil(business_unit_id) do
+      raise ArgumentError, "the platform operator must belong to a business unit in a tenant"
+    end
+
+    opts = [actor: actor, tenant: tenant]
+
+    role =
+      Security.Role
+      |> Ash.Query.filter(
+        name == ^@operator_role and owning_business_unit_id == ^business_unit_id
+      )
+      |> Ash.read_one!(opts) ||
+        Security.Role
+        |> Ash.Changeset.for_create(
+          :create,
+          %{
+            name: @operator_role,
+            description:
+              "Platform staff: raw provider landings and erasure scopes, across every tenant. " <>
+                "Granted by mix ash_enterprise.platform.grant_operator.",
+            owning_business_unit_id: business_unit_id
+          },
+          opts
+        )
+        |> Ash.create!()
+
+    granted =
+      Security.Privilege
+      |> Ash.Query.filter(resource_name in ^Security.Privilege.operator_only_resources())
+      |> Ash.read!(actor: actor)
+      |> Enum.filter(& &1.can_be_global)
+      |> Enum.map(fn privilege ->
+        Security.RolePrivilege
+        |> Ash.Changeset.for_create(
+          :create,
+          %{role_id: role.id, privilege_id: privilege.id, depth: :global},
+          opts
+        )
+        |> Ash.create!()
+      end)
+      |> length()
+
+    Security.UserRole
+    |> Ash.Changeset.for_create(
+      :assign,
+      %{user_id: user.id, role_id: role.id, scoping_business_unit_id: business_unit_id},
+      opts
+    )
+    |> Ash.create!()
+
+    %{role: role, granted: granted}
+  end
+
   @doc """
   Grants every existing role the privileges it is missing, in one tenant.
 
   ## Why this is needed at all
 
   `seed_tenant/1` grants the Administrator role every globally-grantable privilege **at
-  provisioning time**. A resource added afterwards has privileges nobody holds, so the role
+  provisioning time**, except the operator-only ones
+  (`AshEnterprise.Security.Privilege.operator_only?/1`), which no tenant role is
+  auto-granted. A resource added afterwards has privileges nobody holds, so the role
   that is supposed to reach everything silently stops reaching the new thing — and the symptom
   is a forbidden write on a resource an administrator can see in the admin UI, which reads as a
   bug in the resource rather than as a stale grant.
@@ -177,7 +310,9 @@ defmodule AshEnterprise.Platform.Seeder do
       Security.Privilege
       |> Ash.Query.filter(can_be_global == true)
       |> Ash.read!(actor: actor)
-      |> Enum.reject(&MapSet.member?(held, &1.id))
+      |> Enum.reject(
+        &(Security.Privilege.operator_only?(&1.resource_name) or MapSet.member?(held, &1.id))
+      )
       |> Enum.map(fn privilege ->
         Security.RolePrivilege
         |> Ash.Changeset.for_create(
@@ -309,7 +444,11 @@ defmodule AshEnterprise.Platform.Seeder do
       |> Ash.Query.new()
       |> Ash.read!(actor: actor)
 
-    grantable = Enum.filter(privileges, & &1.can_be_global)
+    grantable =
+      Enum.filter(
+        privileges,
+        &(&1.can_be_global and not Security.Privilege.operator_only?(&1.resource_name))
+      )
 
     if grantable == [] do
       raise """

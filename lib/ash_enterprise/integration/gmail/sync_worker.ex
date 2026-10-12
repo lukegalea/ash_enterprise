@@ -27,7 +27,7 @@ defmodule AshEnterprise.Integration.Gmail.SyncWorker do
   | `{:ok, %{more?: false}}` | `:ok` |
   | `{:ok, %{more?: true}}` (stopped on the page budget) | `{:snooze, 1}`, continue shortly |
   | `{:snooze, ms}` (rate limited) | `{:snooze, seconds}` |
-  | `{:cancel, reason}` (needs a person: re-link, consent, landing not wired) | `{:cancel, reason}` |
+  | `{:cancel, reason}` (needs a person: re-link, consent, landing not wired, inactive owner) | `{:cancel, reason}`; for the reasons in `AshEnterprise.Integration.SyncBlock` the account is also blocked |
   | `{:error, reason}` | `{:error, reason}`, retried with backoff |
 
   Nothing is logged by this module; Oban records the outcome, and every
@@ -48,6 +48,7 @@ defmodule AshEnterprise.Integration.Gmail.SyncWorker do
 
   alias AshEnterprise.Accounts.User
   alias AshEnterprise.Integration.Gmail.Sync
+  alias AshEnterprise.Integration.SyncBlock
   alias AshEnterprise.Security.ActorContext
 
   @doc "The job args for a cursor row (or anything carrying owner and account ids)."
@@ -61,8 +62,9 @@ defmodule AshEnterprise.Integration.Gmail.SyncWorker do
       when is_binary(user_id) and is_binary(linked_account_id) do
     case load_actor(user_id) do
       {:ok, actor} -> actor |> Sync.step(linked_account_id) |> outcome()
-      :error -> {:cancel, :no_such_user}
+      {:error, reason} -> {:cancel, reason}
     end
+    |> SyncBlock.after_result(linked_account_id)
   end
 
   def perform(%Oban.Job{}), do: {:cancel, :invalid_args}
@@ -72,8 +74,10 @@ defmodule AshEnterprise.Integration.Gmail.SyncWorker do
   # policies.
   defp load_actor(user_id) do
     case Ash.get(User, user_id, authorize?: false) do
+      # An offboarded person's syncs stop with them (SyncBlock).
+      {:ok, %User{lifecycle_status: status}} when status != :active -> {:error, :user_inactive}
       {:ok, %User{} = user} -> {:ok, ActorContext.attach(user, ActorContext.build(user))}
-      _ -> :error
+      _ -> {:error, :no_such_user}
     end
   end
 

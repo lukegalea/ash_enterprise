@@ -29,8 +29,11 @@ defmodule AshEnterprise.Erasure.Scope do
 
   Scopes are not tenant-scoped, matching `AshEnterprise.Ingestion.SourceObject`.
   A global write grant on this resource therefore reaches every scope in the
-  deployment — right for the single-operator dogfood deployment, and something
-  to change before scopes are shared between tenants.
+  deployment, which is why its privileges are operator-only
+  (`AshEnterprise.Security.Privilege.operator_only?/1`): no tenant's
+  Administrator is granted them, no tenant role can be granted them except by
+  a system actor, and the platform operator holds them through
+  `mix ash_enterprise.platform.grant_operator`.
 
   ## One key per scope, never shared, never reissued
 

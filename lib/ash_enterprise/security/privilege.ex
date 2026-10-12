@@ -119,4 +119,33 @@ defmodule AshEnterprise.Security.Privilege do
   def legal_depths(:business_owned), do: [:local, :deep, :global]
   def legal_depths(:organization_owned), do: [:global]
   def legal_depths(:none), do: [:global]
+
+  # Resources whose rows belong to no tenant yet carry tenants' content, or
+  # whose writes reach across tenants: raw provider landings (every tenant's
+  # users' mailboxes, calendars and Slack, sealed but decrypted on read) and
+  # erasure scopes (a shred is irreversible). A `:global` grant on an
+  # untenanted resource is the filter `true`, so a tenant's role holding one
+  # reaches every tenant's rows. These are therefore the platform operator's,
+  # never a tenant role's: the Administrator auto-grant skips them, and a
+  # grant of one can only be made by a system actor
+  # (`AshEnterprise.Security.Validations.OperatorPrivilegeNeedsSystemActor`,
+  # `AshEnterprise.Platform.Seeder.grant_platform_operator/1`).
+  @operator_only [
+    "AshEnterprise.Erasure.Key",
+    "AshEnterprise.Erasure.Scope",
+    "AshEnterprise.Ingestion.SourceObject"
+  ]
+
+  @doc """
+  Whether privileges on `resource_name` (the module's `inspect/1`) are reserved
+  for the platform operator: never auto-granted to a tenant's Administrator,
+  and grantable only by a system actor.
+  """
+  @spec operator_only?(String.t()) :: boolean()
+  def operator_only?(resource_name) when is_binary(resource_name),
+    do: resource_name in @operator_only
+
+  @doc "The resource names `operator_only?/1` is true for."
+  @spec operator_only_resources() :: [String.t()]
+  def operator_only_resources, do: @operator_only
 end

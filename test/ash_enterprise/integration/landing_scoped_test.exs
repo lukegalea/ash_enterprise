@@ -31,6 +31,9 @@ defmodule AshEnterprise.Integration.LandingScopedTest do
         email: "operator-#{unique}@landing.test"
       )
 
+    # Shredding is the platform operator's (operator-only privileges).
+    Seeder.grant_platform_operator(seeded.user)
+
     actor =
       ActorContext.attach(
         seeded.user,

@@ -23,7 +23,10 @@ defmodule AshEnterprise.Integration.SyncScheduler do
   step then runs as the human who owns the account, re-resolving it under that
   person's policies, so the scheduler cannot make a step reach anything its
   owner could not. A deactivated or unlinked account is simply not enqueued
-  (see "Forgetting a linked account" in `docs/runbooks/crypto-shredding.md`).
+  (see "Forgetting a linked account" in `docs/runbooks/crypto-shredding.md`),
+  and neither is one whose last step cancelled for a reason only a person can
+  fix — a revoked token, a deleted connection, a shredded scope, an inactive
+  owner (`AshEnterprise.Integration.SyncBlock`) — until it is unblocked.
 
   Args are string-keyed ids (Iron Laws #08/#09); the result is counts only.
   """

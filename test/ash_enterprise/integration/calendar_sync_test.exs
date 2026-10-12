@@ -308,6 +308,133 @@ defmodule AshEnterprise.Integration.CalendarSyncTest do
     end
   end
 
+  # --- turns, isolation, cancelled occurrences (review fixes) ---------------------------
+
+  describe "turns" do
+    # Three calendars, each with nothing in it: a full sync is one empty page
+    # ending in a sync token, and so is every incremental sync after it.
+    defp quiet_calendars do
+      ids = for n <- 1..3, do: "quiet-#{n}-synthetic@group.calendar.google.com"
+
+      events =
+        for id <- ids, token <- [nil, "sync-#{id}"], into: %{} do
+          {{id, token, nil}, {200, F.events_page([], {:sync, "sync-#{id}"})}}
+        end
+
+      {ids, %{calendar_list: {200, F.calendar_list(ids)}, events: events}}
+    end
+
+    test "more calendars than the page budget: every one is reached and the job finishes",
+         ctx do
+      {ids, routes} = quiet_calendars()
+      stub_google(routes)
+      put_calendar_env(actor_loader: GrantedLoader, max_pages: 1)
+      step = fn -> Sync.run_step(%{linked_account_id: ctx.alice_cal.id}, actor: ctx.alice) end
+
+      # Never-synced calendars are outstanding work: one per step, in turn.
+      assert {:ok, %{status: :more}} = step.()
+      assert {:ok, %{status: :more}} = step.()
+      assert {:ok, %{status: :complete}} = step.()
+      assert Enum.map(events_requests(), & &1.calendar) == ids
+      assert Enum.all?(cursors(ctx), &is_binary(&1.sync_token))
+
+      # All caught up: a budget of one page still completes every step (a
+      # caught-up calendar the budget did not reach is not outstanding), and
+      # successive steps take the least recently visited calendar first, so
+      # every calendar keeps getting its turn.
+      for _ <- 1..3, do: assert({:ok, %{status: :complete}} = step.())
+      assert Enum.map(events_requests(), & &1.calendar) == ids
+
+      # The scheduled job therefore finishes instead of snoozing forever.
+      assert {:ok, %{status: :complete}} =
+               perform_job(SyncWorker, SyncWorker.args(ctx.alice_cal))
+    end
+
+    test "a calendar whose events.list is refused is skipped; the others still sync", ctx do
+      refused =
+        {403, %{"error" => %{"code" => 403, "errors" => [%{"reason" => "requiredAccessLevel"}]}}}
+
+      stub_google(%{
+        calendar_list: {200, F.calendar_list()},
+        events: %{
+          {F.primary_calendar(), nil, nil} => refused,
+          {F.team_calendar(), nil, nil} =>
+            {200, F.events_page([F.planning_event()], {:sync, "sync-team-1"})}
+        }
+      })
+
+      assert {:ok, %{status: :complete, skipped_calendars: 1, landed: 1}} =
+               Sync.run_step(%{linked_account_id: ctx.alice_cal.id}, actor: ctx.alice)
+
+      assert cursor_for(ctx, F.team_calendar()).sync_token == "sync-team-1"
+      primary = cursor_for(ctx, F.primary_calendar())
+      assert primary.sync_token == nil
+      assert %DateTime{} = primary.last_skipped_at
+    end
+
+    test "a 403 about the credential stops the step, and the worker cancels", ctx do
+      stub_google(%{
+        calendar_list: {200, F.calendar_list()},
+        events: %{
+          {F.primary_calendar(), nil, nil} =>
+            {403,
+             %{
+               "error" => %{"code" => 403, "errors" => [%{"reason" => "insufficientPermissions"}]}
+             }}
+        }
+      })
+
+      assert {:cancel, :forbidden} = perform_job(SyncWorker, SyncWorker.args(ctx.alice_cal))
+      assert [%{calendar: calendar}] = events_requests()
+      assert calendar == F.primary_calendar()
+    end
+  end
+
+  describe "a cancelled occurrence of a recurring event" do
+    test "is recorded as its own cancelled row, from the master", ctx do
+      master = %{
+        "id" => "weekly-synthetic",
+        "status" => "confirmed",
+        "summary" => "#{F.marker()} weekly sync",
+        "location" => "#{F.marker()} room 4",
+        "start" => %{"dateTime" => "2026-10-05T15:00:00Z"},
+        "end" => %{"dateTime" => "2026-10-05T15:30:00Z"},
+        "recurrence" => ["RRULE:FREQ=WEEKLY"]
+      }
+
+      occurrence = %{
+        "id" => "weekly-synthetic_20261012T150000Z",
+        "status" => "cancelled",
+        "recurringEventId" => "weekly-synthetic",
+        "originalStartTime" => %{"dateTime" => "2026-10-12T15:00:00Z"}
+      }
+
+      stub_google(%{
+        calendar_list: {200, F.calendar_list([F.primary_calendar()])},
+        events: %{
+          {F.primary_calendar(), nil, nil} => {200, F.events_page([master], {:sync, "s-1"})},
+          {F.primary_calendar(), "s-1", nil} => {200, F.events_page([occurrence], {:sync, "s-2"})}
+        }
+      })
+
+      step = fn -> Sync.run_step(%{linked_account_id: ctx.alice_cal.id}, actor: ctx.alice) end
+      assert {:ok, %{status: :complete}} = step.()
+      assert {:ok, %{status: :complete, projection: %{cancelled: 1, skipped: 0}}} = step.()
+
+      cancelled =
+        event!(ctx.org, external_id(ctx.alice_cal, F.primary_calendar(), occurrence["id"]))
+
+      assert cancelled.status == :cancelled
+      assert cancelled.title == master["summary"]
+      assert cancelled.location == master["location"]
+      assert cancelled.starts_at == ~U[2026-10-12 15:00:00.000000Z]
+      assert cancelled.ends_at == ~U[2026-10-12 15:30:00.000000Z]
+
+      series = event!(ctx.org, external_id(ctx.alice_cal, F.primary_calendar(), master["id"]))
+      assert series.status == :confirmed
+    end
+  end
+
   # --- incremental sync --------------------------------------------------------------
 
   describe "incremental sync" do

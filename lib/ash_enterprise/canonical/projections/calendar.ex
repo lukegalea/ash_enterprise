@@ -27,7 +27,8 @@ defmodule AshEnterprise.Canonical.Projections.Calendar do
   equipment attendees (`resource: true`) are not people and are skipped. There
   is no attendee join on `CalendarEvent` yet, so attendance itself is not
   projected. A recurring event is projected as its master (first occurrence's
-  times); modified or cancelled instances are their own rows.
+  times); modified instances are their own rows, and so is a cancelled
+  occurrence (see "Cancellation").
 
   ## Cancellation
 
@@ -42,8 +43,14 @@ defmodule AshEnterprise.Canonical.Projections.Calendar do
     * the payload is bare and the event already has a canonical row → the row
       is kept, its title and times untouched, and its status set to
       cancelled;
-    * the payload is bare and there is no row → nothing is created; counted
-      as `:skipped`. There is nothing to show for a meeting never seen.
+    * the payload is bare, has no row, and is one cancelled occurrence of a
+      recurring event (`recurringEventId` + `originalStartTime`, Google's
+      shape with `singleEvents=false`) whose master has a row → an occurrence
+      row is created with `status: :cancelled`: the master's title, location
+      and organizer, at the original start time, for the master's duration;
+    * the payload is bare and there is no row (and no master) → nothing is
+      created; counted as `:skipped`. There is nothing to show for a meeting
+      never seen.
 
   ## People are not rewritten across owners
 
@@ -69,7 +76,10 @@ defmodule AshEnterprise.Canonical.Projections.Calendar do
 
   `Person` rows are not sealed (`AshEnterprise.Canonical.Person`, "Erasure"):
   their name and email are `sensitive?`, so the audit log records them as
-  `nil`; the rows themselves outlive a shred. The end-to-end erasure test
+  `nil`; the rows themselves outlive a shred. They are written only while the
+  scope is live, checked under a lock a shred waits for
+  (`AshEnterprise.Erasure.LiveScope`), so a shred committed between a landing
+  and its projection writes no new person from the destroyed content. The end-to-end erasure test
   (`test/ash_enterprise/integration/erasure_e2e_test.exs`) sweeps the whole
   audit log for every synthetic content string after a shred.
 
@@ -91,7 +101,7 @@ defmodule AshEnterprise.Canonical.Projections.Calendar do
   """
 
   alias AshEnterprise.Canonical.{CalendarEvent, Person}
-  alias AshEnterprise.Erasure.Shredded
+  alias AshEnterprise.Erasure.{LiveScope, Shredded}
   alias AshEnterprise.Ingestion.SourceObject
 
   require Ash.Query
@@ -250,7 +260,7 @@ defmodule AshEnterprise.Canonical.Projections.Calendar do
         write_complete(system, external_id, attrs, context)
 
       {:bare, :cancelled} ->
-        cancel_existing(system, external_id, context)
+        cancel_existing(system, external_id, payload, context)
 
       {:bare, _status} ->
         {:ok, %{outcome: :skipped, people: []}}
@@ -310,7 +320,22 @@ defmodule AshEnterprise.Canonical.Projections.Calendar do
 
   # --- writes ------------------------------------------------------------------
 
+  # The people are not sealed, so the scope's liveness is checked before the
+  # first one is written, under a lock a shred has to wait for
+  # (`AshEnterprise.Erasure.LiveScope`): a shred that committed after the
+  # landing gets no new Person rows from the content it destroyed, and one
+  # racing this write reaches the event. The event write rechecks on its own.
   defp write_complete(system, external_id, attrs, context) do
+    scope_id = context.erasure_scope_id
+
+    LiveScope.run([scope_id], fn live ->
+      if MapSet.member?(live, scope_id),
+        do: write_live(system, external_id, attrs, context),
+        else: {:ok, %{outcome: :shredded, people: []}}
+    end)
+  end
+
+  defp write_live(system, external_id, attrs, context) do
     with {:ok, organizer} <- upsert_person(attrs.organizer, context),
          {:ok, attendees} <- upsert_people(attrs.attendees, context),
          {:ok, _event} <-
@@ -340,13 +365,13 @@ defmodule AshEnterprise.Canonical.Projections.Calendar do
   # A bare cancellation: keep the row we have, flip its status, touch nothing
   # else. The required title/times are re-supplied from the row itself because
   # the upsert is a create and validates them.
-  defp cancel_existing(system, external_id, context) do
+  defp cancel_existing(system, external_id, payload, context) do
     case CalendarEvent.by_external(system, external_id,
            tenant: context.tenant_id,
            authorize?: false
          ) do
       {:ok, nil} ->
-        {:ok, %{outcome: :skipped, people: []}}
+        cancel_occurrence(system, external_id, payload, context)
 
       # Its scope is gone; there is no title left to keep.
       {:ok, %CalendarEvent{title: %Shredded{}}} ->
@@ -374,6 +399,56 @@ defmodule AshEnterprise.Canonical.Projections.Calendar do
         error
     end
   end
+
+  # One occurrence of a recurring event cancelled. With `singleEvents=false`
+  # Google reports it as a bare exception item: `recurringEventId` names the
+  # master, `originalStartTime` the occurrence, and there is no start or end.
+  # The occurrence was never a row of its own (only masters and modified
+  # instances are), so it becomes one now: the master's title, location and
+  # organizer, at the occurrence's original start for the master's duration,
+  # `status: :cancelled`. Anything else bare with no row is skipped.
+  defp cancel_occurrence(system, external_id, payload, context) do
+    with master_id when is_binary(master_id) <- present_string(payload["recurringEventId"]),
+         {:ok, starts_at} <- event_time(payload["originalStartTime"]),
+         [calendar_key, _event_id] <- String.split(external_id, "/", parts: 2),
+         {:ok, %CalendarEvent{} = master} <-
+           CalendarEvent.by_external(system, external_id(calendar_key, master_id),
+             tenant: context.tenant_id,
+             authorize?: false
+           ) do
+      cancel_from_master(system, external_id, master, starts_at, context)
+    else
+      {:error, _} = error -> error
+      _no_master -> {:ok, %{outcome: :skipped, people: []}}
+    end
+  end
+
+  defp cancel_from_master(_system, _external_id, %CalendarEvent{title: %Shredded{}}, _at, _ctx),
+    do: {:ok, %{outcome: :shredded, people: []}}
+
+  defp cancel_from_master(system, external_id, master, starts_at, context) do
+    duration = DateTime.diff(master.ends_at, master.starts_at, :microsecond)
+
+    with {:ok, _event} <-
+           upsert_event(
+             %{
+               external_system: system,
+               external_id: external_id,
+               title: master.title,
+               starts_at: starts_at,
+               ends_at: DateTime.add(starts_at, duration, :microsecond),
+               location: master.location,
+               organizer_id: master.organizer_id
+             },
+             :cancelled,
+             context
+           ) do
+      {:ok, %{outcome: :cancelled, people: []}}
+    end
+  end
+
+  defp present_string(value) when is_binary(value) and value != "", do: value
+  defp present_string(_value), do: nil
 
   defp upsert_event(attrs, status, context) do
     attrs =

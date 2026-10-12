@@ -37,6 +37,16 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
   projects nothing. A record with no scope at all (a bare map that was never
   landed) is counted as `unscoped` and never projected.
 
+  ## One bad record does not stop a replay
+
+  Each thread is written in one transaction. A write that fails (or a payload
+  with no message id or `internalDate`) is counted as `failed` and the replay
+  carries on; the failure is reduced to the resource and field names
+  (`AshEnterprise.Canonical.Projections.Write`), because an Ash error quotes
+  the value it rejected, and the value is mailbox content. Display names are
+  clipped to `Person.name`'s 256 characters and over-long addresses are not
+  linked, so a sender cannot make the write fail in the first place.
+
   ## Deterministic
 
   Everything projected is a function of the admitted payloads and the replay
@@ -89,7 +99,8 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
   """
 
   alias AshEnterprise.Canonical.{Conversation, Message, Person}
-  alias AshEnterprise.Erasure.Shredded
+  alias AshEnterprise.Canonical.Projections.Write
+  alias AshEnterprise.Erasure.{LiveScope, Shredded}
   alias AshEnterprise.Ingestion.SourceObject
   alias AshEnterprise.Integration.Gmail.Sync
   alias AshEnterprise.Integration.LinkedAccount
@@ -99,6 +110,10 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
   @external_system "gmail"
   @stream "gmail.messages"
 
+  # `Person.name` / `Person.email` limits.
+  @name_max 256
+  @email_max 320
+
   @type counts :: %{
           source_objects: non_neg_integer(),
           foreign: non_neg_integer(),
@@ -106,6 +121,7 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
           unscoped: non_neg_integer(),
           admitted: non_neg_integer(),
           denied: non_neg_integer(),
+          failed: non_neg_integer(),
           conversations: non_neg_integer(),
           messages: non_neg_integer(),
           people: non_neg_integer()
@@ -139,76 +155,135 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
     {scoped, unscoped} = Enum.split_with(readable, &is_binary(Map.get(&1, :erasure_scope_id)))
     {admitted, denied} = Enum.split_with(scoped, &(gate.admit(&1, context) == :ok))
 
-    threads =
+    {parsed, unparseable} =
       admitted
       |> Enum.map(&parse/1)
+      |> Enum.split_with(&match?({:ok, _}, &1))
+
+    threads =
+      parsed
+      |> Enum.map(fn {:ok, message} -> message end)
       |> Enum.group_by(& &1.thread_id)
       |> Enum.sort_by(fn {thread_id, _messages} -> thread_id end)
 
-    people =
-      Enum.reduce(threads, MapSet.new(), fn {thread_id, messages}, seen ->
-        project_thread(thread_id, messages, context, seen)
+    initial = %{
+      people: MapSet.new(),
+      conversations: 0,
+      messages: 0,
+      shredded: length(shredded),
+      failed: length(unparseable)
+    }
+
+    totals =
+      Enum.reduce(threads, initial, fn {thread_id, messages}, acc ->
+        case project_thread(thread_id, messages, context) do
+          {:ok, {:projected, person_ids}} ->
+            %{
+              acc
+              | people: Enum.into(person_ids, acc.people),
+                conversations: acc.conversations + 1,
+                messages: acc.messages + length(messages)
+            }
+
+          {:ok, :shredded} ->
+            %{acc | shredded: acc.shredded + length(messages)}
+
+          # Structural only (`Projections.Write`): the thread is rolled back
+          # whole, counted, and the replay carries on.
+          {:error, _reason} ->
+            %{acc | failed: acc.failed + length(messages)}
+        end
       end)
 
     {:ok,
      %{
        source_objects: length(sources),
        foreign: length(foreign),
-       shredded: length(shredded),
+       shredded: totals.shredded,
        unscoped: length(unscoped),
        admitted: length(admitted),
        denied: length(denied),
-       conversations: length(threads),
-       messages: length(admitted),
-       people: MapSet.size(people)
+       failed: totals.failed,
+       conversations: totals.conversations,
+       messages: totals.messages,
+       people: MapSet.size(totals.people)
      }}
   end
 
   # --- one thread --------------------------------------------------------------
 
-  defp project_thread(thread_id, messages, context, people_seen) do
+  # One transaction per thread, opened with the thread's scope locked and
+  # checked live (`AshEnterprise.Erasure.LiveScope`): the people are not
+  # sealed, so a shred that committed after the landing must stop them being
+  # written at all, not only the sealed message bodies. The thread id is
+  # namespaced by the linked account, so all of its messages share one scope.
+  defp project_thread(thread_id, messages, context) do
     messages = Enum.sort_by(messages, &{DateTime.to_unix(&1.sent_at, :microsecond), &1.id})
+    scope_id = hd(messages).erasure_scope_id
 
-    # One Person per address; the first display name seen (in message order)
-    # names them. `upsert_fields` leaves an existing name alone when this
-    # payload carries none. Addresses whose Person another user owns are not
-    # linked (`upsert_person/3` returns nil for them).
-    people =
-      messages
-      |> Enum.flat_map(&[&1.from | &1.to ++ &1.cc])
-      |> Enum.reject(&is_nil/1)
-      |> Enum.reduce(%{}, fn %{email: email, name: name}, acc ->
-        Map.update(acc, email, name, &(&1 || name))
-      end)
-      |> Enum.sort()
-      |> Enum.flat_map(fn {email, name} ->
-        case upsert_person(email, name, context) do
-          nil -> []
-          person -> [{email, person}]
-        end
-      end)
-      |> Map.new()
+    LiveScope.run([scope_id], fn live ->
+      if MapSet.member?(live, scope_id),
+        do: write_thread(thread_id, messages, scope_id, context),
+        else: {:ok, :shredded}
+    end)
+  end
 
-    # Organization-owned, so a bare thread key: subject and participants are
-    # mailbox content. Written empty, which also clears a row an earlier
-    # projection filled. The thread id is namespaced by the linked account, so
-    # all of its messages share one scope; the first message's is the thread's.
-    conversation =
-      Conversation.upsert_from_source!(
-        %{
-          external_system: @external_system,
-          external_id: thread_id,
-          subject: nil,
-          participants: %{},
-          erasure_scope_id: hd(messages).erasure_scope_id
-        },
-        tenant: context.tenant_id,
-        authorize?: false
-      )
+  defp write_thread(thread_id, messages, scope_id, context) do
+    with {:ok, people} <- upsert_people(messages, context),
+         {:ok, conversation} <- write_conversation(thread_id, scope_id, context),
+         :ok <- upsert_messages(messages, conversation, people, context) do
+      {:ok, {:projected, people |> Map.values() |> Enum.map(& &1.id)}}
+    end
+  end
 
-    Enum.each(messages, &upsert_message(&1, conversation, people, context))
+  # One Person per address; the first display name seen (in message order)
+  # names them. `upsert_fields` leaves an existing name alone when this
+  # payload carries none. Addresses whose Person another user owns are not
+  # linked (`upsert_person/3` returns nil for them).
+  defp upsert_people(messages, context) do
+    messages
+    |> Enum.flat_map(&[&1.from | &1.to ++ &1.cc])
+    |> Enum.reject(&is_nil/1)
+    |> Enum.reduce(%{}, fn %{email: email, name: name}, acc ->
+      Map.update(acc, email, name, &(&1 || name))
+    end)
+    |> Enum.sort()
+    |> Enum.reduce_while({:ok, %{}}, fn {email, name}, {:ok, people} ->
+      case upsert_person(email, name, context) do
+        {:ok, nil} -> {:cont, {:ok, people}}
+        {:ok, person} -> {:cont, {:ok, Map.put(people, email, person)}}
+        {:error, _} = error -> {:halt, error}
+      end
+    end)
+  end
 
-    people |> Map.values() |> Enum.map(& &1.id) |> Enum.into(people_seen)
+  # Organization-owned, so a bare thread key: subject and participants are
+  # mailbox content. Written empty, which also clears a row an earlier
+  # projection filled.
+  defp write_conversation(thread_id, scope_id, context) do
+    Conversation
+    |> Ash.Changeset.for_create(
+      :upsert_from_source,
+      %{
+        external_system: @external_system,
+        external_id: thread_id,
+        subject: nil,
+        participants: %{},
+        erasure_scope_id: scope_id
+      },
+      tenant: context.tenant_id,
+      authorize?: false
+    )
+    |> Write.create()
+  end
+
+  defp upsert_messages(messages, conversation, people, context) do
+    Enum.reduce_while(messages, :ok, fn message, :ok ->
+      case upsert_message(message, conversation, people, context) do
+        {:ok, _message} -> {:cont, :ok}
+        {:error, _} = error -> {:halt, error}
+      end
+    end)
   end
 
   defp upsert_message(message, conversation, people, context) do
@@ -234,7 +309,7 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
       tenant: context.tenant_id,
       authorize?: false
     )
-    |> Ash.create!()
+    |> Write.create()
   end
 
   # The owner's Person for `email`, or nil when the address already belongs to
@@ -249,19 +324,31 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
   defp upsert_person(email, name, context) do
     owner_id = context.owner_id
 
-    with existing when existing == nil or existing.owner_id == owner_id <-
-           existing_person(email, context),
-         %Person{owner_id: ^owner_id} = person <- write_person(email, name, context) do
-      person
-    else
-      _theirs -> nil
+    case existing_person(email, context) do
+      {:ok, %Person{owner_id: other}} when other != owner_id ->
+        {:ok, nil}
+
+      {:ok, _own_or_none} ->
+        case write_person(email, name, context) do
+          {:ok, %Person{owner_id: ^owner_id} = person} -> {:ok, person}
+          {:ok, _theirs} -> {:ok, nil}
+          {:error, _} = error -> error
+        end
+
+      {:error, _} = error ->
+        error
     end
   end
 
   defp existing_person(email, context) do
-    [query: [filter: [email: email], limit: 1], tenant: context.tenant_id, authorize?: false]
-    |> Person.read!()
-    |> List.first()
+    case Person.read(
+           query: [filter: [email: email], limit: 1],
+           tenant: context.tenant_id,
+           authorize?: false
+         ) do
+      {:ok, people} -> {:ok, List.first(people)}
+      {:error, error} -> {:error, Write.failure(Person, error)}
+    end
   end
 
   defp write_person(email, name, context) do
@@ -274,7 +361,7 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
     )
     # The full upsert option set must be repeated at call time; see the same
     # call in AshEnterprise.Canonical.Projection.
-    |> Ash.create!(
+    |> Write.create(
       upsert?: true,
       upsert_identity: :unique_email,
       upsert_fields: if(name in [nil, ""], do: [], else: [:name])
@@ -292,11 +379,20 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
 
   # --- payload reading ---------------------------------------------------------
 
+  # `{:ok, message}`, or `{:error, :unparseable}` for a payload with no
+  # message id or no usable `internalDate`: counted as failed, never guessed.
   defp parse(source) do
     payload = source.raw_payload
+
+    with {:ok, gmail_id} <- gmail_id(payload),
+         {:ok, sent_at} <- sent_at(payload) do
+      {:ok, parsed(source, payload, gmail_id, sent_at)}
+    end
+  end
+
+  defp parsed(source, payload, gmail_id, sent_at) do
     headers = headers(payload)
     account = account_of(source)
-    gmail_id = gmail_id(payload, source)
 
     %{
       id: Sync.external_id(account, gmail_id),
@@ -305,7 +401,7 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
       from: headers |> Map.get("from") |> addresses() |> List.first(),
       to: headers |> Map.get("to") |> addresses(),
       cc: headers |> Map.get("cc") |> addresses(),
-      sent_at: sent_at(payload, source),
+      sent_at: sent_at,
       direction: if("SENT" in List.wrap(payload["labelIds"]), do: :outbound, else: :inbound),
       body: plain_text(payload["payload"]) || present(payload["snippet"])
     }
@@ -325,29 +421,20 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
     end)
   end
 
-  defp gmail_id(payload, source) do
+  defp gmail_id(payload) do
     case present(payload["id"]) do
-      nil ->
-        raise ArgumentError,
-              "gmail SourceObject #{inspect(source.external_id)} cannot be projected: " <>
-                "the payload carries no message id"
-
-      id ->
-        id
+      nil -> {:error, :unparseable}
+      id -> {:ok, id}
     end
   end
 
-  defp sent_at(payload, source) do
+  defp sent_at(payload) do
     with ms when is_binary(ms) <- payload["internalDate"],
          {ms, ""} <- Integer.parse(ms),
          {:ok, datetime} <- DateTime.from_unix(ms * 1000, :microsecond) do
-      datetime
+      {:ok, datetime}
     else
-      _ ->
-        # The id only: the payload is personal data and stays out of errors.
-        raise ArgumentError,
-              "gmail SourceObject #{inspect(source.external_id)} cannot be projected: " <>
-                "internalDate is missing or not epoch milliseconds"
+      _ -> {:error, :unparseable}
     end
   end
 
@@ -413,18 +500,28 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
     end
   end
 
+  # Longer than any deliverable address (RFC 5321) and than `Person.email`
+  # accepts: not an address worth linking (as the calendar projector).
   defp email_and_name(email, name) do
     email = email |> String.trim() |> String.downcase()
 
-    if String.contains?(email, "@") and not String.contains?(email, " ") do
+    if String.contains?(email, "@") and not String.contains?(email, " ") and
+         byte_size(email) <= @email_max do
       %{email: email, name: display_name(name)}
     end
   end
 
   defp display_name(nil), do: nil
 
+  # Any sender sets their display name, so it is clipped to what `Person.name`
+  # holds rather than allowed to fail the write.
   defp display_name(name) do
-    name |> String.trim() |> String.trim("\"") |> String.trim() |> present()
+    name
+    |> String.trim()
+    |> String.trim("\"")
+    |> String.trim()
+    |> String.slice(0, @name_max)
+    |> present()
   end
 
   # --- config and context ------------------------------------------------------

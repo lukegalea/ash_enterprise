@@ -119,6 +119,11 @@ defmodule AshEnterprise.Integration.Calendar.SyncCursor do
       description "When the cursor was last reset (410 Gone or an operator reset)."
     end
 
+    attribute :last_skipped_at, :utc_datetime_usec do
+      public? true
+      description "When a step last skipped this calendar after a per-calendar failure."
+    end
+
     attribute :reset_count, :integer do
       allow_nil? false
       default 0
@@ -222,6 +227,17 @@ defmodule AshEnterprise.Integration.Calendar.SyncCursor do
       change atomic_update(:reset_count, expr(reset_count + 1))
     end
 
+    update :skip do
+      description """
+      One calendar's events.list failed for a reason about that calendar
+      alone: record it and move the calendar to the back of the turn order
+      (`updated_at`). Tokens are kept, so the next turn retries it.
+      """
+
+      accept []
+      change set_attribute(:last_skipped_at, &DateTime.utc_now/0)
+    end
+
     update :unlist do
       description "The calendar left the calendar list (or answered 404): stop syncing it."
 
@@ -243,6 +259,7 @@ defmodule AshEnterprise.Integration.Calendar.SyncCursor do
     define :page, args: [:page_token]
     define :complete, args: [:sync_token]
     define :reset
+    define :skip
     define :unlist
     define :relist
   end

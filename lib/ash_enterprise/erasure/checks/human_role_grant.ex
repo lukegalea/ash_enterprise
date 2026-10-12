@@ -24,6 +24,13 @@ defmodule AshEnterprise.Erasure.Checks.HumanRoleGrant do
   def describe(_opts),
     do: "actor is a human (not a system actor) holding a write grant on erasure scopes"
 
+  # The default expansion re-runs `filter/3` against the authorizer Ash hands
+  # the forbidden-error renderer, which carries no action; the verb lookup then
+  # crashes and the refusal reads as a BadMapError. The description is the
+  # whole story here anyway.
+  @impl true
+  def expand_description(_actor, _authorizer, opts), do: {:ok, describe(opts)}
+
   @impl true
   def filter(actor, authorizer, opts) do
     context = ActorContext.for_actor(actor)

@@ -31,7 +31,7 @@ defmodule AshEnterprise.Integration.Calendar.SyncWorker do
   | complete | `{:ok, summary}` |
   | page budget used up, more to fetch, or a cursor superseded mid-step | `{:snooze, 1}` — continue promptly |
   | `:rate_limited` | `{:snooze, retry_after}` (60s when the provider gave none) |
-  | `:unauthorized`, `:forbidden`, `:connection_not_found`, `:no_linked_account`, `:ambiguous_linked_account`, `:not_configured`, a missing policy grant, a refused landing (not wired, scope shredded, cross-scope) | `{:cancel, reason}` — retrying cannot help |
+  | `:unauthorized`, `:forbidden`, `:connection_not_found`, `:no_linked_account`, `:ambiguous_linked_account`, `:not_configured`, a missing policy grant, a refused landing (not wired, scope shredded, cross-scope), an inactive owner | `{:cancel, reason}` — retrying cannot help; for the reasons in `AshEnterprise.Integration.SyncBlock` the account is also blocked, so the scheduler stops polling it |
   | anything else | `{:error, "calendar sync: <reason>"}` — Oban retries |
 
   Every error the job returns is a structural string or atom. Oban persists
@@ -49,7 +49,7 @@ defmodule AshEnterprise.Integration.Calendar.SyncWorker do
     ]
 
   alias AshEnterprise.Integration.Calendar.{ActorLoader, Sync, SyncError}
-  alias AshEnterprise.Integration.ProxyError
+  alias AshEnterprise.Integration.{ProxyError, SyncBlock}
 
   @cancel_reasons [
     :unauthorized,
@@ -84,6 +84,7 @@ defmodule AshEnterprise.Integration.Calendar.SyncWorker do
       {:ok, actor} -> run(actor, linked_account_id)
       {:error, reason} -> {:cancel, reason}
     end
+    |> SyncBlock.after_result(linked_account_id)
   end
 
   def perform(%Oban.Job{}) do

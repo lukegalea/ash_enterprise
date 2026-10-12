@@ -11,9 +11,17 @@ defmodule AshEnterprise.Ingestion.SourceObject do
   Opt-outs from the platform base are deliberate and greppable: `audit?: false`
   (machine-generated, high volume, fully reconstructable from the tap), no
   lifecycle/archival (raw rows are never state-tracked or soft-deleted),
-  `tenant?: false` and `ownership: :none` (ingestion is infrastructure, the
-  operator's own accounts — canonical, actor-facing rows in E4 carry the
-  ownership instead).
+  `tenant?: false` and `ownership: :none` (ingestion is infrastructure —
+  canonical, actor-facing rows in E4 carry the ownership instead).
+
+  Untenanted, yet the provider syncs land every tenant's users' mail,
+  calendars and Slack here, decrypted on read. A `:global` read grant on an
+  untenanted resource reaches every row, so its privileges are operator-only
+  (`AshEnterprise.Security.Privilege.operator_only?/1`): no tenant's
+  Administrator holds them, and only the platform operator role
+  (`mix ash_enterprise.platform.grant_operator`) does. The syncs and
+  projectors read it as trusted infrastructure (`authorize?: false`), each
+  narrowed to one linked account.
 
   Identity: `unique_source_object` on `[external_system, external_id]`. The
   `land` action upserts on it, which is what makes re-running a pipeline

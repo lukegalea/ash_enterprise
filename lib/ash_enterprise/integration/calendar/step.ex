@@ -20,7 +20,23 @@ defmodule AshEnterprise.Integration.Calendar.Step do
        * **410 Gone** → `SyncCursor.reset` (the explicit sync-reset), then a
          full sync of that calendar, once per step.
        * 404 → the calendar is gone from under us: `SyncCursor.unlist`.
-       * anything else stops the step with the edge's typed error.
+       * an account-level failure (unauthorized, rate limited, Nango or the
+         transport, a 403 about the credential or the project) stops the step
+         with the edge's typed error;
+       * anything else is about that calendar alone: it is counted in
+         `:skipped_calendars`, its cursor is touched (`SyncCursor.skip`) so it
+         goes to the back of the turn order, and the step carries on.
+
+  ## Turns
+
+  Calendars are visited in turn: a pass left part-way first, then calendars
+  never synced, then caught-up calendars least recently visited first
+  (`updated_at`, which every cursor write bumps). When the page budget
+  runs out, the step reports `:more` only if a calendar it did not reach still
+  has outstanding work (no sync token yet, or a pass left part-way); caught-up
+  calendars past the budget wait for the next scheduled step, where they come
+  first. So an account with more calendars than `:max_pages` completes, and
+  every calendar is reached.
 
   Requests always send `singleEvents=false` (recurring events as masters plus
   exceptions, so a full sync is bounded) and `showDeleted=true` (so a full sync
@@ -77,6 +93,34 @@ defmodule AshEnterprise.Integration.Calendar.Step do
   @calendar_list_page_size 250
   @max_calendar_list_pages 10
 
+  # Failures of one calendar's events.list that are about the account or the
+  # edge: the step stops on them. Everything else skips that calendar.
+  @account_level [
+    :unauthorized,
+    :rate_limited,
+    :connection_not_found,
+    :not_configured,
+    :transport,
+    :server_error,
+    :nango_error,
+    :no_linked_account,
+    :ambiguous_linked_account,
+    nil
+  ]
+
+  # Google 403 reasons that mean the credential, its consent or the project,
+  # not one calendar (a 403 with no reason is treated the same way).
+  @account_forbidden_codes [
+    nil,
+    "insufficientPermissions",
+    "authError",
+    "accessNotConfigured",
+    "dailyLimitExceeded",
+    "quotaExceeded",
+    "domainPolicy",
+    "PERMISSION_DENIED"
+  ]
+
   @type summary :: %{
           status: :complete | :more,
           calendars: non_neg_integer(),
@@ -84,6 +128,7 @@ defmodule AshEnterprise.Integration.Calendar.Step do
           landed: non_neg_integer(),
           resets: non_neg_integer(),
           superseded: non_neg_integer(),
+          skipped_calendars: non_neg_integer(),
           projection: %{atom() => non_neg_integer()}
         }
 
@@ -193,6 +238,7 @@ defmodule AshEnterprise.Integration.Calendar.Step do
       landed: 0,
       resets: 0,
       superseded: 0,
+      skipped_calendars: 0,
       more?: false,
       projection: %{projected: 0, cancelled: 0, skipped: 0, shredded: 0}
     }
@@ -295,6 +341,7 @@ defmodule AshEnterprise.Integration.Calendar.Step do
 
   defp sync(cursors, state) do
     cursors
+    |> in_turn()
     |> Enum.reduce_while({:ok, state}, fn cursor, {:ok, state} ->
       case sync_calendar(cursor, state, false) do
         {:ok, state} -> {:cont, {:ok, state}}
@@ -307,8 +354,33 @@ defmodule AshEnterprise.Integration.Calendar.Step do
     end
   end
 
-  defp sync_calendar(_cursor, %{pages_left: left} = state, _reset?) when left <= 0 do
-    {:ok, %{state | more?: true}}
+  # Turns, so a page budget smaller than the calendar list reaches every
+  # calendar over successive steps instead of spending itself on the same
+  # first ones: a pass left part-way first (least recently visited first),
+  # then calendars never synced (in the order they were tracked, which is
+  # calendar-list order), then caught-up calendars least recently visited
+  # first. Every visit writes the cursor row (`page`, `complete`, `reset`,
+  # `skip`), so `updated_at` is the time of the last visit.
+  defp in_turn(cursors) do
+    Enum.sort_by(cursors, fn cursor ->
+      cond do
+        is_binary(cursor.page_token) -> {0, at(cursor.updated_at), cursor.id}
+        is_nil(cursor.sync_token) -> {1, at(cursor.inserted_at), cursor.id}
+        true -> {2, at(cursor.updated_at), cursor.id}
+      end
+    end)
+  end
+
+  defp at(datetime), do: DateTime.to_unix(datetime, :microsecond)
+
+  # Work the budget left undone: a calendar never fully synced, or a pass left
+  # part-way. A caught-up calendar the budget did not reach is not
+  # outstanding: it gets its turn first on the next scheduled step, and the
+  # job finishes instead of snoozing forever on work that does not exist.
+  defp outstanding?(cursor), do: is_nil(cursor.sync_token) or not is_nil(cursor.page_token)
+
+  defp sync_calendar(cursor, %{pages_left: left} = state, _reset?) when left <= 0 do
+    {:ok, %{state | more?: state.more? or outstanding?(cursor)}}
   end
 
   defp sync_calendar(cursor, state, reset?) do
@@ -345,7 +417,31 @@ defmodule AshEnterprise.Integration.Calendar.Step do
     end
   end
 
-  defp recover(_reason, error, _cursor, _state, _reset?), do: {:error, error}
+  # The token, the consent, the edge or the quota: nothing else on this
+  # account can succeed either, so the step stops (and the worker classifies
+  # it). A 403 is account-level when Google says it is about the credential
+  # or the project rather than this calendar.
+  defp recover(reason, error, _cursor, _state, _reset?) when reason in @account_level,
+    do: {:error, error}
+
+  defp recover(:forbidden, error, cursor, state, reset?) do
+    if ProxyError.unwrap(error).provider_code in @account_forbidden_codes,
+      do: {:error, error},
+      else: skip_calendar(cursor, state, reset?)
+  end
+
+  defp recover(_reason, _error, cursor, state, reset?), do: skip_calendar(cursor, state, reset?)
+
+  # Anything else is about this one calendar (access to it refused, a bad
+  # request for it): count it as skipped, send it to the back of the turn
+  # order by touching its cursor, and carry on with the next calendar. Its
+  # tokens are kept; the next turn retries it. Codes only, never a body.
+  defp skip_calendar(cursor, state, _reset?) do
+    case cursor_write(SyncCursor.skip(cursor, state.cursor_opts)) do
+      {:ok, _} -> {:ok, %{state | skipped_calendars: state.skipped_calendars + 1}}
+      error -> error
+    end
+  end
 
   defp advance(cursor, %{"nextPageToken" => token}, state, reset?)
        when is_binary(token) and token != "" do
@@ -466,6 +562,7 @@ defmodule AshEnterprise.Integration.Calendar.Step do
       landed: state.landed,
       resets: state.resets,
       superseded: state.superseded,
+      skipped_calendars: state.skipped_calendars,
       projection: state.projection
     }
   end

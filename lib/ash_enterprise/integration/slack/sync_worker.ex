@@ -25,7 +25,9 @@ defmodule AshEnterprise.Integration.Slack.SyncWorker do
       backfill. Up-to-date conversations the budget did not reach are not
       outstanding work, so the job always reaches `:ok`;
     * Slack rate limiting → snooze for its `Retry-After`;
-    * re-link / consent / grant / not-wired → `{:cancel, reason}`;
+    * re-link / consent / grant / not-wired / inactive owner → `{:cancel,
+      reason}`; for the reasons in `AshEnterprise.Integration.SyncBlock` the
+      account is also blocked, so the scheduler stops polling it;
     * anything transient → `{:error, reason}`, retried with backoff.
 
   Reasons are atoms. Nothing a step returns carries content, so nothing Oban
@@ -49,6 +51,7 @@ defmodule AshEnterprise.Integration.Slack.SyncWorker do
     ]
 
   alias AshEnterprise.Integration.Slack.Syncer
+  alias AshEnterprise.Integration.SyncBlock
   alias AshEnterprise.Security.ActorContext
 
   @impl Oban.Worker
@@ -56,8 +59,10 @@ defmodule AshEnterprise.Integration.Slack.SyncWorker do
       when is_binary(user_id) and is_binary(linked_account_id) do
     case load_actor(user_id) do
       {:ok, actor} -> actor |> Syncer.step(linked_account_id) |> to_oban()
+      {:error, reason} when is_atom(reason) -> {:cancel, reason}
       :error -> {:cancel, :unknown_user}
     end
+    |> SyncBlock.after_result(linked_account_id)
   end
 
   def perform(%Oban.Job{}), do: {:cancel, :invalid_args}
@@ -78,6 +83,8 @@ defmodule AshEnterprise.Integration.Slack.SyncWorker do
   # request would carry. A trusted read: the worker is acting for this user.
   def default_actor(user_id) do
     case Ash.get(AshEnterprise.Accounts.User, user_id, authorize?: false) do
+      # An offboarded person's syncs stop with them (SyncBlock).
+      {:ok, %{lifecycle_status: status}} when status != :active -> {:error, :user_inactive}
       {:ok, user} -> {:ok, ActorContext.attach(user, ActorContext.build(user))}
       {:error, _} -> :error
     end

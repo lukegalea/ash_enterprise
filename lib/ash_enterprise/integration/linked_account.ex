@@ -20,9 +20,21 @@ defmodule AshEnterprise.Integration.LinkedAccount do
     * **User-owned**, owner forced to the acting human (`OwnedByActor`), so
       Basic depth means "my own linked accounts" and nobody links a connection
       for someone else to spend.
-    * **`connection_id` is `sensitive?` and not `public?`**: it is a handle, not
-      the secret, but it is the handle the secret key spends, so it stays out of
-      the audit `data`, inspect output and every API surface.
+    * **`connection_id` is readable only by its owner's own reads.** It is a handle,
+      not the secret, but it is the handle the secret key spends: whoever
+      reads it can link it as their own and spend it. `sensitive?` keeps it out
+      of the audit `data` and inspect output, and a field policy hides it
+      (`%Ash.ForbiddenField{}`) from every read except `:for_operation` and
+      `:mine`, which only ever return the actor's own rows. A role's read grant on
+      linked accounts (an Administrator's `:global` one included) shows that
+      the row exists, never the connection.
+    * **A connection is linked once, deployment-wide.** A Nango connection is
+      global to its Nango environment, so `unique_connection` spans tenants: the
+      same connection id cannot be linked again in another tenant.
+    * **`label` is `sensitive?`.** It is free text an operator types, and a
+      person's name for their account ("work", or their own address) can be
+      personal data; ash_events records it as `nil`, so it never reaches the
+      immutable audit log. The row still holds it, and an unlink deletes it.
     * **Lifecycle kept** (`deactivate`/`activate`): a deactivated link is never
       resolved, which is how a sync is paused without forgetting the mapping.
     * **`archival?: false`**: unlinking is a hard `:unlink`. A soft-deleted row
@@ -82,8 +94,22 @@ defmodule AshEnterprise.Integration.LinkedAccount do
 
     attribute :label, :string do
       public? true
+      sensitive? true
       constraints max_length: 128
-      description "The operator's name for the account: work, personal."
+      description "The operator's name for the account: work, personal. Never audited."
+    end
+
+    attribute :sync_blocked_reason, :string do
+      public? true
+      constraints max_length: 64
+
+      description "Why the scheduler stopped syncing this account (a structural reason), or nil."
+    end
+
+    attribute :sync_blocked_at, :utc_datetime_usec do
+      public? true
+
+      description "When a sync step cancelled for a reason only a person can fix. Nil: syncing."
     end
 
     create_timestamp :inserted_at
@@ -99,7 +125,27 @@ defmodule AshEnterprise.Integration.LinkedAccount do
   end
 
   identities do
-    identity :unique_connection, [:provider_config_key, :connection_id]
+    # Across tenants: a Nango connection belongs to one Nango environment, not
+    # to a tenant, so it is linked at most once in the whole deployment.
+    identity :unique_connection, [:provider_config_key, :connection_id] do
+      all_tenants? true
+    end
+  end
+
+  # The connection id is the one field a read grant must not hand over (see
+  # "Choices"). Every other field is as visible as the row.
+  field_policies do
+    private_fields :include
+
+    # `:for_operation` resolves the actor's own active accounts for the edge;
+    # `:mine` lists the actor's own accounts (the console masks it).
+    field_policy :connection_id do
+      authorize_if action([:for_operation, :mine])
+    end
+
+    field_policy :* do
+      authorize_if always()
+    end
   end
 
   actions do
@@ -117,6 +163,29 @@ defmodule AshEnterprise.Integration.LinkedAccount do
 
     update :relabel do
       accept [:label, :account_id]
+    end
+
+    update :block_sync do
+      description """
+      A sync step cancelled for a reason retrying cannot fix (revoked token,
+      deleted Nango connection, shredded scope, inactive owner): stop the
+      scheduler enqueuing this account until a person unblocks it. Called by
+      the sync workers; the reason is a structural atom, never a message.
+      """
+
+      accept []
+      argument :reason, :string, allow_nil?: false, constraints: [max_length: 64]
+
+      change set_attribute(:sync_blocked_reason, arg(:reason))
+      change set_attribute(:sync_blocked_at, &DateTime.utc_now/0)
+    end
+
+    update :unblock_sync do
+      description "Let the scheduler enqueue this account again (after a re-link or a fix)."
+
+      accept []
+      change set_attribute(:sync_blocked_reason, nil)
+      change set_attribute(:sync_blocked_at, nil)
     end
 
     destroy :unlink do
@@ -161,17 +230,19 @@ defmodule AshEnterprise.Integration.LinkedAccount do
 
     read :active_for_integration do
       description """
-      Every *active* linked account for one integration, across tenants, for
-      the sync scheduler (`AshEnterprise.Integration.SyncScheduler`, a system
-      actor). A human calling it is still filtered by their own grants. The
-      scheduler enqueues ids; each step then re-resolves its account as the
-      owning human.
+      Every *active*, unblocked linked account for one integration, across
+      tenants, for the sync scheduler (`AshEnterprise.Integration.SyncScheduler`,
+      a system actor). A human calling it is still filtered by their own
+      grants. The scheduler enqueues ids; each step then re-resolves its
+      account as the owning human. An account whose last step cancelled for a
+      reason only a person can fix (`:block_sync`) is skipped until it is
+      unblocked, so it is not polled every tick.
       """
 
       argument :provider_config_key, :string, allow_nil?: false
 
       filter expr(
-               lifecycle_status == :active and
+               lifecycle_status == :active and is_nil(sync_blocked_at) and
                  provider_config_key == ^arg(:provider_config_key)
              )
     end
@@ -199,6 +270,8 @@ defmodule AshEnterprise.Integration.LinkedAccount do
   code_interface do
     define :link
     define :relabel
+    define :block_sync, args: [:reason]
+    define :unblock_sync
     define :unlink
     define :mine, args: [{:optional, :provider_config_key}]
     define :for_operation, args: [:provider_config_key, {:optional, :linked_account_id}]

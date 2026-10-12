@@ -13,7 +13,8 @@ defmodule AshEnterprise.Integration.ErasureE2ETest do
   Administrator provisioned *before* the Integration domain existed (its
   Integration and erasure grants are stripped) and brought up to date by
   `Seeder.seed_privileges/0` + `Seeder.regrant_administrator_privileges/1`,
-  which is the documented upgrade path.
+  which is the documented upgrade path, then made the platform operator
+  (`Seeder.grant_platform_operator/1`), the only holder of the shred grant.
   """
 
   use AshEnterprise.DataCase, async: false
@@ -108,9 +109,25 @@ defmodule AshEnterprise.Integration.ErasureE2ETest do
     Seeder.seed_privileges()
     assert Seeder.regrant_administrator_privileges(org.id) > 0
 
+    # The regrant never hands an Administrator the operator-only privileges
+    # (raw landings, erasure scopes): shredding is the platform operator's.
+    refute erasure_write?(seeded.user, org.id)
+    assert %{granted: granted} = Seeder.grant_platform_operator(seeded.user)
+    assert granted > 0
+    assert erasure_write?(seeded.user, org.id)
+
     actor = ActorContext.attach(seeded.user, ActorContext.build(seeded.user, tenant: org.id))
 
-    %{org: org, user: seeded.user, actor: actor, email: email, unique: unique}
+    # Free text the operator types for an account: it must never reach the
+    # audit log (LinkedAccount.label is sensitive), checked after every shred.
+    label = "E2E-SYNTHETIC-LABEL-#{unique}"
+
+    %{org: org, user: seeded.user, actor: actor, email: email, unique: unique, label: label}
+  end
+
+  defp erasure_write?(user, org_id) do
+    context = ActorContext.build(user, tenant: org_id)
+    ActorContext.grant(context, Scope, :write).global?
   end
 
   # --- Google Calendar -------------------------------------------------------------
@@ -166,6 +183,11 @@ defmodule AshEnterprise.Integration.ErasureE2ETest do
                perform_job(Calendar.SyncWorker, Calendar.SyncWorker.args(account))
 
       refute_received {:provider_request, _path}
+
+      # ...and the account is blocked, so the scheduler stops enqueuing a
+      # cancelled step for it every tick.
+      assert blocked_reason(account) == "scope_shredded"
+      assert %{accounts: 0} = SyncScheduler.enqueue("google-calendar")
       assert length(landed("google_calendar")) == 3
       assert_no_plaintext(F.content_strings(), calendar_ids())
 
@@ -338,6 +360,11 @@ defmodule AshEnterprise.Integration.ErasureE2ETest do
 
       Mix.Tasks.AshEnterprise.Erasure.Scopes.run([])
       assert Enum.any?(collect_shell(), &(&1 =~ "connection:#{account.id}  shredded "))
+
+      # The label the operator typed went nowhere permanent: not the audit
+      # log, and the row that held it is gone.
+      assert_no_audit_event_spells([ctx.label])
+      assert_no_plaintext([ctx.label])
     end
   end
 
@@ -370,6 +397,56 @@ defmodule AshEnterprise.Integration.ErasureE2ETest do
 
       assert {:cancel, :unknown_integration} =
                perform_job(SyncScheduler, %{"integration" => "not-a-provider"})
+    end
+  end
+
+  # --- blocked accounts ---------------------------------------------------------------------
+
+  describe "an account that needs a person" do
+    test "a revoked token blocks it until the operator unblocks it", ctx do
+      account = link_via_task!(ctx, "slack", "conn-slack-revoked-#{ctx.unique}")
+
+      Req.Test.stub(Proxy, fn conn ->
+        send(self(), {:provider_request, conn.request_path})
+        Req.Test.json(conn, %{"ok" => false, "error" => "token_revoked"})
+      end)
+
+      job = %{"user_id" => ctx.user.id, "linked_account_id" => account.id}
+      assert {:cancel, :unauthorized} = perform_job(Slack.SyncWorker, job)
+      assert blocked_reason(account) == "unauthorized"
+
+      # Not polled again on every tick...
+      assert %{accounts: 0, enqueued: 0} = SyncScheduler.enqueue("slack")
+
+      # ...until someone re-links or fixes it and unblocks it.
+      tripwire()
+
+      Mix.Tasks.AshEnterprise.Integration.Sync.run([
+        "--linked-account",
+        account.id,
+        "--unblock"
+      ])
+
+      assert "unblocked #{account.id}" in collect_shell()
+      assert blocked_reason(account) == nil
+      assert %{accounts: 1, enqueued: 1} = SyncScheduler.enqueue("slack")
+    end
+
+    test "an inactive owner's syncs cancel before any request, and the account is blocked",
+         ctx do
+      account = link_via_task!(ctx, "google-mail", "conn-mail-offboarded-#{ctx.unique}")
+
+      ctx.user
+      |> Ash.Changeset.for_update(:deactivate, %{}, authorize?: false)
+      |> Ash.update!()
+
+      tripwire()
+      job = %{"user_id" => ctx.user.id, "linked_account_id" => account.id}
+      assert {:cancel, :user_inactive} = perform_job(Gmail.SyncWorker, job)
+      refute_received {:provider_request, _path}
+
+      assert blocked_reason(account) == "user_inactive"
+      assert %{accounts: 0} = SyncScheduler.enqueue("google-mail")
     end
   end
 
@@ -431,6 +508,10 @@ defmodule AshEnterprise.Integration.ErasureE2ETest do
 
   # --- helpers ------------------------------------------------------------------------------
 
+  defp blocked_reason(account) do
+    Ash.get!(LinkedAccount, account.id, authorize?: false).sync_blocked_reason
+  end
+
   defp ok({:ok, _summary}), do: :ok
   defp ok(other), do: other
 
@@ -443,7 +524,7 @@ defmodule AshEnterprise.Integration.ErasureE2ETest do
       "--connection-id",
       connection_id,
       "--label",
-      "work"
+      ctx.label
     ])
 
     assert_received {:mix_shell, :info, [output]}
@@ -478,6 +559,7 @@ defmodule AshEnterprise.Integration.ErasureE2ETest do
 
     _ = collect_shell()
     assert %Scope{status: :shredded} = scope!(account)
+    assert_no_audit_event_spells([ctx.label])
   end
 
   defp collect_shell(acc \\ []) do

@@ -96,7 +96,7 @@ defmodule AshEnterprise.Integration.Console do
     case Calendar.Sync.run_step(%{linked_account_id: id}, actor: actor) do
       {:ok, summary} ->
         summary
-        |> Map.take([:calendars, :pages, :landed, :resets, :superseded])
+        |> Map.take([:calendars, :pages, :landed, :resets, :superseded, :skipped_calendars])
         |> Map.merge(summary.projection)
         |> Map.put(:status, summary.status)
 

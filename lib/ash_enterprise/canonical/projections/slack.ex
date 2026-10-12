@@ -69,11 +69,32 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
   `erasure_scope_id:` in the options. A record whose scope has been shredded
   reads as `AshEnterprise.Erasure.Shredded` and projects nothing; a record
   with no scope is never projected. `Person` rows are not sealed (their name
-  and email are `sensitive?`, so the audit log records them as `nil`).
+  and email are `sensitive?`, so the audit log records them as `nil`), so
+  each is written only while its member record's scope is live, checked under
+  a lock a shred waits for (`AshEnterprise.Erasure.LiveScope`).
+
+  ## People another user owns
+
+  `Person` is unique on email per tenant and owned by whoever projected it
+  first. A member whose Person another user already owns (from their Gmail,
+  Calendar or Slack) is neither renamed from this account's Slack profile nor
+  linked from its messages (`sender_id` nil) or conversations
+  (`participants.person_ids`) — the Gmail and Calendar rule — so a shred of
+  this account leaves nothing it wrote in someone else's rows.
+
+  ## One bad record does not stop a replay
+
+  Every write is non-raising (`AshEnterprise.Canonical.Projections.Write`): a
+  failure is counted in `failed`, reduced to resource and field names (an Ash
+  error quotes the value it rejected, and the value is Slack content), and the
+  replay carries on. Display names are clipped to `Person.name`'s 256
+  characters and over-long addresses are not linked, so a member's profile
+  cannot make the write fail in the first place.
   """
 
   alias AshEnterprise.Canonical.{Conversation, Message, Person}
-  alias AshEnterprise.Erasure.Shredded
+  alias AshEnterprise.Canonical.Projections.Write
+  alias AshEnterprise.Erasure.{LiveScope, Shredded}
   alias AshEnterprise.Ingestion.SourceObject
   alias AshEnterprise.Integration.LinkedAccount
   alias AshEnterprise.Integration.Slack.Records
@@ -90,10 +111,15 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
   # module. Not a Slack key; never written anywhere.
   @scope_key "__erasure_scope_id__"
 
+  # `Person.name` / `Person.email` limits.
+  @name_max 256
+  @email_max 320
+
   @type counts :: %{
           conversations: non_neg_integer(),
           messages: non_neg_integer(),
-          people: non_neg_integer()
+          people: non_neg_integer(),
+          failed: non_neg_integer()
         }
 
   @doc """
@@ -179,15 +205,17 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
           is_binary(channel) and Records.ts?(message["ts"])
         end)
 
+      user_records = Map.get(streams, Records.stream(:users), [])
+
       users =
-        streams
-        |> Map.get(Records.stream(:users), [])
-        |> Map.new(fn {record, _scope_id} -> {record.raw_payload["id"], record.raw_payload} end)
+        Map.new(user_records, fn {record, _scope_id} ->
+          {record.raw_payload["id"], record.raw_payload}
+        end)
 
       self_user_id =
         Keyword.get_lazy(opts, :self_user_id, fn -> infer_self(conversations, messages) end)
 
-      people = project_people(users, context)
+      {people, people_failed} = project_people(user_records, context)
 
       public =
         Map.filter(conversations, fn {_id, conversation} -> public_channel?(conversation) end)
@@ -195,7 +223,7 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
       public_messages =
         Enum.filter(messages, fn {channel, _} -> Map.has_key?(public, channel) end)
 
-      conversation_rows =
+      {conversation_rows, conversations_failed} =
         project_conversations(
           public,
           conversation_scopes,
@@ -205,35 +233,87 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
           context
         )
 
-      projected =
+      {projected, messages_failed} =
         public_messages
         |> Enum.filter(fn {_channel, message} -> message["subtype"] in @projected_subtypes end)
         |> Enum.map(&project_message(&1, conversation_rows, people, self_user_id, context))
+        |> Enum.split_with(&match?({:ok, _}, &1))
 
       {:ok,
        %{
          conversations: map_size(conversation_rows),
          messages: length(projected),
-         people: map_size(people)
+         people: map_size(people),
+         failed: people_failed + conversations_failed + length(messages_failed)
        }}
     end
   end
 
   # --- people ---------------------------------------------------------------------
 
-  defp project_people(users, context) do
-    users
-    |> Enum.sort_by(&elem(&1, 0))
-    |> Enum.flat_map(fn {user_id, user} ->
-      case email(user) do
-        nil -> []
-        email -> [{user_id, upsert_person(email, display_name(user), context)}]
+  # One Person per member with an email, written only while the member
+  # record's scope is live (checked under a lock a shred waits for,
+  # `AshEnterprise.Erasure.LiveScope`): people are not sealed, so a shred
+  # that committed after the landing must stop them being written at all.
+  # Returns the people by Slack user id, and how many writes failed.
+  defp project_people(user_records, context) do
+    user_records
+    |> Enum.sort_by(fn {record, _scope_id} -> to_string(record.raw_payload["id"]) end)
+    |> Enum.reduce({%{}, 0}, fn {record, scope_id}, {people, failed} ->
+      user = record.raw_payload
+
+      with email when is_binary(email) <- email(user),
+           {:ok, %Person{} = person} <- live_person(email, display_name(user), scope_id, context) do
+        {Map.put(people, user["id"], person), failed}
+      else
+        {:error, _structural} -> {people, failed + 1}
+        _no_email_shredded_or_theirs -> {people, failed}
       end
     end)
-    |> Map.new(fn {user_id, person} -> {user_id, person} end)
   end
 
+  defp live_person(email, name, scope_id, context) do
+    LiveScope.run([scope_id], fn live ->
+      if MapSet.member?(live, scope_id), do: upsert_person(email, name, context), else: {:ok, nil}
+    end)
+  end
+
+  # The owner's Person for `email`, or nil when another user in the tenant
+  # already owns it (`unique_email` is per tenant, not per owner). That row is
+  # theirs: this account neither renames it from a Slack profile nor links its
+  # messages or conversations to it — the Gmail and Calendar rule. Checked by
+  # a read before the upsert (the audit wrapper does not handle a skipped
+  # upsert), and again on the row the upsert returns.
   defp upsert_person(email, name, context) do
+    owner_id = context.owner_id
+
+    case existing_person(email, context) do
+      {:ok, %Person{owner_id: other}} when other != owner_id ->
+        {:ok, nil}
+
+      {:ok, _own_or_none} ->
+        case write_person(email, name, context) do
+          {:ok, %Person{owner_id: ^owner_id} = person} -> {:ok, person}
+          {:ok, _theirs} -> {:ok, nil}
+          {:error, _} = error -> error
+        end
+
+      {:error, _} = error ->
+        error
+    end
+  end
+
+  defp existing_person(email, context) do
+    Person
+    |> Ash.Query.filter(email == ^email)
+    |> Ash.read_one(tenant: context.tenant_id, authorize?: false)
+    |> case do
+      {:ok, person} -> {:ok, person}
+      {:error, error} -> {:error, Write.failure(Person, error)}
+    end
+  end
+
+  defp write_person(email, name, context) do
     Person
     |> Ash.Changeset.for_create(
       :upsert_from_source,
@@ -251,16 +331,19 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
     # The full upsert option set, repeated at call time — see the calendar
     # projector in AshEnterprise.Canonical.Projection for why a partial set
     # silently becomes an insert.
-    |> Ash.create!(
+    |> Write.create(
       upsert?: true,
       upsert_identity: :unique_email,
       upsert_fields: if(name in [nil, ""], do: [], else: [:name])
     )
   end
 
+  # Longer than any deliverable address (RFC 5321) and than `Person.email`
+  # accepts: not linked, as in the calendar and Gmail projectors.
   defp email(%{"profile" => %{"email" => email}}) when is_binary(email) do
     case String.trim(email) do
       "" -> nil
+      trimmed when byte_size(trimmed) > @email_max -> nil
       trimmed -> trimmed
     end
   end
@@ -275,7 +358,13 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
       user["name"]
     ]
     |> Enum.find(&(is_binary(&1) and String.trim(&1) != ""))
+    |> clip_name()
   end
+
+  # Any member sets their own profile name: clipped to what `Person.name`
+  # holds rather than allowed to fail the write.
+  defp clip_name(nil), do: nil
+  defp clip_name(name), do: name |> String.trim() |> String.slice(0, @name_max)
 
   # --- conversations ------------------------------------------------------------------
 
@@ -293,7 +382,8 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
 
     channels = conversations |> Map.keys() |> Enum.filter(&is_binary/1) |> Enum.sort()
 
-    Map.new(channels, fn channel ->
+    channels
+    |> Enum.map(fn channel ->
       conversation = Map.fetch!(conversations, channel)
 
       user_ids =
@@ -309,23 +399,25 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
         "person_ids" => user_ids |> Enum.flat_map(&person_id(people, &1)) |> Enum.sort()
       }
 
-      row =
-        Conversation
-        |> Ash.Changeset.for_create(
-          :upsert_from_source,
-          %{
-            external_system: Records.external_system(),
-            external_id: Records.conversation_id(context.linked_account_id, channel),
-            subject: subject(conversation),
-            participants: participants,
-            erasure_scope_id: Map.fetch!(scopes, channel)
-          },
-          tenant: context.tenant_id,
-          authorize?: false
-        )
-        |> Ash.create!()
-
-      {channel, row}
+      Conversation
+      |> Ash.Changeset.for_create(
+        :upsert_from_source,
+        %{
+          external_system: Records.external_system(),
+          external_id: Records.conversation_id(context.linked_account_id, channel),
+          subject: subject(conversation),
+          participants: participants,
+          erasure_scope_id: Map.fetch!(scopes, channel)
+        },
+        tenant: context.tenant_id,
+        authorize?: false
+      )
+      |> Write.create()
+      |> then(&{channel, &1})
+    end)
+    |> Enum.reduce({%{}, 0}, fn
+      {channel, {:ok, row}}, {rows, failed} -> {Map.put(rows, channel, row), failed}
+      {_channel, {:error, _structural}}, {rows, failed} -> {rows, failed + 1}
     end)
   end
 
@@ -334,7 +426,19 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
 
   # --- messages ------------------------------------------------------------------------
 
+  # A message of a conversation whose write failed has nothing to belong to:
+  # counted as failed with it.
   defp project_message({channel, message}, conversations, people, self_user_id, context) do
+    case Map.fetch(conversations, channel) do
+      {:ok, conversation} ->
+        write_message(channel, message, conversation, people, self_user_id, context)
+
+      :error ->
+        {:error, :conversation_not_projected}
+    end
+  end
+
+  defp write_message(channel, message, conversation, people, self_user_id, context) do
     author = message["user"]
 
     Message
@@ -347,7 +451,7 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
         sent_at: Records.ts_to_datetime(message["ts"]),
         direction:
           if(is_binary(author) and author == self_user_id, do: :outbound, else: :inbound),
-        conversation_id: conversations |> Map.fetch!(channel) |> Map.get(:id),
+        conversation_id: conversation.id,
         sender_id: people |> person_id(author) |> List.first(),
         # Sealed under the same key as the raw landing it came from.
         erasure_scope_id: Map.fetch!(message, @scope_key),
@@ -361,7 +465,7 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
       tenant: context.tenant_id,
       authorize?: false
     )
-    |> Ash.create!()
+    |> Write.create()
   end
 
   defp person_id(people, user_id) do

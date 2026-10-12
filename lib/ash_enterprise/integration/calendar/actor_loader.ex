@@ -34,6 +34,11 @@ defmodule AshEnterprise.Integration.Calendar.ActorLoader do
   # — building one is the point. User is not tenant-scoped.
   defp default_load(user_id, organization_id) do
     case Ash.get(User, user_id, authorize?: false) do
+      # An offboarded person's syncs stop with them, whatever roles they
+      # still hold (`AshEnterprise.Integration.SyncBlock`).
+      {:ok, %User{lifecycle_status: status}} when status != :active ->
+        {:error, :user_inactive}
+
       {:ok, user} ->
         {:ok, ActorContext.attach(user, ActorContext.build(user, tenant: organization_id))}
 
