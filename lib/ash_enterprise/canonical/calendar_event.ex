@@ -56,7 +56,9 @@ defmodule AshEnterprise.Canonical.CalendarEvent do
     attribute :title, :string do
       allow_nil? false
       public? true
-      constraints max_length: 1024
+      # No max_length on a sealed attribute: a failed constraint renders the
+      # value into the error message (Ash's InvalidArgument), and errors reach
+      # traces, Oban and BPMN incidents, which no shred reaches (ADR 0024).
       description "The event's summary line."
     end
 
@@ -74,7 +76,7 @@ defmodule AshEnterprise.Canonical.CalendarEvent do
 
     attribute :location, :string do
       public? true
-      constraints max_length: 512
+      # Unbounded for the same reason as `title`.
       description "Where, when the event says."
     end
 

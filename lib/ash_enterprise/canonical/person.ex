@@ -14,6 +14,17 @@ defmodule AshEnterprise.Canonical.Person do
   SourceObject land path. See the TODO on
   `AshEnterprise.Canonical.Projection` before wiring those projectors.
 
+  ## Erasure (ADR 0024)
+
+  `name` and `email` are **not** sealed under an erasure scope: `email` is the
+  upsert identity, and a sealed value (randomized ciphertext) cannot be one
+  without a blind index. They are `sensitive?`, which keeps them out of the
+  immutable audit log -- ash_events records sensitive inputs as nil -- so a
+  connection shred leaves them only in this table, where rows are ordinary
+  mutable data. Shredding a connection does not reach them; removing a
+  correspondent is a row-level delete, not a key destroy. Listed in
+  `docs/runbooks/crypto-shredding.md`.
+
   Opt-outs from the platform base, same reasoning as `SourceObject`'s: these
   rows are machine-derived projections — reconstructable from raw landings by
   `Projection.replay/2` — so `archival?: false` (a stale projection is
@@ -39,14 +50,20 @@ defmodule AshEnterprise.Canonical.Person do
   attributes do
     uuid_primary_key :id
 
+    # `sensitive?` on name and email (ADR 0024): ash_events records a
+    # sensitive input as nil, so the immutable audit log never holds a
+    # correspondent's name or address. The row itself still does, in
+    # plaintext and outside any erasure scope -- see "Erasure" above.
     attribute :name, :string do
       public? true
+      sensitive? true
       constraints max_length: 256
       description "Display name, when the source system carried one. Stays nil otherwise."
     end
 
     attribute :email, :ci_string do
       public? true
+      sensitive? true
       constraints max_length: 320
       description "The v1 linkage key. Nullable: a name-only contact is a person with no link."
     end

@@ -20,9 +20,20 @@ defmodule AshEnterprise.Erasure do
 
       AshEnterprise.Ingestion.SourceObject.land_under!(
         scope.id,
-        %{external_system: "slack", external_id: ts, raw_payload: message, fetched_at: now},
+        %{
+          external_system: "slack",
+          external_id: "\#{team_id}/\#{channel_id}/\#{ts}",
+          raw_payload: message,
+          fetched_at: now
+        },
         authorize?: false
       )
+
+  Qualify `external_id` so it is unique across every connection that lands into
+  the same `external_system` (a Slack `ts` alone is not unique across channels
+  or workspaces). The landing identity is `[external_system, external_id]` and
+  does not include the scope: a second connection landing the same pair takes
+  the row over, re-sealing it under its own scope.
 
   Resolve the scope once per connection (per run, per linked account), not per
   record: `ensure_scope` is a lookup after the first call, but it is still a

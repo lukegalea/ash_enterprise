@@ -31,13 +31,17 @@ defmodule AshEnterprise.Erasure.Changes.SealUnderScope do
     * no `erasure_scope_id` on the changeset — an error on that field; content
       is never stored unsealed and never sealed under a guessed scope;
     * a shredded scope — an error naming it; nothing new lands under a scope
-      whose key is gone;
+      whose key is gone. Checked twice: when sealing, and again inside the
+      write's transaction under a `FOR SHARE` lock on the scope row, so a shred
+      racing the write either reaches the row or refuses it;
     * a scope id nobody issued — an error, before the foreign key would.
   """
 
   use Ash.Resource.Change
 
-  alias AshEnterprise.Erasure.Keyring
+  require Ash.Query
+
+  alias AshEnterprise.Erasure.{Keyring, Scope}
 
   @scope_attribute :erasure_scope_id
 
@@ -85,7 +89,43 @@ defmodule AshEnterprise.Erasure.Changes.SealUnderScope do
         )
 
       scope_id ->
-        Enum.reduce(fields, changeset, &seal_field(&2, &1, scope_id))
+        fields
+        |> Enum.reduce(changeset, &seal_field(&2, &1, scope_id))
+        |> Ash.Changeset.before_action(&recheck_scope_live(&1, scope_id))
+    end
+  end
+
+  # The seal above ran before the write's transaction. A shred that commits
+  # between then and the insert would let the row land under a scope that is
+  # already shredded. Inside the transaction, take a FOR SHARE lock on the
+  # scope row and re-check it: `Scope.shred` updates that row, so the two
+  # writes serialize -- either this landing commits first (and the shred then
+  # reaches it), or the shred does and this landing is refused.
+  defp recheck_scope_live(changeset, scope_id) do
+    Scope
+    |> Ash.Query.filter(id == ^scope_id)
+    |> Ash.Query.lock("FOR SHARE")
+    |> Ash.read_one(authorize?: false)
+    |> case do
+      {:ok, %Scope{status: :active}} ->
+        changeset
+
+      {:ok, %Scope{status: :shredded}} ->
+        Ash.Changeset.add_error(changeset,
+          field: @scope_attribute,
+          message: "erasure scope %{scope} has been shredded; nothing may land under it",
+          vars: [scope: scope_id]
+        )
+
+      {:ok, nil} ->
+        Ash.Changeset.add_error(changeset,
+          field: @scope_attribute,
+          message: "erasure scope %{scope} does not exist",
+          vars: [scope: scope_id]
+        )
+
+      {:error, error} ->
+        Ash.Changeset.add_error(changeset, error)
     end
   end
 

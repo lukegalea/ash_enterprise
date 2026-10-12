@@ -16,6 +16,7 @@ defmodule AshEnterprise.ErasureTest do
 
   require Ash.Query
 
+  alias AshEnterprise.Agents.MorningBrief
   alias AshEnterprise.Audit.{Chain, EventLog}
   alias AshEnterprise.Canonical.{CalendarEvent, Conversation, Message, Projection}
   alias AshEnterprise.Erasure
@@ -210,6 +211,35 @@ defmodule AshEnterprise.ErasureTest do
       assert {:ok, nil} = Key.for_scope(scope.id, @opts)
     end
 
+    # The seal runs while the changeset is built, before the write's
+    # transaction. A shred that commits in between must still refuse the row:
+    # the in-transaction re-check (FOR SHARE on the scope) is what sees it.
+    test "a landing sealed before a shred commits is refused at write time", ctx do
+      scope = scope!("slack:T-RACE")
+
+      sealed_early =
+        Ash.Changeset.for_create(
+          SourceObject,
+          :land,
+          %{
+            erasure_scope_id: scope.id,
+            external_system: "slack",
+            external_id: "T-RACE/C1/1",
+            raw_payload: %{"text" => @secret},
+            fetched_at: DateTime.utc_now()
+          },
+          @opts
+        )
+
+      assert sealed_early.valid?
+
+      shred!(scope, ctx)
+
+      assert {:error, %Ash.Error.Invalid{} = error} = Ash.create(sealed_early)
+      assert Exception.message(error) =~ "has been shredded"
+      assert SourceObject.by_external!("slack", "T-RACE/C1/1", @opts) == nil
+    end
+
     test "landing without a scope is refused rather than stored unsealed" do
       assert {:error, %Ash.Error.Invalid{}} =
                SourceObject.land(
@@ -262,6 +292,57 @@ defmodule AshEnterprise.ErasureTest do
         assert_audit_unreadable(event.id, ["Dentist", "Design review", "Weekly plan", "War room"])
       end
 
+      # Nor does any other audit event: a derived copy anywhere in the log
+      # (a projected Person, a composed brief) fails here, not per record.
+      # Person names and addresses are kept out of the log by `sensitive?`.
+      assert_no_audit_event_spells([
+        "Dentist",
+        "Design review",
+        "Weekly plan",
+        "War room",
+        "Dr. Molnar",
+        "Alice Chen",
+        "alice@example.com"
+      ])
+
+      assert_chains_verify(ctx.org.id)
+    end
+
+    # The morning brief is derived from CalendarEvent content. It stores the
+    # event ids it selected, not the rendered text, so a shred reaches it in
+    # the row and in the compose's audit event alike.
+    test "a composed morning brief shreds with the calendar it was built from", ctx do
+      context = [owner: ctx.operator_user, tenant: ctx.org.id]
+      brief_opts = [actor: ctx.operator, tenant: ctx.org.id, authorize?: false]
+
+      assert {:ok, %{records: 3}} =
+               TapWorker.perform(%Oban.Job{args: %{"pipeline" => "calendar_dev"}})
+
+      assert {:ok, _} = Projection.replay(:calendar, context)
+
+      brief =
+        ~D[2026-10-06]
+        |> MorningBrief.start_for_date!(brief_opts)
+        |> MorningBrief.compose_brief!(brief_opts)
+
+      assert [_one_event] = brief.event_ids
+      assert read_brief!(brief, ctx).draft_text =~ "14:00–15:00  Design review with Alice"
+
+      # Never stored: the row carries ids, not text.
+      %{rows: [row]} =
+        Repo.query!("SELECT * FROM agent_morning_briefs WHERE id = $1::uuid", [
+          Ecto.UUID.dump!(brief.id)
+        ])
+
+      refute inspect(row) =~ "Design review"
+
+      scope = Erasure.scope_by_ref!(:connection, "pipeline:calendar_dev", @opts)
+      shred!(scope, ctx)
+
+      assert read_brief!(brief, ctx).draft_text ==
+               "Morning brief for 2026-10-06\n\n14:00–15:00  [shredded]"
+
+      assert_no_audit_event_spells(["Design review", "Alice"])
       assert_chains_verify(ctx.org.id)
     end
 
@@ -569,6 +650,26 @@ defmodule AshEnterprise.ErasureTest do
         refute text =~ fragment, "audit event #{event.id} still spells #{inspect(fragment)}"
       end
     end
+  end
+
+  # Every audit event in the (sandboxed) table, not just one record's.
+  defp assert_no_audit_event_spells(fragments) do
+    for event <- Ash.read!(EventLog, authorize?: false) do
+      text = Jason.encode!(%{d: event.data, c: event.changed_attributes, m: event.metadata})
+
+      for fragment <- fragments do
+        refute text =~ fragment,
+               "audit event #{event.id} (#{event.resource} #{event.action}) still spells " <>
+                 inspect(fragment)
+      end
+    end
+  end
+
+  defp read_brief!(brief, ctx) do
+    MorningBrief
+    |> Ash.Query.filter(id == ^brief.id)
+    |> Ash.Query.load(:draft_text)
+    |> Ash.read_one!(authorize?: false, tenant: ctx.org.id)
   end
 
   defp assert_chains_verify(organization_id) do

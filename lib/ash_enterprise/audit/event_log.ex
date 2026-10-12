@@ -122,7 +122,14 @@ defmodule AshEnterprise.Audit.EventLog do
   erasure-scope key (`changed_attributes` → `encrypted_*`; the plaintext argument
   is sensitive and recorded as `nil` in `data`). Destroying the key
   (`AshEnterprise.Erasure.shred_scope/4`) makes that content unreadable here
-  without changing a row, so the chain verifies unchanged. This log is
+  without changing a row, so the chain verifies unchanged. That holds only
+  while no audited resource *stores a derived plaintext copy*: ash_events
+  records every changed attribute that was not an input, so a value computed
+  from sealed content and force-set on an audited row lands here in plaintext
+  and outside any key. Derive on read instead (`MorningBrief.draft_text`), or
+  mark a non-sealable input `sensitive?` so it is recorded as `nil`
+  (`Canonical.Person.name`/`email`). The erasure test sweeps the whole log for
+  fixture content after a shred. This log is
   deliberately **not** `cloak_vault`-encrypted: one vault key for every event
   could not be shredded per scope. See ADR 0024's implementation note and
   `docs/runbooks/crypto-shredding.md`.

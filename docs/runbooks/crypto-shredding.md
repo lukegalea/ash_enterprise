@@ -13,7 +13,9 @@ Content that arrives through an external connection is sealed, as it is written,
 - the canonical content projected from it: `Message.body`, `Conversation.subject` and `participants`,
   `CalendarEvent.title` and `location`;
 - the copies of that content in the audit log. An audited write stores only the ciphertext (`changed_attributes`
-  → `encrypted_*`), and the plaintext argument is recorded as `null` in `data`.
+  → `encrypted_*`), and the plaintext argument is recorded as `null` in `data`;
+- the morning brief (`Agents.MorningBrief`), which stores the ids of the events it covers and renders `draft_text` on
+  read, so each line reads `[shredded]` after its event's scope is shredded.
 
 What survives: every row, every foreign key, every structural column (system, external id, stream, timestamps,
 direction, who-did-what in the audit log), and the audit hash chain. Nothing in `audit_events` changes, so
@@ -35,8 +37,9 @@ through a *different* connection, and nothing lands under a `data_subject` scope
 
 ## Before you shred: stop new data arriving
 
-Shredding stops nothing from arriving. A shredded scope refuses any further writes under it, so a connection that is
-still live would make its next sync fail loudly rather than land data. Do these first:
+Shredding stops nothing from arriving. A shredded scope refuses any further writes under it (checked again under a
+lock inside each write's transaction, so a sync racing the shred is refused or reached, never left readable), so a
+connection that is still live would make its next sync fail loudly rather than land data. Do these first:
 
 1. **Delete the Nango connection** for the account (Nango dashboard, environment `dev`, integration `slack` /
    `google-mail` / `google-calendar` → the connection → delete), or `DELETE /connection/{connectionId}` (with its
@@ -94,12 +97,19 @@ Be honest with whoever asked for the erasure about these. Each is a real copy of
   `.devenv/state/erasure/master.key`.
 - **Content that predates sealing.** The migration that introduced sealing drops the old plaintext columns. Audit
   events written *before* it carry plaintext forever, because the log is append-only. Land this change before
-  connecting a real account. The migration also refuses to run while `ingestion_source_objects` or the sealed canonical
+  connecting a real account. Morning briefs composed before migration `20261012060423_erasure_review_fixes` stored
+  their rendered text, so their `compose_brief` audit events hold event titles and locations in plaintext. The
+  migration also refuses to run while `ingestion_source_objects` or the sealed canonical
   tables hold rows, because `erasure_scope_id` is `NOT NULL`. Those rows are reconstructible (re-run the tap, then
   `Projection.replay`), so empty them first. Their old audit events are the plaintext caveat above.
-- **`Canonical.Person`.** Names and email addresses are not sealed. A person is shared across sources and upserts on
-  email, so it cannot carry one connection's key. A `data_subject` scope is the intended unit, and nothing writes under
-  one yet.
+- **`Canonical.Person` rows.** Every organizer's and attendee's name and email address stays readable in
+  `canonical_people`. They are not sealed: a person is shared across sources and upserts on email, so it cannot carry
+  one connection's key. They are `sensitive?`, so the audit log records them as `null`, and removing a person is an
+  ordinary row delete — but a shred does not do it. A `data_subject` scope with a blind-index identity is the intended
+  fix; nothing writes under one yet.
+- **The same record from two connections.** Landings are unique on `(external_system, external_id)`, not on the scope.
+  If two connections deliver the same pair, the last one to land owns the row and its key, so which shred reaches it
+  depends on sync order. Adapters must make `external_id` unique per connection (for Slack, team/channel/ts).
 - **Scope refs and labels.** `kind`, `ref` and `label` are structural and are audited when a scope opens, so they
   outlive the shred. Use opaque ids (a Nango connection id, a Slack team id), never an email address or a person's
   name.
@@ -114,12 +124,15 @@ Be honest with whoever asked for the erasure about these. Each is a real copy of
   connection is deleted (step 1 above).
 - **The provider.** The Slack and Google originals are untouched. This erases VendorPM's copy, not Slack's.
 - **Logs, error reports, traces.** Anything that logged a payload, such as an exception report with a changeset or
-  a debug log line, is outside the key's reach. OpenTelemetry spans carry action names and are not meant to carry
-  values. Verify that before relying on it.
-- **Oban job args.** Tap jobs carry a pipeline name, not content. A future adapter that puts message content in job
-  args would put it beyond the shred. Pass ids.
-- **OpenLineage / Marquez.** Facets carry structural names only (dataset and job names), never values. A dataset
-  named after a channel or a person would be a leak. Keep names structural.
+  a debug log line, is outside the key's reach. OpenTelemetry spans carry action names and, as span status, the
+  error message. Sealed attributes have no length constraint for that reason (Ash renders a failed constraint's value
+  into the message), but other validation errors on content would still carry it. Verify before relying on it.
+- **Oban job args and errors.** Tap jobs carry a pipeline name, not content, and a failed tap is recorded by exit
+  status only (its output, which is its RECORD lines, is discarded). A future adapter that puts content in job args
+  or in an error reason would put it beyond the shred. Pass ids; return structural errors.
+- **OpenLineage / Marquez.** Facets carry structural names only (dataset and job names), and a FAIL event's
+  `errorMessage` carries the structural reason `TapWorker` reduced it to. A dataset named after a channel or a person
+  would be a leak. Keep names structural.
 - **Anything derived outside these resources.** Embeddings, model outputs, agent transcripts and System One
   evidence built from shredded content are not sealed under the scope. Do not derive from raw content without
   carrying the scope id forward.

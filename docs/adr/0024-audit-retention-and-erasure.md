@@ -106,17 +106,51 @@ to "forget the key" for everything one connection brought in, including its audi
   a human holding a global `write` grant, with no system-actor path and no `forbid_if`. The caller must type the ref to
   confirm. It deletes the key row and marks the scope shredded in one transaction. The shred is audited on `Scope`.
   The key is `audit?: false`, because a key recorded in a permanent log would survive every shred. After a shred, sealed
-  values read as `%Erasure.Shredded{}`, a shredded scope refuses new writes, and it is never reopened.
+  values read as `%Erasure.Shredded{}`, a shredded scope refuses new writes (re-checked under a lock inside the write's
+  transaction), and it is never reopened.
+
+**Review fixes (2026-10-12, same day).** Independent review found plaintext paths the first cut missed; each now has
+a regression test in `erasure_test.exs` or `ingestion_test.exs`:
+
+- `MorningBrief.draft_text` was a stored, audited render of `CalendarEvent` titles and locations, so the compose's audit
+  event kept them past a shred. The brief now stores `event_ids` only and `draft_text` is a calculation rendered on read
+  (`Agents.Calculations.RenderDraft`); after a shred each line reads `[shredded]`. The calendar erasure test now sweeps
+  the **whole** `audit_events` table for fixture content, so any future derived copy fails CI.
+- `Canonical.Person.name`/`email` are `sensitive?`, so the audit log records them as `null`. The rows themselves are
+  still plaintext and outside any scope (see below).
+- A tap's non-zero exit carried its stdout (its RECORD lines) into the OpenLineage FAIL facet and `oban_jobs.errors`.
+  `TapRunner.Exec` now returns the exit status only, and `TapWorker` reduces every failure reason to structure first.
+- `SealUnderScope` re-checks the scope inside the write's transaction under a `FOR SHARE` lock, so a shred racing a
+  landing either reaches the row or refuses it. Before, a row sealed just before a shred could commit under a shredded
+  scope.
+- Sealed attributes carry no `max_length`: Ash renders a failed constraint's value into the error message, and errors
+  reach traces, Oban and BPMN incidents.
 
 **What it does not reach**, stated here because a regulator will ask. The runbook has the full list:
 
 - backups, WAL and dead tuples that still hold the *wrapped* key, which the master key can open until they age out;
-- plaintext in audit events written before sealing existed;
-- `Canonical.Person` names and emails (cross-source, upserted on email, so not sealable under one connection);
+- plaintext in audit events written before sealing existed, including briefs composed before migration
+  `20261012060423_erasure_review_fixes`;
+- `Canonical.Person` rows: names and emails stay plaintext in `canonical_people` (cross-source, upserted on email, so
+  not sealable under one connection). They are out of the audit log, so removing them is an ordinary row delete, but a
+  shred does not do it;
 - Nango's own copies and tokens, until the connection is deleted;
 - the provider's originals;
-- logs and error reports;
+- logs and error reports that captured a payload;
 - anything derived outside the sealed resources.
+
+**Known follow-ups** (low severity, not built):
+
+- *Landing identity excludes the scope.* `SourceObject` and the canonical upserts are unique on
+  `[external_system, external_id]`, so a second connection landing the same pair takes the row over and re-seals it
+  under its own scope; which shred reaches it then depends on sync order. Adapters must qualify `external_id` per
+  connection (the `Erasure` moduledoc's Slack example now does). The fix is the scope in the identity, or refusing an
+  upsert that changes `erasure_scope_id`.
+- *Person sealing.* A keyed blind index (HMAC of the normalized email under a scope-independent key) as the upsert
+  identity, with `name`/`email` sealed under a per-person `data_subject` scope, would let a shred reach the row.
+- *Error scrubbing.* Removing `max_length` closes the known constraint path; a shared step that replaces the value on
+  `InvalidArgument`/`InvalidAttribute` for sensitive fields before errors reach tracers, Oban or BPMN incidents would
+  close the class.
 
 `data_subject` scopes exist in the model, but nothing writes under one yet. Per-person erasure (q14) is therefore
 partial, not shipped.

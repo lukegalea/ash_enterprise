@@ -16,6 +16,21 @@ defmodule AshEnterprise.Agents.MorningBrief do
   `AshEnterprise.Process.ActionInvoker`'s registry — the diagram names the
   composition; the allowlist here is what makes that invocation reviewed code).
 
+  ## Erasure (ADR 0024)
+
+  The draft is **rendered on read**, never stored. The compose step records
+  which events it selected (`event_ids`); `draft_text` is a calculation that
+  renders them. Event titles and locations are sealed under their connection's
+  erasure scope, so a stored copy of the rendered text would be plaintext in
+  this row and in the compose's audit event (which ash_events records from
+  every changed attribute) that no shred could reach. Rendering on read keeps
+  each line under its own event's key: after a shred it reads `[shredded]`,
+  and a brief that spans several connections shreds line by line.
+
+  The trade: an approved brief re-renders from the events as they are now. A
+  later sync that renames an event changes the brief's text; the set of
+  events and the decision on it do not change.
+
   `lifecycle?`/`archival?` are opted out for the same reasons as
   `AshEnterprise.Agents.AgentRun`: `status` is the lifecycle, and a decided
   brief is history, not soft-deleted data.
@@ -41,11 +56,13 @@ defmodule AshEnterprise.Agents.MorningBrief do
       description "The day the brief covers, in UTC."
     end
 
-    attribute :draft_text, :string do
+    attribute :event_ids, {:array, :uuid} do
       public? true
-      constraints max_length: 32_768
 
-      description "The composed draft. Nil until the process's compose step runs."
+      description """
+      The canonical calendar events the compose step selected, as ids. Nil
+      until the process's compose step runs; `[]` for a day with no events.
+      """
     end
 
     attribute :status, :atom do
@@ -78,8 +95,9 @@ defmodule AshEnterprise.Agents.MorningBrief do
 
     update :compose_brief do
       description """
-      Composes the deterministic draft for `brief_date` from today's canonical
-      calendar events. Invoked by the process's service task; no LLM.
+      Selects the canonical calendar events for `brief_date` and records their
+      ids; `draft_text` renders them on read. Invoked by the process's service
+      task; no LLM.
       """
 
       accept []
@@ -99,6 +117,17 @@ defmodule AshEnterprise.Agents.MorningBrief do
       accept []
 
       change set_attribute(:status, :rejected)
+    end
+  end
+
+  calculations do
+    calculate :draft_text, :string, AshEnterprise.Agents.Calculations.RenderDraft do
+      public? true
+
+      description """
+      The draft, rendered on read from `event_ids` by `render/2`. Nil until the
+      compose step runs. Never stored: see the moduledoc's erasure note.
+      """
     end
   end
 

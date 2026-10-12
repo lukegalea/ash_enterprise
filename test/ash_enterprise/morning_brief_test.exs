@@ -106,6 +106,7 @@ defmodule AshEnterprise.MorningBriefTest do
   defp reload_brief!(org, id) do
     MorningBrief
     |> Ash.Query.filter(id == ^id)
+    |> Ash.Query.load(:draft_text)
     |> Ash.read_one!(authorize?: false, tenant: org.id)
   end
 

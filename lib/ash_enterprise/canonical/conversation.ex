@@ -50,7 +50,9 @@ defmodule AshEnterprise.Canonical.Conversation do
 
     attribute :subject, :string do
       public? true
-      constraints max_length: 998
+      # No max_length on a sealed attribute: a failed constraint renders the
+      # value into the error message (Ash's InvalidArgument), and errors reach
+      # traces, Oban and BPMN incidents, which no shred reaches (ADR 0024).
       description "The thread's subject line or channel-joined title."
     end
 
