@@ -34,6 +34,40 @@ if model = System.get_env("AI_INTERPRETER_MODEL") do
   config :ash_enterprise, :ai, interpreter_model: model
 end
 
+# The in-zone generative profile and the ADR 0042 flow guard
+# (`AshEnterprise.AI.Models`). Not read under test: the suite sets what each
+# test needs, and a developer's shell must not change which model a test sees.
+#
+#   S1_GEN_BASE_URL + S1_GEN_MODEL  an OpenAI-compatible runtime the operator
+#                                   has declared inside the deployment's zone;
+#                                   both set => the default model for the helper
+#                                   (an explicit AI_INTERPRETER_MODEL still wins)
+#   S1_GEN_API_KEY                  its key, if any; read per call, so it never
+#                                   sits in application config
+#   S1_GEN_REASONING_EFFORT         none (default) | minimal | low | medium | high
+#   REQUIRE_IN_ZONE_MODELS=true     refuse every model call, and every
+#                                   instrument profile, outside the zone
+if config_env() != :test do
+  gen_base_url = System.get_env("S1_GEN_BASE_URL", "")
+  gen_model = System.get_env("S1_GEN_MODEL", "")
+
+  if gen_base_url != "" and gen_model != "" do
+    config :ash_enterprise, :ai,
+      in_zone_generative: [
+        model: gen_model,
+        base_url: gen_base_url,
+        api_key: {:system, "S1_GEN_API_KEY"},
+        reasoning_effort: System.get_env("S1_GEN_REASONING_EFFORT", "none"),
+        # The zone the operator declared this host in; the canonical store's
+        # zone is the only one a single-zone deployment has.
+        zone: System.get_env("CANONICAL_ZONE")
+      ]
+  end
+
+  config :ash_enterprise, :ai,
+    require_in_zone_models: System.get_env("REQUIRE_IN_ZONE_MODELS") in ~w(1 true yes)
+end
+
 # The user ACP sessions run as (`AshEnterprise.Acp.system_actor/0`), by email.
 # Unset, it is the legacy seed's admin@example.com; a deployment seeded with a
 # real operator (the dogfood instance) names that user here, typically from a

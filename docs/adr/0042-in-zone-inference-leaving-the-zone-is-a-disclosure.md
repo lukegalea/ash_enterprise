@@ -254,8 +254,37 @@ DONE. Approved.").
 - Tags live on the linked account and are derived for each record, rather than stored on every row. A re-tag changes
   what the next projection admits; it does not withdraw rows already projected (shred the scope for that).
 
-**Not built.** The flow rule and everything on the "leaving the zone" side: no profile resolver checks a target's
-zone, there is no egress log, and no model or agent path reads the admitted data. The jurisdiction dimension on ledger
-rows, caches and metrics; the Ollaya contract test; the deferred items. A development agent that reads the zone's
+**Built: the flow guard, a minimal slice (2026-10-12).** Operator direction the same day: remove OpenRouter from
+dogfood; "splash is in zone".
+
+- **One resolver for the application's own model calls** (`AshEnterprise.AI.Models`). A target is in-zone only if it is
+  the operator's **in-zone generative profile** — an OpenAI-compatible runtime named by `S1_GEN_BASE_URL` +
+  `S1_GEN_MODEL` (key `S1_GEN_API_KEY`, read per call; `S1_GEN_REASONING_EFFORT`, default `none`). Any catalogue spec
+  (`anthropic:…`, `openrouter:…`, `openai:…`) is outside every zone, whatever model it names. When the profile is
+  configured it is the helper's default model; an explicit `AI_INTERPRETER_MODEL` still wins, and `devenv.nix` no
+  longer auto-selects OpenRouter when the profile is set.
+- **The guard.** `REQUIRE_IN_ZONE_MODELS=true` makes every call through the resolver refuse a target outside the zone
+  — `AshEnterprise.AI.Models.OutsideZone`, raised before a request is built — and makes
+  `AshEnterprise.Zones.ResidencyPolicy` refuse every `:sub_processor` instrument profile, a recorded tenant opt-in
+  notwithstanding. Callers: the helper console's interpreter and surface composer (AshAi prompt actions, through
+  `AshEnterprise.AI.Models.GuardedReqLLM`, which `AshAi.ToolLoop` also accepts as its `req_llm:`), and the System One
+  proposal transport (question and filter proposals). An in-zone call's host and key always come from the profile.
+- **The record.** Every call through the resolver — made, failed or refused — appends one
+  `AshEnterprise.AI.ModelCall` row: caller, profile, model, residency, zone, operation, outcome, correlation id,
+  duration, token counts, and for a failure its error class. Never a prompt, an output or an error message.
+  Append-only (no update, no destroy), not mirrored into the event log; the audited action that made the call carries
+  the same correlation id.
+- **In use** in dogfood: the helper's model is the in-zone runtime "splash" (Qwen3.8-27B, OpenAI-compatible, a member
+  of the dogfood zone declaration by operator statement 2026-10-12), the guard is on, and the OpenRouter key is
+  removed from the deployment's environment. Tool calling against it is measured in
+  [docs/research/splash-tool-calling.md](../research/splash-tool-calling.md).
+
+**Not built.** The rest of the flow rule and the "leaving the zone" side: no per-flow disclosure authorization
+(operator acknowledgement, per-tenant opt-in for generative calls), no egress log of bytes and data class, and the
+resolver does not see what data a prompt carries. Paths outside the resolver are not guarded: the ACP and OMP agent
+sessions (their own processes and model configuration), the Ollaya decision instruments (residency-checked by
+`ash_judgments` and recorded in the judgment ledger, not in `ModelCall`), and any code calling ReqLLM directly.
+Also not built: the jurisdiction dimension on ledger rows, caches and metrics; the Ollaya contract test; the deferred
+items. A development agent that reads the zone's
 database through a development tool is still outside the zone, closed by practice only, as "Our own development agents
 are outside the zone" says.

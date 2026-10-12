@@ -19,6 +19,10 @@ defmodule AshEnterprise.Zones.ResidencyPolicy do
     attribute and written to the audit event log like any other update.
     Deliberately **not** config: a flag in a config file is nobody's
     recorded authorization.
+  - **Under the flow guard, a sub-processor is refused for everyone.** With
+    `REQUIRE_IN_ZONE_MODELS` set (`AshEnterprise.AI.Models.require_in_zone?/0`)
+    a recorded opt-in no longer suffices: the deployment has said nothing
+    leaves the zone for inference.
   - **Everything unknown is refused.** No tenant, an unresolvable tenant id,
     or a failed read is a refusal — a tenant never opts in by silence. A
     residency class this policy does not know is a refusal too, so a future
@@ -41,7 +45,10 @@ defmodule AshEnterprise.Zones.ResidencyPolicy do
   @impl AshJudgments.ResidencyPolicy
   def allow?(_tenant, :in_cluster, _family), do: true
 
-  def allow?(tenant, :sub_processor, _family), do: opted_in?(tenant)
+  # Under the flow guard (REQUIRE_IN_ZONE_MODELS, `AshEnterprise.AI.Models`)
+  # nothing outside the zone is an instrument, whatever a tenant recorded.
+  def allow?(tenant, :sub_processor, _family),
+    do: not AshEnterprise.AI.Models.require_in_zone?() and opted_in?(tenant)
 
   # Fail closed: a residency class this host has not ruled on is refused,
   # whatever the tenant has recorded.

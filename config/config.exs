@@ -346,7 +346,8 @@ config :ash_enterprise,
     AshEnterprise.Canonical,
     AshEnterprise.BusinessEvents,
     AshEnterprise.Integration,
-    AshEnterprise.Agents
+    AshEnterprise.Agents,
+    AshEnterprise.AI
   ],
   base_resources: [AshEnterprise.Platform.Resource]
 

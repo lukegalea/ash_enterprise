@@ -174,8 +174,14 @@ in
     # An explicit AI_INTERPRETER_MODEL always wins. Adding a provider here means
     # naming a real model id for it -- an invented one fails at request time with
     # a message about the model rather than about the configuration.
+    #
+    # Never when an in-zone generative profile is configured (S1_GEN_BASE_URL and
+    # S1_GEN_MODEL, AshEnterprise.AI.Models): that profile is the helper's model,
+    # and naming a hosted one here would take precedence over it and send every
+    # request out of the zone (ADR 0042).
     if [ -z "$AI_INTERPRETER_MODEL" ] && [ -z "$ANTHROPIC_API_KEY" ] &&
-       [ -n "$OPENROUTER_API_KEY" ]; then
+       [ -n "$OPENROUTER_API_KEY" ] &&
+       { [ -z "$S1_GEN_BASE_URL" ] || [ -z "$S1_GEN_MODEL" ]; }; then
       export AI_INTERPRETER_MODEL="openrouter:anthropic/claude-haiku-4.5"
     fi
   '';

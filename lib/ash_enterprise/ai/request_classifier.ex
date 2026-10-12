@@ -46,6 +46,11 @@ defmodule AshEnterprise.AI.RequestClassifier do
             # tools here makes that structurally impossible rather than merely
             # discouraged.
             tools: false,
+            # The ADR 0042 flow guard and call record (AshEnterprise.AI.Models):
+            # every request goes through it, and `caller` names this action in
+            # the record.
+            req_llm: AshEnterprise.AI.Models.GuardedReqLLM,
+            req_llm_opts: [caller: "ai.interpret_request"],
             prompt: """
             You classify administrative requests for an enterprise access-control
             system.
@@ -99,6 +104,8 @@ defmodule AshEnterprise.AI.RequestClassifier do
       run prompt(
             &AshEnterprise.AI.model/0,
             tools: false,
+            req_llm: AshEnterprise.AI.Models.GuardedReqLLM,
+            req_llm_opts: [caller: "ai.compose_surface"],
             prompt: """
             You compose declarative table specifications for an enterprise
             application. You do not write UI: you name a resource, the fields to
