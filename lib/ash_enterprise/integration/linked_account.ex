@@ -128,6 +128,24 @@ defmodule AshEnterprise.Integration.LinkedAccount do
              )
     end
 
+    read :owned_by do
+      description """
+      One user's linked accounts for one integration, whatever their lifecycle.
+      The Gmail projection uses it to decide which landed records are the
+      replay owner's own: a record is projected for an owner only when it came
+      through one of these rows in the replay tenant. Unlinked accounts are
+      gone, so their records are no one's to project.
+      """
+
+      argument :owner_id, :uuid, allow_nil?: false
+      argument :provider_config_key, :string, allow_nil?: false
+
+      filter expr(
+               owner_id == ^arg(:owner_id) and owner_type == :user and
+                 provider_config_key == ^arg(:provider_config_key)
+             )
+    end
+
     read :for_operation do
       description """
       Connection resolution for a provider action: the actor's own *active*
@@ -154,5 +172,6 @@ defmodule AshEnterprise.Integration.LinkedAccount do
     define :unlink
     define :mine, args: [{:optional, :provider_config_key}]
     define :for_operation, args: [:provider_config_key, {:optional, :linked_account_id}]
+    define :owned_by, args: [:owner_id, :provider_config_key]
   end
 end

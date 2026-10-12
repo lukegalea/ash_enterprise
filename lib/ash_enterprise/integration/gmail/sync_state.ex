@@ -7,8 +7,8 @@ defmodule AshEnterprise.Integration.Gmail.SyncState do
   ## Phases
 
     * `:bootstrap` — no cursor. The next step reads `users.getProfile` for the
-      mailbox's current `historyId`, records it as `backfill_history_id`, and
-      moves to `:backfill`.
+      mailbox's current `historyId`, records it as `backfill_history_id` (and
+      when, as `backfill_started_at`), and moves to `:backfill`.
     * `:backfill` — a **bounded** recent-messages pass (`users.messages.list`
       over a configurable window and message cap), one page at a time, with
       `backfill_page_token` as the resume point. When it finishes, the
@@ -22,8 +22,10 @@ defmodule AshEnterprise.Integration.Gmail.SyncState do
 
   Wrong-cursor conditions are an explicit action, never a silent rewind:
   `reset_sync` (reason `:history_expired` when Gmail answers 404 for a
-  `startHistoryId` it no longer retains, `:operator` when a person asks) puts
-  the row back to `:bootstrap`, so the next step runs a bounded resync.
+  `startHistoryId` it no longer retains, `:backfill_stale` when an unfinished
+  backfill is resumed after longer than its window, `:operator` when a person
+  asks) puts the row back to `:bootstrap`, so the next step runs a bounded
+  resync.
 
   ## Choices
 
@@ -86,6 +88,12 @@ defmodule AshEnterprise.Integration.Gmail.SyncState do
       description "The mailbox historyId captured before the backfill; becomes history_id when it ends."
     end
 
+    attribute :backfill_started_at, :utc_datetime_usec do
+      public? true
+
+      description "When backfill_history_id was captured. A backfill resumed after more than the backfill window is restarted."
+    end
+
     attribute :backfill_page_token, :string do
       public? true
       constraints max_length: 512
@@ -126,7 +134,7 @@ defmodule AshEnterprise.Integration.Gmail.SyncState do
 
     attribute :last_reset_reason, :atom do
       public? true
-      constraints one_of: [:history_expired, :operator]
+      constraints one_of: [:history_expired, :backfill_stale, :operator]
       description "Why the cursor was last reset."
     end
 
@@ -200,6 +208,7 @@ defmodule AshEnterprise.Integration.Gmail.SyncState do
         :phase,
         :history_id,
         :backfill_history_id,
+        :backfill_started_at,
         :backfill_page_token,
         :backfill_landed,
         :last_synced_at
@@ -210,8 +219,10 @@ defmodule AshEnterprise.Integration.Gmail.SyncState do
       description """
       Sync-reset: forget the cursor so the next step runs a bounded resync
       (bootstrap + backfill). Gmail's 404 for an expired startHistoryId calls
-      this with reason :history_expired; an operator may call it with
-      :operator. Never a silent rewind.
+      this with reason :history_expired; a backfill resumed after longer than
+      its window (its captured historyId would replay everything since) with
+      :backfill_stale; an operator may call it with :operator. Never a silent
+      rewind.
       """
 
       accept []
@@ -223,12 +234,13 @@ defmodule AshEnterprise.Integration.Gmail.SyncState do
       argument :reason, :atom do
         allow_nil? false
         default :operator
-        constraints one_of: [:history_expired, :operator]
+        constraints one_of: [:history_expired, :backfill_stale, :operator]
       end
 
       change set_attribute(:phase, :bootstrap)
       change set_attribute(:history_id, nil)
       change set_attribute(:backfill_history_id, nil)
+      change set_attribute(:backfill_started_at, nil)
       change set_attribute(:backfill_page_token, nil)
       change set_attribute(:backfill_landed, 0)
       change set_attribute(:last_reset_reason, arg(:reason))

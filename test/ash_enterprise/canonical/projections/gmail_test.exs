@@ -1,8 +1,9 @@
 defmodule AshEnterprise.Canonical.Projections.GmailTest do
   @moduledoc """
-  The Gmail raw → canonical projection (epic E4): deny-by-default zone
-  admission (ADR 0042), then Conversation/Message/Person derived from landed
-  `gmail.messages` records, deterministically.
+  The Gmail raw → canonical projection (epic E4): only the replay owner's own
+  linked accounts, deny-by-default zone admission (ADR 0042), then
+  Conversation/Message/Person derived from landed `gmail.messages` records,
+  deterministically, with nothing mailbox-derived on organization-owned rows.
 
   Every landed record here is synthetic (`GmailSyntheticMailbox`), written to
   the sandboxed test database only.
@@ -13,6 +14,9 @@ defmodule AshEnterprise.Canonical.Projections.GmailTest do
   alias AshEnterprise.Canonical.{Conversation, Message, Person}
   alias AshEnterprise.Canonical.Projections.Gmail, as: Projection
   alias AshEnterprise.Ingestion.SourceObject
+  alias AshEnterprise.Integration.Gmail.Sync
+  alias AshEnterprise.Integration.LinkedAccount
+  alias AshEnterprise.Security.ActorContext
   alias AshEnterprise.Test.GmailSyntheticMailbox
 
   @projection_env AshEnterprise.Canonical.Projections.Gmail
@@ -44,30 +48,11 @@ defmodule AshEnterprise.Canonical.Projections.GmailTest do
     Application.delete_env(:ash_enterprise, @projection_env)
 
     unique = System.unique_integer([:positive])
+    org = organization!("gmail-projection-#{unique}")
+    owner = user!("owner-#{unique}")
+    linked = link!(owner, org)
 
-    org =
-      AshEnterprise.Accounts.Organization
-      |> Ash.Changeset.for_create(
-        :create,
-        %{name: "gmail-projection-#{unique}", unique_name: "gmail-projection-#{unique}"},
-        authorize?: false
-      )
-      |> Ash.create!()
-
-    owner =
-      AshEnterprise.Accounts.User
-      |> Ash.Changeset.for_create(
-        :register_with_password,
-        %{
-          email: "owner-#{unique}@projection.test",
-          password: "password1234",
-          password_confirmation: "password1234"
-        },
-        authorize?: false
-      )
-      |> Ash.create!()
-
-    box = start_supervised!(GmailSyntheticMailbox)
+    box = start_supervised!(GmailSyntheticMailbox, id: :owner_box)
     owner_address = GmailSyntheticMailbox.owner()
 
     # Thread A: an inbound message and the operator's reply.
@@ -100,18 +85,19 @@ defmodule AshEnterprise.Canonical.Projections.GmailTest do
       )
 
     for id <- [a1, a2, b1] do
-      land!(GmailSyntheticMailbox.message(box, id), %{"residency" => residency(id, b1)})
+      land!(GmailSyntheticMailbox.message(box, id), linked, %{"residency" => residency(id, b1)})
     end
 
-    %{org: org, owner: owner, unique: unique, a1: a1, a2: a2, b1: b1}
+    %{org: org, owner: owner, linked: linked, unique: unique, a1: a1, a2: a2, b1: b1}
   end
 
   test "by default the zone gate admits nothing and nothing is projected", ctx do
     assert {:ok, counts} = Projection.replay(owner: ctx.owner, tenant: ctx.org)
 
-    assert counts.source_objects >= 3
+    assert counts.source_objects == 3
+    assert counts.foreign == 0
     assert counts.admitted == 0
-    assert counts.denied == counts.source_objects
+    assert counts.denied == 3
     assert counts.messages == 0
 
     assert canonical(ctx) == %{conversations: [], messages: [], people: []}
@@ -123,24 +109,10 @@ defmodule AshEnterprise.Canonical.Projections.GmailTest do
     assert {:ok, counts} = Projection.replay(owner: ctx.owner, tenant: ctx.org)
     assert counts.admitted == counts.source_objects
 
-    thread_a =
-      Conversation.by_external!("gmail", "thread-a-#{ctx.unique}",
-        tenant: ctx.org.id,
-        authorize?: false
-      )
+    thread_a = conversation!(ctx, ctx.linked, "thread-a-#{ctx.unique}")
 
-    assert thread_a.subject == "SYNTHETIC-SUBJECT-A"
-
-    assert thread_a.participants["emails"] == [
-             "cc@example.synthetic.test",
-             GmailSyntheticMailbox.owner(),
-             "sender.one@example.synthetic.test"
-           ]
-
-    assert length(thread_a.participants["person_ids"]) == 3
-
-    inbound = Message.by_external!("gmail", ctx.a1, tenant: ctx.org.id, authorize?: false)
-    reply = Message.by_external!("gmail", ctx.a2, tenant: ctx.org.id, authorize?: false)
+    inbound = message!(ctx, ctx.linked, ctx.a1)
+    reply = message!(ctx, ctx.linked, ctx.a2)
 
     assert inbound.direction == :inbound
     assert reply.direction == :outbound
@@ -153,10 +125,66 @@ defmodule AshEnterprise.Canonical.Projections.GmailTest do
     sender = Ash.get!(Person, inbound.sender_id, tenant: ctx.org.id, authorize?: false)
     assert to_string(sender.email) == "sender.one@example.synthetic.test"
     assert sender.name == "Synthetic, Sender"
+    assert sender.owner_id == ctx.owner.id
 
-    bare = Message.by_external!("gmail", ctx.b1, tenant: ctx.org.id, authorize?: false)
+    bare = message!(ctx, ctx.linked, ctx.b1)
     bare_sender = Ash.get!(Person, bare.sender_id, tenant: ctx.org.id, authorize?: false)
     assert bare_sender.name == nil
+
+    assert %{people: people} = canonical(ctx)
+
+    assert people |> Enum.map(&to_string(&1.email)) |> Enum.sort() == [
+             "bare@example.synthetic.test",
+             "cc@example.synthetic.test",
+             GmailSyntheticMailbox.owner(),
+             "sender.one@example.synthetic.test"
+           ]
+  end
+
+  test "projected identities carry the linked account (Gmail ids are per mailbox)", ctx do
+    Application.put_env(:ash_enterprise, @projection_env, zone_gate: AdmitAll)
+    assert {:ok, _counts} = Projection.replay(owner: ctx.owner, tenant: ctx.org)
+
+    %{messages: messages, conversations: conversations} = canonical(ctx)
+
+    assert Enum.map(messages, & &1.external_id) ==
+             Enum.sort(Enum.map([ctx.a1, ctx.a2, ctx.b1], &Sync.external_id(ctx.linked.id, &1)))
+
+    assert Enum.map(conversations, & &1.external_id) ==
+             Enum.sort([
+               Sync.external_id(ctx.linked.id, "thread-a-#{ctx.unique}"),
+               Sync.external_id(ctx.linked.id, "thread-b-#{ctx.unique}")
+             ])
+  end
+
+  test "the organization-owned conversation is a bare thread key: no subject, no participants",
+       ctx do
+    Application.put_env(:ash_enterprise, @projection_env, zone_gate: AdmitAll)
+
+    # A row an earlier projection filled with mailbox content is cleared.
+    Conversation.upsert_from_source!(
+      %{
+        external_system: "gmail",
+        external_id: Sync.external_id(ctx.linked.id, "thread-a-#{ctx.unique}"),
+        subject: "SYNTHETIC-SUBJECT-A",
+        participants: %{"emails" => ["sender.one@example.synthetic.test"]}
+      },
+      tenant: ctx.org.id,
+      authorize?: false
+    )
+
+    assert {:ok, _counts} = Projection.replay(owner: ctx.owner, tenant: ctx.org)
+
+    conversations = canonical(ctx).conversations
+    assert length(conversations) == 2
+
+    for conversation <- conversations do
+      assert conversation.subject == nil
+      assert conversation.participants == %{}
+    end
+
+    refute inspect(conversations) =~ "SYNTHETIC"
+    refute inspect(conversations) =~ "synthetic.test"
   end
 
   test "replay is deterministic: a second pass converges on the same rows", ctx do
@@ -180,7 +208,135 @@ defmodule AshEnterprise.Canonical.Projections.GmailTest do
     assert counts.admitted == 1
 
     assert %{messages: [message], conversations: [_one]} = canonical(ctx)
-    assert message.external_id == ctx.b1
+    assert message.external_id == Sync.external_id(ctx.linked.id, ctx.b1)
+  end
+
+  describe "whose records" do
+    setup ctx do
+      Application.put_env(:ash_enterprise, @projection_env, zone_gate: AdmitAll)
+
+      # Carol: same tenant, her own linked account, and a message whose Gmail
+      # id collides with the owner's a1 (Gmail ids are per mailbox).
+      carol = user!("carol-#{ctx.unique}")
+      carol_linked = link!(carol, ctx.org)
+      carol_box = start_supervised!(GmailSyntheticMailbox, id: :carol_box)
+
+      GmailSyntheticMailbox.add_message(carol_box,
+        id: ctx.a1,
+        thread_id: "thread-a-#{ctx.unique}",
+        subject: "SYNTHETIC-SUBJECT-CAROL",
+        body: "SYNTHETIC-BODY-CAROL"
+      )
+
+      land!(GmailSyntheticMailbox.message(carol_box, ctx.a1), carol_linked)
+
+      # Bob: another tenant entirely.
+      org_b = organization!("gmail-projection-b-#{ctx.unique}")
+      bob = user!("bob-#{ctx.unique}")
+      bob_linked = link!(bob, org_b)
+      bob_box = start_supervised!(GmailSyntheticMailbox, id: :bob_box)
+      bob_id = GmailSyntheticMailbox.add_message(bob_box, id: "msg-bob-#{ctx.unique}")
+      land!(GmailSyntheticMailbox.message(bob_box, bob_id), bob_linked)
+
+      # A record that names no linked account at all.
+      orphan_box = start_supervised!(GmailSyntheticMailbox, id: :orphan_box)
+      orphan_id = GmailSyntheticMailbox.add_message(orphan_box, id: "msg-orphan-#{ctx.unique}")
+      land!(GmailSyntheticMailbox.message(orphan_box, orphan_id), nil)
+
+      %{
+        carol: carol,
+        carol_linked: carol_linked,
+        org_b: org_b,
+        bob: bob,
+        bob_linked: bob_linked,
+        bob_id: bob_id
+      }
+    end
+
+    test "a replay projects only the owner's own linked accounts in that tenant", ctx do
+      assert {:ok, counts} = Projection.replay(owner: ctx.owner, tenant: ctx.org)
+
+      assert counts.source_objects == 6
+      assert counts.foreign == 3
+      assert counts.admitted == 3
+
+      messages = canonical(ctx).messages
+      assert length(messages) == 3
+      assert Enum.all?(messages, &(&1.owner_id == ctx.owner.id))
+      refute Enum.any?(messages, &(&1.body in ["SYNTHETIC-BODY-CAROL"]))
+
+      # Nothing of Bob's reached his own tenant either.
+      assert Message.read!(tenant: ctx.org_b.id, authorize?: false) == []
+    end
+
+    test "naming another tenant does not reach the owner's mailbox", ctx do
+      assert {:ok, counts} = Projection.replay(owner: ctx.owner, tenant: ctx.org_b)
+      assert counts.admitted == 0
+      assert counts.foreign == counts.source_objects
+
+      assert Message.read!(tenant: ctx.org_b.id, authorize?: false) == []
+    end
+
+    test "colliding Gmail ids from two mailboxes stay two rows, each its owner's", ctx do
+      assert {:ok, _} = Projection.replay(owner: ctx.owner, tenant: ctx.org)
+      assert {:ok, _} = Projection.replay(owner: ctx.carol, tenant: ctx.org)
+      assert {:ok, _} = Projection.replay(owner: ctx.bob, tenant: ctx.org_b)
+
+      mine = message!(ctx, ctx.linked, ctx.a1)
+      carols = message!(ctx, ctx.carol_linked, ctx.a1)
+
+      assert mine.id != carols.id
+      assert {mine.owner_id, mine.body} == {ctx.owner.id, "SYNTHETIC-BODY-1"}
+      assert {carols.owner_id, carols.body} == {ctx.carol.id, "SYNTHETIC-BODY-CAROL"}
+      assert mine.conversation_id != carols.conversation_id
+
+      bobs =
+        Message.by_external!("gmail", Sync.external_id(ctx.bob_linked.id, ctx.bob_id),
+          tenant: ctx.org_b.id,
+          authorize?: false
+        )
+
+      assert bobs.owner_id == ctx.bob.id
+    end
+
+    test "an unlinked account's records are no one's to project", ctx do
+      LinkedAccount.unlink!(ctx.linked, tenant: ctx.org.id, authorize?: false)
+
+      assert {:ok, counts} = Projection.replay(owner: ctx.owner, tenant: ctx.org)
+      assert counts.admitted == 0
+      assert canonical(ctx).messages == []
+    end
+
+    test "a Person another user owns is neither renamed nor linked", ctx do
+      # Carol already has the sender as a Person, under her own name for them.
+      carol_person =
+        Person
+        |> Ash.Changeset.for_create(
+          :upsert_from_source,
+          %{
+            email: "sender.one@example.synthetic.test",
+            name: "CAROLS-NAME-FOR-THEM",
+            owner_id: ctx.carol.id,
+            owner_type: :user,
+            owning_user_id: ctx.carol.id
+          },
+          tenant: ctx.org.id,
+          authorize?: false
+        )
+        |> Ash.create!(upsert?: true, upsert_identity: :unique_email, upsert_fields: [:name])
+
+      assert {:ok, counts} = Projection.replay(owner: ctx.owner, tenant: ctx.org)
+
+      reloaded = Ash.get!(Person, carol_person.id, tenant: ctx.org.id, authorize?: false)
+      assert reloaded.name == "CAROLS-NAME-FOR-THEM"
+      assert reloaded.owner_id == ctx.carol.id
+
+      # The owner's message from that address is not linked to Carol's row;
+      # the owner's other correspondents still are.
+      assert message!(ctx, ctx.linked, ctx.a1).sender_id == nil
+      assert message!(ctx, ctx.linked, ctx.b1).sender_id
+      assert counts.people == 3
+    end
   end
 
   test "address lists: quoted commas, display names, bare addresses, junk" do
@@ -202,17 +358,85 @@ defmodule AshEnterprise.Canonical.Projections.GmailTest do
   defp residency(id, id), do: "admissible"
   defp residency(_id, _admissible), do: nil
 
-  defp land!(message, metadata) do
+  # Lands a synthetic record the way Sync lands one: identity namespaced by the
+  # linked account, which is also named in the metadata. `nil` lands a record
+  # that names no account.
+  defp land!(message, linked, metadata \\ %{}) do
+    {external_id, account_metadata} =
+      case linked do
+        nil ->
+          {"no-account:" <> message["id"], %{}}
+
+        linked ->
+          {Sync.external_id(linked.id, message["id"]), %{"linked_account_id" => linked.id}}
+      end
+
     SourceObject.land!(
       %{
         external_system: "gmail",
-        external_id: message["id"],
+        external_id: external_id,
         raw_payload: message,
         source_metadata:
-          Map.merge(%{"stream" => "gmail.messages", "thread_id" => message["threadId"]}, metadata),
+          %{"stream" => "gmail.messages", "thread_id" => message["threadId"]}
+          |> Map.merge(account_metadata)
+          |> Map.merge(metadata),
         cursor: %{"phase" => "backfill"},
         fetched_at: ~U[2026-10-12 09:00:00Z]
       },
+      authorize?: false
+    )
+  end
+
+  defp organization!(name) do
+    AshEnterprise.Accounts.Organization
+    |> Ash.Changeset.for_create(:create, %{name: name, unique_name: name}, authorize?: false)
+    |> Ash.create!()
+  end
+
+  defp user!(local) do
+    AshEnterprise.Accounts.User
+    |> Ash.Changeset.for_create(
+      :register_with_password,
+      %{
+        email: "#{local}@projection.test",
+        password: "password1234",
+        password_confirmation: "password1234"
+      },
+      authorize?: false
+    )
+    |> Ash.create!()
+  end
+
+  # `:link` makes the acting human the owner; policies are not under test here.
+  defp link!(user, org) do
+    actor =
+      ActorContext.attach(user, %ActorContext{
+        user_id: user.id,
+        organization_id: org.id,
+        principal_ids: [user.id]
+      })
+
+    LinkedAccount.link!(
+      %{
+        provider_config_key: "google-mail",
+        connection_id: "conn-mail-synthetic-#{System.unique_integer([:positive])}"
+      },
+      actor: actor,
+      tenant: org.id,
+      authorize?: false
+    )
+  end
+
+  defp message!(ctx, linked, gmail_id) do
+    Message.by_external!("gmail", Sync.external_id(linked.id, gmail_id),
+      tenant: ctx.org.id,
+      authorize?: false
+    )
+  end
+
+  defp conversation!(ctx, linked, thread_id) do
+    Conversation.by_external!("gmail", Sync.external_id(linked.id, thread_id),
+      tenant: ctx.org.id,
       authorize?: false
     )
   end

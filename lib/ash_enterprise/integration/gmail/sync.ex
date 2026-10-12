@@ -34,6 +34,11 @@ defmodule AshEnterprise.Integration.Gmail.Sync do
   calls the explicit `SyncState.reset_sync` (reason `:history_expired`) and
   falls back to a bounded resync (bootstrap + backfill) in the same step.
 
+  A backfill resumed more than `backfill_window_days` after its `historyId`
+  was captured is reset the same way (reason `:backfill_stale`): completing it
+  would hand the incremental phase a cursor that replays everything since the
+  capture, so the window and cap would bound nothing.
+
   A step does at most `max_pages_per_step` list pages; `more?: true` says it
   stopped on the budget, not on the end.
 
@@ -112,6 +117,21 @@ defmodule AshEnterprise.Integration.Gmail.Sync do
   def external_system, do: @external_system
 
   @doc """
+  The landed (and projected) identity of a Gmail object fetched through one
+  linked account: `"<linked_account_id>:<gmail id>"`.
+
+  Gmail message and thread ids are only unique within one mailbox, while every
+  identity downstream (`SourceObject`'s `[external_system, external_id]`, the
+  canonical `unique_external` per tenant) is wider than one mailbox. Without
+  the account in the id, two mailboxes that happen to share an id would
+  overwrite each other's row, scope and owner.
+  """
+  @spec external_id(Ash.UUID.t(), String.t()) :: String.t()
+  def external_id(linked_account_id, gmail_id)
+      when is_binary(linked_account_id) and is_binary(gmail_id),
+      do: linked_account_id <> ":" <> gmail_id
+
+  @doc """
   Run one sync step for one of `actor`'s own Gmail linked accounts.
   """
   @spec step(Ash.Resource.record(), Ash.UUID.t(), keyword()) :: result()
@@ -180,6 +200,7 @@ defmodule AshEnterprise.Integration.Gmail.Sync do
            advance(state, ctx, %{
              phase: :backfill,
              backfill_history_id: history_id,
+             backfill_started_at: DateTime.utc_now(),
              backfill_page_token: nil,
              backfill_landed: 0
            }) do
@@ -191,6 +212,13 @@ defmodule AshEnterprise.Integration.Gmail.Sync do
     remaining = ctx.config[:backfill_max_messages] - state.backfill_landed
 
     cond do
+      # The captured historyId becomes the incremental cursor, so resuming a
+      # backfill that stalled (cancelled, landing not wired, account paused)
+      # for longer than its window would replay every messageAdded since
+      # then, whatever the window and cap say. Start a fresh bounded one.
+      stale_backfill?(state, ctx) and not acc.reset? ->
+        reset(state, ctx, acc, :backfill_stale)
+
       remaining <= 0 ->
         complete_backfill(state, ctx, acc)
 
@@ -250,6 +278,7 @@ defmodule AshEnterprise.Integration.Gmail.Sync do
              phase: :incremental,
              history_id: state.backfill_history_id,
              backfill_history_id: nil,
+             backfill_started_at: nil,
              backfill_page_token: nil,
              backfill_landed: 0,
              last_synced_at: DateTime.utc_now()
@@ -323,10 +352,21 @@ defmodule AshEnterprise.Integration.Gmail.Sync do
 
   # Gmail no longer retains the cursor: an explicit reset, then a bounded
   # resync in the same step. A second 404 in one step is an error, not a loop.
-  defp resync(state, ctx, acc) do
-    with {:ok, state} <- SyncState.reset_sync(state, %{reason: :history_expired}, ctx.ash) do
+  defp resync(state, ctx, acc), do: reset(state, ctx, acc, :history_expired)
+
+  defp reset(state, ctx, acc, reason) do
+    with {:ok, state} <- SyncState.reset_sync(state, %{reason: reason}, ctx.ash) do
       run(state, ctx, %{acc | reset?: true})
     end
+  end
+
+  # A backfill row without a capture time predates the column: treat it as
+  # stale rather than trust a historyId of unknown age.
+  defp stale_backfill?(%SyncState{backfill_started_at: nil}, _ctx), do: true
+
+  defp stale_backfill?(%SyncState{backfill_started_at: started_at}, ctx) do
+    window_seconds = ctx.config[:backfill_window_days] * 86_400
+    DateTime.diff(DateTime.utc_now(), started_at, :second) > window_seconds
   end
 
   # --- fetch and land ----------------------------------------------------------
@@ -338,7 +378,7 @@ defmodule AshEnterprise.Integration.Gmail.Sync do
           {:cont, {:ok, %{acc | skipped: acc.skipped + 1}}}
 
         {:ok, message} ->
-          case Landing.land(source_record(message, cursor, ctx), scope: ctx.scope) do
+          case Landing.land(source_record(id, message, cursor, ctx), scope: ctx.scope) do
             {:ok, _landed} -> {:cont, {:ok, %{acc | landed: acc.landed + 1}}}
             {:error, reason} -> {:halt, {:error, reason}}
           end
@@ -369,10 +409,11 @@ defmodule AshEnterprise.Integration.Gmail.Sync do
     end
   end
 
-  defp source_record(message, cursor, ctx) do
+  # `id` is the id the step asked messages.get for (the one listing named).
+  defp source_record(id, message, cursor, ctx) do
     %SourceRecord{
       external_system: @external_system,
-      external_id: message["id"],
+      external_id: external_id(ctx.linked_account_id, id),
       stream: @stream,
       raw_payload: message,
       cursor: cursor,

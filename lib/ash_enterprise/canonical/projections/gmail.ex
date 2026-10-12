@@ -7,6 +7,17 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
   `AshEnterprise.Canonical.Person` (one per email address: v1 linkage is the
   address and nothing else, no fuzzy resolution).
 
+  ## Only the owner's own mailboxes
+
+  A landed record is projected for `owner:` only when its
+  `source_metadata["linked_account_id"]` names one of that owner's
+  `google-mail` linked accounts in `tenant:` (`LinkedAccount.owned_by`). Every
+  other record (another user's mailbox, another tenant's, an unlinked
+  account's, or one with no account at all) is counted as `foreign` and never
+  reaches the zone gate, let alone the canonical model. SourceObject is
+  untenanted and unowned, so this is the only thing that ties a raw row to the
+  person it is projected for.
+
   ## Gated by zone admission, deny by default (ADR 0042)
 
   Every landed record is put to the configured
@@ -25,38 +36,60 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
 
   ## Mapping
 
+  Gmail ids are unique within one mailbox only, so every projected identity is
+  namespaced by the linked account it came through
+  (`AshEnterprise.Integration.Gmail.Sync.external_id/2`,
+  `"<linked_account_id>:<gmail id>"`).
+
   | Canonical | From the `users.messages.get` payload |
   |---|---|
-  | `Conversation.external_id` | `threadId` |
-  | `Conversation.subject` | `Subject` header of the thread's earliest message that has one |
-  | `Conversation.participants` | sorted `"emails"` from `From`/`To`/`Cc` across the thread, and their `"person_ids"` |
-  | `Message.external_id` | `id` |
+  | `Conversation.external_id` | `<linked_account_id>:<threadId>` |
+  | `Conversation.subject`, `.participants` | **not projected** (see below) |
+  | `Message.external_id` | `<linked_account_id>:<id>` |
   | `Message.sent_at` | `internalDate` (epoch ms) |
   | `Message.direction` | `:outbound` when labelled `SENT`, else `:inbound` |
   | `Message.body` | the first `text/plain` part (format `full`), else `snippet` |
-  | `Message.sender` | the `From` address's Person |
+  | `Message.sender` | the `From` address's Person, when that Person is the owner's |
   | `Person.email` / `.name` | each address, with the display name when one was given |
+
+  ## What stays off shared rows
+
+  `Conversation` is organization-owned: anyone in the tenant with a
+  Conversation read grant reaches it at organization depth. A personal
+  thread's subject and participant list are mailbox content, so the Gmail
+  conversation is a bare thread key (external identity only; `subject` nil,
+  `participants` empty) until a user-owned conversation exists. Content stays
+  on the owner's own `Message` rows.
+
+  `Person` is user-owned but unique on email per tenant, and its owner is set
+  at insert only. A Person another user already owns is neither renamed from
+  this mailbox's headers (its owner is checked before the upsert) nor linked
+  from this owner's messages (`sender_id` stays nil).
 
   ## Usage
 
       Gmail.replay(owner: user, tenant: organization)
       Gmail.project(source_objects, owner: user, tenant: organization)
 
-  `replay/1` reads every landed `gmail.messages` SourceObject; `project/2`
+  `replay/1` reads the landed `gmail.messages` SourceObjects; `project/2`
   takes landed records from elsewhere (for instance the scoped lander's
-  decrypting reader). Both need `owner:` and `tenant:`: canonical rows are the
-  account owner's, and this module does not guess whose.
+  decrypting reader). Both need `owner:` and `tenant:`, and both project only
+  the records of the owner's own linked accounts in that tenant.
   """
 
   alias AshEnterprise.Canonical.{Conversation, Message, Person}
   alias AshEnterprise.Ingestion.SourceObject
+  alias AshEnterprise.Integration.Gmail.Sync
+  alias AshEnterprise.Integration.LinkedAccount
+
+  @integration "google-mail"
 
   @external_system "gmail"
   @stream "gmail.messages"
-  @subject_max 998
 
   @type counts :: %{
           source_objects: non_neg_integer(),
+          foreign: non_neg_integer(),
           admitted: non_neg_integer(),
           denied: non_neg_integer(),
           conversations: non_neg_integer(),
@@ -64,7 +97,7 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
           people: non_neg_integer()
         }
 
-  @doc "Project every landed `gmail.messages` record."
+  @doc "Project the owner's landed `gmail.messages` records."
   @spec replay(keyword()) :: {:ok, counts()}
   def replay(opts) do
     @external_system
@@ -76,15 +109,19 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
 
   @doc """
   Project the given landed records (maps or structs with `external_id`,
-  `raw_payload` and `source_metadata`). Records on other streams are ignored.
+  `raw_payload` and `source_metadata`). Records on other streams are ignored;
+  records not from one of the owner's linked accounts in the tenant are
+  counted as `foreign` and not projected.
   """
   @spec project([map()], keyword()) :: {:ok, counts()}
   def project(sources, opts) do
     context = context(opts)
     gate = zone_gate()
     sources = Enum.filter(sources, &(stream_of(&1) == @stream))
+    accounts = owned_accounts(context)
 
-    {admitted, denied} = Enum.split_with(sources, &(gate.admit(&1, context) == :ok))
+    {owned, foreign} = Enum.split_with(sources, &MapSet.member?(accounts, account_of(&1)))
+    {admitted, denied} = Enum.split_with(owned, &(gate.admit(&1, context) == :ok))
 
     threads =
       admitted
@@ -100,6 +137,7 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
     {:ok,
      %{
        source_objects: length(sources),
+       foreign: length(foreign),
        admitted: length(admitted),
        denied: length(denied),
        conversations: length(threads),
@@ -115,7 +153,8 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
 
     # One Person per address; the first display name seen (in message order)
     # names them. `upsert_fields` leaves an existing name alone when this
-    # payload carries none.
+    # payload carries none. Addresses whose Person another user owns are not
+    # linked (`upsert_person/3` returns nil for them).
     people =
       messages
       |> Enum.flat_map(&[&1.from | &1.to ++ &1.cc])
@@ -123,18 +162,25 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
       |> Enum.reduce(%{}, fn %{email: email, name: name}, acc ->
         Map.update(acc, email, name, &(&1 || name))
       end)
-      |> Map.new(fn {email, name} -> {email, upsert_person(email, name, context)} end)
+      |> Enum.sort()
+      |> Enum.flat_map(fn {email, name} ->
+        case upsert_person(email, name, context) do
+          nil -> []
+          person -> [{email, person}]
+        end
+      end)
+      |> Map.new()
 
-    emails = people |> Map.keys() |> Enum.sort()
-    person_ids = people |> Map.values() |> Enum.map(& &1.id) |> Enum.sort()
-
+    # Organization-owned, so a bare thread key: subject and participants are
+    # mailbox content. Written empty, which also clears a row an earlier
+    # projection filled.
     conversation =
       Conversation.upsert_from_source!(
         %{
           external_system: @external_system,
           external_id: thread_id,
-          subject: thread_subject(messages),
-          participants: %{"emails" => emails, "person_ids" => person_ids}
+          subject: nil,
+          participants: %{}
         },
         tenant: context.tenant_id,
         authorize?: false
@@ -142,19 +188,7 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
 
     Enum.each(messages, &upsert_message(&1, conversation, people, context))
 
-    Enum.into(person_ids, people_seen)
-  end
-
-  defp thread_subject(messages) do
-    Enum.find_value(messages, fn message ->
-      case message.subject do
-        subject when is_binary(subject) and subject != "" ->
-          String.slice(subject, 0, @subject_max)
-
-        _ ->
-          nil
-      end
-    end)
+    people |> Map.values() |> Enum.map(& &1.id) |> Enum.into(people_seen)
   end
 
   defp upsert_message(message, conversation, people, context) do
@@ -183,7 +217,34 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
     |> Ash.create!()
   end
 
+  # The owner's Person for `email`, or nil when the address already belongs to
+  # a Person another user owns: `unique_email` is per tenant, not per owner,
+  # so that row is theirs and this mailbox neither renames nor links it.
+  #
+  # Checked by a read before the upsert rather than with an `upsert_condition`:
+  # the audit wrapper (AshEvents) does not handle a skipped upsert. Residual:
+  # two owners' replays inserting the same new address at the same instant can
+  # still let the second rename the first's row; it is still not linked, since
+  # the owner check below runs on the row the upsert returns.
   defp upsert_person(email, name, context) do
+    owner_id = context.owner_id
+
+    with existing when existing == nil or existing.owner_id == owner_id <-
+           existing_person(email, context),
+         %Person{owner_id: ^owner_id} = person <- write_person(email, name, context) do
+      person
+    else
+      _theirs -> nil
+    end
+  end
+
+  defp existing_person(email, context) do
+    [query: [filter: [email: email], limit: 1], tenant: context.tenant_id, authorize?: false]
+    |> Person.read!()
+    |> List.first()
+  end
+
+  defp write_person(email, name, context) do
     Person
     |> Ash.Changeset.for_create(
       :upsert_from_source,
@@ -214,11 +275,12 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
   defp parse(source) do
     payload = source.raw_payload
     headers = headers(payload)
+    account = account_of(source)
+    gmail_id = gmail_id(payload, source)
 
     %{
-      id: source.external_id,
-      thread_id: present(payload["threadId"]) || source.external_id,
-      subject: headers["subject"],
+      id: Sync.external_id(account, gmail_id),
+      thread_id: Sync.external_id(account, present(payload["threadId"]) || gmail_id),
       from: headers |> Map.get("from") |> addresses() |> List.first(),
       to: headers |> Map.get("to") |> addresses(),
       cc: headers |> Map.get("cc") |> addresses(),
@@ -240,6 +302,18 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
       _other, acc ->
         acc
     end)
+  end
+
+  defp gmail_id(payload, source) do
+    case present(payload["id"]) do
+      nil ->
+        raise ArgumentError,
+              "gmail SourceObject #{inspect(source.external_id)} cannot be projected: " <>
+                "the payload carries no message id"
+
+      id ->
+        id
+    end
   end
 
   defp sent_at(payload, source) do
@@ -370,6 +444,23 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
 
   defp stream_of(%{source_metadata: %{"stream" => stream}}), do: stream
   defp stream_of(_source), do: nil
+
+  defp account_of(%{source_metadata: %{"linked_account_id" => id}}) when is_binary(id) do
+    case Ecto.UUID.cast(id) do
+      {:ok, uuid} -> uuid
+      :error -> nil
+    end
+  end
+
+  defp account_of(_source), do: nil
+
+  # The owner's google-mail linked accounts in the replay tenant, whatever
+  # their lifecycle (a paused sync's mail is still the owner's).
+  defp owned_accounts(context) do
+    context.owner_id
+    |> LinkedAccount.owned_by!(@integration, tenant: context.tenant_id, authorize?: false)
+    |> MapSet.new(& &1.id)
+  end
 
   defp present(value) when is_binary(value) and value != "", do: value
   defp present(_value), do: nil

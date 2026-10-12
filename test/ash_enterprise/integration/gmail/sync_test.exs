@@ -21,7 +21,7 @@ defmodule AshEnterprise.Integration.Gmail.SyncTest do
   import ExUnit.CaptureLog
 
   alias AshEnterprise.Integration.{Gmail, LinkedAccount}
-  alias AshEnterprise.Integration.Gmail.{MessageList, SyncState, SyncWorker}
+  alias AshEnterprise.Integration.Gmail.{MessageList, Sync, SyncState, SyncWorker}
   alias AshEnterprise.Integration.Nango.Proxy
   alias AshEnterprise.Platform.{Seeder, SystemActor}
   alias AshEnterprise.Security.{AccessRight, ActorContext, Privilege}
@@ -117,7 +117,7 @@ defmodule AshEnterprise.Integration.Gmail.SyncTest do
         assert scope == "integration.linked_account:" <> ctx.linked.id
         assert record.external_system == "gmail"
         assert record.stream == "gmail.messages"
-        assert record.raw_payload["id"] == record.external_id
+        assert record.external_id == Sync.external_id(ctx.linked.id, record.raw_payload["id"])
         assert record.source_metadata["stream"] == "gmail.messages"
         assert record.source_metadata["linked_account_id"] == ctx.linked.id
         assert record.source_metadata["thread_id"] == record.raw_payload["threadId"]
@@ -186,6 +186,45 @@ defmodule AshEnterprise.Integration.Gmail.SyncTest do
     end
   end
 
+  describe "landed identity" do
+    test "two linked accounts whose mailboxes share Gmail ids land distinct identities", ctx do
+      # One synthetic mailbox answers every connection, so both accounts see
+      # the same message ids: exactly the collision Gmail allows across
+      # mailboxes.
+      other =
+        LinkedAccount.link!(
+          %{
+            provider_config_key: "google-mail",
+            connection_id: "conn-mail-synthetic-other-#{System.unique_integer([:positive])}"
+          },
+          actor: ctx.actor,
+          tenant: ctx.org.id
+        )
+
+      id = GmailSyntheticMailbox.add_message(ctx.box)
+
+      assert :ok = run_step(ctx)
+
+      assert :ok =
+               perform_job(SyncWorker, %{
+                 "user_id" => ctx.user.id,
+                 "linked_account_id" => other.id
+               })
+
+      landings = GmailRecordingLander.landings()
+      assert Enum.map(landings, fn {record, _} -> record.raw_payload["id"] end) == [id, id]
+
+      assert Enum.map(landings, fn {record, scope} ->
+               {record.external_id, record.source_metadata["linked_account_id"], scope}
+             end) == [
+               {Sync.external_id(ctx.linked.id, id), ctx.linked.id,
+                "integration.linked_account:" <> ctx.linked.id},
+               {Sync.external_id(other.id, id), other.id,
+                "integration.linked_account:" <> other.id}
+             ]
+    end
+  end
+
   describe "cursor reset" do
     test "an expired historyId is an explicit reset and a bounded resync", ctx do
       GmailSyntheticMailbox.add_message(ctx.box)
@@ -208,6 +247,66 @@ defmodule AshEnterprise.Integration.Gmail.SyncTest do
       # The resync re-read the profile and re-ran the bounded backfill.
       assert length(queries(ctx.box, "/proxy/gmail/v1/users/me/profile")) == 2
       assert m2 in GmailRecordingLander.landed_ids()
+    end
+
+    test "a backfill resumed after its window restarts instead of replaying since its capture",
+         ctx do
+      # A backfill that stalls: landing is not wired, so the step cancels with
+      # the historyId captured and the backfill unfinished.
+      Application.delete_env(:ash_enterprise, @landing_env)
+      for _ <- 1..3, do: GmailSyntheticMailbox.add_message(ctx.box)
+      stale_cursor = GmailSyntheticMailbox.history_id(ctx.box)
+
+      assert {:cancel, :scoped_landing_not_wired} = run_step(ctx)
+      stalled = sync_state!(ctx)
+      assert stalled.phase == :backfill
+      assert stalled.backfill_history_id == stale_cursor
+      assert stalled.backfill_started_at
+
+      # Weeks pass; much more mail arrives than the backfill would admit.
+      added_since = for _ <- 1..6, do: GmailSyntheticMailbox.add_message(ctx.box)
+
+      SyncState.advance!(
+        stalled,
+        %{backfill_started_at: DateTime.add(DateTime.utc_now(), -8, :day)},
+        actor: ctx.actor,
+        tenant: ctx.org.id
+      )
+
+      Application.put_env(:ash_enterprise, @landing_env, lander: GmailRecordingLander)
+      assert :ok = run_step(ctx)
+
+      state = sync_state!(ctx)
+      assert state.last_reset_reason == :backfill_stale
+      assert state.reset_count == 1
+      assert state.phase == :incremental
+      assert state.history_id == GmailSyntheticMailbox.history_id(ctx.box)
+      assert state.backfill_started_at == nil
+
+      # A fresh bootstrap and a bounded backfill (cap 3, newest first); the
+      # stale cursor was never used as a startHistoryId.
+      assert length(queries(ctx.box, "/proxy/gmail/v1/users/me/profile")) == 2
+      assert GmailRecordingLander.landed_ids() == added_since |> Enum.reverse() |> Enum.take(3)
+
+      refute Enum.any?(
+               queries(ctx.box, "/proxy/gmail/v1/users/me/history"),
+               &({"startHistoryId", stale_cursor} in &1)
+             )
+    end
+
+    test "a backfill resumed within its window carries on", ctx do
+      Application.delete_env(:ash_enterprise, @landing_env)
+      GmailSyntheticMailbox.add_message(ctx.box)
+      assert {:cancel, :scoped_landing_not_wired} = run_step(ctx)
+      captured = sync_state!(ctx).backfill_history_id
+
+      Application.put_env(:ash_enterprise, @landing_env, lander: GmailRecordingLander)
+      assert :ok = run_step(ctx)
+
+      state = sync_state!(ctx)
+      assert state.reset_count == 0
+      assert state.history_id == captured
+      assert length(queries(ctx.box, "/proxy/gmail/v1/users/me/profile")) == 1
     end
 
     test "an operator can reset the cursor explicitly", ctx do

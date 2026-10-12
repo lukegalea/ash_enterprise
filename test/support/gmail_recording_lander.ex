@@ -22,6 +22,9 @@ defmodule AshEnterprise.Test.GmailRecordingLander do
   @doc "Every landing, oldest first."
   def landings, do: __MODULE__ |> Agent.get(& &1) |> Enum.reverse()
 
-  @doc "The external ids landed, oldest first."
-  def landed_ids, do: Enum.map(landings(), fn {record, _scope} -> record.external_id end)
+  @doc """
+  The Gmail message ids landed (each payload's own `"id"`), oldest first. The
+  landed `external_id` is that id namespaced by the linked account.
+  """
+  def landed_ids, do: Enum.map(landings(), fn {record, _scope} -> record.raw_payload["id"] end)
 end
