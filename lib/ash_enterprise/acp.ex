@@ -44,11 +44,14 @@ defmodule AshEnterprise.Acp do
   end
 
   @doc """
-  The actor ACP sessions run as: the deployment's seeded operator user
-  (`admin@example.com`), read through the normal policies — a surface is
-  client-visible data, so it must be produced under real authorization, never
-  a bypass. Sessions are local-operator-only until authentication lands with
-  E5 (stdio from the operator's console, or loopback HTTP).
+  The actor ACP sessions run as: the deployment's operator user, named by
+  `config :ash_enterprise, :acp_operator_email` (`ACP_OPERATOR_EMAIL` at boot,
+  see `config/runtime.exs`; default `admin@example.com`), read through the
+  normal policies — a surface is client-visible data, so it must be produced
+  under real authorization, never a bypass. Sessions are local-operator-only
+  until authentication lands with E5 (stdio from the operator's console —
+  `mix ash_acp.stdio`, or `scripts/acp-attach` into a running node — or
+  loopback HTTP).
   """
   def system_actor do
     # Raises if the deployment has not been seeded: an ACP session without a

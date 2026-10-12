@@ -34,6 +34,14 @@ if model = System.get_env("AI_INTERPRETER_MODEL") do
   config :ash_enterprise, :ai, interpreter_model: model
 end
 
+# The user ACP sessions run as (`AshEnterprise.Acp.system_actor/0`), by email.
+# Unset, it is the legacy seed's admin@example.com; a deployment seeded with a
+# real operator (the dogfood instance) names that user here, typically from a
+# gitignored devenv.local.nix. Read at boot, so changing it needs a restart.
+if operator_email = System.get_env("ACP_OPERATOR_EMAIL") do
+  config :ash_enterprise, :acp_operator_email, operator_email
+end
+
 # ## Instrument profiles (ash_judgments) -- host configuration, not code
 #
 # The judgment substrate's instruments are declared HERE and only here:
