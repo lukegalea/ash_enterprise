@@ -17,7 +17,7 @@ defmodule AshEnterprise.Accounts.User.Senders.SendPasswordResetEmail do
     # that fails the build forever teaches people to ignore the linter. This
     # address must be replaced before any deployment that sends real mail --
     # move it to `config/runtime.exs` alongside the rest of the mailer config.
-    |> from({"noreply", "noreply@example.com"})
+    |> from({AshEnterprise.Brand.product_name(), "noreply@example.com"})
     |> to(to_string(user.email))
     |> subject("Reset your password")
     |> html_body(body(token: token))

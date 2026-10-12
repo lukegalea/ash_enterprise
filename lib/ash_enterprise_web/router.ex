@@ -103,16 +103,19 @@ defmodule AshEnterpriseWeb.Router do
   scope "/", AshEnterpriseWeb do
     pipe_through :browser
 
-    # --- Demo hub ------------------------------------------------------------
+    # --- Operator hub --------------------------------------------------------
     #
-    # The front door of the POC: one card per showcase surface, so a demo never
-    # starts from a URL nobody can remember. The root path redirects here (see
+    # The front door: the surfaces an operator uses day to day, so nobody starts
+    # from a URL they cannot remember. The root path redirects here (see
     # PageController), which means a signed-out visitor is bounced to /sign-in
-    # by this session's on_mount while a signed-in one lands on the hub.
+    # by this session's on_mount while a signed-in one lands on the hub. The
+    # hub's old address, /app/demo, redirects too.
     ash_authentication_live_session :demo_dashboard,
       on_mount: [{AshEnterpriseWeb.LiveUserAuth, :live_user_required}] do
-      live "/app/demo", DashboardLive
+      live "/app/hub", DashboardLive
     end
+
+    get "/app/demo", PageController, :legacy_hub
 
     # --- A2UI surfaces -------------------------------------------------------
     #
@@ -229,8 +232,8 @@ defmodule AshEnterpriseWeb.Router do
   scope "/", AshEnterpriseWeb do
     pipe_through :browser
 
-    # The root is the demo hub rather than a landing page: this hands to
-    # /app/demo, whose live session decides what happens next (dashboard for a
+    # The root is the operator hub rather than a landing page: this hands to
+    # /app/hub, whose live session decides what happens next (the hub for a
     # signed-in visitor, /sign-in for anyone else).
     get "/", PageController, :root
     auth_routes AuthController, AshEnterprise.Accounts.User, path: "/auth"
@@ -242,6 +245,7 @@ defmodule AshEnterpriseWeb.Router do
                   auth_routes_prefix: "/auth",
                   on_mount: [{AshEnterpriseWeb.LiveUserAuth, :live_no_user}],
                   overrides: [
+                    AshEnterpriseWeb.AuthOverrides.Brand,
                     AshEnterpriseWeb.AuthOverrides,
                     Elixir.AshAuthentication.Phoenix.Overrides.Default
                   ]
@@ -249,6 +253,7 @@ defmodule AshEnterpriseWeb.Router do
     # Remove this if you do not want to use the reset password feature
     reset_route auth_routes_prefix: "/auth",
                 overrides: [
+                  AshEnterpriseWeb.AuthOverrides.Brand,
                   AshEnterpriseWeb.AuthOverrides,
                   Elixir.AshAuthentication.Phoenix.Overrides.Default
                 ]
@@ -257,6 +262,7 @@ defmodule AshEnterpriseWeb.Router do
     confirm_route AshEnterprise.Accounts.User, :confirm_new_user,
       auth_routes_prefix: "/auth",
       overrides: [
+        AshEnterpriseWeb.AuthOverrides.Brand,
         AshEnterpriseWeb.AuthOverrides,
         Elixir.AshAuthentication.Phoenix.Overrides.Default
       ]
@@ -265,6 +271,7 @@ defmodule AshEnterpriseWeb.Router do
     magic_sign_in_route(AshEnterprise.Accounts.User, :magic_link,
       auth_routes_prefix: "/auth",
       overrides: [
+        AshEnterpriseWeb.AuthOverrides.Brand,
         AshEnterpriseWeb.AuthOverrides,
         Elixir.AshAuthentication.Phoenix.Overrides.Default
       ]

@@ -42,6 +42,16 @@ if operator_email = System.get_env("ACP_OPERATOR_EMAIL") do
   config :ash_enterprise, :acp_operator_email, operator_email
 end
 
+# The product name on the header, the browser tab, the sign-in screen, mail and
+# the ACP agent's handshake (`AshEnterprise.Brand.product_name/0`). Set only
+# when present so the "Ash Enterprise" default stays in that module; the
+# dogfood instance sets PRODUCT_NAME in its gitignored devenv.local.nix. Read
+# at boot, so changing it needs a restart.
+case System.get_env("PRODUCT_NAME") do
+  name when is_binary(name) and name != "" -> config :ash_enterprise, :product_name, name
+  _ -> :ok
+end
+
 # ## Instrument profiles (ash_judgments) -- host configuration, not code
 #
 # The judgment substrate's instruments are declared HERE and only here:

@@ -35,7 +35,9 @@ defmodule AshEnterpriseWeb.AuthOverrides do
   #
   # The header's logo rather than the favicon: the favicon is dark artwork and
   # vanished on the dark theme. One image for both themes, beside the brand
-  # name in the display face, as in the app header.
+  # name in the display face, as in the app header. The name itself is
+  # deployment configuration, so it is set at runtime by
+  # `AshEnterpriseWeb.AuthOverrides.Brand`, listed ahead of this module.
   override AshAuthentication.Phoenix.Components.Banner do
     set :image_url, "/images/logo.svg"
     set :dark_image_url, "/images/logo.svg"
@@ -43,7 +45,6 @@ defmodule AshEnterpriseWeb.AuthOverrides do
     set :href_class, "flex items-center gap-2.5"
     set :image_class, "h-9 w-auto"
     set :dark_image_class, "hidden"
-    set :text, "Ash Enterprise"
     set :text_class, "font-display text-xl tracking-tight text-foreground"
   end
 

@@ -1,12 +1,13 @@
 defmodule AshEnterpriseWeb.DashboardLive do
   @moduledoc """
-  The demo hub at `/app/demo`: one card per showcase surface of the POC.
+  The operator hub at `/app/hub`: the front door, one card per area an
+  operator works in day to day.
 
-  A strangler-pattern demo lives or dies on *two things being true at once* --
-  the old vocabulary still working, the new one already working, over the same
-  rows -- so the parties pair leads, full width and in the primary tone, and
-  everything else is grouped behind it in the order a demo usually wants:
-  model the process, see the domain, talk to the agents, drop to the console.
+  Ordered by how often each is reached for: the work waiting on you leads, full
+  width and in the primary tone; then processes, compliance, the contract data,
+  people and access, the agents; the developer console last, and only where its
+  routes exist. The product name in the copy is `AshEnterprise.Brand`'s, so a
+  deployment that renames itself is not contradicted by its own home page.
 
   The card chrome is deliberately the same design-system vocabulary every other
   page already speaks (`card/1`, `badge/1`, `button/1` from CoreComponents),
@@ -18,11 +19,12 @@ defmodule AshEnterpriseWeb.DashboardLive do
 
   # Compile-time constant per env: the AshAdmin/clarity mounts in the router
   # read the same key, so the console card below agrees with what is actually
-  # routed. False in test/prod, where the /admin route does not exist.
+  # routed. False in test/prod, where /admin, /clarity and /canvas do not exist.
   @dev_routes? Application.compile_env(:ash_enterprise, :dev_routes, false)
 
   alias AshEnterprise.Security.ActorContext
   alias AshEnterpriseWeb.A2ui.Surfaces
+  alias AshEnterpriseWeb.ComplianceAuth
   alias AshEnterpriseWeb.Layouts
 
   @impl true
@@ -39,7 +41,17 @@ defmodule AshEnterpriseWeb.DashboardLive do
       end
     end
 
-    {:ok, assign(socket, party_count: count_parties(socket), dev_routes?: @dev_routes?)}
+    actor = socket.assigns[:current_user]
+
+    {:ok,
+     assign(socket,
+       page_title: "Operator hub",
+       product_name: AshEnterprise.Brand.product_name(),
+       email: actor && to_string(actor.email),
+       compliance?: ComplianceAuth.authorized?(actor),
+       party_count: count_parties(socket),
+       dev_routes?: @dev_routes?
+     )}
   end
 
   # A count, not a table: whatever arrives on a party topic, recount and move
@@ -69,180 +81,221 @@ defmodule AshEnterpriseWeb.DashboardLive do
     <Layouts.app flash={@flash} current_scope={assigns[:current_scope]} width="max-w-7xl">
       <div class="space-y-6">
         <header class="space-y-1">
-          <h1 class="font-display text-3xl tracking-tight">Demo dashboard</h1>
+          <h1 class="font-display text-3xl tracking-tight">Operator hub</h1>
           <p class="max-w-3xl text-sm text-foreground/70">
-            Every surface of the strangler-pattern proof of concept, one link away.
-            The parties pair below is the demo itself; the rest is the supporting cast.
+            Everything you run in {@product_name}, one link away<span :if={@email}>
+              — signed in as <span class="font-heading text-foreground">{@email}</span></span>.
           </p>
         </header>
 
-        <%!-- The lead card. Full width and primary-toned, because this pair is
-              what the whole POC exists to demonstrate: the same companies,
-              readable in both vocabularies, updating live from either side. --%>
-        <.demo_card
-          id="strangler-demo"
-          icon="hero-arrows-right-left"
-          title="The strangler demo"
-          blurb="Two live tables over the same companies. The legacy one reads the old
-            Contract Lifecycle Management schema through a compatibility view; the canonical
-            one reads this application's own strangler resource. Open both, side by side,
-            and make a write anywhere -- each table rebuilds itself."
+        <%!-- The lead card. Full width and primary-toned, because the work
+              waiting on you is why you opened the app. --%>
+        <.hub_card
+          id="your-work"
+          icon="hero-inbox-stack"
+          title="Your work"
+          blurb="The tasks processes have routed to you, and the helper: ask for a change in
+            plain words, review what it proposes, approve it or don't."
           primary
         >
-          <:top_right>
-            <.badge
-              tone="green"
-              sticker
-              title="Canonical party count right now -- refreshed whenever a write lands"
-            >
-              <span class="relative flex size-1.5">
-                <span class="absolute inline-flex size-1.5 animate-ping rounded-full bg-on-vivid opacity-60" />
-                <span class="relative inline-flex size-1.5 rounded-full bg-on-vivid" />
-              </span>
-              <%= if @party_count do %>
-                {@party_count} parties · live
-              <% else %>
-                live
-              <% end %>
-            </.badge>
-          </:top_right>
           <:actions>
-            <.button navigate={~p"/app/legacy-parties"} size="sm">
-              Legacy parties
+            <.button navigate={~p"/app/tasks"} variant="primary" size="sm">
+              My tasks
             </.button>
-            <.button navigate={~p"/app/canonical-parties"} variant="primary" size="sm">
-              Canonical parties
+            <.button navigate={~p"/agent"} size="sm">
+              Ask the helper
             </.button>
           </:actions>
-        </.demo_card>
+        </.hub_card>
 
         <div class="grid gap-4 md:grid-cols-2">
-          <.demo_card
+          <.hub_card
             id="process-modeller"
             icon="hero-square-3-stack-3d"
-            title="Process modeller"
-            blurb="The access-request flow drawn as BPMN and its risk gate as DMN --
-              modelled in the browser with bpmn-js and dmn-js, executed by the platform.
-              The catalogues list everything this tenant can run and where it came from."
+            title="Processes & decisions"
+            blurb="What this tenant runs: BPMN processes, the DMN decisions they consult and
+              the triggers that start them. Open any one to read, draft or publish it."
             delay={75}
           >
             <:actions>
-              <.button
-                navigate={~p"/app/processes/access_request.grant/designer"}
-                variant="primary"
-                size="sm"
-              >
-                BPMN designer
+              <.button navigate={~p"/app/processes"} variant="primary" size="sm">
+                Processes
               </.button>
-              <.button navigate={~p"/app/decisions/access_request.risk/editor"} size="sm">
-                DMN risk editor
+              <.button navigate={~p"/app/decisions"} size="sm">
+                Decisions
               </.button>
-              <.button navigate={~p"/app/processes"} variant="ghost" size="xs">
-                Process catalogue
-              </.button>
-              <.button navigate={~p"/app/decisions"} variant="ghost" size="xs">
-                Decision catalogue
+              <.button navigate={~p"/app/triggers"} size="sm">
+                Triggers
               </.button>
             </:actions>
-          </.demo_card>
+          </.hub_card>
 
-          <.demo_card
-            id="domain-diagrams"
-            icon="hero-map"
-            title="Domain diagrams"
-            blurb="The whole Ash domain as one entity-relationship diagram: every resource,
-              relationship and attribute of both vocabularies on a single canvas."
+          <.hub_card
+            :if={@compliance?}
+            id="compliance"
+            icon="hero-shield-check"
+            title="Compliance"
+            blurb="Findings and the evaluations behind them, and the rule sets, bundles,
+              catalogs and profiles they are evaluated against."
             delay={150}
           >
             <:actions>
-              <%!-- A plain anchor, not `<.link navigate>`: the Clarity surface sits behind
-                    a `forward`, so Phoenix cannot verify paths beneath it. --%>
-              <.button
-                href="/clarity/architect/application:ash-enterprise/ash-diagram-clarity-content-er-diagram"
-                variant="primary"
-                size="sm"
-              >
-                Ash domain ER diagram (Clarity viewer)
+              <.button navigate={~p"/app/compliance/findings"} variant="primary" size="sm">
+                Findings
+              </.button>
+              <.button navigate={~p"/app/compliance/evaluations"} size="sm">
+                Evaluations
+              </.button>
+              <.button navigate={~p"/app/compliance/rule-sets"} variant="ghost" size="xs">
+                Rule sets
+              </.button>
+              <.button navigate={~p"/app/compliance/bundles"} variant="ghost" size="xs">
+                Bundles
+              </.button>
+              <.button navigate={~p"/app/compliance/catalogs"} variant="ghost" size="xs">
+                Catalogs
+              </.button>
+              <.button navigate={~p"/app/compliance/profiles"} variant="ghost" size="xs">
+                Profiles
               </.button>
             </:actions>
-          </.demo_card>
+          </.hub_card>
 
-          <.demo_card
+          <.hub_card
+            id="contracts"
+            icon="hero-document-text"
+            title="Contracts & parties"
+            blurb="Parties, contracts and commitments, live: a write from either side —
+              this app or the legacy system — shows up without a reload."
+            delay={225}
+          >
+            <:top_right>
+              <.badge
+                tone="green"
+                sticker
+                title="Party count right now — refreshed whenever a write lands"
+              >
+                <span class="relative flex size-1.5">
+                  <span class="absolute inline-flex size-1.5 animate-ping rounded-full bg-on-vivid opacity-60" />
+                  <span class="relative inline-flex size-1.5 rounded-full bg-on-vivid" />
+                </span>
+                <%= if @party_count do %>
+                  {@party_count} parties · live
+                <% else %>
+                  live
+                <% end %>
+              </.badge>
+            </:top_right>
+            <:actions>
+              <.button navigate={~p"/app/canonical-parties"} variant="primary" size="sm">
+                Parties
+              </.button>
+              <.button navigate={~p"/app/canonical-contracts"} size="sm">
+                Contracts
+              </.button>
+              <.button navigate={~p"/app/canonical-commitments"} size="sm">
+                Commitments
+              </.button>
+              <.button navigate={~p"/app/legacy-parties"} variant="ghost" size="xs">
+                Legacy parties
+              </.button>
+              <.button navigate={~p"/app/legacy-contracts"} variant="ghost" size="xs">
+                Legacy contracts
+              </.button>
+            </:actions>
+          </.hub_card>
+
+          <.hub_card
+            id="people"
+            icon="hero-user-group"
+            title="People & access"
+            blurb="Who can sign in, the teams and business units they belong to, and the
+              roles that decide what each of them sees."
+            delay={300}
+          >
+            <:actions>
+              <.button navigate={~p"/app/users"} variant="primary" size="sm">
+                Users
+              </.button>
+              <.button navigate={~p"/app/teams"} size="sm">Teams</.button>
+              <.button navigate={~p"/app/roles"} size="sm">Roles</.button>
+              <.button navigate={~p"/app/business-units"} size="sm">
+                Business units
+              </.button>
+              <.button navigate={~p"/app/directory"} variant="ghost" size="xs">
+                Directory
+              </.button>
+              <.button navigate={~p"/app/legacy-users"} variant="ghost" size="xs">
+                Legacy users
+              </.button>
+            </:actions>
+          </.hub_card>
+
+          <.hub_card
             id="agents"
             icon="hero-chat-bubble-left-right"
             title="Agents"
             blurb="A natural-language console over each vocabulary. Reads render immediately
               as tables filtered by your own policies; writes wait for your approval."
-            delay={225}
+            delay={375}
           >
             <:actions>
-              <.button navigate={~p"/legacy/agent"} size="sm">
-                Legacy helper
+              <.button navigate={~p"/agent"} variant="primary" size="sm">
+                Helper
               </.button>
               <.button navigate={~p"/canonical/agent"} size="sm">
                 Canonical helper
               </.button>
+              <.button navigate={~p"/legacy/agent"} size="sm">
+                Legacy helper
+              </.button>
             </:actions>
-          </.demo_card>
+          </.hub_card>
 
-          <.demo_card
+          <%!-- `/admin`, `/clarity`, `/canvas` and `/dev/dashboard` are mounted only when
+                the `dev_routes` config is on, so a verified `~p` sigil would warn at
+                compile time in every env where it is not (test, prod) -- which
+                `mix precommit` treats as an error. Plain hrefs keep the routes from
+                going unconditional, and the guard keeps the dead links out of those
+                envs entirely. --%>
+          <.hub_card
+            :if={@dev_routes?}
             id="console"
             icon="hero-squares-2x2"
             title="Console"
-            blurb="AshAdmin over every resource -- the ground truth behind every card on
-              this page, including users, roles and the workflow definitions."
-            delay={300}
+            blurb="The ground truth under every card on this page: AshAdmin over every
+              resource, the domain as diagrams and as a browsable graph, and the node's
+              own telemetry."
+            delay={450}
           >
-            <:actions :if={@dev_routes?}>
-              <%!-- `/admin` is mounted only when the `dev_routes` config is
-                   on, so a verified `~p` sigil would warn at compile time in
-                   every env where it is not (test, prod) -- which
-                   `mix precommit` treats as an error. A plain href keeps the
-                   route from going unconditional, and the guard keeps the
-                   dead link out of those envs entirely. --%>
+            <:actions>
               <.button href="/admin" variant="primary" size="sm">
-                Open the admin console
+                Admin console
+              </.button>
+              <%!-- A plain anchor, not `<.link navigate>`: the Clarity surface sits behind
+                    a `forward`, so Phoenix cannot verify paths beneath it. --%>
+              <.button
+                href="/clarity/architect/application:ash-enterprise/ash-diagram-clarity-content-er-diagram"
+                size="sm"
+              >
+                Domain diagram
+              </.button>
+              <.button href="/canvas" size="sm">Canvas</.button>
+              <.button href="/dev/dashboard" variant="ghost" size="xs">
+                Live dashboard
               </.button>
             </:actions>
-          </.demo_card>
+          </.hub_card>
         </div>
-
-        <%!-- The long tail, as chips rather than cards: these are "also exists"
-              surfaces, and giving each a full card would bury the four above. --%>
-        <.demo_card
-          id="more-surfaces"
-          icon="hero-table-cells"
-          title="More surfaces"
-          blurb="The rest of the read models -- live A2UI tables over both vocabularies,
-            the projected directory, and your workflow inbox."
-          delay={350}
-        >
-          <:actions>
-            <.button navigate={~p"/app/legacy-users"} size="xs">
-              Legacy users
-            </.button>
-            <.button navigate={~p"/app/legacy-contracts"} size="xs">
-              Legacy contracts
-            </.button>
-            <.button navigate={~p"/app/canonical-contracts"} size="xs">
-              Canonical contracts
-            </.button>
-            <.button navigate={~p"/app/canonical-commitments"} size="xs">
-              Canonical commitments
-            </.button>
-            <.button navigate={~p"/app/directory"} size="xs">Directory</.button>
-            <.button navigate={~p"/app/tasks"} size="xs">My tasks</.button>
-          </:actions>
-        </.demo_card>
       </div>
     </Layouts.app>
     """
   end
 
   # One card shape for every group: icon chip, title, one-line blurb, actions.
-  # `primary` is the only tonal decision a caller makes -- the strangler card
-  # earns the blue accent, everything else shares the yellow one so the lead
-  # stays the lead.
+  # `primary` is the only tonal decision a caller makes -- the lead card earns
+  # the blue accent, everything else shares the yellow one so the lead stays
+  # the lead.
   attr :id, :string, required: true
   attr :icon, :string, required: true
   attr :title, :string, required: true
@@ -253,7 +306,7 @@ defmodule AshEnterpriseWeb.DashboardLive do
   slot :top_right, doc: "a badge or counter, right-aligned next to the title"
   slot :actions, required: true, doc: "the links out of this card"
 
-  defp demo_card(assigns) do
+  defp hub_card(assigns) do
     ~H"""
     <.card
       id={@id}

@@ -11,6 +11,7 @@ defmodule AshEnterprise.Application do
   def start(_type, _args) do
     setup_opentelemetry()
     check_external_binaries()
+    configure_acp_agent_info()
 
     children =
       [
@@ -196,6 +197,17 @@ defmodule AshEnterprise.Application do
      "DMN models cannot be validated or loaded (ash_decisions -> boxic_dmn). " <>
        "Install libxml2; in this repository it is `libxml2.bin` in devenv.nix."}
   ]
+
+  # ash_acp reads the `agentInfo` it answers `initialize` with from its own env,
+  # and the name in it is the deployment's (`AshEnterprise.Brand`), which is
+  # only known at runtime. Set here, before any ACP connection can exist, so the
+  # attach bridge and `mix ash_acp.stdio` agree. An explicit `config :ash_acp,
+  # agent_info:` still wins.
+  defp configure_acp_agent_info do
+    if is_nil(Application.get_env(:ash_acp, :agent_info)) do
+      Application.put_env(:ash_acp, :agent_info, AshEnterprise.Brand.acp_agent_info())
+    end
+  end
 
   defp check_external_binaries do
     for {binary, consequence} <- @external_binaries, is_nil(System.find_executable(binary)) do

@@ -51,7 +51,9 @@ defmodule AshEnterpriseWeb.Layouts do
       <div class="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 sm:px-6 lg:px-8">
         <a href="/" class="flex w-fit items-center gap-2.5">
           <img src={~p"/images/logo.svg"} width="32" alt="" />
-          <span class="font-display text-lg leading-none tracking-tight">Ash Enterprise</span>
+          <span class="font-display text-lg leading-none tracking-tight">
+            {AshEnterprise.Brand.product_name()}
+          </span>
           <span
             class="inline-block size-3 -rotate-12 rounded-[3px] border-2 border-border bg-yellow"
             aria-hidden="true"
@@ -104,10 +106,10 @@ defmodule AshEnterpriseWeb.Layouts do
               <.theme_toggle />
             </li>
             <li class="ps-1">
-              <%!-- The demo hub replaces the generated "Get Started" CTA: this app's
-                    front door is its own dashboard, not the framework's docs. --%>
-              <.button href={~p"/app/demo"} variant="primary" size="sm">
-                Demo hub <span aria-hidden="true">&rarr;</span>
+              <%!-- The operator hub replaces the generated "Get Started" CTA: this
+                    app's front door is its own home page, not the framework's docs. --%>
+              <.button href={~p"/app/hub"} variant="primary" size="sm">
+                Operator hub <span aria-hidden="true">&rarr;</span>
               </.button>
             </li>
           </ul>

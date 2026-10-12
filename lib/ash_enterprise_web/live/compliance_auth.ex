@@ -39,7 +39,7 @@ defmodule AshEnterpriseWeb.ComplianceAuth do
     if authorized?(socket.assigns[:current_user]) do
       {:cont, socket}
     else
-      {:halt, Phoenix.LiveView.redirect(socket, to: ~p"/app/demo")}
+      {:halt, Phoenix.LiveView.redirect(socket, to: ~p"/app/hub")}
     end
   end
 
