@@ -162,8 +162,8 @@
       "id": "q16",
       "section": "flow",
       "question": "How does data get in from systems you do not own?",
-      "answer": "Meltano lands rows in a staging schema as an external producer; a generator turns the declared target schema into an ordinary platform resource, so ingested data inherits ownership, tenancy and audit.",
-      "status": "planned",
+      "answer": "An Oban job runs a Meltano/Singer tap and lands raw rows in an operator-only landing resource sealed for erasure; host-declared projections promote them into ordinary platform resources, so ingested data acquires ownership, tenancy and audit at promotion. Provider APIs (Gmail, Calendar, Slack) land into the same resource through Nango. The schema-to-resource generator is not built.",
+      "status": "partial",
       "adr": "0010",
       "item": "ingestion"
     },
@@ -514,7 +514,7 @@
       "choice": "Meltano (MIT); Airbyte as the fallback",
       "adr": "0010",
       "status": "partial",
-      "effort": "Landed: an Oban wrapper job runs a Meltano/Singer tap and lands raw rows as SourceObject records — refresh-in-place upsert on the source identity (append-only landing and a stream-aware identity are open design notes), with a deterministic fixture calendar pipeline in dev and lineage Job events from the wrapper. Pending: real provider taps (Gmail/Calendar/Slack via Nango, ADR 0011), Zones admission (ADR 0042) on the land path.",
+      "effort": "Landed: an Oban wrapper job runs a Meltano/Singer tap, parses its output and lands raw rows as `SourceObject` records through an Ash action — an operator-only, untenanted landing zone sealed per erasure scope (ADR 0024), with host-declared projections promoting into canonical resources and lineage Job events from the wrapper. Gmail, Calendar and Slack arrive through the Nango proxy (ADR 0011) into the same landing zone. ADR 0010's implementation note records the deviation from its staging-schema boundary. Pending: `mix meltano.gen.resource`, a committed `meltano.yml` for non-dev pipelines, append-only landing and a stream-aware identity, Zones admission (ADR 0042) on the land path.",
       "bar": "No, by refusal: Meltano is kept outside the boundary where authorization applies, so there is no second model to synchronize. Raw rows land as platform resources (tenant-scoped, policy-gated on read); the residual is that landing writes run system-side with authorize?: false, and a pipeline landing two tenants into one table is a defect the platform cannot detect."
     },
     {

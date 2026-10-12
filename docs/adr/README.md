@@ -41,7 +41,7 @@ The concrete exit: which files change, and how much work it is.
 | [0007](0007-dialyzer-non-blocking.md) | Dialyzer runs, and does not gate | accepted |
 | [0008](0008-typed-invertible-legacy-mappings.md) | Legacy mappings are typed expressions with proven inverses | accepted |
 | [0009](0009-strangler-and-bpmn-are-first-party.md) | `ash_strangler`, `ash_bpmn` and `ash_decisions` are first-party platform extensions | accepted |
-| [0010](0010-meltano-for-ingestion.md) | Meltano for ingestion, Airbyte as the named fallback | proposed |
+| [0010](0010-meltano-for-ingestion.md) | Meltano for ingestion, Airbyte as the named fallback | accepted, amended (2026-10-12; lands into an Ash resource, not a staging schema) |
 | [0011](0011-nango-as-integration-hub.md) | Nango for the provider edge, sync logic stays in Ash | accepted (2026-10-12; Calendar, Gmail, Slack built) |
 | [0012](0012-openlineage-and-marquez.md) | OpenLineage as the schema, Marquez as the backend | proposed |
 | [0013](0013-openmetadata-as-catalog.md) | OpenMetadata as the catalog, populated from codegen | proposed |
@@ -80,12 +80,13 @@ The concrete exit: which files change, and how much work it is.
 | [0046](0046-the-declaration-is-the-output-contract.md) | The declaration is the output contract | accepted, not built (2026-09-28) |
 | [0047](0047-learning-produces-proposals.md) | Learning produces proposals | accepted, not built (2026-09-28) |
 | [0048](0048-a-judgment-is-a-predicate-over-any-set.md) | A judgment is a predicate over any set | proposed |
+| [0049](0049-temporal-resources-are-the-validity-substrate.md) | Temporal resources are the platform's validity substrate | accepted (2026-10-06; in progress) |
 | [0050](0050-neobrutalism-design-system.md) | A neobrutalism token system, dark by default, replaces daisyUI | accepted |
 
-Records 0001–0009, 0020–0023, 0027–0031 and 0033–0037 are `accepted` and describe code that exists.
+Records 0001–0005, 0007–0009, 0020–0023, 0027–0031, 0033–0037 and 0050 are `accepted` and describe code that exists. 0006 is superseded by 0050. 0049 is accepted and in progress: Phase 0 (PostgreSQL 18) and the System One fact cut-over have landed.
 **0038–0047 are `accepted, not built (2026-09-28)`:** the decision is taken and none of it is built. A record with that
 status flips to plain `accepted` when its code lands, so `accepted` on its own keeps meaning code that exists.
-**0010, 0012–0019, 0025, 0026, 0032 and 0048 are `proposed`: none of them is built**, with the exception 0015 below. 0011 (the Nango edge) and 0024 (crypto-shredding) were accepted on 2026-10-12 when the dogfood deployment began depending on them; each one's implementation note says what is built, and 0024's partitioning half is not. They are here because a decision is cheapest to reason about — and cheapest to
+**0012–0019, 0025, 0026, 0032 and 0048 are `proposed`: none of them is built**, with the exception 0015 below. 0010 (ingestion), 0011 (the Nango edge) and 0024 (crypto-shredding) were accepted on 2026-10-12 when the dogfood deployment began depending on them; each one's implementation note says what is built and where it differs from the Decision (0010 lands into an Ash resource rather than a staging schema; 0024's partitioning half is not built). They are here because a decision is cheapest to reason about — and cheapest to
 *reverse* — while the alternatives are still fresh, and because
 [thesis 6](../manifesto/06-reversibility.md) asks for the exit before the entrance. Three of them
 record an answer that changed under verification, which is the main reason to write them down early.

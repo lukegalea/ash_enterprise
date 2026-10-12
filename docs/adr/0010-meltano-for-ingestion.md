@@ -1,6 +1,7 @@
 # ADR 0010 — Meltano for ingestion, Airbyte as the named fallback
 
-- **Status:** proposed
+- **Status:** accepted, amended (2026-10-12). Meltano is the tap runner as decided, but raw rows land in an Ash
+  landing resource (`Ingestion.SourceObject`), not an unmodelled `staging` schema; see the implementation note
 - **Date:** 2026-08-18
 
 ## Context
@@ -152,3 +153,56 @@ ability to scaffold *new* ones. Under an hour.
 generator task, and delete the promoted resources and their migrations. The rest of the application has no
 dependency on any of it. The expensive part is not the deletion, it is that ADR 0012 and ADR 0013 both lose
 their producer and should be reconsidered rather than left in place describing movement that no longer happens.
+
+## Implementation note (2026-10-12)
+
+Built in the Productivity OS Dogfood program (epic E1, then E4). The tool choice held; the boundary was built
+differently from the Decision above, and this note records how, rather than rewriting the Decision.
+
+**What was built** (`lib/ash_enterprise/ingestion/`, `test/ash_enterprise/ingestion_test.exs`):
+
+- **Ash runs the tap; the tap never writes to the database.** `Ingestion.TapWorker` is an Oban job (queue
+  `:ingestion`) that runs one configured pipeline's tap through `Ingestion.TapRunner` (default `TapRunner.Exec`,
+  which shells out to e.g. `meltano invoke tap-postgres`), parses the Singer `RECORD` / `STATE` lines itself, and
+  lands each record through an Ash action. No Singer target exists, and no ELT tool holds a database role. Job args
+  carry only the pipeline name; commands and credentials come from deployment config. A pipeline can also be a
+  fixture (`Ingestion.FixtureTap`, Singer output in-app), which runs the same parse and land path.
+- **The landing zone is an Ash resource, not a `staging` schema.** `Ingestion.SourceObject` holds one raw record
+  per `(external_system, external_id)`, upserted in place with the run's final `STATE` as its cursor. It is
+  deliberately infrastructure-shaped, which keeps the Decision's intent: `tenant?: false`, `ownership: :none`, and
+  its privileges are operator-only (`Security.Privilege.operator_only?/1`), so no tenant's Administrator can read
+  it. Like the staging schema, it is not audited (`audit?: false`: machine-generated, high volume, and
+  reconstructable from the source). Unlike it, its payload is sealed under an erasure scope ([ADR 0024](0024-audit-retention-and-erasure.md)): one `connection` scope per pipeline
+  (`pipeline:<name>` unless configured), so everything a pipeline brought in can be shredded.
+- **Promotion is an ordinary Ash action, as decided.** Host-declared projections (`Canonical.Projection`,
+  [ADR 0037](0037-projections-are-host-declared.md)) read `SourceObject` and write canonical resources
+  (`Canonical.CalendarEvent`, and `Message`/`Conversation` behind zone gates that deny until
+  [ADR 0042](0042-in-zone-inference-leaving-the-zone-is-a-disclosure.md) is built). Ownership and tenancy are
+  acquired there and never from the raw row: on the Nango path from the linked account's owner, and on a replay
+  from explicit options or configuration (`replay_owner_email` / `replay_tenant_unique_name`), which raises rather
+  than guesses.
+- **Lineage.** The worker emits OpenLineage job events, including a structural FAIL facet; a tap's output never
+  reaches the facet or `oban_jobs.errors` (ADR 0024 review fixes).
+
+**Where it differs from the Decision, and why.**
+
+- *No `staging` schema, no Singer target.* Landing through an Ash action gave the raw layer the erasure seal and
+  operator-only access for free, and removed the second database role the Decision had to scope.
+  The cost the Decision named moved rather than vanished: landing writes run system-side (`authorize?: false`
+  under the `oban` system actor), and a pipeline that mixes two tenants' rows is still a defect the platform cannot
+  detect. The tenant is set at projection time from the linked account or declared configuration, never from the
+  pipeline's rows, which is what makes that tolerable.
+- *Provider data does not come through Meltano.* Gmail, Google Calendar and Slack arrive through the Nango proxy
+  ([ADR 0011](0011-nango-as-integration-hub.md)), whose sync steps land into the same `SourceObject` through the
+  same scoped action. Meltano is the path for tap-shaped sources such as a database (`app_db` runs
+  `tap-postgres` in dev). Both producers share one landing zone and one promotion path.
+- *`mix meltano.gen.resource` is not built.* No ingested schema has been promoted to a generated resource yet: the
+  canonical targets are hand-written. The generator stays the plan for the first tap-shaped source that needs
+  its own platform resource.
+- *No `meltano.yml` in the repository.* The dev `tap-postgres` project lives under the gitignored
+  `tmp/ingestion/`, configured in `config/dev.exs`. A committed, reviewed `meltano.yml` is still the Decision for
+  any pipeline that runs outside development.
+
+**Reversal, amended.** Swapping Meltano for Airbyte now means replacing `TapRunner.Exec` (Airbyte would need a
+target-shaped adapter back into `SourceObject.land`), not dropping a staging schema. Abandoning tap ingestion
+leaves the landing zone in place, because the Nango verticals use it too.
