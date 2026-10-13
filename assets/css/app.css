@@ -43,6 +43,10 @@
 @source "../css";
 @source "../js";
 @source "../../lib/ash_enterprise_web";
+/* The surface registry names each launcher card's hero icon as data (`icon: "hero-sun"`).
+   Unscanned, those classes are never generated and every card icon renders blank. */
+@source "../../lib/ash_enterprise/surfaces.ex";
+@source "../../lib/ash_enterprise/surfaces";
 /* Required for Tailwind to automatically pick up changes in colocated CSS files in dev */
 @source "../../_build/dev/phoenix-colocated/ash_enterprise/*/";
 
