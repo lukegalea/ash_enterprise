@@ -15,5 +15,8 @@ defmodule AshEnterprise.Mdm do
 
   resources do
     resource AshEnterprise.Mdm.Mapping
+    resource AshEnterprise.Mdm.ImportBatch
+    resource AshEnterprise.Mdm.StagedRecord
+    resource AshEnterprise.Mdm.SourceRecord
   end
 end

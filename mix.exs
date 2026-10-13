@@ -337,7 +337,11 @@ defmodule AshEnterprise.MixProject do
       # rules-as-data, survivorship and non-destructive merge over golden
       # records. Both are ADR 0009-family resource macros — the host
       # instantiates them on its own platform base and keeps its policies.
-      {:ash_discrete_business_events, github: "lukegalea/ash_discrete_business_events"},
+      # TEMPORARY (MDM-2): local branch mdm-land-auth — land.ex inherits the
+      # caller's actor/tenant/authorize? on its internal reads/writes so
+      # grant-filter policies cannot silently narrow the as-of identity read
+      # to nothing. Reverts to the github ref once the branch lands upstream.
+      {:ash_discrete_business_events, path: "../ash_discrete_business_events", override: true},
       {:ash_mdm, github: "lukegalea/ash_mdm"},
 
       # --- Observability -------------------------------------------------------
