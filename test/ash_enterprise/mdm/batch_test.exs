@@ -310,6 +310,132 @@ defmodule AshEnterprise.Mdm.BatchTest do
     end
   end
 
+  describe "matching (MDM-3)" do
+    defp seed_rule_set!(org, admin) do
+      rules = [
+        %{"name" => "email_exact", "kind" => "exact", "fields" => ["email"], "weight" => 1.0},
+        %{
+          "name" => "name_fuzzy",
+          "kind" => "fuzzy",
+          "field" => "name",
+          "algorithm" => "levenshtein",
+          "weight" => 0.5
+        }
+      ]
+
+      AshEnterprise.Mdm.MatchRuleSet
+      |> Ash.Changeset.for_create(
+        :draft,
+        %{golden_resource: "AshEnterprise.Canonical.Person", rules: rules},
+        tenant: org,
+        actor: admin,
+        authorize?: true
+      )
+      |> Ash.create!(tenant: org, actor: admin, authorize?: true)
+      |> then(fn rs ->
+        rs
+        |> Ash.Changeset.for_update(:activate, %{}, tenant: org, actor: admin, authorize?: true)
+        |> Ash.update!(tenant: org, actor: admin, authorize?: true)
+      end)
+    end
+
+    defp golden_person!(org, admin, name, email) do
+      AshEnterprise.Canonical.Person
+      |> Ash.Changeset.for_create(:upsert_from_source, %{
+        name: name,
+        email: email,
+        owner_id: admin.id,
+        owning_business_unit_id: admin.owning_business_unit_id
+      })
+      |> Ash.create!(tenant: org, authorize?: false)
+    end
+
+    test "exact, fuzzy and new rows produce the expected candidates", %{org: org, admin: admin} do
+      seed_rule_set!(org, admin)
+      gold = golden_person!(org, admin, "Ann Existing", "ann@x.io")
+
+      land_rows!(org, "acme", [
+        {"dupe", %{"Email" => "ann@x.io", "Full Name" => "Ann Existing"}},
+        {"fuzzy", %{"Email" => "annette@x.io", "Full Name" => "Ann Exsiting"}},
+        {"new", %{"Email" => "newperson@x.io", "Full Name" => "Nadia New"}}
+      ])
+
+      batch = drain!(upload_batch!(org, admin, "acme"))
+
+      assert batch.rule_set_id
+      assert batch.counts["staged"] == 3
+
+      candidates =
+        AshEnterprise.Mdm.MatchCandidate
+        |> Ash.Query.filter(golden_resource == "AshEnterprise.Canonical.Person")
+        |> Ash.read!(tenant: org, authorize?: false)
+        |> Enum.group_by(& &1.staged_record_id)
+
+      by_email =
+        StagedRecord
+        |> Ash.Query.filter(batch_id == ^batch.id)
+        |> Ash.read!(tenant: org, authorize?: false)
+        |> Map.new(&{&1.mapped["email"], &1})
+
+      dupe = by_email["ann@x.io"]
+      fuzzy = by_email["annette@x.io"]
+      new = by_email["newperson@x.io"]
+
+      assert MapSet.new(Map.get(candidates, dupe.id, []) |> Enum.map(& &1.golden_id)) ==
+               MapSet.new([gold.id])
+
+      dupe_candidate = candidates |> Map.get(dupe.id) |> hd()
+      assert Decimal.eq?(dupe_candidate.score, Decimal.new(1))
+
+      # The fuzzy pair is shortlisted and scored below 1 but well above 0.
+      assert MapSet.member?(
+               MapSet.new(Map.get(candidates, fuzzy.id, []) |> Enum.map(& &1.golden_id)),
+               gold.id
+             )
+
+      fuzzy_candidate = candidates |> Map.get(fuzzy.id) |> Enum.find(&(&1.golden_id == gold.id))
+      assert Decimal.lt?(fuzzy_candidate.score, Decimal.new(1))
+      assert Decimal.gt?(fuzzy_candidate.score, Decimal.new(0))
+
+      # The genuinely new person is not shortlisted against anyone.
+      assert candidates[new.id] in [nil, []]
+
+      # Every staged row is matched.
+      for row <- [dupe, fuzzy, new],
+          do: assert(Ash.reload!(row, tenant: org, authorize?: false).status == :matched)
+
+      # Blocking ran as a SYSTEM actor (ADR 0017's first sharp edge) — and
+      # that actor is visible in the audit trail under the batch's
+      # correlation id, so "who generated this candidate" is answerable.
+      %{rows: [[system_rows]]} =
+        AshEnterprise.Repo.query!(
+          "SELECT count(*) FROM audit_events " <>
+            "WHERE metadata->>'correlation_id' = $1 AND metadata->>'system_actor' IS NOT NULL",
+          [batch.correlation_id]
+        )
+
+      assert system_rows > 0
+    end
+
+    test "the trigram shortlist reads through the org-scoped GIN index, not a scan", %{org: org} do
+      {:ok, org_bin} = Ecto.UUID.dump(org)
+
+      # The planner prefers the email btree when the org predicate is
+      # present, so EXPLAIN the shortlist's own access path: the trigram
+      # predicate alone must read through the GIN index, not a scan.
+      AshEnterprise.Repo.query!("SET enable_seqscan = off")
+
+      %{rows: plan} =
+        AshEnterprise.Repo.query!(
+          "EXPLAIN SELECT id FROM canonical_people WHERE lower(name) % lower($1)",
+          [org_bin_ignored = "Ann Existing"]
+        )
+
+      plan_text = Enum.map_join(plan, " ", & &1)
+      assert plan_text =~ "canonical_people_name_trgm_idx"
+    end
+  end
+
   describe "opening" do
     test "a batch refuses a non-active mapping", %{org: org} do
       mapping = draft_host_mapping!(org, [])

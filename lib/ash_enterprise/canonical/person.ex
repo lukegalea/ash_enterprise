@@ -34,6 +34,15 @@ defmodule AshEnterprise.Canonical.Person do
   postgres do
     table "canonical_people"
     repo AshEnterprise.Repo
+
+    custom_indexes do
+      # MDM-3 blocking (ADR 0017): the trigram shortlist reads
+      # `lower(name) % lower($name)` — this GIN index is what keeps that
+      # a shortlist instead of an org-wide scan.
+      index [:organization_id, "lower(name) gin_trgm_ops"],
+        using: "gin",
+        name: "canonical_people_name_trgm_idx"
+    end
   end
 
   attributes do

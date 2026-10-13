@@ -89,8 +89,6 @@ defmodule AshEnterprise.Mdm.BatchWorker do
         nil -> raise AshEnterprise.Mdm.MappingMissing, batch_id: batch.id
       end
 
-    prefix = "#{tenant}:#{batch.source_slug}:"
-
     already_staged =
       AshEnterprise.Mdm.StagedRecord
       |> Ash.Query.filter(batch_id == ^batch.id)
@@ -130,7 +128,102 @@ defmodule AshEnterprise.Mdm.BatchWorker do
     |> Ash.Changeset.force_change_attribute(:counts, counts)
     |> Ash.update!(tenant: tenant, authorize?: false)
 
+    run_match(batch, tenant)
     {:ok, staged}
+  end
+
+  # MDM-3: blocking + scoring. Candidate generation is SYSTEM work
+  # (ADR 0017's first sharp edge): it must see across the actors' grant
+  # boundaries, and the review surface — not this step — is what is
+  # filtered per viewer.
+  defp run_match(batch, tenant) do
+    rule_set =
+      batch.rule_set_id &&
+        AshEnterprise.Mdm.MatchRuleSet.by_id(batch.rule_set_id, tenant: tenant, authorize?: false)
+        |> elem(1)
+
+    # A batch whose tenant configured no match rule set is a staging-only
+    # import — a legitimate flow, not a failure.
+    rule_set || {:skipped, :no_rule_set}
+
+    staged_records =
+      AshEnterprise.Mdm.StagedRecord
+      |> Ash.Query.filter(batch_id == ^batch.id and status == :staged)
+      |> Ash.read!(tenant: tenant, authorize?: false)
+
+    with %AshEnterprise.Mdm.MatchRuleSet{} <- rule_set do
+      Enum.each(staged_records, fn staged ->
+        candidates = block(staged, tenant)
+        score_candidates(staged, candidates, rule_set, tenant)
+
+        staged
+        |> Ash.Changeset.for_update(:update, %{status: :matched},
+          tenant: tenant,
+          authorize?: false
+        )
+        |> Ash.update!(tenant: tenant, authorize?: false)
+      end)
+    end
+
+    rule_set
+  end
+
+  # Blocking (ADR 0017): exact email through Ash + a trigram shortlist on
+  # name — `lower(name) % lower($name)` — over the GIN trigram index, so
+  # the shortlist is an index read, not an org-wide scan. The reads run as
+  # the system actor THROUGH Ash, so the actor lands in the audit trail.
+  defp block(staged, tenant) do
+    email = staged.mapped["email"]
+    name = staged.mapped["name"]
+    system = AshEnterprise.Platform.SystemActor.system()
+
+    exact =
+      if email do
+        AshEnterprise.Canonical.Person
+        |> Ash.Query.filter(email == ^email)
+        |> Ash.read!(tenant: tenant, actor: system, authorize?: true)
+      else
+        []
+      end
+
+    fuzzy =
+      if name && String.trim(name) != "" do
+        AshEnterprise.Canonical.Person
+        |> Ash.Query.filter(fragment("lower(?) % lower(?)", name, ^String.trim(name)))
+        |> Ash.Query.sort(name: :asc)
+        |> Ash.Query.limit(50)
+        |> Ash.read!(tenant: tenant, actor: system, authorize?: true)
+      else
+        []
+      end
+
+    (exact ++ fuzzy)
+    |> Enum.uniq_by(& &1.id)
+  end
+
+  defp score_candidates(staged, candidates, rule_set, tenant) do
+    rules = rule_set.rules
+
+    Enum.each(candidates, fn person ->
+      {score, explanation} =
+        AshMdm.Match.score(rules, staged.mapped || %{}, %{
+          "email" => person.email && to_string(person.email),
+          "name" => person.name
+        })
+
+      AshEnterprise.Mdm.MatchCandidate
+      |> Ash.Changeset.for_create(:create, %{
+        staged_record_id: staged.id,
+        golden_resource: "AshEnterprise.Canonical.Person",
+        golden_id: person.id,
+        score: score,
+        explanation: explanation
+      })
+      |> Ash.create!(tenant: tenant, authorize?: false)
+    end)
+  rescue
+    # one_pair identity: a concurrent run scored the same pair. Idempotent.
+    Ash.Error.Invalid -> :ok
   end
 
   defp stage_one(batch, tenant, rules, record) do

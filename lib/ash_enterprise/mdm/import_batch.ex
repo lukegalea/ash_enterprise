@@ -49,6 +49,15 @@ defmodule AshEnterprise.Mdm.ImportBatch do
       description "The customer/dataset slug — a STRING; it segments the bizev stream's external_ids."
     end
 
+    attribute :rule_set_id, :uuid do
+      public? true
+      description "Pinned at open from the active MatchRuleSet for the mapping's target resource."
+    end
+
+    attribute :rule_set_content_hash, :string do
+      public? true
+    end
+
     attribute :counts, :map do
       public? true
       default %{}

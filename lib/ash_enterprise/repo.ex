@@ -34,6 +34,10 @@ defmodule AshEnterprise.Repo do
       # and the metaphone family for fuzzy rule comparators.
       "pg_trgm",
       "fuzzystrmatch",
+      # btree_gin: lets the trigram shortlist index carry the tenant column
+      # (organization_id) as a btree-keyed GIN component, so an org-scoped
+      # `%` shortlist reads the index instead of filtering an org's rows.
+      "btree_gin",
       # pgvector, required by ash_ai's vectorize block.
       #
       # NOTE: this list is about `CREATE EXTENSION` in migrations, so pgvector
