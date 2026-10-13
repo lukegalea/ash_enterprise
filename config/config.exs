@@ -302,7 +302,8 @@ config :ash_enterprise,
     AshEnterprise.SystemOne,
     AshEnterprise.Ingestion,
     AshEnterprise.Canonical,
-    AshEnterprise.Agents
+    AshEnterprise.Agents,
+    AshEnterprise.Mdm
   ],
   base_resources: [AshEnterprise.Platform.Resource]
 

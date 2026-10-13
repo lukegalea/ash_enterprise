@@ -329,6 +329,17 @@ defmodule AshEnterprise.MixProject do
       {:ash_bpmn, github: "lukegalea/ash_bpmn"},
       {:ash_decisions, github: "lukegalea/ash_decisions"},
 
+      # --- Master data management (ADR 0050; roadmap mdm) ----------------------
+      # `ash_discrete_business_events` is the raw-landing + event-ledger
+      # substrate: temporal SourceRecord landing (BIZEV-3) and the locked,
+      # hash-chained ledger (BIZEV-4). `ash_mdm` builds on it: versioned
+      # schema mappings as data, deterministic entity resolution with
+      # rules-as-data, survivorship and non-destructive merge over golden
+      # records. Both are ADR 0009-family resource macros — the host
+      # instantiates them on its own platform base and keeps its policies.
+      {:ash_discrete_business_events, github: "lukegalea/ash_discrete_business_events"},
+      {:ash_mdm, github: "lukegalea/ash_mdm"},
+
       # --- Observability -------------------------------------------------------
       # Ash.Tracer -> OpenTelemetry -> OTLP. opentelemetry_ash is thin (0.1.x);
       # expect to extend it. See docs/manifesto/07-what-we-do-not-have.md.

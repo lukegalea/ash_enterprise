@@ -28,6 +28,12 @@ defmodule AshEnterprise.Repo do
       # EXCLUSION constraints need ("no overlapping validity range per key").
       # Prerequisite for the Ash temporal-resources work; harmless otherwise.
       "btree_gist",
+      # pg_trgm + fuzzystrmatch: blocking for entity resolution (ADR 0017,
+      # adopted by ash_mdm). pg_trgm supplies similarity() and GIN index
+      # support for the trigram shortlist; fuzzystrmatch supplies levenshtein
+      # and the metaphone family for fuzzy rule comparators.
+      "pg_trgm",
+      "fuzzystrmatch",
       # pgvector, required by ash_ai's vectorize block.
       #
       # NOTE: this list is about `CREATE EXTENSION` in migrations, so pgvector

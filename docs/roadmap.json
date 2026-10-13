@@ -621,9 +621,9 @@
       "title": "Master data and entity resolution",
       "priority": 4,
       "choice": "In-Ash resolution over CDM resources",
-      "adr": "0017",
+      "adr": "0050",
       "status": "planned",
-      "effort": "The golden-record shape is adopted rather than invented: the vendored `Account` and `Contact` CDM entities already carry `merged` and a self-referencing `master`/`masterid`. Match, merge and survivorship become ordinary changes and calculations.",
+      "effort": "Active build (docs/plans/ash-mdm.md): the golden-record shape is adopted rather than invented — the vendored `Account` and `Contact` CDM entities already carry `merged` and a self-referencing `master`/`masterid`. Match, merge and survivorship become ordinary changes and calculations. ADR 0050 amends 0017's foreclosed-stewardship clause: ReviewQueue, HumanVerdict, BPMN HumanTask, A2UI surfaces and calibrated band tables now exist as reusable substrate, so the stewardship flow is composed, not bespoke. The 0017 prerequisites (ingress substrate, lineage plumbing, `pg_trgm`/`fuzzystrmatch`) have since shipped; `ash_mdm` (mappings-as-data, deterministic resolution, survivorship, non-destructive merge) is the new package.",
       "bar": "A golden record inside the platform inherits ownership, audit and policy. Two consequences fall out that an external hub hides: candidate generation must run as a system actor, so the review queue can leak the existence of duplicates; and a merge can revoke a user's access without revoking any grant, because grants are per-record and the record moved. AtroCore is GPL-3.0, not the MIT its own marketing claims; Pimcore left open source entirely in 2025."
     },
     {

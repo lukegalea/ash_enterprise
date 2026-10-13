@@ -5,6 +5,8 @@
     "citext",
     "uuid-ossp",
     "btree_gist",
+    "pg_trgm",
+    "fuzzystrmatch",
     "vector",
     "ash_money_v5"
   ]
