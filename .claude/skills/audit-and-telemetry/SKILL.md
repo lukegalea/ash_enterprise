@@ -28,6 +28,17 @@ Shaped after the Dataverse `audit` entity:
 | `metadata["correlation_id"]` | Which operation this belonged to |
 | `data`, `changed_attributes` | The change itself |
 
+### Sensitive values
+
+Mark an attribute `sensitive?` and it never reaches the log:
+`AshEnterprise.Audit.Changes.RedactSensitive` writes it as `nil` in `data`,
+`changed_attributes` and `metadata` (the key stays, so "the password changed"
+is still recorded). ash_events only does this for `data` on its own, which is
+how `User.hashed_password` leaked through `changed_attributes` until
+2026-10-14 (`docs/runbooks/audit-sensitive-values.md`). The one exception is
+`ash_cloak`'s `encrypted_*` ciphertext, which ADR 0024 keeps so a key shred
+reaches it.
+
 ### Prefer named actions
 
 An audit entry records the action name, so `assign_to_business_unit` tells a
