@@ -35,22 +35,17 @@ defmodule AshEnterpriseWeb.MdmSurfacesLiveTest do
 
   # The surface may split its payload across pushes (surface, then rows).
   # Collect every a2ui:messages push and assert against the joined payload.
+
   defp pushed_json(view) do
-    push_all(view, [])
+    assert_push_event(view, "a2ui:messages", %{messages: first}, 2000)
+    push_all(view, [JSON.encode!(first)])
   end
 
   defp push_all(view, acc) do
-    payload =
-      assert_push_event(view, "a2ui:messages", %{messages: messages})
-
-    acc = [acc | [JSON.encode!(messages)]]
-
-    case payload do
-      _ -> push_all(view, acc)
-    end
+    assert_push_event(view, "a2ui:messages", %{messages: messages}, 100)
+    push_all(view, acc ++ [JSON.encode!(messages)])
   rescue
-    # No more pushes queued (ExUnit raises when the assertion times out).
-    _ -> Enum.join(acc, "\n")
+    ExUnit.AssertionError -> Enum.join(acc, "\n")
   end
 
   test "the mapping surface shows the tenant's mapping version", %{
