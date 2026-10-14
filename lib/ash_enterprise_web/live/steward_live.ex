@@ -60,9 +60,14 @@ defmodule AshEnterpriseWeb.StewardLive do
     {:ok, %{items: items}} =
       ReviewQueue.pending(kinds: [:mdm_match], actor: actor, tenant: tenant, limit: 50)
 
+    # The diff rows are built HERE — actor and tenant are known — so
+    # render stays pure. Two reads total, not two per item per render.
+    diffs = Map.new(items, fn item -> {item.id, diff(item, tenant)} end)
+
     socket
     |> assign(:items, items)
     |> assign(:empty?, items == [])
+    |> assign(:diffs, diffs)
   end
 
   defp fetch(id, tenant, actor) do
@@ -102,6 +107,23 @@ defmodule AshEnterpriseWeb.StewardLive do
               <p class="text-sm opacity-70 break-all">
                 staged {item.record.staged_record_id} → golden {item.record.golden_id}
               </p>
+              <table class="table table-sm text-sm">
+                <thead>
+                  <tr>
+                    <th>Field</th><th>Staged</th><th>Golden</th><th>Survivorship</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <%= for {field, staged_value, golden_value, winner} <- Map.get(@diffs, item.id, []) do %>
+                    <tr class={winner == :staged && "bg-warning/10"}>
+                      <td class="capitalize">{field}</td>
+                      <td class={winner == :staged && "font-semibold"}>{staged_value || "—"}</td>
+                      <td class={winner == :golden && "font-semibold"}>{golden_value || "—"}</td>
+                      <td class="text-xs opacity-60">{winner}</td>
+                    </tr>
+                  <% end %>
+                </tbody>
+              </table>
               <%= if rules = explanation_rules(item.record.explanation) do %>
                 <ul class="text-xs opacity-70 list-disc list-inside">
                   <%= for rule <- rules do %>
@@ -141,6 +163,43 @@ defmodule AshEnterpriseWeb.StewardLive do
     </Layouts.app>
     """
   end
+
+  # The side-by-side the plan asks for: staged value vs golden value per
+  # mapped field, survivorship winner highlighted (the golden's own values
+  # always beat a fold — ties go to the golden).
+  defp diff(item, tenant) do
+    with {:ok, staged} <-
+           Ash.get(AshEnterprise.Mdm.StagedRecord, item.record.staged_record_id,
+             tenant: tenant,
+             authorize?: false
+           ),
+         {:ok, golden} <-
+           Ash.get(AshEnterprise.Canonical.Person, item.record.golden_id,
+             tenant: tenant,
+             authorize?: false
+           ) do
+      mapped = staged.mapped || %{}
+
+      for field <- ~w(name email) do
+        staged_value = mapped[field]
+        golden_value = golden_value(golden, field)
+
+        winner =
+          cond do
+            is_nil(golden_value) and not is_nil(staged_value) -> :staged
+            true -> :golden
+          end
+
+        {field, staged_value, golden_value, winner}
+      end
+    else
+      _ -> []
+    end
+  end
+
+  defp golden_value(golden, "email"), do: golden.email && to_string(golden.email)
+  defp golden_value(golden, "name"), do: golden.name && to_string(golden.name)
+  defp golden_value(_golden, _field), do: nil
 
   defp explanation_rules(%{"rules" => rules}) when is_list(rules) do
     Enum.map(rules, fn

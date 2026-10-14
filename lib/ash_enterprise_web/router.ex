@@ -159,7 +159,7 @@ defmodule AshEnterpriseWeb.Router do
     # System One review queue and calls them.
     ash_authentication_live_session :steward,
       on_mount: [{AshEnterpriseWeb.LiveUserAuth, :live_user_required}] do
-      live "/app/steward", StewardLive
+      live "/app/mdm", StewardLive
     end
 
     ash_authentication_live_session :legacy_surfaces,

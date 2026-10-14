@@ -18,6 +18,9 @@ defmodule AshEnterprise.Mdm.LlmProposer do
   degrades to the deterministic floor.
   """
 
+  @default_transport AshEnterprise.SystemOne.QuestionProposal.Transport.ReqLLM
+  @profile :mdm_proposal
+
   # The JSON schema `generate_object` constrains the model with: an array
   # of {path, target, op} field rules from the closed vocabulary.
   @schema %{
@@ -43,18 +46,30 @@ defmodule AshEnterprise.Mdm.LlmProposer do
     "required" => ["rules"]
   }
 
+  defp mask_samples(nil), do: %{}
+
+  defp mask_samples(samples) do
+    Map.new(samples, fn {field, value} ->
+      {field,
+       cond do
+         is_binary(value) -> "string"
+         is_integer(value) -> "integer"
+         is_float(value) -> "float"
+         is_boolean(value) -> "boolean"
+         true -> "unknown"
+       end}
+    end)
+  end
+
   @doc "Generates field rules for the manifest via the resolved model."
   def generate(manifest) when is_map(manifest) do
-    with {:ok, spec, opts} <- resolve() do
+    transport = Application.get_env(:ash_enterprise, :mdm_proposal_transport, @default_transport)
+
+    with {:ok, spec, opts} <- safe_resolve(transport) do
       prompt = build_prompt(manifest)
 
       # The transport returns the raw JSON the model produced.
-      case AshEnterprise.SystemOne.QuestionProposal.Transport.ReqLLM.generate(
-             spec,
-             opts,
-             @schema,
-             prompt
-           ) do
+      case transport.generate(spec, opts, @schema, prompt) do
         {:ok, raw_json} when is_binary(raw_json) ->
           with {:ok, %{"rules" => rules}} <- Jason.decode(raw_json) do
             {:ok, rules}
@@ -66,20 +81,27 @@ defmodule AshEnterprise.Mdm.LlmProposer do
     end
   end
 
-  # The judgment profile machinery resolves the model spec + transport opts;
-  # the transport is the same ReqLLM adapter the question proposals use.
-  defp resolve do
-    profile = Application.get_env(:ash_enterprise, :mdm_proposal_profile, :mdm_proposal)
-    AshEnterprise.SystemOne.QuestionProposal.Transport.ReqLLM.resolve(profile)
+  # The profile resolver may raise (pin/region guards) rather than return
+  # {:error, _}; a missing or misconfigured profile degrades the proposal
+  # to the deterministic floor instead of crashing it.
+  defp safe_resolve(transport) do
+    transport.resolve(@profile)
+  rescue
+    e -> {:error, Exception.message(e)}
   end
 
+  # The judgment profile machinery resolves the model spec + transport opts;
+  # the transport is the same ReqLLM adapter the question proposals use.
+  # Defence in depth: Proposal masks samples before the manifest is built,
+  # and the prompt builder masks again — raw values never reach the
+  # transport even when the caller forgot.
   defp build_prompt(manifest) do
     """
     Map the customer's observed schema onto our golden-record attributes.
 
     Target attributes: #{inspect(manifest["target_attributes"])}
     Observed schema: #{inspect(manifest["observed_schema"])}
-    Field samples (types only — values never leave the zone): #{inspect(manifest["samples"])}
+    Field samples (types only — values never leave the zone): #{inspect(mask_samples(manifest["samples"]))}
 
     Return one rule per observed field you can map: path = the observed
     field, target = the golden attribute, op = an identity or trim from the
