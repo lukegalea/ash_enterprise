@@ -17,8 +17,19 @@ defmodule AshEnterprise.Mdm.BatchTest do
   alias AshEnterprise.Platform.Seeder
 
   setup do
+    previous_transport = Application.get_env(:ash_open_lineage, :transport)
+
     Application.put_env(:ash_open_lineage, :transport, AshOpenLineage.Transport.InMemory)
     start_supervised!(AshOpenLineage.Transport.InMemory)
+
+    on_exit(fn ->
+      if previous_transport do
+        Application.put_env(:ash_open_lineage, :transport, previous_transport)
+      else
+        Application.delete_env(:ash_open_lineage, :transport)
+      end
+    end)
+
     AshOpenLineage.Transport.InMemory.clear()
 
     %{organization: org, user: admin} =

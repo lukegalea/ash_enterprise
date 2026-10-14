@@ -86,3 +86,16 @@ printf 'mix test test/ash_enterprise/mdm/ test/ash_enterprise_web/live/steward_l
 ```
 
 (mix only exists inside `devenv shell`.) Package: `cd ~/ash_mdm && mix test`.
+
+## Full-suite state (post leak fixes)
+
+`mix test` full repo: 571/577. Main's own full run: 1 order-dependent
+failure (AcpHost). The 6 branch failures are order-dependent test
+interactions to fix, NOT production bugs: two audit-log count tests
+(`TenantIsolationTest`, `EventSourceTest` — new platform audit rows from
+mdm tests change exact-span assertions), two KYC full-path tests
+(Compliance.EventLog is global; mdm_reviewed rows change marker-relative
+reads), the MDM golden surface LiveView (push ordering), and the DMN
+artifact wellformedness test (runs after band-table tests mutate the
+artifact set). Fix = scope the count assertions and drain markers per
+tenant/subject, as the KYC test already does for subjects.

@@ -4,8 +4,6 @@ defmodule AshEnterprise.Mdm.TestSupport do
   System One conformance drill), and Mapping lifecycle shorthands.
   """
 
-  require Ash.Query
-
   alias AshEnterprise.Mdm.Mapping
 
   @doc "A tenant id — MDM resources scope by organization_id; no org row is needed."

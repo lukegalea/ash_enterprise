@@ -36,7 +36,7 @@ the missing forward half.
 | 3 | Feature flags and progressive delivery | FunWithFlags (Unleash rejected) | 🔵 Planned | [ADR 0016](adr/0016-unleash-for-feature-flags.md) |
 | 3 | Observability backend | Grafana LGTM | 🔵 Planned | [ADR 0018](adr/0018-grafana-lgtm-observability-backend.md) |
 | 3 | Outbound events and subscriptions | An Ash notifier over the existing event log | 🔵 Planned | — |
-| 4 | Master data and entity resolution | In-Ash resolution over CDM resources | 🔵 Planned | [ADR 0050](adr/0050-mdm-stewardship-is-system-one.md) |
+| 4 | Master data and entity resolution | In-Ash resolution over CDM resources | 🟡 Partial | [ADR 0050](adr/0050-mdm-stewardship-is-system-one.md) |
 | 4 | Performance at enterprise data volumes | A seeded large tenant and a query budget | 🔵 Planned | — |
 | 4 | SBOM and build provenance | CycloneDX SBOM; attested builds | 🔵 Planned | — |
 | 4 | Zero-downtime deploys and reversible migrations | Expand/contract, proven by a two-version test | 🔵 Planned | — |

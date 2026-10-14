@@ -25,7 +25,13 @@ defmodule AshEnterprise.Mdm.ExportTest do
     )
 
     on_exit(fn ->
-      if previous, do: Application.put_env(:ash_enterprise, AshEnterprise.Zones, previous)
+      # When there was no previous declaration (the default), the leak fix
+      # is DELETION, not re-putting the absent value as a present one.
+      if previous do
+        Application.put_env(:ash_enterprise, AshEnterprise.Zones, previous)
+      else
+        Application.delete_env(:ash_enterprise, AshEnterprise.Zones)
+      end
     end)
 
     %{organization: organization, user: admin} =
