@@ -127,6 +127,18 @@ in
     mkdir -p "$MIX_HOME" "$HEX_HOME" "${stateDir}/erlang-history"
     export PATH="$MIX_HOME/bin:$MIX_HOME/escripts:$HEX_HOME/bin:$PATH"
 
+    # Cap open files at 65536, soft AND hard.
+    #
+    # ERTS raises its soft RLIMIT_NOFILE to the hard limit at boot and sizes its
+    # fd and port tables from the result. Under a systemd user service the hard
+    # limit is ~1.07e9, and every BEAM -- `mix test`, `iex-server`, a codegen
+    # check -- then reserved ~4 GB in ll_alloc and sat at ~2.5 GB resident
+    # before doing any work. Several at once OOM-killed the host (2026-10-14).
+    # Lowering only the soft limit does nothing, because ERTS raises it back.
+    if [ "$(ulimit -Hn)" = unlimited ] || [ "$(ulimit -Hn)" -gt 65536 ]; then
+      ulimit -n 65536
+    fi
+
     # Resolve the port Postgres is ACTUALLY listening on.
     #
     # devenv allocates ports dynamically to avoid collisions with whatever is
