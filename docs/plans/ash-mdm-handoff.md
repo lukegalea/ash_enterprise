@@ -58,28 +58,26 @@ plan section and acceptance test named.
    with named limitations; docs; ash_mdm README push (drafted in
    `~/ash_mdm/README.md`, uncommitted) + screenshots.
 
-## Known correctness bugs (fix before or during the slices above)
+## Known correctness bugs (state after this session)
 
-1. `Export.residency/1` (`lib/ash_enterprise/mdm/export.ex`): `hd(tags)` —
-   one golden with CA and US identities passes the gate on the first tag,
-   and `Ash.read_one!` raises on multi-period landings. Take the most
-   restrictive tag across ALL identities, use `read_one` with a limit/order.
-2. `AutoMerge.create_golden!/3`: `:upsert_from_source` upserts on email —
-   a new golden whose email matches an existing Person OVERWRITES it. The
-   omit/new-golden path must not upsert: create, or fold via survivorship
-   when the email identity already exists.
-3. Losing candidates: when several candidates pair one staged row, the
-   non-routed losers stay `:pending` forever; they should become
-   `:superseded` when the row routes. Staged rows never reach the
-   `:review` status the enum declares.
-4. Unmerge: does not clear `merge_provenance`, and restoring the prior
+FIXED: export residency (all temporal periods' tags, gate loops all),
+losing candidates superseded, machine-update person-state refusal
+(regression-tested), SourceRecord cross-tenant read.
+
+STILL OPEN:
+
+1. `AutoMerge.create_golden!/3` still uses `:upsert_from_source` — a new
+   golden whose email matches an existing Person OVERWRITES it. The
+   omit/new-golden path must create, or fold via survivorship when the
+   email identity already exists.
+2. Unmerge does not clear `merge_provenance`, and restoring the prior
    email has no collision handling if the survivor's email changed since.
-5. No regression test that the machine `:update` refuses
-   `status: :confirmed` (package validates it; untested).
-6. StewardLive confirm runs outside the instance task when the queue and
-   TaskList race; the second decision of a racing pair currently hits
-   `validate attribute_equals(:status, :pending)` — verify that surfaces
-   as a flash, not a 500, in the LiveView.
+3. Staged rows never reach the `:review` status the enum declares (routed
+   rows go straight to :merged/:created; review rows stay :matched).
+4. StewardLive is at `/app/steward` (plan wants `/app/mdm`) and has no
+   side-by-side diff view; racing queue/task decisions surface through the
+   action's Invalid — verify the LiveView flashes, not 500s.
+5. Losing-candidate superseding is implemented but untested.
 
 ## Verification commands
 
