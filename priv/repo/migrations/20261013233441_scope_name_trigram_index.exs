@@ -1,4 +1,4 @@
-defmodule AshEnterprise.Repo.Migrations.AddMatchSupport do
+defmodule AshEnterprise.Repo.Migrations.ScopeNameTrigramIndex do
   @moduledoc """
   Updates resources based on their most recent snapshots.
 
