@@ -289,6 +289,11 @@ config :ash_mdm, :allowed_targets, %{
   "AshEnterprise.Canonical.Account" => AshEnterprise.Canonical.Account
 }
 
+# MDM-8: the default LLM proposer — one structured ReqLLM call over the
+# proposal manifest, resolved through the same profile machinery as every
+# instrument call. Tests inject a fake MFA instead.
+config :ash_enterprise, :mdm_proposal_llm, {AshEnterprise.Mdm.LlmProposer, :generate, []}
+
 config :ash_enterprise,
   ecto_repos: [AshEnterprise.Repo, AshEvidence.Repo],
   generators: [timestamp_type: :utc_datetime],
