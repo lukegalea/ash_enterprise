@@ -63,6 +63,10 @@ config :ash_enterprise, Oban,
        # rather than by calling it: this file is evaluated before dependencies are compiled,
        # so a function call into a dep would break the cold `mix setup` path.
        {"* * * * *", AshBpmn.Triggers.CronSweep, queue: :bpmn, max_attempts: 1},
+       # MDM-7: noncompliant findings open their stewardship tasks on the
+       # drain cadence (idempotent; a golden already running an instance is
+       # skipped).
+       {"*/5 * * * *", AshEnterprise.Mdm.QualityStewardshipWorker, queue: :mdm, max_attempts: 3},
        # The ledger sweep is the *recovery net*, not the driver: the ledger trigger's
        # pg_notify wakes the drain worker promptly, and a wake lost while the listener was
        # down is caught here. Every five minutes; the worker's `unique: [period: 30]`

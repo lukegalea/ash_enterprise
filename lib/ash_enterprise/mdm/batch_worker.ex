@@ -359,8 +359,12 @@ defmodule AshEnterprise.Mdm.BatchWorker do
         |> Ash.update!(tenant: tenant, actor: system, authorize?: true)
 
         case safe_new_golden(staged, batch, tenant, candidate) do
-          :ok -> true
-          {:collision, _} -> false
+          :ok ->
+            true
+
+          {:collision, existing} ->
+            route_collision_to_stewardship!(staged, existing, tenant)
+            true
         end
 
       # Unbanded (no published band table): the row stays undecided —
@@ -396,18 +400,47 @@ defmodule AshEnterprise.Mdm.BatchWorker do
     mapped = staged.mapped || %{}
     email = mapped["email"]
 
-    email_taken? =
-      !is_nil(email) &&
+    existing =
+      email &&
         AshEnterprise.Canonical.Person
         |> Ash.Query.filter(email == ^email)
-        |> Ash.exists?(tenant: tenant, authorize?: false)
+        |> Ash.read_one!(tenant: tenant, authorize?: false)
 
-    if email_taken? do
-      {:collision, :email_taken}
+    if existing do
+      {:collision, existing}
     else
       AshEnterprise.Mdm.AutoMerge.new_golden!(candidate, staged, uploader!(batch, tenant), tenant)
       :ok
     end
+  end
+
+  # An email collision on the new-golden path means the existing person IS
+  # probably the match the rules could not see: stage the row for a
+  # steward (status :review) and open a review candidate on the existing
+  # person, so a human decides instead of the database erroring.
+  defp route_collision_to_stewardship!(staged, existing, tenant) do
+    system = AshEnterprise.Platform.SystemActor.system()
+
+    staged
+    |> Ash.Changeset.for_update(:update, %{status: :review}, tenant: tenant, authorize?: false)
+    |> Ash.update!(tenant: tenant, authorize?: false)
+
+    AshEnterprise.Mdm.MatchCandidate
+    |> Ash.Changeset.for_create(:create, %{
+      staged_record_id: staged.id,
+      golden_resource: "AshEnterprise.Canonical.Person",
+      golden_id: existing.id,
+      score: Decimal.new("1.0"),
+      explanation: %{"rules" => [%{"rule" => "email_collision", "score" => "1.0"}]}
+    })
+    |> Ash.create!(tenant: tenant, authorize?: false)
+    |> then(fn candidate ->
+      candidate
+      |> Ash.Changeset.for_update(:update, %{band: :review}, tenant: tenant, actor: system)
+      |> Ash.update!(tenant: tenant, actor: system)
+    end)
+
+    :ok
   end
 
   defp golden_for!(candidate, tenant) do
