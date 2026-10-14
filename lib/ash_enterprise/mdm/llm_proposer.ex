@@ -12,6 +12,10 @@ defmodule AshEnterprise.Mdm.LlmProposer do
 
   Tests inject a fake MFA through `:mdm_proposal_llm` — the same pattern
   as the registry judge's transport override. No model runs in a test.
+
+  The model comes from the AshJudgments profile `:mdm_proposal`; until an
+  operator configures that profile, the proposer errors and the proposal
+  degrades to the deterministic floor.
   """
 
   # The JSON schema `generate_object` constrains the model with: an array
@@ -44,14 +48,17 @@ defmodule AshEnterprise.Mdm.LlmProposer do
     with {:ok, spec, opts} <- resolve() do
       prompt = build_prompt(manifest)
 
+      # The transport returns the raw JSON the model produced.
       case AshEnterprise.SystemOne.QuestionProposal.Transport.ReqLLM.generate(
              spec,
              opts,
              @schema,
              prompt
            ) do
-        {:ok, response} ->
-          {:ok, extract_rules(response)}
+        {:ok, raw_json} when is_binary(raw_json) ->
+          with {:ok, %{"rules" => rules}} <- Jason.decode(raw_json) do
+            {:ok, rules}
+          end
 
         {:error, reason} ->
           {:error, reason}

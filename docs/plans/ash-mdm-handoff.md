@@ -87,8 +87,15 @@ STILL OPEN:
 3. Staged rows never reach the `:review` status the enum declares (routed
    rows go straight to :merged/:created; review rows stay :matched).
 4. StewardLive is at `/app/steward` (plan wants `/app/mdm`) and has no
-   side-by-side diff view; racing queue/task decisions surface through the
-   action's Invalid — verify the LiveView flashes, not 500s.
+   side-by-side diff view. AN ATTEMPT WAS REVERTED: building diff rows in
+   refresh (two Ash.get calls) raised a sandbox OwnershipError from a
+   Task.Supervised in the full-suite context — the next session should
+   either precompute rows in the SAME process as the test's LV connection
+   or set shared sandbox mode for steward tests, then re-apply the diff
+   table (staged mapped vs golden name/email, winner highlighted). The
+   route move to `/app/mdm` is one line once the view lands. Racing
+   decisions surface through the action's Invalid — verify the LiveView
+   flashes, not 500s.
 5. Losing-candidate superseding is implemented but untested.
 
 ## Verification commands
