@@ -325,7 +325,7 @@ defmodule AshEnterprise.Mdm.BatchWorker do
         )
         |> Ash.update!(tenant: tenant, actor: system, authorize?: true)
 
-        start_steward_review!(candidate, tenant)
+        start_steward_review!(batch, candidate, tenant)
 
         # The staged row moves to the steward with its candidate: it is
         # neither merged nor a new golden yet.
@@ -421,7 +421,7 @@ defmodule AshEnterprise.Mdm.BatchWorker do
     Ash.get!(AshEnterprise.Accounts.User, batch.created_by_id, tenant: tenant, authorize?: false)
   end
 
-  defp start_steward_review!(candidate, tenant) do
+  defp start_steward_review!(batch, candidate, tenant) do
     # The process instance is the work item's ledger side — the queue reads
     # the candidate, TaskList reads the task, and the steward's decision
     # (wherever made) completes the task. The definition resolves through
@@ -434,11 +434,14 @@ defmodule AshEnterprise.Mdm.BatchWorker do
         # definition in the instance's tenant, and the baseline lives in the
         # platform organization. Passing the pinned definition is the
         # package's documented answer.
+        # The correlation id joins the stewardship task to the import that
+        # caused it — the lineage thread end to end.
         AshBpmn.start_instance!(AshEnterprise.Bpmn,
           definition: definition,
           subject: candidate,
           actor: AshEnterprise.Platform.SystemActor.system(),
-          tenant: tenant
+          tenant: tenant,
+          correlation_id: batch.correlation_id
         )
 
       # No steward-review baseline: the queue still works, there is just no
