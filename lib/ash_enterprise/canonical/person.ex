@@ -189,6 +189,19 @@ defmodule AshEnterprise.Canonical.Person do
       change AshEnterprise.Mdm.Changes.Unmerge
     end
 
+    create :mdm_replay_golden do
+      description """
+      The replay write (MDM-5): recreates a deleted golden with its PINNED
+      id, so the identity history keeps pointing at the same row and the
+      replay is byte-identical, ids included. Only the replay path uses it.
+      """
+
+      argument :golden_id, :uuid, allow_nil?: false
+      accept [:name, :email, :owner_id, :owning_business_unit_id]
+
+      change set_attribute(:id, arg(:golden_id))
+    end
+
     create :mdm_create_golden do
       description """
       The new-golden write (MDM-4/5 band routing): an omit-banded or
