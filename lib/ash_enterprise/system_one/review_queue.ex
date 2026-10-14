@@ -9,6 +9,7 @@ defmodule AshEnterprise.SystemOne.ReviewQueue do
   | `:band_table_proposal` | a person's certification (§8.2) | CalibrationRun, result `:proposed_table`, no certification for the proposed definition yet |
   | `:review_band` | a person's verdict | Banding, band `:review`, no HumanVerdict for any of its observations |
   | `:certification_revocation` | a person's revocation — the run behind the certification has aged past the family's `max_age_days` | BandTableCertification, status `:certified`, aged run |
+  | `:mdm_match` | a steward's confirm/reject of a review-banded match (ADR 0050) | Mdm.MatchCandidate, band `:review`, status `:pending` |
 
   Ordered oldest-first across kinds, paginated (`:limit`, `:offset`).
   Reads are person-readable in the platform's ordinary sense: pass
@@ -29,7 +30,13 @@ defmodule AshEnterprise.SystemOne.ReviewQueue do
   alias AshEnterprise.SystemOne.QuestionProposal
   alias AshJudgments.Calibration.FamilyConfig
 
-  @kinds [:question_proposal, :band_table_proposal, :review_band, :certification_revocation]
+  @kinds [
+    :question_proposal,
+    :band_table_proposal,
+    :review_band,
+    :certification_revocation,
+    :mdm_match
+  ]
 
   @doc """
   The pending work, oldest first. Opts: `:actor`, `:tenant`, `:limit`
@@ -92,6 +99,27 @@ defmodule AshEnterprise.SystemOne.ReviewQueue do
     end
   end
 
+  defp collect(:mdm_match, read_opts) do
+    {:ok, candidates} =
+      AshEnterprise.Mdm.MatchCandidate
+      |> Ash.Query.filter(band == ^:review and status == ^:pending)
+      |> Ash.Query.sort(inserted_at: :asc)
+      |> Ash.read(read_opts)
+
+    Enum.map(candidates, fn candidate ->
+      %{
+        kind: :mdm_match,
+        id: candidate.id,
+        family: "mdm_matches",
+        summary:
+          "review-banded match: #{candidate.golden_resource} #{candidate.golden_id} " <>
+            "(score #{Decimal.to_string(candidate.score)})",
+        queued_since: candidate.inserted_at,
+        record: candidate
+      }
+    end)
+  end
+
   defp collect(:review_band, read_opts) do
     with {:ok, bandings} <- review_bandings(read_opts),
          {:ok, verdict_ids} <- verdict_ids_for(bandings, read_opts) do
@@ -103,7 +131,10 @@ defmodule AshEnterprise.SystemOne.ReviewQueue do
 
   defp read_opts(opts) do
     case Keyword.get(opts, :actor) do
-      nil -> [authorize?: false]
+      # Machinery and tests: unauthorised, but still TENANTED — every
+      # underlying resource is organization-scoped, so a tenant-less read
+      # sees nothing (or raises) rather than everything.
+      nil -> [authorize?: false, tenant: Keyword.get(opts, :tenant)]
       actor -> [actor: actor, tenant: Keyword.get(opts, :tenant)]
     end
   end

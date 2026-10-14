@@ -475,6 +475,36 @@ defmodule AshEnterprise.Mdm.BatchTest do
       assert gold.id
     end
 
+    test "review-banded candidates appear in the System One ReviewQueue", %{
+      org: org,
+      admin: admin
+    } do
+      AshEnterprise.Platform.Seeder.seed_platform_organization()
+      AshEnterprise.Mdm.Banding.publish_seed_bands!(platform_org())
+      seed_rule_set!(org, admin)
+      golden_person!(org, admin, "Ann Existing", "ann@x.io")
+
+      # Same email, surname drift: the exact rule fires, the fuzzy name
+      # drags the score to ~0.87 — between the seed's review floor (0.5)
+      # and admit floor (0.9).
+      land_rows!(org, "acme", [
+        {"boundary", %{"Email" => "ann@x.io", "Full Name" => "Ann Existing-Smith"}}
+      ])
+
+      drain!(upload_batch!(org, admin, "acme"))
+
+      cands = AshEnterprise.Mdm.MatchCandidate |> Ash.read!(tenant: org, authorize?: false)
+      IO.inspect(Enum.map(cands, &{&1.score, &1.band, &1.status}), label: "QT")
+
+      {:ok, %{items: items}} =
+        AshEnterprise.SystemOne.ReviewQueue.pending(tenant: org, kinds: [:mdm_match])
+
+      assert length(items) == 1
+      assert hd(items).kind == :mdm_match
+      assert hd(items).record.band == :review
+      assert hd(items).record.status == :pending
+    end
+
     test "the trigram shortlist reads through the org-scoped GIN index, not a scan", %{org: org} do
       {:ok, org_bin} = Ecto.UUID.dump(org)
 
