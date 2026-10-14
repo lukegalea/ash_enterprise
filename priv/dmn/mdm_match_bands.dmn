@@ -3,13 +3,13 @@
   Which candidate pairs merge without a human?
 
   The MDM band table (ADR 0041/0050): thresholds are DMN, earned by
-  calibration — never literals in code. This is the SEED: deliberately
+  calibration - never literals in code. This is the SEED: deliberately
   wide review, so a thin calibration history errs toward a human looking
   rather than a wrong automatic merge. Bands tighten only through the
   calibration loop (CalibrationRun -> proposed table -> certification ->
   activation), same as every other band table in the platform.
 
-  Hit policy UNIQUE: exactly one rule may match — the review range is
+  Hit policy UNIQUE: exactly one rule may match - the review range is
   half-open (`>= 0.5 and < 0.9`) so the three ranges are disjoint and
   cover the whole [0, 1] domain; a score outside [0, 1] is a scoring bug
   that fails loudly rather than bands silently.
