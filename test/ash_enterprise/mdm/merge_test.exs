@@ -104,9 +104,20 @@ defmodule AshEnterprise.Mdm.MergeTest do
       |> Ash.Changeset.for_update(:mdm_unmerge, %{}, tenant: org, authorize?: false)
       |> Ash.update!(tenant: org, authorize?: false)
 
-    assert unmerged.merged == false
-    assert unmerged.master_id == nil
-    assert unmerged.name == "Ann Duplicate"
+    result =
+      AshEnterprise.Repo.query!("SELECT merged FROM canonical_people WHERE id = $1::uuid", [
+        Ecto.UUID.dump!(unmerged.id)
+      ])
+
+    assert result.rows == [[false]],
+           "DB merged=#{inspect(result.rows)}; returned merged=#{unmerged.merged}"
+
+    reloaded = Ash.reload!(unmerged, tenant: org, authorize?: false)
+    assert reloaded.merged == false
+    assert reloaded.master_id == nil
+    assert to_string(reloaded.email) == "ann2@x.io"
+    assert reloaded.master_id == nil
+    assert reloaded.name == "Ann Duplicate"
   end
 
   test "a record cannot merge into itself", %{org: org, admin: admin} do

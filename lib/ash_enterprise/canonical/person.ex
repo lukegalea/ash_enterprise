@@ -57,12 +57,18 @@ defmodule AshEnterprise.Canonical.Person do
     # CDM master/merged shape (ADR 0017, adopted by ADR 0050): the merge
     # keeps the loser's row, pointing at its survivor.
     attribute :merged, :boolean do
-      public? true
+      public? false
       default false
     end
 
     attribute :master_id, :uuid do
-      public? true
+      public? false
+    end
+
+    # What the merge took from this record, so the unmerge correction can
+    # restore exactly that (prior email, moved identity ids).
+    attribute :merge_provenance, :map do
+      public? false
     end
 
     attribute :email, :ci_string do
@@ -151,12 +157,20 @@ defmodule AshEnterprise.Canonical.Person do
       change AshEnterprise.Mdm.Changes.MergeInto
     end
 
+    update :mdm_merge_provenance do
+      description "Records what the merge took from this record (ADR 0050: unmerge restores exactly that)."
+      accept [:merge_provenance]
+    end
+
     update :mdm_unmerge do
-      description "The merge correction: this record stands alone again."
+      description "The merge correction: this record stands alone again — email and XREF restored."
       accept []
       validate attribute_equals(:merged, true)
+      require_atomic? false
+
       change set_attribute(:merged, false)
       change set_attribute(:master_id, nil)
+      change AshEnterprise.Mdm.Changes.Unmerge
     end
   end
 

@@ -70,6 +70,14 @@ defmodule AshEnterprise.Mdm.SourceIdentity do
     update_timestamp :updated_at
   end
 
+  identities do
+    # The XREF invariant (ADR 0050): one source id points at exactly ONE
+    # golden at a time. On a temporal resource the identity becomes a
+    # WITHOUT OVERLAPS exclusion — history may hold many periods, "now"
+    # may hold only one.
+    identity :one_open_period, [:organization_id, :source, :stream, :external_id]
+  end
+
   code_interface do
     define :current_for,
       action: :current,

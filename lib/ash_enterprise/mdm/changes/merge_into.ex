@@ -76,9 +76,27 @@ defmodule AshEnterprise.Mdm.Changes.MergeInto do
         # Survivorship: the survivor's row is what the operator keeps.
         merged_attrs = Map.take(merged, ["name", "email"])
 
+        moved_identity_ids =
+          AshEnterprise.Mdm.SourceIdentity
+          |> Ash.Query.filter(golden_id == ^loser.id)
+          |> Ash.Query.select(:id)
+          |> Ash.read!(tenant: tenant, authorize?: false)
+          |> Enum.map(& &1.id)
+
         changeset
         |> Ash.Changeset.set_context(%{
-          mdm_merge: %{survivor_id: survivor.id, merged_attrs: merged_attrs}
+          mdm_merge: %{
+            survivor_id: survivor.id,
+            merged_attrs: merged_attrs,
+            moved_identity_ids: moved_identity_ids,
+            prior_email: loser.email && to_string(loser.email)
+          }
+        })
+        |> Ash.Changeset.force_change_attribute(:merge_provenance, %{
+          "survivor_id" => survivor.id,
+          "merged_attrs" => merged_attrs,
+          "moved_identity_ids" => moved_identity_ids,
+          "prior_email" => loser.email && to_string(loser.email)
         })
         |> Ash.Changeset.force_change_attribute(:merged, true)
         |> Ash.Changeset.force_change_attribute(:master_id, survivor.id)
@@ -113,11 +131,16 @@ defmodule AshEnterprise.Mdm.Changes.MergeInto do
     {:ok, result}
   end
 
-  defp survivorship_policy(_tenant, _loser) do
-    # V1: non_null default. Per-tenant survivorship policies ride the
-    # MatchRuleSet when the host declares that surface (the policy map is
-    # data; the fold is already policy-driven).
-    %{"default" => "non_null"}
+  defp survivorship_policy(tenant, loser) do
+    # Survivorship is data on the pinned-for-resource active MatchRuleSet.
+    # NB: rule sets store resource names WITHOUT the "Elixir." prefix, and
+    # to_string/1 on a struct adds it — inspect/1 does not.
+    rule_set =
+      AshEnterprise.Mdm.MatchRuleSet
+      |> Ash.Query.filter(golden_resource == ^inspect(loser.__struct__) and status == :active)
+      |> Ash.read_one!(tenant: tenant, authorize?: false)
+
+    (rule_set && Map.get(rule_set, :survivorship)) || %{"default" => "non_null"}
   end
 
   defp repoint_identities(tenant, loser_id, survivor_id) do
