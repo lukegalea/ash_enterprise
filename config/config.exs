@@ -282,6 +282,13 @@ config :ash_enterprise, AshEnterprise.Repo, types: AshEnterprise.PostgrexTypes
 # types module is separate.
 config :ash_evidence, AshEvidence.Repo, priv: "priv/test_repo"
 
+# MDM mapping targets: the host's golden-resource allowlist. A Mapping row
+# may only target what is declared here — fail closed (ADR 0050).
+config :ash_mdm, :allowed_targets, %{
+  "AshEnterprise.Canonical.Person" => AshEnterprise.Canonical.Person,
+  "AshEnterprise.Canonical.Account" => AshEnterprise.Canonical.Account
+}
+
 config :ash_enterprise,
   ecto_repos: [AshEnterprise.Repo, AshEvidence.Repo],
   generators: [timestamp_type: :utc_datetime],

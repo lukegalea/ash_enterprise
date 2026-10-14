@@ -1,12 +1,3 @@
-defmodule AshEnterprise.Mdm.MappingMissing do
-  @moduledoc "The batch's pinned mapping row vanished after :open — data integrity, not a bug."
-  use Splode.Error, fields: [:batch_id], class: :invalid
-
-  def message(%{batch_id: id}),
-    do:
-      "the mapping #{id} pinned by batch at open no longer exists — the batch is failed, not retried"
-end
-
 defmodule AshEnterprise.Mdm.BatchWorker do
   @moduledoc """
   The Oban worker driving one import batch's pipeline.
@@ -211,15 +202,32 @@ defmodule AshEnterprise.Mdm.BatchWorker do
           "name" => person.name
         })
 
+      # The candidate create is audited under the system actor and the
+      # batch's correlation id — "who generated this candidate" is the
+      # pipeline, not a person.
+      # The candidate create is audited under the system actor and the
+      # batch's correlation id — "who generated this candidate" is the
+      # pipeline, not a person. The actor goes on the CHANGESET: audit
+      # metadata is stamped there, not at the final call.
       AshEnterprise.Mdm.MatchCandidate
-      |> Ash.Changeset.for_create(:create, %{
-        staged_record_id: staged.id,
-        golden_resource: "AshEnterprise.Canonical.Person",
-        golden_id: person.id,
-        score: score,
-        explanation: explanation
-      })
-      |> Ash.create!(tenant: tenant, authorize?: false)
+      |> Ash.Changeset.for_create(
+        :create,
+        %{
+          staged_record_id: staged.id,
+          golden_resource: "AshEnterprise.Canonical.Person",
+          golden_id: person.id,
+          score: score,
+          explanation: explanation
+        },
+        tenant: tenant,
+        actor: AshEnterprise.Platform.SystemActor.system(),
+        authorize?: true
+      )
+      |> Ash.create!(
+        tenant: tenant,
+        actor: AshEnterprise.Platform.SystemActor.system(),
+        authorize?: true
+      )
     end)
   rescue
     # one_pair identity: a concurrent run scored the same pair. Idempotent.

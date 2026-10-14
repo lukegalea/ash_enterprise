@@ -407,14 +407,26 @@ defmodule AshEnterprise.Mdm.BatchTest do
       # Blocking ran as a SYSTEM actor (ADR 0017's first sharp edge) — and
       # that actor is visible in the audit trail under the batch's
       # correlation id, so "who generated this candidate" is answerable.
+      # Blocking ran as a SYSTEM actor (ADR 0017's first sharp edge): the
+      # candidate creates are audited under that actor and the batch's
+      # correlation id, one audit row per candidate generated.
+      candidate_count =
+        AshEnterprise.Mdm.MatchCandidate
+        |> Ash.Query.filter(golden_resource == "AshEnterprise.Canonical.Person")
+        |> Ash.read!(tenant: org, authorize?: false)
+        |> length()
+
+      assert candidate_count > 0
+
       %{rows: [[system_rows]]} =
         AshEnterprise.Repo.query!(
           "SELECT count(*) FROM audit_events " <>
-            "WHERE metadata->>'correlation_id' = $1 AND metadata->>'system_actor' IS NOT NULL",
-          [batch.correlation_id]
+            "WHERE metadata->>'correlation_id' = $1 AND resource = $2 " <>
+            "AND action_type = 'create' AND metadata->>'system_actor' = 'system'",
+          [batch.correlation_id, "Elixir.AshEnterprise.Mdm.MatchCandidate"]
         )
 
-      assert system_rows > 0
+      assert system_rows == candidate_count
     end
 
     test "the trigram shortlist reads through the org-scoped GIN index, not a scan", %{org: org} do

@@ -50,6 +50,7 @@ defmodule AshEnterprise.Mdm.SourceRecord do
     policy always() do
       authorize_if AshEnterprise.Security.Checks.RoleGrant
       authorize_if AshEnterprise.Security.Checks.SharedWithActor
+      authorize_if AshEnterprise.Security.Checks.HierarchyGrant
     end
   end
 end
