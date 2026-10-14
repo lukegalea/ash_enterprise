@@ -467,11 +467,24 @@ defmodule AshEnterprise.Mdm.BatchTest do
         |> Ash.read!(tenant: org, authorize?: false)
         |> Map.new(&{&1.staged_record_id, &1.band})
 
-      # The exact pair scored 1.0: the seed's admit band — auto-merge
-      # territory. The new-address pair scored exactly 0.5: the seed's
-      # review boundary — a human looks. No literal in code decided either.
-      assert bands[by_staged_email(org, "ann@x.io")] == :admit
-      assert bands[by_staged_email(org, "ann@x.io")] in [:review, :admit]
+      # The identical pair scored 1.0: the seed's admit band — auto-merge
+      # territory. The surname-drift pair scored ~0.89: the seed's review
+      # band — a human looks. No literal in code decided either.
+      candidates =
+        AshEnterprise.Mdm.MatchCandidate
+        |> Ash.Query.filter(golden_resource == "AshEnterprise.Canonical.Person")
+        |> Ash.read!(tenant: org, authorize?: false)
+        |> Map.new(&{&1.staged_record_id, &1})
+
+      staged =
+        StagedRecord
+        |> Ash.Query.filter(batch_id == ^batch.id)
+        |> Ash.read!(tenant: org, authorize?: false)
+        |> Map.new(&{&1.mapped["name"], &1.id})
+
+      assert candidates[staged["Ann Existing"]].band == :admit
+      assert candidates[staged["Ann Existing-Smith"]].band == :review
+      assert candidates[staged["Ann Existing"]].status == :pending
       assert gold.id
     end
 
@@ -492,9 +505,6 @@ defmodule AshEnterprise.Mdm.BatchTest do
       ])
 
       drain!(upload_batch!(org, admin, "acme"))
-
-      cands = AshEnterprise.Mdm.MatchCandidate |> Ash.read!(tenant: org, authorize?: false)
-      IO.inspect(Enum.map(cands, &{&1.score, &1.band, &1.status}), label: "QT")
 
       {:ok, %{items: items}} =
         AshEnterprise.SystemOne.ReviewQueue.pending(tenant: org, kinds: [:mdm_match])
