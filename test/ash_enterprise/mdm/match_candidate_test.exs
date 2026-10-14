@@ -52,6 +52,18 @@ defmodule AshEnterprise.Mdm.MatchCandidateTest do
              |> Ash.read!(tenant: org, authorize?: false)
   end
 
+  test "the machine update cannot write a person state", %{org: org, admin: admin} do
+    {candidate, _staged, _golden} = review_candidate!(org, admin)
+
+    assert {:error, %Ash.Error.Invalid{}} =
+             candidate
+             |> Ash.Changeset.for_update(:update, %{status: :confirmed},
+               tenant: org,
+               actor: AshEnterprise.Platform.SystemActor.system()
+             )
+             |> Ash.update(tenant: org, actor: AshEnterprise.Platform.SystemActor.system())
+  end
+
   test "a system actor is forbidden to decide", %{org: org, admin: admin} do
     {candidate, _staged, _golden} = review_candidate!(org, admin)
 

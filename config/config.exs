@@ -113,7 +113,7 @@ config :ash_compliance,
   # The drain-nudge worker fans out to these (the recovery net for a missed
   # PubSub wake). The projector engine has its own list below — same module,
   # two keys, because the two packages ask their own config for it.
-  projectors: [AshEnterprise.Compliance.Projector]
+  projectors: [AshEnterprise.Compliance.Projector, AshEnterprise.Mdm.QualityProjector]
 
 # The projector engine: one config for the repo it drains against, the PubSub
 # server wake-ups broadcast on, the event log it scans, and the projectors it
@@ -125,7 +125,7 @@ config :ash_events_projections,
   pubsub: AshEnterprise.PubSub,
   event_log: AshEnterprise.Compliance.EventLog,
   event_table: "compliance_events",
-  projectors: [AshEnterprise.Compliance.Projector],
+  projectors: [AshEnterprise.Compliance.Projector, AshEnterprise.Mdm.QualityProjector],
   start_projectors?: true,
   start_probe?: true
 
