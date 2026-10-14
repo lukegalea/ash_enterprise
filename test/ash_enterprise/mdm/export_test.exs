@@ -146,6 +146,48 @@ defmodule AshEnterprise.Mdm.ExportTest do
     assert forbidden.custom_message =~ id
   end
 
+  test "a merged loser is not exported", %{org: org, admin: admin} do
+    egress_mapping!(org, admin)
+    {golden, _staged} = golden_via_land!(org, admin, "Ann Kept", "kept@x.io", "CA")
+
+    loser =
+      AshEnterprise.Canonical.Person
+      |> Ash.Changeset.for_create(:upsert_from_source, %{
+        name: "Ann Lost",
+        email: "lost@x.io",
+        owner_id: admin.id,
+        owning_business_unit_id: admin.owning_business_unit_id
+      })
+      |> Ash.create!(tenant: org, authorize?: false)
+      |> then(fn loser ->
+        loser
+        |> Ash.Changeset.for_update(:mdm_merge_into, %{survivor_id: golden.id},
+          tenant: org,
+          authorize?: false
+        )
+        |> Ash.update!(tenant: org, authorize?: false)
+      end)
+
+    assert {:ok, rows} = Person.mdm_export("example-ontario", tenant: org, actor: admin)
+
+    # The survivor is there; the absorbed loser is not.
+    assert length(rows) == 1
+    assert hd(rows)["Email Address"] == "kept@x.io"
+  end
+
+  test "mixed-residency goldens refuse the export whole", %{org: org, admin: admin} do
+    egress_mapping!(org, admin)
+    golden_via_land!(org, admin, "Ann Domestic", "domestic@x.io", "CA")
+    golden_via_land!(org, admin, "Ann Foreign", "foreign@x.io", "US")
+
+    # One inadmissible golden refuses the export WHOLE: a partial export
+    # would leak the presence of the rows it withheld.
+    assert {:error, %Ash.Error.Forbidden{errors: [forbidden]}} =
+             Person.mdm_export("example-ontario", tenant: org, actor: admin)
+
+    assert forbidden.custom_message =~ "cannot leave"
+  end
+
   test "an actor without grants is refused before any data moves", %{org: org, admin: admin} do
     egress_mapping!(org, admin)
     golden_via_land!(org, admin, "Ann Exported", "ann@x.io", "CA")

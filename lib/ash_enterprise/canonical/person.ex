@@ -110,6 +110,19 @@ defmodule AshEnterprise.Canonical.Person do
       filter expr(external_system == ^arg(:system) and external_id == ^arg(:id))
     end
 
+    read :goldens do
+      description """
+      The golden records (MDM-6): persons some SourceIdentity points at and no
+      merge has absorbed. The A2UI golden surface reads through this, so a
+      merged loser never presents itself as the customer.
+      """
+
+      filter expr(
+               merged == false and
+                 exists(AshEnterprise.Mdm.SourceIdentity, golden_id == parent(id))
+             )
+    end
+
     create :upsert_from_source do
       description """
       The replay write path: upsert on the email identity so every pass of

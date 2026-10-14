@@ -18,20 +18,20 @@ defmodule AshEnterpriseWeb.A2ui.MdmMappingUI do
     record_label("mapping version")
 
     query :default do
-      sortable([:status, :version, :updated_on])
-      default_sort(status: :desc)
+      sortable([:status, :version, :modified_on])
+      default_sort(status: :desc, version: :desc)
       page_size(25)
     end
 
     component :table do
-      fields([:name, :direction, :status, :version, :activation_note])
+      fields([:source, :stream, :target_resource, :direction, :status, :version])
       read_action(:read)
       query(:default)
 
       row_layout do
-        title(:name)
+        title(:target_resource)
         badge(:status)
-        meta([:direction, :version, :activation_note])
+        meta([:direction, :source, :stream, :version])
         columns(2)
       end
     end
@@ -64,20 +64,15 @@ defmodule AshEnterpriseWeb.A2ui.MdmGoldenUI do
     end
 
     component :table do
-      fields([:name, :email, :merged, :master_id])
-      read_action(:read)
+      fields([:name, :email])
+      read_action(:goldens)
       query(:default)
 
       row_layout do
         title(:name)
-        badge(:merged)
-        meta([:email, :master_id])
+        meta([:email])
         columns(2)
       end
-    end
-
-    field :merged do
-      label("Absorbed")
     end
   end
 end
