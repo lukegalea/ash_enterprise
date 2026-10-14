@@ -33,9 +33,24 @@ defmodule AshEnterpriseWeb.MdmSurfacesLiveTest do
     |> Plug.Conn.put_session("user_token", token)
   end
 
-  defp push_messages(view) do
-    assert_push_event(view, "a2ui:messages", %{messages: messages})
-    JSON.encode!(messages)
+  # The surface may split its payload across pushes (surface, then rows).
+  # Collect every a2ui:messages push and assert against the joined payload.
+  defp pushed_json(view) do
+    push_all(view, [])
+  end
+
+  defp push_all(view, acc) do
+    payload =
+      assert_push_event(view, "a2ui:messages", %{messages: messages})
+
+    acc = [acc | [JSON.encode!(messages)]]
+
+    case payload do
+      _ -> push_all(view, acc)
+    end
+  rescue
+    # No more pushes queued (ExUnit raises when the assertion times out).
+    _ -> Enum.join(acc, "\n")
   end
 
   test "the mapping surface shows the tenant's mapping version", %{
@@ -49,15 +64,10 @@ defmodule AshEnterpriseWeb.MdmSurfacesLiveTest do
 
     # The surface mounts and announces itself; the rows come through the
     # resource's own read, which is what the unit-level assertion pins.
-    encoded = push_messages(view)
+    encoded = pushed_json(view)
     assert encoded =~ "mdm_mappings"
-
-    mapping =
-      AshEnterprise.Mdm.Mapping
-      |> Ash.Query.filter(status == ^:active)
-      |> Ash.read_one!(tenant: org, authorize?: false)
-
-    assert mapping.target_resource == "AshEnterprise.Canonical.Person"
+    # The steward's rows are IN the surface: the live mapping version shows.
+    assert encoded =~ "AshEnterprise.Canonical.Person"
   end
 
   test "the golden surface shows goldens and never merged losers", %{
@@ -112,18 +122,12 @@ defmodule AshEnterpriseWeb.MdmSurfacesLiveTest do
 
     {:ok, view, _html} = live(conn, "/app/mdm/golden")
 
-    encoded = push_messages(view)
+    encoded = pushed_json(view)
     assert encoded =~ "mdm_golden"
 
-    # The read the surface serves — :goldens — returns the survivor and
-    # never the absorbed loser. This is the assertion that matters: the
-    # merged loser must not present itself as the customer.
-    goldens =
-      AshEnterprise.Canonical.Person
-      |> Ash.Query.filter(name in ["Golda Golden", "Loser McAbsorbed"])
-      |> Ash.Query.for_read(:goldens)
-      |> Ash.read!(tenant: org, authorize?: false)
-
-    assert Enum.map(goldens, &to_string(&1.name)) == ["Golda Golden"]
+    # The surface itself shows the survivor and never the absorbed loser —
+    # the merged loser must not present itself as the customer.
+    assert encoded =~ "Golda Golden"
+    refute encoded =~ "Loser McAbsorbed"
   end
 end
