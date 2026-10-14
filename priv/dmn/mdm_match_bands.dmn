@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Which candidate pairs merge without a human?
+
+  The MDM band table (ADR 0041/0050): thresholds are DMN, earned by
+  calibration — never literals in code. This is the SEED: deliberately
+  wide review, so a thin calibration history errs toward a human looking
+  rather than a wrong automatic merge. Bands tighten only through the
+  calibration loop (CalibrationRun -> proposed table -> certification ->
+  activation), same as every other band table in the platform.
+
+  Hit policy UNIQUE: exactly one rule may match — the review range is
+  half-open (`>= 0.5 and < 0.9`) so the three ranges are disjoint and
+  cover the whole [0, 1] domain; a score outside [0, 1] is a scoring bug
+  that fails loudly rather than bands silently.
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20230324/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/"
+             id="mdm_match_bands_definitions"
+             name="MDM match bands"
+             namespace="https://ash-enterprise.example/dmn/mdm-match-bands"
+             expressionLanguage="https://www.omg.org/spec/DMN/20230324/FEEL/"
+             typeLanguage="https://www.omg.org/spec/DMN/20230324/FEEL/">
+
+  <inputData id="input_score" name="score">
+    <variable id="var_score" name="score" typeRef="number"/>
+  </inputData>
+
+  <decision id="decision_band" name="Band">
+    <variable id="var_band" name="Band" typeRef="string"/>
+    <informationRequirement id="req_score">
+      <requiredInput href="#input_score"/>
+    </informationRequirement>
+
+    <decisionTable id="table_band" hitPolicy="UNIQUE" outputLabel="Band">
+      <input id="clause_score" label="Match score">
+        <inputExpression id="expr_score" typeRef="number">
+          <text>score</text>
+        </inputExpression>
+      </input>
+      <output id="clause_band" name="Band" typeRef="string">
+        <outputValues>
+          <text>"admit", "review", "omit"</text>
+        </outputValues>
+      </output>
+
+      <rule id="rule_admit">
+        <inputEntry id="e_admit"><text>&gt;= 0.9</text></inputEntry>
+        <outputEntry id="o_admit"><text>"admit"</text></outputEntry>
+      </rule>
+
+      <rule id="rule_review">
+        <inputEntry id="e_review"><text>[0.5..0.9)</text></inputEntry>
+        <outputEntry id="o_review"><text>"review"</text></outputEntry>
+      </rule>
+
+      <rule id="rule_omit">
+        <inputEntry id="e_omit"><text>&lt; 0.5</text></inputEntry>
+        <outputEntry id="o_omit"><text>"omit"</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="diagram_band" name="MDM match bands">
+      <dmndi:DMNShape id="shape_decision_band" dmnElementRef="decision_band">
+        <dc:Bounds height="80" width="180" x="270" y="80"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="shape_input_score" dmnElementRef="input_score">
+        <dc:Bounds height="60" width="180" x="270" y="280"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNEdge id="edge_req_score" dmnElementRef="req_score">
+        <di:waypoint x="360" y="280"/>
+        <di:waypoint x="360" y="160"/>
+      </dmndi:DMNEdge>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

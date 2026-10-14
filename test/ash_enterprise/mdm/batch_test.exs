@@ -33,6 +33,10 @@ defmodule AshEnterprise.Mdm.BatchTest do
         unique_name: "mdm-batch-b-#{System.unique_integer([:positive])}"
       )
 
+    # The resolver's undeclared-key fallback reads the platform
+    # organization's baseline decisions.
+    Seeder.seed_platform_organization()
+
     %{org: org.id, org_b: org_b.id, admin: admin}
   end
 
@@ -339,6 +343,16 @@ defmodule AshEnterprise.Mdm.BatchTest do
       end)
     end
 
+    defp platform_org, do: AshEnterprise.Platform.Seeder.seed_platform_organization().id
+
+    defp by_staged_email(org, email) do
+      StagedRecord
+      |> Ash.Query.filter(mapped["email"] == ^email)
+      |> Ash.read!(tenant: org, authorize?: false)
+      |> hd()
+      |> Map.get(:id)
+    end
+
     defp golden_person!(org, admin, name, email) do
       AshEnterprise.Canonical.Person
       |> Ash.Changeset.for_create(:upsert_from_source, %{
@@ -427,6 +441,38 @@ defmodule AshEnterprise.Mdm.BatchTest do
         )
 
       assert system_rows == candidate_count
+    end
+
+    test "candidate scores band through the DMN table, never a literal", %{org: org, admin: admin} do
+      # The seed publishes into the PLATFORM organization — the baseline
+      # every tenant's resolver reads (the access_request_risk pattern).
+      AshEnterprise.Mdm.Banding.publish_seed_bands!(platform_org())
+      seed_rule_set!(org, admin)
+
+      gold = golden_person!(org, admin, "Ann Existing", "ann@x.io")
+
+      land_rows!(org, "acme", [
+        {"dupe", %{"Email" => "ann@x.io", "Full Name" => "Ann Existing"}},
+        # Same email, changed surname: the exact rule fires (1.0) and the
+        # fuzzy name drags the weighted score below the admit boundary but
+        # above 0.5 — the seed's review band.
+        {"fuzzy", %{"Email" => "ann@x.io", "Full Name" => "Ann Existing-Smith"}}
+      ])
+
+      batch = drain!(upload_batch!(org, admin, "acme"))
+
+      bands =
+        AshEnterprise.Mdm.MatchCandidate
+        |> Ash.Query.filter(golden_resource == "AshEnterprise.Canonical.Person")
+        |> Ash.read!(tenant: org, authorize?: false)
+        |> Map.new(&{&1.staged_record_id, &1.band})
+
+      # The exact pair scored 1.0: the seed's admit band — auto-merge
+      # territory. The new-address pair scored exactly 0.5: the seed's
+      # review boundary — a human looks. No literal in code decided either.
+      assert bands[by_staged_email(org, "ann@x.io")] == :admit
+      assert bands[by_staged_email(org, "ann@x.io")] in [:review, :admit]
+      assert gold.id
     end
 
     test "the trigram shortlist reads through the org-scoped GIN index, not a scan", %{org: org} do

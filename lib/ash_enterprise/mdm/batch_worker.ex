@@ -146,6 +146,7 @@ defmodule AshEnterprise.Mdm.BatchWorker do
       Enum.each(staged_records, fn staged ->
         candidates = block(staged, tenant)
         score_candidates(staged, candidates, rule_set, tenant)
+        band_candidates(staged, tenant)
 
         staged
         |> Ash.Changeset.for_update(:update, %{status: :matched},
@@ -234,6 +235,49 @@ defmodule AshEnterprise.Mdm.BatchWorker do
     Ash.Error.Invalid -> :ok
   end
 
+  # MDM-4: each pending candidate's score goes through the versioned DMN
+  # band table — `admit | review | omit` — never a literal. Routing the
+  # bands (auto-merge / steward task / new-golden) is MDM-5's slice; here
+  # the band lands on the candidate and the batch counts.
+  defp band_candidates(staged, tenant) do
+    AshEnterprise.Mdm.MatchCandidate
+    |> Ash.Query.filter(staged_record_id == ^staged.id and status == :pending and is_nil(band))
+    |> Ash.read!(tenant: tenant, authorize?: false)
+    |> Enum.each(fn candidate ->
+      band_result =
+        AshEnterprise.Mdm.Banding.band(candidate.score, tenant, banding_id: candidate.id)
+
+      case band_result do
+        {:ok, band} ->
+          candidate
+          |> Ash.Changeset.for_update(:update, %{band: band},
+            tenant: tenant,
+            actor: AshEnterprise.Platform.SystemActor.system(),
+            authorize?: true
+          )
+          |> Ash.update!(
+            tenant: tenant,
+            actor: AshEnterprise.Platform.SystemActor.system(),
+            authorize?: true
+          )
+
+        # No published band table in this tenant's resolver chain: the
+        # candidates stay PENDING and un-banded — a staging-only import,
+        # not a failure. Bands tighten via calibration; publishing is the
+        # operator's act.
+        {:error, {:no_published_baseline, _, _}} ->
+          :ok
+
+        {:error, :no_platform_organization} ->
+          :ok
+
+        {:error, reason} ->
+          raise AshEnterprise.Mdm.MatchError,
+            message: "banding failed for candidate #{candidate.id}: #{inspect(reason)}"
+      end
+    end)
+  end
+
   defp stage_one(batch, tenant, rules, record) do
     case AshMdm.Mapping.Evaluator.run(rules, record.raw_payload) do
       {:ok, mapped} ->
@@ -271,4 +315,11 @@ defmodule AshEnterprise.Mdm.BatchWorker do
     # staged the same row): not an error — idempotency by construction.
     Ash.Error.Invalid -> false
   end
+end
+
+defmodule AshEnterprise.Mdm.MatchError do
+  @moduledoc "An MDM pipeline step could not proceed (banding failure, missing rule set)."
+  use Splode.Error, fields: [:message], class: :invalid
+
+  def message(%{message: m}), do: m
 end
