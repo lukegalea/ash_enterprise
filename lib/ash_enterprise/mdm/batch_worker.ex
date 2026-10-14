@@ -146,14 +146,19 @@ defmodule AshEnterprise.Mdm.BatchWorker do
       Enum.each(staged_records, fn staged ->
         candidates = block(staged, tenant)
         score_candidates(staged, candidates, rule_set, tenant)
-        band_candidates(staged, tenant)
+        routed = band_candidates(batch, staged, tenant)
 
-        staged
-        |> Ash.Changeset.for_update(:update, %{status: :matched},
-          tenant: tenant,
-          authorize?: false
-        )
-        |> Ash.update!(tenant: tenant, authorize?: false)
+        # The bands that decided spent the staged row (:merged/:created) or
+        # moved it to the steward (:review). Only an undecided row — no band
+        # table, or bands that route nothing — stays staged-work-in-progress.
+        unless routed do
+          staged
+          |> Ash.Changeset.for_update(:update, %{status: :matched},
+            tenant: tenant,
+            authorize?: false
+          )
+          |> Ash.update!(tenant: tenant, authorize?: false)
+        end
       end)
     end
 
@@ -236,74 +241,156 @@ defmodule AshEnterprise.Mdm.BatchWorker do
   end
 
   # MDM-4: each pending candidate's score goes through the versioned DMN
-  # band table — `admit | review | omit` — never a literal. Routing the
-  # bands (auto-merge / steward task / new-golden) is MDM-5's slice; here
-  # the band lands on the candidate and the batch counts.
-  defp band_candidates(staged, tenant) do
-    AshEnterprise.Mdm.MatchCandidate
-    |> Ash.Query.filter(staged_record_id == ^staged.id and status == :pending and is_nil(band))
-    |> Ash.read!(tenant: tenant, authorize?: false)
-    |> Enum.each(fn candidate ->
-      band_result =
-        AshEnterprise.Mdm.Banding.band(candidate.score, tenant, banding_id: candidate.id)
+  # Band routing (MDM-4/5): the DMN band table — `admit | review | omit` —
+  # never a literal. The band lands on the candidate, then routes:
+  #
+  #   * `:admit`  → the top-scoring admit-banded candidate auto-merges
+  #     (`AutoMerge.admit!/4`): nobody decided anything, the published band
+  #     table did, and its certification is the provenance.
+  #   * `:review` → the candidate becomes stewardship work (queue + the
+  #     `mdm.steward_review` process instance when a baseline is published).
+  #   * `:omit`   → no golden fits; the staged row becomes its own golden
+  #     (`AutoMerge.new_golden!/5`), owned by whoever opened the import.
+  #
+  # Returns true when a band ROUTED the row somewhere (the caller then does
+  # not mark it :matched); false when the row stays undecided.
+  defp band_candidates(batch, staged, tenant) do
+    system = AshEnterprise.Platform.SystemActor.system()
 
-      case band_result do
-        {:ok, band} ->
-          candidate
-          |> Ash.Changeset.for_update(:update, %{band: band},
-            tenant: tenant,
-            actor: AshEnterprise.Platform.SystemActor.system(),
-            authorize?: true
-          )
-          |> Ash.update!(
-            tenant: tenant,
-            actor: AshEnterprise.Platform.SystemActor.system(),
-            authorize?: true
-          )
+    candidates =
+      AshEnterprise.Mdm.MatchCandidate
+      |> Ash.Query.filter(staged_record_id == ^staged.id and status == :pending and is_nil(band))
+      |> Ash.read!(tenant: tenant, authorize?: false)
 
-          # A review-banded candidate is stewardship work: the process
-          # instance is the work item's ledger side — the queue reads the
-          # candidate, TaskList reads the task, and the steward's decision
-          # (wherever made) completes the task. The definition resolves
-          # through the host Resolver (binding → platform baseline), not the
-          # engine's in-tenant fallback, because baselines live in the
-          # platform organization.
-          if band == :review do
-            case AshEnterprise.Process.Resolver.resolve(:process, "mdm.steward_review", tenant) do
-              {:ok, definition} ->
-                # The struct, not the id: the engine's own lookup reads the
-                # definition in the instance's tenant, and the baseline lives
-                # in the platform organization. Passing the pinned definition
-                # is the package's documented answer.
-                AshBpmn.start_instance!(AshEnterprise.Bpmn,
-                  definition: definition,
-                  subject: candidate,
-                  actor: AshEnterprise.Platform.SystemActor.system(),
-                  tenant: tenant
-                )
+    banded =
+      Enum.map(candidates, fn candidate ->
+        band =
+          case AshEnterprise.Mdm.Banding.band(candidate.score, tenant, banding_id: candidate.id) do
+            {:ok, band} ->
+              band
 
-              # No steward-review baseline: the queue still works, there is
-              # just no process instance. Publishing is the operator's act.
-              {:error, _reason} ->
-                :ok
-            end
+            # No published band table in this tenant's resolver chain: the
+            # candidates stay PENDING and un-banded — a staging-only import,
+            # not a failure. Bands tighten via calibration; publishing is the
+            # operator's act.
+            {:error, {:no_published_baseline, _, _}} ->
+              nil
+
+            {:error, :no_platform_organization} ->
+              nil
+
+            {:error, reason} ->
+              raise AshEnterprise.Mdm.MatchError,
+                message: "banding failed for candidate #{candidate.id}: #{inspect(reason)}"
           end
 
-        # No published band table in this tenant's resolver chain: the
-        # candidates stay PENDING and un-banded — a staging-only import,
-        # not a failure. Bands tighten via calibration; publishing is the
-        # operator's act.
-        {:error, {:no_published_baseline, _, _}} ->
-          :ok
+        {candidate, band}
+      end)
 
-        {:error, :no_platform_organization} ->
-          :ok
+    admit_band = Enum.find(banded, fn {_c, band} -> band == :admit end)
+    review_band = Enum.find(banded, fn {_c, band} -> band == :review end)
 
-        {:error, reason} ->
-          raise AshEnterprise.Mdm.MatchError,
-            message: "banding failed for candidate #{candidate.id}: #{inspect(reason)}"
-      end
-    end)
+    cond do
+      admit_band ->
+        {candidate, _band} = admit_band
+
+        candidate
+        |> Ash.Changeset.for_update(:update, %{band: :admit},
+          tenant: tenant,
+          actor: system,
+          authorize?: true
+        )
+        |> Ash.update!(tenant: tenant, actor: system, authorize?: true)
+
+        AshEnterprise.Mdm.AutoMerge.admit!(
+          candidate,
+          staged,
+          golden_for!(candidate, tenant),
+          tenant
+        )
+
+        true
+
+      review_band ->
+        {candidate, _band} = review_band
+
+        candidate
+        |> Ash.Changeset.for_update(:update, %{band: :review},
+          tenant: tenant,
+          actor: system,
+          authorize?: true
+        )
+        |> Ash.update!(tenant: tenant, actor: system, authorize?: true)
+
+        start_steward_review!(candidate, tenant)
+        true
+
+      true ->
+        # Everything left is :omit (or unbanded): one omission decides the
+        # row — it becomes its own golden.
+        omit? = Enum.any?(banded, fn {_c, band} -> band == :omit end)
+
+        if omit? do
+          {candidate, _band} = Enum.find(banded, fn {_c, band} -> band == :omit end)
+
+          candidate
+          |> Ash.Changeset.for_update(:update, %{band: :omit},
+            tenant: tenant,
+            actor: system,
+            authorize?: true
+          )
+          |> Ash.update!(tenant: tenant, actor: system, authorize?: true)
+
+          AshEnterprise.Mdm.AutoMerge.new_golden!(
+            candidate,
+            staged,
+            uploader!(batch, tenant),
+            tenant
+          )
+
+          true
+        else
+          false
+        end
+    end
+  end
+
+  defp golden_for!(candidate, tenant) do
+    Ash.get!(AshEnterprise.Canonical.Person, candidate.golden_id,
+      tenant: tenant,
+      authorize?: false
+    )
+  end
+
+  defp uploader!(batch, tenant) do
+    Ash.get!(AshEnterprise.Accounts.User, batch.created_by_id, tenant: tenant, authorize?: false)
+  end
+
+  defp start_steward_review!(candidate, tenant) do
+    # The process instance is the work item's ledger side — the queue reads
+    # the candidate, TaskList reads the task, and the steward's decision
+    # (wherever made) completes the task. The definition resolves through
+    # the host Resolver (binding → platform baseline), not the engine's
+    # in-tenant fallback, because baselines live in the platform
+    # organization.
+    case AshEnterprise.Process.Resolver.resolve(:process, "mdm.steward_review", tenant) do
+      {:ok, definition} ->
+        # The struct, not the id: the engine's own lookup reads the
+        # definition in the instance's tenant, and the baseline lives in the
+        # platform organization. Passing the pinned definition is the
+        # package's documented answer.
+        AshBpmn.start_instance!(AshEnterprise.Bpmn,
+          definition: definition,
+          subject: candidate,
+          actor: AshEnterprise.Platform.SystemActor.system(),
+          tenant: tenant
+        )
+
+      # No steward-review baseline: the queue still works, there is just no
+      # process instance. Publishing is the operator's act.
+      {:error, _reason} ->
+        :ok
+    end
   end
 
   defp stage_one(batch, tenant, rules, record) do

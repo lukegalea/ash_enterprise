@@ -48,7 +48,7 @@ defmodule AshEnterprise.Mdm.Changes.StewardVerdict do
     # rows that only exist now, so it rides a narrow follow-up write.
     candidate =
       candidate
-      |> Ash.Changeset.for_update(:update, %{human_verdict_ref: ref},
+      |> Ash.Changeset.for_update(:record_verdict_ref, %{human_verdict_ref: ref},
         tenant: tenant,
         authorize?: false
       )
@@ -62,8 +62,6 @@ defmodule AshEnterprise.Mdm.Changes.StewardVerdict do
   end
 
   defp complete_review_task!(candidate, verdict, actor, tenant) do
-    require Ash.Query
-
     # The engine does not copy the subject onto the task; the join is the
     # instance it belongs to.
     open_task =
@@ -174,28 +172,10 @@ defmodule AshEnterprise.Mdm.Changes.StewardVerdict do
         authorize?: false
       )
 
-    # Survivorship: the golden's own values win; the staged values fill gaps.
-    mapped = staged.mapped || %{}
-
-    fills =
-      %{
-        "name" => golden.name && to_string(golden.name),
-        "email" => golden.email && to_string(golden.email)
-      }
-      |> Enum.flat_map(fn {field, current} ->
-        case {current, mapped[field]} do
-          {nil, value} when is_binary(value) and value != "" -> [{field, value}]
-          _ -> []
-        end
-      end)
-      |> Map.new()
-
-    unless map_size(fills) == 0 do
-      golden
-      |> Ash.Changeset.for_update(:mdm_survivor_update, fills, tenant: tenant, authorize?: false)
-      |> Ash.update!(tenant: tenant, authorize?: false)
-    end
-
+    # The same survivorship fold and identity opening the admit band runs —
+    # the person's decision just authorises it here, with the steward
+    # asserted as the identity's source (the machine path asserts :mapping).
+    AshEnterprise.Mdm.AutoMerge.fold!(staged, golden, tenant)
     open_identity!(staged, candidate, actor, tenant)
 
     staged

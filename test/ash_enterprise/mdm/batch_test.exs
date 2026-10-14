@@ -484,7 +484,14 @@ defmodule AshEnterprise.Mdm.BatchTest do
 
       assert candidates[staged["Ann Existing"]].band == :admit
       assert candidates[staged["Ann Existing-Smith"]].band == :review
-      assert candidates[staged["Ann Existing"]].status == :pending
+
+      # The admit band ROUTED: the candidate is auto-merged (no human looked
+      # — the published band table decided), the staged row is spent.
+      assert candidates[staged["Ann Existing"]].status == :auto_merged
+
+      assert StagedRecord.by_id!(staged["Ann Existing"], tenant: org, authorize?: false).status ==
+               :merged
+
       assert gold.id
     end
 
