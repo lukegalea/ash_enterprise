@@ -20,6 +20,16 @@ if System.get_env("PHX_SERVER") do
   config :ash_enterprise, AshEnterpriseWeb.Endpoint, server: true
 end
 
+# Dev's :debug level logs every query with its parameters, and on an instance holding real
+# data those parameters are names and addresses. `LOG_LEVEL=info` keeps them out of the log.
+case System.get_env("LOG_LEVEL") do
+  level when level in ~w(debug info notice warning error) ->
+    config :logger, level: String.to_existing_atom(level)
+
+  _ ->
+    :ok
+end
+
 config :ash_enterprise, AshEnterpriseWeb.Endpoint,
   http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 
