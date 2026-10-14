@@ -76,14 +76,18 @@ defmodule AshEnterprise.Mdm.AutoMerge do
     golden
   end
 
-  @doc "The staged row becomes a golden of its own: the upsert, and its identity opened there."
+  # The staged row becomes a golden of its own. Deliberately a plain
+  # upsert-free create via the same replay write: the omit band ruled out a
+  # merge, so an email collision must NOT overwrite the existing person.
+  # The unique_email identity makes the create fail loudly instead, and the
+  # caller routes that row back to stewardship.
   def create_golden!(staged, owner, tenant) do
     mapped = staged.mapped || %{}
 
     golden =
       AshEnterprise.Canonical.Person
       |> Ash.Changeset.for_create(
-        :upsert_from_source,
+        :mdm_create_golden,
         %{
           name: mapped["name"],
           email: mapped["email"],

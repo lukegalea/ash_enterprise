@@ -66,10 +66,10 @@ losing candidates superseded, machine-update person-state refusal
 
 STILL OPEN:
 
-1. `AutoMerge.create_golden!/3` still uses `:upsert_from_source` — a new
-   golden whose email matches an existing Person OVERWRITES it. The
-   omit/new-golden path must create, or fold via survivorship when the
-   email identity already exists.
+1. FIXED: `create_golden!` uses the new non-upsert `Person.mdm_create_golden`
+   action; an email collision raises and the worker routes the row back to
+   undecided (:matched) for a steward pass (`safe_new_golden/4`). Untested:
+   add a collision test (omit band + email match) when touching this again.
 2. Unmerge does not clear `merge_provenance`, and restoring the prior
    email has no collision handling if the survivor's email changed since.
 3. Staged rows never reach the `:review` status the enum declares (routed

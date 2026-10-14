@@ -330,9 +330,12 @@ defmodule AshEnterprise.Mdm.BatchWorker do
 
       candidates == [] ->
         # Nothing in the golden store fit — the same verdict as :omit: the
-        # row becomes its own golden.
-        AshEnterprise.Mdm.AutoMerge.new_golden!(nil, staged, uploader!(batch, tenant), tenant)
-        true
+        # row becomes its own golden. An email collision with an existing
+        # person is NOT a merge: the row goes back to stewardship.
+        case safe_new_golden(staged, batch, tenant) do
+          :ok -> true
+          {:collision, _} -> false
+        end
 
       omit? ->
         {candidate, _band} = Enum.find(banded, fn {_c, band} -> band == :omit end)
@@ -345,14 +348,10 @@ defmodule AshEnterprise.Mdm.BatchWorker do
         )
         |> Ash.update!(tenant: tenant, actor: system, authorize?: true)
 
-        AshEnterprise.Mdm.AutoMerge.new_golden!(
-          candidate,
-          staged,
-          uploader!(batch, tenant),
-          tenant
-        )
-
-        true
+        case safe_new_golden(staged, batch, tenant, candidate) do
+          :ok -> true
+          {:collision, _} -> false
+        end
 
       # Unbanded (no published band table): the row stays undecided —
       # staging worked, routing has not happened yet.
@@ -375,6 +374,18 @@ defmodule AshEnterprise.Mdm.BatchWorker do
     end
 
     :ok
+  end
+
+  # An email collision on the new-golden path is a steward question, not a
+  # merge: leave the row undecided (:matched) and let the matcher pair it
+  # against the existing person on the next pass.
+  defp safe_new_golden(staged, batch, tenant, candidate \\ nil) do
+    try do
+      AshEnterprise.Mdm.AutoMerge.new_golden!(candidate, staged, uploader!(batch, tenant), tenant)
+      :ok
+    rescue
+      e in Ash.Error.Invalid -> {:collision, e}
+    end
   end
 
   defp golden_for!(candidate, tenant) do

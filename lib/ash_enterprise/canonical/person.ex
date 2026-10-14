@@ -186,6 +186,18 @@ defmodule AshEnterprise.Canonical.Person do
       change AshEnterprise.Mdm.Changes.Unmerge
     end
 
+    create :mdm_create_golden do
+      description """
+      The new-golden write (MDM-4/5 band routing): an omit-banded or
+      candidate-less staged row becomes a golden of its own. Deliberately
+      NOT an upsert — the omit band ruled a merge out, so an e-mail
+      collision with an existing person fails loudly and the caller routes
+      the row back to stewardship instead of overwriting anyone.
+      """
+
+      accept [:name, :email, :owner_id, :owning_business_unit_id]
+    end
+
     action :mdm_export, {:array, :map} do
       description """
       The egress departure (MDM-6, ADR 0050 §8): the tenant's active `:egress`
