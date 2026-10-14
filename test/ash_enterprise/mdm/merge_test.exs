@@ -114,6 +114,9 @@ defmodule AshEnterprise.Mdm.MergeTest do
 
     reloaded = Ash.reload!(unmerged, tenant: org, authorize?: false)
     assert reloaded.merged == false
+    # Stale provenance must not survive: a later merge→unmerge cycle would
+    # restore from data the merge retracted.
+    assert is_nil(reloaded.merge_provenance)
     assert reloaded.master_id == nil
     assert to_string(reloaded.email) == "ann2@x.io"
     assert reloaded.master_id == nil
