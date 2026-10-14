@@ -131,7 +131,9 @@ defmodule AshEnterprise.Erasure.Changes.SealUnderScope do
 
   defp seal_field(changeset, field, scope_id) do
     {:ok, value} = Ash.Changeset.fetch_argument(changeset, field)
-    target = :"encrypted_#{field}"
+    # Law 10: the encrypted_<field> attribute is declared by the erasure DSL for each
+    # sealed field (a closed set) — to_existing_atom is the safe spelling.
+    target = String.to_existing_atom("encrypted_#{field}")
 
     case sealed_value(changeset.resource, field, value, scope_id) do
       {:ok, sealed} ->
