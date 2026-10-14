@@ -99,6 +99,54 @@ defmodule AshEnterprise.Mdm.QualityReview do
     :ok
   end
 
+  @doc """
+  Starts a `mdm.quality_review` instance for one noncompliant finding —
+  the explicit-start path (Resolver + pinned definition struct), which
+  avoids the three subscription blockers: no audit-event matching, a
+  finding-shaped subject, and cross-tenant baseline resolution through the
+  host Resolver. Idempotent per (finding, golden): an instance already
+  running for the subject wins.
+  """
+  def start_stewardship!(tenant, control_id, subject_id, subject \\ nil) do
+    case AshEnterprise.Process.Resolver.resolve(:process, "mdm.quality_review", tenant) do
+      {:ok, definition} ->
+        if quality_instance_running?(tenant, subject_id) do
+          :ok
+        else
+          subject =
+            subject ||
+              %{
+                id: subject_id,
+                __struct__: AshEnterprise.Canonical.Person
+              }
+
+          AshBpmn.start_instance!(AshEnterprise.Bpmn,
+            definition: definition,
+            subject: subject,
+            actor: AshEnterprise.Platform.SystemActor.system(),
+            tenant: tenant,
+            correlation_id: control_id
+          )
+
+          :ok
+        end
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp quality_instance_running?(tenant, subject_id) do
+    require Ash.Query
+
+    AshEnterprise.Bpmn.Instance
+    |> Ash.Query.filter(
+      subject_type == "AshEnterprise.Canonical.Person" and subject_id == ^subject_id and
+        status == ^:running
+    )
+    |> Ash.exists?(tenant: tenant, authorize?: false)
+  end
+
   defp facts(golden, tenant) do
     source_count =
       SourceIdentity

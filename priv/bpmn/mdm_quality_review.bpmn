@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn2:definitions xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:ash="https://github.com/lukegalea/ash_bpmn/ns"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   id="Definitions_mdm_quality_review"
+                   targetNamespace="https://ash-enterprise.example/bpmn">
+  <bpmn2:process id="Process_mdm_quality_review" name="MDM quality review" isExecutable="true">
+
+    <!--
+      One noncompliant quality finding's journey (MDM-7): the projector
+      files the finding; this process makes it claimable stewardship work.
+      The subject is the golden record the finding is about. The resolution
+      (fix the data) happens outside the process — waiving is the task's
+      outcome; resolved simply ends the review.
+    -->
+
+    <bpmn2:startEvent id="Start">
+      <bpmn2:outgoing>Flow_to_review</bpmn2:outgoing>
+    </bpmn2:startEvent>
+
+    <bpmn2:userTask id="QualityDecision" name="Quality review">
+      <bpmn2:extensionElements>
+        <ash:taskConfig>
+          <ash:candidates>
+            <ash:candidate kind="role" of="Administrator"/>
+          </ash:candidates>
+          <ash:outcomes>
+            <ash:outcome name="resolved"/>
+            <ash:outcome name="waived"/>
+          </ash:outcomes>
+        </ash:taskConfig>
+      </bpmn2:extensionElements>
+      <bpmn2:incoming>Flow_to_review</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_decided</bpmn2:outgoing>
+    </bpmn2:userTask>
+
+    <bpmn2:endEvent id="EndResolved">
+      <bpmn2:extensionElements><ash:taskConfig outcome="resolved"/></bpmn2:extensionElements>
+      <bpmn2:incoming>Flow_resolved</bpmn2:incoming>
+    </bpmn2:endEvent>
+
+    <bpmn2:endEvent id="EndWaived">
+      <bpmn2:extensionElements><ash:taskConfig outcome="waived"/></bpmn2:extensionElements>
+      <bpmn2:incoming>Flow_waived</bpmn2:incoming>
+    </bpmn2:endEvent>
+
+    <bpmn2:sequenceFlow id="Flow_to_review" sourceRef="Start" targetRef="QualityDecision"/>
+
+    <bpmn2:sequenceFlow id="Flow_decided" sourceRef="QualityDecision" targetRef="Route"/>
+    <bpmn2:exclusiveGateway id="Route" name="How did the review land?" default="Flow_waived">
+      <bpmn2:incoming>Flow_decided</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_resolved</bpmn2:outgoing>
+      <bpmn2:outgoing>Flow_waived</bpmn2:outgoing>
+    </bpmn2:exclusiveGateway>
+
+    <bpmn2:sequenceFlow id="Flow_resolved" sourceRef="Route" targetRef="EndResolved">
+      <bpmn2:conditionExpression xsi:type="bpmn2:tFormalExpression"
+        language="feel">task.outcome = "resolved"</bpmn2:conditionExpression>
+    </bpmn2:sequenceFlow>
+    <bpmn2:sequenceFlow id="Flow_waived" sourceRef="Route" targetRef="EndWaived"/>
+  </bpmn2:process>
+
+  <bpmndi:BPMNDiagram id="Diagram_1">
+    <bpmndi:BPMNPlane id="Plane_1" bpmnElement="Process_mdm_quality_review">
+      <bpmndi:BPMNShape id="Shape_Start" bpmnElement="Start">
+        <dc:Bounds x="150" y="202" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_QualityDecision" bpmnElement="QualityDecision">
+        <dc:Bounds x="240" y="180" width="120" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Route" bpmnElement="Route">
+        <dc:Bounds x="410" y="195" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_EndResolved" bpmnElement="EndResolved">
+        <dc:Bounds x="510" y="122" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_EndWaived" bpmnElement="EndWaived">
+        <dc:Bounds x="510" y="242" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_to_review" bpmnElement="Flow_to_review">
+        <di:waypoint x="186" y="220"/>
+        <di:waypoint x="240" y="220"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_decided" bpmnElement="Flow_decided">
+        <di:waypoint x="360" y="220"/>
+        <di:waypoint x="410" y="220"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_resolved" bpmnElement="Flow_resolved">
+        <di:waypoint x="435" y="195"/>
+        <di:waypoint x="435" y="140"/>
+        <di:waypoint x="510" y="140"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_waived" bpmnElement="Flow_waived">
+        <di:waypoint x="435" y="245"/>
+        <di:waypoint x="510" y="260"/>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn2:definitions>
