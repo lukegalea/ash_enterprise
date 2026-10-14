@@ -60,6 +60,66 @@ defmodule AshEnterprise.Mdm.TestSupport do
     |> Ash.update!(tenant: tenant, actor: person, authorize?: true)
   end
 
+  @doc """
+  The review-queue fixture: a golden person, a landed source record, a
+  staged row mapped from it, and a review-banded candidate pairing them —
+  the state the pipeline produces before a steward decides.
+  """
+  def staged_candidate!(org, admin, name, email) do
+    golden =
+      AshEnterprise.Canonical.Person
+      |> Ash.Changeset.for_create(:upsert_from_source, %{
+        name: name <> " Existing",
+        email: nil,
+        owner_id: admin.id,
+        owning_business_unit_id: admin.owning_business_unit_id
+      })
+      |> Ash.create!(tenant: org, authorize?: false)
+
+    {:ok, source_record} =
+      AshEnterprise.Mdm.Landing.land_row(
+        org,
+        "acme_contacts",
+        %{"Full Name" => name, "Email" => email},
+        row_key: "cand-#{System.unique_integer([:positive])}"
+      )
+
+    mapping = activate_host_mapping!(draft_host_mapping!(org, []), org, admin)
+
+    batch =
+      AshEnterprise.Mdm.ImportBatch
+      |> Ash.Changeset.for_create(:open, %{mapping_id: mapping.id, source_slug: "acme_contacts"},
+        tenant: org,
+        authorize?: false
+      )
+      |> Ash.create!(tenant: org, authorize?: false)
+
+    staged =
+      AshEnterprise.Mdm.StagedRecord
+      |> Ash.Changeset.for_create(:stage, %{
+        batch_id: batch.id,
+        source_record_id: source_record.id,
+        mapped: %{"name" => name, "email" => email}
+      })
+      |> Ash.create!(tenant: org, authorize?: false)
+
+    AshEnterprise.Mdm.MatchCandidate
+    |> Ash.Changeset.for_create(:create, %{
+      staged_record_id: staged.id,
+      golden_resource: "AshEnterprise.Canonical.Person",
+      golden_id: golden.id,
+      score: Decimal.new("0.72"),
+      explanation: %{"rules" => [%{"rule" => "email_exact", "score" => "1.0"}]}
+    })
+    |> Ash.create!(tenant: org, authorize?: false)
+    |> then(fn candidate ->
+      candidate
+      |> Ash.Changeset.for_update(:update, %{band: :review}, tenant: org, authorize?: false)
+      |> Ash.update!(tenant: org, authorize?: false)
+    end)
+    |> then(&{&1, staged, golden})
+  end
+
   def stringify(nil), do: nil
 
   def stringify(map) when is_map(map) do

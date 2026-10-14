@@ -8,9 +8,12 @@ defmodule AshEnterpriseWeb.StewardLiveTest do
   use AshEnterpriseWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest
+  import AshEnterprise.Mdm.TestSupport
 
   alias AshEnterprise.Mdm.MatchCandidate
   alias AshEnterprise.Platform.Seeder
+
+  require Ash.Query
 
   setup %{conn: conn} do
     %{organization: organization, user: admin} =
@@ -32,25 +35,13 @@ defmodule AshEnterpriseWeb.StewardLiveTest do
     |> Plug.Conn.put_session("user_token", token)
   end
 
-  defp review_candidate!(org) do
-    MatchCandidate
-    |> Ash.Changeset.for_create(:create, %{
-      staged_record_id: Ash.UUID.generate(),
-      golden_resource: "AshEnterprise.Canonical.Person",
-      golden_id: Ash.UUID.generate(),
-      score: Decimal.new("0.72"),
-      explanation: %{"rules" => [%{"rule" => "email_exact", "score" => "1.0"}]}
-    })
-    |> Ash.create!(tenant: org, authorize?: false)
-    |> then(fn candidate ->
-      candidate
-      |> Ash.Changeset.for_update(:update, %{band: :review}, tenant: org, authorize?: false)
-      |> Ash.update!(tenant: org, authorize?: false)
-    end)
+  defp review_candidate!(org, admin) do
+    {candidate, _staged, _golden} = staged_candidate!(org, admin, "Ann Dup", "ann2@x.io")
+    candidate
   end
 
-  test "review-banded candidates render with their acts", %{conn: conn, org: org} do
-    candidate = review_candidate!(org)
+  test "review-banded candidates render with their acts", %{conn: conn, org: org, admin: admin} do
+    candidate = review_candidate!(org, admin)
 
     {:ok, _view, html} = live(conn, "/app/steward")
 
@@ -64,7 +55,7 @@ defmodule AshEnterpriseWeb.StewardLiveTest do
     org: org,
     admin: admin
   } do
-    candidate = review_candidate!(org)
+    candidate = review_candidate!(org, admin)
     {:ok, view, _html} = live(conn, "/app/steward")
 
     view
@@ -74,15 +65,21 @@ defmodule AshEnterpriseWeb.StewardLiveTest do
     decided = Ash.get!(MatchCandidate, candidate.id, tenant: org, authorize?: false)
     assert decided.status == :confirmed
     assert to_string(decided.human_verdict_ref["verdict"]) == "confirm"
-    assert to_string(decided.human_verdict_ref["by"]) == to_string(admin.id)
+
+    verdict =
+      AshEnterprise.SystemOne.HumanVerdict
+      |> Ash.Query.filter(id == ^decided.human_verdict_ref["verdict_id"])
+      |> Ash.read_one!(tenant: org, authorize?: false)
+
+    assert verdict.reviewer == to_string(admin.email)
 
     # The queue is empty again: the decided candidate left it.
     refute render(view) =~ candidate.id
     assert render(view) =~ "queue is empty"
   end
 
-  test "a person rejects: the candidate stands alone", %{conn: conn, org: org} do
-    candidate = review_candidate!(org)
+  test "a person rejects: the candidate stands alone", %{conn: conn, org: org, admin: admin} do
+    candidate = review_candidate!(org, admin)
     {:ok, view, _html} = live(conn, "/app/steward")
 
     view
@@ -94,8 +91,8 @@ defmodule AshEnterpriseWeb.StewardLiveTest do
     assert to_string(decided.human_verdict_ref["verdict"]) == "reject"
   end
 
-  test "a decided candidate cannot be decided again", %{conn: conn, org: org} do
-    candidate = review_candidate!(org)
+  test "a decided candidate cannot be decided again", %{conn: conn, org: org, admin: admin} do
+    candidate = review_candidate!(org, admin)
 
     {:ok, view, _html} = live(conn, "/app/steward")
     view |> element("#confirm-#{candidate.id}") |> render_click()

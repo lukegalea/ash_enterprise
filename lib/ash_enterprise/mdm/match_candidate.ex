@@ -64,7 +64,7 @@ defmodule AshEnterprise.Mdm.MatchCandidate do
       require_atomic? false
 
       change set_attribute(:status, :confirmed)
-      change AshEnterprise.Mdm.Changes.RecordVerdict
+      change AshEnterprise.Mdm.Changes.StewardVerdict
     end
 
     update :reject do
@@ -74,7 +74,7 @@ defmodule AshEnterprise.Mdm.MatchCandidate do
       require_atomic? false
 
       change set_attribute(:status, :rejected)
-      change AshEnterprise.Mdm.Changes.RecordVerdict
+      change AshEnterprise.Mdm.Changes.StewardVerdict
     end
   end
 end
