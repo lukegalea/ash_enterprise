@@ -54,6 +54,14 @@ defmodule AshEnterprise.Acp.ApprovalsTest do
     assert {:denied} = Approvals.resolve(Ash.UUID.generate(), outcome, session)
   end
 
+  test "ash_acp's synthetic ref for a policy refusal is denied, even with allow_once" do
+    session = session("op-denied")
+    ref = {:ash_denied, AshEnterprise.Agents.MorningBrief, :compose_today}
+
+    outcome = %{"outcome" => "selected", "optionId" => "allow_once"}
+    assert {:denied} = Approvals.resolve(ref, outcome, session)
+  end
+
   test "reject_once denies without consuming the ref's approval" do
     session = session("op-3")
     {:pending, ref} = Approvals.request(session, action_spec(), %{})

@@ -187,13 +187,11 @@ defmodule AshEnterprise.BusinessEvents.LedgerTest do
         }
       }
 
-      # Refused, though not as Forbidden: the platform's RoleGrant is a filter
-      # check, which Ash will not evaluate for a generic action at a depth
-      # narrower than :global, and raises (ADR 0051, "Does it consume
-      # ActorContext?"). If that becomes a Forbidden, this assertion moves.
-      assert_raise Ash.Error.Unknown, ~r/filter checks with generic actions/, fn ->
-        Ledger.record(fact, actor: actor(ctx.alice, ctx.org.id), tenant: ctx.org.id)
-      end
+      # Forbidden: a generic action has no row for a depth to reach, so only a
+      # :global grant authorizes one, and :basic is the only depth the ledger
+      # can be granted at (ADR 0051, "Does it consume ActorContext?").
+      assert {:error, %Ash.Error.Forbidden{}} =
+               Ledger.record(fact, actor: actor(ctx.alice, ctx.org.id), tenant: ctx.org.id)
 
       assert facts(ctx) == []
     end

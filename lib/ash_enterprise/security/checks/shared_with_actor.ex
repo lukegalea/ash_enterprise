@@ -40,16 +40,23 @@ defmodule AshEnterprise.Security.Checks.SharedWithActor do
   def filter(actor, authorizer, _opts) do
     context = ActorContext.for_actor(actor)
 
-    if is_nil(context.user_id) and not context.system? do
-      false
-    else
-      verb = AccessRight.for_action_type(authorizer.action.type)
+    cond do
+      is_nil(context.user_id) and not context.system? ->
+        false
 
-      case ActorContext.shared_record_ids(context, authorizer.resource, verb) do
-        # No shares: contribute nothing to the union rather than erroring.
-        [] -> false
-        ids -> expr(id in ^ids)
-      end
+      # A share names records; a generic action has none to name (and Ash
+      # raises on a filter for one). See `RoleGrant`.
+      authorizer.action.type == :action ->
+        false
+
+      true ->
+        verb = AccessRight.for_action_type(authorizer.action.type)
+
+        case ActorContext.shared_record_ids(context, authorizer.resource, verb) do
+          # No shares: contribute nothing to the union rather than erroring.
+          [] -> false
+          ids -> expr(id in ^ids)
+        end
     end
   end
 

@@ -98,4 +98,11 @@ defmodule AshEnterprise.Acp.Approvals do
         {:denied}
     end
   end
+
+  # When an action Ash's policies refuse, `ash_acp` asks the client again,
+  # bound to the synthetic ref `{:ash_denied, resource, action}`. Approving
+  # that cannot make the policy allow it — the action would only be refused
+  # again, and asked again — so it is always denied, and the turn ends as a
+  # refusal. Any other ref that is not one this module issued is denied too.
+  def resolve(_ref, _outcome, _session), do: {:denied}
 end
