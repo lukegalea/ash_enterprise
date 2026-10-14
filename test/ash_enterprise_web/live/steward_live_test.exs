@@ -43,7 +43,7 @@ defmodule AshEnterpriseWeb.StewardLiveTest do
   test "review-banded candidates render with their acts", %{conn: conn, org: org, admin: admin} do
     candidate = review_candidate!(org, admin)
 
-    {:ok, _view, html} = live(conn, "/app/steward")
+    {:ok, _view, html} = live(conn, "/app/mdm")
 
     assert html =~ "Steward queue"
     assert html =~ "candidate-#{candidate.id}"
@@ -56,7 +56,7 @@ defmodule AshEnterpriseWeb.StewardLiveTest do
     admin: admin
   } do
     candidate = review_candidate!(org, admin)
-    {:ok, view, _html} = live(conn, "/app/steward")
+    {:ok, view, _html} = live(conn, "/app/mdm")
 
     view
     |> element("#confirm-#{candidate.id}")
@@ -80,7 +80,7 @@ defmodule AshEnterpriseWeb.StewardLiveTest do
 
   test "a person rejects: the candidate stands alone", %{conn: conn, org: org, admin: admin} do
     candidate = review_candidate!(org, admin)
-    {:ok, view, _html} = live(conn, "/app/steward")
+    {:ok, view, _html} = live(conn, "/app/mdm")
 
     view
     |> element("#reject-#{candidate.id}")
@@ -94,7 +94,7 @@ defmodule AshEnterpriseWeb.StewardLiveTest do
   test "a decided candidate cannot be decided again", %{conn: conn, org: org, admin: admin} do
     candidate = review_candidate!(org, admin)
 
-    {:ok, view, _html} = live(conn, "/app/steward")
+    {:ok, view, _html} = live(conn, "/app/mdm")
     view |> element("#confirm-#{candidate.id}") |> render_click()
 
     # Re-deciding through the action directly hits the validate gate.
