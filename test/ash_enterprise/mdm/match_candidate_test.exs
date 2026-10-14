@@ -27,6 +27,31 @@ defmodule AshEnterprise.Mdm.MatchCandidateTest do
   defp review_candidate!(org, admin),
     do: {candidate, _staged, _golden} = staged_candidate!(org, admin, "Ann Dup", "ann2@x.io")
 
+  test "reject is not a dead end: the row becomes its own golden", %{org: org, admin: admin} do
+    {candidate, staged, _golden} = review_candidate!(org, admin)
+
+    candidate
+    |> Ash.Changeset.for_update(:reject, %{}, tenant: org, actor: admin)
+    |> Ash.update!(tenant: org, actor: admin)
+
+    # No pending candidate needs the row, so it becomes a golden of its own —
+    # "not that golden" is not "no golden".
+    reloaded = Ash.get!(AshEnterprise.Mdm.StagedRecord, staged.id, tenant: org, authorize?: false)
+    assert reloaded.status == :rejected
+
+    goldens =
+      AshEnterprise.Canonical.Person
+      |> Ash.Query.filter(name == ^"Ann Dup")
+      |> Ash.read!(tenant: org, authorize?: false)
+
+    assert length(goldens) == 1
+
+    assert [%{}] =
+             AshEnterprise.Mdm.SourceIdentity
+             |> Ash.Query.filter(golden_id == ^hd(goldens).id)
+             |> Ash.read!(tenant: org, authorize?: false)
+  end
+
   test "a system actor is forbidden to decide", %{org: org, admin: admin} do
     {candidate, _staged, _golden} = review_candidate!(org, admin)
 
@@ -66,6 +91,12 @@ defmodule AshEnterprise.Mdm.MatchCandidateTest do
       AshEnterprise.SystemOne.Judgment
       |> Ash.Query.filter(id == ^confirmed.human_verdict_ref["judgment_id"])
       |> Ash.read_one!(tenant: org, authorize?: false)
+
+    # The created person exists exactly once with the staged values folded in.
+    reloaded_golden =
+      Ash.get!(AshEnterprise.Canonical.Person, golden.id, tenant: org, authorize?: false)
+
+    assert to_string(reloaded_golden.name) == "Ann Dup Existing"
 
     assert judgment.family == "mdm_matches"
     assert judgment.subject_id == candidate.id

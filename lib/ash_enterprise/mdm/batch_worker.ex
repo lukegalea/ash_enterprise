@@ -289,6 +289,7 @@ defmodule AshEnterprise.Mdm.BatchWorker do
 
     admit_band = Enum.find(banded, fn {_c, band} -> band == :admit end)
     review_band = Enum.find(banded, fn {_c, band} -> band == :review end)
+    omit? = Enum.any?(banded, fn {_c, band} -> band == :omit end)
 
     cond do
       admit_band ->
@@ -325,33 +326,36 @@ defmodule AshEnterprise.Mdm.BatchWorker do
         start_steward_review!(candidate, tenant)
         true
 
+      candidates == [] ->
+        # Nothing in the golden store fit — the same verdict as :omit: the
+        # row becomes its own golden.
+        AshEnterprise.Mdm.AutoMerge.new_golden!(nil, staged, uploader!(batch, tenant), tenant)
+        true
+
+      omit? ->
+        {candidate, _band} = Enum.find(banded, fn {_c, band} -> band == :omit end)
+
+        candidate
+        |> Ash.Changeset.for_update(:update, %{band: :omit},
+          tenant: tenant,
+          actor: system,
+          authorize?: true
+        )
+        |> Ash.update!(tenant: tenant, actor: system, authorize?: true)
+
+        AshEnterprise.Mdm.AutoMerge.new_golden!(
+          candidate,
+          staged,
+          uploader!(batch, tenant),
+          tenant
+        )
+
+        true
+
+      # Unbanded (no published band table): the row stays undecided —
+      # staging worked, routing has not happened yet.
       true ->
-        # Everything left is :omit (or unbanded): one omission decides the
-        # row — it becomes its own golden.
-        omit? = Enum.any?(banded, fn {_c, band} -> band == :omit end)
-
-        if omit? do
-          {candidate, _band} = Enum.find(banded, fn {_c, band} -> band == :omit end)
-
-          candidate
-          |> Ash.Changeset.for_update(:update, %{band: :omit},
-            tenant: tenant,
-            actor: system,
-            authorize?: true
-          )
-          |> Ash.update!(tenant: tenant, actor: system, authorize?: true)
-
-          AshEnterprise.Mdm.AutoMerge.new_golden!(
-            candidate,
-            staged,
-            uploader!(batch, tenant),
-            tenant
-          )
-
-          true
-        else
-          false
-        end
+        false
     end
   end
 

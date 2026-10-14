@@ -139,7 +139,7 @@ defmodule AshEnterprise.Mdm.Changes.StewardVerdict do
 
   # -- the person's answer ----------------------------------------------------
 
-  defp record_human_verdict!(candidate, judgment, verdict, actor, tenant) do
+  defp record_human_verdict!(_candidate, judgment, verdict, actor, tenant) do
     AshEnterprise.SystemOne.HumanVerdict
     |> Ash.Changeset.for_create(
       :record,
@@ -185,7 +185,7 @@ defmodule AshEnterprise.Mdm.Changes.StewardVerdict do
     candidate
   end
 
-  defp promote(candidate, "reject", _actor, tenant) do
+  defp promote(candidate, "reject", actor, tenant) do
     staged =
       Ash.get!(AshEnterprise.Mdm.StagedRecord, candidate.staged_record_id,
         tenant: tenant,
@@ -196,10 +196,23 @@ defmodule AshEnterprise.Mdm.Changes.StewardVerdict do
     |> Ash.Changeset.for_update(:update, %{status: :rejected}, tenant: tenant, authorize?: false)
     |> Ash.update!(tenant: tenant, authorize?: false)
 
+    # The reject is the row's verdict — and once no pending candidate needs
+    # it, the staged row becomes a golden of its own. Reject is not a dead
+    # end: "not that golden" is not "no golden". The deciding steward owns
+    # the created record.
+    still_pending? =
+      AshEnterprise.Mdm.MatchCandidate
+      |> Ash.Query.filter(staged_record_id == ^staged.id and status == :pending)
+      |> Ash.exists?(tenant: tenant, authorize?: false)
+
+    unless still_pending? do
+      AshEnterprise.Mdm.AutoMerge.create_golden!(staged, actor, tenant)
+    end
+
     candidate
   end
 
-  defp open_identity!(staged, candidate, actor, tenant) do
+  defp open_identity!(staged, candidate, _actor, tenant) do
     source_record =
       Ash.get!(AshEnterprise.Mdm.SourceRecord, staged.source_record_id, authorize?: false)
 

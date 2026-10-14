@@ -58,9 +58,9 @@ defmodule AshEnterprise.Mdm.BatchTest do
     ImportBatch
     |> Ash.Changeset.for_create(:open, %{mapping_id: mapping.id, source_slug: slug},
       tenant: org,
-      authorize?: false
+      actor: admin
     )
-    |> Ash.create!(tenant: org, authorize?: false)
+    |> Ash.create!(tenant: org, actor: admin)
   end
 
   defp drain!(batch) do
@@ -414,9 +414,25 @@ defmodule AshEnterprise.Mdm.BatchTest do
       # The genuinely new person is not shortlisted against anyone.
       assert candidates[new.id] in [nil, []]
 
-      # Every staged row is matched.
-      for row <- [dupe, fuzzy, new],
-          do: assert(Ash.reload!(row, tenant: org, authorize?: false).status == :matched)
+      # This tenant published no band table, so the banded rows stay
+      # undecided (:matched) — but the genuinely new person has no candidate
+      # to band: nothing fit, so the row became its own golden regardless.
+      assert Ash.reload!(dupe, tenant: org, authorize?: false).status == :matched
+      assert Ash.reload!(fuzzy, tenant: org, authorize?: false).status == :matched
+      assert Ash.reload!(new, tenant: org, authorize?: false).status == :created
+
+      # The new row's golden exists exactly once, with its SourceIdentity.
+      new_goldens =
+        AshEnterprise.Canonical.Person
+        |> Ash.Query.filter(name == "Nadia New")
+        |> Ash.read!(tenant: org, authorize?: false)
+
+      assert length(new_goldens) == 1
+
+      assert [%{}] =
+               AshEnterprise.Mdm.SourceIdentity
+               |> Ash.Query.filter(golden_id == ^hd(new_goldens).id)
+               |> Ash.read!(tenant: org, authorize?: false)
 
       # Blocking ran as a SYSTEM actor (ADR 0017's first sharp edge) — and
       # that actor is visible in the audit trail under the batch's

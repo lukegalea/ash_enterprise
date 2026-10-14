@@ -17,9 +17,7 @@ defmodule AshEnterprise.Mdm.AutoMerge do
   `StewardVerdict`; nothing here ever sets a person state.
   """
 
-  require Ash.Query
-
-  alias AshEnterprise.Mdm.{SourceIdentity, SourceRecord, StagedRecord}
+  alias AshEnterprise.Mdm.{SourceIdentity, SourceRecord}
 
   @doc "Runs the admit band: fold into the golden, open the identity, spend the row."
   def admit!(candidate, staged, golden, tenant) do
@@ -43,8 +41,43 @@ defmodule AshEnterprise.Mdm.AutoMerge do
     )
   end
 
-  @doc "Runs the omit band: the staged row becomes its own golden."
+  @doc "Runs the omit band: the staged row becomes its own golden, the candidate is superseded."
+  def new_golden!(candidate, staged, owner, tenant)
+
+  def new_golden!(nil, staged, owner, tenant) do
+    golden = create_golden!(staged, owner, tenant)
+
+    staged
+    |> Ash.Changeset.for_update(:update, %{status: :created}, tenant: tenant, authorize?: false)
+    |> Ash.update!(tenant: tenant, authorize?: false)
+
+    golden
+  end
+
   def new_golden!(candidate, staged, owner, tenant) do
+    golden = create_golden!(staged, owner, tenant)
+
+    staged
+    |> Ash.Changeset.for_update(:update, %{status: :created}, tenant: tenant, authorize?: false)
+    |> Ash.update!(tenant: tenant, authorize?: false)
+
+    candidate
+    |> Ash.Changeset.for_update(:update, %{status: :superseded},
+      tenant: tenant,
+      actor: AshEnterprise.Platform.SystemActor.system(),
+      authorize?: true
+    )
+    |> Ash.update!(
+      tenant: tenant,
+      actor: AshEnterprise.Platform.SystemActor.system(),
+      authorize?: true
+    )
+
+    golden
+  end
+
+  @doc "The staged row becomes a golden of its own: the upsert, and its identity opened there."
+  def create_golden!(staged, owner, tenant) do
     mapped = staged.mapped || %{}
 
     golden =
@@ -62,23 +95,7 @@ defmodule AshEnterprise.Mdm.AutoMerge do
       )
       |> Ash.create!(tenant: tenant, authorize?: false)
 
-    open_identity!(staged, candidate, golden.id, tenant)
-
-    staged
-    |> Ash.Changeset.for_update(:update, %{status: :created}, tenant: tenant, authorize?: false)
-    |> Ash.update!(tenant: tenant, authorize?: false)
-
-    candidate
-    |> Ash.Changeset.for_update(:update, %{status: :superseded},
-      tenant: tenant,
-      actor: AshEnterprise.Platform.SystemActor.system(),
-      authorize?: true
-    )
-    |> Ash.update!(
-      tenant: tenant,
-      actor: AshEnterprise.Platform.SystemActor.system(),
-      authorize?: true
-    )
+    open_identity!(staged, "AshEnterprise.Canonical.Person", golden.id, tenant)
 
     golden
   end
