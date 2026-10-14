@@ -206,7 +206,25 @@ defmodule AshEnterprise.Mdm.Changes.StewardVerdict do
       |> Ash.exists?(tenant: tenant, authorize?: false)
 
     unless still_pending? do
-      AshEnterprise.Mdm.AutoMerge.create_golden!(staged, actor, tenant)
+      # Pre-check, not rescue: this runs inside the reject's transaction,
+      # and a unique_email violation would abort it wholesale. The
+      # commonest review candidate is "same e-mail, different name" — only
+      # one golden per e-mail can exist, so when the e-mail is taken the
+      # reject stands (:rejected, golden-less) and the existing person is
+      # untouched. "This is not that entity" cannot mean "overwrite the
+      # entity it matched".
+      mapped = staged.mapped || %{}
+      email = mapped["email"]
+
+      email_taken? =
+        email && !is_nil(email) &&
+          AshEnterprise.Canonical.Person
+          |> Ash.Query.filter(email == ^email)
+          |> Ash.exists?(tenant: tenant, authorize?: false)
+
+      unless email_taken? do
+        AshEnterprise.Mdm.AutoMerge.create_golden!(staged, actor, tenant)
+      end
     end
 
     candidate

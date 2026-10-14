@@ -64,6 +64,43 @@ defmodule AshEnterprise.Mdm.MatchCandidateTest do
              |> Ash.update(tenant: org, actor: AshEnterprise.Platform.SystemActor.system())
   end
 
+  test "rejecting a same-email candidate succeeds and leaves the existing person", %{
+    org: org,
+    admin: admin
+  } do
+    # The commonest review candidate: same email, different name. Make the
+    # collision REAL — the golden already carries the staged row's email —
+    # so the reject cannot create a second golden with it.
+    {candidate, staged, golden} = review_candidate!(org, admin)
+
+    golden
+    |> Ash.Changeset.for_update(:mdm_survivor_update, %{email: "ann2@x.io"},
+      tenant: org,
+      authorize?: false
+    )
+    |> Ash.update!(tenant: org, authorize?: false)
+
+    assert {:ok, _} =
+             candidate
+             |> Ash.Changeset.for_update(:reject, %{}, tenant: org, actor: admin)
+             |> Ash.update(tenant: org, actor: admin)
+
+    assert Ash.get!(AshEnterprise.Mdm.StagedRecord, staged.id, tenant: org, authorize?: false).status ==
+             :rejected
+
+    # Exactly one person with the email: the pre-existing golden, with its
+    # original name — the rejected row did not overwrite it, and no second
+    # golden was minted.
+    people =
+      AshEnterprise.Canonical.Person
+      |> Ash.Query.filter(email == ^"ann2@x.io")
+      |> Ash.read!(tenant: org, authorize?: false)
+
+    assert length(people) == 1
+    assert hd(people).id == golden.id
+    assert to_string(hd(people).name) == "Ann Dup Existing"
+  end
+
   test "a system actor is forbidden to decide", %{org: org, admin: admin} do
     {candidate, _staged, _golden} = review_candidate!(org, admin)
 

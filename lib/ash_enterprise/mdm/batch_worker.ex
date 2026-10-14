@@ -380,11 +380,23 @@ defmodule AshEnterprise.Mdm.BatchWorker do
   # merge: leave the row undecided (:matched) and let the matcher pair it
   # against the existing person on the next pass.
   defp safe_new_golden(staged, batch, tenant, candidate \\ nil) do
-    try do
+    # Pre-check, not rescue: this runs inside the batch transaction, and a
+    # unique_email violation would abort it wholesale. The staged row goes
+    # back to undecided for a steward pass instead.
+    mapped = staged.mapped || %{}
+    email = mapped["email"]
+
+    email_taken? =
+      email && !is_nil(email) &&
+        AshEnterprise.Canonical.Person
+        |> Ash.Query.filter(email == ^email)
+        |> Ash.exists?(tenant: tenant, authorize?: false)
+
+    if email_taken? do
+      {:collision, :email_taken}
+    else
       AshEnterprise.Mdm.AutoMerge.new_golden!(candidate, staged, uploader!(batch, tenant), tenant)
       :ok
-    rescue
-      e in Ash.Error.Invalid -> {:collision, e}
     end
   end
 
