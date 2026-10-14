@@ -188,7 +188,7 @@ connections in the dogfood instance.
   `AshEnterprise.Integration.Nango` extension (`lib/ash_enterprise/integration/nango/`) turns each `operation` into an
   Ash action whose run step is `Nango.RunOperation`. Declared today: `GoogleCalendar` (`list_calendars`,
   `list_events`), `Gmail` (`get_profile`, `list_history`, `list_messages`, `get_message`) and `Slack`
-  (`list_conversations`, `conversation_history`, `user_info`). `Nango.Proxy` holds the only HTTP client (`Req`) on
+  (`user_conversations`, `conversation_history`, `user_info`). `Nango.Proxy` holds the only HTTP client (`Req`) on
   the integration path. Nothing calls a provider API directly.
 - **The connection id is never an argument.** `RunOperation` resolves it from the actor's own active
   `Integration.LinkedAccount` for the integration, read under the actor's policies and tenant (deviation 1). A

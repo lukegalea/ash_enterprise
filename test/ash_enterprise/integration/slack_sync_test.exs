@@ -6,7 +6,7 @@ defmodule AshEnterprise.Integration.SlackSyncTest do
   No network and no real data: every Slack response comes from an in-test fake
   workspace answered through the edge's `Req.Test` stub, and every payload is
   SYNTHETIC — shaped from Slack's public Web API reference
-  (`conversations.list`, `conversations.history`, `users.info`), with
+  (`users.conversations`, `conversations.history`, `users.info`), with
   `SYNTHETIC-` markers so the log test can prove none of it escapes.
   `NANGO_SECRET_KEY` is a fake value for the duration of each test.
   """
@@ -50,10 +50,15 @@ defmodule AshEnterprise.Integration.SlackSyncTest do
 
   # --- the synthetic workspace ------------------------------------------------------
 
+  # Every conversation in the workspace. `is_member` is the fake's membership
+  # truth (IMs and MPIMs are always the user's own): `users.conversations`
+  # answers with the member ones only, and without `is_member`, as Slack does.
+
   @general "C0SYNTH0GEN"
   @not_joined "C0SYNTH0OUT"
   @private "G0SYNTH0PRV"
   @dm "D0SYNTH0DM1"
+  @late "C9SYNTH0LATE"
 
   @alice_slack "U0SYNTHALI"
   @bob_slack "U0SYNTHBOB"
@@ -251,8 +256,17 @@ defmodule AshEnterprise.Integration.SlackSyncTest do
       assert Enum.sort(by_stream["slack.users"]) ==
                Enum.sort(for u <- [@alice_slack, @bob_slack, @carol_slack], do: "#{la}/user/#{u}")
 
-      # The non-member channel is listed by Slack but never read.
+      # The non-member channel is never listed, never read, and the
+      # workspace-wide `conversations.list` is never asked.
       refute Enum.any?(requests(ctx.world), &(&1.query["channel"] == @not_joined))
+      refute Enum.any?(requests(ctx.world), &(&1.path == "/proxy/conversations.list"))
+
+      assert [%{query: listing}] =
+               Enum.filter(requests(ctx.world), &(&1.path == "/proxy/users.conversations"))
+
+      assert listing["types"] == "public_channel,private_channel,mpim,im"
+      assert listing["exclude_archived"] == "true"
+      refute Map.has_key?(listing, "user")
 
       # The first pass reached back exactly 30 days.
       floor = Records.datetime_to_ts(DateTime.add(@now, -30 * 24 * 3600, :second))
@@ -268,11 +282,90 @@ defmodule AshEnterprise.Integration.SlackSyncTest do
       assert Enum.all?(Map.values(cursors), &(&1.synced_at == @now))
     end
 
-    test "conversations.list is followed across pages", ctx do
+    test "users.conversations is followed across pages", ctx do
       assert {:ok, %{conversations: 3}} = step(ctx, list_limit: 1)
 
-      assert length(Enum.filter(requests(ctx.world), &(&1.path == "/proxy/conversations.list"))) ==
-               4
+      assert length(Enum.filter(requests(ctx.world), &(&1.path == "/proxy/users.conversations"))) ==
+               3
+    end
+
+    # Regression: the listing used to be `conversations.list`, which with a
+    # user token is every public channel in the workspace in a stable order.
+    # Filtered for membership and cut off at 20 x 200, a member channel listed
+    # after the first 4,000 was never reached, on any step. The fake still
+    # answers `conversations.list` the way Slack does, so a return to it fails
+    # here.
+    test "a member channel listed after thousands of workspace channels is still synced", ctx do
+      outsiders =
+        for i <- 1..4_500 do
+          %{
+            "id" => "C0OUT" <> String.pad_leading(Integer.to_string(i), 5, "0"),
+            "name" => "synthetic-outsider-#{i}",
+            "is_channel" => true,
+            "is_private" => false,
+            "is_archived" => false,
+            "is_member" => false,
+            "created" => 1_700_000_000
+          }
+        end
+
+      late = %{
+        "id" => @late,
+        "name" => "synthetic-late",
+        "is_channel" => true,
+        "is_private" => false,
+        "is_archived" => false,
+        "is_member" => true,
+        "created" => 1_700_000_000
+      }
+
+      Agent.update(ctx.world, &%{&1 | channels: outsiders ++ &1.channels ++ [late]})
+      add_messages(ctx.world, @late, [msg(@bob_slack, 2, "SYNTHETIC-TEXT-LATE-1")])
+
+      test_pid = self()
+      handler = "slack-sync-late-#{System.unique_integer([:positive])}"
+
+      :telemetry.attach(
+        handler,
+        [:ash_enterprise, :integration, :slack, :sync_step],
+        fn _event, _measurements, metadata, _ -> send(test_pid, {:telemetry, metadata}) end,
+        nil
+      )
+
+      try do
+        # The old page budget, explicitly.
+        assert {:ok, %{conversations: 4, messages: 8}} =
+                 step(ctx, list_limit: 200, max_list_pages: 20)
+
+        assert_received {:telemetry, %{list_truncated?: false}}
+      after
+        :telemetry.detach(handler)
+      end
+
+      assert @late in history_channels(ctx.world)
+      refute Enum.any?(history_channels(ctx.world), &String.starts_with?(&1, "C0OUT"))
+      refute Enum.any?(requests(ctx.world), &(&1.path == "/proxy/conversations.list"))
+
+      landed = Enum.map(drain_landed(), & &1.external_id)
+      assert "#{ctx.alice_slack.id}/conversation/#{@late}" in landed
+    end
+
+    test "listed conversations carry no is_member, and every one is synced", ctx do
+      assert {:ok, %{conversations: 3}} = step(ctx)
+
+      landed =
+        drain_landed()
+        |> Enum.filter(&(&1.stream == "slack.conversations"))
+
+      assert length(landed) == 3
+
+      payloads =
+        for {_id, external_id, payload} <- slack_source_objects(),
+            String.contains?(external_id, "/conversation/"),
+            do: payload
+
+      assert length(payloads) == 3
+      refute Enum.any?(payloads, &is_map_key(&1, "is_member"))
     end
   end
 
@@ -410,13 +503,6 @@ defmodule AshEnterprise.Integration.SlackSyncTest do
   end
 
   describe "Records" do
-    test "membership: joined channels, IMs and MPIMs; not merely visible public channels" do
-      assert Records.member?(%{"is_member" => true, "is_channel" => true})
-      assert Records.member?(%{"is_im" => true})
-      assert Records.member?(%{"is_mpim" => true})
-      refute Records.member?(%{"is_member" => false, "is_channel" => true})
-    end
-
     test "ts round-trips through DateTime at microsecond precision" do
       assert Records.datetime_to_ts(~U[2026-10-12 12:00:00.000100Z]) == "1791806400.000100"
       assert Records.ts_to_datetime("1791806400.000100") == ~U[2026-10-12 12:00:00.000100Z]
@@ -580,7 +666,7 @@ defmodule AshEnterprise.Integration.SlackSyncTest do
       assert {:cancel, :forbidden} = step(ctx)
     end
 
-    test "a truncated conversations.list is reported, not silently dropped", ctx do
+    test "a truncated users.conversations listing is reported, not silently dropped", ctx do
       test_pid = self()
       handler = "slack-sync-truncation-#{System.unique_integer([:positive])}"
 
@@ -1001,6 +1087,17 @@ defmodule AshEnterprise.Integration.SlackSyncTest do
 
   defp respond(%{revoked?: true}, _path, _query), do: %{"ok" => false, "error" => "token_revoked"}
 
+  # Only the user's own conversations, without `is_member`.
+  defp respond(state, "/proxy/users.conversations", query) do
+    state.channels
+    |> Enum.filter(&member_of?/1)
+    |> Enum.map(&Map.delete(&1, "is_member"))
+    |> page(query, "channels")
+  end
+
+  # Not called by the syncer. Answered as Slack answers a user token (every
+  # public channel in the workspace, joined or not), so a return to it is
+  # caught by the late-member test rather than by a missing fake clause.
   defp respond(state, "/proxy/conversations.list", query) do
     page(state.channels, query, "channels")
   end
@@ -1036,6 +1133,11 @@ defmodule AshEnterprise.Integration.SlackSyncTest do
       :error -> %{"ok" => false, "error" => "user_not_found"}
     end
   end
+
+  defp member_of?(%{"is_im" => true}), do: true
+  defp member_of?(%{"is_mpim" => true}), do: true
+  defp member_of?(%{"is_member" => true}), do: true
+  defp member_of?(_), do: false
 
   # Slack-shaped cursor pagination: an opaque next_cursor ("" on the last page).
   defp page(items, query, key) do

@@ -45,7 +45,7 @@ defmodule AshEnterprise.Integration.Slack.Records do
   @doc "The stream name for `:conversations`, `:messages` or `:users`."
   def stream(kind), do: Map.fetch!(@streams, kind)
 
-  @doc "A conversation (`conversations.list` item)."
+  @doc "A conversation (`users.conversations` item)."
   @spec conversation(String.t(), map(), DateTime.t()) :: SourceRecord.t()
   def conversation(linked_account_id, %{"id" => channel_id} = payload, fetched_at) do
     %SourceRecord{
@@ -105,20 +105,6 @@ defmodule AshEnterprise.Integration.Slack.Records do
       "channel_id" => channel_id
     }
   end
-
-  # --- membership ---------------------------------------------------------------
-
-  @doc """
-  Whether the user is in the conversation. `conversations.list` with a user
-  token returns every public channel in the workspace; only the ones the user
-  has joined are synced. IMs and MPIMs are only ever listed for the users in
-  them.
-  """
-  @spec member?(map()) :: boolean()
-  def member?(%{"is_im" => true}), do: true
-  def member?(%{"is_mpim" => true}), do: true
-  def member?(%{"is_member" => true}), do: true
-  def member?(_), do: false
 
   @doc """
   The Slack user ids a set of messages (and, for an IM, the conversation)

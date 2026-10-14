@@ -192,7 +192,7 @@ defmodule AshEnterprise.Integration.NangoEdgeTest do
              ]
 
       assert Enum.map(Info.operations(Slack), & &1.name) ==
-               [:list_conversations, :conversation_history, :user_info]
+               [:user_conversations, :conversation_history, :user_info]
     end
   end
 
@@ -481,7 +481,7 @@ defmodule AshEnterprise.Integration.NangoEdgeTest do
         end
       end)
 
-      assert {:ok, %{"ok" => true}} = Slack.list_conversations(%{limit: 200}, actor: ctx.alice)
+      assert {:ok, %{"ok" => true}} = Slack.user_conversations(%{limit: 200}, actor: ctx.alice)
       assert :counters.get(calls, 1) == 2
       assert_received {:slept, 2000}
     end
