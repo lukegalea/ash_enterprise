@@ -326,6 +326,16 @@ defmodule AshEnterprise.Mdm.BatchWorker do
         |> Ash.update!(tenant: tenant, actor: system, authorize?: true)
 
         start_steward_review!(candidate, tenant)
+
+        # The staged row moves to the steward with its candidate: it is
+        # neither merged nor a new golden yet.
+        staged
+        |> Ash.Changeset.for_update(:update, %{status: :review},
+          tenant: tenant,
+          authorize?: false
+        )
+        |> Ash.update!(tenant: tenant, authorize?: false)
+
         true
 
       candidates == [] ->

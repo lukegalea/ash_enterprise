@@ -183,6 +183,9 @@ defmodule AshEnterprise.Canonical.Person do
 
       change set_attribute(:merged, false)
       change set_attribute(:master_id, nil)
+      # Stale provenance must not survive the correction: a later
+      # merge→unmerge cycle would restore from data the merge retracted.
+      change set_attribute(:merge_provenance, nil)
       change AshEnterprise.Mdm.Changes.Unmerge
     end
 
