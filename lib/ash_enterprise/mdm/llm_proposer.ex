@@ -86,11 +86,4 @@ defmodule AshEnterprise.Mdm.LlmProposer do
     allowed ops. Do not invent fields or attributes.
     """
   end
-
-  defp extract_rules(response) do
-    case ReqLLM.Response.object(response) do
-      %{"rules" => rules} when is_list(rules) -> rules
-      _ -> []
-    end
-  end
 end
