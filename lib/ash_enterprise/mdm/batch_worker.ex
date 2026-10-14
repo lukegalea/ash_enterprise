@@ -261,6 +261,34 @@ defmodule AshEnterprise.Mdm.BatchWorker do
             authorize?: true
           )
 
+          # A review-banded candidate is stewardship work: the process
+          # instance is the work item's ledger side — the queue reads the
+          # candidate, TaskList reads the task, and the steward's decision
+          # (wherever made) completes the task. The definition resolves
+          # through the host Resolver (binding → platform baseline), not the
+          # engine's in-tenant fallback, because baselines live in the
+          # platform organization.
+          if band == :review do
+            case AshEnterprise.Process.Resolver.resolve(:process, "mdm.steward_review", tenant) do
+              {:ok, definition} ->
+                # The struct, not the id: the engine's own lookup reads the
+                # definition in the instance's tenant, and the baseline lives
+                # in the platform organization. Passing the pinned definition
+                # is the package's documented answer.
+                AshBpmn.start_instance!(AshEnterprise.Bpmn,
+                  definition: definition,
+                  subject: candidate,
+                  actor: AshEnterprise.Platform.SystemActor.system(),
+                  tenant: tenant
+                )
+
+              # No steward-review baseline: the queue still works, there is
+              # just no process instance. Publishing is the operator's act.
+              {:error, _reason} ->
+                :ok
+            end
+          end
+
         # No published band table in this tenant's resolver chain: the
         # candidates stay PENDING and un-banded — a staging-only import,
         # not a failure. Bands tighten via calibration; publishing is the

@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn2:definitions xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:ash="https://github.com/lukegalea/ash_bpmn/ns"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   id="Definitions_mdm_steward_review"
+                   targetNamespace="https://ash-enterprise.example/bpmn">
+  <bpmn2:process id="Process_mdm_steward_review" name="MDM steward review" isExecutable="true">
+
+    <!--
+      One review-banded match candidate's journey through stewardship (MDM-4,
+      ADR 0050). The engine starts an instance per candidate the moment the
+      band table says :review; the user task is the work item the steward
+      queue surfaces. The decision itself is deliberately NOT a service task:
+      confirm/reject are the candidate's own person-gated actions, and the
+      engine actor could never pass the person gate without undoing it. The
+      steward acts in the queue (or here, through the task); the queue's
+      after_action completes this task with the outcome, which is what lets
+      the instance finish.
+    -->
+
+    <bpmn2:startEvent id="Start">
+      <bpmn2:outgoing>Flow_to_review</bpmn2:outgoing>
+    </bpmn2:startEvent>
+
+    <bpmn2:userTask id="StewardDecision" name="Steward decision">
+      <bpmn2:extensionElements>
+        <ash:taskConfig>
+          <ash:candidates>
+            <ash:candidate kind="role" of="Administrator"/>
+          </ash:candidates>
+          <ash:outcomes>
+            <ash:outcome name="confirm"/>
+            <ash:outcome name="reject"/>
+          </ash:outcomes>
+        </ash:taskConfig>
+      </bpmn2:extensionElements>
+      <bpmn2:incoming>Flow_to_review</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_decided</bpmn2:outgoing>
+    </bpmn2:userTask>
+
+    <bpmn2:endEvent id="EndConfirmed">
+      <bpmn2:extensionElements><ash:taskConfig outcome="confirm"/></bpmn2:extensionElements>
+      <bpmn2:incoming>Flow_confirmed</bpmn2:incoming>
+    </bpmn2:endEvent>
+
+    <bpmn2:endEvent id="EndRejected">
+      <bpmn2:extensionElements><ash:taskConfig outcome="reject"/></bpmn2:extensionElements>
+      <bpmn2:incoming>Flow_rejected</bpmn2:incoming>
+    </bpmn2:endEvent>
+
+    <bpmn2:sequenceFlow id="Flow_to_review" sourceRef="Start" targetRef="StewardDecision"/>
+
+    <bpmn2:sequenceFlow id="Flow_decided" sourceRef="StewardDecision" targetRef="Route"/>
+    <bpmn2:exclusiveGateway id="Route" name="What did the steward decide?" default="Flow_rejected">
+      <bpmn2:incoming>Flow_decided</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_confirmed</bpmn2:outgoing>
+      <bpmn2:outgoing>Flow_rejected</bpmn2:outgoing>
+    </bpmn2:exclusiveGateway>
+
+    <bpmn2:sequenceFlow id="Flow_confirmed" sourceRef="Route" targetRef="EndConfirmed">
+      <bpmn2:conditionExpression xsi:type="bpmn2:tFormalExpression"
+        language="feel">task.outcome = "confirm"</bpmn2:conditionExpression>
+    </bpmn2:sequenceFlow>
+    <bpmn2:sequenceFlow id="Flow_rejected" sourceRef="Route" targetRef="EndRejected"/>
+  </bpmn2:process>
+
+  <bpmndi:BPMNDiagram id="Diagram_1">
+    <bpmndi:BPMNPlane id="Plane_1" bpmnElement="Process_mdm_steward_review">
+      <bpmndi:BPMNShape id="Shape_Start" bpmnElement="Start">
+        <dc:Bounds x="150" y="202" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_StewardDecision" bpmnElement="StewardDecision">
+        <dc:Bounds x="240" y="180" width="120" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Route" bpmnElement="Route">
+        <dc:Bounds x="410" y="195" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_EndConfirmed" bpmnElement="EndConfirmed">
+        <dc:Bounds x="510" y="122" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_EndRejected" bpmnElement="EndRejected">
+        <dc:Bounds x="510" y="242" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_to_review" bpmnElement="Flow_to_review">
+        <di:waypoint x="186" y="220"/>
+        <di:waypoint x="240" y="220"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_decided" bpmnElement="Flow_decided">
+        <di:waypoint x="360" y="220"/>
+        <di:waypoint x="410" y="220"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_confirmed" bpmnElement="Flow_confirmed">
+        <di:waypoint x="435" y="195"/>
+        <di:waypoint x="435" y="140"/>
+        <di:waypoint x="510" y="140"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_rejected" bpmnElement="Flow_rejected">
+        <di:waypoint x="435" y="245"/>
+        <di:waypoint x="510" y="260"/>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn2:definitions>

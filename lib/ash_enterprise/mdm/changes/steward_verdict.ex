@@ -54,7 +54,47 @@ defmodule AshEnterprise.Mdm.Changes.StewardVerdict do
       )
       |> Ash.update!(tenant: tenant, authorize?: false)
 
+    # The process side: this decision completes the review task, which is
+    # what lets the steward-review instance finish.
+    complete_review_task!(candidate, verdict, actor, tenant)
+
     {:ok, candidate}
+  end
+
+  defp complete_review_task!(candidate, verdict, actor, tenant) do
+    require Ash.Query
+
+    # The engine does not copy the subject onto the task; the join is the
+    # instance it belongs to.
+    open_task =
+      AshEnterprise.Bpmn.Instance
+      |> Ash.Query.filter(subject_id == ^candidate.id and status == ^:running)
+      |> Ash.read_one(tenant: tenant, authorize?: false)
+      |> case do
+        {:ok, instance} when not is_nil(instance) ->
+          AshEnterprise.Bpmn.HumanTask
+          |> Ash.Query.filter(instance_id == ^instance.id and status == :open)
+          |> Ash.read_one(tenant: tenant, authorize?: false)
+          |> case do
+            {:ok, task} -> task
+            _ -> nil
+          end
+
+        _ ->
+          nil
+      end
+
+    open_task
+    |> case do
+      task when not is_nil(task) ->
+        AshBpmn.complete_task!(task, outcome: verdict, actor: actor)
+
+      _ ->
+        # No open task: the decision came from the queue before the instance
+        # existed, or the tenant runs no steward-review baseline. The verdict
+        # rows are the record either way.
+        :ok
+    end
   end
 
   # -- the observation --------------------------------------------------------
