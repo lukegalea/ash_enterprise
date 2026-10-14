@@ -513,6 +513,12 @@ defmodule AshEnterprise.Mdm.BatchTest do
       assert hd(items).kind == :mdm_match
       assert hd(items).record.band == :review
       assert hd(items).record.status == :pending
+
+      # The fixture's measured score sits INSIDE the review band — if a
+      # scoring change pushes it over 0.9, this fails with the real reason
+      # instead of an empty queue.
+      score = Decimal.to_float(hd(items).record.score)
+      assert score >= 0.5 and score < 0.9, "score #{score} left the review band"
     end
 
     test "the trigram shortlist reads through the org-scoped GIN index, not a scan", %{org: org} do
