@@ -149,6 +149,17 @@ defmodule AshEnterpriseWeb.Router do
       live "/canonical/agent", CanonicalAgentLive
     end
 
+    # --- MDM steward queue ---------------------------------------------------
+    #
+    # The review half of entity resolution (ADR 0050, MDM-4): review-banded
+    # match candidates await a person's confirm or reject. The acts are the
+    # candidate's own person-gated actions; this surface only reads the
+    # System One review queue and calls them.
+    ash_authentication_live_session :steward,
+      on_mount: [{AshEnterpriseWeb.LiveUserAuth, :live_user_required}] do
+      live "/app/steward", StewardLive
+    end
+
     ash_authentication_live_session :legacy_surfaces,
       on_mount: [{AshEnterpriseWeb.LiveUserAuth, :live_user_required}] do
       live "/app/legacy-users", A2uiLive.LegacyUsers
