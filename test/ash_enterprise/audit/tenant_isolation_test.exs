@@ -135,6 +135,10 @@ defmodule AshEnterprise.Audit.TenantIsolationTest do
         |> Ash.Query.for_read(:for_export, %{from: from, to: to})
         |> Ash.read!(authorize?: false, tenant: ctx.acme)
 
+      IO.inspect(Enum.map(events, &{&1.organization_id, &1.resource, &1.action}),
+        label: "EVENTS"
+      )
+
       assert length(events) == 2
       assert Enum.map(events, & &1.sequence) == Enum.sort(Enum.map(events, & &1.sequence))
       assert Enum.all?(events, &(&1.organization_id == ctx.acme))

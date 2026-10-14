@@ -217,7 +217,7 @@ defmodule AshEnterprise.Mdm.Changes.StewardVerdict do
       email = mapped["email"]
 
       email_taken? =
-        email && !is_nil(email) &&
+        !is_nil(email) &&
           AshEnterprise.Canonical.Person
           |> Ash.Query.filter(email == ^email)
           |> Ash.exists?(tenant: tenant, authorize?: false)
