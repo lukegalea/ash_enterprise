@@ -148,3 +148,6 @@ config :ash_enterprise, :system_one_subject_resources, [
   AshEnterprise.SystemOne.TestSupport.Note,
   AshEnterprise.SystemOne.TestSupport.Standard
 ]
+
+# MDM proposals: tests stub the LLM MFA per test; no default model runs.
+config :ash_enterprise, :mdm_proposal_llm, nil

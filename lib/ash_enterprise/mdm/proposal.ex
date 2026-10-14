@@ -95,12 +95,18 @@ defmodule AshEnterprise.Mdm.Proposal do
         {deterministic, :deterministic_only, %{"llm" => "not configured"}}
 
       {m, f, a} ->
+        # Values never leave the zone: samples are masked to their types.
+        masked =
+          Map.new(samples || %{}, fn {field, value} ->
+            {field, if(is_binary(value), do: "string", else: type_of(value))}
+          end)
+
         manifest = %{
           "tenant" => to_string(tenant),
           "target_resource" => target,
           "target_attributes" => attributes,
           "observed_schema" => observed_schema,
-          "samples" => samples
+          "samples" => masked
         }
 
         case apply(m, f, a ++ [manifest]) do
@@ -119,6 +125,16 @@ defmodule AshEnterprise.Mdm.Proposal do
           other ->
             {deterministic, :llm_invalid, %{"raw" => inspect(other)}}
         end
+    end
+  end
+
+  defp type_of(value) do
+    cond do
+      is_integer(value) -> "integer"
+      is_float(value) -> "float"
+      is_boolean(value) -> "boolean"
+      is_binary(value) -> "string"
+      true -> "unknown"
     end
   end
 

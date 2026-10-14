@@ -44,7 +44,12 @@ defmodule AshEnterprise.Mdm.LlmProposer do
     with {:ok, spec, opts} <- resolve() do
       prompt = build_prompt(manifest)
 
-      case ReqLLM.generate_object(spec, prompt, @schema, opts) do
+      case AshEnterprise.SystemOne.QuestionProposal.Transport.ReqLLM.generate(
+             spec,
+             opts,
+             @schema,
+             prompt
+           ) do
         {:ok, response} ->
           {:ok, extract_rules(response)}
 
@@ -54,9 +59,11 @@ defmodule AshEnterprise.Mdm.LlmProposer do
     end
   end
 
+  # The judgment profile machinery resolves the model spec + transport opts;
+  # the transport is the same ReqLLM adapter the question proposals use.
   defp resolve do
     profile = Application.get_env(:ash_enterprise, :mdm_proposal_profile, :mdm_proposal)
-    AshJudgments.Profile.resolve(profile)
+    AshEnterprise.SystemOne.QuestionProposal.Transport.ReqLLM.resolve(profile)
   end
 
   defp build_prompt(manifest) do
@@ -65,7 +72,7 @@ defmodule AshEnterprise.Mdm.LlmProposer do
 
     Target attributes: #{inspect(manifest["target_attributes"])}
     Observed schema: #{inspect(manifest["observed_schema"])}
-    Field samples: #{inspect(manifest["samples"])}
+    Field samples (types only — values never leave the zone): #{inspect(manifest["samples"])}
 
     Return one rule per observed field you can map: path = the observed
     field, target = the golden attribute, op = an identity or trim from the

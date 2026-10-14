@@ -66,9 +66,17 @@ defmodule AshEnterprise.Mdm.ProposalTest do
   end
 
   test "an LLM refusal is retained and the deterministic floor still lands", %{org: org} do
+    previous = Application.get_env(:ash_enterprise, :mdm_proposal_llm)
+
     Application.put_env(:ash_enterprise, :mdm_proposal_llm, {__MODULE__, :refuse, []})
 
-    on_exit(fn -> Application.delete_env(:ash_enterprise, :mdm_proposal_llm) end)
+    on_exit(fn ->
+      if previous do
+        Application.put_env(:ash_enterprise, :mdm_proposal_llm, previous)
+      else
+        Application.delete_env(:ash_enterprise, :mdm_proposal_llm)
+      end
+    end)
 
     assert {:ok, draft} =
              Proposal.propose(org, "AshEnterprise.Canonical.Person", %{
