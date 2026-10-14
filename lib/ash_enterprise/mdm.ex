@@ -20,5 +20,6 @@ defmodule AshEnterprise.Mdm do
     resource AshEnterprise.Mdm.SourceRecord
     resource AshEnterprise.Mdm.MatchRuleSet
     resource AshEnterprise.Mdm.MatchCandidate
+    resource AshEnterprise.Mdm.SourceIdentity
   end
 end

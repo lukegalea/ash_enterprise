@@ -54,6 +54,17 @@ defmodule AshEnterprise.Canonical.Person do
       description "Display name, when the source system carried one. Stays nil otherwise."
     end
 
+    # CDM master/merged shape (ADR 0017, adopted by ADR 0050): the merge
+    # keeps the loser's row, pointing at its survivor.
+    attribute :merged, :boolean do
+      public? true
+      default false
+    end
+
+    attribute :master_id, :uuid do
+      public? true
+    end
+
     attribute :email, :ci_string do
       public? true
       constraints max_length: 320
@@ -121,6 +132,31 @@ defmodule AshEnterprise.Canonical.Person do
       # changes nothing. The action cannot pin that choice — it depends on the
       # payload, and pinning it here would let a name-less source blank an
       # existing name.
+    end
+
+    update :mdm_survivor_update do
+      description "The merge's survivor write: fill the survivor's gaps from the loser (ADR 0050 survivorship)."
+      accept [:name, :email]
+    end
+
+    update :mdm_merge_into do
+      description """
+      The merge write (ADR 0050): this record folds into the survivor.
+      Non-destructive by construction — the loser keeps its row.
+      """
+
+      argument :survivor_id, :uuid, allow_nil?: false
+      require_atomic? false
+
+      change AshEnterprise.Mdm.Changes.MergeInto
+    end
+
+    update :mdm_unmerge do
+      description "The merge correction: this record stands alone again."
+      accept []
+      validate attribute_equals(:merged, true)
+      change set_attribute(:merged, false)
+      change set_attribute(:master_id, nil)
     end
   end
 
