@@ -76,5 +76,11 @@
   "file": "lib/ash_enterprise_web/live/steward_live.ex",
   "text": "def handle_event(\"confirm\", %{\"id\" => id}, socket) do",
   "reason": "The event authorizes through the action: it resolves the candidate with the actor and calls the person-gated :confirm/:reject actions, whose policies (PersonActor first, no engine bypass on these actions) refuse system actors and ungranted users. The handler adds no second security model \u2014 that is the design (ADR 0050)."
+ },
+ {
+  "law": "07",
+  "file": "lib/ash_enterprise/mdm/quality_stewardship_worker.ex",
+  "text": "use Oban.Worker,",
+  "reason": "The sweep is idempotent by design: start_stewardship_for_findings!/1 skips a golden already running an instance (its own documented contract), so a re-run costs one indexed read per tenant and never duplicates a task. The queue is declared in config; no unique constraint needed."
  }
 ]
