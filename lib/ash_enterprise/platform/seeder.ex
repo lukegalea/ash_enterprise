@@ -561,15 +561,11 @@ defmodule AshEnterprise.Platform.Seeder do
       |> Ash.Query.filter(email == ^email)
       |> Ash.read_one!(authorize?: false)
 
-    user =
-      existing ||
-        Accounts.User
-        |> Ash.Changeset.for_create(
-          :register_with_password,
-          %{email: email, password: password, password_confirmation: password},
-          authorize?: false
-        )
-        |> Ash.create!()
+    # `:provision_with_password`, not `:register_with_password`: registering
+    # sends a confirmation email built against the running endpoint, which the
+    # seed task does not start (iron law #23), and nobody receives mail at a
+    # seeded address. Provisioning creates the user already confirmed.
+    user = existing || provision_user!(email, password)
 
     user
     |> Ash.Changeset.for_update(
@@ -579,6 +575,25 @@ defmodule AshEnterprise.Platform.Seeder do
     )
     |> Ash.update!()
     |> Map.put(:organization_id, organization.id)
+  end
+
+  @doc """
+  Creates a user who is already confirmed and can sign in with `password`,
+  without sending a confirmation email or needing the endpoint.
+
+  Through `AshEnterprise.Accounts.User`'s `:provision_with_password`, as the
+  `seed` system actor, which is the only kind of actor that action accepts.
+  Shared with `AshEnterprise.Platform.DemoData`.
+  """
+  @spec provision_user!(String.t(), String.t()) :: Accounts.User.t()
+  def provision_user!(email, password) do
+    Accounts.User
+    |> Ash.Changeset.for_create(
+      :provision_with_password,
+      %{email: email, password: password},
+      actor: SystemActor.seed()
+    )
+    |> Ash.create!()
   end
 
   @doc """

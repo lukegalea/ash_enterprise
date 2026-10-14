@@ -33,6 +33,7 @@ defmodule AshEnterprise.Platform.DemoData do
   require Ash.Query
 
   alias AshEnterprise.Accounts
+  alias AshEnterprise.Platform.Seeder
   alias AshEnterprise.Platform.SystemActor
   alias AshEnterprise.Security
 
@@ -129,9 +130,11 @@ defmodule AshEnterprise.Platform.DemoData do
       |> Ash.create!()
   end
 
-  # Registration deliberately goes through `:register_with_password` rather than
-  # a seed insert: it is the action that hashes, and a demo tenant whose people
-  # cannot sign in is a demo that stops at the first click.
+  # People are created through `Seeder.provision_user!/2` rather than a seed
+  # insert: it runs the action that hashes, and a demo tenant whose people
+  # cannot sign in is a demo that stops at the first click. Not through
+  # `:register_with_password`, which sends a confirmation email built against
+  # the endpoint that `mix ash_enterprise.demo` does not start.
   defp create_people(units, root, tenant) do
     Enum.map(@people, fn {email, unit_name} ->
       unit = Map.get(units, unit_name, root)
@@ -141,15 +144,7 @@ defmodule AshEnterprise.Platform.DemoData do
         |> Ash.Query.filter(email == ^email)
         |> Ash.read_one!(authorize?: false)
 
-      user =
-        existing ||
-          Accounts.User
-          |> Ash.Changeset.for_create(
-            :register_with_password,
-            %{email: email, password: @password, password_confirmation: @password},
-            authorize?: false
-          )
-          |> Ash.create!()
+      user = existing || Seeder.provision_user!(email, @password)
 
       user
       |> Ash.Changeset.for_update(

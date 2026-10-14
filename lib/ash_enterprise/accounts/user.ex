@@ -39,7 +39,14 @@ defmodule AshEnterprise.Accounts.User do
         confirm_on_update? false
         require_interaction? true
         confirmed_at_field :confirmed_at
-        auto_confirm_actions [:sign_in_with_magic_link, :reset_password_with_token]
+        # `:provision_with_password` is the seeder's: confirmed on creation, no
+        # email sent, system actors only (`Validations.ProvisionedBySystemActor`).
+        auto_confirm_actions [
+          :sign_in_with_magic_link,
+          :reset_password_with_token,
+          :provision_with_password
+        ]
+
         sender AshEnterprise.Accounts.User.Senders.SendNewUserConfirmationEmail
       end
     end
@@ -230,6 +237,43 @@ defmodule AshEnterprise.Accounts.User do
 
       # validates that the password matches the confirmation
       validate AshAuthentication.Strategy.Password.PasswordConfirmationValidation
+
+      metadata :token, :string do
+        description "A JWT that can be used to authenticate the user."
+        allow_nil? false
+      end
+    end
+
+    create :provision_with_password do
+      description """
+      Creates a user who is already confirmed, for seeding. System actors only.
+
+      `:register_with_password` sends a confirmation email whose link is built
+      against the running endpoint, so a mix task that boots only the Repo
+      (iron law #23) crashed on it, and a seeded `admin@example.com` could
+      never receive it anyway. This action is on the add-on's
+      `auto_confirm_actions`, so it sets `confirmed_at` and sends nothing.
+      `Validations.ProvisionedBySystemActor` keeps it from being a way round
+      confirmation for anyone else. Otherwise it matches registration,
+      including the token in the returned user's metadata.
+      """
+
+      argument :email, :ci_string do
+        allow_nil? false
+      end
+
+      argument :password, :string do
+        description "The user's initial password, in plain text."
+        allow_nil? false
+        constraints min_length: 8
+        sensitive? true
+      end
+
+      validate AshEnterprise.Accounts.Validations.ProvisionedBySystemActor
+
+      change set_attribute(:email, arg(:email))
+      change {AshAuthentication.Strategy.Password.HashPasswordChange, strategy_name: :password}
+      change {AshAuthentication.GenerateTokenChange, strategy_name: :password}
 
       metadata :token, :string do
         description "A JWT that can be used to authenticate the user."
