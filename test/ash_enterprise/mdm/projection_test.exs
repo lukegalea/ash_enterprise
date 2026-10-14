@@ -91,7 +91,15 @@ defmodule AshEnterprise.Mdm.ProjectionTest do
       |> Ash.read!(tenant: org, authorize?: false)
       |> Enum.map(&{&1.email, &1.name, &1.merged, &1.master_id, &1.id})
 
-    assert [{email, name, false, nil, _id}] = after_replay
+    assert [{email, name, false, nil, id}] = after_replay
+
+    # The id is PINNED from the identity history: the XREF still resolves,
+    # and the pre-replay row is the same row.
+    assert id == golden.id
+    assert {email, name} == Enum.find(before, fn {e, _} -> to_string(e) == "rita@x.io" end)
+
+    reloaded = Ash.get!(Person, golden.id, tenant: org, authorize?: false)
+    assert reloaded.owner_id == admin.id
     assert to_string(email) == "rita@x.io"
     assert name == "Rita Replay"
     assert length(before) >= 1
