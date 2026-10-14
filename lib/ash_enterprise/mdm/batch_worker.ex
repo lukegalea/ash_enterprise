@@ -294,6 +294,7 @@ defmodule AshEnterprise.Mdm.BatchWorker do
     cond do
       admit_band ->
         {candidate, _band} = admit_band
+        supersede_others!(banded, candidate, tenant, system)
 
         candidate
         |> Ash.Changeset.for_update(:update, %{band: :admit},
@@ -314,6 +315,7 @@ defmodule AshEnterprise.Mdm.BatchWorker do
 
       review_band ->
         {candidate, _band} = review_band
+        supersede_others!(banded, candidate, tenant, system)
 
         candidate
         |> Ash.Changeset.for_update(:update, %{band: :review},
@@ -357,6 +359,22 @@ defmodule AshEnterprise.Mdm.BatchWorker do
       true ->
         false
     end
+  end
+
+  # Candidates that proposed pairings the routing did not take are spent:
+  # they would otherwise sit pending forever against a decided row.
+  defp supersede_others!(banded, winner, tenant, system) do
+    for {other, _band} <- banded, other.id != winner.id do
+      other
+      |> Ash.Changeset.for_update(:update, %{status: :superseded},
+        tenant: tenant,
+        actor: system,
+        authorize?: true
+      )
+      |> Ash.update!(tenant: tenant, actor: system, authorize?: true)
+    end
+
+    :ok
   end
 
   defp golden_for!(candidate, tenant) do

@@ -181,11 +181,68 @@ defmodule AshEnterprise.Mdm.ExportTest do
     golden_via_land!(org, admin, "Ann Foreign", "foreign@x.io", :us)
 
     # One inadmissible golden refuses the export WHOLE: a partial export
-    # would leak the presence of the rows it withheld.
+    # would leak the presence of the rows it withheld. The mixed-residency
+    # golden takes the union tag, which no single-region admission matches.
     assert {:error, %Ash.Error.Forbidden{errors: [forbidden]}} =
              Person.mdm_export("example-ontario", tenant: org, actor: admin)
 
     assert forbidden.custom_message =~ "cannot leave"
+  end
+
+  test "one golden fed by CA and US identities is refused on the US tag", %{
+    org: org,
+    admin: admin
+  } do
+    egress_mapping!(org, admin)
+
+    golden =
+      AshEnterprise.Canonical.Person
+      |> Ash.Changeset.for_create(:upsert_from_source, %{
+        name: "Ann Mixed",
+        email: "mixed@x.io",
+        owner_id: admin.id,
+        owning_business_unit_id: admin.owning_business_unit_id
+      })
+      |> Ash.create!(tenant: org, authorize?: false)
+
+    for region <- [:ca, :us] do
+      {:ok, record} =
+        AshEnterprise.Mdm.Landing.land_row(
+          org,
+          "acme",
+          %{"Full Name" => "Ann Mixed", "Email" => "mixed@x.io"},
+          region: region,
+          row_key: "mixed-#{region}-#{System.unique_integer([:positive])}"
+        )
+
+      SourceIdentity
+      |> Ash.Changeset.for_create(
+        :open,
+        %{
+          source: to_string(record.source),
+          stream: to_string(record.stream),
+          external_id: record.external_id,
+          golden_resource: "AshEnterprise.Canonical.Person",
+          golden_id: golden.id,
+          asserted_by: :steward
+        },
+        tenant: org,
+        authorize?: false
+      )
+      |> Ash.create!(tenant: org, authorize?: false)
+    end
+
+    identities =
+      AshEnterprise.Mdm.SourceIdentity
+      |> Ash.Query.filter(golden_id == ^golden.id)
+      |> Ash.read!(tenant: org, authorize?: false)
+
+    assert length(identities) == 2, "identities=\#{length(identities)} golden=\#{golden.id}"
+
+    # The US identity alone forbids the departure — the CA one cannot
+    # outvote it.
+    assert {:error, %Ash.Error.Forbidden{}} =
+             Person.mdm_export("example-ontario", tenant: org, actor: admin)
   end
 
   test "an actor without grants is refused before any data moves", %{org: org, admin: admin} do

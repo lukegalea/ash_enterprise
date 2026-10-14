@@ -66,17 +66,23 @@ defmodule AshEnterprise.Mdm.Export do
     goldens
     |> Enum.reduce_while({:ok, goldens}, fn golden, {:ok, _} ->
       case residency(golden) do
-        {:ok, tag} ->
-          # The land tag is bizev's lowercase region atom ("ca"); the zone
-          # admission vocabulary is the ISO code ("CA").
-          case AshEnterprise.Zones.admit(zone, %{
-                 data_class: @data_class,
-                 residency: String.upcase(tag)
-               }) do
-            :ok ->
+        {:ok, tags} ->
+          # The land tags are bizev's lowercase region atoms ("ca"); the
+          # zone admission vocabulary is the ISO code ("CA"). Every tag the
+          # row carries must admit.
+          refusals =
+            tags
+            |> Enum.map(&String.upcase(&1))
+            |> Enum.map(
+              &AshEnterprise.Zones.admit(zone, %{data_class: @data_class, residency: &1})
+            )
+            |> Enum.reject(&(&1 == :ok))
+
+          case refusals do
+            [] ->
               {:cont, {:ok, goldens}}
 
-            {:error, reason} ->
+            [{:error, reason} | _] ->
               {:halt,
                {:error,
                 Ash.Error.Forbidden.exception(
@@ -111,7 +117,7 @@ defmodule AshEnterprise.Mdm.Export do
         golden_id == ^golden.id and golden_resource == "AshEnterprise.Canonical.Person"
       )
       |> Ash.read!(tenant: golden.organization_id, authorize?: false)
-      |> Enum.map(&source_record_residency/1)
+      |> Enum.flat_map(&source_record_residencies/1)
 
     cond do
       tags == [] ->
@@ -123,21 +129,23 @@ defmodule AshEnterprise.Mdm.Export do
         :error
 
       true ->
-        {:ok, hd(tags)}
+        # Every tag the row ever carried, current and historical: the gate
+        # loops over all of them and refuses on the first refusal. CA and US
+        # are not ordered, so there is no "most restrictive" tag to pick.
+        {:ok, Enum.uniq(tags)}
     end
   end
 
-  defp source_record_residency(identity) do
+  # A temporal identity has MULTIPLE periods (one SourceRecord row per
+  # landed version): every period's tag counts.
+  defp source_record_residencies(identity) do
     AshEnterprise.Mdm.SourceRecord
     |> Ash.Query.filter(
       source == ^identity.source and stream == ^identity.stream and
         external_id == ^identity.external_id
     )
-    |> Ash.read_one!(authorize?: false)
-    |> case do
-      nil -> nil
-      record -> record.residency_tag
-    end
+    |> Ash.read!(authorize?: false)
+    |> Enum.map(& &1.residency_tag)
   end
 
   defp rows(persons, mapping) do
