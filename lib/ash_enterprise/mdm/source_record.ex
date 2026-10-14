@@ -14,16 +14,14 @@ defmodule AshEnterprise.Mdm.SourceRecord do
   residency tag, period) — a central-log row per landed observation would
   double the write volume for a fact the row itself already answers.
 
-  KNOWN EXPOSURE (found in the ADR 0050 build, fix owed by a platform-security
-  slice): reads are governed by the grant union, but this row carries no
-  `organization_id`, so every scope clause that would narrow a grant is nil
-  here — a GLOBAL role grant reads every tenant's raw landed rows, and the
-  only fence for non-global grants is the `"org:slug:key"` external_id
-  convention. The convention is load-bearing but structurally unenforced.
-  The minimal fix is a RoleGrant clause for attribute-less resources that
-  filters `external_id` by the actor's organization prefix; it belongs in
-  the security slice because it changes every `tenant?: false` resource at
-  once.
+  Raw landings are MACHINERY-visible only (found in the ADR 0050 build): the
+  row carries no `organization_id`, so the grant union's scope clauses are
+  all nil here and a GLOBAL role grant would read every tenant's raw rows —
+  the `"org:slug:key"` external_id convention is a convention, not a fence.
+  So the policy set refuses persons outright: the pipeline reads landings
+  as the system actor (or unauthorised inside the engine), and the steward's
+  surfaces are the tenant-scoped StagedRecord/goldens. Raw payloads are not
+  a person-readable surface.
   """
 
   use AshEnterprise.Platform.Resource,
@@ -58,10 +56,12 @@ defmodule AshEnterprise.Mdm.SourceRecord do
       authorize_if always()
     end
 
+    # No person path: a raw landing is not a person-readable surface (the
+    # grant union cannot scope a row with no organization_id — a global
+    # grant would read every tenant). Machinery reaches landings through
+    # the bypasses and `authorize?: false` inside the pipeline.
     policy always() do
-      authorize_if AshEnterprise.Security.Checks.RoleGrant
-      authorize_if AshEnterprise.Security.Checks.SharedWithActor
-      authorize_if AshEnterprise.Security.Checks.HierarchyGrant
+      forbid_if always()
     end
   end
 end
