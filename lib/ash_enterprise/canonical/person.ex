@@ -172,11 +172,37 @@ defmodule AshEnterprise.Canonical.Person do
       change set_attribute(:master_id, nil)
       change AshEnterprise.Mdm.Changes.Unmerge
     end
+
+    action :mdm_export, {:array, :map} do
+      description """
+      The egress departure (MDM-6, ADR 0050 §8): the tenant's active `:egress`
+      mapping turns this tenant's golden records into customer-shaped rows —
+      after the zone disclosure gate refuses the departure on the residency
+      tags recorded at land. Person-gated and grant-checked like every
+      surface; see `AshEnterprise.Mdm.Export`.
+      """
+
+      argument :zone, :string, allow_nil?: false
+
+      run AshEnterprise.Mdm.Export
+    end
   end
 
   code_interface do
     define :by_external, args: [:system, :id], not_found_error?: false
     define :upsert_from_source
     define :read
+    define :mdm_export, args: [:zone]
+  end
+
+  policies do
+    # The egress departure is a grant-checked act (MDM-6): a principal
+    # holding a role grant on the tenant's data may export; a person with
+    # no grants — and a nil actor — is refused by the grant union below.
+    # The zone disclosure gate itself lives in the run
+    # (AshEnterprise.Mdm.Export), on the land-recorded residency tags.
+    policy action(:mdm_export) do
+      authorize_if AshEnterprise.Security.Checks.RoleGrant
+    end
   end
 end

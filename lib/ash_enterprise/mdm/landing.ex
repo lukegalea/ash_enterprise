@@ -48,16 +48,25 @@ defmodule AshEnterprise.Mdm.Landing do
     fetched_at = opts[:fetched_at] || DateTime.utc_now()
 
     # The tenant's zone decides the region (ADR 0042: admission at land).
-    # Zone→tenant binding is host configuration, not a package default.
-    region = opts[:region] || :us
+    # Zone→tenant binding is host configuration — `default_region` under
+    # `AshEnterprise.Mdm.Landing` — not a package default, and callers may
+    # name the region per row. Normalised to the ISO code, because this tag
+    # is what the egress disclosure gate reads back.
+    region =
+      opts[:region] ||
+        :ash_enterprise
+        |> Application.get_env(__MODULE__, [])
+        |> Keyword.get(:default_region, "US")
+
+    region_tag = region |> to_string() |> String.upcase()
 
     AshEnterprise.Mdm.SourceRecord.land(
       %{
         source: :manual_csv,
         stream: :upload,
         external_id: "#{tenant}:#{slug}:#{row_key}",
-        region: region,
-        residency_tag: to_string(region),
+        region: region_tag,
+        residency_tag: region_tag,
         raw_payload: payload,
         source_metadata: %{"tenant" => tenant, "slug" => slug},
         cursor: nil,
