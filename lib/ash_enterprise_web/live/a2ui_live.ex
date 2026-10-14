@@ -419,4 +419,38 @@ defmodule AshEnterpriseWeb.A2uiLive do
 
     def render(assigns), do: Chrome.page(assigns)
   end
+
+  defmodule MdmMappings do
+    @moduledoc "A2UI surface for the MDM mapping version chain (MDM-6)."
+    use AshA2ui.LiveRenderer,
+      ui: AshEnterpriseWeb.A2ui.MdmMappingUI,
+      actor_fn: &__MODULE__.actor/1,
+      tenant_fn: &__MODULE__.tenant/1
+
+    alias AshEnterprise.Security.ActorContext
+    alias AshEnterpriseWeb.A2uiLive.Chrome
+
+    def actor(socket), do: socket.assigns[:current_user]
+
+    def tenant(socket), do: ActorContext.tenant(socket.assigns[:current_user])
+
+    def render(assigns), do: Chrome.page(assigns)
+  end
+
+  defmodule MdmGolden do
+    @moduledoc "A2UI surface for the golden records (MDM-6)."
+    use AshA2ui.LiveRenderer,
+      ui: AshEnterpriseWeb.A2ui.MdmGoldenUI,
+      actor_fn: &__MODULE__.actor/1,
+      tenant_fn: &__MODULE__.tenant/1
+
+    alias AshEnterprise.Security.ActorContext
+    alias AshEnterpriseWeb.A2uiLive.Chrome
+
+    def actor(socket), do: socket.assigns[:current_user]
+
+    def tenant(socket), do: ActorContext.tenant(socket.assigns[:current_user])
+
+    def render(assigns), do: Chrome.page(assigns)
+  end
 end

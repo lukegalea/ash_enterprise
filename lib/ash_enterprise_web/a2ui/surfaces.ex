@@ -31,6 +31,26 @@ defmodule AshEnterpriseWeb.A2ui.Surfaces do
 
   @surfaces [
     %{
+      name: "mdm_mappings",
+      label: "MDM mappings",
+      ui: A2ui.MdmMappingUI,
+      path: "/app/mdm/mappings",
+      blurb: "The mapping version chain — no-deploy onboarding.",
+      description:
+        "Versioned schema mappings (ADR 0050): draft → validate → activate, one per " <>
+          "customer schema. Activation supersedes; nothing is overwritten."
+    },
+    %{
+      name: "mdm_golden",
+      label: "Golden records",
+      ui: A2ui.MdmGoldenUI,
+      path: "/app/mdm/golden",
+      blurb: "The merged view of the customer, with merge lineage.",
+      description:
+        "Golden records (canonical people) built by the MDM pipeline, with each row's " <>
+          "merge lineage readable: who absorbed whom, pointing at whom."
+    },
+    %{
       name: "canonical_parties",
       label: "Canonical parties",
       ui: A2ui.CanonicalPartyUI,

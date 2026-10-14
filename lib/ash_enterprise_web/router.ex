@@ -130,6 +130,8 @@ defmodule AshEnterpriseWeb.Router do
       live "/app/teams", A2uiLive.Teams
       live "/app/roles", A2uiLive.Roles
       live "/app/business-units", A2uiLive.BusinessUnits
+      live "/app/mdm/mappings", A2uiLive.MdmMappings
+      live "/app/mdm/golden", A2uiLive.MdmGolden
 
       # The same people, over a table this application owns rather than a view over the legacy
       # one. Both are live, and the pair is the demonstration -- see
