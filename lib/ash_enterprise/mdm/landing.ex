@@ -49,24 +49,22 @@ defmodule AshEnterprise.Mdm.Landing do
 
     # The tenant's zone decides the region (ADR 0042: admission at land).
     # Zone→tenant binding is host configuration — `default_region` under
-    # `AshEnterprise.Mdm.Landing` — not a package default, and callers may
-    # name the region per row. Normalised to the ISO code, because this tag
-    # is what the egress disclosure gate reads back.
+    # `AshEnterprise.Mdm.Landing` (a lowercase atom) — not a package
+    # default. The region and its residency tag stay in bizev's lowercase
+    # contract; the ISO mapping happens at the egress disclosure gate.
     region =
       opts[:region] ||
         :ash_enterprise
         |> Application.get_env(__MODULE__, [])
-        |> Keyword.get(:default_region, "US")
-
-    region_tag = region |> to_string() |> String.upcase()
+        |> Keyword.get(:default_region, :us)
 
     AshEnterprise.Mdm.SourceRecord.land(
       %{
         source: :manual_csv,
         stream: :upload,
         external_id: "#{tenant}:#{slug}:#{row_key}",
-        region: region_tag,
-        residency_tag: region_tag,
+        region: region,
+        residency_tag: Atom.to_string(region),
         raw_payload: payload,
         source_metadata: %{"tenant" => tenant, "slug" => slug},
         cursor: nil,

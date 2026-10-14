@@ -66,10 +66,12 @@ defmodule AshEnterprise.Mdm.Export do
     goldens
     |> Enum.reduce_while({:ok, goldens}, fn golden, {:ok, _} ->
       case residency(golden) do
-        {:ok, residency} ->
+        {:ok, tag} ->
+          # The land tag is bizev's lowercase region atom ("ca"); the zone
+          # admission vocabulary is the ISO code ("CA").
           case AshEnterprise.Zones.admit(zone, %{
                  data_class: @data_class,
-                 residency: residency
+                 residency: String.upcase(tag)
                }) do
             :ok ->
               {:cont, {:ok, goldens}}

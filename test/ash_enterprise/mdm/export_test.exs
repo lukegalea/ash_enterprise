@@ -129,7 +129,7 @@ defmodule AshEnterprise.Mdm.ExportTest do
 
   test "a golden exports in the customer's shape through the zone gate", %{org: org, admin: admin} do
     egress_mapping!(org, admin)
-    {_golden, _staged} = golden_via_land!(org, admin, "Ann Exported", "ann@x.io", "CA")
+    {_golden, _staged} = golden_via_land!(org, admin, "Ann Exported", "ann@x.io", :ca)
 
     assert {:ok, [%{"Email Address" => "ann@x.io", "Customer Name" => "Ann Exported"}]} =
              Person.mdm_export("example-ontario", tenant: org, actor: admin)
@@ -137,7 +137,7 @@ defmodule AshEnterprise.Mdm.ExportTest do
 
   test "US-landed data cannot leave to the Ontario zone, whoever asks", %{org: org, admin: admin} do
     egress_mapping!(org, admin)
-    {golden, _staged} = golden_via_land!(org, admin, "Ann Domestic", "ann@x.io", "US")
+    {golden, _staged} = golden_via_land!(org, admin, "Ann Domestic", "ann@x.io", :us)
     id = golden.id
 
     assert {:error, %Ash.Error.Forbidden{errors: [forbidden]}} =
@@ -148,7 +148,7 @@ defmodule AshEnterprise.Mdm.ExportTest do
 
   test "a merged loser is not exported", %{org: org, admin: admin} do
     egress_mapping!(org, admin)
-    {golden, _staged} = golden_via_land!(org, admin, "Ann Kept", "kept@x.io", "CA")
+    {golden, _staged} = golden_via_land!(org, admin, "Ann Kept", "kept@x.io", :ca)
 
     loser =
       AshEnterprise.Canonical.Person
@@ -177,8 +177,8 @@ defmodule AshEnterprise.Mdm.ExportTest do
 
   test "mixed-residency goldens refuse the export whole", %{org: org, admin: admin} do
     egress_mapping!(org, admin)
-    golden_via_land!(org, admin, "Ann Domestic", "domestic@x.io", "CA")
-    golden_via_land!(org, admin, "Ann Foreign", "foreign@x.io", "US")
+    golden_via_land!(org, admin, "Ann Domestic", "domestic@x.io", :ca)
+    golden_via_land!(org, admin, "Ann Foreign", "foreign@x.io", :us)
 
     # One inadmissible golden refuses the export WHOLE: a partial export
     # would leak the presence of the rows it withheld.
@@ -190,7 +190,7 @@ defmodule AshEnterprise.Mdm.ExportTest do
 
   test "an actor without grants is refused before any data moves", %{org: org, admin: admin} do
     egress_mapping!(org, admin)
-    golden_via_land!(org, admin, "Ann Exported", "ann@x.io", "CA")
+    golden_via_land!(org, admin, "Ann Exported", "ann@x.io", :ca)
 
     # No actor at all: the grant union has nothing to answer with, and the
     # RoleGrant filter check refuses by narrowing to zero rows.
