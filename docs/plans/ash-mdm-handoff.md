@@ -37,7 +37,19 @@ plan section and acceptance test named.
    (MatchCandidate status/human_verdict_ref). merged/master_id default
    false/nil so replay never resurrects merge state. Fixture test:
    byte-identical replay after deleting goldens.
-2. **MDM-7 Quality rules** (plan §10): `AshEnterprise.Mdm.QualityRules`
+2. **Findings→stewardship subscription** (MDM-7 remainder). A
+   Finding-resource BPMN Subscription is NOT viable as designed: (a)
+   Findings are written by the projector, not the audited surface, so no
+   audit event matches `match_resource`; (b) `mdm.steward_review`'s task
+   completes only through candidate-keyed confirm/reject, so a
+   finding-subject task can never complete; (c) subscription starts
+   resolve definitions in-tenant, so baseline tenants hit
+   `:no_definition`. The work is: audit the Finding resource (or emit an
+   audit event on noncompliant findings from QualityReview), give the
+   process a finding-shaped task with its own completion action, and
+   resolve the in-tenant definition gap. An attempted seed-function test
+   was reverted (it could only prove a row existed).
+2b. **MDM-7 Quality rules** (plan §10): `AshEnterprise.Mdm.QualityRules`
    (`use AshRules`; facts over staged/golden records), catalog
    `mdm-quality`, per-tenant profiles, projector
    `AshEnterprise.Mdm.QualityProjector` (`use AshCompliance.Projector`,
