@@ -19,7 +19,27 @@ defmodule AshEnterprise.Mdm.QualityReview do
   @subject_type "person"
   @gaps ~w(mdm.contact mdm.provenance mdm.freshness)
 
-  @doc "Emits the review events for one golden record. Returns :ok."
+  @doc """
+  The production entry point after a projector drain: starts a claimable
+  `mdm.quality_review` task for every NONCOMPLIANT MDM finding the tenant
+  carries. Idempotent — a golden already running an instance is skipped.
+  Call it from the drain follow-up (cron/Oban), not from inside the
+  projection.
+  """
+  def start_stewardship_for_findings!(tenant) do
+    findings =
+      AshCompliance.Resources.Finding
+      |> Ash.Query.filter(
+        organization_id == ^tenant and subject_type == "person" and
+          status == ^:noncompliant
+      )
+      |> Ash.read!(tenant: tenant, authorize?: false)
+
+    findings
+    |> Enum.uniq_by(& &1.subject_id)
+    |> Enum.map(&start_stewardship!(tenant, &1.control_id, &1.subject_id))
+  end
+
   def review_golden(tenant, golden, opts \\ []) do
     Enum.each(@gaps, fn gap ->
       metadata = %{
