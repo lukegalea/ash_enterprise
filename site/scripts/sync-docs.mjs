@@ -43,6 +43,14 @@ const SKIP = [/^AshStrangler\.md$/i, /^BPMN\.md$/i, /strangler fig migrations/i]
 
 const isSkipped = (basename) => SKIP.some((re) => re.test(basename));
 
+/**
+ * Directories whose pages stay on GitHub: operational runbooks and research
+ * notes are linked from the decision records but are not part of the site.
+ */
+const GITHUB_ONLY_DIRS = ['docs/runbooks/', 'docs/research/'];
+
+const isGithubOnly = (resolved) => GITHUB_ONLY_DIRS.some((dir) => resolved.startsWith(dir));
+
 /** Directories copied wholesale, in sidebar order. */
 const DIRS = [
   { dir: 'manifesto', label: 'Manifesto' },
@@ -62,6 +70,7 @@ const ROOT_FILES = [
   { from: 'ROADMAP.md', to: 'roadmap.md' },
   { from: 'COMPLIANCE.md', to: 'compliance.md' },
   { from: 'HANDOFF.md', to: 'handoff.md' },
+  { from: 'BLEEDING-EDGE.md', to: 'bleeding-edge.md' },
 ];
 
 /**
@@ -300,8 +309,9 @@ function rewriteTarget(target, srcRel, srcToOut, report) {
     }
 
     // A markdown file that exists but is deliberately not published (the raw
-    // research transcripts): point at GitHub rather than break the link.
-    if (isSkipped(posix.basename(resolved)) && fileExistsSync(resolved)) {
+    // research transcripts, runbooks, research notes): point at GitHub rather
+    // than break the link.
+    if ((isSkipped(posix.basename(resolved)) || isGithubOnly(resolved)) && fileExistsSync(resolved)) {
       report.externalised.push({ srcRel, target, to: resolved });
       return `${GITHUB_BLOB}/${resolved}${hash}`;
     }
