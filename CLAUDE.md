@@ -54,6 +54,12 @@ That is why `processes.phoenix` is deliberately absent from `devenv.nix`.
 6. **`priv/cdm/schemaDocuments/` is vendored third-party content** (Microsoft CDM, CC-BY-4.0, pinned commit). Never edit
    it. To change a generated resource, edit the resource. See `priv/cdm/ATTRIBUTION.md`.
 
+## Adding or changing a dependency
+
+A git dependency, a fork or an `override:` gets a row in `docs/BLEEDING-EDGE.md` in the same commit, with its
+upstream and the path back to a Hex release; `test/ash_enterprise/bleeding_edge_doc_test.exs` fails otherwise. So does
+a workaround in `lib/` for a dependency's bug (section 3 of that page). Removing one removes its row.
+
 ## Adding a resource
 
 Prefer adopting from the CDM corpus over inventing entities — see `docs/manifesto/02-schema-commons.md` for why, and

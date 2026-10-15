@@ -245,6 +245,11 @@ defmodule AshEnterprise.MixProject do
 
       # --- The unreleased first-party packages ----------------------------------
       #
+      # Every dependency that is not a plain Hex release -- these, the forks
+      # (ash_events below; boxic_dmn via ash_decisions) and any `override:` --
+      # is listed in docs/BLEEDING-EDGE.md with its path back to Hex.
+      # `bleeding_edge_doc_test.exs` fails if one is added without a row there.
+      #
       # Not on hex yet, so these are git dependencies on public GitHub repos: a
       # fresh clone fetches them with no credentials, and CI's `cold-clone` job
       # fails if that stops being true. They track their own `main` with no
@@ -374,6 +379,7 @@ defmodule AshEnterprise.MixProject do
       {:oban, "~> 2.0"},
       {:open_api_spex, "~> 3.0"},
       {:ash_state_machine, "~> 0.2"},
+      # FORK -- see docs/BLEEDING-EDGE.md for its path back to Hex.
       # The as_of capture/replay fork (ash_events#103, upstream PR #104
       # pending): a write's as_of is recorded on its event and restored on
       # replay, and the replay wrappers declare temporal_safe? — required
