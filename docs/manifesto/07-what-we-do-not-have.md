@@ -190,8 +190,9 @@ a rigour we have not verified.
 ## 5. Data retention, purge, and right-to-erasure
 
 `ash_archival` is **soft delete only**. There is no extension for hard purge on a retention schedule, no anonymization
-or pseudonymization pipeline, and no tooling for a GDPR Article 17 erasure request that has to reach the audit log and
-the event store as well as the row.
+or pseudonymization pipeline, and only partial tooling for a GDPR Article 17 erasure request that has to reach the
+audit log and the event store as well as the row: crypto-shredding covers content that arrived through an external
+connection (below), not a person's data in general.
 
 This is a real gap for anything holding EU personal data, and it interacts awkwardly with [thesis 4](04-batteries-are-inherited.md):
 an immutable central audit log is exactly what a right-to-erasure request runs into. Design the retention story
@@ -204,7 +205,10 @@ guarantee working, and it means the retention design can no longer be postponed 
 might not meet.
 
 **→ Roadmap:** [ADR 0024 — retention: partition for age, crypto-shred for erasure](../adr/0024-audit-retention-and-erasure.md).
-Proposed, not built. It is the hardest decision in the set and the least reversible — encryption is one-way for anyone
+Accepted 2026-10-12. Its erasure half is built and in use. Content that arrives through an external connection is sealed
+under that connection's key, and destroying the key makes the content unreadable, including in the audit log, with the
+chain intact (`AshEnterprise.Erasure`, [runbook](../runbooks/crypto-shredding.md)). Per-person erasure, purge
+schedules and partitioning are still not built. It is the hardest decision in the set and the least reversible — encryption is one-way for anyone
 whose key has already been destroyed — which is the argument for designing it before it is urgent rather than during an
 incident.
 

@@ -27,6 +27,8 @@ defmodule AshEnterprise.Security.Policies do
     policy always() do
       authorize_if AshEnterprise.Security.Checks.RoleGrant
       authorize_if AshEnterprise.Security.Checks.SharedWithActor
+      authorize_if AshEnterprise.Security.Checks.HierarchyGrant
+      authorize_if AshEnterprise.Security.Checks.SelfService
     end
   end
   ```
@@ -54,6 +56,14 @@ defmodule AshEnterprise.Security.Policies do
   If no path authorizes, access is denied. A resource with no grants is
   unreachable rather than public, which is the correct default for a system whose
   whole point is access control.
+
+  ## Self-service is declared per action
+
+  The fourth path (`AshEnterprise.Security.Checks.SelfService`) contributes
+  only for actions a resource lists in `self_service:` — things any active
+  member may do on their own behalf, such as composing their own morning
+  brief. It is a declaration in the resource, not a role, because the role
+  model cannot express "your own" for a generic action (ADR 0052).
 
   ## Hierarchy security is off by default
 
@@ -160,6 +170,9 @@ defmodule AshEnterprise.Security.Policies do
           authorize_if AshEnterprise.Security.Checks.RoleGrant
           authorize_if AshEnterprise.Security.Checks.SharedWithActor
           authorize_if AshEnterprise.Security.Checks.HierarchyGrant
+          # Only for the actions a resource declares `self_service` (ADR 0052);
+          # contributes nothing anywhere else.
+          authorize_if AshEnterprise.Security.Checks.SelfService
         end
       end
     end

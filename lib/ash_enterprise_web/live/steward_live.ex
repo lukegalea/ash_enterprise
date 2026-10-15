@@ -1,10 +1,10 @@
 defmodule AshEnterpriseWeb.StewardLive do
   @moduledoc """
-  The steward's queue at `/app/steward`: the review-banded match candidates
-  that await a person's confirm or reject (ADR 0050, MDM-4).
+  The steward's queue at `/app/mdm`: the review-banded match candidates
+  that await a person's confirm or reject (ADR 0053, MDM-4).
 
   The queue is `AshEnterprise.SystemOne.ReviewQueue` filtered to `:mdm_match`
-  — the same ordered, oldest-first read the dashboard count uses — and the
+  — the same ordered, oldest-first read every review kind uses — and the
   acts are the candidate's own person-gated `:confirm`/`:reject` actions, so
   the surface adds no second security model: what a steward may act on is
   what the platform's grant union lets them read and update.
@@ -91,40 +91,32 @@ defmodule AshEnterpriseWeb.StewardLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={assigns[:current_scope]} width="max-w-5xl">
-      <div class="space-y-4">
-        <header class="space-y-1">
-          <div class="flex items-center justify-between gap-2">
-            <h1 class="text-2xl font-semibold">Steward queue</h1>
-            <div class="flex items-center gap-2">
-              <.link navigate={~p"/app/processes"} class="btn btn-ghost btn-sm">
-                <.icon name="hero-queue-list" class="size-4" /> Process model
-              </.link>
-              <.link navigate={~p"/app/mdm/import"} class="btn btn-outline btn-sm">
-                <.icon name="hero-arrow-up-tray" class="size-4" /> Import CSV
-              </.link>
-            </div>
-          </div>
-          <p class="text-sm opacity-70">
-            Review-banded matches awaiting a person's decision. Confirming merges the
-            staged record into the golden record; rejecting leaves it a record of its own.
-          </p>
-        </header>
+    <Layouts.app flash={@flash} page={assigns[:page]} width="max-w-5xl">
+      <:toolbar>
+        <.button navigate={~p"/app/processes"} variant="ghost" size="sm">
+          <.icon name="hero-queue-list" class="size-4" /> Process model
+        </.button>
+        <.button navigate={~p"/app/mdm/import"} size="sm">
+          <.icon name="hero-arrow-up-tray" class="size-4" /> Import CSV
+        </.button>
+      </:toolbar>
 
-        <div class={[
-          "rounded-box border border-base-300 bg-base-100 divide-y divide-base-200",
-          @empty? && "hidden"
-        ]}>
-          <%= for item <- @items do %>
-            <div id={"candidate-#{item.id}"} class="p-4 space-y-2">
-              <div class="flex flex-wrap items-baseline justify-between gap-2">
-                <span class="font-medium">Possible duplicate person</span>
-                <span class="badge badge-warning badge-sm">review · score {Decimal.round(
-                  item.record.score,
-                  2
-                )}</span>
-              </div>
-              <table class="table table-sm text-sm">
+      <p class="text-sm text-foreground/70">
+        Confirming merges the staged record into the golden record; rejecting leaves it a
+        record of its own; unsure keeps it open for a senior steward.
+      </p>
+
+      <div :if={!@empty?} class="space-y-4">
+        <%= for item <- @items do %>
+          <.card id={"candidate-#{item.id}"}>
+            <div class="flex flex-wrap items-baseline justify-between gap-2">
+              <span class="font-heading">Possible duplicate person</span>
+              <.badge tone="yellow">
+                review · score {Decimal.round(item.record.score, 2)}
+              </.badge>
+            </div>
+            <div class="overflow-auto rounded-base border-2 border-border">
+              <table class={table_class()}>
                 <thead>
                   <tr>
                     <th>Field</th><th>Staged</th><th>Golden</th><th>Survivorship</th>
@@ -132,59 +124,59 @@ defmodule AshEnterpriseWeb.StewardLive do
                 </thead>
                 <tbody>
                   <%= for {field, staged_value, golden_value, winner} <- Map.get(@diffs, item.id, []) do %>
-                    <tr class={winner == :staged && "bg-warning/10"}>
+                    <tr class={winner == :staged && "bg-yellow/15"}>
                       <td class="capitalize">{field}</td>
-                      <td class={winner == :staged && "font-semibold"}>{staged_value || "—"}</td>
-                      <td class={winner == :golden && "font-semibold"}>{golden_value || "—"}</td>
-                      <td class="text-xs opacity-60">{winner}</td>
+                      <td class={winner == :staged && "font-heading"}>{staged_value || "—"}</td>
+                      <td class={winner == :golden && "font-heading"}>{golden_value || "—"}</td>
+                      <td class="text-xs text-foreground/70">{winner}</td>
                     </tr>
                   <% end %>
                 </tbody>
               </table>
-              <%= if rules = explanation_rules(item.record.explanation) do %>
-                <ul class="text-xs opacity-70 list-disc list-inside">
-                  <%= for rule <- rules do %>
-                    <li>{rule}</li>
-                  <% end %>
-                </ul>
-              <% end %>
-              <div class="flex gap-2 pt-1">
-                <button
-                  id={"confirm-#{item.id}"}
-                  class="btn btn-primary btn-sm"
-                  phx-click="confirm"
-                  phx-value-id={item.id}
-                >
-                  Confirm match
-                </button>
-                <button
-                  id={"reject-#{item.id}"}
-                  class="btn btn-ghost btn-sm"
-                  phx-click="reject"
-                  phx-value-id={item.id}
-                >
-                  Reject — keep as a separate person
-                </button>
-                <button
-                  id={"escalate-#{item.id}"}
-                  class="btn btn-ghost btn-sm"
-                  phx-click="escalate"
-                  phx-value-id={item.id}
-                >
-                  <.icon name="hero-arrow-up-circle" class="size-4" /> Unsure — keep open
-                </button>
-              </div>
             </div>
-          <% end %>
-        </div>
-
-        <div
-          :if={@empty?}
-          class="rounded-box border border-base-300 bg-base-100 p-8 text-center opacity-60"
-        >
-          The queue is empty — no review-banded matches are waiting.
-        </div>
+            <%= if rules = explanation_rules(item.record.explanation) do %>
+              <ul class="list-inside list-disc text-xs text-foreground/70">
+                <%= for rule <- rules do %>
+                  <li>{rule}</li>
+                <% end %>
+              </ul>
+            <% end %>
+            <div class="flex flex-wrap gap-2 pt-1">
+              <.button
+                id={"confirm-#{item.id}"}
+                variant="primary"
+                size="sm"
+                phx-click="confirm"
+                phx-value-id={item.id}
+              >
+                Confirm match
+              </.button>
+              <.button
+                id={"reject-#{item.id}"}
+                variant="ghost"
+                size="sm"
+                phx-click="reject"
+                phx-value-id={item.id}
+              >
+                Reject — keep as a separate person
+              </.button>
+              <.button
+                id={"escalate-#{item.id}"}
+                variant="ghost"
+                size="sm"
+                phx-click="escalate"
+                phx-value-id={item.id}
+              >
+                <.icon name="hero-arrow-up-circle" class="size-4" /> Unsure — keep open
+              </.button>
+            </div>
+          </.card>
+        <% end %>
       </div>
+
+      <.empty_state :if={@empty?} id="steward-empty" icon="hero-check-badge">
+        The queue is empty — no review-banded matches are waiting.
+      </.empty_state>
     </Layouts.app>
     """
   end

@@ -38,6 +38,9 @@ defmodule AshEnterprise.Platform.Resource do
     * `:tenant?` — add `organization_id` and attribute multitenancy. Default `true`.
     * `:lifecycle?` — add `state_code`/`status_code`. Default `true`.
     * `:cdm_entity` — provenance string, e.g. `"Team"`.
+    * `:self_service` — actions any active tenant member may run on their own
+      behalf with no role grant; see `AshEnterprise.Security.Checks.SelfService`
+      and ADR 0052. Default `[]`.
     * `:audit?` — write to the central event log. Default `true`.
     * `:archival?` — soft delete. Default `true`.
     * `:paper_trail?` — additionally keep a per-resource version table. Default
@@ -74,6 +77,7 @@ defmodule AshEnterprise.Platform.Resource do
     {tenant?, opts} = Keyword.pop(opts, :tenant?, true)
     {lifecycle?, opts} = Keyword.pop(opts, :lifecycle?, true)
     {cdm_entity, opts} = Keyword.pop(opts, :cdm_entity)
+    {self_service, opts} = Keyword.pop(opts, :self_service, [])
     {audit?, opts} = Keyword.pop(opts, :audit?, true)
     {archival?, opts} = Keyword.pop(opts, :archival?, true)
     {paper_trail?, opts} = Keyword.pop(opts, :paper_trail?, false)
@@ -133,6 +137,7 @@ defmodule AshEnterprise.Platform.Resource do
         ownership(unquote(ownership))
         tenant?(unquote(tenant?))
         lifecycle?(unquote(lifecycle?))
+        self_service(unquote(self_service))
 
         unquote(
           if cdm_entity do

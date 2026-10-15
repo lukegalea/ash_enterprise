@@ -45,16 +45,17 @@ config :ash_enterprise, AshEnterprise.Repo,
   show_sensitive_data_on_connection_error: true,
   pool_size: 10
 
-# The evidence substrate's repo rides the SAME dev database (it is a child of
-# the supervision tree, so `mix ash_enterprise.seed`'s `app.start` boots it and
-# it needs real connection config in dev). `priv` stays the package's own
-# migration set (config/config.exs); credentials mirror the host repo's.
+# The evidence substrate's repo rides the SAME dev database (the adjudication
+# orchestrator joins its packets to the host's ledger rows), as it does in test
+# and prod. Without this it has no credentials and every connect fails at boot.
 config :ash_evidence, AshEvidence.Repo,
   username: System.get_env("DB_USER", "postgres"),
   password: System.get_env("DB_PASSWORD", "postgres"),
   hostname: System.get_env("PGHOST", "localhost"),
   port: String.to_integer(System.get_env("PGPORT", "5432")),
   database: System.get_env("DB_NAME", "ash_enterprise_dev"),
+  stacktrace: true,
+  show_sensitive_data_on_connection_error: true,
   pool_size: 10
 
 # --- Hosting this application inside somebody else's database ------------------
@@ -119,6 +120,10 @@ if ash_schema do
     |> Enum.join(",")
 
   config :ash_enterprise, AshEnterprise.Repo,
+    migration_default_prefix: ash_schema,
+    parameters: [search_path: search_path]
+
+  config :ash_evidence, AshEvidence.Repo,
     migration_default_prefix: ash_schema,
     parameters: [search_path: search_path]
 

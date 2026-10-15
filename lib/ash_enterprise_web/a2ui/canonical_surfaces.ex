@@ -15,16 +15,27 @@ defmodule AshEnterpriseWeb.A2ui.CanonicalPartyUI do
       page_size(25)
     end
 
+    context :party do
+      resource(AshEnterprise.Contracts.Party)
+      picker(false)
+    end
+
     component :table do
       fields([:legal_name, :client_id, :created_on])
       read_action(:read)
       query(:default)
+      select_context(:party)
 
       row_layout do
         title(:legal_name)
         meta([:client_id, :created_on])
         columns(2)
       end
+    end
+
+    component :detail, :party_detail do
+      context(:party)
+      fields([:legal_name, :client_id, :created_on])
     end
   end
 end
@@ -39,6 +50,11 @@ defmodule AshEnterpriseWeb.A2ui.CanonicalContractUI do
     title("Canonical contracts")
     record_label("canonical contract")
 
+    context :contract do
+      resource(AshEnterprise.Contracts.Contract)
+      picker(false)
+    end
+
     query :default do
       search_fields([:name, :description, :payment_term])
       sortable([:name, :effective_date, :expiry_date, :value])
@@ -49,6 +65,8 @@ defmodule AshEnterpriseWeb.A2ui.CanonicalContractUI do
     component :table do
       fields([
         :name,
+        :provider,
+        :client,
         :description,
         :effective_date,
         :expiry_date,
@@ -59,6 +77,7 @@ defmodule AshEnterpriseWeb.A2ui.CanonicalContractUI do
 
       read_action(:read)
       query(:default)
+      select_context(:contract)
 
       row_layout do
         title(:name)
@@ -66,6 +85,23 @@ defmodule AshEnterpriseWeb.A2ui.CanonicalContractUI do
         meta([:effective_date, :expiry_date, :value, :payment_term])
         columns(2)
       end
+    end
+
+    component :detail, :contract_detail do
+      context(:contract)
+      fields([:name, :provider, :client, :effective_date, :expiry_date, :value, :payment_term])
+    end
+
+    field :provider do
+      label("Provider")
+      source([:service_provider_party, :legal_name])
+      link(:service_provider_party)
+    end
+
+    field :client do
+      label("Client")
+      source([:client_party, :legal_name])
+      link(:client_party)
     end
   end
 end

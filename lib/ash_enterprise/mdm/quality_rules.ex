@@ -4,7 +4,7 @@
 
 defmodule AshEnterprise.Mdm.QualityRules do
   @moduledoc """
-  The MDM data-quality rule set (MDM-7, ADR 0050 §10): what makes a golden
+  The MDM data-quality rule set (MDM-7, ADR 0053 §10): what makes a golden
   record trustworthy, filed under three controls.
 
   | # | rule | shape |

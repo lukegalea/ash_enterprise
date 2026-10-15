@@ -49,6 +49,7 @@ defmodule AshEnterprise.SystemOne.QuestionProposal.Transport do
     # reaches the real ReqLLM.
     alias Elixir.ReqLLM, as: ReqLLMDep
 
+    alias AshEnterprise.AI.Models
     alias AshJudgments.Profile
 
     @impl true
@@ -69,14 +70,25 @@ defmodule AshEnterprise.SystemOne.QuestionProposal.Transport do
              Profile.model_spec(%{profile: profile, family: :policy_proposals}),
            {:ok, req_llm_opts} <- Profile.req_llm_opts(profile),
            {:ok, %Profile{} = resolved} <- Profile.fetch(profile) do
-        {:ok, "ollama:" <> resolved.model, req_llm_opts}
+        spec = "ollama:" <> resolved.model
+        target = Models.instrument_target(profile, spec, resolved.residency)
+        {:ok, spec, [{:model_target, target} | req_llm_opts]}
       end
     end
 
+    # Every generative call is recorded in the ADR 0042 call record
+    # (`AshEnterprise.AI.Models`), under the target `resolve/1` attached; a
+    # spec that arrives without one is classified the ordinary way, so it
+    # meets the in-zone guard too.
     @impl true
     def generate(spec, req_llm_opts, schema, prompt) do
+      {target, req_llm_opts} =
+        Keyword.pop_lazy(req_llm_opts, :model_target, fn -> Models.resolve(spec) end)
+
       with {:ok, response} <-
-             ReqLLMDep.generate_object(spec, prompt, schema, req_llm_opts),
+             Models.call(target, "system_one.proposal", :generate_object, req_llm_opts, fn opts ->
+               ReqLLMDep.generate_object(spec, prompt, schema, opts)
+             end),
            %{} = object <- ReqLLMDep.Response.object(response) do
         {:ok, Jason.encode!(object)}
       end

@@ -29,6 +29,8 @@ defmodule Mix.Tasks.AshEnterprise.Seed do
 
   use Mix.Task
 
+  alias AshEnterprise.Mix.Helpers
+
   @switches [
     email: :string,
     password: :string,
@@ -43,12 +45,12 @@ defmodule Mix.Tasks.AshEnterprise.Seed do
   def run(args) do
     {opts, _} = OptionParser.parse!(args, strict: @switches)
 
-    # Everything below writes through the application's own actions against
-    # the Repo — and `ash_enterprise.legacy.project` (below) needs the full
-    # app anyway (`app.start`), so boot it once up front: the endpoint is
-    # what confirmation add-ons render their URLs from, and a standalone
-    # Repo started here would collide with app.start's own child.
-    Mix.Task.run("app.start")
+    # Everything up to the legacy projection writes through the application's
+    # own actions against the Repo. No Oban, no endpoint, no projectors (iron
+    # law #23; docs/reviews/iron-law-audit.md, fix item 3). Users are created
+    # already confirmed, so no confirmation email needs the endpoint
+    # (`Seeder.provision_user!/2`).
+    Helpers.boot_repo()
 
     count = AshEnterprise.Platform.Seeder.seed_privileges()
 
@@ -86,6 +88,10 @@ defmodule Mix.Tasks.AshEnterprise.Seed do
       # strangler view it creates needs `legacy.users` to exist. The result was nine
       # `relation "projected_users" does not exist` failures reported as refused rows -- a
       # structural mistake wearing a data-quality finding's clothes.
+      #
+      # That task requires `app.start`, and the application cannot start its
+      # own Repo while the one booted above is running, so hand it over first.
+      Helpers.release_repo()
       Mix.Task.run("ash_enterprise.legacy.project")
 
       Mix.shell().info("""

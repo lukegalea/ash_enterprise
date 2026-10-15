@@ -33,7 +33,7 @@ defmodule AshEnterpriseWeb.A2ui.Host do
 
   import Phoenix.LiveView, only: [push_event: 3]
 
-  alias AshEnterpriseWeb.A2ui.Surfaces
+  alias AshEnterprise.Surfaces
 
   @messages_event "a2ui:messages"
   @refresh_message {:ash_a2ui_host, :refresh}
@@ -130,6 +130,22 @@ defmodule AshEnterpriseWeb.A2ui.Host do
 
     {push_messages(socket, [data_model]), track_query(presentation, [data_model])}
   end
+
+  @doc """
+  A reference link activated in a hosted surface (`"a2ui:open_surface"`):
+  navigates to the deep link built server-side from the configured
+  `open_surface_url`, exactly as `AshA2ui.LiveRenderer` does — never a
+  client-supplied href.
+  """
+  @spec open_surface(map(), Phoenix.LiveView.Socket.t()) ::
+          {:noreply, Phoenix.LiveView.Socket.t()}
+  def open_surface(args, socket),
+    do:
+      AshA2ui.LiveRenderer.handle_open_surface(
+        %{open_surface: nil, open_surface_url: nil},
+        args,
+        socket
+      )
 
   @doc """
   Routes a client action envelope through the right handler and pushes the

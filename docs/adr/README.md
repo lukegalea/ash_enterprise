@@ -37,12 +37,12 @@ The concrete exit: which files change, and how much work it is.
 | [0003](0003-attribute-multitenancy.md) | Attribute-based multitenancy plus business-unit hierarchy | accepted |
 | [0004](0004-reactor-over-oban-pro.md) | Reactor for transactional orchestration, Oban for durability | accepted |
 | [0005](0005-admin-and-a2ui-division-of-labour.md) | ash_admin and ash_a2ui: division of labour | accepted |
-| [0006](0006-design-system.md) | daisyUI 5 + Phoenix core_components as the design system | accepted |
+| [0006](0006-design-system.md) | daisyUI 5 + Phoenix core_components as the design system | superseded by 0050 |
 | [0007](0007-dialyzer-non-blocking.md) | Dialyzer runs, and does not gate | accepted |
 | [0008](0008-typed-invertible-legacy-mappings.md) | Legacy mappings are typed expressions with proven inverses | accepted |
 | [0009](0009-strangler-and-bpmn-are-first-party.md) | `ash_strangler`, `ash_bpmn` and `ash_decisions` are first-party platform extensions | accepted |
-| [0010](0010-meltano-for-ingestion.md) | Meltano for ingestion, Airbyte as the named fallback | proposed |
-| [0011](0011-nango-as-integration-hub.md) | Nango for the provider edge, sync logic stays in Ash | proposed |
+| [0010](0010-meltano-for-ingestion.md) | Meltano for ingestion, Airbyte as the named fallback | accepted, amended (2026-10-12; lands into an Ash resource, not a staging schema) |
+| [0011](0011-nango-as-integration-hub.md) | Nango for the provider edge, sync logic stays in Ash | accepted (2026-10-12; Calendar, Gmail, Slack built) |
 | [0012](0012-openlineage-and-marquez.md) | OpenLineage as the schema, Marquez as the backend | proposed |
 | [0013](0013-openmetadata-as-catalog.md) | OpenMetadata as the catalog, populated from codegen | proposed |
 | [0014](0014-superset-over-metabase.md) | Superset over Metabase for BI | proposed |
@@ -55,7 +55,7 @@ The concrete exit: which files change, and how much work it is.
 | [0021](0021-control-mapping-is-generated.md) | The compliance control map is generated from the ledger | accepted |
 | [0022](0022-audit-log-is-tenant-scoped.md) | The audit log is tenant-scoped by multitenancy, not a special check | accepted |
 | [0023](0023-impersonation-is-attribution.md) | Impersonation adds attribution, never reach | accepted (in part) |
-| [0024](0024-audit-retention-and-erasure.md) | Audit retention: partition for age, crypto-shred for erasure | proposed |
+| [0024](0024-audit-retention-and-erasure.md) | Audit retention: partition for age, crypto-shred for erasure | accepted (2026-10-12; erasure built, partitioning not) |
 | [0025](0025-log-shipping-and-review.md) | Logs ship to the customer's SIEM; review is evidence | proposed |
 | [0026](0026-ai-governance-is-disclosure.md) | AI governance is disclosure, not a second authorization model | proposed (narrowed by 0042) |
 | [0027](0027-feel-is-the-expression-language.md) | FEEL is the one expression language, and the engine is adopted rather than written | accepted |
@@ -73,18 +73,23 @@ The concrete exit: which files change, and how much work it is.
 | [0039](0039-judgments-are-declared-questions.md) | Judgments are declared questions | accepted, not built (2026-09-28) |
 | [0040](0040-record-dont-recompute.md) | Record, don't recompute | accepted, not built (2026-09-28) |
 | [0041](0041-thresholds-are-dmn-earned-by-calibration.md) | Thresholds are DMN, earned by calibration | accepted, not built (2026-09-28) |
-| [0042](0042-in-zone-inference-leaving-the-zone-is-a-disclosure.md) | In-zone inference; leaving the zone is a disclosure | accepted, not built (2026-09-28) |
+| [0042](0042-in-zone-inference-leaving-the-zone-is-a-disclosure.md) | In-zone inference; leaving the zone is a disclosure | accepted; admission built for Gmail/Slack projection (2026-10-12), flow rule not built |
 | [0043](0043-automation-authority-is-a-grant.md) | Automation authority is a grant | accepted, not built (2026-09-28) |
 | [0044](0044-documents-are-addressed-atoms-evidence-is-an-assertion.md) | Documents are addressed atoms; evidence is an assertion | accepted, not built (2026-09-28) |
 | [0045](0045-system-one-in-tooling-is-advisory.md) | System One in developer and agent tooling is advisory | accepted, not built (2026-09-28) |
 | [0046](0046-the-declaration-is-the-output-contract.md) | The declaration is the output contract | accepted, not built (2026-09-28) |
 | [0047](0047-learning-produces-proposals.md) | Learning produces proposals | accepted, not built (2026-09-28) |
 | [0048](0048-a-judgment-is-a-predicate-over-any-set.md) | A judgment is a predicate over any set | proposed |
+| [0049](0049-temporal-resources-are-the-validity-substrate.md) | Temporal resources are the platform's validity substrate | accepted (2026-10-06; in progress) |
+| [0050](0050-neobrutalism-design-system.md) | A neobrutalism token system, dark by default, replaces daisyUI | accepted |
+| [0051](0051-business-events-are-derived-from-the-canonical-store.md) | Business events are derived from the canonical store, into a chained ledger | accepted |
+| [0052](0052-self-service-actions.md) | Self-service actions: what a member may do for themselves without a grant | accepted |
+| [0053](0053-mdm-stewardship-is-system-one.md) | MDM stewardship is System One machinery, not a bespoke product (amends 0017) | accepted |
 
-Records 0001–0009, 0020–0023, 0027–0031 and 0033–0037 are `accepted` and describe code that exists.
+Records 0001–0005, 0007–0009, 0020–0023, 0027–0031, 0033–0037 and 0050–0053 are `accepted` and describe code that exists. 0006 is superseded by 0050. 0049 is accepted and in progress: Phase 0 (PostgreSQL 18) and the System One fact cut-over have landed.
 **0038–0047 are `accepted, not built (2026-09-28)`:** the decision is taken and none of it is built. A record with that
 status flips to plain `accepted` when its code lands, so `accepted` on its own keeps meaning code that exists.
-**0010–0019, 0024–0026, 0032 and 0048 are `proposed`: none of them is built.** They are here because a decision is cheapest to reason about — and cheapest to
+**0012–0019, 0025, 0026, 0032 and 0048 are `proposed`: none of them is built**, with the exception 0015 below. 0010 (ingestion), 0011 (the Nango edge) and 0024 (crypto-shredding) were accepted on 2026-10-12 when the dogfood deployment began depending on them; each one's implementation note says what is built and where it differs from the Decision (0010 lands into an Ash resource rather than a staging schema; 0024's partitioning half is not built). They are here because a decision is cheapest to reason about — and cheapest to
 *reverse* — while the alternatives are still fresh, and because
 [thesis 6](../manifesto/06-reversibility.md) asks for the exit before the entrance. Three of them
 record an answer that changed under verification, which is the main reason to write them down early.

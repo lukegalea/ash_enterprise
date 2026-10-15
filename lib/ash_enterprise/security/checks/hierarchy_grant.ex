@@ -30,6 +30,13 @@ defmodule AshEnterprise.Security.Checks.HierarchyGrant do
   privilege-escalation-by-configuration bug, so the precondition is enforced here
   rather than assumed.
 
+  ## Never on owner-only resources
+
+  A resource whose privileges are owner-only
+  (`AshEnterprise.Security.Privilege.owner_only?/1` — one person's own mail
+  and Slack) gets nothing from hierarchy: a manager does not read a report's
+  mailbox.
+
   ## Disabled by default
 
   Returns `false` — contributing nothing to the union — unless
@@ -57,6 +64,16 @@ defmodule AshEnterprise.Security.Checks.HierarchyGrant do
         false
 
       is_nil(context.user_id) ->
+        false
+
+      # Hierarchy widens which rows an actor reaches; a generic action has no
+      # row (and Ash raises on a filter for one). See `RoleGrant`.
+      authorizer.action.type == :action ->
+        false
+
+      # One person's own mail and Slack: seniority does not reach it
+      # (Privilege.owner_only?/1). A fact about the resource, not a query.
+      AshEnterprise.Security.Privilege.owner_only?(inspect(authorizer.resource)) ->
         false
 
       # The precondition: hierarchy widens existing access, it never creates it.

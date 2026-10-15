@@ -8,12 +8,19 @@ defmodule AshEnterpriseWeb.CoreComponents do
   with doc strings and declarative assigns. You may customize and style
   them in any way you want, based on your application growth and needs.
 
-  The foundation for styling is Tailwind CSS, a utility-first CSS framework,
-  augmented with daisyUI, a Tailwind CSS plugin that provides UI components
-  and themes. Here are useful references:
+  The foundation for styling is Tailwind CSS, carrying a neobrutalism design
+  system whose tokens live in `assets/css/neobrutalism.css`: one ink colour for
+  text, borders, shadows and focus rings; 2px borders; a hard 4px offset
+  shadow; 5px radii; DM Sans; and a lift/press motion pair (hover grows the
+  shadow, active presses into it). Dark is the default theme and light is one
+  toggle away; components use token utilities only (`bg-secondary-background`,
+  `text-foreground`, `border-border`, `shadow-shadow`), never literal colours,
+  so both themes come for free. Vivid fills (`bg-main`, `bg-yellow`, ...) carry
+  `text-on-vivid`, which stays black in both themes. See
+  `docs/adr/0050-neobrutalism-design-system.md`. Useful references:
 
-    * [daisyUI](https://daisyui.com/docs/intro/) - a good place to get
-      started and see the available components.
+    * [neobrutalism.dev](https://www.neobrutalism.dev) - the design system
+      the token sheet implements.
 
     * [Tailwind CSS](https://tailwindcss.com) - the foundational framework
       we build on. You will use it for layout, sizing, flexbox, grid, and
@@ -63,23 +70,29 @@ defmodule AshEnterpriseWeb.CoreComponents do
       id={@id}
       phx-click={JS.push("lv:clear-flash", value: %{key: @kind}) |> hide("##{@id}")}
       role="alert"
-      class="toast toast-top toast-end z-50"
+      class="fixed top-4 right-4 z-50"
       {@rest}
     >
+      <%!-- A banner with an icon chip: a saturated square carrying the icon, so
+           info (blue chip) and error (red chip) are told apart before a word
+           is read. --%>
       <div class={[
-        "alert w-80 sm:w-96 max-w-80 sm:max-w-96 text-wrap",
-        @kind == :info && "alert-info",
-        @kind == :error && "alert-error"
+        "relative grid w-80 max-w-80 grid-cols-[2rem_1fr_auto] items-start gap-3 rounded-base border-2 border-border bg-secondary-background px-4 py-3 text-sm text-wrap text-foreground shadow-shadow sm:w-96 sm:max-w-96"
       ]}>
-        <.icon :if={@kind == :info} name="hero-information-circle" class="size-5 shrink-0" />
-        <.icon :if={@kind == :error} name="hero-exclamation-circle" class="size-5 shrink-0" />
-        <div>
-          <p :if={@title} class="font-semibold">{@title}</p>
+        <span class={[
+          "grid size-8 place-items-center rounded-base border-2 border-border text-on-vivid",
+          @kind == :info && "bg-main",
+          @kind == :error && "bg-red"
+        ]}>
+          <.icon :if={@kind == :info} name="hero-information-circle" class="size-5" />
+          <.icon :if={@kind == :error} name="hero-exclamation-circle" class="size-5" />
+        </span>
+        <div class="min-w-0">
+          <p :if={@title} class="font-heading">{@title}</p>
           <p>{msg}</p>
         </div>
-        <div class="flex-1" />
         <button type="button" class="group self-start cursor-pointer" aria-label={gettext("close")}>
-          <.icon name="hero-x-mark" class="size-5 opacity-40 group-hover:opacity-70" />
+          <.icon name="hero-x-mark" class="size-5 opacity-60 group-hover:opacity-100" />
         </button>
       </div>
     </div>
@@ -89,24 +102,26 @@ defmodule AshEnterpriseWeb.CoreComponents do
   @doc """
   Renders a button with navigation support.
 
+  The motion pair: hovering grows the hard shadow in place (the button reads
+  as floating higher without moving), pressing nudges it down into a 2px
+  shadow. `ghost` is the quiet variant for dense rows and toolbars: no fill
+  or shadow at rest, the border and shadow arrive on hover.
+
   ## Examples
 
       <.button>Send!</.button>
       <.button phx-click="go" variant="primary">Send!</.button>
-      <.button navigate={~p"/"}>Home</.button>
+      <.button navigate={~p"/"} variant="accent" size="sm">Home</.button>
   """
-  attr :rest, :global, include: ~w(href navigate patch method download name value disabled)
-  attr :class, :any
-  attr :variant, :string, values: ~w(primary)
+  attr :rest, :global, include: ~w(href navigate patch method download name value disabled type)
+  attr :class, :any, default: nil, doc: "extra classes, appended to the variant's"
+  attr :variant, :string, values: ~w(primary accent neutral ghost), default: "neutral"
+  attr :size, :string, values: ~w(xs sm md), default: "md"
   slot :inner_block, required: true
 
   def button(%{rest: rest} = assigns) do
-    variants = %{"primary" => "btn-primary", nil => "btn-primary btn-soft"}
-
     assigns =
-      assign_new(assigns, :class, fn ->
-        ["btn", Map.fetch!(variants, assigns[:variant])]
-      end)
+      assign(assigns, :class, [button_class(assigns.variant, assigns.size), assigns.class])
 
     if rest[:href] || rest[:navigate] || rest[:patch] do
       ~H"""
@@ -121,6 +136,346 @@ defmodule AshEnterpriseWeb.CoreComponents do
       </button>
       """
     end
+  end
+
+  @doc """
+  The class list behind `button/1`, for elements that must look like a button
+  but cannot be one (a `<summary>`, a link rendered by a dependency).
+
+  Static strings only: Tailwind finds classes by scanning source text, so a
+  class assembled at runtime is never generated.
+  """
+  def button_class(variant \\ "neutral", size \\ "md") do
+    base =
+      "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-base border-2 font-base transition-all cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 active:translate-x-0.5 active:translate-y-0.5 active:shadow-press"
+
+    sizes = %{
+      "xs" => "h-7 px-2 text-xs",
+      "sm" => "h-8 px-3 text-sm",
+      "md" => "h-10 px-4 text-sm"
+    }
+
+    variants = %{
+      "primary" => "border-border bg-main text-main-foreground shadow-shadow hover:shadow-lift",
+      "accent" => "border-border bg-yellow text-on-vivid shadow-shadow hover:shadow-lift",
+      "neutral" =>
+        "border-border bg-secondary-background text-foreground shadow-shadow hover:shadow-lift",
+      "ghost" =>
+        "border-transparent bg-transparent text-foreground hover:border-border hover:bg-secondary-background hover:shadow-shadow"
+    }
+
+    [base, Map.fetch!(sizes, size), Map.fetch!(variants, variant)]
+  end
+
+  @doc """
+  Renders a sticker-style badge: a small tag with the system border.
+
+  A `tone` fills it with a palette colour, always with black ink. Without a
+  tone it is the quiet surface badge. The status vocabulary used across the
+  app is:
+
+      success / published / live     green
+      warning / needs attention      yellow
+      danger / failed                red
+      info / in progress             main (blue)
+      draft / inert                  neutral
+
+  Pass `sticker` for the peel-and-stick look: hard shadow plus a halo in the
+  surface colour that keeps it readable over patterned backgrounds.
+
+  ## Examples
+
+      <.badge tone="green">Published</.badge>
+      <.badge status={:pending_approval}>Waiting</.badge>
+      <.badge>v3</.badge>
+  """
+  attr :tone, :string,
+    values: ~w(neutral main yellow pink green orange violet cyan red) ++ [nil],
+    default: nil
+
+  attr :status, :any,
+    default: nil,
+    doc:
+      "a record status (atom or string); picks the tone via `status_tone/1` unless `tone` is given"
+
+  attr :sticker, :boolean, default: false
+  attr :class, :any, default: nil
+  attr :rest, :global
+  slot :inner_block, required: true
+
+  def badge(assigns) do
+    assigns = assign(assigns, :tone, assigns.tone || status_tone(assigns.status))
+
+    ~H"""
+    <span
+      class={[
+        "inline-flex w-fit items-center gap-1.5 rounded-base border-2 border-border px-2 py-0.5 text-xs font-base whitespace-nowrap",
+        badge_fill(@tone),
+        @sticker && "shadow-shadow ring-4 ring-secondary-background",
+        @class
+      ]}
+      {@rest}
+    >
+      {render_slot(@inner_block)}
+    </span>
+    """
+  end
+
+  defp badge_fill(nil), do: "bg-secondary-background text-foreground"
+
+  defp badge_fill(tone) do
+    Map.fetch!(
+      %{
+        "neutral" => "bg-neutral text-on-vivid",
+        "main" => "bg-main text-on-vivid",
+        "yellow" => "bg-yellow text-on-vivid",
+        "pink" => "bg-pink text-on-vivid",
+        "green" => "bg-green text-on-vivid",
+        "orange" => "bg-orange text-on-vivid",
+        "violet" => "bg-violet text-on-vivid",
+        "cyan" => "bg-cyan text-on-vivid",
+        "red" => "bg-red text-on-vivid"
+      },
+      tone
+    )
+  end
+
+  @success ~w(active approved published live confirmed completed complete healthy ok done succeeded enabled)
+  @warning ~w(pending pending_approval waiting tentative stale degraded needs_attention paused held)
+  @danger ~w(failed failure error rejected cancelled canceled breach breached blocked expired revoked)
+  @info ~w(in_progress running syncing open new queued scheduled)
+  @inert ~w(draft inactive archived disabled closed superseded unknown)
+
+  @doc """
+  The badge tone for a record status, so a status reads the same colour on
+  every page: success green, waiting yellow, failure red, in-flight blue,
+  inert neutral. Unknown statuses get the quiet surface badge (`nil`).
+
+      iex> AshEnterpriseWeb.CoreComponents.status_tone(:pending_approval)
+      "yellow"
+  """
+  @spec status_tone(atom() | String.t() | nil) :: String.t() | nil
+  def status_tone(nil), do: nil
+  def status_tone(status) when is_atom(status), do: status |> Atom.to_string() |> status_tone()
+
+  def status_tone(status) when is_binary(status) do
+    status = status |> String.downcase() |> String.replace([" ", "-"], "_")
+
+    cond do
+      status in @success -> "green"
+      status in @warning -> "yellow"
+      status in @danger -> "red"
+      status in @info -> "main"
+      status in @inert -> "neutral"
+      true -> nil
+    end
+  end
+
+  @doc """
+  Renders a surface's page header: the registry's label as the `h1`, its blurb,
+  an optional toolbar, and an as-of line — "Live" with a pulse for a surface
+  that refreshes itself, otherwise when the page was loaded.
+
+  `AshEnterpriseWeb.Layouts.app/1` draws it for every registry surface, so a
+  page only supplies the toolbar.
+  """
+  attr :id, :string, default: nil
+  attr :title, :string, required: true
+  attr :blurb, :string, default: nil
+  attr :icon, :string, default: nil
+  attr :as_of, DateTime, default: nil
+  attr :live, :boolean, default: false
+  slot :toolbar
+
+  def page_header(assigns) do
+    ~H"""
+    <header id={@id} class="flex flex-wrap items-end justify-between gap-4 pb-2">
+      <div class="flex items-start gap-3">
+        <span
+          :if={@icon}
+          class="mt-1 grid size-10 shrink-0 place-items-center rounded-base border-2 border-border bg-yellow text-on-vivid shadow-press"
+          aria-hidden="true"
+        >
+          <.icon name={@icon} class="size-5" />
+        </span>
+        <div class="space-y-1">
+          <h1 class="font-display text-3xl leading-tight tracking-tight">{@title}</h1>
+          <p :if={@blurb} class="max-w-3xl text-sm text-foreground/70">{@blurb}</p>
+        </div>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        {render_slot(@toolbar)}
+        <span
+          :if={@live}
+          id={@id && "#{@id}-live"}
+          class="inline-flex items-center gap-1.5 text-xs text-foreground/70"
+          title="Refreshes itself when the rows change"
+        >
+          <span class="relative flex size-2">
+            <span class="absolute inline-flex size-2 motion-safe:animate-ping rounded-full bg-green opacity-70" />
+            <span class="relative inline-flex size-2 rounded-full bg-green" />
+          </span>
+          Live
+        </span>
+        <span
+          :if={!@live && @as_of}
+          id={@id && "#{@id}-as-of"}
+          class="text-xs text-foreground/70"
+        >
+          As of {AshEnterprise.Platform.LocalTime.time(@as_of)}
+        </span>
+      </div>
+    </header>
+    """
+  end
+
+  @doc """
+  Renders an empty state: a dashed panel with a dotted tile and an icon, for
+  the "nothing here yet" moments that would otherwise be a bare sentence. The
+  dashes say "this space is waiting"; the dot tile keeps the panel from
+  reading as an unfinished card.
+
+  ## Examples
+
+      <.empty_state icon="hero-inbox">Nothing is waiting on you.</.empty_state>
+  """
+  attr :icon, :string, default: "hero-magnifying-glass"
+  attr :class, :any, default: nil
+  attr :rest, :global
+  slot :inner_block, required: true
+
+  def empty_state(assigns) do
+    ~H"""
+    <div
+      class={[
+        "flex flex-col items-center gap-3 rounded-base border-2 border-dashed border-border bg-background px-6 py-10 text-center",
+        @class
+      ]}
+      {@rest}
+    >
+      <div class="grid size-16 place-items-center rounded-base border-2 border-border bg-secondary-background">
+        <div class="bg-dots grid size-10 place-items-center rounded-base text-foreground/30">
+          <.icon name={@icon} class="size-5 text-foreground" />
+        </div>
+      </div>
+      <p class="max-w-sm text-sm text-foreground/70">{render_slot(@inner_block)}</p>
+    </div>
+    """
+  end
+
+  @doc """
+  Renders a card: raised surface, 2px border, hard shadow, and an optional
+  `accent`.
+
+  The accent does two things: a dotted strip of the colour across the top,
+  and a hover lift in the colour instead of the ink. The border and the
+  resting shadow stay ink, so the palette stays an accent rather than a
+  wallpaper.
+
+  ## Examples
+
+      <.card accent="violet">
+        <h3 class="font-heading">Process designer</h3>
+        <p>Draw the visit process.</p>
+      </.card>
+  """
+  attr :accent, :string,
+    values: ~w(main yellow pink green orange violet cyan red) ++ [nil],
+    default: nil
+
+  attr :class, :any, default: nil
+  attr :rest, :global
+  slot :inner_block, required: true
+
+  def card(assigns) do
+    # Static maps, never interpolated class names, so Tailwind's scanner sees
+    # every class this component can emit.
+    strip_fills = %{
+      "main" => "bg-main",
+      "yellow" => "bg-yellow",
+      "pink" => "bg-pink",
+      "green" => "bg-green",
+      "orange" => "bg-orange",
+      "violet" => "bg-violet",
+      "cyan" => "bg-cyan",
+      "red" => "bg-red"
+    }
+
+    lift_shadows = %{
+      "main" => "hover:shadow-main",
+      "yellow" => "hover:shadow-yellow",
+      "pink" => "hover:shadow-pink",
+      "green" => "hover:shadow-green",
+      "orange" => "hover:shadow-orange",
+      "violet" => "hover:shadow-violet",
+      "cyan" => "hover:shadow-cyan",
+      "red" => "hover:shadow-red"
+    }
+
+    assigns =
+      assigns
+      |> assign(:strip_fill, assigns.accent && strip_fills[assigns.accent])
+      |> assign(:lift, assigns.accent && lift_shadows[assigns.accent])
+
+    ~H"""
+    <div
+      class={[
+        "flex flex-col gap-3 rounded-base border-2 border-border bg-secondary-background p-5 font-base text-foreground shadow-shadow transition-shadow",
+        @lift,
+        @class
+      ]}
+      {@rest}
+    >
+      <span
+        :if={@strip_fill}
+        aria-hidden="true"
+        class={[
+          "bg-dots -mx-5 -mt-5 mb-1 h-5 rounded-t-[3px] border-b-2 border-border text-on-vivid/25",
+          @strip_fill
+        ]}
+      />
+      {render_slot(@inner_block)}
+    </div>
+    """
+  end
+
+  @doc """
+  Renders a callout: an inline status block for a result, an error or a
+  warning, with an icon chip in the kind's colour.
+
+  ## Examples
+
+      <.callout kind={:error} role="alert">Something went wrong.</.callout>
+  """
+  attr :kind, :atom, values: [:info, :success, :warning, :error], default: :info
+  attr :class, :any, default: nil
+  attr :rest, :global
+  slot :inner_block, required: true
+
+  def callout(assigns) do
+    ~H"""
+    <div
+      class={[
+        "flex items-start gap-3 rounded-base border-2 border-border bg-secondary-background px-4 py-3 text-sm text-foreground shadow-shadow",
+        @class
+      ]}
+      {@rest}
+    >
+      <span class={[
+        "grid size-7 shrink-0 place-items-center rounded-base border-2 border-border text-on-vivid",
+        @kind == :info && "bg-main",
+        @kind == :success && "bg-green",
+        @kind == :warning && "bg-yellow",
+        @kind == :error && "bg-red"
+      ]}>
+        <.icon :if={@kind == :info} name="hero-information-circle-micro" class="size-4" />
+        <.icon :if={@kind == :success} name="hero-check-micro" class="size-4" />
+        <.icon :if={@kind == :warning} name="hero-exclamation-triangle-micro" class="size-4" />
+        <.icon :if={@kind == :error} name="hero-exclamation-circle-micro" class="size-4" />
+      </span>
+      <div class="min-w-0 flex-1 self-center">{render_slot(@inner_block)}</div>
+    </div>
+    """
   end
 
   @doc """
@@ -212,8 +567,8 @@ defmodule AshEnterpriseWeb.CoreComponents do
       end)
 
     ~H"""
-    <div class="fieldset mb-2">
-      <label for={@id}>
+    <div class="mb-4">
+      <label for={@id} class="flex items-center gap-2">
         <input
           type="hidden"
           name={@name}
@@ -221,17 +576,15 @@ defmodule AshEnterpriseWeb.CoreComponents do
           disabled={@rest[:disabled]}
           form={@rest[:form]}
         />
-        <span class="label">
-          <input
-            type="checkbox"
-            id={@id}
-            name={@name}
-            value="true"
-            checked={@checked}
-            class={@class || "checkbox checkbox-sm"}
-            {@rest}
-          />{@label}
-        </span>
+        <input
+          type="checkbox"
+          id={@id}
+          name={@name}
+          value="true"
+          checked={@checked}
+          class={@class || "size-5 accent-main"}
+          {@rest}
+        /><span class="text-sm">{@label}</span>
       </label>
       <.error :for={msg <- @errors}>{msg}</.error>
     </div>
@@ -240,13 +593,17 @@ defmodule AshEnterpriseWeb.CoreComponents do
 
   def input(%{type: "select"} = assigns) do
     ~H"""
-    <div class="fieldset mb-2">
+    <div class="mb-4">
       <label for={@id}>
-        <span :if={@label} class="label mb-1">{@label}</span>
+        <span :if={@label} class="mb-1 block text-sm font-heading">{@label}</span>
         <select
           id={@id}
           name={@name}
-          class={[@class || "w-full select", @errors != [] && (@error_class || "select-error")]}
+          class={[
+            @class ||
+              "h-10 w-full rounded-base border-2 border-border bg-secondary-background px-3 py-2 text-sm font-base text-foreground placeholder:text-foreground/60 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+            @errors != [] && (@error_class || "border-error ring-2 ring-error")
+          ]}
           multiple={@multiple}
           {@rest}
         >
@@ -261,15 +618,16 @@ defmodule AshEnterpriseWeb.CoreComponents do
 
   def input(%{type: "textarea"} = assigns) do
     ~H"""
-    <div class="fieldset mb-2">
+    <div class="mb-4">
       <label for={@id}>
-        <span :if={@label} class="label mb-1">{@label}</span>
+        <span :if={@label} class="mb-1 block text-sm font-heading">{@label}</span>
         <textarea
           id={@id}
           name={@name}
           class={[
-            @class || "w-full textarea",
-            @errors != [] && (@error_class || "textarea-error")
+            @class ||
+              "min-h-20 w-full rounded-base border-2 border-border bg-secondary-background px-3 py-2 text-sm font-base text-foreground placeholder:text-foreground/60 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+            @errors != [] && (@error_class || "border-error ring-2 ring-error")
           ]}
           {@rest}
         >{Phoenix.HTML.Form.normalize_value("textarea", @value)}</textarea>
@@ -282,17 +640,18 @@ defmodule AshEnterpriseWeb.CoreComponents do
   # All other inputs text, datetime-local, url, password, etc. are handled here...
   def input(assigns) do
     ~H"""
-    <div class="fieldset mb-2">
+    <div class="mb-4">
       <label for={@id}>
-        <span :if={@label} class="label mb-1">{@label}</span>
+        <span :if={@label} class="mb-1 block text-sm font-heading">{@label}</span>
         <input
           type={@type}
           name={@name}
           id={@id}
           value={Phoenix.HTML.Form.normalize_value(@type, @value)}
           class={[
-            @class || "w-full input",
-            @errors != [] && (@error_class || "input-error")
+            @class ||
+              "h-10 w-full rounded-base border-2 border-border bg-secondary-background px-3 py-2 text-sm font-base text-foreground placeholder:text-foreground/60 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+            @errors != [] && (@error_class || "border-error ring-2 ring-error")
           ]}
           {@rest}
         />
@@ -323,10 +682,10 @@ defmodule AshEnterpriseWeb.CoreComponents do
     ~H"""
     <header class={[@actions != [] && "flex items-center justify-between gap-6", "pb-4"]}>
       <div>
-        <h1 class="text-lg font-semibold leading-8">
+        <h1 class="text-lg font-heading leading-8">
           {render_slot(@inner_block)}
         </h1>
-        <p :if={@subtitle != []} class="text-sm text-base-content/70">
+        <p :if={@subtitle != []} class="text-sm text-foreground/70">
           {render_slot(@subtitle)}
         </p>
       </div>
@@ -367,35 +726,49 @@ defmodule AshEnterpriseWeb.CoreComponents do
       end
 
     ~H"""
-    <table class="table table-zebra">
-      <thead>
-        <tr>
-          <th :for={col <- @col}>{col[:label]}</th>
-          <th :if={@action != []}>
-            <span class="sr-only">{gettext("Actions")}</span>
-          </th>
-        </tr>
-      </thead>
-      <tbody id={@id} phx-update={is_struct(@rows, Phoenix.LiveView.LiveStream) && "stream"}>
-        <tr :for={row <- @rows} id={@row_id && @row_id.(row)}>
-          <td
-            :for={col <- @col}
-            phx-click={@row_click && @row_click.(row)}
-            class={@row_click && "hover:cursor-pointer"}
-          >
-            {render_slot(col, @row_item.(row))}
-          </td>
-          <td :if={@action != []} class="w-0 font-semibold">
-            <div class="flex gap-4">
-              <%= for action <- @action do %>
-                {render_slot(action, @row_item.(row))}
-              <% end %>
-            </div>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <div class="overflow-auto rounded-base border-2 border-border shadow-shadow">
+      <table class={table_class()}>
+        <thead>
+          <tr>
+            <th :for={col <- @col}>{col[:label]}</th>
+            <th :if={@action != []}>
+              <span class="sr-only">{gettext("Actions")}</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody id={@id} phx-update={is_struct(@rows, Phoenix.LiveView.LiveStream) && "stream"}>
+          <tr :for={row <- @rows} id={@row_id && @row_id.(row)}>
+            <td
+              :for={col <- @col}
+              phx-click={@row_click && @row_click.(row)}
+              class={@row_click && "hover:cursor-pointer"}
+            >
+              {render_slot(col, @row_item.(row))}
+            </td>
+            <td :if={@action != []} class="w-0 font-heading">
+              <div class="flex gap-4">
+                <%= for action <- @action do %>
+                  {render_slot(action, @row_item.(row))}
+                <% end %>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
     """
+  end
+
+  @doc """
+  The class list for a data table: ruled rows on the raised surface, a heavy
+  heading row on the page colour. For hand-written `<table>`s that cannot use
+  `table/1` (their rows are not a simple column list); wrap them in the same
+  bordered `overflow-auto` frame `table/1` uses.
+
+  Child selectors, not per-cell classes, so a template only names the table.
+  """
+  def table_class do
+    "w-full bg-secondary-background text-sm text-foreground [&_thead_tr]:border-b-2 [&_thead_tr]:border-border [&_thead]:bg-background [&_th]:h-11 [&_th]:px-4 [&_th]:text-left [&_th]:font-heading [&_td]:px-4 [&_td]:py-2.5 [&_tbody_tr]:border-b-2 [&_tbody_tr]:border-border [&_tbody_tr:last-child]:border-b-0 [&_tbody_tr]:transition-colors [&_tbody_tr:hover]:bg-main/10"
   end
 
   @doc """
@@ -414,10 +787,10 @@ defmodule AshEnterpriseWeb.CoreComponents do
 
   def list(assigns) do
     ~H"""
-    <ul class="list">
-      <li :for={item <- @item} class="list-row">
-        <div class="list-col-grow">
-          <div class="font-bold">{item.title}</div>
+    <ul class="rounded-base border-2 border-border bg-secondary-background font-base shadow-shadow">
+      <li :for={item <- @item} class="border-b-2 border-border px-4 py-3 last:border-b-0">
+        <div class="flex flex-col gap-1">
+          <div class="font-heading">{item.title}</div>
           <div>{render_slot(item)}</div>
         </div>
       </li>

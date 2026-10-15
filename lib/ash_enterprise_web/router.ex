@@ -103,16 +103,31 @@ defmodule AshEnterpriseWeb.Router do
   scope "/", AshEnterpriseWeb do
     pipe_through :browser
 
-    # --- Demo hub ------------------------------------------------------------
+    # --- The launcher --------------------------------------------------------
     #
-    # The front door of the POC: one card per showcase surface, so a demo never
-    # starts from a URL nobody can remember. The root path redirects here (see
-    # PageController), which means a signed-out visitor is bounced to /sign-in
-    # by this session's on_mount while a signed-in one lands on the hub.
-    ash_authentication_live_session :demo_dashboard,
-      on_mount: [{AshEnterpriseWeb.LiveUserAuth, :live_user_required}] do
-      live "/app/demo", DashboardLive
+    # The front door: every surface in the registry (AshEnterprise.Surfaces),
+    # grouped, with Today leading. Sign-in lands here, and the root path, the
+    # old operator hub (/app/hub) and its older address (/app/demo) redirect
+    # here. A signed-out visitor is bounced to /sign-in by the on_mount.
+    #
+    # Every surface live_session below runs `SurfaceDoor` after the sign-in
+    # check: it finds the registry entry for the LiveView, checks its door
+    # (the same predicate ACP checks), and assigns the grouped nav.
+    ash_authentication_live_session :launcher,
+      on_mount: [
+        {AshEnterpriseWeb.LiveUserAuth, :live_user_required},
+        AshEnterpriseWeb.SurfaceDoor
+      ] do
+      live "/app", LauncherLive
     end
+
+    get "/app/hub", PageController, :launcher
+    get "/app/demo", PageController, :launcher
+
+    # The deep link every reference link carries: one record on its registry
+    # surface, re-authorized as the signed-in person, then a redirect to the
+    # surface with the record selected. See AshEnterpriseWeb.RecordController.
+    get "/app/r/:surface/:id", RecordController, :show
 
     # --- A2UI surfaces -------------------------------------------------------
     #
@@ -124,7 +139,10 @@ defmodule AshEnterpriseWeb.Router do
     # deleting lib/ash_enterprise_web/a2ui/, this live_session, and these
     # routes. Every screen has an /admin equivalent, so nothing breaks meanwhile.
     ash_authentication_live_session :a2ui_surfaces,
-      on_mount: [{AshEnterpriseWeb.LiveUserAuth, :live_user_required}] do
+      on_mount: [
+        {AshEnterpriseWeb.LiveUserAuth, :live_user_required},
+        AshEnterpriseWeb.SurfaceDoor
+      ] do
       live "/agent", AgentLive
       live "/app/users", A2uiLive.Users
       live "/app/teams", A2uiLive.Teams
@@ -139,41 +157,70 @@ defmodule AshEnterpriseWeb.Router do
       live "/app/directory", A2uiLive.ProjectedUsers
     end
 
+    # --- The daily loop (Productivity OS dogfood, epic E6) --------------------
+    #
+    # The operator's day. Each page is an A2UI
+    # surface that the ACP server also serves (AshEnterprise.Acp), read as the
+    # signed-in actor. See AshEnterpriseWeb.DailyLive.
+    ash_authentication_live_session :daily_surfaces,
+      on_mount: [
+        {AshEnterpriseWeb.LiveUserAuth, :live_user_required},
+        AshEnterpriseWeb.SurfaceDoor
+      ] do
+      live "/app/today", DailyLive.Today
+      live "/app/calendar", DailyLive.Calendar
+      live "/app/inbox", DailyLive.Inbox
+      live "/app/slack", DailyLive.Slack
+      live "/app/people", DailyLive.People
+      live "/app/approvals", DailyLive.Approvals
+      live "/app/accounts", DailyLive.Accounts
+
+      # Operator-only (the registry's `:operator` door): erasure scopes and the
+      # irreversible, typed-confirmation shred.
+      live "/app/erasure", DailyLive.Erasure
+    end
+
     ash_authentication_live_session :canonical_surfaces,
-      on_mount: [{AshEnterpriseWeb.LiveUserAuth, :live_user_required}] do
+      on_mount: [
+        {AshEnterpriseWeb.LiveUserAuth, :live_user_required},
+        AshEnterpriseWeb.SurfaceDoor
+      ] do
       live "/app/canonical-parties", A2uiLive.CanonicalParties
       live "/app/canonical-contracts", A2uiLive.CanonicalContracts
       live "/app/canonical-commitments", A2uiLive.CanonicalCommitments
     end
 
     ash_authentication_live_session :canonical_agent,
-      on_mount: [{AshEnterpriseWeb.LiveUserAuth, :live_user_required}] do
+      on_mount: [
+        {AshEnterpriseWeb.LiveUserAuth, :live_user_required},
+        AshEnterpriseWeb.SurfaceDoor
+      ] do
       live "/canonical/agent", CanonicalAgentLive
     end
 
-    # --- MDM import wizard ---------------------------------------------------
+    # --- Master data (ADR 0053) ----------------------------------------------
     #
-    # The producing half of the demo flow: upload a CSV, map it (draft +
-    # AI proposal, activation stays a person's act), run the batch, watch
-    # it land in the steward queue.
-    ash_authentication_live_session :mdm_import,
-      on_mount: [{AshEnterpriseWeb.LiveUserAuth, :live_user_required}] do
+    # The MDM demo flow's two hand-written pages: the import wizard (upload a
+    # CSV, map it -- draft + AI proposal, activation stays a person's act --
+    # run the batch) and the steward queue, where review-banded match
+    # candidates await a person's confirm, reject or unsure. The acts are the
+    # candidate's own person-gated actions; the queue only reads the System
+    # One review queue and calls them. Their A2UI siblings (golden records,
+    # mappings) are in :a2ui_surfaces above.
+    ash_authentication_live_session :mdm_surfaces,
+      on_mount: [
+        {AshEnterpriseWeb.LiveUserAuth, :live_user_required},
+        AshEnterpriseWeb.SurfaceDoor
+      ] do
+      live "/app/mdm", StewardLive
       live "/app/mdm/import", ImportLive
     end
 
-    # --- MDM steward queue ---------------------------------------------------
-    #
-    # The review half of entity resolution (ADR 0050, MDM-4): review-banded
-    # match candidates await a person's confirm or reject. The acts are the
-    # candidate's own person-gated actions; this surface only reads the
-    # System One review queue and calls them.
-    ash_authentication_live_session :steward,
-      on_mount: [{AshEnterpriseWeb.LiveUserAuth, :live_user_required}] do
-      live "/app/mdm", StewardLive
-    end
-
     ash_authentication_live_session :legacy_surfaces,
-      on_mount: [{AshEnterpriseWeb.LiveUserAuth, :live_user_required}] do
+      on_mount: [
+        {AshEnterpriseWeb.LiveUserAuth, :live_user_required},
+        AshEnterpriseWeb.SurfaceDoor
+      ] do
       live "/app/legacy-users", A2uiLive.LegacyUsers
       live "/app/legacy-parties", A2uiLive.LegacyParties
       live "/app/legacy-vendor-parties", A2uiLive.LegacyVendorParties
@@ -186,17 +233,20 @@ defmodule AshEnterpriseWeb.Router do
     end
 
     ash_authentication_live_session :legacy_agent,
-      on_mount: [{AshEnterpriseWeb.LiveUserAuth, :live_user_required}] do
+      on_mount: [
+        {AshEnterpriseWeb.LiveUserAuth, :live_user_required},
+        AshEnterpriseWeb.SurfaceDoor
+      ] do
       live "/legacy/agent", LegacyAgentLive
     end
 
     # Compliance surfaces (ADR 0035): findings, evaluations, bundle/rule-set
     # lifecycle, catalogs and profiles. A separate live_session because these
-    # sit behind the compliance door — `ComplianceAuth` requires the actor to
-    # hold a read grant on the compliance finding resource, the same
-    # (role, privilege, depth) tuple every other governed surface resolves —
-    # and because the surfaces read foreign `ash_compliance` resources whose
-    # access is admin-shaped.
+    # sit behind the registry's `:compliance` door (AshEnterprise.Surfaces.Doors,
+    # checked by SurfaceDoor) — a read grant on the compliance finding resource,
+    # the same (role, privilege, depth) tuple every other governed surface
+    # resolves — because the surfaces read foreign `ash_compliance` resources
+    # whose access is admin-shaped.
     #
     # Tier 3, like the surfaces above: removing ash_compliance means deleting
     # lib/ash_enterprise/compliance/, lib/ash_enterprise_web/a2ui/'s
@@ -204,7 +254,7 @@ defmodule AshEnterpriseWeb.Router do
     ash_authentication_live_session :compliance_surfaces,
       on_mount: [
         {AshEnterpriseWeb.LiveUserAuth, :live_user_required},
-        {AshEnterpriseWeb.ComplianceAuth, :compliance_grant_required}
+        AshEnterpriseWeb.SurfaceDoor
       ] do
       live "/app/compliance/findings", ComplianceA2uiLive.Findings
       live "/app/compliance/evaluations", ComplianceA2uiLive.Evaluations
@@ -224,7 +274,8 @@ defmodule AshEnterpriseWeb.Router do
     ash_authentication_live_session :process_surfaces,
       on_mount: [
         {AshEnterpriseWeb.LiveUserAuth, :live_user_required},
-        {AshEnterpriseWeb.Bpmn.Helpers, :assign_tenant}
+        {AshEnterpriseWeb.Bpmn.Helpers, :assign_tenant},
+        AshEnterpriseWeb.SurfaceDoor
       ] do
       live "/app/tasks", Bpmn.TaskListLive
       live "/app/processes", Bpmn.CatalogLive, :processes
@@ -252,8 +303,8 @@ defmodule AshEnterpriseWeb.Router do
   scope "/", AshEnterpriseWeb do
     pipe_through :browser
 
-    # The root is the demo hub rather than a landing page: this hands to
-    # /app/demo, whose live session decides what happens next (dashboard for a
+    # The root is the launcher rather than a landing page: this hands to /app,
+    # whose live session decides what happens next (the launcher for a
     # signed-in visitor, /sign-in for anyone else).
     get "/", PageController, :root
     auth_routes AuthController, AshEnterprise.Accounts.User, path: "/auth"
@@ -265,6 +316,7 @@ defmodule AshEnterpriseWeb.Router do
                   auth_routes_prefix: "/auth",
                   on_mount: [{AshEnterpriseWeb.LiveUserAuth, :live_no_user}],
                   overrides: [
+                    AshEnterpriseWeb.AuthOverrides.Brand,
                     AshEnterpriseWeb.AuthOverrides,
                     Elixir.AshAuthentication.Phoenix.Overrides.Default
                   ]
@@ -272,6 +324,7 @@ defmodule AshEnterpriseWeb.Router do
     # Remove this if you do not want to use the reset password feature
     reset_route auth_routes_prefix: "/auth",
                 overrides: [
+                  AshEnterpriseWeb.AuthOverrides.Brand,
                   AshEnterpriseWeb.AuthOverrides,
                   Elixir.AshAuthentication.Phoenix.Overrides.Default
                 ]
@@ -280,6 +333,7 @@ defmodule AshEnterpriseWeb.Router do
     confirm_route AshEnterprise.Accounts.User, :confirm_new_user,
       auth_routes_prefix: "/auth",
       overrides: [
+        AshEnterpriseWeb.AuthOverrides.Brand,
         AshEnterpriseWeb.AuthOverrides,
         Elixir.AshAuthentication.Phoenix.Overrides.Default
       ]
@@ -288,6 +342,7 @@ defmodule AshEnterpriseWeb.Router do
     magic_sign_in_route(AshEnterprise.Accounts.User, :magic_link,
       auth_routes_prefix: "/auth",
       overrides: [
+        AshEnterpriseWeb.AuthOverrides.Brand,
         AshEnterpriseWeb.AuthOverrides,
         Elixir.AshAuthentication.Phoenix.Overrides.Default
       ]
@@ -403,7 +458,10 @@ defmodule AshEnterpriseWeb.Router do
     # resolves objects (records included) under the signed-in actor, so the
     # screen must never be reachable anonymously.
     ash_authentication_live_session :canvas_dev_surface,
-      on_mount: [{AshEnterpriseWeb.LiveUserAuth, :live_user_required}] do
+      on_mount: [
+        {AshEnterpriseWeb.LiveUserAuth, :live_user_required},
+        AshEnterpriseWeb.SurfaceDoor
+      ] do
       scope "/", AshEnterpriseWeb do
         pipe_through :browser
 

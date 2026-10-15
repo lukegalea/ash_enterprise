@@ -41,16 +41,20 @@ defmodule AshEnterprise.Canonical.Projection do
 
   ## Zones — READ BEFORE ADDING A PROJECTOR (ADR 0042)
 
-  TODO(E4, Gmail/Slack verticals): Gmail and Slack SourceObjects are personal
-  data NOT admitted into any declared zone — zone admission is not yet on the
-  SourceObject land path (an E1 follow-up owns that). Do NOT add projectors for
-  `external_system: "gmail"` or `"slack"` until admission checks each landed
-  item's residency tag at `land` time. The `:calendar` projector is exempt:
-  its SourceObjects come from the deterministic fixture tap, synthetic data
-  with no residency exposure.
+  Gmail and Slack SourceObjects are personal data. Their projectors live in
+  `AshEnterprise.Canonical.Projections.Gmail` / `.Slack`, behind a configured
+  zone gate (`AshEnterprise.Canonical.Projections.ZoneGate`) that denies by
+  default; do not add them here. Admission is checked when a record is
+  projected into the canonical store, on its linked account's tags; the raw
+  landing into `SourceObject` (sealed, operator-only) is not gated yet. The `:calendar` projector is
+  exempt: its SourceObjects come from the deterministic fixture tap, synthetic
+  data with no residency exposure. (The operator's real Google Calendar is
+  `AshEnterprise.Canonical.Projections.Calendar`, `external_system:
+  "google_calendar"`.)
   """
 
   alias AshEnterprise.Canonical.{CalendarEvent, Person}
+  alias AshEnterprise.Erasure.Shredded
   alias AshEnterprise.Ingestion.SourceObject
 
   require Ash.Query
@@ -117,8 +121,13 @@ defmodule AshEnterprise.Canonical.Projection do
       |> Ash.Query.sort(:external_id)
       |> Ash.read!(authorize?: false)
 
+    # A source whose erasure scope has been shredded has no payload left to
+    # project. Its canonical rows were sealed under the same scope, so they
+    # are already unreadable; skipping is the only honest projection.
+    {shredded, live} = Enum.split_with(sources, &Shredded.shredded?(&1.raw_payload))
+
     people =
-      sources
+      live
       |> Enum.reduce(MapSet.new(), fn source, seen ->
         project_calendar_event(source, context, seen)
       end)
@@ -126,7 +135,8 @@ defmodule AshEnterprise.Canonical.Projection do
 
     %{
       source_objects: length(sources),
-      calendar_events: length(sources),
+      calendar_events: length(live),
+      shredded: length(shredded),
       people: people
     }
   end
@@ -146,11 +156,8 @@ defmodule AshEnterprise.Canonical.Projection do
       |> Map.get("organizer", %{})
       |> upsert_person(context)
 
-    attendees =
-      payload
-      |> Map.get("attendees", [])
-      |> List.wrap()
-      |> Enum.map(&upsert_person(&1, context))
+    attendee_contacts = payload |> Map.get("attendees", []) |> List.wrap()
+    attendees = Enum.map(attendee_contacts, &upsert_person(&1, context))
 
     # Distinct person ids touched by this replay — ids, not structs: the same
     # row returned by two upserts can carry different timestamps, and the
@@ -173,6 +180,20 @@ defmodule AshEnterprise.Canonical.Projection do
         ends_at: required_datetime(payload, ["end", "dateTime"], source),
         location: payload["location"],
         organizer_id: organizer && organizer.id,
+        # Who is invited and how they answered: derived `EventAttendee` joins.
+        attendees:
+          attendee_contacts
+          |> Enum.zip(attendees)
+          |> Enum.flat_map(fn
+            {_contact, nil} ->
+              []
+
+            {contact, person} ->
+              [%{person_id: person.id, response_status: contact["responseStatus"]}]
+          end),
+        # The canonical copy is sealed under the same key as its raw source,
+        # so one shred reaches both (ADR 0024).
+        erasure_scope_id: source.erasure_scope_id,
         owner_id: context.owner_id,
         owner_type: :user,
         owning_user_id: context.owner_id,

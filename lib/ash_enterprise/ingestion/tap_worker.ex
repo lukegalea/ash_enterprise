@@ -30,13 +30,23 @@ defmodule AshEnterprise.Ingestion.TapWorker do
 
       "calendar_dev" => %{"fixture" => true, "external_system" => "calendar"}
 
+  ## Erasure scope (ADR 0024)
+
+  Every record a pipeline lands is sealed under the pipeline's erasure scope:
+  `kind: :connection`, `ref: "pipeline:<name>"` unless the pipeline config names
+  one with `"erasure_scope" => ref`. The scope is ensured once per run, as the
+  `oban` system actor; if it has been shredded, the run fails at the first
+  record instead of landing anything.
+
   Enqueue: `AshEnterprise.Ingestion.TapWorker.new(%{"pipeline" => "app_db"}) |> Oban.insert()`.
   """
 
   use Oban.Worker, queue: :ingestion, max_attempts: 5, unique: [period: 30]
 
+  alias AshEnterprise.Erasure
   alias AshEnterprise.Ingestion.SourceObject
   alias AshEnterprise.Ingestion.TapRunner
+  alias AshEnterprise.Platform.SystemActor
 
   @impl true
   def perform(%Oban.Job{args: %{"pipeline" => name}}) do
@@ -86,7 +96,7 @@ defmodule AshEnterprise.Ingestion.TapWorker do
            ),
          {:ok, output} <- tap_output(config),
          {:ok, parsed} <- parse_singer(output, "pipeline #{inspect(name)}") do
-      land(parsed.records, external_system, parsed.state, name)
+      land(parsed.records, external_system, parsed.state, erasure_scope!(name, config))
 
       AshEnterprise.Lineage.ingestion_event(:complete, "ingestion", job_name,
         run_id: run_id,
@@ -97,16 +107,34 @@ defmodule AshEnterprise.Ingestion.TapWorker do
       # Deterministic proof of work: the job's own result reports what landed.
       {:ok, %{records: length(parsed.records), external_system: external_system}}
     else
-      {:error, reason} = error ->
+      {:error, reason} ->
         # Hole rule (ADR 0012): a broken pipeline is a FAIL event, not silence.
+        # The reason is made structural first: it goes to the OpenLineage FAIL
+        # facet and, as the job's result, into oban_jobs.errors, and neither is
+        # reached by a shred (ADR 0024). A tap's output is its RECORD lines.
+        reason = structural_reason(reason)
+
         AshEnterprise.Lineage.ingestion_event(:fail, "ingestion", job_name,
           run_id: run_id,
           reason: reason
         )
 
-        error
+        {:error, reason}
     end
   end
+
+  # Every failure reason that leaves this module, reduced to structure: an exit
+  # status, or one of this module's own messages (which name a pipeline, never
+  # content). Anything else a runner returns is dropped to its shape -- a
+  # custom runner may carry the tap's output in its error.
+  defp structural_reason({:exit_status, status}) when is_integer(status),
+    do: {:exit_status, status}
+
+  defp structural_reason({:exit_status, status, _output}) when is_integer(status),
+    do: {:exit_status, status}
+
+  defp structural_reason(reason) when is_binary(reason), do: reason
+  defp structural_reason(_reason), do: :tap_failed
 
   # Where a pipeline's Singer output comes from: the fixture's in-process
   # output for `"fixture" => true` pipelines, the configured runner (a shell
@@ -154,20 +182,32 @@ defmodule AshEnterprise.Ingestion.TapWorker do
     {:ok, %{records: Enum.filter(records, &is_map/1), state: state}}
   rescue
     e ->
-      {:error, "unparseable singer output for #{context}: #{Exception.message(e)}"}
+      # The exception's kind, not its message: a decode error's message can
+      # quote the offending (content-bearing) bytes.
+      {:error, "unparseable singer output for #{context}: #{inspect(e.__struct__)}"}
   end
 
   defp event_time(%{"time_recorded" => t}) when is_binary(t), do: t
   defp event_time(_), do: nil
 
-  defp land(records, external_system, state, _pipeline) do
+  # One scope per pipeline: a pipeline is one connection to one source.
+  defp erasure_scope!(name, config) do
+    ref = Map.get(config, "erasure_scope", "pipeline:#{name}")
+
+    Erasure.ensure_scope!(:connection, ref, %{label: "ingestion pipeline #{name}"},
+      actor: SystemActor.oban()
+    )
+  end
+
+  defp land(records, external_system, state, scope) do
     cursor = state
     now = DateTime.utc_now()
 
     Enum.each(records, fn %{record: record, stream: stream, time: time} ->
       fetched_at = parse_time(time) || now
 
-      SourceObject.land!(
+      SourceObject.land_under!(
+        scope.id,
         %{
           external_system: external_system,
           external_id: external_id(record),

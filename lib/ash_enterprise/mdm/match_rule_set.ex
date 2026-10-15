@@ -1,6 +1,6 @@
 defmodule AshEnterprise.Mdm.MatchRuleSet do
   @moduledoc """
-  Per-tenant match rules as data (ADR 0017/0050): one row per golden
+  Per-tenant match rules as data (ADR 0017/0053): one row per golden
   resource VERSION — `%{kind: :exact, fields: [...], weight: w}` and
   `%{kind: :fuzzy, field: :name, algorithm: :trigram|:levenshtein, weight: w}`.
   No thresholds — those are band tables (ADR 0041). Activation supersedes

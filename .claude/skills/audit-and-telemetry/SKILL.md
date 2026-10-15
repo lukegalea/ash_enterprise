@@ -28,6 +28,17 @@ Shaped after the Dataverse `audit` entity:
 | `metadata["correlation_id"]` | Which operation this belonged to |
 | `data`, `changed_attributes` | The change itself |
 
+### Sensitive values
+
+Mark an attribute `sensitive?` and it never reaches the log:
+`AshEnterprise.Audit.Changes.RedactSensitive` writes it as `nil` in `data`,
+`changed_attributes` and `metadata` (the key stays, so "the password changed"
+is still recorded). ash_events only does this for `data` on its own, which is
+how `User.hashed_password` leaked through `changed_attributes` until
+2026-10-14 (`docs/runbooks/audit-sensitive-values.md`). The one exception is
+`ash_cloak`'s `encrypted_*` ciphertext, which ADR 0024 keeps so a key shred
+reaches it.
+
 ### Prefer named actions
 
 An audit entry records the action name, so `assign_to_business_unit` tells a
@@ -85,7 +96,14 @@ domain does**. That is the one place this is not automatic.
 
 ## Known gaps
 
-There is no retention or purge policy, and an append-only audit log is exactly
-what a GDPR erasure request collides with. Named in
-`docs/manifesto/07-what-we-do-not-have.md` rather than pretended away. Before
-production: time partitioning and a retention story.
+There is no retention or purge policy: nothing expires and nothing is
+partitioned. Before production: time partitioning (ADR 0024's age half, not
+built).
+
+Erasure never deletes from the log. Content from an external connection reaches
+it only as ciphertext sealed under that connection's erasure-scope key, and
+`AshEnterprise.Erasure.shred_scope/4` destroys the key. A new resource that
+carries third-party content must seal it the same way (`AshCloak` +
+`AshEnterprise.Erasure.Changes.SealUnderScope` + an `erasure_scope` belongs_to),
+or that content is in the audit log in plaintext forever. See
+`docs/runbooks/crypto-shredding.md`.

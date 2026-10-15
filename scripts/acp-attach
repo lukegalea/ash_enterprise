@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+#
+# ACP over stdio into an already-running ash_enterprise node. Point an ACP
+# client at this instead of `mix ash_acp.stdio` when a server is up: it does
+# not boot a second copy of the application (no second endpoint, no second
+# Oban running the cron syncs, no wait on the _build lock). See
+# docs/runbooks/amber-console.md.
+#
+# Usage: scripts/acp-attach [NODE_SNAME]
+#
+#   NODE_SNAME  the --sname the server was started with (default: $ACP_NODE,
+#               else "dogfood"). Same machine, same user (~/.erlang.cookie).
+#
+# stdout is the ACP wire and carries nothing but ndjson; diagnostics go to
+# stderr. Sessions run as the node's configured operator
+# (ACP_OPERATOR_EMAIL, read by config/runtime.exs; see
+# AshEnterprise.Acp.system_actor/0), under real policies.
+set -euo pipefail
+
+target="${1:-${ACP_NODE:-dogfood}}"
+cd "$(dirname "$0")/.."
+
+export ACP_ATTACH_TARGET="$target"
+exec devenv shell -- elixir --sname "acp-attach-$$" --hidden -e '
+target = System.fetch_env!("ACP_ATTACH_TARGET")
+{:ok, host} = :inet.gethostname()
+node = :"#{target}@#{host}"
+
+unless Node.connect(node) do
+  IO.puts(:stderr, "acp-attach: cannot reach #{node} -- is the server running with --sname #{target}?")
+  System.halt(1)
+end
+
+try do
+  :erpc.call(node, AshEnterprise.Acp.Attach, :serve, [[]], :infinity)
+  System.halt(0)
+catch
+  kind, reason ->
+    IO.puts(:stderr, "acp-attach: " <> Exception.format(kind, reason))
+    System.halt(1)
+end
+'

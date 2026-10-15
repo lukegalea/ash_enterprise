@@ -372,103 +372,133 @@ defmodule AshEnterpriseWeb.ImportLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={assigns[:current_scope]} width="max-w-5xl">
-      <div class="space-y-4">
-        <header class="space-y-1">
-          <h1 class="text-2xl font-semibold">Import CSV</h1>
-          <p class="text-sm opacity-70">
-            Upload a customer CSV, map its columns onto the golden Person record,
-            and run the import. Low-confidence matches await a steward at the <.link
-              navigate={~p"/app/mdm"}
-              class="link"
-            >queue</.link>.
-          </p>
-        </header>
+    <Layouts.app flash={@flash} page={assigns[:page]} width="max-w-5xl">
+      <:toolbar>
+        <.button navigate={~p"/app/mdm"} variant="ghost" size="sm">
+          <.icon name="hero-hand-raised" class="size-4" /> Steward queue
+        </.button>
+      </:toolbar>
 
-        <.steps step={@step} />
-        <%= case @step do %>
-          <% :upload -> %>
-            <.upload_step upload={@uploads.csv} />
-          <% :mapping -> %>
-            <.mapping_step {assigns} />
-          <% :running -> %>
-            <.run_step {assigns} />
-        <% end %>
-      </div>
+      <p class="text-sm text-foreground/70">
+        Upload a customer CSV, map its columns onto the golden Person record, and run the
+        import. Low-confidence matches await a steward at the <.link
+          navigate={~p"/app/mdm"}
+          class="underline underline-offset-2"
+        >queue</.link>.
+      </p>
+
+      <.steps step={@step} />
+      <%= case @step do %>
+        <% :upload -> %>
+          <.upload_step upload={@uploads.csv} />
+        <% :mapping -> %>
+          <.mapping_step {assigns} />
+        <% :running -> %>
+          <.run_step {assigns} />
+      <% end %>
     </Layouts.app>
     """
   end
 
   defp steps(assigns) do
     ~H"""
-    <ul class="steps w-full">
-      <li class={["step", @step in [:upload, :mapping, :running] && "step-primary"]}>Upload</li>
-      <li class={["step", @step in [:mapping, :running] && "step-primary"]}>Mapping</li>
-      <li class={["step", @step == :running && "step-primary"]}>Run</li>
-    </ul>
+    <ol id="import-steps" class="flex flex-wrap items-center gap-2 text-sm">
+      <li>
+        <.badge tone={step_tone(@step in [:upload, :mapping, :running])}>1 · Upload</.badge>
+      </li>
+      <li aria-hidden="true" class="text-foreground/50">→</li>
+      <li>
+        <.badge tone={step_tone(@step in [:mapping, :running])}>2 · Mapping</.badge>
+      </li>
+      <li aria-hidden="true" class="text-foreground/50">→</li>
+      <li>
+        <.badge tone={step_tone(@step == :running)}>3 · Run</.badge>
+      </li>
+    </ol>
     """
+  end
+
+  defp step_tone(true), do: "main"
+  defp step_tone(false), do: nil
+
+  # A hand-written field (a live file input, a select or text box inside a
+  # table row) styled like `<.input>`'s control. Static string so Tailwind's
+  # scanner sees it.
+  defp control_class do
+    "h-8 rounded-base border-2 border-border bg-secondary-background px-2 text-sm font-base text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
   end
 
   defp upload_step(assigns) do
     ~H"""
-    <.form
-      id="import-upload-form"
-      for={%{}}
-      phx-change="validate"
-      phx-submit="preview"
-      class="rounded-box border border-base-300 bg-base-100 p-6 space-y-4"
-    >
-      <div>
-        <.live_file_input upload={@upload} class="file-input file-input-bordered w-full max-w-lg" />
-      </div>
-      <button
-        id="preview-btn"
-        type="submit"
-        class="btn btn-primary btn-soft"
-        disabled={@upload.entries == []}
+    <.card>
+      <.form
+        id="import-upload-form"
+        for={%{}}
+        phx-change="validate"
+        phx-submit="preview"
+        class="space-y-4"
       >
-        Preview
-      </button>
-    </.form>
+        <.live_file_input
+          upload={@upload}
+          class="w-full max-w-lg rounded-base border-2 border-border bg-secondary-background text-sm file:me-3 file:h-10 file:cursor-pointer file:border-0 file:border-e-2 file:border-border file:bg-main file:px-4 file:text-main-foreground"
+        />
+        <.button
+          id="preview-btn"
+          type="submit"
+          variant="primary"
+          disabled={@upload.entries == []}
+        >
+          Preview
+        </.button>
+      </.form>
+    </.card>
     """
   end
 
   defp mapping_step(assigns) do
+    assigns = assign(assigns, :control_class, control_class())
+
     ~H"""
     <div class="space-y-4">
-      <section class="rounded-box border border-base-300 bg-base-100 p-4 space-y-1">
-        <h2 class="font-medium">Parsed file</h2>
-        <p class="text-sm opacity-70">
+      <.card>
+        <h2 class="font-heading">Parsed file</h2>
+        <p class="text-sm text-foreground/70">
           {length(@rows)} rows · columns: {Enum.join(@headers, ", ")}
-          <span :if={@truncated?} class="badge badge-warning badge-sm">truncated</span>
+          <.badge :if={@truncated?} tone="yellow">truncated</.badge>
         </p>
-      </section>
+      </.card>
 
-      <section class="rounded-box border border-base-300 bg-base-100 p-4 space-y-2">
-        <h2 class="font-medium">Use an active ingress mapping</h2>
+      <.card>
+        <h2 class="font-heading">Use an active ingress mapping</h2>
         <div class="grid gap-2">
           <label class="flex items-center gap-2 text-sm">
-            <input type="radio" name="mapping-choice" checked={is_nil(@mapping_id)} />
+            <input
+              type="radio"
+              name="mapping-choice"
+              class="accent-main"
+              checked={is_nil(@mapping_id)}
+            />
             <button
               type="button"
               phx-click="draft-new"
-              class="link link-hover font-medium"
+              class="cursor-pointer font-heading underline-offset-2 hover:underline"
             >
               Draft a new mapping
             </button>
           </label>
           <%= for mapping <- @mappings do %>
-            <label class="flex items-center gap-2 rounded border border-base-200 p-2 text-sm hover:bg-base-200">
+            <label class="flex items-center gap-2 rounded-base border-2 border-border p-2 text-sm hover:bg-main/10">
               <input
                 type="radio"
                 name="mapping-choice"
+                class="accent-main"
                 checked={@mapping_id == mapping.id}
                 phx-click="select-mapping"
                 phx-value-id={mapping.id}
               />
               <span>
-                <span class="font-medium">{mapping.stream}</span>
-                <span class="opacity-60">
+                <span class="font-heading">{mapping.stream}</span>
+                <span class="text-foreground/70">
                   — {Enum.map_join(mapping.field_rules, ", ", fn r ->
                     "#{r["path"]} → #{r["target"]}"
                   end)}
@@ -477,77 +507,76 @@ defmodule AshEnterpriseWeb.ImportLive do
             </label>
           <% end %>
         </div>
-      </section>
+      </.card>
 
-      <section
-        :if={is_nil(@mapping_id)}
-        class="rounded-box border border-base-300 bg-base-100 p-4 space-y-3"
-      >
-        <h2 class="font-medium">Map the columns</h2>
+      <.card :if={is_nil(@mapping_id)}>
+        <h2 class="font-heading">Map the columns</h2>
         <.form id="mapping-editor" for={%{}} phx-change="rule-change">
-          <table class="table table-sm text-sm">
-            <thead>
-              <tr>
-                <th>CSV column</th><th>Golden field</th><th>Operation</th><th>Because (unmapped)</th>
-              </tr>
-            </thead>
-            <tbody>
-              <%= for field <- @headers do %>
-                <% rule = Map.get(@rules, field, %{}) %>
-                <tr id={"rule-#{field}"}>
-                  <td class="font-medium">{field}</td>
-                  <td>
-                    <select
-                      class="select select-bordered select-sm w-32"
-                      name={"rules[#{field}][target]"}
-                    >
-                      <option value="" selected={rule["target"] == ""}>— unmapped —</option>
-                      <option value="email" selected={rule["target"] == "email"}>email</option>
-                      <option value="name" selected={rule["target"] == "name"}>name</option>
-                    </select>
-                  </td>
-                  <td>
-                    <select class="select select-bordered select-sm w-40" name={"rules[#{field}][op]"}>
-                      <%= for op <- AshMdm.Mapping.Evaluator.ops() do %>
-                        <option value={op} selected={rule["op"] == op}>{op}</option>
-                      <% end %>
-                    </select>
-                  </td>
-                  <td>
-                    <input
-                      type="text"
-                      class="input input-bordered input-sm w-full"
-                      name={"rules[#{field}][because]"}
-                      value={rule["because"]}
-                      placeholder="why this column is skipped"
-                    />
-                  </td>
+          <div class="overflow-auto rounded-base border-2 border-border">
+            <table class={table_class()}>
+              <thead>
+                <tr>
+                  <th>CSV column</th><th>Golden field</th><th>Operation</th><th>
+                    Because (unmapped)
+                  </th>
                 </tr>
-              <% end %>
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                <%= for field <- @headers do %>
+                  <% rule = Map.get(@rules, field, %{}) %>
+                  <tr id={"rule-#{field}"}>
+                    <td class="font-heading">{field}</td>
+                    <td>
+                      <select class={[@control_class, "w-32"]} name={"rules[#{field}][target]"}>
+                        <option value="" selected={rule["target"] == ""}>— unmapped —</option>
+                        <option value="email" selected={rule["target"] == "email"}>email</option>
+                        <option value="name" selected={rule["target"] == "name"}>name</option>
+                      </select>
+                    </td>
+                    <td>
+                      <select class={[@control_class, "w-40"]} name={"rules[#{field}][op]"}>
+                        <%= for op <- AshMdm.Mapping.Evaluator.ops() do %>
+                          <option value={op} selected={rule["op"] == op}>{op}</option>
+                        <% end %>
+                      </select>
+                    </td>
+                    <td>
+                      <input
+                        type="text"
+                        class={[@control_class, "w-full"]}
+                        name={"rules[#{field}][because]"}
+                        value={rule["because"]}
+                        placeholder="why this column is skipped"
+                      />
+                    </td>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+          </div>
         </.form>
-        <div class="flex gap-2">
-          <button id="propose-btn" type="button" phx-click="propose" class="btn btn-outline btn-sm">
+        <div class="flex flex-wrap gap-2">
+          <.button id="propose-btn" type="button" phx-click="propose" size="sm">
             <.icon name="hero-sparkles" class="size-4" /> AI proposal
-          </button>
-          <button
+          </.button>
+          <.button
             id="validate-activate-btn"
             type="button"
             phx-click="validate-activate"
-            class="btn btn-primary btn-sm"
+            variant="primary"
+            size="sm"
           >
             Validate &amp; activate
-          </button>
+          </.button>
         </div>
-      </section>
-      <section :if={@mapping_id} class="rounded-box border border-base-300 bg-base-100 p-4 space-y-3">
-        <h2 class="font-medium">Run the import</h2>
+      </.card>
+      <.card :if={@mapping_id}>
+        <h2 class="font-heading">Run the import</h2>
         <.form
           id="run-form"
           for={%{}}
           phx-change="slug-change"
-          class="text-sm flex items-center gap-2"
+          class="flex flex-wrap items-center gap-2 text-sm"
         >
           <label for="run-slug">Source stream</label>
           <input
@@ -555,13 +584,21 @@ defmodule AshEnterpriseWeb.ImportLive do
             type="text"
             name="slug"
             value={@slug}
-            class="input input-bordered input-sm w-64"
+            class={[@control_class, "w-64"]}
           />
         </.form>
-        <button id="run-batch-btn" type="button" phx-click="run-batch" class="btn btn-primary btn-sm">
-          Run import
-        </button>
-      </section>
+        <div>
+          <.button
+            id="run-batch-btn"
+            type="button"
+            phx-click="run-batch"
+            variant="primary"
+            size="sm"
+          >
+            Run import
+          </.button>
+        </div>
+      </.card>
     </div>
     """
   end
@@ -570,50 +607,52 @@ defmodule AshEnterpriseWeb.ImportLive do
     ~H"""
     <div id="batch-progress" class="space-y-4">
       <%= if @done? do %>
-        <section class="rounded-box border border-base-300 bg-base-100 p-6 space-y-2">
-          <h2 class="font-medium text-lg">Import finished</h2>
-          <table class="table table-sm text-sm">
-            <tbody>
-              <tr>
-                <th>Rows landed</th><td>{length(@row_keys)}</td>
-              </tr>
-              <tr>
-                <th>Staged</th><td>
-                  {Map.get(@tally, :staged, 0) + Map.get(@tally, :matched, 0) +
-                    Map.get(@tally, :merged, 0) + Map.get(@tally, :rejected, 0) +
-                    Map.get(@tally, :review, 0) + Map.get(@tally, :omitted, 0)}
-                </td>
-              </tr>
-              <tr :for={{status, count} <- Enum.sort(@tally)}>
-                <th class="capitalize">{status}</th><td>{count}</td>
-              </tr>
-            </tbody>
-          </table>
-          <div class="flex gap-3 pt-2">
-            <.link id="go-steward-link" navigate={~p"/app/mdm"} class="btn btn-primary btn-sm">
-              Steward queue
-            </.link>
-            <.link navigate={~p"/app/mdm/golden"} class="btn btn-ghost btn-sm">
-              Golden records
-            </.link>
-            <.link navigate={~p"/app/processes"} class="btn btn-ghost btn-sm">
-              Process model
-            </.link>
+        <.card accent="green">
+          <h2 class="font-heading text-lg">Import finished</h2>
+          <div class="overflow-auto rounded-base border-2 border-border">
+            <table class={table_class()}>
+              <tbody>
+                <tr>
+                  <th>Rows landed</th><td>{length(@row_keys)}</td>
+                </tr>
+                <tr>
+                  <th>Staged</th><td>
+                    {Map.get(@tally, :staged, 0) + Map.get(@tally, :matched, 0) +
+                      Map.get(@tally, :merged, 0) + Map.get(@tally, :rejected, 0) +
+                      Map.get(@tally, :review, 0) + Map.get(@tally, :omitted, 0)}
+                  </td>
+                </tr>
+                <tr :for={{status, count} <- Enum.sort(@tally)}>
+                  <th class="capitalize">{status}</th><td>{count}</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
-          <p class="text-xs opacity-60">
+          <div class="flex flex-wrap gap-3 pt-2">
+            <.button id="go-steward-link" navigate={~p"/app/mdm"} variant="primary" size="sm">
+              Steward queue
+            </.button>
+            <.button navigate={~p"/app/mdm/golden"} variant="ghost" size="sm">
+              Golden records
+            </.button>
+            <.button navigate={~p"/app/processes"} variant="ghost" size="sm">
+              Process model
+            </.button>
+          </div>
+          <p class="text-xs text-foreground/70">
             Each review-banded match runs the <code>mdm.steward_review</code> BPMN process —
             open it under Processes; banding itself is a DMN decision table.
           </p>
-        </section>
+        </.card>
       <% else %>
-        <section class="rounded-box border border-base-300 bg-base-100 p-6 space-y-2">
-          <h2 class="font-medium">
-            Running <span class="loading loading-spinner loading-sm"></span>
+        <.card>
+          <h2 class="flex items-center gap-2 font-heading">
+            Running <.icon name="hero-arrow-path" class="size-4 motion-safe:animate-spin" />
           </h2>
-          <p class="text-sm opacity-70">
+          <p class="text-sm text-foreground/70">
             Batch {String.slice(@batch.id, 0, 8)}… — staging, matching and banding the rows.
           </p>
-        </section>
+        </.card>
       <% end %>
     </div>
     """

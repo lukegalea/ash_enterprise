@@ -179,7 +179,7 @@ defmodule AshEnterpriseWeb.CanvasLiveTest do
           presentation: nil
         })
 
-      assert html =~ "User"
+      assert html =~ "Team"
       assert html =~ "resource"
       assert html =~ "Provenance"
       assert html =~ "Capabilities"

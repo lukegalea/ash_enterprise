@@ -9,10 +9,23 @@ defmodule AshEnterprise.Canonical.Person do
   address is not linked at all; a duplicate email merges automatically by
   upsert, and nobody pretends that is entity resolution.
 
-  PERSONAL DATA (ADR 0042): when the Gmail/Slack verticals start projecting
-  correspondents from real mailboxes, zone admission must already gate the
-  SourceObject land path. See the TODO on
-  `AshEnterprise.Canonical.Projection` before wiring those projectors.
+  PERSONAL DATA (ADR 0042): the Gmail and Slack projectors write
+  correspondents only from records their zone gate admits
+  (`AshEnterprise.Canonical.Projections.ZoneGate`). **Owner-only**: no role
+  can be granted more than `:basic` on it
+  (`AshEnterprise.Security.Privilege.owner_only?/1`), so a person row is
+  readable by the user whose sources produced it and nobody else.
+
+  ## Erasure (ADR 0024)
+
+  `name` and `email` are **not** sealed under an erasure scope: `email` is the
+  upsert identity, and a sealed value (randomized ciphertext) cannot be one
+  without a blind index. They are `sensitive?`, which keeps them out of the
+  immutable audit log -- ash_events records sensitive inputs as nil -- so a
+  connection shred leaves them only in this table, where rows are ordinary
+  mutable data. Shredding a connection does not reach them; removing a
+  correspondent is a row-level delete, not a key destroy. Listed in
+  `docs/runbooks/crypto-shredding.md`.
 
   Opt-outs from the platform base, same reasoning as `SourceObject`'s: these
   rows are machine-derived projections — reconstructable from raw landings by
@@ -48,13 +61,18 @@ defmodule AshEnterprise.Canonical.Person do
   attributes do
     uuid_primary_key :id
 
+    # `sensitive?` on name and email (ADR 0024): ash_events records a
+    # sensitive input as nil, so the immutable audit log never holds a
+    # correspondent's name or address. The row itself still does, in
+    # plaintext and outside any erasure scope -- see "Erasure" above.
     attribute :name, :string do
       public? true
+      sensitive? true
       constraints max_length: 256
       description "Display name, when the source system carried one. Stays nil otherwise."
     end
 
-    # CDM master/merged shape (ADR 0017, adopted by ADR 0050): the merge
+    # CDM master/merged shape (ADR 0017, adopted by ADR 0053): the merge
     # keeps the loser's row, pointing at its survivor.
     attribute :merged, :boolean do
       public? false
@@ -73,12 +91,84 @@ defmodule AshEnterprise.Canonical.Person do
 
     attribute :email, :ci_string do
       public? true
+      sensitive? true
       constraints max_length: 320
       description "The v1 linkage key. Nullable: a name-only contact is a person with no link."
     end
 
     create_timestamp :inserted_at
     update_timestamp :updated_at
+  end
+
+  relationships do
+    has_many :organized_events, AshEnterprise.Canonical.CalendarEvent do
+      public? true
+      destination_attribute :organizer_id
+      description "The calendar events this person organizes."
+    end
+
+    has_many :sent_messages, AshEnterprise.Canonical.Message do
+      public? true
+      destination_attribute :sender_id
+      description "The messages this person sent."
+    end
+
+    has_many :attendances, AshEnterprise.Canonical.EventAttendee do
+      public? true
+      description "Their attendance at events, with their responses (a derived join)."
+    end
+
+    many_to_many :attended_events, AshEnterprise.Canonical.CalendarEvent do
+      public? true
+      through AshEnterprise.Canonical.EventAttendee
+      join_relationship :attendances
+      source_attribute_on_join_resource :person_id
+      destination_attribute_on_join_resource :event_id
+      description "The events they are invited to."
+    end
+
+    has_many :participations, AshEnterprise.Canonical.ConversationParticipant do
+      public? true
+      description "Their part in conversations (a derived join)."
+    end
+
+    many_to_many :conversations, AshEnterprise.Canonical.Conversation do
+      public? true
+      through AshEnterprise.Canonical.ConversationParticipant
+      join_relationship :participations
+      source_attribute_on_join_resource :person_id
+      destination_attribute_on_join_resource :conversation_id
+      description "The threads and Slack conversations they take part in."
+    end
+  end
+
+  aggregates do
+    count :organized_event_count, :organized_events do
+      public? true
+      description "How many calendar events this person organizes."
+    end
+
+    count :sent_message_count, :sent_messages do
+      public? true
+      description "How many messages they sent."
+    end
+
+    count :conversation_count, :participations do
+      public? true
+      description "How many conversations they take part in."
+    end
+  end
+
+  calculations do
+    calculate :label, :string, expr(name || type(email, :string)) do
+      public? true
+      description "Their display name, else their address."
+    end
+
+    calculate :next_event, :string, AshEnterprise.Canonical.Calculations.NextEvent do
+      public? true
+      description "The next not-cancelled event they organize, on the operator's wall clock."
+    end
   end
 
   identities do
@@ -154,13 +244,13 @@ defmodule AshEnterprise.Canonical.Person do
     end
 
     update :mdm_survivor_update do
-      description "The merge's survivor write: fill the survivor's gaps from the loser (ADR 0050 survivorship)."
+      description "The merge's survivor write: fill the survivor's gaps from the loser (ADR 0053 survivorship)."
       accept [:name, :email]
     end
 
     update :mdm_merge_into do
       description """
-      The merge write (ADR 0050): this record folds into the survivor.
+      The merge write (ADR 0053): this record folds into the survivor.
       Non-destructive by construction — the loser keeps its row.
       """
 
@@ -171,7 +261,7 @@ defmodule AshEnterprise.Canonical.Person do
     end
 
     update :mdm_merge_provenance do
-      description "Records what the merge took from this record (ADR 0050: unmerge restores exactly that)."
+      description "Records what the merge took from this record (ADR 0053: unmerge restores exactly that)."
       accept [:merge_provenance]
     end
 
@@ -216,7 +306,7 @@ defmodule AshEnterprise.Canonical.Person do
 
     action :mdm_export, {:array, :map} do
       description """
-      The egress departure (MDM-6, ADR 0050 §8): the tenant's active `:egress`
+      The egress departure (MDM-6, ADR 0053 §8): the tenant's active `:egress`
       mapping turns this tenant's golden records into customer-shaped rows —
       after the zone disclosure gate refuses the departure on the residency
       tags recorded at land. Person-gated and grant-checked like every

@@ -10,6 +10,7 @@ Four kinds of document live here.
 | [**manifesto/**](manifesto/00-index.md) | The argument. Eight theses, one of which is the honest list of what is missing. | You want to know *why* anything here is shaped the way it is. |
 | [**adr/**](adr/README.md) | The decisions. Forty-eight records, each with the exit from it. | You disagree with something and want to know what it would cost to change. |
 | [**plans/**](plans/README.md) | The specifications. Long-form designs for work that is proposed or partly built. | You are about to build one of them. |
+| [**BLEEDING-EDGE.md**](BLEEDING-EDGE.md) | Every dependency that is not a Hex release: forks of upstream packages, our unreleased packages, and host-side workarounds, each with its path back. | You are starting a new application from this template, or bumping a dependency. |
 | [**HANDOFF.md**](HANDOFF.md) | The state of play, plus findings that were expensive to discover. | You are picking this up in a new session. Start here. |
 | [**capstone/storyline.md**](https://github.com/lukegalea/ash_enterprise/blob/main/docs/capstone/storyline.md) | The capstone: the published [`clinic-demo`](https://github.com/lukegalea/clinic-demo) — agents reading an Ash codebase — with the evidence set indexed. | You want the story this tree earned, in one sitting. |
 

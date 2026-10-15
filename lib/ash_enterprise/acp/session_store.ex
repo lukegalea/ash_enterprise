@@ -3,16 +3,23 @@ defmodule AshEnterprise.Acp.SessionStore do
   `AshAcp.SessionStore` + `AshAcp.PromptTarget` for the dogfood ACP server.
 
   Sessions are ETS-backed (see `AshEnterprise.Acp`); the prompt target maps
-  operator prompts onto declared Ash read actions. Actions run inside
-  `ash_acp` with the session's actor and `authorize?: true` — this module
-  never bypasses policy.
+  operator prompts onto declared Ash actions through the daily-loop grammar in
+  `AshEnterprise.Acp.Commands`, and remembers which A2UI surface the turn
+  should close with (`AshEnterprise.Acp.Surfaces` reads it back). Actions run
+  inside `ash_acp` with the session's actor and `authorize?: true` — this
+  module never bypasses policy.
+
+  The session actor carries its precomputed `ActorContext`, attached once at
+  `session/new` exactly as the web's `LoadActorContext` plug attaches it per
+  request, so policy checks read it rather than query for it.
   """
 
   @behaviour AshAcp.SessionStore
   @behaviour AshAcp.PromptTarget
 
   alias AshEnterprise.Acp
-  alias AshEnterprise.Acp.Session
+  alias AshEnterprise.Acp.{Commands, Session}
+  alias AshEnterprise.Security.ActorContext
 
   @impl true
   def create(init) do
@@ -21,12 +28,20 @@ defmodule AshEnterprise.Acp.SessionStore do
 
     session = %Session{
       session_id: id,
-      actor: Map.get(init, "actor") || Acp.system_actor()
+      actor: with_context(Map.get(init, "actor") || Acp.system_actor()),
+      updated_at: DateTime.utc_now()
     }
 
     :ets.insert(Acp.tables().sessions, {id, session})
     {:ok, session}
   end
+
+  defp with_context(%{__ash_enterprise_context__: %ActorContext{}} = actor), do: actor
+
+  defp with_context(%{__struct__: _} = user),
+    do: ActorContext.attach(user, ActorContext.build(user))
+
+  defp with_context(actor), do: actor
 
   @impl true
   def load(session_id) do
@@ -40,7 +55,12 @@ defmodule AshEnterprise.Acp.SessionStore do
 
   @impl true
   def append_message(%Session{} = session, role, message) do
-    session = %{session | transcript: session.transcript ++ [{role, message}]}
+    session = %{
+      session
+      | transcript: session.transcript ++ [{role, message}],
+        updated_at: DateTime.utc_now()
+    }
+
     :ets.insert(Acp.tables().sessions, {session.session_id, session})
     {:ok, session}
   end
@@ -48,25 +68,77 @@ defmodule AshEnterprise.Acp.SessionStore do
   @impl true
   def close(session_id) do
     :ets.delete(Acp.tables().sessions, session_id)
+    :ets.delete(Acp.tables().sessions, {:surface, session_id})
     :ok
+  end
+
+  @doc """
+  `session/list`: the sessions in this node's store, newest first, as the
+  shape `AshAcp.Server` reads (`session_id`, `title`, `updated_at`). With an
+  authenticated actor, only theirs. Sessions live in memory until epic E5's
+  durable store, so a restart empties the list.
+  """
+  @impl true
+  def list(filter) do
+    Acp.ensure_tables!()
+    actor = Map.get(filter, "actor")
+
+    sessions =
+      for {id, %Session{} = session} when is_binary(id) <- :ets.tab2list(Acp.tables().sessions),
+          is_nil(actor) or same_actor?(session.actor, actor) do
+        %{session_id: id, title: title(session), updated_at: session.updated_at}
+      end
+
+    {:ok, Enum.sort_by(sessions, & &1.updated_at, {:desc, DateTime})}
+  end
+
+  defp same_actor?(%{id: id}, %{id: id}), do: true
+  defp same_actor?(_session_actor, _actor), do: false
+
+  # The first thing said in it, on one line.
+  defp title(%Session{transcript: transcript}) do
+    Enum.find_value(transcript, fn
+      {:user, text} when is_binary(text) ->
+        text |> String.split("\n") |> hd() |> String.slice(0, 60)
+
+      _other ->
+        nil
+    end)
+  end
+
+  @doc """
+  Records the surface a session is showing (`{ui, opts}`) — a prompt's, or one
+  opened directly over `_ash/surface/open` — so the next turn's close and a
+  `session/load` re-emit it (`AshEnterprise.Acp.Surfaces`).
+  """
+  @spec put_surface(String.t(), term()) :: true
+  def put_surface(session_id, surface) do
+    Acp.ensure_tables!()
+    :ets.insert(Acp.tables().sessions, {{:surface, session_id}, surface})
   end
 
   # -- AshAcp.PromptTarget ----------------------------------------------------
 
   @impl true
-  def resolve(_session_id, prompt_text, ctx) do
-    case String.downcase(String.trim(prompt_text)) do
-      "list business units" ->
-        {:ok,
-         %{
-           resource: AshEnterprise.Accounts.BusinessUnit,
-           action: :read,
-           label: "List business units",
-           tenant: AshEnterprise.Acp.tenant_of(ctx["session"].actor)
-         }}
+  def resolve(session_id, prompt_text, ctx) do
+    case Commands.route(prompt_text, ctx["session"].actor) do
+      {:ok, %{spec: spec, surface: surface}} ->
+        put_surface(session_id, surface)
+        {:ok, spec}
 
-      _other ->
-        {:error, :no_matching_action}
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  @doc false
+  # The surface the session's latest routed prompt asked for (nil: none).
+  def surface_for(session_id) do
+    Acp.ensure_tables!()
+
+    case :ets.lookup(Acp.tables().sessions, {:surface, session_id}) do
+      [{_, surface}] -> surface
+      [] -> nil
     end
   end
 end

@@ -20,6 +20,16 @@ if System.get_env("PHX_SERVER") do
   config :ash_enterprise, AshEnterpriseWeb.Endpoint, server: true
 end
 
+# Dev's :debug level logs every query with its parameters, and on an instance holding real
+# data those parameters are names and addresses. `LOG_LEVEL=info` keeps them out of the log.
+case System.get_env("LOG_LEVEL") do
+  level when level in ~w(debug info notice warning error) ->
+    config :logger, level: String.to_existing_atom(level)
+
+  _ ->
+    :ok
+end
+
 config :ash_enterprise, AshEnterpriseWeb.Endpoint,
   http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 
@@ -32,6 +42,122 @@ config :ash_enterprise, AshEnterpriseWeb.Endpoint,
 # OPENROUTER_API_KEY and nothing else.
 if model = System.get_env("AI_INTERPRETER_MODEL") do
   config :ash_enterprise, :ai, interpreter_model: model
+end
+
+# The in-zone generative profile and the ADR 0042 flow guard
+# (`AshEnterprise.AI.Models`). Not read under test: the suite sets what each
+# test needs, and a developer's shell must not change which model a test sees.
+#
+#   S1_GEN_BASE_URL + S1_GEN_MODEL  an OpenAI-compatible runtime the operator
+#                                   has declared inside the deployment's zone;
+#                                   both set => the default model for the helper
+#                                   (an explicit AI_INTERPRETER_MODEL still wins)
+#   S1_GEN_API_KEY                  its key, if any; read per call, so it never
+#                                   sits in application config
+#   S1_GEN_REASONING_EFFORT         none (default) | minimal | low | medium | high
+#   REQUIRE_IN_ZONE_MODELS=true     refuse every model call, and every
+#                                   instrument profile, outside the zone
+if config_env() != :test do
+  gen_base_url = System.get_env("S1_GEN_BASE_URL", "")
+  gen_model = System.get_env("S1_GEN_MODEL", "")
+
+  if gen_base_url != "" and gen_model != "" do
+    config :ash_enterprise, :ai,
+      in_zone_generative: [
+        model: gen_model,
+        base_url: gen_base_url,
+        api_key: {:system, "S1_GEN_API_KEY"},
+        reasoning_effort: System.get_env("S1_GEN_REASONING_EFFORT", "none"),
+        # The zone the operator declared this host in; the canonical store's
+        # zone is the only one a single-zone deployment has.
+        zone: System.get_env("CANONICAL_ZONE")
+      ]
+  end
+
+  config :ash_enterprise, :ai,
+    require_in_zone_models: System.get_env("REQUIRE_IN_ZONE_MODELS") in ~w(1 true yes)
+end
+
+# The user ACP sessions run as (`AshEnterprise.Acp.system_actor/0`), by email.
+# Unset, it is the legacy seed's admin@example.com; a deployment seeded with a
+# real operator (the dogfood instance) names that user here, typically from a
+# gitignored devenv.local.nix. Read at boot, so changing it needs a restart.
+if operator_email = System.get_env("ACP_OPERATOR_EMAIL") do
+  config :ash_enterprise, :acp_operator_email, operator_email
+end
+
+# The product name on the header, the browser tab, the sign-in screen, mail and
+# the ACP agent's handshake (`AshEnterprise.Brand.product_name/0`). Set only
+# when present so the "Ash Enterprise" default stays in that module; the
+# dogfood instance sets PRODUCT_NAME in its gitignored devenv.local.nix. Read
+# at boot, so changing it needs a restart.
+case System.get_env("PRODUCT_NAME") do
+  name when is_binary(name) and name != "" -> config :ash_enterprise, :product_name, name
+  _ -> :ok
+end
+
+# ## Zone admission (ADR 0042) -- deployment configuration
+#
+# `ZONE_DECLARATIONS`: comma-separated paths of this deployment's zone
+# declarations (`AshEnterprise.Zones`). A real declaration describes somebody's
+# infrastructure, so it lives with the deployment (a gitignored path), never
+# in this repository.
+#
+# `CANONICAL_ZONE`: the id of the declared zone the canonical store is in.
+# Setting it points the Gmail and Slack projections at the real gate
+# (`AshEnterprise.Canonical.Projections.ZoneAdmission`), which admits a landed
+# record on its linked account's tags. Unset, both keep the template default
+# and admit nothing. Never in test: tests declare their own zones.
+if config_env() != :test do
+  if declarations = System.get_env("ZONE_DECLARATIONS") do
+    config :ash_enterprise, AshEnterprise.Zones,
+      declarations: declarations |> String.split(",", trim: true) |> Enum.map(&String.trim/1)
+  end
+
+  if zone = System.get_env("CANONICAL_ZONE") do
+    config :ash_enterprise, AshEnterprise.Canonical.Projections.ZoneAdmission, zone: zone
+
+    config :ash_enterprise, AshEnterprise.Canonical.Projections.Gmail,
+      zone_gate: AshEnterprise.Canonical.Projections.ZoneAdmission
+
+    config :ash_enterprise, AshEnterprise.Canonical.Projections.Slack,
+      zone_gate: AshEnterprise.Canonical.Projections.ZoneAdmission
+  end
+end
+
+# ## The business-event ledger (ADR 0051)
+#
+# `BUSINESS_EVENTS_REGION`: the ledger region its rows, chain and feed live in
+# (one of ca, us, eu, local; default local). Set it before the first event is
+# recorded: a row's region is permanent, and a change starts a new chain.
+# The rows' residency tag is the canonical store's zone (`CANONICAL_ZONE`),
+# because the facts are derived from that store and live where it does.
+if config_env() != :test do
+  business_events =
+    [
+      region:
+        case System.get_env("BUSINESS_EVENTS_REGION") do
+          nil -> nil
+          "ca" -> :ca
+          "us" -> :us
+          "eu" -> :eu
+          "local" -> :local
+          other -> raise "BUSINESS_EVENTS_REGION must be ca, us, eu or local, got: #{other}"
+        end,
+      residency_tag: System.get_env("CANONICAL_ZONE")
+    ]
+    |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+
+  if business_events != [] do
+    config :ash_enterprise, AshEnterprise.BusinessEvents, business_events
+  end
+end
+
+# The zone the daily-loop surfaces cut "today" in and print times in
+# (`AshEnterprise.Platform.LocalTime`). An IANA name; the default is set in
+# config/config.exs. Read at boot.
+if display_time_zone = System.get_env("DISPLAY_TIME_ZONE") do
+  config :ash_enterprise, :display_time_zone, display_time_zone
 end
 
 # ## Instrument profiles (ash_judgments) -- host configuration, not code
@@ -131,6 +257,41 @@ if config_env() == :dev do
         ~r"lib/ash_enterprise_web/(controllers|live|components)/.*\.(ex|heex)$"
       ]
     ]
+
+  # The crypto-shredding master key (ADR 0024, AshEnterprise.Erasure.Crypto).
+  # ERASURE_MASTER_KEY wins when set. Otherwise one is generated on first use
+  # into the devenv state directory, beside the Postgres data directory whose
+  # keys it wraps, and reused on every boot after that. Never committed.
+  #
+  # Deleting this file is an irreversible shred of every erasure scope in the
+  # dev database at once -- which is coherent if the database goes with it
+  # (`rm -rf .devenv/state`), and data loss if it does not.
+  # An empty ERASURE_MASTER_KEY (what `cp .env.example .env` style templates
+  # leave behind) counts as unset rather than as a malformed key.
+  erasure_master_key =
+    case System.get_env("ERASURE_MASTER_KEY") do
+      key when key not in [nil, ""] ->
+        key
+
+      _unset ->
+        state_dir =
+          case System.get_env("DEVENV_STATE") do
+            dir when dir not in [nil, ""] -> dir
+            _ -> Path.expand("../.devenv/state", __DIR__)
+          end
+
+        key_path = Path.join([state_dir, "erasure", "master.key"])
+
+        unless File.exists?(key_path) do
+          File.mkdir_p!(Path.dirname(key_path))
+          File.write!(key_path, Base.encode64(:crypto.strong_rand_bytes(32)))
+          File.chmod!(key_path, 0o600)
+        end
+
+        key_path |> File.read!() |> String.trim()
+    end
+
+  config :ash_enterprise, AshEnterprise.Erasure, master_key: erasure_master_key
 end
 
 if config_env() == :prod do
@@ -190,6 +351,16 @@ if config_env() == :prod do
     token_signing_secret:
       System.get_env("TOKEN_SIGNING_SECRET") ||
         raise("Missing environment variable `TOKEN_SIGNING_SECRET`!")
+
+  # The crypto-shredding master key (ADR 0024): base64 of 32 random bytes,
+  # e.g. `openssl rand -base64 32`. It wraps every erasure scope's key, so
+  # losing it is an irreversible shred of everything at once, and leaking it
+  # with a database copy makes every live scope readable. Same class of secret
+  # as the database password; there is deliberately no default.
+  config :ash_enterprise, AshEnterprise.Erasure,
+    master_key:
+      System.get_env("ERASURE_MASTER_KEY") ||
+        raise("Missing environment variable `ERASURE_MASTER_KEY`!")
 
   # ## SSL Support
   #

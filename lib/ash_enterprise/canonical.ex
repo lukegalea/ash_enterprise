@@ -15,17 +15,22 @@ defmodule AshEnterprise.Canonical do
       tasks, manual projects) — `external_system`/`external_id` stay nil for
       these, which is why the external identity is nullable on every resource.
 
+  What *happened* — a meeting scheduled, moved or cancelled, a message
+  received or sent, a conversation started — is derived from these writes
+  into `AshEnterprise.BusinessEvents` (ADR 0051), in the same transaction.
+
   Linkage is deliberately v1-crude: external id + email only. There is no fuzzy
   entity resolution — that is the roadmap's P4 item, and a wrong automatic merge
   is far more expensive than a duplicate person row.
 
   ## Zones (ADR 0042)
 
-  `Person`, `Conversation` and `Message` are personal data. The Gmail/Slack
-  verticals must not enable their projectors until zone admission is checked on
-  the SourceObject land path; see the TODO on
-  `AshEnterprise.Canonical.Projection`. The calendar fixture is deterministic
-  synthetic data and needs no admission.
+  `Person`, `Conversation` and `Message` are personal data, and owner-only
+  (`AshEnterprise.Security.Privilege.owner_only?/1`). The Gmail and Slack
+  projectors write them only from landed records a zone gate admits
+  (`AshEnterprise.Canonical.Projections.ZoneGate`; deny by default,
+  `ZoneAdmission` for a deployment that declares the store's zone). The
+  calendar fixture is deterministic synthetic data and needs no admission.
   """
 
   use Ash.Domain,
@@ -37,6 +42,8 @@ defmodule AshEnterprise.Canonical do
     resource AshEnterprise.Canonical.Conversation
     resource AshEnterprise.Canonical.Message
     resource AshEnterprise.Canonical.CalendarEvent
+    resource AshEnterprise.Canonical.EventAttendee
+    resource AshEnterprise.Canonical.ConversationParticipant
     resource AshEnterprise.Canonical.Task
     resource AshEnterprise.Canonical.Project
   end

@@ -10,8 +10,34 @@ config :ash_enterprise, AshEnterprise.Ingestion,
     "calendar_dev" => %{"fixture" => true, "external_system" => "calendar"}
   }
 
+# The Nango edge never reaches the network in tests: every proxied request is
+# answered by a `Req.Test` stub named after the proxy module. A test that does
+# not stub it gets a loud `Req.Test` ownership error, not a real request.
+config :ash_enterprise, AshEnterprise.Integration.Nango,
+  base_url: "http://nango.test",
+  req_options: [plug: {Req.Test, AshEnterprise.Integration.Nango.Proxy}],
+  base_backoff_ms: 1,
+  max_retry_delay_ms: 5_000
+
 config :ash_enterprise, token_signing_secret: "2W7xIBrAeWb/GPoe4MBvPxA6NFwqqjl0"
+
+# A fresh crypto-shredding master key every run (ADR 0024). Nothing sealed in
+# a test outlives the sandbox transaction, so nothing needs a stable key.
+config :ash_enterprise, AshEnterprise.Erasure,
+  master_key: Base.encode64(:crypto.strong_rand_bytes(32))
+
 config :bcrypt_elixir, log_rounds: 1
+
+# Day boundaries and printed times in UTC, so time-of-day assertions do not
+# depend on the deployment's display zone (`AshEnterprise.Platform.LocalTime`).
+config :ash_enterprise, :display_time_zone, "Etc/UTC"
+
+# ADR 0051: projections do not record business events in tests by default.
+# The ledger's region lock is transaction-scoped, and a sandboxed test's
+# transaction lasts the whole test, so every async test that projects a row
+# would serialize on one lock. The tests that exercise the ledger are
+# `async: false` and switch it on.
+config :ash_enterprise, AshEnterprise.BusinessEvents, emit?: false, region: :test
 config :ash, policies: [show_policy_breakdowns?: true], disable_async?: true
 
 # The drain ingests inside its own transaction, and the event appends ride it
@@ -149,5 +175,8 @@ config :ash_enterprise, :system_one_subject_resources, [
   AshEnterprise.SystemOne.TestSupport.Standard
 ]
 
+# The boot-time privilege sync (AshEnterprise.Platform.PrivilegeSync) writes
+# outside any test's sandbox; each test seeds the privileges it needs instead.
+config :ash_enterprise, privilege_sync?: false
 # MDM proposals: tests stub the LLM MFA per test; no default model runs.
 config :ash_enterprise, :mdm_proposal_llm, nil

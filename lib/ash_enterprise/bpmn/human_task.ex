@@ -44,4 +44,103 @@ defmodule AshEnterprise.Bpmn.HumanTask do
       archival?: false,
       cdm_entity: "Task"
     ]
+
+  # --- the daily-loop surfaces (Approvals, Today; ACP `approvals`) ----------
+  #
+  # Declared here, on the host's task resource, rather than in ash_bpmn: which
+  # tasks are "mine" and how a person decides one from a surface is host
+  # policy. Every path below reads as the actor and decides through
+  # `AshBpmn.complete_task/2` — never a direct write to the task or subject.
+
+  relationships do
+    has_many :candidates, AshEnterprise.Bpmn.TaskCandidate do
+      destination_attribute :task_id
+      description "Who may act on this task, materialised as rows."
+    end
+  end
+
+  calculations do
+    calculate :subject_label,
+              :string,
+              {AshEnterprise.Bpmn.Calculations.SubjectSummary, field: :label} do
+      public? true
+      description "What the task is about: `Morning brief · Mon 12 Oct`, or the subject's kind."
+    end
+
+    calculate :subject_outline,
+              :string,
+              {AshEnterprise.Bpmn.Calculations.SubjectSummary, field: :outline} do
+      public? true
+      description "The subject in one line — a morning brief's event count and span."
+    end
+
+    calculate :subject_detail,
+              :string,
+              {AshEnterprise.Bpmn.Calculations.SubjectSummary, field: :detail} do
+      public? true
+      description "The subject's content for the decider — a morning brief's draft."
+    end
+
+    calculate :subject_ref,
+              :string,
+              {AshEnterprise.Bpmn.Calculations.SubjectSummary, field: :ref} do
+      public? true
+
+      description """
+      The subject as a typed record reference, `<surface>:<id>` — what a
+      surface links the task's subject through (the `record` link target).
+      """
+    end
+
+    calculate :decided_by_label,
+              :string,
+              {AshEnterprise.Platform.Calculations.UserLabel, field: :decided_by_id} do
+      public? true
+      description "Who decided the task, by email (as the reader may see users)."
+    end
+
+    calculate :assignee_label,
+              :string,
+              {AshEnterprise.Platform.Calculations.UserLabel, field: :assignee_id} do
+      public? true
+      description "Who claimed the task, by email."
+    end
+
+    calculate :waiting_since,
+              :string,
+              {AshEnterprise.Platform.Calculations.LocalStamp,
+               field: :inserted_at, relative?: true} do
+      public? true
+      description "When the task opened, on the operator's wall clock."
+    end
+  end
+
+  actions do
+    read :awaiting_me do
+      description "Open or claimed tasks the actor (or one of their teams) is a candidate for, oldest first."
+      prepare AshEnterprise.Bpmn.Preparations.AwaitingActor
+    end
+
+    action :approve, :string do
+      description """
+      Decide a task the actor is a candidate for with outcome `approved`,
+      through the process engine (`AshBpmn.complete_task/2`).
+      """
+
+      argument :record_id, :uuid, allow_nil?: false
+      argument :comment, :string, allow_nil?: true, constraints: [max_length: 2000]
+      run {AshEnterprise.Bpmn.Actions.DecideTask, outcome: "approved"}
+    end
+
+    action :reject, :string do
+      description """
+      Decide a task the actor is a candidate for with outcome `rejected`,
+      through the process engine (`AshBpmn.complete_task/2`).
+      """
+
+      argument :record_id, :uuid, allow_nil?: false
+      argument :comment, :string, allow_nil?: true, constraints: [max_length: 2000]
+      run {AshEnterprise.Bpmn.Actions.DecideTask, outcome: "rejected"}
+    end
+  end
 end

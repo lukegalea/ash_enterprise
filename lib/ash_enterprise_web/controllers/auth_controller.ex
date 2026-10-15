@@ -3,7 +3,9 @@ defmodule AshEnterpriseWeb.AuthController do
   use AshAuthentication.Phoenix.Controller
 
   def success(conn, activity, user, _token) do
-    return_to = get_session(conn, :return_to) || ~p"/"
+    # Signing in lands on the launcher (Today leads it), unless the visitor
+    # was bounced to sign-in from somewhere else.
+    return_to = get_session(conn, :return_to) || ~p"/app"
 
     message =
       case activity do

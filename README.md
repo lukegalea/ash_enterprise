@@ -38,7 +38,7 @@ works with a limitation stated in the answer; 🔵 means a decision is written d
 <!-- roadmap:scoreboard:start -->
 **17 of 54** enterprise questions have a shipped answer.
 
-✅ Shipped 17 · 🟡 Partial 13 · 🔵 Planned 9 · ⚪ Open 15
+✅ Shipped 17 · 🟡 Partial 16 · 🔵 Planned 7 · ⚪ Open 14
 <!-- roadmap:scoreboard:end -->
 
 <!-- roadmap:sections:start -->
@@ -46,8 +46,8 @@ works with a limitation stated in the answer; 🔵 means a decision is written d
 |---|---|---|---|---|
 | Who are you, and what may you do? | 4 | 2 | 0 | 4 |
 | What happened, and can you prove it? | 8 | 1 | 0 | 2 |
-| Whose data is it? | 2 | 1 | 0 | 3 |
-| Where does data come from, and where does it go? | 0 | 0 | 7 | 2 |
+| Whose data is it? | 2 | 2 | 0 | 2 |
+| Where does data come from, and where does it go? | 0 | 2 | 5 | 2 |
 | How does it change, and keep running? | 3 | 6 | 2 | 1 |
 | Can you prove it, continuously? | 0 | 3 | 0 | 3 |
 <!-- roadmap:sections:end -->
@@ -81,12 +81,12 @@ works with a limitation stated in the answer; 🔵 means a decision is written d
 | 9 | Are illegal state transitions impossible, or merely discouraged? | `ash_state_machine` generates one named action per legal transition from the canonical Dataverse lifecycle. There is no generic `:update` that can set a state. | ✅ Shipped |
 | 12 | How are tenants separated? | Attribute multitenancy on `organization_id`, inherited by every resource — never schema-per-tenant, and never per-department. | ✅ Shipped |
 | 13 | Does tenant isolation hold even when authorization is wrong? | Yes, and it is asserted as a separate property: the conformance suite checks isolation independently of every grant path. | ✅ Shipped |
-| 14 | Can you erase a person on request? | No. `ash_archival` is soft delete only — there is no purge schedule, no anonymization pipeline, and an append-only audit log is exactly what a right-to-erasure request runs into. | ⚪ Open |
+| 14 | Can you erase a person on request? | Partly, by crypto-shredding (ADR 0024's erasure half). Content that arrives through an external connection -- raw landings, canonical messages, conversations and calendar events, and the copies of that content in the audit log -- is sealed under that connection's erasure-scope key, and `shred_scope` destroys the key: rows, structural columns and the audit hash chain survive, the content reads as an explicit `shredded` marker. What is missing for a *person*: nothing yet lands under a `data_subject` scope, `Canonical.Person` names and emails are not sealed, core platform resources (users, organizations) are not covered, and soft delete is still the only delete. Backups and WAL keep the wrapped key until they age out. | 🟡 Partial |
 | 15 | Where does the data physically live? | Undecided. Attribute multitenancy makes residency a deployment question rather than a schema one, which is a deferral, not an answer. | ⚪ Open |
 | 39 | What crosses the tenant boundary, and to whom? | Open. There is no data inventory, no classification, and no published sub-processor list — which is the first artefact a security questionnaire asks for and the one that has to be current rather than merely written once. | ⚪ Open |
 | 40 | What does an AI model see, and can a customer opt out? | Partial. Thesis 5 settles the authorization half — an agent is an actor with an actor's permissions, and `ash_ai` tools are declarations that existing actions may be invoked, so a model reaches nothing its user could not. What is absent is the governance half: no prompt or response logging, no per-tenant opt-out, no disclosure of which model or vendor saw what. | 🟡 Partial |
-| 16 | How does data get in from systems you do not own? | Meltano lands rows in a staging schema as an external producer; a generator turns the declared target schema into an ordinary platform resource, so ingested data inherits ownership, tenancy and audit. | 🔵 Planned |
-| 17 | How do you integrate N SaaS systems without writing N×M integrations? | One contract per category rather than one per (your app × their API). Nango holds the provider edge — OAuth, token refresh, the proxy — and the sync logic stays here as Ash actions over Oban, so a policy gates which actor may trigger a sync and the ordinary audit log records it. Nango's free self-hosted edition gates syncs and webhooks, which is why the design is split that way rather than generated wholesale. | 🔵 Planned |
+| 16 | How does data get in from systems you do not own? | An Oban job runs a Meltano/Singer tap and lands raw rows in an operator-only landing resource sealed for erasure; host-declared projections promote them into ordinary platform resources, so ingested data acquires ownership, tenancy and audit at promotion. Provider APIs (Gmail, Calendar, Slack) land into the same resource through Nango. The schema-to-resource generator is not built. | 🟡 Partial |
+| 17 | How do you integrate N SaaS systems without writing N×M integrations? | One contract per category rather than one per (your app × their API). Nango holds the provider edge — OAuth, token refresh, the proxy — and the sync logic stays here as Ash actions over Oban, so a policy gates which actor may trigger a sync and the ordinary audit log records it. Nango's free self-hosted edition gates syncs and webhooks, which is why the design is split that way rather than generated wholesale. Built for Google Calendar, Gmail and Slack (2026-10-12); webhooks are not. | 🟡 Partial |
 | 18 | Can you trace a value back to the system it came from? | OpenLineage events whose run id *is* the correlation id the audit log already carries — lineage as a second consumer of existing telemetry rather than a parallel system. `ash_strangler` already ships the emitter for column-level mappings. Neither Meltano nor Airbyte emits OpenLineage, so the graph has a hole exactly where external data enters, and that is stated rather than drawn over. | 🔵 Planned |
 | 19 | What data do you have, and who owns it? | A catalogue populated from codegen — every resource already declares its CDM provenance, ownership type and tenancy scope, so it is a read-only projection rather than a second source of truth. It is an internal tool only: its own RBAC resolves deny-wins, which is the inverse of this project's model. | 🔵 Planned |
 | 20 | How do people get reports out of it? | Superset over views already filtered by the same actor context, so the BI tool's row-level security is a formality rather than a duplicate authorization model. Metabase loses because its RLS is paywalled. | 🔵 Planned |
@@ -129,6 +129,11 @@ devenv shell -- mix ash_enterprise.demo # a business-unit tree, people, teams, r
 devenv shell -- iex-server              # the app
 ```
 
+**Starting a new application from this template?** Read
+[`docs/BLEEDING-EDGE.md`](docs/BLEEDING-EDGE.md) first. Two dependencies are forks of
+upstream packages, and 13 of our own packages are not on Hex yet. That page
+says which, why, and the path back to a Hex release for each.
+
 `seed` provisions the minimum — one organization, one business unit, one
 administrator — which is what tests want and what a first run needs. `demo`
 fills it out, because most of what this platform argues for is invisible against
@@ -140,7 +145,7 @@ Sign in with the credentials the seeder prints, then visit:
 
 | URL | What |
 |---|---|
-| `/app/demo` | Demo hub — every surface below, one link away |
+| `/app` | The launcher — every surface in the registry (`AshEnterprise.Surfaces`), grouped, Today leading; sign-in lands here (`/app/hub` and `/app/demo` redirect here) |
 | `/app/mdm/import` | **MDM demo: import a customer CSV** (upload → AI-proposed mapping → activate → run) |
 | `/app/mdm` | **MDM demo: steward queue** — side-by-side diffs awaiting confirm / reject / unsure |
 | `/app/mdm/golden` | **MDM demo: golden records** after the confirm |
@@ -176,8 +181,9 @@ No markup was written for any of this. Every surface here is derived from the
 same resource definitions: the screenshots are what you get for declaring a
 resource, before writing any UI.
 
-**The demo hub** at `/app/demo` is the shortest path through all of it, and the
-place to start after seeding.
+**The launcher** at `/app` is the shortest path through all of it, and the
+place to start after seeding. It, the nav and the ACP command palette are all
+derived from one surface registry, `AshEnterprise.Surfaces`.
 
 ![The demo hub, linking the strangler demo, the process modeller, the agents, the diagrams and the admin console](docs/screenshots/demo-dashboard.png)
 
@@ -199,8 +205,9 @@ the title, which is the status badge, what belongs in the metadata grid — beca
 a derived screen still has to be told what matters. Nothing in that declaration
 is styling; A2UI's components carry no spacing or colour props at all, in any
 version of the spec. Appearance comes from a CSS custom-property contract that
-`assets/css/app.css` maps onto daisyUI's tokens, so these pages follow the same
-theme and the same dark-mode toggle as the rest of the app.
+`assets/css/neobrutalism.css` maps onto the app's design tokens, so these pages
+follow the same theme and the same dark/light toggle as the rest of the app
+([ADR 0050](docs/adr/0050-neobrutalism-design-system.md)).
 
 ![The business-unit surface: seven units as a tree, each row showing its ancestry, with View and Edit per row and a Create business unit action](docs/screenshots/a2ui-business-units.png)
 
@@ -261,7 +268,7 @@ issued with `psql` — no Ash, no changeset, no HTTP request. See
 [`priv/legacy/README.md`](priv/legacy/README.md) for the commands.
 
 **Master data, end to end.** `/app/mdm/import` → `/app/mdm` → `/app/mdm/golden`
-is the entity-resolution loop the ADR 0050 plan asked for, driven entirely
+is the entity-resolution loop the ADR 0053 plan asked for, driven entirely
 through the UI. Upload a CSV, let the AI propose the mapping (activation stays
 a person's act), run the batch, and review-banded matches wait in the steward
 queue as side-by-side diffs with survivorship winners:
@@ -386,12 +393,12 @@ permissive direction.
 | Priority | Gap | Choice | Status | ADR |
 |---|---|---|---|---|
 | 1 | Approvals and maker-checker | ash_bpmn — no external engine | 🟡 Partial | [ADR 0015](docs/adr/0015-approvals-stay-in-ash.md) |
-| 1 | Audit retention, partitioning and erasure | Time-partitioned hot/cold split; erasure by crypto-shredding | 🔵 Planned | [ADR 0024](docs/adr/0024-audit-retention-and-erasure.md) |
+| 1 | Audit retention, partitioning and erasure | Time-partitioned hot/cold split; erasure by crypto-shredding | 🟡 Partial | [ADR 0024](docs/adr/0024-audit-retention-and-erasure.md) |
 | 1 | Business rules and decision tables | ash_decisions — DMN, engine adopted not written | 🟡 Partial | [ADR 0028](docs/adr/0028-decisions-are-dmn.md) |
 | 1 | Control mapping and evidence | Generated from the ledger; SOC 2, ISO 27001, GDPR | 🟡 Partial | [ADR 0021](docs/adr/0021-control-mapping-is-generated.md) |
 | 1 | Data ingestion | Meltano (MIT); Airbyte as the fallback | 🟡 Partial | [ADR 0010](docs/adr/0010-meltano-for-ingestion.md) |
 | 1 | Enterprise identity: SAML, OIDC and SCIM | Federate to the enterprise IdP over OIDC today; SAML and SCIM as planned strategies on the same seam | 🔵 Planned | — |
-| 1 | Integration hub — avoiding M×N | Nango for the provider edge only | 🔵 Planned | [ADR 0011](docs/adr/0011-nango-as-integration-hub.md) |
+| 1 | Integration hub — avoiding M×N | Nango for the provider edge only | 🟡 Partial | [ADR 0011](docs/adr/0011-nango-as-integration-hub.md) |
 | 1 | Legacy migration, process modelling and decisions as platform extensions | ash_strangler + ash_bpmn + ash_decisions, first-party | ✅ Shipped | [ADR 0009](docs/adr/0009-strangler-and-bpmn-are-first-party.md) |
 | 1 | Lineage and provenance | OpenLineage + Marquez | 🟡 Partial | [ADR 0012](docs/adr/0012-openlineage-and-marquez.md) |
 | 1 | Rules and compliance as data | ash_rules (rule IR + swappable evaluators) and ash_compliance (governed layering compiled to immutable bundles, findings projected from events) | ✅ Shipped | [ADR 0035](docs/adr/0035-compliance-is-projected-from-events.md) |
@@ -408,7 +415,7 @@ permissive direction.
 | 3 | Feature flags and progressive delivery | FunWithFlags (Unleash rejected) | 🔵 Planned | [ADR 0016](docs/adr/0016-unleash-for-feature-flags.md) |
 | 3 | Observability backend | Grafana LGTM | 🔵 Planned | [ADR 0018](docs/adr/0018-grafana-lgtm-observability-backend.md) |
 | 3 | Outbound events and subscriptions | An Ash notifier over the existing event log | 🔵 Planned | — |
-| 4 | Master data and entity resolution | In-Ash resolution over CDM resources | 🟡 Partial | [ADR 0050](docs/adr/0050-mdm-stewardship-is-system-one.md) |
+| 4 | Master data and entity resolution | In-Ash resolution over CDM resources | 🟡 Partial | [ADR 0053](docs/adr/0053-mdm-stewardship-is-system-one.md) |
 | 4 | Performance at enterprise data volumes | A seeded large tenant and a query budget | 🔵 Planned | — |
 | 4 | SBOM and build provenance | CycloneDX SBOM; attested builds | 🔵 Planned | — |
 | 4 | Zero-downtime deploys and reversible migrations | Expand/contract, proven by a two-version test | 🔵 Planned | — |
@@ -454,6 +461,7 @@ The reasoning, the sequencing and what stays deliberately open is [`docs/ROADMAP
 | [`docs/HANDOFF.md`](docs/HANDOFF.md) | **Start here in a new session** — current state, and findings that cost time to discover |
 | [`docs/manifesto/`](docs/manifesto/00-index.md) | The eight theses, including [what we do not have](docs/manifesto/07-what-we-do-not-have.md) |
 | [`docs/adr/`](docs/adr/README.md) | Decision records, with the reversal path for each |
+| [`docs/BLEEDING-EDGE.md`](docs/BLEEDING-EDGE.md) | **Forks and unreleased packages** — what is not a Hex release, and the path back for each |
 | [`docs/plans/`](docs/plans/) | Specifications: strangler-fig migrations, process modelling, API versioning |
 | [`docs/roadmap.json`](docs/roadmap.json) | The source every status table above is generated from |
 | `AGENTS.md` | Generated from dependency usage rules — do not edit the generated sections |

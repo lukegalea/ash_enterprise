@@ -37,7 +37,7 @@ defmodule AshEnterprise.Canvas.Registry do
   def domains, do: @domains
 
   @impl true
-  def label(:application), do: "Ash Enterprise"
+  def label(:application), do: AshEnterprise.Brand.product_name()
 
   def label(_other), do: nil
 

@@ -2,15 +2,16 @@ defmodule AshEnterpriseWeb.CanonicalSurfacesTest do
   use AshEnterprise.DataCase, async: false
 
   alias AshEnterprise.CanonicalAgent
+  alias AshEnterprise.Surfaces
   alias AshEnterpriseWeb.A2ui
-  alias AshEnterpriseWeb.A2ui.Surfaces
 
   @canonical_names ~w(canonical_parties canonical_contracts canonical_commitments)
 
   test "catalogue exposes canonical surfaces at canonical routes" do
-    surfaces = Enum.filter(Surfaces.all(), &String.starts_with?(&1.name, "canonical_"))
+    surfaces =
+      Enum.filter(Surfaces.all(), &String.starts_with?(Atom.to_string(&1.key), "canonical_"))
 
-    assert Enum.map(surfaces, & &1.name) == @canonical_names
+    assert Enum.map(surfaces, &Atom.to_string(&1.key)) == @canonical_names
 
     assert Enum.map(surfaces, & &1.path) == [
              "/app/canonical-parties",
@@ -18,7 +19,7 @@ defmodule AshEnterpriseWeb.CanonicalSurfacesTest do
              "/app/canonical-commitments"
            ]
 
-    assert Enum.all?(surfaces, &(Surfaces.fetch(&1.name) == &1))
+    assert Enum.all?(surfaces, &(Surfaces.fetch(Atom.to_string(&1.key)) == &1))
   end
 
   test "canonical surfaces derive valid A2UI messages from canonical resources" do
@@ -44,7 +45,8 @@ defmodule AshEnterpriseWeb.CanonicalSurfacesTest do
   end
 
   test "canonical surfaces subscribe to their canonical resource publications" do
-    surfaces = Enum.filter(Surfaces.all(), &String.starts_with?(&1.name, "canonical_"))
+    surfaces =
+      Enum.filter(Surfaces.all(), &String.starts_with?(Atom.to_string(&1.key), "canonical_"))
 
     assert Enum.map(surfaces, &Surfaces.topics/1) == [
              [

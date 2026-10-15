@@ -4,7 +4,14 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="csrf-token" content={get_csrf_token()} />
-    <.live_title default="AshEnterprise" suffix=" · Phoenix Framework" phx-no-format>{assigns[:page_title]}</.live_title>
+    <%!-- The product name is configuration (AshEnterprise.Brand): the tab reads
+          "Page · Product" on a page that sets a title, and the bare product name
+          everywhere else. --%>
+    <.live_title
+      default={AshEnterprise.Brand.product_name()}
+      suffix={assigns[:page_title] && " · " <> AshEnterprise.Brand.product_name()}
+      phx-no-format
+    >{assigns[:page_title]}</.live_title>
     <link phx-track-static rel="stylesheet" href={~p"/assets/css/app.css"} />
     <%!-- esbuild emits this alongside app.js because the bpmn-js hook imports diagram-js's
           stylesheets. Without the link the designer renders as unstyled boxes -- the JS works
@@ -12,25 +19,30 @@
     <link phx-track-static rel="stylesheet" href={~p"/assets/js/app.css"} />
     <script defer phx-track-static type="text/javascript" src={~p"/assets/js/app.js"}>
     </script>
+    <%!-- The theme script runs before first paint so the page never flashes the
+          wrong palette. Dark is the default: with nothing stored the page is dark,
+          "system" is an explicit, stored choice that follows the OS, and "light" and
+          "dark" pin a palette. The tokens behind both palettes are in
+          assets/css/neobrutalism.css. --%>
     <script>
       (() => {
         const systemTheme = () => matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 
+        // Applies a choice without storing it: the boot default is not a preference.
+        const applyTheme = (theme, source) => {
+          const choice = ["system", "light", "dark"].includes(theme) ? theme : "dark";
+          document.documentElement.setAttribute("data-theme", choice === "system" ? systemTheme() : choice);
+          document.documentElement.setAttribute("data-theme-source", choice === "system" ? "system" : source);
+        };
         const setTheme = (theme) => {
-          if (theme === "system") {
-            localStorage.removeItem("phx:theme");
-            document.documentElement.setAttribute("data-theme", systemTheme());
-            document.documentElement.setAttribute("data-theme-source", "system");
-          } else {
-            localStorage.setItem("phx:theme", theme);
-            document.documentElement.setAttribute("data-theme", theme);
-            document.documentElement.setAttribute("data-theme-source", "user");
-          }
+          localStorage.setItem("phx:theme", theme);
+          applyTheme(theme, "user");
         };
         if (!document.documentElement.hasAttribute("data-theme")) {
-          setTheme(localStorage.getItem("phx:theme") || "system");
+          const stored = localStorage.getItem("phx:theme");
+          applyTheme(stored || "dark", stored ? "user" : "default");
         }
-        window.addEventListener("storage", (e) => e.key === "phx:theme" && setTheme(e.newValue || "system"));
+        window.addEventListener("storage", (e) => e.key === "phx:theme" && applyTheme(e.newValue || "dark", e.newValue ? "user" : "default"));
         window.addEventListener("phx:set-theme", (e) => setTheme(e.target.dataset.phxTheme));
 
         matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (e) => {
@@ -41,7 +53,7 @@
       })();
     </script>
   </head>
-  <body>
+  <body class="min-h-screen bg-background font-base text-foreground antialiased">
     {@inner_content}
   </body>
 </html>

@@ -1,6 +1,6 @@
 defmodule AshEnterprise.Mdm.Changes.MergeInto do
   @moduledoc """
-  The merge write (ADR 0017 kept verbatim by 0050): the survivor's
+  The merge write (ADR 0017 kept verbatim by 0053): the survivor's
   attributes per the survivorship policy, the loser `merged: true` with
   `master_id` at the survivor, SourceIdentity periods repointed at the
   survivor, and candidates for the loser superseded — all in ONE

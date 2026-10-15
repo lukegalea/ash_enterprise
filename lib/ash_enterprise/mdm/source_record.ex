@@ -14,7 +14,7 @@ defmodule AshEnterprise.Mdm.SourceRecord do
   residency tag, period) — a central-log row per landed observation would
   double the write volume for a fact the row itself already answers.
 
-  Raw landings are MACHINERY-visible only (found in the ADR 0050 build): the
+  Raw landings are MACHINERY-visible only (found in the ADR 0053 build): the
   row carries no `organization_id`, so the grant union's scope clauses are
   all nil here and a GLOBAL role grant would read every tenant's raw rows —
   the `"org:slug:key"` external_id convention is a convention, not a fence.

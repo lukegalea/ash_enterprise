@@ -40,7 +40,7 @@ defmodule AshEnterpriseWeb.A2uiLive do
 
     def page(assigns) do
       ~H"""
-      <Layouts.app flash={@flash} width="max-w-7xl">
+      <Layouts.app flash={@flash} page={assigns[:page]} width="max-w-7xl">
         {AshA2ui.LiveRenderer.surface_container(assigns)}
       </Layouts.app>
       """
@@ -107,7 +107,7 @@ defmodule AshEnterpriseWeb.A2uiLive do
       ~H"""
       <div :if={@cue} id={"#{@id_prefix}-cue-#{@cue}"} class="mb-4">
         <div
-          class="flex items-center gap-2 rounded-lg border border-amber-400/60 bg-amber-50 px-4 py-2 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-950/60 dark:text-amber-100"
+          class="flex items-center gap-2.5 rounded-base border-2 border-border bg-yellow px-4 py-2 text-sm text-on-vivid shadow-shadow"
           phx-mounted={
             JS.transition(
               {"transition-all duration-500 ease-out", "opacity-0 -translate-y-1",
@@ -117,12 +117,12 @@ defmodule AshEnterpriseWeb.A2uiLive do
           }
         >
           <span class="relative flex size-2">
-            <span class="absolute inline-flex size-2 animate-ping rounded-full bg-amber-500 opacity-75" />
-            <span class="relative inline-flex size-2 rounded-full bg-amber-500" />
+            <span class="absolute inline-flex size-2 animate-ping rounded-full bg-on-vivid opacity-60" />
+            <span class="relative inline-flex size-2 rounded-full bg-on-vivid" />
           </span>
           <span>
             {@message}
-            <span :if={@cue > 1} class="font-semibold">({@cue} updates)</span>
+            <span :if={@cue > 1} class="font-heading">({@cue} updates)</span>
           </span>
         </div>
       </div>
@@ -134,6 +134,7 @@ defmodule AshEnterpriseWeb.A2uiLive do
     @moduledoc "A2UI surface for users."
     use AshA2ui.LiveRenderer,
       ui: AshEnterpriseWeb.A2ui.UserUI,
+      deep_link: true,
       actor_fn: &__MODULE__.actor/1,
       tenant_fn: &__MODULE__.tenant/1
 
@@ -151,6 +152,7 @@ defmodule AshEnterpriseWeb.A2uiLive do
     @moduledoc "A2UI surface for security roles."
     use AshA2ui.LiveRenderer,
       ui: AshEnterpriseWeb.A2ui.RoleUI,
+      deep_link: true,
       actor_fn: &__MODULE__.actor/1,
       tenant_fn: &__MODULE__.tenant/1
 
@@ -168,6 +170,7 @@ defmodule AshEnterpriseWeb.A2uiLive do
     @moduledoc "A2UI surface for teams."
     use AshA2ui.LiveRenderer,
       ui: AshEnterpriseWeb.A2ui.TeamUI,
+      deep_link: true,
       actor_fn: &__MODULE__.actor/1,
       tenant_fn: &__MODULE__.tenant/1
 
@@ -206,7 +209,7 @@ defmodule AshEnterpriseWeb.A2uiLive do
     publications a resource declares -- so they have to come from somewhere.
     Writing them out here would make them a second spelling of the `pub_sub`
     block, and a typo in either would produce a surface that silently never
-    updates. `AshEnterpriseWeb.A2ui.Surfaces.topics/1` reads them off the
+    updates. `AshEnterprise.Surfaces.topics/1` reads them off the
     publications instead, so there is one declaration and the subscription is
     derived from it.
 
@@ -250,11 +253,12 @@ defmodule AshEnterpriseWeb.A2uiLive do
     """
     use AshA2ui.LiveRenderer,
       ui: AshEnterpriseWeb.A2ui.LegacyUserUI,
+      deep_link: true,
       actor_fn: &__MODULE__.actor/1,
       tenant_fn: &__MODULE__.tenant/1,
       pubsub: [
         module: AshEnterprise.PubSub,
-        topics: AshEnterpriseWeb.A2ui.Surfaces.topics(AshEnterpriseWeb.A2ui.LegacyUserUI)
+        topics: AshEnterprise.Surfaces.topics(AshEnterpriseWeb.A2ui.LegacyUserUI)
       ]
 
     alias AshEnterprise.Security.ActorContext
@@ -302,7 +306,7 @@ defmodule AshEnterpriseWeb.A2uiLive do
     @impl true
     def render(assigns) do
       ~H"""
-      <Layouts.app flash={@flash} width="max-w-7xl">
+      <Layouts.app flash={@flash} page={assigns[:page]} width="max-w-7xl">
         <Cue.banner
           cue={@cue}
           id_prefix="legacy"
@@ -347,11 +351,12 @@ defmodule AshEnterpriseWeb.A2uiLive do
     """
     use AshA2ui.LiveRenderer,
       ui: AshEnterpriseWeb.A2ui.ProjectedUserUI,
+      deep_link: true,
       actor_fn: &__MODULE__.actor/1,
       tenant_fn: &__MODULE__.tenant/1,
       pubsub: [
         module: AshEnterprise.PubSub,
-        topics: AshEnterpriseWeb.A2ui.Surfaces.topics(AshEnterpriseWeb.A2ui.ProjectedUserUI)
+        topics: AshEnterprise.Surfaces.topics(AshEnterpriseWeb.A2ui.ProjectedUserUI)
       ]
 
     alias AshEnterprise.Security.ActorContext
@@ -391,7 +396,7 @@ defmodule AshEnterpriseWeb.A2uiLive do
     @impl true
     def render(assigns) do
       ~H"""
-      <Layouts.app flash={@flash} width="max-w-7xl">
+      <Layouts.app flash={@flash} page={assigns[:page]} width="max-w-7xl">
         <Cue.banner
           cue={@cue}
           id_prefix="projected"
@@ -407,6 +412,7 @@ defmodule AshEnterpriseWeb.A2uiLive do
     @moduledoc "A2UI surface for the business-unit hierarchy."
     use AshA2ui.LiveRenderer,
       ui: AshEnterpriseWeb.A2ui.BusinessUnitUI,
+      deep_link: true,
       actor_fn: &__MODULE__.actor/1,
       tenant_fn: &__MODULE__.tenant/1
 

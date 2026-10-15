@@ -127,6 +127,18 @@ in
     mkdir -p "$MIX_HOME" "$HEX_HOME" "${stateDir}/erlang-history"
     export PATH="$MIX_HOME/bin:$MIX_HOME/escripts:$HEX_HOME/bin:$PATH"
 
+    # Cap open files at 65536, soft AND hard.
+    #
+    # ERTS raises its soft RLIMIT_NOFILE to the hard limit at boot and sizes its
+    # fd and port tables from the result. Under a systemd user service the hard
+    # limit is ~1.07e9, and every BEAM -- `mix test`, `iex-server`, a codegen
+    # check -- then reserved ~4 GB in ll_alloc and sat at ~2.5 GB resident
+    # before doing any work. Several at once OOM-killed the host (2026-10-14).
+    # Lowering only the soft limit does nothing, because ERTS raises it back.
+    if [ "$(ulimit -Hn)" = unlimited ] || [ "$(ulimit -Hn)" -gt 65536 ]; then
+      ulimit -n 65536
+    fi
+
     # Resolve the port Postgres is ACTUALLY listening on.
     #
     # devenv allocates ports dynamically to avoid collisions with whatever is
@@ -174,8 +186,14 @@ in
     # An explicit AI_INTERPRETER_MODEL always wins. Adding a provider here means
     # naming a real model id for it -- an invented one fails at request time with
     # a message about the model rather than about the configuration.
+    #
+    # Never when an in-zone generative profile is configured (S1_GEN_BASE_URL and
+    # S1_GEN_MODEL, AshEnterprise.AI.Models): that profile is the helper's model,
+    # and naming a hosted one here would take precedence over it and send every
+    # request out of the zone (ADR 0042).
     if [ -z "$AI_INTERPRETER_MODEL" ] && [ -z "$ANTHROPIC_API_KEY" ] &&
-       [ -n "$OPENROUTER_API_KEY" ]; then
+       [ -n "$OPENROUTER_API_KEY" ] &&
+       { [ -z "$S1_GEN_BASE_URL" ] || [ -z "$S1_GEN_MODEL" ]; }; then
       export AI_INTERPRETER_MODEL="openrouter:anthropic/claude-haiku-4.5"
     fi
   '';

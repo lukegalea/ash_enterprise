@@ -2,7 +2,7 @@ defmodule AshEnterprise.Mdm.MappingTest do
   @moduledoc """
   MDM-1 host half: the macro-generated Mapping on the platform base —
   draft -> validate with tenancy, and the activation gate: a system actor
-  is refused (`:activate` is a person's decision, ADR 0050 §ActorContext),
+  is refused (`:activate` is a person's decision, ADR 0053 §ActorContext),
   and a person activates *through the platform grant union* — the actor is
   a seeded tenant admin, so personhood AND privilege are both exercised.
   """

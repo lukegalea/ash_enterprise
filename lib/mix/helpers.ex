@@ -18,9 +18,12 @@ defmodule AshEnterprise.Mix.Helpers do
     * `app.config` — the task's `@requirements`; config loaded, project compiled
     * the `:ecto_sql` and `:ash` applications
     * `AshEnterprise.Repo` running
-    * the `:swoosh` application — dev and test mailers deliver into an in-BEAM
-      mailbox process (`Swoosh.Adapters.Local` / `Swoosh.Adapters.Test`), and
-      any task that registers a user fires the confirmation sender
+
+  Not the mailer or the endpoint. A task that creates users does it through
+  `AshEnterprise.Platform.Seeder.provision_user!/2`, which creates them already
+  confirmed and sends nothing. `:register_with_password` would send a
+  confirmation email whose link is built against the endpoint, and fail
+  without it.
 
   Idempotent: safe to call again from a task invoked by another task (e.g.
   `ash_enterprise.seed` runs `ash_enterprise.legacy.project`), and a no-op
@@ -32,12 +35,33 @@ defmodule AshEnterprise.Mix.Helpers do
   def boot_repo do
     {:ok, _} = Application.ensure_all_started(:ecto_sql)
     {:ok, _} = Application.ensure_all_started(:ash)
-    {:ok, _} = Application.ensure_all_started(:swoosh)
 
     case AshEnterprise.Repo.start_link() do
       {:ok, _pid} -> :ok
       {:error, {:already_started, _pid}} -> :ok
     end
+  end
+
+  @doc """
+  Stops the Repo `boot_repo/0` started, so the task can hand over to one that
+  requires `app.start`.
+
+  The application supervises its own Repo, so `app.start` after `boot_repo/0`
+  fails with `failed to start child: AshEnterprise.Repo ... already started`.
+  `ash_enterprise.seed` runs into this when it hands over to
+  `ash_enterprise.legacy.project`, which needs the whole tree (see its
+  comment on why). A no-op when the application is already running, because
+  the Repo is then the application's and not this module's to stop.
+  """
+  @spec release_repo() :: :ok
+  def release_repo do
+    started? = List.keymember?(Application.started_applications(), :ash_enterprise, 0)
+
+    if not started? and Process.whereis(AshEnterprise.Repo) do
+      AshEnterprise.Repo.stop()
+    end
+
+    :ok
   end
 
   @doc """

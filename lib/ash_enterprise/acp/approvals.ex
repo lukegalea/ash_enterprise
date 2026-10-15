@@ -14,6 +14,11 @@ defmodule AshEnterprise.Acp.Approvals do
   alias AshEnterprise.Acp
 
   @impl true
+  # An extension method asks only for what is consequential — a write through
+  # a surface (`AshEnterprise.Acp.ExtMethods`) — so it always pends: the
+  # person decides, and the action then still runs under their policies.
+  def request(session, %{ext: _} = action_spec, inputs), do: pend(session, action_spec, inputs)
+
   def request(session, action_spec, inputs) do
     Acp.ensure_tables!()
 
@@ -27,28 +32,42 @@ defmodule AshEnterprise.Acp.Approvals do
 
     authorized? = Ash.can?({action_spec.resource, action_spec.action}, actor, tenant: tenant)
 
-    # Reads run without a modal when authorized. Writes always pend — dogfood
+    # Reads — and the read-only generic actions behind the daily-loop prompts
+    # (digests, help) — run without a modal when authorized. Writes and the
+    # consequential generics (a task decision, a sync) always pend — dogfood
     # §5's capability-transition rule: consequential operations are approvals,
     # even for the operator.
-    if authorized? and action.type == :read do
+    if authorized? and read_only?(action, action_spec) do
       {:approved, %{auto: :policy_authorized, tenant: tenant}}
     else
-      ref = Ash.UUID.generate()
-
-      :ets.insert(
-        Acp.approvals_table(),
-        {ref,
-         %{
-           session_id: session.session_id,
-           action_spec: action_spec,
-           inputs: inputs,
-           status: :pending
-         }}
-      )
-
-      {:pending, ref}
+      pend(session, action_spec, inputs)
     end
   end
+
+  defp pend(session, action_spec, inputs) do
+    Acp.ensure_tables!()
+    ref = Ash.UUID.generate()
+
+    :ets.insert(
+      Acp.approvals_table(),
+      {ref,
+       %{
+         session_id: session.session_id,
+         action_spec: action_spec,
+         inputs: inputs,
+         status: :pending
+       }}
+    )
+
+    {:pending, ref}
+  end
+
+  defp read_only?(%{type: :read}, _spec), do: true
+
+  defp read_only?(%{type: :action}, spec),
+    do: not AshEnterprise.Acp.Commands.consequential?(spec.resource, spec.action)
+
+  defp read_only?(_action, _spec), do: false
 
   @impl true
   def resolve(ref, outcome, session) when is_binary(ref) do
@@ -79,4 +98,11 @@ defmodule AshEnterprise.Acp.Approvals do
         {:denied}
     end
   end
+
+  # When an action Ash's policies refuse, `ash_acp` asks the client again,
+  # bound to the synthetic ref `{:ash_denied, resource, action}`. Approving
+  # that cannot make the policy allow it — the action would only be refused
+  # again, and asked again — so it is always denied, and the turn ends as a
+  # refusal. Any other ref that is not one this module issued is denied too.
+  def resolve(_ref, _outcome, _session), do: {:denied}
 end

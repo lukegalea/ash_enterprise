@@ -23,10 +23,16 @@ defmodule AshEnterpriseWeb.A2ui.TeamUI do
       page_size 25
     end
 
+    context :team do
+      resource AshEnterprise.Accounts.Team
+      picker false
+    end
+
     component :table do
       fields [:name, :team_type, :description, :is_default]
       read_action :read
       query :default
+      select_context :team
 
       # Without this, rows are flat cell Rows carrying no `weight`, so every
       # column is content-sized: "Sales" and "Enterprise Sales" push everything
@@ -44,6 +50,23 @@ defmodule AshEnterpriseWeb.A2ui.TeamUI do
         meta [:description, :is_default]
         columns 2
       end
+    end
+
+    component :detail, :team_detail do
+      context :team
+      fields [:name, :team_type, :description, :administrator, :members]
+    end
+
+    field :administrator do
+      label "Administrator"
+      link :administrator
+      link_label :email
+    end
+
+    field :members do
+      label "Members"
+      links :users
+      link_label :email
     end
 
     component :form do

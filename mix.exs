@@ -245,6 +245,11 @@ defmodule AshEnterprise.MixProject do
 
       # --- The unreleased first-party packages ----------------------------------
       #
+      # Every dependency that is not a plain Hex release -- these, the forks
+      # (ash_events below; boxic_dmn via ash_decisions) and any `override:` --
+      # is listed in docs/BLEEDING-EDGE.md with its path back to Hex.
+      # `bleeding_edge_doc_test.exs` fails if one is added without a row there.
+      #
       # Not on hex yet, so these are git dependencies on public GitHub repos: a
       # fresh clone fetches them with no credentials, and CI's `cold-clone` job
       # fails if that stops being true. They track their own `main` with no
@@ -261,6 +266,10 @@ defmodule AshEnterprise.MixProject do
       # lib/ash_enterprise_web/a2ui/ so removing it is a deletion, not a
       # refactor. ADR 0033 records the experience layer's adoption.
       {:ash_a2ui, github: "lukegalea/ash_a2ui"},
+      # IANA zone data for the daily-loop surfaces' wall clock
+      # (`AshEnterprise.Platform.LocalTime`). Already in the lock through
+      # boxic_feel; declared because this app calls it directly.
+      {:tz, "~> 0.28"},
 
       # --- Strangler-fig migration of the legacy schema ------------------------
       # First-party (ADR 0009), and used here for the read model over
@@ -269,6 +278,11 @@ defmodule AshEnterprise.MixProject do
       {:ash_strangler, github: "lukegalea/ash_strangler"},
       # Epic E2 / ADR 0012: OpenLineage emission from action notifications.
       {:ash_open_lineage, github: "lukegalea/ash_open_lineage"},
+      # ADR 0051: the business-event ledger (BIZEV). Its `:ledger` resource
+      # macro is instantiated on the platform base as
+      # `AshEnterprise.BusinessEvents.Ledger`; events are derived from the
+      # canonical store's writes.
+      {:ash_discrete_business_events, github: "lukegalea/ash_discrete_business_events"},
       # Epic E3 (dogfood §7): ACP server wire adapter.
       {:ash_acp, github: "lukegalea/ash_acp"},
 
@@ -329,19 +343,13 @@ defmodule AshEnterprise.MixProject do
       {:ash_bpmn, github: "lukegalea/ash_bpmn"},
       {:ash_decisions, github: "lukegalea/ash_decisions"},
 
-      # --- Master data management (ADR 0050; roadmap mdm) ----------------------
-      # `ash_discrete_business_events` is the raw-landing + event-ledger
-      # substrate: temporal SourceRecord landing (BIZEV-3) and the locked,
-      # hash-chained ledger (BIZEV-4). `ash_mdm` builds on it: versioned
+      # --- Master data management (ADR 0053; roadmap mdm) ----------------------
+      # `ash_mdm` builds on `ash_discrete_business_events` (declared above for
+      # the ledger; MDM uses its temporal SourceRecord landing too): versioned
       # schema mappings as data, deterministic entity resolution with
       # rules-as-data, survivorship and non-destructive merge over golden
-      # records. Both are ADR 0009-family resource macros — the host
-      # instantiates them on its own platform base and keeps its policies.
-      # TEMPORARY (MDM-2): local branch mdm-land-auth — land.ex inherits the
-      # caller's actor/tenant/authorize? on its internal reads/writes so
-      # grant-filter policies cannot silently narrow the as-of identity read
-      # to nothing. Reverts to the github ref once the branch lands upstream.
-      {:ash_discrete_business_events, path: "../ash_discrete_business_events", override: true},
+      # records. An ADR 0009-family resource macro — the host instantiates it
+      # on its own platform base and keeps its policies.
       {:ash_mdm, github: "lukegalea/ash_mdm"},
 
       # --- Observability -------------------------------------------------------
@@ -382,6 +390,7 @@ defmodule AshEnterprise.MixProject do
       {:nimble_csv, "~> 1.2"},
       {:open_api_spex, "~> 3.0"},
       {:ash_state_machine, "~> 0.2"},
+      # FORK -- see docs/BLEEDING-EDGE.md for its path back to Hex.
       # The as_of capture/replay fork (ash_events#103, upstream PR #104
       # pending): a write's as_of is recorded on its event and restored on
       # replay, and the replay wrappers declare temporal_safe? — required
@@ -422,13 +431,6 @@ defmodule AshEnterprise.MixProject do
        github: "tailwindlabs/heroicons",
        tag: "v2.2.0",
        sparse: "optimized",
-       app: false,
-       compile: false,
-       depth: 1},
-      {:daisyui,
-       github: "saadeghi/daisyui",
-       tag: "v5.5.20",
-       sparse: "packages/bundle",
        app: false,
        compile: false,
        depth: 1},

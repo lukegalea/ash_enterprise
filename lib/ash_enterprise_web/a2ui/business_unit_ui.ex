@@ -34,10 +34,16 @@ defmodule AshEnterpriseWeb.A2ui.BusinessUnitUI do
       page_size 50
     end
 
+    context :business_unit do
+      resource AshEnterprise.Accounts.BusinessUnit
+      picker false
+    end
+
     component :table do
       fields [:tree_label, :breadcrumb, :is_disabled]
       read_action :read
       query :default
+      select_context :business_unit
 
       row_layout do
         title :tree_label
@@ -63,6 +69,23 @@ defmodule AshEnterpriseWeb.A2ui.BusinessUnitUI do
       # chain, resolved to names. `path` itself is unchanged -- it is an
       # authorization structure, and this is only its display.
       label "Ancestry"
+    end
+
+    component :detail, :business_unit_detail do
+      context :business_unit
+      fields [:name, :division_name, :cost_center, :parent, :children, :is_disabled]
+    end
+
+    field :parent do
+      label "Parent"
+      link :parent_business_unit
+      link_label :name
+    end
+
+    field :children do
+      label "Units under it"
+      links :child_business_units
+      link_label :name
     end
 
     component :form do

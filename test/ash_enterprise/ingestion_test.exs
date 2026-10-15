@@ -110,13 +110,40 @@ defmodule AshEnterprise.IngestionTest do
     test "a failing tap propagates the error -- no rows land, no silence" do
       :persistent_term.put(
         {__MODULE__.StubRunner, :run},
-        {nil, fn -> {:error, {:exit_status, 1, "boom"}} end}
+        {nil, fn -> {:error, {:exit_status, 1}} end}
       )
 
-      assert {:error, {:exit_status, 1, "boom"}} =
+      assert {:error, {:exit_status, 1}} =
                TapWorker.perform(%Oban.Job{args: %{"pipeline" => "test_pipeline"}})
 
       assert Ash.read!(SourceObject, @opts) == []
+    end
+
+    # ADR 0024: a failure reason reaches the OpenLineage FAIL facet and
+    # oban_jobs.errors, which no shred reaches. A tap that dies mid-stream must
+    # not carry the records it already printed into either.
+    test "a tap that dies after emitting records fails with its status, never its output" do
+      record =
+        ~s({"type":"RECORD","stream":"messages","record":{"text":"SECRET merger terms"}})
+
+      :persistent_term.put(
+        {__MODULE__.StubRunner, :run},
+        {nil, fn -> {:error, {:exit_status, 2, record <> "\nrate limited\n"}} end}
+      )
+
+      assert {:error, reason} =
+               TapWorker.perform(%Oban.Job{args: %{"pipeline" => "test_pipeline"}})
+
+      assert reason == {:exit_status, 2}
+      refute inspect(reason) =~ "SECRET"
+      assert Ash.read!(SourceObject, @opts) == []
+    end
+
+    test "the shell runner returns the exit status alone" do
+      assert {:error, {:exit_status, 3}} =
+               AshEnterprise.Ingestion.TapRunner.Exec.run(
+                 ~s(printf '{"type":"RECORD","record":{"text":"SECRET"}}\n'; exit 3)
+               )
     end
   end
 

@@ -4,7 +4,7 @@
 
 defmodule AshEnterprise.Mdm.Changes.Unmerge do
   @moduledoc """
-  The merge correction (ADR 0050): restores exactly what the merge took —
+  The merge correction (ADR 0053): restores exactly what the merge took —
   the prior email and the identities that moved to the survivor — using
   the provenance the merge recorded on this record.
   """

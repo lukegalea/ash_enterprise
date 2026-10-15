@@ -53,7 +53,7 @@ ADR 0035/0037 (event projections), `docs/dogfood_enterprise.md` §6–§11.
   modals. "Morning brief" as an ash_bpmn workflow over projections (summarize via ash_ai, local Ollaya where
   possible; drafts only, every consequential action an approval). Exit CLIN tickets: agent-tool exposure;
   approval-in-terminal.
-- **E6 — Daily-driver cutover** (PROD-7): operator's daily loop in amber_console; two-week dogfood log triaged
+- **E6 — Daily-driver cutover** (PROD-7): operator's daily loop in amber_console; two-week [dogfood log](dogfood-log.md) (2026-10-12 → 10-26) triaged
   into PROD tickets; `docs/roadmap.json` status updates + `mix ash_enterprise.roadmap`; HANDOFF.md
   "genuinely not done" refresh; CLIN demo-ticket sweep with the operator.
 

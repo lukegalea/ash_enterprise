@@ -27,7 +27,7 @@ README. Edit the JSON, never the table.
 <!-- roadmap:scoreboard:start -->
 **17 of 54** enterprise questions have a shipped answer.
 
-✅ Shipped 17 · 🟡 Partial 13 · 🔵 Planned 9 · ⚪ Open 15
+✅ Shipped 17 · 🟡 Partial 16 · 🔵 Planned 7 · ⚪ Open 14
 <!-- roadmap:scoreboard:end -->
 
 <!-- roadmap:sections:start -->
@@ -35,8 +35,8 @@ README. Edit the JSON, never the table.
 |---|---|---|---|---|
 | Who are you, and what may you do? | 4 | 2 | 0 | 4 |
 | What happened, and can you prove it? | 8 | 1 | 0 | 2 |
-| Whose data is it? | 2 | 1 | 0 | 3 |
-| Where does data come from, and where does it go? | 0 | 0 | 7 | 2 |
+| Whose data is it? | 2 | 2 | 0 | 2 |
+| Where does data come from, and where does it go? | 0 | 2 | 5 | 2 |
 | How does it change, and keep running? | 3 | 6 | 2 | 1 |
 | Can you prove it, continuously? | 0 | 3 | 0 | 3 |
 <!-- roadmap:sections:end -->
@@ -81,7 +81,7 @@ README. Edit the JSON, never the table.
 |---|---|---|---|---|
 | 12 | How are tenants separated? | Attribute multitenancy on `organization_id`, inherited by every resource — never schema-per-tenant, and never per-department. | ✅ Shipped | `test/ash_enterprise/security/tenant_resolution_test.exs` |
 | 13 | Does tenant isolation hold even when authorization is wrong? | Yes, and it is asserted as a separate property: the conformance suite checks isolation independently of every grant path. | ✅ Shipped | `test/ash_enterprise/security/conformance_test.exs` |
-| 14 | Can you erase a person on request? | No. `ash_archival` is soft delete only — there is no purge schedule, no anonymization pipeline, and an append-only audit log is exactly what a right-to-erasure request runs into. | ⚪ Open | — |
+| 14 | Can you erase a person on request? | Partly, by crypto-shredding (ADR 0024's erasure half). Content that arrives through an external connection -- raw landings, canonical messages, conversations and calendar events, and the copies of that content in the audit log -- is sealed under that connection's erasure-scope key, and `shred_scope` destroys the key: rows, structural columns and the audit hash chain survive, the content reads as an explicit `shredded` marker. What is missing for a *person*: nothing yet lands under a `data_subject` scope, `Canonical.Person` names and emails are not sealed, core platform resources (users, organizations) are not covered, and soft delete is still the only delete. Backups and WAL keep the wrapped key until they age out. | 🟡 Partial | `test/ash_enterprise/erasure_test.exs` |
 | 15 | Where does the data physically live? | Undecided. Attribute multitenancy makes residency a deployment question rather than a schema one, which is a deferral, not an answer. | ⚪ Open | — |
 | 39 | What crosses the tenant boundary, and to whom? | Open. There is no data inventory, no classification, and no published sub-processor list — which is the first artefact a security questionnaire asks for and the one that has to be current rather than merely written once. | ⚪ Open | — |
 | 40 | What does an AI model see, and can a customer opt out? | Partial. Thesis 5 settles the authorization half — an agent is an actor with an actor's permissions, and `ash_ai` tools are declarations that existing actions may be invoked, so a model reaches nothing its user could not. What is absent is the governance half: no prompt or response logging, no per-tenant opt-out, no disclosure of which model or vendor saw what. | 🟡 Partial | [ADR 0026](adr/0026-ai-governance-is-disclosure.md) |
@@ -90,8 +90,8 @@ README. Edit the JSON, never the table.
 
 | # | Question | Our answer | Status | Proven by |
 |---|---|---|---|---|
-| 16 | How does data get in from systems you do not own? | Meltano lands rows in a staging schema as an external producer; a generator turns the declared target schema into an ordinary platform resource, so ingested data inherits ownership, tenancy and audit. | 🔵 Planned | [ADR 0010](adr/0010-meltano-for-ingestion.md) |
-| 17 | How do you integrate N SaaS systems without writing N×M integrations? | One contract per category rather than one per (your app × their API). Nango holds the provider edge — OAuth, token refresh, the proxy — and the sync logic stays here as Ash actions over Oban, so a policy gates which actor may trigger a sync and the ordinary audit log records it. Nango's free self-hosted edition gates syncs and webhooks, which is why the design is split that way rather than generated wholesale. | 🔵 Planned | [ADR 0011](adr/0011-nango-as-integration-hub.md) |
+| 16 | How does data get in from systems you do not own? | An Oban job runs a Meltano/Singer tap and lands raw rows in an operator-only landing resource sealed for erasure; host-declared projections promote them into ordinary platform resources, so ingested data acquires ownership, tenancy and audit at promotion. Provider APIs (Gmail, Calendar, Slack) land into the same resource through Nango. The schema-to-resource generator is not built. | 🟡 Partial | [ADR 0010](adr/0010-meltano-for-ingestion.md) |
+| 17 | How do you integrate N SaaS systems without writing N×M integrations? | One contract per category rather than one per (your app × their API). Nango holds the provider edge — OAuth, token refresh, the proxy — and the sync logic stays here as Ash actions over Oban, so a policy gates which actor may trigger a sync and the ordinary audit log records it. Nango's free self-hosted edition gates syncs and webhooks, which is why the design is split that way rather than generated wholesale. Built for Google Calendar, Gmail and Slack (2026-10-12); webhooks are not. | 🟡 Partial | [ADR 0011](adr/0011-nango-as-integration-hub.md) |
 | 18 | Can you trace a value back to the system it came from? | OpenLineage events whose run id *is* the correlation id the audit log already carries — lineage as a second consumer of existing telemetry rather than a parallel system. `ash_strangler` already ships the emitter for column-level mappings. Neither Meltano nor Airbyte emits OpenLineage, so the graph has a hole exactly where external data enters, and that is stated rather than drawn over. | 🔵 Planned | [ADR 0012](adr/0012-openlineage-and-marquez.md) |
 | 19 | What data do you have, and who owns it? | A catalogue populated from codegen — every resource already declares its CDM provenance, ownership type and tenancy scope, so it is a read-only projection rather than a second source of truth. It is an internal tool only: its own RBAC resolves deny-wins, which is the inverse of this project's model. | 🔵 Planned | [ADR 0013](adr/0013-openmetadata-as-catalog.md) |
 | 20 | How do people get reports out of it? | Superset over views already filtered by the same actor context, so the BI tool's row-level security is a formality rather than a duplicate authorization model. Metabase loses because its RLS is paywalled. | 🔵 Planned | [ADR 0014](adr/0014-superset-over-metabase.md) |

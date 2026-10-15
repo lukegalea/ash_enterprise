@@ -9,15 +9,21 @@ defmodule AshEnterpriseWeb.MdmSurfacesTest do
 
   alias AshEnterpriseWeb.A2ui
 
-  test "the MDM surfaces are declared at their routes" do
-    surfaces = Enum.filter(A2ui.Surfaces.all(), &String.starts_with?(&1.name, "mdm_"))
+  test "the MDM surfaces are declared at their routes, in the Master data group" do
+    surfaces = Enum.filter(AshEnterprise.Surfaces.all(), &(&1.group == :mdm))
 
-    assert Enum.map(surfaces, & &1.name) == ["mdm_mappings", "mdm_golden"]
+    assert Enum.map(surfaces, & &1.key) == [:steward, :mdm_import, :mdm_golden, :mdm_mappings]
 
     assert Enum.map(surfaces, & &1.path) == [
-             "/app/mdm/mappings",
-             "/app/mdm/golden"
+             "/app/mdm",
+             "/app/mdm/import",
+             "/app/mdm/golden",
+             "/app/mdm/mappings"
            ]
+
+    # The verdicts are person-gated by policy, not by a door: any signed-in
+    # person may open the queue and sees what their grants let them read.
+    assert Enum.all?(surfaces, &(&1.door == :signed_in))
   end
 
   test "the MDM surfaces derive valid A2UI messages" do

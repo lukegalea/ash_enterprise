@@ -14,12 +14,12 @@ the missing forward half.
 | Priority | Gap | Choice | Status | ADR |
 |---|---|---|---|---|
 | 1 | Approvals and maker-checker | ash_bpmn — no external engine | 🟡 Partial | [ADR 0015](adr/0015-approvals-stay-in-ash.md) |
-| 1 | Audit retention, partitioning and erasure | Time-partitioned hot/cold split; erasure by crypto-shredding | 🔵 Planned | [ADR 0024](adr/0024-audit-retention-and-erasure.md) |
+| 1 | Audit retention, partitioning and erasure | Time-partitioned hot/cold split; erasure by crypto-shredding | 🟡 Partial | [ADR 0024](adr/0024-audit-retention-and-erasure.md) |
 | 1 | Business rules and decision tables | ash_decisions — DMN, engine adopted not written | 🟡 Partial | [ADR 0028](adr/0028-decisions-are-dmn.md) |
 | 1 | Control mapping and evidence | Generated from the ledger; SOC 2, ISO 27001, GDPR | 🟡 Partial | [ADR 0021](adr/0021-control-mapping-is-generated.md) |
 | 1 | Data ingestion | Meltano (MIT); Airbyte as the fallback | 🟡 Partial | [ADR 0010](adr/0010-meltano-for-ingestion.md) |
 | 1 | Enterprise identity: SAML, OIDC and SCIM | Federate to the enterprise IdP over OIDC today; SAML and SCIM as planned strategies on the same seam | 🔵 Planned | — |
-| 1 | Integration hub — avoiding M×N | Nango for the provider edge only | 🔵 Planned | [ADR 0011](adr/0011-nango-as-integration-hub.md) |
+| 1 | Integration hub — avoiding M×N | Nango for the provider edge only | 🟡 Partial | [ADR 0011](adr/0011-nango-as-integration-hub.md) |
 | 1 | Legacy migration, process modelling and decisions as platform extensions | ash_strangler + ash_bpmn + ash_decisions, first-party | ✅ Shipped | [ADR 0009](adr/0009-strangler-and-bpmn-are-first-party.md) |
 | 1 | Lineage and provenance | OpenLineage + Marquez | 🟡 Partial | [ADR 0012](adr/0012-openlineage-and-marquez.md) |
 | 1 | Rules and compliance as data | ash_rules (rule IR + swappable evaluators) and ash_compliance (governed layering compiled to immutable bundles, findings projected from events) | ✅ Shipped | [ADR 0035](adr/0035-compliance-is-projected-from-events.md) |
@@ -36,7 +36,7 @@ the missing forward half.
 | 3 | Feature flags and progressive delivery | FunWithFlags (Unleash rejected) | 🔵 Planned | [ADR 0016](adr/0016-unleash-for-feature-flags.md) |
 | 3 | Observability backend | Grafana LGTM | 🔵 Planned | [ADR 0018](adr/0018-grafana-lgtm-observability-backend.md) |
 | 3 | Outbound events and subscriptions | An Ash notifier over the existing event log | 🔵 Planned | — |
-| 4 | Master data and entity resolution | In-Ash resolution over CDM resources | 🟡 Partial | [ADR 0050](adr/0050-mdm-stewardship-is-system-one.md) |
+| 4 | Master data and entity resolution | In-Ash resolution over CDM resources | 🟡 Partial | [ADR 0053](adr/0053-mdm-stewardship-is-system-one.md) |
 | 4 | Performance at enterprise data volumes | A seeded large tenant and a query budget | 🔵 Planned | — |
 | 4 | SBOM and build provenance | CycloneDX SBOM; attested builds | 🔵 Planned | — |
 | 4 | Zero-downtime deploys and reversible migrations | Expand/contract, proven by a two-version test | 🔵 Planned | — |
@@ -150,8 +150,11 @@ These have no decision, and saying so is the point of
   planned seam; no ecosystem answer exists yet and building one is real work, not a weekend.
 - **Retention, purge and right-to-erasure.** The hardest of the open items, because it is in genuine
   tension with [thesis 4](manifesto/04-batteries-are-inherited.md): an append-only audit log inherited
-  by every resource is exactly what a GDPR Article 17 request runs into. This needs a design, not a
-  tool.
+  by every resource is exactly what a GDPR Article 17 request runs into. The design is
+  [ADR 0024](adr/0024-audit-retention-and-erasure.md) (accepted 2026-10-12), and its erasure half is built:
+  content from an external connection is crypto-shredded per connection, audit copies included
+  ([runbook](runbooks/crypto-shredding.md)). Still open: partitioning for age, purge schedules, and
+  per-person erasure that reaches `canonical_people`.
 - **Column-level security.** The corpus already models `FieldPermission` and `FieldSecurityProfile`,
   and Ash field policies would carry it on the same additive model — but nothing is declared today, and
   [thesis 4](manifesto/04-batteries-are-inherited.md) currently claims otherwise. That claim is being

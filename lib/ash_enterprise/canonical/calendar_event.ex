@@ -11,9 +11,15 @@ defmodule AshEnterprise.Canonical.CalendarEvent do
 
   Projection-derived, so `archival?`/`lifecycle?` are opted out for the same
   reasons as `AshEnterprise.Canonical.Person`: replay reconstructs, soft delete
-  would ghost the upsert identity, and an event's lifecycle is the provider's
-  (confirmed/cancelled lives in the raw payload, to be projected when the
-  operator's real calendar lands).
+  would ghost the upsert identity, and an event's lifecycle is the provider's.
+  That lifecycle is `status` (confirmed / tentative / cancelled), projected
+  from the provider payload: a cancellation flips it rather than deleting the
+  row.
+
+  `title` and `location` are content: sealed under the erasure scope of the
+  SourceObject the event was projected from (ADR 0024,
+  `AshEnterprise.Erasure.Changes.SealUnderScope`), and read as
+  `AshEnterprise.Erasure.Shredded` once that scope is shredded.
   """
 
   use AshEnterprise.Platform.Resource,
@@ -21,11 +27,28 @@ defmodule AshEnterprise.Canonical.CalendarEvent do
     ownership: :user_owned,
     tenant?: true,
     lifecycle?: false,
-    archival?: false
+    archival?: false,
+    extra_extensions: [AshCloak]
 
   postgres do
     table "canonical_calendar_events"
     repo AshEnterprise.Repo
+
+    references do
+      reference :erasure_scope, on_delete: :restrict
+    end
+  end
+
+  cloak do
+    vault({AshEnterprise.Erasure.Vault, :resolve, []})
+    attributes [:title, :location]
+    decrypt_by_default([:title, :location])
+    encrypt_nil?(false)
+  end
+
+  changes do
+    change {AshEnterprise.Erasure.Changes.SealUnderScope, fields: [:title, :location]},
+      on: [:create, :update]
   end
 
   attributes do
@@ -34,7 +57,9 @@ defmodule AshEnterprise.Canonical.CalendarEvent do
     attribute :title, :string do
       allow_nil? false
       public? true
-      constraints max_length: 1024
+      # No max_length on a sealed attribute: a failed constraint renders the
+      # value into the error message (Ash's InvalidArgument), and errors reach
+      # traces, Oban and BPMN incidents, which no shred reaches (ADR 0024).
       description "The event's summary line."
     end
 
@@ -52,8 +77,21 @@ defmodule AshEnterprise.Canonical.CalendarEvent do
 
     attribute :location, :string do
       public? true
-      constraints max_length: 512
+      # Unbounded for the same reason as `title`.
       description "Where, when the event says."
+    end
+
+    attribute :status, :atom do
+      allow_nil? false
+      public? true
+      default :confirmed
+      constraints one_of: [:confirmed, :tentative, :cancelled]
+
+      description """
+      The provider's event status. A cancelled event keeps its row (and its
+      title and times) with this set to `:cancelled`, so a deleted meeting
+      never silently vanishes and never looks live.
+      """
     end
 
     attribute :external_uid, :string do
@@ -86,6 +124,30 @@ defmodule AshEnterprise.Canonical.CalendarEvent do
 
       description "The Person projected from the organizer's email. Nil when the payload had no address."
     end
+
+    belongs_to :erasure_scope, AshEnterprise.Erasure.Scope do
+      allow_nil? false
+      public? true
+      attribute_public? true
+      attribute_writable? true
+
+      description "The scope of the SourceObject this event was projected from; its key seals the content."
+    end
+
+    has_many :attendees, AshEnterprise.Canonical.EventAttendee do
+      public? true
+      destination_attribute :event_id
+      description "Who is invited, with their responses (derived joins)."
+    end
+
+    many_to_many :people, AshEnterprise.Canonical.Person do
+      public? true
+      through AshEnterprise.Canonical.EventAttendee
+      join_relationship :attendees
+      source_attribute_on_join_resource :event_id
+      destination_attribute_on_join_resource :person_id
+      description "The people invited to this event."
+    end
   end
 
   identities do
@@ -93,8 +155,38 @@ defmodule AshEnterprise.Canonical.CalendarEvent do
     identity :unique_provider_uid, [:external_system, :external_uid]
   end
 
+  aggregates do
+    count :attendee_count, :attendees do
+      public? true
+      description "How many people are invited."
+    end
+  end
+
   actions do
     defaults [:read]
+
+    # The agenda windows the daily-loop surfaces read (Today, Calendar; ACP
+    # `today` / `calendar`). Cut in the display zone, in start order — see
+    # `AshEnterprise.Canonical.Preparations.AgendaWindow`.
+    read :today do
+      description "Events overlapping today, in the operator's display zone, in start order."
+      prepare {AshEnterprise.Canonical.Preparations.AgendaWindow, window: :today}
+    end
+
+    read :tomorrow do
+      description "Events overlapping tomorrow, in the operator's display zone, in start order."
+      prepare {AshEnterprise.Canonical.Preparations.AgendaWindow, window: :tomorrow}
+    end
+
+    read :this_week do
+      description "Events overlapping today and the next six days, in start order."
+      prepare {AshEnterprise.Canonical.Preparations.AgendaWindow, window: :this_week}
+    end
+
+    read :upcoming do
+      description "Events from now to fourteen days out, in start order."
+      prepare {AshEnterprise.Canonical.Preparations.AgendaWindow, window: :upcoming}
+    end
 
     read :by_external do
       description """
@@ -123,27 +215,68 @@ defmodule AshEnterprise.Canonical.CalendarEvent do
         :starts_at,
         :ends_at,
         :location,
+        :status,
         :external_uid,
         :external_system,
         :external_id,
         :organizer_id,
+        :erasure_scope_id,
         :owner_id,
         :owner_type,
         :owning_user_id,
         :owning_business_unit_id
       ]
 
+      argument :attendees, {:array, :map} do
+        allow_nil? true
+
+        description """
+        The attendees the projector resolved: `%{person_id, response_status}`
+        maps. Derived into `AshEnterprise.Canonical.EventAttendee` rows in the
+        same transaction; omitted (nil), the event's attendees are left as
+        they are.
+        """
+      end
+
+      change AshEnterprise.Canonical.Changes.DeriveAttendees
+
       upsert? true
       upsert_identity :unique_external
 
       upsert_fields [
-        :title,
+        :encrypted_title,
         :starts_at,
         :ends_at,
-        :location,
+        :encrypted_location,
+        :status,
         :external_uid,
-        :organizer_id
+        :organizer_id,
+        :erasure_scope_id
       ]
+
+      # The business events this write implies, in its transaction (ADR 0051).
+      change {AshEnterprise.BusinessEvents.Changes.Derive, subject: :calendar_event}
+    end
+  end
+
+  calculations do
+    calculate :time_range,
+              :string,
+              {AshEnterprise.Canonical.Calculations.EventTime, format: :range} do
+      public? true
+      description "`09:00–09:30`, in the operator's display zone."
+    end
+
+    calculate :when, :string, {AshEnterprise.Canonical.Calculations.EventTime, format: :span} do
+      public? true
+      description "`Mon 12 Oct · 09:00–09:30`, in the operator's display zone."
+    end
+
+    calculate :organizer_label,
+              :string,
+              {AshEnterprise.Canonical.Calculations.PersonLabel, relationship: :organizer} do
+      public? true
+      description "The organizer's name, else their address."
     end
   end
 
@@ -151,5 +284,6 @@ defmodule AshEnterprise.Canonical.CalendarEvent do
     define :by_external, args: [:system, :id], not_found_error?: false
     define :upsert_from_source
     define :read
+    define :today
   end
 end

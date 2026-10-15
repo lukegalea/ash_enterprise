@@ -50,7 +50,13 @@ defmodule AshEnterprise.MorningBriefTest do
   end
 
   defp seed_event!(external_id, summary, starts_at, ends_at) do
-    SourceObject.land!(
+    scope =
+      AshEnterprise.Erasure.ensure_scope!(:connection, "test:morning-brief-calendar", %{},
+        actor: SystemActor.oban()
+      )
+
+    SourceObject.land_under!(
+      scope.id,
       %{
         external_system: "calendar",
         external_id: external_id,
@@ -100,6 +106,7 @@ defmodule AshEnterprise.MorningBriefTest do
   defp reload_brief!(org, id) do
     MorningBrief
     |> Ash.Query.filter(id == ^id)
+    |> Ash.Query.load(:draft_text)
     |> Ash.read_one!(authorize?: false, tenant: org.id)
   end
 

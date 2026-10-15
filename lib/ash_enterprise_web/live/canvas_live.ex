@@ -25,7 +25,7 @@ defmodule AshEnterpriseWeb.CanvasLive do
   because its job is to *show what the library knows* (provenance,
   capabilities, projections) rather than to be one of the projections it
   describes. Where a resource has a declared app surface, the browse
-  projection becomes a link to it via `AshEnterpriseWeb.A2ui.Surfaces`.
+  projection becomes a link to it via `AshEnterprise.Surfaces`.
   """
 
   use AshEnterpriseWeb, :live_view
@@ -34,8 +34,8 @@ defmodule AshEnterpriseWeb.CanvasLive do
   alias AshA2ui.Canvas.Object
   alias AshEnterprise.Canvas.Registry
   alias AshEnterprise.Security.ActorContext
+  alias AshEnterprise.Surfaces
   alias AshEnterpriseWeb.A2ui.Host
-  alias AshEnterpriseWeb.A2ui.Surfaces
 
   @impl true
   def mount(_params, _session, socket) do
@@ -62,11 +62,16 @@ defmodule AshEnterpriseWeb.CanvasLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={assigns[:current_scope]} width="max-w-7xl">
+    <Layouts.app
+      flash={@flash}
+      page={assigns[:page]}
+      current_scope={assigns[:current_scope]}
+      width="max-w-7xl"
+    >
       <div class="space-y-4">
         <header class="space-y-1">
-          <h1 class="text-2xl font-semibold">Canvas</h1>
-          <p class="text-sm opacity-70">
+          <h1 class="text-2xl font-heading tracking-tight">Canvas</h1>
+          <p class="text-sm text-foreground/70">
             The application's domains, resources and relationships as one
             object graph. Dev-only — the same audience /clarity serves.
             Selection resolves a naked object server-side; no records are ever
@@ -120,16 +125,15 @@ defmodule AshEnterpriseWeb.CanvasLive do
 
         <div id="canvas-inspector" class="space-y-3">
           <%= if @selection_error == :unknown_object do %>
-            <div class="alert alert-warning" role="status">
-              <.icon name="hero-exclamation-triangle" class="size-5" />
-              <span>Unknown object — the reference does not name anything this canvas exposes.</span>
-            </div>
+            <.callout kind={:warning} role="status">
+              Unknown object — the reference does not name anything this canvas exposes.
+            </.callout>
           <% end %>
 
           <%= if @selected do %>
             <.inspector object={@selected} destinations={destinations_for(@selected)} />
           <% else %>
-            <p class="text-sm opacity-60">
+            <p class="text-sm text-foreground/70">
               Select a node in the graph to inspect it.
             </p>
           <% end %>
@@ -150,67 +154,59 @@ defmodule AshEnterpriseWeb.CanvasLive do
 
   def inspector(assigns) do
     ~H"""
-    <section class="card bg-base-100 border border-base-300">
-      <div class="card-body gap-4">
-        <div class="flex items-center gap-3">
-          <span class="badge badge-outline font-mono text-xs">{@object.ref.kind}</span>
-          <h2 class="card-title text-lg">{@object.label}</h2>
-          <code class="font-mono text-xs opacity-60">{@object.ref.id}</code>
-        </div>
+    <section class="flex flex-col gap-4 rounded-base border-2 border-border bg-secondary-background p-5 text-foreground shadow-shadow">
+      <div class="flex items-center gap-3">
+        <.badge tone="violet" class="font-mono">{@object.ref.kind}</.badge>
+        <h2 class="text-lg font-heading">{@object.label}</h2>
+        <code class="font-mono text-xs text-foreground/70">{@object.ref.id}</code>
+      </div>
 
-        <div>
-          <h3 class="text-xs font-semibold uppercase opacity-60">Provenance</h3>
-          <ul class="text-sm">
-            <li :for={{role, module} <- provenance_rows(@object)}>
-              <span class="opacity-60">{role}:</span>
-              <code class="font-mono">{display_name(module)}</code>
-            </li>
-          </ul>
-        </div>
+      <div>
+        <h3 class="text-xs font-heading uppercase text-foreground/70">Provenance</h3>
+        <ul class="text-sm">
+          <li :for={{role, module} <- provenance_rows(@object)}>
+            <span class="text-foreground/70">{role}:</span>
+            <code class="font-mono">{display_name(module)}</code>
+          </li>
+        </ul>
+      </div>
 
-        <div>
-          <h3 class="text-xs font-semibold uppercase opacity-60">Capabilities</h3>
-          <ul class="divide-y divide-base-300 text-sm">
-            <li
-              :for={capability <- @object.capabilities}
-              class="flex flex-wrap items-center gap-2 py-1"
-            >
-              <span class="font-medium">{capability.label}</span>
-              <span class="badge badge-ghost">{capability.consequence}</span>
-              <span :if={capability.confirmation == :required} class="badge badge-warning">
-                confirmation required
-              </span>
-              <span class={[
-                "badge",
-                capability.authorized? && "badge-success",
-                !capability.authorized? && "badge-ghost opacity-60"
-              ]}>
-                {if capability.authorized?, do: "authorized", else: "not authorized"}
-              </span>
-            </li>
-          </ul>
-        </div>
+      <div>
+        <h3 class="text-xs font-heading uppercase text-foreground/70">Capabilities</h3>
+        <ul class="divide-y-2 divide-border/30 text-sm">
+          <li
+            :for={capability <- @object.capabilities}
+            class="flex flex-wrap items-center gap-2 py-1"
+          >
+            <span class="font-medium">{capability.label}</span>
+            <.badge>{capability.consequence}</.badge>
+            <.badge :if={capability.confirmation == :required} tone="yellow">
+              confirmation required
+            </.badge>
+            <.badge tone={if(capability.authorized?, do: "green", else: "neutral")}>
+              {if capability.authorized?, do: "authorized", else: "not authorized"}
+            </.badge>
+          </li>
+        </ul>
+      </div>
 
-        <div>
-          <h3 class="text-xs font-semibold uppercase opacity-60">Projections</h3>
-          <div class="flex flex-wrap gap-2">
-            <span
-              :for={projection <- @object.projections}
-              class="badge badge-outline font-mono text-xs"
-            >
-              {projection}
-            </span>
-          </div>
-          <div class="mt-3 flex flex-wrap gap-2">
-            <.link
-              :for={destination <- @destinations}
-              navigate={destination.path}
-              class="btn btn-sm btn-primary"
-            >
-              <.icon name="hero-arrow-top-right-on-square" class="size-4" />
-              {destination.label}
-            </.link>
-          </div>
+      <div>
+        <h3 class="text-xs font-heading uppercase text-foreground/70">Projections</h3>
+        <div class="flex flex-wrap gap-2">
+          <.badge :for={projection <- @object.projections} class="font-mono">
+            {projection}
+          </.badge>
+        </div>
+        <div class="mt-3 flex flex-wrap gap-2">
+          <.button
+            :for={destination <- @destinations}
+            navigate={destination.path}
+            variant="primary"
+            size="sm"
+          >
+            <.icon name="hero-arrow-top-right-on-square" class="size-4" />
+            {destination.label}
+          </.button>
         </div>
       </div>
     </section>
@@ -268,6 +264,10 @@ defmodule AshEnterpriseWeb.CanvasLive do
 
     {:noreply, assign(socket, :presentation, presentation)}
   end
+
+  # A reference link in the hosted surface: navigate to its deep link, which
+  # re-authorizes the record (`AshEnterpriseWeb.RecordController`).
+  def handle_event("a2ui:open_surface", args, socket), do: Host.open_surface(args, socket)
 
   @impl true
   def handle_info({:ash_a2ui_host, :refresh}, %{assigns: %{presentation: nil}} = socket) do
@@ -445,11 +445,5 @@ defmodule AshEnterpriseWeb.CanvasLive do
 
   defp surface_for(_other_object), do: nil
 
-  defp a2ui_surface(resource) do
-    Enum.find(Surfaces.all(), fn surface ->
-      AshA2ui.Info.resource!(surface.ui) == resource
-    end)
-  rescue
-    _not_an_a2ui_module -> nil
-  end
+  defp a2ui_surface(resource), do: Enum.find(Surfaces.helper(), &(&1.resource == resource))
 end

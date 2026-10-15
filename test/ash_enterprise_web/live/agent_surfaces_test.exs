@@ -20,8 +20,8 @@ defmodule AshEnterpriseWeb.AgentSurfacesTest do
   alias AshEnterprise.AI.Interpreter
   alias AshEnterprise.Legacy.Estate
   alias AshEnterprise.Security.ActorContext
+  alias AshEnterprise.Surfaces
   alias AshEnterpriseWeb.A2ui.Host
-  alias AshEnterpriseWeb.A2ui.Surfaces
 
   setup %{conn: conn} do
     seeded = AshEnterprise.Platform.Seeder.seed_legacy_estate()
@@ -36,18 +36,18 @@ defmodule AshEnterpriseWeb.AgentSurfacesTest do
   end
 
   describe "the surface registry" do
-    test "every declared surface resolves to a UI module over a real resource" do
-      for surface <- Surfaces.all() do
-        assert AshA2ui.Info.resource!(surface.ui)
-        assert surface.name == Surfaces.fetch(surface.name).name
+    test "every helper surface resolves to a UI module over a real resource" do
+      for surface <- Surfaces.helper() do
+        assert AshA2ui.Info.resource!(surface.ui) == surface.resource
+        assert surface == Surfaces.fetch(surface.key)
       end
     end
 
     test "a name is matched however a person spells it" do
-      assert Surfaces.fetch("legacy_users").name == "legacy_users"
-      assert Surfaces.fetch("Legacy Users").name == "legacy_users"
-      assert Surfaces.fetch("legacy-users").name == "legacy_users"
-      assert Surfaces.fetch("  LEGACY USERS  ").name == "legacy_users"
+      assert Surfaces.fetch("legacy_users").key == :legacy_users
+      assert Surfaces.fetch("Legacy Users").key == :legacy_users
+      assert Surfaces.fetch("legacy-users").key == :legacy_users
+      assert Surfaces.fetch("  LEGACY USERS  ").key == :legacy_users
       assert Surfaces.fetch("nonsense") == nil
       assert Surfaces.fetch(nil) == nil
     end
@@ -71,8 +71,8 @@ defmodule AshEnterpriseWeb.AgentSurfacesTest do
     test "the prompt catalogue is generated from the same list the app renders" do
       catalogue = Surfaces.catalogue()
 
-      for surface <- Surfaces.all() do
-        assert catalogue =~ surface.name
+      for surface <- Surfaces.helper() do
+        assert catalogue =~ Atom.to_string(surface.key)
       end
     end
 
@@ -88,11 +88,22 @@ defmodule AshEnterpriseWeb.AgentSurfacesTest do
   end
 
   describe "planning, below the model call" do
-    test "a show_surface intent resolves to a declared surface" do
+    test "a show_surface intent resolves to a declared surface", %{seeded: seeded} do
       intent = %Intent{kind: :show_surface, surface: "legacy_users"}
 
-      assert {:ok, {:surface, surface}} = Interpreter.plan(intent, "...", nil, nil)
+      assert {:ok, {:surface, surface}} = Interpreter.plan(intent, "...", seeded.user, nil)
       assert surface.ui == AshEnterpriseWeb.A2ui.LegacyUserUI
+    end
+
+    test "a surface outside the helper's catalogue, or behind a closed door, is refused",
+         %{seeded: seeded} do
+      for name <- ["today", "findings"] do
+        intent = %Intent{kind: :show_surface, surface: name}
+        assert {:error, _message} = Interpreter.plan(intent, "...", seeded.user, nil)
+      end
+
+      intent = %Intent{kind: :show_surface, surface: "legacy_users"}
+      assert {:error, _message} = Interpreter.plan(intent, "...", nil, nil)
     end
 
     test "a surface name the model invented is refused, and the real names are listed" do

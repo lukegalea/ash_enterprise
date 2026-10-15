@@ -36,6 +36,17 @@ defmodule AshEnterprise.Audit.EventLog do
   never soft-deleted, and must be append-only. That makes it the clearest case
   of a structural rather than preferential opt-out.
 
+  ## Sensitive values are never recorded
+
+  Every event passes through `AshEnterprise.Audit.Changes.RedactSensitive`
+  before it is inserted: a `sensitive?` attribute or argument of the source
+  resource is written as `nil` in `data`, `changed_attributes` and `metadata`,
+  keeping its key. ash_events does this for `data` itself but not for
+  `changed_attributes`, which is how `User.hashed_password` reached this table
+  until 2026-10-14. The one exception is `ash_cloak`'s `encrypted_*`
+  ciphertext, kept on purpose (see Retention below). Rows written before the
+  fix are listed in `docs/runbooks/audit-sensitive-values.md`.
+
   ## Integrity: the chain, and the trigger
 
   "Append-only" was a property of the *application* here: this resource offers
@@ -114,11 +125,25 @@ defmodule AshEnterprise.Audit.EventLog do
 
   ## Retention
 
-  ⚠️ There is still no retention or purge policy, and the immutability trigger
-  above makes the collision with a GDPR erasure request sharper rather than
-  softer: the log now actively refuses the `DELETE` that erasure implies. Named
-  in `docs/manifesto/07-what-we-do-not-have.md#5-data-retention-purge-and-right-to-erasure`
-  and designed in ADR 0024 rather than pretended away.
+  ⚠️ There is still no retention or purge policy: nothing expires and nothing is
+  partitioned (ADR 0024's age half, not built).
+
+  Erasure does not delete from this log, and must not. Content from an external
+  connection reaches it only as ciphertext sealed under that connection's
+  erasure-scope key (`changed_attributes` → `encrypted_*`; the plaintext argument
+  is sensitive and recorded as `nil` in `data`). Destroying the key
+  (`AshEnterprise.Erasure.shred_scope/4`) makes that content unreadable here
+  without changing a row, so the chain verifies unchanged. That holds only
+  while no audited resource *stores a derived plaintext copy*: ash_events
+  records every changed attribute that was not an input, so a value computed
+  from sealed content and force-set on an audited row lands here in plaintext
+  and outside any key. Derive on read instead (`MorningBrief.draft_text`), or
+  mark the attribute `sensitive?` so it is recorded as `nil`
+  (`Canonical.Person.name`/`email`). The erasure test sweeps the whole log for
+  fixture content after a shred. This log is
+  deliberately **not** `cloak_vault`-encrypted: one vault key for every event
+  could not be shredded per scope. See ADR 0024's implementation note and
+  `docs/runbooks/crypto-shredding.md`.
   """
 
   use Ash.Resource,
@@ -311,6 +336,12 @@ defmodule AshEnterprise.Audit.EventLog do
     policy action_type(:read) do
       authorize_if AshEnterprise.Security.Checks.RoleGrant
     end
+  end
+
+  # Runs on the create action ash_events adds, so it covers every event,
+  # before the chain trigger hashes the row.
+  changes do
+    change AshEnterprise.Audit.Changes.RedactSensitive, on: [:create]
   end
 
   # The log is tenant-scoped by the *same* mechanism as everything else, rather

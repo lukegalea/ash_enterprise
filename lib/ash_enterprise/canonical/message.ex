@@ -3,17 +3,29 @@ defmodule AshEnterprise.Canonical.Message do
   The §11 email/Slack message row: one sent or received item in a conversation,
   with its sender, timestamp and direction.
 
-  PERSONAL DATA — DO NOT WIRE A REAL PROJECTOR YET (ADR 0042). Gmail and Slack
-  SourceObjects are personal data that is NOT admitted into any declared zone:
-  zone admission is not on the SourceObject land path (an E1 follow-up owns
-  that). TODO(E4/Gmail+Slack verticals): before enabling a Message projector,
-  zone admission must check each landed item's residency tag at `land` time.
-  The fixture calendar adapter is exempt — deterministic synthetic data, no
-  admission required.
+  PERSONAL DATA (ADR 0042). The Gmail and Slack projectors
+  (`AshEnterprise.Canonical.Projections.Gmail` / `.Slack`) project only what
+  their configured zone gate admits; the template default admits nothing, and
+  `AshEnterprise.Canonical.Projections.ZoneAdmission` admits a landed record
+  on its linked account's tags against the canonical store's declared zone.
+  **Owner-only**: no role can be granted more than `:basic` on it
+  (`AshEnterprise.Security.Privilege.owner_only?/1`), so a message is readable
+  by the user it was projected for and nobody else in the tenant. The fixture
+  calendar adapter is exempt from admission — deterministic synthetic data.
 
   Projection-derived, so `archival?`/`lifecycle?` are opted out for the same
   reasons as `AshEnterprise.Canonical.Person`: replay reconstructs, soft delete
   would ghost the upsert identity, the lifecycle pair carries no meaning.
+
+  ## Erasure (ADR 0024)
+
+  `body` is sealed under the erasure scope of the SourceObject the message was
+  projected from — a projector passes `erasure_scope_id: source.erasure_scope_id`
+  and `upsert_from_source` refuses a message without one. The audit event of
+  every write carries only the ciphertext (`changed_attributes`
+  `encrypted_body`); the `body` input is a sensitive argument and is recorded as
+  `nil`. Shredding the scope makes both unreadable; `body` then reads as
+  `AshEnterprise.Erasure.Shredded`.
   """
 
   use AshEnterprise.Platform.Resource,
@@ -21,11 +33,27 @@ defmodule AshEnterprise.Canonical.Message do
     ownership: :user_owned,
     tenant?: true,
     lifecycle?: false,
-    archival?: false
+    archival?: false,
+    extra_extensions: [AshCloak]
 
   postgres do
     table "canonical_messages"
     repo AshEnterprise.Repo
+
+    references do
+      reference :erasure_scope, on_delete: :restrict
+    end
+  end
+
+  cloak do
+    vault({AshEnterprise.Erasure.Vault, :resolve, []})
+    attributes [:body]
+    decrypt_by_default([:body])
+    encrypt_nil?(false)
+  end
+
+  changes do
+    change {AshEnterprise.Erasure.Changes.SealUnderScope, fields: [:body]}, on: [:create, :update]
   end
 
   attributes do
@@ -81,6 +109,34 @@ defmodule AshEnterprise.Canonical.Message do
 
       description "The correspondent (or the operator, for outbound). Nil until their Person row exists."
     end
+
+    belongs_to :erasure_scope, AshEnterprise.Erasure.Scope do
+      allow_nil? false
+      public? true
+      attribute_public? true
+      attribute_writable? true
+
+      description "The scope of the SourceObject this message was projected from; its key seals `body`."
+    end
+  end
+
+  calculations do
+    calculate :sent, :string, {AshEnterprise.Platform.Calculations.LocalStamp, field: :sent_at} do
+      public? true
+      description "When it was sent, on the operator's wall clock."
+    end
+
+    calculate :preview, :string, AshEnterprise.Canonical.Calculations.MessagePreview do
+      public? true
+      description "The body on one line, clipped — for a row in a list of messages."
+    end
+
+    calculate :sender_label,
+              :string,
+              {AshEnterprise.Canonical.Calculations.PersonLabel, relationship: :sender} do
+      public? true
+      description "The sender's name, else their address."
+    end
   end
 
   identities do
@@ -119,19 +175,30 @@ defmodule AshEnterprise.Canonical.Message do
         :external_system,
         :external_id,
         :conversation_id,
-        :sender_id
+        :sender_id,
+        :erasure_scope_id,
+        # The ownership columns are NOT NULL; a projector has no actor to
+        # derive them from, so it passes them (as CalendarEvent's does).
+        :owner_id,
+        :owner_type,
+        :owning_user_id,
+        :owning_business_unit_id
       ]
 
       upsert? true
       upsert_identity :unique_external
 
       upsert_fields [
-        :body,
+        :encrypted_body,
         :sent_at,
         :direction,
         :conversation_id,
-        :sender_id
+        :sender_id,
+        :erasure_scope_id
       ]
+
+      # The business events this write implies, in its transaction (ADR 0051).
+      change {AshEnterprise.BusinessEvents.Changes.Derive, subject: :message}
     end
   end
 

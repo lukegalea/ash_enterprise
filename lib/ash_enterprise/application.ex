@@ -11,6 +11,7 @@ defmodule AshEnterprise.Application do
   def start(_type, _args) do
     setup_opentelemetry()
     check_external_binaries()
+    configure_acp_agent_info()
 
     children =
       [
@@ -54,7 +55,9 @@ defmodule AshEnterprise.Application do
         # failover. After PubSub, because the engine's PubSubListener subscribes
         # to the wake topic. Off in :test — see config/test.exs.
         AshEvents.Projections.Supervisor
-      ] ++ orphans_sweep() ++ trace_sink() ++ trigger_index() ++ legacy_listener()
+      ] ++
+        orphans_sweep() ++
+        trace_sink() ++ trigger_index() ++ legacy_listener() ++ privilege_sync()
 
     # See https://elixir.hexdocs.pm/Supervisor.html
     # for other strategies and supported options
@@ -112,6 +115,18 @@ defmodule AshEnterprise.Application do
           ]
         }
       ]
+    else
+      []
+    end
+  end
+
+  # Brings the privilege catalogue and each tenant's Administrator grants up to
+  # this build's resources, once per boot, off the boot path. See
+  # AshEnterprise.Platform.PrivilegeSync. Off in :test, where every test seeds
+  # inside its own sandbox and a boot-time writer would race them.
+  defp privilege_sync do
+    if Application.get_env(:ash_enterprise, :privilege_sync?, true) do
+      [AshEnterprise.Platform.PrivilegeSync]
     else
       []
     end
@@ -196,6 +211,17 @@ defmodule AshEnterprise.Application do
      "DMN models cannot be validated or loaded (ash_decisions -> boxic_dmn). " <>
        "Install libxml2; in this repository it is `libxml2.bin` in devenv.nix."}
   ]
+
+  # ash_acp reads the `agentInfo` it answers `initialize` with from its own env,
+  # and the name in it is the deployment's (`AshEnterprise.Brand`), which is
+  # only known at runtime. Set here, before any ACP connection can exist, so the
+  # attach bridge and `mix ash_acp.stdio` agree. An explicit `config :ash_acp,
+  # agent_info:` still wins.
+  defp configure_acp_agent_info do
+    if is_nil(Application.get_env(:ash_acp, :agent_info)) do
+      Application.put_env(:ash_acp, :agent_info, AshEnterprise.Brand.acp_agent_info())
+    end
+  end
 
   defp check_external_binaries do
     for {binary, consequence} <- @external_binaries, is_nil(System.find_executable(binary)) do

@@ -35,11 +35,14 @@ defmodule AshEnterprise.AI.Interpreter do
 
   The provider follows `AshEnterprise.AI.model/0`, which `AI_INTERPRETER_MODEL`
   sets — so switching provider is a deployment concern and never a code change.
+  With the in-zone generative profile configured and no `AI_INTERPRETER_MODEL`,
+  interpretation runs in the zone and needs no key (`AshEnterprise.AI.Models`).
   """
 
+  alias AshEnterprise.AI.Models
   alias AshEnterprise.AI.Proposal
   alias AshEnterprise.AI.RequestClassifier
-  alias AshEnterpriseWeb.A2ui.Surfaces
+  alias AshEnterprise.Surfaces
 
   @typedoc """
   What the console should do about a request.
@@ -84,8 +87,8 @@ defmodule AshEnterprise.AI.Interpreter do
     end
   end
 
-  defp to_plan(%{kind: :show_surface} = intent, _request, _actor, _tenant) do
-    case Surfaces.fetch(intent.surface) do
+  defp to_plan(%{kind: :show_surface} = intent, _request, actor, _tenant) do
+    case Surfaces.fetch_helper(intent.surface, actor) do
       nil ->
         # The model named a surface that does not exist. Listing the real names
         # rather than apologising, because the next thing the person will do is
@@ -197,9 +200,23 @@ defmodule AshEnterprise.AI.Interpreter do
   # application config. The provider list was then hardcoded to Anthropic and
   # OpenAI even though the model is configurable, so pointing `:interpreter_model`
   # at any other provider reported the same thing with its key correctly set.
+  #
+  # Before any of that, the ADR 0042 flow guard: under REQUIRE_IN_ZONE_MODELS a
+  # model outside the zone is refused here with the guard's own message, and
+  # the in-zone profile needs no provider key at all (its host and key come
+  # from the profile, `AshEnterprise.AI.Models`).
   defp key_status do
     model = AshEnterprise.AI.model()
+    target = Models.resolve(model)
 
+    case Models.check(target, "ai.interpret_request") do
+      {:error, refusal} -> {:error, Exception.message(refusal)}
+      :ok when target.residency == :in_zone -> :ok
+      :ok -> hosted_key_status(model)
+    end
+  end
+
+  defp hosted_key_status(model) do
     # The `String.trim/1` step is the load-bearing one. An empty key is *found* by
     # `ReqLLM.Keys.get/1` and reported as configured, so without it the request
     # goes out and fails with "ANTHROPIC_API_KEY was found but is empty" -- a

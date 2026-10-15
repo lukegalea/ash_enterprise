@@ -15,16 +15,27 @@ defmodule AshEnterpriseWeb.A2ui.CatalogUI do
       page_size 25
     end
 
+    context :catalog do
+      resource AshCompliance.Resources.Catalog
+      picker false
+    end
+
     component :table do
       fields [:name, :organization_id, :oscal_uuid, :description]
       read_action :read
       query :default
+      select_context :catalog
 
       row_layout do
         title :name
         meta [:oscal_uuid]
         columns 1
       end
+    end
+
+    component :detail, :catalog_detail do
+      context :catalog
+      fields [:name, :oscal_uuid, :description]
     end
   end
 end

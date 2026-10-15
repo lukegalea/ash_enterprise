@@ -135,7 +135,7 @@
       "name": "Right to erasure",
       "asks": "A data subject can obtain erasure of their personal data without undue delay.",
       "questions": ["q10", "q14", "q36"],
-      "note": "The sharpest conflict in the repository, and it got sharper deliberately: soft delete means a destroy is reversible by design, and the audit log now actively refuses DELETE. ADR 0024 resolves it by crypto-shredding rather than by weakening either. Until that ships, this control is unanswered and says so."
+      "note": "The sharpest conflict in the repository, and it got sharper deliberately: soft delete means a destroy is reversible by design, and the audit log now actively refuses DELETE. ADR 0024 resolves it by crypto-shredding rather than by weakening either. Its erasure half is built (2026-10-12): content from an external connection is sealed under that connection's key, and destroying the key reaches the audit log without breaking the chain. Per-person erasure is partial (q14: names and emails in canonical_people survive a shred) and partitioning is not built (q36), so the control stays open and says so."
     },
     {
       "id": "Art.30",

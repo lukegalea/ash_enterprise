@@ -12,9 +12,19 @@ defmodule AshEnterpriseWeb.Decisions.EditorLive do
   is `mix ash_enterprise.bpmn.publish` running as a system actor against reviewed artifacts in
   `priv/dmn/`, for the reason ADR 0029 gives: a decision that governs who may approve what is a
   reviewed artifact, not a form submission.
+
+  A key this tenant has stored nothing for opens on the platform baseline, read-only, with a
+  Customize button that forks it (`AshEnterpriseWeb.Bpmn.Baselines`). Opening writes nothing.
+
+  "Discard draft" deletes the tenant's draft through the definition's `:discard` action -- the
+  same actor and authority as a save, audited like any other write, and refused for anything
+  that is not a draft -- and the view falls back to the tenant's published version, the
+  baseline, or the starter.
   """
 
   use AshDecisions.Web.EditorLive,
     domain: AshEnterprise.Decisions,
-    actor: {AshEnterpriseWeb.Bpmn.Helpers, :current_actor, []}
+    actor: {AshEnterpriseWeb.Bpmn.Helpers, :current_actor, []},
+    baseline: {AshEnterpriseWeb.Bpmn.Baselines, :decision_baseline, []},
+    customize: {AshEnterpriseWeb.Bpmn.Baselines, :customize_decision, []}
 end

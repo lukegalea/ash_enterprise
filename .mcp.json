@@ -3,6 +3,8 @@
     "Project-scoped MCP servers. Both talk to the RUNNING dev server, so start it",
     "first with `iex-server` (devenv script) -- they will show as disconnected until",
     "the endpoint is listening on :4000.",
+    "Drift checklist: keep this file and opencode.json in lockstep -- see",
+    "scripts/mcp-sync.md.",
     "",
     "tidewave: Dashbit's runtime-intelligence server (Apache-2.0, free).",
     "  PIN WARNING: we are pinned to 0.8.2 in mix.lock -- tidewave 0.9.0 (Aug 2026)",
@@ -19,9 +21,12 @@
     "ash_agent (DX-2): the ash_agent_tools dev-only dependency IS an MCP",
     "  server -- the read-only introspection surface (describe/validate/",
     "  search/context/forbidden/status/reload) over MCP-over-Plug. Boot it",
-    "  separately with `mix ash_agent.serve` from the repo root (compile-only;",
-    "  it must NOT share the iex-server VM), loopback :4100, no auth. Shows as",
-    "  disconnected until a daemon is listening. Pre-launch gate:",
+    "  separately with `mix ash_agent.serve --port 4197` from the repo root",
+    "  (compile-only; it must NOT share the iex-server VM), loopback :4197,",
+    "  no auth (POST-only; verified 2026-10-09 -- the old :4100 target is",
+    "  squatted on this host by a WorkOS-emulate container, which is where",
+    "  the mystery 401s came from). Shows as disconnected until a daemon is",
+    "  listening. Pre-launch gate:",
     "  eval/trigger_eval/ in the package (75% per tool; green 2026-09-21).",
     "",
     "Serena (optional, not configured here): if installed, point its Elixir backend",
@@ -43,7 +48,7 @@
     },
     "ash-agent": {
       "type": "http",
-      "url": "http://127.0.0.1:4100"
+      "url": "http://127.0.0.1:4197"
     }
   }
 }

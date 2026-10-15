@@ -1,7 +1,7 @@
 defmodule AshEnterpriseWeb.LegacySurfacesTest do
   use AshEnterprise.DataCase, async: false
 
-  alias AshEnterpriseWeb.A2ui.Surfaces
+  alias AshEnterprise.Surfaces
 
   @legacy_names ~w(
     legacy_users
@@ -16,15 +16,16 @@ defmodule AshEnterpriseWeb.LegacySurfacesTest do
   )
 
   test "catalogue exposes every compatibility surface at a legacy route" do
-    surfaces = Enum.filter(Surfaces.all(), &String.starts_with?(&1.name, "legacy_"))
+    surfaces =
+      Enum.filter(Surfaces.all(), &String.starts_with?(Atom.to_string(&1.key), "legacy_"))
 
-    assert Enum.map(surfaces, & &1.name) == @legacy_names
+    assert Enum.map(surfaces, &Atom.to_string(&1.key)) == @legacy_names
     assert Enum.all?(surfaces, &String.starts_with?(&1.path, "/app/legacy-"))
-    assert Enum.all?(surfaces, fn surface -> Surfaces.fetch(surface.name) == surface end)
+    assert Enum.all?(surfaces, fn surface -> Surfaces.fetch(surface.key) == surface end)
   end
 
   test "compatibility surfaces derive valid A2UI messages" do
-    for surface <- Surfaces.all(), String.starts_with?(surface.name, "legacy_") do
+    for surface <- Surfaces.all(), String.starts_with?(Atom.to_string(surface.key), "legacy_") do
       messages = AshA2ui.Info.build_surface(surface.ui)
 
       assert messages != []

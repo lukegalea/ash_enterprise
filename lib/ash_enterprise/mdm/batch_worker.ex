@@ -6,7 +6,7 @@ defmodule AshEnterprise.Mdm.BatchWorker do
   (`Platform.Correlation.with_correlation/2`) and is bracketed by
   `Lineage.ingestion_event/4` start/complete(/fail) — the run id IS the
   batch's correlation id, so the OpenLineage graph and the audit
-  `metadata["correlation_id"]` agree by construction (ADR 0050 §11).
+  `metadata["correlation_id"]` agree by construction (ADR 0053 §11).
 
   Idempotent by construction: re-running a batch re-lands nothing (bizev's
   temporal landing is a no-op on identical content) and re-stages nothing
