@@ -29,8 +29,6 @@ defmodule Mix.Tasks.AshEnterprise.Seed do
 
   use Mix.Task
 
-  alias AshEnterprise.Mix.Helpers
-
   @switches [
     email: :string,
     password: :string,
@@ -46,9 +44,11 @@ defmodule Mix.Tasks.AshEnterprise.Seed do
     {opts, _} = OptionParser.parse!(args, strict: @switches)
 
     # Everything below writes through the application's own actions against
-    # the Repo. No Oban, no endpoint, no projectors (iron law #23;
-    # docs/reviews/iron-law-audit.md, fix item 3).
-    Helpers.boot_repo()
+    # the Repo — and `ash_enterprise.legacy.project` (below) needs the full
+    # app anyway (`app.start`), so boot it once up front: the endpoint is
+    # what confirmation add-ons render their URLs from, and a standalone
+    # Repo started here would collide with app.start's own child.
+    Mix.Task.run("app.start")
 
     count = AshEnterprise.Platform.Seeder.seed_privileges()
 

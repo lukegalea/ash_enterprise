@@ -29,7 +29,7 @@ defmodule AshEnterprise.Mdm.Landing do
     @moduledoc """
     Placeholder module satisfying the source schema's adapter shape for
     the CS-upload boundary. The behaviour grows callbacks at BIZEV-7;
-    an upload lands through `AshEnterprise.Mdm.land_row/4`, never an
+    an upload lands through `AshEnterprise.Mdm.Landing.land_row/4`, never an
     adapter pull.
     """
   end

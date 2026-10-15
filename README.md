@@ -239,6 +239,22 @@ Nothing there is staged: the row arrives from a plain `INSERT INTO legacy.users`
 issued with `psql` — no Ash, no changeset, no HTTP request. See
 [`priv/legacy/README.md`](priv/legacy/README.md) for the commands.
 
+**Master data, end to end.** `/app/mdm/import` → `/app/mdm` → `/app/mdm/golden`
+is the entity-resolution loop the ADR 0050 plan asked for, driven entirely
+through the UI. Upload a CSV, let the AI propose the mapping (activation stays
+a person's act), run the batch, and review-banded matches wait in the steward
+queue as side-by-side diffs with survivorship winners:
+
+![The import wizard's mapping step: the CSV columns mapped onto the golden Person record by the AI proposal, with the active mappings listed as data](docs/screenshots/mdm-import-mapping.png)
+
+![The steward queue: a side-by-side diff of the staged record against the golden, with the survivorship winner highlighted and three person-gated acts — confirm, reject, and unsure (which keeps the candidate open for a senior steward)](docs/screenshots/mdm-steward-queue.png)
+
+Confirming merges the staged record into its golden; the golden surface lists
+the survivors, with the merge lineage itself answerable as data (`merged`,
+`master_id`, the `SourceIdentity` XREF) rather than drawn:
+
+![The golden record surface after the import and the steward's confirm: the imported people are goldens of their own, and the confirmed match folded into its survivor](docs/screenshots/mdm-golden-lineage.png)
+
 **The object graph.** `/canvas` is the application's own structure: every domain,
 every resource, and the relationships between them, derived from Ash metadata
 alone. No record is ever a node — the graph is declared structure, not a query,
@@ -371,7 +387,7 @@ permissive direction.
 | 3 | Feature flags and progressive delivery | FunWithFlags (Unleash rejected) | 🔵 Planned | [ADR 0016](docs/adr/0016-unleash-for-feature-flags.md) |
 | 3 | Observability backend | Grafana LGTM | 🔵 Planned | [ADR 0018](docs/adr/0018-grafana-lgtm-observability-backend.md) |
 | 3 | Outbound events and subscriptions | An Ash notifier over the existing event log | 🔵 Planned | — |
-| 4 | Master data and entity resolution | In-Ash resolution over CDM resources | 🔵 Planned | [ADR 0050](docs/adr/0050-mdm-stewardship-is-system-one.md) |
+| 4 | Master data and entity resolution | In-Ash resolution over CDM resources | 🟡 Partial | [ADR 0050](docs/adr/0050-mdm-stewardship-is-system-one.md) |
 | 4 | Performance at enterprise data volumes | A seeded large tenant and a query budget | 🔵 Planned | — |
 | 4 | SBOM and build provenance | CycloneDX SBOM; attested builds | 🔵 Planned | — |
 | 4 | Zero-downtime deploys and reversible migrations | Expand/contract, proven by a two-version test | 🔵 Planned | — |

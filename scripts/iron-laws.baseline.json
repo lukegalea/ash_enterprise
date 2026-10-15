@@ -82,5 +82,17 @@
   "file": "lib/ash_enterprise/mdm/quality_stewardship_worker.ex",
   "text": "use Oban.Worker,",
   "reason": "The sweep is idempotent by design: start_stewardship_for_findings!/1 skips a golden already running an instance (its own documented contract), so a re-run costs one indexed read per tenant and never duplicates a task. The queue is declared in config; no unique constraint needed."
+ },
+ {
+  "law": "23",
+  "file": "lib/mix/tasks/ash_enterprise.seed.ex",
+  "text": "Mix.Task.run(\"app.start\")",
+  "reason": "The task needs the full tree, not a minimal boot: the confirmation add-on renders its URL from the endpoint's persistent term when it registers the admin, and ash_enterprise.legacy.project (called later in the same task) requires app.start anyway \u2014 a standalone Repo from boot_repo collides with app.start's own child. Same reasoning as bpmn.setup's documented full boot."
+ },
+ {
+  "law": "23",
+  "file": "lib/mix/tasks/ash_enterprise.demo.ex",
+  "text": "Mix.Task.run(\"app.start\")",
+  "reason": "DemoData opens an import batch through Oban (worker + inline drain) and the seed's confirmation path renders URLs from the endpoint; a minimal repo-only boot cannot run the demo and a standalone Repo collides with the app.start that legacy.project pulls in."
  }
 ]

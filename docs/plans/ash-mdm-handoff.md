@@ -28,7 +28,35 @@ plan section and acceptance test named.
 - Package suite 51 passed. Host MDM suites: see `/tmp/verify1.txt` output
   of the final run.
 
-## Open slices (build order)
+## CLOSED (2026-10-15)
+
+Everything in this handoff is landed and suite-verified on branch
+`mdm-0-1`, head `b08423a` (plus the demo/UI session that follows it):
+
+- `Mdm.Projection.replay` (deterministic replay pinned by test).
+- Quality rules + projector, findings → stewardship via
+  `QualityReview.start_stewardship!/4` + the `QualityStewardshipWorker`
+  cron sweep. The audit-event BPMN subscription was proven non-viable
+  (the analysis below stands) and is documented, not built.
+- MDM-8 AI proposals (`Proposal.propose/4`, `LlmProposer`; the
+  `:mdm_proposal_llm` config defaults to the deterministic floor).
+- StewardLive at `/app/mdm` with the side-by-side survivorship diff, plus
+  `ImportLive` at `/app/mdm/import` (upload → map with AI proposal →
+  activate through the person gate → run → poll) and the golden surface
+  at `/app/mdm/golden`. The fourth steward act is `:escalate` (unsure —
+  verdict recorded, candidate stays pending); reject already covers
+  create-new-golden (the staged row stands alone on import completion).
+- All known correctness bugs from the list below are fixed and tested
+  (golden collision routing, unmerge clearing `merge_provenance`, staged
+  rows reaching `:review`, losing-candidate superseding).
+- Lineage e2e (`test/ash_enterprise/mdm/lineage_test.exs`) covers all five
+  §11 surfaces; the one-command demo (`mix ash_enterprise.demo` →
+  `AshEnterprise.Mdm.DemoData`) is idempotent.
+
+Current limitations live in `docs/roadmap.json`, the `mdm` item — this
+file no longer tracks open work.
+
+## Historical: open slices at the original handoff (all closed above)
 
 1. **Mdm.Projection.replay + ledger events** (plan §7; earlier handoff
    deferred it on a "person projector decision"). Mirror
@@ -70,13 +98,12 @@ plan section and acceptance test named.
    with named limitations; docs; ash_mdm README push (drafted in
    `~/ash_mdm/README.md`, uncommitted) + screenshots.
 
-## Known correctness bugs (state after this session)
+## Historical: known correctness bugs at the original handoff (all fixed)
 
-FIXED: export residency (all temporal periods' tags, gate loops all),
+FIXED SINCE: export residency (all temporal periods' tags, gate loops all),
 losing candidates superseded, machine-update person-state refusal
-(regression-tested), SourceRecord cross-tenant read.
-
-STILL OPEN:
+(regression-tested), SourceRecord cross-tenant read, and every STILL OPEN
+item below.
 
 1. FIXED: `create_golden!` uses the new non-upsert `Person.mdm_create_golden`
    action; an email collision raises and the worker routes the row back to

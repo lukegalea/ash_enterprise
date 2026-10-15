@@ -151,6 +151,16 @@ defmodule AshEnterpriseWeb.Router do
       live "/canonical/agent", CanonicalAgentLive
     end
 
+    # --- MDM import wizard ---------------------------------------------------
+    #
+    # The producing half of the demo flow: upload a CSV, map it (draft +
+    # AI proposal, activation stays a person's act), run the batch, watch
+    # it land in the steward queue.
+    ash_authentication_live_session :mdm_import,
+      on_mount: [{AshEnterpriseWeb.LiveUserAuth, :live_user_required}] do
+      live "/app/mdm/import", ImportLive
+    end
+
     # --- MDM steward queue ---------------------------------------------------
     #
     # The review half of entity resolution (ADR 0050, MDM-4): review-banded

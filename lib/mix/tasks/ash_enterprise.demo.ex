@@ -22,7 +22,7 @@ defmodule Mix.Tasks.AshEnterprise.Demo do
 
   use Mix.Task
 
-  alias AshEnterprise.Mix.Helpers
+  require Ash.Query
 
   @requirements ["app.config"]
 
@@ -30,13 +30,26 @@ defmodule Mix.Tasks.AshEnterprise.Demo do
   def run(args) do
     {opts, _rest, _invalid} = OptionParser.parse(args, strict: [organization: :string])
 
-    # Creates everything through the application's own actions against the
-    # Repo (iron law #23; docs/reviews/iron-law-audit.md, fix item 3).
-    Helpers.boot_repo()
+    # DemoData opens an import batch through Oban and the confirmation
+    # add-on renders URLs from the endpoint — the full app, once, is the
+    # honest boot (a standalone Repo would collide with app.start later).
+    Mix.Task.run("app.start")
 
     organization = organization!(opts[:organization])
 
     counts = AshEnterprise.Platform.DemoData.populate(organization.id)
+
+    admin =
+      AshEnterprise.Accounts.User
+      |> Ash.Query.filter(email == ^"admin@example.com")
+      |> Ash.read_one!(tenant: organization.id, authorize?: false)
+
+    mdm =
+      if admin do
+        AshEnterprise.Mdm.DemoData.populate(organization.id, admin)
+      else
+        nil
+      end
 
     Mix.shell().info("""
 
@@ -46,10 +59,21 @@ defmodule Mix.Tasks.AshEnterprise.Demo do
       people          #{counts.users}
       teams           #{counts.teams}
       roles           #{counts.roles}
-
-    Everyone signs in with password1234. Visit /app/business-units, /app/users,
-    /app/teams and /app/roles.
     """)
+
+    if mdm do
+      Mix.shell().info("""
+      MDM demo (admin@example.com / password1234):
+        import a CSV     /app/mdm/import
+        steward queue    /app/mdm      (#{mdm.review_pending} review waiting)
+        golden records   /app/mdm/golden
+        process model    /app/processes  (mdm.steward_review BPMN; banding is a DMN table)
+      """)
+    else
+      Mix.shell().info(
+        "  (no admin@example.com user found — run `mix ash_enterprise.seed` first for the MDM demo)"
+      )
+    end
   end
 
   # Two of the organizations in a seeded database are not tenants, and both would

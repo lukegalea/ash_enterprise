@@ -31,7 +31,7 @@ defmodule AshEnterprise.Mdm.MatchCandidate do
     # The steward's verdict is a person's act — same gate as mapping
     # activation: positive personhood, not "not a system actor", so a
     # future actor kind fails closed.
-    policy action([:confirm, :reject]) do
+    policy action([:confirm, :reject, :escalate]) do
       authorize_if AshEnterprise.SystemOne.Checks.PersonActor
     end
 
@@ -75,6 +75,15 @@ defmodule AshEnterprise.Mdm.MatchCandidate do
 
       change set_attribute(:status, :rejected)
       change AshEnterprise.Mdm.Changes.StewardVerdict
+    end
+
+    update :escalate do
+      description "A steward cannot decide: the verdict is recorded, the candidate stays pending."
+      accept []
+      validate attribute_equals(:status, :pending)
+      require_atomic? false
+
+      change AshEnterprise.Mdm.Changes.StewardEscalation
     end
   end
 end

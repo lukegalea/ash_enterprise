@@ -91,6 +91,35 @@ defmodule AshEnterpriseWeb.StewardLiveTest do
     assert to_string(decided.human_verdict_ref["verdict"]) == "reject"
   end
 
+  test "a person marks unsure: the candidate stays pending and the verdict is recorded", %{
+    conn: conn,
+    org: org,
+    admin: admin
+  } do
+    candidate = review_candidate!(org, admin)
+    {:ok, view, _html} = live(conn, "/app/mdm")
+
+    view
+    |> element("#escalate-#{candidate.id}")
+    |> render_click()
+
+    escalated = Ash.get!(MatchCandidate, candidate.id, tenant: org, authorize?: false)
+    assert escalated.status == :pending
+    assert to_string(escalated.human_verdict_ref["verdict"]) == "unsure"
+
+    verdict =
+      AshEnterprise.SystemOne.HumanVerdict
+      |> Ash.Query.filter(id == ^escalated.human_verdict_ref["verdict_id"])
+      |> Ash.read_one!(tenant: org, authorize?: false)
+
+    assert verdict.human_value == "unsure"
+    assert verdict.reviewer == to_string(admin.email)
+
+    # Still in the queue: escalation keeps it open for a senior steward.
+    assert render(view) =~ candidate.id
+    assert render(view) =~ "Marked unsure"
+  end
+
   test "a decided candidate cannot be decided again", %{conn: conn, org: org, admin: admin} do
     candidate = review_candidate!(org, admin)
 

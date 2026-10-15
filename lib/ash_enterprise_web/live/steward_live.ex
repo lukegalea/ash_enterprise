@@ -37,6 +37,10 @@ defmodule AshEnterpriseWeb.StewardLive do
     decide(socket, id, :reject)
   end
 
+  def handle_event("escalate", %{"id" => id}, socket) do
+    decide(socket, id, :escalate)
+  end
+
   defp decide(socket, id, action) do
     actor = socket.assigns.current_user
     tenant = ActorContext.tenant(actor)
@@ -46,12 +50,17 @@ defmodule AshEnterpriseWeb.StewardLive do
            candidate
            |> Ash.Changeset.for_update(action, %{}, tenant: tenant, actor: actor)
            |> Ash.update(tenant: tenant, actor: actor) do
-      {:noreply, socket |> put_flash(:info, "Match #{action}ed.") |> refresh()}
+      {:noreply, socket |> put_flash(:info, escalate_flash(action)) |> refresh()}
     else
       {:error, error} ->
         {:noreply, put_flash(socket, :error, "Could not #{action} the match: #{message(error)}")}
     end
   end
+
+  defp escalate_flash(:escalate),
+    do: "Marked unsure — the candidate stays open for a senior steward."
+
+  defp escalate_flash(action), do: "Match #{action}ed."
 
   defp refresh(socket) do
     actor = socket.assigns[:current_user]
@@ -85,7 +94,17 @@ defmodule AshEnterpriseWeb.StewardLive do
     <Layouts.app flash={@flash} current_scope={assigns[:current_scope]} width="max-w-5xl">
       <div class="space-y-4">
         <header class="space-y-1">
-          <h1 class="text-2xl font-semibold">Steward queue</h1>
+          <div class="flex items-center justify-between gap-2">
+            <h1 class="text-2xl font-semibold">Steward queue</h1>
+            <div class="flex items-center gap-2">
+              <.link navigate={~p"/app/processes"} class="btn btn-ghost btn-sm">
+                <.icon name="hero-queue-list" class="size-4" /> Process model
+              </.link>
+              <.link navigate={~p"/app/mdm/import"} class="btn btn-outline btn-sm">
+                <.icon name="hero-arrow-up-tray" class="size-4" /> Import CSV
+              </.link>
+            </div>
+          </div>
           <p class="text-sm opacity-70">
             Review-banded matches awaiting a person's decision. Confirming merges the
             staged record into the golden record; rejecting leaves it a record of its own.
@@ -99,14 +118,12 @@ defmodule AshEnterpriseWeb.StewardLive do
           <%= for item <- @items do %>
             <div id={"candidate-#{item.id}"} class="p-4 space-y-2">
               <div class="flex flex-wrap items-baseline justify-between gap-2">
-                <span class="font-medium">{item.record.golden_resource}</span>
-                <span class="badge badge-warning badge-sm">review · score {Decimal.to_string(
-                  item.record.score
+                <span class="font-medium">Possible duplicate person</span>
+                <span class="badge badge-warning badge-sm">review · score {Decimal.round(
+                  item.record.score,
+                  2
                 )}</span>
               </div>
-              <p class="text-sm opacity-70 break-all">
-                staged {item.record.staged_record_id} → golden {item.record.golden_id}
-              </p>
               <table class="table table-sm text-sm">
                 <thead>
                   <tr>
@@ -146,7 +163,15 @@ defmodule AshEnterpriseWeb.StewardLive do
                   phx-click="reject"
                   phx-value-id={item.id}
                 >
-                  Reject
+                  Reject — keep as a separate person
+                </button>
+                <button
+                  id={"escalate-#{item.id}"}
+                  class="btn btn-ghost btn-sm"
+                  phx-click="escalate"
+                  phx-value-id={item.id}
+                >
+                  <.icon name="hero-arrow-up-circle" class="size-4" /> Unsure — keep open
                 </button>
               </div>
             </div>
