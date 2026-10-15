@@ -7,6 +7,9 @@ defmodule AshEnterprise.Repo.Migrations.DerivedJoinsAndLinks do
 
   use Ecto.Migration
 
+  # `prefix: prefix()` rather than the generated `prefix: "public"`, so foreign keys
+  # follow the migrator's schema (ASH_SCHEMA). See 20260813155542_add_hierarchy_security.exs.
+
   def up do
     create table(:canonical_event_attendees, primary_key: false) do
       add :organization_id, :uuid, null: false
@@ -47,7 +50,7 @@ defmodule AshEnterprise.Repo.Migrations.DerivedJoinsAndLinks do
             column: :id,
             name: "canonical_event_attendees_event_id_fkey",
             type: :uuid,
-            prefix: "public",
+            prefix: prefix(),
             on_delete: :delete_all
           ),
           null: false
@@ -57,7 +60,7 @@ defmodule AshEnterprise.Repo.Migrations.DerivedJoinsAndLinks do
             column: :id,
             name: "canonical_event_attendees_person_id_fkey",
             type: :uuid,
-            prefix: "public",
+            prefix: prefix(),
             on_delete: :delete_all
           ),
           null: false
@@ -107,7 +110,7 @@ defmodule AshEnterprise.Repo.Migrations.DerivedJoinsAndLinks do
             column: :id,
             name: "canonical_conversation_participants_conversation_id_fkey",
             type: :uuid,
-            prefix: "public",
+            prefix: prefix(),
             on_delete: :delete_all
           ),
           null: false
@@ -117,7 +120,7 @@ defmodule AshEnterprise.Repo.Migrations.DerivedJoinsAndLinks do
             column: :id,
             name: "canonical_conversation_participants_person_id_fkey",
             type: :uuid,
-            prefix: "public",
+            prefix: prefix(),
             on_delete: :delete_all
           ),
           null: false

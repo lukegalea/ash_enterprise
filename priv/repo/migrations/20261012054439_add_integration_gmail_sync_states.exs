@@ -7,6 +7,9 @@ defmodule AshEnterprise.Repo.Migrations.AddIntegrationGmailSyncStates do
 
   use Ecto.Migration
 
+  # `prefix: prefix()` rather than the generated `prefix: "public"`, so foreign keys
+  # follow the migrator's schema (ASH_SCHEMA). See 20260813155542_add_hierarchy_security.exs.
+
   def up do
     create table(:integration_gmail_sync_states, primary_key: false) do
       add :organization_id, :uuid, null: false
@@ -56,7 +59,7 @@ defmodule AshEnterprise.Repo.Migrations.AddIntegrationGmailSyncStates do
             column: :id,
             name: "integration_gmail_sync_states_linked_account_id_fkey",
             type: :uuid,
-            prefix: "public",
+            prefix: prefix(),
             on_delete: :delete_all
           ),
           null: false
