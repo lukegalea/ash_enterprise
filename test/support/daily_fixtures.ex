@@ -9,10 +9,12 @@ defmodule AshEnterprise.Test.DailyFixtures do
 
   require Ash.Query
 
+  alias AshEnterprise.Accounts.User
   alias AshEnterprise.Agents.MorningBrief
   alias AshEnterprise.Bpmn.Definition
   alias AshEnterprise.Canonical.{CalendarEvent, Conversation, Message, Person}
   alias AshEnterprise.Platform.{Seeder, SystemActor}
+  alias AshEnterprise.Security
   alias AshEnterprise.Security.ActorContext
 
   @doc "A seeded tenant: `%{actor:, user:, tenant:, organization:}`. `operator?: true` grants the Platform Operator role."
@@ -32,6 +34,100 @@ defmodule AshEnterprise.Test.DailyFixtures do
       organization: seeded.organization,
       email: email
     }
+  end
+
+  @doc """
+  A member of `admin`'s tenant, in its root business unit, holding one role that
+  grants exactly `grants` (`{resource, verb, depth}`; `[]` grants nothing):
+  `%{actor:, user:, tenant:, email:}`.
+  """
+  def member!(admin, role_name, grants) do
+    actor = SystemActor.seed()
+    tenant = admin.tenant
+    unit_id = admin.user.owning_business_unit_id
+
+    role =
+      Security.Role
+      |> Ash.Changeset.for_create(
+        :create,
+        %{name: role_name, owning_business_unit_id: unit_id},
+        actor: actor,
+        tenant: tenant
+      )
+      |> Ash.create!()
+
+    for {resource, verb, depth} <- grants do
+      name = inspect(resource)
+
+      privilege =
+        Security.Privilege
+        |> Ash.Query.filter(resource_name == ^name and access_right == ^verb)
+        |> Ash.read_one!(authorize?: false)
+
+      Security.RolePrivilege
+      |> Ash.Changeset.for_create(
+        :create,
+        %{role_id: role.id, privilege_id: privilege.id, depth: depth},
+        actor: actor,
+        tenant: tenant
+      )
+      |> Ash.create!()
+    end
+
+    email = "member-#{System.unique_integer([:positive])}@example.test"
+
+    user =
+      User
+      |> Ash.Changeset.for_create(
+        :register_with_password,
+        %{email: email, password: "password1234", password_confirmation: "password1234"},
+        authorize?: false
+      )
+      |> Ash.create!()
+      |> Ash.Changeset.for_update(:assign_to_business_unit, %{owning_business_unit_id: unit_id},
+        authorize?: false
+      )
+      |> Ash.update!()
+
+    Security.UserRole
+    |> Ash.Changeset.for_create(
+      :assign,
+      %{user_id: user.id, role_id: role.id, scoping_business_unit_id: unit_id},
+      actor: actor,
+      tenant: tenant
+    )
+    |> Ash.create!()
+
+    %{actor: actor(user), user: user, tenant: tenant, email: email}
+  end
+
+  @doc "Deactivates a member's account (offboarding) and returns them with a fresh actor."
+  def deactivate!(%{user: user} = member) do
+    user =
+      user
+      |> Ash.Changeset.for_update(:deactivate, %{}, authorize?: false)
+      |> Ash.update!()
+
+    %{member | user: user, actor: actor(user)}
+  end
+
+  @doc """
+  Publishes `morning.brief` as the platform baseline, as the dogfood instance
+  runs it: every tenant resolves it with nothing of its own provisioned.
+  Call `AshEnterprise.Process.Resolver.forget_platform_tenant/0` on exit.
+  """
+  def platform_brief_process! do
+    AshEnterprise.Process.Resolver.forget_platform_tenant()
+    platform = Seeder.seed_platform_organization()
+    opts = [actor: SystemActor.process(), tenant: platform.id]
+
+    %{
+      key: "morning.brief",
+      name: "Morning brief",
+      xml: File.read!("priv/bpmn/morning_brief.bpmn")
+    }
+    |> Definition.create!(opts)
+    |> Definition.publish!(opts)
   end
 
   @doc "A user with their authorization context attached, as a request carries it."

@@ -110,6 +110,25 @@ defmodule AshEnterprise.Platform.SystemAttributes do
         — and are what an `AshStateMachine` block is generated from.
         """
       ],
+      self_service: [
+        type: {:list, :atom},
+        default: [],
+        doc: """
+        Actions any active member of the tenant may run **on their own behalf**,
+        with no role grant (`AshEnterprise.Security.Checks.SelfService`, ADR 0052).
+
+        For a generic action the implementation must scope itself to the actor
+        by construction (it takes no owner, record or user as input); the
+        action is authorized outright. For a create or a read the member
+        reaches only rows they personally own (`owner_id` is the actor) — so a
+        create must set the owner from the actor, never accept it.
+
+        Only generic, create and read actions may be listed, and a create or
+        read only on a `:user_owned` resource
+        (`AshEnterprise.Platform.Verifiers.SelfServiceActions`). Everything the
+        action does downstream still runs under ordinary policies.
+        """
+      ],
       cdm_entity: [
         type: :string,
         required: false,
@@ -125,5 +144,6 @@ defmodule AshEnterprise.Platform.SystemAttributes do
 
   use Spark.Dsl.Extension,
     sections: [@platform],
-    transformers: [AshEnterprise.Platform.Transformers.AddSystemAttributes]
+    transformers: [AshEnterprise.Platform.Transformers.AddSystemAttributes],
+    verifiers: [AshEnterprise.Platform.Verifiers.SelfServiceActions]
 end

@@ -118,6 +118,10 @@ platform resource for a non-`:global` grant, and worth a platform fix of its own
 > calls — but a direct `record` is now `Forbidden`, and `Ash.can?/3` answers `false` instead of raising, which is
 > what the ACP command palette prunes with: a user holding any narrower-than-global grant on a palette action's
 > resource could not open an ACP session at all.
+>
+> **2026-10-15.** A generic action a resource declares `self_service` is the one exception: any active member of the
+> tenant may run it with no grant ([ADR 0052](0052-self-service-actions.md)). Only `MorningBrief.compose_today`
+> declares one; the two actions here do not.
 
 ## Consequences
 

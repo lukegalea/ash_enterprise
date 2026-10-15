@@ -14,6 +14,9 @@ defmodule AshEnterprise.AcpLowPrivilegeTest do
     whatever the client answers.
   - An approved action that policy then refuses ends the turn as a refusal,
     rather than wedging the session on a second permission request.
+  - Composing one's own brief is self-service (ADR 0052): a member holding no
+    MorningBrief grant is offered `compose` and composes their own brief; a
+    deactivated account is asked, then refused.
 
   SYNTHETIC data only.
   """
@@ -22,14 +25,9 @@ defmodule AshEnterprise.AcpLowPrivilegeTest do
 
   import AshEnterprise.Test.DailyFixtures
 
-  require Ash.Query
-
   alias AshAcp.Server
-  alias AshEnterprise.Accounts.User
   alias AshEnterprise.Acp
   alias AshEnterprise.Bpmn.HumanTask
-  alias AshEnterprise.Platform.SystemActor
-  alias AshEnterprise.Security
 
   setup do
     original = Application.get_all_env(:ash_acp)
@@ -39,7 +37,7 @@ defmodule AshEnterprise.AcpLowPrivilegeTest do
     admin = tenant!()
 
     member =
-      user!(admin, "Daily member", [
+      member!(admin, "Daily member", [
         {AshEnterprise.Agents.MorningBrief, :read, :basic},
         {AshEnterprise.Agents.MorningBrief, :create, :basic},
         {AshEnterprise.Agents.MorningBrief, :write, :basic},
@@ -48,7 +46,7 @@ defmodule AshEnterprise.AcpLowPrivilegeTest do
         {AshEnterprise.Canonical.CalendarEvent, :read, :basic}
       ])
 
-    nobody = user!(admin, "No access", [])
+    nobody = member!(admin, "No access", [])
 
     %{admin: admin, member: member, nobody: nobody}
   end
@@ -65,19 +63,44 @@ defmodule AshEnterprise.AcpLowPrivilegeTest do
     assert Enum.all?(~w(compose approve reject sync), &(&1 in admin.commands))
 
     # Approving needs read on tasks (organization-owned, so :global): held.
-    # Composing is a generic action, which a :basic grant does not reach;
-    # syncing needs a linked-account grant: neither is held.
+    # Syncing needs a linked-account grant: not held. Composing one's own
+    # brief is self-service, so it needs no grant at all (ADR 0052).
     assert "approve" in member.commands and "reject" in member.commands
-    refute "compose" in member.commands
+    assert "compose" in member.commands
     refute "sync" in member.commands
 
     refute "erasure" in member.commands
 
-    for command <- ~w(compose approve reject sync erasure) do
+    for command <- ~w(approve reject sync erasure) do
       refute command in nobody.commands, command
     end
 
+    assert "compose" in nobody.commands
     assert "today" in nobody.commands and "help" in nobody.commands
+  end
+
+  test "a member holding no MorningBrief grant composes their own brief", ctx do
+    platform_brief_process!()
+    on_exit(&AshEnterprise.Process.Resolver.forget_platform_tenant/0)
+
+    s = session(ctx.nobody)
+
+    turn = prompt(s, "compose brief", "allow_once")
+    assert turn.permission == "Compose today's brief"
+    assert turn.response["result"]["stopReason"] == "end_turn"
+    assert turn.said =~ "Composing your morning brief"
+
+    assert [brief] =
+             AshEnterprise.Agents.MorningBrief
+             |> Ash.read!(authorize?: false, tenant: ctx.nobody.tenant)
+
+    assert brief.owner_id == ctx.nobody.user.id
+    assert brief.status == :pending_approval
+
+    # The day has their brief now: `compose brief` shows it instead of asking.
+    again = prompt(turn.state, "compose brief")
+    assert again.permissions == 0
+    assert again.response["result"]["stopReason"] == "end_turn"
   end
 
   test "the member decides their own approval through the permission round-trip", ctx do
@@ -121,11 +144,15 @@ defmodule AshEnterprise.AcpLowPrivilegeTest do
   end
 
   test "an approved action that policy refuses ends the turn and frees the session", ctx do
-    s = session(ctx.nobody)
+    platform_brief_process!()
+    on_exit(&AshEnterprise.Process.Resolver.forget_platform_tenant/0)
 
-    # Composing is consequential, so it asks; allowing it runs as a user
-    # holding no grant on briefs, whom policy refuses. ash_acp then asks again
-    # about the refusal, which approving cannot overturn.
+    s = session(deactivate!(ctx.nobody))
+
+    # Composing is consequential, so it asks; allowing it runs as a
+    # deactivated account, which self-service does not admit and no grant
+    # covers, so policy refuses. ash_acp then asks again about the refusal,
+    # which approving cannot overturn.
     turn = prompt(s, "compose brief", "allow_once")
     assert turn.response["result"]["stopReason"] == "refusal"
     assert turn.permissions >= 1
@@ -140,68 +167,6 @@ defmodule AshEnterprise.AcpLowPrivilegeTest do
   end
 
   # -- helpers ------------------------------------------------------------------
-
-  # A user in `admin`'s tenant and root business unit with one role granting
-  # exactly `grants` (`{resource, verb, depth}`).
-  defp user!(admin, role_name, grants) do
-    actor = SystemActor.seed()
-    tenant = admin.tenant
-    unit_id = admin.user.owning_business_unit_id
-
-    role =
-      Security.Role
-      |> Ash.Changeset.for_create(
-        :create,
-        %{name: role_name, owning_business_unit_id: unit_id},
-        actor: actor,
-        tenant: tenant
-      )
-      |> Ash.create!()
-
-    for {resource, verb, depth} <- grants do
-      name = inspect(resource)
-
-      privilege =
-        Security.Privilege
-        |> Ash.Query.filter(resource_name == ^name and access_right == ^verb)
-        |> Ash.read_one!(authorize?: false)
-
-      Security.RolePrivilege
-      |> Ash.Changeset.for_create(
-        :create,
-        %{role_id: role.id, privilege_id: privilege.id, depth: depth},
-        actor: actor,
-        tenant: tenant
-      )
-      |> Ash.create!()
-    end
-
-    email = "low-#{System.unique_integer([:positive])}@example.test"
-
-    user =
-      User
-      |> Ash.Changeset.for_create(
-        :register_with_password,
-        %{email: email, password: "password1234", password_confirmation: "password1234"},
-        authorize?: false
-      )
-      |> Ash.create!()
-      |> Ash.Changeset.for_update(:assign_to_business_unit, %{owning_business_unit_id: unit_id},
-        authorize?: false
-      )
-      |> Ash.update!()
-
-    Security.UserRole
-    |> Ash.Changeset.for_create(
-      :assign,
-      %{user_id: user.id, role_id: role.id, scoping_business_unit_id: unit_id},
-      actor: actor,
-      tenant: tenant
-    )
-    |> Ash.create!()
-
-    %{actor: actor(user), user: user, tenant: tenant, email: email}
-  end
 
   defp open_task!(brief, %{actor: actor, tenant: tenant}) do
     {:ok, task} =
