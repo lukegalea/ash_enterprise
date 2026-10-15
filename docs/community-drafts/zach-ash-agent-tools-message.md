@@ -41,6 +41,11 @@ threads you've been reviewing have a common cause:
   stable ids, source maps, action contracts, no app boot. Written to
   complement ex_doc, per your point about reusing its reference machinery.
 
+It also bears on ash_ai's open question about which dev MCP tools are useful.
+The same tools can run inside `/ash_ai/mcp` if the dev server lets packages
+add tool domains. I've drafted that as a small ash_ai change
+(`dev_tool_domains:`) and will raise it on the ash_ai repo separately.
+
 Look at lib/ash_agent_tools.ex for the surface — describe/validate/context
 are the core. If anything in there is shaped wrong for real Ash apps, you'll
 see it faster than I will.
