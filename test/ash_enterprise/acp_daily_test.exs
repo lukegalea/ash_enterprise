@@ -33,7 +33,7 @@ defmodule AshEnterprise.AcpDailyTest do
           "method" => "initialize",
           "params" => %{"protocolVersion" => 1}
         },
-        Server.new(Acp.server_config())
+        Server.new(AshAcp.config())
       )
 
     {resp, _, state} =

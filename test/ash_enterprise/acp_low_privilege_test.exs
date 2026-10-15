@@ -12,11 +12,13 @@ defmodule AshEnterprise.AcpLowPrivilegeTest do
     — rejecting leaves it waiting, allowing decides it.
   - Approving is itself policy-gated: another user's task cannot be decided,
     whatever the client answers.
-  - An approved action that policy then refuses ends the turn as a refusal,
-    rather than wedging the session on a second permission request.
+  - What policy refuses is refused before anyone is asked (ash_acp 0.3); a
+    write refused when it runs answers `failed`/`forbidden`, never
+    `applied`, and the session is never wedged on a second permission
+    request.
   - Composing one's own brief is self-service (ADR 0052): a member holding no
     MorningBrief grant is offered `compose` and composes their own brief; a
-    deactivated account is asked, then refused.
+    deactivated account is refused.
 
   SYNTHETIC data only.
   """
@@ -26,7 +28,7 @@ defmodule AshEnterprise.AcpLowPrivilegeTest do
   import AshEnterprise.Test.DailyFixtures
 
   alias AshAcp.Server
-  alias AshEnterprise.Acp
+  alias AshEnterprise.Acp.ExtMethods
   alias AshEnterprise.Bpmn.HumanTask
 
   setup do
@@ -118,6 +120,27 @@ defmodule AshEnterprise.AcpLowPrivilegeTest do
     assert %{status: :approved} = reload_brief!(brief, ctx.member.tenant)
   end
 
+  test "a row-scoped grant approves the member's own brief through the surface", ctx do
+    brief = brief!(ctx.member)
+    s = session(ctx.member)
+
+    # The member's MorningBrief grant is :basic — row-scoped. The up-front
+    # check judges the brief itself (a blank one would fail every row scope),
+    # so the member is asked, and allowing it applies.
+    {resp, _updates, _state, asked} =
+      ext_with_permission(s, "_a2ui/action", %{
+        "surfaceId" => "today",
+        "action" => %{
+          "name" => "invoke",
+          "context" => %{"action" => "approve", "recordId" => brief.id, "component" => "brief"}
+        }
+      })
+
+    assert asked == ["Approve · Today"]
+    assert resp["result"]["outcome"] == "applied"
+    assert %{status: :approved} = reload_brief!(brief, ctx.member.tenant)
+  end
+
   test "another user's task cannot be decided, whatever the client answers", ctx do
     brief = brief!(ctx.admin)
     task = open_task!(brief, ctx.admin)
@@ -127,35 +150,69 @@ defmodule AshEnterprise.AcpLowPrivilegeTest do
     assert prompt(s, "approve 1", "allow_once").response["result"]["stopReason"] == "refusal"
     assert prompt(s, "approve brief", "allow_once").response["result"]["stopReason"] == "refusal"
 
-    # Named directly by id through the surface action: the write asks first,
-    # and allowing it still runs as the member, who is not a candidate.
-    {resp, _updates, _state} =
-      ext_with_permission(s, "_a2ui/action", %{
-        "surfaceId" => "approvals",
-        "action" => %{
-          "name" => "invoke",
-          "context" => %{"action" => "approve", "recordId" => task.id, "component" => "tasks"}
-        }
-      })
+    # Named directly by id through the surface action. Who is a candidate is
+    # decided by the run, not by a policy, so the write asks first; allowing
+    # it still runs as the member, who is refused, and the outcome says so.
+    approve = %{
+      "surfaceId" => "approvals",
+      "action" => %{
+        "name" => "invoke",
+        "context" => %{"action" => "approve", "recordId" => task.id, "component" => "tasks"}
+      }
+    }
 
-    assert JSON.encode!(resp) =~ "UNAUTHORIZED"
+    {resp, _updates, _state, asked} = ext_with_permission(s, "_a2ui/action", approve)
+
+    assert asked == ["Approve · Approvals"]
+    assert %{"outcome" => "failed", "error" => %{"kind" => "forbidden"}} = resp["result"]
     assert %{status: :pending_approval} = reload_brief!(brief, ctx.admin.tenant)
     assert %{status: :open} = Ash.get!(HumanTask, task.id, authorize?: false)
   end
 
-  test "an approved action that policy refuses ends the turn and frees the session", ctx do
+  test "a write policy refuses at execution answers failed, read back from the handler", ctx do
+    brief = brief!(ctx.admin)
+    task = open_task!(brief, ctx.admin)
+    actor = AshEnterprise.Security.ActorContext.for_actor(ctx.member.user)
+    actor = AshEnterprise.Security.ActorContext.attach(ctx.member.user, actor)
+
+    # When the up-front check cannot decide, the refusal comes back from
+    # AshA2ui.ActionHandler as data-model messages only; the outcome's kind
+    # is read from them.
+    action = %{
+      "name" => "invoke",
+      "context" => %{"action" => "approve", "recordId" => task.id, "component" => "tasks"}
+    }
+
+    ui = AshEnterprise.Surfaces.acp_ui(AshEnterprise.Surfaces.fetch!(:approvals))
+
+    assert {:error, messages} =
+             AshA2ui.ActionHandler.handle(ui, action, actor: actor, tenant: ctx.member.tenant)
+
+    assert ExtMethods.failure_kind(messages) == :forbidden
+
+    status = fn path, value ->
+      [%{"updateDataModel" => %{"surfaceId" => "s", "path" => path, "value" => value}}]
+    end
+
+    assert ExtMethods.failure_kind(
+             status.("/ui/status", "You are not authorized to perform this action.")
+           ) == :forbidden
+
+    assert ExtMethods.failure_kind(status.("/errors/title", "is required")) == :invalid
+    assert ExtMethods.failure_kind(status.("/ui/status", "Something went wrong.")) == :error
+  end
+
+  test "a deactivated account is refused before anyone is asked", ctx do
     platform_brief_process!()
     on_exit(&AshEnterprise.Process.Resolver.forget_platform_tenant/0)
 
     s = session(deactivate!(ctx.nobody))
 
-    # Composing is consequential, so it asks; allowing it runs as a
-    # deactivated account, which self-service does not admit and no grant
-    # covers, so policy refuses. ash_acp then asks again about the refusal,
-    # which approving cannot overturn.
+    # Self-service does not admit a deactivated account and no grant covers
+    # it, so ash_acp's up-front check refuses: no approval, nothing asked.
     turn = prompt(s, "compose brief", "allow_once")
     assert turn.response["result"]["stopReason"] == "refusal"
-    assert turn.permissions >= 1
+    assert turn.permissions == 0
 
     refute Ash.exists?(AshEnterprise.Agents.MorningBrief,
              authorize?: false,
@@ -192,7 +249,7 @@ defmodule AshEnterprise.AcpLowPrivilegeTest do
     Application.put_env(:ash_enterprise, :acp_operator_email, ctx.email)
 
     {_init, _, state} =
-      rpc(Server.new(Acp.server_config()), "initialize", %{"protocolVersion" => 1})
+      rpc(Server.new(AshAcp.config()), "initialize", %{"protocolVersion" => 1})
 
     {resp, updates, state} = rpc(state, "session/new", %{"cwd" => "/tmp"})
 
@@ -242,8 +299,7 @@ defmodule AshEnterprise.AcpLowPrivilegeTest do
 
   defp ext_with_permission(%{sid: sid, state: state}, method, params) do
     {resp, updates, state} = rpc(state, method, Map.put(params, "sessionId", sid))
-    {resp, updates, state, _asked} = answer_permissions(resp, updates, state, "allow_once", [])
-    {resp, updates, state}
+    answer_permissions(resp, updates, state, "allow_once", [])
   end
 
   # Answers a pending `session/request_permission` (at most a few, so a loop

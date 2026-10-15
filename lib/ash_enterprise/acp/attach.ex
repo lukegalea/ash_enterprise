@@ -50,7 +50,6 @@ defmodule AshEnterprise.Acp.Attach do
     opts =
       opts
       |> Keyword.put(:device, device)
-      |> Keyword.put_new_lazy(:config, &AshEnterprise.Acp.server_config/0)
 
     try do
       AshAcp.run_stdio(opts)

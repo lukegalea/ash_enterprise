@@ -40,7 +40,7 @@ defmodule AshEnterprise.AcpExtMethodsTest do
     Application.put_env(:ash_enterprise, :acp_operator_email, ctx.email)
 
     {init, _, state} =
-      rpc(Server.new(Acp.server_config()), "initialize", %{"protocolVersion" => 1})
+      rpc(Server.new(AshAcp.config()), "initialize", %{"protocolVersion" => 1})
 
     {resp, _, state} = rpc(state, "session/new", %{"cwd" => "/tmp"})
     {init["result"], resp["result"]["sessionId"], state}
