@@ -3,11 +3,15 @@
 AshAgentTools is a read-only introspection layer over Ash. It answers an
 agent's questions about a project's domains, resources, and actions as plain
 JSON-encodable maps, validates action inputs without running anything, lists
-the policies that can forbid an action, searches symbol names across
+the policies that can forbid an action and — with an actor — evaluates them
+into a verdict, searches symbol names across
 resources, describes the Ash context at any source file position, diffs
 semantic-manifest documents, judges code against the codified 26 iron laws,
 and tells you how to use all of that in-VM
-without a mix boot. It ships as **regular library code plus this file** —
+without a mix boot. Concept-specific capabilities (compliance rules, state
+machines) ride behind optional dependencies: hosts add the dep, the tools
+activate; absent deps get structured install hints, never crashes. It ships
+as **regular library code plus this file** —
 deliberately *not* as registered MCP tools or any other tool-surface
 integration, which keeps it usable from `project_eval`, Livebook, Mix tasks,
 or any future hosted tool-definition API. Read these rules before using it;
@@ -38,9 +42,9 @@ do not assume prior knowledge of the API.
    returns `%{valid?, errors, normalized_inputs, expected}`. Check
    `report.valid?` (the report itself is always returned, never raised).
 4. **If forbidden**: `explain_forbidden/2` lists the resource's policies in
-   human-readable form plus general guidance. It is a guidance stub, not an
-   evaluator — get real verdicts from `Ash.can?/3` or the generated
-   `can_<action>?` interfaces.
+   human-readable form plus general guidance — the static, actor-free view
+   of *what could deny you*. For an actual verdict with a concrete actor,
+   use `can/4` next (see the authorization section below).
 5. **Lost the full name?** `semantic_search/2` finds attributes, actions,
    calculations, and relationships across loaded resources by name substring
    (case-insensitive; optional `kinds:` filter), each hit with its declaring
@@ -85,6 +89,46 @@ do not assume prior knowledge of the API.
 Compose these freely: the typical loop is describe → validate → execute →
 on `Forbidden`, explain_forbidden → adjust inputs or actor.
 
+## Authorization: listing, then verdict
+
+The two authorization tools answer different questions, in order:
+
+1. **"What could deny me?"** — `explain_forbidden/2` lists every policy and
+   field policy (bypass flags, conditions, checks, human-readable via
+   `Ash.Policy.Check.describe/2`) plus general hints on Ash's policy
+   semantics. No actor needed; nothing evaluated.
+2. **"Would THIS actor be denied?"** — `can/4` resolves the actor, builds
+   the very changeset/query an action run would build (params optional),
+   and evaluates the policies with `Ash.can/3`. **Nothing executes**: no
+   action runs, nothing is written, and the evaluation itself runs with
+   `run_queries?: false` — policy checks that would need a data-layer
+   round-trip come back as `verdict: :maybe` instead of a guess.
+
+The actor is one of: `:none`/`nil` (anonymous), `%{resource: MyApp.User,
+id: id}` (string keys accepted; the record is resolved with
+`Ash.get!/2` and `authorize?: false` — the one deliberate, unauthorized
+data-layer read), `:record` (the action's own target record acts), or an
+already-resolved actor struct. Update/destroy targets: pass `record:` (an
+id or record) or the resolved actor record is used.
+
+Read the report in this order: `allowed` (the boolean to gate on), then
+`verdict` (`:allowed` / `:forbidden` / the honest `:maybe`), then — on a
+denial — `responsible` (the non-bypass policy
+`Ash.Policy.Policy.responsible_for_forbidden/2` holds accountable) and
+`per_policy` (each policy's condition applicability, per-check facts, and
+computed decision, read from the fact set Ash attaches to its forbidden
+errors). `input_valid?` tells you whether the subject itself was well
+formed; `policies`/`field_policies`/`guidance` mirror
+`explain_forbidden/2` so one call has the whole picture.
+
+```elixir
+report = AshAgentTools.can(MyApp.Post, :approve, %{resource: MyApp.User, id: actor_id})
+report.allowed         #=> false
+report.verdict         #=> :forbidden
+report.responsible.reason   #=> :unknown (nothing authorized — deny-by-default)
+report.responsible.checks   #=> [%{description: "actor.admin == true", fact: false, ...}]
+```
+
 ## Prefer in-VM calls over mix boots
 
 A per-query `mix` boot costs seconds to minutes (cold compile, dependency
@@ -121,6 +165,9 @@ For agents without code execution:
 - `mix ash_agent.describe MyApp.Post create` — action description
 - `mix ash_agent.validate MyApp.Post create '{"title": "Hi"}'` — validation
   report
+- `mix ash_agent.can MyApp.Order approve --actor MyApp.User:8e1c-...` — the
+  actor-aware policy verdict as JSON (also `--actor none`, `--actor record`,
+  `--record ID`, optional JSON params); nothing executes
 - `mix ash_agent.search TERM [--kind KIND]...` — symbol search across loaded
   resources; prints `{"query","kinds","count","results"}`
 - `mix ash_agent.context lib/my_app/accounts/post.ex:42` — the resource,
@@ -141,6 +188,22 @@ For agents without code execution:
   — the iron-law judge: violations of the 26 laws as JSON (`--law ID`
   restricts; `-` reads stdin). No boot at all — pure text processing. With
   no arguments it prints the law registry.
+- `mix ash_agent.rules [MODULE] [--facts JSON | --bundle FILE --facts JSON]`
+  — the optional `ash_rules` tooling: list loaded rule bundles, describe
+  one, or **dry-evaluate** a bundle against fact triples (see the optional
+  tooling section below)
+- `mix ash_agent.transitions RESOURCE [--no-mermaid]` — the optional
+  `ash_state_machine` tooling: states, transitions, and Mermaid diagrams
+- `mix ash_agent.processes [DOMAIN] [--key K]` — the optional `ash_bpmn`
+  tooling: definitions per key
+- `mix ash_agent.graph KEY [--version N] [--draft] [--no-elements]` — one
+  definition's compiled graph + element digests
+- `mix ash_agent.instance [--instance-id ID | --subject TYPE:ID] [--key K]`
+  — in-flight instances, tokens, and open tasks (read-only)
+- `mix ash_agent.decisions [DOMAIN] [--key K] [--graph] [--verification]`
+  — the optional `ash_decisions` catalogue
+- `mix ash_agent.evaluate KEY JSON_INPUTS [--decision NAME] [--version N]`
+  — dry evaluation; records nothing
 - `mix ash_agent.serve [--port N] [--no-watch]` — the supervised MCP
   daemon (see the next section). Same compile-only boot contract as the
   other introspection tasks; the application is never started.
@@ -178,8 +241,9 @@ stateless — no sessions, no SSE) plus a file watcher on `lib/` and
 ```
 
 - **Tools:** `ash_describe` (no args → discovery summary), `ash_validate`,
-  `ash_search`, `ash_context`, `ash_forbidden`, `ash_daemon_status`,
-  `ash_reload`. All read-only — same contract as the facade. There is no
+  `ash_can`, `ash_search`, `ash_context`, `ash_forbidden`, `ash_rules`,
+  `ash_transitions`, `ash_daemon_status`, `ash_reload`. All read-only —
+  same contract as the facade. There is no
   edit tool on the daemon: write paths stay in `mix ash_agent.edit` and
   your edit tools.
 - **Boot contract holds:** the daemon compiles the project and loads the
@@ -203,6 +267,100 @@ stateless — no sessions, no SSE) plus a file watcher on `lib/` and
   once instead of per call. Single-question sessions are fine with the
   tasks. Prefer in-VM calls (above) when you are already attached to a
   running node.
+
+## Optional concept tooling (the activation contract)
+
+Some capabilities are concept-specific (compliance rules, state machines).
+They ship behind **optional dependencies** so hosts that do not need the
+concept pay nothing:
+
+- **`ash_rules`** — compliance rules as data (fact schemas, rule bundles,
+  dry evaluation). GitHub dep: `{:ash_rules, github: "lukegalea/ash_rules"}`.
+- **`ash_state_machine`** — resource state machines. Hex dep:
+  `{:ash_state_machine, "~> 0.2.13"}`.
+- **`ash_bpmn`** — the BPMN process engine (definitions, graphs, in-flight
+  state). GitHub dep: `{:ash_bpmn, github: "lukegalea/ash_bpmn"}`.
+- **`ash_decisions`** — the DMN decision engine (catalogue, dry
+  evaluation). GitHub dep: `{:ash_decisions, github: "lukegalea/ash_decisions"}`.
+
+The contract, in both directions:
+
+- **Add the dep → the tools activate.** Nothing to configure; the tools
+  detect the integration through `Code.ensure_loaded?/1` (the module is
+  loaded exactly when your app ships the dep). `AshAgentTools.availability/0`
+  reports the live status per integration: `active?`, the `dep` to add,
+  and the `tools` it unlocks. Check it first when unsure why a tool is
+  unavailable.
+- **No dep → structured error, never a crash.** The tools answer with a
+  pointed `ArgumentError` ("ash_rules tooling is not available: add
+  {:ash_rules, github: ...} to your deps to use this") that the MCP
+  daemon and Mix tasks turn into their structured JSON errors. Nothing
+  here raises at compile time: every optional integration is behind
+  conditional compilation, so this package builds cleanly with or
+  without any of them.
+
+When active:
+
+- **Rules** (`AshAgentTools.rule_sets/0`, `evaluate_rules/3`,
+  `AshAgentTools.Rules`): listing reads the compiled, content-hashed
+  `AshRules.Ir.Bundle` (`AshRules.Info.bundle/1`) — revisions, combining
+  algorithm, content hash, fact schema (with absence semantics:
+  `missing: :unknown` etc.), and rules with their predicates. Evaluation
+  is **dry and pure**: a bundle (module or JSON document path) plus fact
+  triples you provide → the full result (`overall`, per-rule `requirements`
+  with consumed/probed/missing facts, aggregate `missing_facts`). Zero
+  host state: no data layer is read, nothing is persisted. Absence
+  semantics are honored — a rule probing an `:unknown` fact is `:unknown`,
+  never silently compliant; read `overall` before any `compliant`.
+  String subjects/predicates from JSON are matched to the bundle's own
+  atoms (existing-atom conversion only). The DSL-level view of the same
+  rule sets is searchable: fact schema entities appear as kind
+  `rules_fact_schema` in `semantic_search/2` and resolve via name paths
+  like `MyApp.Rules/rules_fact_schema/status` — use that to find fact
+  names, and the rules tool to see them in rule context.
+- **Transitions** (`AshAgentTools.transitions/2`,
+  `AshAgentTools.Transitions`): projects the compiled `state_machine`
+  section — `states` (wildcards expanded), `initial_states`,
+  `default_initial_state`, `state_attribute`, and every `transition`
+  (`action`/`from`/`to`, `:*` passed through verbatim) — plus the
+  extension's own Mermaid renderings (`mermaid.state_diagram` as
+  `stateDiagram-v2`, `mermaid.flowchart` as `flowchart TD`), ready to
+  paste into docs. A resource without the section gets a structured error
+  naming the resource — the same path as an unknown action.
+- **Processes** (`AshAgentTools.processes/2`, `process_graph/2`,
+  `process_instance/1`, `AshAgentTools.Bpmn`): the BPMN half. `processes`
+  aggregates definitions per key — representative version (the draft when
+  one exists, else the latest published), status, content hash, stored
+  error count, draft flag — and **never** returns the raw `xml`, which the
+  engine marks `sensitive?`. `process_graph` returns one definition's
+  compiled graph plus the per-element occupancy digests a migration
+  classification compares; an uncompiled draft renders its stored compile
+  `errors` instead of inventing an empty graph. `process_instance` is the
+  engine's own read-only export of what is in flight, plus each instance's
+  open human tasks with candidates. Three lines hold here:
+  - **Correlation keys are digested** unless `include_correlation_keys:
+    true` is explicitly requested — the privacy line `StateExport` draws,
+    kept opt-in.
+  - **Token positions are interpreted against the pinned definition**, and
+    each instance carries `definition_version` +
+    `definition_content_hash` — so "the process changed since this
+    started" is decidable, not a guess.
+  - **Nothing mutates.** No task is completed, no token advanced, no
+    instance cancelled: `complete_task` advances tokens and fires host
+    service actions downstream, and can never be a default. (A future
+    opt-in config could revisit that; today it does not exist.)
+- **Decisions** (`AshAgentTools.decisions/2`, `decision_evaluate/3`,
+  `AshAgentTools.Decisions`): the DMN half. `decisions` is the catalogue
+  projection per key — status, draft flag, latest published version, and
+  the decisions each document declares in document order; the stored
+  publish-time `verification` is available per request and is reported
+  **as stored** — a catalogue read has no business re-running the
+  Verifier. `decision_evaluate` is a **designer preview**:
+  `record: false` is hard-coded, so evaluating a decision here never
+  writes an `Evaluation` row — it answers a question about the model, not
+  about a case. Published by default; drafts only via `draft: true`,
+  because draft evaluation churns the engine's `persistent_term` model
+  cache for a document that can still change.
 
 ## Output conventions
 
@@ -258,7 +416,9 @@ says which. Echo `trace_id:`/`correlation_id:` to join the planes.
 
 **The kaizen loop** turns tool failures into signal. Every miss emits
 `[:ash_agent, :tool_gap]` telemetry (`tool`, `gap_kind`, `question`,
-`detail` with `did_you_mean` candidates). Hosts can attach any `:telemetry`
+`detail` with `did_you_mean` candidates) — unknown inputs, search misses,
+context misses, and `can`'s unresolvable actor records
+(`actor_resolve_miss`) among them. Hosts can attach any `:telemetry`
 handler; the built-in dev sink is one call:
 
 ```elixir
@@ -283,6 +443,18 @@ Serena's `Class/method` addressing:
     Module/actions/name           Module/policies/policy[0]
     Module/calculations/name      Domain/code_interfaces/name
 
+Custom Spark extension sections are addressed the same way, through a
+namespaced dsl_path: `<extension_short_name>_<section_path>` — the
+underscored last component of the extension module with a trailing
+`_extension`/`_dsl` stripped (`MyApp.Rules.Dsl` → `rules`), so a
+`fact_schema do … end` block resolves as
+`Module/rules_fact_schema/<entity>` (nested sections extend the path).
+Entity names come from the entity's own `:name`/`:id`/`:tag` field, with
+a positional `<section>_<index>` fallback when an entity exposes none.
+The same kinds appear in `semantic_search/2` (`:kinds` filter included)
+and `context/3` output — search `AshAgentTools.Search.valid_kinds/0` for
+the live list.
+
 The module part may be a dot-boundary **suffix** (`User/actions/read`);
 a leading `/` demands the full module name. Policies are unnamed, so they
 are addressed by occurrence. `AshAgentTools.resolve/1` returns the symbol
@@ -290,9 +462,48 @@ are addressed by occurrence. `AshAgentTools.resolve/1` returns the symbol
 shape digest; misses raise with did_you_mean candidates, ambiguous
 suffixes raise with the match list — refine and retry.
 
+**Creation** — agents create more than they edit, so the editor creates
+too: `Edit.create_entity(section_path, body, opts)` inserts a new entity
+into any addressable section, `section_path` being
+`"Module/dsl_path"` (`"MyApp.Post/actions"`). Placement ladder (reported
+as `placement`): an `anchor:` + `position:` (`:after` default) next to an
+existing entity; else the section tail; else, when the section's block
+exists but is empty (or holds only transformer-injected entities), inside
+the block before its `end`; else the block is **synthesized**
+(`actions do … end` appended within the module body — after the last
+section block, or before the final `end` when none exists) and the
+placement says `:synthesized_section`. A duplicate identifier is refused
+with a pointer to the existing entity.
+
+**Batch apply** — `Edit.apply_batch/2` takes a list of ops (any mix of
+create/replace/insert/delete, JSON-shaped maps) and applies them
+transactionally: one digest handshake up front, sequential in-memory
+application — later ops may anchor on entities created earlier in the
+batch — one atomic write, one gate. Any failure at any step reverts
+everything: no partial application. `mix ash_agent.edit --batch ops.json`
+drives it from the shell.
+
+**The formatter contract** — region-correct indentation is unconditional;
+a whole-file reformat happens if and only if the touched file was already
+format-clean (formatter rules resolved from the project the file lives
+in, including the `locals_without_parens` its `import_deps` export). A
+dirty file is left exactly as spliced and every report carries
+`format_hint: "run mix format"` — never surprise-diff a file that wasn't
+clean.
+
+The Serena-shaped loop, end to end: `resolve` (address the entity) →
+dry-run (diff + digest) → `--write --expected-digest` (handshake, splice,
+format) → gate (recompile + validate canary, auto-revert on failure).
+
+Boundaries, deliberate: still no daemon/MCP edit tool (edits are
+compile-time DSL text; an MFA driven from client JSON over a daemon would
+be RCE). Policies remain positional. Rename propagation remains future
+work.
+
 **`AshAgentTools.Edit`** performs semantic edits at those anchors:
 `replace_entity_block/3`, `insert_before_entity/3`,
-`insert_after_entity/3`, `safe_delete_entity/2`. The safety model is
+`insert_after_entity/3`, `safe_delete_entity/2`, `create_entity/3`,
+`apply_batch/2`. The safety model is
 mechanical, not prompt-level:
 
 1. **Dry-run default.** Without `write: true` you get the planned diff and
@@ -308,9 +519,15 @@ mechanical, not prompt-level:
    the resource runs a per-action validate canary; a failed gate reverts
    the file and reports the diagnostics. `safe_delete_entity/2` refuses
    while anything references the entity (`has_references`, with the list).
+6. **Formatter contract.** Region-correct indentation is unconditional;
+   the whole file is reformatted only when it was already format-clean.
+   Otherwise the report says `format_hint: "run mix format"` and nothing
+   else is touched.
 
-`mix ash_agent.edit OP NAME_PATH [--body ... | --body-file FILE] [--write
---expected-digest D]` wraps all of it with the same JSON contract.
+`mix ash_agent.edit OP NAME_PATH [--body ... | --body-file FILE]
+[--anchor NAME_PATH --position after|before] [--batch FILE]
+[--write --expected-digest D]` wraps all of it with the same JSON
+contract.
 
 Truncation is a ladder, not a wall: `semantic_search/2` takes
 `:max_results` (default 100) and refuses over-limit searches with
@@ -367,9 +584,13 @@ pattern's certainty — judge context (the compile-time-constant
   keys, unknown keys, build-time errors). It cannot predict
   context-dependent failures (authorization, uniqueness checks, custom
   validations that need an actor) — those only surface when an action
-  actually runs.
+  actually runs. Use `can/4` for the authorization half of that question.
 - `explain_forbidden/2` requires `Ash.Policy.Authorizer` for policy
   listings; resources with other authorizers get a pointer instead.
+- `can/4` answers for the input you give it, with `run_queries?: false`:
+  checks that need data-layer access stay `:maybe` (the report says so),
+  and a record-dependent strict check may need the `record:` option to
+  become decidable. It never executes the action and never writes.
 - `context/3` positions symbols via Spark annotations; modules compiled
   without debug info carry no annotations, so their symbols cannot be
   positioned (the module still cannot be matched by file) and the report

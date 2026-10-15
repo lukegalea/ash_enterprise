@@ -309,6 +309,7 @@ in
       mix test
       "$DEVENV_ROOT"/scripts/iron-laws.sh
       "$DEVENV_ROOT"/scripts/extra-docs.sh
+      "$DEVENV_ROOT"/scripts/usage-rules-check.sh
     '';
   };
 
