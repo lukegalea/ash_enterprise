@@ -141,6 +141,10 @@ Sign in with the credentials the seeder prints, then visit:
 | URL | What |
 |---|---|
 | `/app/demo` | Demo hub — every surface below, one link away |
+| `/app/mdm/import` | **MDM demo: import a customer CSV** (upload → AI-proposed mapping → activate → run) |
+| `/app/mdm` | **MDM demo: steward queue** — side-by-side diffs awaiting confirm / reject / unsure |
+| `/app/mdm/golden` | **MDM demo: golden records** after the confirm |
+| `/app/processes` | The `mdm.steward_review` BPMN process the review candidates run (banding itself is a DMN table) |
 | `/agent` | Helper console — proposes changes for your approval, and shows or composes tables on request |
 | `/app/users`, `/app/teams`, `/app/roles`, `/app/business-units` | A2UI surfaces derived from resource metadata |
 | `/app/legacy-users` | The same, over a 2010-era Rails schema read through a compatibility view — and it updates when the old application writes |
@@ -148,6 +152,23 @@ Sign in with the credentials the seeder prints, then visit:
 | `/canvas` | The domains, resources and relationships as one object graph, with the selected resource's surface beneath it (dev only) |
 | `/clarity` | ER, class, policy and state-machine diagrams (dev only) |
 | `/api/json/swaggerui` · `/gql/playground` | JSON:API + OpenAPI, GraphQL |
+
+**The MDM demo, end to end** (fresh DB): sign in as `admin@example.com` /
+`password1234` — the seeded tenant owns the demo data.
+
+1. `mix ash_enterprise.demo` seeds the machinery and one in-flight import:
+   a golden "Ann Existing" with a merged duplicate, and a review-banded
+   match waiting at `/app/mdm`.
+2. Upload any CSV at `/app/mdm/import`, click **AI proposal**, review the
+   column mapping, **Validate & activate**, then **Run import**.
+3. Low-confidence matches land at `/app/mdm`: **Confirm match** merges the
+   staged record into its golden; **Reject** keeps it a separate person;
+   **Unsure** records the verdict and leaves it open for a senior steward.
+4. `/app/mdm/golden` shows the survivors; every screen cross-links the
+   others, and to the `mdm.steward_review` process.
+
+The seeded review candidate is consumed once decided — re-run
+`mix ash_enterprise.demo` to reseed one (it is idempotent otherwise).
 
 ## What it looks like
 
