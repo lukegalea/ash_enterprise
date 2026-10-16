@@ -9,7 +9,7 @@ defmodule AshEnterprise.SystemOne.ReviewQueue do
   | `:band_table_proposal` | a person's certification (§8.2) | CalibrationRun, result `:proposed_table`, no certification for the proposed definition yet |
   | `:review_band` | a person's verdict | Banding, band `:review`, no HumanVerdict for any of its observations |
   | `:certification_revocation` | a person's revocation — the run behind the certification has aged past the family's `max_age_days` | BandTableCertification, status `:certified`, aged run |
-  | `:mdm_match` | a steward's confirm/reject of a review-banded match (ADR 0053) | Mdm.MatchCandidate, band `:review`, status `:pending` |
+  | `:mdm_match` | a steward's confirm/reject of a review-banded match (ADR 0054) | Mdm.MatchCandidate, band `:review`, status `:pending` |
 
   Ordered oldest-first across kinds, paginated (`:limit`, `:offset`).
   Reads are person-readable in the platform's ordinary sense: pass

@@ -6,7 +6,7 @@ defmodule AshEnterprise.Mdm.MatchCandidate do
   — a steward never learns of a candidate they cannot read.
 
   Confirming or rejecting a review-banded candidate is a person's decision
-  (ADR 0053): the policy set opens with the person gate, so a system actor
+  (ADR 0054): the policy set opens with the person gate, so a system actor
   cannot drive a merge through the queue even via the engine bypasses it
   keeps for its own machinery. The queue's confirm/reject are the stable
   seam a BPMN HumanTask completion maps onto — the queue (S1-62) is the

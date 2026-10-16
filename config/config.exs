@@ -332,7 +332,7 @@ config :ash_enterprise, AshEnterprise.Repo, types: AshEnterprise.PostgrexTypes
 config :ash_evidence, AshEvidence.Repo, priv: "priv/test_repo"
 
 # MDM mapping targets: the host's golden-resource allowlist. A Mapping row
-# may only target what is declared here — fail closed (ADR 0053).
+# may only target what is declared here — fail closed (ADR 0054).
 config :ash_mdm, :allowed_targets, %{
   "AshEnterprise.Canonical.Person" => AshEnterprise.Canonical.Person,
   "AshEnterprise.Canonical.Account" => AshEnterprise.Canonical.Account

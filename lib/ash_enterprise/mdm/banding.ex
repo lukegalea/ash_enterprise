@@ -1,6 +1,6 @@
 defmodule AshEnterprise.Mdm.Banding do
   @moduledoc """
-  The MDM band table (ADR 0041/0053): a candidate's match score goes
+  The MDM band table (ADR 0041/0054): a candidate's match score goes
   through the versioned DMN decision `mdm:match_bands` — never a literal —
   and comes out `admit | review | omit`.
 

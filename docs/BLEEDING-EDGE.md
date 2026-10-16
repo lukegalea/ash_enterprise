@@ -104,7 +104,7 @@ confined so that removing one is a deletion, not a refactor.
 | `ash_compliance` | compliance bundles and findings (ADR 0035) | `ash_rules`, `ash_events_projections` | after those two |
 | `ash_decisions` | DMN decisions | `boxic_dmn` fork | no: needs `boxic_dmn` upstream |
 | `ash_discrete_business_events` | business-event ledger (ADR 0051) | `ash_events` fork | no: needs `ash_events` upstream |
-| `ash_mdm` | master data: mappings, matching, survivorship merge (ADR 0053) | `ash_discrete_business_events` | no: after `ash_discrete_business_events` |
+| `ash_mdm` | master data: mappings, matching, survivorship merge (ADR 0054) | `ash_discrete_business_events` | no: after `ash_discrete_business_events` |
 | `ash_judgments` | judgment substrate (System One); declared `branch: "main"` | `ash_rules`, `ash_compliance`, `ash_bpmn`, `ash_decisions`, `ash_events` fork | no: needs both forks gone |
 | `ash_agent_tools` | read-only Ash introspection for coding agents (dev only) | `ash_rules`, `ash_bpmn`, `ash_decisions` (all optional) | after those three, so after `boxic_dmn` |
 

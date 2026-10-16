@@ -268,7 +268,7 @@ issued with `psql` — no Ash, no changeset, no HTTP request. See
 [`priv/legacy/README.md`](priv/legacy/README.md) for the commands.
 
 **Master data, end to end.** `/app/mdm/import` → `/app/mdm` → `/app/mdm/golden`
-is the entity-resolution loop the ADR 0053 plan asked for, driven entirely
+is the entity-resolution loop the ADR 0054 plan asked for, driven entirely
 through the UI. Upload a CSV, let the AI propose the mapping (activation stays
 a person's act), run the batch, and review-banded matches wait in the steward
 queue as side-by-side diffs with survivorship winners:
@@ -415,7 +415,7 @@ permissive direction.
 | 3 | Feature flags and progressive delivery | FunWithFlags (Unleash rejected) | 🔵 Planned | [ADR 0016](docs/adr/0016-unleash-for-feature-flags.md) |
 | 3 | Observability backend | Grafana LGTM | 🔵 Planned | [ADR 0018](docs/adr/0018-grafana-lgtm-observability-backend.md) |
 | 3 | Outbound events and subscriptions | An Ash notifier over the existing event log | 🔵 Planned | — |
-| 4 | Master data and entity resolution | In-Ash resolution over CDM resources | 🟡 Partial | [ADR 0053](docs/adr/0053-mdm-stewardship-is-system-one.md) |
+| 4 | Master data and entity resolution | In-Ash resolution over CDM resources | 🟡 Partial | [ADR 0054](docs/adr/0054-mdm-stewardship-is-system-one.md) |
 | 4 | Performance at enterprise data volumes | A seeded large tenant and a query budget | 🔵 Planned | — |
 | 4 | SBOM and build provenance | CycloneDX SBOM; attested builds | 🔵 Planned | — |
 | 4 | Zero-downtime deploys and reversible migrations | Expand/contract, proven by a two-version test | 🔵 Planned | — |

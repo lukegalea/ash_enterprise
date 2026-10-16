@@ -67,13 +67,13 @@ As a CS person: I upload a customer's CSV of contact records I've never seen bef
 
 ## TRD
 
-### 1. ADR 0053 — amending 0017 (do this first)
+### 1. ADR 0054 — amending 0017 (do this first)
 
-New `docs/adr/0053-mdm-stewardship-is-system-one.md` (declarative title convention), status accepted:
+New `docs/adr/0054-mdm-stewardship-is-system-one.md` (declarative title convention), status accepted:
 - **Keeps verbatim from 0017:** in-Ash resolution; golden record IS the platform resource with CDM `merged`/`master_id` shape; blocking in Postgres (`pg_trgm`, `fuzzystrmatch`); scoring as Ash calculation; candidate generation under system actor with separately-filtered presentation; merge audited under one correlation id; Splink escape hatch.
 - **Amends the Foreclosed clause:** when 0017 was written (2026-08-18) a stewardship UI would have been a bespoke product. The substrate now exists as reusable first-party machinery: ReviewQueue, HumanVerdict (person-only), BPMN HumanTask/TaskCandidate/AssignmentResolver, A2UI surfaces, band tables earned by calibration. The review queue, rule builder (mappings-as-data), and lineage-of-merges views are therefore built ON those, never bespoke.
 - Must include the `## Does it consume ActorContext?` section (ADR 0009+ requirement): restates 0017's two sharp edges (system-actor candidate generation + presentation filtering; merge revokes grants → correlation-id-audited) and adds: HumanVerdict refuses non-person actors; mapping activation is person-gated; egress honors zone admission taken at land (ADR 0042) with cross-region export refused absent an admitting zone policy.
-- Roadmap: `docs/roadmap.json` — `mdm` item gets `status: "in-progress"`, `adr: "0053"`; keep priority (it says P4; note in effort text that ingress/lineage prerequisites have since shipped). Run `mix ash_enterprise.roadmap --check` (devenv).
+- Roadmap: `docs/roadmap.json` — `mdm` item gets `status: "in-progress"`, `adr: "0054"`; keep priority (it says P4; note in effort text that ingress/lineage prerequisites have since shipped). Run `mix ash_enterprise.roadmap --check` (devenv).
 
 ### 2. Package + host split (ADR 0009 playbook)
 
@@ -153,7 +153,7 @@ One import = one correlation id, set at `ImportBatch.open`, threaded by `Platfor
 
 ### 12. No-deploy guarantee analysis
 
-New customer on existing system type (CSV/manual, any already-integrated API) = data only: SourceRecord stream + Mapping rows + MatchRuleSet profile + band table seeds → all runtime-gated resources. Deploy required only for: a new third-party *adapter* (code), a new canonical *entity* (migration), a new judgment *question wording* (lock.json is compile-pinned by design — questions are contracts, not config). This boundary is stated in ADR 0053.
+New customer on existing system type (CSV/manual, any already-integrated API) = data only: SourceRecord stream + Mapping rows + MatchRuleSet profile + band table seeds → all runtime-gated resources. Deploy required only for: a new third-party *adapter* (code), a new canonical *entity* (migration), a new judgment *question wording* (lock.json is compile-pinned by design — questions are contracts, not config). This boundary is stated in ADR 0054.
 
 ---
 
@@ -161,7 +161,7 @@ New customer on existing system type (CSV/manual, any already-integrated API) = 
 
 | Slice | Delivers | Verification |
 |---|---|---|
-| **MDM-0** | ADR 0053 (accepted); `docs/plans/ash-mdm.md` (this plan, landed); roadmap.json `mdm` → in-progress/ADR 0053; `ash_mdm` package skeleton (ADR 0009 playbook: MIT, REUSE, CI, `.formatter.exs`, empty `AshMdm` module); host deps wired (`ash_discrete_business_events`, `ash_mdm`); `Repo.installed_extensions` += pg_trgm/fuzzystrmatch + migration | `mix ash_enterprise.roadmap --check` passes; `mix deps.compile ash_mdm ash_discrete_business_events`; extensions present in `select extname from pg_extension` after migrate |
+| **MDM-0** | ADR 0054 (accepted); `docs/plans/ash-mdm.md` (this plan, landed); roadmap.json `mdm` → in-progress/ADR 0054; `ash_mdm` package skeleton (ADR 0009 playbook: MIT, REUSE, CI, `.formatter.exs`, empty `AshMdm` module); host deps wired (`ash_discrete_business_events`, `ash_mdm`); `Repo.installed_extensions` += pg_trgm/fuzzystrmatch + migration | `mix ash_enterprise.roadmap --check` passes; `mix deps.compile ash_mdm ash_discrete_business_events`; extensions present in `select extname from pg_extension` after migrate |
 | **MDM-1** | `Mapping` resource + operator vocabulary evaluator + runtime validator set + version-chain lifecycle (package); host `AshEnterprise.Mdm.Mapping` instantiation | Package tests: evaluator fold over fixture field_rules; validator rejects incomplete accounting (unmapped without `because`), non-injective decode (counterexample asserted), unknown op; activation supersedes; partial-unique-index prevents two active |
 | **MDM-2** | bizev landing adapter + `ImportBatch` + `StagedRecord` + `BatchWorker` + `Lineage.ingestion_event` wrapper + zone-admitted land (host) | Feature test: land CSV fixture rows as SourceRecords (tagged region), open batch, stage → StagedRecords with mapped maps + validation findings; re-run batch = no-op; audit rows carry batch correlation id; OpenLineage start/complete emitted (transport no-op safe) |
 | **MDM-3** | `MatchRuleSet` + blocking (exact + trigram) + `MatchCandidate` + score/explanation calculation (package + host wiring on Person) | Test: seeded golden Persons; batch with 2 exact dupes, 1 fuzzy dupe, 1 new → candidates with expected scores/explanations; blocking runs as system actor (assert actor in audit); quadratic guard: trigram shortlist query plan uses GIN index (`EXPLAIN` assertion) |
@@ -175,7 +175,7 @@ Dependencies: MDM-1→2→3→4→5→6 strictly ordered; MDM-7 after 4 (needs s
 
 ## Critical files & anchors
 
-- `docs/adr/0017-entity-resolution-in-ash.md` — constraints kept verbatim (system actor, correlation-audited merge, PG blocking); amend via new 0053.
+- `docs/adr/0017-entity-resolution-in-ash.md` — constraints kept verbatim (system actor, correlation-audited merge, PG blocking); amend via new 0054.
 - `lib/ash_enterprise/system_one/review_queue.ex`, `system_one/human_verdict.ex`, `system_one/banding/step.ex` — the confirm-low-confidence primitives ash_mdm routes through (kind `:mdm_match` added to ReviewQueue).
 - `lib/ash_enterprise/ingestion/source_object.ex:75-82` — E1 identity gap; only touched under the bizev contingency.
 - `lib/ash_enterprise/ledger/user_ingestion.ex:80-94` — provenance envelope precedent (`ash_events_metadata` + StampCorrelation).
@@ -195,7 +195,7 @@ All commands inside the devenv environment (never bare `mix` per HANDOFF):
 
 1. **Package shape** (user-overridable): `ash_mdm` is a separate public package per ADR 0009 + thin host domain, not host-only code. Family precedent (ash_judgments/ash_evidence/bizev) and cross-host reusability decide it.
 2. **bizev dependency**: ash_mdm consumes only shipped BIZEV-3/4 surface (SourceRecord land/at, optional ledger events). If bizev's branch regresses, use the pre-decided `Landing` behaviour fallback over `Ingestion.SourceObject` (with the two E1-gap fixes); no package redesign.
-3. **Flagship entity**: existing `Canonical.Person` + `Canonical.Account` (they exist, are exercised by `Projection.replay`, and ADR 0053 notes CDM Contact/Account generation as the production follow-through via the existing, unchanged `mix cdm.gen.resource` path).
+3. **Flagship entity**: existing `Canonical.Person` + `Canonical.Account` (they exist, are exercised by `Projection.replay`, and ADR 0054 notes CDM Contact/Account generation as the production follow-through via the existing, unchanged `mix cdm.gen.resource` path).
 4. **Splink stays the escape hatch** (ADR 0017): if deterministic+fuzzy+LLM-compare scores prove insufficient at scale, the scoring calculation is replaced by a read of a `match_candidate` table written offline — blocking/merge/stewardship untouched.
 5. **LLM compare is optional per tenant** (cost + jurisdiction): default banding routes on deterministic score alone; the judgment question activates only for gray-zone candidates when a judge instrument is configured.
 6. **Thresholds are never literals in code** — only DMN band-table outputs, seeded conservative, tightened via calibration (ADR 0041). If calibration data is thin at launch, the wide-review seed stands (more human confirmations, fewer wrong merges — the safe direction).

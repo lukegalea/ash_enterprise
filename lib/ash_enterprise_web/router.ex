@@ -198,7 +198,7 @@ defmodule AshEnterpriseWeb.Router do
       live "/canonical/agent", CanonicalAgentLive
     end
 
-    # --- Master data (ADR 0053) ----------------------------------------------
+    # --- Master data (ADR 0054) ----------------------------------------------
     #
     # The MDM demo flow's two hand-written pages: the import wizard (upload a
     # CSV, map it -- draft + AI proposal, activation stays a person's act --

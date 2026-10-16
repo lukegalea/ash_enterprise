@@ -80,7 +80,7 @@ defmodule AshEnterprise.Mdm.QualityReview do
           Ash.create!(Catalog, %{
             organization_id: tenant,
             name: "MDM Quality",
-            description: "The MDM golden-record quality baseline (ADR 0053 §10).",
+            description: "The MDM golden-record quality baseline (ADR 0054 §10).",
             oscal_uuid: "00000000-0000-0000-0000-00000000bd00"
           })
 

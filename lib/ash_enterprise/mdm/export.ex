@@ -1,6 +1,6 @@
 defmodule AshEnterprise.Mdm.Export do
   @moduledoc """
-  The egress run (MDM-6, ADR 0053 §8): customer-shaped rows built from
+  The egress run (MDM-6, ADR 0054 §8): customer-shaped rows built from
   golden records, through the tenant's active `:egress` mapping.
 
   The disclosure gate is the export action itself (ADR 0042 keeps admission

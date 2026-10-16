@@ -1,6 +1,6 @@
 defmodule AshEnterprise.Mdm.SourceIdentity do
   @moduledoc """
-  The XREF registry (ADR 0049/0053): which external source identity points
+  The XREF registry (ADR 0049/0054): which external source identity points
   at which golden record, RIGHT NOW — temporal, one open period per
   `(organization, source, stream, external_id)`. A merge closes the
   loser's periods and opens new ones at the survivor; an unmerge reverses.
@@ -71,7 +71,7 @@ defmodule AshEnterprise.Mdm.SourceIdentity do
   end
 
   identities do
-    # The XREF invariant (ADR 0053): one source id points at exactly ONE
+    # The XREF invariant (ADR 0054): one source id points at exactly ONE
     # golden at a time. On a temporal resource the identity becomes a
     # WITHOUT OVERLAPS exclusion — history may hold many periods, "now"
     # may hold only one.

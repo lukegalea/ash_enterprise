@@ -1,4 +1,4 @@
-# ADR 0053 — MDM stewardship is System One machinery, not a bespoke product
+# ADR 0054 — MDM stewardship is System One machinery, not a bespoke product
 
 - **Status:** accepted
 - **Date:** 2026-10-14

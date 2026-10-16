@@ -1,6 +1,6 @@
 defmodule AshEnterprise.Mdm.Projection do
   @moduledoc """
-  The golden-record replay (ADR 0053 §7, MDM-5): rebuild canonical state
+  The golden-record replay (ADR 0054 §7, MDM-5): rebuild canonical state
   from SourceRecords + the active ingress mapping + the identity history.
 
   Determinism contract (mirrors `AshEnterprise.Canonical.Projection`):

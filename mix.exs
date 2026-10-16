@@ -353,7 +353,7 @@ defmodule AshEnterprise.MixProject do
       {:ash_bpmn, github: "lukegalea/ash_bpmn"},
       {:ash_decisions, github: "lukegalea/ash_decisions"},
 
-      # --- Master data management (ADR 0053; roadmap mdm) ----------------------
+      # --- Master data management (ADR 0054; roadmap mdm) ----------------------
       # `ash_mdm` builds on `ash_discrete_business_events` (declared above for
       # the ledger; MDM uses its temporal SourceRecord landing too): versioned
       # schema mappings as data, deterministic entity resolution with

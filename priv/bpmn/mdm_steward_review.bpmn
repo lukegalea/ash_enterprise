@@ -11,7 +11,7 @@
 
     <!--
       One review-banded match candidate's journey through stewardship (MDM-4,
-      ADR 0053). The engine starts an instance per candidate the moment the
+      ADR 0054). The engine starts an instance per candidate the moment the
       band table says :review; the user task is the work item the steward
       queue surfaces. The decision itself is deliberately NOT a service task:
       confirm/reject are the candidate's own person-gated actions, and the

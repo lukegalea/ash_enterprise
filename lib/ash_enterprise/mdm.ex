@@ -1,6 +1,6 @@
 defmodule AshEnterprise.Mdm do
   @moduledoc """
-  Master data management (ADR 0053; plan `docs/plans/ash-mdm.md`): the host
+  Master data management (ADR 0054; plan `docs/plans/ash-mdm.md`): the host
   domain instantiating `ash_mdm`'s resource macros on the platform base and
   owning the orchestration glue — import batches, banding, stewardship,
   survivorship and egress.

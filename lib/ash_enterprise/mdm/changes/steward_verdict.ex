@@ -1,6 +1,6 @@
 defmodule AshEnterprise.Mdm.Changes.StewardVerdict do
   @moduledoc """
-  The steward's decision, wired to the System One machinery (MDM-4, ADR 0053):
+  The steward's decision, wired to the System One machinery (MDM-4, ADR 0054):
 
   1. **Judgment** — the model's observation is recorded on the append-only
      judgment ledger: the match question over this candidate, the score's

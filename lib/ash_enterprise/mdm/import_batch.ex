@@ -3,7 +3,7 @@ defmodule AshEnterprise.Mdm.ImportBatch do
   One CS import: the unit of lineage. `correlation_id` is minted at :open
   and threads stage → match → band → merge → export; every audit row the
   batch causes carries it, which is what makes "where did this golden
-  record come from" one query (ADR 0053 §11).
+  record come from" one query (ADR 0054 §11).
 
   `mapping_content_hash` is pinned at open — a batch never re-maps
   mid-flight; a changed mapping is a new batch.

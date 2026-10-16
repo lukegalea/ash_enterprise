@@ -1,4 +1,4 @@
-# ash-mdm handoff (ADR 0053 build)
+# ash-mdm handoff (ADR 0054 build)
 
 Written 2026-10-14 mid-build. Branch `mdm-0-1`, head `9577597`. Package
 `~/ash_mdm` branch `main`, head `7354af7` (pushed). Everything below

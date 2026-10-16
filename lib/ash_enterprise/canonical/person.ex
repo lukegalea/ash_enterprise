@@ -72,7 +72,7 @@ defmodule AshEnterprise.Canonical.Person do
       description "Display name, when the source system carried one. Stays nil otherwise."
     end
 
-    # CDM master/merged shape (ADR 0017, adopted by ADR 0053): the merge
+    # CDM master/merged shape (ADR 0017, adopted by ADR 0054): the merge
     # keeps the loser's row, pointing at its survivor.
     attribute :merged, :boolean do
       public? false
@@ -244,13 +244,13 @@ defmodule AshEnterprise.Canonical.Person do
     end
 
     update :mdm_survivor_update do
-      description "The merge's survivor write: fill the survivor's gaps from the loser (ADR 0053 survivorship)."
+      description "The merge's survivor write: fill the survivor's gaps from the loser (ADR 0054 survivorship)."
       accept [:name, :email]
     end
 
     update :mdm_merge_into do
       description """
-      The merge write (ADR 0053): this record folds into the survivor.
+      The merge write (ADR 0054): this record folds into the survivor.
       Non-destructive by construction — the loser keeps its row.
       """
 
@@ -261,7 +261,7 @@ defmodule AshEnterprise.Canonical.Person do
     end
 
     update :mdm_merge_provenance do
-      description "Records what the merge took from this record (ADR 0053: unmerge restores exactly that)."
+      description "Records what the merge took from this record (ADR 0054: unmerge restores exactly that)."
       accept [:merge_provenance]
     end
 
@@ -306,7 +306,7 @@ defmodule AshEnterprise.Canonical.Person do
 
     action :mdm_export, {:array, :map} do
       description """
-      The egress departure (MDM-6, ADR 0053 §8): the tenant's active `:egress`
+      The egress departure (MDM-6, ADR 0054 §8): the tenant's active `:egress`
       mapping turns this tenant's golden records into customer-shaped rows —
       after the zone disclosure gate refuses the departure on the residency
       tags recorded at land. Person-gated and grant-checked like every

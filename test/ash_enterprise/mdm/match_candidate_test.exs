@@ -1,6 +1,6 @@
 defmodule AshEnterprise.Mdm.MatchCandidateTest do
   @moduledoc """
-  The steward verdict gate (MDM-4, ADR 0053 §ActorContext): confirming or
+  The steward verdict gate (MDM-4, ADR 0054 §ActorContext): confirming or
   rejecting a review-banded match is a person's act — both system actor
   kinds are refused, and a person's decision is recorded as provenance.
   """

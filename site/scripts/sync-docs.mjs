@@ -44,10 +44,11 @@ const SKIP = [/^AshStrangler\.md$/i, /^BPMN\.md$/i, /strangler fig migrations/i]
 const isSkipped = (basename) => SKIP.some((re) => re.test(basename));
 
 /**
- * Directories whose pages stay on GitHub: operational runbooks and research
- * notes are linked from the decision records but are not part of the site.
+ * Directories whose pages stay on GitHub: operational runbooks, research
+ * notes and the RFC texts (byte-frozen specs and their errata queues) are
+ * linked from the decision records but are not part of the site.
  */
-const GITHUB_ONLY_DIRS = ['docs/runbooks/', 'docs/research/'];
+const GITHUB_ONLY_DIRS = ['docs/runbooks/', 'docs/research/', 'docs/rfc/'];
 
 const isGithubOnly = (resolved) => GITHUB_ONLY_DIRS.some((dir) => resolved.startsWith(dir));
 

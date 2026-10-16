@@ -521,7 +521,7 @@ defmodule AshEnterprise.Surfaces do
       acp: %{command: "directory"}
     },
 
-    # --- Master data (ADR 0053) -------------------------------------------------
+    # --- Master data (ADR 0054) -------------------------------------------------
     # The steward's verdict is a person's act: the candidate's :confirm,
     # :reject and :escalate actions refuse system and AI actors by policy, so
     # the queue opens to any signed-in person and the policies decide what
@@ -571,7 +571,7 @@ defmodule AshEnterprise.Surfaces do
       label: "MDM mappings",
       blurb: "The mapping version chain: no-deploy onboarding.",
       description:
-        "Versioned schema mappings (ADR 0053): draft → validate → activate, one per " <>
+        "Versioned schema mappings (ADR 0054): draft → validate → activate, one per " <>
           "customer schema. Activation supersedes; nothing is overwritten.",
       group: :mdm,
       order: 30,

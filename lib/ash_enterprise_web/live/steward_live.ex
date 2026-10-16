@@ -1,7 +1,7 @@
 defmodule AshEnterpriseWeb.StewardLive do
   @moduledoc """
   The steward's queue at `/app/mdm`: the review-banded match candidates
-  that await a person's confirm or reject (ADR 0053, MDM-4).
+  that await a person's confirm or reject (ADR 0054, MDM-4).
 
   The queue is `AshEnterprise.SystemOne.ReviewQueue` filtered to `:mdm_match`
   — the same ordered, oldest-first read every review kind uses — and the
