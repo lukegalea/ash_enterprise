@@ -1,4 +1,4 @@
-# ADR 0050 — The subject-state digest is the third axis: evidence currency, kept on the fact row
+# ADR 0053 — The subject-state digest is the third axis: evidence currency, kept on the fact row
 
 - **Status:** accepted (ruling 2026-10-09; C1+C2 ACCEPTED, no normative amended)
 - **Date:** 2026-10-09

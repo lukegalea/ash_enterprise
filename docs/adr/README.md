@@ -84,8 +84,9 @@ The concrete exit: which files change, and how much work it is.
 | [0050](0050-neobrutalism-design-system.md) | A neobrutalism token system, dark by default, replaces daisyUI | accepted |
 | [0051](0051-business-events-are-derived-from-the-canonical-store.md) | Business events are derived from the canonical store, into a chained ledger | accepted |
 | [0052](0052-self-service-actions.md) | Self-service actions: what a member may do for themselves without a grant | accepted |
+| [0053](0053-subject-state-digest-third-axis.md) | The subject-state digest is the third axis: evidence currency, kept on the fact row | accepted (ruling 2026-10-09) |
 
-Records 0001–0005, 0007–0009, 0020–0023, 0027–0031, 0033–0037, 0050, 0051 and 0052 are `accepted` and describe code that exists. 0006 is superseded by 0050. 0049 is accepted and in progress: Phase 0 (PostgreSQL 18) and the System One fact cut-over have landed.
+Records 0001–0005, 0007–0009, 0020–0023, 0027–0031, 0033–0037 and 0050–0053 are `accepted` and describe code that exists. 0006 is superseded by 0050. 0049 is accepted and in progress: Phase 0 (PostgreSQL 18) and the System One fact cut-over have landed.
 **0038–0047 are `accepted, not built (2026-09-28)`:** the decision is taken and none of it is built. A record with that
 status flips to plain `accepted` when its code lands, so `accepted` on its own keeps meaning code that exists.
 **0012–0019, 0025, 0026, 0032 and 0048 are `proposed`: none of them is built**, with the exception 0015 below. 0010 (ingestion), 0011 (the Nango edge) and 0024 (crypto-shredding) were accepted on 2026-10-12 when the dogfood deployment began depending on them; each one's implementation note says what is built and where it differs from the Decision (0010 lands into an Ash resource rather than a staging schema; 0024's partitioning half is not built). They are here because a decision is cheapest to reason about — and cheapest to

@@ -4,7 +4,7 @@
 |---|---|
 | **Status** | **QUEUED — NOT APPLIED.** Nothing in this file amends `judgment-record-v2.md`. The frozen v2 (Luke-approved 2026-10-08) **stays byte-frozen**: until a revision cycle is opened, v2 governs exactly as frozen and this queue has no normative force. It exists so the next revision can apply these entries deliberately, under the same change→justification discipline Appendix B used for the v1→v2 edit — not ad hoc, and not by editing a frozen document in place. |
 | **Work item** | Plane P4-S3 (the digest-ruling record), under the Phase-4 facts temporal swap. Siblings: P4-S1 (C1, merged ash_judgments `aeebd86`) and P4-S2 (C2 reference implementation, merged vpm_poc `a950a4e`) |
-| **Provenance** | The digest ruling (Luke, 2026-10-09): C1 + C2 **ACCEPTED**, no normative amended, RFC v2 byte-frozen. Design notes: `system-one-program/research/phase4-digest-vs-v2-plan.md` (the decision memo + §7 counterfactual) and `system-one-program/research/phase4-facts-swap-design.md` (§3 C1 spec, §4 C2 spec, §2 contract surface). Decision record: ADR 0050 |
+| **Provenance** | The digest ruling (Luke, 2026-10-09): C1 + C2 **ACCEPTED**, no normative amended, RFC v2 byte-frozen. Design notes: `system-one-program/research/phase4-digest-vs-v2-plan.md` (the decision memo + §7 counterfactual) and `system-one-program/research/phase4-facts-swap-design.md` (§3 C1 spec, §4 C2 spec, §2 contract surface). Decision record: ADR 0053 |
 | **Gate carried** | Both entries are **mechanism notes**: §7.4 normatives 1–6 and the §7.2 rules carry verbatim; both behavioral equivalence proofs (`Set.membership ↔ Query.tri_state`, materialiser replay-equivalence) stay the acceptance line, unchanged |
 
 ## The queue
