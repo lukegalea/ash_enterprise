@@ -9,7 +9,8 @@ defmodule AshEnterpriseWeb.A2ui.AccountsUI do
   Row actions are the existing, policy-gated ones: Sync now
   (`LinkedAccount.sync_now`, which hands the account to its vertical's own
   `request_sync`), Unblock sync (`unblock_sync`), and Deactivate / Activate
-  (pause and resume the account's syncs). Each declares when it applies
+  (pause and resume the account's syncs). Sync now also runs over a selection
+  of rows (`bulk_actions`), once per account, as the actor. Each declares when it applies
   (`visible_when`); the handler re-checks that on every click, so a click that
   does not apply is refused with a message rather than run.
 
@@ -45,6 +46,10 @@ defmodule AshEnterpriseWeb.A2ui.AccountsUI do
 
       read_action :read
       row_actions [:sync_now, :unblock_sync, :deactivate, :activate]
+      # Sync now is the one act worth running over a selection: each account
+      # still syncs through its own vertical, as the actor, and one that is
+      # paused or blocked is skipped (`visible_when` below), not forced.
+      bulk_actions [:sync_now]
       select_context :account
 
       row_layout do

@@ -103,7 +103,10 @@ defmodule AshEnterprise.AcpDailyTest do
           {"slack", "slack", true},
           {"people", "people", true},
           {"approvals", "approvals", true},
-          {"accounts", "accounts", true},
+          # Accounts runs Sync now over a selection, and ash_a2ui composes a
+          # table with bulk actions from the basic catalog (a selectable
+          # dataGrid is not part of the admin catalog yet).
+          {"accounts", "accounts", false},
           {"erasure", "erasure_scopes_read_only", true}
         ] do
       turn = prompt(s, text)
@@ -116,6 +119,8 @@ defmodule AshEnterprise.AcpDailyTest do
 
       if grid? do
         assert Enum.any?(components(turn.surface), &(&1["component"] == "dataGrid")), text
+      else
+        assert Enum.any?(components(turn.surface), &(&1["id"] == "bulk_toolbar")), text
       end
     end
 
