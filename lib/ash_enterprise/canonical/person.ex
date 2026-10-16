@@ -56,6 +56,12 @@ defmodule AshEnterprise.Canonical.Person do
         using: "gin",
         name: "canonical_people_name_trgm_idx"
     end
+
+    references do
+      # `master` is a display relationship over the merge's own `master_id`:
+      # no foreign key, the schema is unchanged.
+      reference :master, ignore?: true
+    end
   end
 
   attributes do
@@ -101,6 +107,17 @@ defmodule AshEnterprise.Canonical.Person do
   end
 
   relationships do
+    # The merge lineage, readable (MDM-6): a merged loser points at the
+    # golden that absorbed it. Public so the golden surface can link it; the
+    # link is loaded under the reader's policies like any relationship, so an
+    # owner-only survivor the reader cannot see is simply not linked.
+    belongs_to :master, __MODULE__ do
+      source_attribute :master_id
+      define_attribute? false
+      public? true
+      description "The golden record that absorbed this one, when a merge did."
+    end
+
     has_many :organized_events, AshEnterprise.Canonical.CalendarEvent do
       public? true
       destination_attribute :organizer_id
@@ -163,6 +180,16 @@ defmodule AshEnterprise.Canonical.Person do
     calculate :label, :string, expr(name || type(email, :string)) do
       public? true
       description "Their display name, else their address."
+    end
+
+    # Loaded through `master` under the reader's policies, not joined: a
+    # survivor the reader may not read leaves this nil.
+    calculate :absorbed_by,
+              :string,
+              {AshEnterprise.Canonical.Calculations.PersonLabel, relationship: :master} do
+      public? true
+
+      description "The golden record that absorbed this one by a merge, by name — as the reader may read it."
     end
 
     calculate :next_event, :string, AshEnterprise.Canonical.Calculations.NextEvent do

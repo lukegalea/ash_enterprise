@@ -17,7 +17,9 @@ defmodule AshEnterprise.Surfaces.Records do
   A record lands on the surface that owns it (`Surfaces.record_surface/2`):
   a link resolved per field names the first surface over the resource (a
   conversation link names the Inbox), and a Slack conversation opened through
-  it lands in Slack.
+  it lands in Slack. A surface whose `record_match` admits the record keeps
+  it, so a link that names a surface explicitly (`/app/r/mdm_golden/:id`,
+  where People is the first surface over Person) opens there.
 
   The surface key `"record"` is the polymorphic target: its id is a typed
   reference `"<surface>:<id>"` (a task's subject, `subject_ref`), resolved to
@@ -113,8 +115,17 @@ defmodule AshEnterprise.Surfaces.Records do
 
   defp read(_surface, _id, _actor), do: {:error, :not_found}
 
-  # The surface that owns this record, when it is another one the actor may open.
+  # The surface that owns this record, when it is another one the actor may
+  # open. A surface whose own `record_match` admits the record keeps it: a
+  # link that names a second surface over the resource on purpose (the
+  # golden-records surface over Person, beside People) lands there.
   defp home(surface, record, actor) do
+    if Surfaces.admits?(surface, record),
+      do: surface,
+      else: elsewhere(surface, record, actor)
+  end
+
+  defp elsewhere(surface, record, actor) do
     case Surfaces.record_surface(surface.resource, record) do
       %Surface{} = home when home.key != surface.key ->
         if Surfaces.open?(home, actor), do: home, else: surface

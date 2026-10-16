@@ -60,8 +60,12 @@ defmodule AshEnterprise.SurfacesTest do
     end
 
     test "a record of a resource opens on the surface that declares a context for it" do
-      assert [%{key: :people, context: :person}] =
+      # People first: a plain person link opens there. The golden-records
+      # surface opens a person only when a link names it.
+      assert [%{key: :people, context: :person}, %{key: :mdm_golden, context: :person}] =
                Surfaces.for_resource(AshEnterprise.Canonical.Person)
+
+      assert %{key: :people} = Surfaces.record_surface(AshEnterprise.Canonical.Person)
 
       # Roles list but open no single record.
       assert [] = Surfaces.for_resource(AshEnterprise.Security.Role)

@@ -5,8 +5,12 @@ defmodule AshEnterpriseWeb.A2ui.MdmMappingUI do
 
   The version chain (`root_id`/`supersedes_id`/`version`) is the drill:
   retired versions stay readable, activation supersedes, nothing is
-  overwritten. Read-only: mappings activate and validate through their own
-  person-gated actions, never through a surface.
+  overwritten. A row opens its detail — the field rules, the content hash
+  batches pin, the activation note — and links the version it supersedes.
+
+  Read-only by decision: mappings are drafted, validated and activated
+  through their own person-gated actions (ImportLive, the code interface),
+  never through a surface.
   """
 
   use AshA2ui.Standalone
@@ -16,6 +20,11 @@ defmodule AshEnterpriseWeb.A2ui.MdmMappingUI do
     surface_id("mdm_mappings")
     title("MDM mappings")
     record_label("mapping version")
+
+    context :mapping do
+      resource(AshEnterprise.Mdm.Mapping)
+      picker(false)
+    end
 
     query :default do
       sortable([:status, :version, :modified_on])
@@ -27,6 +36,7 @@ defmodule AshEnterpriseWeb.A2ui.MdmMappingUI do
       fields([:source, :stream, :target_resource, :direction, :status, :version])
       read_action(:read)
       query(:default)
+      select_context(:mapping)
 
       row_layout do
         title(:target_resource)
@@ -36,43 +46,42 @@ defmodule AshEnterpriseWeb.A2ui.MdmMappingUI do
       end
     end
 
+    component :detail, :mapping_detail do
+      context(:mapping)
+
+      fields([
+        :target_resource,
+        :direction,
+        :source,
+        :stream,
+        :status,
+        :version,
+        :previous_version,
+        :rule_summary,
+        :content_hash,
+        :activation_note
+      ])
+    end
+
     field :status do
       label("Lifecycle")
     end
-  end
-end
 
-defmodule AshEnterpriseWeb.A2ui.MdmGoldenUI do
-  @moduledoc """
-  A2UI surface over the canonical Person goldens — the merged view of the
-  customer, with its merge lineage readable (`merged`/`master_id`): who
-  absorbed whom is a question the row answers.
-  """
-
-  use AshA2ui.Standalone
-
-  a2ui do
-    for_resource(AshEnterprise.Canonical.Person)
-    surface_id("mdm_golden")
-    title("Golden records")
-    record_label("golden record")
-
-    query :default do
-      sortable([:name, :email, :created_on])
-      default_sort(name: :asc)
-      page_size(25)
+    field :previous_version do
+      label("Supersedes")
+      link({:mdm_mappings, :supersedes_id})
     end
 
-    component :table do
-      fields([:name, :email])
-      read_action(:goldens)
-      query(:default)
+    field :rule_summary do
+      label("Field rules")
+    end
 
-      row_layout do
-        title(:name)
-        meta([:email])
-        columns(2)
-      end
+    field :content_hash do
+      label("Content hash (batches pin this)")
+    end
+
+    field :activation_note do
+      label("Activation note")
     end
   end
 end

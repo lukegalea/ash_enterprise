@@ -160,3 +160,35 @@ system-actor export would remove the grant altogether and leave "who may export"
 **Costs.** An export no longer requires the exporter to be able to read the rows it exports; that is the point, and it
 is why the reach is narrow and the gate stays. The export is not yet written to the audit trail as a disclosure event of
 its own.
+
+## Addendum, 2026-10-16 — the steward queue is an A2UI surface
+
+**Context.** `StewardLive` was a hand-built queue that read the staged row and the golden behind each candidate with
+`authorize?: false`, so a steward saw values the grant union might hide — the second security model this record says
+the queue does not have. It also queried in `mount`.
+
+**Decision.** The queue is `AshEnterpriseWeb.A2ui.MdmStewardUI` over `MatchCandidate`'s `:review_queue` read
+(review band, pending, oldest first), at the same `/app/mdm`. `StewardLive` is deleted. Its pieces map as follows:
+
+- **The diff** is calculations on `MatchCandidate` (`staged_name`, `golden_name`, `name_survivor`, …). They load
+  `staged_record` and `golden` with `Ash.load/3` as the reader
+  (`AshEnterprise.Platform.Calculations.RelatedField`), so a staged row or a golden the reader may not read leaves its
+  side empty, and no survivorship is claimed for a golden they cannot see. Two shorter forms were tried first and both
+  leaked an owner-only name to a steward holding no Person grant: an expression through the relationship
+  (`expr(golden.name)`, whose join skips Person's read policy) and a module calculation naming the relationship in
+  `load/3` (Ash loads calculation dependencies without authorization). The second form was also how
+  `AshEnterprise.Canonical.Calculations.PersonLabel` named a message's sender and an event's organizer; it now loads
+  the same way. The test that caught it stays (`test/ash_enterprise_web/a2ui/mdm_steward_ui_test.exs`).
+- **The buttons** are `:confirm_match`, `:reject_match` and `:mark_unsure`, generic actions that exist for their labels
+  (ash_a2ui labels a button by its action's name). Each runs `:confirm`, `:reject` or `:escalate` **as the actor**, so
+  the person gate and the update grant decide exactly as before, and the verdict recorded is still the update's name.
+  They are self-service (ADR 0052) because they authorize nothing themselves: being able to run one grants nothing that
+  the update does not. Each is shown only while the candidate is pending (`visible_when`), and the handler re-checks
+  that on every click.
+- **Bulk** is reject only. A merge is a person's decision about one pair; rejecting a page of weak matches keeps every
+  staged row a record of its own and can be redone by an import.
+
+The golden-records, mapping and import-batch surfaces gained details (related source identities and merge history; a
+mapping's rules and predecessor; a batch's counts, failure and staged rows), each read under its own resource's
+policies. Mapping activation stays off surfaces. ImportLive now drafts and validates a mapping as the person, as it
+already activated one.

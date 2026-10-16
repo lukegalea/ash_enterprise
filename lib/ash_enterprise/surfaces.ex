@@ -525,7 +525,7 @@ defmodule AshEnterprise.Surfaces do
     # The steward's verdict is a person's act: the candidate's :confirm,
     # :reject and :escalate actions refuse system and AI actors by policy, so
     # the queue opens to any signed-in person and the policies decide what
-    # they may read and act on. ACP opens these by name and points at the web.
+    # they may read and act on.
     %Surface{
       key: :steward,
       label: "Steward queue",
@@ -534,8 +534,10 @@ defmodule AshEnterprise.Surfaces do
       order: 0,
       icon: "hero-hand-raised",
       path: "/app/mdm",
-      live: AshEnterpriseWeb.StewardLive,
+      live: A2uiLive.MdmSteward,
+      ui: A2ui.MdmStewardUI,
       resource: AshEnterprise.Mdm.MatchCandidate,
+      context: :candidate,
       acp: %{command: "steward queue", aliases: ["steward"]}
     },
     %Surface{
@@ -564,6 +566,9 @@ defmodule AshEnterprise.Surfaces do
       live: A2uiLive.MdmGolden,
       ui: A2ui.MdmGoldenUI,
       resource: AshEnterprise.Canonical.Person,
+      # People is the first surface over Person, so a plain person link opens
+      # there; links that name this surface (`{:mdm_golden, ...}`) open here.
+      context: :person,
       acp: %{command: "golden records", aliases: ["goldens"]}
     },
     %Surface{
@@ -580,7 +585,26 @@ defmodule AshEnterprise.Surfaces do
       live: A2uiLive.MdmMappings,
       ui: A2ui.MdmMappingUI,
       resource: AshEnterprise.Mdm.Mapping,
+      context: :mapping,
       acp: %{command: "mdm mappings", aliases: ["mappings"]}
+    },
+    %Surface{
+      key: :mdm_batches,
+      label: "Import batches",
+      blurb: "Every import by status, with its counts and its staged rows.",
+      description:
+        "MDM import batches (ADR 0054) as a board by status — open, staging, matching, " <>
+          "review, closed, failed — each with its counters, failure reason, pinned mapping " <>
+          "and staged rows.",
+      group: :mdm,
+      order: 40,
+      icon: "hero-rectangle-stack",
+      path: "/app/mdm/batches",
+      live: A2uiLive.MdmBatches,
+      ui: A2ui.MdmBatchUI,
+      resource: AshEnterprise.Mdm.ImportBatch,
+      context: :batch,
+      acp: %{command: "import batches", aliases: ["batches"]}
     },
 
     # --- Canonical ---------------------------------------------------------------
@@ -841,6 +865,14 @@ defmodule AshEnterprise.Surfaces do
       Enum.find(candidates, &(&1.record_match == [])) ||
       List.first(candidates)
   end
+
+  @doc """
+  Whether `surface` shows `record` as its own: its `record_match` is empty
+  or the record satisfies it.
+  """
+  @spec admits?(Surface.t(), struct()) :: boolean()
+  def admits?(%Surface{record_match: []}, _record), do: true
+  def admits?(%Surface{record_match: match}, record), do: matches?(match, record)
 
   defp matches?(match, record),
     do: Enum.all?(match, fn {attribute, value} -> Map.get(record, attribute) == value end)

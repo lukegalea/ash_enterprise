@@ -148,8 +148,10 @@ defmodule AshEnterpriseWeb.Router do
       live "/app/teams", A2uiLive.Teams
       live "/app/roles", A2uiLive.Roles
       live "/app/business-units", A2uiLive.BusinessUnits
+      live "/app/mdm", A2uiLive.MdmSteward
       live "/app/mdm/mappings", A2uiLive.MdmMappings
       live "/app/mdm/golden", A2uiLive.MdmGolden
+      live "/app/mdm/batches", A2uiLive.MdmBatches
 
       # The same people, over a table this application owns rather than a view over the legacy
       # one. Both are live, and the pair is the demonstration -- see
@@ -200,19 +202,16 @@ defmodule AshEnterpriseWeb.Router do
 
     # --- Master data (ADR 0054) ----------------------------------------------
     #
-    # The MDM demo flow's two hand-written pages: the import wizard (upload a
+    # The MDM demo flow's one hand-written page: the import wizard (upload a
     # CSV, map it -- draft + AI proposal, activation stays a person's act --
-    # run the batch) and the steward queue, where review-banded match
-    # candidates await a person's confirm, reject or unsure. The acts are the
-    # candidate's own person-gated actions; the queue only reads the System
-    # One review queue and calls them. Their A2UI siblings (golden records,
-    # mappings) are in :a2ui_surfaces above.
+    # run the batch). It stays a LiveView because it uploads a file and waits
+    # on a background job. Its A2UI siblings (the steward queue, golden
+    # records, mappings, import batches) are in :a2ui_surfaces above.
     ash_authentication_live_session :mdm_surfaces,
       on_mount: [
         {AshEnterpriseWeb.LiveUserAuth, :live_user_required},
         AshEnterpriseWeb.SurfaceDoor
       ] do
-      live "/app/mdm", StewardLive
       live "/app/mdm/import", ImportLive
     end
 

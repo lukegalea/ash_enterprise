@@ -147,8 +147,9 @@ Sign in with the credentials the seeder prints, then visit:
 |---|---|
 | `/app` | The launcher — every surface in the registry (`AshEnterprise.Surfaces`), grouped, Today leading; sign-in lands here (`/app/hub` and `/app/demo` redirect here) |
 | `/app/mdm/import` | **MDM demo: import a customer CSV** (upload → AI-proposed mapping → activate → run) |
-| `/app/mdm` | **MDM demo: steward queue** — side-by-side diffs awaiting confirm / reject / unsure |
-| `/app/mdm/golden` | **MDM demo: golden records** after the confirm |
+| `/app/mdm` | **MDM demo: steward queue** — side-by-side diffs awaiting confirm / reject / unsure (reject also in bulk) |
+| `/app/mdm/golden` | **MDM demo: golden records** after the confirm, with their source identities and merge history |
+| `/app/mdm/batches` | **MDM demo: import batches** as a board by status, each with its counts and staged rows |
 | `/app/processes` | The `mdm.steward_review` BPMN process the review candidates run (banding itself is a DMN table) |
 | `/agent` | Helper console — proposes changes for your approval, and shows or composes tables on request |
 | `/app/users`, `/app/teams`, `/app/roles`, `/app/business-units` | A2UI surfaces derived from resource metadata |
@@ -167,10 +168,11 @@ Sign in with the credentials the seeder prints, then visit:
 2. Upload any CSV at `/app/mdm/import`, click **AI proposal**, review the
    column mapping, **Validate & activate**, then **Run import**.
 3. Low-confidence matches land at `/app/mdm`: **Confirm match** merges the
-   staged record into its golden; **Reject** keeps it a separate person;
-   **Unsure** records the verdict and leaves it open for a senior steward.
-4. `/app/mdm/golden` shows the survivors; every screen cross-links the
-   others, and to the `mdm.steward_review` process.
+   staged record into its golden; **Reject match** keeps it a separate
+   person (several at once, from a selection); **Mark unsure** records the
+   verdict and leaves it open for a senior steward.
+4. `/app/mdm/golden` shows the survivors and `/app/mdm/batches` the import
+   itself; the screens link to each other.
 
 The seeded review candidate is consumed once decided — re-run
 `mix ash_enterprise.demo` to reseed one (it is idempotent otherwise).

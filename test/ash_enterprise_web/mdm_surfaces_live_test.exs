@@ -1,8 +1,8 @@
 defmodule AshEnterpriseWeb.MdmSurfacesLiveTest do
   @moduledoc """
   The MDM A2UI surfaces driven through the actual LiveView: a signed-in
-  steward sees real rows in the pushed `a2ui:messages` — mappings on one
-  surface, golden records (never merged losers) on the other.
+  steward sees real rows in the pushed `a2ui:messages` — the review queue,
+  mappings, golden records (never merged losers) and import batches.
   """
 
   use AshEnterpriseWeb.ConnCase, async: false
@@ -124,5 +124,35 @@ defmodule AshEnterpriseWeb.MdmSurfacesLiveTest do
     # the merged loser must not present itself as the customer.
     assert encoded =~ "Golda Golden"
     refute encoded =~ "Loser McAbsorbed"
+  end
+
+  test "the steward queue shows a review candidate with its verdicts", %{
+    conn: conn,
+    org: org,
+    admin: admin
+  } do
+    {candidate, _staged, _golden} = staged_candidate!(org, admin, "Ann Dup", "ann2@x.io")
+
+    {:ok, view, _html} = live(conn, "/app/mdm")
+
+    encoded = pushed_json(view)
+    assert encoded =~ "mdm_steward"
+    assert encoded =~ candidate.id
+    assert encoded =~ "Ann Dup Existing"
+    # The three verdicts, and bulk reject.
+    assert encoded =~ "confirm_match"
+    assert encoded =~ "mark_unsure"
+    assert encoded =~ "bulk_invoke"
+  end
+
+  test "the import-batch board shows a batch in its lane", %{conn: conn, org: org, admin: admin} do
+    {_candidate, staged, _golden} = staged_candidate!(org, admin, "Ann Dup", "ann2@x.io")
+
+    {:ok, view, _html} = live(conn, "/app/mdm/batches")
+
+    encoded = pushed_json(view)
+    assert encoded =~ "mdm_batches"
+    assert encoded =~ staged.batch_id
+    assert encoded =~ "acme_contacts"
   end
 end

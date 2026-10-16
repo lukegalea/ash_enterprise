@@ -68,6 +68,25 @@ defmodule AshEnterprise.Mdm.StagedRecord do
     identity :one_per_source_record, [:batch_id, :source_record_id]
   end
 
+  calculations do
+    # What a row reads as on the batch surface: the mapped values, never the
+    # landed source row.
+    calculate :label, :string, expr(mapped[:name] || mapped[:email] || "Unmapped row") do
+      public? true
+      description "The staged row by mapped name, else email."
+    end
+
+    calculate :mapped_email, :string, expr(mapped[:email]) do
+      public? true
+      description "The staged row's mapped email."
+    end
+
+    calculate :findings_text, :string, AshEnterprise.Mdm.Calculations.FindingsText do
+      public? true
+      description "The row's validation findings as text, or nil when it mapped cleanly."
+    end
+  end
+
   actions do
     read :read do
       primary? true

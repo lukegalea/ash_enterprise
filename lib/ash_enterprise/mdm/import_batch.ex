@@ -18,6 +18,36 @@ defmodule AshEnterprise.Mdm.ImportBatch do
   postgres do
     table "mdm_import_batches"
     repo AshEnterprise.Repo
+
+    references do
+      # A display relationship over the pinned `mapping_id`: no foreign key,
+      # the schema is unchanged.
+      reference :mapping, ignore?: true
+    end
+  end
+
+  relationships do
+    belongs_to :mapping, AshEnterprise.Mdm.Mapping do
+      source_attribute :mapping_id
+      define_attribute? false
+      public? true
+      description "The mapping version the batch pinned at open."
+    end
+  end
+
+  calculations do
+    calculate :counts_summary, :string, AshEnterprise.Mdm.Calculations.CountsSummary do
+      public? true
+      description "The running counters as one line: `12 landed · 12 staged · 2 review`."
+    end
+
+    calculate :opened,
+              :string,
+              {AshEnterprise.Platform.Calculations.LocalStamp,
+               field: :created_on, relative?: true} do
+      public? true
+      description "When the batch opened, on the operator's wall clock."
+    end
   end
 
   attributes do

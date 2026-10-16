@@ -2,8 +2,10 @@ defmodule AshEnterpriseWeb.ImportLiveTest do
   @moduledoc """
   The import wizard driven through the actual LiveView: upload → parse →
   map (deterministic AI proposal) → activate → run → the batch lands rows
-  in the steward queue. The queue's own decisions are StewardLive's tested
+  in the steward queue. The queue's own decisions are MdmStewardUI's tested
   territory; this suite stops at "the candidate and the new golden exist".
+  Every write runs as the signed-in person: one without a grant on mappings
+  cannot draft one.
   """
 
   use AshEnterpriseWeb.ConnCase, async: false
@@ -160,8 +162,12 @@ defmodule AshEnterpriseWeb.ImportLiveTest do
     assert html =~ "Import finished"
     assert html =~ "review"
 
+    # The finished run links the batch on the import-batch board.
+    batch = AshEnterprise.Mdm.ImportBatch |> Ash.read_one!(tenant: org, authorize?: false)
+    assert has_element?(view, "#go-batch-link[href='/app/r/mdm_batches/#{batch.id}']")
+
     # The fuzzy match awaits a steward; the genuinely new row is its own
-    # golden (the queue decision itself is StewardLive's territory).
+    # golden (the queue decision itself is MdmStewardUI's territory).
     candidate =
       AshEnterprise.Mdm.MatchCandidate
       |> Ash.Query.filter(band == ^:review and status == ^:pending)
@@ -224,5 +230,33 @@ defmodule AshEnterpriseWeb.ImportLiveTest do
     # The editor stays: the person fixes the mapping, the machine never
     # activates.
     assert has_element?(view, "#validate-activate-btn")
+  end
+
+  test "a person without a grant on mappings cannot draft one", %{org: org, admin: admin} do
+    member =
+      AshEnterprise.Test.DailyFixtures.member!(
+        %{tenant: org, user: admin},
+        "No mapping grants",
+        []
+      )
+
+    {:ok, view, _html} = live(sign_in(build_conn(), member.user), "/app/mdm/import")
+    upload_csv(view)
+
+    view
+    |> element("#mapping-editor")
+    |> render_change(%{
+      "rules" => %{
+        "Email" => %{"target" => "email", "op" => "trim"},
+        "Full Name" => %{"target" => "name", "op" => "identity"}
+      }
+    })
+
+    view |> element("#validate-activate-btn") |> render_click()
+
+    assert render(view) =~ "Mapping refused"
+
+    # Nothing was drafted on their behalf.
+    refute AshEnterprise.Mdm.Mapping |> Ash.exists?(tenant: org, authorize?: false)
   end
 end

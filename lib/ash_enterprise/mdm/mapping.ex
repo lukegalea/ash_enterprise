@@ -24,6 +24,29 @@ defmodule AshEnterprise.Mdm.Mapping do
   use AshMdm.Resources,
       {:mapping, repo: AshEnterprise.Repo, table: "mdm_mappings", tenant?: true}
 
+  calculations do
+    calculate :rule_summary, :string, AshEnterprise.Mdm.Calculations.RuleSummary do
+      public? true
+      description "The field rules as text, one per line: `Email → email (trim)`."
+    end
+
+    # Activation and versioning link a version to its predecessor
+    # (`supersedes_id`); the predecessor is one version earlier by
+    # construction (`AshMdm.Changes.LinkVersionChain`).
+    calculate :previous_version,
+              :string,
+              expr(
+                if is_nil(supersedes_id) do
+                  nil
+                else
+                  "Version " <> type(version - 1, :string)
+                end
+              ) do
+      public? true
+      description "The version this one supersedes, by number."
+    end
+  end
+
   policies do
     # `policies?: false` is deliberate (the HumanVerdict drill): the
     # inherited set opens with `bypass SystemActor`, which would let a

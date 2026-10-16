@@ -12,8 +12,12 @@ defmodule AshEnterpriseWeb.ImportLive do
      person activates.
   3. **Run** — rows land, a batch opens (pinning the mapping's content
      hash), and the `BatchWorker` Oban job stages → matches → bands. The
-     view polls the job and shows the tally; review-banded matches end up
+     view polls the job and shows the tally, and links the batch on the
+     import-batch board (`/app/mdm/batches`); review-banded matches end up
      in the steward queue at `/app/mdm`.
+
+  Every write runs as the signed-in person — drafting, validating and
+  activating a mapping, opening the batch — so their grants decide.
 
   Mapping reads happen in `handle_params` (iron law #01: no DB work in
   mount — the dead render is crawler HTML).
@@ -184,39 +188,20 @@ defmodule AshEnterpriseWeb.ImportLive do
       observed_schema: socket.assigns.observed_schema
     }
 
-    draft =
-      Mapping
-      |> Ash.Changeset.for_create(:draft, attrs, tenant: tenant, authorize?: false)
-      |> Ash.create!(tenant: tenant, authorize?: false)
-
-    validated =
-      draft
-      |> Ash.Changeset.for_update(:validate, %{}, tenant: tenant, authorize?: false)
-      |> Ash.update!(tenant: tenant, authorize?: false)
-
-    findings = validated.validation_findings || %{"errors" => []}
-
-    if validated.status == :validated do
-      case validated
-           |> Ash.Changeset.for_update(:activate, %{activation_note: "ImportLive"},
-             tenant: tenant,
-             actor: actor
-           )
-           |> Ash.update(tenant: tenant, actor: actor) do
-        {:ok, active} ->
-          {:noreply,
-           socket
-           |> assign(:mapping_id, active.id)
-           |> assign(:mappings, [active | socket.assigns.mappings])
-           |> put_flash(:info, "Mapping activated — ready to run the import.")}
-
-        {:error, error} ->
-          {:noreply, put_flash(socket, :error, "Activation refused: #{message(error)}")}
-      end
+    # Every step runs as the person: drafting and validating need their
+    # grants on Mapping exactly as activating does.
+    with {:ok, draft} <-
+           Mapping
+           |> Ash.Changeset.for_create(:draft, attrs, tenant: tenant, actor: actor)
+           |> Ash.create(),
+         {:ok, validated} <-
+           draft
+           |> Ash.Changeset.for_update(:validate, %{}, tenant: tenant, actor: actor)
+           |> Ash.update() do
+      activate_validated(socket, validated, actor, tenant)
     else
-      {:noreply,
-       socket
-       |> put_flash(:error, "Validation refused: #{finding_text(findings)}")}
+      {:error, error} ->
+        {:noreply, put_flash(socket, :error, "Mapping refused: #{message(error)}")}
     end
   end
 
@@ -284,8 +269,7 @@ defmodule AshEnterpriseWeb.ImportLive do
       socket =
         case state do
           "failed" ->
-            reason =
-              ImportBatch.by_id!(batch.id, tenant: tenant, authorize?: false).failure_reason
+            reason = ImportBatch.by_id!(batch.id, tenant: tenant, actor: actor).failure_reason
 
             put_flash(socket, :error, "Import failed: #{reason}")
 
@@ -301,6 +285,30 @@ defmodule AshEnterpriseWeb.ImportLive do
   end
 
   # -- helpers ---------------------------------------------------------------
+
+  defp activate_validated(socket, %{status: :validated} = validated, actor, tenant) do
+    case validated
+         |> Ash.Changeset.for_update(:activate, %{activation_note: "ImportLive"},
+           tenant: tenant,
+           actor: actor
+         )
+         |> Ash.update() do
+      {:ok, active} ->
+        {:noreply,
+         socket
+         |> assign(:mapping_id, active.id)
+         |> assign(:mappings, [active | socket.assigns.mappings])
+         |> put_flash(:info, "Mapping activated — ready to run the import.")}
+
+      {:error, error} ->
+        {:noreply, put_flash(socket, :error, "Activation refused: #{message(error)}")}
+    end
+  end
+
+  defp activate_validated(socket, validated, _actor, _tenant) do
+    findings = validated.validation_findings || %{"errors" => []}
+    {:noreply, put_flash(socket, :error, "Validation refused: #{finding_text(findings)}")}
+  end
 
   defp consume_csv(socket) do
     entries =
@@ -626,6 +634,14 @@ defmodule AshEnterpriseWeb.ImportLive do
             <.button id="go-steward-link" navigate={~p"/app/mdm"} variant="primary" size="sm">
               Steward queue
             </.button>
+            <.button
+              id="go-batch-link"
+              href={~p"/app/r/mdm_batches/#{@batch.id}"}
+              variant="ghost"
+              size="sm"
+            >
+              This batch
+            </.button>
             <.button navigate={~p"/app/mdm/golden"} variant="ghost" size="sm">
               Golden records
             </.button>
@@ -645,6 +661,13 @@ defmodule AshEnterpriseWeb.ImportLive do
           </h2>
           <p class="text-sm text-foreground/70">
             Batch {String.slice(@batch.id, 0, 8)}… — staging, matching and banding the rows.
+            <.link
+              id="running-batch-link"
+              href={~p"/app/r/mdm_batches/#{@batch.id}"}
+              class="underline"
+            >
+              Open the batch
+            </.link>
           </p>
         </.card>
       <% end %>

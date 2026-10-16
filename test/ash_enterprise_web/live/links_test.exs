@@ -75,6 +75,18 @@ defmodule AshEnterpriseWeb.LinksTest do
       assert redirected_to(conn) == ctx_path("/app/slack", "conversation", slack.id)
     end
 
+    test "a link that names a second surface over the resource opens there", %{
+      conn: conn,
+      ctx: ctx
+    } do
+      ada = person!(ctx, "ada@example.test", "Ada Park")
+
+      # People is the first surface over Person; the golden-records surface
+      # keeps a person a link sends it, rather than bouncing it to People.
+      conn = get(conn, "/app/r/mdm_golden/#{ada.id}")
+      assert redirected_to(conn) == ctx_path("/app/mdm/golden", "person", ada.id)
+    end
+
     test "a typed record reference opens the subject's surface", %{conn: conn, ctx: ctx} do
       brief = brief!(ctx)
 
