@@ -308,13 +308,15 @@ defmodule AshEnterprise.Surfaces do
     %Surface{
       key: :tasks,
       label: "My tasks",
-      blurb: "Every process task routed to you, with its form.",
+      blurb: "Every process task routed to you: claim it, complete it, or hand it on.",
       group: :processes,
       order: 0,
       icon: "hero-inbox-stack",
       path: "/app/tasks",
-      live: AshEnterpriseWeb.Bpmn.TaskListLive,
+      live: A2uiLive.Tasks,
+      ui: A2ui.TaskBoardUI,
       resource: HumanTask,
+      context: :task,
       acp: %{command: "my tasks"}
     },
     %Surface{

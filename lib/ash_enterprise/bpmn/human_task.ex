@@ -106,6 +106,19 @@ defmodule AshEnterprise.Bpmn.HumanTask do
       description "Who claimed the task, by email."
     end
 
+    # The board's `visible_when` key for Complete / Delegate: only the
+    # person holding a claimed task acts on it. UX only — the actions check
+    # it again (`AshEnterprise.Bpmn.Candidacy.assignee/2`).
+    calculate :claimed_by_me,
+              :boolean,
+              expr(
+                status == :claimed and assignee_type == :user and not is_nil(^actor(:id)) and
+                  assignee_id == ^actor(:id)
+              ) do
+      public? true
+      description "Whether the reader holds this claimed task."
+    end
+
     calculate :waiting_since,
               :string,
               {AshEnterprise.Platform.Calculations.LocalStamp,
@@ -117,8 +130,45 @@ defmodule AshEnterprise.Bpmn.HumanTask do
 
   actions do
     read :awaiting_me do
-      description "Open or claimed tasks the actor (or one of their teams) is a candidate for, oldest first."
+      description "Open or claimed tasks the actor (or one of their teams) is a candidate for, or that the actor holds, oldest first."
       prepare AshEnterprise.Bpmn.Preparations.AwaitingActor
+    end
+
+    action :claim_task, :string do
+      description """
+      Claim an open task the actor (or one of their teams) is a candidate
+      for, through the process engine.
+      """
+
+      argument :record_id, :uuid, allow_nil?: false
+      run {AshEnterprise.Bpmn.Actions.WorkTask, op: :claim}
+    end
+
+    action :complete_task, :string do
+      description """
+      Complete a task the actor has claimed with an outcome, through the
+      process engine (`AshBpmn.complete_task/2`).
+      """
+
+      argument :record_id, :uuid, allow_nil?: false
+
+      argument :outcome, :string,
+        allow_nil?: false,
+        constraints: [max_length: 100, trim?: true, allow_empty?: false]
+
+      argument :comment, :string, allow_nil?: true, constraints: [max_length: 2000]
+      run {AshEnterprise.Bpmn.Actions.WorkTask, op: :complete}
+    end
+
+    action :delegate_task, :string do
+      description """
+      Hand a task the actor has claimed to another person, by their email
+      address, through the process engine (`AshBpmn.delegate_task/2`).
+      """
+
+      argument :record_id, :uuid, allow_nil?: false
+      argument :delegate_to, :ci_string, allow_nil?: false, constraints: [max_length: 320]
+      run {AshEnterprise.Bpmn.Actions.WorkTask, op: :delegate}
     end
 
     action :approve, :string do

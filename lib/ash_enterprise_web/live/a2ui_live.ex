@@ -497,4 +497,22 @@ defmodule AshEnterpriseWeb.A2uiLive do
 
     def render(assigns), do: Chrome.page(assigns)
   end
+
+  defmodule Tasks do
+    @moduledoc "A2UI board of the process tasks waiting on the signed-in person (`/app/tasks`)."
+    use AshA2ui.LiveRenderer,
+      ui: AshEnterpriseWeb.A2ui.TaskBoardUI,
+      deep_link: true,
+      actor_fn: &__MODULE__.actor/1,
+      tenant_fn: &__MODULE__.tenant/1
+
+    alias AshEnterprise.Security.ActorContext
+    alias AshEnterpriseWeb.A2uiLive.Chrome
+
+    def actor(socket), do: socket.assigns[:current_user]
+
+    def tenant(socket), do: ActorContext.tenant(socket.assigns[:current_user])
+
+    def render(assigns), do: Chrome.page(assigns)
+  end
 end

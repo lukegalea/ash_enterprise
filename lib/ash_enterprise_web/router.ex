@@ -152,6 +152,7 @@ defmodule AshEnterpriseWeb.Router do
       live "/app/mdm/mappings", A2uiLive.MdmMappings
       live "/app/mdm/golden", A2uiLive.MdmGolden
       live "/app/mdm/batches", A2uiLive.MdmBatches
+      live "/app/tasks", A2uiLive.Tasks
 
       # The same people, over a table this application owns rather than a view over the legacy
       # one. Both are live, and the pair is the demonstration -- see
@@ -276,7 +277,6 @@ defmodule AshEnterpriseWeb.Router do
         {AshEnterpriseWeb.Bpmn.Helpers, :assign_tenant},
         AshEnterpriseWeb.SurfaceDoor
       ] do
-      live "/app/tasks", Bpmn.TaskListLive
       live "/app/processes", Bpmn.CatalogLive, :processes
       live "/app/decisions", Bpmn.CatalogLive, :decisions
       live "/app/triggers", Bpmn.CatalogLive, :triggers

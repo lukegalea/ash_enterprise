@@ -2,8 +2,9 @@ defmodule AshEnterprise.Bpmn.Preparations.AwaitingActor do
   @moduledoc """
   Narrows a human-task read to the tasks waiting on the actor: open or claimed,
   with a candidate row naming the actor or one of their teams — the same
-  materialised candidacy `/app/tasks` joins on (manifesto 03), oldest first so
-  a numbered list stays stable between reads ("approve 1").
+  materialised candidacy `/app/tasks` joins on (manifesto 03) — or claimed by
+  the actor (a task delegated to them is theirs without a candidate row),
+  oldest first so a numbered list stays stable between reads ("approve 1").
 
   The actor's principal ids are the precomputed `ActorContext`'s (never
   queried for). They are read in a `before_action` hook, i.e. from the actor
@@ -24,8 +25,16 @@ defmodule AshEnterprise.Bpmn.Preparations.AwaitingActor do
     |> Ash.Query.filter(status in [:open, :claimed])
     |> Ash.Query.sort(inserted_at: :asc, id: :asc)
     |> Ash.Query.before_action(fn query ->
-      principal_ids = ActorContext.for_actor(running_actor(query)).principal_ids
-      Ash.Query.filter(query, exists(candidates, principal_id in ^principal_ids))
+      context = ActorContext.for_actor(running_actor(query))
+      principal_ids = context.principal_ids
+      user_id = context.user_id
+
+      Ash.Query.filter(
+        query,
+        exists(candidates, principal_id in ^principal_ids) or
+          (not is_nil(^user_id) and status == :claimed and assignee_type == :user and
+             assignee_id == ^user_id)
+      )
     end)
   end
 
