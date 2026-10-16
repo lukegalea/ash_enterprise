@@ -13,9 +13,9 @@ defmodule AshEnterprise.Integration.Slack.Syncer do
        (`LinkedAccount.for_operation`); the connection is never an input. Then
        opens the account's erasure scope (`Landing.open/1`) — a shredded scope
        cancels the step (`:scope_shredded`) before anything is fetched.
-    3. `conversations.list` (public and private channels, MPIMs, IMs), keeping
-       only conversations the user is a member of; lands each as
-       `slack.conversations`.
+    3. `users.conversations` (joined public and private channels, MPIMs, IMs):
+       only the conversations the user is a member of, so nothing is filtered
+       here; lands each as `slack.conversations`.
     4. For each conversation, `conversations.history` from its stored cursor
        (`ConversationCursor`), cursor-paginated, landing each message as
        `slack.messages` and saving the position after every page.
@@ -49,14 +49,21 @@ defmodule AshEnterprise.Integration.Slack.Syncer do
   first in line on the next scheduled step, and reporting them would keep the
   job snoozing forever on an account bigger than the budget.
 
-  `conversations.list` is cut off after `max_list_pages`; a step that stopped
-  there reports `list_truncated?: true` in its telemetry metadata and log line
-  (with a user token the list includes every public channel in the workspace,
-  joined or not, and membership is filtered here).
+  The listing is `users.conversations`, not `conversations.list`: with a user
+  token `conversations.list` returns every public channel in the workspace,
+  joined or not, in a stable order, so a page budget over it never reaches the
+  member conversations listed after the first few thousand workspace channels.
+  `users.conversations` lists only the user's own conversations, so the budget
+  is spent on nothing else.
+
+  The listing is still cut off after `max_list_pages` (default 25 × 200, i.e.
+  5,000 of the user's own conversations — IMs count, one per person ever
+  messaged); a step that stopped there reports `list_truncated?: true` in its
+  telemetry metadata and log line.
 
   The defaults sit inside Slack's tiers for an internal app: 40 history pages
-  per step against `conversations.history`'s Tier 3 (~50/min), 20 list pages
-  against `conversations.list`'s Tier 2 (~20/min), 50 profiles against
+  per step against `conversations.history`'s Tier 3 (~50/min), at most 25 list
+  pages against `users.conversations`'s Tier 3 (~50/min), 50 profiles against
   `users.info`'s Tier 4 (~100/min). Going over is not fatal — a 429 comes back
   as a snooze — it is just slower.
 
@@ -96,7 +103,7 @@ defmodule AshEnterprise.Integration.Slack.Syncer do
   ## Configuration
 
       config :ash_enterprise, AshEnterprise.Integration.Slack.Syncer,
-        list_limit: 200, max_list_pages: 20, history_limit: 200,
+        list_limit: 200, max_list_pages: 25, history_limit: 200,
         max_pages_per_step: 40, max_pages_per_conversation: 5,
         max_user_lookups_per_step: 50, member_refresh_after_seconds: 604_800,
         backfill_days: 30, rate_limit_snooze_seconds: 60
@@ -124,7 +131,7 @@ defmodule AshEnterprise.Integration.Slack.Syncer do
 
   @defaults [
     list_limit: 200,
-    max_list_pages: 20,
+    max_list_pages: 25,
     history_limit: 200,
     max_pages_per_step: 40,
     max_pages_per_conversation: 5,
@@ -203,7 +210,7 @@ defmodule AshEnterprise.Integration.Slack.Syncer do
       with {:ok, state} <- require_landing(state),
            {:ok, state} <- resolve_account(state, linked_account_id),
            state = load_noted(state),
-           {:ok, conversations, state} <- list_conversations(state),
+           {:ok, conversations, state} <- user_conversations(state),
            {:ok, state} <- land_conversations(conversations, state),
            {:ok, state} <- sync_conversations(conversations, state),
            {:ok, state} <- sync_members(state) do
@@ -292,9 +299,11 @@ defmodule AshEnterprise.Integration.Slack.Syncer do
 
   # --- 3. conversations ------------------------------------------------------------
 
-  defp list_conversations(state), do: list_conversations(state, nil, [], 0)
+  # `users.conversations` returns only conversations the user is a member of,
+  # and its items carry no `is_member`: every item is kept.
+  defp user_conversations(state), do: user_conversations(state, nil, [], 0)
 
-  defp list_conversations(state, cursor, acc, pages) do
+  defp user_conversations(state, cursor, acc, pages) do
     params =
       compact(%{
         types: @conversation_types,
@@ -303,14 +312,14 @@ defmodule AshEnterprise.Integration.Slack.Syncer do
         cursor: cursor
       })
 
-    case call(state, :list_conversations, params) do
+    case call(state, :user_conversations, params) do
       {:ok, body} ->
-        acc = acc ++ Enum.filter(List.wrap(body["channels"]), &Records.member?/1)
+        acc = acc ++ List.wrap(body["channels"])
         next = next_cursor(body)
 
         cond do
           next && pages + 1 < state.config.max_list_pages ->
-            list_conversations(state, next, acc, pages + 1)
+            user_conversations(state, next, acc, pages + 1)
 
           next ->
             {:ok, distinct(acc), %{state | list_truncated?: true}}
@@ -643,7 +652,7 @@ defmodule AshEnterprise.Integration.Slack.Syncer do
 
     result =
       case operation do
-        :list_conversations -> Slack.list_conversations(params, actor: state.actor)
+        :user_conversations -> Slack.user_conversations(params, actor: state.actor)
         :conversation_history -> Slack.conversation_history(params, actor: state.actor)
         :user_info -> Slack.user_info(params, actor: state.actor)
       end

@@ -48,7 +48,7 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
   owner-only — `Conversation`, `Message` and `Person` are user-owned and
   owner-only (`AshEnterprise.Security.Privilege.owner_only?/1`), so nothing
   projected here, a DM least of all, is readable by another user. The kind
-  comes from the conversation's own landed `conversations.list` record
+  comes from the conversation's own landed `users.conversations` record
   (`kind/1`): `is_im` is a `:dm`, `is_mpim` a `:group_dm`, a private channel
   (`is_private`, and `is_channel` or the legacy `is_group`) a
   `:private_channel`, and `is_channel` with `is_private: false` a
@@ -525,7 +525,7 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
   # --- conversations ------------------------------------------------------------------
 
   @doc false
-  # What sort of conversation the landed `conversations.list` record says this
+  # What sort of conversation the landed `users.conversations` record says this
   # is, or nil when it does not say (nothing is projected for it). IM and MPIM
   # flags first: an MPIM is also `is_group` and `is_private`.
   def kind(%{"is_im" => true}), do: :dm

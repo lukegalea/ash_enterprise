@@ -192,10 +192,61 @@ defmodule AshEnterprise.Security.ConformanceTest do
     end
   end
 
+  describe "self-service actions (ADR 0052)" do
+    test "a declared read reaches the actor's own rows with no role, and only those", ctx do
+      actor = context_for(ctx, :alice)
+
+      assert visible(actor, ctx, :mine) == [:alice]
+      # Undeclared actions get nothing from the path: the primary read still
+      # fails closed.
+      assert visible(actor, ctx) == []
+    end
+
+    test "it adds to a role grant and takes nothing from it", ctx do
+      actor = with_role(ctx, :alice, :read, :deep, ctx.bus.emea)
+
+      assert visible(actor, ctx, :mine) == [:alice, :bob]
+      assert visible(actor, ctx) == [:alice, :bob]
+    end
+
+    test "a declared generic action is authorized for an active member with no role", ctx do
+      actor = context_for(ctx, :alice)
+
+      assert Ash.can?({Widget, :whoami}, actor, tenant: ctx.org)
+      refute Ash.can?({Widget, :whoami}, nil, tenant: ctx.org)
+    end
+
+    test "a deactivated account is not a member", ctx do
+      user =
+        ctx.users.alice
+        |> Ash.Changeset.for_update(:deactivate, %{}, authorize?: false)
+        |> Ash.update!()
+        |> Map.put(:organization_id, ctx.org)
+
+      actor = ActorContext.attach(user, ActorContext.build(user, tenant: ctx.org))
+
+      refute Ash.can?({Widget, :whoami}, actor, tenant: ctx.org)
+      assert visible(actor, ctx, :mine) == []
+    end
+
+    test "it does not reach across tenants", ctx do
+      actor = context_for(ctx, :alice)
+
+      refute Ash.can?({Widget, :whoami}, actor, tenant: Ash.UUID.generate())
+
+      # Asked with no tenant at all (ash_acp's palette pruning), a generic
+      # action has no rows to cross into, so it is offered.
+      assert Ash.can?({Widget, :whoami}, actor)
+    end
+  end
+
   # --- helpers ----------------------------------------------------------------
 
-  defp visible(actor, ctx) do
-    {:ok, widgets} = Ash.read(Widget, actor: actor, tenant: ctx.org)
+  defp visible(actor, ctx, action \\ :read) do
+    {:ok, widgets} =
+      Widget
+      |> Ash.Query.for_read(action, %{}, actor: actor, tenant: ctx.org)
+      |> Ash.read()
 
     names = Map.new(ctx.widgets, fn {key, widget} -> {widget.id, key} end)
 

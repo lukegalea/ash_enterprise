@@ -129,6 +129,11 @@ devenv shell -- mix ash_enterprise.demo # a business-unit tree, people, teams, r
 devenv shell -- iex-server              # the app
 ```
 
+**Starting a new application from this template?** Read
+[`docs/BLEEDING-EDGE.md`](docs/BLEEDING-EDGE.md) first. Two dependencies are forks of
+upstream packages, and 13 of our own packages are not on Hex yet. That page
+says which, why, and the path back to a Hex release for each.
+
 `seed` provisions the minimum — one organization, one business unit, one
 administrator — which is what tests want and what a first run needs. `demo`
 fills it out, because most of what this platform argues for is invisible against
@@ -419,6 +424,7 @@ The reasoning, the sequencing and what stays deliberately open is [`docs/ROADMAP
 | [`docs/HANDOFF.md`](docs/HANDOFF.md) | **Start here in a new session** — current state, and findings that cost time to discover |
 | [`docs/manifesto/`](docs/manifesto/00-index.md) | The eight theses, including [what we do not have](docs/manifesto/07-what-we-do-not-have.md) |
 | [`docs/adr/`](docs/adr/README.md) | Decision records, with the reversal path for each |
+| [`docs/BLEEDING-EDGE.md`](docs/BLEEDING-EDGE.md) | **Forks and unreleased packages** — what is not a Hex release, and the path back for each |
 | [`docs/plans/`](docs/plans/) | Specifications: strangler-fig migrations, process modelling, API versioning |
 | [`docs/roadmap.json`](docs/roadmap.json) | The source every status table above is generated from |
 | `AGENTS.md` | Generated from dependency usage rules — do not edit the generated sections |

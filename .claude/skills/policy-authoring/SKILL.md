@@ -12,13 +12,17 @@ operational summary; that document is the argument.
 
 **Access is a pure union of grants. There are no deny rules.**
 
-A principal may act on a record if **any** of three paths grants it, and the
+A principal may act on a record if **any** of four paths grants it, and the
 paths never subtract:
 
 1. **Role grant** — `(role, privilege, depth)` from `RolePrivilege`, unioned over
    direct roles and roles inherited through owner-team membership.
 2. **Share** — an explicit `AccessGrant` row for the actor or one of their teams.
 3. **Hierarchy** — manager or position chain, if enabled (off by default).
+4. **Self-service** — an action the resource declares `self_service:`, which any
+   active member may run on their own behalf with no grant: a generic action
+   outright, a create or read only on rows they own (ADR 0052). Updates and
+   destroys cannot be declared.
 
 This comes straight from Dataverse: *"all privilege grants are accumulative with
 the greatest amount of access prevailing."*
@@ -41,6 +45,7 @@ policy always() do
   authorize_if AshEnterprise.Security.Checks.RoleGrant
   authorize_if AshEnterprise.Security.Checks.SharedWithActor
   authorize_if AshEnterprise.Security.Checks.HierarchyGrant
+  authorize_if AshEnterprise.Security.Checks.SelfService
 end
 ```
 

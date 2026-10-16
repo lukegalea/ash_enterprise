@@ -34,7 +34,11 @@ defmodule AshEnterprise.Conformance.Widget do
     ownership: :user_owned,
     data_layer: Ash.DataLayer.Ets,
     audit?: false,
-    archival?: false
+    archival?: false,
+    # Two self-service actions (ADR 0052), so the conformance suite can pin
+    # the fourth grant path: `:mine` reaches only the actor's own widgets,
+    # `:whoami` is a generic action scoped to the actor by construction.
+    self_service: [:mine, :whoami]
 
   ets do
     private? true
@@ -59,6 +63,15 @@ defmodule AshEnterprise.Conformance.Widget do
 
     update :update do
       primary? true
+    end
+
+    read :mine do
+      description "Self-service: the actor's own widgets, with no role grant."
+    end
+
+    action :whoami, :string do
+      description "Self-service: answers with the actor's own id and nothing else."
+      run fn _input, context -> {:ok, to_string(context.actor.id)} end
     end
   end
 

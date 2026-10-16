@@ -219,6 +219,14 @@ jobs:
       - name: Validate agent docs (EXTRA_DOCS)
         run: scripts/extra-docs.sh
 
+      # AGENTS.md and .claude/skills are generated from the usage-rules.md
+      # files the locked dependencies ship. A mix.lock bump without
+      # `mix usage_rules.sync` leaves them describing the old versions, and
+      # nothing else notices. Dev env because ash_agent_tools is dev-only and
+      # contributes a section.
+      - name: Usage rules synced with mix.lock
+        run: scripts/usage-rules-check.sh
+
       # app.js imports first-party hooks straight out of deps/ (ash_a2ui,
       # ash_bpmn, ash_decisions), so bumping a dependency can break the bundle
       # without touching a line in this repository. ash_a2ui 9b67282 did

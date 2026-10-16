@@ -7,6 +7,9 @@ defmodule AshEnterprise.Repo.Migrations.AddProjectionCursors do
 
   use Ecto.Migration
 
+  # `prefix: prefix()` rather than the generated `prefix: "public"`, so foreign keys
+  # follow the migrator's schema (ASH_SCHEMA). See 20260813155542_add_hierarchy_security.exs.
+
   def up do
     create table(:integration_projection_cursors, primary_key: false) do
       add :version_number, :bigint, null: false, default: 1
@@ -42,7 +45,7 @@ defmodule AshEnterprise.Repo.Migrations.AddProjectionCursors do
             column: :id,
             name: "integration_projection_cursors_linked_account_id_fkey",
             type: :uuid,
-            prefix: "public",
+            prefix: prefix(),
             on_delete: :delete_all
           ),
           null: false

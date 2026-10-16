@@ -43,8 +43,26 @@ a debounced (150 ms) `AshA2ui.Info.build_data_model/2` refresh.
   `AshA2ui.ActionHandler.handle/3` and pushes the follow-up messages for
   both ok and error results.
 
+- Client -> server: `"a2ui:open_surface"` with `%{"surface", "recordId",
+  "query"}` when a reference link is activated. The default handling
+  `push_navigate`s to the `:open_surface_url` option (or `config :ash_a2ui,
+  :open_surface_url`, `{surface}`/`{recordId}` placeholders); pass
+  `open_surface: &MyLive.open/2` (`(args, socket) -> {:noreply, socket}`)
+  to stack surfaces or anything else. The target is always built
+  server-side — never trust a client href.
+
 Don't rename these events or bypass the handler in a custom
 `handle_event/3`.
+
+## Deep links
+
+- The connected mount reads `?ctx[<context>]=<id>` (validated through
+  authorized reads, labels derived server-side) and `?q[...]` (the
+  `/query` state, allowlist-validated) into the bootstrap.
+- `deep_link: true` injects `handle_params/3` (router-mounted LiveViews
+  only): context changes `push_patch` the `ctx` params (other params
+  kept) and back/forward re-applies them. Hosts that wrap
+  `AshA2ui.LiveRenderer.mount/4` themselves must pass the real `params`.
 
 ## JS hook wiring (host bundle responsibilities)
 

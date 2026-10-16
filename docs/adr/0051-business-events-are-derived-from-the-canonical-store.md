@@ -112,6 +112,17 @@ user's direct `record` call raises (pinned by a test) rather than recording. It 
 ("Cannot use filter checks with generic actions"), not `Forbidden` — true of every generic action on a `:user_owned`
 platform resource for a non-`:global` grant, and worth a platform fix of its own. Nothing exposes either action.
 
+> **2026-10-14.** Fixed at the platform: for a generic action the grant checks no longer answer with a filter.
+> `RoleGrant` authorizes it only on a `:global` grant (a generic action has no row for a narrower depth to reach),
+> and `SharedWithActor` and `HierarchyGrant` contribute `false`. Nothing widened — the raise already refused these
+> calls — but a direct `record` is now `Forbidden`, and `Ash.can?/3` answers `false` instead of raising, which is
+> what the ACP command palette prunes with: a user holding any narrower-than-global grant on a palette action's
+> resource could not open an ACP session at all.
+>
+> **2026-10-15.** A generic action a resource declares `self_service` is the one exception: any active member of the
+> tenant may run it with no grant ([ADR 0052](0052-self-service-actions.md)). Only `MorningBrief.compose_today`
+> declares one; the two actions here do not.
+
 ## Consequences
 
 - Dogfood has an event stream: the owner's commit-ordered feed (`Ledger.feed(region, after_sequence: n)`) of what

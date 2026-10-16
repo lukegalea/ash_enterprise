@@ -51,11 +51,21 @@ defmodule AshEnterprise.Security.Checks.RoleGrant do
       is_nil(context.user_id) ->
         false
 
+      generic?(authorizer) ->
+        ActorContext.grant(context, authorizer.resource, verb(authorizer)).global?
+
       true ->
         grant = ActorContext.grant(context, authorizer.resource, verb(authorizer))
         build_filter(grant, context, authorizer.resource)
     end
   end
+
+  # A generic action has no row for a depth to reach, and Ash refuses to
+  # evaluate a filter for one (it raises rather than forbidding). So only a
+  # grant that reaches every row -- `:global` -- authorizes it; a narrower one
+  # contributes `false`. This is the answer the raise already enforced, made
+  # a clean refusal that `Ash.can?/3` (the ACP palette's pruning) can report.
+  defp generic?(authorizer), do: authorizer.action.type == :action
 
   defp verb(authorizer) do
     AccessRight.for_action_type(authorizer.action.type)

@@ -753,8 +753,7 @@ defmodule AshEnterprise.Integration.ErasureE2ETest do
       "name" => "e2e-synthetic-channel",
       "is_channel" => true,
       "is_private" => false,
-      "is_archived" => false,
-      "is_member" => true
+      "is_archived" => false
     }
 
     private_channel = %{
@@ -762,8 +761,7 @@ defmodule AshEnterprise.Integration.ErasureE2ETest do
       "name" => "e2e-synthetic-private",
       "is_channel" => true,
       "is_private" => true,
-      "is_archived" => false,
-      "is_member" => true
+      "is_archived" => false
     }
 
     dm = %{"id" => @dm, "is_im" => true, "user" => @other_user}
@@ -797,7 +795,7 @@ defmodule AshEnterprise.Integration.ErasureE2ETest do
 
       body =
         case conn.request_path do
-          "/proxy/conversations.list" ->
+          "/proxy/users.conversations" ->
             %{
               "ok" => true,
               "channels" => [channel, private_channel, dm],

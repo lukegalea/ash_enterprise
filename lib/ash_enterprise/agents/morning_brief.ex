@@ -46,12 +46,25 @@ defmodule AshEnterprise.Agents.MorningBrief do
   day (`one_per_owner_per_day`); there is no recompose — the process has no
   path back from its approval task to its compose step. See
   `docs/runbooks/morning-brief.md`.
+
+  ## Anyone may compose their own
+
+  Composing, and opening and reading one's own briefs, are **self-service**
+  (ADR 0052, `AshEnterprise.Security.Checks.SelfService`): any active member
+  of the tenant may do them with no MorningBrief grant at all. `compose_today`
+  is the actor's own by construction — it takes no owner, and the brief it
+  opens is owned by the actor — and `start_for_date`, `read` and `latest`
+  reach only rows the actor owns. There is no way through this resource to
+  compose someone else's brief, and another member's brief stays out of reach
+  unless a role grants it. Deciding a brief is the approval task's business
+  (`AshEnterprise.Agents.BriefDecision`), under that task's own policies.
   """
 
   use AshEnterprise.Platform.Resource,
     domain: AshEnterprise.Agents,
     lifecycle?: false,
     archival?: false,
+    self_service: [:compose_today, :start_for_date, :read, :latest],
     notifiers: [Ash.Notifier.PubSub]
 
   postgres do

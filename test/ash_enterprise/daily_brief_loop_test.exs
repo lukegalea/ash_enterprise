@@ -26,7 +26,6 @@ defmodule AshEnterprise.DailyBriefLoopTest do
   require Ash.Query
 
   alias AshAcp.Server
-  alias AshEnterprise.Acp
   alias AshEnterprise.Agents.{MorningBrief, MorningBriefScheduler, MorningBriefWorker}
   alias AshEnterprise.Bpmn.{Definition, HumanTask, Instance}
   alias AshEnterprise.Platform.{LocalTime, Seeder, SystemActor}
@@ -247,7 +246,7 @@ defmodule AshEnterprise.DailyBriefLoopTest do
     {_, _, state} =
       Server.handle_message(
         message.(1, "initialize", %{"protocolVersion" => 1}),
-        Server.new(Acp.server_config())
+        Server.new(AshAcp.config())
       )
 
     {resp, _, state} =

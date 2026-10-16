@@ -137,6 +137,47 @@ end                             # last step: public attribute of the destination
   value, that's the roadmap's relationship-sorted columns — don't fake it
   with a duplicated attribute.
 
+## Reference links (`link` / `links`)
+
+```elixir
+field :owner_name do
+  source [:owner, :display_name]   # a calculation terminal is fine
+  link :owner                      # to-one: belongs_to / has_one
+end
+
+field :subject_id do
+  link {:person, :subject_id}      # bare id / polymorphic: {surface_key, id_path}
+end
+
+field :participant_links do        # may be virtual (no such attribute)
+  links :participants              # to-many: has_many / many_to_many
+  link_label :name                 # optional; default fallback chain
+end
+```
+
+- Rows (and `/detail/<context>`, `/ui/panel/record`) carry the reserved
+  `"_links"` key: `%{"<field>" => %{"surface", "recordId", "label"[,
+  "href"]} | [same]}`. A field with no link for that row is **absent** —
+  render its plain value. Rows of link-free tables carry no `"_links"`.
+- **Pruning is per actor and automatic**: relationship links come from
+  the authorized relationship load (a target the actor cannot read is not
+  loaded, so not linked); the host's `AshA2ui.LinkResolver`
+  (`config :ash_a2ui, :link_resolver`) maps targets to surface keys and
+  may veto (return `nil`). Never re-check readability in a renderer.
+- Links are UX, not authorization — the opened surface enforces its own
+  policies.
+- `config :ash_a2ui, :open_surface_url, "/app/r/{surface}/{recordId}"`
+  adds a server-built `"href"` to every link and is the default
+  `AshA2ui.LiveRenderer` navigation target.
+- Admin catalog: link columns carry `"link": {"path": "_links/<field>"}`,
+  FieldDisplays `"link": {"path": ".../_links/<field>"}`; activation calls
+  the catalog's `openSurface` function (`{surface, recordId, query}`).
+- Verified at compile time: `link` → public to-one relationship, `links`
+  → public to-many, single-attribute destination PK, `link_label` a
+  public destination field, `{surface, id_path}` walks public
+  relationships to a public attribute/calculation. `links` (and virtual
+  link) fields are display-only — never in a `:form`.
+
 ## Avoid list
 
 - ❌ Declaring `field ... relationship ...` when the field name already
@@ -157,3 +198,9 @@ end                             # last step: public attribute of the destination
   them).
 - ❌ Working around "not sortable" verifier errors by duplicating related
   data onto the resource just for sorting.
+- ❌ Building link URLs or re-checking link readability client-side —
+  read `_links/<field>` (absent = no link) and hand activation to
+  `openSurface`.
+- ❌ Linking through a `source` column's raw foreign key when a label
+  exists — `link :relationship` labels itself from the cell (or
+  `link_label`).

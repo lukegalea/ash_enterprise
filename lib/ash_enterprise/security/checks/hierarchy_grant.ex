@@ -66,6 +66,11 @@ defmodule AshEnterprise.Security.Checks.HierarchyGrant do
       is_nil(context.user_id) ->
         false
 
+      # Hierarchy widens which rows an actor reaches; a generic action has no
+      # row (and Ash raises on a filter for one). See `RoleGrant`.
+      authorizer.action.type == :action ->
+        false
+
       # One person's own mail and Slack: seniority does not reach it
       # (Privilege.owner_only?/1). A fact about the resource, not a query.
       AshEnterprise.Security.Privilege.owner_only?(inspect(authorizer.resource)) ->

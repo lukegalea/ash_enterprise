@@ -79,6 +79,8 @@ defmodule AshEnterprise.AI.Models do
     """
     defexception [:label, :caller]
 
+    @type t :: %__MODULE__{label: String.t() | nil, caller: String.t() | nil}
+
     @impl true
     def message(%{label: label, caller: caller}) do
       "#{caller}: refused to call #{label}: REQUIRE_IN_ZONE_MODELS is set and #{label} is " <>

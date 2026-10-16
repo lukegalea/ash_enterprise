@@ -74,6 +74,12 @@ root="${file%%/lib/*}"
 # to fix, so it should not reach the agent at all.
 [ -f "$root/devenv.nix" ] && [ -f "$root/mix.exs" ] || exit 0
 
+# A sibling Ash library (ash_bpmn, ash_acp, ...) also has devenv.nix and mix.exs,
+# so those two files do not identify this project. Its own app name does. On
+# 2026-10-14 an agent editing an ash_bpmn checkout set off six concurrent checks
+# there at ~2 GB each.
+grep -qE 'app:[[:space:]]*:ash_enterprise\b' "$root/mix.exs" || exit 0
+
 # Sub-agent worktrees are mid-build by definition: drift there is the agent's
 # own unfinished codegen, which its gate (`mix ash.codegen --check`) closes
 # before it commits. Checking them here only wakes the parent session about

@@ -11,6 +11,10 @@ defmodule AshEnterprise.Agents.Actions.ComposeToday do
   `transaction? true`, so a brief never exists without its process: if the
   start fails, the brief rolls back with it.
 
+  No grant is needed for any of it: the action, the existing-brief read and
+  `start_for_date` are self-service on `MorningBrief` (ADR 0052), bounded to
+  the actor's own rows, so every active member can compose their own brief.
+
   ## Which definition
 
   `AshEnterprise.Process.Resolver.resolve/3` — the host's answer to "which

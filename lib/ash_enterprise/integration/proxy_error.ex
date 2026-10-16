@@ -30,6 +30,8 @@ defmodule AshEnterprise.Integration.ProxyError do
     fields: [:reason, :integration, :operation, :status, :provider_code, :retry_after_ms],
     class: :unknown
 
+  @type t :: %__MODULE__{}
+
   @type reason ::
           :unauthorized
           | :forbidden

@@ -98,4 +98,7 @@ defmodule AshEnterprise.Acp.Approvals do
         {:denied}
     end
   end
+
+  # A ref this module did not issue never approves anything.
+  def resolve(_ref, _outcome, _session), do: {:denied}
 end

@@ -144,6 +144,16 @@ rows an administrator can inspect and revoke ([ADR 0043](../adr/0043-automation-
 keep their bypass, because they are deterministic platform machinery; the one model-driven system actor, `ai`, loses it.
 Both records are accepted, not built (2026-09-28).
 
+## Amendment, 2026-10-15 — what a member does for themselves
+
+[ADR 0052](../adr/0052-self-service-actions.md) adds a fourth path to the union: an action a resource declares
+*self-service* — any active member may run it on their own behalf with no role grant. A generic action declared so is
+authorized outright, because it is the actor's own by construction; a declared create or read reaches only rows the
+actor personally owns. The role model could not say this: a generic action has no row for a depth to reach, so the
+only grant that authorized composing one's own morning brief also reached everyone else's. It is still a union member
+and never subtracts; it is a declaration in code rather than a row because it describes the action, not who may see
+whose data.
+
 ## Further reading
 
 - `lib/ash_enterprise/security/` — the checks

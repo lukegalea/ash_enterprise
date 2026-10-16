@@ -267,8 +267,7 @@ defmodule AshEnterprise.Integration.AutoProjectionTest do
         "name" => "ap-synthetic-channel",
         "is_channel" => true,
         "is_private" => false,
-        "is_archived" => false,
-        "is_member" => true
+        "is_archived" => false
       }
 
       history = start_supervised!({Agent, fn -> %{channels: [channel], messages: %{}} end})
@@ -332,8 +331,7 @@ defmodule AshEnterprise.Integration.AutoProjectionTest do
         "id" => @private_channel,
         "name" => "ap-synthetic-private",
         "is_channel" => true,
-        "is_private" => true,
-        "is_member" => true
+        "is_private" => true
       })
 
       post(ctx.history, @other_user, "AP-SLACK-PUB-1", 6)
@@ -620,7 +618,7 @@ defmodule AshEnterprise.Integration.AutoProjectionTest do
 
       body =
         case conn.request_path do
-          "/proxy/conversations.list" ->
+          "/proxy/users.conversations" ->
             %{
               "ok" => true,
               "channels" => state.channels,

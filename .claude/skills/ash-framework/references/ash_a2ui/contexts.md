@@ -89,6 +89,52 @@ end
   transports driving `build_surface/2`/`build_data_model/2` should pass
   `:context_state` themselves.
 
+## Related tables (`resource` on a `:table`)
+
+A detail usually wants the selected record's related rows — a person's
+messages, a thread's messages, an event's attendees. A `:table` may read
+**another resource**, scoped by a context:
+
+```elixir
+context :person do
+  resource MyApp.People.Person
+  picker false
+end
+
+component :table do                    # the surface's own resource
+  fields [:name]
+  select_context :person
+end
+
+component :table, :messages_sent do    # a related table
+  resource MyApp.Mail.Message
+  fields [:subject, :sent_at, :thread_title]
+  query :messages                      # checked against Message
+  context_filter sender_id: :person    # a public attribute of Message
+  require_context [:person]
+end
+```
+
+- Fields, `read_action`, the `query`, `context_filter` keys, `source`
+  paths and `link`/`links` are resolved (and compile-time verified)
+  against the table's own resource; reads run as the surface's actor in
+  that resource's domain, so its policies apply.
+- Related tables are **read-only**: no `row_actions`, `editable` or
+  `sections` (verifier errors). Link out of them (`link :thread`) instead
+  of acting in place.
+- A `select_context` on a related table must name a context over its
+  own resource.
+
+## Deep links
+
+- `AshA2ui.Info.context_state_for(ui, %{"<context>" => id}, actor: …)`
+  turns externally carried ids (a URL's `?ctx[person]=<id>`) into a
+  `:context_state` — every id through the same authorized read +
+  cascade as `"context_select"`; unreadable/unknown ids are dropped.
+- `AshA2ui.LiveRenderer` reads `?ctx[...]` and `?q[...]` on mount; with
+  `deep_link: true` it `push_patch`es `ctx` params on context changes and
+  re-applies them on back/forward.
+
 ## Avoid list
 
 - ❌ Modeling a simple enum/status narrowing as a context — that's a query
@@ -98,6 +144,8 @@ end
 - ❌ Selecting contexts by anything but id (labels, search strings) or
   writing `/context` values client-side without a `context_select`
   round-trip — the server rewrites `/context` authoritatively.
+- ❌ Rendering a record's related rows as a Markdown calculation —
+  declare a related table (`resource` + `context_filter`).
 - ❌ Reusing a context name for a searchable select field or nested-form
   argument (the `/options/<name>` namespace is shared; the verifier
   rejects it).

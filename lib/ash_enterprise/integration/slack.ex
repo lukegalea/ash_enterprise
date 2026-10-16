@@ -5,8 +5,14 @@ defmodule AshEnterprise.Integration.Slack do
   token (`channels/groups/im/mpim :history + :read`, `users:read`); there is no
   bot.
 
-    * `list_conversations` — `conversations.list`. Body: `ok`, `channels`,
-      `response_metadata.next_cursor` (empty string on the last page).
+    * `user_conversations` — `users.conversations`: only the conversations the
+      token's user is a member of (joined public and private channels, MPIMs,
+      IMs). Body: `ok`, `channels`, `response_metadata.next_cursor` (empty
+      string on the last page). Items do not carry `is_member` — membership is
+      what the endpoint selects on. `conversations.list` is deliberately not
+      declared: with a user token it lists every public channel in the
+      workspace, joined or not, so a member-only sync over it has to page
+      through the whole workspace to find the user's own channels.
     * `conversation_history` — `conversations.history`. Body: `ok`,
       `messages`, `has_more`, `response_metadata.next_cursor`. `oldest` is a
       Slack `ts` string (`"1712345678.000100"`), the incremental cursor.
@@ -41,11 +47,15 @@ defmodule AshEnterprise.Integration.Slack do
     integration "slack"
     errors :slack
 
-    operation :list_conversations, :get, "/conversations.list" do
-      description "conversations.list: channels, private groups, DMs and MPIMs visible to the user."
+    operation :user_conversations, :get, "/users.conversations" do
+      description "users.conversations: the channels, private groups, DMs and MPIMs the user is a member of."
       param :cursor, :string
       param :limit, :integer, constraints: [min: 1, max: 1000]
-      param :types, :string, description: "e.g. public_channel,private_channel,mpim,im"
+
+      param :types, :string,
+        description:
+          "e.g. public_channel,private_channel,mpim,im (Slack's default is public_channel only)"
+
       param :exclude_archived, :boolean
     end
 
