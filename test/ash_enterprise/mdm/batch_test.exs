@@ -282,8 +282,8 @@ defmodule AshEnterprise.Mdm.BatchTest do
       events = AshOpenLineage.Transport.InMemory.events()
       runs = Enum.map(events, & &1["run"]["runId"])
       assert batch.correlation_id in runs
-      assert length(Enum.filter(events, &(&1["eventType"] == "START"))) >= 1
-      assert length(Enum.filter(events, &(&1["eventType"] == "COMPLETE"))) >= 1
+      assert Enum.any?(events, &(&1["eventType"] == "START"))
+      assert Enum.any?(events, &(&1["eventType"] == "COMPLETE"))
     end
 
     test "a crashed pipeline marks the batch failed and emits a FAIL run", %{

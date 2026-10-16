@@ -73,6 +73,12 @@
   },
   {
     "law": "11",
+    "file": "lib/ash_enterprise_web/live/import_live.ex",
+    "text": "def handle_event(\"validate\", _params, socket), do: {:noreply, socket}",
+    "reason": "A no-op: the upload form's phx-change handler returns the socket untouched and reads or writes nothing, so there is nothing to authorize."
+  },
+  {
+    "law": "11",
     "file": "lib/ash_enterprise_web/live/steward_live.ex",
     "text": "def handle_event(\"confirm\", %{\"id\" => id}, socket) do",
     "reason": "The event authorizes through the action: it resolves the candidate with the actor and calls the person-gated :confirm/:reject actions, whose policies (PersonActor first, no engine bypass on these actions) refuse system actors and ungranted users. The handler adds no second security model — that is the design (ADR 0054)."

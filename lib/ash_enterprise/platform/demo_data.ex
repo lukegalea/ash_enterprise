@@ -184,7 +184,14 @@ defmodule AshEnterprise.Platform.DemoData do
   defp create_roles(root, tenant, actor) do
     privileges = Ash.read!(Security.Privilege, actor: actor)
 
-    reads = Enum.filter(privileges, &(&1.access_right == :read))
+    # Not the MDM egress grant: its `read` verb authorizes a departure of the
+    # tenant's golden records (ADR 0054), which an auditor that "changes
+    # nothing" must not be handed by sweeping up every read.
+    reads =
+      Enum.filter(
+        privileges,
+        &(&1.access_right == :read and &1.resource_name != inspect(AshEnterprise.Mdm.Egress))
+      )
 
     people_writes =
       Enum.filter(privileges, fn privilege ->

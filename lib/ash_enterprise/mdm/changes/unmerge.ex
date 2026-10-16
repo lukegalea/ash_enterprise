@@ -30,20 +30,7 @@ defmodule AshEnterprise.Mdm.Changes.Unmerge do
       tenant = changeset.tenant
 
       for id <- provenance["moved_identity_ids"] || [] do
-        case Ash.get(AshEnterprise.Mdm.SourceIdentity, id, tenant: tenant, authorize?: false) do
-          {:ok, identity} ->
-            identity
-            |> Ash.Changeset.for_update(
-              :repoint,
-              %{golden_resource: "AshEnterprise.Canonical.Person", golden_id: result.id},
-              tenant: tenant,
-              authorize?: false
-            )
-            |> Ash.update!(tenant: tenant, authorize?: false)
-
-          _ ->
-            :ok
-        end
+        repoint(id, result.id, tenant)
       end
 
       # Return the committed state so callers (and the test) see the
@@ -51,5 +38,22 @@ defmodule AshEnterprise.Mdm.Changes.Unmerge do
       {:ok,
        Ash.get!(AshEnterprise.Canonical.Person, result.id, tenant: tenant, authorize?: false)}
     end)
+  end
+
+  defp repoint(identity_id, golden_id, tenant) do
+    case Ash.get(AshEnterprise.Mdm.SourceIdentity, identity_id, tenant: tenant, authorize?: false) do
+      {:ok, identity} ->
+        identity
+        |> Ash.Changeset.for_update(
+          :repoint,
+          %{golden_resource: "AshEnterprise.Canonical.Person", golden_id: golden_id},
+          tenant: tenant,
+          authorize?: false
+        )
+        |> Ash.update!(tenant: tenant, authorize?: false)
+
+      _ ->
+        :ok
+    end
   end
 end

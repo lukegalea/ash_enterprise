@@ -115,3 +115,48 @@ stays where 0017 put it, and the honest cost statement stands too: a
 hand-built deterministic+fuzzy score is fine for email-exact and trigram-shortlist
 work, and the wide-review seed (more human confirmations, fewer wrong merges)
 is the safe direction while calibration data is thin.
+
+## Addendum, 2026-10-16 — egress is its own grant
+
+*Decided by the owner, 2026-10-16: "Separate egress grant — Move the export to an MDM-owned action with its own
+grantable privilege, held by stewards and checked from ActorContext. That privilege authorizes reading this tenant's
+golden persons for egress. The zone disclosure gate still applies. Person stays owner-only for everything else,
+including mail."*
+
+**What changed underneath.** Item 5 above put the export on the golden resource, as `Person.mdm_export`, authorized by
+`RoleGrant`. Since then `AshEnterprise.Canonical.Person` became owner-only (`Privilege.owner_only?/1`, ADR 0042's
+"owner-only reads"): grantable at `:basic` and no wider, and skipped by hierarchy security, because the same table holds
+one person's mail and Slack correspondents. `RoleGrant` authorizes a generic action only on a `:global` grant — a
+generic action has no row for a narrower depth to reach — and nobody can hold `:global` on Person any more. The export
+was authorized for no one.
+
+**Decision.** The departure moves to `AshEnterprise.Mdm.Egress.export/2`, a generic action on an MDM-owned resource
+with no rows. Its privilege, `read` on `AshEnterprise.Mdm.Egress` (`prvReadEgress`), is derived into the catalogue like
+every other, is grantable at `:global` only, and is held by whoever the tenant makes a steward (today the Administrator,
+through the ordinary auto-grant; the demo Auditor is deliberately not given it). The policy is the inherited grant union,
+unchanged: `RoleGrant` answers from the precomputed `ActorContext`, no check queries, and there is no `forbid_if`.
+
+Passing that policy authorizes one read inside the run, made with `authorize?: false` and fixed in code
+(`AshEnterprise.Mdm.Export`):
+
+- **the actor's own tenant** — a grant is a row in the tenant that holds it, and the resource is untenanted, so the run
+  refuses any tenant but the one the actor's context was built in;
+- **golden persons only** — Person's `:goldens` read (some SourceIdentity points at it, no merge absorbed it);
+- **the fields the active egress mapping names** — public Person attributes only, selected; a rule naming anything else
+  refuses the export.
+
+The zone disclosure gate is unchanged and still runs on every golden, on the residency recorded at land.
+
+**Why this is not a second security model.** Egress is one more `(resource, verb)` row in the same catalogue, granted
+and revoked the way every other privilege is, and visible in the same admin UI; the only thing written in code is what
+the grant reaches, which is the same kind of statement a depth makes for a read. It does not grant Person: a steward
+holding only the egress grant reads no Person row, and the action returns mapping-shaped rows, never records. The tenant
+refusal is tenant isolation — the property multitenancy gives every tenanted read — not a deny rule in the union.
+
+**Rejected.** Widening Person (an egress-only depth, or an exception in `owner_only?/1`) would reopen exactly the path
+owner-only closed: a role that reaches every person row is a role that reaches every mail correspondent. A
+system-actor export would remove the grant altogether and leave "who may export" unanswerable from data.
+
+**Costs.** An export no longer requires the exporter to be able to read the rows it exports; that is the point, and it
+is why the reach is narrow and the gate stays. The export is not yet written to the audit trail as a disclosure event of
+its own.

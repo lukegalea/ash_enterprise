@@ -143,26 +143,27 @@ defmodule AshEnterprise.Mdm.BatchWorker do
       |> Ash.read!(tenant: tenant, authorize?: false)
 
     with %AshEnterprise.Mdm.MatchRuleSet{} <- rule_set do
-      Enum.each(staged_records, fn staged ->
-        candidates = block(staged, tenant)
-        score_candidates(staged, candidates, rule_set, tenant)
-        routed = band_candidates(batch, staged, tenant)
-
-        # The bands that decided spent the staged row (:merged/:created) or
-        # moved it to the steward (:review). Only an undecided row — no band
-        # table, or bands that route nothing — stays staged-work-in-progress.
-        unless routed do
-          staged
-          |> Ash.Changeset.for_update(:update, %{status: :matched},
-            tenant: tenant,
-            authorize?: false
-          )
-          |> Ash.update!(tenant: tenant, authorize?: false)
-        end
-      end)
+      Enum.each(staged_records, &match_staged(&1, batch, rule_set, tenant))
     end
 
     rule_set
+  end
+
+  defp match_staged(staged, batch, rule_set, tenant) do
+    candidates = block(staged, tenant)
+    score_candidates(staged, candidates, rule_set, tenant)
+
+    # The bands that decided spent the staged row (:merged/:created) or
+    # moved it to the steward (:review). Only an undecided row — no band
+    # table, or bands that route nothing — stays staged-work-in-progress.
+    unless band_candidates(batch, staged, tenant) do
+      staged
+      |> Ash.Changeset.for_update(:update, %{status: :matched},
+        tenant: tenant,
+        authorize?: false
+      )
+      |> Ash.update!(tenant: tenant, authorize?: false)
+    end
   end
 
   # Blocking (ADR 0017): exact email through Ash + a trigram shortlist on
@@ -255,123 +256,107 @@ defmodule AshEnterprise.Mdm.BatchWorker do
   # Returns true when a band ROUTED the row somewhere (the caller then does
   # not mark it :matched); false when the row stays undecided.
   defp band_candidates(batch, staged, tenant) do
-    system = AshEnterprise.Platform.SystemActor.system()
-
     candidates =
       AshEnterprise.Mdm.MatchCandidate
       |> Ash.Query.filter(staged_record_id == ^staged.id and status == :pending and is_nil(band))
       |> Ash.read!(tenant: tenant, authorize?: false)
 
-    banded =
-      Enum.map(candidates, fn candidate ->
-        band =
-          case AshEnterprise.Mdm.Banding.band(candidate.score, tenant, banding_id: candidate.id) do
-            {:ok, band} ->
-              band
+    banded = Enum.map(candidates, &{&1, band_of(&1, tenant)})
 
-            # No published band table in this tenant's resolver chain: the
-            # candidates stay PENDING and un-banded — a staging-only import,
-            # not a failure. Bands tighten via calibration; publishing is the
-            # operator's act.
-            {:error, {:no_published_baseline, _, _}} ->
-              nil
-
-            {:error, :no_platform_organization} ->
-              nil
-
-            {:error, reason} ->
-              raise AshEnterprise.Mdm.MatchError,
-                message: "banding failed for candidate #{candidate.id}: #{inspect(reason)}"
-          end
-
-        {candidate, band}
-      end)
-
-    admit_band = Enum.find(banded, fn {_c, band} -> band == :admit end)
-    review_band = Enum.find(banded, fn {_c, band} -> band == :review end)
-    omit? = Enum.any?(banded, fn {_c, band} -> band == :omit end)
+    admit = Enum.find(banded, fn {_c, band} -> band == :admit end)
+    review = Enum.find(banded, fn {_c, band} -> band == :review end)
+    omit = Enum.find(banded, fn {_c, band} -> band == :omit end)
 
     cond do
-      admit_band ->
-        {candidate, _band} = admit_band
-        supersede_others!(banded, candidate, tenant, system)
-
-        candidate
-        |> Ash.Changeset.for_update(:update, %{band: :admit},
-          tenant: tenant,
-          actor: system,
-          authorize?: true
-        )
-        |> Ash.update!(tenant: tenant, actor: system, authorize?: true)
-
-        AshEnterprise.Mdm.AutoMerge.admit!(
-          candidate,
-          staged,
-          golden_for!(candidate, tenant),
-          tenant
-        )
-
-        true
-
-      review_band ->
-        {candidate, _band} = review_band
-        supersede_others!(banded, candidate, tenant, system)
-
-        candidate
-        |> Ash.Changeset.for_update(:update, %{band: :review},
-          tenant: tenant,
-          actor: system,
-          authorize?: true
-        )
-        |> Ash.update!(tenant: tenant, actor: system, authorize?: true)
-
-        start_steward_review!(batch, candidate, tenant)
-
-        # The staged row moves to the steward with its candidate: it is
-        # neither merged nor a new golden yet.
-        staged
-        |> Ash.Changeset.for_update(:update, %{status: :review},
-          tenant: tenant,
-          authorize?: false
-        )
-        |> Ash.update!(tenant: tenant, authorize?: false)
-
-        true
-
-      candidates == [] ->
-        # Nothing in the golden store fit — the same verdict as :omit: the
-        # row becomes its own golden. An email collision with an existing
-        # person is NOT a merge: the row goes back to stewardship.
-        case safe_new_golden(staged, batch, tenant) do
-          :ok -> true
-          {:collision, _} -> false
-        end
-
-      omit? ->
-        {candidate, _band} = Enum.find(banded, fn {_c, band} -> band == :omit end)
-
-        candidate
-        |> Ash.Changeset.for_update(:update, %{band: :omit},
-          tenant: tenant,
-          actor: system,
-          authorize?: true
-        )
-        |> Ash.update!(tenant: tenant, actor: system, authorize?: true)
-
-        case safe_new_golden(staged, batch, tenant, candidate) do
-          :ok ->
-            true
-
-          {:collision, existing} ->
-            route_collision_to_stewardship!(staged, existing, tenant)
-            true
-        end
-
+      admit -> route_admit(admit, banded, staged, tenant)
+      review -> route_review(review, banded, batch, staged, tenant)
+      # Nothing in the golden store fit — the same verdict as :omit: the
+      # row becomes its own golden. An email collision with an existing
+      # person is NOT a merge: the row goes back to stewardship.
+      candidates == [] -> safe_new_golden(staged, batch, tenant) == :ok
+      omit -> route_omit(omit, staged, batch, tenant)
       # Unbanded (no published band table): the row stays undecided —
       # staging worked, routing has not happened yet.
-      true ->
-        false
+      true -> false
     end
+  end
+
+  defp band_of(candidate, tenant) do
+    case AshEnterprise.Mdm.Banding.band(candidate.score, tenant, banding_id: candidate.id) do
+      {:ok, band} ->
+        band
+
+      # No published band table in this tenant's resolver chain: the
+      # candidates stay PENDING and un-banded — a staging-only import,
+      # not a failure. Bands tighten via calibration; publishing is the
+      # operator's act.
+      {:error, {:no_published_baseline, _, _}} ->
+        nil
+
+      {:error, :no_platform_organization} ->
+        nil
+
+      {:error, reason} ->
+        raise AshEnterprise.Mdm.MatchError,
+          message: "banding failed for candidate #{candidate.id}: #{inspect(reason)}"
+    end
+  end
+
+  defp route_admit({candidate, _band}, banded, staged, tenant) do
+    system = AshEnterprise.Platform.SystemActor.system()
+    supersede_others!(banded, candidate, tenant, system)
+    set_band!(candidate, :admit, tenant, system)
+
+    AshEnterprise.Mdm.AutoMerge.admit!(
+      candidate,
+      staged,
+      golden_for!(candidate, tenant),
+      tenant
+    )
+
+    true
+  end
+
+  defp route_review({candidate, _band}, banded, batch, staged, tenant) do
+    system = AshEnterprise.Platform.SystemActor.system()
+    supersede_others!(banded, candidate, tenant, system)
+    set_band!(candidate, :review, tenant, system)
+
+    start_steward_review!(batch, candidate, tenant)
+
+    # The staged row moves to the steward with its candidate: it is
+    # neither merged nor a new golden yet.
+    staged
+    |> Ash.Changeset.for_update(:update, %{status: :review},
+      tenant: tenant,
+      authorize?: false
+    )
+    |> Ash.update!(tenant: tenant, authorize?: false)
+
+    true
+  end
+
+  defp route_omit({candidate, _band}, staged, batch, tenant) do
+    set_band!(candidate, :omit, tenant, AshEnterprise.Platform.SystemActor.system())
+
+    case safe_new_golden(staged, batch, tenant, candidate) do
+      :ok ->
+        true
+
+      {:collision, existing} ->
+        route_collision_to_stewardship!(staged, existing, tenant)
+        true
+    end
+  end
+
+  defp set_band!(candidate, band, tenant, system) do
+    candidate
+    |> Ash.Changeset.for_update(:update, %{band: band},
+      tenant: tenant,
+      actor: system,
+      authorize?: true
+    )
+    |> Ash.update!(tenant: tenant, actor: system, authorize?: true)
   end
 
   # Candidates that proposed pairings the routing did not take are spent:

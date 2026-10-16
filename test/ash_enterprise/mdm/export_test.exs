@@ -9,9 +9,12 @@ defmodule AshEnterprise.Mdm.ExportTest do
 
   import AshEnterprise.Mdm.TestSupport
 
+  alias AshEnterprise.Accounts.User
   alias AshEnterprise.Canonical.Person
-  alias AshEnterprise.Mdm.{ImportBatch, SourceIdentity}
+  alias AshEnterprise.Mdm.{Egress, ImportBatch, SourceIdentity}
   alias AshEnterprise.Platform.Seeder
+  alias AshEnterprise.Security
+  alias AshEnterprise.Security.ActorContext
 
   require Ash.Query
 
@@ -34,13 +37,13 @@ defmodule AshEnterprise.Mdm.ExportTest do
       end
     end)
 
-    %{organization: organization, user: admin} =
+    %{organization: organization, user: admin, role: role, business_unit: business_unit} =
       Seeder.seed_tenant(
         name: "Export #{System.unique_integer([:positive])}",
         unique_name: "export-#{System.unique_integer([:positive])}"
       )
 
-    %{org: organization.id, admin: admin}
+    %{org: organization.id, admin: admin, role: role, business_unit: business_unit}
   end
 
   defp egress_mapping!(org, admin) do
@@ -138,7 +141,7 @@ defmodule AshEnterprise.Mdm.ExportTest do
     {_golden, _staged} = golden_via_land!(org, admin, "Ann Exported", "ann@x.io", :ca)
 
     assert {:ok, [%{"Email Address" => "ann@x.io", "Customer Name" => "Ann Exported"}]} =
-             Person.mdm_export("example-ontario", tenant: org, actor: admin)
+             Egress.export("example-ontario", tenant: org, actor: admin)
   end
 
   test "US-landed data cannot leave to the Ontario zone, whoever asks", %{org: org, admin: admin} do
@@ -147,7 +150,7 @@ defmodule AshEnterprise.Mdm.ExportTest do
     id = golden.id
 
     assert {:error, %Ash.Error.Forbidden{errors: [forbidden]}} =
-             Person.mdm_export("example-ontario", tenant: org, actor: admin)
+             Egress.export("example-ontario", tenant: org, actor: admin)
 
     assert forbidden.custom_message =~ id
   end
@@ -174,7 +177,7 @@ defmodule AshEnterprise.Mdm.ExportTest do
         |> Ash.update!(tenant: org, authorize?: false)
       end)
 
-    assert {:ok, rows} = Person.mdm_export("example-ontario", tenant: org, actor: admin)
+    assert {:ok, rows} = Egress.export("example-ontario", tenant: org, actor: admin)
 
     # The survivor is there; the absorbed loser is not.
     assert length(rows) == 1
@@ -190,7 +193,7 @@ defmodule AshEnterprise.Mdm.ExportTest do
     # would leak the presence of the rows it withheld. The mixed-residency
     # golden takes the union tag, which no single-region admission matches.
     assert {:error, %Ash.Error.Forbidden{errors: [forbidden]}} =
-             Person.mdm_export("example-ontario", tenant: org, actor: admin)
+             Egress.export("example-ontario", tenant: org, actor: admin)
 
     assert forbidden.custom_message =~ "cannot leave"
   end
@@ -248,7 +251,7 @@ defmodule AshEnterprise.Mdm.ExportTest do
     # The US identity alone forbids the departure — the CA one cannot
     # outvote it.
     assert {:error, %Ash.Error.Forbidden{}} =
-             Person.mdm_export("example-ontario", tenant: org, actor: admin)
+             Egress.export("example-ontario", tenant: org, actor: admin)
   end
 
   test "an actor without grants is refused before any data moves", %{org: org, admin: admin} do
@@ -258,6 +261,153 @@ defmodule AshEnterprise.Mdm.ExportTest do
     # No actor at all: the grant union has nothing to answer with, and the
     # RoleGrant filter check refuses by narrowing to zero rows.
     assert {:error, %Ash.Error.Forbidden{}} =
-             Person.mdm_export("example-ontario", tenant: org)
+             Egress.export("example-ontario", tenant: org)
   end
+
+  describe "the egress grant (ADR 0054, addendum 2026-10-16)" do
+    test "a person holding every Administrator grant but egress is refused", ctx do
+      egress_mapping!(ctx.org, ctx.admin)
+      golden_via_land!(ctx.org, ctx.admin, "Ann Exported", "ann@x.io", :ca)
+
+      # Every privilege the Administrator holds, Person and the MDM resources
+      # included, minus the one egress privilege: no other grant stands in
+      # for it.
+      bob = member!(ctx, "bob", role_without_egress!(ctx))
+
+      refute Ash.can?({Egress, :export}, actor(bob, ctx.org), tenant: ctx.org)
+
+      assert {:error, %Ash.Error.Forbidden{}} =
+               Egress.export("example-ontario", tenant: ctx.org, actor: actor(bob, ctx.org))
+    end
+
+    test "the egress grant exports the goldens and still reads no Person row", ctx do
+      egress_mapping!(ctx.org, ctx.admin)
+      {golden, _staged} = golden_via_land!(ctx.org, ctx.admin, "Ann Exported", "ann@x.io", :ca)
+
+      carol = member!(ctx, "carol", role_with_only_egress!(ctx))
+      steward = actor(carol, ctx.org)
+
+      assert {:ok, [%{"Email Address" => "ann@x.io", "Customer Name" => "Ann Exported"}]} =
+               Egress.export("example-ontario", tenant: ctx.org, actor: steward)
+
+      # Person stays owner-only: the golden is the admin's row, and the
+      # steward who exported it cannot read it.
+      assert Person
+             |> Ash.Query.for_read(:read, %{}, actor: steward, tenant: ctx.org)
+             |> Ash.read!() == []
+
+      refute Ash.can?({golden, :read}, steward, tenant: ctx.org)
+    end
+
+    test "a grant held in another tenant does not export this one", ctx do
+      egress_mapping!(ctx.org, ctx.admin)
+      golden_via_land!(ctx.org, ctx.admin, "Ann Exported", "ann@x.io", :ca)
+
+      %{user: other_admin} =
+        Seeder.seed_tenant(
+          name: "Export elsewhere #{System.unique_integer([:positive])}",
+          unique_name: "export-elsewhere-#{System.unique_integer([:positive])}",
+          email: "elsewhere-#{System.unique_integer([:positive])}@export.synthetic.test"
+        )
+
+      assert {:error, %Ash.Error.Forbidden{errors: [forbidden]}} =
+               Egress.export("example-ontario", tenant: ctx.org, actor: other_admin)
+
+      assert forbidden.custom_message =~ "its own tenant only"
+    end
+
+    test "the egress privilege is grantable at :global only, and Person stays :basic only" do
+      egress = privilege!(Egress, :read)
+      assert egress.can_be_global
+      refute egress.can_be_basic or egress.can_be_local or egress.can_be_deep
+
+      person = privilege!(Person, :read)
+      assert person.can_be_basic
+      refute person.can_be_global or person.can_be_deep or person.can_be_local
+    end
+  end
+
+  # -- grant helpers -----------------------------------------------------------
+
+  defp privilege!(resource, verb) do
+    name = inspect(resource)
+
+    Security.Privilege
+    |> Ash.Query.filter(resource_name == ^name and access_right == ^verb)
+    |> Ash.read_one!(authorize?: false)
+  end
+
+  defp role_without_egress!(ctx) do
+    egress = privilege!(Egress, :read)
+
+    held =
+      Security.RolePrivilege
+      |> Ash.Query.filter(role_id == ^ctx.role.id and privilege_id != ^egress.id)
+      |> Ash.read!(tenant: ctx.org, authorize?: false)
+
+    role!(ctx, "Everything but egress", Enum.map(held, &{&1.privilege_id, &1.depth}))
+  end
+
+  defp role_with_only_egress!(ctx) do
+    role!(ctx, "Data steward", [{privilege!(Egress, :read).id, :global}])
+  end
+
+  defp role!(ctx, name, grants) do
+    role =
+      Security.Role
+      |> Ash.Changeset.for_create(
+        :create,
+        %{name: name, owning_business_unit_id: ctx.business_unit.id},
+        tenant: ctx.org,
+        authorize?: false
+      )
+      |> Ash.create!()
+
+    for {privilege_id, depth} <- grants do
+      Security.RolePrivilege
+      |> Ash.Changeset.for_create(
+        :create,
+        %{role_id: role.id, privilege_id: privilege_id, depth: depth},
+        tenant: ctx.org,
+        authorize?: false
+      )
+      |> Ash.create!()
+    end
+
+    role
+  end
+
+  defp member!(ctx, name, role) do
+    user =
+      User
+      |> Ash.Changeset.for_create(
+        :register_with_password,
+        %{
+          email: "#{name}-#{System.unique_integer([:positive])}@export.synthetic.test",
+          password: "password1234",
+          password_confirmation: "password1234"
+        },
+        authorize?: false
+      )
+      |> Ash.create!()
+      |> Ash.Changeset.for_update(
+        :assign_to_business_unit,
+        %{owning_business_unit_id: ctx.business_unit.id},
+        authorize?: false
+      )
+      |> Ash.update!()
+
+    Security.UserRole
+    |> Ash.Changeset.for_create(
+      :assign,
+      %{user_id: user.id, role_id: role.id, scoping_business_unit_id: ctx.business_unit.id},
+      tenant: ctx.org,
+      authorize?: false
+    )
+    |> Ash.create!()
+
+    user
+  end
+
+  defp actor(user, org), do: ActorContext.attach(user, ActorContext.build(user, tenant: org))
 end

@@ -200,19 +200,17 @@ defmodule AshEnterpriseWeb.StewardLive do
       for field <- ~w(name email) do
         staged_value = mapped[field]
         golden_value = golden_value(golden, field)
-
-        winner =
-          cond do
-            is_nil(golden_value) and not is_nil(staged_value) -> :staged
-            true -> :golden
-          end
-
-        {field, staged_value, golden_value, winner}
+        {field, staged_value, golden_value, winner(golden_value, staged_value)}
       end
     else
       _ -> []
     end
   end
+
+  # Survivorship as the merge applies it: the golden keeps its value unless
+  # it has none and the staged row does.
+  defp winner(nil, staged_value) when not is_nil(staged_value), do: :staged
+  defp winner(_golden_value, _staged_value), do: :golden
 
   defp golden_value(golden, "email"), do: golden.email && to_string(golden.email)
   defp golden_value(golden, "name"), do: golden.name && to_string(golden.name)

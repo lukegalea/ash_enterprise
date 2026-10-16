@@ -339,21 +339,15 @@ defmodule AshEnterpriseWeb.ImportLive do
   # meet, not the UI's to paper over with boilerplate.
   defp build_field_rules(rules) do
     rules
-    |> Enum.flat_map(fn {field, rule} ->
-      case rule["target"] do
-        "" ->
-          []
-
-        target ->
-          base = %{"path" => field, "target" => target, "op" => rule["op"], "args" => %{}}
-
-          base =
-            if rule["because"] != "", do: Map.put(base, "because", rule["because"]), else: base
-
-          [base]
-      end
+    |> Enum.reject(fn {_field, rule} -> rule["target"] == "" end)
+    |> Enum.map(fn {field, rule} ->
+      %{"path" => field, "target" => rule["target"], "op" => rule["op"], "args" => %{}}
+      |> put_because(rule["because"])
     end)
   end
+
+  defp put_because(rule, ""), do: rule
+  defp put_because(rule, because), do: Map.put(rule, "because", because)
 
   defp finding_text(%{"errors" => errors}) do
     Enum.map_join(errors, ", ", fn e ->

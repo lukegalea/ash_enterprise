@@ -69,17 +69,19 @@ defmodule AshEnterprise.Mdm.LlmProposer do
       prompt = build_prompt(manifest)
 
       # The transport returns the raw JSON the model produced.
-      case transport.generate(spec, opts, @schema, prompt) do
-        {:ok, raw_json} when is_binary(raw_json) ->
-          with {:ok, %{"rules" => rules}} <- Jason.decode(raw_json) do
-            {:ok, rules}
-          end
-
-        {:error, reason} ->
-          {:error, reason}
-      end
+      spec
+      |> transport.generate(opts, @schema, prompt)
+      |> decode_rules()
     end
   end
+
+  defp decode_rules({:ok, raw_json}) when is_binary(raw_json) do
+    with {:ok, %{"rules" => rules}} <- Jason.decode(raw_json) do
+      {:ok, rules}
+    end
+  end
+
+  defp decode_rules({:error, reason}), do: {:error, reason}
 
   # The profile resolver may raise (pin/region guards) rather than return
   # {:error, _}; a missing or misconfigured profile degrades the proposal

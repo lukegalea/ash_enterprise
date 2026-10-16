@@ -207,7 +207,7 @@ defmodule AshEnterprise.Mdm.CsImportFlowTest do
 
     # Both goldens export, in the customer's shape, CA-admitted.
     assert {:ok, rows} =
-             AshEnterprise.Canonical.Person.mdm_export("example-ontario",
+             AshEnterprise.Mdm.Egress.export("example-ontario",
                tenant: org,
                actor: admin
              )

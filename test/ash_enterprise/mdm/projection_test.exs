@@ -102,7 +102,7 @@ defmodule AshEnterprise.Mdm.ProjectionTest do
     assert reloaded.owner_id == admin.id
     assert to_string(email) == "rita@x.io"
     assert name == "Rita Replay"
-    assert length(before) >= 1
+    assert before != []
 
     # Replay is deterministic: delete + replay again, same rows.
     AshEnterprise.Repo.query!("DELETE FROM canonical_people", [])

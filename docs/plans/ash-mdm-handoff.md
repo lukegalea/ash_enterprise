@@ -18,7 +18,8 @@ plan section and acceptance test named.
   omit creates the row's own golden, review → stewardship), `6fa05a4`
   (zero-candidate rows + reject create goldens; batch trio test),
   package `01318cd` (person statuses cannot ride the machine update).
-- MDM-6: `7c1e535` (egress export: Person.mdm_export generic action, zone
+- MDM-6: `7c1e535` (egress export: Person.mdm_export generic action — since
+  2026-10-16 `Mdm.Egress.export` behind its own grant, ADR 0054 addendum — zone
   disclosure gate on land-recorded residency tags; Landing ISO-normalises
   the region tag), `8f57954` (A2UI surfaces), `6304041` + `71cd5d8`
   (surface fixes; pushed-row assertions: survivor shown, absorbed loser

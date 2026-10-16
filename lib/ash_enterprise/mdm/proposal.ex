@@ -51,18 +51,16 @@ defmodule AshEnterprise.Mdm.Proposal do
   end
 
   defp allowed_target(target) do
-    case AshMdm.Mapping.Validator do
-      _ ->
-        case Application.get_env(:ash_mdm, :allowed_targets) do
-          %{} = allowlist ->
-            case Map.get(allowlist, target) do
-              nil -> {:error, :target_not_allowed}
-              module -> {:ok, module}
-            end
+    case Application.get_env(:ash_mdm, :allowed_targets) do
+      %{} = allowlist -> allowlisted(allowlist, target)
+      _ -> {:error, :no_allowlist}
+    end
+  end
 
-          _ ->
-            {:error, :no_allowlist}
-        end
+  defp allowlisted(allowlist, target) do
+    case Map.get(allowlist, target) do
+      nil -> {:error, :target_not_allowed}
+      module -> {:ok, module}
     end
   end
 
@@ -109,24 +107,26 @@ defmodule AshEnterprise.Mdm.Proposal do
           "samples" => masked
         }
 
-        case apply(m, f, a ++ [manifest]) do
-          {:ok, rules} when is_list(rules) ->
-            taken = MapSet.new(Enum.map(deterministic, & &1["target"]))
-
-            fresh = Enum.reject(rules, fn rule -> MapSet.member?(taken, rule["target"]) end)
-
-            {deterministic ++ fresh, :llm, %{"rules" => rules}}
-
-          {:error, reason} ->
-            # The refusal is retained: what the model would not do is
-            # provenance too.
-            {deterministic, :llm_refused, %{"reason" => inspect(reason)}}
-
-          other ->
-            {deterministic, :llm_invalid, %{"raw" => inspect(other)}}
-        end
+        m
+        |> apply(f, a ++ [manifest])
+        |> llm_outcome(deterministic)
     end
   end
+
+  defp llm_outcome({:ok, rules}, deterministic) when is_list(rules) do
+    taken = MapSet.new(Enum.map(deterministic, & &1["target"]))
+
+    fresh = Enum.reject(rules, fn rule -> MapSet.member?(taken, rule["target"]) end)
+
+    {deterministic ++ fresh, :llm, %{"rules" => rules}}
+  end
+
+  # The refusal is retained: what the model would not do is provenance too.
+  defp llm_outcome({:error, reason}, deterministic),
+    do: {deterministic, :llm_refused, %{"reason" => inspect(reason)}}
+
+  defp llm_outcome(other, deterministic),
+    do: {deterministic, :llm_invalid, %{"raw" => inspect(other)}}
 
   defp type_of(value) do
     cond do
