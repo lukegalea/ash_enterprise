@@ -10,8 +10,8 @@ DSL is small and these rules cover most decisions.
 Sub-rules (addressable as `ash_a2ui:<name>`):
 
 - `ash_a2ui:actions` — routing client envelopes through
-  `AshA2ui.ActionHandler`, the `row_actions` allowlist, and the reserved
-  data-model paths.
+  `AshA2ui.ActionHandler`, the `row_actions` and `bulk_actions`
+  allowlists, and the reserved data-model paths.
 - `ash_a2ui:liveview` — the `AshA2ui.LiveRenderer` transport and the JS
   hook wiring contract.
 - `ash_a2ui:ag-ui` — the `AshA2ui.AgUi` transport: serving surfaces to
@@ -21,8 +21,11 @@ Sub-rules (addressable as `ash_a2ui:<name>`):
   search/sort/filter/pagination.
 - `ash_a2ui:relationships` — `belongs_to` form selects (inference,
   `option_*` defaults, `/options/<field>`) and `source` table columns.
-- `ash_a2ui:layout` — `group` form sections (labeled N-column grids) and
-  `row_layout` card-style table rows (title + badge header, metadata grid).
+- `ash_a2ui:layout` — `group` form sections (labeled N-column grids),
+  `step` wizard pages on forms (Back/Next with server-side per-step
+  validation, optional review step), `row_layout` card-style table rows
+  (title + badge header, metadata grid), and `display :board` boards (lanes
+  over an attribute's values).
 - `ash_a2ui:contexts` — surface `context` entities (server-validated
   selections, dependent options, `context_filter`/`require_context`/
   `select_context`) and `:detail` components.
@@ -53,9 +56,10 @@ Sub-rules (addressable as `ash_a2ui:<name>`):
   - Client action envelopes carry a unique `actionId` + `wantResponse: true`
     and the server replies with an **`actionResponse`** — per-action
     success/error feedback instead of only global status paths.
-  - Lifecycle + generic-action results consolidate on **`/ui/response`**
-    (`{status, message, result, resultText}`) replacing `/ui/status` +
-    `/ui/action_result`; the v0.9.1 paths remain only on v0.9.1 surfaces.
+  - Outcomes + generic-action results consolidate on **`/ui/response`**
+    (`{status, message, result, resultText}`) replacing
+    `/ui/action_result`; the typed `/ui/feedback` is written on both wire
+    versions.
   - `theme` becomes `surfaceProperties`; heading Texts are emitted as
     Markdown (`### Title`) instead of `variant` values.
 - Both encoders validate against vendored spec schemas
@@ -73,7 +77,9 @@ Work down this ladder and stop at the first rung that fits:
    **use AshAdmin**, not AshA2ui. It's less work and renders in-process.
 3. The page needs bespoke interactions, custom widgets, or pixel-level
    control → **write plain LiveView** (or use Backpex for Ecto-first admin
-   panels). Don't fight the fixed component catalog.
+   panels). Don't fight the fixed component catalog. A *linear* multi-step
+   form over one Ash action is not a reason to leave: declare form `step`s.
+   Branching flows, uploads and steps that wait on background jobs are.
 4. Only one Phoenix web client exists and nothing needs to consume a UI
    protocol → plain LiveView; the protocol indirection buys nothing yet.
 
@@ -115,11 +121,15 @@ end
 ```
 
 - Section options: `surface_id` (defaults to the underscored short name of
-  the resource), `for_resource` (standalone modules only), and
-  `add_render_action?` (defaults to `true`; on-resource surfaces get a
-  generic `render_a2ui` action returning the surface's messages — set it to
-  `false` if you don't want that action on the resource; it is ignored in
-  standalone modules).
+  the resource), `for_resource` (standalone modules only), `title` (the
+  surface's h1 heading; defaults to the humanized resource name — set it
+  when the module's name is not the reader's word for the page), and
+  `record_label` (the singular noun the derived task labels use: "Create
+  <label>", "Edit <label>", the empty-state text; defaults to the humanized
+  resource short name), and `add_render_action?` (defaults to `true`;
+  on-resource surfaces get a generic `render_a2ui` action returning the
+  surface's messages — set it to `false` if you don't want that action on
+  the resource; it is ignored in standalone modules).
 - Component names are exactly `:table`, `:form`, `:detail`, and `:report`.
   Multiple `:table` components are allowed when each extra one carries a
   distinguishing name (`component :table, :new_items do ... end`); that
@@ -135,6 +145,13 @@ end
   at render time into one scoped table per source record, under runtime
   names following the multi-table conventions. `refreshes` naming the
   template key fans out to the whole set (multi-section-surfaces topic).
+- When the sections are the *values of an attribute* (a status, a stage),
+  omit `source`: the lanes are `scope_by`'s `Ash.Type.Enum` values or
+  `one_of` constraint, narrowed/ordered by `values`, headed per `labels`, with
+  no read to enumerate them. Add `display :board` (plus a `row_layout`) to
+  render them as side-by-side lanes. Cards move only through transition row
+  actions gated by `visible_when` that refresh the template key — no
+  drag-and-drop (rules in `ash_a2ui:layout`).
 - Per-cell editing (spreadsheet-style columns) is an `editable` block on
   the table (`fields` allowlist + `update_action`), not a form: cells
   commit through the `"edit_cell"` action, validation errors mirror into
@@ -160,6 +177,16 @@ end
   Update actions in `row_actions` run **argument-less** on the record
   (touch-style state transitions) — actions needing values belong in the
   form or a generic action with `:record_id` (`ash_a2ui:actions`).
+- **Bulk actions are a second allowlist.** `bulk_actions [:approve]` on a
+  `:table` adds a row CheckBox (row key `_selected`) and a toolbar; the
+  `"bulk_invoke"` action re-reads the selected ids through the table's
+  read under its active query preset and scope as the actor, then runs the
+  action once per record through the same dispatch as `invoke`
+  (`visible_when`, `via`, `refreshes` apply per record; no shared
+  transaction). Update, destroy or generic actions only (a generic one
+  must declare `argument :record_id`); no `prompt_fields`; not on related
+  tables (compile-time verified). One page per run. Keep the list as small as `row_actions` —
+  see the bulk-actions topic and `ash_a2ui:actions`.
 - A row action whose click must run through a **host-provided function**
   instead of the mapped Ash action (e.g. an engine facade that completes an
   external task and invokes the action itself) declares `via` on its
@@ -178,9 +205,10 @@ end
   selections). The MFA returns the direct path's shapes — `:ok`,
   `{:ok, term}`, or `{:error, Ash.Error.t()}` — and the result renders
   through the standard channels unchanged (refreshes honoring `refreshes`,
-  status text, `/errors/<field>` mapping). The client is unaware `via`
-  exists. `via` is row-action-only and mutually exclusive with
-  `prompt_fields` (compile-time verified); the named Ash action must still
+  `/ui/feedback`, `/errors/<field>` mapping). The client is unaware `via`
+  exists. `via` applies to row and bulk actions only (a bulk run calls the
+  MFA once per record) and is mutually exclusive with `prompt_fields`
+  (compile-time verified); the named Ash action must still
   exist — it remains the allowlist entry and the button's label.
 - Omit `fields` only when the inferred set (public attributes for tables,
   action `accept`s for forms) is genuinely what you want shown. Otherwise
@@ -202,33 +230,45 @@ end
   not work around it with runtime indirection. A verifier failure means the
   surface would have emitted a broken wire contract.
 
-## Experience version and catalog
+## The experience layer and the catalog
 
-- **Experience v2 is the default** (`AshA2ui.Experience`): rows get semantic
-  **View** / **Edit** controls instead of **Select**, a gated
-  **Create <Resource>** affordance (the form renders inside a task panel
-  driven by the `start_create` / `view_record` / `start_edit` /
-  `cancel_record_task` client actions), conditional pagination, data-driven
-  empty states, and typed feedback (`/ui/feedback` kind + message) instead
-  of only the `/ui/status` text.
-- Hosts pin the legacy rendering per application:
-  `config :ash_a2ui, :experience_version, 1` — byte-identical to the
-  pre-v2 release; the v2 task-mode actions are rejected like unknown
-  actions under the pin. Don't write surfaces that only look right under
-  one version: everything a surface declares (components, row actions,
-  queries, contexts) is version-agnostic; the version only changes the
-  emission around them.
+- Every surface composes through the experience layer
+  (`AshA2ui.Experience`); there is no version to pin. Surfaces get an h1
+  title, a record **task panel** (browse / create / view / edit) driven by
+  the `start_create` / `view_record` / `start_edit` / `cancel_record_task`
+  client actions, **View** / **Edit** row controls (View only on surfaces
+  with a form, Edit only with a declared `update_action`, neither on a
+  related table), a **Create <Resource>** button (only with a create action,
+  never under a related table), to-one reference links as borderless
+  link Buttons in the basic catalog when built with `link_buttons: true`
+  (anchors in the admin catalog),
+  pagination that hides on a single page,
+  data-driven empty states, and typed feedback at `/ui/feedback`
+  (`kind` + `message`) for every action outcome.
+- The panel is a state machine, not a form with toggles: view is
+  **read-only** (`view_record` renders `/ui/panel/record`, never `/form`),
+  and edit is the explicit `start_edit` transition onto the form buffer —
+  rejected without a declared `update_action`. The feedback line sits right
+  under the panel, above the tables.
+- `config :ash_a2ui, :experience_version, ...` no longer exists; drop it
+  from host config (it is ignored). The `select_row` action and the
+  `/ui/status` path are gone: bind outcomes to `/ui/feedback` (v1.0 surfaces
+  also carry `/ui/response` and the `actionResponse` handshake).
 - `config :ash_a2ui, :catalog, :admin_v1` selects the semantic admin
-  catalog **on top of** experience v2 (`effective_admin?/0` requires both).
-  The catalog's binding schemas are built from `@a2ui/web_core`'s own
-  exported schema builders (issue #5 is fixed there), so a host zod 4 no
-  longer breaks reserved-path bindings — `createAshAdminCatalog` builds
+  catalog (the default is `:basic`). A surface the admin composition cannot
+  carry (sections, export, inline editing, bulk actions, nested forms,
+  wizard steps, boards) falls back to the basic composition for that
+  subtree. The catalog's binding schemas are built from `@a2ui/web_core`'s
+  own exported schema builders (issue #5 is fixed there), so a host zod 4
+  no longer breaks reserved-path bindings — `createAshAdminCatalog` builds
   without the host passing `z` at all, and throws a loud error if a
   foreign-zod `z` is still passed. Hosts must still pin matching
-  `@a2ui/lit` / `@a2ui/web_core` versions (verified against
-  lit 0.10.1 / web_core 0.11.0 — the versions `priv/js` files were built
-  against). The Lit renderer registration ships in
-  `priv/js/ash_admin_catalog.js` (`createAshAdminCatalog(deps)`).
+  `@a2ui/lit` / `@a2ui/web_core` versions: the admin catalog was built and
+  verified against lit 0.10.1 / web_core 0.11.0; the basic catalog's
+  Text/Button overrides resolve the upstream elements at runtime, so they
+  also bundle against 0.10.x (verified with lit 0.10.3 / web_core 0.10.6).
+  The Lit renderer registration ships in `priv/js/ash_admin_catalog.js`
+  (`createAshAdminCatalog(deps)`).
 
 ## Actors (hosts without authentication)
 
@@ -294,15 +334,21 @@ end
   maps validation errors onto the reserved data-model paths. Calling Ash
   actions directly from transport code skips the allowlist and the error
   mapping. Full contract in `ash_a2ui:actions`.
-- Action names are exactly `"submit_form"`, `"select_row"`, `"invoke"`,
+- Action names are exactly `"submit_form"`, `"invoke"`,
   `"prompt"`, `"query"`, `"option_search"`, `"option_select"`,
   `"nested_add"`, `"nested_remove"` (those four only on surfaces with
   searchable selects / nested forms — see `ash_a2ui:relationships`),
   `"context_search"`, `"context_select"`, `"context_clear"` (only on
-  surfaces with `context` entities — see `ash_a2ui:contexts`), and the
-  experience v2 task modes `"start_create"`, `"view_record"`,
-  `"start_edit"`, `"cancel_record_task"` (v2 is the default; under a
-  `experience_version: 1` pin they are rejected like unknown actions).
+  surfaces with `context` entities — see `ash_a2ui:contexts`), the
+  task-panel actions `"start_create"`, `"view_record"`, `"start_edit"`,
+  `"cancel_record_task"`, plus the feature names `"edit_cell"` (`editable` tables), `"report"` and
+  `"export"` (`ash_a2ui:reports`), `"bulk_invoke"` / `"bulk_select"`
+  (tables with `bulk_actions`), `"wizard_next"`, `"wizard_back"` (only
+  on forms declaring `step`s — see `ash_a2ui:layout`), and
+  `"open_surface"` (the basic catalog's opt-in reference-link Buttons: the
+  field/surface pair is validated against the surface's to-one link
+  fields, the record id is not; no follow-up messages, the transport
+  navigates — see `ash_a2ui:relationships`).
   Don't invent new `action.name` values; add a proper Ash action and expose
   it via `row_actions` instead.
 - Row actions that need user input declare `prompt_fields` on their
@@ -319,16 +365,18 @@ end
   for validation errors (nested rows:
   `/errors/<argument>/<index>/<field>`), `/options/<name>` for
   relationship select and picker options, `/select/<name>` for
-  searchable-select/picker state,   `/ui/status` for lifecycle feedback,
+  searchable-select/picker state, `/ui/feedback` (`kind` + `message`) for
+  every action outcome, `/ui/intent` + `/ui/panel/*` for the task panel,
   `/ui/action_result` + `/ui/action_result_text` for map-returning generic
   actions (raw map + display text, cleared on every subsequent action) —
-  on `spec_version "1.0"` surfaces these three consolidate into
+  on `spec_version "1.0"` surfaces those two consolidate into
   `/ui/response`,
   `/query` for query state (multi-table surfaces scope records and query
   state per table: `/records/<component_name>`, `/query/<component_name>`),
   `/prompt/values/<action>` for prompt Modal state,
   `/context/<name>` + `/detail/<context>` for surface-context selections
-  and their detail records
+  and their detail records, `/bulk/<table>/result` for the last bulk run's
+  outcome (rows of bulk tables carry the `_selected` key)
   — never through ad-hoc paths or custom message types. Renderers depend on
   these paths.
 
@@ -337,7 +385,10 @@ end
 - ❌ Hand-writing or string-templating A2UI message JSON.
 - ❌ Calling Ash actions directly from transport code in response to client
   envelopes (bypasses the allowlist — use `ActionHandler`).
-- ❌ Wide-open `row_actions` (e.g. mirroring every action on the resource).
+- ❌ Wide-open `row_actions` or `bulk_actions` (e.g. mirroring every action
+  on the resource).
+- ❌ Running a bulk write yourself from carried row ids — `bulk_invoke`
+  re-reads them through the table's authorized, scoped read first.
 - ❌ Treating `authorize?: true` as access control on a policy-less
   resource.
 - ❌ Suppressing or working around compile-time verifier errors.

@@ -287,9 +287,11 @@ defmodule AshEnterprise.Acp.ExtMethods do
   # so the kind is read back from them. A field error is under
   # `/errors/<field>`. A policy refusal carries nothing else, so policy
   # details do not leak: on an A2UI 1.0 surface `/ui/response` with code
-  # `UNAUTHORIZED`, on a 0.9.1 one exactly this `/ui/status` sentence.
-  # `test/ash_enterprise/acp_low_privilege_test.exs` pins both against the
-  # real handler.
+  # `UNAUTHORIZED`, on a 0.9.1 one the typed `/ui/feedback` error carrying
+  # exactly this sentence (0.9.1 has no error codes; the sentence is the
+  # handler's fixed refusal text). `test/ash_enterprise/acp_low_privilege_test.exs`
+  # and `test/ash_enterprise_web/a2ui/mdm_steward_ui_test.exs` pin both
+  # against the real handler.
   @forbidden_status "You are not authorized to perform this action."
 
   @doc false
@@ -311,7 +313,10 @@ defmodule AshEnterprise.Acp.ExtMethods do
   defp invalid?(_update), do: false
 
   defp forbidden?({"/ui/response", %{"code" => "UNAUTHORIZED"}}), do: true
-  defp forbidden?({"/ui/status", @forbidden_status}), do: true
+
+  defp forbidden?({"/ui/feedback", %{"kind" => "error", "message" => @forbidden_status}}),
+    do: true
+
   defp forbidden?(_update), do: false
 
   # The resource and Ash action a write runs, for the approval record: a row

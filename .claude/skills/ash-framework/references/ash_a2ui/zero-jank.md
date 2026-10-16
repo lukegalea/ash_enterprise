@@ -25,11 +25,14 @@ these mechanisms, in this order of preference:
    `wantResponse: true`), the server's `actionResponse` settles it, and a
    watchdog turns a never-answered action into a visible timeout error.
    "Working…" is therefore on screen before the request leaves the browser.
-2. **Typed feedback (`/ui/feedback`)** — the v2 handler answers every action
+2. **Typed feedback (`/ui/feedback`)** — the handler answers every action
    outcome with `{kind, message}`; components bound to it (the basic `status
    text`, the admin `statusBanner`) render the outcome the moment the
-   follow-up lands. The handler always writes it — success, rejection, and
-   error paths — so an action never ends silently.
+   follow-up lands. The handler writes it on every success, rejection and
+   error path, and clears it when a task opens or closes or a context
+   selection settles, so an outcome-bearing action never ends silently.
+   Data-fetch actions (`query`, `option_search`, `context_search`) leave
+   it untouched.
 3. **In-flight states on action buttons** — catalog components acknowledge
    clicks themselves: the admin `actionBar` shows `busy` (disabled + spinner)
    while its submit is in flight, and the admin `dataGrid` row-action buttons
@@ -82,8 +85,8 @@ reference for host-rendered a2ui chrome.
 
 - **`cancel_record_task` is a roundtrip, not a `JS.hide`.** The panel state
   is a server-enforced state machine (`/ui/panel`), and an optimistic close
-  would desync the UI whenever a host rejects the action (e.g. the v1
-  experience pin). The transition itself is pure computation, so the round
+  would desync the UI whenever the server rejects or reshapes the
+  transition. The transition itself is pure computation, so the round
   trip is RTT-bounded and the v1.0 pending write covers the wait.
 - **Action handling runs inline in `handle_event`.** Overlapping invokes on
   one record must apply in order; shunting them into concurrent tasks buys
@@ -99,7 +102,8 @@ reference for host-rendered a2ui chrome.
 
 ## Future work (not invented yet, on purpose)
 
-- **A loading counterpart to `emptyState` in the catalog schema.** v2 can
+- **A loading counterpart to `emptyState` in the catalog schema.** The
+  experience layer can
   express "no records" but not "records loading" as a component; adding one
   means a vendored-schema + upstream-renderer change, so slow per-table
   reads (query actions) currently rely on the button in-flight states and
@@ -107,4 +111,4 @@ reference for host-rendered a2ui chrome.
 - **Optimistic in-flight styling on the upstream basic-catalog Button** (the
   plain `v0.9.1` + basic-catalog composition) — the basic catalog is
   upstream; AshA2ui surfaces on it rely on the hook's v1.0 pending write and
-  the v2 status text binding.
+  the typed status text binding.

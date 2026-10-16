@@ -194,12 +194,22 @@ defmodule AshEnterprise.AcpLowPrivilegeTest do
       [%{"updateDataModel" => %{"surfaceId" => "s", "path" => path, "value" => value}}]
     end
 
-    assert ExtMethods.failure_kind(
-             status.("/ui/status", "You are not authorized to perform this action.")
-           ) == :forbidden
+    feedback = fn message ->
+      status.("/ui/feedback", %{"kind" => "error", "message" => message})
+    end
+
+    # A 0.9.1 surface reports a refusal as the typed `/ui/feedback` error with
+    # the handler's fixed sentence; any other error text is not a refusal.
+    assert ExtMethods.failure_kind(feedback.("You are not authorized to perform this action.")) ==
+             :forbidden
 
     assert ExtMethods.failure_kind(status.("/errors/title", "is required")) == :invalid
-    assert ExtMethods.failure_kind(status.("/ui/status", "Something went wrong.")) == :error
+    assert ExtMethods.failure_kind(feedback.("Something went wrong.")) == :error
+
+    # `/ui/status` is gone from ash_a2ui; a stray one no longer classifies.
+    assert ExtMethods.failure_kind(
+             status.("/ui/status", "You are not authorized to perform this action.")
+           ) == :error
   end
 
   test "a deactivated account is refused before anyone is asked", ctx do

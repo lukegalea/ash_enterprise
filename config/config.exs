@@ -497,14 +497,12 @@ config :logger, :default_formatter,
 config :phoenix, :json_library, Jason
 
 # A2UI experience layer: task modes (create/view/edit), conditional
-# pagination, typed feedback, and the semantic admin catalog. App-wide by
-# config -- every surface is `AshA2ui.Standalone`-based, so nothing
-# per-surface is needed. Version 2 + `:admin_v1` is the full layer; the
-# precedence rules (admin requires v2, selection ignored otherwise) are
-# deterministic and tested upstream. See
-# docs/adr/0033-experience-layer-adoption.md for the decision and its
-# reversibility story.
-config :ash_a2ui, experience_version: 2, catalog: :admin_v1
+# pagination, typed feedback, and the semantic admin catalog. The experience
+# layer is ash_a2ui's only composition (v1 and its `experience_version` key
+# were removed upstream), so the catalog is the one choice left: `:admin_v1`,
+# app-wide -- every surface is `AshA2ui.Standalone`-based, so nothing
+# per-surface is needed. See docs/adr/0033-experience-layer-adoption.md.
+config :ash_a2ui, catalog: :admin_v1
 
 # Reference links (`link` / `links` fields): the registry decides which surface
 # a link opens, per actor, and every link carries a server-built href to the

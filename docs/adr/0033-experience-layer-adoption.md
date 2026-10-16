@@ -205,3 +205,24 @@ The middle rung, back to the pre-adoption screens, goes away. Nothing here
 depends on it: no surface in this application was ever meant to run on v1
 after this adoption.
 
+
+## Note — 2026-10-16: v1 and `experience_version` are gone
+
+`ash_a2ui` removed experience v1 on 2026-10-16 (a3c1763, "remove experience
+v1 — the experience layer is the only composition", lukegalea/ash_a2ui#18).
+This application now locks a commit after it. What that removed:
+
+- The `experience_version` key. `config/config.exs` no longer sets it; the
+  line is `config :ash_a2ui, catalog: :admin_v1`. A leftover key would be
+  ignored.
+- The v1 composition: the always-visible "Save" form, the per-row "Select"
+  button and its `select_row` action, the always-present pagination row.
+- `/ui/status`, on both wire versions. Every outcome is the typed
+  `/ui/feedback` (`%{"kind", "message"}`); v1.0 surfaces keep `/ui/response`
+  and the `actionResponse` handshake and also write `/ui/feedback`. The one
+  consumer here that read `/ui/status` — ACP's refusal classification
+  (`AshEnterprise.Acp.ExtMethods`) — now reads `/ui/feedback`.
+
+The reversal ladder is the two rungs the 2026-10-15 correction predicted:
+`catalog: :basic` (or delete the tuple), then the tier-3 exit. There is no
+configuration that restores the v1 screens.

@@ -77,7 +77,7 @@ end
   every other action — don't bypass it, and don't build your own filter/sort
   plumbing from client input next to it.
 - Non-allowlisted requests come back as `{:error, [message]}` with the
-  explanation on `/ui/status` and **no read executed**. Don't "fix" this by
+  explanation as an `/ui/feedback` error and **no read executed**. Don't "fix" this by
   widening the allowlist reflexively; ask whether the field should really be
   client-sortable/filterable.
 - Success refreshes of `submit_form`/`invoke` respect the carried `/query`
