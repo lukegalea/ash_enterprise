@@ -185,6 +185,13 @@ the queue does not have. It also queried in `mount`.
   They are self-service (ADR 0052) because they authorize nothing themselves: being able to run one grants nothing that
   the update does not. Each is shown only while the candidate is pending (`visible_when`), and the handler re-checks
   that on every click.
+- **The queue is filtered by the golden** (item 1 of "Does it consume ActorContext?", restated from 0017): `:review_queue`
+  lists a candidate only when the reader may read its golden, through an unrelated `exists` on Person that Ash
+  authorizes with Person's read policy (`exists(golden, ...)` through the relationship joins past it). Since Person is
+  owner-only, most stewards see the candidates for goldens they own. Confirm match is refused, as `Forbidden`, for a
+  golden the actor may not read, even when opened by id, and `ReviewQueue`'s `:mdm_match` reads the same action.
+  `NextEvent` and `LatestMessage`, the remaining calculations that named a relationship in `load/3`, now load it as the
+  reader in the same way.
 - **Bulk** is reject only. A merge is a person's decision about one pair; rejecting a page of weak matches keeps every
   staged row a record of its own and can be redone by an import.
 

@@ -17,12 +17,23 @@ defmodule AshEnterprise.Mdm.Proposal do
      `validation_findings["proposal"]` either way: what the model said is
      provenance, not gospel.
 
-  The proposal creates the mapping as a system actor (candidate generation's
-  sharp edge, ADR 0017); a person then validates and activates it through
-  the ordinary gate.
+  The draft and its proposal row are written as `opts[:actor]` — by default
+  the system actor (candidate generation's sharp edge, ADR 0017); a surface
+  a person clicks passes that person, so their grants on `Mapping` and
+  `MappingProposal` decide and a refusal writes nothing. Either way a person
+  then validates and activates the draft through the ordinary gate. The
+  draft and its proposal row are written together or not at all.
   """
 
-  @doc "Proposes a draft mapping. Returns {:ok, mapping} or {:error, reason}."
+  alias AshEnterprise.Mdm.{Mapping, MappingProposal}
+  alias AshEnterprise.Platform.SystemActor
+
+  @doc """
+  Proposes a draft mapping. Returns {:ok, mapping} or {:error, reason}.
+
+  Options: `:samples` (field samples, masked before any LLM sees them),
+  `:actor` (who writes the draft; the system actor when omitted).
+  """
   def propose(tenant, target_resource, observed_schema, opts \\ []) do
     with {:ok, module} <- allowed_target(target_resource) do
       attributes = public_attributes(module)
@@ -32,22 +43,28 @@ defmodule AshEnterprise.Mdm.Proposal do
       {rules, stage, raw} =
         maybe_llm_rules(tenant, target_resource, attributes, observed_schema, samples, rules)
 
-      mapping = create_draft(tenant, target_resource, observed_schema, rules)
+      write = [tenant: tenant, actor: Keyword.get(opts, :actor, SystemActor.system())]
 
-      AshEnterprise.Mdm.MappingProposal
-      |> Ash.Changeset.for_create(:record, %{
-        mapping_id: mapping.id,
-        stage: stage,
-        raw: raw
-      })
-      |> Ash.create!(
-        tenant: tenant,
-        actor: AshEnterprise.Platform.SystemActor.system(),
-        authorize?: true
-      )
-
-      {:ok, mapping}
+      Ash.transaction([Mapping, MappingProposal], fn ->
+        write_draft(target_resource, observed_schema, rules, {stage, raw}, write)
+      end)
     end
+  end
+
+  # Inside the transaction: a refused proposal row rolls the draft back.
+  defp write_draft(target, observed_schema, rules, {stage, raw}, write) do
+    with {:ok, mapping} <- create_draft(target, observed_schema, rules, write),
+         {:ok, _proposal} <- record_proposal(mapping, stage, raw, write) do
+      mapping
+    else
+      {:error, error} -> Ash.DataLayer.rollback([Mapping, MappingProposal], error)
+    end
+  end
+
+  defp record_proposal(mapping, stage, raw, write) do
+    MappingProposal
+    |> Ash.Changeset.for_create(:record, %{mapping_id: mapping.id, stage: stage, raw: raw}, write)
+    |> Ash.create()
   end
 
   defp allowed_target(target) do
@@ -138,20 +155,20 @@ defmodule AshEnterprise.Mdm.Proposal do
     end
   end
 
-  defp create_draft(tenant, target, observed_schema, rules) do
-    AshEnterprise.Mdm.Mapping
-    |> Ash.Changeset.for_create(:draft, %{
-      direction: :ingress,
-      source: "ai_proposal",
-      stream: "proposal",
-      target_resource: target,
-      field_rules: rules,
-      observed_schema: observed_schema
-    })
-    |> Ash.create!(
-      tenant: tenant,
-      actor: AshEnterprise.Platform.SystemActor.system(),
-      authorize?: true
+  defp create_draft(target, observed_schema, rules, write) do
+    Mapping
+    |> Ash.Changeset.for_create(
+      :draft,
+      %{
+        direction: :ingress,
+        source: "ai_proposal",
+        stream: "proposal",
+        target_resource: target,
+        field_rules: rules,
+        observed_schema: observed_schema
+      },
+      write
     )
+    |> Ash.create()
   end
 end

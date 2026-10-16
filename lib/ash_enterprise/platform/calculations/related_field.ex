@@ -54,10 +54,12 @@ defmodule AshEnterprise.Platform.Calculations.RelatedField do
   end
 
   @doc """
-  Loads `relationship` (with `fields`) onto `records` as the calculation
-  context's actor — the authorized read every caller of this module relies on.
+  Loads `relationship` (with `fields`, or a query on the related resource)
+  onto `records` as the calculation context's actor — the authorized read
+  every caller of this module relies on.
   """
-  @spec load_related([struct()], atom(), [atom()], map()) :: {:ok, [struct()]} | {:error, term()}
+  @spec load_related([struct()], atom(), [atom()] | Ash.Query.t(), map()) ::
+          {:ok, [struct()]} | {:error, term()}
   def load_related([], _relationship, _fields, _context), do: {:ok, []}
 
   def load_related(records, relationship, fields, context) do

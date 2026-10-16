@@ -40,13 +40,4 @@ defmodule AshEnterprise.Bpmn.Candidacy do
       do: :ok
 
   def assignee(_task, _actor), do: {:error, Ash.Error.Forbidden.exception([])}
-
-  @doc "`:ok` when the actor is the task's assignee or one of its candidates."
-  @spec assignee_or_candidate(struct(), term(), keyword()) :: :ok | {:error, Exception.t()}
-  def assignee_or_candidate(task, actor, opts) do
-    case assignee(task, actor) do
-      :ok -> :ok
-      {:error, _not_assignee} -> candidate(task, actor, opts)
-    end
-  end
 end

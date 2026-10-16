@@ -4,11 +4,18 @@ defmodule AshEnterprise.Bpmn.Actions.DecideTask do
   candidate for, through the process engine (ADR 0015 — approvals live in Ash,
   decisions go through the engine).
 
-  The only path in: the task is read as the actor (their policies), the actor
-  must be its assignee (they claimed it, or it was delegated to them) or a
-  candidate — a materialised `TaskCandidate` row for the actor or one of
-  their teams, the same rows `/app/tasks` joins on
-  (`AshEnterprise.Bpmn.Candidacy`) — and only then is
+  The only path in: the task is read as the actor (their policies), and who
+  may decide it depends on its state (`AshEnterprise.Bpmn.Candidacy`):
+
+    * **open** — any candidate: a materialised `TaskCandidate` row for the
+      actor or one of their teams, the same rows `/app/tasks` joins on. The
+      decision claims it implicitly.
+    * **claimed** — only its assignee (they claimed it, or it was delegated
+      to them). Another candidate — the person who delegated it away
+      included — is refused, as the task board refuses them Complete: once
+      someone holds a task, only they decide it.
+
+  Only then is
   `AshBpmn.complete_task/2` called — which records the implicit claim,
   completes the task with the actor as `decided_by`, cancels its timers and
   advances the token, so the process's own service tasks do the work the
@@ -28,8 +35,7 @@ defmodule AshEnterprise.Bpmn.Actions.DecideTask do
     ash_opts = Ash.Context.to_opts(context)
 
     with {:ok, task} <- Ash.get(HumanTask, input.arguments.record_id, ash_opts),
-         :ok <- undecided(task),
-         :ok <- Candidacy.assignee_or_candidate(task, context.actor, ash_opts),
+         :ok <- may_decide(task, context.actor, ash_opts),
          {:ok, _completed} <-
            AshBpmn.complete_task(task,
              outcome: outcome,
@@ -44,8 +50,11 @@ defmodule AshEnterprise.Bpmn.Actions.DecideTask do
     end
   end
 
-  defp undecided(%{status: status}) when status in [:open, :claimed], do: :ok
-  defp undecided(_task), do: {:error, "this task has already been decided"}
+  defp may_decide(%{status: :open} = task, actor, opts),
+    do: Candidacy.candidate(task, actor, opts)
+
+  defp may_decide(%{status: :claimed} = task, actor, _opts), do: Candidacy.assignee(task, actor)
+  defp may_decide(_task, _actor, _opts), do: {:error, "this task has already been decided"}
 
   defp verb("approved"), do: "Approved"
   defp verb("rejected"), do: "Rejected"

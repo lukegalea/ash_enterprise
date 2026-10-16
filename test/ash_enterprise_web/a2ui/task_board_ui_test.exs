@@ -3,8 +3,9 @@ defmodule AshEnterpriseWeb.A2ui.TaskBoardUITest do
   My tasks (`TaskBoardUI`, `/app/tasks`) driven through ash_a2ui's handler
   as the people who click it: the board's lanes, claim, complete and
   delegate as the clicking person, and the refusals — a person who is not a
-  candidate cannot claim, and only the holder of a claimed task completes or
-  delegates it.
+  candidate cannot claim, a task is delegated only to another of its
+  candidates, and only the holder of a claimed task completes, delegates or
+  (from Approvals) decides it.
   """
 
   use AshEnterprise.DataCase, async: false
@@ -14,8 +15,8 @@ defmodule AshEnterpriseWeb.A2ui.TaskBoardUITest do
   require Ash.Query
 
   alias AshEnterprise.Accounts.User
-  alias AshEnterprise.Bpmn.{HumanTask, ProcessEvent}
-  alias AshEnterpriseWeb.A2ui.TaskBoardUI
+  alias AshEnterprise.Bpmn.{HumanTask, ProcessEvent, TaskCandidate}
+  alias AshEnterpriseWeb.A2ui.{ApprovalsUI, TaskBoardUI}
 
   setup do
     admin = tenant!()
@@ -39,6 +40,30 @@ defmodule AshEnterpriseWeb.A2ui.TaskBoardUITest do
       {HumanTask, :write, :global},
       {User, :read, :global}
     ])
+  end
+
+  # Makes `person` one of the task's candidates, as assignment resolution
+  # would have when the task was created.
+  defp candidate!(task, person) do
+    TaskCandidate.create!(
+      %{task_id: task.id, principal_type: :user, principal_id: person.user.id},
+      tenant: person.tenant,
+      authorize?: false
+    )
+
+    person
+  end
+
+  defp approvals_invoke(person, action, task) do
+    AshA2ui.ActionHandler.handle(
+      ApprovalsUI,
+      %{
+        "name" => "invoke",
+        "context" => %{"action" => action, "recordId" => task.id, "component" => "table"}
+      },
+      actor: person.actor,
+      tenant: person.tenant
+    )
   end
 
   defp lanes(person) do
@@ -148,7 +173,7 @@ defmodule AshEnterpriseWeb.A2ui.TaskBoardUITest do
     admin: admin,
     task: task
   } do
-    colleague = colleague!(admin)
+    colleague = admin |> colleague!() |> then(&candidate!(task, &1))
     assert {:ok, _} = invoke(admin, "claim_task", task)
 
     assert {:ok, _messages} =
@@ -166,6 +191,63 @@ defmodule AshEnterpriseWeb.A2ui.TaskBoardUITest do
              run(admin, :complete_task, %{record_id: task.id, outcome: "approved"})
 
     assert {:ok, _messages} = invoke(colleague, "complete_task", task, %{"outcome" => "approved"})
+    assert reload(task, admin.tenant).status == :completed
+  end
+
+  # Maker-checker is subtraction at candidate resolution: the excluded
+  # requester has no candidate row, exactly like this colleague. Holding every
+  # task grant does not make them someone the task may be handed to.
+  test "a task is not delegated to someone who is not its candidate", %{
+    admin: admin,
+    task: task
+  } do
+    colleague = colleague!(admin)
+    assert {:ok, _} = invoke(admin, "claim_task", task)
+
+    assert {:error, %Ash.Error.Invalid{} = error} =
+             run(admin, :delegate_task, %{record_id: task.id, delegate_to: colleague.email})
+
+    assert Exception.message(error) =~ "not one of this task's approvers"
+    assert reload(task, admin.tenant).assignee_id == admin.user.id
+
+    # …so they can never decide it, by either door.
+    assert {:error, %Ash.Error.Forbidden{}} =
+             run(colleague, :complete_task, %{record_id: task.id, outcome: "approved"})
+
+    assert {:error, %Ash.Error.Forbidden{}} = run(colleague, :approve, %{record_id: task.id})
+    assert reload(task, admin.tenant).status == :claimed
+  end
+
+  test "whoever delegated a task cannot then decide it from Approvals", %{
+    admin: admin,
+    task: task
+  } do
+    colleague = admin |> colleague!() |> then(&candidate!(task, &1))
+    assert {:ok, _} = invoke(admin, "claim_task", task)
+    assert {:ok, _} = invoke(admin, "delegate_task", task, %{"delegate_to" => colleague.email})
+
+    # Still a candidate, no longer the holder: refused by the action…
+    for action <- [:approve, :reject] do
+      assert {:error, %Ash.Error.Forbidden{}} = run(admin, action, %{record_id: task.id})
+    end
+
+    # …and through the Approvals surface, as a refusal.
+    for action <- ["approve", "reject"] do
+      assert {:error, messages} = approvals_invoke(admin, action, task)
+      assert AshEnterprise.Acp.ExtMethods.failure_kind(messages) == :forbidden
+    end
+
+    assert reload(task, admin.tenant).status == :claimed
+
+    # The holder decides it there.
+    assert {:ok, _messages} = approvals_invoke(colleague, "approve", task)
+    done = reload(task, admin.tenant)
+    assert done.status == :completed
+    assert done.decided_by_id == colleague.user.id
+  end
+
+  test "an open task is any candidate's to decide from Approvals", %{admin: admin, task: task} do
+    assert {:ok, _messages} = approvals_invoke(admin, "approve", task)
     assert reload(task, admin.tenant).status == :completed
   end
 

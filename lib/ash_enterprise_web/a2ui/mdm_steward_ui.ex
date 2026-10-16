@@ -14,7 +14,9 @@ defmodule AshEnterpriseWeb.A2ui.MdmStewardUI do
   candidate's person-gated update as the clicking person
   (`AshEnterprise.Mdm.MatchCandidate`). The diff is calculations on the
   candidate read under the reader's policies: a steward who may not read a
-  staged row or a golden (Person is owner-only) sees that side empty. There
+  staged row sees that side empty. The queue lists no candidate whose golden
+  the reader may not read (Person is owner-only), so it never discloses that
+  such a golden exists, and Confirm match refuses one opened by id. There
   is no second security model and no unauthorized read.
 
   Served at `/app/mdm`.

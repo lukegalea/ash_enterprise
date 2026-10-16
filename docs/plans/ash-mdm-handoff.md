@@ -128,8 +128,13 @@ item below.
 
 ## Verification commands
 
+> **Superseded, 2026-10-16:** StewardLive and its test are deleted; the queue is
+> the A2UI surface `AshEnterpriseWeb.A2ui.MdmStewardUI` (ADR 0054 addendum "the
+> steward queue is an A2UI surface"). The StewardLive notes above are history.
+> The command below runs its test, `test/ash_enterprise_web/a2ui/mdm_steward_ui_test.exs`.
+
 ```
-printf 'mix test test/ash_enterprise/mdm/ test/ash_enterprise_web/live/steward_live_test.exs test/ash_enterprise_web/mdm_surfaces_live_test.exs test/ash_enterprise_web/mdm_surfaces_test.exs test/ash_enterprise/mdm/export_test.exs --seed 1 > /tmp/v.txt 2>&1 </dev/null; tail -2 /tmp/v.txt\nexit\n' | devenv shell
+printf 'mix test test/ash_enterprise/mdm/ test/ash_enterprise_web/a2ui/mdm_steward_ui_test.exs test/ash_enterprise_web/mdm_surfaces_live_test.exs test/ash_enterprise_web/mdm_surfaces_test.exs test/ash_enterprise/mdm/export_test.exs --seed 1 > /tmp/v.txt 2>&1 </dev/null; tail -2 /tmp/v.txt\nexit\n' | devenv shell
 ```
 
 (mix only exists inside `devenv shell`.) Package: `cd ~/ash_mdm && mix test`.

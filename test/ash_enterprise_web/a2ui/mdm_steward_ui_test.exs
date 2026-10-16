@@ -4,7 +4,9 @@ defmodule AshEnterpriseWeb.A2ui.MdmStewardUITest do
   as the people who click it: the queue and its staged-vs-golden diff read
   under the reader's policies, the three verdicts, bulk reject (and only
   reject), and the refusals — a person without the update grant cannot
-  confirm or bulk-reject, and a person without a read grant sees nothing.
+  confirm or bulk-reject, a person without a read grant sees nothing, and a
+  candidate whose golden the reader may not read is neither listed nor
+  confirmable.
   """
 
   use AshEnterprise.DataCase, async: false
@@ -26,6 +28,35 @@ defmodule AshEnterpriseWeb.A2ui.MdmStewardUITest do
     email = "#{String.downcase(String.replace(name, " ", "."))}@example.test"
     {candidate, _staged, _golden} = staged_candidate!(tenant, user, name, email)
     candidate
+  end
+
+  # A review candidate whose golden `owner` owns (Person is owner-only, so
+  # owning it is how a steward who is not the admin may read it).
+  defp candidate_owned_by!(%{tenant: tenant, user: user}, owner, name) do
+    email = "#{String.downcase(String.replace(name, " ", "."))}@example.test"
+    {_candidate, staged, _golden} = staged_candidate!(tenant, user, name, email)
+
+    golden =
+      AshEnterprise.Canonical.Person
+      |> Ash.Changeset.for_create(:upsert_from_source, %{
+        name: name <> " Theirs",
+        email: nil,
+        owner_id: owner.user.id,
+        owning_business_unit_id: owner.user.owning_business_unit_id
+      })
+      |> Ash.create!(tenant: tenant, authorize?: false)
+
+    MatchCandidate
+    |> Ash.Changeset.for_create(:create, %{
+      staged_record_id: staged.id,
+      golden_resource: "AshEnterprise.Canonical.Person",
+      golden_id: golden.id,
+      score: Decimal.new("0.72"),
+      explanation: %{"rules" => [%{"rule" => "email_exact", "score" => "1.0"}]}
+    })
+    |> Ash.create!(tenant: tenant, authorize?: false)
+    |> Ash.Changeset.for_update(:update, %{band: :review}, tenant: tenant, authorize?: false)
+    |> Ash.update!(tenant: tenant, authorize?: false)
   end
 
   defp reload(candidate, tenant),
@@ -83,12 +114,13 @@ defmodule AshEnterpriseWeb.A2ui.MdmStewardUITest do
     )
   end
 
-  # A steward who may read the queue and the staged rows but holds no
-  # update grant on the candidates.
+  # A steward who may read the queue, the staged rows and the goldens they
+  # own (Person is owner-only), but holds no update grant on the candidates.
   defp reader!(admin) do
     member!(admin, "Queue reader", [
       {MatchCandidate, :read, :global},
-      {StagedRecord, :read, :global}
+      {StagedRecord, :read, :global},
+      {AshEnterprise.Canonical.Person, :read, :basic}
     ])
   end
 
@@ -148,18 +180,26 @@ defmodule AshEnterpriseWeb.A2ui.MdmStewardUITest do
       assert rows(admin) == []
     end
 
+    # ADR 0017's existence rule: candidates are generated as a system actor,
+    # so listing one whose golden the reader may not read would tell them
+    # that golden exists.
+    test "lists no candidate whose golden the reader may not read", %{admin: admin} do
+      candidate!(admin, "Ann Dup")
+      reader = reader!(admin)
+      theirs = candidate_owned_by!(admin, reader, "Bob Dup")
+
+      # Both candidates and their staged rows are readable; only Bob's golden
+      # is theirs, Ann's is the admin's owner-only Person.
+      assert [%{"id" => id, "golden_label" => "Bob Dup Theirs"}] = rows(reader)
+      assert id == theirs.id
+      assert length(rows(admin)) == 2
+    end
+
     test "the diff shows what the reader may read, nothing more", %{admin: admin} do
       candidate = candidate!(admin, "Ann Dup")
       reader = reader!(admin)
 
-      # The candidate and its staged row are readable; the golden is the
-      # admin's owner-only Person, so its side of the diff stays empty and
-      # nothing links to it.
-      assert [row] = rows(reader)
-      assert row["staged_label"] == "Ann Dup"
-      assert row["golden_label"] in [nil, ""]
-      refute Map.has_key?(row["_links"] || %{}, "golden_label")
-
+      # Opened by id, the golden's side of the diff stays empty.
       detail = detail(reader, candidate)
       assert detail["staged_name"] == "Ann Dup"
       assert detail["golden_name"] in [nil, ""]
@@ -220,14 +260,40 @@ defmodule AshEnterpriseWeb.A2ui.MdmStewardUITest do
     end
 
     test "a person without the update grant cannot confirm", %{admin: admin} do
-      candidate = candidate!(admin, "Ann Dup")
       reader = reader!(admin)
+      candidate = candidate_owned_by!(admin, reader, "Ann Dup")
 
       assert {:error, messages} = invoke(reader, "confirm_match", candidate)
 
       # A 0.9.1 surface reports the refusal as the typed `/ui/feedback`
       # error, which ACP classifies as a refusal.
       assert ExtMethods.failure_kind(messages) == :forbidden
+      assert reload(candidate, admin.tenant).status == :pending
+    end
+
+    test "nobody confirms a merge into a golden they may not read", %{admin: admin} do
+      candidate = candidate!(admin, "Ann Dup")
+
+      # Every grant on the candidate, none on the golden (owner-only Person).
+      steward =
+        member!(admin, "Steward without goldens", [
+          {MatchCandidate, :read, :global},
+          {MatchCandidate, :write, :global},
+          {StagedRecord, :read, :global}
+        ])
+
+      # Not in their queue, so the surface refuses it outright…
+      assert {:error, _messages} = invoke(steward, "confirm_match", candidate)
+
+      # …and the action itself refuses it by id.
+      assert {:error, %Ash.Error.Forbidden{}} =
+               MatchCandidate
+               |> Ash.ActionInput.for_action(:confirm_match, %{record_id: candidate.id},
+                 actor: steward.actor,
+                 tenant: steward.tenant
+               )
+               |> Ash.run_action()
+
       assert reload(candidate, admin.tenant).status == :pending
       assert reload(candidate, admin.tenant).human_verdict_ref == nil
     end

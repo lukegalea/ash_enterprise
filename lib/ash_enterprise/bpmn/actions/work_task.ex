@@ -15,13 +15,28 @@ defmodule AshEnterprise.Bpmn.Actions.WorkTask do
       optional comment, through `AshBpmn.complete_task/2` (which cancels the
       task's timers and advances its token).
     * **delegate** — a task the actor has claimed, to another person by
-      email (read as the actor, so only someone they can see) who can read
-      the task themselves, through `AshBpmn.delegate_task/2`, which records
-      who it came from.
+      email (read as the actor, so only someone they can see) who is
+      themselves one of the task's candidates, through
+      `AshBpmn.delegate_task/2`, which records who it came from.
+
+  Delegation never widens who may decide a task. Maker-checker lives in the
+  materialised candidate set — the excluded requester simply has no
+  candidate row — and the person a task is delegated to becomes its
+  assignee, who completes it without a further candidacy check. So the
+  delegatee must already be a candidate (directly or through a team),
+  checked against *their* `ActorContext`; anyone else, the excluded maker
+  included, is refused.
+
+  A claim is guarded in the database, not only against the row read at the
+  start of the action: the update is filtered on `status == :open`, so of
+  two people claiming at once exactly one wins and the other is refused
+  (`Ash.Error.Changes.StaleRecord`), and the claim and its `:task_claimed`
+  event are written in one transaction.
   """
 
   use Ash.Resource.Actions.Implementation
 
+  require Ash.Expr
   require Ash.Query
 
   alias AshBpmn.Scope
@@ -52,24 +67,7 @@ defmodule AshEnterprise.Bpmn.Actions.WorkTask do
   defp work(:claim, task, _arguments, actor, opts) do
     with :ok <- status(task, :open),
          :ok <- Candidacy.candidate(task, actor, opts) do
-      scope = Scope.from_record(task, actor: actor)
-
-      {:ok, claimed} =
-        HumanTask.claim(task, %{assignee_type: :user, assignee_id: actor.id}, Scope.engine(scope))
-
-      ProcessEvent.create!(
-        %{
-          instance_id: claimed.instance_id,
-          token_id: claimed.token_id,
-          node_id: claimed.node_id,
-          task_id: claimed.id,
-          kind: :task_claimed,
-          data: %{"assignee_id" => actor.id}
-        },
-        Scope.engine(scope)
-      )
-
-      {:ok, "Claimed — #{task.name}."}
+      claim(task, actor)
     end
   end
 
@@ -101,15 +99,56 @@ defmodule AshEnterprise.Bpmn.Actions.WorkTask do
     end
   end
 
+  # The claim, guarded in the database and written with its event.
+  defp claim(task, actor) do
+    engine = task |> Scope.from_record(actor: actor) |> Scope.engine()
+
+    task
+    |> Ash.Changeset.for_update(
+      :claim,
+      %{assignee_type: :user, assignee_id: actor.id},
+      engine
+    )
+    # The engine's own guard reads the struct this action started from; this
+    # one is in the UPDATE's WHERE clause, so a concurrent claim that landed
+    # first leaves nothing to update and this one is refused.
+    |> Ash.Changeset.filter(Ash.Expr.expr(status == :open))
+    |> Ash.Changeset.after_action(fn _changeset, claimed ->
+      # Inside the claim's transaction: no claim without its event.
+      with {:ok, _event} <- record_claim(claimed, actor, engine), do: {:ok, claimed}
+    end)
+    |> Ash.update(engine)
+    |> case do
+      {:ok, _claimed} -> {:ok, "Claimed — #{task.name}."}
+      {:error, error} -> {:error, error}
+    end
+  end
+
+  defp record_claim(claimed, actor, engine) do
+    ProcessEvent.create(
+      %{
+        instance_id: claimed.instance_id,
+        token_id: claimed.token_id,
+        node_id: claimed.node_id,
+        task_id: claimed.id,
+        kind: :task_claimed,
+        data: %{"assignee_id" => actor.id}
+      },
+      engine
+    )
+  end
+
   defp status(%{status: status}, status), do: :ok
   defp status(%{status: :open}, :claimed), do: {:error, "claim this task first"}
   defp status(%{status: :claimed}, :open), do: {:error, "this task is already claimed"}
   defp status(_task, _wanted), do: {:error, "this task has already been decided"}
 
   # The person to delegate to, as the actor may see them: an address they
-  # cannot read is the same answer as one that does not exist. A person who
-  # could not read the task could never complete it, so the hand-off is
-  # refused rather than stranded with them.
+  # cannot read is the same answer as one that does not exist. They must be
+  # one of the task's candidates themselves: the hand-off makes them its
+  # assignee, and an assignee decides without a further candidacy check, so
+  # anyone else — the requester maker-checker excluded, a colleague with
+  # every task grant — would be a way around the candidate set.
   defp delegatee(task, email, actor, opts) do
     User
     |> Ash.Query.filter(email == ^email)
@@ -119,19 +158,38 @@ defmodule AshEnterprise.Bpmn.Actions.WorkTask do
         {:error, "you already hold this task"}
 
       {:ok, %User{} = user} ->
-        if can_read?(task, user, opts),
-          do: {:ok, user},
-          else: {:error, "#{email} cannot see this task, so could not complete it"}
+        eligible(task, user, email, opts)
 
       _not_found ->
         {:error, "no one you can see has the address #{email}"}
     end
   end
 
-  defp can_read?(task, user, opts) do
+  # A candidate, who can also read the task (else it would be stranded with
+  # them: they could never open it to complete it).
+  defp eligible(task, user, email, opts) do
     tenant = opts[:tenant] || task.organization_id
     delegatee = ActorContext.attach(user, ActorContext.build(user, tenant: tenant))
-    Ash.can?({task, :read}, delegatee, tenant: tenant)
+
+    cond do
+      candidate(task, delegatee) != :ok ->
+        {:error, "#{email} is not one of this task's approvers"}
+
+      not Ash.can?({task, :read}, delegatee, tenant: tenant) ->
+        {:error, "#{email} cannot see this task, so could not complete it"}
+
+      true ->
+        {:ok, user}
+    end
+  end
+
+  # Candidacy as the delegatee: their principal ids (them and their teams)
+  # from their own context. The candidate rows are read as the engine, as its
+  # own claim check reads them: whether someone is in a task's candidate set
+  # is a fact about the task, not about what either person may browse.
+  defp candidate(task, delegatee) do
+    engine = task |> Scope.from_record(actor: delegatee) |> Scope.engine()
+    Candidacy.candidate(task, delegatee, engine)
   end
 
   defp invalid(reason, field) do

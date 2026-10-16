@@ -3,7 +3,9 @@ defmodule AshEnterprise.Mdm.MatchCandidate do
   One (staged record, golden record) candidate pair with its score and
   per-rule explanation. Candidate generation runs as a system actor
   (ADR 0017's first sharp edge); the REVIEW SURFACE is filtered separately
-  — a steward never learns of a candidate they cannot read.
+  — a steward never learns of a candidate they cannot read, nor of one
+  whose golden they cannot read (`:review_queue`), and cannot confirm a
+  merge into a golden they cannot read (`:confirm_match`).
 
   Confirming or rejecting a review-banded candidate is a person's decision
   (ADR 0054): the policy set opens with the person gate, so a system actor
@@ -183,9 +185,21 @@ defmodule AshEnterprise.Mdm.MatchCandidate do
   end
 
   actions do
+    # The golden must be readable by the reader (ADR 0017's existence rule,
+    # ADR 0054 §"Does it consume ActorContext?" 1): candidates are generated
+    # as a system actor, so a pending candidate for a golden the steward may
+    # not read would tell them that golden exists. An *unrelated* exists, on
+    # purpose: Ash authorizes it with Person's primary read (its policies,
+    # from the reader's ActorContext), where `exists(golden, ...)` through
+    # the relationship joins past them.
     read :review_queue do
-      description "The steward's queue: review-banded candidates still pending, oldest first."
-      filter expr(band == :review and status == :pending)
+      description "The steward's queue: review-banded candidates still pending whose golden the reader may read, oldest first."
+
+      filter expr(
+               band == :review and status == :pending and
+                 exists(AshEnterprise.Canonical.Person, id == parent(golden_id))
+             )
+
       prepare build(sort: [created_on: :asc, id: :asc])
     end
 

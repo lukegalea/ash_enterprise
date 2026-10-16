@@ -16,8 +16,12 @@ defmodule AshEnterpriseWeb.ImportLive do
      import-batch board (`/app/mdm/batches`); review-banded matches end up
      in the steward queue at `/app/mdm`.
 
-  Every write runs as the signed-in person — drafting, validating and
-  activating a mapping, opening the batch — so their grants decide.
+  Every write is the signed-in person's to authorize — proposing (the AI
+  draft is written as them), drafting, validating and activating a mapping,
+  opening the batch — so their grants decide. Landing the rows is the
+  platform's own write (`Landing.land_row/4`, raw source records), so it runs
+  only after the person is known to be allowed to open the batch that reads
+  them; a refusal lands nothing.
 
   Mapping reads happen in `handle_params` (iron law #01: no DB work in
   mount — the dead render is crawler HTML).
@@ -145,7 +149,8 @@ defmodule AshEnterpriseWeb.ImportLive do
            tenant,
            "AshEnterprise.Canonical.Person",
            socket.assigns.observed_schema,
-           samples: socket.assigns.samples
+           samples: socket.assigns.samples,
+           actor: actor
          ) do
       {:ok, mapping} ->
         proposed =
@@ -211,40 +216,57 @@ defmodule AshEnterpriseWeb.ImportLive do
     actor = socket.assigns.current_user
     tenant = ActorContext.tenant(actor)
     slug = socket.assigns.slug
+    batch_input = %{mapping_id: socket.assigns.mapping_id, source_slug: slug}
 
-    # Rows land before the batch opens: staging is as-of the batch's open
-    # instant, so a row landed after it would not be seen.
-    row_keys =
-      Enum.with_index(socket.assigns.rows, fn row, n ->
-        {:ok, _} = Landing.land_row(tenant, slug, row, row_key: "upload-#{n}")
-        "upload-#{n}"
-      end)
+    # The person's grant first: rows land as the platform, so nothing lands
+    # for someone who may not open the batch that would read them.
+    if Ash.can?({ImportBatch, :open, batch_input}, actor, tenant: tenant) do
+      # Rows land before the batch opens: staging is as-of the batch's open
+      # instant, so a row landed after it would not be seen.
+      with {:ok, row_keys} <- land_rows(socket.assigns.rows, tenant, slug),
+           {:ok, batch} <-
+             ImportBatch
+             |> Ash.Changeset.for_create(:open, batch_input, tenant: tenant, actor: actor)
+             |> Ash.create(),
+           {:ok, job} <-
+             %{"batch_id" => batch.id, "tenant" => batch.organization_id}
+             |> AshEnterprise.Mdm.BatchWorker.new()
+             |> Oban.insert() do
+        Process.send_after(self(), :tick, 500)
 
-    mapping_id = socket.assigns.mapping_id
+        {:noreply,
+         socket
+         |> assign(:step, :running)
+         |> assign(:batch, batch)
+         |> assign(:job_id, job.id)
+         |> assign(:row_keys, row_keys)
+         |> assign(:tally, %{})
+         |> assign(:done?, false)}
+      else
+        {:error, error} ->
+          {:noreply, put_flash(socket, :error, "Import refused: #{message(error)}")}
+      end
+    else
+      {:noreply,
+       put_flash(socket, :error, "Import refused: you may not open an import batch here.")}
+    end
+  end
 
-    batch =
-      ImportBatch
-      |> Ash.Changeset.for_create(:open, %{mapping_id: mapping_id, source_slug: slug},
-        tenant: tenant,
-        actor: actor
-      )
-      |> Ash.create!(tenant: tenant, actor: actor)
+  defp land_rows(rows, tenant, slug) do
+    rows
+    |> Enum.with_index()
+    |> Enum.reduce_while({:ok, []}, fn {row, n}, {:ok, keys} ->
+      key = "upload-#{n}"
 
-    {:ok, job} =
-      %{"batch_id" => batch.id, "tenant" => batch.organization_id}
-      |> AshEnterprise.Mdm.BatchWorker.new()
-      |> Oban.insert()
-
-    Process.send_after(self(), :tick, 500)
-
-    {:noreply,
-     socket
-     |> assign(:step, :running)
-     |> assign(:batch, batch)
-     |> assign(:job_id, job.id)
-     |> assign(:row_keys, row_keys)
-     |> assign(:tally, %{})
-     |> assign(:done?, false)}
+      case Landing.land_row(tenant, slug, row, row_key: key) do
+        {:ok, _landed} -> {:cont, {:ok, [key | keys]}}
+        {:error, error} -> {:halt, {:error, error}}
+      end
+    end)
+    |> case do
+      {:ok, keys} -> {:ok, Enum.reverse(keys)}
+      error -> error
+    end
   end
 
   @impl true
@@ -367,7 +389,8 @@ defmodule AshEnterpriseWeb.ImportLive do
 
   defp message(reason) when is_atom(reason), do: Atom.to_string(reason)
   defp message(%Ash.Error.Forbidden{}), do: "you are not permitted to do that"
-  defp message(error), do: Exception.message(error)
+  defp message(error) when is_exception(error), do: Exception.message(error)
+  defp message(other), do: inspect(other)
 
   # -- render -----------------------------------------------------------------
 

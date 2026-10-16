@@ -99,11 +99,13 @@ defmodule AshEnterprise.SystemOne.ReviewQueue do
     end
   end
 
+  # The steward queue's own read: review band, pending, and only where the
+  # reader may read the golden — a candidate for a golden they cannot read
+  # would disclose that golden's existence (ADR 0017, ADR 0054).
   defp collect(:mdm_match, read_opts) do
     {:ok, candidates} =
       AshEnterprise.Mdm.MatchCandidate
-      |> Ash.Query.filter(band == ^:review and status == ^:pending)
-      |> Ash.Query.sort(inserted_at: :asc)
+      |> Ash.Query.for_read(:review_queue)
       |> Ash.read(read_opts)
 
     Enum.map(candidates, fn candidate ->

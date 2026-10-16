@@ -259,4 +259,41 @@ defmodule AshEnterpriseWeb.ImportLiveTest do
     # Nothing was drafted on their behalf.
     refute AshEnterprise.Mdm.Mapping |> Ash.exists?(tenant: org, authorize?: false)
   end
+
+  test "a person without a grant on mappings gets no AI draft written for them", %{
+    org: org,
+    admin: admin
+  } do
+    member =
+      AshEnterprise.Test.DailyFixtures.member!(%{tenant: org, user: admin}, "No grants", [])
+
+    {:ok, view, _html} = live(sign_in(build_conn(), member.user), "/app/mdm/import")
+    upload_csv(view)
+
+    view |> element("#propose-btn") |> render_click()
+
+    assert render(view) =~ "Proposal failed"
+    refute AshEnterprise.Mdm.Mapping |> Ash.exists?(tenant: org, authorize?: false)
+    refute AshEnterprise.Mdm.MappingProposal |> Ash.exists?(tenant: org, authorize?: false)
+  end
+
+  test "a person who may not open a batch lands no rows", %{org: org, admin: admin} do
+    mapping = activate_host_mapping!(draft_host_mapping!(org, []), org, admin)
+
+    # They may see and pick the mapping, and nothing more.
+    member =
+      AshEnterprise.Test.DailyFixtures.member!(%{tenant: org, user: admin}, "Mapping reader", [
+        {AshEnterprise.Mdm.Mapping, :read, :global}
+      ])
+
+    {:ok, view, _html} = live(sign_in(build_conn(), member.user), "/app/mdm/import")
+    upload_csv(view)
+
+    view |> element("input[phx-value-id='#{mapping.id}']") |> render_click()
+    view |> element("#run-batch-btn") |> render_click()
+
+    assert render(view) =~ "Import refused"
+    refute AshEnterprise.Mdm.SourceRecord |> Ash.exists?(tenant: org, authorize?: false)
+    refute AshEnterprise.Mdm.ImportBatch |> Ash.exists?(tenant: org, authorize?: false)
+  end
 end

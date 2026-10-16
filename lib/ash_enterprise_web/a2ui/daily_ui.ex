@@ -620,7 +620,9 @@ defmodule AshEnterpriseWeb.A2ui.ApprovalsUI do
   Approvals — the human tasks waiting on the actor (or one of their teams),
   oldest first, with what each is about. Approve / Reject decide the task
   through the process engine (`HumanTask.approve` / `.reject`, which check
-  candidacy first); Reject asks for an optional comment.
+  candidacy first); Reject asks for an optional comment. An open task is any
+  candidate's to decide; a claimed one only its holder's, and anyone else's
+  click is refused as Forbidden.
 
   Served at `/app/approvals` and, as the `approvals` prompt, over ACP —
   where `approve N` / `reject N` surface as permission requests.
@@ -668,6 +670,11 @@ defmodule AshEnterpriseWeb.A2ui.ApprovalsUI do
       ]
     end
 
+    # No `visible_when` on Approve / Reject: the handler would then re-read
+    # the row through `:awaiting_me` first, and a person who names a task by
+    # id that is not theirs would get a bare "request failed" instead of the
+    # action's Forbidden (AcpLowPrivilegeTest). A claimed task is its
+    # holder's alone to decide; `DecideTask` refuses everyone else.
     action :reject do
       prompt_fields [:comment]
       prompt_title "Reject — add a note for the record (optional)"
