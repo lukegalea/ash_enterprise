@@ -24,6 +24,7 @@ metadata:
 - [query_filter](references/ash/query_filter.md)
 - [querying_data](references/ash/querying_data.md)
 - [relationships](references/ash/relationships.md)
+- [temporal](references/ash/temporal.md)
 - [testing](references/ash/testing.md)
 
 ### ash_a2ui
@@ -38,6 +39,11 @@ metadata:
 - [queries](references/ash_a2ui/queries.md)
 - [relationships](references/ash_a2ui/relationships.md)
 - [reports](references/ash_a2ui/reports.md)
+- [zero-jank](references/ash_a2ui/zero-jank.md)
+
+### ash_acp
+
+- [ash_acp](references/ash_acp/ash_acp.md)
 
 ### ash_agent_tools
 
@@ -68,9 +74,17 @@ metadata:
 
 - [ash_decisions](references/ash_decisions/ash_decisions.md)
 
+### ash_discrete_business_events
+
+- [ash_discrete_business_events](references/ash_discrete_business_events/ash_discrete_business_events.md)
+
 ### ash_events
 
 - [ash_events](references/ash_events/ash_events.md)
+
+### ash_evidence
+
+- [ash_evidence](references/ash_evidence/ash_evidence.md)
 
 ### ash_graphql
 
@@ -82,6 +96,14 @@ metadata:
 ### ash_json_api
 
 - [ash_json_api](references/ash_json_api/ash_json_api.md)
+
+### ash_judgments
+
+- [ash_judgments](references/ash_judgments/ash_judgments.md)
+
+### ash_mdm
+
+- [ash_mdm](references/ash_mdm/ash_mdm.md)
 
 ### ash_money
 
@@ -98,6 +120,10 @@ metadata:
 - [setting_up_ash_oban](references/ash_oban/setting_up_ash_oban.md)
 - [triggering_jobs_programmatically](references/ash_oban/triggering_jobs_programmatically.md)
 - [working_with_actors](references/ash_oban/working_with_actors.md)
+
+### ash_open_lineage
+
+- [ash_open_lineage](references/ash_open_lineage/ash_open_lineage.md)
 
 ### ash_phoenix
 
@@ -133,7 +159,7 @@ metadata:
 ## Searching Documentation
 
 ```sh
-mix usage_rules.search_docs "search term" -p ash -p ash_a2ui -p ash_admin -p ash_agent_tools -p ash_ai -p ash_archival -p ash_authentication -p ash_authentication_phoenix -p ash_bpmn -p ash_cloak -p ash_compliance -p ash_credo -p ash_decisions -p ash_diagram -p ash_events -p ash_graphql -p ash_json_api -p ash_money -p ash_oban -p ash_paper_trail -p ash_phoenix -p ash_postgres -p ash_rate_limiter -p ash_rules -p ash_state_machine -p ash_strangler
+mix usage_rules.search_docs "search term" -p ash -p ash_a2ui -p ash_acp -p ash_admin -p ash_agent_tools -p ash_ai -p ash_archival -p ash_authentication -p ash_authentication_phoenix -p ash_bpmn -p ash_cloak -p ash_compliance -p ash_credo -p ash_decisions -p ash_diagram -p ash_discrete_business_events -p ash_events -p ash_evidence -p ash_graphql -p ash_json_api -p ash_judgments -p ash_mdm -p ash_money -p ash_oban -p ash_open_lineage -p ash_paper_trail -p ash_phoenix -p ash_postgres -p ash_rate_limiter -p ash_rules -p ash_state_machine -p ash_strangler
 ```
 
 ## Available Mix Tasks
@@ -165,17 +191,26 @@ mix usage_rules.search_docs "search term" -p ash -p ash_a2ui -p ash_admin -p ash
 - `mix ash.tear_down` - Runs all tear_down tasks for any extension on any resource/domain in your application.
 - `mix ash_a2ui.install` - Installs AshA2ui
 - `mix ash_a2ui.install.docs`
+- `mix ash_acp.stdio` - Runs the ash_acp ACP server on stdio
 - `mix ash_admin.install` - Installs AshAdmin
 - `mix ash_admin.install.docs`
+- `mix ash_agent.can` - Answers can <actor> perform <action>? as JSON, without executing
 - `mix ash_agent.context` - Describes the Ash context at a file position as JSON
+- `mix ash_agent.decisions` - Lists DMN decision definitions per key as JSON
 - `mix ash_agent.describe` - Describes Ash resources and actions as JSON
 - `mix ash_agent.diff` - Diffs two semantic-manifest JSON files as JSON
 - `mix ash_agent.edit` - Semantic DSL-entity edits (dry-run by default) as JSON
+- `mix ash_agent.evaluate` - Dry-evaluates a DMN decision against JSON inputs
 - `mix ash_agent.gaps` - Digests the kaizen tool-gap telemetry aggregate as JSON
+- `mix ash_agent.graph` - Prints one BPMN definition's compiled graph as JSON
+- `mix ash_agent.instance` - Shows in-flight BPMN instances, tokens, and open tasks as JSON
 - `mix ash_agent.laws` - Judges code against the codified iron laws as JSON
+- `mix ash_agent.processes` - Lists BPMN process definitions per key as JSON
+- `mix ash_agent.rules` - Lists AshRules rule sets and dry-evaluates them as JSON
 - `mix ash_agent.runtime` - BEAM runtime snapshot, top processes, or supervision tree as JSON
 - `mix ash_agent.search` - Searches symbols across loaded Ash resources as JSON
 - `mix ash_agent.serve` - Serve the Ash introspection MCP daemon (read-only)
+- `mix ash_agent.transitions` - Describes an AshStateMachine resource as JSON (+ Mermaid)
 - `mix ash_agent.validate` - Validates params for an Ash action without running it
 - `mix ash_ai.gen.chat` - Generates the resources and views for a conversational UI backed by `ash_postgres` and `ash_oban`
 - `mix ash_ai.gen.chat.docs`
@@ -198,10 +233,14 @@ mix usage_rules.search_docs "search term" -p ash -p ash_a2ui -p ash_admin -p ash
 - `mix ash_credo.install` - Installs AshCredo and configures .credo.exs
 - `mix ash_decisions.tck` - Run the vendored DMN TCK corpus and report conformance
 - `mix ash_decisions.tck.verify` - Check that the vendored DMN TCK corpus is unmodified
+- `mix bizev.verify_chains` - Verify the ledger's per-region hash chains
 - `mix ash_events.install` - Installs AshEvents into a project. Should be called with `mix igniter.install ash_events`
 - `mix ash_graphql.install` - Installs AshGraphql. Should be run with `mix igniter.install ash_graphql`
 - `mix ash_json_api.install` - Installs AshJsonApi. Should be run with `mix igniter.install ash_json_api`
 - `mix ash_json_api.routes` - Prints all routes by AshJsonApiRouter
+- `mix ash_judgments.calibrate` - Computes a family's calibration metrics and records the §8.1 run
+- `mix ash_judgments.judgments.lock` - Regenerate priv/judgments/lock.json for every declared question
+- `mix ash_judgments.shadow` - Re-run recorded live judgments through a candidate instrument
 - `mix ash_money.add_to_ash_postgres` - Adds AshMoney.AshPostgresExtension to installed_extensions and installs :ex_money_sql.
 - `mix ash_money.install` - Installs AshMoney. Should be run with `mix igniter.install ash_money`
 - `mix ash_oban.install` - Installs AshOban and Oban

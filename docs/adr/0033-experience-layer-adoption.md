@@ -28,6 +28,10 @@ repository):
   state, and typed feedback (`/ui/feedback` kind + message). Under the
   default version 1 the output is byte-identical to the previous release;
   the library's full suite pins that.
+
+  > **2026-10-15:** no longer true. Version 2 has been the library default
+  > since 2026-09-22 (`ash_a2ui` 5d4326b), and version 1 is about to be
+  > removed. See the 2026-10-15 correction at the end of this record.
 * **The admin catalog** (`catalog: :admin_v1`) — a semantic component
   vocabulary (`entityPage`, `dataGrid`, `recordPanel`, `statusBanner`, …)
   emitted only when v2 is also on. Surfaces using advanced features
@@ -111,6 +115,11 @@ compat suite pins this), every surface returns to the pre-adoption screens,
 and the renderer's admin catalog simply never resolves — no surface carries
 its catalog id. This is a one-line revert that requires no other edit.
 
+> **2026-10-15:** this rung is wrong today. Deleting the tuple now gives
+> experience v2 with the basic catalog, not v1. Switching the experience off
+> takes an explicit `experience_version: 1`, and only until v1 is removed
+> upstream. See the 2026-10-15 correction below.
+
 **To leave v2 on but drop the admin catalog:** set `catalog: :basic`. v2
 semantics stay; the wire returns to the basic component vocabulary.
 
@@ -154,3 +163,45 @@ upstream: surface headings were the resource's module short name, so
 atoms while the form picker for the same field showed labels. Neither was a
 regression from this adoption — v1 had both — but v2 is where they became
 visible, which is the argument for the acceptance tier this ADR introduced.
+
+## Correction — 2026-10-15: v2 is the library default, and v1 is going away
+
+Two statements above were true when this record was written and are false
+now. They stay in place with a dated note beside each, for the same reason
+as the 2026-09-20 correction.
+
+**What changed.** `ash_a2ui` made experience v2 its default on 2026-09-22
+(5d4326b, "Make the v2 experience the default"). `AshA2ui.Experience.version/0`
+now reads `Application.get_env(:ash_a2ui, :experience_version, 2)`. So:
+
+- "Under the default version 1 the output is byte-identical" (Context) is
+  wrong. Version 1 is no longer the default. It survives only as an explicit
+  pin.
+- "To switch the experience off: delete the `config :ash_a2ui` tuple"
+  (Reversal) is wrong. Deleting the tuple leaves v2 on and drops only the
+  admin catalog, because the catalog default is still `:basic`. Today that
+  makes deleting the tuple the same rung as "set `catalog: :basic`".
+
+**Why the change is right.** This record argued that v1's affordances (a
+"Select" button on every row, pagination with nothing to page, an untyped
+status string, an empty table that renders nothing) are the wrong admin
+experience. A default of 1 meant every new consumer started on that
+experience and had to know to opt out of it. No known consumer pins version
+1, and only the library's own compatibility suite still runs it.
+Flipping the default made the library agree with the decision recorded here.
+
+**What is coming.** Experience v1 will be removed from `ash_a2ui` soon. After
+that there is no configuration that switches the experience off, and the
+`experience_version` key goes with it. This application's config line
+(`config/config.exs`) should then drop `experience_version: 2` and keep
+`catalog: :admin_v1`. The reversal ladder becomes:
+
+1. **Drop the admin catalog:** set `catalog: :basic`, or delete the tuple. A
+   one-line revert, unchanged.
+2. **Remove the integration:** the tier-3 exit listed under Reversal,
+   unchanged.
+
+The middle rung, back to the pre-adoption screens, goes away. Nothing here
+depends on it: no surface in this application was ever meant to run on v1
+after this adoption.
+

@@ -15,23 +15,14 @@ defmodule AshEnterprise.Mdm.Landing do
 
   business_events do
     source :manual_csv do
-      # The adapter boundary has no callbacks yet (BIZEV-7); a CSV upload
-      # lands row-by-row through the land action, not an adapter pull.
+      # A CSV upload lands row-by-row through the land action, never an
+      # adapter pull; the adapter exists to satisfy bizev's conformance check.
       adapter(AshEnterprise.Mdm.ManualCsvAdapter)
       region(:us)
 
       stream :upload do
       end
     end
-  end
-
-  defmodule ManualCsvAdapter do
-    @moduledoc """
-    Placeholder module satisfying the source schema's adapter shape for
-    the CS-upload boundary. The behaviour grows callbacks at BIZEV-7;
-    an upload lands through `AshEnterprise.Mdm.Landing.land_row/4`, never an
-    adapter pull.
-    """
   end
 
   @doc """

@@ -33,6 +33,11 @@ Sub-rules (addressable as `ash_a2ui:<name>`):
 - `ash_a2ui:reports` — `:report` components (aggregate/report queries over
   generic actions) and `export` blocks (CSV file export via the v1.0
   `downloadFile` callFunction).
+- `ash_a2ui:zero-jank` — the Zero Jank Manifesto translated to A2UI
+  surfaces: instant feedback is client-side (optimistic data-model writes,
+  typed feedback, in-flight action buttons, the bootstrap skeleton), what
+  the framework guarantees, and what hosts must still do for their own
+  chrome.
 
 ## Protocol versions
 
@@ -155,6 +160,28 @@ end
   Update actions in `row_actions` run **argument-less** on the record
   (touch-style state transitions) — actions needing values belong in the
   form or a generic action with `:record_id` (`ash_a2ui:actions`).
+- A row action whose click must run through a **host-provided function**
+  instead of the mapped Ash action (e.g. an engine facade that completes an
+  external task and invokes the action itself) declares `via` on its
+  `action` entity:
+
+  ```elixir
+  action :check_in do
+    via {MyApp.Tasks, :check_in, ["board"]}
+  end
+  ```
+
+  At click time the handler calls
+  `apply(module, function, [context | extra_args])` where `context` carries
+  `record` (loaded as the surface loads it), `actor`, `tenant`, `action`
+  (the row-action name), `surface_id`, and `selected` (the surface's context
+  selections). The MFA returns the direct path's shapes — `:ok`,
+  `{:ok, term}`, or `{:error, Ash.Error.t()}` — and the result renders
+  through the standard channels unchanged (refreshes honoring `refreshes`,
+  status text, `/errors/<field>` mapping). The client is unaware `via`
+  exists. `via` is row-action-only and mutually exclusive with
+  `prompt_fields` (compile-time verified); the named Ash action must still
+  exist — it remains the allowlist entry and the button's label.
 - Omit `fields` only when the inferred set (public attributes for tables,
   action `accept`s for forms) is genuinely what you want shown. Otherwise
   list fields explicitly.
@@ -175,6 +202,67 @@ end
   not work around it with runtime indirection. A verifier failure means the
   surface would have emitted a broken wire contract.
 
+## Experience version and catalog
+
+- **Experience v2 is the default** (`AshA2ui.Experience`): rows get semantic
+  **View** / **Edit** controls instead of **Select**, a gated
+  **Create <Resource>** affordance (the form renders inside a task panel
+  driven by the `start_create` / `view_record` / `start_edit` /
+  `cancel_record_task` client actions), conditional pagination, data-driven
+  empty states, and typed feedback (`/ui/feedback` kind + message) instead
+  of only the `/ui/status` text.
+- Hosts pin the legacy rendering per application:
+  `config :ash_a2ui, :experience_version, 1` — byte-identical to the
+  pre-v2 release; the v2 task-mode actions are rejected like unknown
+  actions under the pin. Don't write surfaces that only look right under
+  one version: everything a surface declares (components, row actions,
+  queries, contexts) is version-agnostic; the version only changes the
+  emission around them.
+- `config :ash_a2ui, :catalog, :admin_v1` selects the semantic admin
+  catalog **on top of** experience v2 (`effective_admin?/0` requires both).
+  The catalog's binding schemas are built from `@a2ui/web_core`'s own
+  exported schema builders (issue #5 is fixed there), so a host zod 4 no
+  longer breaks reserved-path bindings — `createAshAdminCatalog` builds
+  without the host passing `z` at all, and throws a loud error if a
+  foreign-zod `z` is still passed. Hosts must still pin matching
+  `@a2ui/lit` / `@a2ui/web_core` versions (verified against
+  lit 0.10.1 / web_core 0.11.0 — the versions `priv/js` files were built
+  against). The Lit renderer registration ships in
+  `priv/js/ash_admin_catalog.js` (`createAshAdminCatalog(deps)`).
+
+## Actors (hosts without authentication)
+
+- Every surface call takes an `actor:` — reads and writes run under it with
+  `authorize?: true`. For hosts without a real authentication layer,
+  `AshA2ui.Actor` provides session-backed actor selection:
+  `config :ash_a2ui, :actor, [resource: MyApp.User, filter: [active: true]]`
+  (the resource's records are the choosable actors; `:label` names the
+  display attribute when it isn't one of the usual candidates).
+- Wire the switcher with `plug AshA2ui.ActorPlug` in the browser pipeline
+  (it serves `GET /a2ui/actor?id=<uuid>`, validates the id, stores it in
+  the session, and redirects back), render `AshA2ui.ActorPickerLive` (or
+  your own links to `/a2ui/actor`) wherever actors pick themselves, and
+  read the chosen actor with `AshA2ui.Actor.on_mount/4` (assigns
+  `:a2ui_actor`) — e.g. `actor_fn: & &1.assigns.a2ui_actor` on
+  `AshA2ui.LiveRenderer`. A stale session id degrades to "no actor", never
+  an error.
+- **Mount the picker in the SAME live_session as the surfaces** (the
+  `on_mount AshA2ui.Actor` session already carries everything it needs —
+  the picker reads only the session and renders switch links): navigating
+  to it in-app renders without a document reload. A standalone
+  live_session just for the picker also works and stays supported for
+  hosts with different layout needs — the trade-off is that reaching it
+  from a surface page is a full document reload. The actor SWITCH itself
+  is always a redirect by design (`ActorPlug` writes the session over
+  HTTP), so no client-side navigation trick removes that round trip.
+- The picker's actor reads are infrastructural and run unauthorized by
+  design; everything the actor then does through surfaces is authorized
+  normally. Transport-level authentication still gates who can reach the
+  picker at all. `on_mount/4` resolves the session id with a single
+  primary-key read (the configured `:filter` and `:read_action` apply — a
+  filtered-out actor cannot be loaded back); only the picker itself reads
+  the whole roster (`AshA2ui.Actor.list/0`).
+
 ## Building and serving payloads
 
 - **Never hand-write A2UI JSON.** Always produce messages via
@@ -193,6 +281,10 @@ end
   refresh) — see `ash_a2ui:liveview`. Use plain JSON endpoints when the
   consumer isn't a LiveView page. Both are supported; don't invent a third
   transport before checking the roadmap.
+- Styling is a CSS-variables seam: import `priv/js/ash_a2ui_theme.css` and
+  override the `--a2ui-*` custom properties with the app's design tokens.
+  The components render in shadow DOM — Tailwind classes and stylesheets
+  cannot reach inside (`ash_a2ui:liveview`).
 
 ## Handling client actions
 
@@ -205,11 +297,14 @@ end
 - Action names are exactly `"submit_form"`, `"select_row"`, `"invoke"`,
   `"prompt"`, `"query"`, `"option_search"`, `"option_select"`,
   `"nested_add"`, `"nested_remove"` (those four only on surfaces with
-  searchable selects / nested forms — see `ash_a2ui:relationships`), and
+  searchable selects / nested forms — see `ash_a2ui:relationships`),
   `"context_search"`, `"context_select"`, `"context_clear"` (only on
-  surfaces with `context` entities — see `ash_a2ui:contexts`). Don't
-  invent new `action.name` values; add a proper Ash action and expose it
-  via `row_actions` instead.
+  surfaces with `context` entities — see `ash_a2ui:contexts`), and the
+  experience v2 task modes `"start_create"`, `"view_record"`,
+  `"start_edit"`, `"cancel_record_task"` (v2 is the default; under a
+  `experience_version: 1` pin they are rejected like unknown actions).
+  Don't invent new `action.name` values; add a proper Ash action and expose
+  it via `row_actions` instead.
 - Row actions that need user input declare `prompt_fields` on their
   `action` entity (Modal prompt; `invoke` then carries a `"values"` map
   filtered + cast to those fields). Per-row availability is `visible_when`

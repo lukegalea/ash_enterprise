@@ -46,21 +46,6 @@ defmodule AshEnterprise.Acp do
   end
 
   @doc """
-  The `AshAcp.Server` configuration this host serves: `AshAcp.config/0` plus
-  the `:candidate_actions` command palette, derived from the surface registry
-  (`AshEnterprise.Surfaces.candidate_actions/0`) rather than configured — so a
-  surface added there reaches the palette without a second list to keep.
-
-  `AshAcp.config/0` only resolves its own fixed keys, so the palette never
-  reaches the server through it. Transports in this application build their
-  state from this instead (`AshEnterprise.Acp.Attach.serve/1`).
-  """
-  @spec server_config() :: map()
-  def server_config do
-    Map.put(AshAcp.config(), :candidate_actions, AshEnterprise.Surfaces.candidate_actions())
-  end
-
-  @doc """
   The actor ACP sessions run as: the deployment's operator user, named by
   `config :ash_enterprise, :acp_operator_email` (`ACP_OPERATOR_EMAIL` at boot,
   see `config/runtime.exs`; default `admin@example.com`), read through the

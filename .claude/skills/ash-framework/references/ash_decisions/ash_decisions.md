@@ -64,6 +64,47 @@ A decision answers a question; the caller decides what to do with the answer.
     got there. Do not compute a second opinion: one that disagrees with the engine that
     actually decided is worse than no answer.
 
+## Publish-time verifiers
+
+A host may gate publication on its own evidence (e.g. "this band table has a
+calibration run above min-n") without forking the resource:
+
+    config :ash_decisions, :publish_verifiers, [
+      {MyApp.Compliance.BandTableGate, :verify, []}
+    ]
+
+Each entry is an MFA (`{Mod, :fun, args}`) or a bare module (called as
+`Mod.verify/1`). They run **only on the publish action** — evaluation never
+consults them — and receive the definition's identity as plain data:
+`%{id, key, version, content_hash, status}`, the same shape a certification
+record carries, so a band-table gate keys off the family tag the band-table
+naming convention puts in the key. A verifier returns `:ok` or
+`{:error, reason}`; the **first refusal blocks the publish** and its reason
+travels to the caller; a verifier that raises counts as a refusal. Empty
+config (the default) leaves the publish action exactly as it was. See
+`AshDecisions.Config.publish_verifiers/0`.
+
+## Landing a generated band table
+
+A calibration pipeline (ash_judgments' `ProposalDmn` renderer is the producing example)
+finishes with a two-band DMN document — the score gates on the earned threshold, `admit`
+above it, `review` below it, and **no default rule**, so a score that is absent or not a
+number matches no row and the empty match is a refusal. `AshDecisions.BandTable` is where
+that document lands:
+
+    {:ok, published} = AshDecisions.BandTable.land(MyApp.Decisions.Definition, xml)
+
+Import checks the band contract — one decision, `UNIQUE` hit policy, a string `band`
+output, no default output entry, and a variable/shape pair the engine can actually
+evaluate — and the document then goes through the ordinary lifecycle: draft, compile,
+publish-time verification, and any configured `publish_verifiers`. Pass
+`publish?: false` to stop at the draft when certification is a person's act, and let
+them run `publish!/1` after reading it. The XML is stored byte for byte; the key is the
+decision's name, which is where the `bands_<family>` naming convention puts the family
+tag a calibration gate keys off. There is no band-table resource and no rule-row import:
+the document is the artifact, and a second copy of the rules is a disagreement waiting
+to happen.
+
 ## Testing
 
 - `mix ash_decisions.tck` runs the vendored DMN TCK corpus and **gates** on it: an unlisted
@@ -74,3 +115,22 @@ A decision answers a question; the caller decides what to do with the answer.
 - `mix ash_decisions.tck.verify` proves the vendored corpus is byte-identical to its pinned
   upstream commit. It is share-alike licensed; never edit a test case.
 - `xmllint` must be on `PATH` (`libxml2`), or every model fails to load.
+
+## Iron laws
+
+Changes to this package are checked against the 26 Iron Laws (phxagents.dev/iron-laws;
+background in `ash_enterprise/docs/research/phxagents-iron-laws-and-codicil.md`).
+`ash_agent_tools` ships a deterministic judge for them — `mix ash_agent.laws` reports
+violations only, tiered definite/likely/review — wherever that dev tool is installed
+(it is part of the `ash_enterprise` program, not a dependency of this package).
+
+- Judge a change before claiming it done: `git diff main | mix ash_agent.laws - --diff`,
+  and read the hits' context before acting — the judge is grep-tier, not a parser.
+- The laws with teeth *inside a library* are the ones it can see from source: #10 (never
+  `String.to_atom` on tenant-authored input — this package bounds and refuses untrusted
+  work instead), #16 (`@external_resource` for compile-time file reads), #22 (verify
+  before claiming done — compile, test, credo, docs, dialyzer, then say so), #26
+  (comments carry durable facts; the narrative belongs to the commit).
+- The Phoenix-facing laws (no mount-time queries, `connected?` before PubSub, streams)
+  govern the **host applications** that inject `AshDecisions.Web.EditorLive`. The editor
+  itself keeps `mount/3` static, loads in `handle_params/3`, and subscribes to nothing.

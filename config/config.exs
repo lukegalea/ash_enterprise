@@ -194,10 +194,11 @@ config :ash_acp,
   # The `ash` extension methods: list surfaces, open one directly (a record
   # selected, no model turn), act on it as the session actor.
   ext_methods: AshEnterprise.Acp.ExtMethods,
-  # The command palette (`available_commands_update`) is not configured here:
-  # it is derived from the surface registry (`AshEnterprise.Surfaces.
-  # candidate_actions/0`) by `AshEnterprise.Acp.server_config/0`, and pruned
-  # per actor with `Ash.can?/3` against the action each command runs.
+  # The command palette (`available_commands_update`), derived from the
+  # surface registry each time a palette is built, so every transport —
+  # `mix ash_acp.stdio` included — sends the same one. ash_acp prunes it per
+  # actor with `Ash.can?/3` against the action each command runs.
+  candidate_actions: {AshEnterprise.Surfaces, :candidate_actions, []},
   agent_info: %{name: "ash_enterprise", version: "0.1.0"}
 
 # The trigger sweep dispatches each event inside its own transaction -- deliberately, so a

@@ -133,6 +133,16 @@ defmodule AshEnterprise.MixProject do
         # every session whether or not anyone is.
         {:ash_strangler, link: :markdown},
         {:ash_open_lineage, link: :markdown},
+        # The rest of the first-party extensions, linked for the same reason.
+        # ash_events_projections is absent on purpose: it reaches this app only
+        # through ash_compliance, and no code here configures or calls it.
+        {:ash_acp, link: :markdown},
+        {:ash_compliance, link: :markdown},
+        {:ash_discrete_business_events, link: :markdown},
+        {:ash_evidence, link: :markdown},
+        {:ash_judgments, link: :markdown},
+        {:ash_mdm, link: :markdown},
+        {:ash_rules, link: :markdown},
         :phoenix,
         :igniter,
         :reactor,
