@@ -11,11 +11,11 @@ and tells you how to use all of that in-VM
 without a mix boot. Concept-specific capabilities (compliance rules, state
 machines) ride behind optional dependencies: hosts add the dep, the tools
 activate; absent deps get structured install hints, never crashes. It ships
-as **regular library code plus this file** —
-deliberately *not* as registered MCP tools or any other tool-surface
-integration, which keeps it usable from `project_eval`, Livebook, Mix tasks,
-or any future hosted tool-definition API. Read these rules before using it;
-do not assume prior knowledge of the API.
+as **regular library code plus this file**, usable from `project_eval`,
+Livebook, `iex` and the bundled Mix tasks. The same functions are also
+served as MCP tools by an optional loopback daemon, `mix ash_agent.serve`
+(see "The MCP daemon" below). Read these rules before using it; do not
+assume prior knowledge of the API.
 
 ## The read-only contract
 
@@ -25,8 +25,14 @@ do not assume prior knowledge of the API.
   through the project's own code interfaces or `Ash.*` calls.
 - **Nothing is loaded for you.** Discovery (`list_domains/0`,
   `list_resources/0`) sees *loaded* modules only. Compiled-but-unloaded
-  modules are invisible. Prefer the Mix tasks (they run `app.start` first)
-  or ensure the modules are loaded before introspecting.
+  modules are invisible. Prefer the introspection Mix tasks (`describe`,
+  `validate`, `can`, `search`, `context`, `rules`, `transitions`, `graph`,
+  `decisions`, `serve` and the others that declare `app.config`): they
+  compile and load the domains configured under
+  `config :my_app, ash_domains: [...]`, plus their resources, without
+  starting the application. `mix ash_agent.runtime` is the exception and
+  runs `app.start` (see below); `laws`, `diff` and `gaps` boot nothing.
+  Otherwise, ensure the modules are loaded before introspecting.
 - **Functions raise `ArgumentError`** when pointed at a non-resource or an
   unknown action; discovery functions never raise.
 
@@ -36,7 +42,15 @@ do not assume prior knowledge of the API.
 2. **Describe**: `describe_resource/1` for fields, relationships, actions
    (with argument types and source locations); `describe_action/2` for the
    exact input contract (`required` / `optional` / `private` keys with
-   normalized types), return shape, and code interfaces.
+   normalized types), return shape, and code interfaces. Both reports carry
+   a top-level `"~legend"` map explaining their non-obvious keys. `accepts`
+   is an alias of `accept` on every action entry. `describe_action/2` also
+   lists every accepted attribute in full under `input.attributes` (type,
+   constraints, `allow_nil?`, default). Fields carry a `"~extension"` marker
+   (`true` when the field has no source annotation or was declared outside
+   the resource's own file, i.e. injected by an extension or transformer;
+   `belongs_to` foreign keys are not marked), and `describe_resource/1`
+   lists the resource's `extensions` as the candidates.
 3. **Validate before you act**: `validate_input/3` casts each param with
    `Ash.Type.cast_input/3` — the same machinery Ash uses at runtime — and
    returns `%{valid?, errors, normalized_inputs, expected}`. Check
@@ -242,8 +256,12 @@ stateless — no sessions, no SSE) plus a file watcher on `lib/` and
 
 - **Tools:** `ash_describe` (no args → discovery summary), `ash_validate`,
   `ash_can`, `ash_search`, `ash_context`, `ash_forbidden`, `ash_rules`,
-  `ash_transitions`, `ash_daemon_status`, `ash_reload`. All read-only —
-  same contract as the facade. There is no
+  `ash_transitions`, `ash_processes`, `ash_process_graph`,
+  `ash_process_instance`, `ash_decisions`, `ash_decision_evaluate`,
+  `ash_daemon_status`, `ash_reload`. The cards (name, description, input
+  schema) live in `AshAgentTools.Mcp.Cards`. All read-only — same
+  contract as the facade. Module names in arguments are matched against
+  the loaded modules, never converted to atoms. There is no
   edit tool on the daemon: write paths stay in `mix ash_agent.edit` and
   your edit tools.
 - **Boot contract holds:** the daemon compiles the project and loads the
@@ -566,14 +584,30 @@ pattern's certainty — judge context (the compile-time-constant
 
 ## Integration posture
 
-- Do not wrap this package in editor- or server-registered tool surfaces.
-  Package-registered MCP tools have been rejected upstream (Tidewave PRs
-  #237/#242); the accepted pattern is plain code + usage rules, with agents
-  composing calls themselves. If Tidewave's tool-definition API lands
-  (PR #215), each function here maps 1:1 onto a tool definition — adapt
-  then, don't pre-integrate.
+- Three ways in, one facade: plain functions and Mix tasks (evaluate
+  in-VM or run from a shell); the MCP daemon (`mix ash_agent.serve`),
+  which compiles the project and never starts it; or, with the optional
+  `ash_ai` dependency, `AshAgentTools.AshAi` mounted on ash_ai's MCP router
+  in a dev-only route. Pick the daemon when an MCP client should call the
+  tools without the app running; pick ash_ai when the app is running and
+  you want one MCP server; pick the functions when you are already
+  attached to a node.
+- The ash_ai adapter serves `ash_describe`, `ash_validate`, `ash_can`,
+  `ash_forbidden`, `ash_context` and `ash_search` with the daemon's names,
+  cards, results and errors. ash_ai wraps the arguments in an `input`
+  object. Inside the app, `ash_can` reads the actor record from your dev
+  data (it never runs the action), and every action refuses when `Mix` is
+  not loaded.
+- The boundary: dev-time, read-only introspection of the framework
+  contract. Nothing here exposes the application's own actions at
+  runtime — that is ash_ai's production MCP server.
+- Tidewave history, for context: package-registered tools were closed
+  without merging there (PRs #237, #242); a tool-definition API is an open
+  proof of concept (PR #215). The functions take and return plain data, so
+  they map onto such an API directly.
 - If you add agent-facing behavior to this package, keep it read-only and
-  JSON-encodable, and document it here.
+  JSON-encodable, add its card to `AshAgentTools.Mcp.Cards` if it is a
+  daemon tool, and document it here.
 
 ## Known limits
 

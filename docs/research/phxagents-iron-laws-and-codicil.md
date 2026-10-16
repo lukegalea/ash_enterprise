@@ -33,3 +33,11 @@ Archive notice verbatim: *"I did not notice any significant difference in coding
 
 ## AshAI decision (Luke's question, grounded via deepwiki)
 ash_ai already has `AshAi.DevTools` (list_ash_resources/get_usage_rules/list_generators) behind `tools: :ash_dev_tools`, and third parties add MCP tools by defining Ash actions + the `tools` DSL block — the extension point exists. **Verdict: keep ash_agent_tools separate; integrate, don't fold.** Rationale: (1) determinism/no-LLM/no-provider-keys is our identity — ash_ai couples to LangChain/providers and runtime AI scope; (2) release cadence + review gate control; (3) separate hex package is the distribution unit the awesome-list/serena world consumes. **But dogfood the seam**: expose ash_agent_tools' describe/validate/context/search AS custom MCP tools through ash_ai's DevTools extension pattern in ash_enterprise (an `AshAgentTools.DevTools` bridge) — and if that proves clean, offer the bridge upstream as a draft PR. This gets AshAI-distribution without coupling. Fold law #14/#23 + hook-mandate + trigger-evals into DX-2's spec.
+
+**Outcome (2026-10-16).** The seam turned out not to be open: `AshAi.Mcp.Dev` overwrites `:tools` and
+`Server.tools/1` hardcodes the dev tool list, so the "dogfood the seam" step needed two parts.
+ash_agent_tools now ships an optional adapter domain, `AshAgentTools.AshAi` (lukegalea/ash_agent_tools#12),
+mounted here at `/ash_agent/mcp`. A small ash_ai change adding `dev_tool_domains:` sits on the fork branch
+`lukegalea/ash_ai:feat/dev-tool-domains`, and a live run there served ash_ai's three dev tools plus the
+adapter's six on `/ash_ai/mcp`. The upstream post and PR bodies are drafts in `docs/community-drafts/`
+(`ash-ai-dev-tool-domains.md`, `ash-ai-pr-*.md`) for Luke to send.

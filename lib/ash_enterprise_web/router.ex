@@ -434,6 +434,21 @@ defmodule AshEnterpriseWeb.Router do
     end
   end
 
+  # ash_agent_tools' read-only introspection tools (describe, validate, can,
+  # forbidden, context, search) served in-app through ash_ai's MCP router.
+  # Dev only: the dependency is `only: :dev` and the adapter refuses outside
+  # Mix. Same tool names as the `mix ash_agent.serve` daemon, so register one
+  # or the other with an MCP client, not both (see scripts/mcp-sync.md).
+  if Application.compile_env(:ash_enterprise, :dev_routes) do
+    scope "/" do
+      forward "/ash_agent/mcp", AshAi.Mcp.Router,
+        otp_app: :ash_enterprise,
+        protocol_version_statement: "2024-11-05",
+        actions: [{AshAgentTools.AshAi.Tools, :*}],
+        tools: [:ash_describe, :ash_validate, :ash_can, :ash_forbidden, :ash_context, :ash_search]
+    end
+  end
+
   if Application.compile_env(:ash_enterprise, :dev_routes) do
     import AshAdmin.Router
 
