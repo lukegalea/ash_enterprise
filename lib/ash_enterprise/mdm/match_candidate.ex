@@ -5,7 +5,7 @@ defmodule AshEnterprise.Mdm.MatchCandidate do
   (ADR 0017's first sharp edge); the REVIEW SURFACE is filtered separately
   — a steward never learns of a candidate they cannot read, nor of one
   whose golden they cannot read (`:review_queue`), and cannot confirm a
-  merge into a golden they cannot read (`:confirm_match`).
+  merge into a golden they cannot read (`:confirm`).
 
   Confirming or rejecting a review-banded candidate is a person's decision
   (ADR 0054): the policy set opens with the person gate, so a system actor
@@ -22,13 +22,12 @@ defmodule AshEnterprise.Mdm.MatchCandidate do
   steward who may not read a golden (Person is owner-only) sees its side of
   the diff empty, never its values.
 
-  Its buttons are `:confirm_match`, `:reject_match` and `:mark_unsure`:
-  generic actions that exist for their labels, each running the matching
-  person-gated update (`:confirm`, `:reject`, `:escalate`) **as the
-  actor**. They are self-service (ADR 0052) because they authorize nothing
-  themselves — every grant that matters is checked on that update — so a
-  steward's verdict needs exactly the update grant it always needed, and
-  the verdict recorded is still the update's name.
+  Its buttons are the verdicts themselves — `:confirm`, `:reject` and
+  `:escalate`, labelled Confirm match, Reject match and Mark unsure on the
+  surface — run as the clicking person, so the person gate and the update
+  grant decide. A steward-decision task decides the same updates
+  (`AshEnterprise.Mdm.StewardTask`), and the verdict completes that task as
+  the person in the same transaction (`AshEnterprise.Mdm.Changes.StewardVerdict`).
   """
 
   use AshEnterprise.Platform.Resource,
@@ -36,8 +35,7 @@ defmodule AshEnterprise.Mdm.MatchCandidate do
     ownership: :organization_owned,
     lifecycle?: false,
     archival?: false,
-    policies?: false,
-    self_service: [:confirm_match, :reject_match, :mark_unsure]
+    policies?: false
 
   use AshMdm.Resources, {:match_candidate, []}
 
@@ -158,7 +156,7 @@ defmodule AshEnterprise.Mdm.MatchCandidate do
     # The steward's verdict is a person's act — same gate as mapping
     # activation: positive personhood, not "not a system actor", so a
     # future actor kind fails closed.
-    policy action([:confirm, :reject, :escalate, :confirm_match, :reject_match, :mark_unsure]) do
+    policy action([:confirm, :reject, :escalate]) do
       authorize_if AshEnterprise.SystemOne.Checks.PersonActor
     end
 
@@ -203,28 +201,13 @@ defmodule AshEnterprise.Mdm.MatchCandidate do
       prepare build(sort: [created_on: :asc, id: :asc])
     end
 
-    action :confirm_match, :string do
-      description "Confirm match: runs `:confirm` on the candidate as the actor."
-      argument :record_id, :uuid, allow_nil?: false
-      run {AshEnterprise.Mdm.Actions.StewardDecision, verdict: :confirm}
-    end
-
-    action :reject_match, :string do
-      description "Reject match: runs `:reject` on the candidate as the actor."
-      argument :record_id, :uuid, allow_nil?: false
-      run {AshEnterprise.Mdm.Actions.StewardDecision, verdict: :reject}
-    end
-
-    action :mark_unsure, :string do
-      description "Mark unsure: runs `:escalate` on the candidate as the actor."
-      argument :record_id, :uuid, allow_nil?: false
-      run {AshEnterprise.Mdm.Actions.StewardDecision, verdict: :escalate}
-    end
-
     update :confirm do
       description "A steward confirms the match: the staged record merges into the golden record."
       accept []
       validate attribute_equals(:status, :pending)
+      # Nobody confirms a merge into a record they cannot see: the queue does
+      # not list such a candidate, and a confirm by id is refused the same way.
+      validate AshEnterprise.Mdm.Validations.GoldenReadable
       require_atomic? false
 
       change set_attribute(:status, :confirmed)

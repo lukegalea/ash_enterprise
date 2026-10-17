@@ -199,3 +199,39 @@ The golden-records, mapping and import-batch surfaces gained details (related so
 mapping's rules and predecessor; a batch's counts, failure and staged rows), each read under its own resource's
 policies. Mapping activation stays off surfaces. ImportLive now drafts and validates a mapping as the person, as it
 already activated one.
+
+## Addendum, 2026-10-17 — the task decides the candidate, and a Data Steward role
+
+**Labels, not wrappers.** `ash_a2ui` now labels a button from its `action` entity (`label`), so `:confirm_match`,
+`:reject_match` and `:mark_unsure` and the `StewardDecision` module behind them are deleted. The queue's buttons are
+`:confirm`, `:reject` and `:escalate` themselves, labelled Confirm match, Reject match and Mark unsure, and bulk is
+`:reject`. The rule that nobody confirms a merge into a golden they cannot read moved onto `:confirm` as a validation
+(`AshEnterprise.Mdm.Validations.GoldenReadable`, `Forbidden`), so it holds for every caller, not only the surface.
+
+**One decision, wherever it is made.** Completing the steward-decision task used to complete the task alone: the
+candidate stayed pending while its process ended, and Approvals' Approve completed it as `approved`, which the diagram
+does not declare, so the gateway's default sent it down the reject branch. Now a steward-decision task is decided by
+recording the verdict on its match candidate as the person (`AshEnterprise.Mdm.StewardTask`): `confirm` / `approved`
+→ `:confirm`, `reject` / `rejected` → `:reject`, `escalate` → `:escalate`. The verdict's `after_action` completes the
+task through the engine as the person, in the same transaction, for a claimed task as well as an open one; if the
+engine refuses (they are not a candidate, or someone else holds it), the verdict is refused and nothing is written.
+That applies to the queue too: while a candidate has a live steward-decision task, only someone who may decide that
+task may decide the candidate. Escalating records the steward as unsure and completes nothing; the task stays with
+them to delegate to a senior steward. The diagram declares `escalate` so the board offers it, and adds Data Stewards
+as candidates.
+
+Every completion path also refuses an outcome the task's step does not declare (`AshEnterprise.Bpmn.Outcomes`, reading
+`HumanTask.declared_outcomes` through the configured definition loader: the engine's own `:outcomes` reads the
+definition in the task's tenant and answers `nil` for a platform baseline such as this one), and
+the task board's Complete prompt offers a picker. Its options are fixed when the resource compiles (every outcome a
+checked-in baseline declares), because a prompt's ChoicePicker takes literal options; per-card options need
+per-record prompt options in `ash_a2ui`.
+
+**A Data Steward role.** Every tenant is seeded with a Data Steward role holding the steward-queue grants (read and
+write on match candidates; read on staged records, import batches, mappings and source identities; `:basic` read on
+Person; create on the human verdict a decision records) and the MDM egress grant (`prvReadEgress`), each at the widest
+depth its privilege allows (`Seeder.ensure_data_steward_role/2`). It holds no task grant: stewards read and act on
+their tasks through candidacy (ADR 0009, note of 2026-10-17). Existing tenants receive it through
+`mix ash_enterprise.platform.grant_data_steward` (dry run unless `--apply`; additive and idempotent; assigns the role
+to nobody), not at boot, because adding a role to a customer's tenant is a deliberate act.
+

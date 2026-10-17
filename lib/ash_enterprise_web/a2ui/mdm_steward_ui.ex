@@ -11,8 +11,11 @@ defmodule AshEnterpriseWeb.A2ui.MdmStewardUI do
     senior steward.
 
   Each button is shown only while the candidate is pending, and runs the
-  candidate's person-gated update as the clicking person
-  (`AshEnterprise.Mdm.MatchCandidate`). The diff is calculations on the
+  candidate's person-gated update (`:confirm`, `:reject`, `:escalate`,
+  labelled) as the clicking person (`AshEnterprise.Mdm.MatchCandidate`).
+  Where the candidate has a steward-decision task, the verdict completes it
+  as the person in the same transaction, so a verdict on someone else's task
+  is refused. The diff is calculations on the
   candidate read under the reader's policies: a steward who may not read a
   staged row sees that side empty. The queue lists no candidate whose golden
   the reader may not read (Person is owner-only), so it never discloses that
@@ -46,8 +49,8 @@ defmodule AshEnterpriseWeb.A2ui.MdmStewardUI do
       fields [:staged_label, :golden_label, :score, :waiting_since]
       read_action :review_queue
       query :queue
-      row_actions [:confirm_match, :reject_match, :mark_unsure]
-      bulk_actions [:reject_match]
+      row_actions [:confirm, :reject, :escalate]
+      bulk_actions [:reject]
       select_context :candidate
 
       row_layout do
@@ -74,15 +77,19 @@ defmodule AshEnterpriseWeb.A2ui.MdmStewardUI do
       ]
     end
 
-    action :confirm_match do
+    # The verdicts themselves, labelled for the steward: no wrapper actions.
+    action :confirm do
+      label "Confirm match"
       visible_when status: :pending
     end
 
-    action :reject_match do
+    action :reject do
+      label "Reject match"
       visible_when status: :pending
     end
 
-    action :mark_unsure do
+    action :escalate do
+      label "Mark unsure"
       visible_when status: :pending
     end
 
