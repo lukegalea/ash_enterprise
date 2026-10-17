@@ -58,8 +58,10 @@ defmodule AshEnterprise.SystemOne.QuestionProposal.Transport do
     # @dialyzer nowarn_function — genuine false positive: the ok path is
     # proven at runtime (the resolution tests go through this exact chain),
     # but the package's raise-heavy pin/region guards erase the success
-    # branch from Dialyzer's success typing of model_spec/3.
-    @dialyzer {:nowarn_function, resolve: 1}
+    # branch from Dialyzer's success typing of model_spec/3. The wire
+    # helpers called only from that branch (spec/3, wire_opts/2) read as
+    # "never called" for the same reason; the resolution tests call them.
+    @dialyzer {:nowarn_function, resolve: 1, spec: 3, wire_opts: 2}
     def resolve(profile) do
       # The profile machinery runs the guards that matter — residency
       # (ADR 0042), the region rule, pin — then the transport translates
