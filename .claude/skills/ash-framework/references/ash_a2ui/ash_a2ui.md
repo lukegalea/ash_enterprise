@@ -24,8 +24,10 @@ Sub-rules (addressable as `ash_a2ui:<name>`):
 - `ash_a2ui:layout` — `group` form sections (labeled N-column grids),
   `step` wizard pages on forms (Back/Next with server-side per-step
   validation, optional review step), `row_layout` card-style table rows
-  (title + badge header, metadata grid), and `display :board` boards (lanes
-  over an attribute's values).
+  (title + badge header, metadata grid), `display :board` boards (lanes
+  over an attribute's values, optionally split into swimlanes), and
+  `display :calendar` calendars (a month/week/day window over a queried
+  table).
 - `ash_a2ui:contexts` — surface `context` entities (server-validated
   selections, dependent options, `context_filter`/`require_context`/
   `select_context`) and `:detail` components.
@@ -36,6 +38,9 @@ Sub-rules (addressable as `ash_a2ui:<name>`):
 - `ash_a2ui:reports` — `:report` components (aggregate/report queries over
   generic actions) and `export` blocks (CSV file export via the v1.0
   `downloadFile` callFunction).
+- `ash_a2ui:diagrams` — `diagram` entities: a host source returning a
+  mermaid diagram and markers, server-resolved marker links, lazy-loaded
+  mermaid in the admin catalog, and PubSub-driven marker moves.
 - `ash_a2ui:zero-jank` — the Zero Jank Manifesto translated to A2UI
   surfaces: instant feedback is client-side (optimistic data-model writes,
   typed feedback, in-flight action buttons, the bootstrap skeleton), what
@@ -153,7 +158,8 @@ end
   the board in the merged catalog). Cards move only through transition row
   actions gated by `visible_when` that refresh the template key — no
   drag-and-drop; `select_context` on a board puts a select control on every
-  card (rules in `ash_a2ui:layout`).
+  card; `swimlanes_by` splits a board into tone-coloured rows by a second
+  enumerated attribute (rules in `ash_a2ui:layout`).
 - Per-cell editing (spreadsheet-style columns) is an `editable` block on
   the table (`fields` allowlist + `update_action`), not a form: cells
   commit through the `"edit_cell"` action, validation errors mirror into

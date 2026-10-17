@@ -1,8 +1,9 @@
 # AshA2ui layout rules
 
-Rules for the `group`, `step` and `row_layout` layout entities and for boards
-(`display :board`). See the Layout, Wizard Steps and Multi-Section Surfaces
-topics for the full contracts.
+Rules for the `group`, `step` and `row_layout` layout entities, for boards
+(`display :board`) and for calendars (`display :calendar`). See the Layout,
+Wizard Steps, Multi-Section Surfaces and Calendars topics for the full
+contracts.
 
 ## Form groups
 
@@ -168,6 +169,84 @@ topics for the full contracts.
   List-mode sectioned tables still reject `select_context`.
 - `display :list` (the default) keeps the stacked rendering, so source-less
   sections work without a board too.
+- Split a board into **swimlanes** with `swimlanes_by` in the same
+  `sections` block: a second enumerated attribute (not `scope_by`) whose
+  values become rows across every lane, each on a tone-coloured band:
+
+  ```elixir
+  sections do
+    scope_by :stage                         # the stage columns
+    swimlanes_by :severity                  # the rows (Ash.Type.Enum or one_of)
+    swimlane_values [:emergency, :urgent, :routine]   # optional subset + order
+    swimlane_labels emergency: "Emergency"  # optional heading overrides
+    swimlane_tones emergency: :danger, urgent: :warning, routine: :success
+  end
+  ```
+
+  Every (swimlane, lane) cell is its own expanded table,
+  `<key>_<lane>__<swimlane>` (`board_open__urgent`), with both filters
+  ANDed onto every read; a client filter on either attribute cannot widen
+  a cell. `refreshes [:board]` still covers every cell. Tones are the
+  `badge_tones` vocabulary (`:neutral` when unlisted), served as data at
+  `/_swimlane_tone_<key>__<swimlane>` and painted by the merged catalog
+  from the `--a2ui-swimlane-<tone>-background` / `-color` tokens — theme
+  those, don't style swimlanes per host. Totals: per cell
+  `/_lane_total_<cell>`, per swimlane `/_swimlane_total_<key>__<swimlane>`,
+  per stage `/_lane_total_<key>_<lane>`.
+- Records whose swimlane value is nil (or not in `swimlane_values`) show in
+  no swimlane, and are missing from the stage totals too. When a nil means
+  something (not yet triaged), give the board a calculation that maps it to
+  a value and swimlane by that.
+- Each cell is two reads (page + count) on every render and every refresh
+  of the board: 3 stages x 5 swimlanes is 30 reads per transition. `limit`
+  caps the cells (default 50); narrow `values` / `swimlane_values` before
+  raising it.
+- `swimlanes_by` needs `display :board` and no `source`; its values, labels
+  and tones keys must be enumerated values, tones must be from the
+  vocabulary, `swimlane_values` may not be empty, no two swimlanes (or
+  cells) may share a runtime name, no runtime name may extend another at
+  an underscore (`:high` with `:high_total`), and no cell may take another
+  table's key (compile-verified).
+
+## Calendars
+
+- A calendar is a queried `:table` shown as a month, week or day grid.
+  Declare `display :calendar`, a `date_field` and a `query`; add an
+  `end_date_field` for multi-day records and a `granularity` (`:month`
+  default, `:week`, `:day`):
+
+  ```elixir
+  component :table, :schedule do
+    fields [:title, :status, :starts_on, :ends_on]
+    display :calendar
+    date_field :starts_on
+    end_date_field :ends_on
+    granularity :month
+    query :schedule
+    row_actions [:confirm]
+  end
+  ```
+
+- `date_field`/`end_date_field` must be public `:date` or datetime
+  attributes of the table's resource; a calendar takes no `sections` and no
+  `bulk_actions` (compile-verified).
+- The window rides on the query: the read is the table's read (preset,
+  context scope, filters, search, actor) ANDed with the window, and the
+  state lives at `/query/<table>/window` (`anchor`, `from`, `to`,
+  `selected`, `label`, `scopeLabel`, `marks`). Don't add a `range_filters`
+  entry for the date field to fake a window.
+- Moving the window and picking a day are `"query"` actions with `anchor`
+  (an ISO date or `"today"`), `windowDelta` (an integer) or `date` (an ISO
+  date, `""` clears). The server derives the range; the client never sends
+  one. A picked day narrows the read; `marks` still cover the window.
+- Size the query's `page_size` to a window's usual record count: one page
+  is shown per window, with pagination when it holds more.
+- Days are UTC days. Rows carry `_calendar_start`, `_calendar_end` and
+  `_calendar_when`.
+- The basic composition is an agenda (window controls above the table's
+  list); the admin catalog (1.3) emits a `calendarView` wrapping the
+  table's `dataGrid`, so row actions, prompts and pagination work
+  unchanged.
 
 ## Avoid
 
@@ -178,6 +257,8 @@ topics for the full contracts.
 - ❌ Duplicating a field across `title`/`badge`/`meta` or across groups.
 - ❌ Hardcoding one `:table` per status value — use a source-less `sections`
   block, so the lanes follow the attribute's declared values.
+- ❌ One board per severity (or per team) stacked on a page — use
+  `swimlanes_by`, so the stages line up and one refresh covers every cell.
 - ❌ Treating steps as a security boundary. They decide what is shown and
   when it is checked; the final submit validates every field, and
   authorization runs on that write.
