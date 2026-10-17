@@ -35,11 +35,15 @@ defmodule AshEnterprise.SystemOne.QuestionProposalTest do
     System.put_env("OLLAYA_BASE_URL", "http://127.0.0.1:11435")
     System.put_env("OLLAYA_API_KEY", "local-test-only")
     System.put_env("S1_OLLAYA_GPU_BASE_URL", "http://127.0.0.1:11435")
+    System.put_env("S1_GEN_BASE_URL", "http://127.0.0.1:8000/v1")
+    System.put_env("S1_GEN_API_KEY", "")
 
     on_exit(fn ->
       System.delete_env("OLLAYA_BASE_URL")
       System.delete_env("OLLAYA_API_KEY")
       System.delete_env("S1_OLLAYA_GPU_BASE_URL")
+      System.delete_env("S1_GEN_BASE_URL")
+      System.delete_env("S1_GEN_API_KEY")
     end)
 
     %{org: Ash.UUID.generate(), person: person()}
@@ -142,6 +146,75 @@ defmodule AshEnterprise.SystemOne.QuestionProposalTest do
       # The transport opts carry the profile's own {:system, var}-resolved
       # endpoint — the value the test itself set above.
       assert Keyword.get(opts, :base_url) == "http://127.0.0.1:11435"
+    end
+
+    test "the transport speaks the OpenAI wire to a profile configured for it" do
+      {:ok, splash} = AshJudgments.Profile.fetch(:splash_generative)
+
+      assert {:ok, %{provider: :openai, id: id}, opts} =
+               AshEnterprise.SystemOne.QuestionProposal.Transport.ReqLLM.resolve(
+                 :splash_generative
+               )
+
+      assert id == splash.model
+      assert Keyword.get(opts, :base_url) == "http://127.0.0.1:8000/v1"
+      # A keyless runtime still gets a key sent, so ReqLLM never falls back
+      # to OPENAI_API_KEY and hands a hosted vendor's key to the zone host.
+      assert Keyword.get(opts, :api_key) == "in-zone-no-key"
+      assert Keyword.get(opts, :reasoning_effort) == :none
+      assert Keyword.get(opts, :receive_timeout) == 300_000
+
+      # The decode schema rides as a json_schema response format, as written.
+      assert Keyword.get(opts, :provider_options) == [
+               openai_structured_output_mode: :json_schema,
+               openai_json_schema_strict: false
+             ]
+
+      # The call record classes it in-zone, like every in-cluster instrument.
+      assert %{residency: :in_zone, profile: "splash_generative"} =
+               Keyword.fetch!(opts, :model_target)
+    end
+
+    test "keywords a runtime only checks after generating stay off its wire schema" do
+      alias AshEnterprise.SystemOne.QuestionProposal.Transport
+
+      assert {:ok, _spec, opts} = Transport.ReqLLM.resolve(:splash_generative)
+      assert Keyword.get(opts, :wire_schema_drop) == ["pattern", "allOf"]
+
+      wire = Transport.ReqLLM.wire_schema(Schema.schema(), ["pattern", "allOf"])
+      refute Jason.encode!(wire) =~ ~s("pattern")
+      refute Jason.encode!(wire) =~ ~s("allOf")
+      # Everything else rides unchanged; the host decode keeps the full schema.
+      assert wire["$defs"]["proposal"]["required"] ==
+               Schema.schema()["$defs"]["proposal"]["required"]
+
+      assert Jason.encode!(Schema.schema()) =~ ~s("pattern")
+      assert Transport.ReqLLM.wire_schema(Schema.schema(), []) == Schema.schema()
+    end
+
+    test "a profile with no configured wire speaks the Ollama-compatible wire" do
+      alias AshEnterprise.SystemOne.QuestionProposal.Transport
+
+      assert Transport.ReqLLM.wire(:winnow_generative) == [wire: :ollama]
+      assert Transport.ReqLLM.wire(:splash_generative)[:wire] == :openai
+    end
+
+    test "a proposal drafted through the Splash profile records it", ctx do
+      Application.put_env(:ash_enterprise, :test_transport_output, {:file, "valid.json"})
+      on_exit(fn -> Application.delete_env(:ash_enterprise, :test_transport_output) end)
+
+      assert {:ok, record} =
+               QuestionProposal.propose(
+                 source: "recordings",
+                 policy_text: @policy_text,
+                 profile: :splash_generative,
+                 transport: FakeTransport,
+                 actor: ctx.person,
+                 tenant: ctx.org
+               )
+
+      assert record.status == :proposed
+      assert record.profile == "splash_generative"
     end
 
     test "resolution runs the real profile machinery with a fake model", ctx do

@@ -74,16 +74,34 @@ defmodule AshEnterprise.Judgments.ProfileConfigTest do
       Profile.registry()
       |> Enum.filter(&(&1.name |> Atom.to_string() |> String.ends_with?("_generative")))
 
-    assert [%{name: :winnow_generative} = profile] = generative
+    assert [:splash_generative, :winnow_generative] =
+             generative |> Enum.map(& &1.name) |> Enum.sort()
 
-    assert profile.residency == :in_cluster,
-           "generative instruments are in-zone runtimes only (ADR 0046, as amended)"
+    for profile <- generative do
+      assert profile.residency == :in_cluster,
+             "generative instruments are in-zone runtimes only (ADR 0046, as amended)"
 
-    assert profile.region == :ca
-    assert profile.model == "winnow:e4b"
-    # Endpoints and keys ride {:system, var} indirection only — never a
-    # committed value (AST-86 wiring; §9).
-    assert {:system, _} = profile.base_url
-    assert {:system, _} = profile.api_key
+      assert profile.region == :ca
+      # Endpoints and keys ride {:system, var} indirection only — never a
+      # committed value (AST-86 wiring; §9).
+      assert {:system, _} = profile.base_url
+      assert {:system, _} = profile.api_key
+    end
+
+    assert Enum.find(generative, &(&1.name == :winnow_generative)).model == "winnow:e4b"
+  end
+
+  test "every generative wire names a configured generative profile" do
+    wires =
+      :ash_enterprise
+      |> Application.get_env(AshEnterprise.SystemOne.QuestionProposal.Transport, [])
+      |> Keyword.get(:generative_wires, %{})
+
+    names = MapSet.new(Profile.registry(), & &1.name)
+
+    for {profile, wire} <- wires do
+      assert profile in names, "generative_wires names #{profile}, which is no profile"
+      assert wire[:wire] in [:ollama, :openai]
+    end
   end
 end
