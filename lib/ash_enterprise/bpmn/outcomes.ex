@@ -50,9 +50,15 @@ defmodule AshEnterprise.Bpmn.Outcomes do
   @spec offered() :: [String.t()]
   def offered, do: @offered
 
+  # The atoms are minted once, here, while the module compiles, from the
+  # outcome names scanned out of the checked-in baselines above. Nothing at
+  # runtime converts a string to an atom, so the atom set is closed over our
+  # own files (iron law #10).
+  @offered_atoms Enum.map(@offered, &String.to_atom/1)
+
   @doc "`offered/0` as atoms, for the Complete action's `one_of` constraint."
   @spec offered_atoms() :: [atom()]
-  def offered_atoms, do: Enum.map(@offered, &String.to_atom/1)
+  def offered_atoms, do: @offered_atoms
 
   @doc """
   The outcomes `task`'s step declares, or `nil` when it declares none.
