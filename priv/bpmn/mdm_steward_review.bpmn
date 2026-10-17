@@ -13,12 +13,22 @@
       One review-banded match candidate's journey through stewardship (MDM-4,
       ADR 0054). The engine starts an instance per candidate the moment the
       band table says :review; the user task is the work item the steward
-      queue surfaces. The decision itself is deliberately NOT a service task:
-      confirm/reject are the candidate's own person-gated actions, and the
-      engine actor could never pass the person gate without undoing it. The
-      steward acts in the queue (or here, through the task); the queue's
-      after_action completes this task with the outcome, which is what lets
-      the instance finish.
+      queue and the task board surface. The decision itself is deliberately
+      NOT a service task: confirm/reject/escalate are the candidate's own
+      person-gated actions, and the engine actor could never pass the person
+      gate without undoing it. Wherever the steward decides (the queue, the
+      task board, Approvals), the host records the verdict on the candidate as
+      the person, and the verdict completes this task with the outcome in the
+      same transaction (AshEnterprise.Mdm.StewardTask), which is what lets the
+      instance finish.
+
+      `escalate` is declared so the board offers it, but it never completes
+      the task: the host records the steward as unsure and the task stays
+      with them to delegate to a senior steward. Only confirm and reject reach
+      the gateway.
+
+      Candidates: Data Stewards (the seeded role holding the steward-queue
+      grants) and Administrators.
     -->
 
     <bpmn2:startEvent id="Start">
@@ -29,11 +39,13 @@
       <bpmn2:extensionElements>
         <ash:taskConfig>
           <ash:candidates>
+            <ash:candidate kind="role" of="Data Steward"/>
             <ash:candidate kind="role" of="Administrator"/>
           </ash:candidates>
           <ash:outcomes>
             <ash:outcome name="confirm"/>
             <ash:outcome name="reject"/>
+            <ash:outcome name="escalate"/>
           </ash:outcomes>
         </ash:taskConfig>
       </bpmn2:extensionElements>

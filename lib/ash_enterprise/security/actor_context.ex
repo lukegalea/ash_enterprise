@@ -34,6 +34,16 @@ defmodule AshEnterprise.Security.ActorContext do
   the time a check runs, both are just "is the record's owning business unit in
   this set?" — one `MapSet.member?/2`, or one `IN (...)` when pushed into SQL.
 
+  ## Candidacy
+
+  `task_ids` are the human tasks the actor may act on now — open tasks they
+  (or one of their teams) are a candidate for, claimed tasks they hold, never
+  one whose maker-checker exclusions name them — answered once by the engine's
+  candidacy read. `AshEnterprise.Security.Checks.TaskCandidacy` turns them into
+  a read grant on those tasks, so being asked to decide something is enough to
+  see it, without a role grant and without a query in the check (ADR 0009,
+  note of 2026-10-17).
+
   ## Usage
 
   Built by `AshEnterpriseWeb.Plugs.LoadActorContext` for web requests, and by
@@ -62,6 +72,7 @@ defmodule AshEnterprise.Security.ActorContext do
     :business_unit_id,
     team_ids: [],
     principal_ids: [],
+    task_ids: [],
     grants: %{},
     shared: %{},
     hierarchy: nil,
@@ -74,6 +85,7 @@ defmodule AshEnterprise.Security.ActorContext do
           business_unit_id: Ash.UUID.t() | nil,
           team_ids: [Ash.UUID.t()],
           principal_ids: [Ash.UUID.t()],
+          task_ids: [Ash.UUID.t()],
           grants: %{{String.t(), atom()} => Grant.t()},
           shared: %{{String.t(), atom()} => MapSet.t(Ash.UUID.t())},
           hierarchy: AshEnterprise.Security.Hierarchy.t() | nil,
@@ -137,6 +149,7 @@ defmodule AshEnterprise.Security.ActorContext do
     role_assignments = load_role_assignments(user_id, team_ids, tenant)
     grants = build_grants(role_assignments, tenant)
     shared = load_shared(principal_ids, tenant)
+    task_ids = load_task_ids(user_id, team_ids, tenant)
 
     %__MODULE__{
       user_id: user_id,
@@ -144,6 +157,7 @@ defmodule AshEnterprise.Security.ActorContext do
       business_unit_id: business_unit_id,
       team_ids: team_ids,
       principal_ids: principal_ids,
+      task_ids: task_ids,
       grants: grants,
       shared: shared,
       # Costs nothing when hierarchy security is disabled (the default): resolve/2
@@ -216,6 +230,15 @@ defmodule AshEnterprise.Security.ActorContext do
       _ -> nil
     end
   end
+
+  @doc """
+  The ids of the teams `user_id` belongs to in `tenant`: one query, as
+  `build/2` makes it. For callers that need a person's teams without building
+  their whole context (`AshEnterprise.Process.AssignmentResolver.team_ids/2`,
+  for a delegate named by id).
+  """
+  @spec team_ids_for(Ash.UUID.t() | nil, Ash.UUID.t() | nil) :: [Ash.UUID.t()]
+  def team_ids_for(user_id, tenant), do: load_team_ids(user_id, tenant)
 
   defp load_team_ids(nil, _tenant), do: []
 
@@ -349,6 +372,32 @@ defmodule AshEnterprise.Security.ActorContext do
           {root.id, ids}
         end)
     end
+  end
+
+  # The human tasks the actor may act on now: open tasks a candidate row names
+  # them (or one of their teams) for, and claimed tasks they hold — minus any
+  # task whose maker-checker exclusions name them. The engine's own candidacy
+  # read (`:awaiting_actor`) answers it, so this is the same set the task
+  # board lists and the engine's claim/complete/delegate checks accept, not a
+  # second reading of the rows. The person is handed over as a map carrying
+  # the team ids just loaded, so the resolver answers `team_ids/2` without a
+  # query (and without building this context again).
+  #
+  # Only live tasks: a decided or cancelled task leaves the set, so it grows
+  # with a person's open work, not with their history.
+  defp load_task_ids(nil, _team_ids, _tenant), do: []
+  defp load_task_ids(_user_id, _team_ids, nil), do: []
+
+  defp load_task_ids(user_id, team_ids, tenant) do
+    AshEnterprise.Bpmn.HumanTask
+    |> Ash.Query.for_read(:awaiting_actor, %{},
+      actor: %{id: user_id, team_ids: team_ids},
+      authorize?: false,
+      tenant: tenant
+    )
+    |> Ash.Query.select([:id])
+    |> read_all(tenant)
+    |> Enum.map(& &1.id)
   end
 
   defp load_shared([], _tenant), do: %{}

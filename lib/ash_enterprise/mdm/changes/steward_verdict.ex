@@ -54,44 +54,55 @@ defmodule AshEnterprise.Mdm.Changes.StewardVerdict do
       )
       |> Ash.update!(tenant: tenant, authorize?: false)
 
-    # The process side: this decision completes the review task, which is
-    # what lets the steward-review instance finish.
-    complete_review_task!(candidate, verdict, actor, tenant)
+    # The process side: this decision completes the review task, as the
+    # person, in this transaction, which is what lets the steward-review
+    # instance finish. The engine checks they may: a candidate for an open
+    # task, the holder of a claimed one. If not, the whole verdict is refused.
+    comment = changeset.context[:steward_comment]
 
-    {:ok, candidate}
+    with :ok <- complete_review_task(candidate, verdict, comment, actor, tenant) do
+      {:ok, candidate}
+    end
   end
 
-  defp complete_review_task!(candidate, verdict, actor, tenant) do
-    # The engine does not copy the subject onto the task; the join is the
-    # instance it belongs to.
-    open_task =
-      AshEnterprise.Bpmn.Instance
-      |> Ash.Query.filter(subject_id == ^candidate.id and status == ^:running)
-      |> Ash.read_one(tenant: tenant, authorize?: false)
-      |> case do
-        {:ok, instance} when not is_nil(instance) ->
-          AshEnterprise.Bpmn.HumanTask
-          |> Ash.Query.filter(instance_id == ^instance.id and status == :open)
-          |> Ash.read_one(tenant: tenant, authorize?: false)
-          |> case do
-            {:ok, task} -> task
-            _ -> nil
-          end
-
-        _ ->
-          nil
-      end
-
-    open_task
-    |> case do
-      task when not is_nil(task) ->
-        AshBpmn.complete_task!(task, outcome: verdict, actor: actor)
-
-      _ ->
-        # No open task: the decision came from the queue before the instance
+  defp complete_review_task(candidate, verdict, comment, actor, tenant) do
+    case review_task(candidate, tenant) do
+      nil ->
+        # No live task: the decision came from the queue before the instance
         # existed, or the tenant runs no steward-review baseline. The verdict
         # rows are the record either way.
         :ok
+
+      task ->
+        case AshBpmn.complete_task(task, outcome: verdict, comment: comment, actor: actor) do
+          {:ok, _completed} ->
+            :ok
+
+          # Not a candidate, or someone else holds it: the task is not theirs
+          # to decide, so neither is the candidate while it waits on that task.
+          {:error, %ArgumentError{}} ->
+            {:error, Ash.Error.Forbidden.exception([])}
+
+          {:error, error} ->
+            {:error, error}
+        end
+    end
+  end
+
+  # The engine does not copy the subject onto the task; the join is the
+  # instance it belongs to.
+  defp review_task(candidate, tenant) do
+    with {:ok, %{} = instance} <-
+           AshEnterprise.Bpmn.Instance
+           |> Ash.Query.filter(subject_id == ^candidate.id and status == ^:running)
+           |> Ash.read_one(tenant: tenant, authorize?: false),
+         {:ok, %{} = task} <-
+           AshEnterprise.Bpmn.HumanTask
+           |> Ash.Query.filter(instance_id == ^instance.id and status in [:open, :claimed])
+           |> Ash.read_one(tenant: tenant, authorize?: false) do
+      task
+    else
+      _none -> nil
     end
   end
 

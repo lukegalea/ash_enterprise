@@ -45,24 +45,44 @@ defmodule AshEnterprise.Mdm.DemoData do
   defp seed_baselines! do
     platform = Seeder.seed_platform_organization()
     AshEnterprise.Mdm.Banding.publish_seed_bands!(platform.id)
+    publish_steward_review!()
+  end
 
-    published =
+  @doc """
+  Publishes the checked-in steward-review BPMN as the platform baseline
+  `mdm.steward_review`, as a new version when the latest published one's XML
+  differs from the file (and as version 1 when there is none). Returns
+  `:unchanged` or `{:published, version}`.
+
+  Running instances keep the definition they pinned; new review candidates
+  start on the new version — which is how existing tenants pick up a changed
+  candidate list or outcome set (the Data Steward candidate, `escalate`).
+  """
+  @spec publish_steward_review!() :: :unchanged | {:published, pos_integer()}
+  def publish_steward_review! do
+    platform = Seeder.seed_platform_organization()
+    xml = steward_review_xml()
+
+    latest =
       Definition
-      |> Ash.Query.filter(key == ^@steward_key)
+      |> Ash.Query.filter(key == ^@steward_key and status == :published)
+      |> Ash.Query.sort(version: :desc)
+      |> Ash.Query.limit(1)
       |> Ash.read_one!(tenant: platform.id, authorize?: false)
 
-    case published do
-      %{status: :published} ->
-        :ok
+    case latest do
+      %{xml: ^xml} ->
+        :unchanged
 
-      _ ->
-        xml = steward_review_xml()
+      _none_or_stale ->
+        published =
+          Definition.create!(%{key: @steward_key, name: "MDM steward review", xml: xml},
+            actor: SystemActor.process(),
+            tenant: platform.id
+          )
+          |> Definition.publish!(actor: SystemActor.process(), tenant: platform.id)
 
-        Definition.create!(%{key: @steward_key, name: "MDM steward review", xml: xml},
-          actor: SystemActor.process(),
-          tenant: platform.id
-        )
-        |> Definition.publish!(actor: SystemActor.process(), tenant: platform.id)
+        {:published, published.version}
     end
   end
 

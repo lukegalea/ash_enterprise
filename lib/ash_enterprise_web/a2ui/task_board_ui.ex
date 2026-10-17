@@ -3,19 +3,24 @@ defmodule AshEnterpriseWeb.A2ui.TaskBoardUI do
   My tasks: every process task waiting on the signed-in person, as a board —
   **Open** (claimable by the person or one of their teams) and **Claimed**.
 
-  * **Claim task** takes an open task. Offered while the task is open; the
-    action checks the person is a candidate.
-  * **Complete task** decides a task the person holds, with an outcome and
-    an optional comment.
-  * **Delegate task** hands a task the person holds to someone else, by
-    email.
+  * **Claim task** takes an open task. Offered while the task is open.
+  * **Complete task** decides a task the person holds: a picker of outcomes
+    and an optional comment. Only an outcome the task's step declares is
+    accepted (`AshEnterprise.Bpmn.Outcomes`); a steward-decision task's
+    outcome is recorded as the verdict on its match candidate
+    (`AshEnterprise.Mdm.StewardTask`).
+  * **Delegate task** hands a task the person holds to another of its
+    candidates, by email.
 
   Complete and Delegate show only on the cards the person holds
-  (`claimed_by_me`). Every button runs the task's own action as the
-  clicking person (`AshEnterprise.Bpmn.Actions.WorkTask`): read under their
-  policies, checked against the materialised candidacy, written by the
-  process engine. The board reads `HumanTask.awaiting_me`, the read
-  Approvals uses.
+  (`claimed_by_me`). Every button runs the task's own action as the clicking
+  person (`AshEnterprise.Bpmn.Actions.WorkTask`), and the process engine
+  decides who may claim, complete or delegate (`AshBpmn.Candidacy`). The
+  board reads `HumanTask.awaiting_me` — the engine's candidacy read, oldest
+  first — the read Approvals uses; a person reads the tasks on it through
+  their candidacy (`AshEnterprise.Security.Checks.TaskCandidacy`). Each
+  card's Select opens its task, with the outcomes its step declares, in the
+  detail beside the board.
 
   Served at `/app/tasks` (it replaces ash_bpmn's TaskListLive there).
   """
@@ -38,6 +43,7 @@ defmodule AshEnterpriseWeb.A2ui.TaskBoardUI do
       fields([:name, :subject_label, :assignee_label, :waiting_since])
       read_action(:awaiting_me)
       row_actions([:claim_task, :complete_task, :delegate_task])
+      select_context(:task)
 
       row_layout do
         title(:name)
@@ -53,15 +59,26 @@ defmodule AshEnterpriseWeb.A2ui.TaskBoardUI do
 
     component :detail, :task_detail do
       context(:task)
-      fields([:name, :status, :subject_label, :waiting_since, :assignee_label, :subject_detail])
+
+      fields([
+        :name,
+        :status,
+        :subject_label,
+        :declared_outcomes,
+        :waiting_since,
+        :assignee_label,
+        :subject_detail
+      ])
     end
 
     action :claim_task do
+      label("Claim task")
       visible_when(status: :open)
       refreshes([:board])
     end
 
     action :complete_task do
+      label("Complete task")
       visible_when(status: :claimed, claimed_by_me: true)
       prompt_fields([:outcome, :comment])
       prompt_title("Complete — the outcome, and a note for the record (optional)")
@@ -69,17 +86,19 @@ defmodule AshEnterpriseWeb.A2ui.TaskBoardUI do
     end
 
     action :delegate_task do
+      label("Delegate task")
       visible_when(status: :claimed, claimed_by_me: true)
       prompt_fields([:delegate_to])
       prompt_title("Delegate — the email address of the person taking it over")
       refreshes([:board])
     end
 
-    # A board selects nothing per card, so a card opens its task's detail
-    # through its link (the deep link selects `:task`).
     field :name do
       label("Step")
-      link({:tasks, :id})
+    end
+
+    field :declared_outcomes do
+      label("This step's outcomes")
     end
 
     field :subject_label do

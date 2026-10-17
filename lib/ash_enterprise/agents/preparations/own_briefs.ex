@@ -20,7 +20,7 @@ defmodule AshEnterprise.Agents.Preparations.OwnBriefs do
     |> Ash.Query.limit(1)
     |> Ash.Query.before_action(fn query ->
       owner_id =
-        case AshEnterprise.Bpmn.Preparations.AwaitingActor.running_actor(query) do
+        case get_in(query.context, [:private, :actor]) do
           %{id: id} -> id
           _none -> nil
         end

@@ -80,6 +80,37 @@ defmodule AshEnterprise.Process.AssignmentResolver do
     {:ok, specs |> Enum.flat_map(&resolve_exclusion(&1, ctx)) |> Enum.uniq()}
   end
 
+  # ── who a person acts as ─────────────────────────────────────────────────
+
+  @doc """
+  The teams a person acts for, so the engine's candidacy checks
+  (`AshBpmn.Candidacy`) match `:team` candidate rows and team assignees.
+
+  Answered without a query whenever the answer is already known: a principal
+  map that carries `:team_ids` (as `AshEnterprise.Security.ActorContext`
+  passes while it is being built), or an actor carrying its precomputed
+  `ActorContext`. Otherwise — a delegate named by id, an actor built outside a
+  request — the person's team memberships are read once, as the system, in
+  the tenant. This runs once per claim, completion or delegation, never in a
+  policy check.
+  """
+  @impl true
+  def team_ids(principal, ctx) do
+    case principal do
+      %{team_ids: ids} when is_list(ids) ->
+        ids
+
+      %{__ash_enterprise_context__: %AshEnterprise.Security.ActorContext{team_ids: ids}} ->
+        ids
+
+      %{id: id} when is_binary(id) ->
+        AshEnterprise.Security.ActorContext.team_ids_for(id, ctx[:tenant])
+
+      _nobody ->
+        []
+    end
+  end
+
   # ── candidate clauses ────────────────────────────────────────────────────
 
   # The vocabulary is deliberately small. Every clause here is a fact this organization's
