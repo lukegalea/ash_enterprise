@@ -34,6 +34,10 @@ defmodule AshEnterprise.Assistant.Runner do
     * `{:text, chunk}` — answer text as it streams;
     * `{:tool_call, %{id:, name:, arguments:}}` and
       `{:tool_result, %{id:, ok?:, count:}}`;
+    * `{:surface, %{id:, request:, title:}}` — `compose_surface` verified a
+      surface; the page composes `request` again as the person to show it;
+    * `{:proposal, %{id:, wire:, summary:}}` — a proposal tool built one; the
+      page rebuilds it from `wire` as the person and waits for a confirm;
     * `{:step, n}` — model call `n` is starting;
     * `{:done, turn}` / `{:failed, reason, turn}` — terminal, after the answer
       is recorded (`turn` is nil only if recording failed).
@@ -50,7 +54,7 @@ defmodule AshEnterprise.Assistant.Runner do
   alias AshEnterprise.AI.Models
   alias AshEnterprise.AI.Models.GuardedReqLLM
   alias AshEnterprise.Assistant
-  alias AshEnterprise.Assistant.{History, Lookup, Prompt, Turn, ZoneGate}
+  alias AshEnterprise.Assistant.{History, Prompt, Turn, ZoneGate}
   alias AshEnterprise.Canonical.{CalendarEvent, Conversation}
 
   @caller "assistant.chat"
@@ -235,7 +239,12 @@ defmodule AshEnterprise.Assistant.Runner do
     ]
 
     if tools?,
-      do: base ++ [actions: [{Lookup, :*}], tools: Assistant.tool_names()],
+      do:
+        base ++
+          [
+            actions: Enum.map(Assistant.tool_resources(), &{&1, :*}),
+            tools: Assistant.tool_names()
+          ],
       else: base ++ [tools: false]
   end
 
@@ -289,11 +298,16 @@ defmodule AshEnterprise.Assistant.Runner do
   defp handle({:tool_result, %{id: id, result: result}}, state) do
     {ok?, count, refs} = outcome(result)
     emit(state, {:tool_result, %{id: id, ok?: ok?, count: count}})
+    shown = shown(result)
+    Enum.each(shown, &emit(state, &1))
 
     calls =
       Enum.map(state.calls, fn
-        %{"id" => ^id} = call -> %{call | "ok" => ok?, "count" => count}
-        call -> call
+        %{"id" => ^id} = call ->
+          Enum.reduce(shown, %{call | "ok" => ok?, "count" => count}, &record_shown/2)
+
+        call ->
+          call
       end)
 
     %{state | calls: calls, refs: Enum.into(refs, state.refs)}
@@ -321,6 +335,40 @@ defmodule AshEnterprise.Assistant.Runner do
 
   defp outcome({:ok, _content, _raw}), do: {true, nil, []}
   defp outcome(_error), do: {false, nil, []}
+
+  # What a compose or propose tool put on the page: a surface to render or a
+  # proposal to confirm, each under an id of the page's own (never the
+  # model's call id). Events for the page; recorded on the call.
+  defp shown({:ok, _content, %{"surface" => %{} = request} = raw})
+       when not is_map_key(raw, "error") do
+    [{:surface, %{id: page_id("s"), request: request, title: raw["shown"]}}]
+  end
+
+  defp shown({:ok, _content, %{"proposal" => %{} = wire} = raw})
+       when not is_map_key(raw, "error") do
+    [{:proposal, %{id: page_id("p"), wire: wire, summary: raw["proposed"]}}]
+  end
+
+  defp shown(_result), do: []
+
+  defp record_shown({:surface, surface}, call),
+    do:
+      Map.put(call, "surface", %{
+        "id" => surface.id,
+        "request" => surface.request,
+        "title" => surface.title
+      })
+
+  defp record_shown({:proposal, proposal}, call),
+    do:
+      Map.put(call, "proposal", %{
+        "id" => proposal.id,
+        "wire" => proposal.wire,
+        "summary" => proposal.summary
+      })
+
+  defp page_id(prefix),
+    do: prefix <> Base.encode16(:crypto.strong_rand_bytes(6), case: :lower)
 
   defp refs_in(%{} = map) do
     Enum.flat_map(map, fn

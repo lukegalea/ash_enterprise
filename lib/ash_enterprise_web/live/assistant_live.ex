@@ -18,6 +18,27 @@ defmodule AshEnterpriseWeb.AssistantLive do
   sending events to this process. Reads (the thread, its turns, the thread
   list) run in `start_async`; mount does no query.
 
+  ## Composed surfaces, inline
+
+  When the model calls `compose_surface`, the runner hands this page the
+  verified request (`{:surface, ...}`). The answer then carries a container
+  for it (`InlineA2ui`, `assets/js/inline_a2ui_hook.js`), which asks for its
+  surface once mounted; the page composes the request again **as the person**
+  (`AshEnterprise.Assistant.Composer`), holds the resolved surface server-side
+  under its id and pushes the A2UI messages to that container alone. Client
+  actions are routed back to the held surface by its id — never rebuilt from
+  anything the client sends. Pin saves the verified spec as a personal app
+  (`AshEnterprise.Assistant.PinnedApp`), which lists under "My apps" on the
+  launcher.
+
+  ## Proposals wait for the person
+
+  A proposal tool's result (`{:proposal, ...}`) is rebuilt here from its wire
+  form as the person (`AshEnterprise.AI.Proposal.from_wire/3`) and shown with
+  the concrete change and Confirm / Cancel. Confirm runs it with the person as
+  the actor (`Proposal.execute/3`, which authorizes again); nothing runs
+  otherwise. A proposal read back from history is shown, not offered again.
+
   ## When the in-zone model is down or slow
 
   Nothing goes anywhere else. A run that has heard nothing for
@@ -28,9 +49,10 @@ defmodule AshEnterpriseWeb.AssistantLive do
 
   use AshEnterpriseWeb, :live_view
 
-  alias AshEnterprise.AI.Models
-  alias AshEnterprise.Assistant.{Answer, History, Runner, Thread, Turn}
+  alias AshEnterprise.AI.{Models, Proposal}
+  alias AshEnterprise.Assistant.{Answer, Composer, History, PinnedApp, Runner, Thread, Turn}
   alias AshEnterprise.Security.ActorContext
+  alias AshEnterpriseWeb.A2ui.Host
   alias AshEnterpriseWeb.Layouts
 
   @slow_after_s 20
@@ -41,7 +63,8 @@ defmodule AshEnterpriseWeb.AssistantLive do
     "What's on my calendar tomorrow, and who's attending?",
     "Which email threads still need a reply from me?",
     "Who did I exchange the most messages with this month?",
-    "What approvals are waiting on me?"
+    "Show my open tasks as a board",
+    "Put this week's meetings on a calendar"
   ]
 
   @impl true
@@ -57,6 +80,12 @@ defmodule AshEnterpriseWeb.AssistantLive do
      |> assign(:suggestions, @suggestions)
      |> assign(:max_steps, Runner.max_steps())
      |> assign(:form, to_form(%{"question" => ""}, as: :ask))
+     # What the model put on the page, by the page's own id: composed
+     # surfaces (their verified requests) and proposals (rebuilt as the person,
+     # with their state). `surfaces` holds each resolved surface server-side.
+     |> assign(:shown, %{})
+     |> assign(:surfaces, %{})
+     |> assign(:answers, %{})
      |> stream_configure(:turns, dom_id: &"turn-#{&1.turn.id}")
      |> stream(:turns, [])}
   end
@@ -104,6 +133,69 @@ defmodule AshEnterpriseWeb.AssistantLive do
 
   def handle_event("retry", _params, socket), do: {:noreply, socket}
 
+  # -- what an answer put on the page ----------------------------------------------
+
+  # A composed surface's container mounted and asks for its surface: compose
+  # the recorded request again as the person, hold the result under its id,
+  # and push it to that container alone.
+  def handle_event("assistant:surface", %{"id" => id}, socket) when is_binary(id) do
+    case socket.assigns.shown[id] do
+      %{kind: :surface, request: request} -> {:noreply, show_surface(socket, id, request)}
+      _ -> {:noreply, socket}
+    end
+  end
+
+  # A client action in a composed surface: routed to the surface this page
+  # holds under the envelope's id, through the handler (which authorizes as
+  # the person). An id the page does not hold is ignored, never rebuilt.
+  def handle_event("a2ui:action", %{"action" => %{"surfaceId" => id}} = envelope, socket) do
+    case socket.assigns.surfaces[id] do
+      nil ->
+        {:noreply, socket}
+
+      surface ->
+        {_outcome, messages} =
+          AshA2ui.Dynamic.handle_action(surface, envelope, actor_opts(socket))
+
+        {:noreply, push_event(socket, "a2ui:messages:" <> id, %{messages: messages})}
+    end
+  end
+
+  def handle_event("a2ui:action", _envelope, socket), do: {:noreply, socket}
+
+  # A reference link in a composed surface: its deep link, re-authorized there.
+  def handle_event("a2ui:open_surface", args, socket), do: Host.open_surface(args, socket)
+
+  def handle_event("pin", %{"id" => id}, socket) do
+    with true <- may_pin?(socket),
+         %{kind: :surface, request: request} <- socket.assigns.shown[id] do
+      {:noreply, pin(socket, request)}
+    else
+      _ -> {:noreply, assign(socket, :notice, {:error, "That view cannot be pinned."})}
+    end
+  end
+
+  def handle_event("confirm", %{"id" => id}, socket) do
+    case socket.assigns.shown[id] do
+      %{kind: :proposal, state: :pending, proposal: %Proposal{} = proposal} = item ->
+        state = execute(socket, proposal)
+        {:noreply, socket |> put_shown(id, %{item | state: state}) |> restream(id)}
+
+      _ ->
+        {:noreply, socket}
+    end
+  end
+
+  def handle_event("cancel", %{"id" => id}, socket) do
+    case socket.assigns.shown[id] do
+      %{kind: :proposal, state: :pending} = item ->
+        {:noreply, socket |> put_shown(id, %{item | state: :cancelled}) |> restream(id)}
+
+      _ ->
+        {:noreply, socket}
+    end
+  end
+
   defp ask(socket, ""), do: socket
   defp ask(%{assigns: %{run: %{}}} = socket, _question), do: socket
 
@@ -141,6 +233,76 @@ defmodule AshEnterpriseWeb.AssistantLive do
       tenant: ActorContext.tenant(actor)
     )
   end
+
+  defp show_surface(socket, id, request) do
+    opts = actor_opts(socket)
+
+    case Composer.compose(request, surface_id: id) do
+      {:ok, composed} ->
+        messages = AshA2ui.Dynamic.build_surface(composed.surface, opts)
+
+        socket
+        |> assign(:surfaces, Map.put(socket.assigns.surfaces, id, composed.surface))
+        |> push_event("a2ui:messages:" <> id, %{messages: messages})
+
+      {:error, _reasons} ->
+        push_event(socket, "a2ui:refused:" <> id, %{
+          message:
+            "This view no longer matches the data it was composed over, so it is not shown."
+        })
+    end
+  end
+
+  # The person must be one who may pin (self-service: an active member in
+  # their own tenant); the pin itself is then written as them.
+  defp may_pin?(socket) do
+    actor = socket.assigns.current_user
+    Ash.can?({PinnedApp, :pin}, actor, tenant: ActorContext.tenant(actor))
+  end
+
+  defp pin(socket, request) do
+    opts = actor_opts(socket)
+
+    with {:ok, composed} <- Composer.compose(request),
+         spec = AshA2ui.Dynamic.serialize(composed.surface),
+         {:ok, mine} <- PinnedApp.mine(opts),
+         false <- Enum.any?(mine, &(&1.spec == spec)),
+         {:ok, _app} <-
+           PinnedApp.pin(
+             %{
+               title: Composer.structural_title(composed.request),
+               display: String.to_existing_atom(composed.request["display"] || "table"),
+               source: composed.request["show"],
+               spec: spec
+             },
+             opts
+           ) do
+      put_flash(socket, :info, "Pinned. It is under My apps on your launcher.")
+    else
+      true -> put_flash(socket, :info, "Already pinned: it is under My apps on your launcher.")
+      _ -> assign(socket, :notice, {:error, "Could not pin that view. Try again."})
+    end
+  end
+
+  # Runs a confirmed proposal as the person; what the answer then says.
+  defp execute(socket, proposal) do
+    actor = socket.assigns.current_user
+
+    case Proposal.execute(proposal, actor, ActorContext.tenant(actor)) do
+      {:ok, result} -> {:done, done_message(proposal.kind, result)}
+      {:error, message} when is_binary(message) -> {:failed, message}
+      {:error, _error} -> {:failed, "It could not be done. Nothing was changed."}
+    end
+  end
+
+  defp done_message(:create_task, _task), do: "Added to your action items."
+  defp done_message(:complete_task, _task), do: "Marked done."
+  defp done_message(:draft_reply, _draft), do: "Draft saved. It was not sent."
+
+  defp done_message(:sync_now, results) when is_list(results),
+    do: "Sync queued for #{length(results)} account(s)."
+
+  defp done_message(_kind, _result), do: "Done."
 
   defp retry(socket, question_id) do
     with true <- may_ask?(socket),
@@ -190,7 +352,8 @@ defmodule AshEnterpriseWeb.AssistantLive do
           heard: System.monotonic_time(:second),
           elapsed: 0,
           slow?: false,
-          stopping?: false
+          stopping?: false,
+          shown: []
         })
 
       {:error, _} ->
@@ -259,6 +422,18 @@ defmodule AshEnterpriseWeb.AssistantLive do
     end)
   end
 
+  defp on_event({:surface, %{id: id, request: request, title: title}}, socket) do
+    socket
+    |> put_shown(id, %{kind: :surface, request: request, title: title, turn_id: nil})
+    |> update_run(&%{&1 | shown: &1.shown ++ [id]})
+  end
+
+  defp on_event({:proposal, %{id: id, wire: wire}}, socket) do
+    socket
+    |> put_shown(id, rebuild_proposal(socket, wire))
+    |> update_run(&%{&1 | shown: &1.shown ++ [id]})
+  end
+
   defp on_event({:done, turn}, socket), do: settle(socket, turn, nil)
   defp on_event({:failed, reason, turn}, socket), do: settle(socket, turn, reason)
   defp on_event(_other, socket), do: socket
@@ -267,6 +442,7 @@ defmodule AshEnterpriseWeb.AssistantLive do
 
   defp settle(socket, turn, reason) do
     question_id = socket.assigns.run.question_id
+    shown_ids = socket.assigns.run.shown
 
     socket =
       socket
@@ -275,8 +451,13 @@ defmodule AshEnterpriseWeb.AssistantLive do
 
     socket =
       case turn do
-        %Turn{} -> stream_insert(socket, :turns, entry(turn, question_id))
-        nil -> socket
+        %Turn{} ->
+          socket
+          |> adopt(turn, question_id, shown_ids)
+          |> then(&stream_insert(&1, :turns, entry(&1, turn, question_id)))
+
+        nil ->
+          socket
       end
 
     if reason && is_nil(turn),
@@ -329,10 +510,12 @@ defmodule AshEnterpriseWeb.AssistantLive do
   def handle_async(:threads, _failed, socket), do: {:noreply, socket}
 
   def handle_async(:thread, {:ok, {:ok, %{thread: thread, turns: entries}}}, socket) do
+    socket = Enum.reduce(entries, socket, &remember(&2, &1.turn))
+
     {:noreply,
      socket
      |> assign(thread: thread, empty?: entries == [])
-     |> stream(:turns, with_questions(entries), reset: true)}
+     |> stream(:turns, with_questions(socket, entries), reset: true)}
   end
 
   def handle_async(:thread, _not_found, socket) do
@@ -343,7 +526,7 @@ defmodule AshEnterpriseWeb.AssistantLive do
   end
 
   def handle_async(:give_up, {:ok, {:ok, %{turns: entries}}}, socket) do
-    {:noreply, stream(socket, :turns, with_questions(entries), reset: true)}
+    {:noreply, stream(socket, :turns, with_questions(socket, entries), reset: true)}
   end
 
   def handle_async(:give_up, _result, socket), do: {:noreply, socket}
@@ -364,20 +547,131 @@ defmodule AshEnterpriseWeb.AssistantLive do
     |> start_async(:thread, fn -> History.load(id, opts) end)
   end
 
-  defp entry(%Turn{} = turn, question_id \\ nil),
-    do: %{turn: turn, withheld?: false, question_id: question_id}
+  defp entry(%Turn{} = turn), do: %{turn: turn, withheld?: false, question_id: nil, shown: []}
 
-  # Each answer carries the question it answered, for Retry.
-  defp with_questions(entries) do
+  defp entry(socket, %Turn{} = turn, question_id),
+    do: %{turn: turn, withheld?: false, question_id: question_id, shown: shown_in(socket, turn)}
+
+  # Each answer carries the question it answered, for Retry, and what it put
+  # on the page.
+  defp with_questions(socket, entries) do
     {entries, _} =
       Enum.map_reduce(entries, nil, fn %{turn: turn} = entry, question ->
         case turn.role do
-          :user -> {Map.put(entry, :question_id, nil), turn.id}
-          :assistant -> {Map.put(entry, :question_id, question), question}
+          :user ->
+            {Map.merge(entry, %{question_id: nil, shown: []}), turn.id}
+
+          :assistant ->
+            {Map.merge(entry, %{question_id: question, shown: shown_in(socket, turn)}), question}
         end
       end)
 
     entries
+  end
+
+  # -- what an answer put on the page --------------------------------------------
+
+  defp put_shown(socket, id, item),
+    do: assign(socket, :shown, Map.put(socket.assigns.shown, id, item))
+
+  # The items a recorded answer carries, in call order, as this page knows them.
+  defp shown_in(socket, %Turn{} = turn) do
+    turn
+    |> calls()
+    |> Enum.flat_map(fn call ->
+      [call["surface"], call["proposal"]]
+      |> Enum.flat_map(fn
+        %{"id" => id} -> [{id, socket.assigns.shown[id]}]
+        _ -> []
+      end)
+    end)
+    |> Enum.reject(fn {_id, item} -> is_nil(item) end)
+  end
+
+  # A finished run's items now belong to its recorded answer.
+  defp adopt(socket, %Turn{} = turn, question_id, ids) do
+    shown =
+      Enum.reduce(ids, socket.assigns.shown, fn id, shown ->
+        Map.update!(shown, id, &%{&1 | turn_id: turn.id})
+      end)
+
+    socket
+    |> assign(:shown, shown)
+    |> assign(:answers, Map.put(socket.assigns.answers, turn.id, {turn, question_id}))
+    |> remember(turn)
+  end
+
+  # Items of an answer read back from history: its surfaces can be shown
+  # again (composed afresh when their container asks); its proposals are
+  # shown as earlier ones, never offered again.
+  defp remember(socket, %Turn{role: :assistant} = turn) do
+    turn
+    |> calls()
+    |> Enum.reduce(socket, fn call, socket ->
+      socket
+      |> remember_surface(call["surface"], turn)
+      |> remember_proposal(call["proposal"], turn)
+    end)
+  end
+
+  defp remember(socket, _turn), do: socket
+
+  defp remember_surface(socket, %{"id" => id, "request" => %{} = request} = surface, turn) do
+    if Map.has_key?(socket.assigns.shown, id),
+      do: socket,
+      else:
+        put_shown(socket, id, %{
+          kind: :surface,
+          request: request,
+          title: surface["title"],
+          turn_id: turn.id
+        })
+  end
+
+  defp remember_surface(socket, _surface, _turn), do: socket
+
+  defp remember_proposal(socket, %{"id" => id} = proposal, turn) do
+    if Map.has_key?(socket.assigns.shown, id),
+      do: socket,
+      else:
+        put_shown(socket, id, %{
+          kind: :proposal,
+          summary: proposal["summary"],
+          proposal: nil,
+          state: :earlier,
+          turn_id: turn.id
+        })
+  end
+
+  defp remember_proposal(socket, _proposal, _turn), do: socket
+
+  defp rebuild_proposal(socket, wire) do
+    actor = socket.assigns.current_user
+    tenant = ActorContext.tenant(actor)
+
+    with {:ok, proposal} <- Proposal.from_wire(wire, actor, tenant),
+         :ok <- Proposal.authorize(proposal, actor, tenant) do
+      %{
+        kind: :proposal,
+        summary: proposal.summary,
+        proposal: proposal,
+        state: :pending,
+        turn_id: nil
+      }
+    else
+      {:error, message} ->
+        %{kind: :proposal, summary: nil, proposal: nil, state: {:failed, message}, turn_id: nil}
+    end
+  end
+
+  # A proposal's state changed: re-render the answer that carries it.
+  defp restream(socket, id) do
+    with %{turn_id: turn_id} when not is_nil(turn_id) <- socket.assigns.shown[id],
+         {%Turn{} = turn, question_id} <- socket.assigns.answers[turn_id] do
+      stream_insert(socket, :turns, entry(socket, turn, question_id))
+    else
+      _ -> socket
+    end
   end
 
   defp actor_opts(socket) do
@@ -464,7 +758,7 @@ defmodule AshEnterpriseWeb.AssistantLive do
             </li>
           </ol>
 
-          <.live_turn :if={@run} run={@run} max_steps={@max_steps} />
+          <.live_turn :if={@run} run={@run} max_steps={@max_steps} shown={@shown} />
 
           <.form
             for={@form}
@@ -575,6 +869,7 @@ defmodule AshEnterpriseWeb.AssistantLive do
     <article class="flex max-w-[92%] flex-col gap-3 rounded-base border-2 border-border bg-secondary-background px-4 py-3 shadow-shadow">
       <.tool_calls calls={calls(@entry.turn)} />
       <.answer_body :if={@answer.blocks != []} answer={@answer} />
+      <.shown_items items={@entry.shown} />
       <.callout :if={@entry.turn.status == :failed} kind={:error} class="shadow-none">
         <div class="flex flex-wrap items-center justify-between gap-3">
           <span>{reason_message(@entry.turn.error_class)}</span>
@@ -611,8 +906,16 @@ defmodule AshEnterpriseWeb.AssistantLive do
 
   attr :run, :map, required: true
   attr :max_steps, :integer, required: true
+  attr :shown, :map, required: true
 
   defp live_turn(assigns) do
+    assigns =
+      assign(
+        assigns,
+        :items,
+        for(id <- assigns.run.shown, item = assigns.shown[id], do: {id, item})
+      )
+
     ~H"""
     <article
       id="live-turn"
@@ -623,6 +926,7 @@ defmodule AshEnterpriseWeb.AssistantLive do
       <p :if={@run.text != ""} class="whitespace-pre-wrap text-sm">
         {@run.text}<span class="animate-pulse">▍</span>
       </p>
+      <.shown_items items={@items} prefix="live-" />
       <p id="run-status" class="flex items-center gap-2 text-xs text-foreground/70">
         <.icon name="hero-arrow-path" class="size-4 animate-spin" />
         {phase_label(@run)} · step {@run.step} of {@max_steps} · {@run.elapsed}s
@@ -632,6 +936,116 @@ defmodule AshEnterpriseWeb.AssistantLive do
         unreachable. Nothing is sent anywhere else. Keep waiting, or Stop.
       </.callout>
     </article>
+    """
+  end
+
+  attr :items, :list, required: true
+  attr :prefix, :string, default: ""
+
+  defp shown_items(assigns) do
+    ~H"""
+    <%= for {id, item} <- @items do %>
+      <.composed :if={item.kind == :surface} id={id} item={item} prefix={@prefix} />
+      <.proposal_card :if={item.kind == :proposal} id={id} item={item} prefix={@prefix} />
+    <% end %>
+    """
+  end
+
+  attr :id, :string, required: true
+  attr :item, :map, required: true
+  attr :prefix, :string, required: true
+
+  # The container is the renderer's (`phx-update="ignore"`): it asks for its
+  # surface when it mounts, and the page pushes that surface to it alone.
+  defp composed(assigns) do
+    ~H"""
+    <section
+      id={@prefix <> "composed-" <> @id}
+      data-role="composed"
+      class="flex flex-col rounded-base border-2 border-border bg-background"
+    >
+      <header class="flex flex-wrap items-center justify-between gap-2 border-b-2 border-border px-3 py-2">
+        <h3 class="flex items-center gap-2 text-sm font-heading">
+          <.icon name="hero-squares-2x2" class="size-4" />
+          {@item.title || "Composed view"}
+          <.badge title="Composed for this answer, checked against the schema, read as you">
+            composed
+          </.badge>
+        </h3>
+        <.button
+          id={@prefix <> "pin-" <> @id}
+          type="button"
+          size="xs"
+          phx-click="pin"
+          phx-value-id={@id}
+          title="Keep it under My apps on your launcher"
+        >
+          <.icon name="hero-bookmark" class="size-3.5" /> Pin
+        </.button>
+      </header>
+      <div
+        id={@prefix <> "surface-" <> @id}
+        phx-hook="InlineA2ui"
+        phx-update="ignore"
+        data-surface-id={@id}
+        class="min-h-24 p-2"
+      >
+      </div>
+    </section>
+    """
+  end
+
+  attr :id, :string, required: true
+  attr :item, :map, required: true
+  attr :prefix, :string, required: true
+
+  defp proposal_card(%{item: %{state: :pending}} = assigns) do
+    ~H"""
+    <.card id={@prefix <> "proposal-" <> @id} accent="yellow" class="gap-3" data-role="proposal">
+      <p class="text-xs font-heading uppercase tracking-wide text-foreground/70">
+        Proposed — nothing has happened yet
+      </p>
+      <p class="font-heading">{@item.summary}</p>
+      <dl class="grid grid-cols-[8rem_1fr] gap-x-4 gap-y-1 text-sm">
+        <div :for={{label, value} <- details(@item.proposal)} class="contents">
+          <dt class="text-foreground/70">{label}</dt>
+          <dd class="whitespace-pre-wrap">{value}</dd>
+        </div>
+      </dl>
+      <p class="text-xs text-foreground/70">
+        Runs as you, under your permissions, and is recorded in the audit log.
+      </p>
+      <div :if={@prefix == ""} class="flex justify-end gap-2">
+        <.button
+          id={"cancel-" <> @id}
+          type="button"
+          size="sm"
+          variant="ghost"
+          phx-click="cancel"
+          phx-value-id={@id}
+        >
+          Cancel
+        </.button>
+        <.button
+          id={"confirm-" <> @id}
+          type="button"
+          size="sm"
+          variant="primary"
+          phx-click="confirm"
+          phx-value-id={@id}
+        >
+          Confirm
+        </.button>
+      </div>
+    </.card>
+    """
+  end
+
+  defp proposal_card(assigns) do
+    ~H"""
+    <.callout id={@prefix <> "proposal-" <> @id} kind={proposal_kind(@item.state)} class="shadow-none">
+      {proposal_line(@item)}
+    </.callout>
     """
   end
 
@@ -721,6 +1135,34 @@ defmodule AshEnterpriseWeb.AssistantLive do
   end
 
   # -- small helpers -------------------------------------------------------------------
+
+  defp details(%Proposal{details: details}) when is_list(details) do
+    for {label, value} <- details, value not in [nil, ""] do
+      {label |> to_string() |> String.replace("_", " ") |> String.capitalize(), value}
+    end
+  end
+
+  defp details(_proposal), do: []
+
+  defp proposal_kind({:done, _message}), do: :success
+  defp proposal_kind({:failed, _message}), do: :error
+  defp proposal_kind(_state), do: :info
+
+  defp proposal_line(%{state: {:done, message}, summary: summary}), do: "#{summary}: #{message}"
+
+  defp proposal_line(%{state: {:failed, message}, summary: nil}),
+    do: "Not proposed: #{message}"
+
+  defp proposal_line(%{state: {:failed, message}, summary: summary}),
+    do: "#{summary}: not done. #{message}"
+
+  defp proposal_line(%{state: :cancelled, summary: summary}),
+    do: "#{summary}: cancelled. Nothing was changed."
+
+  defp proposal_line(%{state: :earlier, summary: summary}),
+    do:
+      "Proposed earlier: #{summary || "a change"}. It is not offered again here; " <>
+        "ask again if you still want it."
 
   defp calls(%Turn{tool_calls: %{"calls" => calls}}) when is_list(calls), do: calls
   defp calls(_turn), do: []

@@ -9,6 +9,17 @@ defmodule AshEnterprise.Canonical.Task do
   would ghost the upsert identity, and `status` below is this resource's own
   lifecycle — a Dataverse Active/Inactive pair beside it would be two answers
   to one question.
+
+  ## A person's own action items (ADR 0052)
+
+  Any active member may capture an action item for themselves (`:capture`),
+  read their own (`:mine`) and mark one of their own done (`:complete_mine`)
+  with no role grant. `:complete_mine` is a generic action because a
+  self-service update cannot be declared: it finds the task through `:mine`,
+  as the actor, so it reaches only a row the actor owns, and only then runs
+  `:complete` on it. That write is the actor's own act on their own row,
+  recorded under their name in the audit log; every other update to a task
+  still takes a role grant.
   """
 
   use AshEnterprise.Platform.Resource,
@@ -16,7 +27,8 @@ defmodule AshEnterprise.Canonical.Task do
     ownership: :user_owned,
     tenant?: true,
     lifecycle?: false,
-    archival?: false
+    archival?: false,
+    self_service: [:capture, :mine, :complete_mine]
 
   postgres do
     table "canonical_tasks"
@@ -76,6 +88,57 @@ defmodule AshEnterprise.Canonical.Task do
   actions do
     defaults [:read]
 
+    read :mine do
+      description "The actor's own tasks, soonest due first."
+      filter expr(owner_id == ^actor(:id) and owner_type == :user)
+      prepare build(sort: [due_at: :asc_nils_last, inserted_at: :desc])
+    end
+
+    create :capture do
+      description """
+      Capture an open action item for the actor, owned by them. `source`
+      records where it came from: `manual` (typed in) or `assistant`
+      (proposed in the agent chat and confirmed by the person).
+      """
+
+      accept [:title, :due_at]
+
+      argument :source, :atom do
+        allow_nil? false
+        default :manual
+        constraints one_of: [:manual, :assistant]
+      end
+
+      change set_attribute(:status, :open)
+      change set_attribute(:source, arg(:source))
+      change set_attribute(:owner_id, actor(:id))
+      change set_attribute(:owner_type, :user)
+      change set_attribute(:owning_user_id, actor(:id))
+      change set_attribute(:owning_business_unit_id, actor(:owning_business_unit_id))
+    end
+
+    update :complete do
+      description "Mark the task done."
+      accept []
+      change set_attribute(:status, :done)
+    end
+
+    action :complete_mine, :struct do
+      description """
+      Mark one of the actor's own tasks done: found through `:mine` as the
+      actor, then `:complete`. Another person's task is not found.
+      """
+
+      constraints instance_of: __MODULE__
+
+      argument :task_id, :uuid do
+        allow_nil? false
+        description "The task to mark done (one of the actor's own)."
+      end
+
+      run AshEnterprise.Canonical.Actions.CompleteOwnTask
+    end
+
     read :by_external do
       description """
       Look up the canonical row projected from one raw SourceObject.
@@ -121,5 +184,8 @@ defmodule AshEnterprise.Canonical.Task do
     define :by_external, args: [:system, :id], not_found_error?: false
     define :upsert_from_source
     define :read
+    define :mine
+    define :capture, args: [:title]
+    define :complete_mine, args: [:task_id]
   end
 end

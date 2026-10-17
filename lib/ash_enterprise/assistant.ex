@@ -19,13 +19,18 @@ defmodule AshEnterprise.Assistant do
       (`AshEnterprise.AI.Models.GuardedReqLLM`), every call recorded in
       `AshEnterprise.AI.ModelCall`. There is no hosted fallback.
 
-  ## Reads only
+  ## Reads, a composer, and proposals — never a write
 
-  Every tool is a read. Composing surfaces (E10.3) and proposing writes
-  (E10.4) come next and will be tools here too — over
-  `AshEnterprise.AI.SurfaceSpec` and `AshEnterprise.AI.Proposal`, so a
-  composed surface is resolved against the host allowlist and a write waits
-  for the human. A tool that performs a mutation never belongs on this list.
+  Eight tools read (`AshEnterprise.Assistant.Lookup`). One composes
+  (`AshEnterprise.Assistant.Compose`, E10.3): it asks for a table, calendar or
+  board of the person's own records, which the server writes as an
+  `AshA2ui.Dynamic` spec from a curated catalogue, resolves against the host
+  allowlist and renders in the chat as the person
+  (`AshEnterprise.Assistant.Composer`). Three propose
+  (`AshEnterprise.Assistant.Propose`, E10.4): each builds an
+  `AshEnterprise.AI.Proposal`, which waits for the person to confirm it on the
+  page and then runs as them. A tool that performs a mutation never belongs on
+  this list.
 
   ## The zone gate
 
@@ -103,13 +108,58 @@ defmodule AshEnterprise.Assistant do
       talk to most", "which day was busiest".
       """
     end
+
+    tool :compose_surface, AshEnterprise.Assistant.Compose, :compose_surface do
+      description """
+      Put a live table, calendar or board of the person's own records on their
+      screen, inside your answer. Use it when they ask to see, show, list on a
+      calendar, lay out or put on a board. It returns no rows to you: say in
+      one sentence what is shown.
+      """
+    end
+
+    tool :propose_task, AshEnterprise.Assistant.Propose, :propose_task do
+      description """
+      Propose adding an action item (change: add) or marking one of the
+      person's open action items done (change: done). Nothing happens until
+      the person confirms on screen.
+      """
+    end
+
+    tool :propose_reply, AshEnterprise.Assistant.Propose, :propose_reply do
+      description """
+      Propose saving a reply draft to one of the person's conversations. The
+      draft is stored for them, never sent. Nothing is stored until they
+      confirm on screen.
+      """
+    end
+
+    tool :propose_sync, AshEnterprise.Assistant.Propose, :propose_sync do
+      description """
+      Propose syncing the person's linked accounts (gmail, slack, calendar or
+      all) now. Nothing happens until they confirm on screen.
+      """
+    end
   end
 
   resources do
     resource AshEnterprise.Assistant.Thread
     resource AshEnterprise.Assistant.Turn
     resource AshEnterprise.Assistant.Lookup
+    resource AshEnterprise.Assistant.Compose
+    resource AshEnterprise.Assistant.Propose
+    resource AshEnterprise.Assistant.PinnedApp
+    resource AshEnterprise.Assistant.ReplyDraft
   end
+
+  @doc "The resources whose actions the runner exposes as tools."
+  @spec tool_resources() :: [module()]
+  def tool_resources,
+    do: [
+      AshEnterprise.Assistant.Lookup,
+      AshEnterprise.Assistant.Compose,
+      AshEnterprise.Assistant.Propose
+    ]
 
   @doc "The tool names the runner hands the model, in the order above."
   @spec tool_names() :: [atom()]

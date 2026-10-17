@@ -193,6 +193,8 @@ defmodule AshEnterpriseWeb.Router do
       ] do
       live "/app/agent", AssistantLive
       live "/app/agent/:id", AssistantLive
+      # A surface the person composed in the chat and pinned (their own only).
+      live "/app/mine/:id", PinnedAppLive
     end
 
     # --- Master data (ADR 0054) ----------------------------------------------

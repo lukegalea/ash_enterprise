@@ -70,7 +70,8 @@ defmodule AshEnterprise.Assistant.RunnerTest do
 
       # Each tool result went back to the model before the next step.
       assert_received {:model_request, first, tools, _opts}
-      assert "calendar_events" in tools and "count_activity" in tools and length(tools) == 8
+      assert "calendar_events" in tools and "count_activity" in tools
+      assert "compose_surface" in tools and "propose_task" in tools and length(tools) == 12
       assert Enum.any?(first, &(&1.role == :system))
       assert_received {:model_request, second, _tools, _opts}
       assert Enum.any?(second, &(&1.role == :tool))
@@ -260,6 +261,67 @@ defmodule AshEnterprise.Assistant.RunnerTest do
       end
 
       assert [%{outcome: :refused, residency: :outside_zone}] = calls()
+    end
+  end
+
+  describe "composing and proposing" do
+    test "a composed surface is handed to the page and recorded on the call", ctx do
+      ScriptedModel.script!([
+        {:tools, [{"compose_surface", %{"input" => %{"show" => "tasks", "display" => "board"}}}]},
+        {:text, "SYNTHETIC: your tasks are on a board."}
+      ])
+
+      assert {:ok, answer} = run(ctx, question: "SYNTHETIC: board my tasks")
+
+      assert [%{"name" => "compose_surface", "ok" => true, "surface" => surface}] =
+               answer.tool_calls["calls"]
+
+      assert %{"id" => "s" <> _, "request" => %{"show" => "tasks", "display" => "board"}} =
+               surface
+
+      assert {:surface, %{id: id, request: %{"show" => "tasks"}}} =
+               Enum.find(events(), &match?({:surface, _}, &1))
+
+      assert id == surface["id"]
+    end
+
+    test "a refused spec goes back to the model as a short reason", ctx do
+      ScriptedModel.script!([
+        {:tools,
+         [{"compose_surface", %{"input" => %{"show" => "people", "display" => "calendar"}}}]},
+        {:text, "SYNTHETIC: people cannot go on a calendar."}
+      ])
+
+      assert {:ok, answer} = run(ctx, question: "SYNTHETIC: people on a calendar")
+      assert [%{"name" => "compose_surface", "ok" => false} = call] = answer.tool_calls["calls"]
+      refute Map.has_key?(call, "surface")
+
+      assert_received {:model_request, _first, _, _}
+      assert_received {:model_request, second, _, _}
+
+      assert Enum.any?(second, fn message ->
+               message.role == :tool and text(message) =~ "use a table"
+             end)
+    end
+
+    test "a proposal is handed to the page and changes nothing", ctx do
+      ScriptedModel.script!([
+        {:tools,
+         [
+           {"propose_task",
+            %{"input" => %{"change" => "add", "title" => "SYNTHETIC file the report"}}}
+         ]},
+        {:text, "SYNTHETIC: I proposed adding it; confirm to add it."}
+      ])
+
+      assert {:ok, answer} = run(ctx, question: "SYNTHETIC: remind me to file the report")
+
+      assert [%{"name" => "propose_task", "proposal" => %{"wire" => wire, "id" => "p" <> _}}] =
+               answer.tool_calls["calls"]
+
+      assert wire["kind"] == "create_task"
+      assert {:proposal, %{wire: ^wire}} = Enum.find(events(), &match?({:proposal, _}, &1))
+      assert AshEnterprise.Canonical.Task.mine!(actor: ctx.actor, tenant: ctx.tenant) == []
     end
   end
 end
