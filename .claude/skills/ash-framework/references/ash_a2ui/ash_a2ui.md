@@ -149,9 +149,11 @@ end
   omit `source`: the lanes are `scope_by`'s `Ash.Type.Enum` values or
   `one_of` constraint, narrowed/ordered by `values`, headed per `labels`, with
   no read to enumerate them. Add `display :board` (plus a `row_layout`) to
-  render them as side-by-side lanes. Cards move only through transition row
+  render them as side-by-side lanes (equal-weight lanes that scroll inside
+  the board in the merged catalog). Cards move only through transition row
   actions gated by `visible_when` that refresh the template key — no
-  drag-and-drop (rules in `ash_a2ui:layout`).
+  drag-and-drop; `select_context` on a board puts a select control on every
+  card (rules in `ash_a2ui:layout`).
 - Per-cell editing (spreadsheet-style columns) is an `editable` block on
   the table (`fields` allowlist + `update_action`), not a form: cells
   commit through the `"edit_cell"` action, validation errors mirror into
@@ -205,7 +207,9 @@ end
   selections). The MFA returns the direct path's shapes — `:ok`,
   `{:ok, term}`, or `{:error, Ash.Error.t()}` — and the result renders
   through the standard channels unchanged (refreshes honoring `refreshes`,
-  `/ui/feedback`, `/errors/<field>` mapping). The client is unaware `via`
+  `/ui/feedback`, `/errors/<field>` mapping; refuse with a string or an
+  Invalid-class error — a raw exception reads only "The action failed.").
+  The client is unaware `via`
   exists. `via` applies to row and bulk actions only (a bulk run calls the
   MFA once per record) and is mutually exclusive with `prompt_fields`
   (compile-time verified); the named Ash action must still
@@ -352,10 +356,14 @@ end
   Don't invent new `action.name` values; add a proper Ash action and expose
   it via `row_actions` instead.
 - Row actions that need user input declare `prompt_fields` on their
-  `action` entity (Modal prompt; `invoke` then carries a `"values"` map
-  filtered + cast to those fields). Per-row availability is `visible_when`
-  on the entity — rendered best-effort, but **enforced by the handler on
-  every invoke**. Details in `ash_a2ui:actions`.
+  `action` entity (Modal prompt — an admin dialog under `:admin_v1`;
+  `invoke` then carries a `"values"` map filtered + cast to those fields).
+  Prompt inputs get the widgets form fields get (relationship and enum
+  pickers, searchable selects with `option_search`). Per-row availability
+  is `visible_when` on the entity — rendered best-effort, but **enforced by
+  the handler on every invoke**. Button text comes from the entity's
+  `label` (default: the humanized action name) — don't add a wrapper
+  action just to rename a button. Details in `ash_a2ui:actions`.
 - **Search/sort/filter/pagination go through a declared `query` entity**
   (see `ash_a2ui:queries`): a named allowlist the server enforces. Never
   accept client sort/filter params not declared in a query, and never feed

@@ -158,6 +158,14 @@ topics for the full contracts.
   board.
 - Attach a `query` for per-lane pagination; lanes show query controls only
   when the query declares search, presets, filters or ranges.
+- Lanes are a `Row` of lane Columns at `weight` 1: they share the board's
+  width instead of sizing to their cards. The merged catalog scrolls them
+  inside the board below `--a2ui-board-lane-min-width` (default 18rem) —
+  theme that token rather than styling lane widths per host.
+- `select_context :<context>` on a board puts the "Select <context>"
+  control on every card (master/detail: the card fills the context's
+  `:detail` components). Prefer it to deep-linking away from the board.
+  List-mode sectioned tables still reject `select_context`.
 - `display :list` (the default) keeps the stacked rendering, so source-less
   sections work without a board too.
 

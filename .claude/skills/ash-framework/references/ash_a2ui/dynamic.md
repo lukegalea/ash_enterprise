@@ -29,7 +29,7 @@ end
 - The spec vocabulary covers components, fields, queries (presets, range
   filters), `row_layout` (with `badge_text` and `badge_tones`), form
   `groups` and `nested_forms`, sectioned tables (`sections`), `action`
-  metadata (`refreshes`, `prompt_fields`, `visible_when`, `via`), contexts
+  metadata (`label`, `refreshes`, `prompt_fields`, `visible_when`, `via`), contexts
   (`contexts`, plus `select_context` / `context_filter` /
   `require_context` on tables and `detail` components), related tables
   (`"resource": "<allowlisted name>"` on a table) and reference links on
