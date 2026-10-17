@@ -107,7 +107,14 @@ defmodule AshEnterpriseWeb.AssistantLive do
   defp ask(socket, ""), do: socket
   defp ask(%{assigns: %{run: %{}}} = socket, _question), do: socket
 
-  defp ask(%{assigns: %{thread: nil}} = socket, question) do
+  defp ask(socket, question) do
+    if may_ask?(socket),
+      do: ask_as_member(socket, question),
+      else:
+        assign(socket, :notice, {:error, "The assistant is for active members of this tenant."})
+  end
+
+  defp ask_as_member(%{assigns: %{thread: nil}} = socket, question) do
     case Thread.start(title(question), actor_opts(socket)) do
       {:ok, thread} ->
         socket
@@ -121,10 +128,23 @@ defmodule AshEnterpriseWeb.AssistantLive do
     end
   end
 
-  defp ask(socket, question), do: start_run(socket, question: question)
+  defp ask_as_member(socket, question), do: start_run(socket, question: question)
+
+  # Every event is a public endpoint: before anything is recorded or asked,
+  # the person must be one the assistant's tools admit (self-service: an
+  # active member in their own tenant). The reads behind every answer are
+  # authorized again, row by row, as them.
+  defp may_ask?(socket) do
+    actor = socket.assigns.current_user
+
+    Ash.can?({AshEnterprise.Assistant.Lookup, :find_people}, actor,
+      tenant: ActorContext.tenant(actor)
+    )
+  end
 
   defp retry(socket, question_id) do
-    with %Thread{} = thread <- socket.assigns.thread,
+    with true <- may_ask?(socket),
+         %Thread{} = thread <- socket.assigns.thread,
          {:ok, %{turns: entries}} <- History.load(thread.id, actor_opts(socket)),
          %{turn: %Turn{role: :user} = question} <-
            Enum.find(entries, &(&1.turn.id == question_id)) do
