@@ -88,6 +88,12 @@ defmodule AshEnterprise.Security.RolePrivilege do
       upsert? true
       upsert_identity :unique_grant
 
+      # Revoking a grant archives its row, and the identity is not limited to
+      # live rows, so granting it again lands on the archived one. Without
+      # this the upsert updated the depth and left the row archived: the
+      # grant read as made and reached nothing.
+      change set_attribute(:archived_at, nil)
+
       validate AshEnterprise.Security.Validations.DepthLegalForPrivilege
       validate AshEnterprise.Security.Validations.OperatorPrivilegeNeedsSystemActor
     end
