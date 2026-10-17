@@ -9,9 +9,15 @@ defmodule AshEnterprise.Acp.SessionStore do
   inside `ash_acp` with the session's actor and `authorize?: true` — this
   module never bypasses policy.
 
-  The session actor carries its precomputed `ActorContext`, attached once at
-  `session/new` exactly as the web's `LoadActorContext` plug attaches it per
-  request, so policy checks read it rather than query for it.
+  The session actor carries its precomputed `ActorContext`, attached at
+  `session/new` as the web's `LoadActorContext` plug attaches it per request,
+  so policy checks read it rather than query for it. A session outlives a
+  request, so the context is rebuilt for each prompt turn: `ash_acp` runs the
+  turn's action with the session `append_message/3` returns for the person's
+  prompt, and that session's actor carries a context built then. Roles,
+  shares and live tasks (`task_ids`) are as they are at that turn, not as they
+  were when the session opened; the stored session keeps the actor it was
+  created with, so ownership checks still compare like with like.
   """
 
   @behaviour AshAcp.SessionStore
@@ -62,8 +68,15 @@ defmodule AshEnterprise.Acp.SessionStore do
     }
 
     :ets.insert(Acp.tables().sessions, {session.session_id, session})
-    {:ok, session}
+    {:ok, for_turn(session, role)}
   end
+
+  # The person's prompt opens a turn, and the turn runs with the session this
+  # returns: its actor's context is built now (see the moduledoc).
+  defp for_turn(%Session{actor: %AshEnterprise.Accounts.User{} = user} = session, :user),
+    do: %{session | actor: ActorContext.attach(user, ActorContext.build(user))}
+
+  defp for_turn(session, _role), do: session
 
   @impl true
   def close(session_id) do

@@ -271,3 +271,29 @@ differs from a CSV row, and why:
 
 Nothing here adds a schema change. The steward queue, the System One review queue, the person gate and the band table
 are the import's, unchanged.
+
+## Addendum, 2026-10-17 — every verdict needs the golden, and who can read it
+
+**Every verdict.** `GoldenReadable` guarded `:confirm` only. A steward-decision task's candidates come from roles
+(Data Steward, Administrator), not from who may read the golden, so a steward could see the task on the board or in
+Approvals and reject or escalate a candidate whose golden the steward queue hides from them. `:reject` and
+`:escalate` now carry the same validation: nobody decides anything about a golden they cannot read, from any door.
+What remains is the task itself: it still lists on the board of a role candidate who cannot read the golden, with
+the golden's side unnamed (`SubjectSummary`), and acting on it is refused. Resolving the task's candidates to the
+people who can read the golden would close that, and needs a candidate clause that inverts Person's read policy.
+
+**Who can read a golden.** Person is owner-only, so the Data Steward role's read on it is `:basic`: the steward's own
+goldens. An import's goldens belong to whoever opened the import (`AutoMerge.new_golden!/4`), so by default a
+steward decides nothing about another person's import, and an importer who is an Administrator (a candidate on every
+steward-review task) decides their own. A steward reviews someone else's goldens once they are shared with them, or
+with a team they are in (`AccessGrant`, read): the existing additive path, no new grant. Delegating a task hands
+over the task, not the golden, so a senior steward an escalated task is delegated to needs the same share. Sharing is not automatic,
+on purpose: a review candidate pointing at a golden is not consent to show that person's record to every steward
+(ADR 0042), so the importer or an administrator shares deliberately. If stewardship over imported people becomes
+routine, the change is to the ownership of import-created goldens (a team that owns them, with the stewards in
+it), not a wider grant on an owner-only resource.
+
+**Machine-only writes.** The Data Steward role's write on match candidates reached the package's machine actions
+too — `:update` (band and pipeline status) and `:record_verdict_ref` — through the role-grant union. A positive
+policy now admits only a system actor to those two (the platform's callers already run as one, or with
+authorization off), the same shape as the person gate on the verdicts; a person's write grant covers the verdicts.

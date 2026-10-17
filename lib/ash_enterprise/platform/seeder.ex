@@ -412,7 +412,11 @@ defmodule AshEnterprise.Platform.Seeder do
   # (staged rows, import batches, the mappings a batch pinned, the source
   # identities a golden's lineage lists), the goldens they own (Person is
   # owner-only, so `:basic`), the human verdict each decision records as the
-  # steward, and the MDM egress departure (ADR 0054). No grant on tasks: a
+  # steward, and the MDM egress departure (ADR 0054). Every verdict needs
+  # read on the candidate's golden (`GoldenReadable`), and `:basic` reaches
+  # only the steward's own: an import's goldens belong to whoever ran it, so
+  # a steward decides those once they are shared with them (ADR 0054,
+  # addendum "every verdict needs the golden"). No grant on tasks: a
   # steward reads and acts on steward-decision tasks through candidacy
   # (`AshEnterprise.Security.Checks.TaskCandidacy`), as a role candidate.
   @data_steward_grants [

@@ -4,8 +4,9 @@ defmodule AshEnterprise.Mdm.MatchCandidate do
   per-rule explanation. Candidate generation runs as a system actor
   (ADR 0017's first sharp edge); the REVIEW SURFACE is filtered separately
   — a steward never learns of a candidate they cannot read, nor of one
-  whose golden they cannot read (`:review_queue`), and cannot confirm a
-  merge into a golden they cannot read (`:confirm`).
+  whose golden they cannot read (`:review_queue`), and cannot decide a
+  candidate whose golden they cannot read (`:confirm`, `:reject` and
+  `:escalate` all refuse it), whichever door the decision comes through.
 
   Confirming or rejecting a review-banded candidate is a person's decision
   (ADR 0054): the policy set opens with the person gate, so a system actor
@@ -174,6 +175,16 @@ defmodule AshEnterprise.Mdm.MatchCandidate do
       authorize_if always()
     end
 
+    # The machine's own writes: banding and pipeline states (`:update`) and
+    # the verdict pointers stamped after a gated decision
+    # (`:record_verdict_ref`). The platform calls them as a system actor (or
+    # with authorization off), which the bypasses above admit; a person's
+    # write grant on candidates covers the verdicts, never these. A positive
+    # gate, like the person gate above, so the union below stays additive.
+    policy action([:update, :record_verdict_ref]) do
+      authorize_if AshEnterprise.Security.Checks.SystemActor
+    end
+
     policy always() do
       authorize_if AshEnterprise.Security.Checks.RoleGrant
       authorize_if AshEnterprise.Security.Checks.SharedWithActor
@@ -218,6 +229,9 @@ defmodule AshEnterprise.Mdm.MatchCandidate do
       description "A steward rejects the match: the staged record stands alone as a new golden record."
       accept []
       validate attribute_equals(:status, :pending)
+      # Deciding "not that golden" is a judgment about the golden: nobody
+      # makes it about a record they cannot see.
+      validate AshEnterprise.Mdm.Validations.GoldenReadable
       require_atomic? false
 
       change set_attribute(:status, :rejected)
@@ -228,6 +242,7 @@ defmodule AshEnterprise.Mdm.MatchCandidate do
       description "A steward cannot decide: the verdict is recorded, the candidate stays pending."
       accept []
       validate attribute_equals(:status, :pending)
+      validate AshEnterprise.Mdm.Validations.GoldenReadable
       require_atomic? false
 
       change AshEnterprise.Mdm.Changes.StewardEscalation

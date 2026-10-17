@@ -15,7 +15,9 @@ defmodule AshEnterprise.Bpmn.Calculations.DeclaredOutcomes do
   distinct instance and definition in the batch: the graph is the engine's
   own data, and a person who may read a task need not be able to read process
   definitions. `nil` for a standalone approval (no instance) or a step that
-  declares none.
+  declares none — and, for display, for a task whose definition could not be
+  loaded. `resolve/1` keeps that last case apart, for the checks that must
+  not mistake "could not tell" for "declares none".
   """
 
   use Ash.Resource.Calculation
@@ -29,15 +31,40 @@ defmodule AshEnterprise.Bpmn.Calculations.DeclaredOutcomes do
 
   @impl true
   def calculate(tasks, _opts, _context) do
-    graphs = graphs(tasks)
-
-    Enum.map(tasks, fn task ->
-      case get_in(graphs, [task.instance_id, "nodes", task.node_id, "outcomes"]) do
-        [_ | _] = outcomes -> outcomes
-        _none -> nil
-      end
+    tasks
+    |> resolve()
+    |> Enum.map(fn
+      {:ok, outcomes} -> outcomes
+      {:error, :unresolved} -> nil
     end)
   end
+
+  @doc """
+  Per task, in order: `{:ok, outcomes}` for a step that declares some,
+  `{:ok, nil}` for a standalone approval (no instance) or a step that
+  declares none, and `{:error, :unresolved}` when the task belongs to an
+  instance whose definition, or whose step in it, could not be read. Each
+  task needs `:instance_id`, `:node_id` and `:organization_id`.
+  """
+  @spec resolve([struct()]) :: [{:ok, [String.t()] | nil} | {:error, :unresolved}]
+  def resolve(tasks) do
+    graphs = graphs(tasks)
+
+    Enum.map(tasks, fn
+      %{instance_id: nil} ->
+        {:ok, nil}
+
+      task ->
+        case graphs |> Map.get(task.instance_id) |> step(task.node_id) do
+          {:ok, %{"outcomes" => [_ | _] = outcomes}} -> {:ok, outcomes}
+          {:ok, _declares_none} -> {:ok, nil}
+          :error -> {:error, :unresolved}
+        end
+    end)
+  end
+
+  defp step(%{"nodes" => %{} = nodes}, node_id), do: Map.fetch(nodes, node_id)
+  defp step(_no_graph, _node_id), do: :error
 
   defp graphs(tasks) do
     tasks
@@ -48,11 +75,16 @@ defmodule AshEnterprise.Bpmn.Calculations.DeclaredOutcomes do
     |> Map.new(fn {instance, tenant} -> {instance.id, graph(instance, tenant)} end)
   end
 
+  # An instance that cannot be read leaves no graph, so its tasks resolve as
+  # :unresolved rather than as declaring none.
   defp instances(tenant, ids) do
     AshEnterprise.Bpmn.Instance
     |> Ash.Query.filter(id in ^ids)
-    |> Ash.read!(Scope.engine(%Scope{tenant: tenant}))
-    |> Enum.map(&{&1, tenant})
+    |> Ash.read(Scope.engine(%Scope{tenant: tenant}))
+    |> case do
+      {:ok, instances} -> Enum.map(instances, &{&1, tenant})
+      {:error, _error} -> []
+    end
   end
 
   defp graph(instance, tenant) do

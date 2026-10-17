@@ -250,8 +250,25 @@ at candidate resolution, and the engine's read leaves out a task that excludes t
 requester gets nothing from this path. Delegation no longer needs a read grant: the delegate must be a candidate
 (the engine checks), and a candidate reads the task through their candidacy.
 
-The cost is one query per request, bounded by a person's live work (a decided task leaves the set), not their
-history.
+The cost is one query per request, and the list is a person's live work (a decided task leaves the set), not their
+history. Live work is not small for a role candidate: a Data Steward is a candidate on every steward-review task, so
+their list is the tenant's open review queue. Two bounds hold it (corrected the same day): someone whose roles read
+every task (a `:global` read on `HumanTask`, as Administrators hold) loads no list, since the role grant already
+reaches every task and act; everyone else carries at most 1,000, oldest first, with a warning logged above that. The
+bound limits what a person reads through candidacy, not what they may decide: the engine checks candidacy when they
+act, and the steward queue decides a candidate without reading its task.
+
+The list is as fresh as the context that carries it. A web request builds it; a LiveView builds it on mount and again
+before each event (`AshEnterpriseWeb.LiveUserAuth`), because the connected mount's user arrives from the session
+without the plug's context, and every check would otherwise rebuild it; an ACP session rebuilds it at each prompt
+turn (`AshEnterprise.Acp.SessionStore.append_message/3`).
+
+**Exclusions on tasks opened before the engine recorded them.** The migration that adds `excluded_principal_ids`
+(`20261017031623_bpmn_task_exclusions`) gives every existing task an empty list, with no backfill. The engine's
+candidacy checks read only that column, so maker-checker for an excluded requester who belongs to a candidate team
+holds only for tasks opened after it. No checked-in baseline combines exclusions with team candidates today; a tenant
+that adopts the two together with tasks already open should backfill those tasks from their instances' resolved
+exclusions first.
 
 ## Consequences
 

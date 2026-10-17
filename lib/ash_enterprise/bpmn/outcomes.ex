@@ -13,7 +13,9 @@ defmodule AshEnterprise.Bpmn.Outcomes do
   The declared list is `HumanTask.declared_outcomes`, read from the definition
   the task's instance pinned (a platform baseline's too, which the engine's
   own `:outcomes` misses). A task whose step declares none — a
-  standalone approval — accepts any non-empty outcome, as before.
+  standalone approval — accepts any non-empty outcome, as before. A task
+  whose definition cannot be read accepts none: "could not tell" is not
+  "declares none", and the engine routes on whatever outcome it is given.
 
   ## The picker
 
@@ -61,29 +63,34 @@ defmodule AshEnterprise.Bpmn.Outcomes do
   def offered_atoms, do: @offered_atoms
 
   @doc """
-  The outcomes `task`'s step declares, or `nil` when it declares none.
-  Read as the caller in `opts` (the calculation reads the definition with the
-  engine's authority).
+  The outcomes `task`'s step declares: `{:ok, outcomes}`, `{:ok, nil}` when
+  it declares none (or is a standalone approval), `{:error, :unresolved}`
+  when its definition could not be read. The definition is read with the
+  engine's authority (`AshEnterprise.Bpmn.Calculations.DeclaredOutcomes`).
   """
-  @spec declared(struct(), keyword()) :: [String.t()] | nil
-  def declared(task, opts) do
-    case Ash.load(task, [:declared_outcomes], opts) do
-      {:ok, %{declared_outcomes: [_ | _] = outcomes}} -> outcomes
-      _none -> nil
-    end
+  @spec declared(struct()) :: {:ok, [String.t()] | nil} | {:error, :unresolved}
+  def declared(task) do
+    [declared] = AshEnterprise.Bpmn.Calculations.DeclaredOutcomes.resolve([task])
+    declared
   end
 
-  @doc "`:ok` when `outcome` is one `task`'s step declares (or it declares none)."
+  @doc """
+  `:ok` when `outcome` is one `task`'s step declares (or it declares none);
+  an error when it is not, or when the step's outcomes could not be read.
+  """
   @spec check(struct(), String.t(), keyword()) :: :ok | {:error, String.t()}
-  def check(task, outcome, opts) do
-    case declared(task, opts) do
-      nil ->
+  def check(task, outcome, _opts) do
+    case declared(task) do
+      {:ok, nil} ->
         :ok
 
-      outcomes ->
+      {:ok, outcomes} ->
         if outcome in outcomes,
           do: :ok,
           else: {:error, "this step's outcomes are #{sentence(outcomes)}"}
+
+      {:error, :unresolved} ->
+        {:error, "this step's outcomes could not be read, so it cannot be completed now"}
     end
   end
 

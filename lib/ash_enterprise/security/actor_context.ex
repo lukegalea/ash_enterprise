@@ -44,6 +44,16 @@ defmodule AshEnterprise.Security.ActorContext do
   see it, without a role grant and without a query in the check (ADR 0009,
   note of 2026-10-17).
 
+  Two bounds keep the list small. Someone whose roles already read every task
+  (a `:global` read on `HumanTask`, as Administrators hold) gets none: the role
+  grant reaches every task and act the list would, so it is not loaded. For
+  everyone else it holds at most 1,000 tasks, oldest first; a person
+  candidate on more than that (a role candidate on a large import's review
+  queue) sees the oldest on the board, and a warning is logged. The bound
+  limits what they *read* through candidacy, not what they may decide: the
+  engine checks candidacy itself when they act, and the steward queue decides
+  a candidate without reading its task.
+
   ## Usage
 
   Built by `AshEnterpriseWeb.Plugs.LoadActorContext` for web requests, and by
@@ -54,6 +64,9 @@ defmodule AshEnterprise.Security.ActorContext do
   require Ash.Query
 
   alias AshEnterprise.Security.AccessRight
+
+  # The most candidate tasks a context carries (see "Candidacy").
+  @max_task_ids 1_000
 
   defmodule Grant do
     @moduledoc "Precomputed reach for one `(resource, verb)` pair."
@@ -149,7 +162,9 @@ defmodule AshEnterprise.Security.ActorContext do
     role_assignments = load_role_assignments(user_id, team_ids, tenant)
     grants = build_grants(role_assignments, tenant)
     shared = load_shared(principal_ids, tenant)
-    task_ids = load_task_ids(user_id, team_ids, tenant)
+
+    task_ids =
+      if reads_every_task?(grants), do: [], else: load_task_ids(user_id, team_ids, tenant)
 
     %__MODULE__{
       user_id: user_id,
@@ -389,15 +404,44 @@ defmodule AshEnterprise.Security.ActorContext do
   defp load_task_ids(_user_id, _team_ids, nil), do: []
 
   defp load_task_ids(user_id, team_ids, tenant) do
-    AshEnterprise.Bpmn.HumanTask
-    |> Ash.Query.for_read(:awaiting_actor, %{},
-      actor: %{id: user_id, team_ids: team_ids},
-      authorize?: false,
-      tenant: tenant
-    )
-    |> Ash.Query.select([:id])
-    |> read_all(tenant)
-    |> Enum.map(& &1.id)
+    ids =
+      AshEnterprise.Bpmn.HumanTask
+      |> Ash.Query.for_read(:awaiting_actor, %{},
+        actor: %{id: user_id, team_ids: team_ids},
+        authorize?: false,
+        tenant: tenant
+      )
+      |> Ash.Query.select([:id])
+      # Oldest first, and one past the bound, so an overflow is seen rather
+      # than guessed and the work waiting longest is what stays readable.
+      |> Ash.Query.sort(inserted_at: :asc, id: :asc)
+      |> Ash.Query.limit(@max_task_ids + 1)
+      |> read_all(tenant)
+      |> Enum.map(& &1.id)
+
+    if length(ids) > @max_task_ids do
+      require Logger
+
+      Logger.warning(
+        "ActorContext: user #{user_id} is a candidate on more than #{@max_task_ids} " <>
+          "live tasks; candidacy reads the oldest #{@max_task_ids}. A role that " <>
+          "decides this many tasks wants a read grant on HumanTask."
+      )
+
+      Enum.take(ids, @max_task_ids)
+    else
+      ids
+    end
+  end
+
+  # A `:global` read on tasks already reaches every task, and every task act
+  # (`RoleGrant` authorizes a generic action on a global grant), so candidacy
+  # would add nothing.
+  defp reads_every_task?(grants) do
+    case Map.get(grants, {inspect(AshEnterprise.Bpmn.HumanTask), :read}) do
+      %Grant{global?: true} -> true
+      _narrower -> false
+    end
   end
 
   defp load_shared([], _tenant), do: %{}
