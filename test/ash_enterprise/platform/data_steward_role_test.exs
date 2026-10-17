@@ -59,6 +59,13 @@ defmodule AshEnterprise.Platform.DataStewardRoleTest do
     refute Enum.any?(grants(role, org), &match?({"AshEnterprise.Bpmn." <> _, _, _}, &1))
   end
 
+  test "a 16-character unique_name is a name, not a raw uuid" do
+    %{organization: org} = Seeder.seed_tenant(name: "Sixteen", unique_name: "e2e-steward-1605")
+
+    assert [%{tenant: id}] = Seeder.regrant_data_steward(tenant: "e2e-steward-1605")
+    assert id == org.id
+  end
+
   test "the regrant is a dry run by default and writes nothing", %{org: org, unique_name: name} do
     role = steward_role(org)
     [missing | _] = role |> grants(org) |> Enum.sort()

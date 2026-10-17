@@ -532,11 +532,12 @@ defmodule AshEnterprise.Platform.Seeder do
   end
 
   defp steward_tenants(name_or_id) do
+    # Only the canonical 36-character form is an id: `Ecto.UUID.cast/1` also
+    # takes any 16-byte string as a raw UUID, and "e2e-steward-1605" is one.
     query =
-      case Ecto.UUID.cast(name_or_id) do
-        {:ok, id} -> Ash.Query.filter(Accounts.Organization, id == ^id)
-        :error -> Ash.Query.filter(Accounts.Organization, unique_name == ^name_or_id)
-      end
+      if byte_size(name_or_id) == 36 and match?({:ok, _}, Ecto.UUID.cast(name_or_id)),
+        do: Ash.Query.filter(Accounts.Organization, id == ^name_or_id),
+        else: Ash.Query.filter(Accounts.Organization, unique_name == ^name_or_id)
 
     case Ash.read!(query, actor: SystemActor.seed()) do
       [] -> raise ArgumentError, "no tenant #{inspect(name_or_id)}"
