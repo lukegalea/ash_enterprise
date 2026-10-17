@@ -147,19 +147,19 @@ defmodule AshEnterprise.AI.Proposal do
   """
   def execute(%__MODULE__{} = proposal, actor, tenant) do
     with :ok <- authorize(proposal, actor, tenant) do
-      case inputs(proposal) do
-        [params] when is_map(proposal.params) ->
-          run(proposal, params, actor, tenant)
-
-        many ->
-          Enum.reduce_while(many, {:ok, []}, fn params, {:ok, done} ->
-            case run(proposal, params, actor, tenant) do
-              {:ok, result} -> {:cont, {:ok, done ++ [result]}}
-              error -> {:halt, error}
-            end
-          end)
-      end
+      if is_map(proposal.params),
+        do: run(proposal, proposal.params, actor, tenant),
+        else: run_each(proposal, proposal.params, actor, tenant)
     end
+  end
+
+  defp run_each(proposal, many, actor, tenant) do
+    Enum.reduce_while(many, {:ok, []}, fn params, {:ok, done} ->
+      case run(proposal, params, actor, tenant) do
+        {:ok, result} -> {:cont, {:ok, done ++ [result]}}
+        error -> {:halt, error}
+      end
+    end)
   end
 
   defp inputs(%__MODULE__{params: params}) when is_list(params), do: params

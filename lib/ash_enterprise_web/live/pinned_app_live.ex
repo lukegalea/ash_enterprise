@@ -71,13 +71,17 @@ defmodule AshEnterpriseWeb.PinnedAppLive do
   end
 
   @impl true
+  # An explicit gate before the write (iron law 11): the person must be one
+  # who may unpin (self-service: an active member in their own tenant), and
+  # the action then finds the pin among their own.
   def handle_event("unpin", _params, %{assigns: %{app: %PinnedApp{} = app}} = socket) do
-    case PinnedApp.unpin(app.id, actor_opts(socket)) do
-      :ok ->
-        {:noreply, socket |> put_flash(:info, "Unpinned.") |> push_navigate(to: ~p"/app")}
+    actor = socket.assigns.current_user
 
-      {:error, _error} ->
-        {:noreply, put_flash(socket, :error, "Could not unpin it. Try again.")}
+    with true <- Ash.can?({PinnedApp, :unpin}, actor, tenant: ActorContext.tenant(actor)),
+         :ok <- PinnedApp.unpin(app.id, actor_opts(socket)) do
+      {:noreply, socket |> put_flash(:info, "Unpinned.") |> push_navigate(to: ~p"/app")}
+    else
+      _ -> {:noreply, put_flash(socket, :error, "Could not unpin it. Try again.")}
     end
   end
 

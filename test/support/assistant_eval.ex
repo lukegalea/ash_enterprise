@@ -30,8 +30,8 @@ defmodule AshEnterprise.Test.AssistantEval do
       per answer.
   """
 
-  alias AshEnterprise.Assistant.{Runner, Thread}
   alias AshEnterprise.Assistant.Lookups.Support
+  alias AshEnterprise.Assistant.{Runner, Thread}
   alias AshEnterprise.Canonical.{Conversation, Message, Task}
   alias AshEnterprise.Test.DailyFixtures, as: D
 
