@@ -49,8 +49,17 @@ defmodule AshEnterprise.AI.Proposal do
   Approving or rejecting a morning brief or a process task, and a steward's
   confirm or reject, are **decisions**, and who may make one is the process
   engine's question (the who-acts check on a human task), not a role grant's.
-  `decision/4` is the seam: it refuses, naming why, until decisions are routed
-  through that check.
+  `decision/4` is the seam: it refuses, naming why, until a slice routes
+  decisions through that check. The actions it would propose:
+
+    * a brief's or a process task's decision: `Bpmn.HumanTask.approve` /
+      `.reject` (`record_id`, `comment`), or `.complete_task` (`record_id`,
+      `outcome`, `comment`) for a step that declares other outcomes. Each
+      reads its task as the actor and the engine checks candidacy. The
+      brief's own `:approve` / `:reject` only receive that outcome and are
+      never proposed directly;
+    * a steward's verdict: `Mdm.MatchCandidate` `:confirm`, `:reject` or
+      `:escalate`, which complete the candidate's steward task.
 
   ## Wire form
 
