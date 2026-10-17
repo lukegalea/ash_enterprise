@@ -34,8 +34,28 @@ end
   `require_context` on tables and `detail` components), related tables
   (`"resource": "<allowlisted name>"` on a table) and reference links on
   fields (`"link": "<relationship>"` or `{"surface": "<key>", "path":
-  ["<attr>"]}`, `"links"`, `"link_label"`). It has no vocabulary for
-  inline editing, file export, wizard steps, bulk actions or boards.
+  ["<attr>"]}`, `"links"`, `"link_label"`), and calendar tables
+  (`"display": "calendar"` with `"date_field"`, optional
+  `"end_date_field"` and `"granularity"` `day|week|month`, plus the
+  required `"query"`), and boards (`"display": "board"` with a
+  `row_layout` and source-less `"sections"`: `scope_by`, `values`,
+  `labels`, `swimlanes_by`, `swimlane_values`, `swimlane_labels`,
+  `swimlane_tones`). It has no vocabulary for inline editing, file export,
+  wizard steps or bulk actions.
+- A composed board follows the DSL board rules plus four of its own:
+  - no `source`;
+  - attribute names and label/tone keys are existing-atom lookups;
+  - labels are plain text of at most 60 characters;
+  - at most 12 cells (lanes × swimlanes; `max_composed_cells/0`).
+
+  Narrow `values` / `swimlane_values` to stay under the cap. Totals count
+  only the listed swimlanes; for a nullable swimlane attribute, swimlane
+  by a calculation that maps `nil` to its own value.
+- A calendar's date fields must be date or datetime attributes of the
+  resource. The parser looks them up as existing atoms only, and the
+  rejection lists the resource's date and datetime attributes, so feed it
+  back to the composer. Size the query's `page_size` to a window's usual
+  record count.
 - Link surface keys stay strings (never atoms); names in specs become
   atoms only after the identifier-format and size checks, and resources
   only ever come from the allowlist.
@@ -93,7 +113,7 @@ end
 - `AshA2ui.Dynamic.Importer.import/1` turns a declared surface (a resource or
   `AshA2ui.Standalone` module) into the equivalent spec. It returns
   `{:ok, spec, rejections}`: every declared feature the spec cannot carry
-  (inline editing, export, wizard steps, bulk actions, boards,
+  (inline editing, export, wizard steps, bulk actions,
   `surface_id`, `record_label`, `spec_version`) is a visible rejection with
   a reason, never a silent drop. Contexts, related tables and links import
   as spec vocabulary. Show the rejections to whoever edits the spec.
