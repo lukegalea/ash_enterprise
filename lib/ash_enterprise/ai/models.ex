@@ -46,6 +46,8 @@ defmodule AshEnterprise.AI.Models do
     The same two options work for `AshAi.ToolLoop.run/2` and `stream/2`.
   * Code calling ReqLLM itself: `resolve/1` for the spec and options, then
     `call/5` around the request.
+  * The assistant (`AshEnterprise.Assistant.Runner`): `AshAi.ToolLoop.stream/2`
+    through `GuardedReqLLM`, in-zone targets only.
   """
 
   alias AshEnterprise.AI.ModelCall

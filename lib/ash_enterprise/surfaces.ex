@@ -130,6 +130,19 @@ defmodule AshEnterprise.Surfaces do
       }
     },
     %Surface{
+      key: :agent,
+      label: "Agent",
+      blurb:
+        "Ask about your calendar, mail, Slack, people and approvals. Answers cite the " <>
+          "records they came from; the model runs in the zone.",
+      group: :day,
+      order: 5,
+      icon: "hero-sparkles",
+      path: "/app/agent",
+      live: AshEnterpriseWeb.AssistantLive,
+      resource: AshEnterprise.Assistant.Thread
+    },
+    %Surface{
       key: :calendar,
       label: "Calendar",
       blurb: "Today, tomorrow, this week or the next two weeks.",

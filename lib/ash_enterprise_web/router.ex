@@ -183,6 +183,18 @@ defmodule AshEnterpriseWeb.Router do
       live "/app/erasure", DailyLive.Erasure
     end
 
+    # The assistant (E10): a person's own chat with the in-zone model, its
+    # read tools run as them. Its own live_session so it can be removed with
+    # lib/ash_enterprise/assistant/ and AshEnterpriseWeb.AssistantLive.
+    ash_authentication_live_session :assistant,
+      on_mount: [
+        {AshEnterpriseWeb.LiveUserAuth, :live_user_required},
+        AshEnterpriseWeb.SurfaceDoor
+      ] do
+      live "/app/agent", AssistantLive
+      live "/app/agent/:id", AssistantLive
+    end
+
     # --- Master data (ADR 0054) ----------------------------------------------
     #
     # The MDM demo flow's one hand-written page: the import wizard (upload a

@@ -279,6 +279,14 @@ dogfood; "splash is in zone".
   removed from the deployment's environment. Tool calling against it is measured in
   [docs/research/splash-tool-calling.md](../research/splash-tool-calling.md).
 
+**Built: the assistant at `/app/agent` (2026-10-17, E10.1/E10.2).** `AshEnterprise.Assistant.Runner` runs
+`AshAi.ToolLoop` over the in-zone profile only, through `GuardedReqLLM` (caller `assistant.chat`, every call in
+`ModelCall`), and refuses — and records the refusal of — any target that is not in-zone or not in the canonical store's
+zone, whatever `REQUIRE_IN_ZONE_MODELS` says: there is no hosted fallback. Its read tools carry a second, content-side
+check (`AshEnterprise.Assistant.ZoneGate`): they return canonical content only to a run whose model target is in-zone and
+in the store's zone, so an MCP client or hosted agent reaching them gets a refusal. The history it keeps
+(`Assistant.Thread`/`Turn`) is owner-only and sealed under one erasure scope per thread (ADR 0024).
+
 **Not built.** The rest of the flow rule and the "leaving the zone" side: no per-flow disclosure authorization
 (operator acknowledgement, per-tenant opt-in for generative calls), no egress log of bytes and data class, and the
 resolver does not see what data a prompt carries. Paths outside the resolver are not guarded: the ACP and OMP agent

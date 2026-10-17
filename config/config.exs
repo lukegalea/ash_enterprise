@@ -366,6 +366,7 @@ config :ash_enterprise,
     AshEnterprise.Integration,
     AshEnterprise.Agents,
     AshEnterprise.AI,
+    AshEnterprise.Assistant,
     AshEnterprise.Mdm
   ],
   base_resources: [AshEnterprise.Platform.Resource]
