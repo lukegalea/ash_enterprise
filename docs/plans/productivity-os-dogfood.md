@@ -1,10 +1,48 @@
-# Productivity OS Dogfood — Epic Breakdown
+# Productivity OS Dogfood
 
-Program plan: approved multi-board plan (durable copy: `local://productivity-os-dogfood-plan.md` workspace
-artifact). This doc records the epic breakdown as executed. Design sources:
-[ADR 0010](../adr/0010-*.md) (Meltano ingestion), [ADR 0011](../adr/0011-*.md) (Nango provider edge),
-[ADR 0012](../adr/0012-openlineage-and-marquez.md) (OpenLineage + Marquez), ADR 0015 (approvals in Ash),
-ADR 0035/0037 (event projections), `docs/dogfood_enterprise.md` §6–§11.
+This doc holds the programme's vision, its exit gate and the epic breakdown as executed. Work is tracked on the
+Plane board **PROD** (Productivity OS Dogfood); the earlier "durable copy" of the plan
+(`local://productivity-os-dogfood-plan.md`) no longer exists, and this doc replaces it. Design sources:
+[ADR 0010](../adr/0010-meltano-for-ingestion.md) (Meltano ingestion), [ADR 0011](../adr/0011-nango-as-integration-hub.md)
+(Nango provider edge), [ADR 0012](../adr/0012-openlineage-and-marquez.md) (OpenLineage + Marquez), ADR 0015 (approvals in
+Ash), ADR 0035/0037 (event projections). `docs/dogfood_enterprise.md` is the research transcript the programme
+started from; it has no numbered sections.
+
+## Vision
+
+The dogfood instance is ash_enterprise run as Luke's own daily driver. It pulls his mail, calendar, Slack and,
+later, finances into one canonical store under the platform's real policies, audit and erasure. He runs his day
+from it, on the web and in Amber over ACP. Every capability of the stack is visible in it, not only tested.
+
+What the end state looks like:
+
+1. **A daily loop worth opening.** A morning brief covering the day's meetings, mail needing a reply, action items
+   and steward items, summarised in-zone and approved before it counts. One inbox across sources, one
+   action-items board, a calendar grid, and quick capture from Amber.
+2. **Agents that do bounded work.** Agents call typed, policy-gated actions. Anything consequential (a send, a
+   merge, a decision) is an approval. A draft never sends itself.
+3. **Machinery you can see.** A lineage app where every sync and projection is a run. Flight views of running
+   processes. MDM's steward queue merging the same person across sources. The business-event ledger.
+4. **Personal finance and simulation.** The Tiller sheet becomes ledger events, then golden accounts and payees,
+   then double-entry books in CAD and USD reconciled against the bank's balances, then a cash-flow forecast.
+   Simulated numbers are always labelled as simulated.
+5. **Forgettable by construction.** Any source's content can be shredded (ADR 0024) and the instance keeps
+   working.
+6. **Mechanism public, content private.** What the instance needs is in public packages as mechanism;
+   VendorPM-specific content stays in the private repository.
+
+## Exit gate
+
+The dogfood programme (E0 to E6) is done when all of these hold:
+
+- The two-week [dogfood log](dogfood-log.md) (2026-10-12 to 2026-10-26) shows use on most days, and every row is
+  triaged into a PROD ticket or closed.
+- E0 to E6 are Done on PROD with evidence in their comments, or each remaining item is explicitly re-homed.
+- Main's CI is green, and the dogfood instance runs a main no more than a day old.
+- `mix ash_enterprise.roadmap --check` is green, and a daily-driver console screenshot is in `docs/screenshots/`.
+
+E7 (personal finance and simulation, PROD-8) and E8 (lineage app, action items and calendar, PROD-16) are the
+showcase phase after the gate. Each of their tickets states its own "done when".
 
 ## Boards
 
@@ -54,15 +92,11 @@ ADR 0035/0037 (event projections), `docs/dogfood_enterprise.md` §6–§11.
   possible; drafts only, every consequential action an approval). Exit CLIN tickets: agent-tool exposure;
   approval-in-terminal.
 - **E6 — Daily-driver cutover** (PROD-7): operator's daily loop in amber_console; two-week [dogfood log](dogfood-log.md) (2026-10-12 → 10-26) triaged
-  into PROD tickets; `docs/roadmap.json` status updates + `mix ash_enterprise.roadmap`; HANDOFF.md
-  "genuinely not done" refresh; CLIN demo-ticket sweep with the operator.
+  into PROD tickets; `docs/roadmap.json` status updates + `mix ash_enterprise.roadmap`; CLIN demo-ticket sweep with the operator.
+  (The original "HANDOFF.md genuinely-not-done refresh" item is obsolete: HANDOFF.md dropped that list on
+  2026-09-28.)
 
 ## Dependencies: E1 → E2; {E1, E3} → E4 → E5 → E6. Each epic leaves its repos green (`mix precommit` / `pytest`).
-
-Design sources: [ADR 0010](../adr/0010-meltano-for-ingestion.md),
-[ADR 0011](../adr/0011-nango-as-integration-hub.md),
-[ADR 0012](../adr/0012-openlineage-and-marquez.md), ADR 0015 (approvals),
-ADR 0035/0037 (projections), `docs/dogfood_enterprise.md` §6–§11.
 
 ## Operator involvement (minimized)
 
