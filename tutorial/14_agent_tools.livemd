@@ -96,7 +96,7 @@ AshAgentTools.describe_resource(AshEnterprise.Decisions.Definition)
 
 Ask for the exact input contract of an action: required, optional and private keys with normalized types, plus the source location.
 
-Describe the `:create` action of `AshEnterprise.Accounts.Organization`. (`AshEnterprise.Contracts` cannot give you one: it is read-only by design — describe it with `describe_resource/1` and look at its actions list. `AshAgentTools.list_resources/0` is how you find candidates.)
+Describe the `:create` action of `AshEnterprise.Accounts.Organization`. (`AshEnterprise.Legacy.User` cannot give you one: it is read-only by design — describe it with `describe_resource/1` and look at its actions list. `AshAgentTools.list_resources/0` is how you find candidates.)
 
 **Enter your solution**
 

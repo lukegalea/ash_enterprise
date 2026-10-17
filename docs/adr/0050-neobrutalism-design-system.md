@@ -3,6 +3,8 @@
 - **Status:** accepted
 - **Date:** 2026-10-12
 - **Supersedes:** [ADR 0006](0006-design-system.md) (daisyUI 5 + Phoenix core_components)
+- **Note 2026-10-17:** the "legacy parties" surface in the contrast sweep below was removed from this
+  repository with the rest of the contracting proof of concept. The sweep result stands as recorded.
 
 ## Context
 

@@ -2,6 +2,8 @@
 
 - **Status:** accepted
 - **Date:** 2026-09-09
+- **Note 2026-10-17:** the canonical and legacy contracting surfaces from vpm-14 named below were removed
+  from this repository; `/app/legacy-users` is the legacy surface that remains. The decision is unchanged.
 
 ## Context
 
