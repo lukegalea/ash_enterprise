@@ -235,3 +235,39 @@ their tasks through candidacy (ADR 0009, note of 2026-10-17). Existing tenants r
 `mix ash_enterprise.platform.grant_data_steward` (dry run unless `--apply`; additive and idempotent; assigns the role
 to nobody), not at boot, because adding a role to a customer's tenant is a deliberate act.
 
+## Addendum, 2026-10-17 — projected people are an MDM source (PROD-9)
+
+**Context.** The Gmail, Calendar and Slack projectors key `Canonical.Person` on the email address, so one human with a
+work address in Slack and another in Gmail is two rows. MDM's only input path was the CSV upload.
+
+**Decision.** The projected people are a second bizev source on the same landing (`:canonical` / `:people` in
+`AshEnterprise.Mdm.Landing`, adapter `AshEnterprise.Mdm.People.Adapter`): one observation per person per source system
+and linked account, staged through an ordinary `ImportBatch` against an ingress mapping (`canonical`/`people`) and
+scored by a match rule set, both seeded as data and activated by a person (`AshEnterprise.Mdm.People.Seed`). A sweep
+(`AshEnterprise.Mdm.People.SweepWorker`, `:mdm` queue; `mix ash_enterprise.mdm.people`) runs it per tenant. What
+differs from a CSV row, and why:
+
+- **An observation is already a person.** Its own row is a candidate like any other, so "same address → admit" is the
+  rule set and the band table deciding, not a special case; the admit opens the observation's identity at that row.
+- **Only one owner's people are paired.** Person is owner-only; a merge across owners would hand one user's
+  correspondence joins to a row another user owns. Each pair is asked once, from the newer person to the older, which
+  survives; a pair with a standing answer (pending, confirmed, rejected, auto-merged) is not asked again, so an unmerge
+  is not undone by the next sweep.
+- **Admit or confirm merges the person** (`:mdm_merge_into`), not the staged row. The merge now also moves the rows
+  that name the absorbed person — attendee and participant joins, `Message.sender`, `CalendarEvent.organizer`, and
+  records it absorbed earlier — and records their ids on `merge_provenance` so the unmerge moves exactly those back
+  (`AshEnterprise.Mdm.PersonJoins`). A survivor that is itself merged is refused, so a master is always a golden.
+- **The absorbed row keeps its address** unless the survivor takes it, and the projectors link a merged row's address
+  to its golden (`AshEnterprise.Canonical.Projections.Golden`, same owner only). Otherwise the next projection would
+  mint the duplicate again. Rows projected after a merge name the golden; after an unmerge, the next projection of
+  their source re-derives them.
+- **The rule set has its own key**, `"AshEnterprise.Canonical.Person#people"`: `ash_mdm` keeps one active rule set per
+  `golden_resource`, and activating the people rules must not retire the CSV import's. The package-level fix is a scope
+  on the rule set.
+- **Shared context is a host-computed pair feature.** The package's comparators are `exact` and `fuzzy` over fields;
+  "these two are in the same meetings or threads, or meet the same people" is a fact about the pair, with no operator
+  for it. The matcher computes it and an `exact` rule compares it; the package-level fix is an `overlap` comparator over
+  list fields. Weights are chosen so nothing reaches the seed table's admit band without the address.
+
+Nothing here adds a schema change. The steward queue, the System One review queue, the person gate and the band table
+are the import's, unchanged.

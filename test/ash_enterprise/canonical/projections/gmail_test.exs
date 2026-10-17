@@ -204,6 +204,41 @@ defmodule AshEnterprise.Canonical.Projections.GmailTest do
     assert length(first.messages) == 3
   end
 
+  test "an address MDM merged links its golden record, and mints no duplicate (PROD-9)", ctx do
+    Application.put_env(:ash_enterprise, @projection_env, zone_gate: AdmitAll)
+    assert {:ok, _counts} = Projection.replay(owner: ctx.owner, tenant: ctx.org)
+
+    opts = [tenant: ctx.org.id, authorize?: false]
+    inbound = message!(ctx, ctx.linked, ctx.a1)
+    absorbed = Ash.get!(Person, inbound.sender_id, opts)
+
+    golden =
+      Person
+      |> Ash.Changeset.for_create(:upsert_from_source, %{
+        email: "golden@example.synthetic.test",
+        name: "Synthetic Golden",
+        owner_id: ctx.owner.id,
+        owner_type: :user,
+        owning_user_id: ctx.owner.id
+      })
+      |> Ash.create!(opts)
+
+    absorbed
+    |> Ash.Changeset.for_update(:mdm_merge_into, %{survivor_id: golden.id}, opts)
+    |> Ash.update!(opts)
+
+    # The merge moved the message; a re-projection keeps it on the golden
+    # rather than re-linking (or re-minting) the absorbed address.
+    assert {:ok, _counts} = Projection.replay(owner: ctx.owner, tenant: ctx.org)
+    assert message!(ctx, ctx.linked, ctx.a1).sender_id == golden.id
+
+    thread_a = conversation!(ctx, ctx.linked, "thread-a-#{ctx.unique}")
+    assert golden.id in thread_a.participants["person_ids"]
+    refute absorbed.id in thread_a.participants["person_ids"]
+
+    assert Person.read!(opts) |> Enum.count(&(to_string(&1.email) =~ "sender.one")) == 1
+  end
+
   test "admission is per record", ctx do
     Application.put_env(:ash_enterprise, @projection_env, zone_gate: AdmitTagged)
 

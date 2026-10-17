@@ -207,6 +207,13 @@ Be honest with whoever asked for the erasure about these. Each is a real copy of
   only while the scope is live, checked under a lock a shred waits for, so a shred that commits between a landing and
   its projection writes no new person from the destroyed content. And no projector renames or links a Person another
   user owns, so a shred of one account leaves nothing it wrote in someone else's rows.
+- **MDM people landings (PROD-9).** Where a tenant runs the MDM people sweep (`AshEnterprise.Mdm.People`), each
+  person's name and email are also copied, once per source and linked account they were seen in, into
+  `mdm_source_records` (source `canonical`, stream `people`) and the staged rows in `mdm_staged_records`. Like the
+  CSV landings beside them they are outside any erasure scope; raw landings are machinery-only (no person reads
+  them). A shred does not reach them, and deleting a Person row does not either: remove that person's rows there by
+  hand (`raw_payload->>'person_id'`, `mapped->>'person_id'`). The source identities (`mdm_source_identities`) hold
+  only ids.
 - **Correspondence metadata.** A shred destroys content, not the shape of who talked to whom. Every shredded `Message`
   keeps `sender_id` (a link to a Person with a readable name and address), `sent_at`, `direction` and its
   `conversation_id`. Every shredded `CalendarEvent` keeps `organizer_id`, `starts_at`, `ends_at` and `status`. Together

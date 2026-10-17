@@ -13,7 +13,12 @@ defmodule AshEnterprise.Mdm.Changes.StewardVerdict do
      its mapped values into the golden record, its source identity opens at
      the golden (the XREF the golden's provenance answers through), and the
      staged row is `:merged`. `reject` marks the staged row `:rejected` —
-     it stands alone; import completion makes it a golden of its own.
+     it stands alone; import completion makes it a golden of its own. A
+     people pair (PROD-9, `AshEnterprise.Mdm.People`) is two person rows
+     already, so its `confirm` merges the staged row's person into the
+     golden instead; this is the one verdict path, so the queue's buttons
+     and the steward-decision task (`AshEnterprise.Mdm.StewardTask`) act
+     identically.
 
   Changes run at changeset build, before policies refuse system actors, so
   the verdict work lives in `after_action` — it only ever runs for a
@@ -40,7 +45,7 @@ defmodule AshEnterprise.Mdm.Changes.StewardVerdict do
 
     judgment = record_judgment!(candidate, tenant)
     human = record_human_verdict!(candidate, judgment, verdict, actor, tenant)
-    candidate = promote(candidate, verdict, actor, tenant)
+    candidate = promote(candidate, act(verdict, candidate, tenant), actor, tenant)
 
     ref = %{"verdict" => verdict, "verdict_id" => human.id, "judgment_id" => judgment.id}
 
@@ -169,6 +174,25 @@ defmodule AshEnterprise.Mdm.Changes.StewardVerdict do
   end
 
   # -- the act ----------------------------------------------------------------
+
+  # PROD-9: a confirmed people pair is two person rows already, so the act
+  # merges the person, not the staged row (`AshEnterprise.Mdm.People.Pipeline`).
+  defp act("confirm", candidate, tenant) do
+    staged =
+      Ash.get!(AshEnterprise.Mdm.StagedRecord, candidate.staged_record_id,
+        tenant: tenant,
+        authorize?: false
+      )
+
+    if AshEnterprise.Mdm.People.staged?(staged), do: {:people_confirm, staged}, else: "confirm"
+  end
+
+  defp act(verdict, _candidate, _tenant), do: verdict
+
+  defp promote(candidate, {:people_confirm, staged}, _actor, tenant) do
+    AshEnterprise.Mdm.People.Pipeline.confirm!(candidate, staged, tenant)
+    candidate
+  end
 
   defp promote(candidate, "confirm", actor, tenant) do
     staged =

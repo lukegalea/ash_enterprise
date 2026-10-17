@@ -22,7 +22,12 @@ defmodule AshEnterprise.Mdm.Projection do
   @doc "Rebuilds golden records for the tenant. Returns {:ok, count}."
   def replay(opts) do
     tenant = Keyword.fetch!(opts, :tenant)
-    mapping = active_ingress_mapping(tenant)
+
+    mappings = %{
+      csv: active_ingress_mapping(tenant),
+      people: AshEnterprise.Mdm.People.mapping(tenant)
+    }
+
     owner = deterministic_owner(tenant)
 
     identities =
@@ -39,7 +44,8 @@ defmodule AshEnterprise.Mdm.Projection do
           ids
           |> Enum.map(&source_record_for/1)
           |> Enum.reject(&is_nil/1)
-          |> Enum.map(&AshMdm.Mapping.Evaluator.run(mapping.field_rules, &1.raw_payload))
+          |> Enum.flat_map(&evaluate(mappings, &1))
+          |> own_first(golden_id)
 
         %{
           id: golden_id,
@@ -66,6 +72,33 @@ defmodule AshEnterprise.Mdm.Projection do
     end)
 
     {:ok, length(goldens)}
+  end
+
+  # Each landing through its own source's mapping: the CSV upload's, or the
+  # people source's (PROD-9).
+  defp evaluate(mappings, record) do
+    mapping =
+      if record.source == AshEnterprise.Mdm.People.source(),
+        do: mappings.people,
+        else: mappings.csv
+
+    case mapping do
+      nil -> []
+      mapping -> [AshMdm.Mapping.Evaluator.run(mapping.field_rules, record.raw_payload)]
+    end
+  end
+
+  # A people landing names the person row it observed. When a merge moved
+  # another person's identities to this golden, the golden's OWN
+  # observations still decide its values — never the absorbed address.
+  defp own_first(evaluations, golden_id) do
+    {own, others} =
+      Enum.split_with(evaluations, fn
+        {:ok, %{"person_id" => ^golden_id}} -> true
+        _ -> false
+      end)
+
+    own ++ others
   end
 
   # First non-nil value wins, in identity order — a deterministic fold that
@@ -105,7 +138,8 @@ defmodule AshEnterprise.Mdm.Projection do
   defp active_ingress_mapping(tenant) do
     AshEnterprise.Mdm.Mapping
     |> Ash.Query.filter(
-      direction == ^:ingress and status == ^:active and target_resource == ^@golden
+      direction == ^:ingress and status == ^:active and target_resource == ^@golden and
+        source != ^AshEnterprise.Mdm.People.mapping_source()
     )
     |> Ash.Query.sort(version: :desc)
     |> Ash.read_one!(tenant: tenant, authorize?: false)

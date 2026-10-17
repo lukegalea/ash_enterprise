@@ -103,7 +103,7 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
   """
 
   alias AshEnterprise.Canonical.{Conversation, Message, Person}
-  alias AshEnterprise.Canonical.Projections.{Write, ZoneGate}
+  alias AshEnterprise.Canonical.Projections.{Golden, Write, ZoneGate}
   alias AshEnterprise.Erasure.{LiveScope, Shredded}
   alias AshEnterprise.Ingestion.SourceObject
   alias AshEnterprise.Integration.Gmail.Sync
@@ -325,9 +325,15 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
     |> Enum.sort()
     |> Enum.reduce_while({:ok, %{}}, fn {email, name}, {:ok, people} ->
       case upsert_person(email, name, context) do
-        {:ok, nil} -> {:cont, {:ok, people}}
-        {:ok, person} -> {:cont, {:ok, Map.put(people, email, person)}}
-        {:error, _} = error -> {:halt, error}
+        {:ok, nil} ->
+          {:cont, {:ok, people}}
+
+        # Linked to the golden record when MDM merged this address's row.
+        {:ok, person} ->
+          {:cont, {:ok, Map.put(people, email, Golden.resolve(person, context.tenant_id))}}
+
+        {:error, _} = error ->
+          {:halt, error}
       end
     end)
   end

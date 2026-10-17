@@ -33,6 +33,9 @@ defmodule AshEnterprise.Mdm.Changes.Unmerge do
         repoint(id, result.id, tenant)
       end
 
+      # The meetings, messages and conversations the merge moved come back.
+      AshEnterprise.Mdm.PersonJoins.restore!(tenant, provenance["joins"], result.id)
+
       # Return the committed state so callers (and the test) see the
       # restored record, not a stale struct.
       {:ok,

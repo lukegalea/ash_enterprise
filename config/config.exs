@@ -69,6 +69,9 @@ config :ash_enterprise, Oban,
        # drain cadence (idempotent; a golden already running an instance is
        # skipped).
        {"*/5 * * * *", AshEnterprise.Mdm.QualityStewardshipWorker, queue: :mdm, max_attempts: 3},
+       # PROD-9: newly projected people feed MDM's cross-source resolution
+       # (one job per tenant that turned it on; idempotent).
+       {"*/15 * * * *", AshEnterprise.Mdm.People.SweepWorker, queue: :mdm, max_attempts: 3},
        # The ledger sweep is the *recovery net*, not the driver: the ledger trigger's
        # pg_notify wakes the drain worker promptly, and a wake lost while the listener was
        # down is caught here. Every five minutes; the worker's `unique: [period: 30]`
