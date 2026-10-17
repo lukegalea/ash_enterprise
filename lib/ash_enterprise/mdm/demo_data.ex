@@ -56,8 +56,7 @@ defmodule AshEnterprise.Mdm.DemoData do
         :ok
 
       _ ->
-        xml =
-          File.read!(Path.join(:code.priv_dir(:ash_enterprise), "bpmn/mdm_steward_review.bpmn"))
+        xml = steward_review_xml()
 
         Definition.create!(%{key: @steward_key, name: "MDM steward review", xml: xml},
           actor: SystemActor.process(),
@@ -277,5 +276,17 @@ defmodule AshEnterprise.Mdm.DemoData do
     Person
     |> Ash.Query.filter(merged == true)
     |> Ash.count!(tenant: org_id, authorize?: false)
+  end
+
+  # Sobelow reads `@sobelow_skip` out of the source AST; persisting it keeps
+  # `--warnings-as-errors` from calling it unused (see AshEnterprise.Audit.Export).
+  Module.register_attribute(__MODULE__, :sobelow_skip, persist: true)
+
+  # The path is a constant under this application's own priv dir — no caller
+  # input reaches it. Skipped here, by name, so any change that lets a caller
+  # choose the file is the thing a reviewer should question.
+  @sobelow_skip ["Traversal.FileModule"]
+  defp steward_review_xml do
+    File.read!(Path.join(:code.priv_dir(:ash_enterprise), "bpmn/mdm_steward_review.bpmn"))
   end
 end
