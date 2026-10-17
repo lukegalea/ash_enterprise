@@ -26,9 +26,7 @@ defmodule AshEnterprise.Assistant.Tools.Proposals do
          %{
            "proposed" => proposal.summary,
            "proposal" => Proposal.to_wire(proposal),
-           "status" =>
-             "Waiting for the person to confirm it on screen. Nothing has happened yet: " <>
-               "say what you proposed and that it runs when they confirm."
+           "status" => status(proposal.kind)
          }}
       else
         {:error, message} when is_binary(message) -> Support.refused("Not proposed: " <> message)
@@ -36,6 +34,16 @@ defmodule AshEnterprise.Assistant.Tools.Proposals do
       end
     end)
   end
+
+  defp status(:draft_reply),
+    do:
+      "Waiting for the person to confirm it on screen. Nothing is stored yet, and the " <>
+        "draft is never sent, now or later: say you proposed a draft for them to save."
+
+  defp status(_kind),
+    do:
+      "Waiting for the person to confirm it on screen. Nothing has happened yet: " <>
+        "say what you proposed and that it runs when they confirm."
 
   defp build(:task, %{change: :add} = args, actor, tenant),
     do: Proposal.create_task(actor, tenant, args[:title] || "", args[:due])

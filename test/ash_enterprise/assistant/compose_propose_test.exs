@@ -233,6 +233,20 @@ defmodule AshEnterprise.Assistant.ComposeProposeTest do
       refused = tool!(ctx, AshEnterprise.Assistant.Propose, :propose_sync, %{})
       assert refused["error"] =~ "no active linked accounts"
 
+      account = D.linked_account!(ctx, "google-mail")
+
+      refused = tool!(ctx, AshEnterprise.Assistant.Propose, :propose_sync, %{account: :slack})
+      assert refused["error"] =~ "no active slack account"
+
+      result = tool!(ctx, AshEnterprise.Assistant.Propose, :propose_sync, %{account: :gmail})
+      assert result["proposed"] == "Sync gmail now"
+      assert result["proposal"] == %{"kind" => "sync_now", "account_ids" => [account.id]}
+
+      assert {:ok, %Proposal{params: [%{record_id: id}]}} =
+               Proposal.from_wire(result["proposal"], ctx.actor, ctx.tenant)
+
+      assert id == account.id
+
       for kind <- Proposal.decision_kinds() do
         assert {:error, message} = Proposal.decision(kind, ctx.actor, ctx.tenant, nil)
         assert message =~ "not proposed from the chat"

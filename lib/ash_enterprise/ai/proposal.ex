@@ -84,6 +84,9 @@ defmodule AshEnterprise.AI.Proposal do
 
   @decisions [:decide_brief, :decide_task, :steward_verdict]
 
+  # The names a person uses for an integration, and its provider config key.
+  @providers %{"gmail" => "google-mail", "calendar" => "google-calendar", "slack" => "slack"}
+
   @doc """
   Builds a role-assignment proposal from names a human would use.
 
@@ -263,7 +266,7 @@ defmodule AshEnterprise.AI.Proposal do
     provider = provider && provider |> to_string() |> String.trim() |> String.downcase()
 
     with {:ok, accounts} <- own_accounts(actor, tenant, provider) do
-      keys = accounts |> Enum.map(& &1.provider_config_key) |> Enum.uniq()
+      keys = accounts |> Enum.map(&provider_name(&1.provider_config_key)) |> Enum.uniq()
 
       {:ok,
        %__MODULE__{
@@ -353,7 +356,7 @@ defmodule AshEnterprise.AI.Proposal do
       chosen = Enum.filter(accounts, &(&1.id in ids))
 
       if length(chosen) == length(ids) and chosen != [] do
-        keys = chosen |> Enum.map(& &1.provider_config_key) |> Enum.uniq()
+        keys = chosen |> Enum.map(&provider_name(&1.provider_config_key)) |> Enum.uniq()
 
         {:ok,
          %__MODULE__{
@@ -463,16 +466,22 @@ defmodule AshEnterprise.AI.Proposal do
   end
 
   defp own_accounts(actor, tenant, provider) do
+    key = Map.get(@providers, provider, provider)
+
     with {:ok, accounts} <- own_accounts(actor, tenant, nil) do
-      case Enum.filter(accounts, &(&1.provider_config_key =~ provider)) do
+      case Enum.filter(accounts, &(&1.provider_config_key == key)) do
         [] ->
-          keys = accounts |> Enum.map(& &1.provider_config_key) |> Enum.uniq()
-          {:error, "You have no active #{provider} account. Yours: #{Enum.join(keys, ", ")}."}
+          names = accounts |> Enum.map(&provider_name(&1.provider_config_key)) |> Enum.uniq()
+          {:error, "You have no active #{provider} account. Yours: #{Enum.join(names, ", ")}."}
 
         matching ->
           {:ok, matching}
       end
     end
+  end
+
+  defp provider_name(key) do
+    Enum.find_value(@providers, key, fn {name, config_key} -> if config_key == key, do: name end)
   end
 
   # A record ref (`inbox:<id>`) or a bare id.

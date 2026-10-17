@@ -64,6 +64,7 @@ defmodule AshEnterprise.Assistant.Composer do
       default: ~w(title due_at status),
       read: "mine",
       dates: {"due_at", nil},
+      labels: %{"due_at" => "Due"},
       lanes: ~w(status),
       statuses: ~w(open done cancelled),
       sort: {"due_at", "asc"},
@@ -120,6 +121,7 @@ defmodule AshEnterprise.Assistant.Composer do
       default: ~w(name subject_label waiting_since),
       read: "awaiting_me",
       dates: {"due_at", nil},
+      labels: %{"due_at" => "Due", "subject_label" => "Subject"},
       lanes: ~w(status),
       sort: nil,
       sortable: []
@@ -129,6 +131,7 @@ defmodule AshEnterprise.Assistant.Composer do
       label: "Reply drafts",
       columns: ~w(conversation_subject body created_on),
       default: ~w(conversation_subject body created_on),
+      labels: %{"conversation_subject" => "Conversation", "created_on" => "Drafted"},
       read: "mine",
       sort: {"created_on", "desc"},
       sortable: ~w(created_on)
@@ -255,12 +258,14 @@ defmodule AshEnterprise.Assistant.Composer do
 
     with {:ok, component, query, notes} <-
            component(display, request, entry, columns, notes) do
-      spec = %{
-        "resource" => request["show"],
-        "title" => structural_title(Map.put(request, "display", display)),
-        "components" => [component],
-        "queries" => [query]
-      }
+      spec =
+        %{
+          "resource" => request["show"],
+          "title" => structural_title(Map.put(request, "display", display)),
+          "components" => [component],
+          "queries" => [query]
+        }
+        |> put_present("fields", field_overrides(entry, columns))
 
       {:ok, spec, notes}
     end
@@ -321,6 +326,8 @@ defmodule AshEnterprise.Assistant.Composer do
 
         component = %{
           "kind" => "table",
+          # A board is headed by its component's name.
+          "name" => request["show"],
           "display" => "board",
           "fields" => columns,
           "read_action" => read_action(request, entry),
@@ -423,6 +430,33 @@ defmodule AshEnterprise.Assistant.Composer do
   end
 
   defp enum_values(%{constraints: constraints}), do: Keyword.get(constraints, :one_of, [])
+
+  # Labels from the catalogue, and datetime columns shown as dates rather
+  # than raw timestamps.
+  defp field_overrides(entry, columns) do
+    labels = Map.get(entry, :labels, %{})
+
+    columns
+    |> Enum.flat_map(fn column ->
+      override =
+        %{}
+        |> put_present("label", labels[column])
+        |> put_present("format", if(datetime?(entry.resource, column), do: "date"))
+
+      if override == %{}, do: [], else: [Map.put(override, "name", column)]
+    end)
+    |> case do
+      [] -> nil
+      overrides -> overrides
+    end
+  end
+
+  defp datetime?(resource, column) do
+    case Ash.Resource.Info.attribute(resource, String.to_existing_atom(column)) do
+      %{type: type} -> type in [Ash.Type.UtcDatetimeUsec, Ash.Type.UtcDatetime, Ash.Type.DateTime]
+      nil -> false
+    end
+  end
 
   defp granularity(window, _source) when window in ["today", "tomorrow"], do: "day"
 

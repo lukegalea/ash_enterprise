@@ -205,7 +205,7 @@ defmodule AshEnterprise.MixProject do
 
   def cli do
     [
-      preferred_envs: [precommit: :test]
+      preferred_envs: [precommit: :test, "ash_enterprise.assistant.eval": :test]
     ]
   end
 
