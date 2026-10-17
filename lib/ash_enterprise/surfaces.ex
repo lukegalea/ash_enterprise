@@ -90,12 +90,6 @@ defmodule AshEnterprise.Surfaces do
         "Customer files imported, matched into golden records, and the matches a person decides."
     },
     %{
-      key: :canonical,
-      label: "Canonical",
-      menu: :data,
-      blurb: "The canonical contracting model: parties, contracts, commitments."
-    },
-    %{
       key: :legacy,
       label: "Legacy",
       menu: :data,
@@ -609,55 +603,6 @@ defmodule AshEnterprise.Surfaces do
       acp: %{command: "import batches", aliases: ["batches"]}
     },
 
-    # --- Canonical ---------------------------------------------------------------
-    %Surface{
-      key: :canonical_parties,
-      label: "Canonical parties",
-      blurb: "Parties in the canonical contracting model.",
-      description:
-        "Parties in the canonical contracting model, served by the canonical Ash resource.",
-      group: :canonical,
-      order: 0,
-      icon: "hero-building-storefront",
-      path: "/app/canonical-parties",
-      live: A2uiLive.CanonicalParties,
-      ui: A2ui.CanonicalPartyUI,
-      resource: AshEnterprise.Contracts.Party,
-      context: :party,
-      acp: %{command: "canonical parties", aliases: ["parties"]}
-    },
-    %Surface{
-      key: :canonical_contracts,
-      label: "Canonical contracts",
-      blurb: "Contracts in the canonical contracting model.",
-      description:
-        "Contracts in the canonical contracting model, served by the canonical Ash resource.",
-      group: :canonical,
-      order: 10,
-      icon: "hero-document-text",
-      path: "/app/canonical-contracts",
-      live: A2uiLive.CanonicalContracts,
-      ui: A2ui.CanonicalContractUI,
-      resource: AshEnterprise.Contracts.Contract,
-      context: :contract,
-      acp: %{command: "canonical contracts", aliases: ["contracts"]}
-    },
-    %Surface{
-      key: :canonical_commitments,
-      label: "Canonical commitments",
-      blurb: "Commitments in the canonical contracting model.",
-      description:
-        "Commitments in the canonical contracting model, served by the canonical Ash resource.",
-      group: :canonical,
-      order: 20,
-      icon: "hero-document-check",
-      path: "/app/canonical-commitments",
-      live: A2uiLive.CanonicalCommitments,
-      ui: A2ui.CanonicalCommitmentUI,
-      resource: AshEnterprise.Contracts.Commitment,
-      acp: %{command: "canonical commitments", aliases: ["commitments"]}
-    },
-
     # --- Legacy ------------------------------------------------------------------
     %Surface{
       key: :legacy_users,
@@ -676,118 +621,6 @@ defmodule AshEnterprise.Surfaces do
       ui: A2ui.LegacyUserUI,
       resource: AshEnterprise.Legacy.User,
       acp: %{command: "legacy users"}
-    },
-    %Surface{
-      key: :legacy_parties,
-      label: "Legacy parties",
-      blurb: "Legacy Contract Lifecycle Management parties.",
-      description: "Legacy Contract Lifecycle Management parties through the compatibility view.",
-      group: :legacy,
-      order: 10,
-      icon: "hero-building-storefront",
-      path: "/app/legacy-parties",
-      live: A2uiLive.LegacyParties,
-      ui: A2ui.LegacyPartyUI,
-      resource: AshEnterprise.Contracts.Party,
-      acp: %{command: "legacy parties"}
-    },
-    %Surface{
-      key: :legacy_vendor_parties,
-      label: "Legacy vendor parties",
-      blurb: "Legacy vendors.",
-      description: "Legacy vendor parties through the compatibility view.",
-      group: :legacy,
-      order: 20,
-      icon: "hero-wrench-screwdriver",
-      path: "/app/legacy-vendor-parties",
-      live: A2uiLive.LegacyVendorParties,
-      ui: A2ui.LegacyVendorPartyUI,
-      resource: AshEnterprise.Contracts.PartyFromVendor,
-      acp: %{command: "legacy vendor parties", aliases: ["legacy vendors"]}
-    },
-    %Surface{
-      key: :legacy_enterprise_parties,
-      label: "Legacy enterprise parties",
-      blurb: "Legacy enterprises.",
-      description: "Legacy enterprise parties through the compatibility view.",
-      group: :legacy,
-      order: 30,
-      icon: "hero-building-office",
-      path: "/app/legacy-enterprise-parties",
-      live: A2uiLive.LegacyEnterpriseParties,
-      ui: A2ui.LegacyEnterprisePartyUI,
-      resource: AshEnterprise.Contracts.PartyFromEnterprise,
-      acp: %{command: "legacy enterprise parties", aliases: ["legacy enterprises"]}
-    },
-    %Surface{
-      key: :legacy_contracting_processes,
-      label: "Legacy RFQs",
-      blurb: "Legacy RFQs.",
-      description: "Legacy RFQs through the compatibility view.",
-      group: :legacy,
-      order: 40,
-      icon: "hero-megaphone",
-      path: "/app/legacy-contracting-processes",
-      live: A2uiLive.LegacyContractingProcesses,
-      ui: A2ui.LegacyContractingProcessUI,
-      resource: AshEnterprise.Contracts.ContractingProcess,
-      acp: %{command: "legacy rfqs"}
-    },
-    %Surface{
-      key: :legacy_party_roles,
-      label: "Legacy party roles",
-      blurb: "Legacy RFQ party roles.",
-      description: "Legacy RFQ party roles through the compatibility view.",
-      group: :legacy,
-      order: 50,
-      icon: "hero-tag",
-      path: "/app/legacy-party-roles",
-      live: A2uiLive.LegacyPartyRoles,
-      ui: A2ui.LegacyPartyRoleUI,
-      resource: AshEnterprise.Contracts.PartyRole,
-      acp: %{command: "legacy party roles"}
-    },
-    %Surface{
-      key: :legacy_contracts,
-      label: "Legacy contracts",
-      blurb: "Legacy contracts.",
-      description: "Legacy contracts through the compatibility view.",
-      group: :legacy,
-      order: 60,
-      icon: "hero-document-text",
-      path: "/app/legacy-contracts",
-      live: A2uiLive.LegacyContracts,
-      ui: A2ui.LegacyContractUI,
-      resource: AshEnterprise.Contracts.Contract,
-      acp: %{command: "legacy contracts"}
-    },
-    %Surface{
-      key: :legacy_contract_lines,
-      label: "Legacy contract lines",
-      blurb: "Legacy quotes.",
-      description: "Legacy quotes through the compatibility view.",
-      group: :legacy,
-      order: 70,
-      icon: "hero-list-bullet",
-      path: "/app/legacy-contract-lines",
-      live: A2uiLive.LegacyContractLines,
-      ui: A2ui.LegacyContractLineUI,
-      resource: AshEnterprise.Contracts.ContractLine,
-      acp: %{command: "legacy contract lines", aliases: ["legacy quotes"]}
-    },
-    %Surface{
-      key: :legacy_commitments,
-      label: "Legacy commitments",
-      blurb: "Legacy compliance documents.",
-      description: "Legacy compliance documents through the compatibility view.",
-      group: :legacy,
-      order: 80,
-      icon: "hero-document-check",
-      path: "/app/legacy-commitments",
-      live: A2uiLive.LegacyCommitments,
-      ui: A2ui.LegacyCommitmentUI,
-      resource: AshEnterprise.Contracts.Commitment,
-      acp: %{command: "legacy commitments"}
     }
   ]
 

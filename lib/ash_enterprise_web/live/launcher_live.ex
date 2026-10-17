@@ -213,7 +213,6 @@ defmodule AshEnterpriseWeb.LauncherLive do
           <h2 class="font-heading text-lg">Helpers</h2>
           <div class="flex flex-wrap items-center gap-2.5">
             <.button navigate={~p"/agent"} variant="primary" size="sm">Helper</.button>
-            <.button navigate={~p"/canonical/agent"} size="sm">Canonical helper</.button>
             <.button navigate={~p"/legacy/agent"} size="sm">Legacy helper</.button>
             <%= if @dev_routes? do %>
               <span class="ms-2 text-xs font-heading uppercase tracking-wide text-foreground/60">
@@ -244,7 +243,6 @@ defmodule AshEnterpriseWeb.LauncherLive do
   defp accent(:compliance), do: "red"
   defp accent(:org), do: "green"
   defp accent(:data), do: "cyan"
-  defp accent(:canonical), do: "yellow"
   defp accent(:legacy), do: "pink"
   defp accent(_group), do: nil
 end
