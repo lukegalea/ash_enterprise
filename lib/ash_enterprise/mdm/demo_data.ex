@@ -70,19 +70,19 @@ defmodule AshEnterprise.Mdm.DemoData do
       |> Ash.Query.limit(1)
       |> Ash.read_one!(tenant: platform.id, authorize?: false)
 
-    case latest do
-      %{xml: ^xml} ->
-        :unchanged
+    # The definition stores its XML trimmed (Ash trims string attributes), so
+    # compare trimmed: the file's trailing newline is not a change.
+    if latest && String.trim(latest.xml) == String.trim(xml) do
+      :unchanged
+    else
+      published =
+        Definition.create!(%{key: @steward_key, name: "MDM steward review", xml: xml},
+          actor: SystemActor.process(),
+          tenant: platform.id
+        )
+        |> Definition.publish!(actor: SystemActor.process(), tenant: platform.id)
 
-      _none_or_stale ->
-        published =
-          Definition.create!(%{key: @steward_key, name: "MDM steward review", xml: xml},
-            actor: SystemActor.process(),
-            tenant: platform.id
-          )
-          |> Definition.publish!(actor: SystemActor.process(), tenant: platform.id)
-
-        {:published, published.version}
+      {:published, published.version}
     end
   end
 
