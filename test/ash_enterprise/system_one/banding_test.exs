@@ -130,6 +130,22 @@ defmodule AshEnterprise.SystemOne.BandingTest do
       refute is_nil(fact.valid_at)
     end
 
+    test "an admitted false is a value: the fact holds false, it is not dropped", ctx do
+      resolver =
+        stub_resolver(
+          %{"band" => "admit", "fact_value" => false, "reason_code" => "auto_fail"},
+          ["DecisionRule_1"]
+        )
+
+      assert {:ok, %{band: :admit, materialisation: :materialised, banding: banding}} =
+               Step.band([answer()], band_opts(ctx.org, resolver: resolver))
+
+      assert banding.fact_value == false
+      assert [fact] = facts_for(ctx.org, "commit-1")
+      assert fact.value == false
+      assert fact.holds == false
+    end
+
     test "review records the banding, materialises no fact", ctx do
       resolver =
         stub_resolver(%{"band" => "review", "reason_code" => "borderline"}, ["DecisionRule_2"])
