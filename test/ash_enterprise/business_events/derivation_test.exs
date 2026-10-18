@@ -62,6 +62,9 @@ defmodule AshEnterprise.BusinessEvents.DerivationTest do
 
   defp recorded(fact), do: %{id: Ash.UUID.generate(), data: fact.data}
 
+  # A conversation's current start, as the recorder reads it back.
+  defp started(fact), do: %{id: Ash.UUID.generate(), occurred_at: fact.occurred_at}
+
   describe "calendar events" do
     test "first sight of a live event is scheduled; the state is carried, the content is not" do
       event = calendar_event()
@@ -182,6 +185,90 @@ defmodule AshEnterprise.BusinessEvents.DerivationTest do
 
     test "a message with no conversation yet derives only itself" do
       assert [%{event_kind: :"message.received"}] = Derivation.message(message(), nil)
+    end
+  end
+
+  describe "a conversation's start, corrected (BIZEV-9)" do
+    test "a message sent before the current start supersedes it" do
+      later = message(%{sent_at: ~U[2026-10-12 09:00:00.000000Z]})
+      [_, start] = Derivation.message(later, conversation(later), nil)
+      current = started(start)
+
+      earlier =
+        message(%{
+          id: Ash.UUID.generate(),
+          external_id: "msg-0",
+          sent_at: ~U[2026-10-12 07:00:00.000000Z],
+          conversation_id: later.conversation_id
+        })
+
+      assert [_, correction] = Derivation.message(earlier, conversation(later), current)
+
+      assert correction.event_kind == :"conversation.started"
+      assert correction.supersedes_event_id == current.id
+      assert correction.occurred_at == earlier.sent_at
+      assert correction.data["first_message_id"] == earlier.id
+      assert correction.subject_external_id == start.subject_external_id
+      assert Map.keys(correction.data) -- @carried_by_conversation == []
+
+      # A new fact, not the first start again; derived twice, one key.
+      refute correction.delivery_key == start.delivery_key
+      assert [_, again] = Derivation.message(earlier, conversation(later), current)
+      assert again.delivery_key == correction.delivery_key
+    end
+
+    test "a message sent at or after the current start derives no conversation fact" do
+      first = message()
+      [_, start] = Derivation.message(first, conversation(first), nil)
+
+      for sent_at <- [first.sent_at, DateTime.add(first.sent_at, 60)] do
+        later = message(%{id: Ash.UUID.generate(), external_id: "msg-2", sent_at: sent_at})
+
+        assert [%{event_kind: :"message.received"}] =
+                 Derivation.message(later, conversation(first), started(start))
+      end
+    end
+
+    test "the first start keeps the key it had before corrections existed" do
+      first = message()
+      [_, start] = Derivation.message(first, conversation(first), nil)
+      refute Map.has_key?(start, :supersedes_event_id)
+      assert [_, ^start] = Derivation.message(first, conversation(first))
+    end
+  end
+
+  describe "a shred's tombstone" do
+    test "names the scope and counts the owner's facts; nothing else" do
+      scope = %{
+        id: Ash.UUID.generate(),
+        kind: :connection,
+        ref: "SECRET-CONNECTION-REF",
+        label: "SECRET LABEL",
+        shredded_at: ~U[2026-10-18 12:00:00.000000Z]
+      }
+
+      owner = %{organization_id: Ash.UUID.generate(), owner_id: Ash.UUID.generate()}
+      tombstone = Derivation.shredded(scope, owner, 4, :ca)
+
+      assert tombstone.subject_external_id == scope.id
+      assert tombstone.occurred_at == scope.shredded_at
+
+      assert tombstone.data == %{
+               "subject" => scope.id,
+               "region" => "ca",
+               "erasure_scope_id" => scope.id,
+               "scope_kind" => "connection",
+               "facts" => 4
+             }
+
+      refute inspect(tombstone) =~ "SECRET"
+
+      other_owner = %{owner | owner_id: Ash.UUID.generate()}
+
+      refute Derivation.shredded(scope, other_owner, 4, :ca).delivery_key ==
+               tombstone.delivery_key
+
+      assert Derivation.shredded(scope, owner, 5, :ca).delivery_key == tombstone.delivery_key
     end
   end
 

@@ -170,6 +170,7 @@ defmodule AshEnterprise.Security.Privilege do
     "AshEnterprise.Assistant.PinnedApp",
     "AshEnterprise.Assistant.ReplyDraft",
     "AshEnterprise.BusinessEvents.Ledger",
+    "AshEnterprise.BusinessEvents.Ledger.SimulationEvent",
     "AshEnterprise.Canonical.Conversation",
     "AshEnterprise.Canonical.ConversationParticipant",
     "AshEnterprise.Canonical.EventAttendee",

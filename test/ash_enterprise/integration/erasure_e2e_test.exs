@@ -628,7 +628,8 @@ defmodule AshEnterprise.Integration.ErasureE2ETest do
   # name and email are not sealed (runbook, "Not reached"), and the test below
   # says so rather than pretending otherwise.
   @swept_tables ~w(ingestion_source_objects canonical_calendar_events canonical_messages
-                   canonical_conversations business_events integration_linked_accounts erasure_scopes
+                   canonical_conversations business_events business_simulation_events
+                   integration_linked_accounts erasure_scopes
                    integration_calendar_sync_cursors integration_gmail_sync_states
                    integration_slack_conversation_cursors integration_slack_known_members
                    oban_jobs)
@@ -654,14 +655,22 @@ defmodule AshEnterprise.Integration.ErasureE2ETest do
   defp calendar_ids, do: [F.primary_calendar(), F.team_calendar()]
 
   # The projection recorded its facts (ADR 0051), the shred left them in place
-  # and every chain verifiable; `@swept_tables` already proves they spell
-  # nothing.
+  # and every chain verifiable, and recorded one tombstone in the owner's
+  # stream naming the scope and counting the facts that point at it;
+  # `@swept_tables` already proves none of it spells anything.
   defp assert_business_events_outlive_shred(ctx, kinds) do
     facts = BusinessEvents.Ledger.by_region!(:test, tenant: ctx.org.id, authorize?: false)
-    recorded = MapSet.new(facts, & &1.action)
+    {tombstones, derived} = Enum.split_with(facts, &(&1.action == :"retention.subject_erased"))
+    recorded = MapSet.new(derived, & &1.action)
 
     for kind <- kinds, do: assert(kind in recorded, "no #{kind} fact recorded")
     assert Enum.all?(facts, &(&1.owner_id == ctx.user.id))
+
+    assert [tombstone] = tombstones
+    assert Enum.all?(derived, &(&1.data["erasure_scope_id"] == tombstone.subject_external_id))
+    assert tombstone.data["facts"] == length(derived)
+    assert tombstone.sequence > Enum.max_by(derived, & &1.sequence).sequence
+
     assert %{findings: [], checked: checked} = VerifyChains.verify(BusinessEvents.Ledger, :test)
     assert checked == length(facts)
   end

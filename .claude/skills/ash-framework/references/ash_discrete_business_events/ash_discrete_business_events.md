@@ -179,7 +179,14 @@ platform through.
   starts with `sim:` — the prefix is reserved by convention and nothing
   refuses it.
 - Any surface listing event history labels simulated runs; read them
-  with `AshDiscreteBusinessEvents.simulation_runs/1`.
+  with `AshDiscreteBusinessEvents.simulation_runs/1,2` (the second
+  argument is the read's options — a multitenant twin needs `tenant:`).
+- A ledger on your own base should pass that base as
+  `simulation_base: {MyBase, use_opts}`, so the twin gets your tenancy,
+  changes and policies too. `use_opts` must bring both
+  `AshEvents.EventLog` and `AshDiscreteBusinessEvents.Ledger.Extension`;
+  the twin refuses to compile otherwise. Without the option the twin is
+  a bare resource with no policies of yours.
 
 ## Retention & erasure (BIZEV-12)
 
@@ -192,6 +199,10 @@ platform through.
   raw rows are deleted. Erasure is local — the next sync re-lands the
   subject's current state as new history.
 - Never put payload values in a tombstone.
+- A multitenant or owned ledger passes `record_opts:` (`tenant:`,
+  `actor:`, `authorize?:`) and `context:` to either action. A host whose
+  erasure is its own builds the same tombstone with
+  `Retention.tombstone/5` and records it through its ledger's `record`.
 
 ## The BPMN trigger bridge (BIZEV-13)
 

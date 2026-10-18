@@ -14,14 +14,24 @@ defmodule AshEnterprise.BusinessEvents.Derivation do
   | `calendar_event.changed` | `starts_at`, `ends_at`, `status` or `organizer_id` differs from the last fact | the row's `updated_at` |
   | `calendar_event.cancelled` | status became `:cancelled` (first sight included) | the row's `updated_at` |
   | `message.received` / `message.sent` | a message, by direction | `sent_at` |
-  | `conversation.started` | the first message observed in a conversation | that message's `sent_at` |
+  | `conversation.started` | the first message observed in a conversation, or a later-observed message sent before it | that message's `sent_at` |
 
   A calendar event's `occurred_at` is the canonical write time, not the
   provider's modification time: the projection does not carry Google's
   `updated` yet, and an honest knowledge-time proxy beats an invented
-  truth time. A message's is its `sent_at`, the source's own. A later
-  arriving earlier message does not move a conversation's start (that
-  correction is BIZEV-9's).
+  truth time. A message's is its `sent_at`, the source's own.
+
+  ## Corrections (BIZEV-9)
+
+  A conversation's start is the earliest message seen so far, and messages
+  do not arrive in send order (a backfilled thread, a delayed Slack page).
+  When a message sent before the conversation's current start is observed,
+  a new `conversation.started` fact records the earlier start, with
+  `supersedes_event_id` pointing at the start it corrects. Nothing is
+  rewritten: the earlier fact keeps its row and its place in the chain, and
+  a consumer reads the current start as the latest fact that is not
+  superseded. A message sent at or after the current start derives no
+  conversation fact.
 
   ## What a fact may carry
 
@@ -74,7 +84,9 @@ defmodule AshEnterprise.BusinessEvents.Derivation do
     ],
     conversation: [
       kinds: ~w(conversation.started),
-      carries: ~w(conversation_id first_message_id kind erasure_scope_id)
+      carries: ~w(conversation_id first_message_id kind erasure_scope_id),
+      # A later-observed message sent before the current start supersedes it.
+      supersedes_when: ~w(earlier_sent_at)
     ]
   ]
 
@@ -83,6 +95,7 @@ defmodule AshEnterprise.BusinessEvents.Derivation do
                 |> Base.encode16(case: :lower)
 
   @type fact :: %{
+          optional(:supersedes_event_id) => String.t(),
           event_kind: atom(),
           subject_type: String.t(),
           subject_stream: atom(),
@@ -146,14 +159,19 @@ defmodule AshEnterprise.BusinessEvents.Derivation do
 
   @doc """
   The facts a message implies: received or sent, and — when its
-  conversation is given — that conversation's start (which collapses onto
-  the first one recorded).
+  conversation is given — that conversation's start. `current_start` is the
+  conversation's latest `conversation.started` fact (`nil` if none): with
+  none, this message starts it; when this message was sent before it, a
+  correction superseding it; otherwise no conversation fact.
   """
-  @spec message(map(), map() | nil) :: [fact()]
-  def message(message, conversation) do
+  @spec message(map(), map() | nil, map() | nil) :: [fact()]
+  def message(message, conversation, current_start \\ nil) do
     case stream(message) do
       {:ok, stream} ->
-        [message_fact(message, stream) | conversation_started(message, conversation)]
+        [
+          message_fact(message, stream)
+          | conversation_started(message, conversation, current_start)
+        ]
 
       :skip ->
         []
@@ -187,34 +205,88 @@ defmodule AshEnterprise.BusinessEvents.Derivation do
     }
   end
 
-  defp conversation_started(_message, nil), do: []
+  defp conversation_started(_message, nil, _current), do: []
 
-  defp conversation_started(message, conversation) do
-    case stream(conversation) do
-      {:ok, stream} ->
-        [
-          %{
-            event_kind: :"conversation.started",
-            subject_type: "conversation",
-            subject_stream: stream,
-            subject_external_id: conversation.external_id,
-            actor_type: message.sender_id && "canonical.person",
-            actor_external_id: message.sender_id,
-            occurred_at: message.sent_at,
-            data: %{
-              "conversation_id" => conversation.id,
-              "first_message_id" => message.id,
-              "kind" => conversation.kind && Atom.to_string(conversation.kind),
-              "erasure_scope_id" => conversation.erasure_scope_id
-            },
-            provenance: provenance("conversation", conversation.id),
-            delivery_key: delivery_key(["conversation.started", stream, conversation.external_id])
-          }
-        ]
-
-      :skip ->
-        []
+  defp conversation_started(message, conversation, current) do
+    with {:ok, stream} <- stream(conversation),
+         {:ok, supersedes} <- start_outcome(message, current) do
+      [
+        %{
+          event_kind: :"conversation.started",
+          subject_type: "conversation",
+          subject_stream: stream,
+          subject_external_id: conversation.external_id,
+          actor_type: message.sender_id && "canonical.person",
+          actor_external_id: message.sender_id,
+          occurred_at: message.sent_at,
+          data: %{
+            "conversation_id" => conversation.id,
+            "first_message_id" => message.id,
+            "kind" => conversation.kind && Atom.to_string(conversation.kind),
+            "erasure_scope_id" => conversation.erasure_scope_id
+          },
+          provenance: provenance("conversation", conversation.id),
+          # The first start keeps the key it always had, so a ledger written
+          # before corrections existed collapses onto it. A correction is
+          # keyed by what it supersedes: derived twice, it records once.
+          delivery_key:
+            delivery_key(
+              ["conversation.started", stream, conversation.external_id] ++
+                List.wrap(supersedes)
+            )
+        }
+        |> put_supersedes(supersedes)
+      ]
+    else
+      _nothing -> []
     end
+  end
+
+  # No start yet: this message starts the conversation. A start sent after
+  # this message: superseded by it. Otherwise this message is not the start.
+  defp start_outcome(_message, nil), do: {:ok, nil}
+
+  defp start_outcome(message, %{id: id, occurred_at: started_at}) do
+    if DateTime.compare(message.sent_at, started_at) == :lt,
+      do: {:ok, id},
+      else: :not_earlier
+  end
+
+  defp put_supersedes(fact, nil), do: fact
+  defp put_supersedes(fact, id), do: Map.put(fact, :supersedes_event_id, id)
+
+  @doc """
+  The tombstone a shred leaves in one owner's stream: the subject (the
+  erasure scope), the structural facts carried, and the delivery key that
+  makes recording it twice record it once. `held` is how many of the
+  owner's facts point at the scope. Ids and a count only, like every fact
+  here: never the scope's `ref` or `label`.
+  """
+  @spec shredded(map(), map(), non_neg_integer(), atom()) :: %{
+          subject_external_id: String.t(),
+          occurred_at: DateTime.t(),
+          data: map(),
+          delivery_key: String.t()
+        }
+  def shredded(scope, owner, held, region) do
+    %{
+      subject_external_id: scope.id,
+      occurred_at: scope.shredded_at,
+      data: %{
+        "subject" => scope.id,
+        "region" => Atom.to_string(region),
+        "erasure_scope_id" => scope.id,
+        "scope_kind" => Atom.to_string(scope.kind),
+        "facts" => held
+      },
+      delivery_key:
+        delivery_key([
+          "retention.subject_erased",
+          scope.id,
+          owner.organization_id,
+          owner.owner_id
+        ])
+    }
   end
 
   # --- calendar ------------------------------------------------------------------

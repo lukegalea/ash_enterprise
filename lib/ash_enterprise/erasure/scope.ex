@@ -288,6 +288,9 @@ defmodule AshEnterprise.Erasure.Scope do
       change set_attribute(:shredded_at, &DateTime.utc_now/0)
       change set_attribute(:shred_reason, arg(:reason))
       change AshEnterprise.Erasure.Changes.DestroyScopeKey
+      # After the key is gone, in the same transaction: a tombstone in each
+      # affected owner's business-event stream (ADR 0051).
+      change AshEnterprise.BusinessEvents.Changes.RecordShred
     end
   end
 
