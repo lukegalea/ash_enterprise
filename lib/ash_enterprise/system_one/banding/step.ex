@@ -161,7 +161,10 @@ defmodule AshEnterprise.SystemOne.Banding.Step do
     # own collapsed value — the admit is a proposal FOR that answer) and
     # reason_code (band + definition version) — flagged for v1: compound
     # band-table outputs in boxic.
-    fact_value = fact_value_of(evaluation) || (band == :admit && answer_value(answers)) || nil
+    # `false` is a value (an admitted Noul "no"), so absence is nil only.
+    fact_value =
+      present(fact_value_of(evaluation), if(band == :admit, do: answer_value(answers)))
+
     reason_code = output_of(evaluation, "reason_code") || "band_#{band}_v#{version}"
 
     inputs_map =
@@ -232,7 +235,7 @@ defmodule AshEnterprise.SystemOne.Banding.Step do
 
   defp answer_value(answers) do
     answers
-    |> Enum.map(&(&1.answer && (Map.get(&1.answer, :value) || Map.get(&1.answer, "value"))))
+    |> Enum.map(&(&1.answer && present(Map.get(&1.answer, :value), Map.get(&1.answer, "value"))))
     |> Enum.find(&(!is_nil(&1)))
     |> case do
       nil -> nil
@@ -257,7 +260,10 @@ defmodule AshEnterprise.SystemOne.Banding.Step do
   defp band_of(evaluation), do: band_value(evaluation.outputs, :band, "band")
 
   defp fact_value_of(evaluation),
-    do: evaluation.outputs[:fact_value] || evaluation.outputs["fact_value"]
+    do: present(evaluation.outputs[:fact_value], evaluation.outputs["fact_value"])
+
+  defp present(nil, fallback), do: fallback
+  defp present(value, _fallback), do: value
 
   defp output_of(evaluation, key),
     do: evaluation.outputs[key] || evaluation.outputs[String.to_existing_atom(key)]

@@ -20,6 +20,16 @@ defmodule AshEnterprise.Canonical.Task do
   `:complete` on it. That write is the actor's own act on their own row,
   recorded under their name in the audit log; every other update to a task
   still takes a role grant.
+
+  ## A judged question (S1-53)
+
+  `:task_actionable` is a declared System One question about the title.
+  `AshEnterprise.SystemOne.JudgedFields` derives `task_actionable`,
+  `task_actionable_status` and `task_actionable_reason` from it — fields
+  that read the facts table in the task's own query — and keeps
+  `judgment_digests` current, so a retitled task's fact reads stale and
+  the `:reassess_judgments` trigger is enqueued. Changing the status or
+  the due date touches no projection field and enqueues nothing.
   """
 
   use AshEnterprise.Platform.Resource,
@@ -28,11 +38,50 @@ defmodule AshEnterprise.Canonical.Task do
     tenant?: true,
     lifecycle?: false,
     archival?: false,
-    self_service: [:capture, :mine, :complete_mine]
+    self_service: [:capture, :mine, :complete_mine],
+    extra_extensions: [
+      AshAi,
+      AshJudgments.Registry,
+      AshOban,
+      AshEnterprise.SystemOne.JudgedFields
+    ]
 
   postgres do
     table "canonical_tasks"
     repo AshEnterprise.Repo
+  end
+
+  judgments do
+    question :task_actionable do
+      type AshAi.Evaluate.Noul
+
+      instructions(
+        "Does the task title name one concrete action a person could start on and later check as done?"
+      )
+
+      version(1)
+      family(:canonical_tasks)
+      profile(:laya_cpu)
+      pii(:minimised)
+      state_projection(AshEnterprise.SystemOne.JudgedFields.RecordState)
+      state_shape(%{"title" => "string"})
+    end
+  end
+
+  oban do
+    triggers do
+      # Enqueued by the task's own write when it turns a judged fact stale
+      # (AshEnterprise.SystemOne.JudgedFields.MaintainDigests); never polled.
+      trigger :reassess_judgments do
+        action :reassess_judgments
+        queue :system_one
+        scheduler_cron false
+        max_attempts 3
+        default_actor AshEnterprise.Platform.SystemActor.oban()
+        worker_module_name AshEnterprise.Canonical.Task.ReassessJudgmentsWorker
+        scheduler_module_name AshEnterprise.Canonical.Task.ReassessJudgmentsScheduler
+      end
+    end
   end
 
   attributes do
@@ -176,7 +225,7 @@ defmodule AshEnterprise.Canonical.Task do
 
       upsert? true
       upsert_identity :unique_external
-      upsert_fields [:title, :due_at, :status, :source]
+      upsert_fields [:title, :due_at, :status, :source, :judgment_digests]
     end
   end
 

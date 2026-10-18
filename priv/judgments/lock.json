@@ -1,4 +1,8 @@
 {
+  "judgment:v0:AshEnterprise.Canonical.Task#judgments/task_actionable": {
+    "hash": "sha256:01faed99f22ca70a9a295d9d7a20c90ace35ee7cd2153e63ed5545a9988e5c06",
+    "version": 1
+  },
   "judgment:v0:AshEnterprise.SystemOne.TestSupport.EvidenceFile#judgments/document_contains": {
     "hash": "sha256:c1f19a826e4c9d40c4dffae6019426007c6e48c1968a2ce81bf47d553acca30d",
     "version": 1
