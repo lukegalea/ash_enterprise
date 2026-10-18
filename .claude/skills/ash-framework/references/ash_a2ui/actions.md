@@ -156,11 +156,22 @@ them:
   table).
 - `/prompt/values/<action>` — a prompt Modal's input values: pre-filled by
   `prompt`, cleared to `%{}` after a successful prompt `invoke`.
+- `/prompt/select/<action>/<field>` — a searchable relationship prompt
+  field's `{"search", "label"}` state.
 - `/bulk/<table>/result` — the last bulk run's outcome (`ok`, `failed`,
   `refused`, `skipped`, `errors`); rows of bulk tables carry `_selected`.
 
 On `Ash.Error.Forbidden` only an `/ui/feedback` "not authorized" error is
-emitted — no field errors, to avoid leaking policy details.
+emitted — no field errors, to avoid leaking policy details. Errors without a
+field put their own message in `/ui/feedback`; field errors stay on
+`/errors/<field>`, and those on fields the action shows no input for (an
+invoke's non-prompt fields, a form's fields without an input) are also named
+in the feedback ("Status: must equal :claimed."). Return a plain string or
+an Invalid-class `Ash.Error` with a readable message from a `via` function
+or a custom change — that text is what the user reads. Any other error (a
+raw exception such as `RuntimeError`, a data-layer error, a Framework-class
+error) can carry row values, so it reads only "The action failed." and its
+text goes to `Logger.error/1`.
 
 ## Scoping refreshes with `action` entities
 
@@ -184,20 +195,40 @@ when the entity only carries `prompt_fields`/`visible_when` — omitted means
 
 ```elixir
 action :decline do
+  label "Decline"                           # optional button text (row, bulk, prompt)
   prompt_fields [:notes]                    # args/accepts of :decline, compile-verified
-  prompt_title "Decline referral"           # optional Modal heading
+  prompt_title "Decline referral"           # optional Modal heading (default: the label)
   visible_when status: [:pending, :approved]
 end
 ```
 
+- `label` is the text of the action's row, bulk and admin buttons, its
+  prompt heading, its bulk status line and its success status ("Confirm
+  match: done."; without a label, `Action "confirm_merge" completed.`). Use it instead of a thin
+  wrapper action that exists only to rename a button.
 - `prompt_fields` renders the row action as a Modal (trigger button +
-  inputs + Confirm) and freezes the `prompt`/`invoke "values"` wire
-  contract above. Keep prompts to the action's real arguments — the handler
-  filters everything else out anyway.
+  inputs + Confirm; under the admin catalog, a dialog the dataGrid opens
+  from the entry's `prompt`) and freezes the `prompt`/`invoke "values"`
+  wire contract above. Keep prompts to the action's real arguments — the
+  handler filters everything else out anyway.
+- Prompt inputs are typed like form inputs: a `belongs_to` source
+  attribute (or a `field` with `relationship`) is a ChoicePicker over the
+  actor's options (`/options/<field>`), or the searchable-select composite
+  when the `field` declares `option_search` (its `option_select` carries
+  `"prompt"` and writes `/prompt/values/<action>/<field>`); an enumerated
+  argument is a ChoicePicker; booleans and dates get CheckBox and
+  DateTimeInput. The server still casts and validates the values, and
+  re-reads a relationship prompt value as the actor before the write: a
+  value the picker would not have offered (a spoofed or stale id) fails on
+  `/errors/<field>` ("is not one of the available options"). Form
+  relationship selects are not re-checked on submit — there, as for any
+  write, the resource's own validations and policies decide which related
+  ids are allowed.
 - `visible_when` is simple ANDed equality on public attributes or
   expression calculations (`nil` = is_nil, list = membership) —
-  deliberately not a rules engine. Rendering hides the button per row
-  (server-computed `"_actions"` / `"_visible_<action>"` row keys + a
+  deliberately not a rules engine. Rendering hides the button per row in
+  both compositions (server-computed `"_actions"` / `"_visible_<action>"`
+  row keys; the admin `rowActions` entry names it as `visiblePath`) + a
   templated slot); the handler enforcement is mandatory and independent.
   Real authorization still belongs in Ash policies — `visible_when` is UX
   scoping inside the `row_actions` allowlist.

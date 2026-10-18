@@ -3,11 +3,16 @@ defmodule AshEnterprise.Canonical.Person do
   A person in the operator's world (dogfood §11): the organizer of a meeting,
   a message correspondent, a task's assignee.
 
-  Identity for v1 is the email address and nothing else — matching the program
-  decision that entity resolution stays external-id + email, with no fuzzy
-  matching (roadmap P4). A person the fixture only knows by display name and no
-  address is not linked at all; a duplicate email merges automatically by
-  upsert, and nobody pretends that is entity resolution.
+  The projectors key a person on the email address and nothing else. A person
+  the fixture only knows by display name and no address is not linked at all,
+  and a duplicate email converges on one row by upsert. One human with two
+  addresses (a work address in Slack, another in Gmail) is two rows here;
+  resolving them is MDM's job, not the projectors' (PROD-9,
+  `AshEnterprise.Mdm.People`): the people sweep proposes the pair, a steward
+  confirms, and the merge (`:mdm_merge_into`) folds one row into the other,
+  moving its meetings, messages and conversations with it. The projectors then
+  link the merged row's address to its golden record
+  (`AshEnterprise.Canonical.Projections.Golden`).
 
   PERSONAL DATA (ADR 0042): the Gmail and Slack projectors write
   correspondents only from records their zone gate admits
@@ -287,6 +292,15 @@ defmodule AshEnterprise.Canonical.Person do
       require_atomic? false
 
       change AshEnterprise.Mdm.Changes.MergeInto
+    end
+
+    update :mdm_repoint_master do
+      description """
+      A record absorbed earlier follows its golden when that golden is itself
+      merged (and back on the unmerge), so `master_id` always names a golden.
+      """
+
+      accept [:master_id]
     end
 
     update :mdm_merge_provenance do

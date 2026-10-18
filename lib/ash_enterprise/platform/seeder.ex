@@ -108,7 +108,8 @@ defmodule AshEnterprise.Platform.Seeder do
   @doc """
   Provisions a tenant: organization, root business unit, default team, an
   administrator role granting everything at `:global` (bar the operator-only
-  privileges, and `:basic` on the owner-only ones), and an admin user.
+  privileges, and `:basic` on the owner-only ones), the starter Data Steward
+  role (`ensure_data_steward_role/2`), and an admin user.
 
   Returns `%{organization: _, business_unit: _, role: _, user: _}`.
   """
@@ -161,6 +162,7 @@ defmodule AshEnterprise.Platform.Seeder do
       |> Ash.create!()
 
     role = seed_admin_role(root, tenant, actor)
+    _steward = ensure_data_steward_role(tenant, dry_run?: false)
     user = seed_admin_user(email, password, root, organization)
 
     Security.UserRole
@@ -400,6 +402,188 @@ defmodule AshEnterprise.Platform.Seeder do
     else
       0
     end
+  end
+
+  @data_steward "Data Steward"
+
+  # What a steward needs and nothing more: the queue and its verdicts
+  # (read and write on match candidates — `:confirm`, `:reject` and
+  # `:escalate` are updates), the rows the steward surfaces show beside them
+  # (staged rows, import batches, the mappings a batch pinned, the source
+  # identities a golden's lineage lists), the goldens they own (Person is
+  # owner-only, so `:basic`), the human verdict each decision records as the
+  # steward, and the MDM egress departure (ADR 0054). Every verdict needs
+  # read on the candidate's golden (`GoldenReadable`), and `:basic` reaches
+  # only the steward's own: an import's goldens belong to whoever ran it, so
+  # a steward decides those once they are shared with them (ADR 0054,
+  # addendum "every verdict needs the golden"). No grant on tasks: a
+  # steward reads and acts on steward-decision tasks through candidacy
+  # (`AshEnterprise.Security.Checks.TaskCandidacy`), as a role candidate.
+  @data_steward_grants [
+    {AshEnterprise.Mdm.MatchCandidate, :read},
+    {AshEnterprise.Mdm.MatchCandidate, :write},
+    {AshEnterprise.Mdm.StagedRecord, :read},
+    {AshEnterprise.Mdm.ImportBatch, :read},
+    {AshEnterprise.Mdm.Mapping, :read},
+    {AshEnterprise.Mdm.SourceIdentity, :read},
+    {AshEnterprise.Canonical.Person, :read},
+    {AshEnterprise.SystemOne.HumanVerdict, :create},
+    {AshEnterprise.Mdm.Egress, :read}
+  ]
+
+  @doc "The starter steward role's name."
+  @spec data_steward_role() :: String.t()
+  def data_steward_role, do: @data_steward
+
+  @doc "The `{resource, verb}` grants the Data Steward role carries, each at its widest depth."
+  @spec data_steward_grants() :: [{module(), atom()}]
+  def data_steward_grants, do: @data_steward_grants
+
+  @doc """
+  Makes sure `tenant` has the starter **Data Steward** role, holding the
+  steward-queue grants and the MDM egress grant (`data_steward_grants/0`),
+  each at the widest depth its privilege allows (`:basic` on Person, which is
+  owner-only).
+
+  Idempotent and additive: creates the role in the tenant's root business
+  unit if it is missing and adds the grants it lacks; it never removes a grant
+  or touches another role, and assigns the role to nobody. A tenant that
+  narrowed the role on purpose gets the missing grants back, so this is a
+  deliberate act — `seed_tenant/1` runs it for a new tenant, and existing
+  tenants receive it through `regrant_data_steward/1`
+  (`mix ash_enterprise.platform.grant_data_steward`), not at boot.
+
+  **Dry run by default** (`dry_run?: true`): reports what it would do and
+  writes nothing. Pass `dry_run?: false` to apply.
+
+  Returns `%{tenant: id, role: :created | :exists | :would_create, added: [{resource, verb, depth}], dry_run?: boolean}`.
+  """
+  @spec ensure_data_steward_role(Ash.UUID.t(), keyword()) :: map()
+  def ensure_data_steward_role(tenant, opts \\ []) do
+    dry_run? = Keyword.get(opts, :dry_run?, true)
+    actor = SystemActor.seed()
+    ash = [actor: actor, tenant: tenant]
+
+    role =
+      Security.Role
+      |> Ash.Query.filter(name == ^@data_steward)
+      |> Ash.read_one!(ash)
+
+    held =
+      if role do
+        Security.RolePrivilege
+        |> Ash.Query.filter(role_id == ^role.id)
+        |> Ash.read!(ash)
+        |> MapSet.new(& &1.privilege_id)
+      else
+        MapSet.new()
+      end
+
+    missing =
+      for {resource, verb} <- @data_steward_grants,
+          privilege = privilege!(resource, verb, actor),
+          not MapSet.member?(held, privilege.id),
+          do: {privilege, Security.Privilege.widest_depth(privilege)}
+
+    added = Enum.map(missing, fn {p, depth} -> {p.resource_name, p.access_right, depth} end)
+
+    if dry_run? do
+      %{
+        tenant: tenant,
+        role: if(role, do: :exists, else: :would_create),
+        added: added,
+        dry_run?: true
+      }
+    else
+      {status, role} =
+        if role, do: {:exists, role}, else: {:created, create_data_steward!(tenant, actor)}
+
+      for {privilege, depth} <- missing do
+        Security.RolePrivilege
+        |> Ash.Changeset.for_create(
+          :create,
+          %{role_id: role.id, privilege_id: privilege.id, depth: depth},
+          ash
+        )
+        |> Ash.create!()
+      end
+
+      %{tenant: tenant, role: status, added: added, dry_run?: false}
+    end
+  end
+
+  @doc """
+  `ensure_data_steward_role/2` across tenants: every real tenant (not the
+  platform organization) by default, or the one named by `tenant:` (its id or
+  `unique_name`). Dry run unless `dry_run?: false`. Returns one report per
+  tenant, in the shape `ensure_data_steward_role/2` documents.
+  """
+  @spec regrant_data_steward(keyword()) :: [map()]
+  def regrant_data_steward(opts \\ []) do
+    opts
+    |> Keyword.get(:tenant)
+    |> steward_tenants()
+    |> Enum.map(&ensure_data_steward_role(&1.id, dry_run?: Keyword.get(opts, :dry_run?, true)))
+  end
+
+  defp steward_tenants(nil) do
+    platform = @platform_unique_name
+
+    Accounts.Organization
+    |> Ash.Query.filter(unique_name != ^platform or is_nil(unique_name))
+    |> Ash.Query.sort(:unique_name)
+    |> Ash.read!(actor: SystemActor.seed())
+  end
+
+  defp steward_tenants(name_or_id) do
+    # Only the canonical 36-character form is an id: `Ecto.UUID.cast/1` also
+    # takes any 16-byte string as a raw UUID, and "e2e-steward-1605" is one.
+    query =
+      if byte_size(name_or_id) == 36 and match?({:ok, _}, Ecto.UUID.cast(name_or_id)),
+        do: Ash.Query.filter(Accounts.Organization, id == ^name_or_id),
+        else: Ash.Query.filter(Accounts.Organization, unique_name == ^name_or_id)
+
+    case Ash.read!(query, actor: SystemActor.seed()) do
+      [] -> raise ArgumentError, "no tenant #{inspect(name_or_id)}"
+      tenants -> tenants
+    end
+  end
+
+  defp privilege!(resource, verb, actor) do
+    name = inspect(resource)
+
+    Security.Privilege
+    |> Ash.Query.filter(resource_name == ^name and access_right == ^verb)
+    |> Ash.read_one!(actor: actor)
+    |> case do
+      nil ->
+        raise "no #{verb} privilege for #{name}: run Seeder.seed_privileges/0 first"
+
+      privilege ->
+        privilege
+    end
+  end
+
+  defp create_data_steward!(tenant, actor) do
+    root =
+      Accounts.BusinessUnit
+      |> Ash.Query.filter(is_nil(parent_business_unit_id))
+      |> Ash.read_one!(actor: actor, tenant: tenant)
+
+    Security.Role
+    |> Ash.Changeset.for_create(
+      :create,
+      %{
+        name: @data_steward,
+        description:
+          "Decides MDM match candidates (confirm, reject, unsure) and runs the MDM egress. " <>
+            "Seeded by the platform.",
+        owning_business_unit_id: root.id
+      },
+      actor: actor,
+      tenant: tenant
+    )
+    |> Ash.create!()
   end
 
   @doc """

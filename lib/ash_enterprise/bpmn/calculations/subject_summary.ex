@@ -2,7 +2,8 @@ defmodule AshEnterprise.Bpmn.Calculations.SubjectSummary do
   @moduledoc """
   What a human task is about, for a person deciding it:
 
-    * `field: :label` — `Morning brief · Mon 12 Oct`, or the subject's kind;
+    * `field: :label` — `Morning brief · Mon 12 Oct`, `Match · Bea Smith ↔ Bea
+      Smyth` (a steward decision's pair), or the subject's kind;
     * `field: :outline` — the brief in one line (`6 events · 08:30–17:30`);
     * `field: :detail` — the morning brief's draft (rendered on read, so a
       shredded event line reads `[shredded]`), or nothing for other kinds;
@@ -26,6 +27,7 @@ defmodule AshEnterprise.Bpmn.Calculations.SubjectSummary do
 
   # The engine records a subject type as `to_string(module)` ("Elixir.…").
   @brief to_string(MorningBrief)
+  @candidate to_string(AshEnterprise.Mdm.MatchCandidate)
 
   @impl true
   def init(opts) do
@@ -46,7 +48,8 @@ defmodule AshEnterprise.Bpmn.Calculations.SubjectSummary do
   def calculate(tasks, opts, context) do
     tasks = Enum.map(tasks, &subject/1)
     briefs = briefs(tasks, opts[:field], context)
-    {:ok, Enum.map(tasks, &value(&1, opts[:field], briefs))}
+    candidates = if opts[:field] == :label, do: candidates(tasks, context), else: %{}
+    {:ok, Enum.map(tasks, &value(&1, opts[:field], Map.merge(briefs, candidates)))}
   end
 
   # A process task names its subject through its instance (the task's own
@@ -98,6 +101,36 @@ defmodule AshEnterprise.Bpmn.Calculations.SubjectSummary do
       |> Ash.Query.load(load)
       |> Ash.read!(Ash.Context.to_opts(context))
       |> Map.new(&{&1.id, &1})
+    end
+  end
+
+  # A steward-decision task names the pair it decides, as the reader may see
+  # it: the staged row and the golden are read under their own policies, so
+  # a golden the reader may not read leaves its half generic.
+  defp candidates(tasks, context) do
+    ids = for %{subject_type: @candidate, subject_id: id} <- tasks, not is_nil(id), do: id
+
+    if ids == [] do
+      %{}
+    else
+      AshEnterprise.Mdm.MatchCandidate
+      |> Ash.Query.filter(id in ^ids)
+      |> Ash.Query.load([:staged_label, :golden_label])
+      |> Ash.read!(Ash.Context.to_opts(context))
+      |> Map.new(&{&1.id, &1})
+    end
+  end
+
+  defp value(%{subject_type: @candidate, subject_id: id}, :label, found) do
+    case Map.get(found, id) do
+      %{staged_label: staged, golden_label: golden} when is_binary(golden) and golden != "" ->
+        "Match · #{staged} ↔ #{golden}"
+
+      %{staged_label: staged} ->
+        "Match · #{staged}"
+
+      nil ->
+        "Match candidate"
     end
   end
 

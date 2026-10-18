@@ -86,6 +86,9 @@ defmodule AshEnterprise.Security.Policies do
 
   ## Options
 
+    * `:extra_grants` — further grant paths (filter checks) appended to the
+      union on this resource only, e.g. `AshEnterprise.Security.Checks.TaskCandidacy`
+      on human tasks. Each is one more `authorize_if`: it can only add access.
     * `:authentication?` — prepend the `ash_authentication` bypass. Set
       automatically by `AshEnterprise.Platform.Resource` when the resource carries
       the `AshAuthentication` extension. It has to be prepended here rather than
@@ -94,6 +97,7 @@ defmodule AshEnterprise.Security.Policies do
   """
   defmacro __using__(opts) do
     authentication? = Keyword.get(opts, :authentication?, false)
+    extra_grants = Keyword.get(opts, :extra_grants, [])
 
     quote do
       policies do
@@ -173,6 +177,14 @@ defmodule AshEnterprise.Security.Policies do
           # Only for the actions a resource declares `self_service` (ADR 0052);
           # contributes nothing anywhere else.
           authorize_if AshEnterprise.Security.Checks.SelfService
+
+          # Grant paths only some resources have (`extra_grants:`), appended to
+          # the same union: more ways in, never a way out.
+          unquote_splicing(
+            for check <- extra_grants do
+              quote do: authorize_if(unquote(check))
+            end
+          )
         end
       end
     end

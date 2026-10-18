@@ -13,7 +13,12 @@ defmodule AshEnterprise.Mdm.Changes.StewardVerdict do
      its mapped values into the golden record, its source identity opens at
      the golden (the XREF the golden's provenance answers through), and the
      staged row is `:merged`. `reject` marks the staged row `:rejected` —
-     it stands alone; import completion makes it a golden of its own.
+     it stands alone; import completion makes it a golden of its own. A
+     people pair (PROD-9, `AshEnterprise.Mdm.People`) is two person rows
+     already, so its `confirm` merges the staged row's person into the
+     golden instead; this is the one verdict path, so the queue's buttons
+     and the steward-decision task (`AshEnterprise.Mdm.StewardTask`) act
+     identically.
 
   Changes run at changeset build, before policies refuse system actors, so
   the verdict work lives in `after_action` — it only ever runs for a
@@ -40,7 +45,7 @@ defmodule AshEnterprise.Mdm.Changes.StewardVerdict do
 
     judgment = record_judgment!(candidate, tenant)
     human = record_human_verdict!(candidate, judgment, verdict, actor, tenant)
-    candidate = promote(candidate, verdict, actor, tenant)
+    candidate = promote(candidate, act(verdict, candidate, tenant), actor, tenant)
 
     ref = %{"verdict" => verdict, "verdict_id" => human.id, "judgment_id" => judgment.id}
 
@@ -54,44 +59,55 @@ defmodule AshEnterprise.Mdm.Changes.StewardVerdict do
       )
       |> Ash.update!(tenant: tenant, authorize?: false)
 
-    # The process side: this decision completes the review task, which is
-    # what lets the steward-review instance finish.
-    complete_review_task!(candidate, verdict, actor, tenant)
+    # The process side: this decision completes the review task, as the
+    # person, in this transaction, which is what lets the steward-review
+    # instance finish. The engine checks they may: a candidate for an open
+    # task, the holder of a claimed one. If not, the whole verdict is refused.
+    comment = changeset.context[:steward_comment]
 
-    {:ok, candidate}
+    with :ok <- complete_review_task(candidate, verdict, comment, actor, tenant) do
+      {:ok, candidate}
+    end
   end
 
-  defp complete_review_task!(candidate, verdict, actor, tenant) do
-    # The engine does not copy the subject onto the task; the join is the
-    # instance it belongs to.
-    open_task =
-      AshEnterprise.Bpmn.Instance
-      |> Ash.Query.filter(subject_id == ^candidate.id and status == ^:running)
-      |> Ash.read_one(tenant: tenant, authorize?: false)
-      |> case do
-        {:ok, instance} when not is_nil(instance) ->
-          AshEnterprise.Bpmn.HumanTask
-          |> Ash.Query.filter(instance_id == ^instance.id and status == :open)
-          |> Ash.read_one(tenant: tenant, authorize?: false)
-          |> case do
-            {:ok, task} -> task
-            _ -> nil
-          end
-
-        _ ->
-          nil
-      end
-
-    open_task
-    |> case do
-      task when not is_nil(task) ->
-        AshBpmn.complete_task!(task, outcome: verdict, actor: actor)
-
-      _ ->
-        # No open task: the decision came from the queue before the instance
+  defp complete_review_task(candidate, verdict, comment, actor, tenant) do
+    case review_task(candidate, tenant) do
+      nil ->
+        # No live task: the decision came from the queue before the instance
         # existed, or the tenant runs no steward-review baseline. The verdict
         # rows are the record either way.
         :ok
+
+      task ->
+        case AshBpmn.complete_task(task, outcome: verdict, comment: comment, actor: actor) do
+          {:ok, _completed} ->
+            :ok
+
+          # Not a candidate, or someone else holds it: the task is not theirs
+          # to decide, so neither is the candidate while it waits on that task.
+          {:error, %ArgumentError{}} ->
+            {:error, Ash.Error.Forbidden.exception([])}
+
+          {:error, error} ->
+            {:error, error}
+        end
+    end
+  end
+
+  # The engine does not copy the subject onto the task; the join is the
+  # instance it belongs to.
+  defp review_task(candidate, tenant) do
+    with {:ok, %{} = instance} <-
+           AshEnterprise.Bpmn.Instance
+           |> Ash.Query.filter(subject_id == ^candidate.id and status == ^:running)
+           |> Ash.read_one(tenant: tenant, authorize?: false),
+         {:ok, %{} = task} <-
+           AshEnterprise.Bpmn.HumanTask
+           |> Ash.Query.filter(instance_id == ^instance.id and status in [:open, :claimed])
+           |> Ash.read_one(tenant: tenant, authorize?: false) do
+      task
+    else
+      _none -> nil
     end
   end
 
@@ -158,6 +174,25 @@ defmodule AshEnterprise.Mdm.Changes.StewardVerdict do
   end
 
   # -- the act ----------------------------------------------------------------
+
+  # PROD-9: a confirmed people pair is two person rows already, so the act
+  # merges the person, not the staged row (`AshEnterprise.Mdm.People.Pipeline`).
+  defp act("confirm", candidate, tenant) do
+    staged =
+      Ash.get!(AshEnterprise.Mdm.StagedRecord, candidate.staged_record_id,
+        tenant: tenant,
+        authorize?: false
+      )
+
+    if AshEnterprise.Mdm.People.staged?(staged), do: {:people_confirm, staged}, else: "confirm"
+  end
+
+  defp act(verdict, _candidate, _tenant), do: verdict
+
+  defp promote(candidate, {:people_confirm, staged}, _actor, tenant) do
+    AshEnterprise.Mdm.People.Pipeline.confirm!(candidate, staged, tenant)
+    candidate
+  end
 
   defp promote(candidate, "confirm", actor, tenant) do
     staged =

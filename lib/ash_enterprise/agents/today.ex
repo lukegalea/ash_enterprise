@@ -5,7 +5,8 @@ defmodule AshEnterprise.Agents.Today do
   calling actor, under their policies; nothing here holds data of its own.
 
     * `agenda/1` — today's events (time, title, where, status);
-    * `pulse/1` — approvals waiting, the next event, sync health per linked
+    * `pulse/1` — approvals waiting, people who may be the same person
+      (MDM's steward queue, when any), the next event, sync health per linked
       account, and whether the inbox and Slack are flowing;
     * `digest/1` — all of it, plus the latest morning brief, as text.
 
@@ -45,10 +46,10 @@ defmodule AshEnterprise.Agents.Today do
   @spec pulse(keyword()) :: {:ok, [map()]}
   def pulse(opts) do
     rows =
-      [
-        approvals_row(opts),
-        next_event_row(opts)
-      ] ++ account_rows(opts) ++ [inbox_row(:gmail, opts), inbox_row(:slack, opts)]
+      [approvals_row(opts)] ++
+        people_rows(opts) ++
+        [next_event_row(opts)] ++
+        account_rows(opts) ++ [inbox_row(:gmail, opts), inbox_row(:slack, opts)]
 
     {:ok, rows}
   end
@@ -106,6 +107,22 @@ defmodule AshEnterprise.Agents.Today do
       end
 
     %{signal: "Approvals", value: value}
+  end
+
+  # PROD-9: people the MDM sweep thinks are one human, waiting for this
+  # reader's verdict in the steward queue. Counts only; no line when there is
+  # nothing to review (or nothing the reader may decide).
+  defp people_rows(opts) do
+    case AshEnterprise.Mdm.People.review_count(opts) do
+      {:ok, 1} ->
+        [%{signal: "People", value: "1 pair may be the same person — review"}]
+
+      {:ok, n} when n > 1 ->
+        [%{signal: "People", value: "#{n} pairs may be the same person — review"}]
+
+      _none_or_unavailable ->
+        []
+    end
   end
 
   defp next_event_row(opts) do

@@ -1,7 +1,9 @@
 defmodule AshEnterprise.Mdm.Landing do
   @moduledoc """
-  The bizev declaration for MDM ingress: ONE fixed source/stream pair —
-  `:manual_csv` / `:upload` — declared at compile time.
+  The bizev declaration for MDM ingress: fixed source/stream pairs declared
+  at compile time — `:manual_csv` / `:upload` for CS uploads, and
+  `:canonical` / `:people` for the projected people MDM resolves across
+  sources (`AshEnterprise.Mdm.People`).
 
   The per-customer dimension is data, never atoms: the customer/dataset
   slug rides as a STRING on `ImportBatch.source_slug` and in each row's
@@ -21,6 +23,17 @@ defmodule AshEnterprise.Mdm.Landing do
       region(:us)
 
       stream :upload do
+      end
+    end
+
+    # PROD-9: the people the Gmail, Calendar and Slack projectors produced,
+    # observed per source and linked account and landed by the people sweep
+    # (`AshEnterprise.Mdm.People`). Push-only like the upload.
+    source :canonical do
+      adapter(AshEnterprise.Mdm.People.Adapter)
+      region(:us)
+
+      stream :people do
       end
     end
   end

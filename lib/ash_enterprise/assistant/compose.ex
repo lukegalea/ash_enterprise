@@ -1,0 +1,96 @@
+defmodule AshEnterprise.Assistant.Compose do
+  @moduledoc """
+  The assistant's `compose_surface` tool, as a generic action
+  (`AshEnterprise.Assistant` declares it a tool).
+
+  The model asks for a table, a calendar or a board of the person's own
+  records; `AshEnterprise.Assistant.Composer` writes the spec from a curated
+  catalogue and resolves it against the host allowlist through
+  `AshA2ui.Dynamic.resolve/2`. The tool answers the model with what was shown
+  (or short reasons it was not); the runner hands the request to the page,
+  which composes it again as the person and renders it inline in the turn
+  (`AshEnterpriseWeb.AssistantLive`). The model never sees a row through this
+  tool, and the surface it describes has no form or row action.
+
+  Self-service (ADR 0052) and zone-gated like the read tools: it reads
+  nothing itself, but it answers only the in-zone assistant.
+  """
+
+  use AshEnterprise.Platform.Resource,
+    domain: AshEnterprise.Assistant,
+    data_layer: Ash.DataLayer.Simple,
+    ownership: :none,
+    tenant?: false,
+    lifecycle?: false,
+    archival?: false,
+    audit?: false,
+    self_service: [:compose_surface]
+
+  resource do
+    require_primary_key? false
+  end
+
+  actions do
+    action :compose_surface, :map do
+      description "Show the person a table, calendar or board of their own records."
+
+      argument :show, :atom do
+        allow_nil? false
+
+        constraints one_of: [
+                      :events,
+                      :tasks,
+                      :conversations,
+                      :messages,
+                      :people,
+                      :briefs,
+                      :approvals,
+                      :drafts
+                    ]
+
+        description "What to show: events, tasks, conversations, messages, people, briefs, " <>
+                      "approvals or drafts (the person's reply drafts)."
+      end
+
+      argument :display, :atom do
+        allow_nil? true
+        constraints one_of: [:table, :calendar, :board]
+
+        description "table (default), calendar (events, tasks, messages, briefs, approvals) or " <>
+                      "board (lanes by status; messages by direction; conversations by kind)."
+      end
+
+      argument :window, :string do
+        allow_nil? true
+
+        description "today, tomorrow, this_week or upcoming. Cuts an events table; sets a " <>
+                      "calendar's span (day or week)."
+      end
+
+      argument :status, :atom do
+        allow_nil? true
+        constraints one_of: [:open, :done, :any]
+        description "Tasks only: open, done or any. Default any."
+      end
+
+      argument :channel, :atom do
+        allow_nil? true
+        constraints one_of: [:gmail, :slack, :any]
+        description "Conversations only: gmail, slack or any."
+      end
+
+      argument :columns, {:array, :string} do
+        allow_nil? true
+        description "Optional columns, in order. Leave out for the usual ones."
+      end
+
+      argument :title, :string do
+        allow_nil? true
+        constraints max_length: 80
+        description "A short heading for the person."
+      end
+
+      run AshEnterprise.Assistant.Tools.ComposeSurface
+    end
+  end
+end

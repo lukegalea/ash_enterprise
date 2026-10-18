@@ -251,14 +251,87 @@ defmodule AshEnterpriseWeb.A2ui.TaskBoardUITest do
     assert reload(task, admin.tenant).status == :completed
   end
 
-  test "a task is not delegated to someone who could not see it", %{admin: admin, task: task} do
+  # Candidacy grants read (ADR 0009, note of 2026-10-17): a candidate holding
+  # no task grant at all is someone a task may be handed to, and reads and
+  # completes it through their candidacy.
+  test "a candidate with no task grant takes a delegated task and completes it", %{
+    admin: admin,
+    task: task
+  } do
+    stranger = member!(admin, "No task grants", [])
+    candidate!(task, stranger)
+    assert {:ok, _} = invoke(admin, "claim_task", task)
+
+    assert {:ok, _} =
+             run(admin, :delegate_task, %{record_id: task.id, delegate_to: stranger.email})
+
+    assert reload(task, admin.tenant).assignee_id == stranger.user.id
+
+    # A fresh request: their context now holds the task.
+    stranger = %{stranger | actor: AshEnterprise.Test.DailyFixtures.actor(stranger.user)}
+    assert task.id in lane(stranger, "claimed")
+
+    assert {:ok, _} = invoke(stranger, "complete_task", task, %{"outcome" => "approved"})
+    done = reload(task, admin.tenant)
+    assert done.status == :completed
+    assert done.decided_by_id == stranger.user.id
+  end
+
+  test "a person with no task grant and no candidacy reads no task and acts on none", %{
+    admin: admin,
+    task: task
+  } do
     outsider = member!(admin, "No task grants", [])
     assert {:ok, _} = invoke(admin, "claim_task", task)
 
-    assert {:error, _} =
+    # Not a candidate, so not someone it may be handed to…
+    assert {:error, %Ash.Error.Invalid{} = error} =
              run(admin, :delegate_task, %{record_id: task.id, delegate_to: outsider.email})
 
+    assert Exception.message(error) =~ "not one of this task's approvers"
     assert reload(task, admin.tenant).assignee_id == admin.user.id
+
+    # …and with no live task they read nothing and run no act.
+    assert [] == Ash.read!(HumanTask, actor: outsider.actor, tenant: outsider.tenant)
+
+    for {action, args} <- [
+          claim_task: %{record_id: task.id},
+          approve: %{record_id: task.id},
+          complete_task: %{record_id: task.id, outcome: "approved"}
+        ] do
+      assert {:error, %Ash.Error.Forbidden{}} = run(outsider, action, args)
+    end
+  end
+
+  test "Complete refuses an outcome the task's step does not declare", %{
+    admin: admin,
+    task: task
+  } do
+    assert {:ok, _} = invoke(admin, "claim_task", task)
+
+    # The morning brief's step declares approved / rejected; `confirm` is
+    # another step's outcome, offered by the picker but not by this step.
+    assert {:error, %Ash.Error.Invalid{} = error} =
+             run(admin, :complete_task, %{record_id: task.id, outcome: "confirm"})
+
+    assert Exception.message(error) =~ "approved or rejected"
+
+    # Not on the picker at all: refused before the task is read.
+    assert {:error, %Ash.Error.Invalid{}} =
+             run(admin, :complete_task, %{record_id: task.id, outcome: "approvd"})
+
+    assert reload(task, admin.tenant).status == :claimed
+  end
+
+  test "the task's detail lists the outcomes its step declares", %{admin: admin, task: task} do
+    assert ["approved", "rejected"] ==
+             HumanTask
+             |> Ash.get!(task.id,
+               actor: admin.actor,
+               tenant: admin.tenant,
+               load: [:declared_outcomes]
+             )
+             |> Map.fetch!(:declared_outcomes)
   end
 
   test "only the holder of a claimed task completes it", %{admin: admin, task: task} do

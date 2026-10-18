@@ -305,6 +305,7 @@ in
       mix format --check-formatted
       mix compile --warnings-as-errors
       mix credo --strict
+      mix sobelow --config --skip --exit
       mix ash.codegen --check
       mix test
       "$DEVENV_ROOT"/scripts/iron-laws.sh

@@ -222,6 +222,54 @@ the second, the designer renders as unstyled boxes, which looks like a bad diagr
 missing file. That roughly triples the JavaScript surface of a repository that had deliberately kept
 it near zero, and it belongs in thesis 6's cost column rather than in a bundle report.
 
+## Note, 2026-10-17 — candidacy grants read, and the engine checks who acts
+
+**Context.** `ash_bpmn` (lukegalea/ash_bpmn#17, #18) now decides who may act on a human task itself:
+`AshBpmn.claim_task/2`, `complete_task/2` and `delegate_task/2` check candidacy (a `:user` row, or a
+`:team` row for one of the person's teams), holding, and maker-checker exclusion, which a task now records
+(`excluded_principal_ids`) so an excluded requester cannot act through a candidate team they belong to;
+`:claim`, `:complete` and `:delegate` refuse every caller but the engine; and the generated `:awaiting_actor`
+read lists the tasks waiting on a person. This host had its own copies of all of it
+(`AshEnterprise.Bpmn.Candidacy`, its `AwaitingActor` preparation, a hand-rolled claim, a delegatee candidacy
+check), and they are deleted. The host answers the engine's `team_ids/2` from `ActorContext`
+(`AshEnterprise.Process.AssignmentResolver`).
+
+What the engine cannot answer is whether a person may *read* a task. Before this note a candidate needed a role
+grant on `HumanTask` as well — so a person asked to approve something could be unable to open it, and a delegate
+had to be checked for a read grant before a task could be handed to them.
+
+**Decision.** Being asked to act on a task lets you see it and act on it. `ActorContext` precomputes
+`task_ids` once per request — the engine's own `:awaiting_actor` read for the person, so exactly the tasks the
+engine would let them claim, complete or receive — and `AshEnterprise.Security.Checks.TaskCandidacy` turns them
+into a grant: reads of those tasks (`id in task_ids`), and the task acts (`claim_task`, `complete_task`,
+`delegate_task`, `approve`, `reject`, generic actions that check candidacy through the engine) for a person
+with any live task. It is declared on `HumanTask` only, through a new `extra_grants:` option on the platform base
+resource, which appends checks to the inherited union: one more `authorize_if`, never a `forbid_if`, and the check
+does set membership on the precomputed list without querying. Maker-checker is unchanged: it is still subtraction
+at candidate resolution, and the engine's read leaves out a task that excludes the person, so the excluded
+requester gets nothing from this path. Delegation no longer needs a read grant: the delegate must be a candidate
+(the engine checks), and a candidate reads the task through their candidacy.
+
+The cost is one query per request, and the list is a person's live work (a decided task leaves the set), not their
+history. Live work is not small for a role candidate: a Data Steward is a candidate on every steward-review task, so
+their list is the tenant's open review queue. Two bounds hold it (corrected the same day): someone whose roles read
+every task (a `:global` read on `HumanTask`, as Administrators hold) loads no list, since the role grant already
+reaches every task and act; everyone else carries at most 1,000, oldest first, with a warning logged above that. The
+bound limits what a person reads through candidacy, not what they may decide: the engine checks candidacy when they
+act, and the steward queue decides a candidate without reading its task.
+
+The list is as fresh as the context that carries it. A web request builds it; a LiveView builds it on mount and again
+before each event (`AshEnterpriseWeb.LiveUserAuth`), because the connected mount's user arrives from the session
+without the plug's context, and every check would otherwise rebuild it; an ACP session rebuilds it at each prompt
+turn (`AshEnterprise.Acp.SessionStore.append_message/3`).
+
+**Exclusions on tasks opened before the engine recorded them.** The migration that adds `excluded_principal_ids`
+(`20261017031623_bpmn_task_exclusions`) gives every existing task an empty list, with no backfill. The engine's
+candidacy checks read only that column, so maker-checker for an excluded requester who belongs to a candidate team
+holds only for tasks opened after it. No checked-in baseline combines exclusions with team candidates today; a tenant
+that adopts the two together with tasks already open should backfill those tasks from their instances' resolved
+exclusions first.
+
 ## Consequences
 
 **What this makes easy.** The vision the repository markets becomes demonstrable end to end instead of

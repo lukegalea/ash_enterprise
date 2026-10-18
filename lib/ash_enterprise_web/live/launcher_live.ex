@@ -16,6 +16,11 @@ defmodule AshEnterpriseWeb.LauncherLive do
   socket connects (the dead render shows the grid without them), and re-read
   when a brief or a task changes.
 
+  Under the registry's groups, the viewer's own pinned apps ("My apps"):
+  surfaces they composed in the agent chat and pinned
+  (`AshEnterprise.Assistant.PinnedApp`, owner-only), read as them once the
+  socket connects. Nobody else's launcher lists them.
+
   Replaces the operator hub (`/app/hub`, and `/app/demo` before it), which
   both redirect here.
   """
@@ -23,6 +28,7 @@ defmodule AshEnterpriseWeb.LauncherLive do
   use AshEnterpriseWeb, :live_view
 
   alias AshEnterprise.Agents.{MorningBrief, Today}
+  alias AshEnterprise.Assistant.PinnedApp
   alias AshEnterprise.Bpmn.HumanTask
   alias AshEnterprise.Security.ActorContext
   alias AshEnterprise.Surfaces
@@ -55,6 +61,7 @@ defmodule AshEnterpriseWeb.LauncherLive do
         pulse: nil,
         brief: nil,
         signals: %{},
+        pins: [],
         dev_routes?: Application.get_env(:ash_enterprise, :dev_routes, false)
       )
 
@@ -63,7 +70,7 @@ defmodule AshEnterpriseWeb.LauncherLive do
         Phoenix.PubSub.subscribe(AshEnterprise.PubSub, topic)
       end
 
-      {:ok, load_signals(socket)}
+      {:ok, socket |> load_signals() |> load_pins()}
     else
       {:ok, socket}
     end
@@ -91,6 +98,15 @@ defmodule AshEnterpriseWeb.LauncherLive do
 
   # A summary that could not be read is a quieter card, not a broken page.
   def handle_async(:signals, {:exit, _reason}, socket), do: {:noreply, socket}
+
+  def handle_async(:pins, {:ok, {:ok, pins}}, socket), do: {:noreply, assign(socket, :pins, pins)}
+  def handle_async(:pins, _failed, socket), do: {:noreply, socket}
+
+  defp load_pins(socket) do
+    actor = socket.assigns[:current_user]
+    opts = [actor: actor, tenant: ActorContext.tenant(actor), authorize?: true]
+    start_async(socket, :pins, fn -> PinnedApp.mine(opts) end)
+  end
 
   defp load_signals(socket) do
     actor = socket.assigns[:current_user]
@@ -202,6 +218,34 @@ defmodule AshEnterpriseWeb.LauncherLive do
           </ul>
         </section>
 
+        <section :if={@pins != []} id="launch-group-mine" class="space-y-3">
+          <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <h2 class="font-heading text-lg">My apps</h2>
+            <p class="text-sm text-foreground/60">
+              Views you composed in the agent chat and pinned. Only you see them.
+            </p>
+          </div>
+          <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <li :for={pin <- @pins}>
+              <.link
+                id={"launch-mine-#{pin.id}"}
+                navigate={~p"/app/mine/#{pin.id}"}
+                class="group block h-full rounded-base focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              >
+                <.card accent="main" class="h-full transition-transform group-hover:-translate-y-0.5">
+                  <h3 class="flex items-center gap-2.5 font-heading">
+                    <span class="grid size-8 shrink-0 place-items-center rounded-base border-2 border-border bg-background">
+                      <.icon name={pin_icon(pin.display)} class="size-4" />
+                    </span>
+                    {pin.title}
+                  </h3>
+                  <p class="text-sm text-foreground/75">Pinned from the agent chat.</p>
+                </.card>
+              </.link>
+            </li>
+          </ul>
+        </section>
+
         <.empty_state :if={!@today and @groups == []} icon="hero-lock-closed">
           Nothing is open to you yet. An administrator grants access by role.
         </.empty_state>
@@ -213,7 +257,6 @@ defmodule AshEnterpriseWeb.LauncherLive do
           <h2 class="font-heading text-lg">Helpers</h2>
           <div class="flex flex-wrap items-center gap-2.5">
             <.button navigate={~p"/agent"} variant="primary" size="sm">Helper</.button>
-            <.button navigate={~p"/canonical/agent"} size="sm">Canonical helper</.button>
             <.button navigate={~p"/legacy/agent"} size="sm">Legacy helper</.button>
             <%= if @dev_routes? do %>
               <span class="ms-2 text-xs font-heading uppercase tracking-wide text-foreground/60">
@@ -237,6 +280,10 @@ defmodule AshEnterpriseWeb.LauncherLive do
     """
   end
 
+  defp pin_icon(:calendar), do: "hero-calendar-days"
+  defp pin_icon(:board), do: "hero-view-columns"
+  defp pin_icon(_table), do: "hero-table-cells"
+
   # One accent per group, so a group reads as a group across the grid.
   defp accent(:day), do: "main"
   defp accent(:operator), do: "orange"
@@ -244,7 +291,6 @@ defmodule AshEnterpriseWeb.LauncherLive do
   defp accent(:compliance), do: "red"
   defp accent(:org), do: "green"
   defp accent(:data), do: "cyan"
-  defp accent(:canonical), do: "yellow"
   defp accent(:legacy), do: "pink"
   defp accent(_group), do: nil
 end

@@ -27,7 +27,7 @@ defmodule AshEnterprise.Mdm.Banding do
 
   @doc "Publishes the wide-review seed table into `tenant` (idempotent per key+tenant)."
   def publish_seed_bands!(tenant) do
-    xml = File.read!(Path.join(:code.priv_dir(:ash_enterprise), "dmn/mdm_match_bands.dmn"))
+    xml = seed_bands_xml()
 
     existing =
       Definition
@@ -80,5 +80,17 @@ defmodule AshEnterprise.Mdm.Banding do
       {:error, reason} -> {:error, reason}
       other -> {:error, {:bad_band_output, other}}
     end
+  end
+
+  # Sobelow reads `@sobelow_skip` out of the source AST; persisting it keeps
+  # `--warnings-as-errors` from calling it unused (see AshEnterprise.Audit.Export).
+  Module.register_attribute(__MODULE__, :sobelow_skip, persist: true)
+
+  # The path is a constant under this application's own priv dir — no caller
+  # input reaches it. Skipped here, by name, so any change that lets a caller
+  # choose the file is the thing a reviewer should question.
+  @sobelow_skip ["Traversal.FileModule"]
+  defp seed_bands_xml do
+    File.read!(Path.join(:code.priv_dir(:ash_enterprise), "dmn/mdm_match_bands.dmn"))
   end
 end

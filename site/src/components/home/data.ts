@@ -101,32 +101,27 @@ end`,
     code: `strangler do
   phase(:read_from_legacy)
 
-  source AshEnterprise.Legacy.Twins.ClmContracts do
-    # ... eleven map/2 column mappings ...
+  source AshEnterprise.Legacy.Twins.Users do
+    notify? true
+    # ... key, ledger and the plain column mappings ...
 
-    collapse :lifecycle_status do
-      hit_policy(:first)
-
-      state(:archived,
-        when: expr(not is_nil(archived)),
-        set: [processed: false, verified: false, archived: touch()])
-
-      state(:unverified,
-        when: expr(processed and not verified),
-        set: [processed: true, verified: false, archived: nil])
-
-      state(:active,
-        when: expr(processed and verified),
-        set: [processed: true, verified: true, archived: nil])
-
-      state(:processing,
-        when: :otherwise,
-        set: [processed: false, verified: false, archived: nil])
-    end
+    # Five legacy values collapse onto two lifecycle statuses,
+    # so the reverse is ambiguous by construction.
+    map :lifecycle_status,
+      from:
+        expr(
+          if(state == :active,
+            do: type("active", :string),
+            else: type("inactive", :string)
+          )
+        ),
+      read_only?: true,
+      because:
+        "Lossy: passive, pending, suspended and deleted all collapse onto :inactive, so there is no single legacy value to write back. Set \`legacy.users.state\` directly."
   end
 end`,
-    sourcePath: 'lib/ash_enterprise/contracts/resources.ex',
-    annotation: 'Legacy boolean columns become a legal state machine.',
+    sourcePath: 'lib/ash_enterprise/legacy/user.ex',
+    annotation: 'A lossy legacy column says why it cannot be written back.',
     gives: [
       'A compatibility view over the legacy table',
       'INSTEAD OF triggers for the dual-write phase',

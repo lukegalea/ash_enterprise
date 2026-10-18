@@ -22,8 +22,6 @@ defmodule AshEnterprise.Canvas.Registry do
     AshEnterprise.AI,
     AshEnterprise.Audit,
     AshEnterprise.Bpmn,
-    AshEnterprise.CanonicalAgent,
-    AshEnterprise.Contracts,
     AshEnterprise.Decisions,
     AshEnterprise.Legacy,
     AshEnterprise.Legacy.Twins,
