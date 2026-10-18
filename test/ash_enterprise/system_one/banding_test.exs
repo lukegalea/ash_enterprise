@@ -130,6 +130,29 @@ defmodule AshEnterprise.SystemOne.BandingTest do
       refute is_nil(fact.valid_at)
     end
 
+    test "a :facts_resource option reaches the materialiser", ctx do
+      resolver =
+        stub_resolver(
+          %{"band" => "admit", "fact_value" => true, "reason_code" => "auto_pass"},
+          ["DecisionRule_1"]
+        )
+
+      # Not a facts resource, so the write cannot land if the option is
+      # honoured. When it was ignored, the fact went to the configured Fact.
+      result =
+        try do
+          Step.band(
+            [answer()],
+            band_opts(ctx.org, resolver: resolver, facts_resource: __MODULE__.NotAFactsResource)
+          )
+        rescue
+          error -> {:raised, error}
+        end
+
+      refute match?({:ok, %{materialisation: :materialised}}, result)
+      assert facts_for(ctx.org, "commit-1") == []
+    end
+
     test "an admitted false is a value: the fact holds false, it is not dropped", ctx do
       resolver =
         stub_resolver(
