@@ -68,10 +68,18 @@ defmodule AshEnterprise.AI.RequestClassifier do
 
             <%= AshEnterprise.Surfaces.catalogue() %>
 
-              - :design_surface -- the request is for a table, but no declared
-                surface answers it: it asks for particular columns, a filter, a
-                grouping, or a resource with no surface of its own. A second step
-                composes it; you only have to notice that none of the above fits.
+              - :design_surface -- the request is for a table of users, teams,
+                business units, roles or legacy users, but no declared surface
+                answers it: it asks for particular columns, a filter, a grouping.
+                A second step composes it; you only have to notice that none of
+                the above fits.
+
+              - :ask_assistant -- a question about the requester's OWN day or
+                messages: their calendar, meetings or events, email, Slack,
+                contacts, tasks or action items, morning briefs ("show me my
+                calendar events for Monday", "what's on my calendar tomorrow",
+                "list my meetings next week as a table"). This console cannot
+                read those; the assistant can. Never :design_surface for these.
 
               - :unknown -- anything else.
 
@@ -97,6 +105,11 @@ defmodule AshEnterprise.AI.RequestClassifier do
       """
 
       argument :request, :string, allow_nil?: false
+
+      # A repair: the server's reasons for refusing the previous spec, so the
+      # model corrects that spec rather than guessing again
+      # (`AshEnterprise.AI.Interpreter`, bounded there).
+      argument :feedback, :string, allow_nil?: true
 
       # Same reasoning as `:interpret_request` -- and `tools: false` matters more
       # here, not less. This action's whole job is to emit a description of a
@@ -129,8 +142,17 @@ defmodule AshEnterprise.AI.RequestClassifier do
               - `resource` must be one of the names above, exactly.
               - One table component is almost always right. Give it a `read_action`
                 that exists on the resource.
+              - A component's `query` names an entry of the spec's `queries`
+                list. Declare every query you reference there, or leave
+                `query` out.
 
             Request: <%= @input.arguments.request %>
+            <%= if @input.arguments[:feedback] do %>
+            Your previous spec for this request was refused. Return a corrected
+            spec that fixes every one of these reasons:
+
+            <%= @input.arguments.feedback %>
+            <% end %>
             """
           )
     end

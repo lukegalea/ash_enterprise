@@ -16,6 +16,11 @@ defmodule AshEnterprise.AI.Intent do
   are already authorized for teaches them to click through confirmations, which
   is exactly what makes the confirmation on the write worth reading.
 
+  `:ask_assistant` is neither: it is a question about the requester's own
+  calendar, mail, Slack, tasks or briefs, which this console has no tools
+  for. It is handed to the assistant (`/app/agent`), which reads those as the
+  person.
+
   The struct also **is** the schema: `ash_ai` derives the JSON schema the model
   is constrained to from these field definitions, so there is no separate schema
   to drift. Adding a field here changes what the model may return, with no
@@ -29,7 +34,7 @@ defmodule AshEnterprise.AI.Intent do
   # Without this, every `@spec` naming `Intent.t()` is an unknown type, which is
   # a Dialyzer error rather than a silent no-op.
   @type t :: %__MODULE__{
-          kind: :assign_role | :show_surface | :design_surface | :unknown,
+          kind: :assign_role | :show_surface | :design_surface | :ask_assistant | :unknown,
           user_email: String.t() | nil,
           role_name: String.t() | nil,
           surface: String.t() | nil,
@@ -38,7 +43,9 @@ defmodule AshEnterprise.AI.Intent do
 
   typed_struct do
     field :kind, :atom,
-      constraints: [one_of: [:assign_role, :show_surface, :design_surface, :unknown]],
+      constraints: [
+        one_of: [:assign_role, :show_surface, :design_surface, :ask_assistant, :unknown]
+      ],
       allow_nil?: false,
       description: "What the user is asking for. Use :unknown if it is not a supported request."
 

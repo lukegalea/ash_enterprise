@@ -11,7 +11,9 @@ defmodule AshEnterprise.Assistant.ComposeProposeTest do
 
   alias AshEnterprise.AI.Proposal
   alias AshEnterprise.Assistant.{Composer, PinnedApp, ReplyDraft}
+  alias AshEnterprise.Assistant.Lookups.Support
   alias AshEnterprise.Canonical.Task
+  alias AshEnterprise.Platform.LocalTime
   alias AshEnterprise.Test.AssistantFixtures, as: F
   alias AshEnterprise.Test.DailyFixtures, as: D
 
@@ -125,6 +127,124 @@ defmodule AshEnterprise.Assistant.ComposeProposeTest do
         |> Ash.run_action!()
 
       assert refused["error"] =~ "ADR 0042"
+    end
+  end
+
+  describe "days" do
+    # Minutes from now to `hour`:00 on `date`, on the display zone's clock.
+    defp minutes_to(date, hour) do
+      {midnight, _} = LocalTime.days(date, 1)
+      midnight |> DateTime.add(hour, :hour) |> DateTime.diff(DateTime.utc_now(), :minute)
+    end
+
+    defp coming_monday do
+      today = LocalTime.today()
+      Date.add(today, rem(8 - Date.day_of_week(today), 7))
+    end
+
+    test "a weekday is the coming one, today included; next_week is Monday to Sunday" do
+      today = LocalTime.today()
+      monday = coming_monday()
+
+      assert {:ok, ^monday, ^monday} = Support.days("monday")
+      assert {:ok, ^monday, ^monday} = Support.days("  Monday ")
+      assert {:ok, ^monday, ^monday} = Support.days("mon")
+      assert {:ok, ^today, ^today} = Support.days(today |> Calendar.strftime("%A"))
+
+      next_monday = Date.add(today, 8 - Date.day_of_week(today))
+      next_sunday = Date.add(next_monday, 6)
+      assert {:ok, ^next_monday, ^next_sunday} = Support.days("next week")
+      assert Date.day_of_week(next_monday) == 1 and Date.compare(next_monday, today) == :gt
+
+      assert Support.days("upcoming") == :not_days
+      assert Support.days(nil) == :none
+      assert {:error, message} = Support.days("SYNTHETIC-someday")
+      assert message =~ "weekday"
+
+      # The read tools take the same windows.
+      assert {:ok, {from, to}} = Support.window("monday")
+      assert {from, to} == LocalTime.days(monday, 1)
+    end
+
+    test "Monday's events: a day calendar opened on the coming Monday, as the person", ctx do
+      monday = coming_monday()
+      D.event!(ctx, "SYNTHETIC monday review", minutes_to(monday, 15), 30)
+      D.event!(ctx, "SYNTHETIC tuesday after", minutes_to(Date.add(monday, 1), 15), 30)
+
+      {:ok, composed} = Composer.compose(%{show: "events", display: "calendar", window: "monday"})
+
+      assert [%{"granularity" => "day", "query" => query}] = composed.spec["components"]
+      assert [%{"name" => ^query}] = composed.spec["queries"]
+      assert composed.query_state == %{"window" => %{"anchor" => Date.to_iso8601(monday)}}
+      assert composed.covers == LocalTime.day(monday)
+      assert composed.title =~ composed.covers
+
+      json =
+        composed.surface
+        |> AshA2ui.Dynamic.build_surface(
+          Composer.build_opts(composed, actor: ctx.actor, tenant: ctx.tenant)
+        )
+        |> Jason.encode!()
+
+      assert json =~ "SYNTHETIC monday review"
+      refute json =~ "SYNTHETIC tuesday after"
+    end
+
+    test "a table of next week's events is cut by a range on its start", ctx do
+      today = LocalTime.today()
+      next_monday = Date.add(today, 8 - Date.day_of_week(today))
+
+      D.event!(ctx, "SYNTHETIC next week qbr", minutes_to(Date.add(next_monday, 2), 11), 60)
+      D.event!(ctx, "SYNTHETIC before next week", minutes_to(Date.add(next_monday, -1), 11), 60)
+      D.event!(ctx, "SYNTHETIC after next week", minutes_to(Date.add(next_monday, 7), 11), 60)
+
+      {:ok, composed} = Composer.compose(%{show: "events", display: "table", window: "next_week"})
+
+      assert [%{"range_filters" => ["starts_at"]}] = composed.spec["queries"]
+      assert %{"ranges" => %{"starts_at" => %{"from" => from, "to" => to}}} = composed.query_state
+      assert from =~ Date.to_iso8601(next_monday)
+      assert to =~ Date.to_iso8601(Date.add(next_monday, 6))
+      # The spec carries no date: the range is the table's initial state.
+      refute AshA2ui.Dynamic.serialize(composed.surface) =~ Date.to_iso8601(next_monday)
+
+      json =
+        composed.surface
+        |> AshA2ui.Dynamic.build_surface(
+          Composer.build_opts(composed, actor: ctx.actor, tenant: ctx.tenant)
+        )
+        |> Jason.encode!()
+
+      assert json =~ "SYNTHETIC next week qbr"
+      refute json =~ "SYNTHETIC before next week"
+      refute json =~ "SYNTHETIC after next week"
+    end
+
+    test "named windows keep the windowed read; an unknown window is refused for the model" do
+      {:ok, composed} = Composer.compose(%{show: "events", window: "tomorrow"})
+      assert [%{"read_action" => "tomorrow"}] = composed.spec["components"]
+      assert composed.query_state == nil
+
+      {:ok, calendar} =
+        Composer.compose(%{show: "events", display: "calendar", window: "tomorrow"})
+
+      tomorrow = Date.add(LocalTime.today(), 1)
+      assert calendar.query_state == %{"window" => %{"anchor" => Date.to_iso8601(tomorrow)}}
+
+      assert {:error, [reason]} = Composer.compose(%{show: "events", window: "SYNTHETIC-soon"})
+      assert reason =~ "window:"
+      refute reason =~ "Declare"
+    end
+
+    test "the compose tool tells the model which days it showed", ctx do
+      result =
+        tool!(ctx, AshEnterprise.Assistant.Compose, :compose_surface, %{
+          show: :events,
+          display: :calendar,
+          window: "monday"
+        })
+
+      assert result["covers"] == LocalTime.day(coming_monday())
+      assert result["surface"]["window"] == "monday"
     end
   end
 

@@ -53,6 +53,7 @@ defmodule AshEnterpriseWeb.AssistantLive do
   alias AshEnterprise.Assistant.{Answer, Composer, History, PinnedApp, Runner, Thread, Turn}
   alias AshEnterprise.Security.ActorContext
   alias AshEnterpriseWeb.A2ui.Host
+  alias AshEnterpriseWeb.AssistantHandoff
   alias AshEnterpriseWeb.Layouts
 
   @slow_after_s 20
@@ -99,7 +100,8 @@ defmodule AshEnterpriseWeb.AssistantLive do
         {:noreply,
          socket
          |> assign(thread: nil, empty?: true)
-         |> stream(:turns, [], reset: true)}
+         |> stream(:turns, [], reset: true)
+         |> handoff(params["ask"])}
 
       id ->
         if socket.assigns.thread && socket.assigns.thread.id == id do
@@ -109,6 +111,21 @@ defmodule AshEnterpriseWeb.AssistantLive do
         end
     end
   end
+
+  # A question the Helper handed over (`AshEnterpriseWeb.AssistantHandoff`):
+  # asked once the page is connected, only for the person it was handed by.
+  defp handoff(socket, token) when is_binary(token) do
+    if connected?(socket),
+      do: ask_handed(socket, AssistantHandoff.question(socket.assigns.current_user, token)),
+      else: socket
+  end
+
+  defp handoff(socket, _no_token), do: socket
+
+  defp ask_handed(socket, {:ok, question}), do: ask(socket, String.trim(question))
+
+  defp ask_handed(socket, :error),
+    do: assign(socket, :notice, {:error, "That question has expired. Ask it again here."})
 
   # -- asking ---------------------------------------------------------------------
 
@@ -239,7 +256,8 @@ defmodule AshEnterpriseWeb.AssistantLive do
 
     case Composer.compose(request, surface_id: id) do
       {:ok, composed} ->
-        messages = AshA2ui.Dynamic.build_surface(composed.surface, opts)
+        messages =
+          AshA2ui.Dynamic.build_surface(composed.surface, Composer.build_opts(composed, opts))
 
         socket
         |> assign(:surfaces, Map.put(socket.assigns.surfaces, id, composed.surface))

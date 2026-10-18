@@ -13,8 +13,11 @@ defmodule AshEnterpriseWeb.AssistantComposeLiveTest do
 
   alias AshEnterprise.Assistant.PinnedApp
   alias AshEnterprise.Canonical.Task
+  alias AshEnterprise.Platform.LocalTime
   alias AshEnterprise.Test.AssistantFixtures, as: F
   alias AshEnterprise.Test.AssistantFixtures.ScriptedModel
+  alias AshEnterprise.Test.DailyFixtures, as: D
+  alias AshEnterpriseWeb.AssistantHandoff
 
   defp sign_in(conn, user) do
     {:ok, token, _claims} = AshAuthentication.Jwt.token_for_user(user)
@@ -104,6 +107,58 @@ defmodule AshEnterpriseWeb.AssistantComposeLiveTest do
              mine |> element("#unpin") |> render_click()
 
     assert PinnedApp.mine!(actor: ctx.actor, tenant: ctx.tenant) == []
+  end
+
+  # Minutes from now to `hour`:00 on `date`, on the display zone's clock.
+  defp minutes_to(date, hour) do
+    {midnight, _} = LocalTime.days(date, 1)
+    midnight |> DateTime.add(hour, :hour) |> DateTime.diff(DateTime.utc_now(), :minute)
+  end
+
+  test "a question the Helper hands over is asked, and Monday's calendar shows Monday",
+       %{conn: conn, ctx: ctx} do
+    today = LocalTime.today()
+    monday = Date.add(today, rem(8 - Date.day_of_week(today), 7))
+    D.event!(ctx, "SYNTHETIC monday review", minutes_to(monday, 15), 30)
+    D.event!(ctx, "SYNTHETIC tuesday after", minutes_to(Date.add(monday, 1), 15), 30)
+
+    question = "show me all the calendar events I have for Monday"
+
+    ScriptedModel.script!([
+      {:tools,
+       [
+         {"compose_surface",
+          %{"input" => %{"show" => "events", "display" => "calendar", "window" => "monday"}}}
+       ]},
+      {:text, "SYNTHETIC: Monday's events are on the calendar."}
+    ])
+
+    token = AssistantHandoff.token(ctx.user, question)
+    {:ok, view, _html} = live(conn, "/app/agent?ask=" <> token)
+    html = await_answer(view)
+
+    # Asked once, as the person's own question in their own thread.
+    assert_received {:model_request, _messages, _tools, _opts}
+    assert html =~ question
+
+    [_, id] = Regex.run(~r/data-surface-id="(s[0-9a-f]+)"/, html)
+    render_hook(view, "assistant:surface", %{"id" => id})
+    event = "a2ui:messages:" <> id
+    assert_push_event(view, ^event, %{messages: [_ | _] = messages})
+    json = Jason.encode!(messages)
+    assert json =~ "SYNTHETIC monday review"
+    refute json =~ "SYNTHETIC tuesday after"
+  end
+
+  test "a hand-off token is its person's alone", %{conn: conn, ctx: ctx} do
+    bob = F.colleague!(ctx, admin?: true)
+    token = AssistantHandoff.token(bob.user, "SYNTHETIC: what is on my calendar?")
+
+    {:ok, view, _html} = live(conn, "/app/agent?ask=" <> token)
+
+    assert render(view) =~ "That question has expired"
+    refute_received {:model_request, _, _, _}
+    assert AssistantHandoff.question(ctx.user, "SYNTHETIC-not-a-token") == :error
   end
 
   test "somebody else's pinned app is not found", %{conn: conn, ctx: ctx} do

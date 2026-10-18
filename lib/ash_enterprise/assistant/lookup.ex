@@ -50,9 +50,9 @@ defmodule AshEnterprise.Assistant.Lookup do
     require_primary_key? false
   end
 
-  @window "A time window: today, tomorrow, yesterday, this_week, next_7_days, next_30_days, " <>
-            "last_7_days, last_30_days, last_90_days, upcoming, a date (2026-10-14) or a " <>
-            "range (2026-10-01..2026-10-14)."
+  @window "A time window: today, tomorrow, yesterday, this_week, next_week, next_7_days, " <>
+            "next_30_days, last_7_days, last_30_days, last_90_days, upcoming, a weekday " <>
+            "(monday: the coming one), a date (2026-10-14) or a range (2026-10-01..2026-10-14)."
 
   actions do
     action :calendar_events, :map do

@@ -18,8 +18,25 @@ defmodule AshEnterprise.Assistant.Composer do
   The spec it writes is then resolved exactly as any composed spec is
   (`AshA2ui.Dynamic.resolve/2`): the allowlist, the parser, the compile-time
   verifiers, the composed-board cell cap. A request this module cannot turn
-  into a spec, or a spec the server refuses, comes back as short reasons the
-  model can act on.
+  into a spec comes back as short reasons the model can act on. A spec the
+  server refuses is this module's own mistake, not the model's: the model is
+  told, in plain words, that the view could not be built, and the verifier's
+  messages go to the log (structural names only), never to the chat.
+
+  ## Days
+
+  `window` names local days the way the read tools do
+  (`AshEnterprise.Assistant.Lookups.Support.days/1`): `today`, `tomorrow`,
+  `this_week`, `next_week`, a weekday (the coming one), a date or a date
+  range (or a span counted from now, `next_7_days`, `last_30_days`). The
+  model names the day; the server works out the date, in the display zone.
+  A calendar opens on those days (`query_state`: the window's anchor, at
+  day, week or month granularity to fit them); a table is cut to the window
+  by a range filter on the source's date field, set in its initial query
+  state and shown as the table's own from/to controls. An events
+  table over `today`, `tomorrow`, `this_week` or `upcoming` keeps the
+  calendar event's windowed read action instead, so the spec alone says
+  which rows it shows. A window is never part of the spec's own text.
 
   ## Read-only, as the person
 
@@ -36,10 +53,14 @@ defmodule AshEnterprise.Assistant.Composer do
   (`structural_title/1`), so a stored spec quotes nothing.
   """
 
+  require Logger
+
   alias AshEnterprise.Agents.MorningBrief
+  alias AshEnterprise.Assistant.Lookups.Support
   alias AshEnterprise.Assistant.ReplyDraft
   alias AshEnterprise.Bpmn.HumanTask
   alias AshEnterprise.Canonical.{CalendarEvent, Conversation, Message, Person, Task}
+  alias AshEnterprise.Platform.LocalTime
 
   @displays ~w(table calendar board)
   @table_windows ~w(today tomorrow this_week upcoming)
@@ -140,11 +161,17 @@ defmodule AshEnterprise.Assistant.Composer do
 
   @sources @catalogue |> Map.keys() |> Enum.sort()
 
-  @typedoc "A composed surface, ready to build as the person."
+  @typedoc """
+  A composed surface, ready to build as the person (`build_opts/2`: with the
+  calendar window or table range its days set, `query_state`). `covers` is
+  those days as text, for telling the model what is shown.
+  """
   @type composed :: %{
           request: map(),
           spec: map(),
           surface: AshA2ui.Dynamic.Surface.t(),
+          query_state: map() | nil,
+          covers: String.t() | nil,
           title: String.t(),
           notes: [String.t()]
         }
@@ -180,18 +207,31 @@ defmodule AshEnterprise.Assistant.Composer do
 
     with {:ok, entry} <- source(request),
          {:ok, display} <- display(request),
-         {:ok, spec, notes} <- spec(request, entry, display),
+         {:ok, days} <- days(request),
+         {:ok, spec, query_state, notes} <- spec(request, entry, display, days),
          {:ok, surface} <- resolve(spec, opts) do
+      covers = covers(days)
+
       {:ok,
        %{
          request: request,
          spec: spec,
          surface: surface,
-         title: request["title"] || spec["title"],
+         query_state: query_state,
+         covers: covers,
+         title: request["title"] || heading(spec["title"], covers),
          notes: notes
        }}
     end
   end
+
+  @doc """
+  The `AshA2ui.Dynamic.build_surface/2` options for `composed`: `opts` (the
+  person's `:actor` and `:tenant`) plus the query state its days set.
+  """
+  @spec build_opts(composed(), keyword()) :: keyword()
+  def build_opts(%{query_state: nil}, opts), do: opts
+  def build_opts(%{query_state: state}, opts), do: Keyword.put(opts, :query_state, state)
 
   @doc """
   Resolves a stored spec (`AshA2ui.Dynamic.serialize/1` form) again, against
@@ -251,13 +291,27 @@ defmodule AshEnterprise.Assistant.Composer do
       else: {:error, ["display must be one of: #{Enum.join(@displays, ", ")}"]}
   end
 
+  # The local days the window names, or nil: no window, or one measured from
+  # now (`upcoming`, `next_7_days`), which the windowed read or the calendar's
+  # own default covers.
+  defp days(%{"window" => window}) do
+    case Support.days(window) do
+      {:ok, first, last} -> {:ok, {first, last}}
+      :not_days -> {:ok, nil}
+      :none -> {:ok, nil}
+      {:error, message} -> {:error, ["window: " <> message]}
+    end
+  end
+
+  defp days(_request), do: {:ok, nil}
+
   # -- writing the spec -----------------------------------------------------------
 
-  defp spec(request, entry, display) do
+  defp spec(request, entry, display, days) do
     {columns, notes} = columns(request, entry)
 
-    with {:ok, component, query, notes} <-
-           component(display, request, entry, columns, notes) do
+    with {:ok, component, query, query_state, notes} <-
+           component(display, request, entry, columns, days, notes) do
       spec =
         %{
           "resource" => request["show"],
@@ -267,7 +321,7 @@ defmodule AshEnterprise.Assistant.Composer do
         }
         |> put_present("fields", field_overrides(entry, columns))
 
-      {:ok, spec, notes}
+      {:ok, spec, query_state, notes}
     end
   end
 
@@ -286,7 +340,7 @@ defmodule AshEnterprise.Assistant.Composer do
     {if(known == [], do: entry.default, else: Enum.take(known, 6)), notes}
   end
 
-  defp component("calendar", request, entry, columns, notes) do
+  defp component("calendar", request, entry, columns, days, notes) do
     case Map.get(entry, :dates) do
       {date_field, end_field} ->
         component =
@@ -296,20 +350,20 @@ defmodule AshEnterprise.Assistant.Composer do
             "fields" => columns,
             "read_action" => read_action(request, entry),
             "date_field" => date_field,
-            "granularity" => granularity(request["window"], request["show"]),
+            "granularity" => granularity(days, request["window"], request["show"]),
             "query" => "rows"
           }
           |> put_present("end_date_field", end_field)
 
         query = %{"name" => "rows", "page_size" => 100} |> with_filter(request, entry)
-        {:ok, component, query, notes}
+        {:ok, component, query, anchor(days), notes}
 
       nil ->
         {:error, ["#{request["show"]} have no date to place on a calendar; use a table"]}
     end
   end
 
-  defp component("board", request, entry, columns, notes) do
+  defp component("board", request, entry, columns, _days, notes) do
     lanes = Map.get(entry, :lanes, [])
     lane = request["group_by"] || List.first(lanes)
 
@@ -341,12 +395,12 @@ defmodule AshEnterprise.Assistant.Composer do
         }
 
         query = %{"name" => "rows", "page_size" => 10} |> with_sort(entry)
-        {:ok, component, query, notes}
+        {:ok, component, query, nil, notes}
     end
   end
 
-  defp component("table", request, entry, columns, notes) do
-    {read, notes} = table_read(request, entry, notes)
+  defp component("table", request, entry, columns, _days, notes) do
+    {read, range, notes} = table_read(request, entry, notes)
 
     component = %{
       "kind" => "table",
@@ -360,33 +414,65 @@ defmodule AshEnterprise.Assistant.Composer do
       |> with_sort(entry)
       |> with_filter(request, entry)
       |> put_present("search_fields", Map.get(entry, :search))
+      |> put_present("range_filters", range_field(range))
 
-    {:ok, component, query, notes}
+    {:ok, component, query, ranges(range), notes}
   end
 
-  # Events have windowed read actions; nothing else is cut by a window in a
-  # table (the calendar reads its own visible window).
-  defp table_read(%{"window" => window} = request, %{windows: windows} = entry, notes) do
-    case Map.fetch(windows, window) do
-      {:ok, read} ->
-        {read, notes}
+  # How a table is cut to the request's window: `{read, range, notes}`, the
+  # range `{field, from, to}` (or nil) set in the table's initial query state.
+  # An events table over a named window reads through the event's windowed
+  # read action; any other table with a date field is cut by a range on it,
+  # over the same bounds the read tools use (`Support.window/1`, already
+  # validated by `days/1`); a source without a date is not cut at all.
+  defp table_read(%{"window" => window} = request, entry, notes) do
+    windowed = Map.get(entry, :windows, %{})
 
-      :error ->
-        {read_action(request, entry),
-         notes ++
-           [
-             "an events table can be cut to #{Enum.join(@table_windows, ", ")}; " <>
-               "showing all events, soonest first (or use display calendar)"
-           ]}
+    cond do
+      Map.has_key?(windowed, window) ->
+        {Map.fetch!(windowed, window), nil, notes}
+
+      Map.has_key?(entry, :dates) ->
+        {date_field, _end_field} = entry.dates
+        {:ok, bounds} = Support.window(window)
+        {read_action(request, entry), range_bounds(entry.resource, date_field, bounds), notes}
+
+      true ->
+        {read_action(request, entry), nil,
+         notes ++ ["#{request["show"]} have no date to cut by a window; showing all of them"]}
     end
   end
 
-  defp table_read(%{"window" => _window} = request, entry, notes),
-    do:
-      {read_action(request, entry),
-       notes ++ ["#{request["show"]} tables are not cut by a window; showing newest first"]}
+  defp table_read(request, entry, notes), do: {read_action(request, entry), nil, notes}
 
-  defp table_read(request, entry, notes), do: {read_action(request, entry), notes}
+  # Inclusive bounds the range filter casts to the field's type, from the
+  # window's UTC bounds (`to` exclusive): local dates for a date field; for a
+  # datetime, its first and last second written with the display zone's
+  # offset, so the table's from/to controls read as local times.
+  defp range_bounds(resource, field, {from, to}) do
+    last = DateTime.add(to, -1, :second)
+
+    if datetime?(resource, field),
+      do: {field, local_iso(from), local_iso(last)},
+      else: {field, local_date(from), local_date(last)}
+  end
+
+  defp local_date(utc), do: utc |> LocalTime.to_local() |> DateTime.to_date() |> Date.to_iso8601()
+
+  defp local_iso(utc),
+    do: utc |> LocalTime.to_local() |> DateTime.truncate(:second) |> DateTime.to_iso8601()
+
+  defp range_field(nil), do: nil
+  defp range_field({field, _from, _to}), do: [field]
+
+  defp ranges(nil), do: nil
+
+  defp ranges({field, from, to}),
+    do: %{"ranges" => %{field => %{"from" => from, "to" => to}}}
+
+  # A calendar opens on the window holding the first of the request's days.
+  defp anchor(nil), do: nil
+  defp anchor({first, _last}), do: %{"window" => %{"anchor" => Date.to_iso8601(first)}}
 
   # Conversations by channel go through the Gmail and Slack read actions.
   defp read_action(%{"channel" => channel}, %{sources: sources} = entry),
@@ -458,20 +544,40 @@ defmodule AshEnterprise.Assistant.Composer do
     end
   end
 
-  defp granularity(window, _source) when window in ["today", "tomorrow"], do: "day"
+  # A day calendar for one day, a week for up to seven (the week holding the
+  # first: `this_week` is a rolling seven days, a calendar week is not), a
+  # month for more. Without days, by the window's name or the source.
+  defp granularity({first, first}, _window, _source), do: "day"
 
-  defp granularity(window, _source) when window in ["this_week", "next_7_days", "upcoming"],
-    do: "week"
+  defp granularity({first, last}, _window, _source),
+    do: if(Date.diff(last, first) < 7, do: "week", else: "month")
 
-  defp granularity(_window, "events"), do: "week"
-  defp granularity(_window, _source), do: "month"
+  defp granularity(nil, window, _source) when window in ["next_7_days", "upcoming"], do: "week"
+  defp granularity(nil, _window, "events"), do: "week"
+  defp granularity(nil, _window, _source), do: "month"
 
+  # The spec is written here from the catalogue, so a refusal is this
+  # module's bug, not something the model can fix by rewording: the model
+  # hears that the view could not be built; the verifier's messages (resource,
+  # field and query names only) go to the log.
   defp resolve(spec, opts) do
     resolve_opts = Keyword.put(Keyword.take(opts, [:surface_id]), :allowlist, allowlist())
 
     case AshA2ui.Dynamic.resolve(spec, resolve_opts) do
-      {:ok, surface} -> {:ok, surface}
-      {:error, errors} -> {:error, AshA2ui.Dynamic.Error.messages(errors)}
+      {:ok, surface} ->
+        {:ok, surface}
+
+      {:error, errors} ->
+        Logger.warning(
+          "assistant composer: a written spec was refused: " <>
+            Enum.join(AshA2ui.Dynamic.Error.messages(errors), "; ")
+        )
+
+        {:error,
+         [
+           "that view could not be built; try another display, or answer from the " <>
+             "read tools instead"
+         ]}
     end
   end
 
@@ -489,6 +595,15 @@ defmodule AshEnterprise.Assistant.Composer do
   defp window_label(_other), do: nil
 
   defp humanize(value), do: value |> String.replace("_", " ") |> String.capitalize()
+
+  # The days a window covers, as the chat reads them: "Mon 19 Oct", or
+  # "Mon 19 Oct to Sun 25 Oct".
+  defp covers(nil), do: nil
+  defp covers({first, first}), do: LocalTime.day(first)
+  defp covers({first, last}), do: "#{LocalTime.day(first)} to #{LocalTime.day(last)}"
+
+  defp heading(title, nil), do: title
+  defp heading(title, covers), do: "#{title} · #{covers}"
 
   defp put_present(map, _key, nil), do: map
   defp put_present(map, key, value), do: Map.put(map, key, value)

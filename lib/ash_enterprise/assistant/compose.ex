@@ -63,8 +63,10 @@ defmodule AshEnterprise.Assistant.Compose do
       argument :window, :string do
         allow_nil? true
 
-        description "today, tomorrow, this_week or upcoming. Cuts an events table; sets a " <>
-                      "calendar's span (day or week)."
+        description "Which days: today, tomorrow, this_week, next_week, upcoming, a weekday " <>
+                      "(monday: the coming one, so pass the name, not a date), a date " <>
+                      "(2026-10-19) or a range (2026-10-19..2026-10-25). Cuts a table to " <>
+                      "those days; opens a calendar on them."
       end
 
       argument :status, :atom do

@@ -120,6 +120,87 @@ defmodule AshEnterpriseWeb.AgentSurfacesTest do
       assert message =~ "legacy_users"
       assert message =~ "assign a role"
     end
+
+    test "a question about the person's own calendar goes to the assistant", %{seeded: seeded} do
+      question = "show me all the calendar events I have for Monday"
+
+      assert {:ok, {:assistant, ^question}} =
+               Interpreter.plan(%Intent{kind: :ask_assistant}, question, seeded.user, nil)
+    end
+  end
+
+  describe "composing, below the model call" do
+    # Stands in for the model: answers each call with the next spec and
+    # reports the feedback it was given.
+    defp scripted(specs) do
+      {:ok, agent} = Agent.start_link(fn -> specs end)
+      test = self()
+
+      fn _request, feedback ->
+        send(test, {:composed, feedback})
+
+        Agent.get_and_update(agent, fn
+          [{:error, _} = error | rest] -> {error, rest}
+          [spec | rest] -> {{:ok, spec}, rest}
+        end)
+      end
+    end
+
+    defp logins(query_key) do
+      %{
+        "resource" => "legacy_user",
+        "components" => [
+          Map.merge(%{"kind" => "table", "fields" => ["login", "email"]}, query_key)
+        ]
+      }
+    end
+
+    test "a component naming a query the spec never declared is declared for it" do
+      # The live failure: "component :table references undeclared query
+      # :monday_events". The fix needs no judgement, so no model call either.
+      compose = scripted([logins(%{"query" => "SYNTHETIC_rows"})])
+
+      assert {:ok, {:designed, surface, _title}} = Interpreter.design("logins", compose)
+      assert [%{"name" => "SYNTHETIC_rows"}] = surface.spec["queries"]
+      assert_received {:composed, nil}
+      refute_received {:composed, _}
+    end
+
+    test "a refused spec goes back to the model once, with the verifiers' reasons" do
+      bad = logins(%{}) |> put_in(["components", Access.at(0), "fields"], ["login", "salary"])
+      compose = scripted([bad, logins(%{})])
+
+      assert {:ok, {:designed, _surface, _title}} = Interpreter.design("logins", compose)
+      assert_received {:composed, nil}
+      assert_received {:composed, feedback}
+      assert feedback =~ "salary"
+    end
+
+    test "a spec cut off mid-JSON is asked for again, once" do
+      compose = scripted([{:error, :malformed}, logins(%{})])
+      assert {:ok, {:designed, _surface, _title}} = Interpreter.design("logins", compose)
+      assert_received {:composed, nil}
+      assert_received {:composed, feedback}
+      assert feedback =~ "JSON"
+
+      compose = scripted([{:error, :malformed}, {:error, :malformed}])
+      assert {:error, message} = Interpreter.design("logins", compose)
+      assert message =~ "Try asking again"
+    end
+
+    test "a spec still refused after the repair is a plain sentence, not the DSL's hint" do
+      bad = logins(%{}) |> put_in(["components", Access.at(0), "fields"], ["login", "salary"])
+      compose = scripted([bad, bad])
+
+      assert {:error, message} = Interpreter.design("logins", compose)
+      refute message =~ "salary"
+      refute message =~ "Declare"
+      refute message =~ "a2ui."
+      assert message =~ "/app/agent"
+      assert_received {:composed, nil}
+      assert_received {:composed, "- " <> _}
+      refute_received {:composed, _}
+    end
   end
 
   describe "hosting a surface" do

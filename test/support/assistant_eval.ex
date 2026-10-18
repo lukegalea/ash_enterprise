@@ -33,6 +33,7 @@ defmodule AshEnterprise.Test.AssistantEval do
   alias AshEnterprise.Assistant.Lookups.Support
   alias AshEnterprise.Assistant.{Runner, Thread}
   alias AshEnterprise.Canonical.{Conversation, Message, Task}
+  alias AshEnterprise.Platform.LocalTime
   alias AshEnterprise.Test.DailyFixtures, as: D
 
   @cite ~r/\[\[\s*([^\[\]]+?)\s*\]\]/u
@@ -61,6 +62,13 @@ defmodule AshEnterprise.Test.AssistantEval do
       )
 
     planning = D.event!(ctx, "SYNTHETIC quarterly planning", 60 * 24 * 3, 60)
+
+    # The coming Monday (today, on a Monday) and the middle of next week, on
+    # the display zone's calendar: what "Monday" and "next week" must find.
+    design_review =
+      D.event!(ctx, "SYNTHETIC design review", minutes_to(coming_monday(), 15), 45)
+
+    qbr = D.event!(ctx, "SYNTHETIC vendor QBR", minutes_to(Date.add(next_monday(), 2), 11), 60)
 
     checklist =
       conversation!(
@@ -112,6 +120,8 @@ defmodule AshEnterprise.Test.AssistantEval do
       onboarding: ref(onboarding),
       one_on_one: ref(one_on_one),
       planning: ref(planning),
+      design_review: ref(design_review),
+      qbr: ref(qbr),
       checklist: Support.ref(Conversation, checklist),
       invoice: Support.ref(Conversation, invoice),
       ops: Support.ref(Conversation, ops),
@@ -122,6 +132,39 @@ defmodule AshEnterprise.Test.AssistantEval do
   end
 
   defp ref(event), do: "calendar:#{event.id}"
+
+  @doc "The coming Monday on the display zone's calendar: today, on a Monday."
+  def coming_monday do
+    today = LocalTime.today()
+    Date.add(today, rem(8 - Date.day_of_week(today), 7))
+  end
+
+  @doc "The Monday that starts next week."
+  def next_monday do
+    today = LocalTime.today()
+    Date.add(today, 8 - Date.day_of_week(today))
+  end
+
+  # Minutes from now to `hour`:00 on `date` in the display zone.
+  defp minutes_to(date, hour) do
+    {midnight, _} = LocalTime.days(date, 1)
+    midnight |> DateTime.add(hour, :hour) |> DateTime.diff(DateTime.utc_now(), :minute)
+  end
+
+  # Whether a window argument names exactly `first`..`last`, however the
+  # model put it: a weekday, a named window, a date or a range.
+  defp covers?(window, first, last) when is_binary(window),
+    do: Support.days(window) == {:ok, first, last}
+
+  defp covers?(_window, _first, _last), do: false
+
+  defp monday?(args), do: covers?(args["window"], coming_monday(), coming_monday())
+  defp monday_events?(args), do: args["show"] == "events" and monday?(args)
+
+  defp next_week_table?(args) do
+    args["show"] == "events" and args["display"] in [nil, "table"] and
+      covers?(args["window"], next_monday(), Date.add(next_monday(), 6))
+  end
 
   # Minutes from now to `hour`:00 tomorrow in the display zone.
   defp minutes_to_tomorrow(hour) do
@@ -362,6 +405,54 @@ defmodule AshEnterprise.Test.AssistantEval do
            ]}
         ],
         answer: "This week's meetings are on the calendar above."
+      },
+      %{
+        # The question that once came back as a verifier's DSL hint
+        # ("references undeclared query :monday_events").
+        id: "monday_events",
+        question: "show me all the calendar events I have for Monday",
+        tools: ["compose_surface"],
+        args: %{
+          "compose_surface" => &monday_events?/1
+        },
+        surface?: true,
+        oracle: [
+          {:tools,
+           [
+             {"compose_surface",
+              %{"show" => "events", "display" => "calendar", "window" => "monday"}}
+           ]}
+        ],
+        answer: "Monday's events are on the calendar above."
+      },
+      %{
+        id: "monday_text",
+        question: "What's on my calendar on Monday?",
+        tools: ["calendar_events"],
+        args: %{
+          "calendar_events" => &monday?/1
+        },
+        facts: ["design review"],
+        cites: [f.design_review],
+        oracle: [{:tools, [{"calendar_events", %{"window" => "monday"}}]}],
+        answer: "On Monday: the SYNTHETIC design review [[#{f.design_review}]]."
+      },
+      %{
+        id: "next_week_table",
+        question: "list my meetings next week as a table",
+        tools: ["compose_surface"],
+        args: %{
+          "compose_surface" => &next_week_table?/1
+        },
+        surface?: true,
+        oracle: [
+          {:tools,
+           [
+             {"compose_surface",
+              %{"show" => "events", "display" => "table", "window" => "next_week"}}
+           ]}
+        ],
+        answer: "Next week's meetings are in the table above."
       },
       %{
         id: "slack_table",

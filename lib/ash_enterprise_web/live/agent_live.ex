@@ -21,6 +21,12 @@ defmodule AshEnterpriseWeb.AgentLive do
       "legacy users, just login and email, sorted by login"
         --> Interpreter     --> a spec the model COMPOSED
         --> resolved against an allowlist, verified, then rendered
+            (a refused spec goes back to the model once with the reasons;
+            the person reads a plain sentence, never a verifier's message)
+
+      "what's on my calendar on Monday"
+        --> Interpreter     --> the person's OWN records: not this console's
+        --> handed to the assistant at /app/agent, which reads them as you
 
   The write waits for a human. **The reads do not**, and that asymmetry is the
   point rather than an oversight. A table is filtered by the viewer's own
@@ -58,6 +64,7 @@ defmodule AshEnterpriseWeb.AgentLive do
   alias AshEnterprise.AI.Proposal
   alias AshEnterprise.Security.ActorContext
   alias AshEnterpriseWeb.A2ui.Host
+  alias AshEnterpriseWeb.AssistantHandoff
   alias AshEnterpriseWeb.Layouts
   alias Phoenix.LiveView.JS
 
@@ -238,6 +245,13 @@ defmodule AshEnterpriseWeb.AgentLive do
 
   defp carry_out({:designed, surface, title}, socket, actor, tenant) do
     present(socket, Host.dynamic(surface, title), actor, tenant)
+  end
+
+  # A question about the person's own calendar, mail or tasks: the assistant
+  # answers it, as them. The question goes there in an encrypted token bound
+  # to this user, never as text in the URL.
+  defp carry_out({:assistant, question}, socket, actor, _tenant) do
+    push_navigate(socket, to: ~p"/app/agent?#{[ask: AssistantHandoff.token(actor, question)]}")
   end
 
   defp present(socket, presentation, actor, tenant) do

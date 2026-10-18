@@ -4,8 +4,10 @@ defmodule AshEnterprise.Assistant.Tools.ComposeSurface do
   (`AshEnterprise.Assistant.Composer`) and tells the model what was shown.
 
   The result's `"surface"` is the normalized request, which the runner passes
-  to the page; the page composes it again, as the person, to render it. A
-  refusal is a short `"error"` the model can correct and retry.
+  to the page; the page composes it again, as the person, to render it.
+  `"covers"` names the days a window resolved to ("Mon 19 Oct"), so the
+  model can say which Monday it showed. A refusal is a short `"error"` the
+  model can correct and retry, never a verifier's DSL message.
   """
 
   use Ash.Resource.Actions.Implementation
@@ -21,6 +23,7 @@ defmodule AshEnterprise.Assistant.Tools.ComposeSurface do
           {:ok,
            %{
              "shown" => composed.title,
+             "covers" => composed.covers,
              "surface" => composed.request,
              "notes" => composed.notes,
              "note" =>

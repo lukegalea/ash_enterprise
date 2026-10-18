@@ -11,6 +11,8 @@ defmodule AshEnterprise.Assistant.Lookups.Support do
   |---|---|
   | `today`, `tomorrow`, `yesterday` | that local day |
   | `this_week` | today and the six days after it |
+  | `next_week` | Monday to Sunday of next week |
+  | `monday` … `sunday` (or `mon` … `sun`) | the coming one: today when it is that day |
   | `next_7_days`, `next_30_days` | from now forward |
   | `last_7_days`, `last_30_days`, `last_90_days` | the days before now, now included |
   | `upcoming` | now to fourteen days out |
@@ -29,7 +31,9 @@ defmodule AshEnterprise.Assistant.Lookups.Support do
   alias AshEnterprise.Platform.LocalTime
   alias AshEnterprise.Surfaces
 
-  @named ~w(today tomorrow yesterday this_week next_7_days next_30_days last_7_days last_30_days last_90_days upcoming)
+  @named ~w(today tomorrow yesterday this_week next_week next_7_days next_30_days last_7_days last_30_days last_90_days upcoming)
+
+  @weekdays ~w(monday tuesday wednesday thursday friday saturday sunday)
 
   @doc "The named windows, for argument descriptions and errors."
   @spec windows() :: [String.t()]
@@ -71,36 +75,99 @@ defmodule AshEnterprise.Assistant.Lookups.Support do
   def window(nil), do: :none
 
   def window(value) when is_binary(value) do
-    case value |> String.trim() |> String.downcase() do
-      "" -> :none
-      name -> named(name)
+    case days(value) do
+      {:ok, first, last} -> {:ok, LocalTime.days(first, Date.diff(last, first) + 1)}
+      :not_days -> from_now(name(value))
+      other -> other
     end
   end
 
-  defp named("today"), do: {:ok, LocalTime.days(LocalTime.today(), 1)}
-  defp named("tomorrow"), do: {:ok, LocalTime.days(Date.add(LocalTime.today(), 1), 1)}
-  defp named("yesterday"), do: {:ok, LocalTime.days(Date.add(LocalTime.today(), -1), 1)}
-  defp named("this_week"), do: {:ok, LocalTime.days(LocalTime.today(), 7)}
-  defp named("next_7_days"), do: forward(7)
-  defp named("next_30_days"), do: forward(30)
-  defp named("upcoming"), do: forward(14)
-  defp named("last_7_days"), do: back(7)
-  defp named("last_30_days"), do: back(30)
-  defp named("last_90_days"), do: back(90)
+  @doc """
+  The local days a window names, first and last included:
+  `{:ok, first, last}`; `:not_days` for a window measured from now
+  (`next_7_days`, `last_30_days`, `upcoming`, …); `:none` for nil or blank;
+  or `{:error, message}`.
 
-  defp named(other) do
-    case String.split(other, "..", parts: 2) do
+  A weekday is the coming one on the display zone's calendar, today when
+  today is that day: "Monday" asked on a Sunday is tomorrow, asked on a
+  Monday is today. The model names the day; this works out the date, which
+  a small model gets wrong more often than it gets a weekday wrong.
+  """
+  @spec days(String.t() | nil) ::
+          {:ok, Date.t(), Date.t()} | :not_days | :none | {:error, String.t()}
+  def days(nil), do: :none
+
+  def days(value) when is_binary(value) do
+    case name(value) do
+      "" -> :none
+      name -> local_days(name, LocalTime.today())
+    end
+  end
+
+  # Trimmed and lower-cased; words joined by underscores ("this week",
+  # "next-week"), except in a date or a date range, whose hyphens are its own.
+  defp name(value) do
+    value = value |> String.trim() |> String.downcase()
+
+    if value =~ ~r/^\d/,
+      do: value,
+      else: String.replace(value, ~r/[\s-]+/u, "_")
+  end
+
+  defp local_days("today", today), do: {:ok, today, today}
+  defp local_days("tomorrow", today), do: one_day(Date.add(today, 1))
+  defp local_days("yesterday", today), do: one_day(Date.add(today, -1))
+  defp local_days("this_week", today), do: {:ok, today, Date.add(today, 6)}
+
+  defp local_days("next_week", today) do
+    monday = Date.add(today, 8 - Date.day_of_week(today))
+    {:ok, monday, Date.add(monday, 6)}
+  end
+
+  defp local_days("this_" <> day, today) when day != "week", do: local_days(day, today)
+
+  defp local_days(name, today) do
+    cond do
+      name in @named ->
+        :not_days
+
+      weekday = weekday(name) ->
+        one_day(Date.add(today, rem(weekday - Date.day_of_week(today) + 7, 7)))
+
+      true ->
+        dates(name)
+    end
+  end
+
+  defp one_day(date), do: {:ok, date, date}
+
+  # 1 (Monday) to 7 (Sunday), from the full name or its first three letters.
+  defp weekday(name) do
+    Enum.find_value(Enum.with_index(@weekdays, 1), fn {day, n} ->
+      if name == day or name == String.slice(day, 0, 3), do: n
+    end)
+  end
+
+  defp dates(text) do
+    case String.split(text, "..", parts: 2) do
       [day] ->
-        with {:ok, date} <- date(day), do: {:ok, LocalTime.days(date, 1)}
+        with {:ok, date} <- date(day), do: one_day(date)
 
       [first, last] ->
         with {:ok, from} <- date(first),
              {:ok, to} <- date(last),
              :ok <- ordered(from, to) do
-          {:ok, LocalTime.days(from, Date.diff(to, from) + 1)}
+          {:ok, from, to}
         end
     end
   end
+
+  defp from_now("next_7_days"), do: forward(7)
+  defp from_now("next_30_days"), do: forward(30)
+  defp from_now("upcoming"), do: forward(14)
+  defp from_now("last_7_days"), do: back(7)
+  defp from_now("last_30_days"), do: back(30)
+  defp from_now("last_90_days"), do: back(90)
 
   defp forward(days) do
     now = DateTime.utc_now()
@@ -129,7 +196,7 @@ defmodule AshEnterprise.Assistant.Lookups.Support do
 
   defp window_error(text) do
     "#{inspect(text)} is not a window. Use one of #{Enum.join(@named, ", ")}, " <>
-      "a date (2026-10-14) or a date range (2026-10-01..2026-10-14)."
+      "a weekday (monday), a date (2026-10-14) or a date range (2026-10-01..2026-10-14)."
   end
 
   @doc "The window's label for a result: what the model is told it covered."

@@ -37,7 +37,7 @@ defmodule AshEnterprise.Assistant.EvalTest do
     assert {c, c} = card.citations
     assert c > 0
     assert {f, f} = card.facts
-    assert {3, 3} = card.surfaces
+    assert {5, 5} = card.surfaces
     assert {4, 4} = card.proposals
     assert card.latency_p95_ms >= card.latency_p50_ms
   end
