@@ -48,7 +48,7 @@ defmodule AshEnterprise.Repo.Migrations.AddProposalSettlements do
             column: :id,
             name: "assistant_proposal_settlements_thread_id_fkey",
             type: :uuid,
-            prefix: "public",
+            prefix: prefix(),
             on_delete: :restrict
           ),
           null: false
@@ -66,7 +66,7 @@ defmodule AshEnterprise.Repo.Migrations.AddProposalSettlements do
             column: :id,
             name: "assistant_proposal_settlements_erasure_scope_id_fkey",
             type: :uuid,
-            prefix: "public",
+            prefix: prefix(),
             on_delete: :restrict
           ),
           null: false
