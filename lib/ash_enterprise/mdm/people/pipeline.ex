@@ -37,6 +37,24 @@ defmodule AshEnterprise.Mdm.People.Pipeline do
   observation whose mapped values a previous sweep already staged; and the
   pair rule above keeps a re-run from asking the same question twice. A
   sweep with nothing new opens no batch at all.
+
+  ## One sweep per tenant at a time
+
+  The cron's job and `mix ash_enterprise.mdm.people` can both start a sweep
+  for one tenant, and Oban's uniqueness only covers the job. Two sweeps at
+  once would both see the other's rows still `:staged` and stage every
+  observation twice. So a sweep holds a per-tenant advisory lock
+  (`AshEnterprise.Repo.AdvisoryLock`) and a second one returns `:busy`
+  without doing anything; the next tick picks up whatever it would have seen.
+
+  ## Crash-safe
+
+  A sweep killed partway (a closed pipe, a deploy) leaves rows `:staged` and,
+  for the row it was routing, candidates nobody routed. The next sweep
+  stages those observations again, and supersedes the abandoned rows'
+  unrouted candidates first: a pending candidate is a standing answer to the
+  pair rule, so left alone it would keep that pair from ever being asked.
+  One already banded review stays, since it is in the steward's queue.
   """
 
   require Ash.Query
@@ -46,25 +64,33 @@ defmodule AshEnterprise.Mdm.People.Pipeline do
   alias AshEnterprise.Mdm.People.Adapter
   alias AshEnterprise.Mdm.StagedRecord
   alias AshEnterprise.Platform.SystemActor
+  alias AshEnterprise.Repo.AdvisoryLock
 
   @decided [:pending, :confirmed, :rejected, :auto_merged]
+  @lock "mdm.people_sweep"
 
   @doc """
-  Sweeps `tenant`. Returns `{:ok, counts}` (counts only), or
+  Sweeps `tenant`. Returns `{:ok, counts}` (counts only),
   `{:ok, :not_configured}` when the tenant has no active people mapping and
-  rule set (`AshEnterprise.Mdm.People.Seed`).
+  rule set (`AshEnterprise.Mdm.People.Seed`), or `{:ok, :busy}` when another
+  sweep of the tenant is running.
   """
-  @spec run(term()) :: {:ok, map() | :not_configured}
+  @spec run(term()) :: {:ok, map() | :not_configured | :busy}
   def run(tenant) do
     mapping = People.mapping(tenant)
     rule_set = People.rule_set(tenant)
 
     if mapping && rule_set do
-      sweep(tenant, mapping, rule_set)
+      @lock
+      |> AdvisoryLock.with_try_lock(to_string(tenant), fn -> sweep(tenant, mapping, rule_set) end)
+      |> unlocked()
     else
       {:ok, :not_configured}
     end
   end
+
+  defp unlocked({:ok, result}), do: result
+  defp unlocked(:busy), do: {:ok, :busy}
 
   defp sweep(tenant, mapping, rule_set) do
     {observations, evidence} = Adapter.observe(tenant)
@@ -148,6 +174,8 @@ defmodule AshEnterprise.Mdm.People.Pipeline do
   end
 
   defp process!(batch, tenant, mapping, rule_set, evidence, pending) do
+    abandon!(Enum.map(pending, fn {record, _mapped} -> record.id end), tenant)
+
     staged =
       Enum.map(pending, fn {record, mapped} ->
         StagedRecord
@@ -189,6 +217,33 @@ defmodule AshEnterprise.Mdm.People.Pipeline do
     |> Ash.update!(tenant: tenant, authorize?: false)
 
     counts
+  end
+
+  # The rows an interrupted sweep staged for these source records and never
+  # finished. Their pending candidates were never routed, and a pending
+  # candidate reads as a standing answer (`decided?/4`), so left alone it
+  # would keep the restaged row from ever asking its pair. Superseded here,
+  # the restaged row asks afresh. A review-banded one stays: it is already
+  # in the steward's queue.
+  defp abandon!(source_record_ids, tenant) do
+    abandoned =
+      StagedRecord
+      |> Ash.Query.filter(source_record_id in ^source_record_ids and status == :staged)
+      |> Ash.Query.select([:id])
+      |> Ash.read!(tenant: tenant, authorize?: false)
+      |> Enum.map(& &1.id)
+
+    if abandoned != [] do
+      MatchCandidate
+      |> Ash.Query.filter(
+        staged_record_id in ^abandoned and status == :pending and
+          (is_nil(band) or band != :review)
+      )
+      |> Ash.read!(tenant: tenant, authorize?: false)
+      |> Enum.each(&set_candidate!(&1, %{status: :superseded}, tenant))
+    end
+
+    :ok
   end
 
   # --- matching --------------------------------------------------------------------

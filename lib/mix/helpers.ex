@@ -16,6 +16,7 @@ defmodule AshEnterprise.Mix.Helpers do
   What a Repo-backed Ash task actually needs, and what this module starts:
 
     * `app.config` — the task's `@requirements`; config loaded, project compiled
+    * the configured Logger level applied (`apply_logger_level/0`)
     * the `:ecto_sql` and `:ash` applications
     * `AshEnterprise.Repo` running
 
@@ -33,12 +34,33 @@ defmodule AshEnterprise.Mix.Helpers do
 
   @spec boot_repo() :: :ok
   def boot_repo do
+    apply_logger_level()
     {:ok, _} = Application.ensure_all_started(:ecto_sql)
     {:ok, _} = Application.ensure_all_started(:ash)
 
     case AshEnterprise.Repo.start_link() do
       {:ok, _pid} -> :ok
       {:error, {:already_started, _pid}} -> :ok
+    end
+  end
+
+  @doc """
+  Applies the configured `:logger` level to the Logger that is already
+  running.
+
+  `config/runtime.exs` sets the level from `LOG_LEVEL`, and `app.config`
+  loads it into the application environment, but Logger started with the VM
+  and reads its level only at start. `app.start` restarts Logger, so the
+  application honours it; an `app.config` task does not, and without this it
+  logs at dev's `:debug`: every Ecto query with its parameters, which on an
+  instance holding real data are names and addresses. A no-op when no level
+  is configured.
+  """
+  @spec apply_logger_level() :: :ok
+  def apply_logger_level do
+    case Application.get_env(:logger, :level) do
+      nil -> :ok
+      level -> Logger.configure(level: level)
     end
   end
 

@@ -17,7 +17,9 @@ defmodule Mix.Tasks.AshEnterprise.Mdm.People do
 
   Prints one line per tenant: counts (`observed`, `landed`, `staged`, and how
   many staged people were `created`, `merged`, sent to `review`, left
-  `matched` or `omitted`). Never a name or an address.
+  `matched` or `omitted`), or `busy` when the application's own sweep of the
+  tenant is running (one sweep per tenant at a time). Never a name or an
+  address.
   """
 
   use Mix.Task
@@ -52,6 +54,9 @@ defmodule Mix.Tasks.AshEnterprise.Mdm.People do
       case Pipeline.run(tenant) do
         {:ok, :not_configured} ->
           Mix.shell().info("people #{tenant} not configured (pass --seed-as to turn it on)")
+
+        {:ok, :busy} ->
+          Mix.shell().info("people #{tenant} busy (another sweep of it is running; nothing done)")
 
         {:ok, counts} ->
           Mix.shell().info("people #{tenant} #{SweepWorker.format(counts)}")

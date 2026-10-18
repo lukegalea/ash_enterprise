@@ -174,6 +174,14 @@ defmodule AshEnterprise.Mdm.PeopleTest do
 
   defp reload(ctx, record), do: Ash.reload!(record, system(ctx))
 
+  # A connection of its own, outside the test's sandbox: a session advisory
+  # lock belongs to the session that took it, and the sandbox's would be the
+  # sweep's own (re-entrant).
+  defp lock_session_opts do
+    AshEnterprise.Repo.config()
+    |> Keyword.take([:hostname, :port, :username, :password, :database, :socket_dir])
+  end
+
   defp participant_ids(ctx, conversation) do
     ConversationParticipant
     |> Ash.Query.filter(conversation_id == ^conversation.id)
@@ -419,6 +427,72 @@ defmodule AshEnterprise.Mdm.PeopleTest do
 
     other = tenant!()
     assert {:ok, :not_configured} = Pipeline.run(other.tenant)
+  end
+
+  test "one sweep per tenant at a time: while one holds the tenant, another does nothing",
+       ctx do
+    person!(ctx, "solo@acme.test", "Solo Person")
+    |> then(&conversation!(ctx, "slack", ctx.slack, [&1]))
+
+    # Another session's sweep of this tenant (the mix task while the cron's
+    # job runs, or the other way round): its own connection, its own lock.
+    other_session = start_supervised!({Postgrex, lock_session_opts()})
+    lock = ["mdm.people_sweep", ctx.tenant]
+    Postgrex.query!(other_session, "SELECT pg_advisory_lock(hashtext($1), hashtext($2))", lock)
+
+    assert {:ok, :busy} = Pipeline.run(ctx.tenant)
+    assert :ok = SweepWorker.perform(%Oban.Job{args: %{"tenant" => ctx.tenant}})
+    assert Ash.read!(StagedRecord, system(ctx)) == []
+
+    # Another tenant is not held.
+    other = tenant!()
+    assert {:ok, :not_configured} = Pipeline.run(other.tenant)
+
+    Postgrex.query!(other_session, "SELECT pg_advisory_unlock(hashtext($1), hashtext($2))", lock)
+    assert {:ok, %{staged: 1}} = Pipeline.run(ctx.tenant)
+    assert {:ok, %{staged: 0}} = Pipeline.run(ctx.tenant)
+  end
+
+  test "a sweep killed mid-route: the next one asks the abandoned pair again, once", ctx do
+    priya = person!(ctx, "priya@acme.test", "Priya Shah")
+    priya_alias = person!(ctx, "p.shah@acme.test", "Priya Shah")
+    conversation!(ctx, "gmail", ctx.gmail, [priya])
+    conversation!(ctx, "slack", ctx.slack, [priya_alias])
+
+    assert {:ok, _} = Pipeline.run(ctx.tenant)
+    assert [asked] = queue(ctx)
+
+    # Rewind the alias's row to where a kill between scoring and routing
+    # leaves it: still staged, its candidates written but never banded.
+    staged = Ash.get!(StagedRecord, asked.staged_record_id, system(ctx))
+    Ash.update!(staged, %{status: :staged}, Keyword.put(system(ctx), :action, :update))
+
+    MatchCandidate
+    |> Ash.Query.filter(staged_record_id == ^staged.id)
+    |> Ash.read!(system(ctx))
+    |> Enum.each(
+      &Ash.update!(&1, %{band: nil, status: :pending}, Keyword.put(system(ctx), :action, :update))
+    )
+
+    assert queue(ctx) == []
+
+    assert {:ok, %{staged: 1, review: 1}} = Pipeline.run(ctx.tenant)
+
+    assert [again] = queue(ctx)
+    assert again.golden_id == priya.id
+    assert again.id != asked.id
+
+    assert Ash.get!(StagedRecord, again.staged_record_id, system(ctx)).mapped["person_id"] ==
+             priya_alias.id
+
+    # The abandoned row's candidates are spent, not left standing.
+    assert MatchCandidate
+           |> Ash.Query.filter(staged_record_id == ^staged.id and status != :superseded)
+           |> Ash.read!(system(ctx)) == []
+
+    assert {:ok, %{staged: 0}} = Pipeline.run(ctx.tenant)
+    assert [%{id: id}] = queue(ctx)
+    assert id == again.id
   end
 
   test "seeding is idempotent and person-gated", ctx do
