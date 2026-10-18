@@ -226,7 +226,13 @@ defmodule AshEnterprise.SystemOne.Banding.Step do
         effective_at -> Map.put(decision, :effective_at, effective_at)
       end
 
-    materialiser_opts = Keyword.take(opts, [:facts_resource])
+    # The Materialiser names this option `:resource`; passing `:facts_resource`
+    # through unchanged was silently ignored in favour of the app config.
+    materialiser_opts =
+      case Keyword.fetch(opts, :facts_resource) do
+        {:ok, resource} -> [resource: resource]
+        :error -> []
+      end
 
     Materialiser.materialise(decision, materialiser_opts)
   end
