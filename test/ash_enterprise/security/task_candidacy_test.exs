@@ -134,6 +134,54 @@ defmodule AshEnterprise.Security.TaskCandidacyTest do
     assert reads(ctx.alice) == []
   end
 
+  # ash_bpmn builds the `:awaiting_actor` filter for the actor several times
+  # per read, count or counted page, asking the resolver's `team_ids/2` each
+  # time. For a request's actor that answer is the precomputed context.
+  test "the candidacy read and its count ask a request actor's teams without a query", ctx do
+    team = team!(ctx.admin, [ctx.alice])
+    task = task!(ctx.admin.tenant)
+    candidate!(task, :team, team.id)
+    alice = actor(ctx.alice.user)
+
+    handler = "candidacy-queries-#{System.unique_integer([:positive])}"
+    test_pid = self()
+
+    :telemetry.attach(
+      handler,
+      [:ash_enterprise, :repo, :query],
+      fn _event, _measurements, metadata, _config ->
+        send(test_pid, {:queried, metadata[:source]})
+      end,
+      nil
+    )
+
+    try do
+      query =
+        Ash.Query.for_read(HumanTask, :awaiting_me, %{},
+          actor: alice,
+          tenant: task.organization_id
+        )
+
+      assert [%{id: id}] = Ash.read!(query)
+      assert id == task.id
+      assert Ash.count!(query) == 1
+    after
+      :telemetry.detach(handler)
+    end
+
+    sources = collect_sources([])
+    assert "bpmn_human_tasks" in sources
+    refute "team_memberships" in sources
+  end
+
+  defp collect_sources(acc) do
+    receive do
+      {:queried, source} -> collect_sources([source | acc])
+    after
+      0 -> acc
+    end
+  end
+
   test "candidacy reads only: it never authorizes a write to the task", ctx do
     task = task!(ctx.admin.tenant)
     candidate!(task, :user, ctx.alice.user.id)

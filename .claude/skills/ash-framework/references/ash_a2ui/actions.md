@@ -156,8 +156,11 @@ them:
   table).
 - `/prompt/values/<action>` — a prompt Modal's input values: pre-filled by
   `prompt`, cleared to `%{}` after a successful prompt `invoke`.
-- `/prompt/select/<action>/<field>` — a searchable relationship prompt
-  field's `{"search", "label"}` state.
+- `/prompt/select/<action>/<field>` — a searchable or per-row scoped
+  relationship prompt field's `{"search", "label"}` state.
+- `/prompt/options/<action>/<field>` and `/prompt/record/<action>` — a
+  scoped prompt field's options and the row they were read for (see
+  `prompt_options` below), written by `prompt`, reset on success.
 - `/bulk/<table>/result` — the last bulk run's outcome (`ok`, `failed`,
   `refused`, `skipped`, `errors`); rows of bulk tables carry `_selected`.
 
@@ -224,6 +227,45 @@ end
   relationship selects are not re-checked on submit — there, as for any
   write, the resource's own validations and policies decide which related
   ids are allowed.
+- A relationship prompt lists **every** option the actor can read. To offer
+  only the options that apply to the row (a task's candidates, a job's
+  qualified clerks), scope the field with `prompt_options` — see below.
+- Under the AshA2ui catalogs (`ash_a2ui_catalog.js`, and the admin
+  catalog for boards and basic-composed prompts) the prompt Modal closes
+  after a successful Confirm and stays open, showing the errors, after a
+  failed one. A stock basic renderer only closes it through its × button.
+- `prompt_options` scopes a relationship prompt field per row, keeping the
+  server authoritative:
+
+  ```elixir
+  action :delegate do
+    prompt_fields [:principal_id]
+
+    prompt_options :principal_id do
+      read_action :candidates_for_task   # a :read action on the destination
+      record_argument :task_id           # receives the row's primary key
+    end
+  end
+  ```
+
+  The options are read **as the actor** (actor, tenant, `authorize?`)
+  through `read_action`, with the row's primary key in `record_argument` —
+  put the "which rows apply" logic in that action's filter, preparation or
+  policies, never in the client. The row is re-read through the surface's
+  read action first (`visible_when` enforced), so an unreadable row gets no
+  options. The field renders as an option list over
+  `/prompt/options/<action>/<field>` (filled by `prompt`; refreshed by
+  `option_search` when the field declares `option_search`), never inlined
+  in the component tree and never loaded at `/options/<field>`. Its
+  `option_select`/`option_search` carry `"prompt"` and the row's
+  `"recordId"` (from `/prompt/record/<action>`); the client never sends a
+  filter. Every picked value is re-read through the scope by
+  `option_select` and again by `invoke` for the row being invoked on: a
+  value outside the row's scope fails on `/errors/<field>` like any
+  unavailable option. A current value outside the row's scope is
+  pre-filled as `""`. The field, read action and argument are
+  compile-verified, and the read action must require no other argument
+  without a default.
 - `visible_when` is simple ANDed equality on public attributes or
   expression calculations (`nil` = is_nil, list = membership) —
   deliberately not a rules engine. Rendering hides the button per row in

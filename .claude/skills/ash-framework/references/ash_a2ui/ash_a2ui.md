@@ -365,7 +365,11 @@ end
   `action` entity (Modal prompt — an admin dialog under `:admin_v1`;
   `invoke` then carries a `"values"` map filtered + cast to those fields).
   Prompt inputs get the widgets form fields get (relationship and enum
-  pickers, searchable selects with `option_search`). Per-row availability
+  pickers, searchable selects with `option_search`). A relationship prompt
+  lists every option the actor reads; to offer only the row's options
+  (a task's candidates), scope it with a `prompt_options` entity — a
+  destination read action run as the actor with the row's primary key,
+  never a client filter. Per-row availability
   is `visible_when` on the entity — rendered best-effort, but **enforced by
   the handler on every invoke**. Button text comes from the entity's
   `label` (default: the humanized action name) — don't add a wrapper
@@ -387,7 +391,9 @@ end
   `/ui/response`,
   `/query` for query state (multi-table surfaces scope records and query
   state per table: `/records/<component_name>`, `/query/<component_name>`),
-  `/prompt/values/<action>` for prompt Modal state,
+  `/prompt/values/<action>` for prompt Modal state (plus
+  `/prompt/options/<action>/<field>` and `/prompt/record/<action>` for a
+  `prompt_options`-scoped field),
   `/context/<name>` + `/detail/<context>` for surface-context selections
   and their detail records, `/bulk/<table>/result` for the last bulk run's
   outcome (rows of bulk tables carry the `_selected` key)

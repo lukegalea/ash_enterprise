@@ -37,8 +37,13 @@ these mechanisms, in this order of preference:
    clicks themselves: the admin `actionBar` shows `busy` (disabled + spinner)
    while its submit is in flight, and the admin `dataGrid` row-action buttons
    disable + spin from click until the next `/ui/feedback` write settles the
-   round trip. No styling round trip, no `phx-*-loading` — the components own
-   their shadow DOM.
+   round trip — any path write, including one that leaves the feedback as
+   it was (View and Cancel write the already-clear feedback), but not a
+   whole-model refresh (a PubSub push writing `"/"`). No styling round
+   trip, no `phx-*-loading` — the components own their shadow DOM. The
+   AshA2ui catalogs' prompt Modal settles the same way: a successful
+   Confirm closes it, a failed one keeps it open over the field errors and
+   the feedback message.
 4. **The bootstrap skeleton** — between LiveView mount and the first
    component tree there is no server HTML to show, so the shipped hook
    renders an immediate skeleton (heading bar + row bars, themed entirely
