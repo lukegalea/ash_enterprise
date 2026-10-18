@@ -185,6 +185,12 @@ end
 # `:model_routes` names which host answers for which model. A configured,
 # non-empty route map is authoritative: a model with no entry fails loud
 # (`AshJudgments.Errors.RouteMissing`) rather than falling back silently.
+#
+# The Splash profile's model id is the one `S1_GEN_MODEL` already names for
+# `AshEnterprise.AI.Models`, so the two never disagree about which model
+# that runtime serves; the fallback is the id the zone record declares.
+splash_model = System.get_env("S1_GEN_MODEL", "incoai/Qwen3.8-27B-Splash")
+
 config :ash_judgments,
   # The stack's region; every profile's region is guarded against it.
   region: :ca,
@@ -225,11 +231,30 @@ config :ash_judgments,
       api_key: {:system, "OLLAYA_API_KEY"},
       residency: :in_cluster,
       region: :ca
+    ],
+    [
+      # The zone's OpenAI-compatible generative runtime on the M5 Pro box
+      # (zone member `inference-m5-pro-splash`, role
+      # generative-vision-inference): Splash enforces `json_schema`
+      # response formats. A second generative rung beside winnow's, because
+      # Ollaya 0.9.0 serves decisions only -- it answers /api/generate and
+      # /api/chat with 404. The proposal transport speaks the OpenAI wire to
+      # it (`:generative_wires` below).
+      name: :splash_generative,
+      model: splash_model,
+      base_url: {:system, "S1_GEN_BASE_URL"},
+      api_key: {:system, "S1_GEN_API_KEY"},
+      residency: :in_cluster,
+      region: :ca,
+      # A whole policy's proposals in one structured answer outlasts the
+      # 30 s local default.
+      receive_timeout: 300_000
     ]
   ],
   model_routes: %{
     "laya:typed-decisions" => {:system, "OLLAYA_BASE_URL"},
-    "winnow:e4b" => {:system, "S1_OLLAYA_GPU_BASE_URL"}
+    "winnow:e4b" => {:system, "S1_OLLAYA_GPU_BASE_URL"},
+    splash_model => {:system, "S1_GEN_BASE_URL"}
   },
   # The host ledger the registry's judge actions record into (AST-88). The
   # package never defines the persisted resource; this one carries the
@@ -241,6 +266,26 @@ config :ash_judgments,
   # `AshJudgments.Facts.Materialiser` writes here through the host
   # resource that includes Facts.Fragment.
   facts: AshEnterprise.SystemOne.Fact
+
+# Which generative wire each *_generative profile speaks
+# (`AshEnterprise.SystemOne.QuestionProposal.Transport`). The profile
+# registry's wire vocabulary is the decision wire, so the generative wire is
+# host configuration beside it. A profile not listed here speaks the
+# Ollama-compatible wire. `:openai` takes the call options its runtime
+# needs: Splash reasons by default and its reasoning tokens count against
+# `max_tokens`, so its effort is `:none`. It cannot decode under `pattern`
+# or the conditional `allOf` rules -- it checks them only after generating
+# and answers a violation with a 500 and no output -- so both stay off its
+# wire schema; the host's decode still enforces them.
+config :ash_enterprise, AshEnterprise.SystemOne.QuestionProposal.Transport,
+  generative_wires: %{
+    splash_generative: [
+      wire: :openai,
+      reasoning_effort: :none,
+      max_tokens: 8192,
+      wire_schema_drop: ["pattern", "allOf"]
+    ]
+  }
 
 if config_env() == :dev do
   # Reload browser tabs when matching files change.

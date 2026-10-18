@@ -12,7 +12,9 @@ defmodule AshEnterprise.SystemOne.QuestionProposal.Transport do
 
   ## The default transport
 
-  `ReqLLM.generate_object/4` under the resolved profile: the model spec and
+  `ReqLLM.generate_object/4` under the resolved profile, on the generative
+  wire the host configures for it (Ollama-compatible by default, or
+  OpenAI-compatible for a runtime such as the zone's Splash member): the model spec and
   the transport options (`base_url`, `api_key`, `receive_timeout`) come from
   `AshJudgments.Profile` — the same profile machinery, residency guard and
   region rule every instrument call uses. The profile must name an in-zone
@@ -56,23 +58,80 @@ defmodule AshEnterprise.SystemOne.QuestionProposal.Transport do
     # @dialyzer nowarn_function — genuine false positive: the ok path is
     # proven at runtime (the resolution tests go through this exact chain),
     # but the package's raise-heavy pin/region guards erase the success
-    # branch from Dialyzer's success typing of model_spec/3.
-    @dialyzer {:nowarn_function, resolve: 1}
+    # branch from Dialyzer's success typing of model_spec/3. The wire
+    # helpers called only from that branch (spec/3, wire_opts/2) read as
+    # "never called" for the same reason; the resolution tests call them.
+    @dialyzer {:nowarn_function, resolve: 1, spec: 3, wire_opts: 2}
     def resolve(profile) do
       # The profile machinery runs the guards that matter — residency
       # (ADR 0042), the region rule, pin — then the transport translates
       # to the GENERATIVE wire: the profile registry's wire vocabulary is
-      # the decision wire (`:typesafe`, /v1/systemone) and the generative
-      # in-zone runtimes speak the Ollama-compatible wire (S1-21 proved
-      # /api/generate on the M5 Pro host), which req_llm reaches with an
-      # `ollama:` spec and the profile's own transport opts.
+      # the decision wire (`:typesafe`, /v1/systemone), and which
+      # generative wire a profile speaks is host configuration
+      # (`:generative_wires`, see `wire/1`).
       with {:ok, _decision_spec} <-
              Profile.model_spec(%{profile: profile, family: :policy_proposals}),
            {:ok, req_llm_opts} <- Profile.req_llm_opts(profile),
            {:ok, %Profile{} = resolved} <- Profile.fetch(profile) do
-        spec = "ollama:" <> resolved.model
+        wire = wire(profile)
+        spec = spec(wire[:wire], resolved, req_llm_opts)
         target = Models.instrument_target(profile, spec, resolved.residency)
-        {:ok, spec, [{:model_target, target} | req_llm_opts]}
+        {:ok, spec, [{:model_target, target} | wire_opts(wire, req_llm_opts)]}
+      end
+    end
+
+    @doc """
+    The generative wire `profile` speaks, from this transport's
+    `:generative_wires` config (`config/runtime.exs`). A profile not listed
+    speaks the Ollama-compatible wire.
+    """
+    @spec wire(atom()) :: keyword()
+    def wire(profile) do
+      :ash_enterprise
+      |> Application.get_env(AshEnterprise.SystemOne.QuestionProposal.Transport, [])
+      |> Keyword.get(:generative_wires, %{})
+      |> Map.get(profile, wire: :ollama)
+    end
+
+    # The Ollama-compatible wire, which req_llm reaches with an `ollama:`
+    # spec and the profile's own transport opts.
+    defp spec(:ollama, resolved, _req_llm_opts), do: "ollama:" <> resolved.model
+
+    # An OpenAI-compatible runtime serves a model in no catalog, so the
+    # spec is built inline against the profile's own endpoint (the
+    # `AshEnterprise.AI.Models` in-zone pattern).
+    defp spec(:openai, resolved, req_llm_opts) do
+      ReqLLMDep.model!(%{
+        provider: :openai,
+        id: resolved.model,
+        base_url: Keyword.fetch!(req_llm_opts, :base_url)
+      })
+    end
+
+    defp wire_opts(wire, req_llm_opts) do
+      case wire[:wire] do
+        :ollama ->
+          req_llm_opts
+
+        :openai ->
+          req_llm_opts
+          # A runtime that wants no key still needs one sent, or ReqLLM
+          # falls back to OPENAI_API_KEY — a hosted vendor's key, handed to
+          # the in-zone host.
+          |> Keyword.update(
+            :api_key,
+            "in-zone-no-key",
+            &if(&1 in [nil, ""], do: "in-zone-no-key", else: &1)
+          )
+          |> Keyword.merge(Keyword.take(wire, [:reasoning_effort, :max_tokens]))
+          |> Keyword.put(:wire_schema_drop, Keyword.get(wire, :wire_schema_drop, []))
+          # The decode schema rides the wire as a response format, as
+          # written: strict mode would rewrite it (every property required),
+          # and the host validates the decoded answer against the original.
+          |> Keyword.put(:provider_options,
+            openai_structured_output_mode: :json_schema,
+            openai_json_schema_strict: false
+          )
       end
     end
 
@@ -85,6 +144,9 @@ defmodule AshEnterprise.SystemOne.QuestionProposal.Transport do
       {target, req_llm_opts} =
         Keyword.pop_lazy(req_llm_opts, :model_target, fn -> Models.resolve(spec) end)
 
+      {drop, req_llm_opts} = Keyword.pop(req_llm_opts, :wire_schema_drop, [])
+      schema = wire_schema(schema, drop)
+
       with {:ok, response} <-
              Models.call(target, "system_one.proposal", :generate_object, req_llm_opts, fn opts ->
                ReqLLMDep.generate_object(spec, prompt, schema, opts)
@@ -93,5 +155,25 @@ defmodule AshEnterprise.SystemOne.QuestionProposal.Transport do
         {:ok, Jason.encode!(object)}
       end
     end
+
+    @doc """
+    The schema as sent on the wire: the decode schema without the keywords
+    a runtime is configured to drop (`:wire_schema_drop`). A runtime that
+    checks a keyword only AFTER generating (Splash, for `pattern` and `allOf`) answers
+    a violation with an error and no output, which would lose the raw
+    answer a refusal must keep. The host's decode still validates against
+    the full schema, so nothing dropped here is ever accepted unchecked.
+    """
+    @spec wire_schema(map(), [String.t()]) :: map()
+    def wire_schema(schema, []), do: schema
+
+    def wire_schema(schema, drop) when is_map(schema) do
+      schema
+      |> Map.drop(drop)
+      |> Map.new(fn {key, value} -> {key, wire_schema(value, drop)} end)
+    end
+
+    def wire_schema(list, drop) when is_list(list), do: Enum.map(list, &wire_schema(&1, drop))
+    def wire_schema(value, _drop), do: value
   end
 end
