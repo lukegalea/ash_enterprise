@@ -45,6 +45,7 @@ enough.
 ## Where else this is enforced
 
 - Code comments state durable facts about the code. The narrative of how it got there belongs in the commit
-  message (Iron Law #26, listed in [AGENTS.md](../AGENTS.md); [IRON-LAWS.md](IRON-LAWS.md) covers how the judge
-  runs).
+  message (Iron Law #26, listed in
+  [AGENTS.md](https://github.com/lukegalea/ash_enterprise/blob/main/AGENTS.md);
+  [IRON-LAWS.md](https://github.com/lukegalea/ash_enterprise/blob/main/docs/IRON-LAWS.md) covers how the judge runs).
 - Decision records follow their own template ([adr/README.md](adr/README.md)); these rules govern how they read.

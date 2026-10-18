@@ -72,6 +72,7 @@ const ROOT_FILES = [
   { from: 'COMPLIANCE.md', to: 'compliance.md' },
   { from: 'HANDOFF.md', to: 'handoff.md' },
   { from: 'BLEEDING-EDGE.md', to: 'bleeding-edge.md' },
+  { from: 'HOUSE-STYLE.md', to: 'house-style.md' },
 ];
 
 /**
