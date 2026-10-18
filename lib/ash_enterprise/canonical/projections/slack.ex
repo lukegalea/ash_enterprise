@@ -112,7 +112,7 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
   """
 
   alias AshEnterprise.Canonical.{Conversation, Message, Person}
-  alias AshEnterprise.Canonical.Projections.{Write, ZoneGate}
+  alias AshEnterprise.Canonical.Projections.{Golden, Write, ZoneGate}
   alias AshEnterprise.Erasure.{LiveScope, Shredded}
   alias AshEnterprise.Ingestion.SourceObject
   alias AshEnterprise.Integration.LinkedAccount
@@ -398,7 +398,7 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
     |> Ash.read!(tenant: context.tenant_id, authorize?: false)
     |> Enum.flat_map(fn person ->
       case Map.fetch(by_email, person.email |> to_string() |> String.downcase()) do
-        {:ok, user_id} -> [{user_id, person}]
+        {:ok, user_id} -> [{user_id, Golden.resolve(person, context.tenant_id)}]
         :error -> []
       end
     end)
@@ -420,7 +420,8 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
 
       with email when is_binary(email) <- email(user),
            {:ok, %Person{} = person} <- live_person(email, display_name(user), scope_id, context) do
-        {Map.put(people, user["id"], person), failed}
+        # Linked to the golden record when MDM merged this member's row.
+        {Map.put(people, user["id"], Golden.resolve(person, context.tenant_id)), failed}
       else
         {:error, _structural} -> {people, failed + 1}
         _no_email_shredded_or_theirs -> {people, failed}

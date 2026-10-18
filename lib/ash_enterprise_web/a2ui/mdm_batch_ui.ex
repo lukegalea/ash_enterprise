@@ -20,8 +20,8 @@ defmodule AshEnterpriseWeb.A2ui.MdmBatchUI do
     title("Import batches")
     record_label("import batch")
 
-    # A board selects nothing per card (lanes are expanded tables), so a
-    # batch is chosen here or by its card's link, which deep-links it.
+    # Chosen from a card (`select_context` on the board) or by searching here;
+    # `/app/r/mdm_batches/:id` still deep-links one from elsewhere.
     context :batch do
       resource(AshEnterprise.Mdm.ImportBatch)
       label("Open a batch")
@@ -49,6 +49,7 @@ defmodule AshEnterpriseWeb.A2ui.MdmBatchUI do
       fields([:source_slug, :counts_summary, :opened])
       read_action(:read)
       query(:lane)
+      select_context(:batch)
 
       row_layout do
         title(:source_slug)
@@ -82,7 +83,6 @@ defmodule AshEnterpriseWeb.A2ui.MdmBatchUI do
 
     field :source_slug do
       label("Dataset")
-      link({:mdm_batches, :id})
     end
 
     field :counts_summary do

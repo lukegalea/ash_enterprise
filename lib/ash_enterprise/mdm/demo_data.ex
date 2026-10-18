@@ -45,25 +45,44 @@ defmodule AshEnterprise.Mdm.DemoData do
   defp seed_baselines! do
     platform = Seeder.seed_platform_organization()
     AshEnterprise.Mdm.Banding.publish_seed_bands!(platform.id)
+    publish_steward_review!()
+  end
 
-    published =
+  @doc """
+  Publishes the checked-in steward-review BPMN as the platform baseline
+  `mdm.steward_review`, as a new version when the latest published one's XML
+  differs from the file (and as version 1 when there is none). Returns
+  `:unchanged` or `{:published, version}`.
+
+  Running instances keep the definition they pinned; new review candidates
+  start on the new version — which is how existing tenants pick up a changed
+  candidate list or outcome set (the Data Steward candidate, `escalate`).
+  """
+  @spec publish_steward_review!() :: :unchanged | {:published, pos_integer()}
+  def publish_steward_review! do
+    platform = Seeder.seed_platform_organization()
+    xml = steward_review_xml()
+
+    latest =
       Definition
-      |> Ash.Query.filter(key == ^@steward_key)
+      |> Ash.Query.filter(key == ^@steward_key and status == :published)
+      |> Ash.Query.sort(version: :desc)
+      |> Ash.Query.limit(1)
       |> Ash.read_one!(tenant: platform.id, authorize?: false)
 
-    case published do
-      %{status: :published} ->
-        :ok
-
-      _ ->
-        xml =
-          File.read!(Path.join(:code.priv_dir(:ash_enterprise), "bpmn/mdm_steward_review.bpmn"))
-
+    # The definition stores its XML trimmed (Ash trims string attributes), so
+    # compare trimmed: the file's trailing newline is not a change.
+    if latest && String.trim(latest.xml) == String.trim(xml) do
+      :unchanged
+    else
+      published =
         Definition.create!(%{key: @steward_key, name: "MDM steward review", xml: xml},
           actor: SystemActor.process(),
           tenant: platform.id
         )
         |> Definition.publish!(actor: SystemActor.process(), tenant: platform.id)
+
+      {:published, published.version}
     end
   end
 
@@ -277,5 +296,17 @@ defmodule AshEnterprise.Mdm.DemoData do
     Person
     |> Ash.Query.filter(merged == true)
     |> Ash.count!(tenant: org_id, authorize?: false)
+  end
+
+  # Sobelow reads `@sobelow_skip` out of the source AST; persisting it keeps
+  # `--warnings-as-errors` from calling it unused (see AshEnterprise.Audit.Export).
+  Module.register_attribute(__MODULE__, :sobelow_skip, persist: true)
+
+  # The path is a constant under this application's own priv dir — no caller
+  # input reaches it. Skipped here, by name, so any change that lets a caller
+  # choose the file is the thing a reviewer should question.
+  @sobelow_skip ["Traversal.FileModule"]
+  defp steward_review_xml do
+    File.read!(Path.join(:code.priv_dir(:ash_enterprise), "bpmn/mdm_steward_review.bpmn"))
   end
 end

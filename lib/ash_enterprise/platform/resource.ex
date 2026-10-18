@@ -55,6 +55,9 @@ defmodule AshEnterprise.Platform.Resource do
       does **not** make a resource public — with an authorizer and no policies,
       Ash denies everything. It exists for resources that must declare their own
       complete policy set, such as the security resources themselves.
+    * `:extra_grants` — grant paths this resource adds to the inherited union
+      (filter checks, each one more `authorize_if`). Additive only; see
+      `AshEnterprise.Security.Policies`. Ignored with `policies?: false`.
     * `:extra_extensions` — extensions to add on top (e.g. `AshStateMachine`).
 
   Anything else is passed through to `use Ash.Resource`.
@@ -82,6 +85,7 @@ defmodule AshEnterprise.Platform.Resource do
     {archival?, opts} = Keyword.pop(opts, :archival?, true)
     {paper_trail?, opts} = Keyword.pop(opts, :paper_trail?, false)
     {policies?, opts} = Keyword.pop(opts, :policies?, true)
+    {extra_grants, opts} = Keyword.pop(opts, :extra_grants, [])
     {api_type, opts} = Keyword.pop(opts, :api_type)
     {extra_extensions, opts} = Keyword.pop(opts, :extra_extensions, [])
     {declared_extensions, opts} = Keyword.pop(opts, :extensions, [])
@@ -172,7 +176,8 @@ defmodule AshEnterprise.Platform.Resource do
         if policies? do
           quote do
             use AshEnterprise.Security.Policies,
-              authentication?: unquote(authentication?)
+              authentication?: unquote(authentication?),
+              extra_grants: unquote(extra_grants)
           end
         end
       )

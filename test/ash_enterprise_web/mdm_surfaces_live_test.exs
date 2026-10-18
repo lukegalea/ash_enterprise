@@ -139,9 +139,9 @@ defmodule AshEnterpriseWeb.MdmSurfacesLiveTest do
     assert encoded =~ "mdm_steward"
     assert encoded =~ candidate.id
     assert encoded =~ "Ann Dup Existing"
-    # The three verdicts, and bulk reject.
-    assert encoded =~ "confirm_match"
-    assert encoded =~ "mark_unsure"
+    # The three verdicts, labelled, and bulk reject.
+    assert encoded =~ "Confirm match"
+    assert encoded =~ "Mark unsure"
     assert encoded =~ "bulk_invoke"
   end
 

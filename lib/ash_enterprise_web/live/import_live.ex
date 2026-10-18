@@ -332,10 +332,21 @@ defmodule AshEnterpriseWeb.ImportLive do
     {:noreply, put_flash(socket, :error, "Validation refused: #{finding_text(findings)}")}
   end
 
+  # Sobelow reads `@sobelow_skip` out of the source AST; persisting it keeps
+  # `--warnings-as-errors` from calling it unused (see AshEnterprise.Audit.Export).
+  Module.register_attribute(__MODULE__, :sobelow_skip, persist: true)
+
+  # `path` is the temp file LiveView wrote for this socket's own upload
+  # (consume_uploaded_entries/3 hands it over); no client-chosen path reaches
+  # it. Skipped here, by name, so a change that reads any other path is the
+  # thing a reviewer should question.
+  @sobelow_skip ["Traversal.FileModule"]
+  defp read_upload(path), do: File.read!(path)
+
   defp consume_csv(socket) do
     entries =
       consume_uploaded_entries(socket, :csv, fn meta, _entry ->
-        {:ok, File.read!(meta.path)}
+        {:ok, read_upload(meta.path)}
       end)
 
     case entries do

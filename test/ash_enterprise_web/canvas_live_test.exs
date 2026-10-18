@@ -192,7 +192,7 @@ defmodule AshEnterpriseWeb.CanvasLiveTest do
     end
 
     test "renders the browse link when the resource has a declared surface" do
-      {:ok, object} = CanvasLive.select("resource:contracts.party", nil, nil)
+      {:ok, object} = CanvasLive.select("resource:legacy.user", nil, nil)
 
       html =
         render_component(&CanvasLive.render/1, %{
@@ -207,7 +207,7 @@ defmodule AshEnterpriseWeb.CanvasLiveTest do
         })
 
       assert html =~ "Browse in"
-      assert html =~ "/app/canonical-parties"
+      assert html =~ "/app/legacy-users"
     end
 
     test "a resource whose page is not an A2UI surface still links to its page" do

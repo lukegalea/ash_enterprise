@@ -75,13 +75,12 @@ config :ash_evidence, AshEvidence.Repo,
   pool: Ecto.Adapters.SQL.Sandbox,
   pool_size: System.schedulers_online() * 2
 
-# The VendorPM-workspace knobs, mirroring config/dev.exs. Since VPM-12 the
-# migration set includes strangler views over the real legacy tables, so the
-# test database has to be a restored copy of the legacy dump -- and that dump
-# installs its extensions in a non-public schema, so an unqualified `citext`
-# (what every `:ci_string` attribute compiles to) cannot resolve without the
-# search path below. Env-gated exactly like dev: unset, the test environment
-# keeps the upstream behaviour and runs against a blank database.
+# The hosted-schema knobs, mirroring config/dev.exs: when this application runs
+# inside somebody else's database (ASH_SCHEMA set), that database may install
+# its extensions in a non-public schema, so an unqualified `citext` (what every
+# `:ci_string` attribute compiles to) cannot resolve without the search path
+# below. Env-gated exactly like dev: unset, the test environment keeps the
+# upstream behaviour and runs against a blank database.
 ash_schema = System.get_env("ASH_SCHEMA")
 
 if ash_schema do

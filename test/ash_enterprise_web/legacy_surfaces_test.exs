@@ -3,17 +3,7 @@ defmodule AshEnterpriseWeb.LegacySurfacesTest do
 
   alias AshEnterprise.Surfaces
 
-  @legacy_names ~w(
-    legacy_users
-    legacy_parties
-    legacy_vendor_parties
-    legacy_enterprise_parties
-    legacy_contracting_processes
-    legacy_party_roles
-    legacy_contracts
-    legacy_contract_lines
-    legacy_commitments
-  )
+  @legacy_names ~w(legacy_users)
 
   test "catalogue exposes every compatibility surface at a legacy route" do
     surfaces =

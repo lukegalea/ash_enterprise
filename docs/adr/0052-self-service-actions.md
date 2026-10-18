@@ -105,3 +105,14 @@ call's tenant from the query, changeset or action input being authorized.
 
 Remove the action from `self_service:`. It then falls back to the role model: a generic action needs a `:global`
 grant, a create or read a grant at a depth that reaches the row.
+
+## Note, 2026-10-17: acting on one's own row through a generic action
+
+The agent chat (PROD-45) lets a member finish one of their own action items and unpin one of their own pinned apps.
+An update or destroy still cannot be declared self-service. Each is instead a generic action that is declared:
+`Canonical.Task.complete_mine` and `Assistant.PinnedApp.unpin`. Each one first finds the row through a
+self-service read filtered on `owner_id == actor` (`:mine`), as the actor. Only then does it run the update or destroy
+on that row, with the actor named on the write, so the audit entry is theirs. The bound is the lookup. Another
+member's row is "not found", whatever roles the actor holds. Every other update or destroy on these resources still
+takes a role grant. This is the "generic action that scopes itself to the actor by construction" case in the Decision
+table, not a new grant path. Each such action is a reviewed declaration in its resource.

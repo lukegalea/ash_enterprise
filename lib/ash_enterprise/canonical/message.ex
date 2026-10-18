@@ -146,6 +146,16 @@ defmodule AshEnterprise.Canonical.Message do
   actions do
     defaults [:read]
 
+    update :mdm_repoint do
+      description """
+      The person merge's write (ADR 0054): this message's sender moves to the golden
+      record a merge folded its person into, and back on the unmerge
+      (`AshEnterprise.Mdm.PersonJoins`). Machinery only, never typed in.
+      """
+
+      accept [:sender_id]
+    end
+
     read :by_external do
       description """
       Look up the canonical row projected from one raw SourceObject.

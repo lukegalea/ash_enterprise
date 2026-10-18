@@ -18,6 +18,7 @@ defmodule AshEnterprise.Bpmn.HumanTask do
     table: "bpmn_human_tasks",
     instance: AshEnterprise.Bpmn.Instance,
     token: AshEnterprise.Bpmn.Token,
+    task_candidate: AshEnterprise.Bpmn.TaskCandidate,
     base: AshEnterprise.Platform.Resource,
     base_opts: [
       # Organization-owned, not user-owned, and the reason is the thing that makes this design
@@ -42,22 +43,28 @@ defmodule AshEnterprise.Bpmn.HumanTask do
       lifecycle?: false,
       audit?: true,
       archival?: false,
-      cdm_entity: "Task"
+      cdm_entity: "Task",
+      # Being asked to act on a task lets you see it and act on it: the actor's
+      # candidate and held tasks, precomputed in their ActorContext, added to
+      # the grant union (ADR 0009, note of 2026-10-17). It only adds;
+      # maker-checker stays the engine's subtraction at candidate resolution.
+      # Each act reads its task as the actor and the engine checks candidacy
+      # for that task before writing anything.
+      extra_grants: [
+        {AshEnterprise.Security.Checks.TaskCandidacy,
+         acts: [:claim_task, :complete_task, :delegate_task, :approve, :reject]}
+      ]
     ]
 
   # --- the daily-loop surfaces (Approvals, Today; ACP `approvals`) ----------
   #
-  # Declared here, on the host's task resource, rather than in ash_bpmn: which
-  # tasks are "mine" and how a person decides one from a surface is host
-  # policy. Every path below reads as the actor and decides through
-  # `AshBpmn.complete_task/2` — never a direct write to the task or subject.
-
-  relationships do
-    has_many :candidates, AshEnterprise.Bpmn.TaskCandidate do
-      destination_attribute :task_id
-      description "Who may act on this task, materialised as rows."
-    end
-  end
+  # Which tasks wait on a person, and who may claim, complete or delegate one,
+  # are the engine's answers (`AshBpmn.Candidacy`, its `:awaiting_actor` read,
+  # `AshBpmn.claim_task/2`, `complete_task/2`, `delegate_task/2`). What is
+  # declared here is the host's part: the surfaces' acts, the outcomes a
+  # person may pick, and what a steward's decision does to its candidate.
+  # Every path reads as the actor and writes through the engine — never a
+  # direct write to the task or its subject.
 
   calculations do
     calculate :subject_label,
@@ -107,8 +114,8 @@ defmodule AshEnterprise.Bpmn.HumanTask do
     end
 
     # The board's `visible_when` key for Complete / Delegate: only the
-    # person holding a claimed task acts on it. UX only — the actions check
-    # it again (`AshEnterprise.Bpmn.Candidacy.assignee/2`).
+    # person holding a claimed task acts on it. UX only — the engine checks
+    # the holder again (`AshBpmn.Candidacy.holds?/2`).
     calculate :claimed_by_me,
               :boolean,
               expr(
@@ -117,6 +124,17 @@ defmodule AshEnterprise.Bpmn.HumanTask do
               ) do
       public? true
       description "Whether the reader holds this claimed task."
+    end
+
+    calculate :declared_outcomes,
+              {:array, :string},
+              AshEnterprise.Bpmn.Calculations.DeclaredOutcomes do
+      public? true
+
+      description """
+      The outcomes the task's step declares, read from its pinned definition
+      wherever it lives (a platform baseline included); nil when it declares none.
+      """
     end
 
     calculate :waiting_since,
@@ -129,9 +147,12 @@ defmodule AshEnterprise.Bpmn.HumanTask do
   end
 
   actions do
+    # The engine's candidacy read (`:awaiting_actor`), oldest first, so a
+    # numbered list stays stable between reads ("approve 1").
     read :awaiting_me do
-      description "Open or claimed tasks the actor (or one of their teams) is a candidate for, or that the actor holds, oldest first."
-      prepare AshEnterprise.Bpmn.Preparations.AwaitingActor
+      description "The engine's `:awaiting_actor` (open tasks the actor or one of their teams is a candidate for, claimed tasks they hold, none that excludes them), oldest first."
+      prepare AshBpmn.Resources.HumanTask.AwaitingActor
+      prepare build(sort: [inserted_at: :asc, id: :asc])
     end
 
     action :claim_task, :string do
@@ -146,15 +167,19 @@ defmodule AshEnterprise.Bpmn.HumanTask do
 
     action :complete_task, :string do
       description """
-      Complete a task the actor has claimed with an outcome, through the
-      process engine (`AshBpmn.complete_task/2`).
+      Complete a task the actor holds with one of the outcomes its step
+      declares, through the process engine (`AshBpmn.complete_task/2`); a
+      steward-decision task records the verdict on its match candidate.
       """
 
       argument :record_id, :uuid, allow_nil?: false
 
-      argument :outcome, :string,
+      # A picker on the board (an enumerated argument is a ChoicePicker): the
+      # outcomes the checked-in baselines declare. The action accepts only
+      # the ones this task's step declares (`AshEnterprise.Bpmn.Outcomes`).
+      argument :outcome, :atom,
         allow_nil?: false,
-        constraints: [max_length: 100, trim?: true, allow_empty?: false]
+        constraints: [one_of: AshEnterprise.Bpmn.Outcomes.offered_atoms()]
 
       argument :comment, :string, allow_nil?: true, constraints: [max_length: 2000]
       run {AshEnterprise.Bpmn.Actions.WorkTask, op: :complete}
@@ -162,8 +187,8 @@ defmodule AshEnterprise.Bpmn.HumanTask do
 
     action :delegate_task, :string do
       description """
-      Hand a task the actor has claimed to another person, by their email
-      address, through the process engine (`AshBpmn.delegate_task/2`).
+      Hand a task the actor holds to another of its candidates, by their
+      email address, through the process engine (`AshBpmn.delegate_task/2`).
       """
 
       argument :record_id, :uuid, allow_nil?: false

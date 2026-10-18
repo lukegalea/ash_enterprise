@@ -48,61 +48,99 @@ defmodule AshEnterprise.Mdm.Changes.MergeInto do
           message: "a record cannot merge into itself"
         )
 
+      # A master is always a golden record: merging into an absorbed row
+      # would leave a chain the projectors' golden link cannot follow.
+      survivor.merged ->
+        Ash.Changeset.add_error(changeset,
+          field: :survivor_id,
+          message: "was itself merged; merge into its golden record"
+        )
+
       true ->
-        policy = survivorship_policy(tenant, loser)
-
-        %{merged: merged} =
-          AshMdm.Survivorship.resolve(policy, [
-            %{
-              record: :survivor,
-              source: "survivor",
-              observed_at: survivor.updated_at,
-              attributes: %{
-                "name" => survivor.name,
-                "email" => survivor.email && to_string(survivor.email)
-              }
-            },
-            %{
-              record: :loser,
-              source: "loser",
-              observed_at: loser.updated_at,
-              attributes: %{
-                "name" => loser.name,
-                "email" => loser.email && to_string(loser.email)
-              }
-            }
-          ])
-
-        # Survivorship: the survivor's row is what the operator keeps.
-        merged_attrs = Map.take(merged, ["name", "email"])
-
-        moved_identity_ids =
-          AshEnterprise.Mdm.SourceIdentity
-          |> Ash.Query.filter(golden_id == ^loser.id)
-          |> Ash.Query.select(:id)
-          |> Ash.read!(tenant: tenant, authorize?: false)
-          |> Enum.map(& &1.id)
-
-        changeset
-        |> Ash.Changeset.set_context(%{
-          mdm_merge: %{
-            survivor_id: survivor.id,
-            merged_attrs: merged_attrs,
-            moved_identity_ids: moved_identity_ids,
-            prior_email: loser.email && to_string(loser.email)
-          }
-        })
-        |> Ash.Changeset.force_change_attribute(:merge_provenance, %{
-          "survivor_id" => survivor.id,
-          "merged_attrs" => merged_attrs,
-          "moved_identity_ids" => moved_identity_ids,
-          "prior_email" => loser.email && to_string(loser.email)
-        })
-        |> Ash.Changeset.force_change_attribute(:merged, true)
-        |> Ash.Changeset.force_change_attribute(:master_id, survivor.id)
-        |> Ash.Changeset.force_change_attribute(:email, nil)
+        stage_merge(changeset, tenant, loser, survivor)
     end
   end
+
+  defp stage_merge(changeset, tenant, loser, survivor) do
+    policy = survivorship_policy(tenant, loser)
+
+    %{merged: merged} =
+      AshMdm.Survivorship.resolve(policy, [
+        %{
+          record: :survivor,
+          source: "survivor",
+          observed_at: survivor.updated_at,
+          attributes: %{
+            "name" => survivor.name,
+            "email" => survivor.email && to_string(survivor.email)
+          }
+        },
+        %{
+          record: :loser,
+          source: "loser",
+          observed_at: loser.updated_at,
+          attributes: %{
+            "name" => loser.name,
+            "email" => loser.email && to_string(loser.email)
+          }
+        }
+      ])
+
+    # Survivorship: the survivor's row is what the operator keeps.
+    merged_attrs = Map.take(merged, ["name", "email"])
+
+    moved_identity_ids =
+      AshEnterprise.Mdm.SourceIdentity
+      |> Ash.Query.filter(golden_id == ^loser.id)
+      |> Ash.Query.select(:id)
+      |> Ash.read!(tenant: tenant, authorize?: false)
+      |> Enum.map(& &1.id)
+
+    # The loser's address is released only when the survivor takes it
+    # (unique_email). Otherwise the loser keeps it, so the next
+    # projection of that address still finds this row — and links its
+    # golden (`Canonical.Projections.Golden`) instead of minting a
+    # duplicate the merge already resolved.
+    prior_email = released_email(loser, survivor, merged_attrs)
+
+    # Meetings, messages and conversations follow the person (PROD-9).
+    joins = AshEnterprise.Mdm.PersonJoins.plan(tenant, loser.id, survivor.id)
+
+    changeset
+    |> Ash.Changeset.set_context(%{
+      mdm_merge: %{
+        survivor_id: survivor.id,
+        merged_attrs: merged_attrs,
+        moved_identity_ids: moved_identity_ids,
+        prior_email: prior_email,
+        joins: joins
+      }
+    })
+    |> Ash.Changeset.force_change_attribute(:merge_provenance, %{
+      "survivor_id" => survivor.id,
+      "merged_attrs" => merged_attrs,
+      "moved_identity_ids" => moved_identity_ids,
+      "prior_email" => prior_email,
+      "joins" => joins
+    })
+    |> Ash.Changeset.force_change_attribute(:merged, true)
+    |> Ash.Changeset.force_change_attribute(:master_id, survivor.id)
+    |> release_email(prior_email)
+  end
+
+  # The loser's address when the survivor takes it, else nil.
+  defp released_email(loser, survivor, merged_attrs) do
+    loser_email = loser.email && to_string(loser.email)
+
+    if loser_email && merged_attrs["email"] == loser_email &&
+         to_string(survivor.email) != loser_email,
+       do: loser_email
+  end
+
+  defp release_email(changeset, nil), do: changeset
+
+  defp release_email(changeset, _email),
+    do: Ash.Changeset.force_change_attribute(changeset, :email, nil)
 
   # Runs after the loser's row committed: its email is released, so the
   # survivor can inherit it without violating unique_email.
@@ -125,6 +163,13 @@ defmodule AshEnterprise.Mdm.Changes.MergeInto do
       |> Ash.update!(tenant: tenant, authorize?: false)
 
       repoint_identities(tenant, changeset.data.id, survivor_id)
+
+      AshEnterprise.Mdm.PersonJoins.apply!(
+        tenant,
+        changeset.context[:mdm_merge][:joins],
+        survivor_id
+      )
+
       supersede_candidates(tenant, changeset.data.id)
     end
 

@@ -55,7 +55,9 @@ end
   inclusive `>=`/`<=`; `""` means inactive. Plain `YYYY-MM-DD` bounds on
   datetime fields expand to the day's start/end, so a same-day from/to
   covers the whole day. Non-allowlisted fields and uncastable bounds are
-  rejected before any read.
+  rejected before any read. (A `display :calendar` table's window is not a
+  range filter: the client sends a date, never bounds, and the server
+  derives the range. See `ash_a2ui:layout`.)
 - **Presets are the composite-filter mechanism.** The client selects a
   preset **by name** (`"preset"` in the query state; a `ChoicePicker` is
   emitted) — predicates never travel over the wire. Use a keyword `filter`

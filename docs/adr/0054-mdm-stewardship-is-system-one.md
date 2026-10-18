@@ -199,3 +199,101 @@ The golden-records, mapping and import-batch surfaces gained details (related so
 mapping's rules and predecessor; a batch's counts, failure and staged rows), each read under its own resource's
 policies. Mapping activation stays off surfaces. ImportLive now drafts and validates a mapping as the person, as it
 already activated one.
+
+## Addendum, 2026-10-17 — the task decides the candidate, and a Data Steward role
+
+**Labels, not wrappers.** `ash_a2ui` now labels a button from its `action` entity (`label`), so `:confirm_match`,
+`:reject_match` and `:mark_unsure` and the `StewardDecision` module behind them are deleted. The queue's buttons are
+`:confirm`, `:reject` and `:escalate` themselves, labelled Confirm match, Reject match and Mark unsure, and bulk is
+`:reject`. The rule that nobody confirms a merge into a golden they cannot read moved onto `:confirm` as a validation
+(`AshEnterprise.Mdm.Validations.GoldenReadable`, `Forbidden`), so it holds for every caller, not only the surface.
+
+**One decision, wherever it is made.** Completing the steward-decision task used to complete the task alone: the
+candidate stayed pending while its process ended, and Approvals' Approve completed it as `approved`, which the diagram
+does not declare, so the gateway's default sent it down the reject branch. Now a steward-decision task is decided by
+recording the verdict on its match candidate as the person (`AshEnterprise.Mdm.StewardTask`): `confirm` / `approved`
+→ `:confirm`, `reject` / `rejected` → `:reject`, `escalate` → `:escalate`. The verdict's `after_action` completes the
+task through the engine as the person, in the same transaction, for a claimed task as well as an open one; if the
+engine refuses (they are not a candidate, or someone else holds it), the verdict is refused and nothing is written.
+That applies to the queue too: while a candidate has a live steward-decision task, only someone who may decide that
+task may decide the candidate. Escalating records the steward as unsure and completes nothing; the task stays with
+them to delegate to a senior steward. The diagram declares `escalate` so the board offers it, and adds Data Stewards
+as candidates.
+
+Every completion path also refuses an outcome the task's step does not declare (`AshEnterprise.Bpmn.Outcomes`, reading
+`HumanTask.declared_outcomes` through the configured definition loader: the engine's own `:outcomes` reads the
+definition in the task's tenant and answers `nil` for a platform baseline such as this one), and
+the task board's Complete prompt offers a picker. Its options are fixed when the resource compiles (every outcome a
+checked-in baseline declares), because a prompt's ChoicePicker takes literal options; per-card options need
+per-record prompt options in `ash_a2ui`.
+
+**A Data Steward role.** Every tenant is seeded with a Data Steward role holding the steward-queue grants (read and
+write on match candidates; read on staged records, import batches, mappings and source identities; `:basic` read on
+Person; create on the human verdict a decision records) and the MDM egress grant (`prvReadEgress`), each at the widest
+depth its privilege allows (`Seeder.ensure_data_steward_role/2`). It holds no task grant: stewards read and act on
+their tasks through candidacy (ADR 0009, note of 2026-10-17). Existing tenants receive it through
+`mix ash_enterprise.platform.grant_data_steward` (dry run unless `--apply`; additive and idempotent; assigns the role
+to nobody), not at boot, because adding a role to a customer's tenant is a deliberate act.
+
+## Addendum, 2026-10-17 — projected people are an MDM source (PROD-9)
+
+**Context.** The Gmail, Calendar and Slack projectors key `Canonical.Person` on the email address, so one human with a
+work address in Slack and another in Gmail is two rows. MDM's only input path was the CSV upload.
+
+**Decision.** The projected people are a second bizev source on the same landing (`:canonical` / `:people` in
+`AshEnterprise.Mdm.Landing`, adapter `AshEnterprise.Mdm.People.Adapter`): one observation per person per source system
+and linked account, staged through an ordinary `ImportBatch` against an ingress mapping (`canonical`/`people`) and
+scored by a match rule set, both seeded as data and activated by a person (`AshEnterprise.Mdm.People.Seed`). A sweep
+(`AshEnterprise.Mdm.People.SweepWorker`, `:mdm` queue; `mix ash_enterprise.mdm.people`) runs it per tenant. What
+differs from a CSV row, and why:
+
+- **An observation is already a person.** Its own row is a candidate like any other, so "same address → admit" is the
+  rule set and the band table deciding, not a special case; the admit opens the observation's identity at that row.
+- **Only one owner's people are paired.** Person is owner-only; a merge across owners would hand one user's
+  correspondence joins to a row another user owns. Each pair is asked once, from the newer person to the older, which
+  survives; a pair with a standing answer (pending, confirmed, rejected, auto-merged) is not asked again, so an unmerge
+  is not undone by the next sweep.
+- **Admit or confirm merges the person** (`:mdm_merge_into`), not the staged row. The merge now also moves the rows
+  that name the absorbed person — attendee and participant joins, `Message.sender`, `CalendarEvent.organizer`, and
+  records it absorbed earlier — and records their ids on `merge_provenance` so the unmerge moves exactly those back
+  (`AshEnterprise.Mdm.PersonJoins`). A survivor that is itself merged is refused, so a master is always a golden.
+- **The absorbed row keeps its address** unless the survivor takes it, and the projectors link a merged row's address
+  to its golden (`AshEnterprise.Canonical.Projections.Golden`, same owner only). Otherwise the next projection would
+  mint the duplicate again. Rows projected after a merge name the golden; after an unmerge, the next projection of
+  their source re-derives them.
+- **The rule set has its own key**, `"AshEnterprise.Canonical.Person#people"`: `ash_mdm` keeps one active rule set per
+  `golden_resource`, and activating the people rules must not retire the CSV import's. The package-level fix is a scope
+  on the rule set.
+- **Shared context is a host-computed pair feature.** The package's comparators are `exact` and `fuzzy` over fields;
+  "these two are in the same meetings or threads, or meet the same people" is a fact about the pair, with no operator
+  for it. The matcher computes it and an `exact` rule compares it; the package-level fix is an `overlap` comparator over
+  list fields. Weights are chosen so nothing reaches the seed table's admit band without the address.
+
+Nothing here adds a schema change. The steward queue, the System One review queue, the person gate and the band table
+are the import's, unchanged.
+
+## Addendum, 2026-10-17 — every verdict needs the golden, and who can read it
+
+**Every verdict.** `GoldenReadable` guarded `:confirm` only. A steward-decision task's candidates come from roles
+(Data Steward, Administrator), not from who may read the golden, so a steward could see the task on the board or in
+Approvals and reject or escalate a candidate whose golden the steward queue hides from them. `:reject` and
+`:escalate` now carry the same validation: nobody decides anything about a golden they cannot read, from any door.
+What remains is the task itself: it still lists on the board of a role candidate who cannot read the golden, with
+the golden's side unnamed (`SubjectSummary`), and acting on it is refused. Resolving the task's candidates to the
+people who can read the golden would close that, and needs a candidate clause that inverts Person's read policy.
+
+**Who can read a golden.** Person is owner-only, so the Data Steward role's read on it is `:basic`: the steward's own
+goldens. An import's goldens belong to whoever opened the import (`AutoMerge.new_golden!/4`), so by default a
+steward decides nothing about another person's import, and an importer who is an Administrator (a candidate on every
+steward-review task) decides their own. A steward reviews someone else's goldens once they are shared with them, or
+with a team they are in (`AccessGrant`, read): the existing additive path, no new grant. Delegating a task hands
+over the task, not the golden, so a senior steward an escalated task is delegated to needs the same share. Sharing is not automatic,
+on purpose: a review candidate pointing at a golden is not consent to show that person's record to every steward
+(ADR 0042), so the importer or an administrator shares deliberately. If stewardship over imported people becomes
+routine, the change is to the ownership of import-created goldens (a team that owns them, with the stewards in
+it), not a wider grant on an owner-only resource.
+
+**Machine-only writes.** The Data Steward role's write on match candidates reached the package's machine actions
+too — `:update` (band and pipeline status) and `:record_verdict_ref` — through the role-grant union. A positive
+policy now admits only a system actor to those two (the platform's callers already run as one, or with
+authorization off), the same shape as the person gate on the verdicts; a person's write grant covers the verdicts.

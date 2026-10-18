@@ -183,22 +183,18 @@ defmodule AshEnterpriseWeb.Router do
       live "/app/erasure", DailyLive.Erasure
     end
 
-    ash_authentication_live_session :canonical_surfaces,
+    # The assistant (E10): a person's own chat with the in-zone model, its
+    # read tools run as them. Its own live_session so it can be removed with
+    # lib/ash_enterprise/assistant/ and AshEnterpriseWeb.AssistantLive.
+    ash_authentication_live_session :assistant,
       on_mount: [
         {AshEnterpriseWeb.LiveUserAuth, :live_user_required},
         AshEnterpriseWeb.SurfaceDoor
       ] do
-      live "/app/canonical-parties", A2uiLive.CanonicalParties
-      live "/app/canonical-contracts", A2uiLive.CanonicalContracts
-      live "/app/canonical-commitments", A2uiLive.CanonicalCommitments
-    end
-
-    ash_authentication_live_session :canonical_agent,
-      on_mount: [
-        {AshEnterpriseWeb.LiveUserAuth, :live_user_required},
-        AshEnterpriseWeb.SurfaceDoor
-      ] do
-      live "/canonical/agent", CanonicalAgentLive
+      live "/app/agent", AssistantLive
+      live "/app/agent/:id", AssistantLive
+      # A surface the person composed in the chat and pinned (their own only).
+      live "/app/mine/:id", PinnedAppLive
     end
 
     # --- Master data (ADR 0054) ----------------------------------------------
@@ -222,14 +218,6 @@ defmodule AshEnterpriseWeb.Router do
         AshEnterpriseWeb.SurfaceDoor
       ] do
       live "/app/legacy-users", A2uiLive.LegacyUsers
-      live "/app/legacy-parties", A2uiLive.LegacyParties
-      live "/app/legacy-vendor-parties", A2uiLive.LegacyVendorParties
-      live "/app/legacy-enterprise-parties", A2uiLive.LegacyEnterpriseParties
-      live "/app/legacy-contracting-processes", A2uiLive.LegacyContractingProcesses
-      live "/app/legacy-party-roles", A2uiLive.LegacyPartyRoles
-      live "/app/legacy-contracts", A2uiLive.LegacyContracts
-      live "/app/legacy-contract-lines", A2uiLive.LegacyContractLines
-      live "/app/legacy-commitments", A2uiLive.LegacyCommitments
     end
 
     ash_authentication_live_session :legacy_agent,
@@ -372,26 +360,7 @@ defmodule AshEnterpriseWeb.Router do
     pipe_through :mcp
 
     forward "/", AshAi.Mcp.Router,
-      tools: [
-        :legacy_users,
-        :legacy_parties,
-        :legacy_vendor_parties,
-        :legacy_enterprise_parties,
-        :legacy_contracting_processes,
-        :legacy_party_roles,
-        :legacy_contracts,
-        :legacy_contract_lines,
-        :legacy_commitments
-      ],
-      protocol_version_statement: "2024-11-05",
-      otp_app: :ash_enterprise
-  end
-
-  scope "/canonical/mcp" do
-    pipe_through :mcp
-
-    forward "/", AshAi.Mcp.Router,
-      tools: [:canonical_parties, :canonical_contracts, :canonical_commitments],
+      tools: [:legacy_users],
       protocol_version_statement: "2024-11-05",
       otp_app: :ash_enterprise
   end

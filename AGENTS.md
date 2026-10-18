@@ -1600,6 +1600,10 @@ _An Ash extension that generates A2UI (Agent to UI) v0.9.1 or v1.0 payloads from
 ## ash_a2ui:contexts usage
 [ash_a2ui:contexts usage rules](deps/ash_a2ui/usage-rules/contexts.md)
 <!-- ash_a2ui:contexts-end -->
+<!-- ash_a2ui:diagrams-start -->
+## ash_a2ui:diagrams usage
+[ash_a2ui:diagrams usage rules](deps/ash_a2ui/usage-rules/diagrams.md)
+<!-- ash_a2ui:diagrams-end -->
 <!-- ash_a2ui:dynamic-start -->
 ## ash_a2ui:dynamic usage
 [ash_a2ui:dynamic usage rules](deps/ash_a2ui/usage-rules/dynamic.md)

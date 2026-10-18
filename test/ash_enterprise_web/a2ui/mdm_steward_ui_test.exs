@@ -175,7 +175,7 @@ defmodule AshEnterpriseWeb.A2ui.MdmStewardUITest do
 
     test "a decided candidate leaves the queue", %{admin: admin} do
       candidate = candidate!(admin, "Ann Dup")
-      assert {:ok, _messages} = invoke(admin, "confirm_match", candidate)
+      assert {:ok, _messages} = invoke(admin, "confirm", candidate)
 
       assert rows(admin) == []
     end
@@ -222,7 +222,7 @@ defmodule AshEnterpriseWeb.A2ui.MdmStewardUITest do
     test "Confirm match merges, recording the update's verdict", %{admin: admin} do
       candidate = candidate!(admin, "Ann Dup")
 
-      assert {:ok, _messages} = invoke(admin, "confirm_match", candidate)
+      assert {:ok, _messages} = invoke(admin, "confirm", candidate)
 
       decided = reload(candidate, admin.tenant)
       assert decided.status == :confirmed
@@ -232,7 +232,7 @@ defmodule AshEnterpriseWeb.A2ui.MdmStewardUITest do
     test "Reject match keeps the staged record separate", %{admin: admin} do
       candidate = candidate!(admin, "Ann Dup")
 
-      assert {:ok, _messages} = invoke(admin, "reject_match", candidate)
+      assert {:ok, _messages} = invoke(admin, "reject", candidate)
 
       decided = reload(candidate, admin.tenant)
       assert decided.status == :rejected
@@ -242,7 +242,7 @@ defmodule AshEnterpriseWeb.A2ui.MdmStewardUITest do
     test "Mark unsure records the verdict and keeps the candidate open", %{admin: admin} do
       candidate = candidate!(admin, "Ann Dup")
 
-      assert {:ok, _messages} = invoke(admin, "mark_unsure", candidate)
+      assert {:ok, _messages} = invoke(admin, "escalate", candidate)
 
       decided = reload(candidate, admin.tenant)
       assert decided.status == :pending
@@ -253,9 +253,9 @@ defmodule AshEnterpriseWeb.A2ui.MdmStewardUITest do
 
     test "a decided candidate cannot be decided again", %{admin: admin} do
       candidate = candidate!(admin, "Ann Dup")
-      assert {:ok, _messages} = invoke(admin, "confirm_match", candidate)
+      assert {:ok, _messages} = invoke(admin, "confirm", candidate)
 
-      assert {:error, _messages} = invoke(admin, "reject_match", candidate)
+      assert {:error, _messages} = invoke(admin, "reject", candidate)
       assert reload(candidate, admin.tenant).status == :confirmed
     end
 
@@ -263,7 +263,7 @@ defmodule AshEnterpriseWeb.A2ui.MdmStewardUITest do
       reader = reader!(admin)
       candidate = candidate_owned_by!(admin, reader, "Ann Dup")
 
-      assert {:error, messages} = invoke(reader, "confirm_match", candidate)
+      assert {:error, messages} = invoke(reader, "confirm", candidate)
 
       # A 0.9.1 surface reports the refusal as the typed `/ui/feedback`
       # error, which ACP classifies as a refusal.
@@ -283,16 +283,16 @@ defmodule AshEnterpriseWeb.A2ui.MdmStewardUITest do
         ])
 
       # Not in their queue, so the surface refuses it outright…
-      assert {:error, _messages} = invoke(steward, "confirm_match", candidate)
+      assert {:error, _messages} = invoke(steward, "confirm", candidate)
 
-      # …and the action itself refuses it by id.
+      # …and the update itself refuses it by id.
       assert {:error, %Ash.Error.Forbidden{}} =
-               MatchCandidate
-               |> Ash.ActionInput.for_action(:confirm_match, %{record_id: candidate.id},
+               candidate
+               |> Ash.Changeset.for_update(:confirm, %{},
                  actor: steward.actor,
                  tenant: steward.tenant
                )
-               |> Ash.run_action()
+               |> Ash.update()
 
       assert reload(candidate, admin.tenant).status == :pending
       assert reload(candidate, admin.tenant).human_verdict_ref == nil
@@ -303,7 +303,7 @@ defmodule AshEnterpriseWeb.A2ui.MdmStewardUITest do
     test "Reject match runs over a selection", %{admin: admin} do
       candidates = [candidate!(admin, "Ann Dup"), candidate!(admin, "Bob Dup")]
 
-      assert {:ok, _messages} = bulk(admin, "reject_match", candidates)
+      assert {:ok, _messages} = bulk(admin, "reject", candidates)
 
       assert Enum.map(candidates, &reload(&1, admin.tenant).status) == [:rejected, :rejected]
     end
@@ -311,7 +311,7 @@ defmodule AshEnterpriseWeb.A2ui.MdmStewardUITest do
     test "is offered for reject only: no bulk confirm, no bulk unsure", %{admin: admin} do
       candidates = [candidate!(admin, "Ann Dup"), candidate!(admin, "Bob Dup")]
 
-      for action <- ["confirm_match", "mark_unsure"] do
+      for action <- ["confirm", "escalate"] do
         assert {:error, _messages} = bulk(admin, action, candidates)
       end
 
@@ -323,7 +323,7 @@ defmodule AshEnterpriseWeb.A2ui.MdmStewardUITest do
       candidates = [candidate!(admin, "Ann Dup"), candidate!(admin, "Bob Dup")]
       reader = reader!(admin)
 
-      assert {:error, _messages} = bulk(reader, "reject_match", candidates)
+      assert {:error, _messages} = bulk(reader, "reject", candidates)
       assert Enum.map(candidates, &reload(&1, admin.tenant).status) == [:pending, :pending]
     end
 
@@ -331,18 +331,22 @@ defmodule AshEnterpriseWeb.A2ui.MdmStewardUITest do
       candidate = candidate!(admin, "Ann Dup")
       stranger = member!(admin, "No grants", [])
 
-      assert {:error, _messages} = bulk(stranger, "reject_match", [candidate])
+      assert {:error, _messages} = bulk(stranger, "reject", [candidate])
       assert reload(candidate, admin.tenant).status == :pending
     end
   end
 
-  test "the labelled actions are self-service pass-throughs, never a grant of their own" do
-    # Each runs the person-gated update as the actor, so the update's grant
-    # decides; being self-service grants nothing else on the resource.
-    assert AshEnterprise.Security.Checks.SelfService.actions(MatchCandidate) == [
-             :confirm_match,
-             :reject_match,
-             :mark_unsure
-           ]
+  test "the buttons are the verdicts themselves, labelled; nothing is self-service" do
+    # No wrapper actions: ash_a2ui labels the real updates.
+    assert AshEnterprise.Security.Checks.SelfService.actions(MatchCandidate) == []
+
+    labels = Map.new(AshA2ui.Info.action_settings(MdmStewardUI), &{&1.name, &1.label})
+
+    assert %{confirm: "Confirm match", reject: "Reject match", escalate: "Mark unsure"} =
+             Map.take(labels, [:confirm, :reject, :escalate])
+
+    for wrapper <- [:confirm_match, :reject_match, :mark_unsure] do
+      assert Ash.Resource.Info.action(MatchCandidate, wrapper) == nil
+    end
   end
 end

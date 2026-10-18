@@ -33,6 +33,7 @@ metadata:
 - [actions](references/ash_a2ui/actions.md)
 - [ag-ui](references/ash_a2ui/ag-ui.md)
 - [contexts](references/ash_a2ui/contexts.md)
+- [diagrams](references/ash_a2ui/diagrams.md)
 - [dynamic](references/ash_a2ui/dynamic.md)
 - [layout](references/ash_a2ui/layout.md)
 - [liveview](references/ash_a2ui/liveview.md)

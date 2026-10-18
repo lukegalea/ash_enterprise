@@ -103,6 +103,7 @@ defmodule AshEnterprise.Canonical.Projections.Calendar do
   """
 
   alias AshEnterprise.Canonical.{CalendarEvent, Person}
+  alias AshEnterprise.Canonical.Projections.Golden
   alias AshEnterprise.Erasure.{LiveScope, Shredded}
   alias AshEnterprise.Ingestion.SourceObject
 
@@ -349,10 +350,11 @@ defmodule AshEnterprise.Canonical.Projections.Calendar do
                starts_at: attrs.starts_at,
                ends_at: attrs.ends_at,
                location: attrs.location,
-               organizer_id: organizer && organizer.id,
+               # Linked to the golden record when MDM merged the row.
+               organizer_id: golden_id(organizer, context),
                # The derived attendee joins (`EventAttendee`), reconciled in
                # the event's own transaction: ids and the answer, nothing sealed.
-               attendees: attendance(attrs.attendees, attendees)
+               attendees: attendance(attrs.attendees, attendees, context)
              },
              attrs.status,
              context
@@ -475,13 +477,19 @@ defmodule AshEnterprise.Canonical.Projections.Calendar do
 
   # Each attendee contact's person (owned here or another owner's, as
   # `upsert_person/2` links them), with their answer. Matched on the address.
-  defp attendance(contacts, people) do
-    by_email = Map.new(people, &{&1.email |> to_string() |> String.downcase(), &1.id})
+  defp attendance(contacts, people, context) do
+    by_email =
+      Map.new(people, &{&1.email |> to_string() |> String.downcase(), golden_id(&1, context)})
 
     for %{email: email} = contact <- contacts,
         person_id = Map.get(by_email, String.downcase(email)),
         do: %{person_id: person_id, response_status: contact[:response_status]}
   end
+
+  # The person a link names: the golden record when MDM merged this one
+  # (`AshEnterprise.Canonical.Projections.Golden`).
+  defp golden_id(nil, _context), do: nil
+  defp golden_id(person, context), do: Golden.resolve(person, context.tenant_id).id
 
   defp upsert_people(contacts, context) do
     contacts

@@ -161,6 +161,12 @@ defmodule AshEnterprise.Security.Privilege do
   # (`AshEnterprise.Security.Checks.HierarchyGrant`). Sharing a row stays the
   # owner's own act (`SharedWithActor`).
   @owner_only [
+    # A person's assistant history, which quotes their mail and Slack.
+    "AshEnterprise.Assistant.Thread",
+    "AshEnterprise.Assistant.Turn",
+    # What the person made in it: their pinned apps and their reply drafts.
+    "AshEnterprise.Assistant.PinnedApp",
+    "AshEnterprise.Assistant.ReplyDraft",
     "AshEnterprise.BusinessEvents.Ledger",
     "AshEnterprise.Canonical.Conversation",
     "AshEnterprise.Canonical.ConversationParticipant",

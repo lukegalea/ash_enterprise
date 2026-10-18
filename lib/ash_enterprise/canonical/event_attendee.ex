@@ -93,6 +93,16 @@ defmodule AshEnterprise.Canonical.EventAttendee do
   actions do
     defaults [:read]
 
+    update :mdm_repoint do
+      description """
+      The person merge's write (ADR 0054): this attendance moves to the golden
+      record a merge folded its person into, and back on the unmerge
+      (`AshEnterprise.Mdm.PersonJoins`). Machinery only, never typed in.
+      """
+
+      accept [:person_id]
+    end
+
     create :derive do
       description """
       Record one attendance, upserting on `(event, person)` so a replay

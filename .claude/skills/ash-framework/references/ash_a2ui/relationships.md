@@ -185,7 +185,10 @@ end
   fields the resolver resolves in this render get a Button; `links`
   (to-many) stay plain text. Row data is unchanged. Rows without a link
   for the field still get the Button (it sits in the row template); it is
-  acknowledged and opens nothing.
+  acknowledged and opens nothing. The merged catalog
+  (`createAshA2uiCatalog`) draws these Buttons as links (inherited font,
+  `--a2ui-link-color`, underline, focus ring); stock renderers show the
+  upstream borderless Button.
 - Verified at compile time: `link` → public to-one relationship, `links`
   → public to-many, single-attribute destination PK, `link_label` a
   public destination field, `{surface, id_path}` walks public

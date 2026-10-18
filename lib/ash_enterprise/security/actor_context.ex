@@ -34,6 +34,26 @@ defmodule AshEnterprise.Security.ActorContext do
   the time a check runs, both are just "is the record's owning business unit in
   this set?" — one `MapSet.member?/2`, or one `IN (...)` when pushed into SQL.
 
+  ## Candidacy
+
+  `task_ids` are the human tasks the actor may act on now — open tasks they
+  (or one of their teams) are a candidate for, claimed tasks they hold, never
+  one whose maker-checker exclusions name them — answered once by the engine's
+  candidacy read. `AshEnterprise.Security.Checks.TaskCandidacy` turns them into
+  a read grant on those tasks, so being asked to decide something is enough to
+  see it, without a role grant and without a query in the check (ADR 0009,
+  note of 2026-10-17).
+
+  Two bounds keep the list small. Someone whose roles already read every task
+  (a `:global` read on `HumanTask`, as Administrators hold) gets none: the role
+  grant reaches every task and act the list would, so it is not loaded. For
+  everyone else it holds at most 1,000 tasks, oldest first; a person
+  candidate on more than that (a role candidate on a large import's review
+  queue) sees the oldest on the board, and a warning is logged. The bound
+  limits what they *read* through candidacy, not what they may decide: the
+  engine checks candidacy itself when they act, and the steward queue decides
+  a candidate without reading its task.
+
   ## Usage
 
   Built by `AshEnterpriseWeb.Plugs.LoadActorContext` for web requests, and by
@@ -44,6 +64,9 @@ defmodule AshEnterprise.Security.ActorContext do
   require Ash.Query
 
   alias AshEnterprise.Security.AccessRight
+
+  # The most candidate tasks a context carries (see "Candidacy").
+  @max_task_ids 1_000
 
   defmodule Grant do
     @moduledoc "Precomputed reach for one `(resource, verb)` pair."
@@ -62,6 +85,7 @@ defmodule AshEnterprise.Security.ActorContext do
     :business_unit_id,
     team_ids: [],
     principal_ids: [],
+    task_ids: [],
     grants: %{},
     shared: %{},
     hierarchy: nil,
@@ -74,6 +98,7 @@ defmodule AshEnterprise.Security.ActorContext do
           business_unit_id: Ash.UUID.t() | nil,
           team_ids: [Ash.UUID.t()],
           principal_ids: [Ash.UUID.t()],
+          task_ids: [Ash.UUID.t()],
           grants: %{{String.t(), atom()} => Grant.t()},
           shared: %{{String.t(), atom()} => MapSet.t(Ash.UUID.t())},
           hierarchy: AshEnterprise.Security.Hierarchy.t() | nil,
@@ -138,12 +163,16 @@ defmodule AshEnterprise.Security.ActorContext do
     grants = build_grants(role_assignments, tenant)
     shared = load_shared(principal_ids, tenant)
 
+    task_ids =
+      if reads_every_task?(grants), do: [], else: load_task_ids(user_id, team_ids, tenant)
+
     %__MODULE__{
       user_id: user_id,
       organization_id: tenant,
       business_unit_id: business_unit_id,
       team_ids: team_ids,
       principal_ids: principal_ids,
+      task_ids: task_ids,
       grants: grants,
       shared: shared,
       # Costs nothing when hierarchy security is disabled (the default): resolve/2
@@ -216,6 +245,15 @@ defmodule AshEnterprise.Security.ActorContext do
       _ -> nil
     end
   end
+
+  @doc """
+  The ids of the teams `user_id` belongs to in `tenant`: one query, as
+  `build/2` makes it. For callers that need a person's teams without building
+  their whole context (`AshEnterprise.Process.AssignmentResolver.team_ids/2`,
+  for a delegate named by id).
+  """
+  @spec team_ids_for(Ash.UUID.t() | nil, Ash.UUID.t() | nil) :: [Ash.UUID.t()]
+  def team_ids_for(user_id, tenant), do: load_team_ids(user_id, tenant)
 
   defp load_team_ids(nil, _tenant), do: []
 
@@ -348,6 +386,61 @@ defmodule AshEnterprise.Security.ActorContext do
 
           {root.id, ids}
         end)
+    end
+  end
+
+  # The human tasks the actor may act on now: open tasks a candidate row names
+  # them (or one of their teams) for, and claimed tasks they hold — minus any
+  # task whose maker-checker exclusions name them. The engine's own candidacy
+  # read (`:awaiting_actor`) answers it, so this is the same set the task
+  # board lists and the engine's claim/complete/delegate checks accept, not a
+  # second reading of the rows. The person is handed over as a map carrying
+  # the team ids just loaded, so the resolver answers `team_ids/2` without a
+  # query (and without building this context again).
+  #
+  # Only live tasks: a decided or cancelled task leaves the set, so it grows
+  # with a person's open work, not with their history.
+  defp load_task_ids(nil, _team_ids, _tenant), do: []
+  defp load_task_ids(_user_id, _team_ids, nil), do: []
+
+  defp load_task_ids(user_id, team_ids, tenant) do
+    ids =
+      AshEnterprise.Bpmn.HumanTask
+      |> Ash.Query.for_read(:awaiting_actor, %{},
+        actor: %{id: user_id, team_ids: team_ids},
+        authorize?: false,
+        tenant: tenant
+      )
+      |> Ash.Query.select([:id])
+      # Oldest first, and one past the bound, so an overflow is seen rather
+      # than guessed and the work waiting longest is what stays readable.
+      |> Ash.Query.sort(inserted_at: :asc, id: :asc)
+      |> Ash.Query.limit(@max_task_ids + 1)
+      |> read_all(tenant)
+      |> Enum.map(& &1.id)
+
+    if length(ids) > @max_task_ids do
+      require Logger
+
+      Logger.warning(
+        "ActorContext: user #{user_id} is a candidate on more than #{@max_task_ids} " <>
+          "live tasks; candidacy reads the oldest #{@max_task_ids}. A role that " <>
+          "decides this many tasks wants a read grant on HumanTask."
+      )
+
+      Enum.take(ids, @max_task_ids)
+    else
+      ids
+    end
+  end
+
+  # A `:global` read on tasks already reaches every task, and every task act
+  # (`RoleGrant` authorizes a generic action on a global grant), so candidacy
+  # would add nothing.
+  defp reads_every_task?(grants) do
+    case Map.get(grants, {inspect(AshEnterprise.Bpmn.HumanTask), :read}) do
+      %Grant{global?: true} -> true
+      _narrower -> false
     end
   end
 

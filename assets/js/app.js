@@ -58,6 +58,7 @@ import {ContextProvider} from "@lit/context"
 import {renderMarkdown} from "@a2ui/markdown-it"
 import {AshA2ui, configureAshA2ui} from "../../deps/ash_a2ui/priv/js/ash_a2ui_hook.js"
 import {createAshA2uiCatalog} from "../../deps/ash_a2ui/priv/js/ash_a2ui_catalog.js"
+import {InlineA2ui} from "./inline_a2ui_hook.js"
 import {createAshAdminCatalog} from "../../deps/ash_a2ui/priv/js/ash_admin_catalog.js"
 import {z} from "zod"
 
@@ -134,7 +135,7 @@ const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks, AshA2ui, AshBpmnDesigner, AshBpmnViewer, AshDecisionsEditor, AshCanvas},
+  hooks: {...colocatedHooks, AshA2ui, InlineA2ui, AshBpmnDesigner, AshBpmnViewer, AshDecisionsEditor, AshCanvas},
 })
 
 // Show progress bar on live navigation and form submits

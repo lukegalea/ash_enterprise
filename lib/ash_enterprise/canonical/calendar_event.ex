@@ -165,6 +165,16 @@ defmodule AshEnterprise.Canonical.CalendarEvent do
   actions do
     defaults [:read]
 
+    update :mdm_repoint do
+      description """
+      The person merge's write (ADR 0054): this event's organizer moves to the golden
+      record a merge folded its person into, and back on the unmerge
+      (`AshEnterprise.Mdm.PersonJoins`). Machinery only, never typed in.
+      """
+
+      accept [:organizer_id]
+    end
+
     # The agenda windows the daily-loop surfaces read (Today, Calendar; ACP
     # `today` / `calendar`). Cut in the display zone, in start order — see
     # `AshEnterprise.Canonical.Preparations.AgendaWindow`.

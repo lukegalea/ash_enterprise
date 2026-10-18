@@ -54,7 +54,9 @@ end
 - `require_context` entries must appear in the same table's
   `context_filter`; `select_context` must name a context over the table's
   own resource; `context_filter`/`require_context`/`select_context` are
-  table-only and `context` is detail-only. All compile-time verified
+  table-only and `context` is detail-only; on sectioned tables
+  `select_context` is boards-only (`display :board`: one select control per
+  card). All compile-time verified
   (`AshA2ui.Verifiers.VerifyContexts`) — fix declarations, don't work
   around the verifier.
 - `:detail` fields default to the **context resource's** public attributes
