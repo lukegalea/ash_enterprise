@@ -1,0 +1,33 @@
+{
+  "_comment": "SPDX-License-Identifier: CC0-1.0 — synthetic fixture shaped like the refused S1-63 licence drafts once their vocabulary is mapped: clause terms that are not atom-safe (Apache-2.0, BSD-3-Clause) become snake_case option words with the original term kept in criteria, and a noul carries no options (its criteria keys are true/false).",
+  "proposals": [
+    {
+      "clause_ref": "lic-1",
+      "name": "permissive_licence",
+      "answer_type": "choice",
+      "options": ["mit", "bsd_3_clause", "apache_2_0"],
+      "instructions": "Which permissive licence does the package declare?",
+      "criteria": {
+        "mit": "The package declares MIT.",
+        "bsd_3_clause": "The package declares BSD-3-Clause.",
+        "apache_2_0": "The package declares Apache-2.0."
+      },
+      "family": "third_party_licence",
+      "state_shape": null,
+      "pii": "none"
+    },
+    {
+      "clause_ref": "lic-5",
+      "name": "attribution_required",
+      "answer_type": "noul",
+      "instructions": "Does the package's licence require its copyright notice or licence text to travel with copies of the software?",
+      "criteria": {
+        "true": "The licence requires the notice or licence text to travel with copies.",
+        "false": "The licence sets no such condition."
+      },
+      "family": "third_party_licence",
+      "state_shape": null,
+      "pii": "none"
+    }
+  ]
+}

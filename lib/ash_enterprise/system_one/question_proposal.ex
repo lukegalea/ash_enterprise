@@ -446,9 +446,20 @@ defmodule AshEnterprise.SystemOne.QuestionProposal do
   defp pii_line(_entry), do: nil
 
   @doc """
-  The prompt sent with the policy text: the decode schema rides the wire as
-  the structured-output contract, and the prose says only what the schema
-  cannot — cite clauses, never invent vocabulary, never list abstentions.
+  The prompt sent with the policy text. The decode schema rides the wire as
+  the structured-output contract, but not every runtime can decode under it
+  (one that checks `pattern` or the conditional rules only after
+  generating sends them nowhere), so the prose states the vocabulary rules
+  the schema enforces as well: cite clauses, snake_case atom-safe words for
+  names, families and options, no options on a noul, never list
+  abstentions. A clause term that is not atom-safe is mapped to a
+  snake_case word and kept verbatim in the prose. The host's decode still
+  validates every answer against the full schema; this text only makes a
+  valid answer likely.
+
+  Changing this text changes `wire_question_hash` (the digest covers the
+  prompt and the schema) for every record proposed after the change;
+  records already stored keep theirs.
   """
   @spec build_prompt(String.t(), String.t()) :: String.t()
   def build_prompt(policy_text, source) do
@@ -461,12 +472,24 @@ defmodule AshEnterprise.SystemOne.QuestionProposal do
     - Every proposal cites the clause it came from, by id, in `clause_ref`.
       If a clause cannot become a question, propose nothing for it — vague
       or conflicting clauses are a person's problem, never a guess.
-    - Options come ONLY from the clause's own vocabulary, atom-safe and in
-      the order the clause lists them. Abstentions are added by the system;
-      never list one.
+    - `name`, `family` and every option word are snake_case identifiers:
+      lowercase letters, digits and underscores only, starting with a
+      letter, at most 64 characters (^[a-z][a-z0-9_]{0,63}$). No capitals,
+      hyphens, dots or spaces.
+    - Options express the clause's own meaning, in the order the clause
+      gives it. When the clause's term is not already a snake_case
+      identifier, use its snake_case form as the option word ("Version 2.0"
+      becomes version_2_0, "Read-Only" becomes read_only) and keep the
+      original term, verbatim, in that option's `criteria` text. Never
+      invent a meaning the clause does not state. Abstentions are added by
+      the system; never list one.
     - `answer_type` is "noul" (a yes/no fact), "choice" (one option from a
-      closed set) or "score" (a level). Output only JSON matching the
-      provided schema. No extra keys, no commentary.
+      closed set) or "score" (a level). A noul carries NO `options` key at
+      all — its true/false answers are implied; describe them, if needed,
+      under `criteria` keys "true" and "false". A choice or a score must
+      carry `options`.
+    - Output only JSON matching the provided schema. No extra keys, no
+      commentary.
 
     Policy document (source: #{source}):
 
