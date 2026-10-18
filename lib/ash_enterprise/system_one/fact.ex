@@ -13,7 +13,10 @@ defmodule AshEnterprise.SystemOne.Fact do
   the period (history preserved, the predicate returns to unknown), and
   the `WITHOUT OVERLAPS` identity on
   `(subject_type, subject_id, predicate, scope_hash)` enforces one open
-  period per subject+predicate+scope at any instant. Supersession
+  period per subject+predicate+scope at any instant. The fragment's
+  `unique_id` identity is period-aware the same way — a revision is a
+  second version row under the same id — so it is a `WITHOUT OVERLAPS`
+  exclusion on `(id, valid_at)`, never a plain unique index. Supersession
   bookkeeping (`superseded_by`, `:supersede`, `current?`, the `:current`
   filter) is deleted: a plain read IS the as-of-now read (`strategy
   :context`). `valid_until` remains the SECOND axis — domain validity (a
