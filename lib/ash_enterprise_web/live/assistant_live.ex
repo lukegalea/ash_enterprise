@@ -637,7 +637,9 @@ defmodule AshEnterpriseWeb.AssistantLive do
   # The thread's proposals as the page shows them again: a settled one as
   # what happened to it, an unsettled one rebuilt from its wire form as the
   # person and offered again (or why it no longer can be). Runs in the
-  # thread's async load.
+  # thread's async load. Only proposals recorded as settled through
+  # `ProposalSettlement` qualify: an older one may have been confirmed
+  # before anything recorded it, so it is shown as earlier, never offered.
   defp restore_proposals(%{thread: thread, turns: entries}, actor, opts) do
     settled =
       case ProposalSettlement.for_thread(thread.id, opts) do
@@ -647,7 +649,8 @@ defmodule AshEnterpriseWeb.AssistantLive do
 
     for %{turn: %Turn{role: :assistant}, withheld?: false} = entry <- entries,
         call <- calls(entry.turn),
-        %{"id" => id, "wire" => %{} = wire} = proposal <- [call["proposal"]],
+        %{"id" => id, "wire" => %{} = wire, "settled" => "recorded"} = proposal <-
+          [call["proposal"]],
         into: %{} do
       {id, restored(settled[id], proposal["summary"], actor, wire)}
     end

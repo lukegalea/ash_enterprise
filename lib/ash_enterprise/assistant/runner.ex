@@ -364,7 +364,11 @@ defmodule AshEnterprise.Assistant.Runner do
       Map.put(call, "proposal", %{
         "id" => proposal.id,
         "wire" => proposal.wire,
-        "summary" => proposal.summary
+        "summary" => proposal.summary,
+        # What the person does with it is recorded as a settlement, so the
+        # page may offer it again until then (an older proposal, recorded
+        # before settlements existed, is never offered again).
+        "settled" => "recorded"
       })
 
   defp page_id(prefix),

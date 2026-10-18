@@ -11,7 +11,7 @@ defmodule AshEnterpriseWeb.AssistantComposeLiveTest do
 
   import Phoenix.LiveViewTest
 
-  alias AshEnterprise.Assistant.{History, PinnedApp}
+  alias AshEnterprise.Assistant.{History, PinnedApp, Thread, Turn}
   alias AshEnterprise.Bpmn.{HumanTask, TaskCandidate}
   alias AshEnterprise.Canonical.Task
   alias AshEnterprise.Platform.LocalTime
@@ -270,6 +270,46 @@ defmodule AshEnterpriseWeb.AssistantComposeLiveTest do
     await_answer(again, "#proposal-#{id}")
     refute has_element?(again, "#confirm-#{id}")
     assert has_element?(again, "#proposal-#{id}", "confirmed earlier")
+  end
+
+  test "a proposal recorded before settlements existed is shown, never offered again",
+       %{conn: conn, ctx: ctx} do
+    opts = [actor: ctx.actor, tenant: ctx.tenant]
+    {:ok, thread} = Thread.start("SYNTHETIC older", opts)
+
+    {:ok, _question} =
+      Turn.append(%{thread_id: thread.id, role: :user, content: "SYNTHETIC"}, opts)
+
+    wire = %{"kind" => "create_task", "title" => "SYNTHETIC older", "due_at" => nil}
+
+    {:ok, _answer} =
+      Turn.append(
+        %{
+          thread_id: thread.id,
+          role: :assistant,
+          content: "SYNTHETIC: proposed.",
+          tool_calls: %{
+            "calls" => [
+              %{
+                "name" => "propose_task",
+                "arguments" => %{},
+                "ok" => true,
+                "proposal" => %{
+                  "id" => "pold0001",
+                  "wire" => wire,
+                  "summary" => "SYNTHETIC older"
+                }
+              }
+            ]
+          }
+        },
+        opts
+      )
+
+    {:ok, view, _html} = live(conn, "/app/agent/#{thread.id}")
+    await_answer(view, "#proposal-pold0001")
+    refute has_element?(view, "#confirm-pold0001")
+    assert has_element?(view, "#proposal-pold0001", "Proposed earlier")
   end
 
   test "a cancelled proposal stays cancelled after a reload", %{conn: conn, ctx: ctx} do
