@@ -237,6 +237,65 @@ defmodule AshEnterprise.SystemOne.QuestionProposalTest do
     end
   end
 
+  describe "the prompt states the vocabulary rules the schema enforces" do
+    # Not every runtime decodes under the wire schema (one that checks
+    # `pattern` and the conditional rules only after generating sends them
+    # nowhere), so the prose must carry them. These pins hold each rule.
+    setup do
+      %{prompt: QuestionProposal.build_prompt("POLICY TEXT", "policy.md")}
+    end
+
+    test "names, families and options are snake_case atom-safe words", %{prompt: prompt} do
+      assert prompt =~ "`name`, `family` and every option word are snake_case identifiers"
+      assert prompt =~ "^[a-z][a-z0-9_]{0,63}$"
+      assert prompt =~ "No capitals,\n  hyphens, dots or spaces."
+    end
+
+    test "a clause term that is not atom-safe maps to snake_case, original kept in criteria",
+         %{prompt: prompt} do
+      assert prompt =~ "use its snake_case form as the option word"
+      assert prompt =~ ~s("Version 2.0"\n  becomes version_2_0)
+      assert prompt =~ "keep the\n  original term, verbatim, in that option's `criteria` text"
+    end
+
+    test "a noul carries no options", %{prompt: prompt} do
+      assert prompt =~ "A noul carries NO `options` key at\n  all"
+      assert prompt =~ "A choice or a score must\n  carry `options`."
+    end
+
+    test "clause lineage and system-added abstentions still lead", %{prompt: prompt} do
+      assert prompt =~ "cites the clause it came from, by id, in `clause_ref`"
+      assert prompt =~ "Abstentions are added by\n  the system; never list one."
+      assert prompt =~ "Policy document (source: policy.md):\n\nPOLICY TEXT"
+    end
+
+    test "a document drafted under the rules decodes", ctx do
+      {:ok, record} = propose_fixed(raw("mapped_vocabulary.json"), ctx)
+
+      assert record.status == :proposed
+      assert [choice, noul] = record.proposals
+      assert choice["options"] == ["mit", "bsd_3_clause", "apache_2_0"]
+      assert choice["criteria"]["apache_2_0"] =~ "Apache-2.0"
+      refute Map.has_key?(noul, "options")
+    end
+
+    test "the same document with the clause's raw terms is still refused by the host", ctx do
+      {:ok, document} = Jason.decode(raw("mapped_vocabulary.json"))
+
+      unmapped =
+        update_in(document, ["proposals", Access.at(0)], fn entry ->
+          entry
+          |> Map.put("options", ["MIT", "BSD-3-Clause", "Apache-2.0"])
+          |> Map.delete("criteria")
+        end)
+
+      {:ok, record} = propose_fixed(Jason.encode!(unmapped), ctx)
+
+      assert record.status == :refused
+      assert record.refusal_reason =~ "pattern"
+    end
+  end
+
   describe "decode refusals (raw output retained, never a guess)" do
     test "output that is not JSON is refused verbatim", ctx do
       malformed = raw("malformed.json")
