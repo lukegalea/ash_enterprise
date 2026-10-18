@@ -1,6 +1,6 @@
 # ADR 0051 — Business events are derived from the canonical store, into a chained ledger
 
-- **Status:** accepted (2026-10-12), implemented — see the implementation note
+- **Status:** accepted (2026-10-12), implemented — see the implementation notes (2026-10-12, 2026-10-18)
 - **Date:** 2026-10-12
 
 ## Context
@@ -138,15 +138,24 @@ platform resource for a non-`:global` grant, and worth a platform fix of its own
 
 ## Known gaps
 
-- **The simulation twin** (`Ledger.SimulationEvent`) is emitted by the package as a plain resource, not on the platform
-  base: no tenancy, no policies. Nothing in this application writes, reads or exposes it. The fix belongs in BIZEV-10
-  (emit the twin on the host's base too).
-- **`cross_region_read`** writes disclosure rows without an owner, which `StampOwner` refuses, so it does not work in
-  this host. It is the alarmed operator door; it needs an owner rule before anyone uses it.
-- **Corrections and late arrival** (BIZEV-9): a later-arriving earlier message does not move a conversation's start.
-- **Erasure-as-event** (BIZEV-12): a shred records no tombstone fact yet; `data.erasure_scope_id` is the link.
-- **Retention**: the ledger is append-only forever; when canonical rows are deleted, their facts' clear structure
-  remains. BIZEV-12 owns retention.
+Closed on 2026-10-18 (see that implementation note): the simulation twin on the platform base, corrections of a
+conversation's start, and a tombstone fact on a shred. Retention was decided rather than built (below).
+
+- **`cross_region_read`** does not work in this host. The package's action appends its disclosure rows without the
+  caller's tenant or actor and with no `context`, so `StampOwner` refuses them. Fixing it takes two things: upstream,
+  the action has to pass its caller's context to the append, as `record` already does; here, an owner rule has to say
+  whose stream a disclosure belongs to. Owner-only would hide the alarm from everyone but the operator who raised it,
+  so this is a design decision, not a one-line fix. It is the alarmed operator door, and nobody uses it yet.
+- **Retention is decided: the ledger is append-only and is never purged.** BIZEV-12 rules that retention belongs to
+  the raw layer, that ledger rows hold only PII-minimal structure, and that an erasure is recorded as a tombstone. That
+  is this ledger's position too, and a shred now records its tombstone. BIZEV-12's purge machinery (`purge_before`
+  over a partitioned `SourceRecord`) does not apply here, because this ledger's raw layer is
+  `AshEnterprise.Ingestion.SourceObject`, which a shred already reaches (ADR 0024). MDM's raw layer is the package's
+  `SourceRecord` (ADR 0054), but it is not partitioned; adopting `purge_before` there is ADR 0054's call. No action
+  deletes canonical rows other than by a shred. If one is ever added, it should record a tombstone in the same way.
+- **Corrections cover a conversation's start only.** Message facts are once-only, and a calendar event's
+  `occurred_at` is the write time (no provider time yet), so neither has an out-of-order truth to correct. A future
+  consumer of the feed must treat a fact named by a later `supersedes_event_id` as replaced; no consumer exists yet.
 - **Chains are per region, not per tenant.** A tenant cannot verify its own chain without the operator's
   `mix bizev.verify_chains`; the audit log's per-tenant chain (ADR 0002) is the comparison.
 
@@ -170,3 +179,54 @@ tables. No other resource references the ledger.
 - Dogfood: migrate, restart, then once inside the node `AshEnterprise.BusinessEvents.backfill()`; run
   `AshEnterprise.Platform.Seeder.seed_privileges()` and `regrant_administrator_privileges(org_id)` so the owner holds
   `:basic` read on the ledger. Set `BUSINESS_EVENTS_REGION` before the first fact if `local` is not the region.
+
+## Implementation note (2026-10-18)
+
+The package features the first three known gaps were waiting on have landed: BIZEV-9 (corrections, `b6d3c13`),
+BIZEV-10 (simulation isolation, `542c513`) and BIZEV-12 (retention and erasure-as-event, `68886c4`).
+
+- **Upstream: BIZEV PR #15 (`e5a54b6`).** BIZEV-10 still emitted the twin as a bare `use Ash.Resource`, so the host
+  could not choose its base. The `:ledger` macro now takes `simulation_base: {module, use_opts}` and emits the twin as
+  `use module, use_opts`. It refuses to compile when the base does not bring both ledger extensions.
+  `simulation_runs/2` takes the read's options, so a multitenant twin can be listed. BIZEV-12's tombstones were
+  recorded with no tenant and no context, which this ledger refuses. `purge_before/3` and `erase_subject/5` now take
+  `record_opts:` and `context:`, and `Retention.tombstone/5` returns the tombstone's record input as data. The lock
+  moved from `ce20e15` to `e5a54b6`; the usage-rules sync updated the ash-framework skill's reference.
+- **The twin on the platform base.** `AshEnterprise.BusinessEvents.LedgerBase` is the one base both ledgers use:
+  `AshEnterprise.Platform.Resource` (`:user_owned`, tenant-scoped, `audit?`/`archival?`/`lifecycle?` off) plus
+  `StampOwner` on every append. The ledger uses it, and passes it as `simulation_base`. So `Ledger.SimulationEvent`
+  has `organization_id` and the ownership columns, inherits the policy set, refuses an unowned row, and is owner-only
+  (`Privilege.owner_only?/1`); the privilege sync picks it up as a platform resource. Migration
+  `business_simulation_events_on_platform_base`: the columns are NOT NULL, which is safe because nothing has ever
+  written the twin. Nothing writes simulated events yet.
+- **Corrections (BIZEV-9).** `Derivation.message/3` takes the conversation's current start, which the recorder reads
+  back with `by_subject`. If there is none, the message starts the conversation (same delivery key as before, so
+  existing rows collapse). If the message was sent before the current start, it derives a new
+  `conversation.started` whose `supersedes_event_id` names the start it corrects, keyed by that start, so deriving it
+  twice records it once. Otherwise it derives no conversation fact. Nothing is rewritten. The package's
+  `Ledger.Corrections` register is not used: it classifies by truth instant (same `occurred_at`, different data), and
+  it seeds itself region-wide with raw SQL across tenants. A start moving earlier is a different shape, and
+  `by_subject` already reads one subject in its tenant. The declaration gained `supersedes_when`, so
+  `mapping_version_hash` changed for facts derived from now on. Read-decide-write now runs under the region's advisory
+  lock (the same key `record` takes, `RegionLockKeyGenerator.key_for/1`), in a transaction. Without the lock, two
+  messages of one conversation projected at once could both see no start, and the earlier one's start would collapse
+  onto the later one's key.
+- **Erasure-as-event (BIZEV-12).** `Scope.shred` now ends with `AshEnterprise.BusinessEvents.Changes.RecordShred`,
+  after the key is destroyed and in the same transaction. Every owner whose facts point at the scope
+  (`data.erasure_scope_id`) gets one `:"retention.subject_erased"` tombstone in their own tenant and stream, built by
+  the package's `Retention.tombstone/5`. Its subject is the scope id, and its data is the scope id, kind, region and
+  the count of the owner's facts it covers: never the scope's `ref` or `label`. It is idempotent per scope and owner.
+  A scope nothing was derived from leaves none; its audited row is the record. A tombstone failure fails the shred,
+  as a failed record fails a projection. `emit?: false` turns it off with the rest.
+- **Gap 2** (`cross_region_read`) did not fall out of this work and stays open (Known gaps).
+- Tests: `test/ash_enterprise/business_events/derivation_test.exs` ("a conversation's start, corrected", "a shred's
+  tombstone"); `.../ledger_test.exs` ("a later-arriving earlier message corrects the start; the first start stays",
+  "a shred" with its tombstone and its idempotent re-record, "a scope nothing was derived from leaves no tombstone",
+  "the simulation twin stands on the platform base", owner-only privileges for both ledgers). The erasure end-to-end
+  test sweeps `business_simulation_events` too, and asserts one tombstone per vertical's shred, counting that
+  vertical's facts, after them in the chain. Upstream: `test/simulation_host_base_test.exs` and `retention_test.exs`.
+- Dogfood: migrate and restart, then run `AshEnterprise.Platform.Seeder.seed_privileges()` and
+  `regrant_administrator_privileges(org_id)` (the twin is a new platform resource), and once
+  `AshEnterprise.BusinessEvents.backfill()`. The backfill records a correcting start for any conversation whose start
+  was recorded from a later message by live emission; it adds nothing else. Scopes shredded before this deploy have
+  no tombstone. `AshEnterprise.BusinessEvents.Recorder.shredded/1` records one for a given shredded scope, if wanted.

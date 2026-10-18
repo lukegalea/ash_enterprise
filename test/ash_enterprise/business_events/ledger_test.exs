@@ -2,9 +2,11 @@ defmodule AshEnterprise.BusinessEvents.LedgerTest do
   @moduledoc """
   The business-event ledger end to end (ADR 0051): canonical writes record
   their facts in the same transaction, as the row's owner and in its tenant;
-  re-deriving records nothing new; `backfill/0` derives what was written
-  before the ledger existed; only the owner reads their facts; and a shred
-  leaves every chain verifiable and nothing readable.
+  re-deriving records nothing new; a later-arriving earlier message corrects
+  its conversation's start; `backfill/0` derives what was written before the
+  ledger existed; only the owner reads their facts; a shred leaves every
+  chain verifiable, nothing readable, and a tombstone; and the simulation
+  twin stands on the same base as the ledger.
   """
 
   use AshEnterprise.DataCase, async: false
@@ -15,6 +17,8 @@ defmodule AshEnterprise.BusinessEvents.LedgerTest do
   alias AshEnterprise.Accounts.User
   alias AshEnterprise.BusinessEvents
   alias AshEnterprise.BusinessEvents.Ledger
+  alias AshEnterprise.BusinessEvents.Ledger.SimulationEvent
+  alias AshEnterprise.BusinessEvents.Recorder
   alias AshEnterprise.Canonical.{CalendarEvent, Conversation, Message}
   alias AshEnterprise.Erasure
   alias AshEnterprise.Erasure.Shredded
@@ -134,6 +138,36 @@ defmodule AshEnterprise.BusinessEvents.LedgerTest do
       assert started.data["conversation_id"] == conversation.id
       assert_chain_clean()
     end
+
+    test "a later-arriving earlier message corrects the start; the first start stays", ctx do
+      conversation = upsert_conversation!(ctx)
+      upsert_message!(ctx, conversation, "msg-9", ~U[2026-10-12 09:00:00.000000Z], :inbound)
+      [original] = starts(ctx)
+      assert original.occurred_at == ~U[2026-10-12 09:00:00.000000Z]
+
+      # Sent earlier, observed later: a correction superseding the first start.
+      upsert_message!(ctx, conversation, "msg-7", ~U[2026-10-12 07:00:00.000000Z], :inbound)
+      # Re-projected: nothing new. Sent between the two: not the start.
+      upsert_message!(ctx, conversation, "msg-7", ~U[2026-10-12 07:00:00.000000Z], :inbound)
+      upsert_message!(ctx, conversation, "msg-8", ~U[2026-10-12 08:00:00.000000Z], :inbound)
+
+      assert [^original, correction] = starts(ctx)
+      assert correction.supersedes_event_id == original.id
+      assert correction.occurred_at == ~U[2026-10-12 07:00:00.000000Z]
+      assert correction.data["first_message_id"] == message_row(ctx, "msg-7").id
+      assert correction.owner_id == ctx.alice.id
+
+      # An even earlier one supersedes the correction: each is the new present.
+      upsert_message!(ctx, conversation, "msg-6", ~U[2026-10-12 06:00:00.000000Z], :outbound)
+      assert [^original, ^correction, second] = starts(ctx)
+      assert second.supersedes_event_id == correction.id
+
+      assert Enum.count(facts(ctx), &(&1.subject_type == "message")) == 4
+      assert_chain_clean()
+
+      # Backfill re-derives every message in send order and records nothing.
+      assert {:ok, %{recorded: 0}} = BusinessEvents.backfill()
+    end
   end
 
   describe "backfill/0" do
@@ -196,13 +230,17 @@ defmodule AshEnterprise.BusinessEvents.LedgerTest do
       assert facts(ctx) == []
     end
 
-    test "no role can be granted wider than :basic on the ledger" do
-      name = inspect(Ledger)
+    test "no role can be granted wider than :basic on the ledger or its twin" do
+      names = [inspect(Ledger), inspect(SimulationEvent)]
 
-      for privilege <-
-            Security.Privilege
-            |> Ash.Query.filter(resource_name == ^name)
-            |> Ash.read!(authorize?: false) do
+      privileges =
+        Security.Privilege
+        |> Ash.Query.filter(resource_name in ^names)
+        |> Ash.read!(authorize?: false)
+
+      assert privileges |> Enum.map(& &1.resource_name) |> Enum.uniq() |> Enum.sort() == names
+
+      for privilege <- privileges do
         assert privilege.can_be_basic
         refute privilege.can_be_global or privilege.can_be_deep or privilege.can_be_local
       end
@@ -223,15 +261,102 @@ defmodule AshEnterprise.BusinessEvents.LedgerTest do
 
       Seeder.grant_platform_operator(ctx.alice)
       operator = actor(ctx.alice, ctx.org.id)
-      Erasure.shred_scope!(ctx.scope, ctx.scope.ref, "ledger test", actor: operator)
+      shredded = Erasure.shred_scope!(ctx.scope, ctx.scope.ref, "ledger test", actor: operator)
 
       assert %Shredded{} = event_row(ctx).title
-      assert facts(ctx) == before
-      refute_ledger_spells(@content)
+
+      # The facts stay as they were, and one tombstone follows them, in the
+      # owner's stream, naming the scope and counting the facts it covers.
+      assert [_ | _] = after_shred = facts(ctx)
+      {kept, [tombstone]} = Enum.split(after_shred, length(before))
+      assert kept == before
+
+      assert tombstone.action == :"retention.subject_erased"
+      assert tombstone.subject_type == "retention"
+      assert tombstone.subject_external_id == ctx.scope.id
+      assert tombstone.occurred_at == shredded.shredded_at
+      assert tombstone.owner_id == ctx.alice.id
+      assert tombstone.organization_id == ctx.org.id
+
+      assert tombstone.data == %{
+               "subject" => ctx.scope.id,
+               "region" => "test",
+               "erasure_scope_id" => ctx.scope.id,
+               "scope_kind" => "connection",
+               "facts" => 4
+             }
+
+      refute_ledger_spells([ctx.scope.ref | @content])
       assert_chain_clean()
 
-      # Re-projecting the shredded row's structure records nothing new.
+      # Recording the shred again collapses onto the tombstone, and
+      # re-projecting the shredded row's structure records nothing new.
+      assert {:ok, [^tombstone]} = Recorder.shredded(shredded)
       assert {:ok, %{recorded: 0}} = BusinessEvents.backfill()
+      assert facts(ctx) == after_shred
+    end
+
+    test "a scope nothing was derived from leaves no tombstone", ctx do
+      Seeder.grant_platform_operator(ctx.alice)
+      operator = actor(ctx.alice, ctx.org.id)
+      Erasure.shred_scope!(ctx.scope, ctx.scope.ref, "ledger test", actor: operator)
+
+      assert facts(ctx) == []
+    end
+  end
+
+  describe "the simulation twin" do
+    test "stands on the platform base: tenant-scoped, owner-stamped, owner-only", ctx do
+      run = "ledger-sim-#{ctx.unique}"
+
+      simulated =
+        SimulationEvent.record!(sim_fact(ctx, run, %{"user_id" => ctx.alice.id}),
+          tenant: ctx.org.id,
+          authorize?: false
+        )
+
+      assert simulated.simulated
+      assert simulated.simulation_run == run
+      assert simulated.organization_id == ctx.org.id
+      assert simulated.owner_id == ctx.alice.id
+      assert simulated.owning_business_unit_id == ctx.seeded.business_unit.id
+
+      # An unowned simulated event is refused, as an unowned real one is.
+      assert {:error, _} =
+               SimulationEvent.record(sim_fact(ctx, run, nil),
+                 tenant: ctx.org.id,
+                 authorize?: false
+               )
+
+      # Owner-only: the owner reads it; another Administrator reads nothing.
+      assert [%{id: id}] =
+               SimulationEvent.by_region!(:test,
+                 actor: actor(ctx.alice, ctx.org.id),
+                 tenant: ctx.org.id
+               )
+
+      assert id == simulated.id
+
+      assert SimulationEvent.by_region!(:test,
+               actor: actor(ctx.bob, ctx.org.id),
+               tenant: ctx.org.id
+             ) == []
+
+      # A user cannot record a simulated event directly.
+      assert {:error, %Ash.Error.Forbidden{}} =
+               SimulationEvent.record(sim_fact(ctx, run, %{"user_id" => ctx.alice.id}),
+                 actor: actor(ctx.alice, ctx.org.id),
+                 tenant: ctx.org.id
+               )
+
+      # The labeling read, per tenant; and nothing reached the real ledger.
+      assert [%{simulation_run: ^run, events: 1}] =
+               AshDiscreteBusinessEvents.simulation_runs(Ledger, tenant: ctx.org.id)
+
+      assert facts(ctx) == []
+
+      result = VerifyChains.verify(SimulationEvent, :test)
+      assert result.findings == []
     end
   end
 
@@ -293,6 +418,37 @@ defmodule AshEnterprise.BusinessEvents.LedgerTest do
       tenant: ctx.org.id,
       authorize?: false
     )
+  end
+
+  defp sim_fact(ctx, run, owner) do
+    %{
+      event_kind: :"calendar_event.scheduled",
+      region: :test,
+      residency_tag: "test",
+      subject_type: "calendar_event",
+      subject_external_id: "sim-#{ctx.unique}",
+      occurred_at: ~U[2026-10-13 14:00:00.000000Z],
+      provenance: %{"mapping_name" => "simulation"},
+      simulation_run: run,
+      context:
+        Map.merge(
+          %{"organization_id" => ctx.org.id},
+          if(owner,
+            do: %{"owner" => Map.put(owner, "business_unit_id", ctx.seeded.business_unit.id)},
+            else: %{}
+          )
+        )
+    }
+  end
+
+  defp starts(ctx), do: Enum.filter(facts(ctx), &(&1.action == :"conversation.started"))
+
+  defp message_row(ctx, id) do
+    external_id = "ledger-#{id}-#{ctx.unique}"
+
+    Message
+    |> Ash.Query.filter(external_id == ^external_id)
+    |> Ash.read_one!(tenant: ctx.org.id, authorize?: false)
   end
 
   defp facts(ctx) do

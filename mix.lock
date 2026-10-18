@@ -19,7 +19,7 @@
   "ash_credo": {:hex, :ash_credo, "0.18.0", "d0b64be56ff3a9f3123b01b41042e6e8f974fa71ec50189809043063d96a81be", [:mix], [{:credo, "~> 1.7", [hex: :credo, repo: "hexpm", optional: false]}, {:igniter, "~> 0.8", [hex: :igniter, repo: "hexpm", optional: true]}], "hexpm", "38a952c10ccf9d499a66e00d67681a0bff1cc4c5d17de83a884c74e3339db374"},
   "ash_decisions": {:git, "https://github.com/lukegalea/ash_decisions.git", "d16aa3b7d7b34da70c9c2b37f897f54d760cc202", []},
   "ash_diagram": {:hex, :ash_diagram, "0.2.2", "0993bcf02c27b3577b5d775cb58162c176049e88362d56c7a13ca6feee5ee017", [:mix], [{:ash, "~> 3.7", [hex: :ash, repo: "hexpm", optional: false]}, {:clarity, "~> 0.3", [hex: :clarity, repo: "hexpm", optional: true]}, {:crux, "~> 0.1", [hex: :crux, repo: "hexpm", optional: false]}, {:ex_cmd, "~> 0.16", [hex: :ex_cmd, repo: "hexpm", optional: true]}, {:req, "~> 0.5", [hex: :req, repo: "hexpm", optional: true]}], "hexpm", "6ad94bf10b27d2b21dd817c0ed2919c434dae604d4b05f3c6a5c76099340dbd3"},
-  "ash_discrete_business_events": {:git, "https://github.com/lukegalea/ash_discrete_business_events.git", "ce20e1583a9c4caf035f0248d667859c97681b48", []},
+  "ash_discrete_business_events": {:git, "https://github.com/lukegalea/ash_discrete_business_events.git", "e5a54b6b17700b021470005e2622acc97b395fcd", []},
   "ash_events": {:git, "https://github.com/lukegalea/ash_events.git", "d71f6d066411b5a16045c20072c6d3d808de436c", [branch: "temporal-as-of-support-0.7"]},
   "ash_events_projections": {:git, "https://github.com/lukegalea/ash_events_projections.git", "f5c05d9991f23909ece4d33075f961a90e6242c5", []},
   "ash_evidence": {:git, "https://github.com/lukegalea/ash_evidence.git", "4539af2a0481e360c6a98b313fd9ccbd483c087d", [branch: "main"]},

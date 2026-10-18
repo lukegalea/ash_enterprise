@@ -20,6 +20,13 @@ defmodule AshEnterprise.BusinessEvents do
   Deriving is idempotent, so a replay, a resync or `backfill/0` records
   nothing it has already recorded.
 
+  A fact is never rewritten. When a message sent before its conversation's
+  recorded start is observed later, a new start is recorded that supersedes
+  the old one (`supersedes_event_id`, BIZEV-9). When an erasure scope is
+  shredded, each owner whose facts point at it gets a
+  `:"retention.subject_erased"` tombstone in the same transaction
+  (`AshEnterprise.BusinessEvents.Changes.RecordShred`, BIZEV-12's vocabulary).
+
   ## Not `AshEnterprise.Ledger`
 
   That namespace is the strangler's change-data ledger over the legacy
@@ -71,7 +78,9 @@ defmodule AshEnterprise.BusinessEvents do
 
   Runs across every tenant, as each row's owner. Calendar events are taken
   in write order and messages in send order, so a conversation's start is
-  its earliest message. Returns the rows read and the facts recorded.
+  its earliest message; a start recorded from a later message (live
+  emission before corrections existed) is corrected by a superseding fact.
+  Returns the rows read and the facts recorded.
   """
   @spec backfill() :: {:ok, map()} | {:error, term()}
   def backfill do
