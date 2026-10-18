@@ -207,11 +207,44 @@ defmodule AshEnterprise.Assistant.Runner do
 
     state = consume(AshAi.ToolLoop.stream(messages, loop_opts(state, true)), state)
 
-    if state.error == :max_iterations_reached and not state.stopped? do
-      final_answer(state)
-    else
-      state
+    cond do
+      state.error == :max_iterations_reached and not state.stopped? -> final_answer(state)
+      unbacked_proposal?(state) -> back_the_claim(state)
+      true -> state
     end
+  end
+
+  # An answer that says it proposed something when no propose_ tool ran in
+  # this run: the person would look for a Confirm that is not there. The live
+  # eval caught the in-zone model doing it after an answer that offered a
+  # proposal. One corrective turn, with the tools: make the proposal, or say
+  # that nothing was proposed.
+  # A claim in the past tense ("I've proposed", "Proposed: …"), not an
+  # offer ("I can propose"), which is an honest answer.
+  @claims_a_proposal ~r/\b(?:I'?ve|I have|I) (?:just )?proposed\b|^\W*proposed\b/imu
+
+  defp unbacked_proposal?(
+         %{error: nil, stopped?: false, result: %AshAi.ToolLoop.Result{}} = state
+       ) do
+    Regex.match?(@claims_a_proposal, answer_text(state)) and
+      not Enum.any?(state.calls, &Map.has_key?(&1, "proposal")) and
+      state.steps < state.max_steps
+  end
+
+  defp unbacked_proposal?(_state), do: false
+
+  defp back_the_claim(%{result: %AshAi.ToolLoop.Result{messages: messages}} = state) do
+    nudge =
+      ReqLLM.Context.user(
+        "No propose_ tool ran in this answer, so nothing is on the person's screen to " <>
+          "confirm. If they asked for a change, call the propose_ tool now. Otherwise " <>
+          "answer again without saying anything was proposed."
+      )
+
+    done = state.steps
+    state = %{state | result: nil, text: "", max_steps: max(state.max_steps - done, 1)}
+    state = consume(AshAi.ToolLoop.stream(messages ++ [nudge], loop_opts(state, true)), state)
+    %{state | steps: done + state.steps}
   end
 
   # The thread before this question, as text turns.

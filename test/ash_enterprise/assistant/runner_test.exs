@@ -126,6 +126,33 @@ defmodule AshEnterprise.Assistant.RunnerTest do
       assert List.last(final).role == :user
     end
 
+    test "an answer claiming a proposal no tool made gets one corrective turn", ctx do
+      ScriptedModel.script!([
+        {:text, "Proposed: merge the SYNTHETIC pair. Confirm on screen."},
+        {:text, "SYNTHETIC: nothing was put on screen; ask me to propose the merge."}
+      ])
+
+      assert {:ok, answer} = run(ctx, question: "SYNTHETIC: merge those two")
+
+      assert answer.content ==
+               "SYNTHETIC: nothing was put on screen; ask me to propose the merge."
+
+      assert answer.iterations == 2
+
+      assert_received {:model_request, _first, [_ | _], _}
+      assert_received {:model_request, second, [_ | _], _}
+      assert text(List.last(second)) =~ "No propose_ tool ran in this answer"
+    end
+
+    test "an offer to propose is an honest answer, not a claim", ctx do
+      ScriptedModel.script!([{:text, "SYNTHETIC: say the word and I can propose the merge."}])
+
+      assert {:ok, answer} = run(ctx, question: "SYNTHETIC: duplicates?")
+      assert answer.content =~ "I can propose"
+      assert_received {:model_request, _first, _, _}
+      refute_received {:model_request, _second, _, _}
+    end
+
     test "a cap with no answer after it fails as step_cap", ctx do
       looping = {:tools, [{"pending_approvals", %{"input" => %{}}}]}
       ScriptedModel.script!([looping, looping, {:text, ""}])
