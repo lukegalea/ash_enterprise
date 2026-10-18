@@ -17,6 +17,10 @@ defmodule AshEnterprise.SystemOne.JudgedFields.Transformer do
   alias AshEnterprise.SystemOne.JudgedFields.Reassess
   alias Spark.Dsl.Transformer
 
+  # Sobelow reads `@sobelow_skip` out of the source AST; persisting it is what
+  # keeps `--warnings-as-errors` from calling it unused (see audit/export.ex).
+  Module.register_attribute(__MODULE__, :sobelow_skip, persist: true)
+
   @impl true
   def after?(AshJudgments.Registry.Transformers), do: true
   def after?(_), do: false
@@ -47,6 +51,11 @@ defmodule AshEnterprise.SystemOne.JudgedFields.Transformer do
     |> add_reassess_action()
   end
 
+  # The field names are minted at compile time, inside this transformer, from
+  # question names declared in the resource's DSL: never from runtime input,
+  # and bounded by the declarations. Skipped by name here so that any other
+  # atom interpolation in this module is still reported.
+  @sobelow_skip ["DOS.BinToAtom"]
   defp field(question) do
     %{
       name: question.name,
