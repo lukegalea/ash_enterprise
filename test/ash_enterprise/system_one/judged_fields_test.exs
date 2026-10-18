@@ -386,12 +386,9 @@ defmodule AshEnterprise.SystemOne.JudgedFieldsTest do
       refute_received {:assessed, _}
     end
 
-    # An `omit` band, so the materialiser truncates the stale fact. A
-    # revision (an `admit` over an existing fact) cannot run on this host
-    # yet: `system_one_facts_unique_id_index` is a plain unique index on
-    # `id`, not `(id, valid_at WITHOUT OVERLAPS)`, so the split's second
-    # row violates it. The banding test pins an admitted `false` on a
-    # fresh subject instead.
+    # An `admit` band over the existing fact: a real revision. The
+    # materialiser splits the stale fact's period, so its id carries two
+    # versions (the `(id, valid_at)` exclusion allows that, one per instant).
     test "the default assessor judges, records and bands the stale fact", ctx do
       # The profile resolves its host at call time; the fake transport means
       # nothing is ever sent there.
@@ -411,7 +408,7 @@ defmodule AshEnterprise.SystemOne.JudgedFieldsTest do
           "definition_id" => Ash.UUID.generate(),
           "tenant_fork" => nil
         },
-        outputs: %{"band" => "omit", "reason_code" => "retitled_unclear"},
+        outputs: %{"band" => "admit", "fact_value" => false, "reason_code" => "retitled_unclear"},
         matched_rule_ids: ["DecisionRule_1"],
         decision_evaluation_id: Ash.UUID.generate()
       }
@@ -428,14 +425,32 @@ defmodule AshEnterprise.SystemOne.JudgedFieldsTest do
       assert_received {:judge_call, _spec, %{"title" => "SYNTHETIC book the larger venue"}, _}
       refute_received {:judge_call, _, _, _}
 
-      # The band was recorded for this task and question, and the omit
-      # truncated the stale fact: the predicate is back to never-assessed.
+      # The band was recorded for this task and question, and the admit
+      # revised the stale fact: the field reads the new value, fresh.
       assert [banding] =
                AshEnterprise.SystemOne.Banding
                |> Ash.read!(tenant: ctx.tenant, authorize?: false)
 
-      assert banding.band == :omit
-      assert {nil, :not_assessed, :no_fact} == fields!(ctx.task, ctx)
+      assert banding.band == :admit
+      assert {false, :admitted_false, nil} == fields!(ctx.task, ctx)
+
+      # A revision, not a replacement: one id, the stale version preserved
+      # in its own period.
+      subject_id = ctx.task.id
+
+      assert [revised] =
+               Fact
+               |> Ash.Query.filter(subject_id == ^subject_id)
+               |> Ash.read!(authorize?: false)
+
+      assert [stale] =
+               Fact
+               |> Ash.Query.filter(subject_id == ^subject_id)
+               |> Ash.Query.as_of(revised.valid_at.lower |> DateTime.add(-1, :second))
+               |> Ash.read!(authorize?: false)
+
+      assert stale.id == revised.id
+      assert {stale.value, revised.value} == {true, false}
     end
   end
 
