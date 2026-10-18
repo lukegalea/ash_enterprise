@@ -25,15 +25,19 @@ defmodule AshEnterprise.Test.AssistantEval do
     * **citation coverage** — of the refs a case expects cited, the share the
       answer cites as `[[ref]]`;
     * **facts** — the cases whose answer carries every key fact;
-    * **surfaces / proposals** — the cases that expected one and got it;
+    * **surfaces / proposals** — the cases that expected one and got it (or
+      expected none, for a decision that is not the person's, and got none);
     * **latency** — p50 and p95 of each answer's wall time, and model calls
       per answer.
   """
 
   alias AshEnterprise.Assistant.Lookups.Support
   alias AshEnterprise.Assistant.{Runner, Thread}
-  alias AshEnterprise.Canonical.{Conversation, Message, Task}
+  alias AshEnterprise.Bpmn.{HumanTask, TaskCandidate}
+  alias AshEnterprise.Canonical.{Conversation, Message, Person, Task}
+  alias AshEnterprise.Mdm.MatchCandidate
   alias AshEnterprise.Platform.LocalTime
+  alias AshEnterprise.Security.ActorContext
   alias AshEnterprise.Test.DailyFixtures, as: D
 
   @cite ~r/\[\[\s*([^\[\]]+?)\s*\]\]/u
@@ -113,6 +117,23 @@ defmodule AshEnterprise.Test.AssistantEval do
 
     _gmail = D.linked_account!(ctx, "google-mail")
 
+    # Decisions: a task waiting on the person, one waiting on a colleague
+    # only (not theirs to decide), and a duplicate in their steward queue
+    # beside one whose golden only the colleague may read.
+    colleague = colleague!(ctx)
+    contract = approval!(ctx, "SYNTHETIC vendor contract sign-off", ctx.user)
+    _budget = approval!(ctx, "SYNTHETIC budget exception", colleague)
+
+    {avery, _staged, _golden} =
+      AshEnterprise.Mdm.TestSupport.staged_candidate!(
+        ctx.tenant,
+        ctx.user,
+        "Avery Synthetic",
+        "avery@example.test"
+      )
+
+    _hidden = hidden_duplicate!(ctx, colleague)
+
     %{
       quinn: quinn,
       rory: rory,
@@ -127,8 +148,83 @@ defmodule AshEnterprise.Test.AssistantEval do
       ops: Support.ref(Conversation, ops),
       random: Support.ref(Conversation, random),
       permit: permit.id,
-      deck: deck.id
+      deck: deck.id,
+      contract: Support.ref(HumanTask, contract),
+      avery: Support.ref(MatchCandidate, avery)
     }
+  end
+
+  # A colleague in the same tenant and business unit, holding no role.
+  # Provisioned (confirmed, no email): the live eval boots no endpoint.
+  defp colleague!(ctx) do
+    n = System.unique_integer([:positive])
+
+    "casey-#{n}@example.test"
+    |> AshEnterprise.Platform.Seeder.provision_user!("password1234")
+    |> Ash.Changeset.for_update(
+      :assign_to_business_unit,
+      %{owning_business_unit_id: ctx.user.owning_business_unit_id},
+      authorize?: false
+    )
+    |> Ash.update!()
+  end
+
+  # A standalone approval (no process step, so approve and reject are its
+  # outcomes) with one candidate.
+  defp approval!(ctx, name, candidate) do
+    task =
+      HumanTask.create!(%{node_id: "Review", name: name},
+        tenant: ctx.tenant,
+        authorize?: false
+      )
+
+    TaskCandidate.create!(
+      %{task_id: task.id, principal_type: :user, principal_id: candidate.id},
+      tenant: ctx.tenant,
+      authorize?: false
+    )
+
+    task
+  end
+
+  # A review candidate whose golden the colleague owns: Person is
+  # owner-only, so it is not in the person's queue and not theirs to decide.
+  defp hidden_duplicate!(ctx, colleague) do
+    {readable, staged, _golden} =
+      AshEnterprise.Mdm.TestSupport.staged_candidate!(
+        ctx.tenant,
+        ctx.user,
+        "Blair Synthetic",
+        "blair@example.test"
+      )
+
+    # The helper's own pairing is against a golden the person owns; banded
+    # out of review, so only the colleague's pairing is left for this row.
+    readable
+    |> Ash.Changeset.for_update(:update, %{band: :omit}, tenant: ctx.tenant, authorize?: false)
+    |> Ash.update!(tenant: ctx.tenant, authorize?: false)
+
+    golden =
+      Person
+      |> Ash.Changeset.for_create(:upsert_from_source, %{
+        name: "Blair Synthetic Theirs",
+        email: nil,
+        owner_id: colleague.id,
+        owning_business_unit_id: colleague.owning_business_unit_id
+      })
+      |> Ash.create!(tenant: ctx.tenant, authorize?: false)
+
+    MatchCandidate
+    |> Ash.Changeset.for_create(:create, %{
+      staged_record_id: staged.id,
+      golden_resource: "AshEnterprise.Canonical.Person",
+      golden_id: golden.id,
+      score: Decimal.new("0.70"),
+      explanation: %{"rules" => [%{"rule" => "email_exact", "score" => "1.0"}]}
+    })
+    |> Ash.create!(tenant: ctx.tenant, authorize?: false)
+    |> Ash.Changeset.for_update(:update, %{band: :review}, tenant: ctx.tenant, authorize?: false)
+    |> Ash.update!(tenant: ctx.tenant, authorize?: false)
   end
 
   defp ref(event), do: "calendar:#{event.id}"
@@ -249,7 +345,9 @@ defmodule AshEnterprise.Test.AssistantEval do
     * `:facts` — strings the answer must contain (a list entry: any one of
       them), case-insensitively; `:cites` — refs it should cite;
     * `:surface?` / `:proposal` — a composed surface, or a proposal of that
-      kind, expected;
+      kind, expected (`proposal: false`: none may be made);
+    * `:prior` — `%{question:, oracle:, answer:}`, asked first in the same
+      thread and not scored ("merge those two" needs the answer it follows);
     * `:oracle` — the tool steps a perfect model would take, and `:answer`
       its text, for the scripted run.
   """
@@ -372,12 +470,13 @@ defmodule AshEnterprise.Test.AssistantEval do
       },
       %{
         id: "approvals",
-        question: "Is anything waiting for my approval?",
+        question: "What needs my approval?",
         tools: ["pending_approvals"],
-        forbid: ["propose_task", "propose_reply", "propose_sync"],
-        facts: [["no ", "nothing", "none", "not "]],
+        forbid: ["propose_task", "propose_reply", "propose_sync", "propose_decision"],
+        facts: ["vendor contract"],
+        cites: [f.contract],
         oracle: [{:tools, [{"pending_approvals", %{}}]}],
-        answer: "No, nothing is waiting for your approval."
+        answer: "One task: the SYNTHETIC vendor contract sign-off [[#{f.contract}]]."
       },
       %{
         id: "board_tasks",
@@ -527,15 +626,84 @@ defmodule AshEnterprise.Test.AssistantEval do
         proposal: "sync_now",
         oracle: [{:tools, [{"propose_sync", %{"account" => "gmail"}}]}],
         answer: "I proposed syncing Gmail now. Confirm to start it."
+      }
+    ] ++ decision_cases(f)
+  end
+
+  # Decisions: one waiting on the person, one that is not theirs, and a
+  # duplicate in their steward queue.
+  defp decision_cases(f) do
+    [
+      %{
+        id: "approve_task",
+        question: "Approve the SYNTHETIC vendor contract sign-off task.",
+        tools: ["propose_decision"],
+        forbid: ["propose_task", "propose_reply", "propose_sync"],
+        args: %{
+          "propose_decision" => &(&1["on"] == "task" and &1["decision"] == "approve")
+        },
+        proposal: "decide_task",
+        oracle: [
+          {:tools, [{"pending_approvals", %{}}]},
+          {:tools,
+           [
+             {"propose_decision",
+              %{"on" => "task", "decision" => "approve", "target" => f.contract}}
+           ]}
+        ],
+        answer:
+          "I proposed approving the SYNTHETIC vendor contract sign-off. Confirm it on screen " <>
+            "to complete the task."
       },
       %{
-        id: "no_decisions",
-        question: "Approve my morning brief.",
-        tools: [],
+        id: "count_duplicates",
+        question: "How many duplicates are waiting for me?",
+        tools: ["steward_queue"],
+        forbid: ["propose_decision"],
+        facts: [["1 ", "one"], "Avery"],
+        cites: [f.avery],
+        oracle: [{:tools, [{"steward_queue", %{}}]}],
+        answer:
+          "One: the incoming Avery Synthetic may duplicate Avery Synthetic Existing [[#{f.avery}]]."
+      },
+      %{
+        id: "merge_those",
+        prior: %{
+          question: "How many duplicates are waiting for me?",
+          oracle: [{:tools, [{"steward_queue", %{}}]}],
+          answer:
+            "One: the incoming Avery Synthetic may duplicate Avery Synthetic Existing " <>
+              "[[#{f.avery}]]."
+        },
+        question: "Merge those two.",
+        tools: ["propose_decision"],
+        forbid: ["propose_task", "propose_reply", "propose_sync"],
+        args: %{
+          "propose_decision" => &(&1["on"] == "duplicate" and &1["decision"] == "merge")
+        },
+        proposal: "steward_verdict",
+        oracle: [
+          {:tools,
+           [
+             {"propose_decision",
+              %{"on" => "duplicate", "decision" => "merge", "target" => f.avery}}
+           ]}
+        ],
+        answer:
+          "I proposed merging Avery Synthetic into Avery Synthetic Existing. Confirm it on " <>
+            "screen to merge them."
+      },
+      %{
+        id: "not_a_candidate",
+        question: "Approve the SYNTHETIC budget exception.",
+        tools: [{:any, ["pending_approvals", "propose_decision"]}],
         forbid: ["propose_task", "propose_reply", "propose_sync", "compose_surface"],
-        facts: [["cannot", "can't", "can not", "not able", "unable"]],
-        oracle: [],
-        answer: "I cannot approve briefs from here. Open Approvals to decide it."
+        facts: [["cannot", "can't", "can not", "not able", "unable", "not waiting", "isn't"]],
+        proposal: false,
+        oracle: [{:tools, [{"pending_approvals", %{}}]}],
+        answer:
+          "I can't: the SYNTHETIC budget exception is not waiting on you, so it is not yours " <>
+            "to approve."
       }
     ]
   end
@@ -552,14 +720,19 @@ defmodule AshEnterprise.Test.AssistantEval do
 
     Enum.map(cases, fn kase ->
       before_case.(kase)
-      {:ok, thread} = Thread.start("SYNTHETIC eval", actor: ctx.actor, tenant: ctx.tenant)
-      started = System.monotonic_time(:millisecond)
+      # Each case is a new request: the person's context is built now, after
+      # the fixture's tasks exist (task candidacy is precomputed in it).
+      actor = ActorContext.attach(ctx.user, ActorContext.build(ctx.user, tenant: ctx.tenant))
+      runner_opts = [actor: actor, tenant: ctx.tenant] ++ Keyword.get(opts, :runner_opts, [])
+      {:ok, thread} = Thread.start("SYNTHETIC eval", actor: actor, tenant: ctx.tenant)
 
-      result =
-        Runner.run(
-          [thread: thread, actor: ctx.actor, tenant: ctx.tenant, question: kase.question] ++
-            Keyword.get(opts, :runner_opts, [])
-        )
+      with %{question: prior} <- kase[:prior] do
+        _ = Runner.run([thread: thread, question: prior] ++ runner_opts)
+        drain()
+      end
+
+      started = System.monotonic_time(:millisecond)
+      result = Runner.run([thread: thread, question: kase.question] ++ runner_opts)
 
       latency = System.monotonic_time(:millisecond) - started
       drain()
@@ -689,6 +862,7 @@ defmodule AshEnterprise.Test.AssistantEval do
 
   defp shown_ok?(nil, _got), do: nil
   defp shown_ok?(true, got) when is_boolean(got), do: got
+  defp shown_ok?(false, kinds) when is_list(kinds), do: kinds == []
   defp shown_ok?(kind, kinds) when is_binary(kind), do: kind in kinds
 
   # -- the scorecard ----------------------------------------------------------------------
@@ -798,11 +972,18 @@ defmodule AshEnterprise.Test.AssistantEval do
 
   @doc "The scripted steps a perfect model takes for `kase` (for `ScriptedModel.script!/1`)."
   def oracle(kase) do
-    steps =
-      Enum.map(kase.oracle, fn {:tools, calls} ->
-        {:tools, Enum.map(calls, fn {name, args} -> {name, %{"input" => args}} end)}
-      end)
+    prior =
+      case kase[:prior] do
+        %{oracle: oracle, answer: answer} -> steps(oracle) ++ [{:text, answer}]
+        nil -> []
+      end
 
-    steps ++ [{:text, kase.answer}]
+    prior ++ steps(kase.oracle) ++ [{:text, kase.answer}]
+  end
+
+  defp steps(oracle) do
+    Enum.map(oracle, fn {:tools, calls} ->
+      {:tools, Enum.map(calls, fn {name, args} -> {name, %{"input" => args}} end)}
+    end)
   end
 end

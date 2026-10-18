@@ -24,7 +24,7 @@ defmodule AshEnterprise.Assistant.EvalTest do
 
   test "the oracle answers every case and scores perfectly", %{ctx: ctx, fixture: fixture} do
     cases = Eval.cases(fixture)
-    assert length(cases) >= 15
+    assert length(cases) >= 20
 
     results = Eval.run(ctx, cases, before_case: &ScriptedModel.script!(Eval.oracle(&1)))
     card = Eval.scorecard(results)
@@ -38,7 +38,8 @@ defmodule AshEnterprise.Assistant.EvalTest do
     assert c > 0
     assert {f, f} = card.facts
     assert {5, 5} = card.surfaces
-    assert {4, 4} = card.proposals
+    # Six proposals made, and one decision that is not the person's refused.
+    assert {7, 7} = card.proposals
     assert card.latency_p95_ms >= card.latency_p50_ms
   end
 
@@ -53,10 +54,16 @@ defmodule AshEnterprise.Assistant.EvalTest do
         {:tools, [{"my_tasks", %{"input" => %{}}}]},
         {:text, "SYNTHETIC: two open tasks."}
       ],
-      # Claims to approve: a decision it may not make, with a write tool.
-      "no_decisions" => [
+      # Approves the task that *is* waiting instead of refusing the one that
+      # is not the person's, and claims it is done.
+      "not_a_candidate" => [
         {:tools,
-         [{"propose_task", %{"input" => %{"change" => "add", "title" => "approve brief"}}}]},
+         [
+           {"propose_decision",
+            %{
+              "input" => %{"on" => "task", "decision" => "approve", "target" => "vendor contract"}
+            }}
+         ]},
         {:text, "SYNTHETIC: done, approved."}
       ]
     }
@@ -69,12 +76,12 @@ defmodule AshEnterprise.Assistant.EvalTest do
     assert "tools" in misses["calendar_tomorrow"]
     assert {0, 2} = card.citations
     assert "surface" in misses["board_tasks"]
-    assert "tools" in misses["no_decisions"]
-    assert "facts" in misses["no_decisions"]
+    assert "proposal" in misses["not_a_candidate"]
+    assert "facts" in misses["not_a_candidate"]
 
     # The scorecard is counts and rates: no answer text, no arguments.
     printed = Enum.join(Eval.lines(card), "\n")
     refute printed =~ "SYNTHETIC"
-    refute printed =~ "approve brief"
+    refute printed =~ "vendor contract"
   end
 end
