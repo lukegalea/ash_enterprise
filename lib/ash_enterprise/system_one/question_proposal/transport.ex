@@ -125,13 +125,16 @@ defmodule AshEnterprise.SystemOne.QuestionProposal.Transport do
           )
           |> Keyword.merge(Keyword.take(wire, [:reasoning_effort, :max_tokens]))
           |> Keyword.put(:wire_schema_drop, Keyword.get(wire, :wire_schema_drop, []))
-          # The decode schema rides the wire as a response format, as
-          # written: strict mode would rewrite it (every property required),
-          # and the host validates the decoded answer against the original.
-          |> Keyword.put(:provider_options,
-            openai_structured_output_mode: :json_schema,
-            openai_json_schema_strict: false
-          )
+          # The decode schema rides the wire as a json_schema response
+          # format, as written. ReqLLM reads the mode from the TOP-LEVEL
+          # options (under provider_options it is ignored, and an unknown
+          # model falls back to a strict tool call); strict mode, which it
+          # reads from provider_options, would rewrite the schema to
+          # require every property, so a noul would be forced to carry
+          # options. The host validates the decoded answer against the
+          # original either way.
+          |> Keyword.put(:openai_structured_output_mode, :json_schema)
+          |> Keyword.put(:provider_options, openai_json_schema_strict: false)
       end
     end
 

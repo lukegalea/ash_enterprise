@@ -164,15 +164,53 @@ defmodule AshEnterprise.SystemOne.QuestionProposalTest do
       assert Keyword.get(opts, :reasoning_effort) == :none
       assert Keyword.get(opts, :receive_timeout) == 300_000
 
-      # The decode schema rides as a json_schema response format, as written.
-      assert Keyword.get(opts, :provider_options) == [
-               openai_structured_output_mode: :json_schema,
-               openai_json_schema_strict: false
-             ]
+      # json_schema mode is a TOP-LEVEL option (ReqLLM ignores it under
+      # provider_options); strictness stays off, under provider_options.
+      assert Keyword.get(opts, :openai_structured_output_mode) == :json_schema
+      assert Keyword.get(opts, :provider_options) == [openai_json_schema_strict: false]
 
       # The call record classes it in-zone, like every in-cluster instrument.
       assert %{residency: :in_zone, profile: "splash_generative"} =
                Keyword.fetch!(opts, :model_target)
+    end
+
+    test "on the wire, Splash gets the schema as a json_schema response format, unrewritten" do
+      alias AshEnterprise.SystemOne.QuestionProposal.Transport
+
+      parent = self()
+
+      capture = fn conn ->
+        {:ok, body, conn} = Plug.Conn.read_body(conn)
+        send(parent, {:request_body, Jason.decode!(body)})
+
+        conn
+        |> Plug.Conn.put_resp_content_type("application/json")
+        |> Plug.Conn.send_resp(500, ~s({"error":{"message":"captured"}}))
+      end
+
+      {:ok, spec, opts} = Transport.ReqLLM.resolve(:splash_generative)
+      opts = Keyword.put(opts, :req_http_options, plug: capture, retry: false)
+
+      Transport.ReqLLM.generate(spec, opts, Schema.schema(), "probe")
+
+      assert_receive {:request_body, body}
+
+      # A response format, not a strict tool call: a strict tool rewrites
+      # the schema so every property is required, which forces a noul to
+      # carry options.
+      refute Map.has_key?(body, "tools")
+      assert %{"type" => "json_schema", "json_schema" => json_schema} = body["response_format"]
+      assert json_schema["strict"] == false
+
+      proposal = json_schema["schema"]["$defs"]["proposal"]
+
+      assert Enum.sort(proposal["required"]) ==
+               Enum.sort(Schema.schema()["$defs"]["proposal"]["required"])
+
+      refute "options" in proposal["required"]
+      # The keywords Splash only checks after generating stay off the wire.
+      refute Map.has_key?(proposal, "allOf")
+      assert body["reasoning_effort"] == "none"
     end
 
     test "keywords a runtime only checks after generating stay off its wire schema" do
