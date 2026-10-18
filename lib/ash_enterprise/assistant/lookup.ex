@@ -39,6 +39,7 @@ defmodule AshEnterprise.Assistant.Lookup do
       :my_tasks,
       :morning_briefs,
       :pending_approvals,
+      :steward_queue,
       :count_activity
     ]
 
@@ -171,6 +172,11 @@ defmodule AshEnterprise.Assistant.Lookup do
     action :pending_approvals, :map do
       description "Process tasks waiting on the person."
       run Lookups.Approvals
+    end
+
+    action :steward_queue, :map do
+      description "Duplicates (match candidates) waiting for the person's steward verdict."
+      run Lookups.StewardQueue
     end
 
     action :count_activity, :map do

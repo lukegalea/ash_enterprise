@@ -11,7 +11,8 @@ defmodule AshEnterpriseWeb.AssistantComposeLiveTest do
 
   import Phoenix.LiveViewTest
 
-  alias AshEnterprise.Assistant.PinnedApp
+  alias AshEnterprise.Assistant.{History, PinnedApp}
+  alias AshEnterprise.Bpmn.{HumanTask, TaskCandidate}
   alias AshEnterprise.Canonical.Task
   alias AshEnterprise.Platform.LocalTime
   alias AshEnterprise.Test.AssistantFixtures, as: F
@@ -218,5 +219,76 @@ defmodule AshEnterpriseWeb.AssistantComposeLiveTest do
     # Confirmed once: there is nothing left to confirm again.
     render_click(view, "confirm", %{"id" => id})
     assert [_one] = Task.mine!(actor: ctx.actor, tenant: ctx.tenant)
+  end
+
+  test "a pending decision survives a reload, runs through the engine once, and stays settled",
+       %{conn: conn, ctx: ctx} do
+    task =
+      HumanTask.create!(%{node_id: "Review", name: "SYNTHETIC vendor contract sign-off"},
+        tenant: ctx.tenant,
+        authorize?: false
+      )
+
+    TaskCandidate.create!(
+      %{task_id: task.id, principal_type: :user, principal_id: ctx.user.id},
+      tenant: ctx.tenant,
+      authorize?: false
+    )
+
+    ScriptedModel.script!([
+      {:tools,
+       [
+         {"propose_decision",
+          %{"input" => %{"on" => "task", "decision" => "approve", "target" => "vendor contract"}}}
+       ]},
+      {:text, "SYNTHETIC: I proposed approving it. Confirm to approve."}
+    ])
+
+    {:ok, view, _html} = live(conn, "/app/agent")
+    html = ask(view, "SYNTHETIC: approve the vendor contract")
+    [_, id] = Regex.run(~r/id="confirm-(p[0-9a-f]+)"/, html)
+    assert has_element?(view, "#proposal-#{id}", "completes as approved")
+
+    [thread] = History.threads(actor: ctx.actor, tenant: ctx.tenant)
+
+    # A reload offers it again, rebuilt as the person.
+    {:ok, reloaded, _html} = live(conn, "/app/agent/#{thread.id}")
+    await_answer(reloaded, "#confirm-#{id}")
+
+    reloaded |> element("#confirm-#{id}") |> render_click()
+    assert has_element?(reloaded, "#proposal-#{id}", "Approved")
+
+    assert Ash.get!(HumanTask, task.id, tenant: ctx.tenant, authorize?: false).status ==
+             :completed
+
+    # The first page still holds it as pending; its confirm is refused, not run twice.
+    view |> element("#confirm-#{id}") |> render_click()
+    assert has_element?(view, "#proposal-#{id}", "already confirmed")
+
+    # And it stays settled.
+    {:ok, again, _html} = live(conn, "/app/agent/#{thread.id}")
+    await_answer(again, "#proposal-#{id}")
+    refute has_element?(again, "#confirm-#{id}")
+    assert has_element?(again, "#proposal-#{id}", "confirmed earlier")
+  end
+
+  test "a cancelled proposal stays cancelled after a reload", %{conn: conn, ctx: ctx} do
+    ScriptedModel.script!([
+      {:tools,
+       [{"propose_task", %{"input" => %{"change" => "add", "title" => "SYNTHETIC water"}}}]},
+      {:text, "SYNTHETIC: proposed."}
+    ])
+
+    {:ok, view, _html} = live(conn, "/app/agent")
+    html = ask(view, "SYNTHETIC: remind me to water")
+    [_, id] = Regex.run(~r/id="confirm-(p[0-9a-f]+)"/, html)
+    view |> element("#cancel-#{id}") |> render_click()
+
+    [thread] = History.threads(actor: ctx.actor, tenant: ctx.tenant)
+    {:ok, reloaded, _html} = live(conn, "/app/agent/#{thread.id}")
+    await_answer(reloaded, "#proposal-#{id}")
+    refute has_element?(reloaded, "#confirm-#{id}")
+    assert has_element?(reloaded, "#proposal-#{id}", "cancelled")
+    assert Task.mine!(actor: ctx.actor, tenant: ctx.tenant) == []
   end
 end

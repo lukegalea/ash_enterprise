@@ -349,7 +349,7 @@ defmodule AshEnterprise.Assistant.ComposeProposeTest do
       assert Ash.read!(ReplyDraft, actor: bob.actor, tenant: ctx.tenant) == []
     end
 
-    test "sync needs a linked account, and decisions are refused at their seam", ctx do
+    test "sync needs a linked account", ctx do
       refused = tool!(ctx, AshEnterprise.Assistant.Propose, :propose_sync, %{})
       assert refused["error"] =~ "no active linked accounts"
 
@@ -366,11 +366,6 @@ defmodule AshEnterprise.Assistant.ComposeProposeTest do
                Proposal.from_wire(result["proposal"], ctx.actor, ctx.tenant)
 
       assert id == account.id
-
-      for kind <- Proposal.decision_kinds() do
-        assert {:error, message} = Proposal.decision(kind, ctx.actor, ctx.tenant, nil)
-        assert message =~ "not proposed from the chat"
-      end
     end
   end
 

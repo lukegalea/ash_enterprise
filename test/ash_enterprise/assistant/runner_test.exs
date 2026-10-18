@@ -71,7 +71,7 @@ defmodule AshEnterprise.Assistant.RunnerTest do
       # Each tool result went back to the model before the next step.
       assert_received {:model_request, first, tools, _opts}
       assert "calendar_events" in tools and "count_activity" in tools
-      assert "compose_surface" in tools and "propose_task" in tools and length(tools) == 12
+      assert "compose_surface" in tools and "propose_decision" in tools and length(tools) == 14
       assert Enum.any?(first, &(&1.role == :system))
       assert_received {:model_request, second, _tools, _opts}
       assert Enum.any?(second, &(&1.role == :tool))

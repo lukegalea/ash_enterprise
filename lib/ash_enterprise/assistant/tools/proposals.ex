@@ -23,11 +23,12 @@ defmodule AshEnterprise.Assistant.Tools.Proposals do
       with {:ok, proposal} <- build(opts[:kind], input.arguments, actor, tenant),
            :ok <- Proposal.authorize(proposal, actor, tenant) do
         {:ok,
-         %{
+         Support.compact(%{
            "proposed" => proposal.summary,
            "proposal" => Proposal.to_wire(proposal),
+           "effect" => proposal.details[:effect],
            "status" => status(proposal.kind)
-         }}
+         })}
       else
         {:error, message} when is_binary(message) -> Support.refused("Not proposed: " <> message)
         {:error, _other} -> Support.refused("Not proposed: that could not be resolved.")
@@ -39,6 +40,11 @@ defmodule AshEnterprise.Assistant.Tools.Proposals do
     do:
       "Waiting for the person to confirm it on screen. Nothing is stored yet, and the " <>
         "draft is never sent, now or later: say you proposed a draft for them to save."
+
+  defp status(kind) when kind in [:decide_task, :steward_verdict],
+    do:
+      "Waiting for the person to confirm it on screen. Nothing is decided yet: say what " <>
+        "you proposed and what confirming it will do."
 
   defp status(_kind),
     do:
@@ -60,4 +66,18 @@ defmodule AshEnterprise.Assistant.Tools.Proposals do
 
   defp build(:sync, args, actor, tenant),
     do: Proposal.sync_now(actor, tenant, args[:account])
+
+  defp build(:decision, %{on: :task} = args, actor, tenant) do
+    if args.decision in [:approve, :reject],
+      do: Proposal.decide_task(actor, tenant, args[:target], args.decision, args[:comment]),
+      else: {:error, "a task is decided with approve or reject"}
+  end
+
+  defp build(:decision, %{on: :duplicate} = args, actor, tenant),
+    do: Proposal.steward_verdict(actor, tenant, args[:target], verdict(args.decision))
+
+  # A duplicate's approve is its merge, its reject keeping them apart.
+  defp verdict(:approve), do: :merge
+  defp verdict(:reject), do: :keep_separate
+  defp verdict(decision), do: decision
 end

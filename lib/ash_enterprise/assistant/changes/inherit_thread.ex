@@ -1,7 +1,7 @@
 defmodule AshEnterprise.Assistant.Changes.InheritThread do
   @moduledoc """
-  An appended turn belongs to a thread the actor may read, and is sealed
-  under that thread's scope.
+  An appended turn (or a proposal settlement) belongs to a thread the actor
+  may read, and is sealed under (or carries) that thread's scope.
 
   Reads the thread **as the actor** (an authorized read, so another
   person's thread is simply not found) and copies its `erasure_scope_id`

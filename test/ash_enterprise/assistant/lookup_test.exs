@@ -26,6 +26,7 @@ defmodule AshEnterprise.Assistant.LookupTest do
     {:my_tasks, %{status: :any}},
     {:morning_briefs, %{}},
     {:pending_approvals, %{}},
+    {:steward_queue, %{}},
     {:count_activity, %{metric: :messages, group_by: :person}}
   ]
 

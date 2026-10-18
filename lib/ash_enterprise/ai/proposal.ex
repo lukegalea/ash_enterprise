@@ -43,23 +43,34 @@ defmodule AshEnterprise.AI.Proposal do
   | `:complete_task` | `complete_task/3` | `Canonical.Task.complete_mine` |
   | `:draft_reply` | `draft_reply/4` | `Assistant.ReplyDraft.draft` (stored, never sent) |
   | `:sync_now` | `sync_now/3` | `Integration.LinkedAccount.sync_now`, per account |
+  | `:decide_task` | `decide_task/5` | `Bpmn.HumanTask.approve` / `.reject` |
+  | `:steward_verdict` | `steward_verdict/4` | `Mdm.MatchCandidate` `:confirm` / `:reject` / `:escalate` |
 
-  ## Decisions are not proposable here
+  ## Decisions
 
   Approving or rejecting a morning brief or a process task, and a steward's
-  confirm or reject, are **decisions**, and who may make one is the process
-  engine's question (the who-acts check on a human task), not a role grant's.
-  `decision/4` is the seam: it refuses, naming why, until a slice routes
-  decisions through that check. The actions it would propose:
+  confirm, reject or escalate, are **decisions**, and who may make one is the
+  process engine's question (the who-acts check on a human task), not a role
+  grant's. So a decision is resolved through the engine's own answers:
 
-    * a brief's or a process task's decision: `Bpmn.HumanTask.approve` /
-      `.reject` (`record_id`, `comment`), or `.complete_task` (`record_id`,
-      `outcome`, `comment`) for a step that declares other outcomes. Each
-      reads its task as the actor and the engine checks candidacy. The
-      brief's own `:approve` / `:reject` only receive that outcome and are
+    * a task decision (`decide_task/5`, and a brief's through its approval
+      task) is found among the tasks the person's candidacy read returns
+      (`Bpmn.HumanTask.awaiting_me`, the engine's `:awaiting_actor`) — a task
+      they are not a candidate for is "nothing of yours matches", never a
+      proposal. It runs `HumanTask.approve` / `.reject` (`record_id`,
+      `comment`), which read the task as the person and complete it through
+      `AshBpmn.complete_task/2`, so the engine checks candidacy again before
+      anything is written. A step that declares outcomes other than
+      `approved` / `rejected` is decided on the task board, not here. The
+      brief's own `:approve` / `:reject` only receive the outcome and are
       never proposed directly;
-    * a steward's verdict: `Mdm.MatchCandidate` `:confirm`, `:reject` or
-      `:escalate`, which complete the candidate's steward task.
+    * a steward's verdict (`steward_verdict/4`) is found in the steward's
+      queue as the person (`MatchCandidate.review_queue`: pending,
+      review-banded, golden readable by them) and runs the candidate's own
+      person-gated update, which completes its steward task as the person.
+
+  `decision/4` dispatches on the decision kinds, for callers that hold a
+  kind rather than a constructor.
 
   ## Wire form
 
@@ -84,14 +95,19 @@ defmodule AshEnterprise.AI.Proposal do
 
   alias AshEnterprise.Accounts
   alias AshEnterprise.Assistant.ReplyDraft
+  alias AshEnterprise.Bpmn.HumanTask
   alias AshEnterprise.Canonical.{Conversation, Task}
   alias AshEnterprise.Integration.LinkedAccount
+  alias AshEnterprise.Mdm.{MatchCandidate, StewardTask}
   alias AshEnterprise.Platform.LocalTime
   alias AshEnterprise.Security
 
   require Ash.Query
 
   @decisions [:decide_brief, :decide_task, :steward_verdict]
+
+  # How many queued duplicates a verdict named by words looks through.
+  @queue_scan 200
 
   # The names a person uses for an integration, and its provider config key.
   @providers %{"gmail" => "google-mail", "calendar" => "google-calendar", "slack" => "slack"}
@@ -140,8 +156,27 @@ defmodule AshEnterprise.AI.Proposal do
     end
   end
 
-  defp can?(proposal, params, actor, tenant),
-    do: Ash.can?({proposal.resource, proposal.action, params}, actor, tenant: tenant)
+  # An update names its record: it is read as the person (one they cannot
+  # read is one they cannot change) and checked as that record.
+  defp can?(proposal, params, actor, tenant) do
+    case action_type(proposal) do
+      :update ->
+        case record(proposal, params, actor_opts(actor, tenant)) do
+          {:ok, record} -> Ash.can?({record, proposal.action}, actor, tenant: tenant)
+          {:error, _} -> false
+        end
+
+      _create_or_action ->
+        Ash.can?({proposal.resource, proposal.action, params}, actor, tenant: tenant)
+    end
+  end
+
+  defp action_type(proposal),
+    do: Ash.Resource.Info.action(proposal.resource, proposal.action).type
+
+  defp record(proposal, %{record_id: id}, opts), do: Ash.get(proposal.resource, id, opts)
+
+  defp actor_opts(actor, tenant), do: [actor: actor, tenant: tenant, authorize?: true]
 
   @doc """
   Performs the proposed mutation, with the approving human as the actor.
@@ -175,9 +210,9 @@ defmodule AshEnterprise.AI.Proposal do
   defp inputs(%__MODULE__{params: params}), do: [params]
 
   defp run(proposal, params, actor, tenant) do
-    opts = [actor: actor, tenant: tenant, authorize?: true]
+    opts = actor_opts(actor, tenant)
 
-    case Ash.Resource.Info.action(proposal.resource, proposal.action).type do
+    case action_type(proposal) do
       :create ->
         proposal.resource
         |> Ash.Changeset.for_create(proposal.action, params, opts)
@@ -187,6 +222,13 @@ defmodule AshEnterprise.AI.Proposal do
         proposal.resource
         |> Ash.ActionInput.for_action(proposal.action, params, opts)
         |> Ash.run_action()
+
+      :update ->
+        with {:ok, record} <- record(proposal, params, opts) do
+          record
+          |> Ash.Changeset.for_update(proposal.action, Map.delete(params, :record_id), opts)
+          |> Ash.update()
+        end
     end
   end
 
@@ -293,18 +335,93 @@ defmodule AshEnterprise.AI.Proposal do
   end
 
   @doc """
-  The seam for decisions (approve or reject a brief or a task, a steward's
-  confirm or reject): refused here, by design, until decisions are routed
-  through the process engine's who-acts check.
+  Proposes deciding one process task waiting on the person: `decision` is
+  `:approve` or `:reject` (or `"approve"` / `"reject"`), `comment` optional.
+
+  `task` is the task's ref or id (from the approvals lookup), a brief's ref
+  (its approval task), or words from the task's name or what it is about —
+  always named, never inferred. It is resolved among the tasks the
+  engine's candidacy read returns **for the person** (`HumanTask.awaiting_me`),
+  so a task they may not act on matches nothing.
   """
-  @spec decision(atom(), term(), term(), term()) :: {:error, String.t()}
-  def decision(kind, _actor, _tenant, _target) when kind in @decisions do
-    {:error,
-     "Approving, rejecting and steward verdicts are not proposed from the chat yet. " <>
-       "Open the approval or the steward queue to decide."}
+  def decide_task(actor, tenant, task, decision, comment \\ nil) do
+    with {:ok, action, outcome} <- task_decision(decision),
+         {:ok, found} <- find_awaiting(actor, tenant, task),
+         {:ok, effect} <- decision_effect(found, outcome) do
+      comment = comment && comment |> to_string() |> String.trim() |> blank_nil()
+
+      {:ok,
+       %__MODULE__{
+         kind: :decide_task,
+         summary:
+           "#{verb(action)} \"#{clip(found.name, 80)}\" — #{clip(text(found.subject_label), 80)}",
+         resource: HumanTask,
+         action: action,
+         params: %{record_id: found.id, comment: comment && clip(comment, 2000)},
+         details: [
+           task: clip(found.name, 200),
+           about: clip(text(found.subject_label), 200),
+           outline: clip(text(found.subject_outline), 300),
+           waiting: text(found.waiting_since),
+           decision: outcome,
+           effect: effect,
+           comment: comment && clip(comment, 500)
+         ]
+       }}
+    end
   end
 
-  @doc "The decision kinds `decision/4` refuses."
+  @doc """
+  Proposes a steward's verdict on one duplicate waiting in the person's
+  queue: `verdict` is `:confirm` (merge), `:reject` (keep separate) or
+  `:escalate` (unsure). `candidate` is its ref or id (from the steward
+  queue lookup), words from either record's name or email, or `nil` when
+  exactly one waits. Resolved through `MatchCandidate.review_queue` as the
+  person: a candidate whose golden they may not read is not theirs to decide.
+  """
+  def steward_verdict(actor, tenant, candidate, verdict) do
+    with {:ok, verdict} <- steward_action(verdict),
+         {:ok, found} <- find_in_queue(actor, tenant, candidate) do
+      staged = clip(text(found.staged_label), 120)
+      golden = clip(text(found.golden_label), 120)
+
+      {:ok,
+       %__MODULE__{
+         kind: :steward_verdict,
+         summary: verdict_summary(verdict, staged, golden),
+         resource: MatchCandidate,
+         action: verdict,
+         params: %{record_id: found.id},
+         details:
+           [
+             incoming: staged_line(found),
+             existing: golden_line(found),
+             match_score: found.score && Decimal.to_string(found.score),
+             effect: verdict_effect(verdict)
+           ] ++ survivors(verdict, found)
+       }}
+    end
+  end
+
+  @doc """
+  A decision by kind: `:decide_task` (`%{task:, decision:, comment:}`),
+  `:decide_brief` (`%{brief:, decision:, comment:}`, the brief's approval
+  task) or `:steward_verdict` (`%{candidate:, verdict:}`).
+  """
+  @spec decision(atom(), term(), term(), map() | nil) :: {:ok, t()} | {:error, String.t()}
+  def decision(:decide_task, actor, tenant, %{} = target),
+    do: decide_task(actor, tenant, target[:task], target[:decision], target[:comment])
+
+  def decision(:decide_brief, actor, tenant, %{} = target),
+    do: decide_task(actor, tenant, target[:brief], target[:decision], target[:comment])
+
+  def decision(:steward_verdict, actor, tenant, %{} = target),
+    do: steward_verdict(actor, tenant, target[:candidate], target[:verdict])
+
+  def decision(kind, _actor, _tenant, _target) when kind in @decisions,
+    do: {:error, "say which task or duplicate, and what to decide"}
+
+  @doc "The decision kinds `decision/4` takes."
   @spec decision_kinds() :: [atom()]
   def decision_kinds, do: @decisions
 
@@ -332,6 +449,21 @@ defmodule AshEnterprise.AI.Proposal do
 
   def to_wire(%__MODULE__{kind: :sync_now, params: params}),
     do: %{"kind" => "sync_now", "account_ids" => Enum.map(params, & &1.record_id)}
+
+  def to_wire(%__MODULE__{kind: :decide_task, action: action, params: params}),
+    do: %{
+      "kind" => "decide_task",
+      "task_id" => params.record_id,
+      "decision" => Atom.to_string(action),
+      "comment" => params.comment
+    }
+
+  def to_wire(%__MODULE__{kind: :steward_verdict, action: action, params: params}),
+    do: %{
+      "kind" => "steward_verdict",
+      "candidate_id" => params.record_id,
+      "verdict" => Atom.to_string(action)
+    }
 
   @doc """
   Rebuilds a proposal from its wire form, resolving every id again **as
@@ -385,9 +517,250 @@ defmodule AshEnterprise.AI.Proposal do
     end
   end
 
+  def from_wire(
+        %{"kind" => "decide_task", "task_id" => id, "decision" => decision} = wire,
+        actor,
+        tenant
+      )
+      when is_binary(id),
+      do: decide_task(actor, tenant, id, decision, wire["comment"])
+
+  def from_wire(
+        %{"kind" => "steward_verdict", "candidate_id" => id, "verdict" => verdict},
+        actor,
+        tenant
+      )
+      when is_binary(id),
+      do: steward_verdict(actor, tenant, id, verdict)
+
   def from_wire(_wire, _actor, _tenant), do: {:error, "That is not a proposal this page can run."}
 
   # -- resolving, as the person ----------------------------------------------------
+
+  # -- decisions, resolved through the engine's answers ----------------------------
+
+  # Only these: the words map onto the two task acts, never onto an action
+  # name the model chose.
+  defp task_decision(decision) when decision in [:approve, "approve", "approved"],
+    do: {:ok, :approve, "approved"}
+
+  defp task_decision(decision) when decision in [:reject, "reject", "rejected"],
+    do: {:ok, :reject, "rejected"}
+
+  defp task_decision(_other), do: {:error, "a task is decided with approve or reject"}
+
+  defp steward_action(verdict) when verdict in [:confirm, "confirm", :merge, "merge"],
+    do: {:ok, :confirm}
+
+  defp steward_action(verdict)
+       when verdict in [:reject, "reject", :keep_separate, "keep_separate"],
+       do: {:ok, :reject}
+
+  defp steward_action(verdict) when verdict in [:escalate, "escalate", :unsure, "unsure"],
+    do: {:ok, :escalate}
+
+  defp steward_action(_other),
+    do: {:error, "a duplicate is decided with merge, keep_separate or unsure"}
+
+  defp verb(:approve), do: "Approve"
+  defp verb(:reject), do: "Reject"
+
+  # The tasks the engine says wait on the person, then the one they meant.
+  defp find_awaiting(actor, tenant, task) do
+    opts = actor_opts(actor, tenant)
+
+    HumanTask
+    |> Ash.Query.for_read(:awaiting_me, %{}, opts)
+    |> Ash.Query.load([
+      :subject_label,
+      :subject_outline,
+      :subject_ref,
+      :declared_outcomes,
+      :waiting_since
+    ])
+    |> Ash.read(opts)
+    |> case do
+      {:ok, []} -> {:error, "No task is waiting on you."}
+      {:ok, tasks} -> one_task(tasks, target(task))
+      {:error, _error} -> {:error, "Your approvals could not be read."}
+    end
+  end
+
+  # A task decision always names its task: "approve it" with one task
+  # waiting is still a guess about which one the person meant.
+  defp one_task(_tasks, :none),
+    do: {:error, "say which task (its ref from pending_approvals, or words from its name)"}
+
+  defp one_task(tasks, {:id, id}) do
+    case Enum.filter(tasks, &(&1.id == id or ref_id(&1.subject_ref) == id)) do
+      [found] -> {:ok, found}
+      _none -> {:error, "No task waiting on you has that ref."}
+    end
+  end
+
+  defp one_task(tasks, {:words, words}) do
+    case Enum.filter(tasks, &mentions?([&1.name, text(&1.subject_label)], words)) do
+      [found] -> {:ok, found}
+      [] -> {:error, "No task waiting on you matches #{inspect(clip(words, 80))}."}
+      many -> {:error, "#{length(many)} tasks waiting on you match; pass the ref instead."}
+    end
+  end
+
+  # What the decision sets in motion. A steward-decision task's approve and
+  # reject are the match verdicts (`AshEnterprise.Mdm.StewardTask`); any
+  # other step must declare the outcome, or it is decided on the board.
+  defp decision_effect(task, outcome) do
+    case StewardTask.candidate_id(task) do
+      {:ok, _candidate_id} ->
+        {:ok, verdict_effect(if(outcome == "approved", do: :confirm, else: :reject))}
+
+      :none ->
+        declared_effect(task.declared_outcomes, outcome)
+    end
+  end
+
+  defp declared_effect(outcomes, outcome) when outcomes in [nil, []],
+    do: {:ok, "the task completes as #{outcome} and its process continues"}
+
+  defp declared_effect(outcomes, outcome) do
+    if outcome in outcomes,
+      do: {:ok, "the task completes as #{outcome}; the process takes its #{outcome} path"},
+      else:
+        {:error,
+         "this step's outcomes are #{Enum.join(outcomes, ", ")}; decide it on the task board"}
+  end
+
+  defp find_in_queue(actor, tenant, candidate) do
+    opts = actor_opts(actor, tenant)
+
+    query =
+      MatchCandidate
+      |> Ash.Query.for_read(:review_queue, %{}, opts)
+      |> Ash.Query.load([
+        :staged_label,
+        :staged_email,
+        :golden_label,
+        :golden_email,
+        :name_survivor,
+        :email_survivor
+      ])
+
+    case target(candidate) do
+      {:id, id} -> queued_by_id(query, id, opts)
+      other -> queued_by_words(query, other, opts)
+    end
+  end
+
+  defp queued_by_id(query, id, opts) do
+    case Ash.read(Ash.Query.filter(query, id == ^id), opts) do
+      {:ok, [found]} -> {:ok, found}
+      {:ok, []} -> {:error, "No duplicate waiting for you has that ref."}
+      {:error, _} -> {:error, "Your steward queue could not be read."}
+    end
+  end
+
+  defp queued_by_words(query, target, opts) do
+    case Ash.read(Ash.Query.limit(query, @queue_scan), opts) do
+      {:ok, []} -> {:error, "No duplicate is waiting for you."}
+      {:ok, rows} -> one_candidate(rows, target)
+      {:error, _} -> {:error, "Your steward queue could not be read."}
+    end
+  end
+
+  defp one_candidate([only], :none), do: {:ok, only}
+
+  defp one_candidate(rows, :none),
+    do:
+      {:error,
+       "#{length(rows)} duplicates wait for you; say which one (its ref from steward_queue)."}
+
+  defp one_candidate(rows, {:words, words}) do
+    case Enum.filter(rows, &mentions?(candidate_names(&1), words)) do
+      [found] -> {:ok, found}
+      [] -> {:error, "No duplicate waiting for you matches #{inspect(clip(words, 80))}."}
+      many -> {:error, "#{length(many)} duplicates waiting for you match; pass the ref instead."}
+    end
+  end
+
+  defp candidate_names(row),
+    do: [
+      text(row.staged_label),
+      text(row.golden_label),
+      text(row.staged_email),
+      text(row.golden_email)
+    ]
+
+  defp verdict_summary(:confirm, staged, golden), do: "Merge \"#{staged}\" into \"#{golden}\""
+
+  defp verdict_summary(:reject, staged, golden),
+    do: "Keep \"#{staged}\" separate from \"#{golden}\""
+
+  defp verdict_summary(:escalate, staged, golden),
+    do: "Mark \"#{staged}\" / \"#{golden}\" as unsure"
+
+  defp verdict_effect(:confirm),
+    do: "the incoming record merges into the existing one; the merge is recorded in its lineage"
+
+  defp verdict_effect(:reject),
+    do: "the incoming record stays a record of its own; the existing one is unchanged"
+
+  defp verdict_effect(:escalate),
+    do: "recorded as unsure; the duplicate stays pending for a senior steward"
+
+  defp staged_line(found), do: label_line(found.staged_label, found.staged_email)
+  defp golden_line(found), do: label_line(found.golden_label, found.golden_email)
+
+  defp label_line(label, email) do
+    [text(label), text(email)]
+    |> Enum.reject(&(&1 in [nil, ""]))
+    |> Enum.uniq()
+    |> Enum.join(" · ")
+    |> clip(200)
+  end
+
+  # Whose name and email the merged record keeps: the survivorship rules'
+  # answer, over the sides the person may read.
+  defp survivors(:confirm, found),
+    do: [name_kept: survivor(found.name_survivor), email_kept: survivor(found.email_survivor)]
+
+  defp survivors(_verdict, _found), do: []
+
+  defp survivor("golden"), do: "the existing record's"
+  defp survivor("staged"), do: "the incoming record's"
+  defp survivor(_other), do: nil
+
+  # A ref (`<surface>:<id>`), a bare id, words, or nothing.
+  defp target(value) when value in [nil, ""], do: :none
+
+  defp target(value) do
+    trimmed = value |> to_string() |> String.trim()
+
+    case trimmed |> String.split(":") |> List.last() |> uuid() do
+      {:ok, id} -> {:id, id}
+      :error when trimmed == "" -> :none
+      :error -> {:words, trimmed}
+    end
+  end
+
+  # Only the text form: `Ecto.UUID.cast/1` also takes any 16-byte binary, so
+  # sixteen characters of a name ("budget exception") would read as an id.
+  defp uuid(text) when byte_size(text) == 36, do: Ecto.UUID.cast(text)
+  defp uuid(_text), do: :error
+
+  defp ref_id(nil), do: nil
+  defp ref_id(ref), do: ref |> to_string() |> String.split(":") |> List.last()
+
+  defp mentions?(haystacks, words) do
+    needle = String.downcase(words)
+
+    Enum.any?(haystacks, fn
+      haystack when is_binary(haystack) -> String.contains?(String.downcase(haystack), needle)
+      _other -> false
+    end)
+  end
+
+  defp blank_nil(""), do: nil
+  defp blank_nil(value), do: value
 
   defp present("", message), do: {:error, message}
   defp present(_value, _message), do: :ok

@@ -164,6 +164,8 @@ defmodule AshEnterprise.Security.Privilege do
     # A person's assistant history, which quotes their mail and Slack.
     "AshEnterprise.Assistant.Thread",
     "AshEnterprise.Assistant.Turn",
+    # What the person did with the proposals in it (ids and an outcome).
+    "AshEnterprise.Assistant.ProposalSettlement",
     # What the person made in it: their pinned apps and their reply drafts.
     "AshEnterprise.Assistant.PinnedApp",
     "AshEnterprise.Assistant.ReplyDraft",

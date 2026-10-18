@@ -37,7 +37,16 @@ defmodule AshEnterpriseWeb.AssistantLive do
   form as the person (`AshEnterprise.AI.Proposal.from_wire/3`) and shown with
   the concrete change and Confirm / Cancel. Confirm runs it with the person as
   the actor (`Proposal.execute/3`, which authorizes again); nothing runs
-  otherwise. A proposal read back from history is shown, not offered again.
+  otherwise. Decisions (approve or reject a task, a steward's verdict) are
+  proposals like any other, resolved through the engine's candidacy read and
+  the steward queue as the person.
+
+  What the person did with each proposal is recorded
+  (`AshEnterprise.Assistant.ProposalSettlement`): `:confirmed` before it
+  runs, so a second confirm from another tab is refused rather than run
+  twice. Reopening a thread offers its unsettled proposals again, each
+  rebuilt from its wire form as the person and authorization-checked (in the
+  thread's async load, never in mount); a settled one shows what happened.
 
   ## When the in-zone model is down or slow
 
@@ -50,7 +59,18 @@ defmodule AshEnterpriseWeb.AssistantLive do
   use AshEnterpriseWeb, :live_view
 
   alias AshEnterprise.AI.{Models, Proposal}
-  alias AshEnterprise.Assistant.{Answer, Composer, History, PinnedApp, Runner, Thread, Turn}
+
+  alias AshEnterprise.Assistant.{
+    Answer,
+    Composer,
+    History,
+    PinnedApp,
+    ProposalSettlement,
+    Runner,
+    Thread,
+    Turn
+  }
+
   alias AshEnterprise.Security.ActorContext
   alias AshEnterpriseWeb.A2ui.Host
   alias AshEnterpriseWeb.AssistantHandoff
@@ -195,7 +215,7 @@ defmodule AshEnterpriseWeb.AssistantLive do
   def handle_event("confirm", %{"id" => id}, socket) do
     case socket.assigns.shown[id] do
       %{kind: :proposal, state: :pending, proposal: %Proposal{} = proposal} = item ->
-        state = execute(socket, proposal)
+        state = confirm(socket, id, proposal)
         {:noreply, socket |> put_shown(id, %{item | state: state}) |> restream(id)}
 
       _ ->
@@ -206,6 +226,7 @@ defmodule AshEnterpriseWeb.AssistantLive do
   def handle_event("cancel", %{"id" => id}, socket) do
     case socket.assigns.shown[id] do
       %{kind: :proposal, state: :pending} = item ->
+        _ = record_settlement(socket, id, :cancelled)
         {:noreply, socket |> put_shown(id, %{item | state: :cancelled}) |> restream(id)}
 
       _ ->
@@ -302,20 +323,52 @@ defmodule AshEnterpriseWeb.AssistantLive do
     end
   end
 
+  # A confirm is recorded before the proposal runs: the record's identity is
+  # what stops a second confirm (another tab) from running it twice.
+  defp confirm(socket, id, proposal) do
+    case record_settlement(socket, id, :confirmed) do
+      {:ok, _settled} ->
+        state = execute(socket, proposal)
+        if match?({:failed, _}, state), do: record_settlement(socket, id, :failed)
+        state
+
+      {:error, _already} ->
+        {:failed, "It was already confirmed, so it was not run again."}
+    end
+  end
+
+  defp record_settlement(%{assigns: %{thread: %Thread{id: thread_id}}} = socket, id, outcome)
+       when is_binary(thread_id),
+       do: ProposalSettlement.settle(thread_id, id, outcome, actor_opts(socket))
+
+  defp record_settlement(_socket, _id, _outcome), do: {:error, :no_thread}
+
   # Runs a confirmed proposal as the person; what the answer then says.
   defp execute(socket, proposal) do
     actor = socket.assigns.current_user
 
     case Proposal.execute(proposal, actor, ActorContext.tenant(actor)) do
-      {:ok, result} -> {:done, done_message(proposal.kind, result)}
-      {:error, message} when is_binary(message) -> {:failed, message}
-      {:error, _error} -> {:failed, "It could not be done. Nothing was changed."}
+      {:ok, result} ->
+        {:done, done_message(proposal.kind, result)}
+
+      {:error, message} when is_binary(message) ->
+        {:failed, message}
+
+      {:error, %Ash.Error.Forbidden{}} ->
+        {:failed, "You may not decide this, or it was decided meanwhile. Nothing was changed."}
+
+      {:error, _error} ->
+        {:failed, "It could not be done. Nothing was changed."}
     end
   end
 
   defp done_message(:create_task, _task), do: "Added to your action items."
   defp done_message(:complete_task, _task), do: "Marked done."
   defp done_message(:draft_reply, _draft), do: "Draft saved. It was not sent."
+  defp done_message(:decide_task, message) when is_binary(message), do: message
+  defp done_message(:steward_verdict, %{status: :confirmed}), do: "Merged."
+  defp done_message(:steward_verdict, %{status: :rejected}), do: "Kept separate."
+  defp done_message(:steward_verdict, _candidate), do: "Marked unsure; it stays in the queue."
 
   defp done_message(:sync_now, results) when is_list(results),
     do: "Sync queued for #{length(results)} account(s)."
@@ -448,7 +501,7 @@ defmodule AshEnterpriseWeb.AssistantLive do
 
   defp on_event({:proposal, %{id: id, wire: wire}}, socket) do
     socket
-    |> put_shown(id, rebuild_proposal(socket, wire))
+    |> put_shown(id, rebuild_proposal(socket.assigns.current_user, wire))
     |> update_run(&%{&1 | shown: &1.shown ++ [id]})
   end
 
@@ -527,13 +580,24 @@ defmodule AshEnterpriseWeb.AssistantLive do
 
   def handle_async(:threads, _failed, socket), do: {:noreply, socket}
 
-  def handle_async(:thread, {:ok, {:ok, %{thread: thread, turns: entries}}}, socket) do
-    socket = Enum.reduce(entries, socket, &remember(&2, &1.turn))
+  def handle_async(
+        :thread,
+        {:ok, {:ok, %{thread: thread, turns: entries, proposals: proposals}}},
+        socket
+      ) do
+    socket = Enum.reduce(entries, socket, &remember(&2, &1.turn, proposals))
+    entries = with_questions(socket, entries)
+
+    # Answers whose proposals can still be confirmed re-render when one is.
+    answers =
+      for %{turn: %Turn{role: :assistant} = turn, question_id: question_id} <- entries,
+          into: socket.assigns.answers,
+          do: {turn.id, {turn, question_id}}
 
     {:noreply,
      socket
-     |> assign(thread: thread, empty?: entries == [])
-     |> stream(:turns, with_questions(socket, entries), reset: true)}
+     |> assign(thread: thread, empty?: entries == [], answers: answers)
+     |> stream(:turns, entries, reset: true)}
   end
 
   def handle_async(:thread, _not_found, socket) do
@@ -558,12 +622,64 @@ defmodule AshEnterpriseWeb.AssistantLive do
 
   defp load_thread(socket, id) do
     opts = actor_opts(socket)
+    actor = socket.assigns.current_user
 
     socket
     |> assign(:thread, %Thread{id: id})
     |> stream(:turns, [], reset: true)
-    |> start_async(:thread, fn -> History.load(id, opts) end)
+    |> start_async(:thread, fn ->
+      with {:ok, loaded} <- History.load(id, opts) do
+        {:ok, Map.put(loaded, :proposals, restore_proposals(loaded, actor, opts))}
+      end
+    end)
   end
+
+  # The thread's proposals as the page shows them again: a settled one as
+  # what happened to it, an unsettled one rebuilt from its wire form as the
+  # person and offered again (or why it no longer can be). Runs in the
+  # thread's async load.
+  defp restore_proposals(%{thread: thread, turns: entries}, actor, opts) do
+    settled =
+      case ProposalSettlement.for_thread(thread.id, opts) do
+        {:ok, rows} -> Enum.reduce(rows, %{}, &settled_outcome/2)
+        _ -> %{}
+      end
+
+    for %{turn: %Turn{role: :assistant}, withheld?: false} = entry <- entries,
+        call <- calls(entry.turn),
+        %{"id" => id, "wire" => %{} = wire} = proposal <- [call["proposal"]],
+        into: %{} do
+      {id, restored(settled[id], proposal["summary"], actor, wire)}
+    end
+  end
+
+  # A failure after a confirm outranks the confirm.
+  defp settled_outcome(row, acc),
+    do:
+      Map.update(
+        acc,
+        row.proposal_ref,
+        row.outcome,
+        &if(&1 == :failed, do: &1, else: row.outcome)
+      )
+
+  defp restored(:confirmed, summary, _actor, _wire),
+    do: settled_item(summary, {:done, "confirmed earlier."})
+
+  defp restored(:cancelled, summary, _actor, _wire), do: settled_item(summary, :cancelled)
+
+  defp restored(:failed, summary, _actor, _wire),
+    do: settled_item(summary, {:failed, "It did not go through when it was confirmed."})
+
+  defp restored(nil, summary, actor, wire) do
+    case rebuild_proposal(actor, wire) do
+      %{state: :pending} = item -> item
+      %{state: {:failed, message}} -> settled_item(summary, {:stale, message})
+    end
+  end
+
+  defp settled_item(summary, state),
+    do: %{kind: :proposal, summary: summary, proposal: nil, state: state, turn_id: nil}
 
   defp entry(%Turn{} = turn), do: %{turn: turn, withheld?: false, question_id: nil, shown: []}
 
@@ -616,23 +732,23 @@ defmodule AshEnterpriseWeb.AssistantLive do
     socket
     |> assign(:shown, shown)
     |> assign(:answers, Map.put(socket.assigns.answers, turn.id, {turn, question_id}))
-    |> remember(turn)
+    |> remember(turn, %{})
   end
 
   # Items of an answer read back from history: its surfaces can be shown
   # again (composed afresh when their container asks); its proposals are
   # shown as earlier ones, never offered again.
-  defp remember(socket, %Turn{role: :assistant} = turn) do
+  defp remember(socket, %Turn{role: :assistant} = turn, proposals) do
     turn
     |> calls()
     |> Enum.reduce(socket, fn call, socket ->
       socket
       |> remember_surface(call["surface"], turn)
-      |> remember_proposal(call["proposal"], turn)
+      |> remember_proposal(call["proposal"], turn, proposals)
     end)
   end
 
-  defp remember(socket, _turn), do: socket
+  defp remember(socket, _turn, _proposals), do: socket
 
   defp remember_surface(socket, %{"id" => id, "request" => %{} = request} = surface, turn) do
     if Map.has_key?(socket.assigns.shown, id),
@@ -648,10 +764,15 @@ defmodule AshEnterpriseWeb.AssistantLive do
 
   defp remember_surface(socket, _surface, _turn), do: socket
 
-  defp remember_proposal(socket, %{"id" => id} = proposal, turn) do
-    if Map.has_key?(socket.assigns.shown, id),
-      do: socket,
-      else:
+  defp remember_proposal(socket, %{"id" => id} = proposal, turn, proposals) do
+    cond do
+      Map.has_key?(socket.assigns.shown, id) ->
+        socket
+
+      item = proposals[id] ->
+        put_shown(socket, id, %{item | turn_id: turn.id})
+
+      true ->
         put_shown(socket, id, %{
           kind: :proposal,
           summary: proposal["summary"],
@@ -659,12 +780,12 @@ defmodule AshEnterpriseWeb.AssistantLive do
           state: :earlier,
           turn_id: turn.id
         })
+    end
   end
 
-  defp remember_proposal(socket, _proposal, _turn), do: socket
+  defp remember_proposal(socket, _proposal, _turn, _proposals), do: socket
 
-  defp rebuild_proposal(socket, wire) do
-    actor = socket.assigns.current_user
+  defp rebuild_proposal(actor, wire) do
     tenant = ActorContext.tenant(actor)
 
     with {:ok, proposal} <- Proposal.from_wire(wire, actor, tenant),
@@ -1164,6 +1285,7 @@ defmodule AshEnterpriseWeb.AssistantLive do
 
   defp proposal_kind({:done, _message}), do: :success
   defp proposal_kind({:failed, _message}), do: :error
+  defp proposal_kind({:stale, _message}), do: :info
   defp proposal_kind(_state), do: :info
 
   defp proposal_line(%{state: {:done, message}, summary: summary}), do: "#{summary}: #{message}"
@@ -1176,6 +1298,9 @@ defmodule AshEnterpriseWeb.AssistantLive do
 
   defp proposal_line(%{state: :cancelled, summary: summary}),
     do: "#{summary}: cancelled. Nothing was changed."
+
+  defp proposal_line(%{state: {:stale, message}, summary: summary}),
+    do: "Proposed earlier: #{summary || "a change"}. It can no longer be offered: #{message}"
 
   defp proposal_line(%{state: :earlier, summary: summary}),
     do:

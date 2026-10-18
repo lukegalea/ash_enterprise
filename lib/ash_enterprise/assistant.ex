@@ -21,12 +21,12 @@ defmodule AshEnterprise.Assistant do
 
   ## Reads, a composer, and proposals — never a write
 
-  Eight tools read (`AshEnterprise.Assistant.Lookup`). One composes
+  Nine tools read (`AshEnterprise.Assistant.Lookup`). One composes
   (`AshEnterprise.Assistant.Compose`, E10.3): it asks for a table, calendar or
   board of the person's own records, which the server writes as an
   `AshA2ui.Dynamic` spec from a curated catalogue, resolves against the host
   allowlist and renders in the chat as the person
-  (`AshEnterprise.Assistant.Composer`). Three propose
+  (`AshEnterprise.Assistant.Composer`). Four propose
   (`AshEnterprise.Assistant.Propose`, E10.4): each builds an
   `AshEnterprise.AI.Proposal`, which waits for the person to confirm it on the
   page and then runs as them. A tool that performs a mutation never belongs on
@@ -101,6 +101,15 @@ defmodule AshEnterprise.Assistant do
       """
     end
 
+    tool :steward_queue, AshEnterprise.Assistant.Lookup, :steward_queue do
+      description """
+      Possible duplicate records waiting for the person's verdict as a data
+      steward: how many, and for each the incoming and existing record's
+      name, the match score and a ref. Use it for "how many duplicates" and
+      before proposing a merge.
+      """
+    end
+
     tool :count_activity, AshEnterprise.Assistant.Lookup, :count_activity do
       description """
       Counts over a time window: messages, calendar events or conversations,
@@ -140,11 +149,22 @@ defmodule AshEnterprise.Assistant do
       all) now. Nothing happens until they confirm on screen.
       """
     end
+
+    tool :propose_decision, AshEnterprise.Assistant.Propose, :propose_decision do
+      description """
+      Propose a decision the person makes: approve or reject a task waiting
+      on them (on: task, from pending_approvals; a morning brief's approval
+      is one), or merge, keep_separate or mark unsure a duplicate in their
+      steward queue (on: duplicate). Nothing is decided until the person
+      confirms on screen.
+      """
+    end
   end
 
   resources do
     resource AshEnterprise.Assistant.Thread
     resource AshEnterprise.Assistant.Turn
+    resource AshEnterprise.Assistant.ProposalSettlement
     resource AshEnterprise.Assistant.Lookup
     resource AshEnterprise.Assistant.Compose
     resource AshEnterprise.Assistant.Propose

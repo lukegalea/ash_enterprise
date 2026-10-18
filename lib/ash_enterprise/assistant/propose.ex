@@ -11,9 +11,12 @@ defmodule AshEnterprise.Assistant.Propose do
   rebuilt from its wire form as them and executed with them as the actor
   (`AshEnterpriseWeb.AssistantLive`), which is what the audit log records.
 
-  Not here: approving or rejecting a brief or a task, and a steward's
-  verdict. Those are decisions, and `AshEnterprise.AI.Proposal.decision/4` is
-  their seam (refused for now).
+  `propose_decision` proposes a decision: approving or rejecting a process
+  task (a morning brief's included) the engine says waits on the person, or
+  a steward's verdict on a duplicate in their queue. Each is resolved through
+  the engine's own answers as the person (`Proposal.decide_task/5`,
+  `Proposal.steward_verdict/4`), so a task or duplicate that is not theirs to
+  decide is a refusal, never a proposal.
 
   Self-service (ADR 0052) and zone-gated like the read tools.
   """
@@ -26,7 +29,7 @@ defmodule AshEnterprise.Assistant.Propose do
     lifecycle?: false,
     archival?: false,
     audit?: false,
-    self_service: [:propose_task, :propose_reply, :propose_sync]
+    self_service: [:propose_task, :propose_reply, :propose_sync, :propose_decision]
 
   alias AshEnterprise.Assistant.Tools.Proposals
 
@@ -84,6 +87,37 @@ defmodule AshEnterprise.Assistant.Propose do
       end
 
       run {Proposals, kind: :sync}
+    end
+
+    action :propose_decision, :map do
+      description "Propose deciding a task waiting on the person, or a duplicate in their steward queue."
+
+      argument :on, :atom do
+        allow_nil? false
+        constraints one_of: [:task, :duplicate]
+        description "task (from pending_approvals) or duplicate (from steward_queue)."
+      end
+
+      argument :decision, :atom do
+        allow_nil? false
+        constraints one_of: [:approve, :reject, :merge, :keep_separate, :unsure]
+
+        description "task: approve or reject. duplicate: merge, keep_separate or unsure."
+      end
+
+      argument :target, :string do
+        allow_nil? true
+
+        description "Its ref from the lookup, or words from its name. Leave out when only one waits."
+      end
+
+      argument :comment, :string do
+        allow_nil? true
+        constraints max_length: 2000
+        description "task only: a note recorded with the decision."
+      end
+
+      run {Proposals, kind: :decision}
     end
   end
 end
