@@ -35,4 +35,21 @@ defmodule AshEnterprise.Mdm.StewardReviewBaselineTest do
 
     assert length(versions) == 1
   end
+
+  test "ensuring the baselines publishes the band table and the process once each" do
+    assert %{bands: :published} = AshEnterprise.Mdm.Baselines.ensure!()
+
+    assert %{bands: :published, steward_review: :unchanged} =
+             AshEnterprise.Mdm.Baselines.ensure!()
+
+    platform = Seeder.seed_platform_organization()
+
+    bands =
+      AshEnterprise.Decisions.Definition
+      |> Ash.Query.filter(key == "mdm:match_bands" and status == :published)
+      |> Ash.read!(tenant: platform.id, authorize?: false)
+
+    assert length(bands) == 1
+    assert {:ok, :review} = AshEnterprise.Mdm.Banding.band(0.6, platform.id)
+  end
 end

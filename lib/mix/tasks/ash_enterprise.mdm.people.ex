@@ -11,9 +11,11 @@ defmodule Mix.Tasks.AshEnterprise.Mdm.People do
       mix ash_enterprise.mdm.people --organization <id>
       mix ash_enterprise.mdm.people --organization <id> --seed-as admin@example.com
 
-  `--seed-as EMAIL` first turns the sweep on for the organization: it drafts
-  the people mapping and match rule set and activates them as that person
-  (activation is person-gated, ADR 0054). Idempotent, like the sweep.
+  `--seed-as EMAIL` first turns the sweep on for the organization: it ensures
+  the platform baselines a pair is routed by (`AshEnterprise.Mdm.Baselines`:
+  the seed band table and the steward-review process), then drafts the people
+  mapping and match rule set and activates them as that person (activation is
+  person-gated, ADR 0054). Idempotent, like the sweep.
 
   Prints one line per tenant: counts (`observed`, `landed`, `staged`, and how
   many staged people were `created`, `merged`, sent to `review`, left
@@ -44,6 +46,8 @@ defmodule Mix.Tasks.AshEnterprise.Mdm.People do
 
     if email = opts[:seed_as] do
       organization = opts[:organization] || Mix.raise("--seed-as needs --organization <id>")
+      baselines = AshEnterprise.Mdm.Baselines.ensure!()
+      Mix.shell().info("baselines #{inspect(baselines)}")
       Seed.seed!(organization, person!(organization, email))
       Mix.shell().info("people sweep turned on for #{organization}")
     end
