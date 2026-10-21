@@ -267,6 +267,19 @@ config :ash_judgments,
   # resource that includes Facts.Fragment.
   facts: AshEnterprise.SystemOne.Fact
 
+# The calibration harness's input seam (`mix ash_judgments.calibrate`): a
+# family's labelled pairs are an exported eval-set file,
+# `<S1_EVAL_SET_DIR>/<family>.eval-set.json`, never a database read (the task
+# boots no repo). The runs themselves are recorded through
+# `AshEnterprise.SystemOne.Calibration.record_run/2`, which carries the actor
+# and tenant the task's own create cannot. See
+# `AshEnterprise.SystemOne.CalibrationInput`.
+config :ash_judgments,
+  calibration_input: {AshEnterprise.SystemOne.CalibrationInput, :load, []}
+
+config :ash_enterprise, AshEnterprise.SystemOne.CalibrationInput,
+  eval_set_dir: System.get_env("S1_EVAL_SET_DIR")
+
 # Which generative wire each *_generative profile speaks
 # (`AshEnterprise.SystemOne.QuestionProposal.Transport`). The profile
 # registry's wire vocabulary is the decision wire, so the generative wire is
