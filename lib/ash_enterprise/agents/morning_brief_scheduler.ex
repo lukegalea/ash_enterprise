@@ -16,9 +16,8 @@ defmodule AshEnterprise.Agents.MorningBriefScheduler do
   Not a cron entry at 06:30 in the display zone, for three reasons:
 
     * the zone is runtime config (`DISPLAY_TIME_ZONE`, read in
-      `config/runtime.exs`) while the crontab is compile-time config, and an
-      Oban `:timezone` also needs a global `:elixir, :time_zone_database`
-      this application does not set (`LocalTime` names `Tz` explicitly);
+      `config/runtime.exs`) while the crontab and an Oban `:timezone` are
+      compile-time config;
     * a fixed UTC hour drifts by an hour across daylight saving;
     * a node that was down at 06:30 still briefs the day when it comes back
       (the dogfood instance restarts often), instead of skipping it.

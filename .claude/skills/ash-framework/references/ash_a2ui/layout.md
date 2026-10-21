@@ -241,8 +241,22 @@ contracts.
   one. A picked day narrows the read; `marks` still cover the window.
 - Size the query's `page_size` to a window's usual record count: one page
   is shown per window, with pagination when it holds more.
-- Days are UTC days. Rows carry `_calendar_start`, `_calendar_end` and
-  `_calendar_when`.
+- Days are cut in `config :ash_a2ui, :calendar_time_zone` (an IANA name
+  or an `{m, f, a}` returning one; `"Etc/UTC"` by default): which day is
+  today, where a datetime field's day starts and ends, the marks and the
+  `_calendar_when` times. A zone other than UTC needs
+  `config :elixir, :time_zone_database`. Set it to the zone your people
+  read their day in; don't shift datetimes in a calculation to fake it.
+- For quick ranges ("today", "tomorrow", "the next two weeks") declare
+  presets on the calendar's query with `calendar_anchor <days from today>`:
+  switching to one moves the window there and clears the picked day;
+  staying on it leaves the window where the user takes it. The preset's
+  read still ANDs with the window.
+- To let the user switch between a month and a week (or a day), declare
+  `granularities [:month, :week]`; `granularity` is the one it opens on
+  (default: the first). Don't declare two calendar tables over the same
+  read to get two views.
+- Rows carry `_calendar_start`, `_calendar_end` and `_calendar_when`.
 - The basic composition is an agenda (window controls above the table's
   list); the admin catalog (1.3) emits a `calendarView` wrapping the
   table's `dataGrid`, so row actions, prompts and pagination work

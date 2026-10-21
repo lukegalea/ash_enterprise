@@ -506,6 +506,14 @@ config :phoenix, :json_library, Jason
 # per-surface is needed. See docs/adr/0033-experience-layer-adoption.md.
 config :ash_a2ui, catalog: :admin_v1
 
+# Calendars (`display :calendar`: /app/calendar, and calendars the assistant
+# composes) cut days in the display zone, read on every request so the
+# runtime `DISPLAY_TIME_ZONE` applies. ash_a2ui shifts through Elixir's
+# default time zone database, hence the global setting (`LocalTime` names
+# `Tz` itself).
+config :ash_a2ui, :calendar_time_zone, {AshEnterprise.Platform.LocalTime, :zone, []}
+config :elixir, :time_zone_database, Tz.TimeZoneDatabase
+
 # Reference links (`link` / `links` fields): the registry decides which surface
 # a link opens, per actor, and every link carries a server-built href to the
 # deep link that re-authorizes the record (`AshEnterprise.Surfaces.Records`).
