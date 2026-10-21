@@ -390,7 +390,8 @@ config :ash_enterprise,
     AshEnterprise.AI,
     AshEnterprise.Assistant,
     AshEnterprise.Mdm,
-    AshEnterprise.Lineage
+    AshEnterprise.Lineage,
+    AshEnterprise.Licences
   ],
   base_resources: [AshEnterprise.Platform.Resource]
 

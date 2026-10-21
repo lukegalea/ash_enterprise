@@ -3,6 +3,42 @@
     "hash": "sha256:01faed99f22ca70a9a295d9d7a20c90ace35ee7cd2153e63ed5545a9988e5c06",
     "version": 1
   },
+  "judgment:v0:AshEnterprise.Licences.Dependency#judgments/package_is_public_domain_dedication": {
+    "hash": "sha256:a5f5b38e52054e84c564ac78dbee34351e35cb3a577f3a7e3b0c577b834ca4b5",
+    "version": 1
+  },
+  "judgment:v0:AshEnterprise.Licences.Dependency#judgments/package_licence_declaration_invalid": {
+    "hash": "sha256:9dfacf32b6a3db08391f87c63cda6ab903b6af33c36d666a8a3585fda848fcc5",
+    "version": 1
+  },
+  "judgment:v0:AshEnterprise.Licences.Dependency#judgments/package_licence_has_use_restrictions": {
+    "hash": "sha256:de54e770717cf718ec9d1e3729a1a890279e73e878f9137286d7aa01114892b1",
+    "version": 1
+  },
+  "judgment:v0:AshEnterprise.Licences.Dependency#judgments/package_licence_is_network_copyleft": {
+    "hash": "sha256:eeb1c6f4ff501261242bbf0ea68c257e36a3f2726b140d73a220278a79954d42",
+    "version": 1
+  },
+  "judgment:v0:AshEnterprise.Licences.Dependency#judgments/package_licence_is_permissive": {
+    "hash": "sha256:25f179d306cf6ab975032007d2387638625bed8b53a47a8be251f7172d5c151b",
+    "version": 1
+  },
+  "judgment:v0:AshEnterprise.Licences.Dependency#judgments/package_licence_is_strong_copyleft": {
+    "hash": "sha256:1d83d9380af21e126e322659f32531fc99c9217e6e42238a89ba99f1e7789262",
+    "version": 1
+  },
+  "judgment:v0:AshEnterprise.Licences.Dependency#judgments/package_licence_is_weak_copyleft": {
+    "hash": "sha256:c61fbf2972342f88bbaf2109e7565d5bdf93aaf26391bd16236bde181c9551ae",
+    "version": 1
+  },
+  "judgment:v0:AshEnterprise.Licences.Dependency#judgments/package_licence_requires_attribution": {
+    "hash": "sha256:b19805fea2d9d58d085212c9fc9e48036949c3d93d9cf7adce1b69c597543fa9",
+    "version": 1
+  },
+  "judgment:v0:AshEnterprise.Licences.Dependency#judgments/package_requires_notice_file": {
+    "hash": "sha256:545dfbec358bad82798173f18c435f28e67a380272a7e969986e68c4a3bfb285",
+    "version": 1
+  },
   "judgment:v0:AshEnterprise.SystemOne.TestSupport.EvidenceFile#judgments/document_contains": {
     "hash": "sha256:c1f19a826e4c9d40c4dffae6019426007c6e48c1968a2ce81bf47d553acca30d",
     "version": 1
