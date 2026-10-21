@@ -24,7 +24,11 @@ defmodule AshEnterprise.SurfacesTest do
       assert surfaces |> Enum.map(& &1.key) |> Enum.uniq() |> length() == length(surfaces)
       assert surfaces |> Enum.map(& &1.path) |> Enum.uniq() |> length() == length(surfaces)
       assert Enum.all?(surfaces, &(&1.group in group_keys))
-      assert Enum.all?(surfaces, &(&1.door in [:signed_in, :operator, :compliance]))
+
+      assert Enum.all?(
+               surfaces,
+               &(&1.door in [:signed_in, :operator, :compliance, :lineage, :audit])
+             )
     end
 
     test "the router serves every entry at its path, with its LiveView" do
@@ -97,7 +101,7 @@ defmodule AshEnterprise.SurfacesTest do
       names = Enum.map(Surfaces.candidate_actions(), & &1.name)
 
       assert ~w(today compose calendar inbox slack people approvals approve reject accounts
-                sync erasure open help) == names
+                sync erasure lineage open help) == names
     end
   end
 

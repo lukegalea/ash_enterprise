@@ -74,7 +74,8 @@ defmodule AshEnterpriseWeb.A2ui.AccountsUI do
         :projection,
         :data_class,
         :residency,
-        :scope
+        :scope,
+        :latest_run
       ]
     end
 
@@ -128,6 +129,14 @@ defmodule AshEnterpriseWeb.A2ui.AccountsUI do
 
     field :residency do
       label "Residency"
+    end
+
+    # The latest sync as a lineage run: present for a reader with a lineage
+    # grant, once the account has synced.
+    field :latest_run do
+      label "Latest sync run"
+      link :latest_lineage_run
+      link_label :label
     end
 
     # Operator-only: the link (and its label) is there only for a reader who
