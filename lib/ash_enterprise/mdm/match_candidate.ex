@@ -119,6 +119,15 @@ defmodule AshEnterprise.Mdm.MatchCandidate do
       description "The staged row by name, else email."
     end
 
+    calculate :staged_person_id,
+              :string,
+              {RelatedField, relationship: :staged_record, field: :mapped, keys: ["person_id"]} do
+      public? true
+
+      description "The person a people-sweep staged row observed (nil for an import row): " <>
+                    "the record a merge of this pair absorbs."
+    end
+
     calculate :staged_batch_label, :string, expr("Import batch") do
       public? true
       description "The link text for the import batch the staged row came in."
