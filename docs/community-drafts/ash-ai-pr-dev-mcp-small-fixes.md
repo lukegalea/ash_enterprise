@@ -1,4 +1,4 @@
-Status: draft — Luke opens this PR himself from lukegalea/ash_ai:fix/dev-mcp-small-fixes
+Status: opened 2026-10-21 as https://github.com/ash-project/ash_ai/pull/255. This is the as-drafted text; the posted body has post-rebase verification.
 
 ---
 

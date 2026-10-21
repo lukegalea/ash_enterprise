@@ -1,4 +1,4 @@
-Status: draft — Luke opens this PR himself from lukegalea/ash_ai:feat/dev-tool-domains
+Status: opened 2026-10-21 as https://github.com/ash-project/ash_ai/pull/254 (closes issue #253). This is the as-drafted text; the posted body adds the issue link and post-rebase verification.
 
 ---
 

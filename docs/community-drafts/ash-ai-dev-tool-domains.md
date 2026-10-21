@@ -1,5 +1,7 @@
 # Draft: ash_ai issue / forum post: let packages add dev MCP tools
 
+Status: posted 2026-10-21 as https://github.com/ash-project/ash_ai/issues/253.
+
 **Channel:** GitHub issue on ash-project/ash_ai, or the Ash forum / Discord. Luke posts it himself.
 **Status:** DRAFT. Post this before opening the seam PR (`ash-ai-pr-dev-tool-domains.md`).
 
