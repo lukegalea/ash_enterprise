@@ -247,6 +247,58 @@ defmodule AshEnterprise.BusinessEvents.LedgerTest do
     end
   end
 
+  # `cross_region_read` stays closed until its owner rule is designed (ADR 0051,
+  # Known gaps). These pin both halves of "closed", so the door cannot start
+  # working, or start writing ownerless disclosure rows, by accident.
+  describe "cross_region_read is closed" do
+    test "no user can run it, not even an Administrator", ctx do
+      input =
+        Ash.ActionInput.for_action(
+          Ledger,
+          :cross_region_read,
+          %{regions: [:test, :other], purpose: "pinned by test"},
+          actor: actor(ctx.bob, ctx.org.id),
+          tenant: ctx.org.id
+        )
+
+      # A generic action needs a :global grant, and the ledger cannot be granted
+      # wider than :basic (the test above), so no role can ever reach it.
+      assert {:error, %Ash.Error.Forbidden{}} = Ash.run_action(input)
+      assert disclosures(ctx) == []
+    end
+
+    test "machinery that reaches it writes no disclosure row", ctx do
+      input =
+        Ash.ActionInput.for_action(
+          Ledger,
+          :cross_region_read,
+          %{regions: [:test, :other], purpose: "pinned by test"},
+          actor: AshEnterprise.Platform.SystemActor.system(),
+          tenant: ctx.org.id
+        )
+
+      # The system actor bypasses the grants, so the action runs, and its
+      # ownerless disclosure rows are refused by StampOwner. The transaction
+      # rolls back: nothing lands.
+      result =
+        try do
+          Ash.run_action(input)
+        rescue
+          error -> {:raised, error}
+        end
+
+      refute match?({:ok, _}, result)
+      assert disclosures(ctx) == []
+    end
+  end
+
+  defp disclosures(ctx) do
+    for region <- [:test, :other],
+        event <- Ledger.by_region!(region, tenant: ctx.org.id, authorize?: false),
+        event.event_kind == :"region.disclosure",
+        do: event
+  end
+
   describe "a shred" do
     test "leaves the chain verifiable, the facts in place, and nothing readable", ctx do
       upsert_event!(ctx, %{})
