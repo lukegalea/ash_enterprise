@@ -141,11 +141,18 @@ platform resource for a non-`:global` grant, and worth a platform fix of its own
 Closed on 2026-10-18 (see that implementation note): the simulation twin on the platform base, corrections of a
 conversation's start, and a tombstone fact on a shred. Retention was decided rather than built (below).
 
-- **`cross_region_read`** does not work in this host. The package's action appends its disclosure rows without the
-  caller's tenant or actor and with no `context`, so `StampOwner` refuses them. Fixing it takes two things: upstream,
-  the action has to pass its caller's context to the append, as `record` already does; here, an owner rule has to say
-  whose stream a disclosure belongs to. Owner-only would hide the alarm from everyone but the operator who raised it,
-  so this is a design decision, not a one-line fix. It is the alarmed operator door, and nobody uses it yet.
+- **`cross_region_read` is closed, deliberately (decided 2026-10-21).** This host runs one region, and nothing exposes
+  the action. It stays closed on both sides, and `ledger_test.exs` ("cross_region_read is closed") pins both:
+  - **Users:** a generic action needs a `:global` grant, and the ledger can't be granted wider than `:basic`, so no
+    role reaches it, an Administrator included.
+  - **Machinery:** the system actor's bypass lets the action run, but its disclosure rows carry no owner, so
+    `StampOwner` refuses them and the transaction rolls back. Nothing lands.
+
+  **When a second region exists,** a disclosure belongs to the stream of the region that was read, not the caller's.
+  It is readable by that organization's administrators, and the caller is recorded as the actor. Owner-only on the
+  caller would hide the alarm from everyone but the operator who raised it. Opening the door then takes two changes:
+  upstream, the package's action passes its caller's context to the append, as `record` already does; here, the
+  owner rule above, with the two tests rewritten to prove it.
 - **Retention is decided: the ledger is append-only and is never purged.** BIZEV-12 rules that retention belongs to
   the raw layer, that ledger rows hold only PII-minimal structure, and that an erasure is recorded as a tombstone. That
   is this ledger's position too, and a shred now records its tombstone. BIZEV-12's purge machinery (`purge_before`
@@ -218,7 +225,7 @@ BIZEV-10 (simulation isolation, `542c513`) and BIZEV-12 (retention and erasure-a
   the count of the owner's facts it covers: never the scope's `ref` or `label`. It is idempotent per scope and owner.
   A scope nothing was derived from leaves none; its audited row is the record. A tombstone failure fails the shred,
   as a failed record fails a projection. `emit?: false` turns it off with the rest.
-- **Gap 2** (`cross_region_read`) did not fall out of this work and stays open (Known gaps).
+- **Gap 2** (`cross_region_read`) did not fall out of this work. It was decided on 2026-10-21: closed, pinned by tests, with the owner rule for a second region recorded (Known gaps).
 - Tests: `test/ash_enterprise/business_events/derivation_test.exs` ("a conversation's start, corrected", "a shred's
   tombstone"); `.../ledger_test.exs` ("a later-arriving earlier message corrects the start; the first start stays",
   "a shred" with its tombstone and its idempotent re-record, "a scope nothing was derived from leaves no tombstone",
