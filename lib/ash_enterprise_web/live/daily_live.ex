@@ -335,7 +335,7 @@ defmodule AshEnterpriseWeb.DailyLive do
   end
 
   defmodule Calendar do
-    @moduledoc "`/app/calendar` — today, tomorrow and this week, with event detail."
+    @moduledoc "`/app/calendar` — a month or week grid of events, quick ranges, event detail."
     use AshEnterpriseWeb.DailyLive.Surface, ui: AshEnterpriseWeb.A2ui.CalendarUI
   end
 

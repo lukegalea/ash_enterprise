@@ -97,13 +97,23 @@ end
 
 defmodule AshEnterpriseWeb.A2ui.CalendarUI do
   @moduledoc """
-  Calendar — the agenda by window: today (the default), tomorrow, this week
-  or the next two weeks, each a named preset over its own `CalendarEvent`
-  read, cut in the operator's display zone; filterable by status. An event
-  opens in detail with its organizer and attendees as links to People.
-  Read-only.
+  Calendar — a month or week grid of the person's `CalendarEvent`s, with
+  the window's events (or a picked day's) listed beside it, filterable by
+  status. It opens on the month; Month / Week switches the grid. Days are
+  the operator's display-zone days: ash_a2ui cuts the window in
+  `config :ash_a2ui, :calendar_time_zone`, which is
+  `AshEnterprise.Platform.LocalTime.zone/0`.
 
-  Served at `/app/calendar` and, as the `calendar` prompt, over ACP.
+  The agenda windows stay as quick ranges: today, tomorrow, this week and
+  the next two weeks are presets over their own reads (cut in the display
+  zone, `AshEnterprise.Canonical.Preparations.AgendaWindow`). Choosing one
+  moves the grid to the window it starts in (`calendar_anchor`) and
+  narrows the grid and the list to that range; "All" shows every event of
+  the window. An event opens in detail with its organizer and attendees as
+  links to People. Read-only.
+
+  Served at `/app/calendar` and, as the `calendar` prompt, over ACP (where
+  the window names the preset, `AshEnterprise.Acp.Commands`).
   """
 
   use AshA2ui.Standalone
@@ -120,35 +130,41 @@ defmodule AshEnterpriseWeb.A2ui.CalendarUI do
       picker false
     end
 
-    # One agenda, three windows: the window is a named preset (the read
-    # action behind it is cut in the display zone), so switching days is a
-    # query, not a page — and the client only ever names the window.
+    # The month is the window; the quick ranges are named presets (the read
+    # behind each is cut in the display zone), so the client only ever names
+    # a preset or a date. A month of events is one page.
     query :agenda do
       filters [:status]
-      default_preset :today
-      page_size 50
+      page_size 100
       max_page_size 200
 
       preset :today do
         read_action :today
+        calendar_anchor(0)
       end
 
       preset :tomorrow do
         read_action :tomorrow
+        calendar_anchor(1)
       end
 
       preset :this_week do
         read_action :this_week
+        calendar_anchor(0)
       end
 
       preset :upcoming do
         read_action :upcoming
+        calendar_anchor(0)
       end
     end
 
     component :table do
       fields [:title, :status, :when, :location, :organizer_label]
-      read_action :today
+      display :calendar
+      date_field :starts_at
+      end_date_field :ends_at
+      granularities([:month, :week])
       query :agenda
       select_context :event
 

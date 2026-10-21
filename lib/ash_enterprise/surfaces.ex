@@ -145,7 +145,9 @@ defmodule AshEnterprise.Surfaces do
     %Surface{
       key: :calendar,
       label: "Calendar",
-      blurb: "Today, tomorrow, this week or the next two weeks.",
+      blurb:
+        "Your events on a month or week grid, with today, tomorrow, this week and the " <>
+          "next two weeks as quick ranges.",
       group: :day,
       order: 10,
       icon: "hero-calendar-days",

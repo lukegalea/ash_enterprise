@@ -150,9 +150,12 @@ defmodule AshEnterprise.Test.DailyFixtures do
     |> Ash.create!()
   end
 
-  @doc "A calendar event `minutes_from_now` ahead, lasting `minutes`."
+  @doc """
+  A calendar event `minutes_from_now` ahead (or at `opts[:starts_at]`),
+  lasting `minutes`.
+  """
   def event!(%{user: user, tenant: tenant} = ctx, title, minutes_from_now, minutes, opts \\ []) do
-    starts_at = DateTime.add(DateTime.utc_now(), minutes_from_now, :minute)
+    starts_at = opts[:starts_at] || DateTime.add(DateTime.utc_now(), minutes_from_now, :minute)
 
     organizer =
       opts[:organizer] && person!(ctx, elem(opts[:organizer], 0), elem(opts[:organizer], 1))
