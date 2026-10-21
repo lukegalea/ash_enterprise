@@ -23,6 +23,10 @@ defmodule AshEnterprise.Licences.Corpus do
 
   alias NimbleCSV.RFC4180, as: CSV
 
+  # Sobelow reads `@sobelow_skip` from the source AST; persisting it keeps
+  # `--warnings-as-errors` from calling it unused (see Audit.Export).
+  Module.register_attribute(__MODULE__, :sobelow_skip, persist: true)
+
   @type exclusion :: %{
           package: String.t(),
           declared: String.t(),
@@ -95,6 +99,11 @@ defmodule AshEnterprise.Licences.Corpus do
 
   defp contents(nil), do: %{}
 
+  # The corpus paths are the caller's research files (a test fixture, a
+  # programme-repo script argument), never request input. Skipped by name and
+  # locally: if request input ever reaches these functions, that is a real
+  # finding.
+  @sobelow_skip ["Traversal.FileModule"]
   defp contents(path) do
     path
     |> File.stream!()
@@ -110,6 +119,7 @@ defmodule AshEnterprise.Licences.Corpus do
     end)
   end
 
+  @sobelow_skip ["Traversal.FileModule"]
   defp rows(path) do
     [header | rows] = path |> File.read!() |> CSV.parse_string(skip_headers: false)
     Enum.map(rows, fn row -> header |> Enum.zip(row) |> Map.new() end)

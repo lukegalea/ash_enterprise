@@ -35,6 +35,10 @@ defmodule AshEnterprise.SystemOne.CalibrationInput do
   `gold == true`.
   """
 
+  # Sobelow reads `@sobelow_skip` from the source AST; persisting it keeps
+  # `--warnings-as-errors` from calling it unused (see Audit.Export).
+  Module.register_attribute(__MODULE__, :sobelow_skip, persist: true)
+
   @doc "The seam: `load(family, source) :: {:ok, input} | {:error, reason}`."
   @spec load(String.t(), atom()) :: {:ok, map()} | {:error, term()}
   def load(family, :eval_set) do
@@ -135,6 +139,9 @@ defmodule AshEnterprise.SystemOne.CalibrationInput do
     end
   end
 
+  # The directory is host configuration (`S1_EVAL_SET_DIR`), and the family is
+  # the calibrate task's argument, run by an operator; never request input.
+  @sobelow_skip ["Traversal.FileModule"]
   defp read(path) do
     case File.read(path) do
       {:ok, bytes} -> {:ok, bytes}

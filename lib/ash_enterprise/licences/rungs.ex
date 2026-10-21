@@ -45,6 +45,9 @@ defmodule AshEnterprise.Licences.Rungs do
 
   @model_questions @questions -- [:package_licence_declaration_invalid]
 
+  # Each question's generated judge action, spelled out at compile time.
+  @judge_actions Map.new(@questions, &{&1, :"judge_#{&1}"})
+
   @type route :: %{
           rung: :declaration | :model,
           spdx_id: String.t() | nil,
@@ -159,7 +162,9 @@ defmodule AshEnterprise.Licences.Rungs do
         )
 
       Dependency
-      |> Ash.ActionInput.for_action(:"judge_#{question}", %{input: model_input(subject)},
+      |> Ash.ActionInput.for_action(
+        Map.fetch!(@judge_actions, question),
+        %{input: model_input(subject)},
         actor: Keyword.fetch!(opts, :actor),
         tenant: Keyword.fetch!(opts, :tenant)
       )
