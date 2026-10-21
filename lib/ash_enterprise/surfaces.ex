@@ -328,6 +328,50 @@ defmodule AshEnterprise.Surfaces do
       context: :task,
       acp: %{command: "my tasks"}
     },
+    # The flight views (PROD-10): a process drawn with a marker on every step a
+    # run is standing on. `:flight` is the first surface over Instance with a
+    # detail, so every link to a run (`link :instance`, `link :process_run`)
+    # opens there; the two process views list every run of one process.
+    %Surface{
+      key: :flight,
+      label: "Flight view",
+      blurb: "One process run on its diagram, with a marker on the step it is on now.",
+      group: :processes,
+      order: 5,
+      icon: "hero-map",
+      path: "/app/flights",
+      live: AshEnterpriseWeb.FlightLive.Instance,
+      ui: A2ui.FlightUI,
+      resource: AshEnterprise.Bpmn.Instance,
+      context: :instance,
+      acp: %{command: "flight", aliases: ["flight view"]}
+    },
+    %Surface{
+      key: :brief_flight,
+      label: "Brief approvals in flight",
+      blurb: "Every running morning brief, on the step it is on now.",
+      group: :processes,
+      order: 6,
+      icon: "hero-sun",
+      path: "/app/flights/briefs",
+      live: AshEnterpriseWeb.FlightLive.Briefs,
+      ui: A2ui.BriefFlightUI,
+      resource: AshEnterprise.Bpmn.Instance,
+      acp: %{command: "brief flight", aliases: ["briefs in flight"]}
+    },
+    %Surface{
+      key: :steward_flight,
+      label: "Stewardship in flight",
+      blurb: "Every match under steward review, on the step it is on now.",
+      group: :processes,
+      order: 7,
+      icon: "hero-hand-raised",
+      path: "/app/flights/stewardship",
+      live: AshEnterpriseWeb.FlightLive.Stewardship,
+      ui: A2ui.StewardFlightUI,
+      resource: AshEnterprise.Bpmn.Instance,
+      acp: %{command: "stewardship flight", aliases: ["steward flight"]}
+    },
     %Surface{
       key: :processes,
       label: "Processes",

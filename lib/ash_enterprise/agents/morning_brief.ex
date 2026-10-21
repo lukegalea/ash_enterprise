@@ -142,6 +142,21 @@ defmodule AshEnterprise.Agents.MorningBrief do
       sort inserted_at: :desc
       description "The approval task deciding this brief."
     end
+
+    # The `morning.brief` run itself: what Today's "Where it stands" link
+    # opens on its flight view. Read as the reader, like any instance.
+    has_one :process_run, AshEnterprise.Bpmn.Instance do
+      public? true
+      no_attributes? true
+
+      filter expr(
+               subject_type == "Elixir.AshEnterprise.Agents.MorningBrief" and
+                 subject_id == parent(id)
+             )
+
+      sort inserted_at: :desc
+      description "The process run composing and deciding this brief."
+    end
   end
 
   identities do

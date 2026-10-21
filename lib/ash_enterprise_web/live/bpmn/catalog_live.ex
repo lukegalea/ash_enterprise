@@ -99,22 +99,23 @@ defmodule AshEnterpriseWeb.Bpmn.CatalogLive do
     |> assign(:drift, Map.new(Resolver.drift(tenant), &{{&1.kind, &1.key}, &1}))
   end
 
-  # What is actually running, and the only route to the instance viewer.
+  # What is actually running, and the route to each run's flight view.
   #
   # Before this, `/app/instances/:id` was reachonly by typing a UUID: no screen linked to it,
   # so the one surface that shows a diagram with live tokens on it was effectively unreachable.
   # A list of keys and versions answers "what could run here"; this answers "what is running",
   # which is the question someone on call actually has.
+  #
+  # Read as the signed-in person, so the list holds only runs they may open on their
+  # flight view (a role grant on instances, or a step of the run waiting on them).
   defp running_instances(socket) do
     tenant = tenant(socket)
 
     instances =
       AshEnterprise.Bpmn.Instance
-      |> Ash.Query.for_read(:read)
-      |> Ash.Query.do_filter(status: :running)
-      |> Ash.Query.sort(created_on: :desc)
+      |> Ash.Query.for_read(:running_now)
       |> Ash.Query.limit(10)
-      |> Ash.read!(actor: SystemActor.process(), tenant: tenant)
+      |> Ash.read!(actor: socket.assigns[:current_user], tenant: tenant)
 
     # An instance carries `definition_id`, not `definition_key` -- deliberately, because the
     # key is not what it is pinned to. Resolving the key therefore means reading the
@@ -248,6 +249,15 @@ defmodule AshEnterpriseWeb.Bpmn.CatalogLive do
                         baseline"; a design where merely looking at a decision forked it would
                         turn every visit into a customization. --%>
                     <.button
+                      :if={@kind == :process and flight_path(row.key)}
+                      navigate={flight_path(row.key)}
+                      variant="ghost"
+                      size="xs"
+                      id={"flight-#{row.key}"}
+                    >
+                      In flight
+                    </.button>
+                    <.button
                       :if={row.source == :platform}
                       type="button"
                       phx-click="customize"
@@ -327,13 +337,21 @@ defmodule AshEnterpriseWeb.Bpmn.CatalogLive do
                   <tr :for={row <- @instances} id={"instance-#{row.instance.id}"}>
                     <td class="font-mono text-xs">{row.key || "(definition not found)"}</td>
                     <td class="text-xs text-foreground/70">{row.instance.created_on}</td>
-                    <td class="text-right">
+                    <td class="space-x-1 text-right">
+                      <.button
+                        href={~p"/app/r/flight/#{row.instance.id}"}
+                        variant="ghost"
+                        size="xs"
+                        id={"flight-#{row.instance.id}"}
+                      >
+                        Flight view
+                      </.button>
                       <.button
                         navigate={~p"/app/instances/#{row.instance.id}"}
                         variant="ghost"
                         size="xs"
                       >
-                        View tokens
+                        BPMN diagram
                       </.button>
                     </td>
                   </tr>
@@ -346,6 +364,11 @@ defmodule AshEnterpriseWeb.Bpmn.CatalogLive do
     </Layouts.app>
     """
   end
+
+  # The processes with a flight view of every run (`AshEnterpriseWeb.FlightLive`).
+  defp flight_path("morning.brief"), do: ~p"/app/flights/briefs"
+  defp flight_path("mdm.steward_review"), do: ~p"/app/flights/stewardship"
+  defp flight_path(_key), do: nil
 
   defp short(resource),
     do: AshBpmn.Resources.Subscription.ResourceName.short(resource || "")

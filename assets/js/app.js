@@ -100,13 +100,20 @@ const ashCatalog = createAshA2uiCatalog({
 // given -- "admin adds semantic components; it does not remove primitives").
 // `z` is the zod instance the admin catalog validates its component props
 // with; lit is injected for the same single-instance reason as above.
+//
+// `loadMermaid` draws live diagrams (the process flight views). Mermaid is its
+// own esbuild entry (config/config.exs), fetched the first time a diagram
+// appears and never on a page without one. app.js is an IIFE bundle, so the
+// mermaid bundle has no exports and publishes itself on window.AshA2uiMermaid.
+// Without it, a diagram renders as its list of nodes and markers.
 const ashAdminCatalog = createAshAdminCatalog({
   Catalog,
   basicCatalog: ashCatalog,
   A2uiLitElement,
   A2uiController,
   z,
-  lit: {html, css, nothing}
+  lit: {html, css, nothing},
+  loadMermaid: () => import("/assets/js/ash_a2ui_mermaid.js").then(() => window.AshA2uiMermaid)
 })
 
 configureAshA2ui({

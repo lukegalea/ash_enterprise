@@ -68,6 +68,7 @@ defmodule AshEnterpriseWeb.A2ui.TaskBoardUI do
         :declared_outcomes,
         :waiting_since,
         :assignee_label,
+        :run_stage,
         :subject_detail
       ])
     end
@@ -131,6 +132,13 @@ defmodule AshEnterpriseWeb.A2ui.TaskBoardUI do
 
     field :subject_detail do
       label("Details")
+    end
+
+    # The task's process run, on its flight view.
+    field :run_stage do
+      label("Where it stands")
+      source([:instance, :stage_label])
+      link(:instance)
     end
   end
 end

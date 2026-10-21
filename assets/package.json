@@ -11,6 +11,7 @@
     "cytoscape": "^3.34.3",
     "dmn-js": "^17.10.1",
     "lit": "^3.0.0",
+    "mermaid": "^11.17.2",
     "zod": "^3.24.0"
   },
   "devDependencies": {

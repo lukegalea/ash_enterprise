@@ -120,7 +120,11 @@ config :ash_bpmn,
   # from the data, the same way the prototype's cron sweep did it: every tenant with a
   # published, enabled subscription. Evaluated per call; see
   # `AshEnterprise.Bpmn.Subscription.trigger_tenants/0`.
-  trigger_tenants: {AshEnterprise.Bpmn.Subscription, :trigger_tenants, []}
+  trigger_tenants: {AshEnterprise.Bpmn.Subscription, :trigger_tenants, []},
+  # Token movement is broadcast here after each step commits
+  # (`AshBpmn.FlightView`): the flight views listen, and refresh their markers
+  # by reading again as the viewer. A broadcast carries ids and statuses only.
+  pubsub_server: AshEnterprise.PubSub
 
 config :ash_decisions, ash_domains: [AshEnterprise.Decisions]
 
@@ -448,8 +452,16 @@ config :esbuild,
     # Without loaders esbuild fails outright on the unresolved `.woff` -- it is not a
     # cosmetic gap, the build stops. Inlined as data URLs, which `font-src 'self' data:`
     # in the CSP already permits, so the diagram palette renders without widening it.
+    #
+    # Two entry points. Mermaid (several megabytes) is its own bundle, loaded the first time a
+    # live diagram appears (`loadMermaid` in app.js), never part of app.js. Named entries
+    # (`out=in`) keep both files directly under `assets/js/` even though the second lives in
+    # deps/. `/assets/*` stays external so app.js's `import("/assets/js/...")` is left for the
+    # browser to resolve.
     args:
-      ~w(js/app.js --bundle --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=.) ++
+      ~w(app=js/app.js ash_a2ui_mermaid=../deps/ash_a2ui/priv/js/ash_a2ui_mermaid.js
+         --bundle --target=es2022 --outdir=../priv/static/assets/js
+         --external:/fonts/* --external:/images/* --external:/assets/* --alias:@=.) ++
         ~w(--loader:.woff=dataurl --loader:.woff2=dataurl --loader:.ttf=dataurl
            --loader:.eot=dataurl --loader:.svg=dataurl),
     cd: Path.expand("../assets", __DIR__),

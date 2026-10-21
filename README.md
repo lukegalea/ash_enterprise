@@ -152,6 +152,7 @@ Sign in with the credentials the seeder prints, then visit:
 | `/app/mdm/batches` | **MDM demo: import batches** as a board by status, each with its counts and staged rows |
 | `/app/tasks` | Every process task waiting on you, as a board: claim, complete, delegate |
 | `/app/processes` | The `mdm.steward_review` BPMN process the review candidates run (banding itself is a DMN table) |
+| `/app/flights/stewardship`, `/app/flights/briefs` | Flight views: a process diagram with a marker on the step each run is on, moved live as the engine advances; `/app/flights` shows one run |
 | `/agent` | Helper console — proposes changes for your approval, and shows or composes tables on request |
 | `/app/users`, `/app/teams`, `/app/roles`, `/app/business-units` | A2UI surfaces derived from resource metadata |
 | `/app/legacy-users` | The same, over a 2010-era Rails schema read through a compatibility view — and it updates when the old application writes |

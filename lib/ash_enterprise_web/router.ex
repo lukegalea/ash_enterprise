@@ -273,6 +273,21 @@ defmodule AshEnterpriseWeb.Router do
       live "/app/instances/:id", Bpmn.ViewerLive
     end
 
+    # The process flight views (PROD-10): A2UI surfaces whose diagram is a BPMN
+    # process with a marker per live token, moved over the engine's PubSub
+    # broadcasts. See AshEnterpriseWeb.FlightLive and
+    # AshEnterprise.Process.FlightDiagram. Tier 3 like the process surfaces
+    # above: they go with ash_bpmn.
+    ash_authentication_live_session :flight_surfaces,
+      on_mount: [
+        {AshEnterpriseWeb.LiveUserAuth, :live_user_required},
+        AshEnterpriseWeb.SurfaceDoor
+      ] do
+      live "/app/flights", FlightLive.Instance
+      live "/app/flights/briefs", FlightLive.Briefs
+      live "/app/flights/stewardship", FlightLive.Stewardship
+    end
+
     ash_authentication_live_session :authenticated_routes do
       # in each liveview, add one of the following at the top of the module:
       #

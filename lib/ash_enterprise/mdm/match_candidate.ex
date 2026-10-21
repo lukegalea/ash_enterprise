@@ -71,6 +71,22 @@ defmodule AshEnterprise.Mdm.MatchCandidate do
       public? true
       description "The golden record the staged row would merge into."
     end
+
+    # The `mdm.steward_review` run deciding this candidate, if one was
+    # started: what the queue's "Review" link opens on its flight view. Read
+    # as the reader, like any instance.
+    has_one :review_run, AshEnterprise.Bpmn.Instance do
+      public? true
+      no_attributes? true
+
+      filter expr(
+               subject_type == "Elixir.AshEnterprise.Mdm.MatchCandidate" and
+                 subject_id == parent(id)
+             )
+
+      sort inserted_at: :desc
+      description "The steward-review process run deciding this candidate."
+    end
   end
 
   calculations do

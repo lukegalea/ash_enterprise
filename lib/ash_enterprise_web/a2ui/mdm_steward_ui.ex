@@ -73,7 +73,8 @@ defmodule AshEnterpriseWeb.A2ui.MdmStewardUI do
         :score,
         :explanation_text,
         :golden_label,
-        :staged_batch_label
+        :staged_batch_label,
+        :review_stage
       ]
     end
 
@@ -109,6 +110,14 @@ defmodule AshEnterpriseWeb.A2ui.MdmStewardUI do
     field :staged_batch_label do
       label "Staged in"
       link {:mdm_batches, [:staged_record, :batch_id]}
+    end
+
+    # The candidate's steward-review run on its flight view, when the reader
+    # may read the run (a steward asked to decide it may).
+    field :review_stage do
+      label "Review"
+      source [:review_run, :stage_label]
+      link :review_run
     end
 
     field :score do

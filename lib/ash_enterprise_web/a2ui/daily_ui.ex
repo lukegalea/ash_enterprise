@@ -50,7 +50,7 @@ defmodule AshEnterpriseWeb.A2ui.TodayUI do
 
     component :detail, :brief_detail do
       context :brief
-      fields [:headline, :status, :summary, :brief_events, :approval]
+      fields [:headline, :status, :summary, :brief_events, :approval, :process_stage]
     end
 
     component :report, :agenda do
@@ -91,6 +91,13 @@ defmodule AshEnterpriseWeb.A2ui.TodayUI do
       label "Approval"
       link :approval_task
       link_label :status
+    end
+
+    # The brief's `morning.brief` run, on its flight view.
+    field :process_stage do
+      label "Where it stands"
+      source [:process_run, :stage_label]
+      link :process_run
     end
   end
 end
@@ -682,6 +689,7 @@ defmodule AshEnterpriseWeb.A2ui.ApprovalsUI do
         :status,
         :waiting_since,
         :assignee_label,
+        :run_stage,
         :subject_detail
       ]
     end
@@ -722,6 +730,14 @@ defmodule AshEnterpriseWeb.A2ui.ApprovalsUI do
 
     field :subject_detail do
       label "Details"
+    end
+
+    # The task's process run, on its flight view (the task's reader may read
+    # the run: `AshEnterprise.Security.Checks.TaskInstance`).
+    field :run_stage do
+      label "Where it stands"
+      source [:instance, :stage_label]
+      link :instance
     end
   end
 end
