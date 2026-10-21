@@ -445,21 +445,60 @@ defmodule AshEnterpriseWeb.A2uiLive do
   end
 
   defmodule MdmGolden do
-    @moduledoc "A2UI surface for the golden records (MDM-6)."
+    @moduledoc """
+    A2UI surface for the golden records (MDM-6).
+
+    `?as_of=` reads it at an instant (PROD-47, `time_travel: true`): the
+    source identities table shows who each identity pointed at then, and
+    the surface is view-only. The people themselves are not temporal, so
+    their names and merged flags are today's. The time-travel page links
+    here at the instant its scrubber is on.
+    """
     use AshA2ui.LiveRenderer,
       ui: AshEnterpriseWeb.A2ui.MdmGoldenUI,
       deep_link: true,
+      time_travel: true,
       actor_fn: &__MODULE__.actor/1,
       tenant_fn: &__MODULE__.tenant/1
 
+    alias AshEnterprise.Platform.LocalTime
     alias AshEnterprise.Security.ActorContext
     alias AshEnterpriseWeb.A2uiLive.Chrome
+    alias AshEnterpriseWeb.Layouts
 
     def actor(socket), do: socket.assigns[:current_user]
 
     def tenant(socket), do: ActorContext.tenant(socket.assigns[:current_user])
 
+    def render(%{ash_a2ui_as_of: %DateTime{}} = assigns) do
+      ~H"""
+      <Layouts.app flash={@flash} page={assigns[:page]} width="max-w-7xl">
+        <div
+          id="golden-as-of"
+          role="status"
+          class="flex flex-wrap items-center justify-between gap-3 rounded-base border-2 border-border bg-yellow px-4 py-2 text-sm text-on-vivid shadow-shadow"
+        >
+          <span>
+            Source identities as of {LocalTime.stamp(@ash_a2ui_as_of)}. The people are shown as
+            they are today. Nothing here can be changed.
+          </span>
+          <.link navigate={now_path(@ash_a2ui_uri)} class="font-heading underline">
+            Return to now
+          </.link>
+        </div>
+        {AshA2ui.LiveRenderer.surface_container(assigns)}
+      </Layouts.app>
+      """
+    end
+
     def render(assigns), do: Chrome.page(assigns)
+
+    defp now_path(uri) when is_binary(uri) do
+      %URI{path: path, query: query} = URI.parse(uri)
+      AshA2ui.AsOf.put_param(if(query, do: "#{path}?#{query}", else: path), nil)
+    end
+
+    defp now_path(_no_uri), do: "/app/mdm/golden"
   end
 
   defmodule MdmSteward do

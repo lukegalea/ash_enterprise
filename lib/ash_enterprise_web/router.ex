@@ -197,6 +197,19 @@ defmodule AshEnterpriseWeb.Router do
       live "/app/audit", AuditLive
     end
 
+    # Time travel (PROD-47): who a person resolved to, and what was true about
+    # a subject, at any instant (`?as_of=`). Read-only. Removable with
+    # AshEnterpriseWeb.TimeTravelLive, this live_session and its registry entry.
+    ash_authentication_live_session :time_travel,
+      on_mount: [
+        {AshEnterpriseWeb.LiveUserAuth, :live_user_required},
+        AshEnterpriseWeb.SurfaceDoor
+      ] do
+      live "/app/time-travel", TimeTravelLive, :index
+      live "/app/time-travel/people/:id", TimeTravelLive, :person
+      live "/app/time-travel/subjects/:id", TimeTravelLive, :facts
+    end
+
     # The assistant (E10): a person's own chat with the in-zone model, its
     # read tools run as them. Its own live_session so it can be removed with
     # lib/ash_enterprise/assistant/ and AshEnterpriseWeb.AssistantLive.

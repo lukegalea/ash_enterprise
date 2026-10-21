@@ -703,6 +703,18 @@ defmodule AshEnterprise.Surfaces do
       acp: %{command: "golden records", aliases: ["goldens"]}
     },
     %Surface{
+      key: :time_travel,
+      label: "Time travel",
+      blurb: "Who a person resolved to, and what was true about them, at any moment.",
+      group: :mdm,
+      order: 25,
+      icon: "hero-clock",
+      path: "/app/time-travel",
+      live: AshEnterpriseWeb.TimeTravelLive,
+      resource: AshEnterprise.Mdm.SourceIdentity,
+      acp: %{command: "time travel", aliases: ["as of", "history"]}
+    },
+    %Surface{
       key: :mdm_mappings,
       label: "MDM mappings",
       blurb: "The mapping version chain: no-deploy onboarding.",
