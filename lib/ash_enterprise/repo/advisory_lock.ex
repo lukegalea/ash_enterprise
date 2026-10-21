@@ -6,7 +6,7 @@ defmodule AshEnterprise.Repo.AdvisoryLock do
 
   The lock is database-wide, so it holds across nodes: the dogfood
   application's Oban job and a `mix` VM on the same database exclude each
-  other. It lives on one connection, so `with_try_lock/3` checks a
+  other. It lives on one connection, so `with_try_lock/4` checks a
   connection out for the whole of `fun` (every Repo call `fun` makes from
   this process runs on it) and unlocks before giving it back. A crashed or
   killed holder loses its session, and Postgres releases the lock with it.
@@ -18,30 +18,41 @@ defmodule AshEnterprise.Repo.AdvisoryLock do
 
   alias AshEnterprise.Repo
 
+  # How long `fun` may hold the checked-out connection. DBConnection's own
+  # default (15s) bounds the whole checkout, not one query, and a sweep with
+  # real work in it runs for minutes.
+  @default_timeout :timer.minutes(30)
+
   @doc """
   Runs `fun` while holding the `{namespace, key}` lock: `{:ok, fun_result}`,
   or `:busy` without running it when another session holds the lock.
-  """
-  @spec with_try_lock(String.t(), String.t(), (-> result)) :: {:ok, result} | :busy
-        when result: term()
-  def with_try_lock(namespace, key, fun)
-      when is_binary(namespace) and is_binary(key) and is_function(fun, 0) do
-    Repo.checkout(fn ->
-      %{rows: [[locked?]]} =
-        Repo.query!("SELECT pg_try_advisory_lock(hashtext($1), hashtext($2))", [namespace, key])
 
-      if locked? do
-        try do
-          {:ok, fun.()}
-        after
-          # Not the bang form: a connection that died under `fun` took the
-          # lock with it, and its error is the one worth raising.
-          _ =
-            Repo.query("SELECT pg_advisory_unlock(hashtext($1), hashtext($2))", [namespace, key])
+  `:timeout` bounds how long `fun` may hold the connection (default 30
+  minutes); past it the connection is dropped, and the lock with it.
+  """
+  @spec with_try_lock(String.t(), String.t(), (-> result), keyword()) :: {:ok, result} | :busy
+        when result: term()
+  def with_try_lock(namespace, key, fun, opts \\ [])
+      when is_binary(namespace) and is_binary(key) and is_function(fun, 0) do
+    Repo.checkout(
+      fn ->
+        %{rows: [[locked?]]} =
+          Repo.query!("SELECT pg_try_advisory_lock(hashtext($1), hashtext($2))", [namespace, key])
+
+        if locked? do
+          try do
+            {:ok, fun.()}
+          after
+            # Not the bang form: a connection that died under `fun` took the
+            # lock with it, and its error is the one worth raising.
+            _ =
+              Repo.query("SELECT pg_advisory_unlock(hashtext($1), hashtext($2))", [namespace, key])
+          end
+        else
+          :busy
         end
-      else
-        :busy
-      end
-    end)
+      end,
+      timeout: Keyword.get(opts, :timeout, @default_timeout)
+    )
   end
 end
