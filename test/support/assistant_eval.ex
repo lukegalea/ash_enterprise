@@ -134,6 +134,10 @@ defmodule AshEnterprise.Test.AssistantEval do
 
     _hidden = hidden_duplicate!(ctx, colleague)
 
+    # Time travel: two records of one Morgan, each resolved a month ago and
+    # merged today, so "as of last Friday" they were two.
+    morgan = merged_pair!(ctx)
+
     %{
       quinn: quinn,
       rory: rory,
@@ -150,8 +154,49 @@ defmodule AshEnterprise.Test.AssistantEval do
       permit: permit.id,
       deck: deck.id,
       contract: Support.ref(HumanTask, contract),
-      avery: Support.ref(MatchCandidate, avery)
+      avery: Support.ref(MatchCandidate, avery),
+      morgan: Support.ref(Person, morgan),
+      last_friday: Date.to_iso8601(last_friday())
     }
+  end
+
+  # Morgan Synthetic (the survivor) and Morgan Home, each with an identity
+  # opened 30 days ago; Morgan Home merges into Morgan Synthetic now.
+  defp merged_pair!(ctx) do
+    system = [tenant: ctx.tenant, authorize?: false]
+    month_ago = DateTime.add(DateTime.utc_now(), -30, :day)
+    work = D.person!(ctx, "morgan@example.test", "Morgan Synthetic")
+    home = D.person!(ctx, "morgan.home@example.test", "Morgan Home")
+
+    for {golden, external_id} <- [{work, "eval-slack:U-morgan"}, {home, "eval-gmail:morgan"}] do
+      AshEnterprise.Mdm.SourceIdentity
+      |> Ash.Changeset.for_create(
+        :open,
+        %{
+          source: :slack,
+          stream: :users,
+          external_id: external_id,
+          golden_resource: "AshEnterprise.Canonical.Person",
+          golden_id: golden.id,
+          asserted_by: :mapping
+        },
+        system ++ [as_of: month_ago]
+      )
+      |> Ash.create!()
+    end
+
+    home
+    |> Ash.Changeset.for_update(:mdm_merge_into, %{survivor_id: work.id}, system)
+    |> Ash.update!()
+
+    work
+  end
+
+  # The most recent Friday before today (a week ago, on a Friday).
+  defp last_friday do
+    today = Date.utc_today()
+    back = rem(Date.day_of_week(today) - 5 + 7, 7)
+    Date.add(today, -if(back == 0, do: 7, else: back))
   end
 
   # A colleague in the same tenant and business unit, holding no role.
@@ -443,6 +488,18 @@ defmodule AshEnterprise.Test.AssistantEval do
         answer: "Rory Example: rory@example.test."
       },
       %{
+        id: "resolved_last_friday",
+        question: "As of last Friday, were Morgan Synthetic and Morgan Home one record or two?",
+        tools: ["find_people"],
+        args: %{"find_people" => &morgan_as_of?/1},
+        facts: [["two", "2 ", "separate"], "Morgan Home"],
+        cites: [f.morgan],
+        oracle: [{:tools, [{"find_people", %{"query" => "morgan", "as_of" => f.last_friday}}]}],
+        answer:
+          "As of #{f.last_friday} they were two separate records, Morgan Synthetic and " <>
+            "Morgan Home; they have been merged since [[#{f.morgan}]]."
+      },
+      %{
         id: "open_tasks",
         question: "What are my open action items?",
         tools: ["my_tasks"],
@@ -706,6 +763,12 @@ defmodule AshEnterprise.Test.AssistantEval do
             "to approve."
       }
     ]
+  end
+
+  # resolved_last_friday: a search for Morgan, asked as of some moment.
+  defp morgan_as_of?(args) do
+    to_string(args["query"]) |> String.downcase() =~ "morgan" and
+      is_binary(args["as_of"]) and args["as_of"] != ""
   end
 
   # -- running -------------------------------------------------------------------------

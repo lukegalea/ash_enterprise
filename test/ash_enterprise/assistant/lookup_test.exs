@@ -100,6 +100,53 @@ defmodule AshEnterprise.Assistant.LookupTest do
                })
     end
 
+    test "find_people as_of: the records a person was split across then", %{alice: alice} do
+      system = [tenant: alice.tenant, authorize?: false]
+      month_ago = DateTime.add(DateTime.utc_now(), -30, :day)
+      work = D.person!(alice, "yan@example.test", "Yan Example")
+      home = D.person!(alice, "yan.home@example.test", "Yan Home")
+
+      for {golden, external_id} <- [{work, "slack:U-yan"}, {home, "gmail:yan.home"}] do
+        AshEnterprise.Mdm.SourceIdentity
+        |> Ash.Changeset.for_create(
+          :open,
+          %{
+            source: :slack,
+            stream: :users,
+            external_id: external_id,
+            golden_resource: "AshEnterprise.Canonical.Person",
+            golden_id: golden.id,
+            asserted_by: :mapping
+          },
+          system ++ [as_of: month_ago]
+        )
+        |> Ash.create!()
+      end
+
+      home
+      |> Ash.Changeset.for_update(:mdm_merge_into, %{survivor_id: work.id}, system)
+      |> Ash.update!()
+
+      # Now: the merged record answers through its survivor.
+      assert %{"people" => [%{"name" => "Yan Example"} = now]} =
+               F.tool!(alice, :find_people, %{query: "yan"})
+
+      refute Map.has_key?(now, "records_then")
+
+      # A week ago: Yan was two records.
+      week_ago = Date.add(Date.utc_today(), -7) |> Date.to_iso8601()
+
+      assert %{"as_of" => _, "people" => people} =
+               F.tool!(alice, :find_people, %{query: "yan", as_of: week_ago})
+
+      yan = Enum.find(people, &(&1["name"] == "Yan Example"))
+
+      assert [%{"name" => "Yan Example", "identities" => 1}, %{"name" => "Yan Home"}] =
+               yan["records_then"]
+
+      assert %{"error" => _} = F.tool!(alice, :find_people, %{query: "yan", as_of: "last friday"})
+    end
+
     test "pending_approvals and morning_briefs: the brief waiting on its owner", %{alice: alice} do
       D.brief!(alice)
 

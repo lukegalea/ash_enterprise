@@ -77,6 +77,9 @@ defmodule AshEnterprise.Assistant do
       description """
       Search the person's contacts by name or email. Returns each person's
       name, email, how many conversations they share and their next event.
+      For a question about a past moment ("as of last Friday", "before the
+      merge"), pass as_of: each person then lists the separate records they
+      were split across at that moment.
       """
     end
 

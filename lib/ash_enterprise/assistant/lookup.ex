@@ -143,6 +143,13 @@ defmodule AshEnterprise.Assistant.Lookup do
         description "Part of a name or email address."
       end
 
+      argument :as_of, :string do
+        description "A past moment to answer for: a date (2026-10-16, meaning the end of " <>
+                      "that day) or a UTC time (2026-10-16T09:00:00Z). With it, each person " <>
+                      "shows the separate records they were split across then, before or " <>
+                      "after a merge."
+      end
+
       run Lookups.People
     end
 
