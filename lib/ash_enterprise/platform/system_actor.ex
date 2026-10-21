@@ -46,6 +46,9 @@ defmodule AshEnterprise.Platform.SystemActor do
         "this one owns. Deliberately not a person: the change was really made by a process " <>
         "this application cannot see, and the audit trail should say so rather than borrow a " <>
         "name from whoever happened to be signed in.",
+    lineage:
+      "The lineage store, recording the OpenLineage run events every write and sync emits " <>
+        "(`AshEnterprise.Lineage.Store`). It writes the lineage tables and nothing else.",
     system: "Generic fallback. Prefer a specific actor above; this one tells an auditor little."
   }
 

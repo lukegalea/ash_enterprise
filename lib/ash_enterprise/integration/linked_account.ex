@@ -168,6 +168,18 @@ defmodule AshEnterprise.Integration.LinkedAccount do
       description "Gmail and Slack: how far landed records have been projected."
     end
 
+    # The account's latest sync, as a lineage run (`AshEnterprise.Lineage.Run`):
+    # the sync job, its landings, its projection and the canonical writes.
+    # Read under the reader's lineage grant, so it is absent without one.
+    has_one :latest_lineage_run, AshEnterprise.Lineage.Run do
+      public? true
+      domain AshEnterprise.Lineage
+      destination_attribute :linked_account_id
+      from_many? true
+      sort last_event_at: :desc
+      description "The latest lineage run of this account's syncs."
+    end
+
     # One erasure scope per linked account (`AshEnterprise.Integration.Landing.scope/1`):
     # kind `:connection`, ref the account's id. No foreign key: the scope is
     # opened by the first landing and outlives the account's rows, so the link

@@ -33,6 +33,10 @@ defmodule AshEnterprise.Application do
         # Supervised per Iron Law #14: a crash in a lineage POST must never
         # take a caller down with it, and the supervisor isolates exactly that.
         {Task.Supervisor, name: AshEnterprise.TaskSupervisor},
+        # The lineage store: buffers every RunEvent off the writer's path and
+        # writes them in batches (AshEnterprise.Lineage.Store). After the Repo
+        # and PubSub, which a flush writes to and broadcasts on.
+        AshEnterprise.Lineage.Store,
         # Owns the ACP session/approval ETS tables (epic E3) so they outlive
         # any transient handler process.
         AshEnterprise.Acp.Store,

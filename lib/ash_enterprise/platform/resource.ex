@@ -43,6 +43,10 @@ defmodule AshEnterprise.Platform.Resource do
       and ADR 0052. Default `[]`.
     * `:audit?` — write to the central event log. Default `true`.
     * `:archival?` — soft delete. Default `true`.
+    * `:lineage?` — emit an OpenLineage COMPLETE RunEvent on every successful
+      write. Default `true`. Off only for the lineage store's own resources
+      (`AshEnterprise.Lineage`): recording a run must not emit a run, or every
+      write would feed itself.
     * `:paper_trail?` — additionally keep a per-resource version table. Default
       `false`; see ADR 0002 for why running both is not the default.
     * `:api_type` — expose the resource over JSON:API and GraphQL under this
@@ -83,6 +87,7 @@ defmodule AshEnterprise.Platform.Resource do
     {self_service, opts} = Keyword.pop(opts, :self_service, [])
     {audit?, opts} = Keyword.pop(opts, :audit?, true)
     {archival?, opts} = Keyword.pop(opts, :archival?, true)
+    {lineage?, opts} = Keyword.pop(opts, :lineage?, true)
     {paper_trail?, opts} = Keyword.pop(opts, :paper_trail?, false)
     {policies?, opts} = Keyword.pop(opts, :policies?, true)
     {extra_grants, opts} = Keyword.pop(opts, :extra_grants, [])
@@ -152,6 +157,12 @@ defmodule AshEnterprise.Platform.Resource do
 
       lineage do
         transport(AshEnterprise.Lineage.Transport)
+
+        unquote(
+          unless lineage? do
+            quote do: emit_on([])
+          end
+        )
       end
 
       unquote(
