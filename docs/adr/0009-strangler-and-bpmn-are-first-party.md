@@ -270,6 +270,16 @@ holds only for tasks opened after it. No checked-in baseline combines exclusions
 that adopts the two together with tasks already open should backfill those tasks from their instances' resolved
 exclusions first.
 
+**Delegation picks from the task's candidates (2026-10-21).** The board's Delegate used to take a typed email
+address, so the holder had to know who could take the task, and a wrong guess came back as a refusal. It is now a
+picker over `User.delegate_candidates`: the people the engine would accept for that one task (a `:user` row naming
+them or a `:team` row naming one of their teams, neither excluded), other than the holder, read only for a task the
+person holds. The options are read per card through ash_a2ui's per-row prompt scope (`prompt_options`), which
+re-reads every pick through the same read, and the engine checks candidacy again when it writes. A holder needs no
+grant on users for it: `AshEnterprise.Security.Checks.TaskDelegates` (an `extra_grants:` path on `User`) authorizes
+that one read for a task in the actor's precomputed `task_ids`, without querying. What a holder sees is the candidate
+set of a task they were asked to act on, not a directory of people.
+
 ## Consequences
 
 **What this makes easy.** The vision the repository markets becomes demonstrable end to end instead of

@@ -23,6 +23,11 @@ defmodule AshEnterprise.Accounts.User do
     tenant?: false,
     archival?: false,
     cdm_entity: "SystemUser",
+    # The holder of a task reads whom it may be handed to (the task board's
+    # Delegate picker), with no grant on users: see `delegate_candidates`.
+    extra_grants: [
+      {AshEnterprise.Security.Checks.TaskDelegates, reads: [:delegate_candidates]}
+    ],
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer],
     extensions: [AshAuthentication]
@@ -295,6 +300,18 @@ defmodule AshEnterprise.Accounts.User do
     read :get_by_email do
       description "Looks up a user by their email"
       get_by :email
+    end
+
+    read :delegate_candidates do
+      description """
+      The people a task the actor holds may be handed to: its candidates the
+      process engine would accept as a delegate, other than the actor; nobody
+      for a task they do not hold.
+      """
+
+      argument :task_id, :uuid, allow_nil?: false
+      prepare AshEnterprise.Accounts.Preparations.DelegateCandidates
+      prepare build(sort: [email: :asc])
     end
 
     update :reset_password_with_token do

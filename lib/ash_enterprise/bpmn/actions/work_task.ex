@@ -19,20 +19,19 @@ defmodule AshEnterprise.Bpmn.Actions.WorkTask do
       (`AshEnterprise.Mdm.StewardTask`); any other task goes through
       `AshBpmn.complete_task/2`.
     * **delegate** — `AshBpmn.delegate_task/2`: a task the actor holds, to
-      another person by email. The engine requires the delegate to be one of the task's
-      candidates and not excluded from it, so delegation never widens who may
-      decide a task; the delegate then reads it through their own candidacy.
+      another person, picked from the task's `delegate_candidates`. The engine
+      requires the delegate to be one of the task's candidates and not
+      excluded from it, so delegation never widens who may decide a task; the
+      delegate then reads it through their own candidacy.
 
-  What stays here is the host's part: finding the person by email (an
-  address that is no one reads the same as one that is not a candidate), the
+  What stays here is the host's part: naming the person picked (an id that
+  is no one reads the same as one that is not a candidate), the
   declared-outcome check and the steward mapping. The engine's refusals
   (`ArgumentError`) come back as `Forbidden`, so a click on a task that is not
   the person's reads "not authorized".
   """
 
   use Ash.Resource.Actions.Implementation
-
-  require Ash.Query
 
   alias AshEnterprise.Accounts.User
   alias AshEnterprise.Bpmn.{HumanTask, Outcomes}
@@ -53,7 +52,7 @@ defmodule AshEnterprise.Bpmn.Actions.WorkTask do
 
   # A refusal of the person's input is reported on the field they typed
   # into, so the board's prompt shows it under the input; a claim has none.
-  defp field(:delegate), do: :delegate_to
+  defp field(:delegate), do: :delegate_to_id
   defp field(:complete), do: :outcome
   defp field(:claim), do: :record_id
 
@@ -74,7 +73,7 @@ defmodule AshEnterprise.Bpmn.Actions.WorkTask do
   end
 
   defp work(:delegate, task, arguments, actor, opts) do
-    with {:ok, to} <- delegatee(arguments.delegate_to, actor, opts),
+    with {:ok, to} <- delegatee(arguments.delegate_to_id, actor, opts),
          {:ok, _delegated} <- delegate(task, to, actor) do
       {:ok, "Delegated to #{to.email} — #{task.name}."}
     end
@@ -89,10 +88,10 @@ defmodule AshEnterprise.Bpmn.Actions.WorkTask do
     )
     |> case do
       # The engine refuses a delegate outside the candidate set (or excluded
-      # from it: maker-checker) with this sentence; it is about what the
-      # person typed, so it is answered under the address, not as Forbidden.
+      # from it: maker-checker) with this sentence; it is about the person
+      # picked, so it is answered under the picker, not as Forbidden.
       {:error, %ArgumentError{message: "the delegate " <> _}} ->
-        {:error, not_a_candidate(to.email)}
+        {:error, not_a_candidate()}
 
       other ->
         other
@@ -123,22 +122,20 @@ defmodule AshEnterprise.Bpmn.Actions.WorkTask do
     end
   end
 
-  # The person to delegate to, by address. Looked up with the system's
-  # authority, so delegating needs no grant on users (a steward holds none):
-  # whether the address may take the task is the engine's candidacy check,
-  # and every refusal reads the same — an address that is no one, someone in
-  # another tenant, or someone who is not a candidate are one answer, so the
-  # prompt is not a way to learn who has an account.
-  defp delegatee(email, actor, _opts) do
-    User
-    |> Ash.Query.filter(email == ^email)
-    |> Ash.read_one(authorize?: false)
-    |> case do
-      {:ok, %User{id: id}} when id == actor.id -> {:error, "you already hold this task"}
+  # The person to delegate to, by id. Looked up with the system's authority,
+  # so delegating needs no grant on users (a steward holds none): whether
+  # they may take the task is the engine's candidacy check, and every refusal
+  # reads the same — an id that is no one, someone in another tenant, or
+  # someone who is not a candidate are one answer, so the action is not a way
+  # to learn who has an account.
+  defp delegatee(id, %{id: id}, _opts), do: {:error, "you already hold this task"}
+
+  defp delegatee(id, _actor, _opts) do
+    case Ash.get(User, id, authorize?: false, not_found_error?: false) do
       {:ok, %User{} = user} -> {:ok, user}
-      _not_found -> {:error, not_a_candidate(email)}
+      _not_found -> {:error, not_a_candidate()}
     end
   end
 
-  defp not_a_candidate(email), do: "#{email} is not one of this task's approvers"
+  defp not_a_candidate, do: "that person is not one of this task's approvers"
 end

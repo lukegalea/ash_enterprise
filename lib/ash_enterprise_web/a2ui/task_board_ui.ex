@@ -10,7 +10,8 @@ defmodule AshEnterpriseWeb.A2ui.TaskBoardUI do
     outcome is recorded as the verdict on its match candidate
     (`AshEnterprise.Mdm.StewardTask`).
   * **Delegate task** hands a task the person holds to another of its
-    candidates, by email.
+    candidates, picked from the people the engine would accept
+    (`HumanTask.delegate_candidates`, read for that card's task alone).
 
   Complete and Delegate show only on the cards the person holds
   (`claimed_by_me`). Every button runs the task's own action as the clicking
@@ -88,13 +89,26 @@ defmodule AshEnterpriseWeb.A2ui.TaskBoardUI do
     action :delegate_task do
       label("Delegate task")
       visible_when(status: :claimed, claimed_by_me: true)
-      prompt_fields([:delegate_to])
-      prompt_title("Delegate — the email address of the person taking it over")
+      prompt_fields([:delegate_to_id])
+      prompt_title("Delegate — the person taking it over")
       refreshes([:board])
+
+      # Per card: only the people this task may be handed to, read as the
+      # clicking person (who holds it) — never every user they can see.
+      prompt_options :delegate_to_id do
+        read_action(:delegate_candidates)
+        record_argument(:task_id)
+      end
     end
 
     field :name do
       label("Step")
+    end
+
+    field :delegate_to_id do
+      label("Delegate to")
+      relationship(:delegate_candidates)
+      option_label(:email)
     end
 
     field :declared_outcomes do

@@ -66,6 +66,17 @@ defmodule AshEnterprise.Bpmn.HumanTask do
   # Every path reads as the actor and writes through the engine — never a
   # direct write to the task or its subject.
 
+  relationships do
+    # Whom the task may be handed to (`User.delegate_candidates`): the
+    # destination of the board's Delegate picker, whose options are read per
+    # task through that action.
+    has_many :delegate_candidates, AshEnterprise.Accounts.User do
+      public? true
+      manual AshEnterprise.Bpmn.Relationships.DelegateCandidates
+      description "The people the actor may hand this task to; nobody unless they hold it."
+    end
+  end
+
   calculations do
     calculate :subject_label,
               :string,
@@ -187,12 +198,13 @@ defmodule AshEnterprise.Bpmn.HumanTask do
 
     action :delegate_task, :string do
       description """
-      Hand a task the actor holds to another of its candidates, by their
-      email address, through the process engine (`AshBpmn.delegate_task/2`).
+      Hand a task the actor holds to another of its candidates, through the
+      process engine (`AshBpmn.delegate_task/2`). The board's picker offers
+      the task's `delegate_candidates`.
       """
 
       argument :record_id, :uuid, allow_nil?: false
-      argument :delegate_to, :ci_string, allow_nil?: false, constraints: [max_length: 320]
+      argument :delegate_to_id, :uuid, allow_nil?: false
       run {AshEnterprise.Bpmn.Actions.WorkTask, op: :delegate}
     end
 

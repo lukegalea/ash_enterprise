@@ -92,6 +92,30 @@ defmodule AshEnterpriseWeb.A2ui.TaskBoardUITest do
     )
   end
 
+  defp prompt(person, action, task) do
+    context = %{
+      "action" => action,
+      "recordId" => task.id,
+      "component" => "board_#{task_lane(task)}"
+    }
+
+    AshA2ui.ActionHandler.handle(TaskBoardUI, %{"name" => "prompt", "context" => context},
+      actor: person.actor,
+      tenant: person.tenant
+    )
+  end
+
+  # The Delegate prompt's options for the row it opened on.
+  defp picker(messages) do
+    Enum.find_value(messages, [], fn
+      %{"updateDataModel" => %{"path" => "/prompt/options/delegate_task", "value" => value}} ->
+        value["delegate_to_id"]
+
+      _other ->
+        nil
+    end)
+  end
+
   defp task_lane(task),
     do: Ash.get!(HumanTask, task.id, authorize?: false, tenant: task.organization_id).status
 
@@ -165,7 +189,10 @@ defmodule AshEnterpriseWeb.A2ui.TaskBoardUITest do
   } do
     assert {:error, _} = invoke(admin, "complete_task", task, %{"outcome" => "approved"})
     assert {:error, _} = run(admin, :complete_task, %{record_id: task.id, outcome: "approved"})
-    assert {:error, _} = run(admin, :delegate_task, %{record_id: task.id, delegate_to: "x@y.z"})
+
+    assert {:error, _} =
+             run(admin, :delegate_task, %{record_id: task.id, delegate_to_id: Ash.UUID.generate()})
+
     assert reload(task, admin.tenant).status == :open
   end
 
@@ -177,7 +204,7 @@ defmodule AshEnterpriseWeb.A2ui.TaskBoardUITest do
     assert {:ok, _} = invoke(admin, "claim_task", task)
 
     assert {:ok, _messages} =
-             invoke(admin, "delegate_task", task, %{"delegate_to" => colleague.email})
+             invoke(admin, "delegate_task", task, %{"delegate_to_id" => colleague.user.id})
 
     delegated = reload(task, admin.tenant)
     assert delegated.status == :claimed
@@ -194,6 +221,35 @@ defmodule AshEnterpriseWeb.A2ui.TaskBoardUITest do
     assert reload(task, admin.tenant).status == :completed
   end
 
+  test "the Delegate picker lists only this task's other candidates, and only for its holder",
+       %{admin: admin, task: task} do
+    colleague = admin |> colleague!() |> then(&candidate!(task, &1))
+    # Reads every user, and is still no one this task may be handed to.
+    _bystander = member!(admin, "Bystander", [{User, :read, :global}])
+
+    # Open: nobody holds it yet, so the prompt does not open.
+    assert {:error, _messages} = prompt(admin, "delegate_task", task)
+
+    assert {:ok, _} = invoke(admin, "claim_task", task)
+    assert {:ok, messages} = prompt(admin, "delegate_task", task)
+    assert Enum.map(picker(messages), & &1["value"]) == [colleague.user.id]
+    assert Enum.map(picker(messages), & &1["label"]) == [to_string(colleague.user.email)]
+  end
+
+  test "a pick outside the task's candidates is refused under the picker", %{
+    admin: admin,
+    task: task
+  } do
+    outsider = colleague!(admin)
+    assert {:ok, _} = invoke(admin, "claim_task", task)
+
+    assert {:error, messages} =
+             invoke(admin, "delegate_task", task, %{"delegate_to_id" => outsider.user.id})
+
+    assert inspect(messages) =~ "not one of the available options"
+    assert reload(task, admin.tenant).assignee_id == admin.user.id
+  end
+
   # Maker-checker is subtraction at candidate resolution: the excluded
   # requester has no candidate row, exactly like this colleague. Holding every
   # task grant does not make them someone the task may be handed to.
@@ -205,7 +261,7 @@ defmodule AshEnterpriseWeb.A2ui.TaskBoardUITest do
     assert {:ok, _} = invoke(admin, "claim_task", task)
 
     assert {:error, %Ash.Error.Invalid{} = error} =
-             run(admin, :delegate_task, %{record_id: task.id, delegate_to: colleague.email})
+             run(admin, :delegate_task, %{record_id: task.id, delegate_to_id: colleague.user.id})
 
     assert Exception.message(error) =~ "not one of this task's approvers"
     assert reload(task, admin.tenant).assignee_id == admin.user.id
@@ -224,7 +280,9 @@ defmodule AshEnterpriseWeb.A2ui.TaskBoardUITest do
   } do
     colleague = admin |> colleague!() |> then(&candidate!(task, &1))
     assert {:ok, _} = invoke(admin, "claim_task", task)
-    assert {:ok, _} = invoke(admin, "delegate_task", task, %{"delegate_to" => colleague.email})
+
+    assert {:ok, _} =
+             invoke(admin, "delegate_task", task, %{"delegate_to_id" => colleague.user.id})
 
     # Still a candidate, no longer the holder: refused by the action…
     for action <- [:approve, :reject] do
@@ -263,7 +321,7 @@ defmodule AshEnterpriseWeb.A2ui.TaskBoardUITest do
     assert {:ok, _} = invoke(admin, "claim_task", task)
 
     assert {:ok, _} =
-             run(admin, :delegate_task, %{record_id: task.id, delegate_to: stranger.email})
+             run(admin, :delegate_task, %{record_id: task.id, delegate_to_id: stranger.user.id})
 
     assert reload(task, admin.tenant).assignee_id == stranger.user.id
 
@@ -286,7 +344,7 @@ defmodule AshEnterpriseWeb.A2ui.TaskBoardUITest do
 
     # Not a candidate, so not someone it may be handed to…
     assert {:error, %Ash.Error.Invalid{} = error} =
-             run(admin, :delegate_task, %{record_id: task.id, delegate_to: outsider.email})
+             run(admin, :delegate_task, %{record_id: task.id, delegate_to_id: outsider.user.id})
 
     assert Exception.message(error) =~ "not one of this task's approvers"
     assert reload(task, admin.tenant).assignee_id == admin.user.id

@@ -351,7 +351,9 @@ defmodule AshEnterprise.Mdm.StewardTaskTest do
     assert {:ok, _} = board(ctx.steward, "claim_task", ctx.task)
 
     assert {:ok, _} =
-             board(ctx.steward, "delegate_task", ctx.task, %{"delegate_to" => ctx.senior.email})
+             board(ctx.steward, "delegate_task", ctx.task, %{
+               "delegate_to_id" => ctx.senior.user.id
+             })
 
     # Whoever delegated it no longer decides it, by any door.
     assert {:error, %Ash.Error.Forbidden{}} =
