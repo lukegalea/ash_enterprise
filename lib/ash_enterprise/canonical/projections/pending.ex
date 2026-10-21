@@ -110,13 +110,22 @@ defmodule AshEnterprise.Canonical.Projections.Pending do
         linked_account_id: account.id
       )
 
+      lineage(:fail, account, reason: "projection_failed")
       Map.put(empty(), :projection_error, :projection_failed)
   end
 
   defp project_delta(vertical, account, delta, watermark, opts) do
+    lineage(:start, account, [])
     counts = run(vertical, account, delta, Keyword.get(opts, :owner, account.owner_id))
 
-    if write_failures(counts) == 0, do: advance(account.id, delta, watermark)
+    case write_failures(counts) do
+      0 ->
+        advance(account.id, delta, watermark)
+        lineage(:complete, account, [])
+
+      failed ->
+        lineage(:fail, account, reason: "#{failed} writes failed")
+    end
 
     %{
       pending: length(delta),
@@ -148,6 +157,39 @@ defmodule AshEnterprise.Canonical.Projections.Pending do
   end
 
   defp ids(delta), do: MapSet.new(delta, & &1.external_id)
+
+  # Hole rule (ADR 0012): projecting landed records into the canonical
+  # tables is data movement no single resource action describes, so it is
+  # its own job — `canonical.projection.gmail` reads `ingestion_source_objects`
+  # and writes the canonical tables. Its run lives inside the sync's
+  # correlation (the same lineage run), under its own per-job run id.
+  # Datasets are the resources' own (`AshEnterprise.Lineage.dataset/1`), so
+  # the graph joins at the nodes their COMPLETE events name.
+  @projected [
+    AshEnterprise.Canonical.Conversation,
+    AshEnterprise.Canonical.Message,
+    AshEnterprise.Canonical.Person,
+    AshEnterprise.Canonical.ConversationParticipant
+  ]
+
+  defp lineage(event, %LinkedAccount{provider_config_key: key} = account, extra) do
+    name = "projection.#{Map.fetch!(@integrations, key)}"
+    correlation = AshEnterprise.Platform.Correlation.id()
+
+    AshEnterprise.Lineage.ingestion_event(
+      event,
+      "canonical",
+      name,
+      [
+        run_id: AshEnterprise.Lineage.job_run_id(correlation, "canonical", name),
+        correlation_id: correlation,
+        inputs: [AshEnterprise.Lineage.dataset(SourceObject)],
+        outputs: Enum.map(@projected, &AshEnterprise.Lineage.dataset/1),
+        tenant: account.organization_id,
+        linked_account_id: account.id
+      ] ++ extra
+    )
+  end
 
   # Writes that failed may succeed next time; a payload that cannot be parsed
   # never will, so it does not hold the watermark back.

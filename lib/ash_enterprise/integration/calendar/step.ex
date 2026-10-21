@@ -132,6 +132,8 @@ defmodule AshEnterprise.Integration.Calendar.Step do
           projection: %{atom() => non_neg_integer()}
         }
 
+  @lineage_job "calendar.sync"
+
   @doc "The Nango integration this vertical syncs."
   def integration, do: @integration
 
@@ -146,6 +148,81 @@ defmodule AshEnterprise.Integration.Calendar.Step do
   """
   @spec run(term(), Ash.UUID.t() | nil, keyword()) :: {:ok, summary()} | {:error, Exception.t()}
   def run(actor, linked_account_id, opts \\ []) do
+    # Hole rule (ADR 0012): the sync is where data enters, so it emits its own
+    # run (START, then COMPLETE or FAIL), under the step's correlation id. The
+    # step projects each event as it lands, so a step that projected also
+    # emits the projection as its own job. Structural names only; the tenant
+    # and the account are host metadata for the lineage store.
+    run_id = AshEnterprise.Platform.Correlation.id()
+    meta = [tenant: ActorContext.tenant(actor), linked_account_id: linked_account_id]
+    lineage(:start, @lineage_job, run_id, meta, [])
+
+    result = run_step(actor, linked_account_id, opts)
+
+    case result do
+      {:ok, summary} ->
+        if projected?(summary), do: lineage_projection(meta)
+        lineage(:complete, @lineage_job, run_id, meta, [])
+
+      {:error, error} ->
+        lineage(:fail, @lineage_job, run_id, meta, reason: lineage_reason(error))
+    end
+
+    result
+  end
+
+  defp lineage(event, job, run_id, meta, extra) do
+    AshEnterprise.Lineage.ingestion_event(
+      event,
+      "ingestion",
+      job,
+      [
+        run_id: run_id,
+        inputs: ["calendar.source"],
+        outputs: [AshEnterprise.Lineage.dataset(AshEnterprise.Ingestion.SourceObject)]
+      ] ++ meta ++ extra
+    )
+  end
+
+  defp lineage_projection(meta) do
+    correlation = AshEnterprise.Platform.Correlation.id()
+    name = "projection.calendar"
+
+    opts =
+      [
+        run_id: AshEnterprise.Lineage.job_run_id(correlation, "canonical", name),
+        correlation_id: correlation,
+        inputs: [AshEnterprise.Lineage.dataset(AshEnterprise.Ingestion.SourceObject)],
+        outputs:
+          Enum.map(
+            [
+              AshEnterprise.Canonical.CalendarEvent,
+              AshEnterprise.Canonical.Person,
+              AshEnterprise.Canonical.EventAttendee
+            ],
+            &AshEnterprise.Lineage.dataset/1
+          )
+      ] ++ meta
+
+    AshEnterprise.Lineage.ingestion_event(:start, "canonical", name, opts)
+    AshEnterprise.Lineage.ingestion_event(:complete, "canonical", name, opts)
+  end
+
+  defp projected?(%{projection: projection}) when is_map(projection),
+    do: Enum.any?(projection, fn {_outcome, count} -> count > 0 end)
+
+  defp projected?(_summary), do: false
+
+  # A reason, never a body: the error's own reason atom, or its kind.
+  defp lineage_reason(error) do
+    case {ProxyError.unwrap(error), SyncError.unwrap(error)} do
+      {%ProxyError{reason: reason}, _} -> to_string(reason)
+      {nil, %SyncError{reason: reason}} -> to_string(reason)
+      {nil, nil} -> "step_failed"
+    end
+  end
+
+  defp run_step(actor, linked_account_id, opts) do
     with {:ok, account} <- resolve_account(actor, linked_account_id),
          {:ok, scope} <- open_scope(account) do
       state = init(actor, account, scope, opts)

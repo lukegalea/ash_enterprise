@@ -154,6 +154,47 @@ defmodule AshEnterprise.Integration.Gmail.Sync do
   """
   @spec step(Ash.Resource.record(), Ash.UUID.t(), keyword()) :: result()
   def step(actor, linked_account_id, opts \\ []) do
+    # Hole rule (ADR 0012): the sync is where data enters, so it emits its own
+    # run — START now, COMPLETE or FAIL with the outcome. Its run id is the
+    # step's correlation id, so its landings, projection and canonical writes
+    # are the same lineage run. Structural names only; the tenant and the
+    # account are host metadata for the lineage store.
+    run_id = AshEnterprise.Platform.Correlation.id()
+    tenant = ActorContext.tenant(actor)
+    lineage(:start, run_id, tenant, linked_account_id, [])
+
+    result = run_step(actor, linked_account_id, opts)
+
+    case result do
+      {kind, _summary} when kind in [:ok, :snooze] ->
+        lineage(:complete, run_id, tenant, linked_account_id, [])
+
+      {_kind, reason} ->
+        lineage(:fail, run_id, tenant, linked_account_id, reason: to_string(reason))
+    end
+
+    result
+  end
+
+  @lineage_job "gmail.sync"
+  @lineage_inputs ["gmail.source"]
+
+  defp lineage(event, run_id, tenant, linked_account_id, extra) do
+    AshEnterprise.Lineage.ingestion_event(
+      event,
+      "ingestion",
+      @lineage_job,
+      [
+        run_id: run_id,
+        inputs: @lineage_inputs,
+        outputs: [AshEnterprise.Lineage.dataset(AshEnterprise.Ingestion.SourceObject)],
+        tenant: tenant,
+        linked_account_id: linked_account_id
+      ] ++ extra
+    )
+  end
+
+  defp run_step(actor, linked_account_id, opts) do
     ctx = %{
       actor: actor,
       ash: [actor: actor, tenant: ActorContext.tenant(actor)],

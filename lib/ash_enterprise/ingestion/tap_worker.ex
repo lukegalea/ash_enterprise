@@ -82,7 +82,7 @@ defmodule AshEnterprise.Ingestion.TapWorker do
 
     job_name = "#{tap_kind}.#{name}"
     inputs = ["#{external_system}.source"]
-    outputs = ["#{external_system}.ingestion_source_objects"]
+    outputs = [AshEnterprise.Lineage.dataset(AshEnterprise.Ingestion.SourceObject)]
 
     # One run id for the whole pipeline run — the same id the START event used,
     # so a FAIL attaches to the run it broke.
