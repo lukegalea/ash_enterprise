@@ -19,6 +19,9 @@ defmodule AshEnterprise.Bpmn.Token do
       ownership: :organization_owned,
       lifecycle?: false,
       audit?: false,
-      archival?: false
+      archival?: false,
+      # The tokens of a run its reader may see through one of its steps
+      # (`AshEnterprise.Security.Checks.TaskInstance`): what a flight view places.
+      extra_grants: [{AshEnterprise.Security.Checks.TaskInstance, field: :instance_id}]
     ]
 end

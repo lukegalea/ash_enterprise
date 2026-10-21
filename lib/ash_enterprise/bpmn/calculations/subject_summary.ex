@@ -1,6 +1,6 @@
 defmodule AshEnterprise.Bpmn.Calculations.SubjectSummary do
   @moduledoc """
-  What a human task is about, for a person deciding it:
+  What a human task (or a process instance) is about, for a person deciding it:
 
     * `field: :label` — `Morning brief · Mon 12 Oct`, `Match · Bea Smith ↔ Bea
       Smyth` (a steward decision's pair), or the subject's kind;
@@ -36,7 +36,13 @@ defmodule AshEnterprise.Bpmn.Calculations.SubjectSummary do
       else: {:error, "field must be :label, :outline, :detail or :ref"}
   end
 
+  # A task names its subject itself or through its instance; a process
+  # instance (`AshEnterprise.Bpmn.Instance`, for its flight view) carries the
+  # subject columns directly.
   @impl true
+  def load(%{resource: AshEnterprise.Bpmn.Instance}, _opts, _context),
+    do: [:subject_type, :subject_id]
+
   def load(_query, _opts, _context),
     do: [:subject_type, :subject_id, :name, instance: [:subject_type, :subject_id]]
 

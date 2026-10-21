@@ -44,6 +44,12 @@ defmodule AshEnterprise.Security.ActorContext do
   see it, without a role grant and without a query in the check (ADR 0009,
   note of 2026-10-17).
 
+  `task_instance_ids` are the process instances those tasks belong to, read
+  in the same query. `AshEnterprise.Security.Checks.TaskInstance` turns them
+  into a read grant on the instance and its tokens: someone asked to decide a
+  step may see where that run stands (its flight view), and nothing about
+  any other run.
+
   Two bounds keep the list small. Someone whose roles already read every task
   (a `:global` read on `HumanTask`, as Administrators hold) gets none: the role
   grant reaches every task and act the list would, so it is not loaded. For
@@ -86,6 +92,7 @@ defmodule AshEnterprise.Security.ActorContext do
     team_ids: [],
     principal_ids: [],
     task_ids: [],
+    task_instance_ids: [],
     grants: %{},
     shared: %{},
     hierarchy: nil,
@@ -99,6 +106,7 @@ defmodule AshEnterprise.Security.ActorContext do
           team_ids: [Ash.UUID.t()],
           principal_ids: [Ash.UUID.t()],
           task_ids: [Ash.UUID.t()],
+          task_instance_ids: [Ash.UUID.t()],
           grants: %{{String.t(), atom()} => Grant.t()},
           shared: %{{String.t(), atom()} => MapSet.t(Ash.UUID.t())},
           hierarchy: AshEnterprise.Security.Hierarchy.t() | nil,
@@ -163,8 +171,8 @@ defmodule AshEnterprise.Security.ActorContext do
     grants = build_grants(role_assignments, tenant)
     shared = load_shared(principal_ids, tenant)
 
-    task_ids =
-      if reads_every_task?(grants), do: [], else: load_task_ids(user_id, team_ids, tenant)
+    tasks =
+      if reads_every_task?(grants), do: [], else: load_tasks(user_id, team_ids, tenant)
 
     %__MODULE__{
       user_id: user_id,
@@ -172,7 +180,9 @@ defmodule AshEnterprise.Security.ActorContext do
       business_unit_id: business_unit_id,
       team_ids: team_ids,
       principal_ids: principal_ids,
-      task_ids: task_ids,
+      task_ids: Enum.map(tasks, & &1.id),
+      task_instance_ids:
+        tasks |> Enum.map(& &1.instance_id) |> Enum.reject(&is_nil/1) |> Enum.uniq(),
       grants: grants,
       shared: shared,
       # Costs nothing when hierarchy security is disabled (the default): resolve/2
@@ -399,27 +409,27 @@ defmodule AshEnterprise.Security.ActorContext do
   # query (and without building this context again).
   #
   # Only live tasks: a decided or cancelled task leaves the set, so it grows
-  # with a person's open work, not with their history.
-  defp load_task_ids(nil, _team_ids, _tenant), do: []
-  defp load_task_ids(_user_id, _team_ids, nil), do: []
+  # with a person's open work, not with their history. Each task comes with
+  # its instance id, which is the flight-view grant (`task_instance_ids`).
+  defp load_tasks(nil, _team_ids, _tenant), do: []
+  defp load_tasks(_user_id, _team_ids, nil), do: []
 
-  defp load_task_ids(user_id, team_ids, tenant) do
-    ids =
+  defp load_tasks(user_id, team_ids, tenant) do
+    tasks =
       AshEnterprise.Bpmn.HumanTask
       |> Ash.Query.for_read(:awaiting_actor, %{},
         actor: %{id: user_id, team_ids: team_ids},
         authorize?: false,
         tenant: tenant
       )
-      |> Ash.Query.select([:id])
+      |> Ash.Query.select([:id, :instance_id])
       # Oldest first, and one past the bound, so an overflow is seen rather
       # than guessed and the work waiting longest is what stays readable.
       |> Ash.Query.sort(inserted_at: :asc, id: :asc)
       |> Ash.Query.limit(@max_task_ids + 1)
       |> read_all(tenant)
-      |> Enum.map(& &1.id)
 
-    if length(ids) > @max_task_ids do
+    if length(tasks) > @max_task_ids do
       require Logger
 
       Logger.warning(
@@ -428,9 +438,9 @@ defmodule AshEnterprise.Security.ActorContext do
           "decides this many tasks wants a read grant on HumanTask."
       )
 
-      Enum.take(ids, @max_task_ids)
+      Enum.take(tasks, @max_task_ids)
     else
-      ids
+      tasks
     end
   end
 

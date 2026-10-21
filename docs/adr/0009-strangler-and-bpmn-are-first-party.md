@@ -280,6 +280,21 @@ grant on users for it: `AshEnterprise.Security.Checks.TaskDelegates` (an `extra_
 that one read for a task in the actor's precomputed `task_ids`, without querying. What a holder sees is the candidate
 set of a task they were asked to act on, not a directory of people.
 
+## Note, 2026-10-21 — a task's reader may see where its run stands
+
+**Context.** The flight views (`/app/flights`, `AshEnterprise.Process.FlightDiagram`) draw a run's process with a
+marker on the step each live token is on. A person asked to approve their morning brief reads the approval task
+through candidacy, but not the instance or its tokens, so their own brief's run drew nothing. Separately,
+`AshBpmn.FlightView.token_positions/2` marked its reads as engine work even when given an actor, so the engine
+bypass skipped this host's policies (fixed upstream, lukegalea/ash_bpmn#20).
+
+**Decision.** The candidacy read that builds `task_ids` also selects each task's instance id, as
+`task_instance_ids`, and `AshEnterprise.Security.Checks.TaskInstance` grants reads of those instances and of their
+tokens (`extra_grants:` on `Instance` and `Token`). Reads only: it moves nothing and acts on nothing, and it does not
+reach the run's subject, which a flight view names only as far as the reader may read it. Like `task_ids`, the set is
+the person's live work: once the task is decided, the run leaves it. Process definitions are configuration and are
+read the way the engine reads them (`DefinitionLoader`). Everything about a run is read as the viewer.
+
 ## Consequences
 
 **What this makes easy.** The vision the repository markets becomes demonstrable end to end instead of
