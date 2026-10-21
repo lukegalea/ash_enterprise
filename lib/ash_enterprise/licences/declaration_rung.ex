@@ -65,7 +65,7 @@ defmodule AshEnterprise.Licences.DeclarationRung do
   The declared SPDX id this rung can answer from: the release's only
   declared licence, when the policy classifies it. Otherwise `:none`.
   """
-  @spec declared_id(%{declared_licences: [String.t()]}) :: {:ok, String.t()} | :none
+  @spec declared_id(map()) :: {:ok, String.t()} | :none
   def declared_id(%{declared_licences: [id]}) when is_map_key(@classes, id), do: {:ok, id}
   def declared_id(_subject), do: :none
 
