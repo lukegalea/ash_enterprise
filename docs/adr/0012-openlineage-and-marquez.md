@@ -176,3 +176,23 @@ because ADR 0013's choice of OpenMetadata makes this the pairing somebody will r
 `AshEnterprise.Platform.Resource`, drop one config block. Nothing imports it — the notifier reads
 `Correlation` and `Correlation` does not know it exists. Under an hour, and the audit log is unaffected because
 it was never downstream of any of this.
+
+## Implementation note — 2026-10-21: events are kept locally
+
+No backend is deployed, so the host transport (`AshEnterprise.Lineage.Transport`) now keeps every RunEvent in
+this application's own database as well as forwarding it when `:http_base_url` is set. The store
+(`AshEnterprise.Lineage.Store`) buffers events off the writer's path and coalesces them into three resources:
+`Job` (per job and tenant), `Run` (per correlation id — its id *is* the audit log's correlation id) and
+`JobRun` (one OpenLineage run). The Lineage app (`/app/lineage`) draws them as a live diagram; the audit trail
+(`/app/audit`) links each entry to its run through `audit_events.correlation_id`, a generated column.
+
+- **Tenancy comes from host metadata, never from the event.** `ash_open_lineage` now hands transports an
+  optional `send/2` with the write's tenant; the event itself is unchanged and still passes the leak test.
+- **The ingestion hole is filled** for the Gmail, Slack and Calendar syncs, whose outputs are now the real
+  `ingestion/ingestion_source_objects` dataset, and their projections emit their own
+  `canonical.projection.<vertical>` job, so the graph runs from the provider to the canonical tables.
+- **Retention is 14 days** (`AshEnterprise.Lineage.Retention`, a daily prune). This is an operational view;
+  the audit log stays the permanent record.
+
+Reversal is unchanged in kind: removing the store is deleting `lib/ash_enterprise/lineage/` (and its two
+surfaces) and setting the transport back to a forwarder.
