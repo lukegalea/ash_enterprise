@@ -4,9 +4,10 @@ AshJudgments is the System One judgment substrate: declared, typed, calibrated q
 over any Ash resource; answers recorded as observations with full provenance; recorded
 judgments turned into DMN inputs, rule facts, process signals and evidence artifacts by
 the bridges. Transport is upstream `ash_ai`'s evaluate action over ReqLLM — this package
-ships no HTTP client, provider behaviour or answer types. Read these rules before using
-it; they are the package's contract, and most of them are enforced by construction once
-the tickets land.
+ships no HTTP client or provider behaviour. Besides upstream's `AshAi.Evaluate.Noul`,
+`Choice`, `Score` and the multi-field `Judgments` container, it ships two answer types of its own on the same path:
+`AshJudgments.Evaluate.Extraction` and `AshJudgments.Evaluate.Evidence`. Read these rules
+before using it; they are the package's contract.
 
 ## The four laws (stated for package users)
 
@@ -115,25 +116,42 @@ error, never a crash:
   the contract on the record.
 - Bandings and certifications are recorded, never recomputed: their
   creates accept the band-table's outputs and the evaluation id as
-  inputs (law 2). Bandings are immutable; facts are superseded; certs
-  are revoked. The frozen band enum is `admit | review | omit` — never
-  `unknown` (that is the ash_rules outcome layer).
+  inputs (law 2). Bandings are immutable; facts are revised by the
+  materialiser; certs are revoked. The frozen band enum is
+  `admit | review | omit` — never `unknown` (that is the ash_rules
+  outcome layer).
+- Exploratory observations are never banded: `Bridge.Dmn.inputs/2`
+  raises `ArgumentError` on one.
 
-## The DMN bridge and bandings
+## The facts fragments
 
-- Band tables live in `ash_decisions` (ADR 0041); the bridge only
-  FLATTENS recorded answers into FEEL inputs (`Bridge.Dmn.inputs/2`) —
-  decimal strings, present markers, never absent keys — and the
-  evaluation goes through the host resolver seam. Nothing evaluates in
-  this package, and nothing calls a model on the banding path.
-- `matched_rule_ids` empty is a REFUSAL, not a result (ADR 0041): the
-  host's banding step refuses before writing, and the fragment keeps
-  the contract on the record.
-- Bandings and certifications are recorded, never recomputed: their
-  creates accept the band-table's outputs and the evaluation id as
-  inputs (law 2). Bandings are immutable; facts are superseded; certs
-  are revoked. The frozen band enum is `admit | review | omit` — never
-  `unknown` (that is the ash_rules outcome layer).
+- New hosts define their facts resource on `AshJudgments.Facts.TemporalFragment`.
+  `AshJudgments.Facts.Fragment` is deprecated since 0.3.0 and frozen; removal at 1.0.
+- On the temporal fragment validity is a period (`valid_at`): a revision splits the
+  period at the admission's `effective_at`, an omission truncates it, and a plain read
+  is the as-of-now read. There is no `superseded_by`, no `:supersede` action and no
+  `current?` — do not reach for them.
+- `valid_until` is domain validity (an expiry date), not record validity: an expired
+  fact still has a row and reads `expired`, never "no row".
+- Uniqueness is `WITHOUT OVERLAPS` on `(subject_type, subject_id, predicate,
+  scope_hash)`, which needs PostgreSQL 18 and the `btree_gist` extension in the host
+  repo's `installed_extensions`.
+- Let the migration generator create the facts table: it emits the temporal primary
+  key, `PRIMARY KEY (id, valid_at WITHOUT OVERLAPS)`. A table created by hand can lack
+  it, and the generator cannot add it later on its own; repair it with the
+  `AshJudgments.Facts.TemporalPrimaryKey` custom statement, not a hand-written
+  migration.
+- `AshJudgments.Facts.Materialiser` is the sole writer of facts. Human verdicts win,
+  an omission writes no fact, and exploratory observations are refused
+  (`ExploratoryRefused`).
+- The evidence assertion is opt-in: a decision carrying `evidence_observation_id` (or a
+  preloaded `evidence_observation`) is checked before the transaction against the
+  observation's recorded input hash; a mismatch raises
+  `AshJudgments.Facts.Errors.EvidenceMismatch` and writes nothing. Without the reference
+  the path is unchanged.
+- To move a legacy table to the temporal fragment, replay the recorded admissions
+  through the materialiser in `effective_at` order; never translate the rows in SQL
+  (README, "Replay your admissions").
 
 ## The ash_rules bridge
 
@@ -147,6 +165,55 @@ error, never a crash:
   maps only for genuinely composite values. The snapshot hash
   (`Bridge.Rules.snapshot_hash/3`) pins consumed inputs including
   explicit omission markers — probabilities never enter it.
+
+## The explore tier
+
+- Exploration never decides membership. Ordering by observation (`Exploration.Ordering`)
+  reorders a candidate set the caller already holds and never filters it; anything that
+  acts over a set reads admitted facts, never an ordering.
+- An ordering names a declared question and one of its options (`selector`); a
+  score-only ordering is refused (`ScoreOnlyOrdering`).
+- An exploratory question (`Exploration.Run.run/4`) is an explicit, bounded action —
+  never a trigger, background job or read path. Over `Exploration.hard_cap/0` (500)
+  subjects is refused (`BoundExceeded`), never truncated.
+- Exploratory rows carry `family: nil` and are never banded, admitted or fed to facts.
+  Recurrence detection only proposes a question (`Exploration.Recurrence.promote/5`);
+  a person declares it in the DSL.
+
+## Calibration
+
+- `Calibration.propose_band_table/3` proposes; it never certifies or publishes. Below
+  the family's `min_n` there is no table, and a refused proposal is still a recorded
+  run (`result: :no_table`). A person certifies through
+  `Banding.CertificationFragment`; publication is `ash_decisions`' lifecycle.
+- `mix ash_judgments.calibrate <family>` runs the harness. The labelled pairs come from
+  the host's `:calibration_input` MFA and the run is recorded through the host's
+  `:calibration_store` resource; `--dry-run` records nothing.
+
+## Telemetry
+
+- Every event is `[:ash_judgments | ...]`, carries `region`, and the judge events carry
+  `rung: :system_one`. `AshJudgments.Telemetry.events/0` is the registry.
+- No state, answer text or other payload ever rides in telemetry metadata or spans. Keep
+  it that way in handlers you attach.
+
+## The BPMN and evidence bridges
+
+- `bpmn_callable? true` on a question generates `judge_<name>_signals`, which returns a
+  string-keyed, scalar-valued map for an `ash:call` service task to promote. Promote
+  that map, never an answer struct.
+- `Bridge.Evidence.artifact_attrs/3` builds an `EvidenceArtifact` create input from a
+  recorded judgment and its banding. It never writes: the host creates the artifact
+  through its own domain.
+
+## Mix tasks
+
+- `mix ash_judgments.judgments.lock` regenerates `priv/judgments/lock.json`. Run it after
+  a reviewed question change that bumps `version`; a hash change without a version bump
+  fails compilation.
+- `mix ash_judgments.shadow --family F --candidate PROFILE` re-runs recorded `:live`
+  judgments through a candidate profile as `mode: :shadow` rows. It needs the host's
+  `:state_resolver` and `:shadow_runner` seams and refuses without them.
 
 ## For hosts defining the ledger resource
 
