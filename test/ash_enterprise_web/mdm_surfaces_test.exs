@@ -13,17 +13,18 @@ defmodule AshEnterpriseWeb.MdmSurfacesTest do
     surfaces = Enum.filter(AshEnterprise.Surfaces.all(), &(&1.group == :mdm))
 
     assert Enum.map(surfaces, & &1.key) ==
-             [:steward, :mdm_import, :mdm_golden, :mdm_mappings, :mdm_batches]
+             [:steward, :mdm_import, :mdm_golden, :time_travel, :mdm_mappings, :mdm_batches]
 
     assert Enum.map(surfaces, & &1.path) == [
              "/app/mdm",
              "/app/mdm/import",
              "/app/mdm/golden",
+             "/app/time-travel",
              "/app/mdm/mappings",
              "/app/mdm/batches"
            ]
 
-    # Every MDM surface but the import wizard is an A2UI surface with a
+    # Every MDM surface but the import wizard and time travel is an A2UI surface with a
     # detail, so links and `/app/r/<surface>/<id>` open one record on it.
     assert for(%{ui: ui, context: context} = s <- surfaces, ui, do: {s.key, context}) == [
              steward: :candidate,

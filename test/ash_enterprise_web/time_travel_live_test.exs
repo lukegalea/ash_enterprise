@@ -68,6 +68,14 @@ defmodule AshEnterpriseWeb.TimeTravelLiveTest do
     {:ok, view, _html} = live(sign_in(conn, ctx.user), "/app/time-travel")
 
     assert has_element?(view, "#time-travel-person-#{s.id}", "Sam Work")
+
+    view |> element("#time-travel-search") |> render_change(%{"q" => "sam.work"})
+    assert_patch(view)
+    assert has_element?(view, "#time-travel-person-#{s.id}")
+
+    view |> element("#time-travel-search") |> render_change(%{"q" => "nobody-by-that-name"})
+    assert_patch(view)
+    refute has_element?(view, "#time-travel-person-#{s.id}")
   end
 
   test "before the merge the golden shows two people; now it shows one", %{
