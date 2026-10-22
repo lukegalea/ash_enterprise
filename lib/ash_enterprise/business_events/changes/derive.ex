@@ -16,6 +16,16 @@ defmodule AshEnterprise.BusinessEvents.Changes.Derive do
 
   Off when `AshEnterprise.BusinessEvents.emit?/0` is false (the test
   default; see the domain's moduledoc).
+
+  ## Temporal safety (ADR 0049 invariant 4)
+
+  `CalendarEvent` is temporal, so this declares `temporal_safe?/1`. The
+  derivation is pure (no reads, no clock: `Derivation`), and a fact's
+  `occurred_at` is the written version's `updated_at`, which a temporal
+  write stamps with its own instant. The one read, the subject's last fact,
+  goes through Ash (`Recorder`), and the ledger is not temporal: it is the
+  append-only record of what was observed, in commit order, which is what
+  it should stay whatever instant a calendar write is as of.
   """
 
   use Ash.Resource.Change
@@ -30,6 +40,9 @@ defmodule AshEnterprise.BusinessEvents.Changes.Derive do
       _ -> {:error, "subject must be :calendar_event or :message"}
     end
   end
+
+  @impl true
+  def temporal_safe?(_opts), do: true
 
   @impl true
   def change(changeset, opts, _context) do

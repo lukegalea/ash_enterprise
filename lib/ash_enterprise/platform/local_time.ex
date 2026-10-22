@@ -42,14 +42,23 @@ defmodule AshEnterprise.Platform.LocalTime do
     * `:upcoming` — from now to fourteen days out.
   """
   @spec window(:today | :tomorrow | :this_week | :upcoming) :: {DateTime.t(), DateTime.t()}
-  def window(:today), do: days(today(), 1)
-  def window(:tomorrow), do: days(Date.add(today(), 1), 1)
-  def window(:this_week), do: days(today(), 7)
+  def window(name), do: window(name, DateTime.utc_now())
 
-  def window(:upcoming) do
-    now = DateTime.utc_now()
-    {now, DateTime.add(now, 14, :day)}
-  end
+  @doc """
+  `window/1` as seen at the instant `at` rather than now: "today" is the
+  display-zone day holding `at`, and `:upcoming` runs from `at`. What a
+  calendar read as of a past instant (ADR 0049) cuts its window with.
+  """
+  @spec window(:today | :tomorrow | :this_week | :upcoming, DateTime.t()) ::
+          {DateTime.t(), DateTime.t()}
+  def window(:today, at), do: days(date(at), 1)
+  def window(:tomorrow, at), do: days(Date.add(date(at), 1), 1)
+  def window(:this_week, at), do: days(date(at), 7)
+  def window(:upcoming, %DateTime{} = at), do: {at, DateTime.add(at, 14, :day)}
+
+  @doc "The display-zone date an instant falls on."
+  @spec date(DateTime.t()) :: Date.t()
+  def date(%DateTime{} = at), do: at |> to_local() |> DateTime.to_date()
 
   @doc "The UTC bounds of `count` local days starting at `date`."
   @spec days(Date.t(), pos_integer()) :: {DateTime.t(), DateTime.t()}

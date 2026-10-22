@@ -165,7 +165,8 @@ defmodule AshEnterprise.Test.DailyFixtures do
 
   @doc """
   A calendar event `minutes_from_now` ahead (or at `opts[:starts_at]`),
-  lasting `minutes`.
+  lasting `minutes`. `opts[:as_of]` writes it as of that instant (the event
+  is temporal: it is then known from that instant on), for history tests.
   """
   def event!(%{user: user, tenant: tenant} = ctx, title, minutes_from_now, minutes, opts \\ []) do
     starts_at = opts[:starts_at] || DateTime.add(DateTime.utc_now(), minutes_from_now, :minute)
@@ -187,10 +188,48 @@ defmodule AshEnterprise.Test.DailyFixtures do
         organizer_id: organizer && organizer.id,
         erasure_scope_id: (opts[:scope] || scope!()).id
       }),
-      tenant: tenant,
-      authorize?: false
+      [tenant: tenant, authorize?: false] ++ as_of_opt(opts)
     )
     |> Ash.create!()
+  end
+
+  @doc """
+  `event` re-projected with `changes` (`starts_at`, `ends_at`, `status`,
+  `title`, …) through the same upsert a sync writes, as of `opts[:as_of]`
+  (default now). A reschedule opens the event's next version.
+  """
+  def reproject_event!(%{tenant: tenant}, event, changes, opts \\ []) do
+    base =
+      Map.take(event, [
+        :title,
+        :starts_at,
+        :ends_at,
+        :location,
+        :status,
+        :external_system,
+        :external_id,
+        :organizer_id,
+        :erasure_scope_id,
+        :owner_id,
+        :owner_type,
+        :owning_user_id,
+        :owning_business_unit_id
+      ])
+
+    CalendarEvent
+    |> Ash.Changeset.for_create(
+      :upsert_from_source,
+      Map.merge(base, Map.new(changes)),
+      [tenant: tenant, authorize?: false] ++ as_of_opt(opts)
+    )
+    |> Ash.create!()
+  end
+
+  defp as_of_opt(opts) do
+    case opts[:as_of] do
+      %DateTime{} = as_of -> [as_of: as_of]
+      nil -> []
+    end
   end
 
   @doc "A conversation in `system` (`gmail` or `slack`) with one inbound message."

@@ -126,6 +126,7 @@ defmodule AshEnterprise.Agents.MorningBrief do
       filter expr(id in parent(event_ids))
       sort starts_at: :asc
       description "The calendar events the brief covers, in start order."
+      temporal_keys {nil, :valid_at}
     end
 
     # Its approval: the human task of the `morning.brief` process run with this

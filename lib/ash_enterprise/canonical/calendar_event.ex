@@ -20,6 +20,18 @@ defmodule AshEnterprise.Canonical.CalendarEvent do
   SourceObject the event was projected from (ADR 0024,
   `AshEnterprise.Erasure.Changes.SealUnderScope`), and read as
   `AshEnterprise.Erasure.Shredded` once that scope is shredded.
+
+  ## Temporal (ADR 0049, PROD-47)
+
+  Every version of an event is kept: each re-projection that changes it
+  opens a new version from the write's instant, and the one before stays
+  readable as of any instant it was valid. A plain read is the calendar now;
+  `as_of:` reads it as it was known then, agenda windows included
+  (`AshEnterprise.Canonical.Preparations.AgendaWindow`).
+  `AshEnterprise.Canonical.CalendarHistory` walks a week's versions for the
+  calendar's time scrubber. Every version is sealed under the same scope
+  key, so a shred reaches all of them. The attendee joins are not temporal:
+  they say who is invited now.
   """
 
   use AshEnterprise.Platform.Resource,
@@ -30,12 +42,47 @@ defmodule AshEnterprise.Canonical.CalendarEvent do
     archival?: false,
     extra_extensions: [AshCloak]
 
+  # Every version of an event is kept (ADR 0049, PROD-47): a reschedule, a
+  # rename or a cancellation closes the version valid until then and opens a
+  # new one, so the calendar can be read as it was known at any instant
+  # ("what did my week look like last Monday, before the reschedules").
+  # Writes are always "now": nothing on this resource writes as of another
+  # instant (ADR 0049 invariant 7).
+  temporal do
+    strategy :context
+    attribute :valid_at
+  end
+
   postgres do
     table "canonical_calendar_events"
     repo AshEnterprise.Repo
 
+    # The generator drops this key on a temporal table; the cutover's
+    # `canonical_calendar_events_foreign_keys` statement keeps it, with this
+    # same `ON DELETE RESTRICT`.
     references do
       reference :erasure_scope, on_delete: :restrict
+    end
+
+    # Fills the period of the rows the table held before it became temporal;
+    # the cutover then sets each one's lower bound (`TemporalCutover`).
+    migration_defaults valid_at: "fragment(\"tstzrange(now(), NULL)\")"
+
+    # The generator adds the period but does not convert an existing table's
+    # key and identities, and drops the foreign keys to ordinary tables; the
+    # cutover does the rest. See `AshEnterprise.Canonical.CalendarEvent.TemporalCutover`.
+    custom_statements do
+      statement :canonical_calendar_events_temporal do
+        up AshEnterprise.Canonical.CalendarEvent.TemporalCutover.temporal_up()
+        down AshEnterprise.Canonical.CalendarEvent.TemporalCutover.temporal_down()
+        # The attendees' foreign key to the plain key goes first.
+        after_tables ["canonical_event_attendees"]
+      end
+
+      statement :canonical_calendar_events_foreign_keys do
+        up AshEnterprise.Canonical.CalendarEvent.TemporalCutover.foreign_keys_up()
+        down AshEnterprise.Canonical.CalendarEvent.TemporalCutover.foreign_keys_down()
+      end
     end
   end
 
@@ -123,6 +170,7 @@ defmodule AshEnterprise.Canonical.CalendarEvent do
       allow_nil? true
 
       description "The Person projected from the organizer's email. Nil when the payload had no address."
+      temporal_keys {:valid_at, nil}
     end
 
     belongs_to :erasure_scope, AshEnterprise.Erasure.Scope do
@@ -132,12 +180,14 @@ defmodule AshEnterprise.Canonical.CalendarEvent do
       attribute_writable? true
 
       description "The scope of the SourceObject this event was projected from; its key seals the content."
+      temporal_keys {:valid_at, nil}
     end
 
     has_many :attendees, AshEnterprise.Canonical.EventAttendee do
       public? true
       destination_attribute :event_id
       description "Who is invited, with their responses (derived joins)."
+      temporal_keys {:valid_at, nil}
     end
 
     many_to_many :people, AshEnterprise.Canonical.Person do
@@ -218,7 +268,11 @@ defmodule AshEnterprise.Canonical.CalendarEvent do
     end
 
     create :upsert_from_source do
-      description "The replay write path: upsert on the source identity."
+      description """
+      The replay write path: upsert on the source identity. A change opens a
+      new version from the write's instant; a write that changes nothing
+      opens none.
+      """
 
       accept [
         :title,
@@ -248,8 +302,13 @@ defmodule AshEnterprise.Canonical.CalendarEvent do
         """
       end
 
+      # A write that changes nothing keeps the current version (and opens
+      # none). First, while the sealed values are still in the clear.
+      change AshEnterprise.Canonical.Changes.KeepUnchangedVersion
       change AshEnterprise.Canonical.Changes.DeriveAttendees
 
+      # On a match the upsert splits the version valid now: the old values
+      # stay valid until this write, the new ones from it (ADR 0049).
       upsert? true
       upsert_identity :unique_external
 
@@ -261,7 +320,13 @@ defmodule AshEnterprise.Canonical.CalendarEvent do
         :status,
         :external_uid,
         :organizer_id,
-        :erasure_scope_id
+        :erasure_scope_id,
+        # Named because ash_postgres's temporal upsert, unlike its plain one,
+        # does not refresh update defaults on a match: without them a new
+        # version would carry the old version's write time, and its business
+        # event (whose `occurred_at` is `updated_at`) the wrong instant.
+        :updated_at,
+        :modified_on
       ]
 
       # The business events this write implies, in its transaction (ADR 0051).

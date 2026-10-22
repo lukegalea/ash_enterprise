@@ -188,6 +188,7 @@ defmodule AshEnterprise.Erasure.Scope do
       public? true
       destination_attribute :erasure_scope_id
       description "Calendar events sealed under this scope."
+      temporal_keys {nil, :valid_at}
     end
   end
 

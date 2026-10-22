@@ -41,8 +41,11 @@ defmodule AshEnterprise.Canonical.EventAttendee do
     table "canonical_event_attendees"
     repo AshEnterprise.Repo
 
+    # `CalendarEvent` is temporal, so `event_id` has no foreign key (and no
+    # cascade): its `id` alone is not unique, one row per version, and a key
+    # cannot point at a temporal table from one that is not. Nothing
+    # destroys events; a shred deletes their joins itself.
     references do
-      reference :event, on_delete: :delete
       reference :person, on_delete: :delete
     end
 
@@ -76,6 +79,7 @@ defmodule AshEnterprise.Canonical.EventAttendee do
       public? true
       attribute_public? true
       description "The event attended."
+      temporal_keys {nil, :valid_at}
     end
 
     belongs_to :person, AshEnterprise.Canonical.Person do

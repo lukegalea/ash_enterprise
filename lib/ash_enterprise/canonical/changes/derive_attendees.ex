@@ -7,11 +7,22 @@ defmodule AshEnterprise.Canonical.Changes.DeriveAttendees do
   attendees with it (`[]` clears them); an absent argument (nil) leaves them
   alone — a bare cancellation re-writes the event without knowing who was
   invited, and must not forget them.
+
+  ## Temporal safety (ADR 0049 invariant 4)
+
+  `CalendarEvent` is temporal, so this declares `temporal_safe?/1`. It reads
+  no clock and no calendar version: the hook gets the version the write just
+  opened, and reconciles `EventAttendee` (not temporal) through Ash
+  (`AshEnterprise.Canonical.Derive.attendees/3`). The joins hold the event's
+  attendance as it stands now; they are not versioned with the event.
   """
 
   use Ash.Resource.Change
 
   alias AshEnterprise.Canonical.Derive
+
+  @impl true
+  def temporal_safe?(_opts), do: true
 
   @impl true
   def change(changeset, _opts, _context) do

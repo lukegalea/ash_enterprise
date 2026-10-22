@@ -35,6 +35,17 @@ defmodule AshEnterprise.Erasure.Changes.SealUnderScope do
       write's transaction under a `FOR SHARE` lock on the scope row, so a shred
       racing the write either reaches the row or refuses it;
     * a scope id nobody issued — an error, before the foreign key would.
+
+  ## Temporal safety (ADR 0049 invariant 4)
+
+  It runs on `AshEnterprise.Canonical.CalendarEvent`, which is temporal, so
+  it declares `temporal_safe?/1`. Nothing here depends on when: a scope owns
+  one key for its whole life, so the key that seals a version is the same
+  whatever instant the write is as of, and a shredded scope refuses every
+  instant alike. It reads no clock; the scope and key are read through Ash
+  (`AshEnterprise.Erasure.Keyring`, the `FOR SHARE` recheck), and neither is
+  temporal. Every version of an event is sealed under the same scope key,
+  which is why one shred reaches all of them.
   """
 
   use Ash.Resource.Change
@@ -57,6 +68,9 @@ defmodule AshEnterprise.Erasure.Changes.SealUnderScope do
         {:error, "fields must be a non-empty list of cloaked attribute names"}
     end
   end
+
+  @impl true
+  def temporal_safe?(_opts), do: true
 
   @impl true
   def change(changeset, opts, _context) do

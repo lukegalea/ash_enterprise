@@ -221,6 +221,15 @@ Be honest with whoever asked for the erasure about these. Each is a real copy of
   holder and when. Tell whoever asked for the erasure. To remove it as well, delete the account's canonical
   `Message` and `CalendarEvent` rows (they carry the scope's `erasure_scope_id`) and the Person rows only that account
   produced. Nothing does that automatically yet.
+- **Calendar history (since 2026-10-22, PROD-47).** `CalendarEvent` is temporal (ADR 0049): a reschedule, rename or
+  cancellation keeps the version before it. Every version is sealed under the same scope key, so a shred reaches the
+  title and location of all of them (`test/ash_enterprise/canonical/calendar_time_travel_test.exs`). Each version also
+  keeps its `starts_at`, `ends_at`, `status` and `organizer_id`, so a shredded event's history of when it moved, and
+  from when to when, stays readable with the metadata above. Removing it means deleting every row of the event, which
+  an Ash destroy does not do on a temporal resource (it only ends the current period): it is a `DELETE FROM
+  canonical_calendar_events WHERE erasure_scope_id = …` by hand. ADR 0049 invariant 5 bans raw writes to temporal
+  tables because they bypass the split-write locking, so run it only with the calendar syncs paused, and record it as
+  an exception.
 - **Derived joins: who attends what, who talks with whom.** Since 2026-10-12 the canonical model derives first-class
   joins from what it projects: `EventAttendee` (an event's attendees and their responses) and
   `ConversationParticipant` (a conversation's people). They hold ids and a response status — nothing sealed — so a

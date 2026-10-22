@@ -127,6 +127,7 @@ defmodule AshEnterprise.Canonical.Person do
       public? true
       destination_attribute :organizer_id
       description "The calendar events this person organizes."
+      temporal_keys {nil, :valid_at}
     end
 
     has_many :sent_messages, AshEnterprise.Canonical.Message do
