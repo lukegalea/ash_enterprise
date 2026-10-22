@@ -22,6 +22,7 @@ defmodule AshEnterprise.Assistant.Lookups.Tasks do
       |> Ash.Query.for_read(:read, %{}, opts)
       |> by_status(input.arguments[:status] || :open)
       |> Ash.Query.sort(due_at: :asc_nils_last, inserted_at: :desc)
+      |> Ash.Query.load(:label)
       |> Ash.Query.limit(@shown + 1)
       |> Ash.read(opts)
       |> case do
@@ -45,7 +46,7 @@ defmodule AshEnterprise.Assistant.Lookups.Tasks do
   defp row(task) do
     %{
       "id" => task.id,
-      "title" => Support.clip(task.title, 200),
+      "title" => Support.clip(task.label, 200),
       "status" => task.status,
       "due" => task.due_at && LocalTime.stamp(task.due_at),
       "source" => task.source

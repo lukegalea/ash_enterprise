@@ -135,6 +135,52 @@ defmodule AshEnterpriseWeb.ActionItemsLiveTest do
     assert Task.mine!(actor: ctx.actor, tenant: ctx.tenant) == []
   end
 
+  test "a proposal waits in Proposed, in its own words, until the person accepts it", %{
+    conn: conn,
+    ctx: ctx
+  } do
+    %{message: message, conversation: conversation} =
+      AshEnterprise.Test.CommitmentFixtures.sent!(ctx, "gmail", "I'll book the venue today")
+
+    proposal =
+      Task.propose!(
+        %{
+          commitment: "Book the venue",
+          evidence: "I'll book the venue today",
+          source: "gmail",
+          origin_type: to_string(AshEnterprise.Canonical.Conversation),
+          origin_id: conversation.id,
+          external_system: "commitment",
+          external_id: "live-test:#{message.id}",
+          erasure_scope_id: message.erasure_scope_id,
+          proposer: "message_commitments/1",
+          instrument: "synthetic",
+          owner_id: ctx.user.id,
+          owning_user_id: ctx.user.id,
+          owning_business_unit_id: ctx.user.owning_business_unit_id
+        },
+        actor: AshEnterprise.Platform.SystemActor.proposer(),
+        tenant: ctx.tenant
+      )
+
+    {:ok, view, _html} = live(conn, "/app/action-items")
+    assert [card] = rows(pushed(view))["board_proposed"]
+    assert card["id"] == proposal.id
+    assert card["label"] == "Book the venue"
+
+    assert %{"surface" => "record", "recordId" => "inbox:" <> conv_id} =
+             card["_links"]["origin_label"]
+
+    assert conv_id == conversation.id
+
+    accepted = invoke(view, "accept_mine", proposal, "proposed")
+    assert proposal.id in ids(rows(accepted), "board_inbox")
+    refute proposal.id in ids(rows(accepted), "board_proposed")
+
+    assert %Task{status: :open} =
+             Ash.get!(Task, proposal.id, tenant: ctx.tenant, authorize?: false)
+  end
+
   test "another person's item is not on the board and cannot be moved", %{conn: conn, ctx: ctx} do
     other = member!(ctx, "Colleague", [])
     theirs = Task.capture!("Their private errand", %{}, actor: other.actor, tenant: other.tenant)

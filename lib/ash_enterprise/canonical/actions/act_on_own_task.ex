@@ -1,7 +1,8 @@
 defmodule AshEnterprise.Canonical.Actions.ActOnOwnTask do
   @moduledoc """
   The self-service moves on `Canonical.Task` (`complete_mine`,
-  `plan_today_mine`, `plan_later_mine`, `reopen_mine`, `drop_mine`): one of
+  `plan_today_mine`, `plan_later_mine`, `reopen_mine`, `drop_mine`,
+  `accept_mine`, `dismiss_mine`): one of
   the actor's own tasks, through one guarded update.
 
       run {AshEnterprise.Canonical.Actions.ActOnOwnTask, update: :complete}
@@ -23,7 +24,7 @@ defmodule AshEnterprise.Canonical.Actions.ActOnOwnTask do
 
   alias AshEnterprise.Canonical.Task
 
-  @updates [:complete, :plan_today, :plan_later, :reopen, :drop]
+  @updates [:complete, :plan_today, :plan_later, :reopen, :drop, :accept, :dismiss]
 
   @impl true
   def run(input, opts, context) do

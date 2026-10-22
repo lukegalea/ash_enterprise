@@ -90,7 +90,8 @@ defmodule AshEnterprise.Agents.Today do
   The actor's own open action items for today — planned for today, or due
   by tonight (`Task.due_today`), soonest due first.
   """
-  def today_items(opts), do: Task.due_today(Keyword.put(opts, :authorize?, true))
+  def today_items(opts),
+    do: Task.due_today(Keyword.merge(opts, authorize?: true, load: [:label]))
 
   defp today_items_text(opts) do
     case today_items(opts) do
@@ -98,18 +99,18 @@ defmodule AshEnterprise.Agents.Today do
         "Today's action items — none. Say `todo` for the whole list."
 
       {:ok, tasks} ->
-        lines =
-          Enum.map(tasks, fn task ->
-            due = if task.due_at, do: "  · due #{LocalTime.stamp(task.due_at)}", else: ""
-            "  - #{task.title}#{due}"
-          end)
-
-        Enum.join(["Today's action items — #{length(tasks)}." | lines], "\n")
+        Enum.join(
+          ["Today's action items — #{length(tasks)}." | Enum.map(tasks, &item_line/1)],
+          "\n"
+        )
 
       {:error, _} ->
         "Today's action items — unavailable."
     end
   end
+
+  defp item_line(%{due_at: nil} = task), do: "  - #{task.label}"
+  defp item_line(task), do: "  - #{task.label}  · due #{LocalTime.stamp(task.due_at)}"
 
   # PROD-18: how much is on today's list, and how much is still unsorted.
   defp action_items_row(opts) do

@@ -46,6 +46,11 @@ defmodule AshEnterprise.Platform.SystemActor do
         "this one owns. Deliberately not a person: the change was really made by a process " <>
         "this application cannot see, and the audit trail should say so rather than borrow a " <>
         "name from whoever happened to be signed in.",
+    proposer:
+      "A proposer writing proposal rows (ADR 0047): the commitment sweep's action-item " <>
+        "proposals and its scan records (`AshEnterprise.Canonical.Commitments`). It proposes " <>
+        "and never decides: accepting or dismissing a proposal is the owner's own act, and " <>
+        "those updates refuse every actor that is not a person.",
     lineage:
       "The lineage store, recording the OpenLineage run events every write and sync emits " <>
         "(`AshEnterprise.Lineage.Store`). It writes the lineage tables and nothing else.",

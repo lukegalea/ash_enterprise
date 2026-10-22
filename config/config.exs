@@ -96,7 +96,11 @@ config :ash_enterprise, Oban,
        {"*/15 * * * *", AshEnterprise.Agents.MorningBriefScheduler},
        # PROD-17: lineage past its 14-day window is deleted daily
        # (AshEnterprise.Lineage.Retention).
-       {"17 4 * * *", AshEnterprise.Lineage.PruneWorker}
+       {"17 4 * * *", AshEnterprise.Lineage.PruneWorker},
+       # PROD-18: commitments in sent mail and Slack, and follow-ups to ended
+       # meetings, proposed as action items (AshEnterprise.Canonical.Commitments).
+       # Messages are read only by the in-zone model; with none, they wait.
+       {"*/10 * * * *", AshEnterprise.Canonical.Commitments.SweepWorker}
      ]}
   ]
 

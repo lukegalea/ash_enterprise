@@ -61,11 +61,11 @@ defmodule AshEnterpriseWeb.A2ui.TodayUI do
     # board. Read through the self-service `Task.due_today`.
     component :table, :today_items do
       resource AshEnterprise.Canonical.Task
-      fields [:title, :due, :source]
+      fields [:label, :due, :source]
       read_action :due_today
 
       row_layout do
-        title :title
+        title :label
         meta [:due, :source]
         columns 2
       end
@@ -95,10 +95,9 @@ defmodule AshEnterpriseWeb.A2ui.TodayUI do
       label "Morning brief"
     end
 
-    # The agenda's `title` column (an event's) and today_items' (a task's)
-    # share this block; a task's title links to its card on Action items.
-    field :title do
-      label "What"
+    # A today item links to its card on Action items.
+    field :label do
+      label "Today"
       link {:action_items, :id}
     end
 

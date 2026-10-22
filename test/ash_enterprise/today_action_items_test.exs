@@ -46,7 +46,7 @@ defmodule AshEnterprise.TodayActionItemsTest do
     assert Enum.find(rows, &(&1["id"] == ctx.overdue.id))["due"] =~ "overdue"
 
     assert %{"surface" => "action_items", "recordId" => id} =
-             hd(rows)["_links"]["title"]
+             hd(rows)["_links"]["label"]
 
     assert id == ctx.overdue.id
   end

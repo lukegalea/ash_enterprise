@@ -118,3 +118,16 @@ Reviewer habit becoming policy without anyone approving it.
 Proposals are rows. Deleting the proposal resource and the research job removes the path; adopted versions stay
 ordinary versions with their lineage fields, and nothing already approved changes. Removing the optional optimiser
 dependency removes one research application or development flag.
+
+## Note, 2026-10-22: action-item proposals (PROD-18)
+
+The commitment sweep (`AshEnterprise.Canonical.Commitments`) is the first proposer built under this record. It reads
+what a person sent (with the in-zone model) and the meetings they had, and writes each finding as a
+`Canonical.Task` in status `:proposed`, under the `:proposer` system actor. The person accepts or dismisses it on
+their Action items board, and the updates behind both refuse any actor that is not a person, so the proposer
+cannot decide what it proposed. Lineage is on the row (`proposer`, `instrument`) and on a
+`Canonical.CommitmentScan` per record read, written in the same transaction, with zero findings recorded as a
+result. Tests: `test/ash_enterprise/canonical/commitments_test.exs`.
+
+This is a smaller loop than the learners above: a proposal is an action item, not a question version or a rule,
+so adoption is the owner's own act on their own row (ADR 0052), not a privileged activation.

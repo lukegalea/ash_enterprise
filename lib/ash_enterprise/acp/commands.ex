@@ -394,7 +394,7 @@ defmodule AshEnterprise.Acp.Commands do
         Console,
         :done,
         %{record_id: task.id},
-        "Done: ##{n} #{String.slice(task.title, 0, 60)}",
+        "Done: ##{n} #{String.slice(task.label, 0, 60)}",
         tenant,
         {A2ui.ActionItemsUI, []},
         kind: :edit

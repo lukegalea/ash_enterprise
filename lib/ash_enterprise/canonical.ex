@@ -45,6 +45,7 @@ defmodule AshEnterprise.Canonical do
     resource AshEnterprise.Canonical.EventAttendee
     resource AshEnterprise.Canonical.ConversationParticipant
     resource AshEnterprise.Canonical.Task
+    resource AshEnterprise.Canonical.CommitmentScan
     resource AshEnterprise.Canonical.Project
   end
 end

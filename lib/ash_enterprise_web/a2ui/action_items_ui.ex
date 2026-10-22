@@ -4,12 +4,15 @@ defmodule AshEnterpriseWeb.A2ui.ActionItemsUI do
   (PROD-18): their own `Canonical.Task`s as a board, and the process tasks
   waiting on them beside it.
 
-  * **The board** reads `Task.mine` in four lanes over `lane`: **Inbox**
-    (captured, not yet sorted), **Today**, **Later** and **Done**. A card
-    moves only through the task's self-service actions — Today, Later, Done,
-    Drop, Reopen — each run as the clicking person, finding the task through
-    `:mine` first (`AshEnterprise.Canonical.Actions.ActOnOwnTask`), so a
-    task that is not theirs is not found. A dropped task leaves the board.
+  * **The board** reads `Task.mine` in five lanes over `lane`: **Proposed**
+    (commitments found in what they sent, and follow-ups to meetings they
+    had — ADR 0047, `AshEnterprise.Canonical.Commitments`), **Inbox**
+    (captured or accepted, not yet sorted), **Today**, **Later** and
+    **Done**. A card moves only through the task's self-service actions —
+    Accept, Dismiss, Today, Later, Done, Drop, Reopen — each run as the
+    clicking person, finding the task through `:mine` first
+    (`AshEnterprise.Canonical.Actions.ActOnOwnTask`), so a task that is not
+    theirs is not found. A dropped or dismissed task leaves the board.
   * **Capture** is the surface's Create button: a title and an optional due
     date, through `Task.capture`, into the Inbox.
   * **Due** is the same tasks on a month or week grid by due date.
@@ -19,7 +22,9 @@ defmodule AshEnterpriseWeb.A2ui.ActionItemsUI do
     tasks), to what it is about, and to its run on the flight view, where it
     is decided.
 
-  Every read is the person's own (`Task.mine` is self-service and
+  Cards show `label`: what a person typed, or a proposal's words, which are
+  sealed under their source's erasure scope and read `[shredded]` after a
+  shred. Every read is the person's own (`Task.mine` is self-service and
   owner-only, ADR 0052; the process tasks are read through their candidacy).
 
   Served at `/app/action-items` and, as the `todo` prompt, over ACP — where
@@ -52,11 +57,13 @@ defmodule AshEnterpriseWeb.A2ui.ActionItemsUI do
 
     component :table, :board do
       display :board
-      fields [:title, :lane, :due, :source, :origin_label]
+      fields [:label, :lane, :due, :source, :origin_label]
       read_action :mine
       query :lanes
 
       row_actions [
+        :accept_mine,
+        :dismiss_mine,
         :plan_today_mine,
         :plan_later_mine,
         :complete_mine,
@@ -67,14 +74,19 @@ defmodule AshEnterpriseWeb.A2ui.ActionItemsUI do
       select_context :item
 
       row_layout do
-        title :title
+        title :label
         meta [:due, :source, :origin_label]
       end
 
       sections do
         scope_by :lane
-        values [:inbox, :today, :later, :done]
-        labels inbox: "Inbox", today: "Today", later: "Later", done: "Done"
+        values [:proposed, :inbox, :today, :later, :done]
+
+        labels proposed: "Proposed",
+               inbox: "Inbox",
+               today: "Today",
+               later: "Later",
+               done: "Done"
       end
     end
 
@@ -85,12 +97,23 @@ defmodule AshEnterpriseWeb.A2ui.ActionItemsUI do
 
     component :detail, :item_detail do
       context :item
-      fields [:title, :lane, :due, :source, :origin_label, :created_on]
+
+      fields [
+        :label,
+        :lane,
+        :due,
+        :source,
+        :origin_label,
+        :evidence,
+        :proposer,
+        :instrument,
+        :created_on
+      ]
     end
 
     # The same tasks by due date; an undated task is on the board only.
     component :table, :due_calendar do
-      fields [:title, :lane, :due]
+      fields [:label, :lane, :due]
       read_action :mine
       display :calendar
       date_field :due_at
@@ -99,10 +122,11 @@ defmodule AshEnterpriseWeb.A2ui.ActionItemsUI do
       select_context :item
 
       row_layout do
-        title :title
+        title :label
         badge :lane
 
-        badge_text inbox: "Inbox",
+        badge_text proposed: "Proposed",
+                   inbox: "Inbox",
                    today: "Today",
                    later: "Later",
                    done: "Done",
@@ -123,6 +147,18 @@ defmodule AshEnterpriseWeb.A2ui.ActionItemsUI do
         meta [:name, :run_stage, :waiting_since]
         columns 3
       end
+    end
+
+    action :accept_mine do
+      label "Accept"
+      visible_when lane: :proposed
+      refreshes [:board, :due_calendar]
+    end
+
+    action :dismiss_mine do
+      label "Dismiss"
+      visible_when lane: :proposed
+      refreshes [:board, :due_calendar]
     end
 
     action :plan_today_mine do
@@ -155,6 +191,10 @@ defmodule AshEnterpriseWeb.A2ui.ActionItemsUI do
       refreshes [:board, :due_calendar]
     end
 
+    field :label do
+      label "Action item"
+    end
+
     field :title do
       label "Action item"
     end
@@ -173,6 +213,18 @@ defmodule AshEnterpriseWeb.A2ui.ActionItemsUI do
 
     field :source do
       label "From"
+    end
+
+    field :evidence do
+      label "In their words"
+    end
+
+    field :proposer do
+      label "Proposed by"
+    end
+
+    field :instrument do
+      label "Read with"
     end
 
     field :created_on do

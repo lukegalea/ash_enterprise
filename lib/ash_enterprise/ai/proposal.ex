@@ -269,12 +269,12 @@ defmodule AshEnterprise.AI.Proposal do
       {:ok,
        %__MODULE__{
          kind: :complete_task,
-         summary: "Mark \"#{clip(found.title, 120)}\" done",
+         summary: "Mark \"#{clip(found.label, 120)}\" done",
          resource: Task,
          action: :complete_mine,
          params: %{record_id: found.id},
          details: [
-           action_item: clip(found.title, 200),
+           action_item: clip(found.label, 200),
            due: found.due_at && LocalTime.stamp(found.due_at),
            status: "open → done"
          ]
@@ -805,7 +805,7 @@ defmodule AshEnterprise.AI.Proposal do
           Ash.Query.filter(query, status == :open and contains(string_downcase(title), ^needle))
       end
 
-    case Ash.read(query, actor: actor, tenant: tenant, authorize?: true) do
+    case Ash.read(Ash.Query.load(query, :label), actor: actor, tenant: tenant, authorize?: true) do
       {:ok, [%Task{status: :open} = found]} ->
         {:ok, found}
 

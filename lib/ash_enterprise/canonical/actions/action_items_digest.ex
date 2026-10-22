@@ -47,7 +47,8 @@ defmodule AshEnterprise.Canonical.Actions.ActionItemsDigest do
   @doc "The actor's open action items in list order: Today, Inbox, Later."
   @spec items(keyword()) :: {:ok, [Task.t()]} | {:error, term()}
   def items(opts) do
-    with {:ok, tasks} <- Task.mine(Keyword.put(opts, :query, filter: [status: :open])) do
+    with {:ok, tasks} <-
+           Task.mine(Keyword.merge(opts, query: [filter: [status: :open]], load: [:label])) do
       ordered =
         tasks
         |> Enum.with_index()
@@ -81,8 +82,8 @@ defmodule AshEnterprise.Canonical.Actions.ActionItemsDigest do
     Enum.join([header | sections] ++ [waiting], "\n")
   end
 
-  defp line(%Task{due_at: nil} = task, n), do: "  #{n}. #{task.title}"
-  defp line(task, n), do: "  #{n}. #{task.title}  · due #{LocalTime.stamp(task.due_at)}"
+  defp line(%Task{due_at: nil} = task, n), do: "  #{n}. #{task.label}"
+  defp line(task, n), do: "  #{n}. #{task.label}  · due #{LocalTime.stamp(task.due_at)}"
 
   defp waiting(opts) do
     case QueueDigest.awaiting(opts) do
@@ -102,6 +103,8 @@ defmodule AshEnterprise.Canonical.Actions.ActionItemsDigest do
   end
 
   defp done(record_id, opts) do
-    with {:ok, task} <- Task.complete_mine(record_id, opts), do: {:ok, "Done: #{task.title}"}
+    with {:ok, task} <- Task.complete_mine(record_id, opts),
+         {:ok, task} <- Ash.load(task, :label, opts),
+         do: {:ok, "Done: #{task.label}"}
   end
 end

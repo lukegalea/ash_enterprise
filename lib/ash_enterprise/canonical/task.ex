@@ -44,6 +44,34 @@ defmodule AshEnterprise.Canonical.Task do
   conversation, an event), and `origin_ref` turns them into a link that opens
   it, re-read as whoever follows it.
 
+  ## Proposals (ADR 0047)
+
+  A commitment found in the person's sent mail or Slack, or a follow-up to a
+  meeting they had, arrives as a task in status `:proposed` (the Proposed
+  lane), written by the proposer system actor (`:propose`,
+  `AshEnterprise.Canonical.Commitments`). It is on no list until its owner
+  accepts it:
+
+  | Self-service action | Update | Allowed from |
+  |---|---|---|
+  | `accept_mine` | `:accept` | a proposal; it lands in Inbox |
+  | `dismiss_mine` | `:dismiss` | a proposal (cancelled) |
+
+  Both updates refuse any actor that is not a person, so the proposer
+  cannot decide what it proposed. `proposer` and `instrument` keep the
+  proposal's lineage: which proposer, which model in which zone.
+
+  ## Erasure (ADR 0024)
+
+  A proposal's words are canonical content: `commitment` (the action item as
+  extracted) and `evidence` (the words it was found in) are sealed under the
+  erasure scope of the message or meeting they came from
+  (`AshEnterprise.Erasure.Changes.SealUnderScope`), and read as
+  `AshEnterprise.Erasure.Shredded` once that scope is shredded. `title`
+  stays plain for what a person typed; for a proposal it is a structural
+  stand-in (`Proposed from gmail`), never the words. `label` is what every
+  surface shows: the sealed commitment when there is one, else the title.
+
   ## A judged question (S1-53)
 
   `:task_actionable` is a declared System One question about the title.
@@ -69,10 +97,13 @@ defmodule AshEnterprise.Canonical.Task do
       :plan_today_mine,
       :plan_later_mine,
       :reopen_mine,
-      :drop_mine
+      :drop_mine,
+      :accept_mine,
+      :dismiss_mine
     ],
     notifiers: [Ash.Notifier.PubSub],
     extra_extensions: [
+      AshCloak,
       AshAi,
       AshJudgments.Registry,
       AshOban,
@@ -82,6 +113,22 @@ defmodule AshEnterprise.Canonical.Task do
   postgres do
     table "canonical_tasks"
     repo AshEnterprise.Repo
+
+    references do
+      reference :erasure_scope, on_delete: :restrict
+    end
+  end
+
+  cloak do
+    vault({AshEnterprise.Erasure.Vault, :resolve, []})
+    attributes [:commitment, :evidence]
+    decrypt_by_default([:commitment, :evidence])
+    encrypt_nil?(false)
+  end
+
+  changes do
+    change {AshEnterprise.Erasure.Changes.SealUnderScope, fields: [:commitment, :evidence]},
+      on: [:create, :update]
   end
 
   # What keeps the Action items board and Today live: a capture over ACP, or
@@ -146,9 +193,43 @@ defmodule AshEnterprise.Canonical.Task do
     attribute :status, :atom do
       allow_nil? false
       public? true
-      constraints one_of: [:open, :done, :cancelled]
+      constraints one_of: [:proposed, :open, :done, :cancelled]
       default :open
-      description "The commitment's state: open until it is done or cancelled."
+
+      description """
+      The commitment's state: `proposed` until its owner accepts a proposal,
+      then open until it is done or cancelled.
+      """
+    end
+
+    attribute :commitment, :string do
+      public? true
+
+      # No max_length on a sealed attribute: a failed constraint renders the
+      # value into the error message, which no shred reaches (ADR 0024).
+      description "A proposal's action item as extracted from its source. Sealed."
+    end
+
+    attribute :evidence, :string do
+      public? true
+      description "The words in the source the proposal was found in. Sealed."
+    end
+
+    attribute :proposer, :string do
+      public? true
+      constraints max_length: 255
+
+      description "For a proposal: which proposer made it, with its version (`message_commitments/1`)."
+    end
+
+    attribute :instrument, :string do
+      public? true
+      constraints max_length: 255
+
+      description """
+      For a proposal: what the proposer read with — the in-zone model's
+      label and zone, or `deterministic`.
+      """
     end
 
     attribute :plan, :atom do
@@ -203,6 +284,21 @@ defmodule AshEnterprise.Canonical.Task do
     update_timestamp :updated_at
   end
 
+  relationships do
+    belongs_to :erasure_scope, AshEnterprise.Erasure.Scope do
+      allow_nil? true
+      public? true
+      attribute_public? true
+      attribute_writable? true
+
+      description """
+      For a task from a source (a proposal and what it became): the scope of
+      the message or meeting it came from, whose key seals its words. Nil for
+      a task typed in.
+      """
+    end
+  end
+
   identities do
     identity :unique_external, [:external_system, :external_id]
   end
@@ -251,6 +347,55 @@ defmodule AshEnterprise.Canonical.Task do
       change set_attribute(:owner_type, :user)
       change set_attribute(:owning_user_id, actor(:id))
       change set_attribute(:owning_business_unit_id, actor(:owning_business_unit_id))
+    end
+
+    create :propose do
+      description """
+      Propose an action item for its owner, from a source record (ADR 0047):
+      written by the proposer system actor, in status `:proposed`. The words
+      are sealed under the source's erasure scope; the title is structural.
+      """
+
+      accept [
+        :commitment,
+        :evidence,
+        :due_at,
+        :source,
+        :origin_type,
+        :origin_id,
+        :external_system,
+        :external_id,
+        :erasure_scope_id,
+        :proposer,
+        :instrument,
+        :owner_id,
+        :owning_user_id,
+        :owning_business_unit_id
+      ]
+
+      validate present([:commitment, :erasure_scope_id, :proposer, :instrument, :owner_id])
+
+      change set_attribute(:status, :proposed)
+      change set_attribute(:plan, :inbox)
+      change set_attribute(:owner_type, :user)
+      change AshEnterprise.Canonical.Changes.ProposalTitle
+    end
+
+    update :accept do
+      description "Accept a proposal: it becomes an open task in the Inbox. A person's act."
+      accept []
+      validate attribute_equals(:status, :proposed), message: "only a proposal can be accepted"
+      validate AshEnterprise.Canonical.Validations.ByAPerson
+      change set_attribute(:status, :open)
+      change set_attribute(:plan, :inbox)
+    end
+
+    update :dismiss do
+      description "Dismiss a proposal: it is not wanted (cancelled). A person's act."
+      accept []
+      validate attribute_equals(:status, :proposed), message: "only a proposal can be dismissed"
+      validate AshEnterprise.Canonical.Validations.ByAPerson
+      change set_attribute(:status, :cancelled)
     end
 
     update :complete do
@@ -349,6 +494,28 @@ defmodule AshEnterprise.Canonical.Task do
       run {AshEnterprise.Canonical.Actions.ActOnOwnTask, update: :drop}
     end
 
+    action :accept_mine, :struct do
+      description "Accept one of the actor's own proposals: it lands in their Inbox."
+      constraints instance_of: __MODULE__
+
+      argument :record_id, :uuid,
+        allow_nil?: false,
+        description: "The proposal (one of the actor's own)."
+
+      run {AshEnterprise.Canonical.Actions.ActOnOwnTask, update: :accept}
+    end
+
+    action :dismiss_mine, :struct do
+      description "Dismiss one of the actor's own proposals."
+      constraints instance_of: __MODULE__
+
+      argument :record_id, :uuid,
+        allow_nil?: false,
+        description: "The proposal (one of the actor's own)."
+
+      run {AshEnterprise.Canonical.Actions.ActOnOwnTask, update: :dismiss}
+    end
+
     read :by_external do
       description """
       Look up the canonical row projected from one raw SourceObject.
@@ -398,6 +565,7 @@ defmodule AshEnterprise.Canonical.Task do
               :atom,
               expr(
                 cond do
+                  status == :proposed -> :proposed
                   status == :done -> :done
                   status == :cancelled -> :dropped
                   plan == :today -> :today
@@ -406,8 +574,18 @@ defmodule AshEnterprise.Canonical.Task do
                 end
               ) do
       public? true
-      constraints one_of: [:inbox, :today, :later, :done, :dropped]
-      description "The Action items lane: inbox, today, later, done (or dropped)."
+      constraints one_of: [:proposed, :inbox, :today, :later, :done, :dropped]
+      description "The Action items lane: proposed, inbox, today, later, done (or dropped)."
+    end
+
+    calculate :label, :string, AshEnterprise.Canonical.Calculations.TaskLabel do
+      public? true
+
+      description """
+      What the task says, as every surface shows it: the sealed commitment
+      of a task from a source (`[shredded]` once its scope is shredded),
+      else the title a person typed.
+      """
     end
 
     calculate :due, :string, AshEnterprise.Canonical.Calculations.TaskDue do
@@ -458,5 +636,8 @@ defmodule AshEnterprise.Canonical.Task do
     define :plan_later_mine, args: [:record_id]
     define :reopen_mine, args: [:record_id]
     define :drop_mine, args: [:record_id]
+    define :accept_mine, args: [:record_id]
+    define :dismiss_mine, args: [:record_id]
+    define :propose
   end
 end
