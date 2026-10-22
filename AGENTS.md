@@ -1628,6 +1628,10 @@ _An Ash extension that generates A2UI (Agent to UI) v0.9.1 or v1.0 payloads from
 ## ash_a2ui:reports usage
 [ash_a2ui:reports usage rules](deps/ash_a2ui/usage-rules/reports.md)
 <!-- ash_a2ui:reports-end -->
+<!-- ash_a2ui:shell-start -->
+## ash_a2ui:shell usage
+[ash_a2ui:shell usage rules](deps/ash_a2ui/usage-rules/shell.md)
+<!-- ash_a2ui:shell-end -->
 <!-- ash_a2ui:time-travel-start -->
 ## ash_a2ui:time-travel usage
 [ash_a2ui:time-travel usage rules](deps/ash_a2ui/usage-rules/time-travel.md)
