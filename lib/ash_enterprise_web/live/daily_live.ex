@@ -2,7 +2,8 @@ defmodule AshEnterpriseWeb.DailyLive do
   @moduledoc """
   The daily-loop and operator surfaces (Productivity OS dogfood, epic E6):
   Today, Calendar, Inbox, Slack, People, Approvals, Accounts & syncs and
-  Erasure scopes, at `/app/<name>`.
+  Erasure scopes, at `/app/<name>`. (Calendar reads through time, so it is its
+  own module: `AshEnterpriseWeb.DailyLive.Calendar`.)
 
   Each page is one `AshA2ui.LiveRenderer` over a surface in
   `lib/ash_enterprise_web/a2ui/` — the same UI module the ACP server serves
@@ -334,10 +335,8 @@ defmodule AshEnterpriseWeb.DailyLive do
       compose_brief?: true
   end
 
-  defmodule Calendar do
-    @moduledoc "`/app/calendar` — a month or week grid of events, quick ranges, event detail."
-    use AshEnterpriseWeb.DailyLive.Surface, ui: AshEnterpriseWeb.A2ui.CalendarUI
-  end
+  # Calendar (`/app/calendar`) has its own module, for time travel:
+  # `AshEnterpriseWeb.DailyLive.Calendar`, in calendar_live.ex.
 
   defmodule Inbox do
     @moduledoc "`/app/inbox` — Gmail threads from the canonical model."
