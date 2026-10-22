@@ -38,7 +38,7 @@ defmodule AshEnterpriseWeb.LauncherLiveTest do
     assert html =~ "Key interfaces"
     assert has_element?(view, "#launch-today[href='/app/today']")
 
-    for surface <- Surfaces.visible(ctx.actor), surface.key != :today do
+    for surface <- Surfaces.openable(ctx.actor), surface.key != :today do
       assert has_element?(view, "#launch-group-#{surface.group} #launch-#{surface.key}"),
              "#{surface.key} is missing from the launcher"
     end

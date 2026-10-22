@@ -43,10 +43,11 @@ defmodule AshEnterpriseWeb.Layouts do
   attr :page, :map,
     default: nil,
     doc: """
-    The chrome `AshEnterpriseWeb.SurfaceDoor` assigns: `%{surface:, nav:, as_of:}`.
+    The chrome `AshEnterpriseWeb.SurfaceDoor` assigns: `%{surface:, nav:, as_of:, actor:}`.
     `nav` draws the grouped menus (only the surfaces whose door is open for the
     viewer); `surface` marks the current item and, when present, draws the page
-    header -- the registry's label and blurb, and the as-of line.
+    header -- the registry's label and blurb, and the as-of line. With an
+    `actor`, the page gets the command palette and launcher (`AshEnterpriseWeb.Shell`).
     """
 
   slot :toolbar, doc: "controls on the right of the page header (surface pages only)"
@@ -59,6 +60,7 @@ defmodule AshEnterpriseWeb.Layouts do
       assigns
       |> assign(:surface, page[:surface])
       |> assign(:as_of, page[:as_of])
+      |> assign(:shell_actor, page[:actor])
       |> assign(:menus, menus(page[:nav] || [], page[:surface]))
 
     ~H"""
@@ -139,8 +141,27 @@ defmodule AshEnterpriseWeb.Layouts do
             <li class="ps-1">
               <.theme_toggle />
             </li>
+            <li :if={@shell_actor} class="ps-1">
+              <button
+                type="button"
+                id="nav-palette"
+                class={nav_pill()}
+                phx-click={AshA2ui.Shell.Component.open("palette")}
+                title="Commands (ctrl+p)"
+              >
+                <.icon name="hero-command-line-micro" class="size-4" />
+                <span class="sr-only sm:not-sr-only">Commands</span>
+                <kbd class="hidden font-mono text-xs text-foreground/70 lg:inline">ctrl p</kbd>
+              </button>
+            </li>
             <li class="ps-1">
-              <.button href="/app" variant="primary" size="sm" id="nav-launcher">
+              <.button
+                href="/app"
+                variant="primary"
+                size="sm"
+                id="nav-launcher"
+                title="All apps (ctrl+k)"
+              >
                 <.icon name="hero-squares-2x2-micro" class="size-4" /> All apps
               </.button>
             </li>
@@ -148,6 +169,18 @@ defmodule AshEnterpriseWeb.Layouts do
         </nav>
       </div>
     </header>
+
+    <%!-- The command palette (ctrl+p) and surface launcher (ctrl+k), on every
+          page: AshA2ui.Shell.Component, fed by AshEnterpriseWeb.Shell from the
+          same lists ACP serves. Signed-in pages only; it reads nothing until
+          it opens. --%>
+    <.live_component
+      :if={@shell_actor}
+      module={AshA2ui.Shell.Component}
+      id="a2ui-shell"
+      host={AshEnterpriseWeb.Shell}
+      context={@shell_actor}
+    />
 
     <main class="px-4 py-10 sm:px-6 lg:px-8">
       <div class={["mx-auto space-y-4", @width]}>

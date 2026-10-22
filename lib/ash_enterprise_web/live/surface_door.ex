@@ -9,9 +9,11 @@ defmodule AshEnterpriseWeb.SurfaceDoor do
     * `:surface` — the `AshEnterprise.Surfaces.Surface`, or `nil` for a page
       that is not a registry surface (the launcher, the helper, the canvas);
     * `:page` — what the app layout needs to draw its chrome:
-      `%{surface:, nav:, as_of:}`, where `nav` is the registry groups the
-      actor may open (the grouped menus) and `as_of` is when the page loaded
-      (the header's as-of line). Pass it on: `<Layouts.app page={assigns[:page]}>`.
+      `%{surface:, nav:, as_of:, actor:}`, where `nav` is the registry groups
+      the actor may open (the grouped menus), `as_of` is when the page loaded
+      (the header's as-of line) and `actor` is whom the command palette and
+      launcher (`AshEnterpriseWeb.Shell`) list for. Pass it on:
+      `<Layouts.app page={assigns[:page]}>`.
 
   A closed door halts the mount and sends the person to the launcher with a
   flash naming who the surface is for. Behind an open door the surface still
@@ -33,7 +35,13 @@ defmodule AshEnterpriseWeb.SurfaceDoor do
     surface = Surfaces.by_live(socket.view, socket.assigns[:live_action])
 
     if is_nil(surface) or Surfaces.open?(surface, actor) do
-      page = %{surface: surface, nav: Surfaces.grouped(actor), as_of: DateTime.utc_now()}
+      page = %{
+        surface: surface,
+        nav: Surfaces.grouped(actor),
+        as_of: DateTime.utc_now(),
+        actor: actor
+      }
+
       {:cont, Phoenix.Component.assign(socket, surface: surface, page: page)}
     else
       {:halt,

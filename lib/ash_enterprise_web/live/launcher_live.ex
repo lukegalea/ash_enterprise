@@ -4,9 +4,15 @@ defmodule AshEnterpriseWeb.LauncherLive do
 
   A grid of the key interfaces, rendered from the surface registry
   (`AshEnterprise.Surfaces`) — grouped as the registry groups them, and only
-  the surfaces whose door is open for the viewer. Nothing on this page names a
-  surface by hand, so a surface added to the registry appears here (and in the
-  nav, and over ACP) without anybody remembering to link it.
+  the surfaces the viewer may open (`Surfaces.openable/1`: an open door, over
+  a resource they may read). Nothing on this page names a surface by hand, so
+  a surface added to the registry appears here (and in the nav, and over ACP)
+  without anybody remembering to link it.
+
+  It is the full-page form of the ctrl+k launcher (`AshEnterpriseWeb.Shell`):
+  the same surfaces, and the filter box narrows them the way the launcher's
+  input does (`AshA2ui.Shell.filter_surfaces/2`). Enter opens the first one
+  left.
 
   Today leads, full width, with its live summary: the day's pulse
   (`AshEnterprise.Agents.Today.pulse/1`) and the morning brief's status. The
@@ -34,6 +40,7 @@ defmodule AshEnterpriseWeb.LauncherLive do
   alias AshEnterprise.Security.ActorContext
   alias AshEnterprise.Surfaces
   alias AshEnterpriseWeb.Layouts
+  alias AshEnterpriseWeb.Shell
 
   # Which pulse line speaks for which card.
   @signal_cards %{
@@ -47,7 +54,7 @@ defmodule AshEnterpriseWeb.LauncherLive do
   @impl true
   def mount(_params, _session, socket) do
     actor = socket.assigns[:current_user]
-    groups = Surfaces.grouped(actor)
+    groups = Surfaces.grouped(actor, &Surfaces.openable/1)
 
     socket =
       assign(socket,
@@ -64,6 +71,9 @@ defmodule AshEnterpriseWeb.LauncherLive do
         brief: nil,
         signals: %{},
         pins: [],
+        entries: Shell.surfaces(actor),
+        filter: to_form(%{"q" => ""}, as: :launch),
+        shown: nil,
         dev_routes?: Application.get_env(:ash_enterprise, :dev_routes, false)
       )
 
@@ -104,6 +114,34 @@ defmodule AshEnterpriseWeb.LauncherLive do
 
   def handle_async(:pins, {:ok, {:ok, pins}}, socket), do: {:noreply, assign(socket, :pins, pins)}
   def handle_async(:pins, _failed, socket), do: {:noreply, socket}
+
+  # Narrow the grid as the launcher's input narrows its list. `shown` is the
+  # matching surface keys, or nil for all of them.
+  @impl true
+  def handle_event("filter", %{"launch" => %{"q" => q}}, socket) do
+    {:noreply, assign(socket, filter: to_form(%{"q" => q}, as: :launch), shown: shown(socket, q))}
+  end
+
+  def handle_event("launch", %{"launch" => %{"q" => q}}, socket) do
+    case matches(socket, q) do
+      [%{"id" => id} | _] ->
+        {:noreply, push_navigate(socket, to: Surfaces.fetch!(id).path)}
+
+      [] ->
+        {:noreply, assign(socket, filter: to_form(%{"q" => q}, as: :launch), shown: MapSet.new())}
+    end
+  end
+
+  defp matches(socket, q), do: AshA2ui.Shell.filter_surfaces(socket.assigns.entries, q)
+
+  defp shown(socket, q) do
+    if String.trim(q) == "",
+      do: nil,
+      else: socket |> matches(q) |> MapSet.new(&String.to_existing_atom(&1["id"]))
+  end
+
+  defp shown?(_surface, nil), do: true
+  defp shown?(surface, shown), do: MapSet.member?(shown, surface.key)
 
   defp load_pins(socket) do
     actor = socket.assigns[:current_user]
@@ -147,12 +185,33 @@ defmodule AshEnterpriseWeb.LauncherLive do
             Everything you run in {@product_name}, one link away<span :if={@email}>
               — signed in as <span class="font-heading text-foreground">{@email}</span></span>.
           </p>
+          <.form
+            for={@filter}
+            id="launch-filter"
+            phx-change="filter"
+            phx-submit="launch"
+            class="max-w-md pt-3"
+          >
+            <.input
+              field={@filter[:q]}
+              type="search"
+              label="Filter your apps"
+              placeholder="Calendar, lineage, time travel…"
+              autocomplete="off"
+              phx-debounce="100"
+            />
+          </.form>
+          <p class="text-xs text-foreground/60">
+            From any page, <kbd class="font-mono">ctrl k</kbd>
+            opens this list and <kbd class="font-mono">ctrl p</kbd>
+            runs a command or asks the agent.
+          </p>
         </header>
 
         <%!-- The lead: Today, with the day's pulse. Full width and in the
               primary tone, because the day is why you opened the app. --%>
         <.link
-          :if={@today}
+          :if={@today && shown?(@today, @shown)}
           id="launch-today"
           navigate={@today.path}
           class="group block rounded-base focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
@@ -187,13 +246,18 @@ defmodule AshEnterpriseWeb.LauncherLive do
           </.card>
         </.link>
 
-        <section :for={group <- @groups} id={"launch-group-#{group.key}"} class="space-y-3">
+        <section
+          :for={group <- @groups}
+          :if={Enum.any?(group.surfaces, &shown?(&1, @shown))}
+          id={"launch-group-#{group.key}"}
+          class="space-y-3"
+        >
           <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
             <h2 class="font-heading text-lg">{group.label}</h2>
             <p class="text-sm text-foreground/60">{group.blurb}</p>
           </div>
           <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <li :for={surface <- group.surfaces}>
+            <li :for={surface <- group.surfaces} :if={shown?(surface, @shown)}>
               <.link
                 id={"launch-#{surface.key}"}
                 navigate={surface.path}
@@ -248,6 +312,10 @@ defmodule AshEnterpriseWeb.LauncherLive do
             </li>
           </ul>
         </section>
+
+        <.empty_state :if={@shown && MapSet.size(@shown) == 0} icon="hero-magnifying-glass">
+          <span id="launch-no-match">No app matches “{@filter[:q].value}”.</span>
+        </.empty_state>
 
         <.empty_state :if={!@today and @groups == []} icon="hero-lock-closed">
           Nothing is open to you yet. An administrator grants access by role.
