@@ -180,7 +180,6 @@ defmodule AshEnterprise.Integration.Slack.Syncer do
 
   @lineage_job "slack.sync"
   @lineage_inputs ["slack.source"]
-  @lineage_outputs ["slack.ingestion_source_objects"]
 
   @type summary :: %{
           required(:conversations) => non_neg_integer(),
@@ -202,7 +201,7 @@ defmodule AshEnterprise.Integration.Slack.Syncer do
   @spec step(struct(), Ash.UUID.t() | nil, keyword()) :: outcome()
   def step(actor, linked_account_id, opts \\ []) do
     run_id = AshEnterprise.Platform.Correlation.id()
-    lineage(:start, run_id, [])
+    lineage(:start, run_id, %{actor: actor, linked_account_id: linked_account_id}, [])
 
     state = initial_state(actor, opts)
 
@@ -742,9 +741,9 @@ defmodule AshEnterprise.Integration.Slack.Syncer do
     )
 
     case outcome do
-      {:ok, _} -> lineage(:complete, run_id, [])
-      {:snooze, _} -> lineage(:complete, run_id, [])
-      {_, reason} -> lineage(:fail, run_id, reason: Atom.to_string(reason))
+      {:ok, _} -> lineage(:complete, run_id, state, [])
+      {:snooze, _} -> lineage(:complete, run_id, state, [])
+      {_, reason} -> lineage(:fail, run_id, state, reason: Atom.to_string(reason))
     end
 
     outcome
@@ -762,13 +761,22 @@ defmodule AshEnterprise.Integration.Slack.Syncer do
   defp outcome_label({kind, reason}) when kind in [:cancel, :error], do: reason
 
   # Hole rule (ADR 0012): the sync is where data enters, so it emits its own
-  # Job RunEvents. Structural names only — no account, actor or content.
-  defp lineage(event, run_id, extra) do
+  # Job RunEvents. Structural names only — no account, actor or content in
+  # the event; the tenant and the account are host metadata for the lineage
+  # store. The output is the landing table itself, so the sync joins the
+  # graph at the same node its landings' own events name.
+  defp lineage(event, run_id, state, extra) do
     AshEnterprise.Lineage.ingestion_event(
       event,
       "ingestion",
       @lineage_job,
-      [run_id: run_id, inputs: @lineage_inputs, outputs: @lineage_outputs] ++ extra
+      [
+        run_id: run_id,
+        inputs: @lineage_inputs,
+        outputs: [AshEnterprise.Lineage.dataset(AshEnterprise.Ingestion.SourceObject)],
+        tenant: ActorContext.tenant(state.actor),
+        linked_account_id: state.linked_account_id
+      ] ++ extra
     )
   end
 end

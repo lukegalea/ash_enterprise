@@ -44,9 +44,12 @@ defmodule AshEnterprise.Assistant.LookupTest do
 
   describe "for their owner" do
     test "calendar_events: the window's events, with refs", %{alice: alice} do
-      result = F.tool!(alice, :calendar_events, %{window: "today", text: "standup"})
+      # At noon today, not relative to now: an hour from now is tomorrow after 23:00.
+      D.event!(alice, "SYNTHETIC-ALICE-REVIEW", 0, 30, starts_at: D.today_at(~T[12:00:00]))
+
+      result = F.tool!(alice, :calendar_events, %{window: "today", text: "review"})
       assert %{"count" => 1, "events" => [event]} = result
-      assert event["title"] == "SYNTHETIC-ALICE-STANDUP"
+      assert event["title"] == "SYNTHETIC-ALICE-REVIEW"
       assert "calendar:" <> _ = event["ref"]
 
       assert %{"count" => 0} =

@@ -183,6 +183,19 @@ defmodule AshEnterpriseWeb.Router do
       live "/app/erasure", DailyLive.Erasure
     end
 
+    # Lineage and the audit trail it cross-links (ADR 0012): what ran, what it
+    # read and wrote, and the audit entries each run wrote. Behind the
+    # registry's `:lineage` and `:audit` doors. Removable with
+    # lib/ash_enterprise/lineage/, these two LiveViews and this live_session.
+    ash_authentication_live_session :lineage_surfaces,
+      on_mount: [
+        {AshEnterpriseWeb.LiveUserAuth, :live_user_required},
+        AshEnterpriseWeb.SurfaceDoor
+      ] do
+      live "/app/lineage", LineageLive
+      live "/app/audit", AuditLive
+    end
+
     # The assistant (E10): a person's own chat with the in-zone model, its
     # read tools run as them. Its own live_session so it can be removed with
     # lib/ash_enterprise/assistant/ and AshEnterpriseWeb.AssistantLive.

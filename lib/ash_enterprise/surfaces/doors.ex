@@ -20,6 +20,9 @@ defmodule AshEnterprise.Surfaces.Doors do
     * `:compliance` — a read grant on `AshCompliance.Resources.Finding`, the
       exact `(role, privilege, depth)` tuple the derived catalogue creates and
       the seeded Administrator role picks up.
+    * `:lineage` — a read grant on `AshEnterprise.Lineage.Run`: every
+      Administrator, and any role given it as a grant row.
+    * `:audit` — a read grant on `AshEnterprise.Audit.EventLog`.
 
   Reads the actor's precomputed `ActorContext` (attached once per request or
   ACP session); `ActorContext.for_actor/1` only builds one for an actor that
@@ -30,7 +33,9 @@ defmodule AshEnterprise.Surfaces.Doors do
 
   @gates %{
     operator: AshEnterprise.Erasure.Scope,
-    compliance: AshCompliance.Resources.Finding
+    compliance: AshCompliance.Resources.Finding,
+    lineage: AshEnterprise.Lineage.Run,
+    audit: AshEnterprise.Audit.EventLog
   }
 
   @doc "Whether `door` is open for `actor`."
@@ -51,5 +56,7 @@ defmodule AshEnterprise.Surfaces.Doors do
   @spec audience(AshEnterprise.Surfaces.Surface.door()) :: String.t()
   def audience(:operator), do: "the platform operator"
   def audience(:compliance), do: "people with a compliance grant"
+  def audience(:lineage), do: "people with a lineage grant"
+  def audience(:audit), do: "people with an audit grant"
   def audience(_door), do: "signed-in people"
 end

@@ -63,7 +63,8 @@ defmodule AshEnterpriseWeb.AssistantLiveTest do
 
   test "asks, shows the lookup inline, cites the record, and keeps the thread",
        %{conn: conn, ctx: ctx} do
-    event = D.event!(ctx, "SYNTHETIC design review", 90, 30)
+    event =
+      D.event!(ctx, "SYNTHETIC design review", 90, 30, starts_at: D.today_at(~T[12:00:00]))
 
     ScriptedModel.script!([
       {:tools, [{"calendar_events", %{"input" => %{"window" => "today"}}}]},

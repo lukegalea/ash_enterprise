@@ -93,7 +93,10 @@ config :ash_enterprise, Oban,
        # one compose per calendar owner per local day. A tick, not a 06:30
        # entry, because the zone is runtime config and the day must survive
        # DST and a node that was down at 06:30 — see the scheduler's moduledoc.
-       {"*/15 * * * *", AshEnterprise.Agents.MorningBriefScheduler}
+       {"*/15 * * * *", AshEnterprise.Agents.MorningBriefScheduler},
+       # PROD-17: lineage past its 14-day window is deleted daily
+       # (AshEnterprise.Lineage.Retention).
+       {"17 4 * * *", AshEnterprise.Lineage.PruneWorker}
      ]}
   ]
 
@@ -166,12 +169,24 @@ config :ash_strangler, ledger_drain: {AshEnterprise.Ledger.UserDrainWorker, :nud
 
 # ADR 0012 / epic E2: the lineage runId IS the audit correlation id, so
 # "lineage for this audit entry" is a lookup rather than a join across
-# vocabularies. The transport host (`AshEnterprise.Lineage.Transport`) stays a
-# no-op until `:http_base_url` is set, e.g. for the local Marquez:
+# vocabularies. The host transport (`AshEnterprise.Lineage.Transport`) keeps
+# every event in the lineage store (the Lineage app), and also posts it to an
+# OpenLineage backend once `:http_base_url` is set, e.g. for the local Marquez:
 #   config :ash_open_lineage, http_base_url: "http://localhost:5000"
 config :ash_open_lineage,
   correlation_provider: AshEnterprise.Platform.Correlation,
   transport: AshEnterprise.Lineage.Transport
+
+# The lineage store buffers events off the writer's path and writes them once
+# a second (`AshEnterprise.Lineage.Store`); retention deletes after 14 days
+# (`AshEnterprise.Lineage.Retention`).
+config :ash_enterprise, AshEnterprise.Lineage.Store,
+  mode: :buffered,
+  flush_interval_ms: 1_000,
+  max_batch: 500,
+  max_buffer: 20_000
+
+config :ash_enterprise, AshEnterprise.Lineage.Retention, days: 14
 
 # Epic E3 (dogfood §7): the ACP wire adapter's host seams. The session store is
 # in-memory until epic E5 swaps in the durable AgentSession resources.
@@ -374,7 +389,8 @@ config :ash_enterprise,
     AshEnterprise.Agents,
     AshEnterprise.AI,
     AshEnterprise.Assistant,
-    AshEnterprise.Mdm
+    AshEnterprise.Mdm,
+    AshEnterprise.Lineage
   ],
   base_resources: [AshEnterprise.Platform.Resource]
 

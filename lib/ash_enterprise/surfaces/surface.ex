@@ -17,7 +17,7 @@ defmodule AshEnterprise.Surfaces.Surface do
   | `resource` | The Ash resource the surface is about |
   | `context` | The A2UI context on `ui` that selects one `resource` record for detail, or `nil` |
   | `record_match` | Attribute values a record must have to be *this* surface's, when several surfaces show the same resource (Inbox and Slack over `Conversation`); `[]` matches any |
-  | `door` | `:signed_in`, `:operator` or `:compliance`; checked by `AshEnterprise.Surfaces.Doors` on web and ACP |
+  | `door` | `:signed_in`, `:operator`, `:compliance`, `:lineage` or `:audit`; checked by `AshEnterprise.Surfaces.Doors` on web and ACP |
   | `acp` | `nil` or the ACP command spec, see below |
 
   ## `acp`
@@ -57,7 +57,7 @@ defmodule AshEnterprise.Surfaces.Surface do
     door: :signed_in
   ]
 
-  @type door :: :signed_in | :operator | :compliance
+  @type door :: :signed_in | :operator | :compliance | :lineage | :audit
   @type group ::
           :day | :operator | :org | :processes | :data | :mdm | :compliance | :legacy
 

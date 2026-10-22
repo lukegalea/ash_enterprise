@@ -3290,9 +3290,9 @@ _Strangler-fig migrations for Ash: map an Ash resource onto a legacy Postgres sc
 <!-- ash_strangler-end -->
 <!-- ash_open_lineage-start -->
 ## ash_open_lineage usage
-_The first Elixir OpenLineage emitter. A Spark extension + Ash.Notifier that
-emits spec 2-0-2 RunEvents for resource actions, and a small public API for
-non-Ash jobs. Facets carry structural names only — never actor, tenant or
+_Emits OpenLineage spec 2-0-2 RunEvents from Ash: a Spark extension +
+Ash.Notifier that emits a COMPLETE event for each successful create, update or destroy,
+and a small public API for non-Ash jobs. Facets carry structural names only — never actor, tenant or
 data values._
 
 [ash_open_lineage usage rules](deps/ash_open_lineage/usage-rules.md)

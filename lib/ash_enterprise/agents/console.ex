@@ -87,6 +87,18 @@ defmodule AshEnterprise.Agents.Console do
       run AshEnterprise.Integration.Actions.HealthDigest
     end
 
+    action :lineage, :string do
+      description "The lineage graph for a window as text: failed and running runs first."
+
+      argument :window, :atom do
+        allow_nil? false
+        default :day
+        constraints one_of: [:hour, :day, :week, :fortnight]
+      end
+
+      run AshEnterprise.Lineage.Actions.Digest
+    end
+
     action :open, :string do
       description "Open a registry surface by key; says which, and where it lives on the web."
       argument :surface, :string, allow_nil?: false
@@ -115,6 +127,7 @@ defmodule AshEnterprise.Agents.Console do
     define :people, args: [{:optional, :search}]
     define :approvals
     define :accounts
+    define :lineage, args: [{:optional, :window}]
     define :open, args: [:surface]
     define :help
   end

@@ -38,6 +38,11 @@ config :ash_enterprise, :display_time_zone, "Etc/UTC"
 # would serialize on one lock. The tests that exercise the ledger are
 # `async: false` and switch it on.
 config :ash_enterprise, AshEnterprise.BusinessEvents, emit?: false, region: :test
+
+# The lineage store keeps nothing in tests by default: most tests write rows
+# and none of them is about lineage. The lineage tests are `async: false` and
+# switch it to `:inline`, which writes inside their own sandbox transaction.
+config :ash_enterprise, AshEnterprise.Lineage.Store, mode: :off
 config :ash, policies: [show_policy_breakdowns?: true], disable_async?: true
 
 # The drain ingests inside its own transaction, and the event appends ride it

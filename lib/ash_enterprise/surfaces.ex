@@ -56,7 +56,7 @@ defmodule AshEnterprise.Surfaces do
       key: :operator,
       label: "Operator",
       menu: :day,
-      blurb: "Linked accounts, their syncs, and erasure."
+      blurb: "Linked accounts, their syncs, erasure, lineage and the audit trail."
     },
     %{
       key: :processes,
@@ -311,6 +311,48 @@ defmodule AshEnterprise.Surfaces do
         palette?: true,
         ui: A2ui.ErasureReadOnlyUI
       }
+    },
+    %Surface{
+      key: :lineage,
+      label: "Lineage",
+      blurb: "What ran, what it read and wrote, and what failed, drawn as a live graph.",
+      description:
+        "The lineage graph: every job (syncs, projections, writes) and the datasets it " <>
+          "reads and writes, with failed and running runs marked, and each run's audit " <>
+          "entries. Ask for this when the request is about what ran, a failed sync, or " <>
+          "where data came from.",
+      group: :operator,
+      order: 20,
+      icon: "hero-share",
+      path: "/app/lineage",
+      live: AshEnterpriseWeb.LineageLive,
+      ui: A2ui.LineageUI,
+      resource: AshEnterprise.Lineage.Run,
+      context: :run,
+      door: :lineage,
+      acp: %{
+        command: "lineage",
+        aliases: ["runs", "what ran"],
+        params: [window: {:one_of, ~w(hour day week fortnight)}],
+        action: {Console, :lineage},
+        description: "Lineage: failed and running runs, then each job's latest",
+        palette?: true
+      }
+    },
+    %Surface{
+      key: :audit,
+      label: "Audit trail",
+      blurb: "Every recorded change, newest first, each linked to the run that made it.",
+      group: :operator,
+      order: 30,
+      icon: "hero-clipboard-document-list",
+      path: "/app/audit",
+      live: AshEnterpriseWeb.AuditLive,
+      ui: A2ui.AuditUI,
+      resource: AshEnterprise.Audit.EventLog,
+      context: :entry,
+      door: :audit,
+      acp: %{command: "audit trail", aliases: ["audit"]}
     },
 
     # --- Processes ----------------------------------------------------------
