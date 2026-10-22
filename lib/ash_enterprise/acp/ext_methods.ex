@@ -89,19 +89,23 @@ defmodule AshEnterprise.Acp.ExtMethods do
   # -- _ash/surfaces/list -------------------------------------------------------
 
   @doc """
-  The surfaces `actor` may open over ACP, as `SurfaceEntry` maps: the
-  registry's surfaces with an A2UI UI, behind an open door, over a resource
-  the actor may read.
-  """
-  @spec entries(term()) :: [map()]
-  def entries(nil), do: []
+  The surfaces `actor` may open, as `SurfaceEntry` maps: the registry's
+  `Surfaces.openable/1` (an open door, over a resource the actor may read).
 
-  def entries(actor) do
+  `:acp` (the default) keeps those with an A2UI UI, which is all a client
+  without a browser can draw. `:web` keeps them all: the web also serves
+  the hand-written pages (the agent, flights, time travel). Both come from
+  the one list, so a surface either transport refuses is in neither.
+  """
+  @spec entries(term(), :acp | :web) :: [map()]
+  def entries(actor, transport \\ :acp)
+  def entries(nil, _transport), do: []
+
+  def entries(actor, transport) do
     groups = Map.new(Surfaces.groups(), &{&1.key, &1.label})
 
-    for surface <- Surfaces.visible(actor),
-        Surfaces.acp_ui(surface),
-        readable?(surface, actor) do
+    for surface <- Surfaces.openable(actor),
+        transport == :web or Surfaces.acp_ui(surface) do
       %{
         "id" => Atom.to_string(surface.key),
         "title" => surface.label,
@@ -112,17 +116,6 @@ defmodule AshEnterprise.Acp.ExtMethods do
         "records" => not is_nil(surface.context)
       }
     end
-  end
-
-  defp readable?(%{resource: nil}, _actor), do: true
-
-  defp readable?(%{resource: resource}, actor) do
-    case Ash.Resource.Info.primary_action(resource, :read) do
-      %{name: read} -> Ash.can?({resource, read}, actor, tenant: ActorContext.tenant(actor))
-      nil -> false
-    end
-  rescue
-    _error -> false
   end
 
   # -- _ash/surface/open --------------------------------------------------------

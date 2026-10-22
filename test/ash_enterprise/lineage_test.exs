@@ -423,11 +423,13 @@ defmodule AshEnterprise.LineageTest do
 
       nobody = quietly(fn -> member!(admin, "Nothing", []) end)
 
-      assert AshEnterprise.Agents.Console.lineage!(:day,
-               actor: nobody.actor,
-               tenant: nobody.tenant
-             ) =~
-               "no runs"
+      # Behind the Lineage door: someone without it is neither offered the
+      # command (the palette prunes on this policy) nor answered.
+      assert {:error, %Ash.Error.Forbidden{}} =
+               AshEnterprise.Agents.Console.lineage(:day,
+                 actor: nobody.actor,
+                 tenant: nobody.tenant
+               )
     end
   end
 

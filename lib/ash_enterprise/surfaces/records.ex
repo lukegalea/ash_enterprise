@@ -42,6 +42,7 @@ defmodule AshEnterprise.Surfaces.Records do
           {:no_surface, String.t()}
           | {:door_closed, String.t()}
           | {:no_detail, Surface.t()}
+          | {:no_row, Surface.t(), pos_integer()}
           | :not_found
 
   @doc """
@@ -66,6 +67,47 @@ defmodule AshEnterprise.Surfaces.Records do
   end
 
   @doc """
+  Open the `n`th row of surface `key`'s list, as the actor reads it: the
+  surface's own query on its first page (default preset, sort and window),
+  then `open/3` on that row's id, so it is re-authorized like any link.
+  What `/open <surface> <n>` means on every transport. A row past the first
+  page, or a surface with no detail, says so.
+  """
+  @spec nth(atom() | String.t(), pos_integer(), term()) :: {:ok, opened()} | {:error, error()}
+  def nth(key, n, actor) when is_integer(n) and n > 0 do
+    with {:ok, surface} <- surface(key),
+         :ok <- door(surface, actor),
+         {:ok, id} <- row_id(surface, n, actor) do
+      open(surface.key, id, actor)
+    end
+  end
+
+  defp row_id(%Surface{context: nil} = surface, _n, _actor), do: {:error, {:no_detail, surface}}
+  defp row_id(%Surface{ui: nil} = surface, _n, _actor), do: {:error, {:no_detail, surface}}
+
+  defp row_id(%Surface{ui: ui} = surface, n, actor) do
+    opts = [actor: actor, tenant: ActorContext.tenant(actor), authorize?: true]
+
+    with %{query: %AshA2ui.Query{}} = list <- list(AshA2ui.ResolvedView.resolve(ui, []), surface),
+         {:ok, records, _state} <-
+           AshA2ui.QueryRunner.run(list, AshA2ui.QueryRunner.default_params(list), opts),
+         %{id: id} <- Enum.at(records, n - 1) do
+      {:ok, to_string(id)}
+    else
+      _no_row -> {:error, {:no_row, surface, n}}
+    end
+  end
+
+  # The list a row number counts in: on a multi-table surface, the table that
+  # selects the surface's context (People's directory); else the surface's
+  # own query.
+  defp list(%{tables: [_ | _] = tables} = view, %Surface{context: context}) do
+    Enum.find(tables, view, &(&1.component.select_context == context))
+  end
+
+  defp list(view, _surface), do: view
+
+  @doc """
   The surface for `key` behind its door, with no record — what a link to a
   surface that has no detail opens.
   """
@@ -83,6 +125,9 @@ defmodule AshEnterprise.Surfaces.Records do
   def message({:door_closed, text}), do: text
   def message({:no_detail, surface}), do: "#{surface.label} has no detail to open a record in."
   def message(:not_found), do: "That record was not found, or it is not yours."
+
+  def message({:no_row, surface, n}),
+    do: "#{surface.label} has no row #{n} on its first page for you."
 
   # -- steps --------------------------------------------------------------------
 

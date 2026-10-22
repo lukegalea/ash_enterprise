@@ -39,6 +39,7 @@ defmodule AshEnterprise.Surfaces do
   alias AshEnterprise.Agents.{Console, MorningBrief}
   alias AshEnterprise.Bpmn.HumanTask
   alias AshEnterprise.Integration.LinkedAccount
+  alias AshEnterprise.Security.ActorContext
   alias AshEnterprise.Surfaces.{Doors, Surface}
   alias AshEnterpriseWeb.A2ui
   alias AshEnterpriseWeb.A2uiLive
@@ -864,12 +865,41 @@ defmodule AshEnterprise.Surfaces do
   def visible(actor), do: Enum.filter(@sorted, &open?(&1, actor))
 
   @doc """
-  The groups with the surfaces `actor` may open, empty groups dropped:
-  `[%{key, label, menu, blurb, surfaces: [Surface.t()]}]`.
+  The surfaces `actor` may open: behind an open door, over a resource they
+  may read (`readable?/2`). What every launcher offers — the web's `/app`
+  and its ctrl+k picker (`AshEnterpriseWeb.Shell`) and ACP's
+  `_ash/surfaces/list` (`AshEnterprise.Acp.ExtMethods`) — so neither lists
+  a surface the other would refuse.
   """
-  @spec grouped(term()) :: [map()]
-  def grouped(actor) do
-    visible = visible(actor)
+  @spec openable(term()) :: [Surface.t()]
+  def openable(actor), do: Enum.filter(visible(actor), &readable?(&1, actor))
+
+  @doc """
+  Whether `actor` may read `surface`'s resource at all (`Ash.can?` on its
+  primary read). A filter policy answers yes without a query: this asks
+  whether some row could be theirs, not which.
+  """
+  @spec readable?(Surface.t(), term()) :: boolean()
+  def readable?(%Surface{resource: nil}, _actor), do: true
+
+  def readable?(%Surface{resource: resource}, actor) do
+    case Ash.Resource.Info.primary_action(resource, :read) do
+      %{name: read} -> Ash.can?({resource, read}, actor, tenant: ActorContext.tenant(actor))
+      nil -> false
+    end
+  rescue
+    _error -> false
+  end
+
+  @doc """
+  The groups with the surfaces `actor` may open, empty groups dropped:
+  `[%{key, label, menu, blurb, surfaces: [Surface.t()]}]`. `surfaces` picks
+  which: `visible/1` (doors only, what the nav lists) by default, or
+  `openable/1`.
+  """
+  @spec grouped(term(), (term() -> [Surface.t()])) :: [map()]
+  def grouped(actor, surfaces \\ &visible/1) do
+    visible = surfaces.(actor)
 
     @groups
     |> Enum.map(fn group ->

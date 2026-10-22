@@ -128,6 +128,8 @@ defmodule AshEnterpriseWeb.Router do
     # surface, re-authorized as the signed-in person, then a redirect to the
     # surface with the record selected. See AshEnterpriseWeb.RecordController.
     get "/app/r/:surface/:id", RecordController, :show
+    # The nth row of a surface's list, as `/open <surface> <n>` asks for it.
+    get "/app/r/:surface/row/:n", RecordController, :row
 
     # --- A2UI surfaces -------------------------------------------------------
     #

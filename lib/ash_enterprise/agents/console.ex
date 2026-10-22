@@ -144,6 +144,12 @@ defmodule AshEnterprise.Agents.Console do
     policy always() do
       authorize_if actor_present()
     end
+
+    # `lineage` fronts the Lineage surface, which has a door: the command is
+    # offered (and runs) only where the surface would open.
+    policy action(:lineage) do
+      authorize_if {AshEnterprise.Surfaces.DoorOpen, door: :lineage}
+    end
   end
 
   code_interface do

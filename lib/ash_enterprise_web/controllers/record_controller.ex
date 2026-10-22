@@ -17,13 +17,28 @@ defmodule AshEnterpriseWeb.RecordController do
 
   alias AshEnterprise.Surfaces.Records
 
-  def show(conn, %{"surface" => surface, "id" => id}) do
+  def show(conn, %{"surface" => surface, "id" => id}),
+    do: land(conn, &Records.open(surface, id, &1))
+
+  @doc """
+  `/app/r/:surface/row/:n`: the `n`th row of the surface's list, as the
+  person reads it (`Records.nth/3`), then the same landing as `show/2`. What
+  the web's `/open <surface> <n>` navigates to.
+  """
+  def row(conn, %{"surface" => surface, "n" => n}) do
+    case Integer.parse(n) do
+      {n, ""} when n > 0 -> land(conn, &Records.nth(surface, n, &1))
+      _not_a_row -> land(conn, fn _actor -> {:error, :not_found} end)
+    end
+  end
+
+  defp land(conn, open) do
     case conn.assigns[:current_user] do
       nil ->
         redirect(conn, to: ~p"/sign-in")
 
       actor ->
-        case Records.open(surface, id, actor) do
+        case open.(actor) do
           {:ok, %{path: path}} ->
             redirect(conn, to: path)
 
