@@ -19,6 +19,12 @@
   },
   {
     "law": "11",
+    "file": "lib/ash_enterprise_web/live/launcher_live.ex",
+    "text": "def handle_event(\"filter\", %{\"launch\" => %{\"q\" => q}}, socket) do",
+    "reason": "No handler reads or writes: filter narrows a list read at mount (Surfaces.openable/1, the doors and Ash.can? as the signed-in user), and launch only navigates to a surface from that list, whose own mount checks its door again (SurfaceDoor). The detector only looks for Ash.can? in the file."
+  },
+  {
+    "law": "11",
     "file": "lib/ash_enterprise_web/live/time_travel_live.ex",
     "text": "def handle_event(\"as_of_scrub\", params, socket) do",
     "reason": "No handler reads or writes: each one only push_patches a URL. Every read runs in handle_params as the signed-in user (actor and tenant from current_user), through Person, SourceIdentity, MatchCandidate, the ledger and Fact under their own policies. The detector only looks for Ash.can? in the file."
