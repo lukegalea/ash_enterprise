@@ -151,6 +151,19 @@ defmodule AshEnterprise.Test.DailyFixtures do
   end
 
   @doc """
+  A moment today on the display zone's clock, as UTC: where an event goes that
+  a `today` window must hold whatever hour the test runs at. `now + 60 minutes`
+  is tomorrow after 23:00.
+  """
+  def today_at(%Time{} = time) do
+    zone = AshEnterprise.Platform.LocalTime.zone()
+
+    AshEnterprise.Platform.LocalTime.today()
+    |> DateTime.new!(time, zone, Tz.TimeZoneDatabase)
+    |> DateTime.shift_zone!("Etc/UTC", Tz.TimeZoneDatabase)
+  end
+
+  @doc """
   A calendar event `minutes_from_now` ahead (or at `opts[:starts_at]`),
   lasting `minutes`.
   """
