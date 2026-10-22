@@ -34,7 +34,7 @@ reschedules?" is `/app/calendar?week=<a date in that week>&as_of=<last Monday>`.
 
 What the risks in the table below turned out to be:
 
-- **The upsert splits.** ash_postgres's temporal upsert (`AshPostgres.Temporal.upsert_all/6`) splits the version
+- **The upsert splits.** ash_postgres's temporal upsert (its `upsert_all/6`) splits the version
   valid at the write's instant and keeps the part before it, so a reschedule keeps the old time. Two things it does
   not do, which the host now does for it:
   - it does not refresh update defaults on a match, unlike the plain upsert (`touch_update_defaults?`), so a new

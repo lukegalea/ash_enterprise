@@ -5,7 +5,7 @@ defmodule AshEnterprise.Canonical.Changes.KeepUnchangedVersion do
   current one, and the action returns it.
 
   `CalendarEvent` is temporal (ADR 0049), and its upsert splits the version
-  valid at the write's instant on every match (`AshPostgres.Temporal`), even
+  valid at the write's instant on every match (in ash_postgres), even
   when no value changed. A projector re-writes an event whenever its
   provider reports it, and Google reports an event for changes this model
   does not project (a description, someone's answer to the invitation),
