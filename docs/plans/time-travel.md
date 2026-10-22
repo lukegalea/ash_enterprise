@@ -2,8 +2,9 @@
 
 The dogfood app can show what it knew at any instant for the two resources that were already temporal:
 who a golden person resolved to (`AshEnterprise.Mdm.SourceIdentity`) and what System One knew about a
-subject (`AshEnterprise.SystemOne.Fact`). This page records what the first slice built, how the read path
-works, and which resources should become temporal next. Nothing in the last section is built.
+subject (`AshEnterprise.SystemOne.Fact`), and, since the second slice, the calendar
+(`AshEnterprise.Canonical.CalendarEvent`). This page records what each slice built, how the read path
+works, and which resources should become temporal next.
 
 ## What is built (2026-10-21)
 
@@ -16,6 +17,64 @@ works, and which resources should become temporal next. Nothing in the last sect
 | The Time travel app (`/app/time-travel`, a person, a subject) | `AshEnterpriseWeb.TimeTravelLive` | `test/ash_enterprise_web/time_travel_live_test.exs` |
 | Golden records at an instant (`/app/mdm/golden?as_of=`) | `AshEnterpriseWeb.A2uiLive.MdmGolden` | same LiveView suite |
 | "As of last Friday" in the agent chat | `as_of` on the `find_people` tool | `test/ash_enterprise/assistant/lookup_test.exs`, eval case `resolved_last_friday` |
+
+## Slice 2: the calendar (2026-10-22)
+
+`AshEnterprise.Canonical.CalendarEvent` is temporal. "What did my week look like last Monday, before the
+reschedules?" is `/app/calendar?week=<a date in that week>&as_of=<last Monday>`.
+
+| Piece | Where | Proven by |
+|---|---|---|
+| The resource, its key and identities, each existing row's first version | `CalendarEvent`'s `temporal` block; `CalendarEvent.TemporalCutover` (custom statements); migration `20261022161918` | `test/ash_enterprise/canonical/calendar_time_travel_test.exs` |
+| A write that changes nothing opens no version | `Canonical.Changes.KeepUnchangedVersion` | same suite |
+| Agenda windows cut around the read's instant | `Preparations.AgendaWindow`, `LocalTime.window/2` | same suite |
+| A week's reschedules and cancellations as marks | `Canonical.CalendarHistory` | same suite |
+| The calendar at `?as_of=`, `?week=`, the scrubber | `AshEnterpriseWeb.DailyLive.Calendar` (`calendar_live.ex`) | `test/ash_enterprise_web/live/calendar_time_travel_live_test.exs` |
+| "What was on my calendar last Monday, as of Friday" | `as_of` on the `calendar_events` tool | `lookup_test.exs`, eval case `calendar_as_of` |
+
+What the risks in the table below turned out to be:
+
+- **The upsert splits.** ash_postgres's temporal upsert (`AshPostgres.Temporal.upsert_all/6`) splits the version
+  valid at the write's instant and keeps the part before it, so a reschedule keeps the old time. Two things it does
+  not do, which the host now does for it:
+  - it does not refresh update defaults on a match, unlike the plain upsert (`touch_update_defaults?`), so a new
+    version kept the first write's `updated_at`, and its business event the wrong `occurred_at`. `upsert_fields`
+    names `:updated_at` and `:modified_on`;
+  - it splits on every match, even when nothing changed, and Google reports events for changes this model does not
+    project. `KeepUnchangedVersion` compares the projected values (the sealed ones in the clear) inside the write's
+    transaction and returns the current version instead (`Ash.Changeset.set_result/2`); the attendee and
+    business-event hooks still run against it.
+- **The migration generator converts nothing.** On an existing table it adds `valid_at` and drops the foreign keys
+  that touch the table, and leaves the plain `(id)` key and the plain unique identity indexes, both of which refuse an
+  event's second version. `TemporalCutover` does the rest as custom statements, so codegen still emits the migration:
+  each row's period from its `inserted_at`, `PRIMARY KEY (id, valid_at WITHOUT OVERLAPS)`, the identities as
+  `EXCLUDE USING gist (…, valid_at WITH &&)` under the generator's own names, and the foreign keys to
+  `erasure_scopes` and `canonical_people` put back (a key from a temporal table to an ordinary one is enforceable; only
+  one pointing *at* a temporal table is not). `EventAttendee.event_id` loses its foreign key: `id` alone is no longer
+  unique. Nothing destroys events, so the lost `ON DELETE CASCADE` cascaded nothing.
+- **Hooks.** `DeriveAttendees`, `SealUnderScope` and `BusinessEvents.Changes.Derive` declare `temporal_safe?/1`,
+  each with its reasoning in its moduledoc: no clock, reads through Ash, and nothing whose meaning depends on the
+  instant (a scope's key is the same for its whole life). `AshCloak`'s own change finds nothing to do, because
+  `SealUnderScope` has already sealed the arguments.
+- **AgendaWindow** cuts "today" around `query.as_of`. Read now, the instant is the clock.
+- **Erasure.** Every version is sealed under the one scope key, so a shred reaches all of them; the suite reads each
+  version's ciphertext before and after. A shredded event's times stay readable, version by version, which
+  `docs/runbooks/crypto-shredding.md` now says.
+
+What is not temporal shows today's values, and the calendar page says so: who is invited (`EventAttendee`), and
+people's names.
+
+### Deferred
+
+- **The grid's "today".** ash_a2ui's calendar takes "today" from the wall clock (`AshA2ui.Calendar.today/0`): its
+  default window, the Today button and the quick ranges' `calendar_anchor`. The page passes the week, so the grid
+  opens where it should; a quick range clicked while pinned lists that range as of the instant (the read is
+  `AgendaWindow`'s) but moves the grid to the real today. Threading `as_of` into `AshA2ui.Calendar` is a small
+  ash_a2ui change.
+- **Attendance history.** `EventAttendee` is not temporal, so who was invited, and how they answered, is today's.
+- **Versions from before the cutover.** An event rewritten before the migration carries its current values back to
+  its `inserted_at`. The ledger's `calendar_event.changed` facts hold the earlier times and statuses, if a backfill
+  of those versions is ever wanted.
 
 ## How the read path works
 
@@ -39,8 +98,8 @@ works, and which resources should become temporal next. Nothing in the last sect
 
 ## Which resources should become temporal next
 
-Each of these is its own migration decision. None of them is done, and each needs the temporal-safety
-audit that ADR 0049 invariant 4 requires before it moves.
+Each of these is its own migration decision, and each needs the temporal-safety audit that ADR 0049
+invariant 4 requires before it moves. CalendarEvent is done (slice 2, above); the others are not.
 
 | Resource | Recommendation | What it would answer | What has to change first |
 |---|---|---|---|

@@ -25,6 +25,12 @@
   },
   {
     "law": "11",
+    "file": "lib/ash_enterprise_web/live/calendar_live.ex",
+    "text": "def handle_event(\"as_of_scrub\", params, socket) do",
+    "reason": "Navigation only: it turns the scrubber position into an instant on the page's own span and push_patches the URL; nothing is read or written. The surface's reads (and the a2ui events, delegated to AshA2ui.LiveRenderer) run as the signed-in user under CalendarEvent's policies, and the history read runs as them too. The detector only looks for Ash.can? in the file."
+  },
+  {
+    "law": "11",
     "file": "lib/ash_enterprise_web/live/bpmn/catalog_live.ex",
     "text": "def handle_event(\"customize\", %{\"key\" => key}, socket) do",
     "reason": "Authorized through policies: the handler passes the signed-in user as actor to Ash-backed calls, which is one of the two forms the law accepts. The detector only looks for Ash.can? in the file."
