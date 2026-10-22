@@ -179,7 +179,7 @@ defmodule AshEnterprise.MixProject do
   # for running Dialyzer against it, so the ignore file is seeded empirically.
   defp dialyzer do
     [
-      # `ash_agent_tools` is `only: :dev, runtime: false`, so it never appears in
+      # `ash_agent_tools` is `only: [:dev, :test], runtime: false`, so it never appears in
       # the application tree dialyxir's default `:app_tree` mode walks: runtime
       # deps only make it into ash_enterprise.app's :applications. Without it in
       # the PLT, every call into the dep reports unknown_function. Listing it
@@ -232,9 +232,12 @@ defmodule AshEnterprise.MixProject do
       {:ash_credo, "~> 0.17", only: [:dev, :test], runtime: false},
       {:ash_cloak, "~> 0.3"},
 
-      # Read-only Ash introspection for coding agents. First-party, public on
-      # GitHub and not yet on hex; mix.lock pins the SHA.
-      {:ash_agent_tools, github: "lukegalea/ash_agent_tools", only: :dev, runtime: false},
+      # Read-only Ash introspection for coding agents, and the code subjects
+      # the engineering standards are judged over (`AshEnterprise.Standards`,
+      # compiled only when this dependency is loaded, so in dev and test).
+      # First-party, public on GitHub and not yet on hex; mix.lock pins the SHA.
+      {:ash_agent_tools,
+       github: "lukegalea/ash_agent_tools", only: [:dev, :test], runtime: false},
 
       # Docs as a validator, not a publication: see the EXTRA_DOCS note above
       # `docs/0`.
@@ -318,10 +321,12 @@ defmodule AshEnterprise.MixProject do
       # code). The host's residency policy lives in
       # `AshEnterprise.Zones.ResidencyPolicy` and is registered under
       # `:residency_policy`.
-      # Pinned to main for the facts temporal-swap (AST-147/148: the
-      # TemporalFragment + the equivalence battery). 0.x while hosts soak —
-      # same declaration as vpm_poc (VPM-49/51), so the family moves together.
-      {:ash_judgments, github: "lukegalea/ash_judgments", branch: "main"},
+      # Tracks the default branch (main) for the facts temporal-swap
+      # (AST-147/148: the TemporalFragment + the equivalence battery); mix.lock
+      # pins the SHA. 0.x while hosts soak. Declared without `branch:` so it
+      # matches ash_agent_tools' optional declaration of the same repository:
+      # Mix treats a differing `branch:` as a diverged dependency.
+      {:ash_judgments, github: "lukegalea/ash_judgments"},
 
       # --- The evidence pipeline substrate (System One adjudication) -----------
       # Document versions, addressed atoms, candidate sets, packets and the
@@ -496,14 +501,13 @@ defmodule AshEnterprise.MixProject do
         "phx.digest"
       ],
       # ast.check gates the agent-facing surface: the usage-rules links in
-      # AGENTS.md (and, under MIX_ENV=dev, the action contracts agents call).
+      # AGENTS.md and the action contracts agents call.
       # Last in the list so the suite has already prepared the database that
       # booting the app for it needs. See docs/AST-CHECK.md.
       #
       # scripts/iron-laws.sh runs the laws judge over what this change adds and
       # over the tree against its reviewed baseline. It sets MIX_ENV=dev for
-      # the judge itself, since ash_agent_tools is dev-only. See
-      # docs/IRON-LAWS.md.
+      # the judge itself. See docs/IRON-LAWS.md.
       precommit: [
         "compile --warnings-as-errors",
         "deps.unlock --unused",

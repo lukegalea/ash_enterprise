@@ -38,9 +38,9 @@ can't outlive the code it excused.
 
 The judge exits 0 whether or not it finds anything. Its verdict is the
 `clean?` field in its JSON, and the script reads that field with `jq`, which
-both devenv and GitHub's runners provide. ash_agent_tools is an `only: :dev`
-dependency, so the script always runs the judge under `MIX_ENV=dev`, even
-from `mix precommit`, which itself runs under `test`.
+both devenv and GitHub's runners provide. The script always runs the judge under
+`MIX_ENV=dev` (ash_agent_tools is a dev and test dependency), even from
+`mix precommit`, which itself runs under `test`.
 
 ### Blocking, not advisory
 

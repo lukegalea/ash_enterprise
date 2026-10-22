@@ -88,5 +88,23 @@
     "file": "lib/mix/tasks/ash_enterprise.demo.ex",
     "text": "Mix.Task.run(\"app.start\")",
     "reason": "DemoData opens an import batch through Oban (worker + inline drain) and the seed's confirmation path renders URLs from the endpoint; a minimal repo-only boot cannot run the demo and a standalone Repo collides with the app.start that legacy.project pulls in."
+  },
+  {
+    "law": "07",
+    "file": "test/ash_enterprise/standards/questions_test.exs",
+    "text": "use Oban.Worker",
+    "reason": "Synthetic source inside a string: the standards candidate-rung test feeds it to AshAgentTools.CodeSubjects as input data. It is never compiled or run, and it is shaped like a violation on purpose."
+  },
+  {
+    "law": "11",
+    "file": "test/ash_enterprise/standards/questions_test.exs",
+    "text": "def handle_event(\"save\", params, socket), do: {:noreply, assign(socket, :p, params)}",
+    "reason": "Synthetic source inside a string: the standards candidate-rung test feeds it to AshAgentTools.CodeSubjects as input data. It is never compiled or run, and it is shaped like a violation on purpose."
+  },
+  {
+    "law": "11",
+    "file": "test/ash_enterprise/standards/standing_test.exs",
+    "text": "def handle_event(\"save\", params, socket), do: {:noreply, assign(socket, :p, params)}",
+    "reason": "Synthetic source inside a string: the standards candidate-rung test feeds it to AshAgentTools.CodeSubjects as input data. It is never compiled or run, and it is shaped like a violation on purpose."
   }
 ]

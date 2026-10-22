@@ -40,12 +40,12 @@ agent meets most: a read with required arguments
 (`Process.Binding.for_kind`), and a `get_by` lookup
 (`Accounts.User.get_by_email`).
 
-**This step needs `ash_agent_tools`, which is an `only: :dev` dependency**
-(`github: "lukegalea/ash_agent_tools"`, not on hex). Under `MIX_ENV=test` — therefore
-in CI and in `mix precommit` — the step reports itself skipped with that
-reason. The full run is the dev-env default:
+**This step needs `ash_agent_tools`, which is an `only: [:dev, :test]` dependency**
+(`github: "lukegalea/ash_agent_tools"`, not on hex). It runs in dev and test, so in
+CI and in `mix precommit` too. In an environment without the dependency the step
+reports itself skipped with that reason.
 
-    mix ast.check    # dev env: contracts + links
+    mix ast.check    # contracts + links
 
 ### Rules links — `rules-links`
 

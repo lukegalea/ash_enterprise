@@ -105,8 +105,8 @@ confined so that removing one is a deletion, not a refactor.
 | `ash_decisions` | DMN decisions | `boxic_dmn` fork | no: needs `boxic_dmn` upstream |
 | `ash_discrete_business_events` | business-event ledger (ADR 0051) | `ash_events` fork | no: needs `ash_events` upstream |
 | `ash_mdm` | master data: mappings, matching, survivorship merge (ADR 0054) | `ash_discrete_business_events` | no: after `ash_discrete_business_events` |
-| `ash_judgments` | judgment substrate (System One); declared `branch: "main"` | `ash_rules`, `ash_compliance`, `ash_bpmn`, `ash_decisions`, `ash_events` fork | no: needs both forks gone |
-| `ash_agent_tools` | read-only Ash introspection for coding agents (dev only) | `ash_rules`, `ash_bpmn`, `ash_decisions` (all optional) | after those three, so after `boxic_dmn` |
+| `ash_judgments` | judgment substrate (System One); tracks the default branch, declared without `branch:` to match `ash_agent_tools` | `ash_rules`, `ash_compliance`, `ash_bpmn`, `ash_decisions`, `ash_events` fork | no: needs both forks gone |
+| `ash_agent_tools` | read-only Ash introspection for coding agents, and the code subjects the standards are judged over (dev and test only) | `ash_rules`, `ash_bpmn`, `ash_decisions`, `ash_judgments` (all optional) | after those four, so after `boxic_dmn` and both forks |
 
 **Path to Hex:** a Hex package can only depend on Hex packages, so publish from the leaves up:
 1. The packages with no git dependencies of their own.
