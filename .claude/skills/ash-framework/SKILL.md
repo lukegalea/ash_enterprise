@@ -40,6 +40,7 @@ metadata:
 - [queries](references/ash_a2ui/queries.md)
 - [relationships](references/ash_a2ui/relationships.md)
 - [reports](references/ash_a2ui/reports.md)
+- [time-travel](references/ash_a2ui/time-travel.md)
 - [zero-jank](references/ash_a2ui/zero-jank.md)
 
 ### ash_acp

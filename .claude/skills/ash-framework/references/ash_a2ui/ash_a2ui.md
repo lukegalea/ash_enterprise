@@ -41,6 +41,9 @@ Sub-rules (addressable as `ash_a2ui:<name>`):
 - `ash_a2ui:diagrams` — `diagram` entities: a host source returning a
   mermaid diagram and markers, server-resolved marker links, lazy-loaded
   mermaid in the admin catalog, and PubSub-driven marker moves.
+- `ash_a2ui:time-travel` — surfaces read as of an instant (`:as_of`,
+  `?as_of=`, `AshA2ui.AsOf`) over Ash temporal resources, why a pinned
+  surface is view-only, and the `AshA2ui.TimeScrubber` control.
 - `ash_a2ui:zero-jank` — the Zero Jank Manifesto translated to A2UI
   surfaces: instant feedback is client-side (optimistic data-model writes,
   typed feedback, in-flight action buttons, the bootstrap skeleton), what
