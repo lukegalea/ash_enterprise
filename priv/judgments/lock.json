@@ -39,6 +39,74 @@
     "hash": "sha256:545dfbec358bad82798173f18c435f28e67a380272a7e969986e68c4a3bfb285",
     "version": 1
   },
+  "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/association_query_strategy": {
+    "hash": "sha256:9b91409346c1f4e6e34b7cb6cd2d20912d47d5997a9d62ba4c7c422c3fa57397",
+    "version": 1
+  },
+  "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/comments_are_durable_facts_only": {
+    "hash": "sha256:65bf265c7fe5321bac8bb780cadc920e2b26ad45b2ba56b9da147b80530d9604",
+    "version": 1
+  },
+  "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/handle_event_authorizes": {
+    "hash": "sha256:893f7dad5f710eefd56dfe42824867374f90754b186886a1a8df963a51ee6458",
+    "version": 1
+  },
+  "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/hs1_lead_with_outcome_or_ask": {
+    "hash": "sha256:c25b82718ab051587ddaa170ac0cbc2f3020c8993ec34287c6f69e0512987e49",
+    "version": 1
+  },
+  "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/hs2_keep_it_short": {
+    "hash": "sha256:175db23a0508cd3695a7c829e179d5228ba22e409eac1e2d2e6cc57f590a53a1",
+    "version": 1
+  },
+  "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/hs3_use_plain_words": {
+    "hash": "sha256:9bfcf69cbff830ed62aa563bc0910d4407f710535598cb284d746ee8aff00cdd",
+    "version": 1
+  },
+  "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/hs4_claim_only_built_and_proven": {
+    "hash": "sha256:68ff1b03204990d38e2c3dacb5ee84f61b9444ff25bca48cfbf415272758766b",
+    "version": 1
+  },
+  "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/hs5_promise_only_agreed_to": {
+    "hash": "sha256:a517ae882167ad7c61b3ff05b19fbe33592dcaf2de480db9f147e4d8766feff8",
+    "version": 1
+  },
+  "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/hs6_no_novelty_claims": {
+    "hash": "sha256:321fc41d05f78235b819bab78ba093b2b6ece1c51da39a5b5a85475b1d49cf0d",
+    "version": 1
+  },
+  "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/hs7_never_invent_name_feature_or_date": {
+    "hash": "sha256:095f22bf37199376fdb41bb287b30ed61f0c4a4fc6410605634f157fa4d041c1",
+    "version": 1
+  },
+  "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/hs8_no_internal_shorthand_for_outside": {
+    "hash": "sha256:142efbc4748028fa9130e68faa5036b7882d4f3e3efe594b69a67011a0aeee78",
+    "version": 1
+  },
+  "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/hs9_interface_copy_languages": {
+    "hash": "sha256:7bfce42ab1890ee8865c1e4d03caa1e580b4f4ded0c4c2aa2592390a9c8f8759",
+    "version": 1
+  },
+  "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/no_forbid_if_for_row_access": {
+    "hash": "sha256:ca81263bc294ef9bcb9c7cf014d2fc6a0ae05f315203e0a0d9a796af28285dd8",
+    "version": 1
+  },
+  "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/oban_args_string_keyed": {
+    "hash": "sha256:6ed530e476c6c336ea37e0e51c911c174b8e40386780c1b5e32cfa4ba38ee241",
+    "version": 1
+  },
+  "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/policy_check_never_queries": {
+    "hash": "sha256:ecc318c36fe4c2150857ae53c2c4e8966f9d41df90c6e0068302aa7b1e4f1ec0",
+    "version": 1
+  },
+  "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/stores_ids_not_structs": {
+    "hash": "sha256:5550af6d500e7852d5da3a579a9c095f54a9606c2b26365e338b4894099e6e18",
+    "version": 1
+  },
+  "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/third_party_api_wrapped": {
+    "hash": "sha256:8ffbed604881981fda9231cdd597617239301a766569aea278c5ff984fc84883",
+    "version": 1
+  },
   "judgment:v0:AshEnterprise.SystemOne.TestSupport.EvidenceFile#judgments/document_contains": {
     "hash": "sha256:c1f19a826e4c9d40c4dffae6019426007c6e48c1968a2ce81bf47d553acca30d",
     "version": 1

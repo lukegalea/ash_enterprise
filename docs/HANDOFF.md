@@ -42,7 +42,7 @@ true:
 - **Every first-party package is a public GitHub dependency** tracking its own
   `main`, with the SHA pinned by `mix.lock`: `ash_a2ui`, `ash_strangler`,
   `ash_bpmn`, `ash_decisions`, `ash_rules`, `ash_compliance` (which brings
-  `ash_events_projections`), and `ash_agent_tools` (dev only). `mix.exs` says
+  `ash_events_projections`), and `ash_agent_tools` (dev and test only). `mix.exs` says
   why there is no `ref:`.
 - **`ash_strangler`, `ash_bpmn` and `ash_decisions` are adopted here**, which is
   what moved [ADR 0009](adr/0009-strangler-and-bpmn-are-first-party.md) to
@@ -77,9 +77,9 @@ Nine traps, each of which cost time to find:
    and blocks every other mix command, and process-compose restarts it.
 4. **Long `mix` commands: run them backgrounded and poll**, don't pipe through
    `tail` — the pipe buffers and you see nothing until completion.
-5. **The iron-laws judge runs under `MIX_ENV=dev`** even inside `mix precommit`,
-   because `ash_agent_tools` is a dev-only dependency. `scripts/iron-laws.sh`
-   sets it; do not "fix" that by exporting `MIX_ENV` (trap 2).
+5. **The iron-laws judge runs under `MIX_ENV=dev`** even inside `mix precommit`.
+   `scripts/iron-laws.sh` sets it; do not "fix" that by exporting `MIX_ENV`
+   (trap 2).
 6. **`$PGPORT` can disagree with reality** even when `enterShell` reads the
    conf: a concurrent `devenv up` rewrites `postgresql.conf`, and the re-export
    clobbers an outer `PGPORT`. Check `ss -ltnp | grep 543` against the actual

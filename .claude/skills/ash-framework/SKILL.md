@@ -211,7 +211,9 @@ mix usage_rules.search_docs "search term" -p ash -p ash_a2ui -p ash_acp -p ash_a
 - `mix ash_agent.rules` - Lists AshRules rule sets and dry-evaluates them as JSON
 - `mix ash_agent.runtime` - BEAM runtime snapshot, top processes, or supervision tree as JSON
 - `mix ash_agent.search` - Searches symbols across loaded Ash resources as JSON
+- `mix ash_agent.seeds` - Seed labels for standards over code, from the laws judge and fix commits, as JSON
 - `mix ash_agent.serve` - Serve the Ash introspection MCP daemon (read-only)
+- `mix ash_agent.subjects` - Extracts code units as judgment subjects, as JSON
 - `mix ash_agent.transitions` - Describes an AshStateMachine resource as JSON (+ Mermaid)
 - `mix ash_agent.validate` - Validates params for an Ash action without running it
 - `mix ash_ai.gen.chat` - Generates the resources and views for a conversational UI backed by `ash_postgres` and `ash_oban`

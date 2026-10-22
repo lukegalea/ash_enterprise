@@ -16,9 +16,10 @@
 #
 # Usage: scripts/usage-rules-check.sh
 #
-# ash_agent_tools is `only: :dev` and contributes a section, so the sync runs
-# under MIX_ENV=dev. Under :test that section would vanish and the check would
-# report drift that is not there.
+# The sync runs under MIX_ENV=dev, the environment AGENTS.md is generated in.
+# ash_agent_tools contributes a section; it is a dev and test dependency, so an
+# environment without it would drop that section and report drift that is not
+# there.
 
 set -euo pipefail
 

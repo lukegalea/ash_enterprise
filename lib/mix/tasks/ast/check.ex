@@ -23,8 +23,8 @@ defmodule Mix.Tasks.Ast.Check do
   input contract. A rename that would silently break every agent transcript
   referencing the old name fails here instead of out in the world.
 
-  This step needs `ash_agent_tools`, which is an `only: :dev` dependency.
-  Anywhere else (:test, CI) the step is skipped with a warning rather than
+  This step needs `ash_agent_tools`, which is an `only: [:dev, :test]`
+  dependency. Anywhere else the step is skipped with a warning rather than
   failing, and the gate still covers the remaining steps.
 
   ## Rules links (`--skip-links` to skip)
@@ -111,7 +111,7 @@ defmodule Mix.Tasks.Ast.Check do
       not contracts_available?() ->
         skipped(
           "contracts",
-          "ash_agent_tools is a dev-only dependency; run with MIX_ENV=dev for this step"
+          "ash_agent_tools is a dev and test dependency; run with MIX_ENV=dev or test for this step"
         )
 
       true ->
@@ -149,15 +149,15 @@ defmodule Mix.Tasks.Ast.Check do
 
   # -- contracts -------------------------------------------------------------
 
-  # `runtime: false` and `only: :dev`: rather than crash on a missing module in
-  # :test, report the step as skipped and let the other steps gate.
+  # `runtime: false` and `only: [:dev, :test]`: rather than crash on a missing
+  # module elsewhere, report the step as skipped and let the other steps gate.
   defp contracts_available? do
     match?({:module, _}, Code.ensure_loaded(AshAgentTools))
   end
 
   # Referenced through a string so the module atom only exists at runtime:
-  # ash_agent_tools is only: :dev, and CI's MIX_ENV=test WAE compile must not
-  # see a compile-time reference -- Elixir 1.18 resolves even a local
+  # ash_agent_tools is not a production dependency, and a compile without it
+  # must not see a compile-time reference -- Elixir 1.18 resolves even a local
   # `module = AshAgentTools` variable back to the atom and warns. The indirection
   # is the same one the trace task uses for AshAgentTools.Trace.
   @agent_tools_module "Elixir.AshAgentTools"

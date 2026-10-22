@@ -21,7 +21,7 @@
 # that matches a baseline entry (same law, file and trimmed line) passes.
 # Review-tier hits are counted in the JSON but never fail the run.
 #
-# ash_agent_tools is an `only: :dev` dependency, so the judge always runs under
+# ash_agent_tools is a dev and test dependency; the judge always runs under
 # MIX_ENV=dev -- including when this script is called from `mix precommit`,
 # which itself runs under MIX_ENV=test. The judge is pure text processing: it
 # neither boots nor compiles the application.

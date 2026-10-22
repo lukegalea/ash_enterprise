@@ -188,15 +188,13 @@ jobs:
       # The agent-facing gate: every relative link in the composed AGENTS.md
       # still resolves, and the semantic manifests (once any exist) still parse
       # with valid ash:v0 symbol ids. The contract step inside it needs
-      # ash_agent_tools, which is only: :dev -- so under MIX_ENV=test it
-      # reports itself skipped and the full run, contracts included, is the
-      # dev-env `mix ast.check`.
+      # ash_agent_tools, a dev and test dependency, so it runs here too.
       # See docs/AST-CHECK.md.
       - name: Agent contracts and rules links
         run: mix ast.check
 
-      # The two steps below need dev-only dependencies (ash_agent_tools for the
-      # laws judge, ex_doc for the docs build), so they run under MIX_ENV=dev.
+      # The two steps below run under MIX_ENV=dev: the laws judge's script sets
+      # it, and ex_doc (for the docs build) is a dev-only dependency.
       # They sit in this job rather than their own because this job has already
       # fetched the dependencies. Compiling the dev dependencies gets its
       # own step so its log stays out of the checks' output. See
@@ -222,8 +220,8 @@ jobs:
       # AGENTS.md and .claude/skills are generated from the usage-rules.md
       # files the locked dependencies ship. A mix.lock bump without
       # `mix usage_rules.sync` leaves them describing the old versions, and
-      # nothing else notices. Dev env because ash_agent_tools is dev-only and
-      # contributes a section.
+      # nothing else notices. Dev env, the environment AGENTS.md is generated
+      # in.
       - name: Usage rules synced with mix.lock
         run: scripts/usage-rules-check.sh
 
