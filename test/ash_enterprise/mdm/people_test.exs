@@ -378,6 +378,26 @@ defmodule AshEnterprise.Mdm.PeopleTest do
     assert queue(ctx) == []
   end
 
+  test "a superseded pair ends its steward review: the run is cancelled, its task closed", ctx do
+    publish_steward_review!()
+    _jane = jane!(ctx)
+
+    assert {:ok, %{review: 1}} = Pipeline.run(ctx.tenant)
+    assert [candidate] = queue(ctx)
+    task = steward_task!(ctx, candidate)
+    assert task.status in [:open, :claimed]
+
+    # What a merge absorbing the golden, a restage or a decided sibling does.
+    candidate
+    |> Ash.Changeset.for_update(:update, %{status: :superseded}, system(ctx))
+    |> Ash.update!(system(ctx))
+
+    instance = Ash.get!(AshEnterprise.Bpmn.Instance, task.instance_id, system(ctx))
+    assert instance.status == :cancelled
+    assert reload(ctx, task).status == :cancelled
+    assert queue(ctx) == []
+  end
+
   test "replay: delete the goldens, replay, the same rows come back", ctx do
     sam = person!(ctx, "sam.rivera@acme.test", "Sam Rivera")
     work = person!(ctx, "jane@acme.test", "Jane Doe")

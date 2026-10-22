@@ -218,6 +218,12 @@ defmodule AshEnterprise.Mdm.MatchCandidate do
     end
   end
 
+  # Every path that supersedes a candidate (a merge absorbing its golden, a
+  # restage, a sibling decided) also ends its steward review.
+  changes do
+    change AshEnterprise.Mdm.Changes.EndStewardReview, on: [:update]
+  end
+
   actions do
     # The golden must be readable by the reader (ADR 0017's existence rule,
     # ADR 0054 §"Does it consume ActorContext?" 1): candidates are generated
