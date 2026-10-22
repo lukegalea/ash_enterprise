@@ -3340,7 +3340,7 @@ _The System One judgment substrate for Ash: declared, typed, calibrated
 questions over any subject resource, a provenance-carrying judgment ledger,
 and the bridges that turn recorded judgments into DMN inputs, rule facts and
 process signals. Transport is upstream `ash_ai` evaluate over ReqLLM — this
-package ships no HTTP client, provider or answer types._
+package ships no HTTP client or provider._
 
 [ash_judgments usage rules](deps/ash_judgments/usage-rules.md)
 <!-- ash_judgments-end -->

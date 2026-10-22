@@ -46,6 +46,58 @@ defmodule AshEnterprise.SystemOne.Fact do
   postgres do
     table "system_one_facts"
     repo AshEnterprise.Repo
+
+    # The table was created by a hand-written migration (20261007150002)
+    # without the `PRIMARY KEY (id, valid_at WITHOUT OVERLAPS)` the
+    # snapshot records, and the generator cannot diff a missing key. The
+    # package's repair adds it when absent and is a no-op once present;
+    # its `down` deliberately leaves the key, which belongs to the resource.
+    #
+    # That migration archived the pre-temporal table by rename, and the
+    # archive kept its key constraint under the name `system_one_facts_pkey`.
+    # Constraint index names are unique per schema, so while the archive
+    # holds it the repair's key comes out as `system_one_facts_pkey1` —
+    # not the name ash_postgres maps key conflicts by, nor the one a future
+    # key migration drops. The first statement moves the archive's key to
+    # an archive-scoped name so the repair's key gets the canonical one.
+    custom_statements do
+      statement :system_one_facts_legacy_pkey_rename do
+        up """
+        DO $rename$
+        BEGIN
+          IF EXISTS (
+            SELECT 1 FROM pg_constraint
+            WHERE conname = 'system_one_facts_pkey'
+              AND conrelid = to_regclass('"system_one_facts_legacy_20261007"')
+          ) THEN
+            ALTER TABLE "system_one_facts_legacy_20261007"
+              RENAME CONSTRAINT "system_one_facts_pkey" TO "system_one_facts_legacy_20261007_pkey";
+          END IF;
+        END
+        $rename$
+        """
+
+        down """
+        DO $rename$
+        BEGIN
+          IF to_regclass('"system_one_facts_pkey"') IS NULL AND EXISTS (
+            SELECT 1 FROM pg_constraint
+            WHERE conname = 'system_one_facts_legacy_20261007_pkey'
+              AND conrelid = to_regclass('"system_one_facts_legacy_20261007"')
+          ) THEN
+            ALTER TABLE "system_one_facts_legacy_20261007"
+              RENAME CONSTRAINT "system_one_facts_legacy_20261007_pkey" TO "system_one_facts_pkey";
+          END IF;
+        END
+        $rename$
+        """
+      end
+
+      statement :system_one_facts_temporal_primary_key do
+        up AshJudgments.Facts.TemporalPrimaryKey.repair_up("system_one_facts")
+        down AshJudgments.Facts.TemporalPrimaryKey.repair_down("system_one_facts")
+      end
+    end
   end
 
   events do
