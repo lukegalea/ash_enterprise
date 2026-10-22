@@ -13,13 +13,36 @@ defmodule AshEnterprise.Canonical.Task do
   ## A person's own action items (ADR 0052)
 
   Any active member may capture an action item for themselves (`:capture`),
-  read their own (`:mine`) and mark one of their own done (`:complete_mine`)
-  with no role grant. `:complete_mine` is a generic action because a
-  self-service update cannot be declared: it finds the task through `:mine`,
-  as the actor, so it reaches only a row the actor owns, and only then runs
-  `:complete` on it. That write is the actor's own act on their own row,
-  recorded under their name in the audit log; every other update to a task
-  still takes a role grant.
+  read their own (`:mine`, `:due_today`) and move one of their own between
+  lanes or mark it done with no role grant. The moves are generic actions
+  because a self-service update cannot be declared: each finds the task
+  through `:mine`, as the actor, so it reaches only a row the actor owns, and
+  only then runs one guarded update on it
+  (`AshEnterprise.Canonical.Actions.ActOnOwnTask`). That write is the actor's
+  own act on their own row, recorded under their name in the audit log; every
+  other update to a task still takes a role grant.
+
+  ## One list of action items (PROD-18)
+
+  The Action items surface (`AshEnterpriseWeb.A2ui.ActionItemsUI`) is a board
+  over the actor's own tasks, in lanes: **Inbox** (captured, not yet sorted),
+  **Today**, **Later** and **Done**. `plan` is where the person put an open
+  task; `lane` derives the board column from it and `status`.
+
+  | Self-service action | Update | Allowed from |
+  |---|---|---|
+  | `plan_today_mine` | `:plan_today` | an open task |
+  | `plan_later_mine` | `:plan_later` | an open task |
+  | `complete_mine` | `:complete` | an open task |
+  | `reopen_mine` | `:reopen` | a done or dropped task; it returns to the lane it left |
+  | `drop_mine` | `:drop` | an open task (cancelled: no longer wanted) |
+
+  The updates check the status themselves; the board's `visible_when` only
+  decides which buttons a card shows.
+
+  `origin_type` / `origin_id` name the record a task came from (a
+  conversation, an event), and `origin_ref` turns them into a link that opens
+  it, re-read as whoever follows it.
 
   ## A judged question (S1-53)
 
@@ -28,8 +51,8 @@ defmodule AshEnterprise.Canonical.Task do
   `task_actionable_status` and `task_actionable_reason` from it — fields
   that read the facts table in the task's own query — and keeps
   `judgment_digests` current, so a retitled task's fact reads stale and
-  the `:reassess_judgments` trigger is enqueued. Changing the status or
-  the due date touches no projection field and enqueues nothing.
+  the `:reassess_judgments` trigger is enqueued. Changing the status, the
+  plan or the due date touches no projection field and enqueues nothing.
   """
 
   use AshEnterprise.Platform.Resource,
@@ -38,7 +61,17 @@ defmodule AshEnterprise.Canonical.Task do
     tenant?: true,
     lifecycle?: false,
     archival?: false,
-    self_service: [:capture, :mine, :complete_mine],
+    self_service: [
+      :capture,
+      :mine,
+      :due_today,
+      :complete_mine,
+      :plan_today_mine,
+      :plan_later_mine,
+      :reopen_mine,
+      :drop_mine
+    ],
+    notifiers: [Ash.Notifier.PubSub],
     extra_extensions: [
       AshAi,
       AshJudgments.Registry,
@@ -49,6 +82,17 @@ defmodule AshEnterprise.Canonical.Task do
   postgres do
     table "canonical_tasks"
     repo AshEnterprise.Repo
+  end
+
+  # What keeps the Action items board and Today live: a capture over ACP, or
+  # a move or a completion on another page, refreshes every open page, which
+  # re-reads as its own actor (`AshEnterprise.Surfaces.topics/1` reads these).
+  pub_sub do
+    module AshEnterpriseWeb.Endpoint
+    prefix "canonical_tasks"
+
+    publish_all :create, ["created"]
+    publish_all :update, ["updated"]
   end
 
   judgments do
@@ -107,11 +151,40 @@ defmodule AshEnterprise.Canonical.Task do
       description "The commitment's state: open until it is done or cancelled."
     end
 
+    attribute :plan, :atom do
+      allow_nil? false
+      public? true
+      constraints one_of: [:inbox, :today, :later]
+      default :inbox
+
+      description """
+      Where the person put an open task: `inbox` (captured, not yet sorted),
+      `today` or `later`. Kept when the task is done, so reopening returns it
+      to the lane it left.
+      """
+    end
+
     attribute :source, :string do
       allow_nil? false
       public? true
       constraints max_length: 64
-      description "Where the task came from: manual, gmail, slack, calendar."
+      description "Where the task came from: manual, assistant, acp, gmail, slack, calendar."
+    end
+
+    attribute :origin_type, :string do
+      public? true
+      constraints max_length: 255
+
+      description """
+      The resource the task came from, as the engine names a subject
+      (`"Elixir.AshEnterprise.Canonical.Conversation"`): the commitment's
+      thread, the meeting it follows up. Nil for a task typed in.
+      """
+    end
+
+    attribute :origin_id, :uuid do
+      public? true
+      description "The id of the record the task came from."
     end
 
     attribute :external_system, :string do
@@ -143,11 +216,24 @@ defmodule AshEnterprise.Canonical.Task do
       prepare build(sort: [due_at: :asc_nils_last, inserted_at: :desc])
     end
 
+    read :due_today do
+      description """
+      The actor's own open tasks for today: planned for today, or due before
+      the end of today on the display zone's clock (overdue included),
+      soonest due first. What Today's action-items section and the `today`
+      digest list.
+      """
+
+      filter expr(owner_id == ^actor(:id) and owner_type == :user and status == :open)
+      prepare AshEnterprise.Canonical.Preparations.DueToday
+    end
+
     create :capture do
       description """
-      Capture an open action item for the actor, owned by them. `source`
-      records where it came from: `manual` (typed in) or `assistant`
-      (proposed in the agent chat and confirmed by the person).
+      Capture an open action item for the actor, owned by them, into their
+      Inbox. `source` records where it came from: `manual` (typed in),
+      `assistant` (proposed in the agent chat and confirmed by the person) or
+      `acp` (said as `todo …` in the terminal).
       """
 
       accept [:title, :due_at]
@@ -155,10 +241,11 @@ defmodule AshEnterprise.Canonical.Task do
       argument :source, :atom do
         allow_nil? false
         default :manual
-        constraints one_of: [:manual, :assistant]
+        constraints one_of: [:manual, :assistant, :acp]
       end
 
       change set_attribute(:status, :open)
+      change set_attribute(:plan, :inbox)
       change set_attribute(:source, arg(:source))
       change set_attribute(:owner_id, actor(:id))
       change set_attribute(:owner_type, :user)
@@ -167,25 +254,99 @@ defmodule AshEnterprise.Canonical.Task do
     end
 
     update :complete do
-      description "Mark the task done."
+      description "Mark an open task done."
       accept []
+      validate attribute_equals(:status, :open), message: "only an open task can be marked done"
       change set_attribute(:status, :done)
     end
 
-    action :complete_mine, :struct do
-      description """
-      Mark one of the actor's own tasks done: found through `:mine` as the
-      actor, then `:complete`. Another person's task is not found.
-      """
+    update :plan_today do
+      description "Put an open task on today's list."
+      accept []
+      validate attribute_equals(:status, :open), message: "only an open task can be planned"
+      change set_attribute(:plan, :today)
+    end
 
+    update :plan_later do
+      description "Put an open task off until later."
+      accept []
+      validate attribute_equals(:status, :open), message: "only an open task can be planned"
+      change set_attribute(:plan, :later)
+    end
+
+    update :reopen do
+      description "Reopen a done or dropped task; it returns to the lane it left."
+      accept []
+
+      validate attribute_in(:status, [:done, :cancelled]),
+        message: "only a done or dropped task can be reopened"
+
+      change set_attribute(:status, :open)
+    end
+
+    update :drop do
+      description "Drop an open task: it is no longer wanted (cancelled)."
+      accept []
+      validate attribute_equals(:status, :open), message: "only an open task can be dropped"
+      change set_attribute(:status, :cancelled)
+    end
+
+    # The self-service moves (ADR 0052, note of 2026-10-17): each finds the
+    # task through `:mine` as the actor, then runs one guarded update above.
+    # `record_id` is what an A2UI row action passes.
+    action :complete_mine, :struct do
+      description "Mark one of the actor's own open tasks done. Another person's task is not found."
       constraints instance_of: __MODULE__
 
-      argument :task_id, :uuid do
-        allow_nil? false
-        description "The task to mark done (one of the actor's own)."
-      end
+      argument :record_id, :uuid,
+        allow_nil?: false,
+        description: "The task (one of the actor's own)."
 
-      run AshEnterprise.Canonical.Actions.CompleteOwnTask
+      run {AshEnterprise.Canonical.Actions.ActOnOwnTask, update: :complete}
+    end
+
+    action :plan_today_mine, :struct do
+      description "Put one of the actor's own open tasks on today's list."
+      constraints instance_of: __MODULE__
+
+      argument :record_id, :uuid,
+        allow_nil?: false,
+        description: "The task (one of the actor's own)."
+
+      run {AshEnterprise.Canonical.Actions.ActOnOwnTask, update: :plan_today}
+    end
+
+    action :plan_later_mine, :struct do
+      description "Put one of the actor's own open tasks off until later."
+      constraints instance_of: __MODULE__
+
+      argument :record_id, :uuid,
+        allow_nil?: false,
+        description: "The task (one of the actor's own)."
+
+      run {AshEnterprise.Canonical.Actions.ActOnOwnTask, update: :plan_later}
+    end
+
+    action :reopen_mine, :struct do
+      description "Reopen one of the actor's own done or dropped tasks."
+      constraints instance_of: __MODULE__
+
+      argument :record_id, :uuid,
+        allow_nil?: false,
+        description: "The task (one of the actor's own)."
+
+      run {AshEnterprise.Canonical.Actions.ActOnOwnTask, update: :reopen}
+    end
+
+    action :drop_mine, :struct do
+      description "Drop one of the actor's own open tasks: no longer wanted."
+      constraints instance_of: __MODULE__
+
+      argument :record_id, :uuid,
+        allow_nil?: false,
+        description: "The task (one of the actor's own)."
+
+      run {AshEnterprise.Canonical.Actions.ActOnOwnTask, update: :drop}
     end
 
     read :by_external do
@@ -215,6 +376,8 @@ defmodule AshEnterprise.Canonical.Task do
         :due_at,
         :status,
         :source,
+        :origin_type,
+        :origin_id,
         :external_system,
         :external_id,
         :owner_id,
@@ -229,12 +392,71 @@ defmodule AshEnterprise.Canonical.Task do
     end
   end
 
+  calculations do
+    # The board column: where an open task was put, or how it ended.
+    calculate :lane,
+              :atom,
+              expr(
+                cond do
+                  status == :done -> :done
+                  status == :cancelled -> :dropped
+                  plan == :today -> :today
+                  plan == :later -> :later
+                  true -> :inbox
+                end
+              ) do
+      public? true
+      constraints one_of: [:inbox, :today, :later, :done, :dropped]
+      description "The Action items lane: inbox, today, later, done (or dropped)."
+    end
+
+    calculate :due, :string, AshEnterprise.Canonical.Calculations.TaskDue do
+      public? true
+
+      description """
+      When it is due, on the display zone's clock (`Mon 12 Oct 17:00`, with
+      `· overdue` once past for an open task); nil when it has no due date.
+      """
+    end
+
+    # Structural, never content: what kind of record the task came from.
+    calculate :origin_label,
+              :string,
+              expr(
+                cond do
+                  is_nil(origin_id) -> nil
+                  source == "gmail" -> "Gmail thread"
+                  source == "slack" -> "Slack conversation"
+                  source == "calendar" -> "Calendar event"
+                  true -> "Where it came from"
+                end
+              ) do
+      public? true
+
+      description "The kind of record the task came from (`Gmail thread`); nil for a task typed in."
+    end
+
+    calculate :origin_ref, :string, AshEnterprise.Canonical.Calculations.OriginRef do
+      public? true
+
+      description """
+      The record the task came from as a typed reference, `<surface>:<id>`
+      (the `record` link target); nil for a task typed in.
+      """
+    end
+  end
+
   code_interface do
     define :by_external, args: [:system, :id], not_found_error?: false
     define :upsert_from_source
     define :read
     define :mine
+    define :due_today
     define :capture, args: [:title]
-    define :complete_mine, args: [:task_id]
+    define :complete_mine, args: [:record_id]
+    define :plan_today_mine, args: [:record_id]
+    define :plan_later_mine, args: [:record_id]
+    define :reopen_mine, args: [:record_id]
+    define :drop_mine, args: [:record_id]
   end
 end

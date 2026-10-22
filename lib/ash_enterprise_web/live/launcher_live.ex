@@ -30,6 +30,7 @@ defmodule AshEnterpriseWeb.LauncherLive do
   alias AshEnterprise.Agents.{MorningBrief, Today}
   alias AshEnterprise.Assistant.PinnedApp
   alias AshEnterprise.Bpmn.HumanTask
+  alias AshEnterprise.Canonical.Task
   alias AshEnterprise.Security.ActorContext
   alias AshEnterprise.Surfaces
   alias AshEnterpriseWeb.Layouts
@@ -37,6 +38,7 @@ defmodule AshEnterpriseWeb.LauncherLive do
   # Which pulse line speaks for which card.
   @signal_cards %{
     "Approvals" => :approvals,
+    "Action items" => :action_items,
     "Next up" => :calendar,
     "Inbox" => :inbox,
     "Slack" => :slack
@@ -66,7 +68,8 @@ defmodule AshEnterpriseWeb.LauncherLive do
       )
 
     if connected?(socket) do
-      for topic <- Surfaces.topics(MorningBrief) ++ Surfaces.topics(HumanTask) do
+      for topic <-
+            Surfaces.topics(MorningBrief) ++ Surfaces.topics(HumanTask) ++ Surfaces.topics(Task) do
         Phoenix.PubSub.subscribe(AshEnterprise.PubSub, topic)
       end
 

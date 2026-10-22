@@ -354,6 +354,11 @@ defmodule AshEnterpriseWeb.DailyLive do
     use AshEnterpriseWeb.DailyLive.Surface, ui: AshEnterpriseWeb.A2ui.PeopleUI
   end
 
+  defmodule ActionItems do
+    @moduledoc "`/app/action-items` — the person's action items as a board, and the process tasks waiting on them."
+    use AshEnterpriseWeb.DailyLive.Surface, ui: AshEnterpriseWeb.A2ui.ActionItemsUI
+  end
+
   defmodule Approvals do
     @moduledoc "`/app/approvals` — the human tasks waiting on the signed-in person."
     use AshEnterpriseWeb.DailyLive.Surface, ui: AshEnterpriseWeb.A2ui.ApprovalsUI

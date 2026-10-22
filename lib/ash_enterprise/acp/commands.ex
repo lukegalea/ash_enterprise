@@ -21,6 +21,9 @@ defmodule AshEnterprise.Acp.Commands do
   | `accounts` | `Console.accounts` | `AccountsUI` |
   | `sync calendar\\|gmail\\|slack` | `LinkedAccount.sync_now` | `AccountsUI` |
   | `erasure` | `Scope.scopes_digest` | `ErasureReadOnlyUI` — no shred over ACP |
+  | `todo` / `todos` / `action items` | `Console.action_items` | `ActionItemsUI` |
+  | `todo <text>` | `Console.todo` — captured into the actor's Inbox | `ActionItemsUI` |
+  | `done N` | `Console.done` — the Nth item of the `todo` list | `ActionItemsUI` |
   | any other surface's command, or `open <surface>` | `Console.open` | that surface's UI, if it has one |
   | `open <surface> <id>` / `open <surface> <n>` | `Console.open` | that surface with the record (by id, or the nth row) selected |
   | `help` | `Console.help` | none |
@@ -29,12 +32,17 @@ defmodule AshEnterprise.Acp.Commands do
   (`AshEnterprise.Surfaces`): a prompt that names a surface is matched there
   first (longest command or alias wins), and a surface whose door is closed
   for the actor is refused — the same door the web checks. What is left are
-  the verbs: `brief`, `approve`, `reject`, `sync`, `help`.
+  the verbs: `brief`, `approve`, `reject`, `sync`, `done`, `help`.
 
   Decisions, syncs and composing a brief are consequential:
   `AshEnterprise.Acp.Approvals` turns them into `session/request_permission`
-  (ADR 0015) before they run. Shred is not routable at all — it exists only
-  on the web, behind a typed confirmation.
+  (ADR 0015) before they run. Capturing and finishing one's own action item
+  are not: each is the person's own act on their own row, and undone from the
+  board (Drop, Reopen). Shred is not routable at all — it exists only on the
+  web, behind a typed confirmation.
+
+  `todo <text>` keeps the text as typed (the rest of the grammar matches on a
+  lower-cased prompt), so an action item reads the way it was said.
   """
 
   require Ash.Query
@@ -43,6 +51,8 @@ defmodule AshEnterprise.Acp.Commands do
   alias AshEnterprise.Agents.{Console, MorningBrief}
   alias AshEnterprise.Bpmn.Actions.QueueDigest
   alias AshEnterprise.Bpmn.HumanTask
+  alias AshEnterprise.Canonical.Actions.ActionItemsDigest
+  alias AshEnterprise.Canonical.Task
   alias AshEnterprise.Erasure.Scope
   alias AshEnterprise.Integration.LinkedAccount
   alias AshEnterprise.Platform.LocalTime
@@ -80,6 +90,13 @@ defmodule AshEnterprise.Acp.Commands do
     command = normalize(text)
     open? = String.starts_with?(command, "open ")
 
+    case capture_text(text) do
+      {:ok, title} -> capture(title, actor, tenant)
+      :none -> route_command(command, open?, actor, tenant)
+    end
+  end
+
+  defp route_command(command, open?, actor, tenant) do
     case Surfaces.match_command(String.replace_prefix(command, "open ", "")) do
       {surface, rest} ->
         case record_ref(rest, open?) do
@@ -236,6 +253,11 @@ defmodule AshEnterprise.Acp.Commands do
   defp surface_route(:accounts, _rest, _surface, tenant),
     do: ok(Console, :accounts, %{}, "Accounts & syncs", tenant, {A2ui.AccountsUI, []})
 
+  # `todo <text>` never gets here (`capture_text/1` takes it first), so any
+  # rest is not an item to capture: the list opens.
+  defp surface_route(:action_items, _rest, _surface, tenant),
+    do: ok(Console, :action_items, %{}, "Action items", tenant, {A2ui.ActionItemsUI, []})
+
   defp surface_route(:erasure, _rest, surface, tenant),
     do: ok(Scope, :scopes_digest, %{}, "Erasure scopes", tenant, {Surfaces.acp_ui(surface), []})
 
@@ -263,6 +285,7 @@ defmodule AshEnterprise.Acp.Commands do
   defp do_route("approve " <> which, actor, tenant), do: decide(:approve, which, actor, tenant)
   defp do_route("reject " <> which, actor, tenant), do: decide(:reject, which, actor, tenant)
   defp do_route("sync " <> provider, actor, tenant), do: sync(provider, actor, tenant)
+  defp do_route("done " <> which, actor, tenant), do: finish(String.trim(which), actor, tenant)
 
   defp do_route(command, _actor, tenant) when command in ["help", "?", "commands"] do
     ok(Console, :help, %{}, "Help", tenant, nil)
@@ -323,6 +346,61 @@ defmodule AshEnterprise.Acp.Commands do
       {:ok, task, "##{n} #{task.subject_label || task.name}"}
     else
       _ -> {:error, "no approval ##{number} — say `approvals` to list them"}
+    end
+  end
+
+  # `todo <text>` (or `to do <text>`), as typed: `{:ok, text}`, else `:none`.
+  # `todo list` names the list, not an item.
+  defp capture_text(text) do
+    case Regex.run(~r/^\/?(?:todo|to do)\s+(.+)$/iu, String.trim(text)) do
+      [_, rest] ->
+        rest = rest |> String.replace(~r/\s+/u, " ") |> String.trim()
+        if String.downcase(rest) == "list", do: :none, else: {:ok, rest}
+
+      nil ->
+        :none
+    end
+  end
+
+  # Behind the surface's door, like opening it: the capture is the actor's
+  # own `Task.capture`, run by `Console.todo` as them.
+  defp capture(title, actor, tenant) do
+    surface = Surfaces.fetch!(:action_items)
+
+    if Surfaces.open?(surface, actor) do
+      ok(
+        Console,
+        :todo,
+        %{text: title},
+        "Capture: #{String.slice(title, 0, 60)}",
+        tenant,
+        {A2ui.ActionItemsUI, []},
+        kind: :edit
+      )
+    else
+      {:error, "#{surface.label} is for #{Doors.audience(surface.door)}."}
+    end
+  end
+
+  # `done 2`: resolved as the actor from the same list `todo` shows, so the
+  # number is the one they saw.
+  defp finish(number, actor, tenant) do
+    opts = [actor: actor, tenant: tenant, authorize?: true]
+
+    with {n, ""} when n > 0 <- Integer.parse(String.trim_leading(number, "#")),
+         {:ok, items} <- ActionItemsDigest.items(opts),
+         %Task{} = task <- Enum.at(items, n - 1) do
+      ok(
+        Console,
+        :done,
+        %{record_id: task.id},
+        "Done: ##{n} #{String.slice(task.title, 0, 60)}",
+        tenant,
+        {A2ui.ActionItemsUI, []},
+        kind: :edit
+      )
+    else
+      _ -> {:error, "no action item ##{number} — say `todo` to list them"}
     end
   end
 

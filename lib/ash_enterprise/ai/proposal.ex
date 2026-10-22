@@ -272,7 +272,7 @@ defmodule AshEnterprise.AI.Proposal do
          summary: "Mark \"#{clip(found.title, 120)}\" done",
          resource: Task,
          action: :complete_mine,
-         params: %{task_id: found.id},
+         params: %{record_id: found.id},
          details: [
            action_item: clip(found.title, 200),
            due: found.due_at && LocalTime.stamp(found.due_at),
@@ -438,7 +438,7 @@ defmodule AshEnterprise.AI.Proposal do
     }
 
   def to_wire(%__MODULE__{kind: :complete_task, params: params}),
-    do: %{"kind" => "complete_task", "task_id" => params.task_id}
+    do: %{"kind" => "complete_task", "task_id" => params.record_id}
 
   def to_wire(%__MODULE__{kind: :draft_reply, params: params}),
     do: %{

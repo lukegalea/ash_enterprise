@@ -8,8 +8,11 @@ defmodule AshEnterpriseWeb.A2ui.TodayUI do
   `AshEnterprise.Agents.BriefDecision`, which decides the brief's BPMN
   approval task as the actor — the process records the outcome, nothing here
   writes the brief. Two reports frame it: today's agenda and the day's pulse
-  (approvals waiting, next event, sync health, inbox), both ordinary reads as
-  the actor (`AshEnterprise.Agents.Today`). The web host runs them on mount.
+  (approvals waiting, action items, next event, sync health, inbox), both
+  ordinary reads as the actor (`AshEnterprise.Agents.Today`). The web host
+  runs them on mount. Between them, the day's action items: the person's own
+  open tasks planned for today or due by tonight (`Task.due_today`), each a
+  link to its card on Action items.
 
   Served at `/app/today` and, as the `today` prompt, over ACP.
   """
@@ -53,6 +56,21 @@ defmodule AshEnterpriseWeb.A2ui.TodayUI do
       fields [:headline, :status, :summary, :brief_events, :approval, :process_stage]
     end
 
+    # The day's action items (PROD-18): the person's own open tasks planned
+    # for today or due by tonight, each a link to it on the Action items
+    # board. Read through the self-service `Task.due_today`.
+    component :table, :today_items do
+      resource AshEnterprise.Canonical.Task
+      fields [:title, :due, :source]
+      read_action :due_today
+
+      row_layout do
+        title :title
+        meta [:due, :source]
+        columns 2
+      end
+    end
+
     component :report, :agenda do
       action :agenda
       fields [:time, :title, :where, :status]
@@ -75,6 +93,21 @@ defmodule AshEnterpriseWeb.A2ui.TodayUI do
 
     field :headline do
       label "Morning brief"
+    end
+
+    # The agenda's `title` column (an event's) and today_items' (a task's)
+    # share this block; a task's title links to its card on Action items.
+    field :title do
+      label "What"
+      link {:action_items, :id}
+    end
+
+    field :due do
+      label "Due"
+    end
+
+    field :source do
+      label "From"
     end
 
     field :summary do

@@ -100,7 +100,7 @@ defmodule AshEnterprise.SurfacesTest do
     test "the palette is derived: palette commands, their verbs, then open and help" do
       names = Enum.map(Surfaces.candidate_actions(), & &1.name)
 
-      assert ~w(today compose calendar inbox slack people approvals approve reject accounts
+      assert ~w(today compose calendar inbox slack people todo done approvals approve reject accounts
                 sync erasure lineage open help) == names
     end
   end

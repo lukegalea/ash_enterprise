@@ -226,6 +226,40 @@ defmodule AshEnterprise.Surfaces do
         palette?: true
       }
     },
+    # PROD-18: one list of what the person has to do. `todo` alone opens it,
+    # `todo <text>` captures into the Inbox, `done N` finishes the Nth item
+    # of the `todo` list (AshEnterprise.Acp.Commands).
+    %Surface{
+      key: :action_items,
+      label: "Action items",
+      blurb:
+        "Everything you have to do: captured items in Inbox, Today, Later and Done, " <>
+          "with the process tasks waiting on you beside them.",
+      group: :day,
+      order: 45,
+      icon: "hero-check-circle",
+      path: "/app/action-items",
+      live: DailyLive.ActionItems,
+      ui: A2ui.ActionItemsUI,
+      resource: AshEnterprise.Canonical.Task,
+      context: :item,
+      acp: %{
+        command: "todo",
+        aliases: ["todos", "to do", "action items"],
+        params: [text: :string],
+        action: {Console, :action_items},
+        description: "Your action items, numbered; `todo <text>` captures one",
+        palette?: true,
+        verbs: [
+          %{
+            command: "done",
+            action: {Console, :done},
+            hint: "N",
+            description: "Mark the Nth action item of `todo` done"
+          }
+        ]
+      }
+    },
     %Surface{
       key: :approvals,
       label: "Approvals",

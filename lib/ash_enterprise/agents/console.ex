@@ -1,6 +1,6 @@
 defmodule AshEnterprise.Agents.Console do
   @moduledoc """
-  The terminal's read-only commands (the ACP prompts of
+  The terminal's commands (the ACP prompts of
   `AshEnterprise.Acp.Commands`): each answers in a few lines of text for the
   transcript, built from ordinary reads **as the calling actor** — the same
   read actions, under the same policies, the matching web surface uses.
@@ -11,6 +11,8 @@ defmodule AshEnterprise.Agents.Console do
     * `people` — the directory, optionally searched (`Canonical.Actions.DirectoryDigest`)
     * `approvals` — tasks waiting on the actor, numbered (`Bpmn.Actions.QueueDigest`)
     * `accounts` — linked accounts and sync health (`Integration.Actions.HealthDigest`)
+    * `action_items` / `todo` / `done` — the actor's own action items: the
+      numbered list, quick capture, finishing one (`Canonical.Actions.ActionItemsDigest`)
     * `open` — any registry surface, behind its door (`Agents.Actions.OpenSurface`)
     * `help` — the commands the actor may run
 
@@ -22,7 +24,9 @@ defmodule AshEnterprise.Agents.Console do
   for any signed-in human, and everything it says comes out of reads that are
   filtered as that human. It reveals nothing a read would not.
 
-  No rows, no data, nothing written.
+  No rows and no data of its own. The only writes are `todo` and `done`, each
+  the actor's own self-service action on their own task (ADR 0052),
+  authorized as them.
   """
 
   use AshEnterprise.Platform.Resource,
@@ -82,6 +86,28 @@ defmodule AshEnterprise.Agents.Console do
       run AshEnterprise.Bpmn.Actions.QueueDigest
     end
 
+    action :action_items, :string do
+      description "The actor's open action items, numbered Today, Inbox, Later; what waits on them."
+      run {AshEnterprise.Canonical.Actions.ActionItemsDigest, op: :list}
+    end
+
+    action :todo, :string do
+      description "Capture an action item into the actor's Inbox (their own `Task.capture`)."
+
+      argument :text, :string do
+        allow_nil? false
+        constraints min_length: 1, max_length: 1024
+      end
+
+      run {AshEnterprise.Canonical.Actions.ActionItemsDigest, op: :capture}
+    end
+
+    action :done, :string do
+      description "Mark one of the actor's own action items done (their own `Task.complete_mine`)."
+      argument :record_id, :uuid, allow_nil?: false
+      run {AshEnterprise.Canonical.Actions.ActionItemsDigest, op: :done}
+    end
+
     action :accounts, :string do
       description "Linked accounts and their sync health. Never a connection id or content."
       run AshEnterprise.Integration.Actions.HealthDigest
@@ -126,6 +152,9 @@ defmodule AshEnterprise.Agents.Console do
     define :inbox, args: [{:optional, :system}]
     define :people, args: [{:optional, :search}]
     define :approvals
+    define :action_items
+    define :todo, args: [:text]
+    define :done, args: [:record_id]
     define :accounts
     define :lineage, args: [{:optional, :window}]
     define :open, args: [:surface]

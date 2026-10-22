@@ -175,6 +175,7 @@ defmodule AshEnterpriseWeb.Router do
       live "/app/inbox", DailyLive.Inbox
       live "/app/slack", DailyLive.Slack
       live "/app/people", DailyLive.People
+      live "/app/action-items", DailyLive.ActionItems
       live "/app/approvals", DailyLive.Approvals
       live "/app/accounts", DailyLive.Accounts
 

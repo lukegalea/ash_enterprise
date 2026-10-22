@@ -5,10 +5,13 @@ defmodule AshEnterprise.Agents.Today do
   calling actor, under their policies; nothing here holds data of its own.
 
     * `agenda/1` — today's events (time, title, where, status);
-    * `pulse/1` — approvals waiting, people who may be the same person
-      (MDM's steward queue, when any), the next event, sync health per linked
-      account, and whether the inbox and Slack are flowing;
-    * `digest/1` — all of it, plus the latest morning brief, as text.
+    * `pulse/1` — approvals waiting, action items for today and still to
+      sort, people who may be the same person (MDM's steward queue, when
+      any), the next event, sync health per linked account, and whether the
+      inbox and Slack are flowing;
+    * `today_items/1` — the actor's own open action items for today;
+    * `digest/1` — all of it, plus the latest morning brief and today's
+      action items, as text.
 
   A read that fails (a missing grant, say) reports `unavailable` for its line
   rather than failing the whole day: a person opening Today wants the rest of
@@ -20,7 +23,7 @@ defmodule AshEnterprise.Agents.Today do
   alias AshEnterprise.Agents.MorningBrief
   alias AshEnterprise.Bpmn.Actions.QueueDigest
   alias AshEnterprise.Canonical.Actions.AgendaDigest
-  alias AshEnterprise.Canonical.{Admission, CalendarEvent, Conversation}
+  alias AshEnterprise.Canonical.{Admission, CalendarEvent, Conversation, Task}
   alias AshEnterprise.Integration.LinkedAccount
   alias AshEnterprise.Platform.LocalTime
 
@@ -46,7 +49,7 @@ defmodule AshEnterprise.Agents.Today do
   @spec pulse(keyword()) :: {:ok, [map()]}
   def pulse(opts) do
     rows =
-      [approvals_row(opts)] ++
+      [approvals_row(opts), action_items_row(opts)] ++
         people_rows(opts) ++
         [next_event_row(opts)] ++
         account_rows(opts) ++ [inbox_row(:gmail, opts), inbox_row(:slack, opts)]
@@ -80,7 +83,60 @@ defmodule AshEnterprise.Agents.Today do
     {:ok, pulse} = pulse(opts)
     signals = Enum.map(pulse, &"  #{&1.signal}: #{&1.value}")
 
-    {:ok, Enum.join([agenda, "", brief, "", "Pulse" | signals], "\n")}
+    {:ok, Enum.join([agenda, "", brief, "", today_items_text(opts), "", "Pulse" | signals], "\n")}
+  end
+
+  @doc """
+  The actor's own open action items for today — planned for today, or due
+  by tonight (`Task.due_today`), soonest due first.
+  """
+  def today_items(opts), do: Task.due_today(Keyword.put(opts, :authorize?, true))
+
+  defp today_items_text(opts) do
+    case today_items(opts) do
+      {:ok, []} ->
+        "Today's action items — none. Say `todo` for the whole list."
+
+      {:ok, tasks} ->
+        lines =
+          Enum.map(tasks, fn task ->
+            due = if task.due_at, do: "  · due #{LocalTime.stamp(task.due_at)}", else: ""
+            "  - #{task.title}#{due}"
+          end)
+
+        Enum.join(["Today's action items — #{length(tasks)}." | lines], "\n")
+
+      {:error, _} ->
+        "Today's action items — unavailable."
+    end
+  end
+
+  # PROD-18: how much is on today's list, and how much is still unsorted.
+  defp action_items_row(opts) do
+    value =
+      with {:ok, today} <- today_items(opts),
+           {:ok, inbox} <-
+             Task.mine(
+               Keyword.merge(opts,
+                 authorize?: true,
+                 query: [filter: [status: :open, plan: :inbox]]
+               )
+             ) do
+        # An unsorted item already due by tonight is counted once, as today's.
+        today_ids = MapSet.new(today, & &1.id)
+        inbox = Enum.reject(inbox, &MapSet.member?(today_ids, &1.id))
+
+        case {length(today), length(inbox)} do
+          {0, 0} -> "nothing open"
+          {t, 0} -> "#{t} for today"
+          {0, i} -> "#{i} in your inbox to sort"
+          {t, i} -> "#{t} for today · #{i} in your inbox"
+        end
+      else
+        {:error, _} -> "unavailable"
+      end
+
+    %{signal: "Action items", value: value}
   end
 
   @doc "The actor's most recent morning brief, with its draft rendered."
