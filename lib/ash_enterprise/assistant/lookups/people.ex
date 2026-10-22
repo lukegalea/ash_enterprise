@@ -28,23 +28,11 @@ defmodule AshEnterprise.Assistant.Lookups.People do
     query = String.trim(input.arguments[:query] || "")
 
     Support.gated(input, context, fn opts ->
-      case as_of(input.arguments[:as_of]) do
+      case Support.as_of(input.arguments[:as_of]) do
         {:ok, as_of} -> search(query, as_of, opts)
         :error -> Support.refused("Give as_of as a date (2026-10-16) or a UTC time.")
       end
     end)
-  end
-
-  defp as_of(nil), do: {:ok, nil}
-  defp as_of(""), do: {:ok, nil}
-
-  defp as_of(value) when is_binary(value) do
-    value = String.trim(value)
-
-    case Date.from_iso8601(value) do
-      {:ok, date} -> {:ok, DateTime.new!(date, ~T[23:59:59.999999], "Etc/UTC")}
-      {:error, _not_a_date} -> AshA2ui.AsOf.parse(value)
-    end
   end
 
   defp search("", _as_of, _opts),

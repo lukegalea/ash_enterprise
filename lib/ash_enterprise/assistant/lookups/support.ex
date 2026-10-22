@@ -67,6 +67,30 @@ defmodule AshEnterprise.Assistant.Lookups.Support do
   end
 
   @doc """
+  A past moment a read is asked about (PROD-47): `{:ok, nil}` for none,
+  `{:ok, datetime}` for a date (the end of that day in UTC, which is what
+  "as of last Friday" asks) or a UTC time (`AshA2ui.AsOf.parse/1`), and
+  `:error` for anything else.
+  """
+  @spec as_of(String.t() | nil) :: {:ok, DateTime.t() | nil} | :error
+  def as_of(nil), do: {:ok, nil}
+
+  def as_of(value) when is_binary(value) do
+    case String.trim(value) do
+      "" ->
+        {:ok, nil}
+
+      value ->
+        case Date.from_iso8601(value) do
+          {:ok, date} -> {:ok, DateTime.new!(date, ~T[23:59:59.999999], "Etc/UTC")}
+          {:error, _not_a_date} -> AshA2ui.AsOf.parse(value)
+        end
+    end
+  end
+
+  def as_of(_other), do: :error
+
+  @doc """
   The UTC bounds of a window string, `{:ok, {from, to}}`, `:none` for nil or
   blank, or `{:error, message}`.
   """

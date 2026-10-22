@@ -59,6 +59,57 @@ defmodule AshEnterprise.Assistant.LookupTest do
       assert error =~ "not a window"
     end
 
+    test "calendar_events as_of: the day as it was known then, and what has moved since",
+         %{alice: alice} do
+      known = DateTime.add(DateTime.utc_now(), -3, :day)
+      moved = DateTime.add(DateTime.utc_now(), -1, :day)
+
+      event =
+        D.event!(alice, "SYNTHETIC-ALICE-PLANNING", 0, 30,
+          starts_at: ~U[2030-03-19 10:00:00.000000Z],
+          as_of: known
+        )
+
+      D.reproject_event!(
+        alice,
+        event,
+        %{starts_at: ~U[2030-03-19 15:00:00.000000Z], ends_at: ~U[2030-03-19 15:30:00.000000Z]},
+        as_of: moved
+      )
+
+      before_move = DateTime.add(moved, -1, :hour) |> DateTime.to_iso8601()
+
+      assert %{"as_of" => _, "count" => 1, "events" => [then]} =
+               F.tool!(alice, :calendar_events, %{window: "2030-03-19", as_of: before_move})
+
+      assert then["title"] == "SYNTHETIC-ALICE-PLANNING"
+      assert then["when"] =~ "10:00"
+      assert then["now"] =~ "15:00"
+
+      assert %{"count" => 1, "events" => [now]} =
+               F.tool!(alice, :calendar_events, %{window: "2030-03-19"})
+
+      assert now["when"] =~ "15:00"
+      refute Map.has_key?(now, "now")
+
+      # Before it was on the calendar at all.
+      long_ago = known |> DateTime.add(-1, :day) |> DateTime.to_iso8601()
+
+      assert %{"count" => 0} =
+               F.tool!(alice, :calendar_events, %{window: "2030-03-19", as_of: long_ago})
+
+      assert %{"error" => error} =
+               F.tool!(alice, :calendar_events, %{window: "2030-03-19", as_of: "last friday"})
+
+      assert error =~ "as_of"
+
+      # Nobody else's past either.
+      carol = F.colleague!(alice)
+
+      assert %{"count" => 0} =
+               F.tool!(carol, :calendar_events, %{window: "2030-03-19", as_of: before_move})
+    end
+
     test "find_conversations and read_messages: decrypted for the owner, cited by thread",
          %{alice: alice, thread: thread, slack: slack} do
       assert %{"count" => 2} = F.tool!(alice, :find_conversations, %{})

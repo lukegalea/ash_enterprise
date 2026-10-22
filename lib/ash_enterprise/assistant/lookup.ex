@@ -57,7 +57,7 @@ defmodule AshEnterprise.Assistant.Lookup do
 
   actions do
     action :calendar_events, :map do
-      description "Calendar events in a window, by attendee or text."
+      description "Calendar events in a window, by attendee or text, now or as of a past moment."
 
       argument :window, :string do
         allow_nil? true
@@ -72,6 +72,15 @@ defmodule AshEnterprise.Assistant.Lookup do
       argument :text, :string do
         allow_nil? true
         description "Text to find in the event title or location."
+      end
+
+      argument :as_of, :string do
+        allow_nil? true
+
+        description "A past moment to answer for: a date (2026-10-16, meaning the end of " <>
+                      "that day) or a UTC time. With it, the events as they were known " <>
+                      "then, before any later reschedule or cancellation; an event that " <>
+                      "has changed since carries now or status_now."
       end
 
       run Lookups.CalendarEvents

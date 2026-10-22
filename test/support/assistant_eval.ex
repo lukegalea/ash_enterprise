@@ -138,6 +138,11 @@ defmodule AshEnterprise.Test.AssistantEval do
     # merged today, so "as of last Friday" they were two.
     morgan = merged_pair!(ctx)
 
+    # Time travel on the calendar: last Monday's budget review, on the
+    # calendar from the Wednesday before at 10:00, moved to 15:00 on the
+    # Saturday, so "as of the Friday before" it was still at 10:00.
+    budget_review = moved_budget_review!(ctx)
+
     %{
       quinn: quinn,
       rory: rory,
@@ -156,8 +161,40 @@ defmodule AshEnterprise.Test.AssistantEval do
       contract: Support.ref(HumanTask, contract),
       avery: Support.ref(MatchCandidate, avery),
       morgan: Support.ref(Person, morgan),
-      last_friday: Date.to_iso8601(last_friday())
+      last_friday: Date.to_iso8601(last_friday()),
+      budget_review: ref(budget_review),
+      last_monday: Date.to_iso8601(last_monday()),
+      friday_before: Date.to_iso8601(Date.add(last_monday(), -3))
     }
+  end
+
+  defp moved_budget_review!(ctx) do
+    {midnight, _} = LocalTime.days(last_monday(), 1)
+
+    event =
+      D.event!(ctx, "SYNTHETIC budget review", 0, 30,
+        starts_at: DateTime.add(midnight, 10, :hour),
+        as_of: DateTime.add(midnight, -5, :day)
+      )
+
+    D.reproject_event!(
+      ctx,
+      event,
+      %{
+        starts_at: DateTime.add(midnight, 15, :hour),
+        ends_at: DateTime.add(midnight, 15 * 60 + 30, :minute)
+      },
+      # Saturday noon in the display zone: after the end of Friday in UTC,
+      # which is what a bare `as_of` date means, in any zone.
+      as_of: DateTime.add(midnight, -36, :hour)
+    )
+  end
+
+  @doc "The most recent Monday before today on the display zone's calendar (a week ago, on a Monday)."
+  def last_monday do
+    today = LocalTime.today()
+    back = rem(Date.day_of_week(today) - 1 + 7, 7)
+    Date.add(today, -if(back == 0, do: 7, else: back))
   end
 
   # Morgan Synthetic (the survivor) and Morgan Home, each with an identity
@@ -500,6 +537,21 @@ defmodule AshEnterprise.Test.AssistantEval do
             "Morgan Home; they have been merged since [[#{f.morgan}]]."
       },
       %{
+        id: "calendar_as_of",
+        question: "What was on my calendar last Monday, as of the Friday before it?",
+        tools: ["calendar_events"],
+        args: %{"calendar_events" => &last_monday_as_of?(&1, f)},
+        facts: ["budget review", "10:00", "15:00"],
+        cites: [f.budget_review],
+        oracle: [
+          {:tools,
+           [{"calendar_events", %{"window" => f.last_monday, "as_of" => f.friday_before}}]}
+        ],
+        answer:
+          "As of #{f.friday_before}, last Monday held the SYNTHETIC budget review at 10:00 " <>
+            "[[#{f.budget_review}]]; it has since moved to 15:00."
+      },
+      %{
         id: "open_tasks",
         question: "What are my open action items?",
         tools: ["my_tasks"],
@@ -763,6 +815,14 @@ defmodule AshEnterprise.Test.AssistantEval do
             "to approve."
       }
     ]
+  end
+
+  # calendar_as_of: last Monday's events, read as of the Friday before it.
+  defp last_monday_as_of?(args, f) do
+    monday = Date.from_iso8601!(f.last_monday)
+
+    covers?(args["window"], monday, monday) and
+      String.starts_with?(to_string(args["as_of"]), f.friday_before)
   end
 
   # resolved_last_friday: a search for Morgan, asked as of some moment.
