@@ -193,12 +193,19 @@ defmodule AshEnterprise.BusinessEvents.Recorder do
     |> Ash.read_one()
   end
 
-  # One transaction holding the region's lock for the read-decide-write
-  # (joins the caller's transaction when there is one). Raw SQL by design:
-  # an advisory lock is not a domain read or write, and this is the same
-  # statement, with the same key, the ledger's own append takes
-  # (`AshDiscreteBusinessEvents.Ledger.Changes.StampEvent`).
-  defp locked(fun) do
+  @doc """
+  Run `fun` (returning `{:ok, result}` or `{:error, reason}`) in one
+  transaction holding the ledger region's advisory lock, so a
+  read-decide-write about a subject cannot interleave with another. Joins
+  the caller's transaction when there is one. Used by the finance store's
+  recorder too (`AshEnterprise.Finance.Recorder`), which lands its raw row
+  and records its facts in the same transaction.
+  """
+  @spec locked((-> {:ok, term()} | {:error, term()})) :: {:ok, term()} | {:error, term()}
+  # Raw SQL by design: an advisory lock is not a domain read or write, and
+  # this is the same statement, with the same key, the ledger's own append
+  # takes (`AshDiscreteBusinessEvents.Ledger.Changes.StampEvent`).
+  def locked(fun) do
     Repo.transaction(fn ->
       [namespace, key] = RegionLockKeyGenerator.key_for(BusinessEvents.region())
       Ecto.Adapters.SQL.query!(Repo, "SELECT pg_advisory_xact_lock($1, $2)", [namespace, key])
