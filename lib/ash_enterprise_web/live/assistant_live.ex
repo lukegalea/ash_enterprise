@@ -1405,6 +1405,14 @@ defmodule AshEnterpriseWeb.AssistantLive do
     do:
       "Stopped after #{Runner.max_steps()} model calls without an answer. Try a narrower question."
 
+  def reason_message("awaiting_approval"),
+    do:
+      "A lookup needed approval before it could run, and the assistant cannot wait for one " <>
+        "mid-answer. Nothing past that point was run."
+
+  def reason_message("tool_paused"),
+    do: "A lookup paused before it could answer. Nothing past that point was run. Try again."
+
   def reason_message("empty_answer"), do: "The model returned an empty answer. Try again."
 
   def reason_message("timeout"),

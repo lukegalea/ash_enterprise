@@ -282,6 +282,8 @@ Options to know:
 
 - `otp_app:` or `actions: [{Resource, [:action]}]` decides where tools are discovered from.
 - `tools:` is `true`, `false`, or a list of tool names.
+- `system_prompt:` is `fn opts -> "..." end`, sent ahead of `messages` on every request. It is
+  not included in `Result.messages`, so pass it again when continuing from them.
 - `extra_tools:` adds arbitrary `ReqLLM.Tool`s alongside Ash tools.
 - `req_llm_opts:` passes provider options through (temperature, reasoning, and so on).
 - `req_llm:` swaps in a module implementing the ReqLLM functions, for tests.
@@ -403,6 +405,20 @@ customize the `AshAi.Actions.Prompt.FlowState` before the request.
 
 Tool loop failures are returned as action errors rather than raised.
 
+Anthropic models can decline a request through their safety classifiers. A refused prompt
+action returns an error naming the refusal category rather than a value. To have Anthropic
+retry refused requests on another model instead, enable server-side fallbacks through
+ReqLLM:
+
+```elixir
+run prompt("anthropic:claude-opus-5",
+  req_llm_opts: [provider_options: [anthropic_fallbacks: "default"]]
+)
+```
+
+`"default"` lets Anthropic choose the fallback model by refusal category; a list such as
+`[%{model: "claude-opus-4-8"}]` names the models to try in order.
+
 ### Best Practices for Prompt-Backed Actions
 
 - Write clear, detailed descriptions for the action and its arguments; they form the default prompt.
@@ -520,12 +536,20 @@ if code_reloading? do
   socket "/phoenix/live_reload/socket", Phoenix.LiveReloader.Socket
 
   plug AshAi.Mcp.Dev,
-    protocol_version_statement: "2024-11-05",
     otp_app: :your_app
 
   plug Phoenix.LiveReloader
   plug Phoenix.CodeReloader
 end
+```
+
+To serve tools from other packages too, pass Ash domains that use the `AshAi` extension as
+`dev_tool_domains`; their `tools do` entries are added to the built-in dev tools:
+
+```elixir
+plug AshAi.Mcp.Dev,
+  otp_app: :your_app,
+  dev_tool_domains: [SomePackage.DevTools]
 ```
 
 ### Production MCP Server
@@ -551,10 +575,13 @@ scope "/mcp" do
       :create_post,
       :analyze_sentiment
     ],
-    protocol_version_statement: "2024-11-05",
     otp_app: :my_app
 end
 ```
+
+The server negotiates the protocol version with each client. Set
+`protocol_version_statement` only to force a version for a client that fails
+version negotiation: it overrides negotiation for every client.
 
 ## Testing
 
