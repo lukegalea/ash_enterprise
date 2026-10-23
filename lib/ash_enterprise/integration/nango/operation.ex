@@ -13,6 +13,7 @@ defmodule AshEnterprise.Integration.Nango.Operation do
     :method,
     :path,
     :description,
+    numbers: :float,
     params: [],
     __identifier__: nil,
     __spark_metadata__: nil
@@ -23,6 +24,7 @@ defmodule AshEnterprise.Integration.Nango.Operation do
           method: :get | :post,
           path: String.t(),
           description: String.t() | nil,
+          numbers: :float | :decimal,
           params: [AshEnterprise.Integration.Nango.Param.t()],
           __spark_metadata__: Spark.Dsl.Entity.spark_meta()
         }
