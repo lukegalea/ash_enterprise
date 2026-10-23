@@ -24,6 +24,16 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Standing) do
        table admits nothing: the answer stays in the ledger, the step
        returns the resolver's error, and the unit reads `unknown`.
 
+    ## Units too large to judge
+
+    Units are chunked to fit the decision model's context: by default
+    `winnow:e4b`'s 8,192 tokens, with 1,024 kept for the question and the
+    answer. A unit whose declared context alone does not fit (a DSL entity
+    in a module with a very long `policies` section, say) cannot be
+    chunked. It does not stop the scan: `assess/2` returns it with the
+    reason `:context_too_large`, and `run/2` reports it with the result
+    `{:skipped, :context_too_large}` instead of sending it to the judge.
+
     `statuses/3` and `violations/2` are the filters: every candidate unit's
     current status, rolled up over its chunks
     (`AshAgentTools.CodeSubjects.Standing.statuses/4`), and the units whose
@@ -37,10 +47,11 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Standing) do
 
       * `:repository`: the repository name in each subject id (default
         `"ash_enterprise"`)
-      * `:questions`: the question names to run (default: all seventeen)
+      * `:questions`: the question names to run (default: all twenty-three)
       * `:paths`: overrides each question's scan paths
       * `:limit`: at most this many pending units per question
-      * `:max_tokens`, `:reserve_tokens`: the chunking budget
+      * `:max_tokens`, `:reserve_tokens`: the chunking budget (default
+        8,192 and 1,024, `winnow:e4b`'s context)
       * `:facts_resource`: default `AshEnterprise.SystemOne.Fact`
 
     `run/2` also takes `:tenant` (required: the ledger and the bandings are
@@ -62,10 +73,17 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Standing) do
     @facts AshEnterprise.SystemOne.Fact
     @repository "ash_enterprise"
 
+    # The :winnow_gpu profile's model, winnow:e4b, has an 8k context; the
+    # reserve keeps room for the question's instructions, criteria and the
+    # answer.
+    @max_tokens 8192
+    @reserve_tokens 1024
+
     @doc """
     The candidate units whose facts are missing, stale or expired, per
     question: `%{question => [{subject, reason}]}`. A unit too large for
-    the decision model comes back as its chunks.
+    the decision model comes back as its chunks, and one whose declared
+    context alone cannot fit comes back whole as `:context_too_large`.
     """
     @spec assess(Path.t(), keyword()) :: %{atom() => [{map(), atom()}]}
     def assess(root, opts \\ []) do
@@ -85,10 +103,11 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Standing) do
 
     @doc """
     Assesses, judges and admits (see the moduledoc). Returns one entry per
-    judged unit: `%{question, subject_id, location, reason, observation_id,
-    result}`, where `result` is the banding step's (`{:ok, %{band: ...}}`,
-    `{:refusal, ...}` or `{:error, ...}`), or `{:error, ...}` from the
-    judge.
+    assessed unit: `%{question, subject_id, location, reason,
+    observation_id, result}`, where `result` is the banding step's
+    (`{:ok, %{band: ...}}`, `{:refusal, ...}` or `{:error, ...}`),
+    `{:error, ...}` from the judge, or `{:skipped, :context_too_large}` for
+    a unit that was not judged because its context cannot fit.
     """
     @spec run(Path.t(), keyword()) :: [map()]
     def run(root, opts) do
@@ -101,7 +120,11 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Standing) do
         question = Questions.fetch!(name)
 
         Enum.map(pending, fn {subject, reason} ->
-          {observation_id, result} = judge_and_admit(question, subject, opts)
+          {observation_id, result} =
+            case reason do
+              :context_too_large -> {nil, {:skipped, :context_too_large}}
+              _reason -> judge_and_admit(question, subject, opts)
+            end
 
           %{
             question: name,
@@ -247,6 +270,7 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Standing) do
         projection: question.projection,
         type: Standards.subject_type()
       )
+      |> Keyword.merge(max_tokens: @max_tokens, reserve_tokens: @reserve_tokens)
       |> Keyword.merge(Keyword.take(opts, [:max_tokens, :reserve_tokens]))
     end
 

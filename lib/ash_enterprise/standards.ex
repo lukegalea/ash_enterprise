@@ -10,9 +10,10 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Fragment) do
     (AST-138).
 
     The standards stay where they are written: the CLAUDE.md
-    non-negotiables, the iron laws (ash_agent_tools'
-    `usage-rules/iron-laws.md`; how this repository applies them is
-    `docs/IRON-LAWS.md`) and `docs/HOUSE-STYLE.md`. This domain holds the seventeen confirmed
+    non-negotiables, ADR 0038's rule on where a model may be called, the
+    iron laws (ash_agent_tools' `usage-rules/iron-laws.md`; how this
+    repository applies them is `docs/IRON-LAWS.md`) and
+    `docs/HOUSE-STYLE.md`. This domain holds the twenty-three confirmed
     questions about them, declared on `AshEnterprise.Standards.CodeUnit`,
     and the machinery that asks them:
 
