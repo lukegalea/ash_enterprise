@@ -6,11 +6,19 @@ defmodule AshEnterprise.Zones.Types.DataClass do
 
   A **total order**, least sensitive first:
 
-      :public < :synthetic < :internal < :customer_confidential
+      :public < :synthetic < :internal < :customer_confidential < :personal_finance
 
   A zone declares a classification *ceiling*; data above the ceiling is refused
   on the way in. `:synthetic` sits above `:public` only because it is ours, not
   the world's — neither needs an authorization to flow anywhere.
+
+  `:personal_finance` is a person's own bank and card history (PROD-11): the
+  household finance store. It sits at the top so that no zone declared for
+  company or customer data (ceiling `:customer_confidential` or lower) admits
+  it; only a zone declared for it does. The order is total, so that zone's
+  ceiling also admits everything below — keep the household zone for the
+  household's data, and the separation between it and company data in the
+  tenant, as PROD-11 decided.
   """
 
   use Ash.Type.Enum,
@@ -18,10 +26,11 @@ defmodule AshEnterprise.Zones.Types.DataClass do
       public: "Public",
       synthetic: "Synthetic",
       internal: "Internal",
-      customer_confidential: "Customer confidential"
+      customer_confidential: "Customer confidential",
+      personal_finance: "Personal finance"
     ]
 
-  @rank %{public: 0, synthetic: 1, internal: 2, customer_confidential: 3}
+  @rank %{public: 0, synthetic: 1, internal: 2, customer_confidential: 3, personal_finance: 4}
 
   @doc """
   Whether data of class `class` may be held under `ceiling`.

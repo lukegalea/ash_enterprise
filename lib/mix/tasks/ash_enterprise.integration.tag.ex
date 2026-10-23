@@ -12,7 +12,10 @@ defmodule Mix.Tasks.AshEnterprise.Integration.Tag do
         --linked-account <id> --data-class internal --residency CA
 
   * `--data-class` is one of `public`, `synthetic`, `internal`,
-    `customer_confidential` (`AshEnterprise.Zones.Types.DataClass`).
+    `customer_confidential`, `personal_finance`
+    (`AshEnterprise.Zones.Types.DataClass`). A Tiller sheet is
+    `personal_finance`: the finance sync admits it into the finance zone
+    (`AshEnterprise.Finance`) on these same tags, at land.
   * `--residency` is `unrestricted` or the ISO 3166 code the data is
     restricted to (`CA`, `CA-ON`, `US`).
   * Pass `--clear` instead to untag the account (both nil), which refuses its
