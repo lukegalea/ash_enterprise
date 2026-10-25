@@ -1,0 +1,10 @@
+{
+  "ash_functions_version": 7,
+  "installed": [
+    "uuid-ossp",
+    "citext",
+    "ash-functions",
+    "btree_gist",
+    "vector"
+  ]
+}

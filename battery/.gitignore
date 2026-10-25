@@ -1,0 +1,7 @@
+# The battery's own build artifacts and secrets.
+/_build/
+/deps/
+/.mix/
+/elixir_ls/
+/.elixir-tools/
+/tmp/
