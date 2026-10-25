@@ -71,8 +71,10 @@ defmodule Mix.Tasks.PlatformBattery do
   defp battery_dep_dir do
     case Enum.find(Mix.Dep.cached(), &(&1.app == :ash_enterprise_battery)) do
       %Mix.Dep{} = dep ->
-        # Sparse git deps check out into the host's deps dir like any other.
-        Path.join(Mix.Project.deps_path(), "#{dep.app}")
+        # Sparse git deps materialize only the sparse subpath inside the
+        # checkout: the battery's mix.exs lives at <checkout>/battery/.
+        sparse = dep.opts[:sparse]
+        Path.join([Mix.Project.deps_path(), "#{dep.app}", sparse || ""])
 
       nil ->
         Mix.raise("platform_battery: :ash_enterprise_battery is not a dependency of this project")
