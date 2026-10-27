@@ -63,6 +63,9 @@ defmodule AshEnterprise.Legacy.User do
     # Ash could install. Claiming an audit trail over a view we cannot see the
     # writes to would be worse than not claiming one. See plan §4.8.
     audit?: false,
+    # `version_number` is projected as a constant below: the view has no row
+    # version to lock against or increment (ADR 0059).
+    optimistic_lock?: false,
     extra_extensions: [AshStrangler.Resource],
     # Two notifiers, and both matter. `PubSub` makes /app/legacy-users live over the view;
     # `Projection` copies the same change into a table this application owns, so

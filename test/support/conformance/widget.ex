@@ -38,7 +38,11 @@ defmodule AshEnterprise.Conformance.Widget do
     # Two self-service actions (ADR 0052), so the conformance suite can pin
     # the fourth grant path: `:mine` reaches only the actor's own widgets,
     # `:whoami` is a generic action scoped to the actor by construction.
-    self_service: [:mine, :whoami]
+    self_service: [:mine, :whoami],
+    # ADR 0059: an update and a generic action of each narrowed kind, so the
+    # conformance suite can pin which bypasses reach them.
+    human_only: [:approve, :sign_off],
+    machinery_only: [:claim, :sweep]
 
   ets do
     private? true
@@ -67,6 +71,26 @@ defmodule AshEnterprise.Conformance.Widget do
 
     read :mine do
       description "Self-service: the actor's own widgets, with no role grant."
+    end
+
+    update :approve do
+      description "Human-only: a person's own decision; no bypass reaches it."
+      accept []
+    end
+
+    action :sign_off, :boolean do
+      description "Human-only generic action."
+      run fn _input, _context -> {:ok, true} end
+    end
+
+    update :claim do
+      description "Machinery-only: the job runner's alone; no grant reaches it."
+      accept []
+    end
+
+    action :sweep, :boolean do
+      description "Machinery-only generic action."
+      run fn _input, _context -> {:ok, true} end
     end
 
     action :whoami, :string do

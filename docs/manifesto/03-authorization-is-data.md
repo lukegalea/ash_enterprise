@@ -154,6 +154,15 @@ only grant that authorized composing one's own morning brief also reached everyo
 and never subtracts; it is a declaration in code rather than a row because it describes the action, not who may see
 whose data.
 
+## Amendment, 2026-10-23 — actions the bypasses do not reach
+
+[ADR 0059](../adr/0059-version-number-is-an-optimistic-lock.md) narrows the three bypasses that precede the union: the
+process engine's, the decision engine's and the system actor's. A resource may declare actions `human_only`, which no
+bypass reaches, so only the calling person's own grants authorize them. It may also declare actions `machinery_only`,
+which the system-actor bypass reaches for the `oban` job runner alone and the union does not apply to, so no grant row
+reaches them. Neither is a `forbid_if`: each limits how far an existing path reaches, a person's grants are what they
+were, and an action that declares neither is authorized as before.
+
 ## Further reading
 
 - `lib/ash_enterprise/security/` — the checks

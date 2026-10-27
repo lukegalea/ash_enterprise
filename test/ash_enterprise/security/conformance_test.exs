@@ -35,6 +35,7 @@ defmodule AshEnterprise.Security.ConformanceTest do
 
   alias AshEnterprise.Accounts.BusinessUnit
   alias AshEnterprise.Conformance.Widget
+  alias AshEnterprise.Platform.SystemActor
   alias AshEnterprise.Security.ActorContext
   alias AshEnterprise.Security.Privilege
   alias AshEnterprise.Security.Role
@@ -240,7 +241,124 @@ defmodule AshEnterprise.Security.ConformanceTest do
     end
   end
 
+  describe "human-only and machinery-only actions (ADR 0059)" do
+    test "no system actor and no engine-flagged call can run a human-only action", ctx do
+      assert who_can(ctx, :approve) == []
+      assert who_can(ctx, :sign_off) == []
+    end
+
+    test "only the oban system actor can run a machinery-only action", ctx do
+      oban = [
+        "system actor oban",
+        "system actor oban flagged by ash_bpmn",
+        "system actor oban flagged by ash_decisions"
+      ]
+
+      assert who_can(ctx, :claim) == oban
+      assert who_can(ctx, :sweep) == oban
+    end
+
+    test "an undeclared action is reached exactly as before: every system actor but ai, and both engines",
+         ctx do
+      callers = who_can(ctx, :update)
+
+      for actor <- SystemActor.all(), actor.name != :ai do
+        assert "system actor #{actor.name}" in callers
+      end
+
+      refute "system actor ai" in callers
+      assert "bare system context" in callers
+      assert "no actor flagged by ash_bpmn" in callers
+      assert "no actor flagged by ash_decisions" in callers
+      refute "no actor" in callers
+    end
+
+    test "a person's own grant still runs a human-only action -- nothing is denied", ctx do
+      actor = with_role(ctx, :alice, :write, :global, ctx.bus.root)
+
+      assert can?(ctx, :approve, actor, %{})
+      # The engine flag adds nothing and takes nothing: the person's grant decides.
+      assert can?(ctx, :approve, actor, %{private: %{ash_bpmn?: true}})
+
+      refute can?(ctx, :approve, context_for(ctx, :bob), %{private: %{ash_bpmn?: true}})
+    end
+
+    test "no grant reaches a machinery-only action, however wide", ctx do
+      grant_role(ctx, :alice, :read, :global, ctx.bus.root)
+      actor = with_role(ctx, :alice, :write, :global, ctx.bus.root)
+
+      assert can?(ctx, :update, actor, %{})
+      refute can?(ctx, :claim, actor, %{})
+      refute can?(ctx, :sweep, actor, %{})
+    end
+
+    test "the bypasses narrow through reach checks; the union gains no forbid_if" do
+      policies = Ash.Policy.Info.policies(Widget)
+
+      refute Enum.any?(policies, fn policy ->
+               Enum.any?(policy.policies, &(&1.type == :forbid_if))
+             end)
+
+      bypass_bodies =
+        for %{bypass?: true} = policy <- policies do
+          Enum.map(policy.policies, &{&1.type, &1.check_module})
+        end
+
+      assert bypass_bodies == [
+               [{:authorize_if, AshEnterprise.Security.Checks.EngineReach}],
+               [{:authorize_if, AshEnterprise.Security.Checks.EngineReach}],
+               [{:authorize_if, AshEnterprise.Security.Checks.SystemActorReach}]
+             ]
+    end
+  end
+
   # --- helpers ----------------------------------------------------------------
+
+  # Every system actor, as itself and as a bare system context (no name), with
+  # and without each engine's private flag, plus each engine flag with no actor
+  # at all. That is every way a call can arrive that is not a person's.
+  defp non_human_callers do
+    actors =
+      Enum.map(SystemActor.all(), &{"system actor #{&1.name}", &1}) ++
+        [{"bare system context", ActorContext.system()}, {"no actor", nil}]
+
+    flags = [
+      {"", %{}},
+      {" flagged by ash_bpmn", %{private: %{ash_bpmn?: true}}},
+      {" flagged by ash_decisions", %{private: %{ash_decisions?: true}}}
+    ]
+
+    for {actor_label, actor} <- actors, {flag_label, context} <- flags do
+      {actor_label <> flag_label, actor, context}
+    end
+  end
+
+  defp can?(ctx, action, actor, context) do
+    subject =
+      case Ash.Resource.Info.action(Widget, action) do
+        %{type: :update} ->
+          Ash.Changeset.for_update(ctx.widgets.alice, action, %{},
+            actor: actor,
+            tenant: ctx.org,
+            context: context
+          )
+
+        %{type: :action} ->
+          Ash.ActionInput.for_action(Widget, action, %{},
+            actor: actor,
+            tenant: ctx.org,
+            context: context
+          )
+      end
+
+    Ash.can?(subject, actor, tenant: ctx.org)
+  end
+
+  defp who_can(ctx, action) do
+    for {label, actor, context} <- non_human_callers(), can?(ctx, action, actor, context) do
+      label
+    end
+  end
 
   defp visible(actor, ctx, action \\ :read) do
     {:ok, widgets} =

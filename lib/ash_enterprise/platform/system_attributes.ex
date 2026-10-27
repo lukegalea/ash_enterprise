@@ -129,6 +129,46 @@ defmodule AshEnterprise.Platform.SystemAttributes do
         action does downstream still runs under ordinary policies.
         """
       ],
+      human_only: [
+        type: {:list, :atom},
+        default: [],
+        doc: """
+        Actions only a person may run (ADR 0059). The process engine's bypass,
+        the decision engine's bypass and the system-actor bypass do not reach
+        them, and a system actor gets nothing from the grant union either, so
+        the action is authorized only by the calling person's own grants.
+
+        This narrows bypasses; it adds no deny. A person's grants are exactly
+        what they were. Every listed action must exist
+        (`AshEnterprise.Platform.Verifiers.NarrowedActions`).
+        """
+      ],
+      machinery_only: [
+        type: {:list, :atom},
+        default: [],
+        doc: """
+        Actions only the background job runner may run (ADR 0059): the
+        system-actor bypass reaches them for the `oban` system actor alone, the
+        engine bypasses do not reach them, and the grant union does not apply
+        to them, so no role row can authorize a person to run one.
+
+        Every listed action must exist, and none may also be `human_only` or
+        `self_service` (`AshEnterprise.Platform.Verifiers.NarrowedActions`).
+        """
+      ],
+      optimistic_lock?: [
+        type: :boolean,
+        default: true,
+        doc: """
+        Whether update actions carry `optimistic_lock(:version_number)` (ADR
+        0059). Set by `AshEnterprise.Platform.Resource`, which adds the change.
+
+        Off only where `version_number` is not a stored column this application
+        writes: a strangled read model that projects it as a constant
+        (`AshEnterprise.Platform.Verifiers.OptimisticLock` refuses the
+        combination with the lock on).
+        """
+      ],
       cdm_entity: [
         type: :string,
         required: false,
@@ -145,5 +185,9 @@ defmodule AshEnterprise.Platform.SystemAttributes do
   use Spark.Dsl.Extension,
     sections: [@platform],
     transformers: [AshEnterprise.Platform.Transformers.AddSystemAttributes],
-    verifiers: [AshEnterprise.Platform.Verifiers.SelfServiceActions]
+    verifiers: [
+      AshEnterprise.Platform.Verifiers.SelfServiceActions,
+      AshEnterprise.Platform.Verifiers.NarrowedActions,
+      AshEnterprise.Platform.Verifiers.OptimisticLock
+    ]
 end

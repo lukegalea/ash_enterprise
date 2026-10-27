@@ -45,8 +45,16 @@ defmodule AshEnterprise.Security.Checks.RoleGrant do
     context = ActorContext.for_actor(actor)
 
     cond do
+      # A system actor is not subject to grants, but it reaches no further here
+      # than through its own bypass: not a `human_only` action, and a
+      # `machinery_only` one only as `oban` (ADR 0059). Without this the union
+      # would hand back what the narrowed bypass withheld.
       context.system? ->
-        true
+        AshEnterprise.Security.ActionReach.system_actor?(
+          actor,
+          authorizer.resource,
+          authorizer.action
+        )
 
       is_nil(context.user_id) ->
         false

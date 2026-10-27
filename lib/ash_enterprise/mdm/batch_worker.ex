@@ -51,7 +51,10 @@ defmodule AshEnterprise.Mdm.BatchWorker do
           inputs: ["bizev:#{batch.source_slug}"]
         )
 
-        batch
+        # The batch as it now stands: staging may already have written it, and
+        # `version_number` is an optimistic lock (ADR 0059).
+        batch_id
+        |> AshEnterprise.Mdm.ImportBatch.by_id!(tenant: tenant, authorize?: false)
         |> Ash.Changeset.for_update(:fail, %{failure_reason: inspect(reason)},
           tenant: batch.organization_id,
           authorize?: false
@@ -305,7 +308,9 @@ defmodule AshEnterprise.Mdm.BatchWorker do
   defp route_admit({candidate, _band}, banded, staged, tenant) do
     system = AshEnterprise.Platform.SystemActor.system()
     supersede_others!(banded, candidate, tenant, system)
-    set_band!(candidate, :admit, tenant, system)
+    # The banded row, not the one read before banding: the merge writes the
+    # candidate again, and `version_number` is an optimistic lock (ADR 0059).
+    candidate = set_band!(candidate, :admit, tenant, system)
 
     AshEnterprise.Mdm.AutoMerge.admit!(
       candidate,
@@ -320,7 +325,7 @@ defmodule AshEnterprise.Mdm.BatchWorker do
   defp route_review({candidate, _band}, banded, batch, staged, tenant) do
     system = AshEnterprise.Platform.SystemActor.system()
     supersede_others!(banded, candidate, tenant, system)
-    set_band!(candidate, :review, tenant, system)
+    candidate = set_band!(candidate, :review, tenant, system)
 
     start_steward_review!(batch, candidate, tenant)
 
@@ -337,7 +342,8 @@ defmodule AshEnterprise.Mdm.BatchWorker do
   end
 
   defp route_omit({candidate, _band}, staged, batch, tenant) do
-    set_band!(candidate, :omit, tenant, AshEnterprise.Platform.SystemActor.system())
+    candidate =
+      set_band!(candidate, :omit, tenant, AshEnterprise.Platform.SystemActor.system())
 
     case safe_new_golden(staged, batch, tenant, candidate) do
       :ok ->

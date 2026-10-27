@@ -121,8 +121,10 @@ defmodule AshEnterprise.Process.ActionInvokerTest do
       assert granted.decision_outcome == :granted
 
       # Oban redelivers: the second invocation must find the existing assignment rather than
-      # duplicate it, and grant the same one again.
-      assert :ok = ActionInvoker.invoke("grant_role", ctx)
+      # duplicate it, and grant the same one again. A redelivered job loads its subject afresh,
+      # as the engine's advance worker does on every run, so it carries the version the first
+      # delivery wrote (ADR 0059: a write from a stale copy is refused).
+      assert :ok = ActionInvoker.invoke("grant_role", %{ctx | subject: granted})
       assert granted.granted_user_role_id == reload(request, tenant).granted_user_role_id
 
       # Of the assignments the user already had (the seeded admin holds Administrator), the
