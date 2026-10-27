@@ -333,6 +333,15 @@ at all.
 [ADR 0047](../adr/0047-learning-produces-proposals.md), sequenced in
 [`../plans/system-one.md`](../plans/system-one.md), with several of their own decisions marked pending inside them.
 
+**Correction, 2026-10-23.** The first paragraph of this section is out of date. A judgment ledger
+(`AshEnterprise.SystemOne.Judgment`), a calibration store (`SystemOne.CalibrationRun`, `CalibrationSample`,
+`BandTableCertification`), declared questions locked in `priv/judgments/lock.json`, band tables published through
+`ash_decisions` (`SystemOne.BandTablePublication`) and evidence assertions (`SystemOne.Evidence`) all exist now, and
+judge actions call the model through `ash_judgments`. The ADR index records, per record, what of 0038–0047 is built and
+what is not ([`../adr/README.md`](../adr/README.md), correction of 2026-10-23). What is still missing here includes the
+automation principal ([ADR 0043](../adr/0043-automation-authority-is-a-grant.md)) and the offline learners
+([ADR 0047](../adr/0047-learning-produces-proposals.md)).
+
 ---
 
 ## What this list is not

@@ -161,6 +161,35 @@ the person it serves or as a principal holding grants, never as an actor that sk
 unchanged — the policy at the action layer stays the single gate, and
 pruning a tool list with `Ash.can?` remains a convenience, not a boundary.
 
+## Correction, 2026-10-23 — where approvals and the runtime actually are
+
+Two statements above no longer match the code, checked against `main` on 2026-10-23.
+
+**Approvals do not go through `AshA2ui.AgUi.pending_tool_call/4`.** Nothing in this repository calls it. Step 2 of
+"Human-in-the-loop" describes a mechanism that was not the one built. What exists:
+
+- The console at `/agent` (`AshEnterpriseWeb.AgentLive`): the model returns a typed intent and holds no tools;
+  `AshEnterprise.AI.Proposal` resolves the names in it as the person, checks with `Ash.can?` before showing it, and
+  runs it with the person as the actor once they confirm. Only the mutations that module has a constructor for can be
+  proposed.
+- The assistant at `/app/agent`: proposal tools build the same proposals, and `Assistant.ProposalSettlement` records
+  the person's confirm or cancel so a second confirm cannot run the mutation twice.
+- The coding-agent bridge: `Agents.ToolGate` approves or rejects one recorded `ToolInvocation`.
+- ACP: permission requests are held in memory (`AshEnterprise.Acp`), not in a durable record.
+- The production `/mcp` endpoint exposes `assign_role` with no approval step at all. "Writes need a human" does not
+  hold there today.
+
+The steps' substance is right where a proposal is used: the person sees the concrete mutation, and it runs through the
+policies with the person as the actor. None of these mechanisms binds an approval to a digest of what was approved.
+[ADR 0055](../adr/0055-consequential-acts-are-governed-invocations.md) (accepted, not built) replaces them with one
+governed invocation whose approval is an ash_bpmn `HumanTask` and is bound to the exact request.
+
+**The runtime is not in `lib/ash_enterprise/ai/`.** That directory holds the console's interpreter, proposals, model
+resolution and the per-call `ModelCall` record. The assistant's loop is `lib/ash_enterprise/assistant/runner.ex`, tools
+are declared on the domains (`lib/ash_enterprise/assistant.ex`, `accounts.ex`, `security.ex`, `agents.ex`,
+`legacy_agent.ex`), and the coding-agent bridge is `lib/ash_enterprise/agents/`. The durable runtime that
+[ADR 0056](../adr/0056-the-ash-agent-package.md) describes is a separate package, not yet built.
+
 ## Further reading
 
 - `lib/ash_enterprise/ai/` — tool definitions and the agent runtime
