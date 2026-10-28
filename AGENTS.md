@@ -3311,6 +3311,26 @@ _Agent Client Protocol (ACP) server wire adapter for Ash. JSON-RPC 2.0 over ndjs
 
 [ash_acp usage rules](deps/ash_acp/usage-rules.md)
 <!-- ash_acp-end -->
+<!-- ash_agent-start -->
+## ash_agent usage
+_Governed invocations and durable agent runs for Ash Framework hosts: Spark
+fragments, an effects extension and host behaviours. The host supplies the base
+resource, data layer, tenancy, policies and triggers._
+
+[ash_agent usage rules](deps/ash_agent/usage-rules.md)
+<!-- ash_agent-end -->
+<!-- ash_agent:fragments-start -->
+## ash_agent:fragments usage
+[ash_agent:fragments usage rules](deps/ash_agent/usage-rules/fragments.md)
+<!-- ash_agent:fragments-end -->
+<!-- ash_agent:host-behaviours-start -->
+## ash_agent:host-behaviours usage
+[ash_agent:host-behaviours usage rules](deps/ash_agent/usage-rules/host-behaviours.md)
+<!-- ash_agent:host-behaviours-end -->
+<!-- ash_agent:triggers-start -->
+## ash_agent:triggers usage
+[ash_agent:triggers usage rules](deps/ash_agent/usage-rules/triggers.md)
+<!-- ash_agent:triggers-end -->
 <!-- ash_compliance-start -->
 ## ash_compliance usage
 _The compliance control plane and data plane on Ash: OSCAL-flavored catalogs,

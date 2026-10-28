@@ -137,6 +137,7 @@ defmodule AshEnterprise.MixProject do
         # ash_events_projections is absent on purpose: it reaches this app only
         # through ash_compliance, and no code here configures or calls it.
         {:ash_acp, link: :markdown},
+        {:ash_agent, link: :markdown},
         {:ash_compliance, link: :markdown},
         {:ash_discrete_business_events, link: :markdown},
         {:ash_evidence, link: :markdown},
@@ -366,6 +367,15 @@ defmodule AshEnterprise.MixProject do
       # records. An ADR 0009-family resource macro — the host instantiates it
       # on its own platform base and keeps its policies.
       {:ash_mdm, github: "lukegalea/ash_mdm"},
+
+      # --- The agent runtime (ADR 0056) -----------------------------------------
+      # Fragments, one extension and host behaviours for governed invocations
+      # and durable agent runs. The host instantiates every resource on its own
+      # platform base and owns tenancy, policies, approvals and triggers. A git
+      # dependency only: the Hex name `ash_agent` belongs to an unrelated
+      # project, so there is no path to a Hex release (docs/BLEEDING-EDGE.md).
+      # mix.lock pins the SHA.
+      {:ash_agent, github: "lukegalea/ash_agent"},
 
       # --- Observability -------------------------------------------------------
       # Ash.Tracer -> OpenTelemetry -> OTLP. opentelemetry_ash is thin (0.1.x);
