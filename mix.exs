@@ -206,7 +206,11 @@ defmodule AshEnterprise.MixProject do
 
   def cli do
     [
-      preferred_envs: [precommit: :test, "ash_enterprise.assistant.eval": :test]
+      preferred_envs: [
+        precommit: :test,
+        "test.durability": :test,
+        "ash_enterprise.assistant.eval": :test
+      ]
     ]
   end
 
@@ -479,6 +483,14 @@ defmodule AshEnterprise.MixProject do
   #
   #     $ mix setup
   #
+  # The durability switch is read by config/test.exs, so the config is loaded again once it is
+  # set. Setting the variable on the command line (`ASH_ENTERPRISE_DURABILITY=1 mix test`) does
+  # the same without dropping a leftover database first.
+  defp enable_durability(_args) do
+    System.put_env("ASH_ENTERPRISE_DURABILITY", "1")
+    Mix.Task.rerun("loadconfig")
+  end
+
   # See the documentation for `Mix` for more info on aliases.
   defp aliases do
     [
@@ -507,6 +519,10 @@ defmodule AshEnterprise.MixProject do
       ],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       test: ["ecto.create --quiet", "ash_enterprise.legacy.setup", "ash.setup --quiet", "test"],
+      # The durability tier (docs/DURABILITY-TESTS.md): switch the run off the SQL sandbox onto
+      # a database of its own, drop whatever a killed earlier run left of it, then run `test`,
+      # which creates and migrates it. The suite drops it again when it ends.
+      "test.durability": [&enable_durability/1, "ecto.drop --quiet --force-drop", "test"],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
       "assets.build": ["compile", "tailwind ash_enterprise", "esbuild ash_enterprise"],
       "assets.deploy": [

@@ -129,9 +129,11 @@ defmodule AshEnterprise.Process.DecisionResolverTest do
                )
 
       # The Second decision answered, not the document's first: that is the forwarding
-      # observable. The resolver's result carries only the promoted outputs and the version.
+      # observable. The resolver's result carries the outputs, the version and the rules that
+      # matched -- the named decision's rule, not the first decision's.
       assert result.outputs == %{"Second" => "two"}
       assert result.version == 1
+      assert result.rule_ids == ["rule_second"]
     end
 
     test "a nil decision name is forwarded as nothing at all", %{
@@ -150,6 +152,7 @@ defmodule AshEnterprise.Process.DecisionResolverTest do
                )
 
       assert result.outputs == %{"RiskTier" => "low"}
+      assert result.rule_ids == ["rule_standard_argued"]
     end
 
     test "several decisions and no name is an error, not a guess", %{

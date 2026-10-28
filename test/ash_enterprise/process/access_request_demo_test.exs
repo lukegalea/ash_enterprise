@@ -286,6 +286,26 @@ defmodule AshEnterprise.Process.AccessRequestDemoTest do
       assert evaluation.inputs["requestedRoleTier"] == "standard"
     end
 
+    # The instance's own history names the rule that decided, and it is the same rule the
+    # evaluation recorded: one account of the decision, read from two places.
+    test "the decision event names the rule that fired", ctx do
+      submit!(%{}, ctx)
+      sweep!(ctx.tenant)
+
+      [instance] = instances(ctx.tenant)
+
+      assert [event] = process_events(instance.id, :decision_evaluated, ctx.tenant)
+      assert event.data["decision_ref"] == "access_request.risk"
+      assert event.data["rule_ids"] == ["rule_standard_argued"]
+
+      assert [evaluation] =
+               Decisions.Evaluation
+               |> Ash.Query.for_read(:read)
+               |> Ash.read!(actor: SystemActor.process(), tenant: ctx.tenant)
+
+      assert evaluation.matched_rule_ids == event.data["rule_ids"]
+    end
+
     # A low-risk request takes the *default* flow, which by definition has no condition -- so
     # the recorded expression is empty and the flow id is what identifies the branch. Asserting
     # on the expression here would be asserting that the default branch is conditioned, which
