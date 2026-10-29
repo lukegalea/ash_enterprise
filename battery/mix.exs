@@ -34,8 +34,9 @@ defmodule AshEnterpriseBattery.MixProject do
   defp elixirc_paths(:test), do: ["lib", "test/support"]
   defp elixirc_paths(_), do: ["lib"]
 
-  # The 9 substrate deps, pinned exactly as ash_enterprise pins them
-  # (same refs, so the battery resolves the same code the platform ships).
+  # The 9 substrate deps, pinned as ash_enterprise pins them (same refs, so
+  # the battery resolves the same code the platform ships) — except
+  # ash_compliance, below.
   # ash_events carries the platform's `override: true` fork declaration:
   # one package cannot resolve from both hex and git.
   defp deps do
@@ -46,7 +47,16 @@ defmodule AshEnterpriseBattery.MixProject do
       {:ash_evidence, github: "lukegalea/ash_evidence", branch: "main"},
       # --- Rules engine and the compliance plane it powers --------------------
       {:ash_rules, github: "lukegalea/ash_rules"},
-      {:ash_compliance, github: "lukegalea/ash_compliance"},
+      # ash_compliance is the one pin ahead of the platform root: the dated
+      # activation seam (`RuleSetRevision.activate`'s `effective_at`) arrives
+      # with the temporal rule-set revisions (with the activate-succession
+      # fix), and this is the ref the consuming host (Keystone) runs, declared
+      # the way it declares it. `override: true` because ash_judgments names
+      # ash_compliance (optional) without a ref. See README "Pins".
+      {:ash_compliance,
+       github: "lukegalea/ash_compliance",
+       ref: "2118d0f6cfe69e289c7b1d982bb306766597b4e3",
+       override: true},
       # --- Business processes and the decisions they route on -----------------
       # NOTE: ash_decisions brings boxic_dmn, which shells out to `xmllint`:
       # libxml2 must be on PATH (the devenv provides it).

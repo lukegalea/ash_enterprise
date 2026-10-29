@@ -64,8 +64,8 @@ test/support/                       fixtures (DMN + BPMN documents) and the ReqL
 
 ## Pins
 
-The nine substrates are pinned in `mix.exs` exactly as `ash_enterprise`
-pins them, and `mix.lock` pins the same SHAs ash_enterprise's lock
+The nine substrates are pinned in `mix.exs` as `ash_enterprise` pins them
+(one exception, `ash_compliance`, below), and `mix.lock` pins the same SHAs ash_enterprise's lock
 resolves (`ash_events` carries the platform's
 `temporal-as-of-support-0.7` fork with `override: true`).
 
@@ -83,4 +83,14 @@ elixir scripts/battery-pins-check.exs          # check again
 ```
 
 A package that genuinely cannot match goes in the script's `@exceptions`
-map with its reason; there are none today.
+map with its reason.
+
+**`ash_compliance` is ahead of the platform root.** The battery pins it to
+`2118d0f` (declared `ref:` + `override: true`, exactly as Keystone declares
+it): the temporal rule-set revisions and `activate`'s `effective_at` — the
+dated-activation seam `process_activation_reevaluation_test.exs` runs — and
+the activate-succession fix. The platform root still locks `824e4b9`
+(pre-temporal), so `scripts/battery-pins-check.exs` reports this one package
+until the root takes the same bump or the script lists it in `@exceptions`.
+The temporal migrations are ported verbatim from ash_compliance's suite
+(`priv/repo/migrations/2026102500061*`).
