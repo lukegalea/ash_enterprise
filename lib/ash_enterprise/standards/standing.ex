@@ -129,11 +129,7 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Standing) do
         question = Questions.fetch!(name)
 
         Enum.map(pending, fn {subject, reason} ->
-          {observation_id, result} =
-            case reason do
-              :context_too_large -> {nil, {:skipped, :context_too_large}}
-              _reason -> judge_and_admit(question, subject, opts)
-            end
+          {observation_id, result} = judge_unless_oversized(question, subject, reason, opts)
 
           %{
             question: name,
@@ -146,6 +142,12 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Standing) do
         end)
       end)
     end
+
+    defp judge_unless_oversized(_question, _subject, :context_too_large, _opts),
+      do: {nil, {:skipped, :context_too_large}}
+
+    defp judge_unless_oversized(question, subject, _reason, opts),
+      do: judge_and_admit(question, subject, opts)
 
     @doc """
     One unit through the judge and the banding step: the judged answer is

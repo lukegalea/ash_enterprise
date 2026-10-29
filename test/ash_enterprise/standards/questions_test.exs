@@ -12,10 +12,9 @@ defmodule AshEnterprise.Standards.QuestionsTest do
       with a `state_shape` (`confirmed-v2.json`);
     * the six ADR 0038 questions at version 1 (`adr-0038-confirmed.json`).
 
-  `confirmed-v2.json` and `adr-0038-confirmed.json` hold exactly the
-  entries the propose-then-confirm run proposes; their record ids
-  (`RECORD_V2`, `RECORD_ADR`) stand in until the confirmed records'
-  exports replace them. No model is called here.
+  `confirmed-v2.json` and `adr-0038-confirmed.json` are the exports of
+  the two records Luke confirmed in dogfood on 2026-10-29. No model is
+  called here.
   """
 
   use ExUnit.Case, async: true
@@ -38,8 +37,8 @@ defmodule AshEnterprise.Standards.QuestionsTest do
     "dee2d586-d943-4c2f-8e01-bbb06866efe3" => 9
   }
 
-  @v2_records %{"RECORD_V2" => 17}
-  @adr_records %{"RECORD_ADR" => 6}
+  @v2_records %{"43864d09-edbc-4ba1-b3f1-48e0017c5409" => 17}
+  @adr_records %{"9f91e62a-ce8c-4729-8e4b-0342fde5f26d" => 6}
 
   @adr_questions [
     :policy_check_calls_no_model,
@@ -61,8 +60,8 @@ defmodule AshEnterprise.Standards.QuestionsTest do
   end
 
   defp v1, do: entries("confirmed.json", @v1_records, "confirmed")
-  defp v2, do: entries("confirmed-v2.json", @v2_records, "to_be_confirmed")
-  defp adr, do: entries("adr-0038-confirmed.json", @adr_records, "to_be_confirmed")
+  defp v2, do: entries("confirmed-v2.json", @v2_records, "confirmed")
+  defp adr, do: entries("adr-0038-confirmed.json", @adr_records, "confirmed")
 
   # Every declared question with the entry it was rendered from.
   defp declared_with_entries do
