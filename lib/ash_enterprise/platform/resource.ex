@@ -41,6 +41,18 @@ defmodule AshEnterprise.Platform.Resource do
     * `:self_service` — actions any active tenant member may run on their own
       behalf with no role grant; see `AshEnterprise.Security.Checks.SelfService`
       and ADR 0052. Default `[]`.
+    * `:human_only` — actions only a person may run: neither engine bypass nor
+      the system-actor bypass reaches them, so only the caller's own grants
+      can authorize one. Narrows bypasses; denies nothing. ADR 0059. Default `[]`.
+    * `:machinery_only` — actions only the `oban` system actor may run: the
+      system-actor bypass reaches them for `oban` alone, and the grant union
+      does not apply to them. ADR 0059. Default `[]`.
+    * `:optimistic_lock?` — put `optimistic_lock(:version_number)` on every
+      update action, so a write made from a stale copy of a row fails with
+      `Ash.Error.Changes.StaleRecord` instead of overwriting the write it did
+      not see, and `version_number` counts writes. Default `true`; off only for
+      a strangled read model that projects `version_number` as a constant
+      (`AshEnterprise.Platform.Verifiers.OptimisticLock`). ADR 0059.
     * `:audit?` — write to the central event log. Default `true`.
     * `:archival?` — soft delete. Default `true`.
     * `:lineage?` — emit an OpenLineage COMPLETE RunEvent on every successful
@@ -85,6 +97,9 @@ defmodule AshEnterprise.Platform.Resource do
     {lifecycle?, opts} = Keyword.pop(opts, :lifecycle?, true)
     {cdm_entity, opts} = Keyword.pop(opts, :cdm_entity)
     {self_service, opts} = Keyword.pop(opts, :self_service, [])
+    {human_only, opts} = Keyword.pop(opts, :human_only, [])
+    {machinery_only, opts} = Keyword.pop(opts, :machinery_only, [])
+    {optimistic_lock?, opts} = Keyword.pop(opts, :optimistic_lock?, true)
     {audit?, opts} = Keyword.pop(opts, :audit?, true)
     {archival?, opts} = Keyword.pop(opts, :archival?, true)
     {lineage?, opts} = Keyword.pop(opts, :lineage?, true)
@@ -142,11 +157,30 @@ defmodule AshEnterprise.Platform.Resource do
         change AshEnterprise.Platform.Changes.StampProvenance, on: [:create, :update]
       end
 
+      unquote(
+        if optimistic_lock? do
+          quote do
+            # ADR 0059: `version_number` is an optimistic lock. Ash's own change,
+            # not an increment: on a non-atomic update (every audited one -- the
+            # AshEvents wrapper refuses atomics) an increment computes N+1 from the
+            # row each writer loaded, so two writers both write N+1 and the second
+            # silently wins. The lock adds `WHERE version_number = N` to the UPDATE,
+            # so the second writer matches no row and gets a StaleRecord error.
+            changes do
+              change optimistic_lock(:version_number), on: [:update]
+            end
+          end
+        end
+      )
+
       platform do
         ownership(unquote(ownership))
         tenant?(unquote(tenant?))
         lifecycle?(unquote(lifecycle?))
         self_service(unquote(self_service))
+        human_only(unquote(human_only))
+        machinery_only(unquote(machinery_only))
+        optimistic_lock?(unquote(optimistic_lock?))
 
         unquote(
           if cdm_entity do

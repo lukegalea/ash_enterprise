@@ -24,6 +24,12 @@ defmodule AshEnterprise.Assistant.Runner do
     * **step cap** — at most `#{6}` model calls. A run that reaches the cap
       gets one more call with no tools, asking it to answer from what it
       found; if that yields nothing, the answer fails as `step_cap`.
+    * **status** — the loop's result says how it ended. Only `:complete`
+      is an answer. The run cannot wait for anyone, so a loop that stopped
+      for a tool call held for approval (`:awaiting_approval`, when an
+      `:approve_tool_call` gate answers `:ask`) or for a tool that paused
+      (`:paused`) is recorded as failed with that reason, and the held
+      calls are marked on the answer. Nothing is retried or resumed here.
 
   ## Events
 
@@ -39,6 +45,8 @@ defmodule AshEnterprise.Assistant.Runner do
     * `{:proposal, %{id:, wire:, summary:}}` — a proposal tool built one; the
       page rebuilds it from `wire` as the person and waits for a confirm;
     * `{:step, n}` — model call `n` is starting;
+    * `{:held, %{ids:, reason:}}` — the loop stopped with these tool calls
+      unrun (`reason` is `:awaiting_approval` or `:paused`);
     * `{:done, turn}` / `{:failed, reason, turn}` — terminal, after the answer
       is recorded (`turn` is nil only if recording failed).
 
@@ -70,6 +78,8 @@ defmodule AshEnterprise.Assistant.Runner do
           | :model_recovering
           | :model_error
           | :step_cap
+          | :awaiting_approval
+          | :tool_paused
           | :empty_answer
           | :internal
 
@@ -104,6 +114,11 @@ defmodule AshEnterprise.Assistant.Runner do
       can record the same answer without writing it twice;
     * `:model` — a model spec (default: the in-zone profile);
     * `:req_llm_opts` — extra transport options (tests pass `downstream:`);
+    * `:approve_tool_call` — a gate on each tool call, as ash_ai's
+      `AshAi.ToolLoop` takes it: `(call, context -> :ok | {:deny, reason} | :ask)`.
+      Default: none, so every call runs as the person. A denial goes back to
+      the model as the tool's error; `:ask` ends the answer as
+      `:awaiting_approval`;
     * `:max_steps` — the step cap (default #{@max_steps}).
 
   Returns `{:ok, turn}` or `{:error, reason, turn}`.
@@ -141,6 +156,7 @@ defmodule AshEnterprise.Assistant.Runner do
       model: Keyword.get_lazy(opts, :model, &Models.default_spec/0),
       req_llm_opts: Keyword.get_lazy(opts, :req_llm_opts, &configured_transport/0),
       max_steps: Keyword.get(opts, :max_steps, @max_steps),
+      approve_tool_call: opts[:approve_tool_call],
       started: System.monotonic_time(),
       target: nil,
       # what the run accumulates
@@ -224,7 +240,8 @@ defmodule AshEnterprise.Assistant.Runner do
   @claims_a_proposal ~r/\b(?:I'?ve|I have|I) (?:just )?proposed\b|^\W*proposed\b/imu
 
   defp unbacked_proposal?(
-         %{error: nil, stopped?: false, result: %AshAi.ToolLoop.Result{}} = state
+         %{error: nil, stopped?: false, result: %AshAi.ToolLoop.Result{status: :complete}} =
+           state
        ) do
     Regex.match?(@claims_a_proposal, answer_text(state)) and
       not Enum.any?(state.calls, &Map.has_key?(&1, "proposal")) and
@@ -277,9 +294,13 @@ defmodule AshEnterprise.Assistant.Runner do
           [
             actions: Enum.map(Assistant.tool_resources(), &{&1, :*}),
             tools: Assistant.tool_names()
-          ],
+          ] ++ gate(state.approve_tool_call),
       else: base ++ [tools: false]
   end
+
+  # ash_ai validates the gate as a 2-arity function, so no gate is no option.
+  defp gate(nil), do: []
+  defp gate(fun) when is_function(fun, 2), do: [approve_tool_call: fun]
 
   # At the cap: one call with no tools, over everything the loop gathered.
   defp final_answer(%{result: %AshAi.ToolLoop.Result{messages: messages}} = state) do
@@ -354,10 +375,40 @@ defmodule AshEnterprise.Assistant.Runner do
 
   defp handle({:error, reason}, state), do: %{state | error: reason}
 
-  defp handle({:done, %AshAi.ToolLoop.Result{} = result}, state),
-    do: %{state | result: result, steps: max(state.steps, result.iterations)}
+  defp handle({:done, %AshAi.ToolLoop.Result{} = result}, state) do
+    state = %{state | result: result, steps: max(state.steps, result.iterations)}
+    hold(state, status_reason(result), held_ids(result))
+  end
 
   defp handle(_other, state), do: state
+
+  # The loop stopped with calls unrun: mark them on the answer, tell the page.
+  defp hold(state, nil, _ids), do: state
+
+  defp hold(state, reason, ids) do
+    emit(state, {:held, %{ids: ids, reason: reason}})
+
+    calls =
+      Enum.map(state.calls, fn call ->
+        if call["id"] in ids, do: Map.put(call, "held", Atom.to_string(reason)), else: call
+      end)
+
+    %{state | calls: calls}
+  end
+
+  defp held_ids(%AshAi.ToolLoop.Result{pending_approvals: pending, paused_calls: paused}),
+    do: Enum.map(pending, & &1.id) ++ Enum.map(paused, & &1.call.id)
+
+  @doc """
+  Why a loop result is not an answer, from its `status`: `nil` for
+  `:complete`, `:awaiting_approval` when a tool call is held for a decision,
+  `:tool_paused` when a tool paused. Any other status is `:internal`.
+  """
+  @spec status_reason(struct()) :: reason() | nil
+  def status_reason(%AshAi.ToolLoop.Result{status: :complete}), do: nil
+  def status_reason(%AshAi.ToolLoop.Result{status: :awaiting_approval}), do: :awaiting_approval
+  def status_reason(%AshAi.ToolLoop.Result{status: :paused}), do: :tool_paused
+  def status_reason(%AshAi.ToolLoop.Result{}), do: :internal
 
   # A tool's raw result is the action's map: `count`, and refs anywhere in it.
   # A refusal (`error`) is a tool that answered, but not with rows.
@@ -456,6 +507,10 @@ defmodule AshEnterprise.Assistant.Runner do
   end
 
   defp verdict(%{stopped?: true}), do: {:stopped, nil}
+
+  defp verdict(%{error: nil, result: %AshAi.ToolLoop.Result{status: status} = result})
+       when status != :complete,
+       do: {:failed, status_reason(result)}
 
   defp verdict(%{error: nil} = state),
     do: if(answer_text(state) == "", do: {:failed, :empty_answer}, else: {:complete, nil})

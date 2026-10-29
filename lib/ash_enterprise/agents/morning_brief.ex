@@ -65,7 +65,8 @@ defmodule AshEnterprise.Agents.MorningBrief do
     lifecycle?: false,
     archival?: false,
     self_service: [:compose_today, :start_for_date, :read, :latest],
-    notifiers: [Ash.Notifier.PubSub]
+    notifiers: [Ash.Notifier.PubSub],
+    extra_extensions: [AshAgent.Effects]
 
   postgres do
     table "agent_morning_briefs"
@@ -250,6 +251,18 @@ defmodule AshEnterprise.Agents.MorningBrief do
 
       change set_attribute(:status, :rejected)
     end
+  end
+
+  # The ACP `brief` command (ADR 0057): it opens the day's brief and starts the
+  # process that composes it with a model, so the person confirms first. A
+  # day that already has one is left alone.
+  effects do
+    action :compose_today,
+      kind: :execute,
+      destructive?: false,
+      idempotent?: true,
+      approval: :confirm,
+      intent: :execute
   end
 
   calculations do

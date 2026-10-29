@@ -46,7 +46,8 @@ defmodule AshEnterprise.Security.Privilege do
     tenant?: false,
     lifecycle?: false,
     archival?: false,
-    cdm_entity: "Privilege"
+    cdm_entity: "Privilege",
+    extra_extensions: [AshAgent.Effects]
 
   postgres do
     table "privileges"
@@ -102,6 +103,17 @@ defmodule AshEnterprise.Security.Privilege do
       upsert_identity :unique_privilege
       description "Idempotent, because the seeder re-runs on every deploy."
     end
+  end
+
+  # Exposed as an ash_ai tool (`list_privileges`); ADR 0057.
+  effects do
+    action :read,
+      kind: :read,
+      read_only?: true,
+      destructive?: false,
+      idempotent?: true,
+      open_world?: false,
+      intent: :inspect
   end
 
   code_interface do

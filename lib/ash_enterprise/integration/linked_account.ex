@@ -70,7 +70,8 @@ defmodule AshEnterprise.Integration.LinkedAccount do
     domain: AshEnterprise.Integration,
     ownership: :user_owned,
     tenant?: true,
-    archival?: false
+    archival?: false,
+    extra_extensions: [AshAgent.Effects]
 
   postgres do
     table "integration_linked_accounts"
@@ -419,6 +420,17 @@ defmodule AshEnterprise.Integration.LinkedAccount do
                  (is_nil(^arg(:linked_account_id)) or id == ^arg(:linked_account_id))
              )
     end
+  end
+
+  # The ACP `sync` command (ADR 0057): it reaches the provider, so the person
+  # confirms first. A second request while one is queued is a no-op.
+  effects do
+    action :sync_now,
+      kind: :execute,
+      destructive?: false,
+      idempotent?: true,
+      approval: :confirm,
+      intent: :execute
   end
 
   code_interface do

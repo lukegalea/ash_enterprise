@@ -17,7 +17,8 @@ defmodule AshEnterprise.Agents.AgentRun do
   use AshEnterprise.Platform.Resource,
     domain: AshEnterprise.Agents,
     lifecycle?: false,
-    archival?: false
+    archival?: false,
+    extra_extensions: [AshAgent.Effects]
 
   postgres do
     table "agent_runs"
@@ -130,6 +131,17 @@ defmodule AshEnterprise.Agents.AgentRun do
       change set_attribute(:finished_at, &DateTime.utc_now/0)
       require_atomic? false
     end
+  end
+
+  # Exposed as an ash_ai tool (`list_agent_runs`); ADR 0057.
+  effects do
+    action :read,
+      kind: :read,
+      read_only?: true,
+      destructive?: false,
+      idempotent?: true,
+      open_world?: false,
+      intent: :inspect
   end
 
   code_interface do

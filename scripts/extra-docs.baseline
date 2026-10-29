@@ -23,6 +23,7 @@ documentation references module "mix ash_a2ui.install.docs" but it is hidden	.cl
 documentation references module "mix ash_admin.install.docs" but it is hidden	.claude/skills/ash-framework/SKILL.md
 documentation references module "mix ash_ai.gen.chat.docs" but it is hidden	.claude/skills/ash-framework/SKILL.md
 documentation references module "mix ash_ai.gen.mcp.docs" but it is hidden	.claude/skills/ash-framework/SKILL.md
+documentation references module "mix ash_ai.gen.mcp_oauth.docs" but it is hidden	.claude/skills/ash-framework/SKILL.md
 documentation references module "mix ash_ai.gen.usage_rules" but it is hidden	.claude/skills/ash-framework/SKILL.md
 documentation references module "mix ash_ai.gen.usage_rules.docs" but it is hidden	.claude/skills/ash-framework/SKILL.md
 documentation references module "mix ash_ai.install.docs" but it is hidden	.claude/skills/ash-framework/SKILL.md

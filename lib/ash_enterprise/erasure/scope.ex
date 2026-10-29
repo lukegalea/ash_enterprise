@@ -67,7 +67,8 @@ defmodule AshEnterprise.Erasure.Scope do
     tenant?: false,
     lifecycle?: false,
     archival?: false,
-    policies?: false
+    policies?: false,
+    extra_extensions: [AshAgent.Effects]
 
   postgres do
     table "erasure_scopes"
@@ -293,6 +294,17 @@ defmodule AshEnterprise.Erasure.Scope do
       # affected owner's business-event stream (ADR 0051).
       change AshEnterprise.BusinessEvents.Changes.RecordShred
     end
+  end
+
+  # The ACP `erasure` command (ADR 0057): a read-only digest. Shred is not
+  # declared because nothing but the web's typed confirmation exposes it.
+  effects do
+    action :scopes_digest,
+      kind: :read,
+      destructive?: false,
+      idempotent?: true,
+      open_world?: false,
+      intent: :inspect
   end
 
   code_interface do

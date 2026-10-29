@@ -69,16 +69,16 @@ The concrete exit: which files change, and how much work it is.
 | [0035](0035-compliance-is-projected-from-events.md) | Compliance is projected from events under an immutable rule bundle | accepted |
 | [0036](0036-converge-process-triggers-onto-projection-checkpoints.md) | Converge process triggers onto projection checkpoints | accepted |
 | [0037](0037-projections-are-host-declared.md) | Projections are host-declared, from a vocabulary the library owns | accepted |
-| [0038](0038-models-observe-declarations-decide.md) | Models observe; declarations decide | accepted, not built (2026-09-28) |
-| [0039](0039-judgments-are-declared-questions.md) | Judgments are declared questions | accepted, not built (2026-09-28) |
-| [0040](0040-record-dont-recompute.md) | Record, don't recompute | accepted, not built (2026-09-28) |
-| [0041](0041-thresholds-are-dmn-earned-by-calibration.md) | Thresholds are DMN, earned by calibration | accepted, not built (2026-09-28) |
+| [0038](0038-models-observe-declarations-decide.md) | Models observe; declarations decide | accepted (2026-09-28); the observe → band → admit path built (verified 2026-10-23) |
+| [0039](0039-judgments-are-declared-questions.md) | Judgments are declared questions | accepted (2026-09-28); declared, locked questions built (verified 2026-10-23) |
+| [0040](0040-record-dont-recompute.md) | Record, don't recompute | accepted (2026-09-28); the ledger and its replay-safe create built (verified 2026-10-23) |
+| [0041](0041-thresholds-are-dmn-earned-by-calibration.md) | Thresholds are DMN, earned by calibration | accepted (2026-09-28); band tables earned by calibration built (verified 2026-10-23) |
 | [0042](0042-in-zone-inference-leaving-the-zone-is-a-disclosure.md) | In-zone inference; leaving the zone is a disclosure | accepted; admission built for Gmail/Slack projection (2026-10-12), flow rule not built |
-| [0043](0043-automation-authority-is-a-grant.md) | Automation authority is a grant | accepted, not built (2026-09-28) |
-| [0044](0044-documents-are-addressed-atoms-evidence-is-an-assertion.md) | Documents are addressed atoms; evidence is an assertion | accepted, not built (2026-09-28) |
-| [0045](0045-system-one-in-tooling-is-advisory.md) | System One in developer and agent tooling is advisory | accepted, not built (2026-09-28) |
-| [0046](0046-the-declaration-is-the-output-contract.md) | The declaration is the output contract | accepted, not built (2026-09-28) |
-| [0047](0047-learning-produces-proposals.md) | Learning produces proposals | accepted, not built (2026-09-28) |
+| [0043](0043-automation-authority-is-a-grant.md) | Automation authority is a grant | accepted (2026-09-28); the `ai` actor's bypass removed (built), the automation principal not built (verified 2026-10-23) |
+| [0044](0044-documents-are-addressed-atoms-evidence-is-an-assertion.md) | Documents are addressed atoms; evidence is an assertion | accepted (2026-09-28); evidence assertions built (verified 2026-10-23) |
+| [0045](0045-system-one-in-tooling-is-advisory.md) | System One in developer and agent tooling is advisory | accepted (2026-09-28); the host's advisory standards review built, the tooling package's model tier not built (verified 2026-10-23) |
+| [0046](0046-the-declaration-is-the-output-contract.md) | The declaration is the output contract | accepted (2026-09-28); wire-schema contracts built for proposals, the one shared type-to-schema mapping not built (verified 2026-10-23) |
+| [0047](0047-learning-produces-proposals.md) | Learning produces proposals | accepted (2026-09-28); person-confirmed proposal records built, offline learners not built (verified 2026-10-23) |
 | [0048](0048-a-judgment-is-a-predicate-over-any-set.md) | A judgment is a predicate over any set | proposed |
 | [0049](0049-temporal-resources-are-the-validity-substrate.md) | Temporal resources are the platform's validity substrate | accepted (2026-10-06; in progress) |
 | [0050](0050-neobrutalism-design-system.md) | A neobrutalism token system, dark by default, replaces daisyUI | accepted |
@@ -86,8 +86,13 @@ The concrete exit: which files change, and how much work it is.
 | [0052](0052-self-service-actions.md) | Self-service actions: what a member may do for themselves without a grant | accepted |
 | [0053](0053-subject-state-digest-third-axis.md) | The subject-state digest is the third axis: evidence currency, kept on the fact row | accepted (ruling 2026-10-09) |
 | [0054](0054-mdm-stewardship-is-system-one.md) | MDM stewardship is System One machinery, not a bespoke product (amends 0017) | accepted |
+| [0055](0055-consequential-acts-are-governed-invocations.md) | Every consequential act is one governed invocation | accepted (2026-10-23); the invocation record, `invoke`, the lease and the job handoff built, approvals, reconciliation and the automation principal not built (2026-10-29) |
+| [0056](0056-the-ash-agent-package.md) | The agent runtime is a separate public package, `ash_agent`, that the host instantiates | accepted, not built (2026-10-23) |
+| [0057](0057-actions-declare-their-effects.md) | Every action exposed to an agent, an editor or a process declares its effects | accepted (2026-10-23); the extension, its verifiers and the host's ACP readers built, the library resolvers and ash_ai annotations not built (2026-10-29) |
+| [0058](0058-agent-quality-and-releases.md) | Agent quality is measured in a host Quality domain, and a release is a gated, attested manifest | accepted, not built (2026-10-23) |
+| [0059](0059-version-number-is-an-optimistic-lock.md) | `version_number` is an optimistic lock; human-only and machinery-only actions narrow the bypasses | accepted |
 
-Records 0001–0005, 0007–0009, 0020–0023, 0027–0031, 0033–0037 and 0050–0054 are `accepted` and describe code that exists. 0006 is superseded by 0050. 0049 is accepted and in progress: Phase 0 (PostgreSQL 18) and the System One fact cut-over have landed.
+Records 0001–0005, 0007–0009, 0020–0023, 0027–0031, 0033–0037, 0050–0054 and 0059 are `accepted` and describe code that exists. 0006 is superseded by 0050. 0049 is accepted and in progress: Phase 0 (PostgreSQL 18) and the System One fact cut-over have landed.
 **0038–0047 are `accepted, not built (2026-09-28)`:** the decision is taken and none of it is built. A record with that
 status flips to plain `accepted` when its code lands, so `accepted` on its own keeps meaning code that exists.
 **0012–0019, 0025, 0026, 0032 and 0048 are `proposed`: none of them is built**, with the exception 0015 below. 0010 (ingestion), 0011 (the Nango edge) and 0024 (crypto-shredding) were accepted on 2026-10-12 when the dogfood deployment began depending on them; each one's implementation note says what is built and where it differs from the Decision (0010 lands into an Ash resource rather than a staging schema; 0024's partitioning half is not built). They are here because a decision is cheapest to reason about — and cheapest to
@@ -134,3 +139,30 @@ where the honest answer is "not yet, and here is what that costs".
 
 Number sequentially, never renumber, never delete. A superseded ADR stays in place with its status updated and a pointer
 forward — the reasoning that was wrong is often more useful later than the reasoning that was right.
+
+## Correction, 2026-10-23: 0038–0047 are partly built
+
+The paragraph above that says 0038–0047 are `accepted, not built (2026-09-28)` and that "none of it is built" was true
+when it was written and is no longer. Each row in the index was checked against the source on 2026-10-23, and the rows
+for 0038–0041 and 0043–0047 now say what is built. A row reads plain `accepted` only when all of its record is built,
+so every one of these keeps a qualifier. The records' own status lines are left as they were written on 2026-09-28;
+this index is where the current status lives.
+
+| ADR | Built | Not built |
+|---|---|---|
+| 0038 | the path itself: observations in the judgment ledger (`SystemOne.Judgment`), banding against published band tables (`SystemOne.Banding`), admitted facts (`SystemOne.Fact`), person-only verdicts (`SystemOne.HumanVerdict`) | — beyond what the records below list |
+| 0039 | questions declared on `Canonical.Task` and `Licences.Dependency`, locked in `priv/judgments/lock.json` | — |
+| 0040 | the append-only ledger whose create accepts the answer as input, with cache key, record hash and erasure tombstone (`SystemOne.Judgment`) | the erasure-versus-replay question the record marks pending is still open |
+| 0041 | band tables as `ash_decisions` definitions, published only after a person's certification and a compliant calibration run (`SystemOne.BandTablePublication`, `CalibrationRun`, `BandTableCertification`) | — |
+| 0043 | the `ai` system actor's bypass is removed and it resolves to an empty context (`Security.Checks.SystemActor`, `Security.ActorContext`) | the automation principal and its grants |
+| 0044 | evidence adjudication over `ash_evidence` documents, recorded as assertions (`SystemOne.Evidence`, `SystemOne.EvidenceAssertion`) | — |
+| 0045 | the advisory standards review over this repository's own code, which never fails a build (`AshEnterprise.Standards`) | the `:model` tier and explicit promotion thresholds in the agent tooling package |
+| 0046 | decode-time wire schemas, validated after decode, for question proposals (a static schema with no confidence field, `SystemOne.QuestionProposal.Schema`) and filter proposals (derived per call from the declared queryables, `SystemOne.Filter.Schema`) | the one generated type-to-JSON-Schema mapping shared by every consumer |
+| 0047 | proposal records that only a person adopts: question proposals, filter proposals and action-item proposals (`SystemOne.QuestionProposal`, `SystemOne.FilterProposal`, `Canonical.Commitments`) | optimisers, distillation and other offline learners |
+
+0055–0058 record the agent runtime decided on 2026-10-22 and 2026-10-23: one governed invocation for every
+consequential act, the runtime as a separate package the host instantiates, a per-action effects declaration, and
+agent evaluation with gated releases. The effects declaration and the invocation record are built; the rest is not yet.
+0055 and 0056 carry amendments of 2026-10-29: the coding-agent
+bridge's approval half moves onto the invocation while its sessions stay separate, ash_ai and req_llm are upgraded
+wherever needed, and the package's dependency tree allows one Phoenix edge (ash_ai -> ash_json_api -> phoenix).

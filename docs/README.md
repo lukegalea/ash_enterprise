@@ -20,6 +20,11 @@ including the ones in the root `README.md`. It is rewritten by `mix ash_enterpri
 in CI, so a status cannot be right in one place and wrong in another. Edit the JSON, never a generated
 table.
 
+`capabilities.json` is the capability inventory: workflow, agent and enterprise capabilities, each graded
+existing, partial, missing or refused, with the test that shows it. `capability_inventory_test.exs` fails
+when a grade names no test, a cited test has been renamed or is skipped by default, or a dependency the
+grades were read against has moved in `mix.lock`.
+
 `screenshots/` holds real captures of the running application. Nothing in there is a mockup.
 
 ## Capturing screenshots

@@ -41,7 +41,8 @@ defmodule AshEnterprise.Assistant.Lookup do
       :pending_approvals,
       :steward_queue,
       :count_activity
-    ]
+    ],
+    extra_extensions: [AshAgent.Effects]
 
   alias AshEnterprise.Assistant.Lookups
 
@@ -217,5 +218,73 @@ defmodule AshEnterprise.Assistant.Lookup do
 
       run Lookups.ActivityCounts
     end
+  end
+
+  # The assistant's read tools (ADR 0057). Each reads synced records in this
+  # database as the person and writes nothing; being generic actions, none is
+  # `read_only?` (only an Ash read is).
+  effects do
+    action :calendar_events,
+      kind: :read,
+      destructive?: false,
+      idempotent?: true,
+      open_world?: false,
+      intent: :inspect
+
+    action :find_conversations,
+      kind: :search,
+      destructive?: false,
+      idempotent?: true,
+      open_world?: false,
+      intent: :inspect
+
+    action :read_messages,
+      kind: :read,
+      destructive?: false,
+      idempotent?: true,
+      open_world?: false,
+      intent: :inspect
+
+    action :find_people,
+      kind: :search,
+      destructive?: false,
+      idempotent?: true,
+      open_world?: false,
+      intent: :inspect
+
+    action :my_tasks,
+      kind: :read,
+      destructive?: false,
+      idempotent?: true,
+      open_world?: false,
+      intent: :inspect
+
+    action :morning_briefs,
+      kind: :read,
+      destructive?: false,
+      idempotent?: true,
+      open_world?: false,
+      intent: :inspect
+
+    action :pending_approvals,
+      kind: :read,
+      destructive?: false,
+      idempotent?: true,
+      open_world?: false,
+      intent: :inspect
+
+    action :steward_queue,
+      kind: :read,
+      destructive?: false,
+      idempotent?: true,
+      open_world?: false,
+      intent: :inspect
+
+    action :count_activity,
+      kind: :read,
+      destructive?: false,
+      idempotent?: true,
+      open_world?: false,
+      intent: :inspect
   end
 end

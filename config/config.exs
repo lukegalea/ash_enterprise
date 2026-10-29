@@ -29,7 +29,19 @@ config :ash_enterprise, Oban,
   # orchestrator, AST-152) — model-bound work that must never run in a
   # request, a guard path or a policy check (law 3). Its own budget so a slow
   # instrument lane cannot starve token advances.
-  queues: [default: 10, bpmn: 10, ash_strangler_ledger: 10, ingestion: 5, system_one: 5, mdm: 10],
+  #
+  # `:execution` runs governed invocations (ADR 0055): one job per ready invocation, each of
+  # which runs an action on someone's behalf. Its own budget, so a slow target cannot hold up
+  # token advances or syncs.
+  queues: [
+    default: 10,
+    bpmn: 10,
+    ash_strangler_ledger: 10,
+    ingestion: 5,
+    system_one: 5,
+    mdm: 10,
+    execution: 10
+  ],
   repo: AshEnterprise.Repo,
   plugins: [
     # Rescues jobs left `executing` by a node that died mid-flight. Without it they stay that
@@ -391,6 +403,7 @@ config :ash_enterprise,
     AshEnterprise.BusinessEvents,
     AshEnterprise.Integration,
     AshEnterprise.Agents,
+    AshEnterprise.Execution,
     AshEnterprise.AI,
     AshEnterprise.Assistant,
     AshEnterprise.Mdm,

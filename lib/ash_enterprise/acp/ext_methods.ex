@@ -9,7 +9,7 @@ defmodule AshEnterprise.Acp.ExtMethods do
   |---|---|
   | `_ash/surfaces/list` | The registry's A2UI surfaces whose door is open for the actor and whose resource they may read (`Ash.can?`) |
   | `_ash/surface/open` | Builds the surface (`AshA2ui.Info.build_surface/2`); with a `recordId`, the record selected through `AshEnterprise.Surfaces.Records` (door, authorized read, context selection — "not found" for anything else). Recorded in the session store, so `session/load` re-emits it, with a one-line `opened <surface>` transcript entry |
-  | `_a2ui/action` | Runs the A2UI action through `AshA2ui.ActionHandler` as the session actor. Reads (query, select, search, report, export) run at once; writes (`submit_form`, `invoke`, `prompt`, `edit_cell`) are consequential and ask first (`{:request_permission, spec}` → `AshEnterprise.Acp.Approvals`). Answers `applied` only when the action succeeded, `denied` when an approval was declined, and `failed` (with a `{kind, message}` error) when policy refused it, its input was invalid or it errored |
+  | `_a2ui/action` | Runs the A2UI action through `AshA2ui.ActionHandler` as the session actor. An action that runs an Ash action (`submit_form`, `invoke`, `bulk_invoke`, `edit_cell`) asks first (`{:request_permission, spec}` → `AshEnterprise.Acp.Approvals`) when that action's effects declaration says so (`AshEnterprise.Acp.asks_first?/2`); everything else (query, select, search, prompt, report, export) runs at once. Answers `applied` only when the action succeeded, `denied` when an approval was declined, and `failed` (with a `{kind, message}` error) when policy refused it, its input was invalid or it errored |
 
   Nothing here bypasses policy: every build and action runs with the actor
   and `authorize?: true`, and a client-supplied surface or record id is only a
@@ -30,9 +30,6 @@ defmodule AshEnterprise.Acp.ExtMethods do
   @list "_ash/surfaces/list"
   @open "_ash/surface/open"
   @action "_a2ui/action"
-
-  # A2UI client actions that write. Everything else the handler accepts reads.
-  @writes ~w(submit_form invoke prompt edit_cell)
 
   @impl true
   def methods, do: [@list, @open, @action]
@@ -200,34 +197,40 @@ defmodule AshEnterprise.Acp.ExtMethods do
 
   defp parse_action(_action), do: {:error, -32_602, "action must be an A2UI action envelope"}
 
-  # Reads run at once; a write asks first, and runs on the second call. The
-  # spec names the exact call — resource, action, the form's values, the
-  # tenant and, for an update or destroy, the record as the actor reads it —
-  # so ash_acp checks it with `Ash.can/3` before anyone is asked, and a write
+  # An action whose effects declaration asks first (`Acp.asks_first?/2`)
+  # asks, and runs on the second call; anything else runs at once. The spec
+  # names the exact call — resource, action, the form's values, the tenant
+  # and, for an update or destroy, the record as the actor reads it — so
+  # ash_acp checks it with `Ash.can/3` before anyone is asked, and a write
   # policy refuses never reaches the person.
-  defp act(entry, ui, _action, name, context, actor, nil, _by) when name in @writes do
-    {resource, action_name} = target(ui, name, context)
-
-    {:request_permission,
-     %{
-       title: "#{humanize(action_name || name)} · #{entry.label}",
-       kind: :execute,
-       inputs: inputs(resource, action_name, context),
-       record: record(resource, action_name, context["recordId"], actor),
-       tenant: ActorContext.tenant(actor),
-       resource: resource,
-       action: action_name
-     }}
+  defp act(entry, ui, action, name, context, actor, nil, _by) do
+    with {resource, action_name} when not is_nil(action_name) <- target(ui, name, context),
+         true <- Acp.asks_first?(resource, action_name) do
+      {:request_permission,
+       %{
+         title: "#{humanize(action_name)} · #{entry.label}",
+         kind: Acp.kind(resource, action_name),
+         inputs: inputs(resource, action_name, context),
+         record: record(resource, action_name, context["recordId"], actor),
+         tenant: ActorContext.tenant(actor),
+         resource: resource,
+         action: action_name
+       }}
+    else
+      _runs_at_once -> run(ui, action, actor)
+    end
   end
 
   # Refused by policy up front: a failed write, not a declined one.
-  defp act(_entry, _ui, _action, name, _context, _actor, :denied, :policy) when name in @writes,
+  defp act(_entry, _ui, _action, _name, _context, _actor, :denied, :policy),
     do: {:ok, AshAcp.ExtMethods.action_failed(:forbidden)}
 
-  defp act(_entry, _ui, _action, name, _context, _actor, :denied, _by) when name in @writes,
+  defp act(_entry, _ui, _action, _name, _context, _actor, :denied, _by),
     do: {:ok, %{"outcome" => "denied", "a2ui" => []}}
 
-  defp act(_entry, ui, action, _name, _context, actor, _permission, _by) do
+  defp act(_entry, ui, action, _name, _context, actor, _approved, _by), do: run(ui, action, actor)
+
+  defp run(ui, action, actor) do
     case AshA2ui.ActionHandler.handle(ui, action,
            actor: actor,
            tenant: ActorContext.tenant(actor)
@@ -312,22 +315,39 @@ defmodule AshEnterprise.Acp.ExtMethods do
 
   defp forbidden?(_update), do: false
 
-  # The resource and Ash action a write runs, for the approval record: a row
-  # action by its declared name, a form by its create/update action.
+  # The resource and the Ash action an A2UI action runs, as
+  # `AshA2ui.ActionHandler` resolves it: a form by its create or update
+  # action, a row or bulk action by its name in the view's allowlist, a cell
+  # by its table's update action. `nil` for an A2UI action that runs no Ash
+  # action (a query, a search, a prompt opening, a report, an export), or one
+  # the handler will refuse anyway.
   defp target(ui, name, context) do
     view = AshA2ui.ResolvedView.resolve(ui, [])
+    {view.resource, ash_action(view, name, context)}
+  end
 
-    action_name =
-      case name do
-        "submit_form" ->
-          if context["recordId"], do: view.update_action, else: view.create_action
+  defp ash_action(view, "submit_form", context),
+    do: if(context["recordId"], do: view.update_action, else: view.create_action)
 
-        _row_action ->
-          Enum.find(view.row_actions, &(Atom.to_string(&1) == context["action"]))
+  defp ash_action(view, "invoke", context), do: named(view.row_actions, context["action"])
+  defp ash_action(view, "bulk_invoke", context), do: named(view.bulk_actions, context["action"])
+
+  defp ash_action(%{tables: tables}, "edit_cell", context) do
+    table =
+      case tables do
+        [table] -> table
+        tables -> Enum.find(tables, &(to_string(&1.name) == context["component"]))
       end
 
-    {view.resource, action_name}
+    case table do
+      %{editable: %{update_action: action}} -> action
+      _none -> nil
+    end
   end
+
+  defp ash_action(_view, _name, _context), do: nil
+
+  defp named(actions, requested), do: Enum.find(actions, &(Atom.to_string(&1) == requested))
 
   defp humanize(name), do: name |> to_string() |> String.replace("_", " ") |> String.capitalize()
 

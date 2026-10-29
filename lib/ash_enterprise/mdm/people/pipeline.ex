@@ -619,8 +619,11 @@ defmodule AshEnterprise.Mdm.People.Pipeline do
 
   defp fail!(batch, reason) do
     # The exception's class only: an Ash error quotes the value it refused,
-    # and here the values are people's names and addresses.
-    batch
+    # and here the values are people's names and addresses. The batch as it
+    # now stands: matching may already have written it, and `version_number`
+    # is an optimistic lock (ADR 0059).
+    batch.id
+    |> AshEnterprise.Mdm.ImportBatch.by_id!(tenant: batch.organization_id, authorize?: false)
     |> Ash.Changeset.for_update(:fail, %{failure_reason: inspect(reason.__struct__)},
       tenant: batch.organization_id,
       authorize?: false

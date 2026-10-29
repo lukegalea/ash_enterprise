@@ -184,3 +184,45 @@ config :ash_enterprise, :system_one_subject_resources, [
 config :ash_enterprise, privilege_sync?: false
 # MDM proposals: tests stub the LLM MFA per test; no default model runs.
 config :ash_enterprise, :mdm_proposal_llm, nil
+
+# Fault points (`AshEnterprise.Faults.point/1`) are compiled in only here; everywhere else
+# they compile to `:ok` and cannot be armed.
+config :ash_enterprise, AshEnterprise.Faults, enabled?: true
+
+# The durability tier (`mix test.durability`, see docs/DURABILITY-TESTS.md). Its tests need
+# what the SQL sandbox takes away: commits other connections can see, and a real Oban
+# instance running jobs in its own processes. So the whole run switches over: no sandbox pool,
+# a database of its own that the harness creates and drops, and Oban executing jobs. The
+# ordinary suite never runs in this mode, and this mode runs nothing but `:durability` tests.
+if System.get_env("ASH_ENTERPRISE_DURABILITY") in ["1", "true"] do
+  durability_database = "ash_enterprise_test#{System.get_env("MIX_TEST_PARTITION")}_durability"
+
+  config :ash_enterprise, :durability?, true
+
+  # Small pools: enough for a race to really overlap, few enough that a durability run beside
+  # other checkouts' suites does not exhaust a shared cluster.
+  config :ash_enterprise, AshEnterprise.Repo,
+    database: durability_database,
+    pool: DBConnection.ConnectionPool,
+    pool_size: 10,
+    force_drop: true
+
+  config :ash_evidence, AshEvidence.Repo,
+    database: durability_database,
+    pool: DBConnection.ConnectionPool,
+    pool_size: 2,
+    force_drop: true
+
+  # A real Oban: queues run, jobs execute in their own processes and retry, and this node leads
+  # (only the leader stages retries and scheduled jobs; it is the only node on its database).
+  #
+  # The application's crontab is emptied, so no sweep acts on the tests' rows on its own
+  # schedule; a test that needs a sweep runs it. AshOban still adds the entries for resource
+  # triggers that declare a scheduler. The inherited Lifeline and Pruner stay: they act after
+  # minutes and days, and AshOban treats an Oban with no plugins as one that never leads.
+  config :ash_enterprise, Oban,
+    testing: :disabled,
+    plugins: [{Oban.Plugins.Cron, crontab: []}],
+    peer: {Oban.Peers.Isolated, [leader?: true]},
+    queues: [durability: 5]
+end

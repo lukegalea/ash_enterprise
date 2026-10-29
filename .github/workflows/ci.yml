@@ -178,6 +178,15 @@ jobs:
       - name: Test
         run: elixir -e "$CANARY_INSTRUMENT" -S mix test
 
+      # The durability tier (docs/DURABILITY-TESTS.md): races between connections, jobs
+      # killed between two commits, leases taken over. The step above excludes it, because
+      # the SQL sandbox cannot show any of that, so without this step the tests for the
+      # invocation invariants (one row per key, the ready-row handoff, lease fencing) would
+      # gate nothing. It uses a database of its own on the same service and drops it when
+      # it ends.
+      - name: Durability tier
+        run: mix test.durability
+
       # The suite migrates into `public`. The VendorPM workspace hosts this app
       # in a schema of its own (ASH_SCHEMA), and a regenerated migration that
       # bakes in `prefix: "public"` only fails there. Replay into `canonical`
@@ -243,6 +252,92 @@ jobs:
           npm ci --prefix assets
           MIX_ENV=dev mix assets.setup
           MIX_ENV=dev mix assets.build
+
+  battery:
+    name: Cross-substrate integration battery
+    runs-on: ubuntu-latest
+    # battery/ is a mix project of its own (README there): the flows that span
+    # two or more substrates, run against its own reference instantiation and
+    # its own database. The suite above never compiles it, so until this job a
+    # substrate bump could break a seam and nothing here would go red. A job of
+    # its own so it runs alongside the main one and its log stays readable.
+    # Blocking: catching exactly that break is the battery's whole job.
+
+    services:
+      # Same image as the main job, for the same reasons: the battery's
+      # migrations install btree_gist, vector and ash-functions, and the
+      # temporal substrates need PostgreSQL 18. The battery creates its own
+      # `platform_battery_test` database, so no POSTGRES_DB here.
+      postgres:
+        image: pgvector/pgvector:pg18
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    # battery/config/test.exs reads the standard PG* variables.
+    env:
+      PGHOST: localhost
+      PGPORT: "5432"
+      PGUSER: postgres
+      PGPASSWORD: postgres
+
+    defaults:
+      run:
+        working-directory: battery
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: beam
+        uses: ./.github/actions/setup-beam
+
+      # The battery's README says it resolves the same code the platform
+      # ships, and by 2026-10-29 sixteen shared lock entries said otherwise.
+      # First, because it needs no compile and a drifted pin makes everything
+      # after it test the wrong versions. The script prints the one-command fix.
+      - name: Battery pins match mix.lock
+        working-directory: .
+        run: elixir scripts/battery-pins-check.exs
+
+      # Its own key and its own lock hash: battery/deps and battery/_build are
+      # a different dependency set from the root's, and the Elixir version
+      # rides the key for the reason given on the main job's cache.
+      - name: Restore battery dependency and build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            battery/deps
+            battery/_build
+          key: ${{ runner.os }}-battery-${{ steps.beam.outputs.elixir-version }}-${{ hashFiles('battery/mix.lock') }}
+          restore-keys: ${{ runner.os }}-battery-${{ steps.beam.outputs.elixir-version }}-
+
+      # The battery runs ash_decisions, so boxic_dmn shells out to `xmllint`
+      # here too. Declared, not assumed -- see the main job's step.
+      - name: Install xmllint
+        run: sudo apt-get update -y && sudo apt-get install -y libxml2-utils
+
+      - run: mix deps.get
+
+      # Dependencies first, so a dependency's warning never fails the gate
+      # below -- the same split as the main job.
+      - run: mix deps.compile
+
+      - name: Check formatting
+        run: mix format --check-formatted
+
+      - name: Compile with warnings as errors
+        run: mix compile --warnings-as-errors
+
+      # Creates and migrates platform_battery_test, runs the scenarios in
+      # test/base_integration, exits non-zero on any failure.
+      - name: Platform battery
+        run: mix platform_battery
 
   dialyzer:
     name: Dialyzer (advisory)

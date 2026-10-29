@@ -61,6 +61,21 @@ so a query there multiplies with rows returned.
 
 If a check needs something the context does not have, add it to the context.
 
+## Bypasses that stop short: `human_only` and `machinery_only`
+
+Three bypasses precede the union (the two engines and `SystemActor`), and a
+bypass covers everything after it. To keep an action for a person alone,
+declare it `human_only:` on the base resource; to keep it for the job runner
+alone, declare it `machinery_only:` (ADR 0059).
+
+| Declared | Engine bypasses | `SystemActor` bypass | Union |
+|---|---|---|---|
+| `human_only` | no | no | yes; a system actor gets nothing |
+| `machinery_only` | no | `oban` only | does not apply |
+
+Both narrow a path; neither denies. Never reach for `forbid_if` or
+`policies?: false` to make an action person-only.
+
 ## Filter checks, not simple checks
 
 Prefer `Ash.Policy.FilterCheck` for anything record-dependent, so **reads narrow

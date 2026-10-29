@@ -1,0 +1,560 @@
+{
+  "$comment": [
+    "The capability inventory: what this platform can do for workflow, agents and",
+    "enterprise operation, graded against a fixed list of capabilities, and the",
+    "test that shows each claim. test/ash_enterprise/capability_inventory_test.exs",
+    "reads this file and fails when a claim outruns its evidence.",
+    "",
+    "Statuses:",
+    "  existing -- works, and a test named here would fail if it regressed.",
+    "  partial  -- part of it works and is tested; `gap` says what is missing.",
+    "  missing  -- not built. A missing row names no tests: if one demonstrates",
+    "              something, the row is partial.",
+    "  refused  -- deliberately not built; `gap` gives the reason. A refused row",
+    "              may name the test that proves the refusal holds.",
+    "",
+    "A test reference is {file, test}, where `test` is the exact name in a",
+    "`test \"...\"` line. A reference with `dep` points into that first-party git",
+    "dependency's own suite, read at the revision pinned below; it runs in that",
+    "dependency's CI, not this one.",
+    "",
+    "`pins` records the dependency versions the claims were read against. A pin",
+    "with `lock` must equal mix.lock exactly, so moving that dependency means",
+    "re-reading the rows that name it (each row's `deps`). A pin with",
+    "`requirement` is checked against mix.lock as a version range: the claims",
+    "that rest on it are about what this application does with the dependency,",
+    "and were re-read at every version the range admits so far (`read_at`).",
+    "",
+    "Last reviewed against the tree: 2026-10-27."
+  ],
+  "reviewed": "2026-10-27",
+  "pins": [
+    {
+      "dep": "ash_bpmn",
+      "lock": "087880385fdfaff654c8039f1e2bb78d80bc58a0"
+    },
+    {
+      "dep": "ash_oban",
+      "lock": "0.9.0"
+    },
+    {
+      "dep": "ash_ai",
+      "requirement": "~> 1.1",
+      "read_at": ["1.1.1", "1.4.0"]
+    },
+    {
+      "dep": "req_llm",
+      "requirement": "~> 1.26",
+      "read_at": ["1.26.0", "1.29.0"]
+    }
+  ],
+  "areas": [
+    {"id": "workflow", "title": "Workflow and execution"},
+    {"id": "agents", "title": "Agents and AI"},
+    {"id": "enterprise", "title": "Enterprise and authoring"}
+  ],
+  "capabilities": [
+    {
+      "id": "versioned-workflow-definitions",
+      "area": "workflow",
+      "capability": "Versioned workflow definitions",
+      "status": "partial",
+      "summary": "A process definition moves draft, published, retired; a published version is immutable and content-hashed, a running instance keeps the version it started on, and a tenant can pin a version or follow the platform baseline.",
+      "gap": "No manifest of what a version depends on (decisions, actions, models), and no promotion between environments.",
+      "deps": ["ash_bpmn"],
+      "tests": [
+        {"file": "test/ash_enterprise/process/binding_test.exs", "test": "a platform binding pins a version rather than tracking the latest"},
+        {"file": "test/ash_enterprise/process/binding_test.exs", "test": "a tenant binding wins over the baseline"},
+        {"dep": "ash_bpmn", "file": "test/ash_bpmn/resources_test.exs", "test": "save_xml rejects when status is not draft"},
+        {"dep": "ash_bpmn", "file": "test/ash_bpmn/resources_test.exs", "test": "second definition with same key gets version 2"}
+      ]
+    },
+    {
+      "id": "sequential-and-conditional",
+      "area": "workflow",
+      "capability": "Sequential and conditional routing",
+      "status": "existing",
+      "summary": "Exclusive gateways with conditions and a declared default flow; the branch taken, and the expression that chose it, are recorded as process events.",
+      "deps": ["ash_bpmn"],
+      "tests": [
+        {"file": "test/ash_enterprise/process/access_request_demo_test.exs", "test": "the gateway records which branch it took"},
+        {"file": "test/ash_enterprise/process/access_request_demo_test.exs", "test": "a conditioned branch records the FEEL that chose it"},
+        {"dep": "ash_bpmn", "file": "test/ash_bpmn/engine_test.exs", "test": "default branch taken when no condition matches"}
+      ]
+    },
+    {
+      "id": "parallel-and-joins",
+      "area": "workflow",
+      "capability": "Parallel branches and joins",
+      "status": "partial",
+      "summary": "Parallel fork and join, with a join that waits for every inbound branch and branches that may end on their own.",
+      "gap": "No concurrency limit on branches, and mixed (fork-and-join in one) gateways are refused.",
+      "deps": ["ash_bpmn"],
+      "tests": [
+        {"dep": "ash_bpmn", "file": "test/ash_bpmn/engine_test.exs", "test": "parallel process completes after join"},
+        {"dep": "ash_bpmn", "file": "test/ash_bpmn/branch_completion_test.exs", "test": "a branch parked on an approval keeps the instance running"}
+      ]
+    },
+    {
+      "id": "dynamic-fan-out",
+      "area": "workflow",
+      "capability": "Dynamic fan-out",
+      "status": "partial",
+      "summary": "A parallel multi-instance activity runs once per element of a list known only at run time, and joins once.",
+      "gap": "Scalar elements only; no maximum concurrency, completion condition or partial-failure policy.",
+      "deps": ["ash_bpmn"],
+      "tests": [
+        {"dep": "ash_bpmn", "file": "test/ash_bpmn/multi_instance_test.exs", "test": "one instance per element, and the activity runs that many times"},
+        {"dep": "ash_bpmn", "file": "test/ash_bpmn/multi_instance_test.exs", "test": "what follows runs once, not once per element"}
+      ]
+    },
+    {
+      "id": "sequential-iteration",
+      "area": "workflow",
+      "capability": "Sequential iteration",
+      "status": "refused",
+      "summary": "Sequential multi-instance is refused when a diagram is compiled.",
+      "gap": "It needs a cursor on the token that the engine does not keep; a loop is modelled another way or not at all.",
+      "deps": ["ash_bpmn"],
+      "tests": [
+        {"dep": "ash_bpmn", "file": "test/ash_bpmn/compiler_test.exs", "test": "a sequential multi-instance is refused with its reason"}
+      ]
+    },
+    {
+      "id": "child-workflows",
+      "area": "workflow",
+      "capability": "Child workflows",
+      "status": "partial",
+      "summary": "A call activity starts a child process by key; the parent waits and resumes when the child completes, and call depth is bounded.",
+      "gap": "The child resolves the latest published version when it starts rather than a pinned one, and cancelling the parent does not cancel the child.",
+      "deps": ["ash_bpmn"],
+      "tests": [
+        {"dep": "ash_bpmn", "file": "test/ash_bpmn/call_activity_test.exs", "test": "the child runs and the parent carries on after it"},
+        {"dep": "ash_bpmn", "file": "test/ash_bpmn/call_activity_test.exs", "test": "the parent waits while the child does"}
+      ]
+    },
+    {
+      "id": "durable-waits",
+      "area": "workflow",
+      "capability": "Durable waits",
+      "status": "partial",
+      "summary": "Message, signal and timer waits and receive tasks park a token in the database; a duplicate wake loses a compare-and-set, and a deadline on a human task is a boundary timer.",
+      "gap": "No timeout on a message, receive or call-activity wait: boundaries attach to human tasks only.",
+      "deps": ["ash_bpmn"],
+      "tests": [
+        {"dep": "ash_bpmn", "file": "test/ash_bpmn/message_catch_test.exs", "test": "an event carrying the right key wakes the token and the process finishes"},
+        {"dep": "ash_bpmn", "file": "test/ash_bpmn/message_catch_test.exs", "test": "a redelivered event wakes the token once"},
+        {"dep": "ash_bpmn", "file": "test/ash_bpmn/timer_catch_test.exs", "test": "when the timer is due the token wakes and the process finishes"},
+        {"dep": "ash_bpmn", "file": "test/ash_bpmn/boundary_timer_test.exs", "test": "firing cancels the task, interrupts the branch, and routes out of the boundary"}
+      ]
+    },
+    {
+      "id": "scheduled-starts",
+      "area": "workflow",
+      "capability": "Scheduled starts",
+      "status": "partial",
+      "summary": "A cron job starts work at a set hour, and the work runs as a process with a human approval in it.",
+      "gap": "Schedules are fixed in code at compile time; there is no per-tenant schedule a person can change, and timer start events are refused.",
+      "deps": ["ash_oban", "ash_bpmn"],
+      "tests": [
+        {"file": "test/ash_enterprise/daily_brief_loop_test.exs", "test": "scheduled at the compose hour, composed by the process, approved on Today"},
+        {"dep": "ash_bpmn", "file": "test/ash_bpmn/triggers_runtime_test.exs", "test": "the cron fans one sweep per configured tenant"}
+      ]
+    },
+    {
+      "id": "service-tasks-call-actions",
+      "area": "workflow",
+      "capability": "Service tasks that call application actions",
+      "status": "partial",
+      "summary": "A service task names an action from an allowlist; publishing a diagram that names anything else is refused, and declared inputs reach the action.",
+      "gap": "No stable invocation key reaches the action, so idempotency under redelivery is each action's own business.",
+      "deps": ["ash_bpmn"],
+      "tests": [
+        {"file": "test/ash_enterprise/process/action_invoker_test.exs", "test": "the declared inputs reach the action"},
+        {"file": "test/ash_enterprise/process/action_invoker_test.exs", "test": "publishing a diagram that names an unregistered action is refused"},
+        {"dep": "ash_bpmn", "file": "test/ash_bpmn/ash_call_test.exs", "test": "inputs arrive evaluated and the promoted signal routes a following gateway"}
+      ]
+    },
+    {
+      "id": "external-workers",
+      "area": "workflow",
+      "capability": "External workers",
+      "status": "missing",
+      "summary": "Nothing lets a worker outside the application claim a task, heartbeat and report back.",
+      "deps": [],
+      "tests": []
+    },
+    {
+      "id": "http-and-messaging-tasks",
+      "area": "workflow",
+      "capability": "HTTP and messaging tasks",
+      "status": "partial",
+      "summary": "Each declared operation on an external service is a generic action with a code interface, sent through one proxy facade using the caller's own connection.",
+      "gap": "These actions are not offered to the process designer as tasks.",
+      "deps": [],
+      "tests": [
+        {"file": "test/ash_enterprise/integration/nango_edge_test.exs", "test": "every declared operation is a generic action with a code interface"},
+        {"file": "test/ash_enterprise/integration/nango_edge_test.exs", "test": "the same action spends each actor's own connection"}
+      ]
+    },
+    {
+      "id": "retry-and-timeout",
+      "area": "workflow",
+      "capability": "Retry and timeout",
+      "status": "partial",
+      "summary": "A failed service task is retried by the engine within a global attempt budget and then fails the instance; a failed instance can be resumed; external calls fail with typed reasons.",
+      "gap": "No per-node retry or timeout policy.",
+      "deps": ["ash_bpmn"],
+      "tests": [
+        {"dep": "ash_bpmn", "file": "test/ash_bpmn/service_task_failure_test.exs", "test": "exhausting the engine's attempts fails the instance and kills the token"},
+        {"dep": "ash_bpmn", "file": "test/ash_bpmn/service_task_failure_test.exs", "test": "a retry after the cause is fixed advances the instance"},
+        {"file": "test/ash_enterprise/integration/nango_edge_test.exs", "test": "410 from Calendar surfaces as :gone (sync token invalid)"}
+      ]
+    },
+    {
+      "id": "compensation",
+      "area": "workflow",
+      "capability": "Compensation across steps",
+      "status": "refused",
+      "summary": "Compensation inside one step is available through Reactor; compensation that spans process nodes is not.",
+      "gap": "Cross-node compensation is refused by the process engine; undoing an effect is modelled as an ordinary, later action.",
+      "deps": ["ash_bpmn"],
+      "tests": []
+    },
+    {
+      "id": "pause-cancel-retry-rerun",
+      "area": "workflow",
+      "capability": "Pause, cancel, retry and rerun",
+      "status": "partial",
+      "summary": "An instance can be cancelled (its open tasks' timers go with it), a failed instance retried, and a parked instance superseded by a fresh run of another version.",
+      "gap": "No paused state; cancelling is not one transaction and records no actor; a rerun always starts from the beginning.",
+      "deps": ["ash_bpmn"],
+      "tests": [
+        {"dep": "ash_bpmn", "file": "test/ash_bpmn/engine_test.exs", "test": "cancelling an instance cancels its open tasks' timers and records them"},
+        {"dep": "ash_bpmn", "file": "test/ash_bpmn/service_task_failure_test.exs", "test": "retry_instance resumes a failed instance once the cause is fixed"},
+        {"dep": "ash_bpmn", "file": "test/ash_bpmn/instance_restart_test.exs", "test": "the successor starts from the beginning and parks on the target's signature"}
+      ]
+    },
+    {
+      "id": "model-invocation-and-streaming",
+      "area": "agents",
+      "capability": "Model invocation and streaming",
+      "status": "existing",
+      "summary": "Model calls go through one guard that can confine them to in-zone models; every call, streamed or not, is recorded structurally without content; the assistant runs a streamed tool loop.",
+      "deps": ["req_llm"],
+      "tests": [
+        {"file": "test/ash_enterprise/ai/models_test.exs", "test": "on: a hosted call is refused before anything is sent, and the refusal recorded"},
+        {"file": "test/ash_enterprise/ai/models_test.exs", "test": "a stream is recorded with its usage once it has been read"},
+        {"file": "test/ash_enterprise/assistant/runner_test.exs", "test": "calls tools across several steps, then answers with citations"}
+      ]
+    },
+    {
+      "id": "typed-tools",
+      "area": "agents",
+      "capability": "Typed tools",
+      "status": "partial",
+      "summary": "Tools are actions exposed on domains, typed by their arguments and authorized as the person asking.",
+      "gap": "Every tool's action declares its effects (ash_agent's AshAgent.Effects, ADR 0057), and ACP reads them, but MCP clients do not see them yet: ash_ai sends no tool annotations from the declaration.",
+      "deps": ["ash_ai"],
+      "tests": [
+        {"file": "test/ash_enterprise/agents_tools_test.exs", "test": "the ash_ai tool surface is reads only — no run-starting tool"},
+        {"file": "test/ash_enterprise/assistant/lookup_test.exs", "test": "a member with no grants gets nothing from any tool"},
+        {"file": "test/ash_enterprise/effects_declaration_test.exs", "test": "every domain with ash_ai tools checks them, and every tool's action is declared"}
+      ]
+    },
+    {
+      "id": "durable-agent-execution",
+      "area": "agents",
+      "capability": "Durable agent execution",
+      "status": "missing",
+      "summary": "An assistant run lives in a temporary task and writes its answer only at the end; a run whose process dies is failed rather than resumed.",
+      "deps": [],
+      "tests": []
+    },
+    {
+      "id": "tool-approvals",
+      "area": "agents",
+      "capability": "Tool approvals",
+      "status": "partial",
+      "summary": "A coding-agent tool request pauses the run until a person approves the stored request; assistant proposals change nothing until a person executes them, and execution re-checks authorization as that person.",
+      "gap": "An approval carries no digest or expiry, and nothing checks that what runs matches what was approved; client-session approvals are held in memory, and an 'always allow' answer is treated as once.",
+      "deps": ["ash_ai"],
+      "tests": [
+        {"file": "test/ash_enterprise/agents_test.exs", "test": "tool request → pending invocation pauses the run → approval resumes it exactly bound"},
+        {"file": "test/ash_enterprise/ai/proposal_test.exs", "test": "execution re-checks authorization rather than trusting the earlier check"},
+        {"file": "test/ash_enterprise/acp_approvals_test.exs", "test": "a foreign session's ref is denied even with allow_once"}
+      ]
+    },
+    {
+      "id": "structured-output",
+      "area": "agents",
+      "capability": "Structured output",
+      "status": "partial",
+      "summary": "Model instruments that must answer in a shape send a JSON schema on the wire and refuse output that does not decode, keeping the raw output.",
+      "gap": "Declared per instrument; an agent has no declared output type of its own.",
+      "deps": [],
+      "tests": [
+        {"file": "test/ash_enterprise/system_one/question_proposal_test.exs", "test": "on the wire, Splash gets the schema as a json_schema response format, unrewritten"},
+        {"file": "test/ash_enterprise/system_one/question_proposal_test.exs", "test": "output that is not JSON is refused verbatim"}
+      ]
+    },
+    {
+      "id": "prompt-management",
+      "area": "agents",
+      "capability": "Prompt management",
+      "status": "missing",
+      "summary": "Prompts are code modules; nothing versions them as data or ties a recorded answer to the prompt that produced it.",
+      "deps": [],
+      "tests": []
+    },
+    {
+      "id": "model-selection-and-fallback",
+      "area": "agents",
+      "capability": "Model selection and fallback",
+      "status": "partial",
+      "summary": "A model is resolved from configured profiles, and an in-zone profile wins over a hosted default.",
+      "gap": "No fallback: with no in-zone profile the assistant asks nothing rather than falling back to another model.",
+      "deps": [],
+      "tests": [
+        {"file": "test/ash_enterprise/ai/models_test.exs", "test": "with an in-zone profile it is the default, with the profile's transport"},
+        {"file": "test/ash_enterprise/assistant/runner_test.exs", "test": "with no in-zone profile nothing is asked: no hosted fallback"}
+      ]
+    },
+    {
+      "id": "embeddings-and-retrieval",
+      "area": "agents",
+      "capability": "Embeddings and retrieval",
+      "status": "missing",
+      "summary": "The vector extension is installed in the database and unused.",
+      "deps": [],
+      "tests": []
+    },
+    {
+      "id": "agent-memory",
+      "area": "agents",
+      "capability": "Agent memory",
+      "status": "partial",
+      "summary": "Conversations are stored as threads of turns, sealed, owner-only and erasable; the next question carries the conversation so far.",
+      "gap": "A fixed window of recent turns, text only; no journal of the steps a run took.",
+      "deps": [],
+      "tests": [
+        {"file": "test/ash_enterprise/assistant/runner_test.exs", "test": "the next question carries the conversation so far, as text only"}
+      ]
+    },
+    {
+      "id": "multi-agent-delegation",
+      "area": "agents",
+      "capability": "Multi-agent delegation",
+      "status": "refused",
+      "summary": "An agent cannot start another agent: no run-starting action is exposed as a tool.",
+      "gap": "Refused until bounded child runs (a subset of tools and a carved-out budget) are designed.",
+      "deps": [],
+      "tests": [
+        {"file": "test/ash_enterprise/agents_test.exs", "test": "only the read actions are typed tools — never run-start (no nesting)"}
+      ]
+    },
+    {
+      "id": "external-mcp-tools",
+      "area": "agents",
+      "capability": "External MCP tools",
+      "status": "missing",
+      "summary": "The application serves tools over MCP but consumes none from an external MCP server.",
+      "deps": ["ash_ai"],
+      "tests": []
+    },
+    {
+      "id": "deterministic-handoff",
+      "area": "agents",
+      "capability": "Deterministic handoff",
+      "status": "partial",
+      "summary": "A decision table, not a model, decides whether work proceeds automatically or waits for a person, and a model's judgment is banded by a table that can send it to human review.",
+      "gap": "Where a model may and may not decide is a written convention, not something the platform checks.",
+      "deps": [],
+      "tests": [
+        {"file": "test/ash_enterprise/process/access_request_demo_test.exs", "test": "a low-risk request is granted without a human"},
+        {"file": "test/ash_enterprise/process/access_request_demo_test.exs", "test": "a privileged request waits for a human instead"},
+        {"file": "test/ash_enterprise/system_one/banding_test.exs", "test": "review records the banding, materialises no fact"}
+      ]
+    },
+    {
+      "id": "quality-and-safety-evaluation",
+      "area": "agents",
+      "capability": "Quality and safety evaluation",
+      "status": "partial",
+      "summary": "An evaluation set of synthetic questions, with expected tool calls, facts and citations, scores the assistant's answers per case.",
+      "gap": "Results go to a local file; no stored history and no gate on a release.",
+      "deps": [],
+      "tests": [
+        {"file": "test/ash_enterprise/assistant/eval_test.exs", "test": "the oracle answers every case and scores perfectly"},
+        {"file": "test/ash_enterprise/assistant/eval_test.exs", "test": "a wrong answer shows up as its misses"}
+      ]
+    },
+    {
+      "id": "behaviour-hardening",
+      "area": "agents",
+      "capability": "Behaviour hardening",
+      "status": "partial",
+      "summary": "Model judgments are calibrated against human verdicts, and a calibration run that misses its own pre-registered bar proposes nothing.",
+      "gap": "Observed failures do not become regression cases in an evaluation set.",
+      "deps": [],
+      "tests": [
+        {"file": "test/ash_enterprise/system_one/approval_loop_test.exs", "test": "a run that misses its own pre-registered pass bar proposes nothing"},
+        {"file": "test/ash_enterprise/system_one/approval_loop_test.exs", "test": "a labelling verdict appends one pair to the family's slot"}
+      ]
+    },
+    {
+      "id": "human-approvals-and-work-queues",
+      "area": "enterprise",
+      "capability": "Human approvals and work queues",
+      "status": "existing",
+      "summary": "Human tasks are claimed, completed, delegated, approved or rejected by their candidates; candidacy grants read access; maker-checker excludes the requester; exactly one of several concurrent claims wins; escalation timers fire.",
+      "deps": ["ash_bpmn"],
+      "tests": [
+        {"file": "test/ash_enterprise/security/task_candidacy_test.exs", "test": "a candidate with no task grant reads their task and no other"},
+        {"file": "test/ash_enterprise/morning_brief_test.exs", "test": "compose → approval → approve completes the instance with the draft stored"},
+        {"dep": "ash_bpmn", "file": "test/ash_bpmn/who_acts_test.exs", "test": "a requester excluded by maker-checker cannot claim through a candidate team"},
+        {"dep": "ash_bpmn", "file": "test/ash_bpmn/who_acts_test.exs", "test": "a candidate delegate takes the task, and the hand-off is recorded"},
+        {"dep": "ash_bpmn", "file": "test/ash_bpmn/claim_race_test.exs", "test": "of several people claiming one task at once, exactly one wins"},
+        {"dep": "ash_bpmn", "file": "test/ash_bpmn/approvals_test.exs", "test": "escalation timer fires"}
+      ]
+    },
+    {
+      "id": "unified-execution-explorer",
+      "area": "enterprise",
+      "capability": "Unified execution explorer",
+      "status": "missing",
+      "summary": "The pieces exist separately (a per-run process view, decision evaluations, model-call records, a lineage graph), but nothing joins one execution's records into one view.",
+      "deps": [],
+      "tests": []
+    },
+    {
+      "id": "explain-what-happened",
+      "area": "enterprise",
+      "capability": "An assistant that explains what happened",
+      "status": "partial",
+      "summary": "Assistant answers cite only the records its tools returned, and an agent can read the lineage graph as the person asking.",
+      "gap": "No tools over process instances, decisions or model calls, so it cannot yet answer why a given execution went the way it did.",
+      "deps": [],
+      "tests": [
+        {"file": "test/ash_enterprise/assistant/runner_test.exs", "test": "calls tools across several steps, then answers with citations"},
+        {"file": "test/ash_enterprise/lineage_test.exs", "test": "the ACP prompt reads the same graph as the actor"}
+      ]
+    },
+    {
+      "id": "visual-authoring",
+      "area": "enterprise",
+      "capability": "Visual authoring",
+      "status": "existing",
+      "summary": "A process designer and a decision-table editor in the browser, each offering the platform's actions or decisions as a catalogue; a tenant forks the platform baseline into its own draft, and the designer saves, publishes and discards it.",
+      "deps": ["ash_bpmn"],
+      "tests": [
+        {"file": "test/ash_enterprise_web/live/bpmn/baseline_editors_test.exs", "test": "Customize forks the baseline into the tenant's own draft"},
+        {"file": "test/ash_enterprise_web/live/bpmn/designer_live_test.exs", "test": "the service task panel renders the action catalogue"},
+        {"dep": "ash_bpmn", "file": "test/ash_bpmn/web_test.exs", "test": "publish form saves then publishes"}
+      ]
+    },
+    {
+      "id": "code-first-authoring",
+      "area": "enterprise",
+      "capability": "Code-first authoring",
+      "status": "partial",
+      "summary": "Resources, lifecycles, rules and judgment questions are declared in code through DSLs and are introspectable.",
+      "gap": "Processes have no code DSL, by choice: a diagram is the only way to write one.",
+      "deps": ["ash_bpmn"],
+      "tests": [
+        {"file": "test/ash_enterprise/platform/lifecycle_test.exs", "test": "the state machine is declared on the resource, so it can be diagrammed"},
+        {"file": "test/ash_enterprise/compliance/kyc_compliance_test.exs", "test": "waiving the non-waivable floor is refused at compile"}
+      ]
+    },
+    {
+      "id": "coding-agent-support",
+      "area": "enterprise",
+      "capability": "Coding-agent support",
+      "status": "partial",
+      "summary": "Development-time tooling for coding agents: resource introspection, synced usage rules, a runtime bridge, and a laws judge whose report reaches change review.",
+      "gap": "Here only the laws judge is exercised by a test; the introspection commands are tested in their own package, and the usage-rules sync is checked by a script.",
+      "deps": [],
+      "tests": [
+        {"file": "test/ash_enterprise/standards/standing_test.exs", "test": "carries the laws judge's report unchanged and each touched candidate's fact"}
+      ]
+    },
+    {
+      "id": "governance",
+      "area": "enterprise",
+      "capability": "Governance",
+      "status": "partial",
+      "summary": "Authorization is a union of grants that never subtract; system actors are a closed list, and the AI actor matches no bypass.",
+      "gap": "No automation principal: work started by a schedule or a process runs as a system actor rather than a named, granted identity.",
+      "deps": [],
+      "tests": [
+        {"file": "test/ash_enterprise/security/conformance_test.exs", "test": "two narrow grants union rather than conflict"},
+        {"file": "test/ash_enterprise/security/ai_actor_no_bypass_test.exs", "test": "the ai actor never matches"}
+      ]
+    },
+    {
+      "id": "secrets-and-connections",
+      "area": "enterprise",
+      "capability": "Secrets and connections",
+      "status": "partial",
+      "summary": "External connections are held by an integration proxy and derived from the actor; no action accepts a connection or provider credential as input.",
+      "gap": "Platform secrets are deployment configuration; nothing stops a secret pasted into ordinary input.",
+      "deps": [],
+      "tests": [
+        {"file": "test/ash_enterprise/integration/nango_edge_test.exs", "test": "no generated action has a connection or provider-config argument"},
+        {"file": "test/ash_enterprise/integration/nango_edge_test.exs", "test": "a caller-supplied connection id is rejected as an unknown input"}
+      ]
+    },
+    {
+      "id": "deployment-and-rollback",
+      "area": "enterprise",
+      "capability": "Deployment and rollback",
+      "status": "partial",
+      "summary": "Published definitions are immutable and a tenant binding pins one; reverting a tenant's customization is deleting its binding.",
+      "gap": "No release manifest tying definitions, decisions, prompts and models together, so there is nothing to roll back as a unit.",
+      "deps": [],
+      "tests": [
+        {"file": "test/ash_enterprise/process/binding_test.exs", "test": "reverting a customization is deleting a row"},
+        {"file": "test/ash_enterprise/process/binding_test.exs", "test": "reports how far behind a fork is, without diffing or merging"}
+      ]
+    },
+    {
+      "id": "operational-controls",
+      "area": "enterprise",
+      "capability": "Operational controls",
+      "status": "partial",
+      "summary": "Event-triggered starts can be disabled without a deployment, and a single event that would start too many processes is refused.",
+      "gap": "No budgets or rate limits for agents, and the job queue's rescue and pruning are configuration with no test.",
+      "deps": ["ash_bpmn"],
+      "tests": [
+        {"file": "test/ash_enterprise/process/subscription_test.exs", "test": "disabling is an operational switch, not a deployment act"},
+        {"dep": "ash_bpmn", "file": "test/ash_bpmn/triggers_runtime_test.exs", "test": "fan-out past max_starts_per_event is refused loudly and starts nothing"}
+      ]
+    },
+    {
+      "id": "audit-and-retention",
+      "area": "enterprise",
+      "capability": "Audit and retention",
+      "status": "existing",
+      "summary": "A hash-chained, per-tenant audit log the database refuses to update or delete, which detects rows altered or removed behind it; personal content is erased by destroying its key.",
+      "deps": [],
+      "tests": [
+        {"file": "test/ash_enterprise/audit/chain_test.exs", "test": "an altered row is found"},
+        {"file": "test/ash_enterprise/audit/chain_test.exs", "test": "chains are per tenant, so one tenant's writes do not enter another's"},
+        {"file": "test/ash_enterprise/erasure_test.exs", "test": "encrypt -> read -> shred -> unreadable, structure intact"}
+      ]
+    },
+    {
+      "id": "self-hosted-operation",
+      "area": "enterprise",
+      "capability": "Self-hosted operation",
+      "status": "partial",
+      "summary": "A tenant is provisioned without any outside service, and model calls can be confined to models running inside the deployment's zone.",
+      "gap": "The release migration path and a packaged deployment are not exercised by any test.",
+      "deps": [],
+      "tests": [
+        {"file": "test/ash_enterprise/platform/seeder_test.exs", "test": "seed_tenant/1 provisions a confirmed administrator who can sign in, and sends nothing"},
+        {"file": "test/ash_enterprise/ai/models_test.exs", "test": "on: an in-zone call passes, pinned to the profile's host and key"}
+      ]
+    }
+  ]
+}

@@ -63,7 +63,10 @@ defmodule AshEnterprise.Legacy.User do
     # Ash could install. Claiming an audit trail over a view we cannot see the
     # writes to would be worse than not claiming one. See plan §4.8.
     audit?: false,
-    extra_extensions: [AshStrangler.Resource],
+    # `version_number` is projected as a constant below: the view has no row
+    # version to lock against or increment (ADR 0059).
+    optimistic_lock?: false,
+    extra_extensions: [AshStrangler.Resource, AshAgent.Effects],
     # Two notifiers, and both matter. `PubSub` makes /app/legacy-users live over the view;
     # `Projection` copies the same change into a table this application owns, so
     # /app/directory is live over real columns. Declared together so a legacy write drives
@@ -82,6 +85,18 @@ defmodule AshEnterprise.Legacy.User do
   actions do
     defaults [:read]
     default_accept []
+  end
+
+  # Exposed as an ash_ai tool (`legacy_users`); ADR 0057. The view is in this
+  # database, so the read is not open-world.
+  effects do
+    action :read,
+      kind: :read,
+      read_only?: true,
+      destructive?: false,
+      idempotent?: true,
+      open_world?: false,
+      intent: :inspect
   end
 
   # Broadcasts a legacy write onto Phoenix.PubSub, which is what makes the A2UI

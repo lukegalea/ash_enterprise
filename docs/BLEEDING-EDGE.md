@@ -101,6 +101,7 @@ confined so that removing one is a deletion, not a refactor.
 | `ash_events_projections` | projector engine (transitive, via `ash_compliance`) | none | yes |
 | `ash_evidence` | evidence pipeline records (System One); declared `branch: "main"` | none | yes |
 | `ash_bpmn` | BPMN process engine (ADR 0009) | none | yes |
+| `ash_agent` | agent runtime fragments, extension and host behaviours (ADR 0056); upstream [lukegalea/ash_agent](https://github.com/lukegalea/ash_agent); `Execution.Invocation` instantiates the invocation fragment | none | none planned: the Hex name `ash_agent` belongs to an unrelated project (ADR 0056) |
 | `ash_compliance` | compliance bundles and findings (ADR 0035) | `ash_rules`, `ash_events_projections` | after those two |
 | `ash_decisions` | DMN decisions | `boxic_dmn` fork | no: needs `boxic_dmn` upstream |
 | `ash_discrete_business_events` | business-event ledger (ADR 0051) | `ash_events` fork | no: needs `ash_events` upstream |
@@ -113,6 +114,9 @@ confined so that removing one is a deletion, not a refactor.
 2. `ash_compliance`.
 3. `ash_decisions`, `ash_discrete_business_events` and `ash_judgments`, which are blocked on the forks in section 1,
    then `ash_mdm` and `ash_agent_tools`. Optional dependencies count: Hex still needs them to be Hex packages.
+
+`ash_agent` is not on this path. It has no git dependencies of its own, but the Hex name belongs to another project,
+so it stays a git dependency. Reaching Hex would mean renaming the package (ADR 0056).
 
 As each lands on Hex, replace its `github:` declaration in `mix.exs` with a version requirement and delete its row
 here.

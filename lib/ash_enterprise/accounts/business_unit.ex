@@ -46,7 +46,8 @@ defmodule AshEnterprise.Accounts.BusinessUnit do
     domain: AshEnterprise.Accounts,
     api_type: :business_unit,
     ownership: :business_owned,
-    cdm_entity: "BusinessUnit"
+    cdm_entity: "BusinessUnit",
+    extra_extensions: [AshAgent.Effects]
 
   postgres do
     table "business_units"
@@ -194,6 +195,17 @@ defmodule AshEnterprise.Accounts.BusinessUnit do
 
       prepare AshEnterprise.Accounts.Preparations.FilterBusinessUnitSubtree
     end
+  end
+
+  # Exposed as an ash_ai tool (`list_business_units`); ADR 0057.
+  effects do
+    action :read,
+      kind: :read,
+      read_only?: true,
+      destructive?: false,
+      idempotent?: true,
+      open_world?: false,
+      intent: :inspect
   end
 
   aggregates do

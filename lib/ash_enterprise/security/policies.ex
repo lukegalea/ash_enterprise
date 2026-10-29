@@ -13,18 +13,18 @@ defmodule AshEnterprise.Security.Policies do
     # The process and decision engines, which must precede everything else -- see the
     # comment in `__using__/1` for why a bypass only covers what follows it.
     bypass AshBpmn.Checks.AshBpmnInteraction do
-      authorize_if always()
+      authorize_if AshEnterprise.Security.Checks.EngineReach
     end
 
     bypass AshDecisions.Checks.AshDecisionsInteraction do
-      authorize_if always()
+      authorize_if AshEnterprise.Security.Checks.EngineReach
     end
 
     bypass AshEnterprise.Security.Checks.SystemActor do
-      authorize_if always()
+      authorize_if AshEnterprise.Security.Checks.SystemActorReach
     end
 
-    policy always() do
+    policy AshEnterprise.Security.Checks.GrantReach do
       authorize_if AshEnterprise.Security.Checks.RoleGrant
       authorize_if AshEnterprise.Security.Checks.SharedWithActor
       authorize_if AshEnterprise.Security.Checks.HierarchyGrant
@@ -64,6 +64,18 @@ defmodule AshEnterprise.Security.Policies do
   member may do on their own behalf, such as composing their own morning
   brief. It is a declaration in the resource, not a role, because the role
   model cannot express "your own" for a generic action (ADR 0052).
+
+  ## Human-only and machinery-only actions narrow the bypasses
+
+  A resource may declare `human_only:` and `machinery_only:` actions (ADR
+  0059). Each bypass authorizes through a reach check
+  (`EngineReach`, `SystemActorReach`) rather than `always()`: a human-only
+  action is reached by no bypass, so only the calling person's own grants can
+  authorize it; a machinery-only action is reached by the system-actor bypass
+  for the `oban` system actor alone, and the union's condition (`GrantReach`)
+  does not match it, so no grant row reaches it either. Neither is a
+  `forbid_if`: each narrows how far an existing path reaches, and an action
+  declaring neither is authorized exactly as before.
 
   ## Hierarchy security is off by default
 
@@ -150,12 +162,16 @@ defmodule AshEnterprise.Security.Policies do
         # *stronger* boundary than the option it replaced -- anything that can set private
         # context could have passed the option -- and that honesty is why it is worth having:
         # a host reading a resource's policies can see the engine path and replace it.
+        #
+        # The engines reach every action except the ones a resource declares `human_only`
+        # (a person's own decision) or `machinery_only` (the job runner's alone); on those the
+        # bypass authorizes nothing and the call is judged by its actor's grants (ADR 0059).
         bypass AshBpmn.Checks.AshBpmnInteraction do
-          authorize_if always()
+          authorize_if AshEnterprise.Security.Checks.EngineReach
         end
 
         bypass AshDecisions.Checks.AshDecisionsInteraction do
-          authorize_if always()
+          authorize_if AshEnterprise.Security.Checks.EngineReach
         end
 
         # Non-human actors bypass the role model entirely. They are not given a
@@ -164,13 +180,18 @@ defmodule AshEnterprise.Security.Policies do
         # background processing in a way that looks like a permissions bug rather
         # than a configuration change. Every such write is still attributed; see
         # AshEnterprise.Platform.SystemActor.
+        #
+        # How far a system actor reaches is narrowed per action (ADR 0059): no
+        # system actor reaches a `human_only` action, and only `oban` reaches a
+        # `machinery_only` one.
         bypass AshEnterprise.Security.Checks.SystemActor do
-          authorize_if always()
+          authorize_if AshEnterprise.Security.Checks.SystemActorReach
         end
 
         # The union. Each clause is one grant path; any one succeeding is
-        # sufficient; none of them ever subtracts.
-        policy always() do
+        # sufficient; none of them ever subtracts. It applies to every action
+        # except a `machinery_only` one, which no grant reaches (ADR 0059).
+        policy AshEnterprise.Security.Checks.GrantReach do
           authorize_if AshEnterprise.Security.Checks.RoleGrant
           authorize_if AshEnterprise.Security.Checks.SharedWithActor
           authorize_if AshEnterprise.Security.Checks.HierarchyGrant

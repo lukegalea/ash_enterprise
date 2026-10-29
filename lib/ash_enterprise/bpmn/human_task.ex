@@ -53,7 +53,8 @@ defmodule AshEnterprise.Bpmn.HumanTask do
       extra_grants: [
         {AshEnterprise.Security.Checks.TaskCandidacy,
          acts: [:claim_task, :complete_task, :delegate_task, :approve, :reject]}
-      ]
+      ],
+      extra_extensions: [AshAgent.Effects]
     ]
 
   # --- the daily-loop surfaces (Approvals, Today; ACP `approvals`) ----------
@@ -229,5 +230,13 @@ defmodule AshEnterprise.Bpmn.HumanTask do
       argument :comment, :string, allow_nil?: true, constraints: [max_length: 2000]
       run {AshEnterprise.Bpmn.Actions.DecideTask, outcome: "rejected"}
     end
+  end
+
+  # A decision through ACP or a surface asks first (ADR 0057): the person
+  # confirms the exact task before it is recorded. It is final, so the hints
+  # keep MCP's cautious defaults.
+  effects do
+    action :approve, kind: :execute, open_world?: false, approval: :confirm, intent: :approve
+    action :reject, kind: :execute, open_world?: false, approval: :confirm, intent: :approve
   end
 end

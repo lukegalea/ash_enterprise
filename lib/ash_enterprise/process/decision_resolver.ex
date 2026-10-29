@@ -26,6 +26,9 @@ defmodule AshEnterprise.Process.DecisionResolver do
   version, what it saw, what it answered. That is the record that makes "why did this request
   get escalated" answerable six months later, and it is the thing a hand-written `case` in an
   action cannot produce at all.
+
+  The resolver also hands the engine the ids of the rules that matched, which the engine
+  writes onto the instance's `:decision_evaluated` event beside the version that decided.
   """
 
   @behaviour AshBpmn.DecisionResolver
@@ -53,7 +56,11 @@ defmodule AshEnterprise.Process.DecisionResolver do
         {:ok,
          %{
            outputs: outputs_map(result.outputs, result.decision),
-           version: result.definition_version
+           version: result.definition_version,
+           # The engine's own account of which rules matched, from the same pass that produced
+           # the answer. The process event carries it so "which rule sent this instance that
+           # way" is answerable from the instance's history without joining to the evaluation.
+           rule_ids: result.matched_rule_ids
          }}
 
       {:error, reason} ->

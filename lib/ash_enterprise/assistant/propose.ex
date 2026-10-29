@@ -29,7 +29,8 @@ defmodule AshEnterprise.Assistant.Propose do
     lifecycle?: false,
     archival?: false,
     audit?: false,
-    self_service: [:propose_task, :propose_reply, :propose_sync, :propose_decision]
+    self_service: [:propose_task, :propose_reply, :propose_sync, :propose_decision],
+    extra_extensions: [AshAgent.Effects]
 
   alias AshEnterprise.Assistant.Tools.Proposals
 
@@ -119,5 +120,38 @@ defmodule AshEnterprise.Assistant.Propose do
 
       run {Proposals, kind: :decision}
     end
+  end
+
+  # The assistant's proposal tools (ADR 0057): each builds a proposal and
+  # changes nothing; the person confirms the proposal itself, which then runs
+  # as them.
+  effects do
+    action :propose_task,
+      kind: :think,
+      destructive?: false,
+      idempotent?: true,
+      open_world?: false,
+      intent: :propose
+
+    action :propose_reply,
+      kind: :think,
+      destructive?: false,
+      idempotent?: true,
+      open_world?: false,
+      intent: :propose
+
+    action :propose_sync,
+      kind: :think,
+      destructive?: false,
+      idempotent?: true,
+      open_world?: false,
+      intent: :propose
+
+    action :propose_decision,
+      kind: :think,
+      destructive?: false,
+      idempotent?: true,
+      open_world?: false,
+      intent: :propose
   end
 end

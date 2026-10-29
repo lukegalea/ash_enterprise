@@ -24,6 +24,7 @@ metadata:
 - [query_filter](references/ash/query_filter.md)
 - [querying_data](references/ash/querying_data.md)
 - [relationships](references/ash/relationships.md)
+- [signals](references/ash/signals.md)
 - [temporal](references/ash/temporal.md)
 - [testing](references/ash/testing.md)
 
@@ -47,6 +48,14 @@ metadata:
 ### ash_acp
 
 - [ash_acp](references/ash_acp/ash_acp.md)
+
+### ash_agent
+
+- [ash_agent](references/ash_agent/ash_agent.md)
+- [effects](references/ash_agent/effects.md)
+- [fragments](references/ash_agent/fragments.md)
+- [host-behaviours](references/ash_agent/host-behaviours.md)
+- [triggers](references/ash_agent/triggers.md)
 
 ### ash_agent_tools
 
@@ -162,7 +171,7 @@ metadata:
 ## Searching Documentation
 
 ```sh
-mix usage_rules.search_docs "search term" -p ash -p ash_a2ui -p ash_acp -p ash_admin -p ash_agent_tools -p ash_ai -p ash_archival -p ash_authentication -p ash_authentication_phoenix -p ash_bpmn -p ash_cloak -p ash_compliance -p ash_credo -p ash_decisions -p ash_diagram -p ash_discrete_business_events -p ash_events -p ash_evidence -p ash_graphql -p ash_json_api -p ash_judgments -p ash_mdm -p ash_money -p ash_oban -p ash_open_lineage -p ash_paper_trail -p ash_phoenix -p ash_postgres -p ash_rate_limiter -p ash_rules -p ash_state_machine -p ash_strangler
+mix usage_rules.search_docs "search term" -p ash -p ash_a2ui -p ash_acp -p ash_admin -p ash_agent -p ash_agent_tools -p ash_ai -p ash_archival -p ash_authentication -p ash_authentication_phoenix -p ash_bpmn -p ash_cloak -p ash_compliance -p ash_credo -p ash_decisions -p ash_diagram -p ash_discrete_business_events -p ash_events -p ash_evidence -p ash_graphql -p ash_json_api -p ash_judgments -p ash_mdm -p ash_money -p ash_oban -p ash_open_lineage -p ash_paper_trail -p ash_phoenix -p ash_postgres -p ash_rate_limiter -p ash_rules -p ash_state_machine -p ash_strangler
 ```
 
 ## Available Mix Tasks
@@ -191,7 +200,9 @@ mix usage_rules.search_docs "search term" -p ash -p ash_a2ui -p ash_acp -p ash_a
 - `mix ash.rollback` - Runs all rollback tasks for any extension on any resource/domain in your application.
 - `mix ash.set.domains` - Dynamically discovers and updates Ash domains in config.exs
 - `mix ash.setup` - Runs all setup tasks for any extension on any resource/domain in your application.
+- `mix ash.signals` - Prints the signals of your application, and what emits and listens to them
 - `mix ash.tear_down` - Runs all tear_down tasks for any extension on any resource/domain in your application.
+- `mix compile.ash_signals`
 - `mix ash_a2ui.install` - Installs AshA2ui
 - `mix ash_a2ui.install.docs`
 - `mix ash_acp.stdio` - Runs the ash_acp ACP server on stdio
@@ -221,6 +232,8 @@ mix usage_rules.search_docs "search term" -p ash -p ash_a2ui -p ash_acp -p ash_a
 - `mix ash_ai.gen.chat.docs`
 - `mix ash_ai.gen.mcp` - Sets up an MCP server for your application
 - `mix ash_ai.gen.mcp.docs`
+- `mix ash_ai.gen.mcp_oauth` - Generates encrypted storage and routes for connecting to MCP servers that use OAuth
+- `mix ash_ai.gen.mcp_oauth.docs`
 - `mix ash_ai.gen.usage_rules`
 - `mix ash_ai.gen.usage_rules.docs`
 - `mix ash_ai.install` - Installs `AshAi`. Call with `mix igniter.install ash_ai`. Requires igniter to run.
