@@ -27,6 +27,8 @@
   Battery.BusinessEvents.MappingVersion,
   Battery.BusinessEvents.VendorState,
   Battery.Compliance.EventLog,
+  Battery.Compliance.Applicant,
+  Battery.Compliance.ScheduledActivation,
   Battery.Mdm.Vendor,
   Battery.Mdm.Mapping,
   Battery.Mdm.MatchRuleSet,

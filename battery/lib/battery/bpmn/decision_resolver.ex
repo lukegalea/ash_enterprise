@@ -44,7 +44,12 @@ defmodule Battery.Bpmn.DecisionResolver do
     match?({:ok, _}, latest_published(ref))
   end
 
-  defp latest_published(key) do
+  @doc """
+  The latest PUBLISHED definition for a decision key: `{:ok, definition}`
+  or `{:error, {:no_such_decision, key}}`. Shared with the battery's other
+  decision callers so every one resolves a reference the same way.
+  """
+  def latest_published(key) do
     list =
       case Battery.Decisions.Definition.latest_published(key) do
         list when is_list(list) -> list
