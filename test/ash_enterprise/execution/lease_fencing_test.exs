@@ -70,6 +70,29 @@ defmodule AshEnterprise.Execution.LeaseFencingTest do
     assert events(row) == ["request", "claim", "claim", "succeed"]
   end
 
+  test "a lease is not taken over once the target is declared differently; the row goes stale",
+       %{nurse: nurse, tenant: tenant} do
+    title = "Book the interpreter #{System.unique_integer([:positive])}"
+    row = requested!(nurse, title)
+
+    # A claims, and its lease runs out before it does anything.
+    {:ok, a} = Executor.claim(row, oban(tenant), lease_for: 0)
+
+    # A deploy changes the target: the row was requested under a declaration that is no
+    # longer the code's. B must not take over on the strength of the old snapshot.
+    requested_under_earlier_definition!(row)
+    assert {:error, :stale} = Executor.claim(current(row, tenant), oban(tenant))
+
+    stale = current(row, tenant)
+    assert {stale.status, stale.error_code, stale.lease_epoch} == {:stale, "target_changed", 2}
+
+    # A wakes up: its completion is refused and its effect rolls back with it.
+    assert {:ok, :superseded} = Executor.run_claimed(a, oban(tenant))
+    assert effects(tenant, title) == 0
+    assert current(row, tenant).status == :stale
+    assert events(row) == ["request", "claim", "claim"]
+  end
+
   test "a lease that has not expired is not taken over", %{nurse: nurse, tenant: tenant} do
     row = requested!(nurse, "Order gloves #{System.unique_integer([:positive])}")
     {:ok, _a} = Executor.claim(row, oban(tenant))

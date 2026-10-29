@@ -308,6 +308,7 @@ in
       mix sobelow --config --skip --exit
       mix ash.codegen --check
       mix test
+      mix test.durability
       "$DEVENV_ROOT"/scripts/iron-laws.sh
       "$DEVENV_ROOT"/scripts/extra-docs.sh
       "$DEVENV_ROOT"/scripts/usage-rules-check.sh

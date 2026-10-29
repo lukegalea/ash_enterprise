@@ -34,7 +34,8 @@ end
 
 1. **`action :execute`.** It is a generic action with no transaction: it claims in one transaction, runs the target,
    and completes in another, so no transaction is open while a target calls out. ash_oban does not re-check `where`
-   before a generic action runs; the claim does, and a job for a row that is no longer ready ends as `:skipped`.
+   before a generic action runs; the claim does, and a job for a row that is no longer ready ends as `:skipped`
+   (or `:stale`, when its target changed since the request).
 2. **`actor_persister :none`.** The job runs as the trigger's default actor, never as the requester. The actor the
    target runs as is rebuilt at claim by your `AshAgent.ExecutionIdentity`.
 3. **`use_tenant_from_record? true`** on a multitenant resource, so each job runs in its row's tenant.

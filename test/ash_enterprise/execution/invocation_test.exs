@@ -24,9 +24,11 @@ defmodule AshEnterprise.Execution.InvocationTest do
   alias AshEnterprise.Platform.{Seeder, SystemActor}
   alias AshEnterprise.Security
   alias AshEnterprise.Test.Execution, as: Notes
+  alias AshEnterprise.Test.Execution.ClinicNote
 
   @record "AshEnterprise.Test.Execution.ClinicNote.record"
   @reviewed "AshEnterprise.Test.Execution.ClinicNote.record_reviewed"
+  @retitle "AshEnterprise.Test.Execution.ClinicNote.retitle"
 
   setup do
     admin = tenant!()
@@ -134,6 +136,45 @@ defmodule AshEnterprise.Execution.InvocationTest do
       row = invoke!(nurse, @reviewed, note("Order more flu vaccine"))
       assert {row.status, row.approval_mode} == {:awaiting_approval, :confirm}
       refute_enqueued(worker: ExecuteWorker, args: %{"primary_key" => %{"id" => row.id}})
+    end
+
+    test "a record the requester cannot read is refused exactly as a missing one is",
+         %{admin: admin, nurse: nurse} do
+      hidden =
+        Ash.create!(ClinicNote, %{title: "Discuss the audit findings"},
+          action: :record,
+          actor: admin.actor,
+          tenant: admin.tenant
+        )
+
+      assert Notes.list_notes!(
+               query: [filter: [id: hidden.id]],
+               actor: nurse.actor,
+               tenant: nurse.tenant
+             ) == []
+
+      hidden_row = invoke!(nurse, @retitle, %{"id" => hidden.id, "title" => "x"})
+      missing_row = invoke!(nurse, @retitle, %{"id" => Ash.UUID.generate(), "title" => "x"})
+
+      outcome = &Map.take(&1, [:status, :failure_class, :error_code, :preconditions])
+      assert outcome.(hidden_row) == outcome.(missing_row)
+      assert {hidden_row.status, hidden_row.preconditions} == {:rejected, []}
+
+      # Sealed under the requester's own scope: the record they named played no part.
+      scope = Erasure.get_scope!(hidden_row.erasure_scope_id, authorize?: false)
+      assert scope.ref == "invocation_requester:#{nurse.user.id}"
+    end
+
+    test "a row whose target changed since the request goes stale and does not run",
+         %{nurse: nurse} do
+      row = invoke!(nurse, @record, note("Renew the sharps contract"))
+      AshEnterprise.Test.Execution.Durable.requested_under_earlier_definition!(row)
+
+      assert %{success: 1} = Oban.drain_queue(queue: :execution)
+
+      stale = Execution.get_invocation!(row.id, oban(nurse))
+      assert {stale.status, stale.error_code} == {:stale, "target_changed"}
+      assert notes(nurse.tenant, "Renew the sharps contract") == []
     end
 
     test "a system actor is not a principal", %{nurse: nurse} do

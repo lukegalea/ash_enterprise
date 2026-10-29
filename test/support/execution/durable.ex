@@ -57,6 +57,24 @@ defmodule AshEnterprise.Test.Execution.Durable do
     |> length()
   end
 
+  @doc """
+  Rewrites `row` as it would be had it been requested under an earlier declaration of its
+  target: its `target_digest` is no longer the current one, as after a deploy that
+  changed the target. Written past the actions, because no action may rewrite what was
+  requested.
+  """
+  def requested_under_earlier_definition!(row) do
+    earlier = AshAgent.Digest.sha256_hex(%{"effects" => row.effects, "release" => "earlier"})
+
+    {1, _} =
+      Repo.update_all(
+        from(i in "exec_invocations", where: i.id == type(^row.id, Ecto.UUID)),
+        set: [target_digest: earlier]
+      )
+
+    :ok
+  end
+
   @doc "The `:execute` jobs Oban holds for the invocation `id`, oldest first."
   def jobs(id) do
     worker = inspect(ExecuteWorker)

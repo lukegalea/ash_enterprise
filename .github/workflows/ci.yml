@@ -178,6 +178,15 @@ jobs:
       - name: Test
         run: elixir -e "$CANARY_INSTRUMENT" -S mix test
 
+      # The durability tier (docs/DURABILITY-TESTS.md): races between connections, jobs
+      # killed between two commits, leases taken over. The step above excludes it, because
+      # the SQL sandbox cannot show any of that, so without this step the tests for the
+      # invocation invariants (one row per key, the ready-row handoff, lease fencing) would
+      # gate nothing. It uses a database of its own on the same service and drops it when
+      # it ends.
+      - name: Durability tier
+        run: mix test.durability
+
       # The suite migrates into `public`. The VendorPM workspace hosts this app
       # in a schema of its own (ASH_SCHEMA), and a regenerated migration that
       # bakes in `prefix: "public"` only fails there. Replay into `canonical`

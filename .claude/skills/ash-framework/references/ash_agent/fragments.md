@@ -54,7 +54,9 @@ MyClinic.Execution.invoke(
    Declare every action you mean to govern.
 2. `args` is the action's inputs as JSON would carry them; for an update or a destroy it also carries the subject's
    primary key. The request checks them against the action without running it or its changes, and records a row that
-   does not fit as `rejected`.
+   does not fit as `rejected`. The subject is read as the caller, with the caller's authorization: a record they cannot
+   read is rejected with the same message as one that does not exist, so `invoke` reveals nothing outside what they
+   may read. Give the people who ask read access to the records they ask to act on.
 3. Use one key per request. The same key with the same target, arguments, principal and parent returns the existing
    row; the same key with anything different is `AshAgent.Invocation.IdempotencyConflict`. Nothing is upserted.
 4. Do not call `invoke` inside a transaction you opened: a concurrent request with the same key is detected by the
@@ -63,9 +65,12 @@ MyClinic.Execution.invoke(
    preconditions, status). Do not add actions that accept those columns.
 6. A row in `succeeded`, `failed`, `rejected`, `stale` or `cancelled` never changes. Do not add update actions that
    bypass the state machine.
-7. If your audit wrapper refuses atomic updates, nothing changes: fencing is a filter on the update plus
+7. Every claim compares the row's `target_digest` with the target as declared now. A row whose target changed since it
+   was requested (its inputs or its effects declaration) becomes `stale` with `error_code: "target_changed"` and does
+   not run, so a deploy that changes a target leaves its queued and approved rows stale. Request them again.
+8. If your audit wrapper refuses atomic updates, nothing changes: fencing is a filter on the update plus
    `optimistic_lock`, never an atomic update.
-8. Set `lifecycle?: false` (or the equivalent) if your base resource installs a state machine of its own: the
+9. Set `lifecycle?: false` (or the equivalent) if your base resource installs a state machine of its own: the
    fragment's state machine is the row's lifecycle, and two do not merge.
 
 ### What you add on the resource
