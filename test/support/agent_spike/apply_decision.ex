@@ -17,41 +17,45 @@ defmodule AshEnterprise.AgentSpike.ApplyDecision do
   alias AshEnterprise.AgentSpike.RequestApproval
   alias AshEnterprise.Bpmn.HumanTask
 
+  @not_the_owner "the decider must be a person other than the owner"
+
   @impl true
   def change(changeset, _opts, _context) do
     Ash.Changeset.before_action(changeset, &check/1)
   end
 
   defp check(changeset) do
-    row = changeset.data
-    tenant = changeset.tenant
+    case changeset.data |> approval_task(changeset.tenant) |> verdict(changeset.data) do
+      {:ok, decider_id} -> Ash.Changeset.set_context(changeset, %{approved_by_id: decider_id})
+      {:error, message} -> Ash.Changeset.add_error(changeset, message)
+    end
+  end
+
+  defp approval_task(row, tenant) do
     subject_type = to_string(row.__struct__)
     key = RequestApproval.key()
 
-    task =
-      HumanTask
-      |> Ash.Query.filter(
-        subject_type == ^subject_type and subject_id == ^row.id and node_id == ^key and
-          status == :completed
-      )
-      |> Ash.Query.sort(updated_at: :desc)
-      |> Ash.Query.limit(1)
-      |> Ash.read_one!(authorize?: false, tenant: tenant)
+    HumanTask
+    |> Ash.Query.filter(
+      subject_type == ^subject_type and subject_id == ^row.id and node_id == ^key and
+        status == :completed
+    )
+    |> Ash.Query.sort(updated_at: :desc)
+    |> Ash.Query.limit(1)
+    |> Ash.read_one!(authorize?: false, tenant: tenant)
+  end
 
+  defp verdict(%{outcome: "approved", decided_by_id: decider_id}, row)
+       when not is_nil(decider_id) do
     cond do
-      is_nil(task) or task.outcome != "approved" ->
-        Ash.Changeset.add_error(changeset, "no approved decision for this row")
-
-      is_nil(task.decided_by_id) or task.decided_by_id == row.owner_id ->
-        Ash.Changeset.add_error(changeset, "the decider must be a person other than the owner")
-
-      not person?(task.decided_by_id) ->
-        Ash.Changeset.add_error(changeset, "the decider must be a person")
-
-      true ->
-        Ash.Changeset.set_context(changeset, %{approved_by_id: task.decided_by_id})
+      decider_id == row.owner_id -> {:error, @not_the_owner}
+      person?(decider_id) -> {:ok, decider_id}
+      true -> {:error, "the decider must be a person"}
     end
   end
+
+  defp verdict(%{outcome: "approved"}, _row), do: {:error, @not_the_owner}
+  defp verdict(_task, _row), do: {:error, "no approved decision for this row"}
 
   defp person?(id) do
     User

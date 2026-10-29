@@ -256,16 +256,16 @@ defmodule AshEnterprise.AgentSpike.S1ResumeRecordedResultsTest do
 
     queue = start_supervised!({Agent, fn -> queues end}, id: make_ref())
 
-    callback = fn name ->
-      fn _args, _ctx ->
-        Agent.get_and_update(queue, fn queues ->
-          [next | rest] = Map.fetch!(queues, name)
-          {next, Map.put(queues, name, rest)}
-        end)
-      end
-    end
+    book = fn _args, _ctx -> next_recorded(queue, "book_appointment") end
 
-    [{hours_tool(), hours_callback()}, {book_tool(), callback.("book_appointment")}]
+    [{hours_tool(), hours_callback()}, {book_tool(), book}]
+  end
+
+  defp next_recorded(queue, name) do
+    Agent.get_and_update(queue, fn queues ->
+      [next | rest] = Map.fetch!(queues, name)
+      {next, Map.put(queues, name, rest)}
+    end)
   end
 
   defp wire(request) do
