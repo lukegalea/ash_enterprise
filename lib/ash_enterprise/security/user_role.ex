@@ -30,7 +30,8 @@ defmodule AshEnterprise.Security.UserRole do
   use AshEnterprise.Platform.Resource,
     domain: AshEnterprise.Security,
     ownership: :none,
-    lifecycle?: false
+    lifecycle?: false,
+    extra_extensions: [AshAgent.Effects]
 
   postgres do
     table "user_roles"
@@ -94,6 +95,31 @@ defmodule AshEnterprise.Security.UserRole do
 
       change AshEnterprise.Security.Changes.DefaultScopingBusinessUnit
     end
+  end
+
+  # Exposed as ash_ai tools (ADR 0057). `assign` is a governed target
+  # (ADR 0055): granting a role is a second person's call, so it declares
+  # four-eyes approval by an administrator, which the governed path reads.
+  # Assigning a role already held in the same scope is a no-op. `destroy` is
+  # deliberately undeclared: revoking stays a human act in the admin UI, and
+  # exposing it as a tool without a declaration fails compilation.
+  effects do
+    action :read,
+      kind: :read,
+      read_only?: true,
+      destructive?: false,
+      idempotent?: true,
+      open_world?: false,
+      intent: :inspect
+
+    action :assign,
+      kind: :edit,
+      destructive?: false,
+      idempotent?: true,
+      open_world?: false,
+      approval: :four_eyes,
+      approver_role: :administrator,
+      intent: :execute
   end
 
   code_interface do

@@ -10,7 +10,13 @@ defmodule AshEnterprise.Accounts do
   """
   use Ash.Domain,
     otp_app: :ash_enterprise,
-    extensions: [AshAdmin.Domain, AshJsonApi.Domain, AshGraphql.Domain, AshAi]
+    extensions: [
+      AshAdmin.Domain,
+      AshJsonApi.Domain,
+      AshGraphql.Domain,
+      AshAi,
+      AshAgent.Effects.Domain
+    ]
 
   # Exposure is opt-in per resource: a resource only appears in an API once it
   # declares a type here AND in its own `json_api` / `graphql` block. A new

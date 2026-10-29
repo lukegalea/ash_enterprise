@@ -35,7 +35,8 @@ defmodule AshEnterprise.Accounts.Team do
     domain: AshEnterprise.Accounts,
     api_type: :team,
     ownership: :business_owned,
-    cdm_entity: "Team"
+    cdm_entity: "Team",
+    extra_extensions: [AshAgent.Effects]
 
   postgres do
     table "teams"
@@ -148,6 +149,17 @@ defmodule AshEnterprise.Accounts.Team do
       change set_attribute(:system_managed, true)
       change set_attribute(:team_type, :owner)
     end
+  end
+
+  # Exposed as an ash_ai tool (`list_teams`); ADR 0057.
+  effects do
+    action :read,
+      kind: :read,
+      read_only?: true,
+      destructive?: false,
+      idempotent?: true,
+      open_world?: false,
+      intent: :inspect
   end
 
   calculations do

@@ -24,7 +24,8 @@ defmodule AshEnterprise.Assistant.Compose do
     lifecycle?: false,
     archival?: false,
     audit?: false,
-    self_service: [:compose_surface]
+    self_service: [:compose_surface],
+    extra_extensions: [AshAgent.Effects]
 
   resource do
     require_primary_key? false
@@ -94,5 +95,16 @@ defmodule AshEnterprise.Assistant.Compose do
 
       run AshEnterprise.Assistant.Tools.ComposeSurface
     end
+  end
+
+  # The assistant's `compose_surface` tool (ADR 0057): it describes a surface
+  # and changes nothing.
+  effects do
+    action :compose_surface,
+      kind: :think,
+      destructive?: false,
+      idempotent?: true,
+      open_world?: false,
+      intent: :propose
   end
 end

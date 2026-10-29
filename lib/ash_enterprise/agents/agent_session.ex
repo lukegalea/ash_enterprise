@@ -17,7 +17,8 @@ defmodule AshEnterprise.Agents.AgentSession do
   use AshEnterprise.Platform.Resource,
     domain: AshEnterprise.Agents,
     lifecycle?: false,
-    archival?: false
+    archival?: false,
+    extra_extensions: [AshAgent.Effects]
 
   postgres do
     table "agents_sessions"
@@ -118,6 +119,17 @@ defmodule AshEnterprise.Agents.AgentSession do
 
       change set_attribute(:status, :closed)
     end
+  end
+
+  # Exposed as an ash_ai tool (`list_agent_sessions`); ADR 0057.
+  effects do
+    action :read,
+      kind: :read,
+      read_only?: true,
+      destructive?: false,
+      idempotent?: true,
+      open_world?: false,
+      intent: :inspect
   end
 
   code_interface do

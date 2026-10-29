@@ -229,6 +229,40 @@ defmodule AshEnterprise.AcpExtMethodsTest do
     assert %{status: :pending_approval} = reload_brief!(brief, ctx.tenant)
   end
 
+  # Whether an A2UI action asks is read from the effects declaration of the
+  # Ash action it runs (ADR 0057). Opening a prompt Modal runs none, so it
+  # does not ask; the decision it prepares asks when it is submitted.
+  test "_a2ui/action opens a prompt at once: it writes nothing" do
+    ctx = tenant!()
+    brief = brief!(ctx)
+
+    {:ok, task} =
+      AshEnterprise.Agents.BriefDecision.open_task(brief, actor: ctx.actor, tenant: ctx.tenant)
+
+    # Completing is offered only on a task the actor holds.
+    {:ok, task} = AshBpmn.claim_task(task, actor: ctx.actor, tenant: ctx.tenant)
+    {_init, sid, state} = session(ctx)
+
+    {resp, [], _state} =
+      rpc(state, "_a2ui/action", %{
+        "sessionId" => sid,
+        "surfaceId" => "tasks",
+        "action" => %{
+          "name" => "prompt",
+          "context" => %{"action" => "complete_task", "recordId" => task.id}
+        }
+      })
+
+    assert %{"outcome" => "applied", "a2ui" => a2ui} = resp["result"]
+
+    assert Enum.any?(a2ui, fn message ->
+             match?(%{"updateDataModel" => %{"path" => "/prompt/values/complete_task"}}, message)
+           end)
+
+    assert %{status: :claimed} = Ash.reload!(task, authorize?: false, tenant: ctx.tenant)
+    assert %{status: :pending_approval} = reload_brief!(brief, ctx.tenant)
+  end
+
   test "the `open <surface> <id|n>` prompt opens a record" do
     ctx = tenant!()
     ada = person!(ctx, "ada@example.test", "Ada Park")

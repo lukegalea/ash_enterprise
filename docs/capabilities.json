@@ -254,11 +254,12 @@
       "capability": "Typed tools",
       "status": "partial",
       "summary": "Tools are actions exposed on domains, typed by their arguments and authorized as the person asking.",
-      "gap": "No tool declares its effect or risk (read-only, destructive, idempotent, open-world), so nothing downstream can decide on it.",
+      "gap": "Every tool's action declares its effects (ash_agent's AshAgent.Effects, ADR 0057), and ACP reads them, but MCP clients do not see them yet: ash_ai sends no tool annotations from the declaration.",
       "deps": ["ash_ai"],
       "tests": [
         {"file": "test/ash_enterprise/agents_tools_test.exs", "test": "the ash_ai tool surface is reads only — no run-starting tool"},
-        {"file": "test/ash_enterprise/assistant/lookup_test.exs", "test": "a member with no grants gets nothing from any tool"}
+        {"file": "test/ash_enterprise/assistant/lookup_test.exs", "test": "a member with no grants gets nothing from any tool"},
+        {"file": "test/ash_enterprise/effects_declaration_test.exs", "test": "every domain with ash_ai tools checks them, and every tool's action is declared"}
       ]
     },
     {

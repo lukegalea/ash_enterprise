@@ -34,12 +34,14 @@ defmodule AshEnterprise.Acp.Commands do
   for the actor is refused — the same door the web checks. What is left are
   the verbs: `brief`, `approve`, `reject`, `sync`, `done`, `help`.
 
-  Decisions, syncs and composing a brief are consequential:
+  Each routed action's `AshAgent.Effects` declaration (ADR 0057) says what it
+  does: its ACP tool kind, and whether it asks first. Decisions, syncs and
+  composing a brief declare `approval: :confirm`, so
   `AshEnterprise.Acp.Approvals` turns them into `session/request_permission`
   (ADR 0015) before they run. Capturing and finishing one's own action item
-  are not: each is the person's own act on their own row, and undone from the
-  board (Drop, Reopen). Shred is not routable at all — it exists only on the
-  web, behind a typed confirmation.
+  declare `approval: :none`: each is the person's own act on their own row,
+  and undone from the board (Drop, Reopen). Shred is not routable at all — it
+  exists only on the web, behind a typed confirmation.
 
   `todo <text>` keeps the text as typed (the rest of the grammar matches on a
   lower-cased prompt), so an action item reads the way it was said.
@@ -47,6 +49,7 @@ defmodule AshEnterprise.Acp.Commands do
 
   require Ash.Query
 
+  alias AshEnterprise.Acp
   alias AshEnterprise.Agents.Actions.ComposeToday
   alias AshEnterprise.Agents.{Console, MorningBrief}
   alias AshEnterprise.Bpmn.Actions.QueueDigest
@@ -307,12 +310,11 @@ defmodule AshEnterprise.Acp.Commands do
   defp do_route(_command, _actor, _tenant),
     do: {:error, "unknown command — say `help` for the list"}
 
-  # A write (it opens a brief and starts its process), so it is consequential
-  # and asks first; a day that already has one answers with that instead.
+  # A write (it opens a brief and starts its process), so it declares
+  # `approval: :confirm` and asks first; a day that already has one answers
+  # with that instead.
   defp compose_brief(tenant) do
-    ok(MorningBrief, :compose_today, %{}, "Compose today's brief", tenant, {A2ui.TodayUI, []},
-      kind: :execute
-    )
+    ok(MorningBrief, :compose_today, %{}, "Compose today's brief", tenant, {A2ui.TodayUI, []})
   end
 
   # `approve 2` / `reject brief`: the target is resolved as the actor, from
@@ -324,9 +326,7 @@ defmodule AshEnterprise.Acp.Commands do
     with {:ok, task, label} <- decision_target(String.trim(which), opts) do
       title = "#{if(verb == :approve, do: "Approve", else: "Reject")}: #{label}"
 
-      ok(HumanTask, verb, %{record_id: task.id}, title, tenant, {A2ui.ApprovalsUI, []},
-        kind: :execute
-      )
+      ok(HumanTask, verb, %{record_id: task.id}, title, tenant, {A2ui.ApprovalsUI, []})
     end
   end
 
@@ -374,8 +374,7 @@ defmodule AshEnterprise.Acp.Commands do
         %{text: title},
         "Capture: #{String.slice(title, 0, 60)}",
         tenant,
-        {A2ui.ActionItemsUI, []},
-        kind: :edit
+        {A2ui.ActionItemsUI, []}
       )
     else
       {:error, "#{surface.label} is for #{Doors.audience(surface.door)}."}
@@ -396,8 +395,7 @@ defmodule AshEnterprise.Acp.Commands do
         %{record_id: task.id},
         "Done: ##{n} #{String.slice(task.label, 0, 60)}",
         tenant,
-        {A2ui.ActionItemsUI, []},
-        kind: :edit
+        {A2ui.ActionItemsUI, []}
       )
     else
       _ -> {:error, "no action item ##{number} — say `todo` to list them"}
@@ -419,8 +417,7 @@ defmodule AshEnterprise.Acp.Commands do
         %{record_id: account.id},
         "Sync now: #{label}",
         tenant,
-        {A2ui.AccountsUI, []},
-        kind: :execute
+        {A2ui.AccountsUI, []}
       )
     else
       :error -> {:error, "sync takes calendar, gmail or slack"}
@@ -428,7 +425,8 @@ defmodule AshEnterprise.Acp.Commands do
     end
   end
 
-  defp ok(resource, action, inputs, title, tenant, surface, extra \\ []) do
+  # The route's ACP tool kind comes from the action's effects declaration.
+  defp ok(resource, action, inputs, title, tenant, surface) do
     {:ok,
      %{
        spec: %{
@@ -436,7 +434,7 @@ defmodule AshEnterprise.Acp.Commands do
          action: action,
          inputs: inputs,
          title: title,
-         kind: Keyword.get(extra, :kind, :read),
+         kind: Acp.kind(resource, action),
          tenant: tenant
        },
        surface: surface
@@ -447,17 +445,6 @@ defmodule AshEnterprise.Acp.Commands do
   defp window_label(:tomorrow), do: "tomorrow"
   defp window_label(:this_week), do: "this week"
   defp window_label(:upcoming), do: "next two weeks"
-
-  @doc """
-  The actions ACP treats as consequential: each becomes a
-  `session/request_permission` before it runs, even when policy allows it
-  (dogfood §5 — every consequential action is an approval).
-  """
-  @spec consequential?(module(), atom()) :: boolean()
-  def consequential?(HumanTask, action) when action in [:approve, :reject], do: true
-  def consequential?(LinkedAccount, :sync_now), do: true
-  def consequential?(MorningBrief, :compose_today), do: true
-  def consequential?(_resource, _action), do: false
 
   @doc """
   The command list as text, pruned to what `actor` may run (`help`): the

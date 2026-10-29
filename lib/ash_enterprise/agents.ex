@@ -26,7 +26,7 @@ defmodule AshEnterprise.Agents do
 
   use Ash.Domain,
     otp_app: :ash_enterprise,
-    extensions: [AshAi]
+    extensions: [AshAi, AshAgent.Effects.Domain]
 
   tools do
     tool :list_agent_sessions, AshEnterprise.Agents.AgentSession, :read do

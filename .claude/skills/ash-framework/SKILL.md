@@ -52,6 +52,7 @@ metadata:
 ### ash_agent
 
 - [ash_agent](references/ash_agent/ash_agent.md)
+- [effects](references/ash_agent/effects.md)
 - [fragments](references/ash_agent/fragments.md)
 - [host-behaviours](references/ash_agent/host-behaviours.md)
 - [triggers](references/ash_agent/triggers.md)

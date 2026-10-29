@@ -1,6 +1,6 @@
 # ADR 0057 — Every action exposed to an agent, an editor or a process declares its effects
 
-- **Status:** accepted, not built (2026-10-23)
+- **Status:** accepted (2026-10-23); built in part (2026-10-29), see [Built](#built-2026-10-29)
 - **Date:** 2026-10-23
 - **Related:** [ADR 0055](0055-consequential-acts-are-governed-invocations.md) (governed invocation),
   [ADR 0056](0056-the-ash-agent-package.md) (the package that ships the extension),
@@ -99,3 +99,25 @@ Remove the extension from the resources that use it, restore the two host classi
 resolver configuration so the libraries fall back to their defaults. Governed invocation would then need approval
 settings from somewhere else, so this reversal only makes sense together with reversing
 [ADR 0055](0055-consequential-acts-are-governed-invocations.md).
+
+## Built, 2026-10-29
+
+- **The package.** `AshAgent.Effects` (resource extension) and `AshAgent.Effects.Domain` (domain extension) ship in
+  `ash_agent`. The verifiers enforce the rules above, with one refinement: only `:four_eyes` requires an
+  `approver_role`. `:confirm` means the person asking confirms before the action runs, which is how ACP's permission
+  prompt uses it, so it needs no role.
+- **What makes a target strict.** The compile check cannot know which actions the governed path will run, so the
+  resource decides: a resource that uses `AshAgent.Effects` carries governed targets, and any action it exposes as an
+  ash_ai tool without a declaration is an error. An undeclared tool on a resource without the extension is a
+  warning. `Security.UserRole` declares `assign` (four-eyes, by an administrator) and leaves `destroy` undeclared, so
+  exposing role revocation as a tool fails the build.
+- **Compile diagnostics.** Spark reports verifier errors as compile diagnostics rather than exceptions. Plain
+  `mix compile` prints them and exits 0; the `mix compile --warnings-as-errors` gate CI runs fails on them.
+- **The host.** Every action exposed as an ash_ai tool is declared, and every domain with tools uses
+  `AshAgent.Effects.Domain`. `Acp.Commands.consequential?/2` and `Acp.ExtMethods`' `@writes` are gone:
+  `AshEnterprise.Acp.asks_first?/2` and `kind/2` read the declaration of the Ash action a prompt or an A2UI action
+  runs. The `@writes` list had drifted in both directions: it asked before opening a prompt modal, which writes
+  nothing, and did not ask before `bulk_invoke`, which writes. An undeclared action still asks unless it is an Ash
+  `:read`.
+- **Not built yet.** The ash_acp kind and ash_a2ui consequence resolvers, ash_ai tool annotations, and declarations
+  for BPMN `ActionInvoker` entries.

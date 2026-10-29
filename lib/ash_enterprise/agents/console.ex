@@ -37,7 +37,8 @@ defmodule AshEnterprise.Agents.Console do
     lifecycle?: false,
     archival?: false,
     audit?: false,
-    policies?: false
+    policies?: false,
+    extra_extensions: [AshAgent.Effects]
 
   # Generic actions only and no rows, but the platform's system attributes are
   # still fields, which trips Ash's primary-key check (as on Calendar.Sync).
@@ -135,6 +136,91 @@ defmodule AshEnterprise.Agents.Console do
       description "The ACP commands the actor may run."
       run fn _input, context -> {:ok, AshEnterprise.Acp.Commands.help(context.actor)} end
     end
+  end
+
+  # What each command does (ADR 0057), which ACP reads for its tool kind and
+  # whether it asks first. The digests read as the actor; `todo` and `done`
+  # are the actor's own act on their own row, undone from the board, so none
+  # asks. Generic actions are never `read_only?` (only an Ash read is).
+  effects do
+    action :today,
+      kind: :read,
+      destructive?: false,
+      idempotent?: true,
+      open_world?: false,
+      intent: :inspect
+
+    action :agenda,
+      kind: :read,
+      destructive?: false,
+      idempotent?: true,
+      open_world?: false,
+      intent: :inspect
+
+    action :inbox,
+      kind: :read,
+      destructive?: false,
+      idempotent?: true,
+      open_world?: false,
+      intent: :inspect
+
+    action :people,
+      kind: :search,
+      destructive?: false,
+      idempotent?: true,
+      open_world?: false,
+      intent: :inspect
+
+    action :approvals,
+      kind: :read,
+      destructive?: false,
+      idempotent?: true,
+      open_world?: false,
+      intent: :inspect
+
+    action :action_items,
+      kind: :read,
+      destructive?: false,
+      idempotent?: true,
+      open_world?: false,
+      intent: :inspect
+
+    action :accounts,
+      kind: :read,
+      destructive?: false,
+      idempotent?: true,
+      open_world?: false,
+      intent: :inspect
+
+    action :lineage,
+      kind: :read,
+      destructive?: false,
+      idempotent?: true,
+      open_world?: false,
+      intent: :inspect
+
+    action :open,
+      kind: :read,
+      destructive?: false,
+      idempotent?: true,
+      open_world?: false,
+      intent: :inspect
+
+    action :help,
+      kind: :read,
+      destructive?: false,
+      idempotent?: true,
+      open_world?: false,
+      intent: :inspect
+
+    action :todo, kind: :edit, destructive?: false, open_world?: false, intent: :execute
+
+    action :done,
+      kind: :edit,
+      destructive?: false,
+      idempotent?: true,
+      open_world?: false,
+      intent: :execute
   end
 
   # Declared in full (`policies?: false`): every command answers from reads

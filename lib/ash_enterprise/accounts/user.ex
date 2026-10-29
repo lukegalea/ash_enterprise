@@ -30,7 +30,7 @@ defmodule AshEnterprise.Accounts.User do
     ],
     data_layer: AshPostgres.DataLayer,
     authorizers: [Ash.Policy.Authorizer],
-    extensions: [AshAuthentication]
+    extensions: [AshAuthentication, AshAgent.Effects]
 
   authentication do
     add_ons do
@@ -345,6 +345,17 @@ defmodule AshEnterprise.Accounts.User do
       # Generates an authentication token for the user
       change AshAuthentication.GenerateTokenChange
     end
+  end
+
+  # Exposed as an ash_ai tool (`list_users`); ADR 0057.
+  effects do
+    action :read,
+      kind: :read,
+      read_only?: true,
+      destructive?: false,
+      idempotent?: true,
+      open_world?: false,
+      intent: :inspect
   end
 
   # No `policies` block: the `ash_authentication` bypass is contributed by

@@ -27,7 +27,7 @@ defmodule AshEnterprise.Security do
 
   use Ash.Domain,
     otp_app: :ash_enterprise,
-    extensions: [AshAdmin.Domain, AshAi]
+    extensions: [AshAdmin.Domain, AshAi, AshAgent.Effects.Domain]
 
   admin do
     show? true

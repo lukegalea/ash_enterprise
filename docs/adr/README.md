@@ -88,7 +88,7 @@ The concrete exit: which files change, and how much work it is.
 | [0054](0054-mdm-stewardship-is-system-one.md) | MDM stewardship is System One machinery, not a bespoke product (amends 0017) | accepted |
 | [0055](0055-consequential-acts-are-governed-invocations.md) | Every consequential act is one governed invocation | accepted, not built (2026-10-23) |
 | [0056](0056-the-ash-agent-package.md) | The agent runtime is a separate public package, `ash_agent`, that the host instantiates | accepted, not built (2026-10-23) |
-| [0057](0057-actions-declare-their-effects.md) | Every action exposed to an agent, an editor or a process declares its effects | accepted, not built (2026-10-23) |
+| [0057](0057-actions-declare-their-effects.md) | Every action exposed to an agent, an editor or a process declares its effects | accepted (2026-10-23); the extension, its verifiers and the host's ACP readers built, the library resolvers and ash_ai annotations not built (2026-10-29) |
 | [0058](0058-agent-quality-and-releases.md) | Agent quality is measured in a host Quality domain, and a release is a gated, attested manifest | accepted, not built (2026-10-23) |
 | [0059](0059-version-number-is-an-optimistic-lock.md) | `version_number` is an optimistic lock; human-only and machinery-only actions narrow the bypasses | accepted |
 

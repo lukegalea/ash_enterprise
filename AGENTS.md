@@ -3435,6 +3435,10 @@ resource, data layer, tenancy, policies and triggers._
 
 [ash_agent usage rules](deps/ash_agent/usage-rules.md)
 <!-- ash_agent-end -->
+<!-- ash_agent:effects-start -->
+## ash_agent:effects usage
+[ash_agent:effects usage rules](deps/ash_agent/usage-rules/effects.md)
+<!-- ash_agent:effects-end -->
 <!-- ash_agent:fragments-start -->
 ## ash_agent:fragments usage
 [ash_agent:fragments usage rules](deps/ash_agent/usage-rules/fragments.md)

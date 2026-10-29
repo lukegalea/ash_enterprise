@@ -65,6 +65,40 @@ defmodule AshEnterprise.Acp do
   end
 
   @doc """
+  Whether ACP asks the person (`session/request_permission`) before running
+  `action` on `resource`, even when policy allows it (dogfood §5: every
+  consequential action is an approval).
+
+  Read from the action's `AshAgent.Effects` declaration (ADR 0057): it asks
+  unless the declaration says `approval: :none`. An undeclared action asks,
+  MCP's cautious default, unless it is an Ash `:read` action, which cannot
+  write.
+  """
+  @spec asks_first?(Ash.Resource.t(), atom()) :: boolean()
+  def asks_first?(resource, action) do
+    case AshAgent.Effects.Info.effect(resource, action) do
+      %{approval: approval} -> approval != :none
+      nil -> not read?(resource, action)
+    end
+  end
+
+  @doc """
+  The ACP tool kind of `action` on `resource`: its declared `kind`, or for an
+  undeclared action `ash_acp`'s own default (`read` for an Ash `:read`
+  action, `execute` otherwise).
+  """
+  @spec kind(Ash.Resource.t(), atom()) :: AshAgent.Effects.Effect.kind()
+  def kind(resource, action) do
+    case AshAgent.Effects.Info.effect(resource, action) do
+      %{kind: kind} -> kind
+      nil -> if read?(resource, action), do: :read, else: :execute
+    end
+  end
+
+  defp read?(resource, action),
+    do: match?(%{type: :read}, Ash.Resource.Info.action(resource, action))
+
+  @doc """
   The organization tenant an actor's data lives under: the actor's own
   organization when present, else the one their business unit belongs to.
   Same resolution `AshEnterprise.Security.ActorContext.build/2` uses.

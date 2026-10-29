@@ -2,9 +2,9 @@
 
 ## Status
 
-Nothing in this package is built yet. The rules below describe its shape so that an application adopting it, and an
-agent working in either repository, knows where each part will live. Each sub-rule says "not yet built" until its part
-lands.
+The effects extension is built. The rest is not yet: the rules below describe its shape so that an application
+adopting it, and an agent working in either repository, knows where each part will live. Each sub-rule says "not yet
+built" until its part lands.
 
 ## Understanding AshAgent
 
@@ -28,6 +28,7 @@ declarations; the application turns them into resources.
 
 ## Sub-rules
 
+- [effects](usage-rules/effects.md): declaring what each action does to the world, and checking exposed tools.
 - [fragments](usage-rules/fragments.md): the fragments and how to include them. Not yet built.
 - [triggers](usage-rules/triggers.md): the ash_oban triggers a host declares. Not yet built.
 - [host-behaviours](usage-rules/host-behaviours.md): the behaviours a host implements. Not yet built.

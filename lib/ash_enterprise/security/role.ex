@@ -40,7 +40,8 @@ defmodule AshEnterprise.Security.Role do
   use AshEnterprise.Platform.Resource,
     domain: AshEnterprise.Security,
     ownership: :business_owned,
-    cdm_entity: "Role"
+    cdm_entity: "Role",
+    extra_extensions: [AshAgent.Effects]
 
   postgres do
     table "roles"
@@ -120,6 +121,17 @@ defmodule AshEnterprise.Security.Role do
       validate attribute_equals(:is_system_generated, false),
         message: "system-generated roles cannot be edited"
     end
+  end
+
+  # Exposed as an ash_ai tool (`list_roles`); ADR 0057.
+  effects do
+    action :read,
+      kind: :read,
+      read_only?: true,
+      destructive?: false,
+      idempotent?: true,
+      open_world?: false,
+      intent: :inspect
   end
 
   code_interface do

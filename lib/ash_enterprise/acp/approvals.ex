@@ -28,16 +28,15 @@ defmodule AshEnterprise.Acp.Approvals do
     # ADR 0015 seam: approvals gate *privileged* operations. An action policy
     # already authorizes runs without a modal — else every authorized read
     # nags. Only actions policy does not authorize become pending approvals.
-    action = Ash.Resource.Info.action(action_spec.resource, action_spec.action)
-
     authorized? = Ash.can?({action_spec.resource, action_spec.action}, actor, tenant: tenant)
 
-    # Reads — and the read-only generic actions behind the daily-loop prompts
-    # (digests, help) — run without a modal when authorized. Writes and the
-    # consequential generics (a task decision, a sync) always pend — dogfood
-    # §5's capability-transition rule: consequential operations are approvals,
-    # even for the operator.
-    if authorized? and read_only?(action, action_spec) do
+    # The action's effects declaration decides (ADR 0057): reads and the
+    # generic actions behind the daily-loop prompts declared `approval: :none`
+    # (digests, help, one's own action items) run without a modal when
+    # authorized. Everything else always pends — dogfood §5's
+    # capability-transition rule: consequential operations are approvals, even
+    # for the operator.
+    if authorized? and not Acp.asks_first?(action_spec.resource, action_spec.action) do
       {:approved, %{auto: :policy_authorized, tenant: tenant}}
     else
       pend(session, action_spec, inputs)
@@ -61,13 +60,6 @@ defmodule AshEnterprise.Acp.Approvals do
 
     {:pending, ref}
   end
-
-  defp read_only?(%{type: :read}, _spec), do: true
-
-  defp read_only?(%{type: :action}, spec),
-    do: not AshEnterprise.Acp.Commands.consequential?(spec.resource, spec.action)
-
-  defp read_only?(_action, _spec), do: false
 
   @impl true
   def resolve(ref, outcome, session) when is_binary(ref) do

@@ -9,7 +9,7 @@ defmodule AshEnterprise.LegacyAgent do
 
   use Ash.Domain,
     otp_app: :ash_enterprise,
-    extensions: [AshAi]
+    extensions: [AshAi, AshAgent.Effects.Domain]
 
   tools do
     tool :legacy_users, AshEnterprise.Legacy.User, :read
