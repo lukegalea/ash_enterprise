@@ -12,17 +12,27 @@ defmodule AshEnterprise.Security.Checks.GrantReach do
   `oban` by `AshEnterprise.Security.Checks.SystemActorReach`. Every other
   action's union is untouched.
 
-  A simple check over compile-time DSL (`AshEnterprise.Security.ActionReach`).
+  Nor does the union apply to an automation principal (ADR 0043) on an action the
+  resource declares `human_only`: such an action is a person's own, and a principal
+  acting for a person is not that person. The person's grants on it are untouched.
+
+  A simple check over compile-time DSL (`AshEnterprise.Security.ActionReach`) and the
+  actor's struct; it never builds a context.
   """
 
   use Ash.Policy.SimpleCheck
 
+  alias AshEnterprise.Platform.AutomationPrincipal
   alias AshEnterprise.Security.ActionReach
 
   @impl true
-  def describe(_opts), do: "action is not machinery_only"
+  def describe(_opts),
+    do: "action is not machinery_only, nor human_only for an automation principal"
 
   @impl true
+  def match?(%AutomationPrincipal{}, %{resource: resource, action: action}, _opts),
+    do: ActionReach.grants?(resource, action) and not ActionReach.human_only?(resource, action)
+
   def match?(_actor, %{resource: resource, action: action}, _opts),
     do: ActionReach.grants?(resource, action)
 

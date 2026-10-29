@@ -79,6 +79,11 @@ defmodule AshEnterprise.Security do
     resource AshEnterprise.Security.UserRole
     resource AshEnterprise.Security.TeamRole
 
+    # Automation principals (ADR 0043): their roles, and who may start an agent
+    # that runs as one.
+    resource AshEnterprise.Security.AutomationRole
+    resource AshEnterprise.Security.AgentStartGrant
+
     # The exception path: per-record sharing.
     resource AshEnterprise.Security.AccessGrant
     resource AshEnterprise.Security.AccessRequest

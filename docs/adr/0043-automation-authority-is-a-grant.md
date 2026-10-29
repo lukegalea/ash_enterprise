@@ -1,6 +1,7 @@
 # ADR 0043 — Automation authority is a grant
 
-- **Status:** accepted, not built (2026-09-28)
+- **Status:** accepted (2026-09-28); the principal, its grants and the intersection rule built (2026-10-29); no
+  admission grant issued
 - **Date:** 2026-09-27
 - **Amended:** 2026-09-28 — a grant names only a question version calibrated on data its optimiser never saw
 - **Amended 2026-09-28 (acceptance):** accepted by the operator ("reviewed doctrine and approve"). Three conflicts with
@@ -108,3 +109,39 @@ state before this record. Removing the mechanism is deleting the principal from 
 filter check and the role rows; facts it admitted keep their attribution in the audit log. Restoring the `ai` bypass is
 a one-line change to the system-actor check, and would need a superseding record, because it reintroduces a model-driven
 write with neither a human nor a grant behind it.
+
+## Built, 2026-10-29
+
+The mechanism exists; what any principal may admit is still a per-family grant nobody has issued.
+
+- **The principal.** `AshEnterprise.Platform.AutomationPrincipal` is the closed, compile-time list, beside
+  `SystemActor` and separate from it. Its one entry is `evidence_admitter`. It has no bypass:
+  `Security.Checks.SystemActor` never matches it, and an `ActorContext` for it is never a system context.
+- **Its grants.** `Security.AutomationRole` assigns a role to a principal in a tenant, scoped to a business unit, the
+  way `UserRole` does for a user. `ActorContext.build_automation/2` resolves those rows the way `build/2` resolves a
+  person's. With no rows the principal can do nothing, which `automation_principal_test.exs` checks. A principal with
+  no context attached also has no authority.
+- **The intersection.** A principal runs only work a person asked for, and runs it on `ActorContext.intersect/2` of
+  the two contexts, so it does only what both allow. For each `(resource, verb)`, a `:global` side yields the other
+  side. Otherwise the result keeps the business units both reach, and the person's own records only when both sides
+  hold `:basic`. Records the two reach by different routes are left out, so the intersection can refuse something
+  both would allow but never the reverse. A share with the person survives only where the principal's grant is
+  global. The principal is never a task candidate and has no reporting chain.
+- **Paths for people only.** Self-service never admits a principal, even one acting for a person. The grant union
+  does not apply to a principal on an action its resource declares `human_only` (`Security.Checks.GrantReach`), so a
+  principal acting for an administrator still cannot assign a role. Assigning a principal's role and granting a start
+  are themselves `human_only`.
+- **Starting an agent.** `Security.AgentStartGrant` holds one row per `(agent key, person or team)`, RFC 8693's
+  `may_act`. A person asks with `AutomationPrincipal.start/3`, and the request is refused unless they hold the grant.
+  The stored principal is `{automation, name, on_behalf_of, agent}`, and its RFC 8693 `act` form is kept in the
+  invocation's `delegation`.
+- **At every claim** (`Execution.Identity`) the person, the start grant and the principal's roles are all read again.
+  A revoked role on either side narrows the intersection, so the target is refused. A revoked start grant, an inactive
+  account, or a person who now belongs to another tenant fails the row before the target is tried. Each of these is
+  `:denied`, and `reauth_test.exs` shows each one with no effect committed.
+- **Attribution.** The principal's actor carries the person's id, so records it creates are theirs and
+  `created_by_id` / `modified_by_id` name them. The audit entry adds `automation_principal`, `on_behalf_of_id` and the
+  invocation's `invocation_key`.
+- **Not built.** Work with no requester (schedules, process starts) waits for agent versions published as
+  requesterless, so a principal with no person is refused at request and at claim. The admission action and its
+  per-family filter check, the subject of this record, wait for the admission work itself.

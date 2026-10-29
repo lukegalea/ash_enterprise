@@ -208,8 +208,11 @@ the host's `AshAgent.Approvals` implementation and the apply-decision trigger.
   scope-rotation rule exists.
 - **Identity.** A person's request executes as that person: the principal is stored at request, and at every claim
   the person is read again and their `ActorContext` rebuilt from grant rows; an inactive or missing person fails the
-  row as `:denied` without running the target. System actors are not principals. Automation principals are not built:
-  a row naming one is refused at claim rather than run with other authority.
+  row as `:denied` without running the target, and so does a person who no longer belongs to the row's tenant.
+  System actors are not principals. An automation principal runs on the intersection of its own grants and its
+  requester's, and only for an agent its requester holds the start grant for. All three are rebuilt at every claim
+  ([ADR 0043](0043-automation-authority-is-a-grant.md), "Built"; `reauth_test.exs`). A target whose record the
+  executing actor can no longer read is `:denied`, and one whose record is gone is `:rejected`.
 - **Lease and paths.** `claim` takes the next epoch under `optimistic_lock(:lease_epoch)`; `succeed` and `fail` are
   filtered on the claimed epoch, after a locked re-read. An internal target runs in one transaction with `succeed`,
   so a superseded worker's effect rolls back with its refused completion (`lease_fencing_test.exs`). An expired lease
