@@ -76,7 +76,7 @@ defmodule AshEnterprise.Repo.Migrations.AddExecutionInvocations do
             column: :id,
             name: "exec_invocations_erasure_scope_id_fkey",
             type: :uuid,
-            prefix: "public",
+            prefix: prefix(),
             on_delete: :restrict
           )
     end
