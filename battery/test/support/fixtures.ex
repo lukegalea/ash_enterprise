@@ -48,26 +48,26 @@ defmodule Battery.Fixtures do
   </definitions>
   """
 
-  # The risk tier decision: `high` at amount >= 1000, `low` below. UNIQUE,
+  # The amount tier decision: `high` at amount >= 1000, `low` below. UNIQUE,
   # no default rule — an absent amount matches no row and refuses.
-  @risk_tier_dmn """
+  @amount_tier_dmn """
   <?xml version="1.0" encoding="UTF-8"?>
   <definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/"
                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-               id="battery_risk_tier_definitions"
-               name="battery_risk_tier"
-               namespace="https://battery.test/battery_risk_tier"
+               id="battery_amount_tier_definitions"
+               name="battery_amount_tier"
+               namespace="https://battery.test/battery_amount_tier"
                expressionLanguage="https://www.omg.org/spec/DMN/20230324/FEEL/"
                typeLanguage="https://www.omg.org/spec/DMN/20230324/FEEL/">
     <inputData id="input_amount" name="amount">
       <variable id="var_amount" name="amount" typeRef="number"/>
     </inputData>
-    <decision id="decision_battery_risk_tier" name="battery_risk_tier">
-      <variable id="var_battery_risk_tier" name="battery_risk_tier" typeRef="string"/>
+    <decision id="decision_battery_amount_tier" name="battery_amount_tier">
+      <variable id="var_battery_amount_tier" name="battery_amount_tier" typeRef="string"/>
       <informationRequirement id="req_amount">
         <requiredInput href="#input_amount"/>
       </informationRequirement>
-      <decisionTable id="table_battery_risk_tier" hitPolicy="UNIQUE" outputLabel="tier">
+      <decisionTable id="table_battery_amount_tier" hitPolicy="UNIQUE" outputLabel="tier">
         <input id="clause_amount" label="Order amount">
           <inputExpression id="expr_amount" typeRef="number">
             <text>amount</text>
@@ -88,11 +88,11 @@ defmodule Battery.Fixtures do
   """
 
   # The risk-review process: start → businessRuleTask (decision ref
-  # `battery_risk_tier`, FEEL input `amount` read off the subject, ONE
+  # `battery_amount_tier`, FEEL input `amount` read off the subject, ONE
   # declared scalar signal `tier` promoted onto the token) → exclusive
   # gateway reading `routing.tier` → service task on the high branch,
   # default to the low branch, distinct end outcomes.
-  @risk_tier_process """
+  @amount_tier_process """
   <?xml version="1.0" encoding="UTF-8"?>
   <bpmn2:definitions xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL"
                      xmlns:ash="https://github.com/lukegalea/ash_bpmn/ns"
@@ -105,7 +105,7 @@ defmodule Battery.Fixtures do
 
       <bpmn2:businessRuleTask id="AssessRisk" name="Assess risk">
         <bpmn2:extensionElements>
-          <ash:decision ref="battery_risk_tier" binding="latest"/>
+          <ash:decision ref="battery_amount_tier" binding="latest"/>
           <ash:inputs>
             <ash:input name="amount" from="subject.amount"/>
           </ash:inputs>
@@ -162,6 +162,6 @@ defmodule Battery.Fixtures do
   """
 
   def band_table_dmn, do: @band_table_dmn
-  def risk_tier_dmn, do: @risk_tier_dmn
-  def risk_tier_process, do: @risk_tier_process
+  def amount_tier_dmn, do: @amount_tier_dmn
+  def amount_tier_process, do: @amount_tier_process
 end

@@ -4,7 +4,7 @@ defmodule Mix.Tasks.PlatformBattery do
 
       mix platform_battery
 
-  1. Ensures the `vendorpm_platform_battery_test` database exists (creates
+  1. Ensures the `platform_battery_test` database exists (creates
      it if missing — idempotent).
   2. Runs pending migrations (idempotent).
   3. Runs the battery's ExUnit suite.

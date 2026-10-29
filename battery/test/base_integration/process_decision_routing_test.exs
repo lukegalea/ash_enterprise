@@ -57,9 +57,9 @@ defmodule Battery.Integration.ProcessDecisionRoutingTest do
     #    definition's publish-time reference check finds it ────────────────
     tier_definition =
       Battery.Decisions.Definition.create!(%{
-        key: "battery_risk_tier",
-        name: "Battery risk tier",
-        xml: Battery.Fixtures.risk_tier_dmn()
+        key: "battery_amount_tier",
+        name: "Battery amount tier",
+        xml: Battery.Fixtures.amount_tier_dmn()
       })
 
     assert tier_definition.graph
@@ -68,7 +68,7 @@ defmodule Battery.Integration.ProcessDecisionRoutingTest do
     assert tier_definition.status == :published
 
     # ── the process side: the XML is the single artifact ──────────────────
-    process = publish_process!("battery_risk", Battery.Fixtures.risk_tier_process())
+    process = publish_process!("battery_risk", Battery.Fixtures.amount_tier_process())
 
     # ── the HIGH branch (amount >= 1000) ──────────────────────────────────
     subject = Ash.create!(Subject, %{name: "battery_risk_high", amount: 5000})
@@ -86,7 +86,7 @@ defmodule Battery.Integration.ProcessDecisionRoutingTest do
     assert promoted = decision_event(instance.id, "AssessRisk")
 
     assert promoted["promoted"] == %{"tier" => "high"}
-    assert promoted["decision_ref"] == "battery_risk_tier"
+    assert promoted["decision_ref"] == "battery_amount_tier"
     # version crosses the seam as the string spelling events persist
     assert promoted["decision_version"] == to_string(tier_definition.version)
     assert promoted["rule_ids"] == ["rule_high"]
@@ -96,11 +96,11 @@ defmodule Battery.Integration.ProcessDecisionRoutingTest do
     # engine's own matched rule ids.
     assert [evaluation] = evaluations_for(tier_definition)
 
-    assert evaluation.definition_key == "battery_risk_tier"
+    assert evaluation.definition_key == "battery_amount_tier"
     assert evaluation.definition_version == tier_definition.version
     assert evaluation.matched_rule_ids == ["rule_high"]
     assert evaluation.outputs["value"] == "high"
-    assert evaluation.decision_id == "battery_risk_tier"
+    assert evaluation.decision_id == "battery_amount_tier"
     assert Decimal.eq?(Decimal.new(evaluation.inputs["amount"]), Decimal.new(5000))
 
     # the instance pinned the process definition it ran
@@ -116,7 +116,10 @@ defmodule Battery.Integration.ProcessDecisionRoutingTest do
     assert low_instance.status == :completed
     assert low_instance.outcome == "approved"
     assert decision_event(low_instance.id, "AssessRisk")["promoted"] == %{"tier" => "low"}
-    assert Enum.any?(Invoker.recorded_calls(), fn {_id, action, _ts} -> action == "auto_approve" end)
+
+    assert Enum.any?(Invoker.recorded_calls(), fn {_id, action, _ts} ->
+             action == "auto_approve"
+           end)
 
     assert [_, second_evaluation] = evaluations_for(tier_definition)
     assert second_evaluation.matched_rule_ids == ["rule_low"]
@@ -126,10 +129,10 @@ defmodule Battery.Integration.ProcessDecisionRoutingTest do
     # The check that makes a decision node safe: the reference is verified
     # against the ash_decisions-backed resolver at COMPILE time — a diagram
     # cannot ship against a decision that is not published.
-    assert {:error, errors} = AshBpmn.Compiler.compile(Battery.Fixtures.risk_tier_process())
+    assert {:error, errors} = AshBpmn.Compiler.compile(Battery.Fixtures.amount_tier_process())
 
     assert Enum.any?(errors, fn e ->
-             String.contains?(e.message, "battery_risk_tier") and
+             String.contains?(e.message, "battery_amount_tier") and
                String.contains?(e.message, "does not exist")
            end)
   end
