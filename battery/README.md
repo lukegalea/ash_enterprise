@@ -68,3 +68,19 @@ The nine substrates are pinned in `mix.exs` exactly as `ash_enterprise`
 pins them, and `mix.lock` pins the same SHAs ash_enterprise's lock
 resolves (`ash_events` carries the platform's
 `temporal-as-of-support-0.7` fork with `override: true`).
+
+This is enforced, not hoped for. `scripts/battery-pins-check.exs` (run from
+the repository root, and the first step of CI's battery job) fails, naming
+each package, when any package both locks contain resolves to a different
+version, ref or git options. Every shared package counts, not just the
+substrates: the battery should run the `ash` and `spark` the platform runs
+too. To realign after a host bump:
+
+```sh
+elixir scripts/battery-pins-check.exs --sync   # copy the host's entries
+(cd battery && mix deps.get)                   # fetch, pick up new transitives
+elixir scripts/battery-pins-check.exs          # check again
+```
+
+A package that genuinely cannot match goes in the script's `@exceptions`
+map with its reason; there are none today.

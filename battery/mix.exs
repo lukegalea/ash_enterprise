@@ -41,7 +41,7 @@ defmodule AshEnterpriseBattery.MixProject do
   defp deps do
     [
       # --- The judgment substrate (System One) --------------------------------
-      {:ash_judgments, github: "lukegalea/ash_judgments", branch: "main"},
+      {:ash_judgments, github: "lukegalea/ash_judgments"},
       # --- The evidence pipeline substrate (System One adjudication) ----------
       {:ash_evidence, github: "lukegalea/ash_evidence", branch: "main"},
       # --- Rules engine and the compliance plane it powers --------------------
