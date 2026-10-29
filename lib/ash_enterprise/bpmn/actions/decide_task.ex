@@ -13,8 +13,15 @@ defmodule AshEnterprise.Bpmn.Actions.DecideTask do
   so the process's own service tasks do the work the outcome routes to.
   Nothing here writes the subject directly.
 
-  Two host rules sit on top:
+  `HumanTask.resolve` runs here too, with the outcome from its argument:
+  `succeeded`, `failed` or `retry` on a task settling an invocation's
+  unknown outcome.
 
+  Three host rules sit on top:
+
+    * **Resolution tasks.** A task settling an invocation's unknown outcome
+      is decided only through `resolve`, and `resolve` decides only such a
+      task (`AshEnterprise.Execution.Resolution`);
     * **Declared outcomes.** `approved` / `rejected` must be outcomes the
       task's step declares (`AshEnterprise.Bpmn.Outcomes`), except on a
       steward-decision task;
@@ -27,18 +34,30 @@ defmodule AshEnterprise.Bpmn.Actions.DecideTask do
   use Ash.Resource.Actions.Implementation
 
   alias AshEnterprise.Bpmn.{HumanTask, Outcomes}
+  alias AshEnterprise.Execution.Resolution
   alias AshEnterprise.Mdm.StewardTask
 
   @impl true
   def run(input, opts, context) do
-    outcome = Keyword.fetch!(opts, :outcome)
+    {outcome, door} =
+      case Keyword.fetch!(opts, :outcome) do
+        :from_argument -> {to_string(input.arguments.outcome), :resolve}
+        outcome -> {outcome, :decide}
+      end
+
     ash_opts = Ash.Context.to_opts(context)
 
     with {:ok, task} <- Ash.get(HumanTask, input.arguments.record_id, ash_opts) do
-      case decide(task, outcome, input.arguments[:comment], context.actor, ash_opts) do
+      case decide(task, door, outcome, input.arguments[:comment], context.actor, ash_opts) do
         {:ok, message} -> {:ok, message}
         {:error, error} -> {:error, Outcomes.refusal(error, :record_id)}
       end
+    end
+  end
+
+  defp decide(task, door, outcome, comment, actor, opts) do
+    with :ok <- Resolution.check(task, door) do
+      decide(task, outcome, comment, actor, opts)
     end
   end
 

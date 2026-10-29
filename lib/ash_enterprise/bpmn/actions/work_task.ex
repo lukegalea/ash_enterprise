@@ -16,7 +16,9 @@ defmodule AshEnterprise.Bpmn.Actions.WorkTask do
       step declares (`AshEnterprise.Bpmn.Outcomes`) and an optional comment.
       A steward-decision task records the verdict on its match candidate
       instead, which completes the task in the same transaction
-      (`AshEnterprise.Mdm.StewardTask`); any other task goes through
+      (`AshEnterprise.Mdm.StewardTask`); a task settling an invocation's
+      unknown outcome is refused (it is resolved through `HumanTask.resolve`,
+      `AshEnterprise.Execution.Resolution`); any other task goes through
       `AshBpmn.complete_task/2`.
     * **delegate** — `AshBpmn.delegate_task/2`: a task the actor holds, to
       another person, picked from the task's `delegate_candidates`. The engine
@@ -35,6 +37,7 @@ defmodule AshEnterprise.Bpmn.Actions.WorkTask do
 
   alias AshEnterprise.Accounts.User
   alias AshEnterprise.Bpmn.{HumanTask, Outcomes}
+  alias AshEnterprise.Execution.Resolution
   alias AshEnterprise.Mdm.StewardTask
 
   @impl true
@@ -67,6 +70,7 @@ defmodule AshEnterprise.Bpmn.Actions.WorkTask do
     outcome = to_string(arguments.outcome)
 
     with :ok <- claimed(task),
+         :ok <- Resolution.check(task, :decide),
          :ok <- Outcomes.check(task, outcome, opts) do
       complete(task, outcome, arguments[:comment], actor, opts)
     end

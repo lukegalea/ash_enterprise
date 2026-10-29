@@ -216,21 +216,55 @@ the host's `AshAgent.Approvals` implementation and the apply-decision trigger.
 - **Lease and paths.** `claim` takes the next epoch under `optimistic_lock(:lease_epoch)`; `succeed` and `fail` are
   filtered on the claimed epoch, after a locked re-read. An internal target runs in one transaction with `succeed`,
   so a superseded worker's effect rolls back with its refused completion (`lease_fencing_test.exs`). An expired lease
-  is taken over only for an internal target. An external target runs with no transaction open and `succeed` follows;
-  `outcome_unknown` and reconciliation are not built, and a worker that dies mid-run leaves its row `executing` until
-  they are.
+  is taken over only for an internal target. An external target runs with no transaction open and `succeed` follows.
+  Reconciliation is under "Built, 2026-10-29: execution paths, typed failure and reconciliation".
 - **Handoff.** `request` and `apply_decision` enqueue the `:execute` job in their own transaction; the trigger's
   scheduler sweeps every minute, takes the tenant from the row and persists no actor (`handoff_test.exs`).
-- **Failure classes so far.** A forbidden target is `:denied`, an invalid one `:rejected`, anything else `:permanent`.
-  `AshAgent.BusinessError`, transient retries and timeouts are not built.
+- **Failure classes.** See "Built, 2026-10-29: execution paths, typed failure and reconciliation".
 - **The worked example.** A synthetic clinic (`AshEnterprise.Credentialing`, seeded by `mix ash_enterprise.demo`)
   has one governed target: `Credential.activate_credential`, open-world, idempotent, four-eyes by a credentialing
   committee, reconciled by `lookup_activation`, against a stub registry that keeps no record. Clinic and clinician are
   the CDM `Account` and `Contact`; the credential is invented. `clinic_scenario_test.exs` runs it from `invoke`
   through an applied approval to the registry's reference.
 - **Not built yet.** Opening and applying approvals (`awaiting_approval` rows wait for a host change on
-  `apply_decision`), the approval and reconciliation triggers, the pre-check of the executing identity at request,
-  and `retry` and `rerun`.
+  `apply_decision`), the approval trigger, the pre-check of the executing identity at request, and `rerun`.
+
+## Built, 2026-10-29: execution paths, typed failure and reconciliation
+
+- **Paths by effect.** The executor takes the path from the target's declaration, which the claim has matched to the one
+  requested. An internal target's expired lease is made ready again (`requeue`): its effect rolled back with its
+  transaction. An idempotent outside target is given the invocation key in `context.ash_agent.invocation_key`, and the
+  Nango façade sends it as `Idempotency-Key` when a target passes `idempotency_key`; its expired lease is re-readied
+  too, and the provider takes the repeated call once. An outside target that is not idempotent is never called twice
+  for one claim: an error that leaves its effect in doubt, or a lease that expires with nothing recorded, makes the row
+  `outcome_unknown` (`reconcile_test.exs`).
+- **Reconciliation.** The `:reconcile` trigger (a sweep every minute, and enqueued by `mark_outcome_unknown` in its own
+  transaction) runs the package's `reconcile` action. An unknown outcome is settled by the target's `reconcile_with`
+  lookup, run as the rebuilt principal: found is `succeeded` with the effect's reference, not found is `failed` as
+  `:transient`, which only a deliberate `retry` runs again. Without a lookup, or when it cannot tell, a person is asked.
+- **Resolution by a person.** `request_resolution` opens a standalone `HumanTask` under the key
+  `"invocation.resolution"` for the tenant's administrators, through `AshBpmn.Changes.RequireApproval`. Its outcomes are
+  `succeeded`, `failed` and `retry`, which no door offered: the board's Complete is limited to outcomes the checked-in
+  baselines declare, and standalone approvals to approve and reject. `HumanTask.resolve` offers exactly those three
+  (an enumerated argument, so a picker), accepts only a resolution task, and `approve`, `reject` and `complete_task`
+  refuse one. The `:apply_resolution` trigger reads the completed task, requires a person as the decider, and applies
+  it: `succeeded`, `failed`, or `retry` (ready again, same key and arguments) (`resolution_test.exs`). Never
+  `on_complete`.
+- **Dispatch.** A target that hands its work on returns an `AshAgent.Invocation.Dispatch`: the row is `dispatched`,
+  holds no lease, and is settled by `complete_external` or by its deadline: `outcome_unknown` with `:timeout` for
+  outside work that is not idempotent, a `:timeout` failure otherwise. A callback for a row that is already final is
+  appended to `evidence` and changes nothing else.
+- **Typed failure.** As the Typed failure table above, from `AshAgent.Invocation.Failure`. `AshEnterprise.Integration.ProxyError`
+  classifies itself (`AshAgent.FailureClass`): `:rate_limited` is `:transient`; `:server_error`, `:transport` and
+  `:nango_error` are indeterminate (the effect may have happened); the rest `:permanent`. A transient failure backs off
+  (30 seconds, quadrupling) for up to three claims, then fails, and `retry` makes it ready again. `:budget` has no
+  source in the host until agent runs exist. `AshAgent.Invocation.Failure.bpmn/1` gives what a process sees: a
+  business error code, an incident, or waiting (`typed_failure_test.exs`).
+- **The no-network contract.** `no_network_contract_test.exs` is a CI gate over every target declared internal and not
+  read-only in the registered domains: built with generated inputs as an administrator, it may attach no transaction
+  hook, and run inside a rolled-back transaction with every outbound `Req` request blocked, it may make no request. A
+  canary target whose `after_transaction` hook calls the Nango façade fails it. Generated inputs do not reach every
+  action's end (a target needing an existing record stops at its lookup), so for those the hook check is what holds.
 
 ## Amendment, 2026-10-29 — the coding-agent bridge
 

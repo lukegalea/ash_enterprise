@@ -13,9 +13,13 @@ defmodule AshEnterprise.Test.Execution.ClinicNote do
     * `:record_reviewed` is the same write, confirmed by a person first.
     * `:retitle` changes a note, so it acts on a record the requester must be able to
       read.
+    * `:record_screened` is `:record` behind a clinic rule: a title starting `DECLINED`
+      is refused with a business error (`AshAgent.BusinessError`, code
+      `"declined_by_clinic"`).
 
-  Both are self-service (ADR 0052), so a member with no role grant may run them as
-  themselves, and they stamp the runner as owner.
+  The creates are self-service (ADR 0052), so a member with no role grant may run them
+  as themselves, and they stamp the runner as owner; so is `read`, which reaches only
+  the notes the reader owns.
   """
 
   use AshEnterprise.Platform.Resource,
@@ -25,7 +29,7 @@ defmodule AshEnterprise.Test.Execution.ClinicNote do
     lifecycle?: false,
     archival?: false,
     lineage?: false,
-    self_service: [:record, :record_reviewed],
+    self_service: [:record, :record_reviewed, :record_screened, :read],
     extra_extensions: [AshAgent.Effects]
 
   postgres do
@@ -45,6 +49,12 @@ defmodule AshEnterprise.Test.Execution.ClinicNote do
       intent: :execute
 
     action :retitle, kind: :edit, destructive?: false, open_world?: false, intent: :execute
+
+    action :record_screened,
+      kind: :edit,
+      destructive?: false,
+      open_world?: false,
+      intent: :execute
   end
 
   actions do
@@ -64,6 +74,18 @@ defmodule AshEnterprise.Test.Execution.ClinicNote do
 
     update :retitle do
       accept [:title]
+    end
+
+    create :record_screened do
+      accept [:title]
+      change set_attribute(:owner_id, actor(:id))
+      change set_attribute(:source, "clinic_note")
+
+      validate fn changeset, _context ->
+        if String.starts_with?(Ash.Changeset.get_attribute(changeset, :title) || "", "DECLINED"),
+          do: {:error, AshAgent.BusinessError.exception(code: "declined_by_clinic")},
+          else: :ok
+      end
     end
   end
 
