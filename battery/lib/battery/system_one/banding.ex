@@ -11,13 +11,13 @@ defmodule Battery.SystemOne.Banding do
     extensions: [AshEvents.Events],
     fragments: [AshJudgments.Banding.Fragment]
 
-  events do
-    event_log(Battery.Events.EventLog)
-    create_timestamp :banded_at
-  end
-
   postgres do
     table "battery_bandings"
-    repo(Battery.Repo)
+    repo Battery.Repo
+  end
+
+  events do
+    event_log Battery.Events.EventLog
+    create_timestamp :banded_at
   end
 end

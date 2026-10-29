@@ -22,10 +22,15 @@ defmodule Battery.Integration.JudgmentBandingEvidenceTest do
 
   require Ash.Query
 
-  @battery_tables [Battery.SystemOne.Judgment, Battery.SystemOne.Fact,
-                   Battery.SystemOne.Banding, Battery.Events.EventLog,
-                   Battery.SystemOne.CaseFile, Battery.Decisions.Definition,
-                   Battery.Decisions.Evaluation]
+  @battery_tables [
+    Battery.SystemOne.Judgment,
+    Battery.SystemOne.Fact,
+    Battery.SystemOne.Banding,
+    Battery.Events.EventLog,
+    Battery.SystemOne.CaseFile,
+    Battery.Decisions.Definition,
+    Battery.Decisions.Evaluation
+  ]
 
   setup do
     Ecto.Adapters.SQL.Sandbox.checkout(Battery.Repo, sandbox: false)
@@ -62,7 +67,12 @@ defmodule Battery.Integration.JudgmentBandingEvidenceTest do
 
     atoms = [
       AshEvidence.Domain.ingest_atom!(version.id, run.id, 1, "Coverage limit is 500000 USD"),
-      AshEvidence.Domain.ingest_atom!(version.id, run.id, 2, "The policy terminates on 2027-03-31")
+      AshEvidence.Domain.ingest_atom!(
+        version.id,
+        run.id,
+        2,
+        "The policy terminates on 2027-03-31"
+      )
     ]
 
     atom_ids = Enum.map(atoms, & &1.id)
@@ -78,11 +88,11 @@ defmodule Battery.Integration.JudgmentBandingEvidenceTest do
     answer =
       Battery.SystemOne.CaseFile
       |> Ash.ActionInput.for_action(:judge_evidence_support, %{
-           "input" => %{
-             "text" => "Coverage limit is 500000 USD; the policy terminates on 2027-03-31.",
-             "atom_ids" => atom_ids
-           }
-         })
+        "input" => %{
+          "text" => "Coverage limit is 500000 USD; the policy terminates on 2027-03-31.",
+          "atom_ids" => atom_ids
+        }
+      })
       |> Ash.run_action!(context: %{judgments: %{req_llm: Battery.FakeReqLLM}})
 
     assert answer.value == :supports
@@ -102,7 +112,10 @@ defmodule Battery.Integration.JudgmentBandingEvidenceTest do
 
     # ── 3. banding: flatten, evaluate the published band table, record ──
     band_definition =
-      AshDecisions.BandTable.land!(Battery.Decisions.Definition, Battery.Fixtures.band_table_dmn())
+      AshDecisions.BandTable.land!(
+        Battery.Decisions.Definition,
+        Battery.Fixtures.band_table_dmn()
+      )
 
     inputs =
       Dmn.inputs(
@@ -134,21 +147,21 @@ defmodule Battery.Integration.JudgmentBandingEvidenceTest do
     banding =
       Battery.SystemOne.Banding
       |> Ash.Changeset.for_create(:record, %{
-           observation_ids: [observation.id],
-           band: :admit,
-           fact_value: %{"value" => "supports"},
-           matched_rule_ids: result.matched_rule_ids,
-           band_table: %{
-             "definition_key" => band_definition.key,
-             "definition_version" => band_definition.version,
-             "content_hash" => band_definition.content_hash,
-             "definition_id" => band_definition.id,
-             "tenant_fork" => nil
-           },
-           decision_evaluation_id: evaluation.id,
-           inputs: inputs,
-           mode: :live
-         })
+        observation_ids: [observation.id],
+        band: :admit,
+        fact_value: %{"value" => "supports"},
+        matched_rule_ids: result.matched_rule_ids,
+        band_table: %{
+          "definition_key" => band_definition.key,
+          "definition_version" => band_definition.version,
+          "content_hash" => band_definition.content_hash,
+          "definition_id" => band_definition.id,
+          "tenant_fork" => nil
+        },
+        decision_evaluation_id: evaluation.id,
+        inputs: inputs,
+        mode: :live
+      })
       |> Ash.create!()
 
     # ── 4. the admitted band materialises the fact ────────────────────────
@@ -238,7 +251,10 @@ defmodule Battery.Integration.JudgmentBandingEvidenceTest do
       )
 
     band_definition =
-      AshDecisions.BandTable.land!(Battery.Decisions.Definition, Battery.Fixtures.band_table_dmn())
+      AshDecisions.BandTable.land!(
+        Battery.Decisions.Definition,
+        Battery.Fixtures.band_table_dmn()
+      )
 
     {:ok, result} =
       AshDecisions.Evaluator.evaluate(band_definition, inputs,
@@ -252,21 +268,21 @@ defmodule Battery.Integration.JudgmentBandingEvidenceTest do
     assert_raise Ash.Error.Invalid, ~r/fact_value/i, fn ->
       Battery.SystemOne.Banding
       |> Ash.Changeset.for_create(:record, %{
-           observation_ids: [Ecto.UUID.generate()],
-           band: :review,
-           fact_value: %{"value" => "insufficient"},
-           matched_rule_ids: result.matched_rule_ids,
-           band_table: %{
-             "definition_key" => band_definition.key,
-             "definition_version" => band_definition.version,
-             "content_hash" => band_definition.content_hash,
-             "definition_id" => band_definition.id,
-             "tenant_fork" => nil
-           },
-           decision_evaluation_id: Ecto.UUID.generate(),
-           inputs: inputs,
-           mode: :live
-         })
+        observation_ids: [Ecto.UUID.generate()],
+        band: :review,
+        fact_value: %{"value" => "insufficient"},
+        matched_rule_ids: result.matched_rule_ids,
+        band_table: %{
+          "definition_key" => band_definition.key,
+          "definition_version" => band_definition.version,
+          "content_hash" => band_definition.content_hash,
+          "definition_id" => band_definition.id,
+          "tenant_fork" => nil
+        },
+        decision_evaluation_id: Ecto.UUID.generate(),
+        inputs: inputs,
+        mode: :live
+      })
       |> Ash.create!()
     end
 

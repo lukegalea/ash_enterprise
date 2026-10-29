@@ -12,19 +12,19 @@ defmodule Battery.Compliance.EventLog do
     data_layer: AshPostgres.DataLayer,
     extensions: [AshEvents.EventLog]
 
+  postgres do
+    table "battery_compliance_event_log"
+    repo Battery.Repo
+  end
+
   event_log do
-    primary_key_type(Ash.Type.UUIDv7)
+    primary_key_type Ash.Type.UUIDv7
   end
 
   actions do
     read :read do
-      primary?(true)
-      pagination(keyset?: true, required?: false)
+      primary? true
+      pagination keyset?: true, required?: false
     end
-  end
-
-  postgres do
-    table "battery_compliance_event_log"
-    repo(Battery.Repo)
   end
 end

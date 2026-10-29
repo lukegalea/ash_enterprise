@@ -9,5 +9,4 @@ defmodule Battery.Mdm.Mapping do
     data_layer: AshPostgres.DataLayer
 
   use AshMdm.Resources, {:mapping, repo: Battery.Repo, table: "mdm_mappings"}
-
 end

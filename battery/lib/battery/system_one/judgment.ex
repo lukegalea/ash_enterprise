@@ -11,13 +11,13 @@ defmodule Battery.SystemOne.Judgment do
     extensions: [AshEvents.Events],
     fragments: [AshJudgments.Ledger.Fragment]
 
-  events do
-    event_log(Battery.Events.EventLog)
-    create_timestamp :recorded_at
-  end
-
   postgres do
     table "battery_judgments"
-    repo(Battery.Repo)
+    repo Battery.Repo
+  end
+
+  events do
+    event_log Battery.Events.EventLog
+    create_timestamp :recorded_at
   end
 end

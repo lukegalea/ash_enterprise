@@ -45,9 +45,9 @@ for repo <- [Battery.Repo, AshEvidence.Repo] do
   {:ok, _} = repo.start_link()
 
   Ecto.Adapters.SQL.Sandbox.mode(repo, :auto)
-  Ecto.Migrator.run(repo, Path.join(:code.priv_dir(:ash_enterprise_battery), "repo/migrations"), :up,
-    all: true
-  )
+
+  migrations = Path.join(:code.priv_dir(:ash_enterprise_battery), "repo/migrations")
+  Ecto.Migrator.run(repo, migrations, :up, all: true)
 
   Ecto.Adapters.SQL.Sandbox.mode(repo, :manual)
 end

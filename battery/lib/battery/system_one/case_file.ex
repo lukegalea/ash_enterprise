@@ -8,7 +8,10 @@ defmodule Battery.SystemOne.CaseFileProjection do
 
   @impl true
   def project(input, _context),
-    do: %{"text" => input.arguments.input["text"], "atom_ids" => input.arguments.input["atom_ids"]}
+    do: %{
+      "text" => input.arguments.input["text"],
+      "atom_ids" => input.arguments.input["atom_ids"]
+    }
 end
 
 defmodule Battery.SystemOne.CaseFile do
@@ -26,6 +29,11 @@ defmodule Battery.SystemOne.CaseFile do
     data_layer: AshPostgres.DataLayer,
     extensions: [AshAi, AshJudgments.Registry]
 
+  postgres do
+    table "battery_case_files"
+    repo Battery.Repo
+  end
+
   judgments do
     question :evidence_support do
       type AshJudgments.Evaluate.Evidence
@@ -37,11 +45,6 @@ defmodule Battery.SystemOne.CaseFile do
       state_projection(Battery.SystemOne.CaseFileProjection)
       ttl(3600)
     end
-  end
-
-  postgres do
-    table "battery_case_files"
-    repo(Battery.Repo)
   end
 
   actions do

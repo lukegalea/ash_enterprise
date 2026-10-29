@@ -11,13 +11,13 @@ defmodule Battery.SystemOne.Fact do
     extensions: [AshEvents.Events],
     fragments: [AshJudgments.Facts.TemporalFragment]
 
-  events do
-    event_log(Battery.Events.EventLog)
-    create_timestamp :recorded_at
-  end
-
   postgres do
     table "battery_facts"
-    repo(Battery.Repo)
+    repo Battery.Repo
+  end
+
+  events do
+    event_log Battery.Events.EventLog
+    create_timestamp :recorded_at
   end
 end

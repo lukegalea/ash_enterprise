@@ -73,7 +73,11 @@ defmodule AshEnterpriseBattery.MixProject do
       # ash_judgments' telemetry metrics surface imports Telemetry.Metrics
       # unconditionally (it is an "optional" dep there, but the import is
       # not guarded) — the battery declares it like the platform does.
-      {:telemetry_metrics, "~> 1.0"}
+      {:telemetry_metrics, "~> 1.0"},
+
+      # Formatter only: .formatter.exs runs Spark.Formatter, as the root does,
+      # and Spark.Formatter needs sourceror. Declared as the platform declares it.
+      {:sourceror, "~> 1.8", only: [:dev, :test]}
     ]
   end
 end

@@ -10,8 +10,19 @@ defmodule Battery.BusinessEvents.VendorState do
     data_layer: AshPostgres.DataLayer,
     extensions: [AshEvents.Projections.ProjectionResource]
 
+  postgres do
+    table "battery_vendor_states"
+    repo Battery.Repo
+  end
+
   projection_resource do
     grain_fields([:region, :subject])
+  end
+
+  actions do
+    read :read do
+      primary? true
+    end
   end
 
   attributes do
@@ -34,17 +45,6 @@ defmodule Battery.BusinessEvents.VendorState do
 
     attribute :reviewer, :string do
       public? true
-    end
-  end
-
-  postgres do
-    table "battery_vendor_states"
-    repo Battery.Repo
-  end
-
-  actions do
-    read :read do
-      primary? true
     end
   end
 end

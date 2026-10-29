@@ -113,8 +113,17 @@ defmodule Battery.Integration.MdmSurvivorshipTest do
     assert sf_canonical.event_kind == :salesforce_vendor_sync
     assert fi_canonical.event_kind == :file_import_vendor_sync
 
-    assert sf_canonical.data == %{"vendor_name" => "Meridian Tooling", "city" => "Rotterdam", "tier" => "A"}
-    assert fi_canonical.data == %{"vendor_name" => "Meridian Tooling", "city" => "Utrecht", "tier" => "B"}
+    assert sf_canonical.data == %{
+             "vendor_name" => "Meridian Tooling",
+             "city" => "Rotterdam",
+             "tier" => "A"
+           }
+
+    assert fi_canonical.data == %{
+             "vendor_name" => "Meridian Tooling",
+             "city" => "Utrecht",
+             "tier" => "B"
+           }
 
     # provenance joins to the ACTIVE MappingVersion rows, by content hash
     assert sf_canonical.provenance["mapping_version_hash"] == sf_version.version_hash
@@ -145,10 +154,10 @@ defmodule Battery.Integration.MdmSurvivorshipTest do
     rule_set =
       MatchRuleSet
       |> Ash.Changeset.for_create(:draft, %{
-           golden_resource: "Battery.Mdm.Vendor",
-           rules: @match_rules,
-           survivorship: @survivorship_policy
-         })
+        golden_resource: "Battery.Mdm.Vendor",
+        rules: @match_rules,
+        survivorship: @survivorship_policy
+      })
       |> Ash.create!(authorize?: false)
 
     rule_set = Ash.update!(rule_set, %{}, action: :activate, authorize?: false)
@@ -194,12 +203,12 @@ defmodule Battery.Integration.MdmSurvivorshipTest do
     golden =
       Vendor
       |> Ash.Changeset.for_create(:create, %{
-           name: merged["vendor_name"],
-           city: merged["city"],
-           tier: merged["tier"],
-           external_ref: vendor_ref,
-           provenance: provenance
-         })
+        name: merged["vendor_name"],
+        city: merged["city"],
+        tier: merged["tier"],
+        external_ref: vendor_ref,
+        provenance: provenance
+      })
       |> Ash.create!(authorize?: false)
 
     assert golden.name == "Meridian Tooling"
@@ -210,19 +219,23 @@ defmodule Battery.Integration.MdmSurvivorshipTest do
     # and the golden record's values trace back through the mapped
     # canonical data to the LANDED raw records: every merged attribute is
     # byte-identical to one canonical record's field
-    assert merged["vendor_name"] in [sf_canonical.data["vendor_name"], fi_canonical.data["vendor_name"]]
+    assert merged["vendor_name"] in [
+             sf_canonical.data["vendor_name"],
+             fi_canonical.data["vendor_name"]
+           ]
+
     assert merged["city"] in [sf_canonical.data["city"], fi_canonical.data["city"]]
 
     # ── 8. the scored pair is on the record as a match candidate ──────────
     candidate =
       MatchCandidate
       |> Ash.Changeset.for_create(:create, %{
-           staged_record_id: fi_record.id,
-           golden_resource: "Battery.Mdm.Vendor",
-           golden_id: golden.id,
-           score: score,
-           explanation: explanation
-         })
+        staged_record_id: fi_record.id,
+        golden_resource: "Battery.Mdm.Vendor",
+        golden_id: golden.id,
+        score: score,
+        explanation: explanation
+      })
       |> Ash.create!(authorize?: false)
 
     assert candidate.status == :pending

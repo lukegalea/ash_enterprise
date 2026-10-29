@@ -17,5 +17,4 @@ defmodule Battery.Mdm.MatchCandidate do
     table "mdm_match_candidates"
     repo Battery.Repo
   end
-
 end

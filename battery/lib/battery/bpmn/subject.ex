@@ -17,6 +17,17 @@ defmodule Battery.Bpmn.Subject do
     repo Battery.Repo
   end
 
+  actions do
+    read :read do
+      primary? true
+    end
+
+    create :create do
+      primary? true
+      accept [:name, :amount]
+    end
+  end
+
   attributes do
     uuid_primary_key :id
 
@@ -31,16 +42,5 @@ defmodule Battery.Bpmn.Subject do
     end
 
     timestamps()
-  end
-
-  actions do
-    read :read do
-      primary? true
-    end
-
-    create :create do
-      primary? true
-      accept [:name, :amount]
-    end
   end
 end

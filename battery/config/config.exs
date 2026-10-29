@@ -29,4 +29,51 @@ config :ash_bpmn,
   queue: :bpmn,
   max_attempts: 5
 
+# Formatter only: the same Spark.Formatter settings as the root
+# config/config.exs. The root's commit hook formats battery files with the
+# root's config, so the battery's own `mix format` must agree with it or the
+# two rewrite each other (section order, DSL parens).
+config :spark,
+  formatter: [
+    remove_parens?: true,
+    "Ash.Resource": [
+      section_order: [
+        :rate_limit,
+        :graphql,
+        :json_api,
+        :admin,
+        :authentication,
+        :token,
+        :user_identity,
+        :postgres,
+        :resource,
+        :code_interface,
+        :actions,
+        :policies,
+        :pub_sub,
+        :preparations,
+        :changes,
+        :validations,
+        :multitenancy,
+        :attributes,
+        :relationships,
+        :calculations,
+        :aggregates,
+        :identities
+      ]
+    ],
+    "Ash.Domain": [
+      section_order: [
+        :graphql,
+        :json_api,
+        :admin,
+        :resources,
+        :policies,
+        :authorization,
+        :domain,
+        :execution
+      ]
+    ]
+  ]
+
 import_config "#{config_env()}.exs"

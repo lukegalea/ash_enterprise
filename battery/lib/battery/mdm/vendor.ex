@@ -10,7 +10,19 @@ defmodule Battery.Mdm.Vendor do
 
   postgres do
     table "battery_mdm_vendors"
-    repo(Battery.Repo)
+    repo Battery.Repo
+  end
+
+  actions do
+    defaults [:read, :destroy]
+
+    create :create do
+      accept [:name, :city, :tier, :external_ref, :provenance]
+    end
+
+    update :update do
+      accept [:name, :city, :tier, :external_ref, :provenance]
+    end
   end
 
   attributes do
@@ -27,17 +39,5 @@ defmodule Battery.Mdm.Vendor do
 
     create_timestamp :inserted_at
     update_timestamp :updated_at
-  end
-
-  actions do
-    defaults [:read, :destroy]
-
-    create :create do
-      accept [:name, :city, :tier, :external_ref, :provenance]
-    end
-
-    update :update do
-      accept [:name, :city, :tier, :external_ref, :provenance]
-    end
   end
 end
