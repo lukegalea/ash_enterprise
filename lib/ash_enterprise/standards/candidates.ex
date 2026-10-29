@@ -114,7 +114,12 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Fragment) do
 
     # The module part of a function's name path ("A.B.fun/2" -> "A.B").
     defp module_part(s) do
-      s.name_path |> String.split("/") |> hd() |> String.split(".") |> Enum.drop(-1) |> Enum.join(".")
+      s.name_path
+      |> String.split("/")
+      |> hd()
+      |> String.split(".")
+      |> Enum.drop(-1)
+      |> Enum.join(".")
     end
 
     defp rule(:no_forbid_if_for_row_access, s) do

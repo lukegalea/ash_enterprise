@@ -21,16 +21,16 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Fragment) do
     rendered by `AshEnterprise.SystemOne.QuestionProposal.to_dsl/2` and
     landed verbatim with the `:winnow_gpu` decision instrument:
 
-      * Seventeen at version 2 (dogfood record `RECORD_V2`, 2026-10-23):
-        the CLAUDE.md non-negotiables, the iron laws and the house style as
+      * Seventeen at version 2 (Luke's decision of 2026-10-23, dogfood
+        record `RECORD_V2`): the CLAUDE.md non-negotiables, the iron laws and the house style as
         confirmed on 2026-10-21 (records
         `61a388e9-1f61-4bdd-913b-ab45f61590a6`,
         `04d37ab9-e18b-401e-8b89-02473d5619ae` and
         `dee2d586-d943-4c2f-8e01-bbb06866efe3`), with a `state_shape`
         added and nothing else changed. The shape is part of a question's
         hash, so declaring it is a new question identity: hence version 2.
-      * Six at version 1 (dogfood record `RECORD_ADR`, 2026-10-23): the
-        ADR 0038 rows, one yes/no per component.
+      * Six at version 1 (Luke's decision of 2026-10-23, dogfood record
+        `RECORD_ADR`): the ADR 0038 rows, one yes/no per component.
 
     The hashes are locked in `priv/judgments/lock.json`, so a wording or
     shape change is a compile error until it arrives with a version bump.
@@ -415,10 +415,14 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Fragment) do
       question :policy_check_calls_no_model do
         # judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/policy_check_calls_no_model
         type AshAi.Evaluate.Noul
-        instructions("This code unit is a policy check (a SimpleCheck, a FilterCheck or a policy expr). Follow its code path. Does it call a model, directly or through a module it calls? If it does, the answer is false. If it does not, the answer is true.")
+
+        instructions(
+          "This code unit is a policy check (a SimpleCheck, a FilterCheck or a policy expr). Follow its code path. Does it call a model, directly or through a module it calls? If it does, the answer is false. If it does not, the answer is true."
+        )
 
         criteria(%{
-          false: "The check, or something it calls, sends a request to a model (an LLM client, ash_ai, ReqLLM, an inference endpoint).",
+          false:
+            "The check, or something it calls, sends a request to a model (an LLM client, ash_ai, ReqLLM, an inference endpoint).",
           true: "No model call anywhere on the check's code path."
         })
 
@@ -432,7 +436,10 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Fragment) do
       question :actor_context_build_calls_no_model do
         # judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/actor_context_build_calls_no_model
         type AshAi.Evaluate.Noul
-        instructions("This code unit builds AshEnterprise.Security.ActorContext. Does it call a model? Reading a fact that was already materialised is allowed; inferring one with a model is not. If it calls a model, the answer is false. Otherwise the answer is true.")
+
+        instructions(
+          "This code unit builds AshEnterprise.Security.ActorContext. Does it call a model? Reading a fact that was already materialised is allowed; inferring one with a model is not. If it calls a model, the answer is false. Otherwise the answer is true."
+        )
 
         criteria(%{
           false: "The build, or something it calls, sends a request to a model.",
@@ -449,7 +456,10 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Fragment) do
       question :feel_or_dmn_evaluation_calls_no_model do
         # judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/feel_or_dmn_evaluation_calls_no_model
         type AshAi.Evaluate.Noul
-        instructions("This code unit evaluates a FEEL expression or a DMN decision. Does the evaluation path call a model? Model answers may enter as inputs prepared before evaluation; a call during evaluation is not allowed. If it calls a model, the answer is false. Otherwise the answer is true.")
+
+        instructions(
+          "This code unit evaluates a FEEL expression or a DMN decision. Does the evaluation path call a model? Model answers may enter as inputs prepared before evaluation; a call during evaluation is not allowed. If it calls a model, the answer is false. Otherwise the answer is true."
+        )
 
         criteria(%{
           false: "A model is called while the expression or decision is evaluated.",
@@ -466,7 +476,10 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Fragment) do
       question :rules_evaluation_makes_no_live_model_call do
         # judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/rules_evaluation_makes_no_live_model_call
         type AshAi.Evaluate.Noul
-        instructions("This code unit is an ash_rules evaluation or a fact builder on a guard path. Does it make a live model call? Reading recorded judgments from the ledger is allowed. If it makes a live model call, the answer is false. Otherwise the answer is true.")
+
+        instructions(
+          "This code unit is an ash_rules evaluation or a fact builder on a guard path. Does it make a live model call? Reading recorded judgments from the ledger is allowed. If it makes a live model call, the answer is false. Otherwise the answer is true."
+        )
 
         criteria(%{
           false: "It sends a request to a model while evaluating or building facts.",
@@ -483,7 +496,10 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Fragment) do
       question :projector_calls_no_model do
         # judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/projector_calls_no_model
         type AshAi.Evaluate.Noul
-        instructions("This code unit is a projector handler. Projectors rebuild from event 0 and consume recorded observations. Does the handler call a model? If it does, the answer is false. If it does not, the answer is true.")
+
+        instructions(
+          "This code unit is a projector handler. Projectors rebuild from event 0 and consume recorded observations. Does the handler call a model? If it does, the answer is false. If it does not, the answer is true."
+        )
 
         criteria(%{
           false: "The handler, or something it calls, sends a request to a model.",
@@ -500,11 +516,15 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Fragment) do
       question :calculation_calls_no_model do
         # judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/calculation_calls_no_model
         type AshAi.Evaluate.Noul
-        instructions("This code unit is an Ash calculation. A calculation over the ledger is fine; a calculation that calls a model is not, because calculations load in lists and filters and can be pulled into policy expressions. Does it call a model? If it does, the answer is false. If it does not, the answer is true. ADR 0038 says 'avoid' here, not 'never', so a false answer is advisory.")
+
+        instructions(
+          "This code unit is an Ash calculation. A calculation over the ledger is fine; a calculation that calls a model is not, because calculations load in lists and filters and can be pulled into policy expressions. Does it call a model? If it does, the answer is false. If it does not, the answer is true. ADR 0038 says 'avoid' here, not 'never', so a false answer is advisory."
+        )
 
         criteria(%{
           false: "The calculation, or something it calls, sends a request to a model.",
-          true: "The calculation reads attributes, relationships or the ledger, and calls no model."
+          true:
+            "The calculation reads attributes, relationships or the ledger, and calls no model."
         })
 
         version(1)

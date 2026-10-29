@@ -10,8 +10,9 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Standing) do
        checkout under each question's projection and reads the facts table
        against the units' current digests. A unit edited since its fact was
        admitted reads `:stale`, a new unit `:no_fact`. Only the candidates
-       `AshEnterprise.Standards.Candidates` selects are kept. Nothing here
-       calls a model.
+       `AshEnterprise.Standards.Candidates` selects are kept, and only the
+       files that hold candidates are read against the facts table. Nothing
+       here calls a model.
     2. **Judge.** Each pending unit goes to its question's generated judge
        action, through the host judge context
        (`AshEnterprise.SystemOne.judge_context/1`) and the in-zone transport
@@ -49,7 +50,8 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Standing) do
         `"ash_enterprise"`)
       * `:questions`: the question names to run (default: all twenty-three)
       * `:paths`: overrides each question's scan paths
-      * `:limit`: at most this many pending units per question
+      * `:limit`: at most this many judgeable pending units per question;
+        units too large to judge are reported whatever the limit
       * `:max_tokens`, `:reserve_tokens`: the chunking budget (default
         8,192 and 1,024, `winnow:e4b`'s context)
       * `:facts_resource`: default `AshEnterprise.SystemOne.Fact`
@@ -79,6 +81,9 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Standing) do
     @max_tokens 8192
     @reserve_tokens 1024
 
+    # Above any checkout's unit count: see standing_opts/3.
+    @uncapped 1_000_000
+
     @doc """
     The candidate units whose facts are missing, stale or expired, per
     question: `%{question => [{subject, reason}]}`. A unit too large for
@@ -88,12 +93,16 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Standing) do
     @spec assess(Path.t(), keyword()) :: %{atom() => [{map(), atom()}]}
     def assess(root, opts \\ []) do
       Map.new(questions(opts), fn question ->
-        ids = candidate_ids(root, question, opts)
-        predicate = predicate(question)
+        candidates = candidates(root, question, opts)
+        ids = MapSet.new(candidates, & &1.id)
 
         pending =
           root
-          |> CodeStanding.assess(facts(opts), predicate, standing_opts(question, opts))
+          |> CodeStanding.assess(
+            facts(opts),
+            predicate(question),
+            standing_opts(question, opts, candidates)
+          )
           |> Enum.filter(fn {subject, _reason} -> unit_id(subject) in ids end)
           |> maybe_take(opts[:limit])
 
@@ -208,13 +217,14 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Standing) do
     @spec statuses(Path.t(), atom(), keyword()) :: [{map(), term()}]
     def statuses(root, name, opts \\ []) do
       question = Questions.fetch!(name)
-      ids = candidate_ids(root, question, opts)
+      candidates = candidates(root, question, opts)
+      ids = MapSet.new(candidates, & &1.id)
 
       root
       |> CodeStanding.statuses(
         facts(opts),
         predicate(question),
-        Keyword.put(standing_opts(question, opts), :mode, question.roll_up)
+        Keyword.put(standing_opts(question, opts, candidates), :mode, question.roll_up)
       )
       |> Enum.filter(fn {unit, _status} -> unit.id in ids end)
     end
@@ -245,12 +255,11 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Standing) do
       end
     end
 
-    defp candidate_ids(root, question, opts) do
+    defp candidates(root, question, opts) do
       root
       |> CodeSubjects.scan(scan_opts(question, opts))
       |> Map.fetch!(:subjects)
       |> Enum.filter(&Candidates.candidate?(question.name, &1))
-      |> MapSet.new(& &1.id)
     end
 
     defp scan_opts(question, opts) do
@@ -262,13 +271,21 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Standing) do
       ]
     end
 
-    defp standing_opts(question, opts) do
+    # The standing scan reads only the files that hold candidates, so the
+    # facts are read for those files' units rather than for every unit
+    # under the question's paths. The facts query caps its selection (100
+    # by default) before the candidate filter runs, so the cap is lifted:
+    # every pending unit in those files comes back, and `:limit` applies
+    # after the filter.
+    defp standing_opts(question, opts, candidates) do
       question
       |> scan_opts(opts)
       |> Keyword.delete(:context)
       |> Keyword.merge(
+        paths: candidates |> Enum.map(& &1.path) |> Enum.uniq(),
         projection: question.projection,
-        type: Standards.subject_type()
+        type: Standards.subject_type(),
+        limit: @uncapped
       )
       |> Keyword.merge(max_tokens: @max_tokens, reserve_tokens: @reserve_tokens)
       |> Keyword.merge(Keyword.take(opts, [:max_tokens, :reserve_tokens]))
@@ -279,7 +296,14 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Standing) do
     defp unit_id(%{chunk: %{parent_id: parent}}), do: parent
     defp unit_id(subject), do: subject.id
 
+    # `:limit` counts judgeable units only, as in
+    # `AshAgentTools.CodeSubjects.Standing.assess/4`: every unit too large
+    # to judge is still reported.
     defp maybe_take(list, nil), do: list
-    defp maybe_take(list, limit), do: Enum.take(list, limit)
+
+    defp maybe_take(list, limit) do
+      {oversized, judgeable} = Enum.split_with(list, &match?({_, :context_too_large}, &1))
+      Enum.take(judgeable, limit) ++ oversized
+    end
   end
 end
