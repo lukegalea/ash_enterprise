@@ -6,8 +6,12 @@ The package calls these instead of reading your actors, grants or keys. Name you
 ## `AshAgent.ExecutionIdentity`
 
 ```elixir
-@callback principal_for(actor, context) :: {:ok, %{type: :person | :automation, id: String.t()}} | {:error, term}
+@callback principal_for(actor, context) :: {:ok, principal} | {:error, term}
 @callback actor_for(invocation) :: {:ok, actor} | {:error, term}
+
+# principal:
+%{type: :person, id: person_id}
+%{type: :automation, id: name, on_behalf_of: person_id | nil, agent: agent_key | nil}
 ```
 
 1. `principal_for/2` runs when an invocation is requested and names who it will run as. Return an error for an actor
@@ -16,6 +20,13 @@ The package calls these instead of reading your actors, grants or keys. Name you
    when the work runs, not what it held when it was asked for. Return an error when the principal no longer has
    authority; the row fails as `:denied` and its target never runs.
 3. Never return a more privileged actor than the principal, and never fall back to a system actor.
+4. An automation principal acting for a person may do only what both its own grants and that person's allow. Rebuild
+   both at every claim and refuse when either has lost the authority (or when the person may no longer start the
+   agent). Every field of the principal is part of its identity, so `invoke` never hands one person's row to another.
+5. Return a plain atom as the reason (`:inactive`, `:start_grant_revoked`): the row records it as
+   `"no_authority: <reason>"`. Any other reason is recorded as `"no_authority"`.
+6. The row's `delegation` column holds the principal in RFC 8693's `act` shape
+   (`AshAgent.ExecutionIdentity.delegation/1`), for readers outside the package. It is informational.
 
 ## `AshAgent.DigestKey`
 

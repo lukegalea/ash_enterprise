@@ -38,7 +38,9 @@ defmodule AshEnterprise.Security.Checks.SelfService do
   `ash_acp` prunes its command palette, `Ash.can?/3` with no options — is
   admitted: it has no rows, and everything it does runs under a tenant and
   its own checks (a create or read with no tenant is never admitted, since
-  a nil tenant reads across tenants). Each condition is a positive requirement of this path, not a
+  a nil tenant reads across tenants). An automation principal is never
+  admitted, even acting for a person (ADR 0043): self-service is a person
+  acting for themselves, and the principal's authority is its grants. Each condition is a positive requirement of this path, not a
   `forbid_if`: failing one contributes `false` to the union and takes nothing
   from any other path. System actors contribute nothing here; they have their
   own bypass.
@@ -66,6 +68,7 @@ defmodule AshEnterprise.Security.Checks.SelfService do
 
     cond do
       context.system? -> false
+      not is_nil(context.automation) -> false
       is_nil(context.user_id) -> false
       not declared?(authorizer) -> false
       not active?(actor) -> false

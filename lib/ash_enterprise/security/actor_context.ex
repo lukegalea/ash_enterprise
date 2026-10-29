@@ -60,6 +60,16 @@ defmodule AshEnterprise.Security.ActorContext do
   engine checks candidacy itself when they act, and the steward queue decides
   a candidate without reading its task.
 
+  ## Automation principals
+
+  An automation principal (ADR 0043, `AshEnterprise.Platform.AutomationPrincipal`) has
+  a context of its own, built by `build_automation/2` from its role rows
+  (`AshEnterprise.Security.AutomationRole`) exactly as a person's is from theirs, and
+  never a system context: no bypass. It runs work a person asked for on
+  `intersect/2` of the two, so it can do only what both allow. `automation` names the
+  principal on such a context; every grant path for people alone (self-service) reads
+  it and contributes nothing.
+
   ## Usage
 
   Built by `AshEnterpriseWeb.Plugs.LoadActorContext` for web requests, and by
@@ -96,7 +106,8 @@ defmodule AshEnterprise.Security.ActorContext do
     grants: %{},
     shared: %{},
     hierarchy: nil,
-    system?: false
+    system?: false,
+    automation: nil
   ]
 
   @type t :: %__MODULE__{
@@ -110,7 +121,8 @@ defmodule AshEnterprise.Security.ActorContext do
           grants: %{{String.t(), atom()} => Grant.t()},
           shared: %{{String.t(), atom()} => MapSet.t(Ash.UUID.t())},
           hierarchy: AshEnterprise.Security.Hierarchy.t() | nil,
-          system?: boolean()
+          system?: boolean(),
+          automation: atom() | nil
         }
 
   @doc """
@@ -144,6 +156,22 @@ defmodule AshEnterprise.Security.ActorContext do
   # automation principal whose authority comes from grant rows.
   def for_actor(%AshEnterprise.Platform.SystemActor{name: :ai}, _opts), do: %__MODULE__{}
   def for_actor(%AshEnterprise.Platform.SystemActor{}, opts), do: system(opts[:tenant])
+
+  # ADR 0043: an automation principal's authority is the context built for it from
+  # grant rows when its work is claimed (`AshEnterprise.Execution.Identity`), attached
+  # to it. One that arrives without one has no authority at all; nothing here builds
+  # one on the fly or falls back to a person's or the system's.
+  def for_actor(
+        %AshEnterprise.Platform.AutomationPrincipal{
+          __ash_enterprise_context__: %__MODULE__{} = c
+        },
+        _opts
+      ),
+      do: c
+
+  def for_actor(%AshEnterprise.Platform.AutomationPrincipal{name: name}, _opts),
+    do: %__MODULE__{automation: name}
+
   def for_actor(nil, _opts), do: %__MODULE__{}
 
   def for_actor(%{__struct__: _} = user, opts) do
@@ -190,6 +218,100 @@ defmodule AshEnterprise.Security.ActorContext do
       hierarchy: AshEnterprise.Security.Hierarchy.resolve(user, tenant),
       system?: false
     }
+  end
+
+  @doc """
+  Builds the context of the automation principal `name` in `tenant`, from its role
+  rows (`AshEnterprise.Security.AutomationRole`), the way `build/2` builds a person's
+  from theirs. It has no user, teams, shares, candidacy or hierarchy, and is never a
+  system context. With no rows it grants nothing. Without a tenant it grants nothing:
+  a principal's roles are a tenant's decision.
+  """
+  @spec build_automation(atom(), Ash.UUID.t() | nil) :: t()
+  def build_automation(name, nil) when is_atom(name), do: %__MODULE__{automation: name}
+
+  def build_automation(name, tenant) when is_atom(name) do
+    assignments =
+      AshEnterprise.Security.AutomationRole
+      |> Ash.Query.filter(principal == ^name)
+      |> Ash.Query.select([:role_id, :scoping_business_unit_id])
+      |> read_all(tenant)
+      |> Enum.map(&{&1.role_id, &1.scoping_business_unit_id})
+
+    %__MODULE__{
+      automation: name,
+      organization_id: tenant,
+      grants: build_grants(assignments, tenant)
+    }
+  end
+
+  @doc """
+  The context for an automation principal acting for a person: only what **both** the
+  person's context and the principal's allow (ADR 0043).
+
+  Per `(resource, verb)`, where one side reaches every record (`:global`), the other
+  side's reach is the answer; otherwise the business units both reach, and the
+  records the person owns only when both hold `:basic`. A principal's `:basic` grant
+  is read relative to the person it acts for, as a person's is relative to
+  themselves. A record shared with the person stays reachable only where the
+  principal's grant on it is `:global`. Where the two reach a record by different
+  routes (the person by ownership, the principal by business unit) the record is
+  left out: the result may refuse something both would allow, never the reverse.
+
+  The principal is never a task candidate and has no reporting chain, so the result
+  has neither. It keeps the person's identity (user, teams, business unit), which is
+  what ownership is measured against, and names the principal in `automation`.
+
+  Contexts for different tenants intersect to nothing.
+  """
+  @spec intersect(t(), t()) :: t()
+  def intersect(%__MODULE__{} = person, %__MODULE__{automation: name} = automation)
+      when not is_nil(name) do
+    if person.system? or automation.system? or
+         person.organization_id != automation.organization_id do
+      %__MODULE__{automation: name}
+    else
+      %__MODULE__{
+        user_id: person.user_id,
+        organization_id: person.organization_id,
+        business_unit_id: person.business_unit_id,
+        team_ids: person.team_ids,
+        principal_ids: person.principal_ids,
+        grants: intersect_grants(person.grants, automation.grants),
+        shared: shared_under(person.shared, automation.grants),
+        automation: name
+      }
+    end
+  end
+
+  defp intersect_grants(a, b) do
+    for {key, ga} <- a,
+        gb = Map.get(b, key),
+        gb != nil,
+        grant = both(ga, gb),
+        reach?(grant),
+        into: %{},
+        do: {key, grant}
+  end
+
+  defp both(%Grant{global?: true}, other), do: other
+  defp both(other, %Grant{global?: true}), do: other
+
+  defp both(a, b) do
+    %Grant{
+      basic?: a.basic? and b.basic?,
+      business_unit_ids: MapSet.intersection(a.business_unit_ids, b.business_unit_ids)
+    }
+  end
+
+  defp reach?(%Grant{global?: global, basic?: basic, business_unit_ids: ids}),
+    do: global or basic or MapSet.size(ids) > 0
+
+  defp shared_under(shared, grants) do
+    for {key, ids} <- shared,
+        match?(%Grant{global?: true}, Map.get(grants, key)),
+        into: %{},
+        do: {key, ids}
   end
 
   @doc "The precomputed grant for a `(resource, verb)`, or an empty grant."

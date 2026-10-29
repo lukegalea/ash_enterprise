@@ -11,6 +11,9 @@ defmodule AshEnterprise.Platform.Changes.StampCorrelation do
   Existing `ash_events_metadata` is merged rather than replaced: an action that
   attaches its own context keeps it, and gains the correlation alongside.
 
+  A write made by a governed invocation's target also gets the invocation's key
+  (`invocation_key`), from the action context the executor sets.
+
   It also stamps the write's tenant, which is what makes a per-tenant audit trail
   possible at all — `AshEnterprise.Audit.EventLog`'s chain trigger lifts it back
   out into a real, indexed `organization_id` column, and
@@ -29,6 +32,7 @@ defmodule AshEnterprise.Platform.Changes.StampCorrelation do
     metadata =
       AshEnterprise.Platform.Correlation.audit_metadata(context.actor)
       |> put_tenant(changeset.tenant)
+      |> put_invocation(changeset.context)
       |> Map.merge(existing)
 
     Ash.Changeset.set_context(changeset, %{ash_events_metadata: metadata})
@@ -44,6 +48,14 @@ defmodule AshEnterprise.Platform.Changes.StampCorrelation do
   # global grant) would otherwise stamp the wrong one.
   defp put_tenant(metadata, nil), do: metadata
   defp put_tenant(metadata, tenant), do: Map.put(metadata, "organization_id", to_string(tenant))
+
+  # A target run by a governed invocation (ADR 0055) carries the invocation's key in
+  # its action context; the audit entry names it, so "this person, via this
+  # invocation" is one row of the trail.
+  defp put_invocation(metadata, %{ash_agent: %{invocation_key: key}}) when is_binary(key),
+    do: Map.put(metadata, "invocation_key", key)
+
+  defp put_invocation(metadata, _context), do: metadata
 
   # Temporal safety (AST-149, the VPM-49 audit's judgment carried to the
   # SystemOne facts host): pure changeset-context plumbing — the

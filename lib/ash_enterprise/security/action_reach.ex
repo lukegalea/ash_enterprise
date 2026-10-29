@@ -12,7 +12,7 @@ defmodule AshEnterprise.Security.ActionReach do
   | Declared | Engine bypasses | System-actor bypass | Grant union |
   |---|---|---|---|
   | nothing | reach | every system actor but `ai` | applies |
-  | `human_only` | do not reach | does not reach | applies; a system actor gets nothing from it |
+  | `human_only` | do not reach | does not reach | applies to people; a system actor gets nothing from it, nor does an automation principal (ADR 0043) |
   | `machinery_only` | do not reach | the `oban` system actor only | does not apply |
 
   Every cell narrows a path that already exists; none adds a deny. A person's

@@ -31,8 +31,9 @@ defmodule AshEnterprise.Execution.Invocation do
       a key derived from that scope's key (`AshEnterprise.Execution.DigestKey`), so a
       shred makes both unreadable and the digest unrecomputable. No plaintext copy is
       derived (spike S2).
-    * **Identity.** `AshEnterprise.Execution.Identity` names a person as the principal and
-      rebuilds their `ActorContext` from grant rows at every claim.
+    * **Identity.** `AshEnterprise.Execution.Identity` names the principal (a person, or
+      an automation principal acting for one, ADR 0043) and rebuilds its `ActorContext`
+      from grant rows at every claim.
     * **The `:execute` trigger.** `request` and `apply_decision` enqueue it for every
       ready row in their own transaction; its scheduler sweeps any ready row whose job
       was lost. It takes the tenant from the row, persists no actor, and runs a generic

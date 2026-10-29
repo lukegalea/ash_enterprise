@@ -98,7 +98,9 @@ defmodule AshEnterprise.Platform.Correlation do
 
   `system_actor` is included here because a system actor cannot be persisted as
   a foreign key -- it is a compile-time constant, not a row -- so this is where
-  its attribution actually lives. See `AshEnterprise.Platform.SystemActor`.
+  its attribution actually lives. See `AshEnterprise.Platform.SystemActor`. The
+  same holds for an automation principal: `automation_principal` names it and
+  `on_behalf_of_id` the person it acted for.
   """
   def audit_metadata(actor) do
     %{
@@ -109,7 +111,11 @@ defmodule AshEnterprise.Platform.Correlation do
       # what makes it useful: `metadata ? 'impersonator_id'` is the query for
       # "show me every support access this month". See
       # `AshEnterprise.Security.Impersonation`.
-      "impersonator_id" => AshEnterprise.Security.Impersonation.impersonator_id(actor)
+      "impersonator_id" => AshEnterprise.Security.Impersonation.impersonator_id(actor),
+      # An automation principal (ADR 0043) is not a user row either, so its name lives
+      # here, beside the person it acted for: "this principal, for this person".
+      "automation_principal" => automation_name(actor),
+      "on_behalf_of_id" => automation_for(actor)
     }
     |> Enum.reject(fn {_k, v} -> is_nil(v) end)
     |> Map.new()
@@ -119,4 +125,12 @@ defmodule AshEnterprise.Platform.Correlation do
     do: AshEnterprise.Platform.SystemActor.to_string(actor)
 
   defp system_actor_name(_), do: nil
+
+  defp automation_name(%AshEnterprise.Platform.AutomationPrincipal{} = actor),
+    do: AshEnterprise.Platform.AutomationPrincipal.to_string(actor)
+
+  defp automation_name(_), do: nil
+
+  defp automation_for(%AshEnterprise.Platform.AutomationPrincipal{id: id}), do: id
+  defp automation_for(_), do: nil
 end
