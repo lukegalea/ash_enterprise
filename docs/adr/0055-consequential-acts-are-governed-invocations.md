@@ -223,6 +223,11 @@ the host's `AshAgent.Approvals` implementation and the apply-decision trigger.
   scheduler sweeps every minute, takes the tenant from the row and persists no actor (`handoff_test.exs`).
 - **Failure classes so far.** A forbidden target is `:denied`, an invalid one `:rejected`, anything else `:permanent`.
   `AshAgent.BusinessError`, transient retries and timeouts are not built.
+- **The worked example.** A synthetic clinic (`AshEnterprise.Credentialing`, seeded by `mix ash_enterprise.demo`)
+  has one governed target: `Credential.activate_credential`, open-world, idempotent, four-eyes by a credentialing
+  committee, reconciled by `lookup_activation`, against a stub registry that keeps no record. Clinic and clinician are
+  the CDM `Account` and `Contact`; the credential is invented. `clinic_scenario_test.exs` runs it from `invoke`
+  through an applied approval to the registry's reference.
 - **Not built yet.** Opening and applying approvals (`awaiting_approval` rows wait for a host change on
   `apply_decision`), the approval and reconciliation triggers, the pre-check of the executing identity at request,
   and `retry` and `rerun`.

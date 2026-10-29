@@ -408,7 +408,8 @@ config :ash_enterprise,
     AshEnterprise.Assistant,
     AshEnterprise.Mdm,
     AshEnterprise.Lineage,
-    AshEnterprise.Licences
+    AshEnterprise.Licences,
+    AshEnterprise.Credentialing
   ],
   base_resources: [AshEnterprise.Platform.Resource]
 
