@@ -1,6 +1,7 @@
 # ADR 0055 — Every consequential act is one governed invocation
 
-- **Status:** accepted, not built (2026-10-23)
+- **Status:** accepted (2026-10-23); the invocation record, `invoke`, the lease and the `:execute` handoff built
+  (2026-10-29); approvals, reconciliation, typed business errors and the automation principal not built
 - **Date:** 2026-10-23
 - **Amended:** 2026-10-29 — the coding-agent bridge; see
   [Amendment](#amendment-2026-10-29--the-coding-agent-bridge)
@@ -185,6 +186,43 @@ targets are governed, reversal means removing `Governed` from each target and po
 directly, which reopens the gaps in Context (untyped failures, unbound approvals, `/mcp` writes without approval). The
 rows already written stay as history. Replacing the approval door with something other than `HumanTask` touches only
 the host's `AshAgent.Approvals` implementation and the apply-decision trigger.
+
+## Built, 2026-10-29
+
+- **The record.** `AshEnterprise.Execution.Invocation` (table `exec_invocations`) instantiates the package's
+  `AshAgent.Invocation` fragment on the platform base: tenant-scoped, user-owned, audited, not temporal, no soft delete,
+  and the fragment's state machine in place of the base's lifecycle. `invoke` and `request` are self-service;
+  `claim`, `succeed`, `fail`, `apply_decision` and `execute` are machinery-only, so only the `oban` system actor reaches
+  them and no grant does.
+- **One door, no upsert.** `Execution.invoke/4` reads by key and compares target, `args_digest`, principal and parent;
+  a mismatch is `AshAgent.Invocation.IdempotencyConflict`. Concurrent callers that miss the read collide on the key's
+  identity and read again. A target names `"<resource module>.<action>"` and must carry an effects declaration
+  ([ADR 0057](0057-actions-declare-their-effects.md)); arguments are checked against the action's inputs without
+  running it or its changes, and a request whose arguments do not fit is recorded as `rejected`.
+- **The parent.** A request may name only a parent invocation the requester owns or a process instance they started;
+  a `run_id` is refused until runs exist. Calling `request` directly gains nothing over `invoke`.
+- **Sealing.** `args` and `result` are sealed under the subject's erasure scope when the target acts on a record that
+  has one, otherwise under the requester's own `data_subject` scope (ref `invocation_requester:<user id>`).
+  `args_digest` is an HMAC-SHA256 over RFC 8785 canonical JSON, keyed by an HMAC of a fixed label under that scope's
+  data key, so a shred leaves the digest unrecomputable. A requester whose scope was shredded cannot invoke until a
+  scope-rotation rule exists.
+- **Identity.** A person's request executes as that person: the principal is stored at request, and at every claim
+  the person is read again and their `ActorContext` rebuilt from grant rows; an inactive or missing person fails the
+  row as `:denied` without running the target. System actors are not principals. Automation principals are not built:
+  a row naming one is refused at claim rather than run with other authority.
+- **Lease and paths.** `claim` takes the next epoch under `optimistic_lock(:lease_epoch)`; `succeed` and `fail` are
+  filtered on the claimed epoch, after a locked re-read. An internal target runs in one transaction with `succeed`,
+  so a superseded worker's effect rolls back with its refused completion (`lease_fencing_test.exs`). An expired lease
+  is taken over only for an internal target. An external target runs with no transaction open and `succeed` follows;
+  `outcome_unknown` and reconciliation are not built, and a worker that dies mid-run leaves its row `executing` until
+  they are.
+- **Handoff.** `request` and `apply_decision` enqueue the `:execute` job in their own transaction; the trigger's
+  scheduler sweeps every minute, takes the tenant from the row and persists no actor (`handoff_test.exs`).
+- **Failure classes so far.** A forbidden target is `:denied`, an invalid one `:rejected`, anything else `:permanent`.
+  `AshAgent.BusinessError`, transient retries and timeouts are not built.
+- **Not built yet.** Opening and applying approvals (`awaiting_approval` rows wait for a host change on
+  `apply_decision`), the approval and reconciliation triggers, the pre-check of the executing identity at request,
+  and `retry` and `rerun`.
 
 ## Amendment, 2026-10-29 — the coding-agent bridge
 

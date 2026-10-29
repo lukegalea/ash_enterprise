@@ -101,7 +101,7 @@ confined so that removing one is a deletion, not a refactor.
 | `ash_events_projections` | projector engine (transitive, via `ash_compliance`) | none | yes |
 | `ash_evidence` | evidence pipeline records (System One); declared `branch: "main"` | none | yes |
 | `ash_bpmn` | BPMN process engine (ADR 0009) | none | yes |
-| `ash_agent` | agent runtime fragments, extension and host behaviours (ADR 0056); upstream [lukegalea/ash_agent](https://github.com/lukegalea/ash_agent); nothing here instantiates them yet | none | none planned: the Hex name `ash_agent` belongs to an unrelated project (ADR 0056) |
+| `ash_agent` | agent runtime fragments, extension and host behaviours (ADR 0056); upstream [lukegalea/ash_agent](https://github.com/lukegalea/ash_agent); `Execution.Invocation` instantiates the invocation fragment | none | none planned: the Hex name `ash_agent` belongs to an unrelated project (ADR 0056) |
 | `ash_compliance` | compliance bundles and findings (ADR 0035) | `ash_rules`, `ash_events_projections` | after those two |
 | `ash_decisions` | DMN decisions | `boxic_dmn` fork | no: needs `boxic_dmn` upstream |
 | `ash_discrete_business_events` | business-event ledger (ADR 0051) | `ash_events` fork | no: needs `ash_events` upstream |

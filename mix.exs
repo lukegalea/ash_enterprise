@@ -469,10 +469,6 @@ defmodule AshEnterprise.MixProject do
       {:telemetry_poller, "~> 1.0"},
       {:gettext, "~> 1.0"},
       {:jason, "~> 1.2"},
-      # RFC 8785 (JCS) canonical JSON, under evaluation by the proof spike
-      # test/ash_agent_spike/s8_jcs_test.exs against the RFC's published
-      # vectors. Test-only until a runtime caller adopts it.
-      {:jcs, "~> 0.2", only: :test},
       {:dns_cluster, "~> 0.2.0"},
       {:bandit, "~> 1.5"}
     ]

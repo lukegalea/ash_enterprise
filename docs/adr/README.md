@@ -86,7 +86,7 @@ The concrete exit: which files change, and how much work it is.
 | [0052](0052-self-service-actions.md) | Self-service actions: what a member may do for themselves without a grant | accepted |
 | [0053](0053-subject-state-digest-third-axis.md) | The subject-state digest is the third axis: evidence currency, kept on the fact row | accepted (ruling 2026-10-09) |
 | [0054](0054-mdm-stewardship-is-system-one.md) | MDM stewardship is System One machinery, not a bespoke product (amends 0017) | accepted |
-| [0055](0055-consequential-acts-are-governed-invocations.md) | Every consequential act is one governed invocation | accepted, not built (2026-10-23) |
+| [0055](0055-consequential-acts-are-governed-invocations.md) | Every consequential act is one governed invocation | accepted (2026-10-23); the invocation record, `invoke`, the lease and the job handoff built, approvals, reconciliation and the automation principal not built (2026-10-29) |
 | [0056](0056-the-ash-agent-package.md) | The agent runtime is a separate public package, `ash_agent`, that the host instantiates | accepted, not built (2026-10-23) |
 | [0057](0057-actions-declare-their-effects.md) | Every action exposed to an agent, an editor or a process declares its effects | accepted (2026-10-23); the extension, its verifiers and the host's ACP readers built, the library resolvers and ash_ai annotations not built (2026-10-29) |
 | [0058](0058-agent-quality-and-releases.md) | Agent quality is measured in a host Quality domain, and a release is a gated, attested manifest | accepted, not built (2026-10-23) |
@@ -162,6 +162,7 @@ this index is where the current status lives.
 
 0055–0058 record the agent runtime decided on 2026-10-22 and 2026-10-23: one governed invocation for every
 consequential act, the runtime as a separate package the host instantiates, a per-action effects declaration, and
-agent evaluation with gated releases. None of it is built yet. 0055 and 0056 carry amendments of 2026-10-29: the coding-agent
+agent evaluation with gated releases. The effects declaration and the invocation record are built; the rest is not yet.
+0055 and 0056 carry amendments of 2026-10-29: the coding-agent
 bridge's approval half moves onto the invocation while its sessions stay separate, ash_ai and req_llm are upgraded
 wherever needed, and the package's dependency tree allows one Phoenix edge (ash_ai -> ash_json_api -> phoenix).
