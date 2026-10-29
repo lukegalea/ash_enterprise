@@ -3,6 +3,8 @@
 - **Status:** accepted, not built (2026-10-23)
 - **Date:** 2026-10-23
 - **Decided:** by Luke, 2026-10-22 (name, home and boundary)
+- **Amended:** 2026-10-29 — dependency versions and the Phoenix edge; see
+  [Amendment](#amendment-2026-10-29--dependency-versions-and-the-phoenix-edge)
 - **Related:** [ADR 0009](0009-strangler-and-bpmn-are-first-party.md) (first-party platform extensions),
   [ADR 0055](0055-consequential-acts-are-governed-invocations.md) (governed invocation),
   [ADR 0057](0057-actions-declare-their-effects.md) (effects),
@@ -19,8 +21,9 @@ start, or waiting for an upstream agent in ash_ai.
 Facts that bear on it, verified on 2026-10-23:
 
 - **ash_ai already has the stateless loop.** ash_ai 1.3.0 ships tool approvals (`approve_tool_call` returning `:ask`,
-  a resumable `:awaiting_approval` status, `resume/3`), message events from `stream/2` and `AshAi.Transcript`. This
-  repository still locks 1.1.1 (`mix.lock`); the upgrade is separate work.
+  a resumable `:awaiting_approval` status, `resume/3`), message events from `stream/2` and `AshAi.Transcript`. When
+  this record was written the repository still locked 1.1.1; it now locks ash_ai 1.4.1 (`mix.lock`, corrected
+  2026-10-29).
 - **Upstream is exploring an agent of its own.** The ash_ai maintainer has an unmerged `agent` branch defining
   `AshAi.Agent`, a resource extension with one durable process per agent and compaction, depending on `durable_server`
   and `ekv`. It is not on a release and its design differs from rows-and-triggers durability.
@@ -67,8 +70,10 @@ useful but gates nothing.
 ### Boundary
 
 The package depends on ash, spark, ash_ai, ash_state_machine and ash_oban. It does not depend on Phoenix, ash_bpmn,
-ash_events, ash_cloak or anything from this repository. Its own CI enforces that: `mix deps.tree` lists no `phoenix*`,
-and an xref check fails on any reference to `Phoenix*`, `AshEnterprise*` or `AshBpmn*`. Its fragments declare no
+ash_events, ash_cloak or anything from this repository. Its dependency tree allows exactly one Phoenix edge, ash_ai ->
+ash_json_api -> phoenix (see the [amendment](#amendment-2026-10-29--dependency-versions-and-the-phoenix-edge)). Its
+own CI enforces that: `mix deps.tree` reaches no `phoenix*` package by any other route, and an xref check fails on any
+reference to `Phoenix*`, `AshEnterprise*` or `AshBpmn*` from the package's own code. Its fragments declare no
 `multitenancy` block, no `oban` triggers, no policies, no relationship to a host resource, no identity naming a tenant
 column, no `cloak` block and no actor-context type. Its test suite instantiates the fragments on a plain `Ash.Resource`
 test base over Postgres, which shows a host other than this one can use them.
@@ -121,3 +126,18 @@ While this repository is the only consumer: copy the fragments into `lib/ash_ent
 drop the git dependency and its `docs/BLEEDING-EDGE.md` row, and keep the resources, tables and migrations, which
 already belong to the host. Renaming the package (for example to reach Hex) is a module rename across the fragments
 and the host's `fragments:` lists, with no data migration, because no table name comes from the package.
+
+## Amendment, 2026-10-29 — dependency versions and the Phoenix edge
+
+- **ash_ai and req_llm are upgraded wherever they are needed.** Decided by Luke on 2026-10-22. This repository, the
+  first-party libraries and the package move to the ash_ai and req_llm releases the runtime needs when they need them.
+  A library's merge is not held for a downstream consumer's release milestones: library pull requests stay additive
+  where they can, merge on green CI, and consumers whose code calls a changed API hear about it before the merge.
+- **The tree allows one Phoenix edge.** Found on 2026-10-27 while building the package: ash_ai (1.3 and later) depends
+  on ash_json_api, which depends on phoenix unconditionally, so a package that uses ash_ai cannot keep Phoenix out of
+  its dependency tree. The boundary check therefore allows exactly the edge ash_ai -> ash_json_api -> phoenix, and still
+  fails on any other route to a `phoenix*` package and on any reference to `Phoenix*` from the package's own compiled
+  code. The Boundary section above is corrected to say so. Making ash_json_api's phoenix dependency optional upstream
+  would remove the edge.
+- **The lock.** Context said this repository still locked ash_ai 1.1.1, which was true on 2026-10-23. It now locks
+  1.4.1.

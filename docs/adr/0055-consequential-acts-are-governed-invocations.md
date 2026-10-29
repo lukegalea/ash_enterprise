@@ -2,6 +2,8 @@
 
 - **Status:** accepted, not built (2026-10-23)
 - **Date:** 2026-10-23
+- **Amended:** 2026-10-29 — the coding-agent bridge; see
+  [Amendment](#amendment-2026-10-29--the-coding-agent-bridge)
 - **Related:** [ADR 0015](0015-approvals-stay-in-ash.md) (approvals stay in Ash),
   [ADR 0043](0043-automation-authority-is-a-grant.md) (automation authority is a grant),
   [ADR 0052](0052-self-service-actions.md) (self-service actions),
@@ -183,3 +185,18 @@ targets are governed, reversal means removing `Governed` from each target and po
 directly, which reopens the gaps in Context (untyped failures, unbound approvals, `/mcp` writes without approval). The
 rows already written stay as history. Replacing the approval door with something other than `HumanTask` touches only
 the host's `AshAgent.Approvals` implementation and the apply-decision trigger.
+
+## Amendment, 2026-10-29 — the coding-agent bridge
+
+Decided by Luke on 2026-10-22 and recorded here a week later. The coding-agent bridge in `AshEnterprise.Agents` has two
+halves, and they go different ways.
+
+- **The approval half moves onto the invocation.** `Agents.ToolGate` and the `Agents.ToolInvocation` rows it approves
+  are one of the five mechanisms listed under Context. When agent tool calls become governed (phase 2b of the build), a
+  bridge tool request becomes an `Execution.invoke` with a tool-call key as in the Callers table, its approval is the
+  invocation's `HumanTask` and `approval_digest`, and `ToolGate` becomes a caller of that one door. `ToolInvocation`
+  stops being written; the rows it already holds stay as history.
+- **The session half stays separate.** `Agents.AgentSession` and `Agents.AgentRun` record an external coding agent's
+  process and conversation. They are not the runtime's `Run` and `Step`
+  ([ADR 0056](0056-the-ash-agent-package.md)), which record runs this application's own agents execute, and they are
+  not merged into them.

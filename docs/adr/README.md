@@ -162,4 +162,6 @@ this index is where the current status lives.
 
 0055–0058 record the agent runtime decided on 2026-10-22 and 2026-10-23: one governed invocation for every
 consequential act, the runtime as a separate package the host instantiates, a per-action effects declaration, and
-agent evaluation with gated releases. None of it is built yet.
+agent evaluation with gated releases. None of it is built yet. 0055 and 0056 carry amendments of 2026-10-29: the coding-agent
+bridge's approval half moves onto the invocation while its sessions stay separate, ash_ai and req_llm are upgraded
+wherever needed, and the package's dependency tree allows one Phoenix edge (ash_ai -> ash_json_api -> phoenix).
