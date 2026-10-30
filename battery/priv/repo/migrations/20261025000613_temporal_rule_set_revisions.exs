@@ -139,6 +139,13 @@ defmodule AshCompliance.Repo.Migrations.TemporalRuleSetRevisions do
 
     execute("ALTER TABLE #{@table} DROP CONSTRAINT #{@table}_unique_revision_index")
 
+    # Each record keeps only its latest version, so the plain key can hold
+    # what is left once updates have split its period.
+    execute("""
+    DELETE FROM #{@table} older USING #{@table} newer
+    WHERE older.id = newer.id AND lower(older.valid_at) < lower(newer.valid_at)
+    """)
+
     execute("ALTER TABLE #{@table} DROP CONSTRAINT #{@table}_pkey")
     execute("ALTER TABLE #{@table} ADD CONSTRAINT #{@table}_pkey PRIMARY KEY (id)")
 
