@@ -54,6 +54,9 @@ defmodule AshEnterprise.Bpmn.HumanTask do
         {AshEnterprise.Security.Checks.TaskCandidacy,
          acts: [:claim_task, :complete_task, :delegate_task, :approve, :reject, :resolve]}
       ],
+      # Deciding is a person's act (ADR 0055, "Approval binding"): neither engine
+      # bypass nor a system actor reaches these doors; a candidate's grant does.
+      human_only: [:approve, :reject, :resolve],
       extra_extensions: [AshAgent.Effects]
     ]
 

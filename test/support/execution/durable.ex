@@ -88,10 +88,11 @@ defmodule AshEnterprise.Test.Execution.Durable do
 
   @doc """
   Time passes for `row`: its `field` (`lease_expires_at`, `next_attempt_at`,
-  `deadline_at`) is moved a minute into the past. Written past the actions, as the
+  `deadline_at`, `approval_expires_at`) is moved a minute into the past. Written past the actions, as the
   clock is.
   """
-  def elapse!(row, field) when field in [:lease_expires_at, :next_attempt_at, :deadline_at] do
+  def elapse!(row, field)
+      when field in [:lease_expires_at, :next_attempt_at, :deadline_at, :approval_expires_at] do
     past = DateTime.add(DateTime.utc_now(), -60, :second)
 
     {1, _} =

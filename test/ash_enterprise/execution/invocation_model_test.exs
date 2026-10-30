@@ -23,8 +23,13 @@ defmodule AshEnterprise.Execution.InvocationModelTest do
 
   import AshEnterprise.Test.Execution.Durable
 
+  require Ash.Query
+
   alias AshAgent.Invocation.{Executor, IdempotencyConflict}
+  alias AshEnterprise.Bpmn.HumanTask
   alias AshEnterprise.Execution
+  alias AshEnterprise.Execution.Approval
+  alias AshEnterprise.Test.DailyFixtures
 
   @terminal [:succeeded, :failed, :rejected, :stale, :cancelled]
 
@@ -43,7 +48,7 @@ defmodule AshEnterprise.Execution.InvocationModelTest do
       StreamData.tuple({StreamData.constant(:complete), key, worker}),
       StreamData.tuple({StreamData.constant(:deliver), key}),
       StreamData.tuple(
-        {StreamData.constant(:decide), key, StreamData.member_of([:approved, :rejected, :stale])}
+        {StreamData.constant(:decide), key, StreamData.member_of([:approve, :reject])}
       ),
       StreamData.tuple({StreamData.constant(:cancel), key})
     ])
@@ -123,13 +128,20 @@ defmodule AshEnterprise.Execution.InvocationModelTest do
     state
   end
 
-  defp apply_op({:decide, k, outcome}, state) do
+  # The requester confirms (or declines) their own request through the task door, and
+  # the job runner applies whatever the task says.
+  defp apply_op({:decide, k, decision}, state) do
     with %{} = row <- row(state, k) do
-      Execution.apply_invocation_decision(
-        row,
-        %{outcome: outcome, decided_by_id: state.nurse.user.id},
-        oban(state.tenant)
-      )
+      with %{status: :open} = task <- approval_task(row, state.tenant) do
+        HumanTask
+        |> Ash.ActionInput.for_action(decision, %{record_id: task.id},
+          actor: DailyFixtures.actor(state.nurse.user),
+          tenant: state.tenant
+        )
+        |> Ash.run_action()
+      end
+
+      Execution.apply_invocation_decision(row, oban(state.tenant))
     end
 
     state
@@ -141,6 +153,15 @@ defmodule AshEnterprise.Execution.InvocationModelTest do
     end
 
     state
+  end
+
+  defp approval_task(row, tenant) do
+    key = Approval.key()
+    id = row.id
+
+    HumanTask
+    |> Ash.Query.filter(subject_id == ^id and node_id == ^key)
+    |> Ash.read_one!(authorize?: false, tenant: tenant)
   end
 
   # --- invariants ---------------------------------------------------------------------

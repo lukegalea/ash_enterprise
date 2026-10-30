@@ -4,8 +4,9 @@ defmodule AshEnterprise.Credentialing.ClinicScenarioTest do
   request to activate a seeded credential runs through `invoke` to a recorded registry
   reference.
 
-  Until approvals are bound to a committee task, the committee's decision is applied the
-  way the job runner applies it: `apply_decision` as the `oban` system actor.
+  The request opens an approval task for the credentialing committee; a member decides
+  it through the task's approve door, and the decision is applied the way the
+  `:apply_decision` job applies it: `apply_decision` as the `oban` system actor.
   """
 
   use AshEnterprise.DataCase, async: false
@@ -15,9 +16,11 @@ defmodule AshEnterprise.Credentialing.ClinicScenarioTest do
 
   require Ash.Query
 
+  alias AshEnterprise.Bpmn.HumanTask
   alias AshEnterprise.Credentialing
   alias AshEnterprise.Credentialing.{Clinic, Clinician, Credential, DemoData}
   alias AshEnterprise.Execution
+  alias AshEnterprise.Execution.Approval
   alias AshEnterprise.Execution.Invocation.ExecuteWorker
   alias AshEnterprise.Platform.{Seeder, SystemActor}
   alias AshEnterprise.Security
@@ -97,12 +100,25 @@ defmodule AshEnterprise.Credentialing.ClinicScenarioTest do
     assert id == credential.id
     refute_enqueued(worker: ExecuteWorker, args: %{"primary_key" => %{"id" => row.id}})
 
-    approved =
-      Execution.apply_invocation_decision!(
-        row,
-        %{outcome: :approved, decided_by_id: member.id},
-        oban(tenant)
-      )
+    approval_key = Approval.key()
+    row_id = row.id
+
+    task =
+      HumanTask
+      |> Ash.Query.filter(subject_id == ^row_id and node_id == ^approval_key)
+      |> Ash.read_one!(authorize?: false, tenant: tenant)
+
+    # The coordinator asked, so only another person decides.
+    decide = fn who ->
+      HumanTask
+      |> Ash.ActionInput.for_action(:approve, %{record_id: task.id}, as_person(who, tenant))
+      |> Ash.run_action()
+    end
+
+    assert {:error, _} = decide.(clinic.coordinator)
+    assert {:ok, _} = decide.(member)
+
+    approved = Execution.apply_invocation_decision!(row, oban(tenant))
 
     assert {approved.status, approved.approved_by_id} == {:ready, member.id}
     assert %{success: 1} = Oban.drain_queue(queue: :execution)

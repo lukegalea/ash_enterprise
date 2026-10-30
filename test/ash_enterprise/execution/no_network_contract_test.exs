@@ -26,7 +26,14 @@ defmodule AshEnterprise.Execution.NoNetworkContractTest do
        %{opts: opts} do
     targets =
       NoNetwork.inventory() ++
-        for action <- [:record, :record_reviewed, :record_screened, :retitle],
+        for action <- [
+              :record,
+              :record_reviewed,
+              :record_screened,
+              :retitle,
+              :retitle_reviewed,
+              :record_approved
+            ],
             do: {ClinicNote, action}
 
     # The inventory is not empty: the platform declares internal targets of its own.

@@ -13,6 +13,10 @@ defmodule AshEnterprise.Test.Execution.ClinicNote do
     * `:record_reviewed` is the same write, confirmed by a person first.
     * `:retitle` changes a note, so it acts on a record the requester must be able to
       read.
+    * `:record_approved` is `:record` after a clinic lead other than the requester
+      approves it, within four hours.
+    * `:retitle_reviewed` is `:retitle` after a clinic lead other than the requester
+      approves it, within four hours: an approval bound to a record.
     * `:record_screened` is `:record` behind a clinic rule: a title starting `DECLINED`
       is refused with a business error (`AshAgent.BusinessError`, code
       `"declined_by_clinic"`).
@@ -29,7 +33,7 @@ defmodule AshEnterprise.Test.Execution.ClinicNote do
     lifecycle?: false,
     archival?: false,
     lineage?: false,
-    self_service: [:record, :record_reviewed, :record_screened, :read],
+    self_service: [:record, :record_reviewed, :record_approved, :record_screened, :read],
     extra_extensions: [AshAgent.Effects]
 
   postgres do
@@ -49,6 +53,24 @@ defmodule AshEnterprise.Test.Execution.ClinicNote do
       intent: :execute
 
     action :retitle, kind: :edit, destructive?: false, open_world?: false, intent: :execute
+
+    action :record_approved,
+      kind: :edit,
+      destructive?: false,
+      open_world?: false,
+      approval: :four_eyes,
+      approver_role: :clinic_lead,
+      approval_expires_in: [hours: 4],
+      intent: :execute
+
+    action :retitle_reviewed,
+      kind: :edit,
+      destructive?: false,
+      open_world?: false,
+      approval: :four_eyes,
+      approver_role: :clinic_lead,
+      approval_expires_in: [hours: 4],
+      intent: :execute
 
     action :record_screened,
       kind: :edit,
@@ -72,7 +94,17 @@ defmodule AshEnterprise.Test.Execution.ClinicNote do
       change set_attribute(:source, "clinic_note")
     end
 
+    create :record_approved do
+      accept [:title]
+      change set_attribute(:owner_id, actor(:id))
+      change set_attribute(:source, "clinic_note")
+    end
+
     update :retitle do
+      accept [:title]
+    end
+
+    update :retitle_reviewed do
       accept [:title]
     end
 

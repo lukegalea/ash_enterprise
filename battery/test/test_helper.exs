@@ -31,6 +31,9 @@
   Battery.Mdm.Mapping,
   Battery.Mdm.MatchRuleSet,
   Battery.Mdm.MatchCandidate,
+  Battery.Execution.Member,
+  Battery.Execution.Referral,
+  Battery.Execution.Invocation,
   AshEvidence.Domain,
   AshCompliance.Domain
 ]

@@ -69,9 +69,18 @@ MyClinic.Execution.invoke(
 7. Every claim compares the row's `target_digest` with the target as declared now. A row whose target changed since it
    was requested (its inputs or its effects declaration) becomes `stale` with `error_code: "target_changed"` and does
    not run, so a deploy that changes a target leaves its queued and approved rows stale. Request them again.
-8. If your audit wrapper refuses atomic updates, nothing changes: fencing is a filter on the update plus
+8. A row that waits for an approval records what the approval binds: `authorization_details` (RFC 9396's shape: a
+   URN `type` naming the action, `actions`, the subject as `identifier`, and the target digest, arguments digest and
+   preconditions), its `approval_digest` (SHA-256 of the RFC 8785 canonical JSON) and `approval_expires_at` from the
+   declaration's `approval_expires_in`. `apply_decision` makes an approved row ready only while the digest recomputed
+   from the row, the target as declared now and the preconditions' records as they stand now still matches, and the
+   approval has not expired; otherwise the row is `stale` with `error_code` `"subject_changed"`, `"target_changed"`,
+   `"approval_expired"` or `"approval_changed"`. Every claim checks the same again, so a subject written between the
+   approval and the run is never acted on under the old approval. Bump `version_number` on every write of a subject
+   (an optimistic lock), or a changed subject goes unseen.
+9. If your audit wrapper refuses atomic updates, nothing changes: fencing is a filter on the update plus
    `optimistic_lock`, never an atomic update.
-9. Set `lifecycle?: false` (or the equivalent) if your base resource installs a state machine of its own: the
+10. Set `lifecycle?: false` (or the equivalent) if your base resource installs a state machine of its own: the
    fragment's state machine is the row's lifecycle, and two do not merge.
 
 ### Execution paths
@@ -85,22 +94,22 @@ Which path a claimed row takes depends on the target's effects declaration:
 | `open_world?: true`, not idempotent | As above | `outcome_unknown`, then reconciled. Never called again blindly |
 | Returns an `AshAgent.Invocation.Dispatch` | `dispatched`: no lease, until `deadline_at` | — |
 
-10. An idempotent outside target sends `context.ash_agent.invocation_key` as the outside service's idempotency key.
+11. An idempotent outside target sends `context.ash_agent.invocation_key` as the outside service's idempotency key.
     Declare `idempotent?: true` only when it does: the declaration is what lets an expired lease call it again.
-11. Give an outside target that is not idempotent a `reconcile_with` lookup when the outside service can be asked by
+12. Give an outside target that is not idempotent a `reconcile_with` lookup when the outside service can be asked by
     key. Without one, every lost acknowledgement waits for a person.
-12. A `reconcile_with` action is a `:read` (a record found means the effect happened) or a generic action returning
+13. A `reconcile_with` action is a `:read` (a record found means the effect happened) or a generic action returning
     `:succeeded`, `:not_found` or `:unknown`, or a map with that as `outcome` and optionally `effect_ref` and
     `effect_system`. It gets the target's arguments it declares as inputs, and `invocation_key` if it declares one.
     It must not change anything.
-13. Return `AshAgent.BusinessError` (with a stable `code`) for a refusal the domain makes, so a process can route on
+14. Return `AshAgent.BusinessError` (with a stable `code`) for a refusal the domain makes, so a process can route on
     it. Implement `AshAgent.FailureClass` for your own error types (see `host-behaviours.md`); an unclassified error
     is `:permanent`.
-14. A transient failure makes the row ready again after a backoff, up to `max_attempts` claims (the `invocation`
+15. A transient failure makes the row ready again after a backoff, up to `max_attempts` claims (the `invocation`
     section, default 3), then fails it as `:transient`; `retry` makes it ready again on purpose. An error that leaves
     an outside effect in doubt (`:indeterminate`) is retried only when the target is internal or idempotent; otherwise
     the row is `outcome_unknown`.
-15. An `outcome_unknown` row is settled by its `reconcile_with` lookup, by a callback through `complete_external`, or by
+16. An `outcome_unknown` row is settled by its `reconcile_with` lookup, by a callback through `complete_external`, or by
     a person: `request_resolution` asks, and `apply_resolution` applies `:succeeded`, `:failed` or `:retry`. Attach a
     change to `request_resolution` that opens your task, and one to `apply_resolution` that sets its `outcome` from the
     decided task.
@@ -117,8 +126,8 @@ Which path a claimed row takes depends on the target's effects declaration:
 | The `:reconcile` trigger | It settles rows whose lease expired, whose dispatch deadline passed or whose outcome is unknown |
 | A resolution task | Attach changes to `request_resolution` (open it) and `apply_resolution` (set its `outcome`) |
 | An `AshAgent.FailureClass` implementation | For each error type of yours a target can return |
-| Approval opening and deciding | Attach a change to `request` (rows that land in `awaiting_approval`) and to `apply_decision` (set its `outcome`) |
-| Any check at claim | Attach a change to `claim`, for example re-checking an approval before work starts |
+| Approval opening and deciding | Attach a change to `request` (rows that land in `awaiting_approval`) and to `apply_decision` (set its `outcome` from the decided task). The binding to the request is the fragment's (rule 8); who may approve, and whether the approver may still, is yours |
+| Any check at claim | Attach a change to `claim`, for example re-checking that the approver still holds the approver role |
 
 A change you attach with `changes do change MyChange, where: [action_is(:claim)] end` runs after the fragment's own
 changes for that action and before its hooks.

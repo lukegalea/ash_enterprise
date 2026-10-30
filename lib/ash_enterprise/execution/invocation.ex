@@ -35,6 +35,19 @@ defmodule AshEnterprise.Execution.Invocation do
     * **Identity.** `AshEnterprise.Execution.Identity` names the principal (a person, or
       an automation principal acting for one, ADR 0043) and rebuilds its `ActorContext`
       from grant rows at every claim.
+    * **Approvals.** A target whose declaration asks for one waits in
+      `awaiting_approval` on a standalone task, `invocation.approval`, opened by
+      `request` (`AshEnterprise.Execution.Changes.RequestApproval`) for the holders of
+      the declaration's `approver_role` (under four eyes, not the requester) and decided
+      through the existing `HumanTask.approve` and `reject` doors, which only a person
+      may run. The `:apply_decision` trigger applies the decision
+      (`AshEnterprise.Execution.Changes.ReadApproval`); never `on_complete`. The
+      fragment binds the approval to the request (`authorization_details`,
+      `approval_digest`, `approval_expires_at`) and finds the row `stale` when the
+      subject, the target or the clock has moved on; every claim also re-checks that
+      the approver still may approve (`AshEnterprise.Execution.Changes.RecheckApprover`).
+      See `AshEnterprise.Execution.Approval`. Being asked to approve a row lets a person
+      read it (`AshEnterprise.Security.Checks.InvocationApprovalCandidacy`).
     * **The `:execute` trigger.** `request` and `apply_decision` enqueue it for every
       ready row in their own transaction; its scheduler sweeps any ready row whose job
       was lost. It takes the tenant from the row, persists no actor, and runs a generic
@@ -76,6 +89,7 @@ defmodule AshEnterprise.Execution.Invocation do
       :execute,
       :reconcile
     ],
+    extra_grants: [AshEnterprise.Security.Checks.InvocationApprovalCandidacy],
     extra_extensions: [AshCloak, AshOban],
     fragments: [AshAgent.Invocation]
 
@@ -113,6 +127,10 @@ defmodule AshEnterprise.Execution.Invocation do
 
     change AshEnterprise.Execution.Changes.HandoffFaultPoints, on: [:create]
 
+    change AshEnterprise.Execution.Changes.RequestApproval, where: [action_is(:request)]
+    change AshEnterprise.Execution.Changes.ReadApproval, where: [action_is(:apply_decision)]
+    change AshEnterprise.Execution.Changes.RecheckApprover, where: [action_is(:claim)]
+
     change AshEnterprise.Execution.Changes.OpenResolutionTask,
       where: [action_is(:request_resolution)]
 
@@ -143,6 +161,30 @@ defmodule AshEnterprise.Execution.Invocation do
         default_actor AshEnterprise.Platform.SystemActor.oban()
         worker_module_name AshEnterprise.Execution.Invocation.ExecuteWorker
         scheduler_module_name AshEnterprise.Execution.Invocation.ExecuteScheduler
+      end
+
+      # A person decided the row's approval, or it expired undecided: apply it. The
+      # sweep is the only path, so a crash between the decision and its application
+      # heals on the next run. The update keeps ash_oban's default lock on the row.
+      trigger :apply_decision do
+        action :apply_decision
+
+        where expr(
+                status == :awaiting_approval and
+                  (exists(approval_task, status in [:completed, :cancelled]) or
+                     approval_expires_at <= now())
+              )
+
+        read_action :read
+        stream_with :full_read
+        queue :execution
+        scheduler_cron "* * * * *"
+        max_attempts 3
+        use_tenant_from_record? true
+        actor_persister :none
+        default_actor AshEnterprise.Platform.SystemActor.oban()
+        worker_module_name AshEnterprise.Execution.Invocation.ApplyDecisionWorker
+        scheduler_module_name AshEnterprise.Execution.Invocation.ApplyDecisionScheduler
       end
 
       # Rows no job is coming for: a worker died holding the lease, a dispatch deadline
@@ -198,6 +240,21 @@ defmodule AshEnterprise.Execution.Invocation do
     belongs_to :erasure_scope, AshEnterprise.Erasure.Scope do
       public? true
       description "The erasure scope `args` and `result` are sealed under."
+    end
+
+    # The approval task `request` opened, under the static key: one per row.
+    has_one :approval_task, AshEnterprise.Bpmn.HumanTask do
+      public? true
+      from_many? true
+      destination_attribute :subject_id
+      sort inserted_at: :desc
+
+      filter expr(
+               node_id == "invocation.approval" and
+                 subject_type == "Elixir.AshEnterprise.Execution.Invocation"
+             )
+
+      description "The task a person approves or rejects this row with."
     end
 
     # The task opened by the latest `request_resolution`. A retried row that becomes
