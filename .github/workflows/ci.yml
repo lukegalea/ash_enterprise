@@ -170,16 +170,10 @@ jobs:
       - name: Retired and vulnerable dependencies
         run: mix hex.audit
 
-      # The suite runs under the CANARY_INSTRUMENT preamble so long
-      # verifications print "[long verification]" lines into this log. The
-      # instrument degrades to a no-op on any Elixir without the API, so it
-      # costs nothing and keeps the diagnostics that earned their keep during
-      # the 1.20 migration.
-      - name: Test
-        run: elixir -e "$CANARY_INSTRUMENT" -S mix test
+      # The suite itself runs in the `test-shards` jobs below, alongside this one.
 
       # The durability tier (docs/DURABILITY-TESTS.md): races between connections, jobs
-      # killed between two commits, leases taken over. The step above excludes it, because
+      # killed between two commits, leases taken over. The suite excludes it, because
       # the SQL sandbox cannot show any of that, so without this step the tests for the
       # invocation invariants (one row per key, the ready-row handoff, lease fencing) would
       # gate nothing. It uses a database of its own on the same service and drops it when
@@ -252,6 +246,83 @@ jobs:
           npm ci --prefix assets
           MIX_ENV=dev mix assets.setup
           MIX_ENV=dev mix assets.build
+
+  test-shards:
+    name: Test shard ${{ matrix.partition }} of 6
+    runs-on: ubuntu-latest
+    # The suite, split by file across six runners with `mix test --partitions`.
+    # It is almost entirely synchronous (2026-10-30: 1,427 tests, 6,108s of
+    # 6,152s sync), so one runner took over 100 minutes; each shard runs its
+    # sixth with a database of its own. `--slowest-modules` prints where the
+    # time goes; it implies `--trace`, which also runs the few async modules
+    # one at a time, so drop it once the slow setup is found. The `tests` job
+    # below is the one result to require.
+
+    strategy:
+      fail-fast: false
+      matrix:
+        partition: [1, 2, 3, 4, 5, 6]
+
+    # pgvector on pg18, for the reasons given on the main job's service.
+    services:
+      postgres:
+        image: pgvector/pgvector:pg18
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      MIX_TEST_PARTITION: ${{ matrix.partition }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: beam
+        uses: ./.github/actions/setup-beam
+
+      # Restore only: the main job saves this cache, and seven jobs racing to
+      # save one key would only produce warnings.
+      - name: Restore dependency and build cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            deps
+            _build
+          key: ${{ runner.os }}-mix-${{ steps.beam.outputs.elixir-version }}-${{ hashFiles('mix.lock') }}
+          restore-keys: ${{ runner.os }}-mix-${{ steps.beam.outputs.elixir-version }}-
+
+      # boxic_dmn shells out to `xmllint`; see the main job's step.
+      - name: Install xmllint
+        run: sudo apt-get update -y && sudo apt-get install -y libxml2-utils
+
+      - run: mix deps.get
+
+      # Dependencies first, so their warnings stay in their own step; the
+      # main job holds the --warnings-as-errors gate.
+      - run: mix deps.compile
+
+      # Under the CANARY_INSTRUMENT preamble, so long verifications print
+      # "[long verification]" lines into this log. The instrument degrades to
+      # a no-op on any Elixir without the API.
+      - name: Test
+        run: elixir -e "$CANARY_INSTRUMENT" -S mix test --partitions 6 --slowest-modules 10
+
+  tests:
+    name: Test suite (all shards)
+    runs-on: ubuntu-latest
+    # One result for the whole suite, so a required check need not name the
+    # shards. It fails when any shard failed or was cancelled.
+    needs: test-shards
+    if: always()
+    steps:
+      - name: Every shard passed
+        run: test "${{ needs.test-shards.result }}" = success
 
   battery:
     name: Cross-substrate integration battery
