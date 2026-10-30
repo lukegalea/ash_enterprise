@@ -199,14 +199,14 @@ config :ash_judgments,
   # `AshEnterprise.Zones.ResidencyPolicy` and
   # `AshEnterprise.Accounts.Organization.sub_processor_opt_in`).
   residency_policy: AshEnterprise.Zones.ResidencyPolicy,
-  # The in-zone runtime (OLLAYA_*) checks no key, but ReqLLM refuses an
-  # empty one, so an unset or empty OLLAYA_API_KEY sends "local".
+  # The in-zone runtimes (OLLAYA_*, S1_GEN_*) check no key, but ReqLLM
+  # refuses an empty one, so an unset or empty key sends "in-zone-no-key".
   profiles: [
     [
       name: :laya_cpu,
       model: "laya:typed-decisions",
       base_url: {:system, "OLLAYA_BASE_URL"},
-      api_key: {:system, "OLLAYA_API_KEY", "local"},
+      api_key: {:system, "OLLAYA_API_KEY", "in-zone-no-key"},
       residency: :in_cluster,
       region: :ca
     ],
@@ -214,7 +214,7 @@ config :ash_judgments,
       name: :winnow_gpu,
       model: "winnow:e4b",
       base_url: {:system, "S1_OLLAYA_GPU_BASE_URL"},
-      api_key: {:system, "OLLAYA_API_KEY", "local"},
+      api_key: {:system, "OLLAYA_API_KEY", "in-zone-no-key"},
       residency: :in_cluster,
       region: :ca
     ],
@@ -230,7 +230,7 @@ config :ash_judgments,
       name: :winnow_generative,
       model: "winnow:e4b",
       base_url: {:system, "S1_OLLAYA_GPU_BASE_URL"},
-      api_key: {:system, "OLLAYA_API_KEY", "local"},
+      api_key: {:system, "OLLAYA_API_KEY", "in-zone-no-key"},
       residency: :in_cluster,
       region: :ca
     ],
@@ -245,7 +245,7 @@ config :ash_judgments,
       name: :splash_generative,
       model: splash_model,
       base_url: {:system, "S1_GEN_BASE_URL"},
-      api_key: {:system, "S1_GEN_API_KEY"},
+      api_key: {:system, "S1_GEN_API_KEY", "in-zone-no-key"},
       residency: :in_cluster,
       region: :ca,
       # A whole policy's proposals in one structured answer outlasts the
