@@ -236,6 +236,28 @@ defmodule AshEnterprise.Standards.StandingTest do
 
       assert FakeReqLLM.calls() == 0
     end
+
+    test "the review reports a touched one as unknown, never judged or admitted", %{
+      root: root,
+      opts: opts
+    } do
+      source = big_live()
+      write!(root, "lib/demo_web/live/big_live.ex", source)
+
+      diff = added_diff("lib/demo_web/live/big_live.ex", source)
+      review = Review.review(root, diff, Keyword.take(opts, [:repository, :questions]))
+
+      assert [finding] = review.advisory
+      assert finding.standard == "std-law-11-authorize-handle-event"
+      assert finding.location =~ "lib/demo_web/live/big_live.ex:"
+      assert finding.status == {:unknown, :context_too_large}
+      refute finding.admitted?
+
+      assert review.markdown =~
+               "std-law-11-authorize-handle-event: unknown (:context_too_large)"
+
+      assert FakeReqLLM.calls() == 0
+    end
   end
 
   describe "this checkout" do
