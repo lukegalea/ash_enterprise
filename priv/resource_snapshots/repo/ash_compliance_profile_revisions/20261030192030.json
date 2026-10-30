@@ -21,7 +21,7 @@
       "references": null,
       "scale": null,
       "size": null,
-      "source": "organization_id",
+      "source": "profile_id",
       "type": "uuid"
     },
     {
@@ -33,67 +33,7 @@
       "references": null,
       "scale": null,
       "size": null,
-      "source": "kind",
-      "type": "text"
-    },
-    {
-      "allow_nil?": false,
-      "default": "nil",
-      "generated?": false,
-      "precision": null,
-      "primary_key?": false,
-      "references": null,
-      "scale": null,
-      "size": null,
-      "source": "rule_id",
-      "type": "text"
-    },
-    {
-      "allow_nil?": false,
-      "default": "nil",
-      "generated?": false,
-      "precision": null,
-      "primary_key?": false,
-      "references": null,
-      "scale": null,
-      "size": null,
-      "source": "reason",
-      "type": "text"
-    },
-    {
-      "allow_nil?": false,
-      "default": "nil",
-      "generated?": false,
-      "precision": null,
-      "primary_key?": false,
-      "references": null,
-      "scale": null,
-      "size": null,
-      "source": "approver",
-      "type": "text"
-    },
-    {
-      "allow_nil?": false,
-      "default": "nil",
-      "generated?": false,
-      "precision": null,
-      "primary_key?": false,
-      "references": null,
-      "scale": null,
-      "size": null,
-      "source": "approved_at",
-      "type": "utc_datetime_usec"
-    },
-    {
-      "allow_nil?": true,
-      "default": "nil",
-      "generated?": false,
-      "precision": null,
-      "primary_key?": false,
-      "references": null,
-      "scale": null,
-      "size": null,
-      "source": "scope_subject_type",
+      "source": "version",
       "type": "text"
     },
     {
@@ -105,19 +45,7 @@
       "references": null,
       "scale": null,
       "size": null,
-      "source": "scope_subject_id",
-      "type": "text"
-    },
-    {
-      "allow_nil?": false,
-      "default": "nil",
-      "generated?": false,
-      "precision": null,
-      "primary_key?": false,
-      "references": null,
-      "scale": null,
-      "size": null,
-      "source": "scope_key",
+      "source": "source",
       "type": "text"
     },
     {
@@ -129,14 +57,14 @@
       "references": null,
       "scale": null,
       "size": null,
-      "source": "compensating_controls",
+      "source": "operations",
       "type": [
         "array",
-        "text"
+        "map"
       ]
     },
     {
-      "allow_nil?": true,
+      "allow_nil?": false,
       "default": "nil",
       "generated?": false,
       "precision": null,
@@ -144,7 +72,7 @@
       "references": null,
       "scale": null,
       "size": null,
-      "source": "replacement_rules_json",
+      "source": "content_hash",
       "type": "text"
     },
     {
@@ -190,27 +118,23 @@
   "custom_indexes": [],
   "custom_statements": [],
   "has_create_action": true,
-  "hash": "6C814ED5D755DC3ED9B13D51B84FE3D7D5195927FD196DF5FCF670AFE47356E1",
+  "hash": "0BA695B166841D00D0121F767E255647C661A38DCA5FC90EE6CB722A638BD04F",
   "identities": [
     {
       "all_tenants?": false,
       "base_filter": null,
-      "index_name": "ash_compliance_policy_overrides_one_in_force_per_scope_index",
+      "index_name": "ash_compliance_profile_revisions_unique_revision_index",
       "keys": [
         {
           "type": "atom",
-          "value": "organization_id"
+          "value": "profile_id"
         },
         {
           "type": "atom",
-          "value": "rule_id"
-        },
-        {
-          "type": "atom",
-          "value": "scope_key"
+          "value": "version"
         }
       ],
-      "name": "one_in_force_per_scope",
+      "name": "unique_revision",
       "nils_distinct?": true,
       "where": null
     }
@@ -222,7 +146,7 @@
   },
   "repo": "Elixir.AshEnterprise.Repo",
   "schema": null,
-  "table": "ash_compliance_policy_overrides",
+  "table": "ash_compliance_profile_revisions",
   "temporal": {
     "attribute": "valid_at",
     "strategy": "context"

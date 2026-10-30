@@ -13,7 +13,7 @@
       "type": "uuid"
     },
     {
-      "allow_nil?": true,
+      "allow_nil?": false,
       "default": "nil",
       "generated?": false,
       "precision": null,
@@ -21,7 +21,7 @@
       "references": null,
       "scale": null,
       "size": null,
-      "source": "organization_id",
+      "source": "catalog_id",
       "type": "uuid"
     },
     {
@@ -33,31 +33,7 @@
       "references": null,
       "scale": null,
       "size": null,
-      "source": "name",
-      "type": "text"
-    },
-    {
-      "allow_nil?": false,
-      "default": "\"1\"",
-      "generated?": false,
-      "precision": null,
-      "primary_key?": false,
-      "references": null,
-      "scale": null,
-      "size": null,
-      "source": "revision",
-      "type": "text"
-    },
-    {
-      "allow_nil?": false,
-      "default": "nil",
-      "generated?": false,
-      "precision": null,
-      "primary_key?": false,
-      "references": null,
-      "scale": null,
-      "size": null,
-      "source": "layer",
+      "source": "version",
       "type": "text"
     },
     {
@@ -69,43 +45,7 @@
       "references": null,
       "scale": null,
       "size": null,
-      "source": "scheme",
-      "type": "text"
-    },
-    {
-      "allow_nil?": false,
-      "default": "\"deny_overrides\"",
-      "generated?": false,
-      "precision": null,
-      "primary_key?": false,
-      "references": null,
-      "scale": null,
-      "size": null,
-      "source": "combining",
-      "type": "text"
-    },
-    {
-      "allow_nil?": true,
-      "default": "nil",
-      "generated?": false,
-      "precision": null,
-      "primary_key?": false,
-      "references": null,
-      "scale": null,
-      "size": null,
-      "source": "source_module",
-      "type": "text"
-    },
-    {
-      "allow_nil?": false,
-      "default": "nil",
-      "generated?": false,
-      "precision": null,
-      "primary_key?": false,
-      "references": null,
-      "scale": null,
-      "size": null,
-      "source": "rules_json",
+      "source": "source",
       "type": "text"
     },
     {
@@ -118,30 +58,6 @@
       "scale": null,
       "size": null,
       "source": "content_hash",
-      "type": "text"
-    },
-    {
-      "allow_nil?": false,
-      "default": "\"draft\"",
-      "generated?": false,
-      "precision": null,
-      "primary_key?": false,
-      "references": null,
-      "scale": null,
-      "size": null,
-      "source": "status",
-      "type": "text"
-    },
-    {
-      "allow_nil?": true,
-      "default": "nil",
-      "generated?": false,
-      "precision": null,
-      "primary_key?": false,
-      "references": null,
-      "scale": null,
-      "size": null,
-      "source": "active_key",
       "type": "text"
     },
     {
@@ -187,49 +103,41 @@
   "custom_indexes": [],
   "custom_statements": [],
   "has_create_action": true,
-  "hash": "FA589DFDC2102C1A9026B1F1BE71C5014A0D70E62E469128A18655652823A4BC",
+  "hash": "9CFB4C3AE6DB36BAC7730C11807E5ADF9F784A87C3FD5C5CC2F06C52712B636D",
   "identities": [
     {
       "all_tenants?": false,
       "base_filter": null,
-      "index_name": "ash_compliance_rule_set_revisions_unique_revision_index",
+      "index_name": "ash_compliance_catalog_versions_unique_hash_index",
       "keys": [
         {
           "type": "atom",
-          "value": "organization_id"
+          "value": "catalog_id"
         },
         {
           "type": "atom",
-          "value": "name"
-        },
-        {
-          "type": "atom",
-          "value": "revision"
+          "value": "content_hash"
         }
       ],
-      "name": "unique_revision",
+      "name": "unique_hash",
       "nils_distinct?": true,
       "where": null
     },
     {
       "all_tenants?": false,
       "base_filter": null,
-      "index_name": "ash_compliance_rule_set_revisions_one_active_per_name_index",
+      "index_name": "ash_compliance_catalog_versions_unique_version_index",
       "keys": [
         {
           "type": "atom",
-          "value": "organization_id"
+          "value": "catalog_id"
         },
         {
           "type": "atom",
-          "value": "name"
-        },
-        {
-          "type": "atom",
-          "value": "active_key"
+          "value": "version"
         }
       ],
-      "name": "one_active_per_name",
+      "name": "unique_version",
       "nils_distinct?": true,
       "where": null
     }
@@ -241,7 +149,7 @@
   },
   "repo": "Elixir.AshEnterprise.Repo",
   "schema": null,
-  "table": "ash_compliance_rule_set_revisions",
+  "table": "ash_compliance_catalog_versions",
   "temporal": {
     "attribute": "valid_at",
     "strategy": "context"

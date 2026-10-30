@@ -21,7 +21,7 @@
       "references": null,
       "scale": null,
       "size": null,
-      "source": "catalog_id",
+      "source": "control_id",
       "type": "uuid"
     },
     {
@@ -45,19 +45,49 @@
       "references": null,
       "scale": null,
       "size": null,
-      "source": "source",
+      "source": "statement",
       "type": "text"
     },
     {
-      "allow_nil?": false,
-      "default": "nil",
+      "allow_nil?": true,
+      "default": "[]",
       "generated?": false,
       "precision": null,
       "primary_key?": false,
       "references": null,
       "scale": null,
       "size": null,
-      "source": "content_hash",
+      "source": "params",
+      "type": [
+        "array",
+        "map"
+      ]
+    },
+    {
+      "allow_nil?": true,
+      "default": "[]",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "citations",
+      "type": [
+        "array",
+        "text"
+      ]
+    },
+    {
+      "allow_nil?": false,
+      "default": "\"draft\"",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "status",
       "type": "text"
     },
     {
@@ -103,41 +133,23 @@
   "custom_indexes": [],
   "custom_statements": [],
   "has_create_action": true,
-  "hash": "20E660EBA05AC4A2243D7CF3D6D69774B4C1A828DF77F4E50EF704E9F7CB10CC",
+  "hash": "67517538F160DF0E05F89956A0BAA34C403F0FFAB923BE794CBD955F00208C93",
   "identities": [
     {
       "all_tenants?": false,
       "base_filter": null,
-      "index_name": "ash_compliance_catalog_versions_unique_hash_index",
+      "index_name": "ash_compliance_control_revisions_unique_revision_index",
       "keys": [
         {
           "type": "atom",
-          "value": "catalog_id"
-        },
-        {
-          "type": "atom",
-          "value": "content_hash"
-        }
-      ],
-      "name": "unique_hash",
-      "nils_distinct?": true,
-      "where": null
-    },
-    {
-      "all_tenants?": false,
-      "base_filter": null,
-      "index_name": "ash_compliance_catalog_versions_unique_version_index",
-      "keys": [
-        {
-          "type": "atom",
-          "value": "catalog_id"
+          "value": "control_id"
         },
         {
           "type": "atom",
           "value": "version"
         }
       ],
-      "name": "unique_version",
+      "name": "unique_revision",
       "nils_distinct?": true,
       "where": null
     }
@@ -149,7 +161,7 @@
   },
   "repo": "Elixir.AshEnterprise.Repo",
   "schema": null,
-  "table": "ash_compliance_catalog_versions",
+  "table": "ash_compliance_control_revisions",
   "temporal": {
     "attribute": "valid_at",
     "strategy": "context"

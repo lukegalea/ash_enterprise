@@ -28,7 +28,7 @@ defmodule AshCompliance.Repo.Migrations.TemporalCatalogVersions do
   calculation (filterable/sortable at the data layer), so reads keep the
   same shape. The backfill maps the column onto the period it always
   denoted: the period opens at the publication instant and never ends —
-  `tstzrange(published_at, NULL, '[)')`, half-open with an inclusive lower
+  `tstzrange(published_at AT TIME ZONE 'UTC', NULL, '[)')`, half-open with an inclusive lower
   bound. A row with a NULL `published_at` (created but never dated — the
   old column was nullable) opens at its `inserted_at`, which is exactly the
   visibility the old insertion-order reads gave it.
@@ -68,9 +68,11 @@ defmodule AshCompliance.Repo.Migrations.TemporalCatalogVersions do
     # [published_at, ∞). A NULL published_at opens at insertion — the
     # visibility the old insertion-order reads gave it. Bounds stay
     # unbounded above: versions are append-only, nothing ever ends them.
+    # Both columns are naive `timestamp` (Ecto stores UTC), pinned to UTC
+    # explicitly so the conversion never rides the session's TimeZone.
     execute("""
     UPDATE #{@table}
-    SET valid_at = tstzrange(coalesce(published_at, inserted_at), NULL, '[)')
+    SET valid_at = tstzrange(coalesce(published_at, inserted_at) AT TIME ZONE 'UTC', NULL, '[)')
     """)
 
     execute("ALTER TABLE #{@table} ALTER COLUMN valid_at SET NOT NULL")
@@ -88,13 +90,9 @@ defmodule AshCompliance.Repo.Migrations.TemporalCatalogVersions do
     # The plain unique indexes become instant-unique exclusions, named to
     # the generator's convention (`<table>_<identity>_index`) so the data
     # layer maps violations to the identity's clean error.
-    execute(
-      "DROP INDEX IF EXISTS #{@table}_catalog_id_version_index"
-    )
+    execute("DROP INDEX IF EXISTS #{@table}_catalog_id_version_index")
 
-    execute(
-      "DROP INDEX IF EXISTS #{@table}_catalog_id_content_hash_index"
-    )
+    execute("DROP INDEX IF EXISTS #{@table}_catalog_id_content_hash_index")
 
     execute("""
     ALTER TABLE #{@table}
@@ -131,7 +129,7 @@ defmodule AshCompliance.Repo.Migrations.TemporalCatalogVersions do
 
     execute("""
     UPDATE #{@table}
-    SET published_at = lower(valid_at)
+    SET published_at = lower(valid_at) AT TIME ZONE 'UTC'
     """)
 
     execute("ALTER TABLE #{@table} DROP CONSTRAINT #{@table}_unique_version_index")

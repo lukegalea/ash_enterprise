@@ -13,7 +13,7 @@
       "type": "uuid"
     },
     {
-      "allow_nil?": false,
+      "allow_nil?": true,
       "default": "nil",
       "generated?": false,
       "precision": null,
@@ -25,7 +25,7 @@
       "type": "uuid"
     },
     {
-      "allow_nil?": true,
+      "allow_nil?": false,
       "default": "nil",
       "generated?": false,
       "precision": null,
@@ -37,34 +37,28 @@
       "type": "text"
     },
     {
-      "allow_nil?": true,
-      "default": "[]",
+      "allow_nil?": false,
+      "default": "\"1\"",
       "generated?": false,
       "precision": null,
       "primary_key?": false,
       "references": null,
       "scale": null,
       "size": null,
-      "source": "profile_revision_ids",
-      "type": [
-        "array",
-        "uuid"
-      ]
+      "source": "revision",
+      "type": "text"
     },
     {
-      "allow_nil?": true,
-      "default": "[]",
+      "allow_nil?": false,
+      "default": "nil",
       "generated?": false,
       "precision": null,
       "primary_key?": false,
       "references": null,
       "scale": null,
       "size": null,
-      "source": "rule_set_revision_ids",
-      "type": [
-        "array",
-        "uuid"
-      ]
+      "source": "layer",
+      "type": "text"
     },
     {
       "allow_nil?": true,
@@ -75,8 +69,80 @@
       "references": null,
       "scale": null,
       "size": null,
-      "source": "active_policy_bundle_id",
-      "type": "uuid"
+      "source": "scheme",
+      "type": "text"
+    },
+    {
+      "allow_nil?": false,
+      "default": "\"deny_overrides\"",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "combining",
+      "type": "text"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "source_module",
+      "type": "text"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "rules_json",
+      "type": "text"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "content_hash",
+      "type": "text"
+    },
+    {
+      "allow_nil?": false,
+      "default": "\"draft\"",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "status",
+      "type": "text"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "active_key",
+      "type": "text"
     },
     {
       "allow_nil?": false,
@@ -121,19 +187,49 @@
   "custom_indexes": [],
   "custom_statements": [],
   "has_create_action": true,
-  "hash": "147EFC34542EF655A5FC30989E615C06285AA376365A483433B46C70087B58FA",
+  "hash": "09D56FDC01F1CC68F86B68E41573A4258B2628A2D374B6EDBCA829B22BDA10F6",
   "identities": [
     {
       "all_tenants?": false,
       "base_filter": null,
-      "index_name": "ash_compliance_tenant_policy_sets_one_per_organization_index",
+      "index_name": "ash_compliance_rule_set_revisions_unique_revision_index",
       "keys": [
         {
           "type": "atom",
           "value": "organization_id"
+        },
+        {
+          "type": "atom",
+          "value": "name"
+        },
+        {
+          "type": "atom",
+          "value": "revision"
         }
       ],
-      "name": "one_per_organization",
+      "name": "unique_revision",
+      "nils_distinct?": true,
+      "where": null
+    },
+    {
+      "all_tenants?": false,
+      "base_filter": null,
+      "index_name": "ash_compliance_rule_set_revisions_one_active_per_name_index",
+      "keys": [
+        {
+          "type": "atom",
+          "value": "organization_id"
+        },
+        {
+          "type": "atom",
+          "value": "name"
+        },
+        {
+          "type": "atom",
+          "value": "active_key"
+        }
+      ],
+      "name": "one_active_per_name",
       "nils_distinct?": true,
       "where": null
     }
@@ -145,7 +241,7 @@
   },
   "repo": "Elixir.AshEnterprise.Repo",
   "schema": null,
-  "table": "ash_compliance_tenant_policy_sets",
+  "table": "ash_compliance_rule_set_revisions",
   "temporal": {
     "attribute": "valid_at",
     "strategy": "context"

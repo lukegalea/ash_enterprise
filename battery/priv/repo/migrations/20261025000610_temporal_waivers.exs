@@ -56,10 +56,12 @@ defmodule AshCompliance.Repo.Migrations.TemporalWaivers do
     # Backfill the period from the declared window: half-open
     # [starts_at, expires_at) — nil bounds stay unbounded (a nil starts_at
     # was "in force since always", a nil expires_at evergreen), which is
-    # what the old read filter expressed.
+    # what the old read filter expressed. The columns are naive `timestamp`
+    # (Ecto stores UTC), so each is pinned to UTC explicitly rather than
+    # read through the migrating session's TimeZone.
     execute("""
     UPDATE #{@table}
-    SET valid_at = tstzrange(starts_at, expires_at, '[)')
+    SET valid_at = tstzrange(starts_at AT TIME ZONE 'UTC', expires_at AT TIME ZONE 'UTC', '[)')
     """)
 
     execute("ALTER TABLE #{@table} ALTER COLUMN scope_key SET NOT NULL")
@@ -107,7 +109,8 @@ defmodule AshCompliance.Repo.Migrations.TemporalWaivers do
 
     execute("""
     UPDATE #{@table}
-    SET starts_at = lower(valid_at), expires_at = upper(valid_at)
+    SET starts_at = lower(valid_at) AT TIME ZONE 'UTC',
+        expires_at = upper(valid_at) AT TIME ZONE 'UTC'
     """)
 
     alter table(@table) do

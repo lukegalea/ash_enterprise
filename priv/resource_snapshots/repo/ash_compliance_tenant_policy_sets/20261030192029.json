@@ -21,22 +21,10 @@
       "references": null,
       "scale": null,
       "size": null,
-      "source": "control_id",
+      "source": "organization_id",
       "type": "uuid"
     },
     {
-      "allow_nil?": false,
-      "default": "nil",
-      "generated?": false,
-      "precision": null,
-      "primary_key?": false,
-      "references": null,
-      "scale": null,
-      "size": null,
-      "source": "version",
-      "type": "text"
-    },
-    {
       "allow_nil?": true,
       "default": "nil",
       "generated?": false,
@@ -45,7 +33,7 @@
       "references": null,
       "scale": null,
       "size": null,
-      "source": "statement",
+      "source": "name",
       "type": "text"
     },
     {
@@ -57,10 +45,10 @@
       "references": null,
       "scale": null,
       "size": null,
-      "source": "params",
+      "source": "profile_revision_ids",
       "type": [
         "array",
-        "map"
+        "uuid"
       ]
     },
     {
@@ -72,23 +60,23 @@
       "references": null,
       "scale": null,
       "size": null,
-      "source": "citations",
+      "source": "rule_set_revision_ids",
       "type": [
         "array",
-        "text"
+        "uuid"
       ]
     },
     {
-      "allow_nil?": false,
-      "default": "\"draft\"",
+      "allow_nil?": true,
+      "default": "nil",
       "generated?": false,
       "precision": null,
       "primary_key?": false,
       "references": null,
       "scale": null,
       "size": null,
-      "source": "status",
-      "type": "text"
+      "source": "active_policy_bundle_id",
+      "type": "uuid"
     },
     {
       "allow_nil?": false,
@@ -133,23 +121,19 @@
   "custom_indexes": [],
   "custom_statements": [],
   "has_create_action": true,
-  "hash": "3C4FED01737A7184D750B70E981C9A8E59574B4082AA30BB40EA38647A1E9E55",
+  "hash": "9C432A21B31275AA39FB002735AB4DF671C3D830950AAE64F4400512D3634ACF",
   "identities": [
     {
       "all_tenants?": false,
       "base_filter": null,
-      "index_name": "ash_compliance_control_revisions_unique_revision_index",
+      "index_name": "ash_compliance_tenant_policy_sets_one_per_organization_index",
       "keys": [
         {
           "type": "atom",
-          "value": "control_id"
-        },
-        {
-          "type": "atom",
-          "value": "version"
+          "value": "organization_id"
         }
       ],
-      "name": "unique_revision",
+      "name": "one_per_organization",
       "nils_distinct?": true,
       "where": null
     }
@@ -161,7 +145,7 @@
   },
   "repo": "Elixir.AshEnterprise.Repo",
   "schema": null,
-  "table": "ash_compliance_control_revisions",
+  "table": "ash_compliance_tenant_policy_sets",
   "temporal": {
     "attribute": "valid_at",
     "strategy": "context"
