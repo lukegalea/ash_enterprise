@@ -88,27 +88,16 @@ elixir scripts/battery-pins-check.exs          # check again
 A package that genuinely cannot match goes in the script's `@exceptions`
 map with its reason.
 
-**`ash_compliance` is ahead of the platform root.** The battery's lock pins
-it to `2118d0f`: the temporal rule-set revisions and `activate`'s
-`effective_at` (the dated-activation seam
-`process_activation_reevaluation_test.exs` runs), with the
-activate-succession fix. It is declared in `mix.exs` exactly as the root
-declares it, with no `ref:` and no `override:`, so only the lock line differs
-and an app that takes the battery as a test dependency resolves its own
-`ash_compliance`, not one the battery picked. The root still locks `824e4b9`
-(pre-temporal), so `scripts/battery-pins-check.exs` reports this package
-until the root takes the same bump. Until then the battery runs code the
-platform does not ship yet, which is what the pins check exists to catch.
-
-`2118d0f` is the head of ash_compliance's unmerged `feat/declared-layers`
-branch (PR #15), not of its `main`. A ref-less git dependency fetches only
-branch heads, so the lock stops resolving if that branch is deleted before
-it merges. ash_compliance's `main` (`6a9e21a`) already carries everything
-the scenario uses: the temporal revisions, `effective_at` and the succession
-fix. The declared layer schemes `2118d0f` adds on top are not exercised
-here. Their nullable `scheme` columns (`20261025000616`) are ported anyway,
-so the battery's schema matches the code a consuming host that locks
-`2118d0f` runs.
+**`ash_compliance` is locked at `a49e212`, in the root and here.** That is
+ash_compliance `main` after PR #15 (declared layer schemes) merged. It carries
+the temporal rule-set revisions and `activate`'s `effective_at` (the
+dated-activation seam `process_activation_reevaluation_test.exs` runs), with
+the activate-succession fix. It is declared in `mix.exs` exactly as the root
+declares it, with no `ref:` and no `override:`, so an app that takes the
+battery as a test dependency resolves its own `ash_compliance`, not one the
+battery picked. The declared layer schemes are not exercised here. Their
+nullable `scheme` columns (`20261025000616`) are ported anyway, so the
+battery's schema matches the code a host locking `a49e212` runs.
 
 The temporal migrations are ported verbatim from ash_compliance's suite
 (`priv/repo/migrations/2026102500061*`).
