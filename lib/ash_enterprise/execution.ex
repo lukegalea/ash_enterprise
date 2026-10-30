@@ -35,6 +35,11 @@ defmodule AshEnterprise.Execution do
       define :apply_invocation_decision, action: :apply_decision
       define :request_invocation_cancel, action: :request_cancel
       define :execute_invocation, action: :execute, args: [:primary_key]
+      define :reconcile_invocation, action: :reconcile, args: [:primary_key]
+      define :complete_invocation_externally, action: :complete_external
+      define :request_invocation_resolution, action: :request_resolution
+      define :apply_invocation_resolution, action: :apply_resolution
+      define :retry_invocation, action: :retry
     end
   end
 end

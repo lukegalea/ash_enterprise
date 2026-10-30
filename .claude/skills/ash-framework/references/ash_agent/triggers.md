@@ -30,6 +30,37 @@ oban do
 end
 ```
 
+## `:reconcile` on an invocation resource
+
+`mark_outcome_unknown` enqueues it in its own transaction. Its scheduler is the sweep that finds rows whose lease
+expired (a worker died) and dispatched rows whose deadline passed, which nothing enqueues.
+
+```elixir
+trigger :reconcile do
+  action :reconcile
+  where expr(
+          (status == :executing and lease_expires_at <= now()) or
+            (status == :dispatched and deadline_at <= now()) or
+            (status == :outcome_unknown and is_nil(resolution_requested_at))
+        )
+  read_action :read
+  stream_with :full_read
+  queue :execution
+  scheduler_cron "* * * * *"
+  max_attempts 3
+  use_tenant_from_record? true
+  actor_persister :none
+  default_actor MyClinic.JobRunner.actor()
+  worker_module_name MyClinic.Execution.Invocation.ReconcileWorker
+  scheduler_module_name MyClinic.Execution.Invocation.ReconcileScheduler
+end
+```
+
+## Applying a person's resolution
+
+`apply_resolution` is yours to trigger, like `apply_decision`: a trigger whose `where` says the task you opened for the
+row has been decided, and a change on the action that sets `outcome` from it.
+
 ### Rules
 
 1. **`action :execute`.** It is a generic action with no transaction: it claims in one transaction, runs the target,
@@ -42,5 +73,8 @@ end
 4. **Keep a `scheduler_cron`.** A trigger with `scheduler_cron false` has no scheduler and nothing sweeps it.
 5. **`stream_with :full_read`**, because `where` depends on the time.
 6. **Job arguments carry the row's id only**, which ash_oban does by default.
-7. Give the default actor authority over `claim`, `succeed`, `fail`, `apply_decision` and `execute` and keep everyone
-   else out of them; a person's grants should never reach them.
+7. Give the default actor authority over the machinery actions (`claim`, `succeed`, `fail`, `defer`, `dispatch`,
+   `mark_outcome_unknown`, `requeue`, `complete_external`, `request_resolution`, `apply_resolution`, `apply_decision`,
+   `execute` and `reconcile`) and keep everyone else out of them; a person's grants should never reach them.
+8. **`:reconcile` is not optional.** A host using AshOban must declare it: without it, a row whose worker died stays
+   `executing` for good.

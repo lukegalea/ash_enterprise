@@ -63,8 +63,9 @@ MyClinic.Execution.invoke(
    key's unique identity, and the failed insert would abort your transaction.
 5. `request` derives everything else on the row (principal, kind, mode, lineage, the effects snapshot, digests,
    preconditions, status). Do not add actions that accept those columns.
-6. A row in `succeeded`, `failed`, `rejected`, `stale` or `cancelled` never changes. Do not add update actions that
-   bypass the state machine.
+6. A row in `succeeded`, `failed`, `rejected`, `stale` or `cancelled` keeps its outcome. Two named exceptions: `retry`
+   makes a row that failed with `:transient` ready again, and `complete_external` appends a late callback to a final
+   row's `evidence`. Do not add update actions that bypass the state machine.
 7. Every claim compares the row's `target_digest` with the target as declared now. A row whose target changed since it
    was requested (its inputs or its effects declaration) becomes `stale` with `error_code: "target_changed"` and does
    not run, so a deploy that changes a target leaves its queued and approved rows stale. Request them again.
@@ -73,15 +74,49 @@ MyClinic.Execution.invoke(
 9. Set `lifecycle?: false` (or the equivalent) if your base resource installs a state machine of its own: the
    fragment's state machine is the row's lifecycle, and two do not merge.
 
+### Execution paths
+
+Which path a claimed row takes depends on the target's effects declaration:
+
+| Target | Path | An expired lease |
+|---|---|---|
+| `open_world?: false` | The target and the completion in one transaction: exactly one committed effect | Re-readied (`requeue`): the effect rolled back |
+| `open_world?: true, idempotent?: true` | The call goes out with no transaction open; the completion follows under the fence | Re-readied: the call is repeated with the same key |
+| `open_world?: true`, not idempotent | As above | `outcome_unknown`, then reconciled. Never called again blindly |
+| Returns an `AshAgent.Invocation.Dispatch` | `dispatched`: no lease, until `deadline_at` | — |
+
+10. An idempotent outside target sends `context.ash_agent.invocation_key` as the outside service's idempotency key.
+    Declare `idempotent?: true` only when it does: the declaration is what lets an expired lease call it again.
+11. Give an outside target that is not idempotent a `reconcile_with` lookup when the outside service can be asked by
+    key. Without one, every lost acknowledgement waits for a person.
+12. A `reconcile_with` action is a `:read` (a record found means the effect happened) or a generic action returning
+    `:succeeded`, `:not_found` or `:unknown`, or a map with that as `outcome` and optionally `effect_ref` and
+    `effect_system`. It gets the target's arguments it declares as inputs, and `invocation_key` if it declares one.
+    It must not change anything.
+13. Return `AshAgent.BusinessError` (with a stable `code`) for a refusal the domain makes, so a process can route on
+    it. Implement `AshAgent.FailureClass` for your own error types (see `host-behaviours.md`); an unclassified error
+    is `:permanent`.
+14. A transient failure makes the row ready again after a backoff, up to `max_attempts` claims (the `invocation`
+    section, default 3), then fails it as `:transient`; `retry` makes it ready again on purpose. An error that leaves
+    an outside effect in doubt (`:indeterminate`) is retried only when the target is internal or idempotent; otherwise
+    the row is `outcome_unknown`.
+15. An `outcome_unknown` row is settled by its `reconcile_with` lookup, by a callback through `complete_external`, or by
+    a person: `request_resolution` asks, and `apply_resolution` applies `:succeeded`, `:failed` or `:retry`. Attach a
+    change to `request_resolution` that opens your task, and one to `apply_resolution` that sets its `outcome` from the
+    decided task.
+
 ### What you add on the resource
 
 | You add | Why |
 |---|---|
 | Tenancy and an owner column | The fragment has neither; stamp the owner on `request` from the actor |
-| Policies | `invoke` and `request` for the people who may ask; `claim`, `succeed`, `fail`, `apply_decision` and `execute` for your job runner alone |
+| Policies | `invoke` and `request` for the people who may ask; `retry` and `request_cancel` for the people who may; every other action for your job runner alone |
 | Encryption of `args` and `result` | Both are marked `sensitive?`; seal them if you encrypt content at rest |
 | A check of `parent` | The fragment records the parent; whether the requester may name it is yours to decide |
 | The `:execute` trigger | `request` and `apply_decision` enqueue it for every ready row |
+| The `:reconcile` trigger | It settles rows whose lease expired, whose dispatch deadline passed or whose outcome is unknown |
+| A resolution task | Attach changes to `request_resolution` (open it) and `apply_resolution` (set its `outcome`) |
+| An `AshAgent.FailureClass` implementation | For each error type of yours a target can return |
 | Approval opening and deciding | Attach a change to `request` (rows that land in `awaiting_approval`) and to `apply_decision` (set its `outcome`) |
 | Any check at claim | Attach a change to `claim`, for example re-checking an approval before work starts |
 
