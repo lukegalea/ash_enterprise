@@ -176,11 +176,13 @@ Two statements above no longer match the code, checked against `main` on 2026-10
   the person's confirm or cancel so a second confirm cannot run the mutation twice.
 - The coding-agent bridge: `Agents.ToolGate` approves or rejects one recorded `ToolInvocation`.
 - ACP: permission requests are held in memory (`AshEnterprise.Acp`), not in a durable record.
-- The production `/mcp` endpoint exposes `assign_role` with no approval step at all. "Writes need a human" does not
-  hold there today.
+- The production `/mcp` endpoint's `assign_role` no longer writes: since 2026-10-30 it records a governed invocation
+  (ADR 0055) and returns its approval link, and the role is assigned only once an administrator other than the caller
+  approves. It is the first door moved onto the invocation, and the only one of this list bound to a digest of what
+  was approved.
 
 The steps' substance is right where a proposal is used: the person sees the concrete mutation, and it runs through the
-policies with the person as the actor. None of these mechanisms binds an approval to a digest of what was approved.
+policies with the person as the actor. None of the others binds an approval to a digest of what was approved.
 [ADR 0055](../adr/0055-consequential-acts-are-governed-invocations.md) (accepted, not built) replaces them with one
 governed invocation whose approval is an ash_bpmn `HumanTask` and is bound to the exact request.
 

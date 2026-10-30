@@ -25,7 +25,8 @@ defmodule AshEnterprise.Credentialing.Credential do
 
   Request it through `AshEnterprise.Execution.invoke/4` with the target
   `"AshEnterprise.Credentialing.Credential.activate_credential"` and the arguments
-  `%{"id" => credential_id}`. The domain defines no code interface for it.
+  `%{"id" => credential_id}`. The domain defines no code interface for it, and the action
+  refuses to run except by its own invocation (`AshAgent.Validations.Governed`).
   """
 
   use AshEnterprise.Platform.Resource,
@@ -123,6 +124,7 @@ defmodule AshEnterprise.Credentialing.Credential do
       accept []
       # The registry is called before the update's transaction opens, which needs the record.
       require_atomic? false
+      validate {AshAgent.Validations.Governed, invocation: AshEnterprise.Execution.Invocation}
       change AshEnterprise.Credentialing.Changes.ActivateInRegistry
     end
 

@@ -8,6 +8,7 @@ The package calls these instead of reading your actors, grants or keys. Name you
 ```elixir
 @callback principal_for(actor, context) :: {:ok, principal} | {:error, term}
 @callback actor_for(invocation) :: {:ok, actor} | {:error, term}
+@callback principal_of(actor) :: {:ok, principal} | :error
 
 # principal:
 %{type: :person, id: person_id}
@@ -25,7 +26,11 @@ The package calls these instead of reading your actors, grants or keys. Name you
    agent). Every field of the principal is part of its identity, so `invoke` never hands one person's row to another.
 5. Return a plain atom as the reason (`:inactive`, `:start_grant_revoked`): the row records it as
    `"no_authority: <reason>"`. Any other reason is recorded as `"no_authority"`.
-6. The row's `delegation` column holds the principal in RFC 8693's `act` shape
+6. `principal_of/1` is the inverse of `actor_for/1`: given an actor `actor_for/1` built, it names the principal that
+   actor runs as, read from the actor alone and without a query. Return `:error` for any other actor (a system actor,
+   a request's actor that is not one you built). `AshAgent.Validations.Governed` uses it to check that a governed
+   action runs as its invocation's principal, so it must tell an automation acting for a person from that person.
+7. The row's `delegation` column holds the principal in RFC 8693's `act` shape
    (`AshAgent.ExecutionIdentity.delegation/1`), for readers outside the package. It is informational.
 
 ## `AshAgent.FailureClass` (a protocol)

@@ -19,4 +19,8 @@ defmodule Battery.Execution.Identity do
       _other -> {:error, :no_principal}
     end
   end
+
+  @impl true
+  def principal_of(%Member{id: id}), do: {:ok, %{type: :person, id: id}}
+  def principal_of(_actor), do: :error
 end

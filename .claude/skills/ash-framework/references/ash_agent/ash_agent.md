@@ -3,7 +3,8 @@
 ## Status
 
 Built: the effects extension, the invocation fragment with its execution paths, typed failure and reconciliation of
-outside work whose outcome is unknown, and the two behaviours and one protocol it calls. Not yet built: the agent run
+outside work whose outcome is unknown, the `Governed` validation that keeps a governed action behind its invocation,
+and the two behaviours and one protocol it calls. Not yet built: the agent run
 fragments and the approvals and execution-history behaviours.
 
 ## Understanding AshAgent

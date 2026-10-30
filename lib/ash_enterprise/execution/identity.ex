@@ -74,6 +74,28 @@ defmodule AshEnterprise.Execution.Identity do
 
   def actor_for(_invocation), do: {:error, :no_principal}
 
+  @doc """
+  The principal an actor `actor_for/1` built runs as: a person, or an automation
+  principal acting for one. Read from the actor alone. A user asking to start an agent
+  (`AutomationPrincipal.requested/1`) is not an actor `actor_for/1` builds, nor is any
+  system actor.
+  """
+  @impl true
+  def principal_of(%User{id: id} = user) when is_binary(id) do
+    case AutomationPrincipal.requested(user) do
+      nil -> {:ok, %{type: :person, id: id}}
+      _starting_an_agent -> :error
+    end
+  end
+
+  def principal_of(%AutomationPrincipal{name: name, id: person_id, agent: agent})
+      when is_atom(name) and is_binary(person_id),
+      do:
+        {:ok,
+         %{type: :automation, id: Atom.to_string(name), on_behalf_of: person_id, agent: agent}}
+
+  def principal_of(_actor), do: :error
+
   # --- request --------------------------------------------------------------
 
   defp automation(_user, _name, _agent, nil), do: {:error, :no_tenant}

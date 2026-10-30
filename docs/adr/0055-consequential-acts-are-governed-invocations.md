@@ -301,6 +301,34 @@ the host's `AshAgent.Approvals` implementation and the apply-decision trigger.
 - **Tests.** `approval_binding_test.exs` (durability tier) and, for the ash_agent ↔ ash_bpmn seam on the battery's own
   instantiation, `battery/test/base_integration/invocation_approval_test.exs`.
 
+## Built, 2026-10-30: governed targets and `/mcp` `assign_role`
+
+- **The validation** is the package's (ash_agent `AshAgent.Validations.Governed`, taking the host resource as
+  `invocation: AshEnterprise.Execution.Invocation`). It reads the invocation named in `context.ash_agent` without
+  authorization, in the action's tenant, and refuses unless it is `executing` under the named epoch, for this target,
+  with an `args_digest` equal to the HMAC of the inputs given plus the acted-on record's primary key (taken from the
+  record), and run as its principal. A refusal is `AshAgent.Invocation.Ungoverned` (invalid) with a `reason`. It has an
+  `atomic/3` and is temporal safe.
+- **The principal check** needs the inverse of `actor_for/1`, so `AshAgent.ExecutionIdentity` gained
+  `principal_of/1`. `Execution.Identity` reads it from the actor alone: a `User` is the person (one asking to start an
+  agent is not an actor `actor_for/1` builds), an `AutomationPrincipal` acting for a person is that automation
+  principal; anything else, system actors included, has none.
+- **Governed targets in Phase 1**: `Security.UserRole.assign_governed` and the clinic's
+  `Credentialing.Credential.activate_credential`. `UserRole.assign` stays ungoverned for the callers that have not
+  moved to `invoke` (the tenant seeder, demo data, the access-request process, the assistant's confirmed proposals, the
+  admin UI and test fixtures): moving them is the caller inventory this ADR puts before wider use.
+- **`/mcp` `assign_role`** is now `UserRole.request_assignment`, a self-service generic action
+  (`Execution.Actions.RequestInvocation`) that calls `invoke` for `assign_governed` with a per-call key
+  (`request:<UUIDv7>`) and returns the request: `invocation_id`, `target`, `status`, `error_code` and, while it waits,
+  `approval_url` (`/app/r/approvals/<task id>`), which the MCP router sends as `structuredContent`. Nothing is assigned
+  until an administrator other than the caller approves; the assignment then runs as the caller, rebuilt from their
+  grants.
+- **Tests.** `test/ash_enterprise_web/mcp_assign_role_test.exs` drives the tool through the MCP router with a bearer
+  token: the call returns the approval URL and assigns nothing; approved by a second administrator it runs once.
+  `test/ash_enterprise/execution/governed_test.exs`: a direct call, a forged context (awaiting approval, ready, another
+  epoch, another tenant), other arguments and another actor are each refused; the credential activation refuses a
+  direct call. `clinic_scenario_test.exs` runs the governed activation end to end.
+
 ## Amendment, 2026-10-29 — the coding-agent bridge
 
 Decided by Luke on 2026-10-22 and recorded here a week later. The coding-agent bridge in `AshEnterprise.Agents` has two
