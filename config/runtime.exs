@@ -199,12 +199,14 @@ config :ash_judgments,
   # `AshEnterprise.Zones.ResidencyPolicy` and
   # `AshEnterprise.Accounts.Organization.sub_processor_opt_in`).
   residency_policy: AshEnterprise.Zones.ResidencyPolicy,
+  # The in-zone runtime (OLLAYA_*) checks no key, but ReqLLM refuses an
+  # empty one, so an unset or empty OLLAYA_API_KEY sends "local".
   profiles: [
     [
       name: :laya_cpu,
       model: "laya:typed-decisions",
       base_url: {:system, "OLLAYA_BASE_URL"},
-      api_key: {:system, "OLLAYA_API_KEY"},
+      api_key: {:system, "OLLAYA_API_KEY", "local"},
       residency: :in_cluster,
       region: :ca
     ],
@@ -212,7 +214,7 @@ config :ash_judgments,
       name: :winnow_gpu,
       model: "winnow:e4b",
       base_url: {:system, "S1_OLLAYA_GPU_BASE_URL"},
-      api_key: {:system, "OLLAYA_API_KEY"},
+      api_key: {:system, "OLLAYA_API_KEY", "local"},
       residency: :in_cluster,
       region: :ca
     ],
@@ -228,7 +230,7 @@ config :ash_judgments,
       name: :winnow_generative,
       model: "winnow:e4b",
       base_url: {:system, "S1_OLLAYA_GPU_BASE_URL"},
-      api_key: {:system, "OLLAYA_API_KEY"},
+      api_key: {:system, "OLLAYA_API_KEY", "local"},
       residency: :in_cluster,
       region: :ca
     ],
