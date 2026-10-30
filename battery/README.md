@@ -66,9 +66,9 @@ test/support/                       fixtures (DMN + BPMN documents) and the ReqL
 
 ## Pins
 
-The nine substrates are pinned in `mix.exs` as `ash_enterprise` pins them
-(one exception, `ash_compliance`, below), and `mix.lock` pins the same SHAs ash_enterprise's lock
-resolves (`ash_events` carries the platform's
+The nine substrates are declared in `mix.exs` exactly as `ash_enterprise`
+declares them, and `mix.lock` pins the same SHAs ash_enterprise's lock
+resolves (one exception, `ash_compliance`, below) (`ash_events` carries the platform's
 `temporal-as-of-support-0.7` fork with `override: true`).
 
 This is enforced, not hoped for. `scripts/battery-pins-check.exs` (run from
@@ -87,12 +87,16 @@ elixir scripts/battery-pins-check.exs          # check again
 A package that genuinely cannot match goes in the script's `@exceptions`
 map with its reason.
 
-**`ash_compliance` is ahead of the platform root.** The battery pins it to
-`2118d0f` (declared `ref:` + `override: true`, exactly as Keystone declares
-it): the temporal rule-set revisions and `activate`'s `effective_at` — the
-dated-activation seam `process_activation_reevaluation_test.exs` runs — and
-the activate-succession fix. The platform root still locks `824e4b9`
-(pre-temporal), so `scripts/battery-pins-check.exs` reports this one package
-until the root takes the same bump or the script lists it in `@exceptions`.
+**`ash_compliance` is ahead of the platform root.** The battery's lock pins
+it to `2118d0f`: the temporal rule-set revisions and `activate`'s
+`effective_at` (the dated-activation seam
+`process_activation_reevaluation_test.exs` runs), with the
+activate-succession fix. It is declared in `mix.exs` exactly as the root
+declares it, with no `ref:` and no `override:`, so only the lock line differs
+and an app that takes the battery as a test dependency resolves its own
+`ash_compliance`, not one the battery picked. The root still locks `824e4b9`
+(pre-temporal), so `scripts/battery-pins-check.exs` reports this package
+until the root takes the same bump. Until then the battery runs code the
+platform does not ship yet, which is what the pins check exists to catch.
 The temporal migrations are ported verbatim from ash_compliance's suite
 (`priv/repo/migrations/2026102500061*`).
