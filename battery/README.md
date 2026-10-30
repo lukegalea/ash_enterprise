@@ -67,9 +67,10 @@ test/support/                       fixtures (DMN + BPMN documents) and the ReqL
 ## Pins
 
 The nine substrates are declared in `mix.exs` exactly as `ash_enterprise`
-declares them, and `mix.lock` pins the same SHAs ash_enterprise's lock
-resolves (one exception, `ash_compliance`, below) (`ash_events` carries the platform's
-`temporal-as-of-support-0.7` fork with `override: true`).
+declares them (`ash_events` carries the platform's
+`temporal-as-of-support-0.7` fork with `override: true`), and `mix.lock`
+pins the same SHAs ash_enterprise's lock resolves, with one exception,
+`ash_compliance`, below.
 
 This is enforced, not hoped for. `scripts/battery-pins-check.exs` (run from
 the repository root, and the first step of CI's battery job) fails, naming
@@ -98,5 +99,16 @@ and an app that takes the battery as a test dependency resolves its own
 (pre-temporal), so `scripts/battery-pins-check.exs` reports this package
 until the root takes the same bump. Until then the battery runs code the
 platform does not ship yet, which is what the pins check exists to catch.
+
+`2118d0f` is the head of ash_compliance's unmerged `feat/declared-layers`
+branch (PR #15), not of its `main`. A ref-less git dependency fetches only
+branch heads, so the lock stops resolving if that branch is deleted before
+it merges. ash_compliance's `main` (`6a9e21a`) already carries everything
+the scenario uses: the temporal revisions, `effective_at` and the succession
+fix. The declared layer schemes `2118d0f` adds on top are not exercised
+here. Their nullable `scheme` columns (`20261025000616`) are ported anyway,
+so the battery's schema matches the code a consuming host that locks
+`2118d0f` runs.
+
 The temporal migrations are ported verbatim from ash_compliance's suite
 (`priv/repo/migrations/2026102500061*`).
