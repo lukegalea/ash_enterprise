@@ -2,8 +2,9 @@
 
 ## Status
 
-Built: the effects extension, the invocation fragment, and the two behaviours it calls. Not yet built: the agent run
-fragments, approvals and execution-history behaviours, and reconciliation of external work whose outcome is unknown.
+Built: the effects extension, the invocation fragment with its execution paths, typed failure and reconciliation of
+outside work whose outcome is unknown, and the two behaviours and one protocol it calls. Not yet built: the agent run
+fragments and the approvals and execution-history behaviours.
 
 ## Understanding AshAgent
 

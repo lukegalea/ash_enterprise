@@ -1,7 +1,8 @@
 # ADR 0055 — Every consequential act is one governed invocation
 
 - **Status:** accepted (2026-10-23); the invocation record, `invoke`, the lease and the `:execute` handoff built
-  (2026-10-29); approvals, reconciliation, typed business errors and the automation principal not built
+  (2026-10-29); reconciliation, typed business errors and the automation principal built (2026-10-29); approval
+  binding built (2026-10-30)
 - **Date:** 2026-10-23
 - **Amended:** 2026-10-29 — the coding-agent bridge; see
   [Amendment](#amendment-2026-10-29--the-coding-agent-bridge)
@@ -216,16 +217,89 @@ the host's `AshAgent.Approvals` implementation and the apply-decision trigger.
 - **Lease and paths.** `claim` takes the next epoch under `optimistic_lock(:lease_epoch)`; `succeed` and `fail` are
   filtered on the claimed epoch, after a locked re-read. An internal target runs in one transaction with `succeed`,
   so a superseded worker's effect rolls back with its refused completion (`lease_fencing_test.exs`). An expired lease
-  is taken over only for an internal target. An external target runs with no transaction open and `succeed` follows;
-  `outcome_unknown` and reconciliation are not built, and a worker that dies mid-run leaves its row `executing` until
-  they are.
+  is taken over only for an internal target. An external target runs with no transaction open and `succeed` follows.
+  Reconciliation is under "Built, 2026-10-29: execution paths, typed failure and reconciliation".
 - **Handoff.** `request` and `apply_decision` enqueue the `:execute` job in their own transaction; the trigger's
   scheduler sweeps every minute, takes the tenant from the row and persists no actor (`handoff_test.exs`).
-- **Failure classes so far.** A forbidden target is `:denied`, an invalid one `:rejected`, anything else `:permanent`.
-  `AshAgent.BusinessError`, transient retries and timeouts are not built.
+- **Failure classes.** See "Built, 2026-10-29: execution paths, typed failure and reconciliation".
+- **The worked example.** A synthetic clinic (`AshEnterprise.Credentialing`, seeded by `mix ash_enterprise.demo`)
+  has one governed target: `Credential.activate_credential`, open-world, idempotent, four-eyes by a credentialing
+  committee, reconciled by `lookup_activation`, against a stub registry that keeps no record. Clinic and clinician are
+  the CDM `Account` and `Contact`; the credential is invented. `clinic_scenario_test.exs` runs it from `invoke`
+  through an applied approval to the registry's reference.
 - **Not built yet.** Opening and applying approvals (`awaiting_approval` rows wait for a host change on
-  `apply_decision`), the approval and reconciliation triggers, the pre-check of the executing identity at request,
-  and `retry` and `rerun`.
+  `apply_decision`), the approval trigger, the pre-check of the executing identity at request, and `rerun`. (Approvals
+  and their trigger were built on 2026-10-30; see below.)
+
+## Built, 2026-10-29: execution paths, typed failure and reconciliation
+
+- **Paths by effect.** The executor takes the path from the target's declaration, which the claim has matched to the one
+  requested. An internal target's expired lease is made ready again (`requeue`): its effect rolled back with its
+  transaction. An idempotent outside target is given the invocation key in `context.ash_agent.invocation_key`, and the
+  Nango façade sends it as `Idempotency-Key` when a target passes `idempotency_key`; its expired lease is re-readied
+  too, and the provider takes the repeated call once. An outside target that is not idempotent is never called twice
+  for one claim: an error that leaves its effect in doubt, or a lease that expires with nothing recorded, makes the row
+  `outcome_unknown` (`reconcile_test.exs`).
+- **Reconciliation.** The `:reconcile` trigger (a sweep every minute, and enqueued by `mark_outcome_unknown` in its own
+  transaction) runs the package's `reconcile` action. An unknown outcome is settled by the target's `reconcile_with`
+  lookup, run as the rebuilt principal: found is `succeeded` with the effect's reference, not found is `failed` as
+  `:transient`, which only a deliberate `retry` runs again. Without a lookup, or when it cannot tell, a person is asked.
+- **Resolution by a person.** `request_resolution` opens a standalone `HumanTask` under the key
+  `"invocation.resolution"` for the tenant's administrators, through `AshBpmn.Changes.RequireApproval`. Its outcomes are
+  `succeeded`, `failed` and `retry`, which no door offered: the board's Complete is limited to outcomes the checked-in
+  baselines declare, and standalone approvals to approve and reject. `HumanTask.resolve` offers exactly those three
+  (an enumerated argument, so a picker), accepts only a resolution task, and `approve`, `reject` and `complete_task`
+  refuse one. The `:apply_resolution` trigger reads the completed task, requires a person as the decider, and applies
+  it: `succeeded`, `failed`, or `retry` (ready again, same key and arguments) (`resolution_test.exs`). Never
+  `on_complete`.
+- **Dispatch.** A target that hands its work on returns an `AshAgent.Invocation.Dispatch`: the row is `dispatched`,
+  holds no lease, and is settled by `complete_external` or by its deadline: `outcome_unknown` with `:timeout` for
+  outside work that is not idempotent, a `:timeout` failure otherwise. A callback for a row that is already final is
+  appended to `evidence` and changes nothing else.
+- **Typed failure.** As the Typed failure table above, from `AshAgent.Invocation.Failure`. `AshEnterprise.Integration.ProxyError`
+  classifies itself (`AshAgent.FailureClass`): `:rate_limited` is `:transient`; `:server_error`, `:transport` and
+  `:nango_error` are indeterminate (the effect may have happened); the rest `:permanent`. A transient failure backs off
+  (30 seconds, quadrupling) for up to three claims, then fails, and `retry` makes it ready again. `:budget` has no
+  source in the host until agent runs exist. `AshAgent.Invocation.Failure.bpmn/1` gives what a process sees: a
+  business error code, an incident, or waiting (`typed_failure_test.exs`).
+- **The no-network contract.** `no_network_contract_test.exs` is a CI gate over every target declared internal and not
+  read-only in the registered domains: built with generated inputs as an administrator, it may attach no transaction
+  hook, and run inside a rolled-back transaction with every outbound `Req` request blocked, it may make no request. A
+  canary target whose `after_transaction` hook calls the Nango façade fails it. Generated inputs do not reach every
+  action's end (a target needing an existing record stops at its lookup), so for those the hook check is what holds.
+
+## Built, 2026-10-30: approval binding
+
+- **What an approval binds** is the package's (ash_agent `AshAgent.Invocation.Approval`). `request` writes, for a row
+  awaiting approval, `authorization_details` in RFC 9396's shape (a URN `type` naming the action, `actions`, the
+  subject as `identifier`, and `target_digest`, `args_digest`, `preconditions`, `manifest_digest` reserved as nil until
+  release manifests exist), `approval_digest` (SHA-256 of their RFC 8785 canonical JSON) and `approval_expires_at`
+  from the declaration's `approval_expires_in`. `apply_decision` makes an approved row ready only while the digest
+  recomputed from the row, the target as declared now and the subject's current `version_number` still matches and
+  the approval has not expired; `claim` checks the same, inside its transaction, before every attempt. Otherwise the
+  row is `stale` with `error_code` `subject_changed`, `target_changed`, `approval_expired` or `approval_changed`.
+- **The task.** `Execution.Changes.RequestApproval` opens the standalone `HumanTask` under `"invocation.approval"`
+  through `AshBpmn.Changes.RequireApproval` in the request's transaction. Candidates are the holders of the
+  declaration's `approver_role`, named in words (`:credentialing_committee` is the role "Credentialing committee"); a
+  `:confirm` target with no role is confirmed by the requester; `:four_eyes` excludes the requester even when they hold
+  the role. Automation principals hold no person's role, so they are never candidates.
+- **The decision.** `HumanTask.approve`, `reject` and `resolve` are now `human_only` ([ADR 0059](0059-version-number-is-an-optimistic-lock.md)):
+  no system actor and no engine-flagged context reaches them. The `:apply_decision` trigger (a sweep every minute,
+  `use_tenant_from_record?`, `actor_persister :none`, ash_oban's default lock) selects rows whose task is completed or
+  cancelled, or whose approval expired undecided. `Execution.Changes.ReadApproval` takes the outcome from the task,
+  never from the caller: approved by a person who may still approve and, under four eyes, is not the requester is
+  `:approved`; a rejection is `rejected`; an expired or cancelled task, or an expiry with no decision, is `stale`; an
+  approval by someone without authority is `stale` with `approver_unauthorized`. The task is recorded as
+  `approval_task_id`.
+- **Authority at every claim.** `Execution.Changes.RecheckApprover` re-resolves the approval's candidates and builds
+  the approver's `ActorContext` afresh: an approver who lost the role, left the tenant or was deactivated makes the row
+  `stale` (`approver_unauthorized`) and nothing runs.
+- **Reading.** `Security.Checks.InvocationApprovalCandidacy` lets a candidate read the invocation they are asked to
+  approve. It filters on `exists(approval_task, id in ^task_ids)` rather than on the `approval_task_id` column, because
+  the engine creates the task after the row is inserted and writing the id back would cost a second audited write;
+  `approval_task_id` is recorded when the decision is applied.
+- **Tests.** `approval_binding_test.exs` (durability tier) and, for the ash_agent ↔ ash_bpmn seam on the battery's own
+  instantiation, `battery/test/base_integration/invocation_approval_test.exs`.
 
 ## Amendment, 2026-10-29 — the coding-agent bridge
 

@@ -95,7 +95,9 @@ defmodule AshEnterprise.Platform.DemoData do
     }
   end
 
-  defp root_business_unit!(tenant, actor) do
+  @doc "The tenant's root business unit."
+  @spec root_business_unit!(Ash.UUID.t(), term()) :: Accounts.BusinessUnit.t()
+  def root_business_unit!(tenant, actor) do
     Accounts.BusinessUnit
     |> Ash.Query.filter(is_nil(parent_business_unit_id))
     |> Ash.read_one!(actor: actor, tenant: tenant)
@@ -137,24 +139,32 @@ defmodule AshEnterprise.Platform.DemoData do
   # the endpoint that `mix ash_enterprise.demo` does not start.
   defp create_people(units, root, tenant) do
     Enum.map(@people, fn {email, unit_name} ->
-      unit = Map.get(units, unit_name, root)
-
-      existing =
-        Accounts.User
-        |> Ash.Query.filter(email == ^email)
-        |> Ash.read_one!(authorize?: false)
-
-      user = existing || Seeder.provision_user!(email, @password)
-
-      user
-      |> Ash.Changeset.for_update(
-        :assign_to_business_unit,
-        %{owning_business_unit_id: unit.id},
-        authorize?: false
-      )
-      |> Ash.update!()
-      |> Map.put(:organization_id, tenant)
+      ensure_user!(email, Map.get(units, unit_name, root), tenant)
     end)
+  end
+
+  @doc """
+  A demo person who can sign in with the demo password, placed in `unit`: provisioned
+  the first time, found by email after that. Shared with the other demo seeds
+  (`AshEnterprise.Credentialing.DemoData`).
+  """
+  @spec ensure_user!(String.t(), Accounts.BusinessUnit.t(), Ash.UUID.t()) :: Accounts.User.t()
+  def ensure_user!(email, unit, tenant) do
+    existing =
+      Accounts.User
+      |> Ash.Query.filter(email == ^email)
+      |> Ash.read_one!(authorize?: false)
+
+    user = existing || Seeder.provision_user!(email, @password)
+
+    user
+    |> Ash.Changeset.for_update(
+      :assign_to_business_unit,
+      %{owning_business_unit_id: unit.id},
+      authorize?: false
+    )
+    |> Ash.update!()
+    |> Map.put(:organization_id, tenant)
   end
 
   defp create_teams(units, root, tenant, actor) do
@@ -203,7 +213,7 @@ defmodule AshEnterprise.Platform.DemoData do
       end)
 
     [
-      upsert_role(
+      ensure_role!(
         "Auditor",
         "Reads everything in the tenant and changes nothing.",
         reads,
@@ -212,7 +222,7 @@ defmodule AshEnterprise.Platform.DemoData do
         tenant,
         actor
       ),
-      upsert_role(
+      ensure_role!(
         "Team lead",
         "Manages people and teams within their own business unit and below.",
         people_writes,
@@ -221,7 +231,7 @@ defmodule AshEnterprise.Platform.DemoData do
         tenant,
         actor
       ),
-      upsert_role(
+      ensure_role!(
         "Support desk",
         "Reads people and teams in their own business unit only.",
         Enum.filter(people_writes, &(&1.access_right == :read)),
@@ -233,7 +243,20 @@ defmodule AshEnterprise.Platform.DemoData do
     ]
   end
 
-  defp upsert_role(name, description, privileges, depth, root, tenant, actor) do
+  @doc """
+  A demo role, found by name or created with a grant on each of `privileges` at
+  `depth`. A role that would have no grant raises. Shared with the other demo seeds.
+  """
+  @spec ensure_role!(
+          String.t(),
+          String.t(),
+          [Security.Privilege.t()],
+          atom(),
+          Accounts.BusinessUnit.t(),
+          Ash.UUID.t(),
+          term()
+        ) :: Security.Role.t()
+  def ensure_role!(name, description, privileges, depth, root, tenant, actor) do
     existing =
       Security.Role
       |> Ash.Query.filter(name == ^name)
@@ -309,22 +332,34 @@ defmodule AshEnterprise.Platform.DemoData do
     ]
 
     for {user, role, unit} <- pairs, user && unit do
-      existing =
-        Security.UserRole
-        |> Ash.Query.filter(user_id == ^user.id and role_id == ^role.id)
-        |> Ash.read_one!(actor: actor, tenant: tenant)
-
-      existing ||
-        Security.UserRole
-        |> Ash.Changeset.for_create(
-          :assign,
-          %{user_id: user.id, role_id: role.id, scoping_business_unit_id: unit.id},
-          actor: actor,
-          tenant: tenant
-        )
-        |> Ash.create!()
+      ensure_user_role!(user, role, unit, tenant, actor)
     end
 
     :ok
+  end
+
+  @doc "Assigns `role` to `user`, scoped to `unit`, unless they already hold it."
+  @spec ensure_user_role!(
+          Accounts.User.t(),
+          Security.Role.t(),
+          Accounts.BusinessUnit.t(),
+          Ash.UUID.t(),
+          term()
+        ) :: Security.UserRole.t()
+  def ensure_user_role!(user, role, unit, tenant, actor) do
+    existing =
+      Security.UserRole
+      |> Ash.Query.filter(user_id == ^user.id and role_id == ^role.id)
+      |> Ash.read_one!(actor: actor, tenant: tenant)
+
+    existing ||
+      Security.UserRole
+      |> Ash.Changeset.for_create(
+        :assign,
+        %{user_id: user.id, role_id: role.id, scoping_business_unit_id: unit.id},
+        actor: actor,
+        tenant: tenant
+      )
+      |> Ash.create!()
   end
 end

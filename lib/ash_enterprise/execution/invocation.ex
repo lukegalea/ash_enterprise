@@ -6,9 +6,9 @@ defmodule AshEnterprise.Execution.Invocation do
   ## What the fragment brings
 
   The attributes, the lifecycle (`requested → awaiting_approval → ready → executing →
-  succeeded | failed`, plus `rejected`, `stale`, `cancelled`; terminal states never
-  change) and the actions: `invoke`, `request`, `claim`, `succeed`, `fail`,
-  `apply_decision`, `request_cancel` and `execute`. See the fragment's docs.
+  (dispatched) → succeeded | failed | outcome_unknown`, plus `rejected`, `stale`,
+  `cancelled`), the actions, typed failure and reconciliation. See the fragment's docs,
+  `AshAgent.Invocation.Executor` and `AshAgent.Invocation.Reconciler`.
 
   ## What this resource adds
 
@@ -19,9 +19,10 @@ defmodule AshEnterprise.Execution.Invocation do
       lifecycle (`lifecycle?: false`, spike S9).
     * **Who may do what.** `invoke` and `request` are self-service (ADR 0052): any active
       member may ask on their own behalf, and `request` creates only rows they own.
-      `claim`, `succeed`, `fail`, `apply_decision` and `execute` are machinery-only (ADR
-      0059): only the `oban` system actor reaches them, and no grant does. Reads and
-      `request_cancel` go through the grant union.
+      Every action the job runner drives (`claim`, the completions, `apply_decision`,
+      `requeue`, the resolution actions, `execute`, `reconcile`) is machinery-only (ADR
+      0059): only the `oban` system actor reaches them, and no grant does. Reads,
+      `request_cancel` and `retry` go through the grant union.
     * **The parent.** A request may name only a parent its requester owns
       (`AshEnterprise.Execution.Validations.OwnsParent`), so calling `request` directly
       gains nothing over `invoke`.
@@ -34,10 +35,37 @@ defmodule AshEnterprise.Execution.Invocation do
     * **Identity.** `AshEnterprise.Execution.Identity` names the principal (a person, or
       an automation principal acting for one, ADR 0043) and rebuilds its `ActorContext`
       from grant rows at every claim.
+    * **Approvals.** A target whose declaration asks for one waits in
+      `awaiting_approval` on a standalone task, `invocation.approval`, opened by
+      `request` (`AshEnterprise.Execution.Changes.RequestApproval`) for the holders of
+      the declaration's `approver_role` (under four eyes, not the requester) and decided
+      through the existing `HumanTask.approve` and `reject` doors, which only a person
+      may run. The `:apply_decision` trigger applies the decision
+      (`AshEnterprise.Execution.Changes.ReadApproval`); never `on_complete`. The
+      fragment binds the approval to the request (`authorization_details`,
+      `approval_digest`, `approval_expires_at`) and finds the row `stale` when the
+      subject, the target or the clock has moved on; every claim also re-checks that
+      the approver still may approve (`AshEnterprise.Execution.Changes.RecheckApprover`).
+      See `AshEnterprise.Execution.Approval`. Being asked to approve a row lets a person
+      read it (`AshEnterprise.Security.Checks.InvocationApprovalCandidacy`).
     * **The `:execute` trigger.** `request` and `apply_decision` enqueue it for every
       ready row in their own transaction; its scheduler sweeps any ready row whose job
       was lost. It takes the tenant from the row, persists no actor, and runs a generic
       action that holds no transaction (spike S5).
+    * **The `:reconcile` trigger.** Settles a row whose worker died (its lease expired),
+      whose dispatch deadline passed, or whose outcome is unknown: an internal or
+      idempotent target is re-readied; any other outside target's row becomes
+      `outcome_unknown`, is looked up through its `reconcile_with` action, and otherwise
+      waits for a person.
+    * **Resolution by a person.** `request_resolution` opens a standalone task,
+      `invocation.resolution`, for the tenant's administrators
+      (`AshEnterprise.Execution.Changes.OpenResolutionTask`). They decide it through
+      `HumanTask.resolve` with `succeeded`, `failed` or `retry`
+      (`AshEnterprise.Execution.Resolution`), and the `:apply_resolution` trigger applies
+      the decision (`AshEnterprise.Execution.Changes.ReadResolution`). Never
+      `on_complete`.
+    * **Failure classes for the provider edge.** `AshEnterprise.Integration.ProxyError`
+      implements `AshAgent.FailureClass` (`AshEnterprise.Execution.ProxyFailure`).
   """
 
   use AshEnterprise.Platform.Resource,
@@ -46,7 +74,22 @@ defmodule AshEnterprise.Execution.Invocation do
     lifecycle?: false,
     archival?: false,
     self_service: [:invoke, :request],
-    machinery_only: [:claim, :succeed, :fail, :apply_decision, :execute],
+    machinery_only: [
+      :claim,
+      :succeed,
+      :fail,
+      :defer,
+      :dispatch,
+      :mark_outcome_unknown,
+      :requeue,
+      :complete_external,
+      :request_resolution,
+      :apply_resolution,
+      :apply_decision,
+      :execute,
+      :reconcile
+    ],
+    extra_grants: [AshEnterprise.Security.Checks.InvocationApprovalCandidacy],
     extra_extensions: [AshCloak, AshOban],
     fragments: [AshAgent.Invocation]
 
@@ -83,6 +126,15 @@ defmodule AshEnterprise.Execution.Invocation do
       on: [:create, :update]
 
     change AshEnterprise.Execution.Changes.HandoffFaultPoints, on: [:create]
+
+    change AshEnterprise.Execution.Changes.RequestApproval, where: [action_is(:request)]
+    change AshEnterprise.Execution.Changes.ReadApproval, where: [action_is(:apply_decision)]
+    change AshEnterprise.Execution.Changes.RecheckApprover, where: [action_is(:claim)]
+
+    change AshEnterprise.Execution.Changes.OpenResolutionTask,
+      where: [action_is(:request_resolution)]
+
+    change AshEnterprise.Execution.Changes.ReadResolution, where: [action_is(:apply_resolution)]
   end
 
   validations do
@@ -110,6 +162,77 @@ defmodule AshEnterprise.Execution.Invocation do
         worker_module_name AshEnterprise.Execution.Invocation.ExecuteWorker
         scheduler_module_name AshEnterprise.Execution.Invocation.ExecuteScheduler
       end
+
+      # A person decided the row's approval, or it expired undecided: apply it. The
+      # sweep is the only path, so a crash between the decision and its application
+      # heals on the next run. The update keeps ash_oban's default lock on the row.
+      trigger :apply_decision do
+        action :apply_decision
+
+        where expr(
+                status == :awaiting_approval and
+                  (exists(approval_task, status in [:completed, :cancelled]) or
+                     approval_expires_at <= now())
+              )
+
+        read_action :read
+        stream_with :full_read
+        queue :execution
+        scheduler_cron "* * * * *"
+        max_attempts 3
+        use_tenant_from_record? true
+        actor_persister :none
+        default_actor AshEnterprise.Platform.SystemActor.oban()
+        worker_module_name AshEnterprise.Execution.Invocation.ApplyDecisionWorker
+        scheduler_module_name AshEnterprise.Execution.Invocation.ApplyDecisionScheduler
+      end
+
+      # Rows no job is coming for: a worker died holding the lease, a dispatch deadline
+      # passed, or the outcome is unknown and nobody has been asked yet.
+      # `mark_outcome_unknown` enqueues it in its own transaction; the scheduler is the
+      # sweep for the other two, which nothing enqueues. The action calls out (a
+      # `reconcile_with` lookup), so it holds no transaction.
+      trigger :reconcile do
+        action :reconcile
+
+        where expr(
+                (status == :executing and lease_expires_at <= now()) or
+                  (status == :dispatched and deadline_at <= now()) or
+                  (status == :outcome_unknown and is_nil(resolution_requested_at))
+              )
+
+        read_action :read
+        stream_with :full_read
+        queue :execution
+        scheduler_cron "* * * * *"
+        max_attempts 3
+        use_tenant_from_record? true
+        actor_persister :none
+        default_actor AshEnterprise.Platform.SystemActor.oban()
+        worker_module_name AshEnterprise.Execution.Invocation.ReconcileWorker
+        scheduler_module_name AshEnterprise.Execution.Invocation.ReconcileScheduler
+      end
+
+      # A person settled an unknown outcome: apply it. The sweep is the only path, so a
+      # crash between the task's decision and its application heals on the next run.
+      trigger :apply_resolution do
+        action :apply_resolution
+
+        where expr(
+                status == :outcome_unknown and not is_nil(resolution_requested_at) and
+                  exists(resolution_task, status == :completed)
+              )
+
+        read_action :read
+        queue :execution
+        scheduler_cron "* * * * *"
+        max_attempts 3
+        use_tenant_from_record? true
+        actor_persister :none
+        default_actor AshEnterprise.Platform.SystemActor.oban()
+        worker_module_name AshEnterprise.Execution.Invocation.ApplyResolutionWorker
+        scheduler_module_name AshEnterprise.Execution.Invocation.ApplyResolutionScheduler
+      end
     end
   end
 
@@ -117,6 +240,38 @@ defmodule AshEnterprise.Execution.Invocation do
     belongs_to :erasure_scope, AshEnterprise.Erasure.Scope do
       public? true
       description "The erasure scope `args` and `result` are sealed under."
+    end
+
+    # The approval task `request` opened, under the static key: one per row.
+    has_one :approval_task, AshEnterprise.Bpmn.HumanTask do
+      public? true
+      from_many? true
+      destination_attribute :subject_id
+      sort inserted_at: :desc
+
+      filter expr(
+               node_id == "invocation.approval" and
+                 subject_type == "Elixir.AshEnterprise.Execution.Invocation"
+             )
+
+      description "The task a person approves or rejects this row with."
+    end
+
+    # The task opened by the latest `request_resolution`. A retried row that becomes
+    # unknown again asks again, and only the task opened since then counts.
+    has_one :resolution_task, AshEnterprise.Bpmn.HumanTask do
+      public? true
+      from_many? true
+      destination_attribute :subject_id
+      sort inserted_at: :desc
+
+      filter expr(
+               node_id == "invocation.resolution" and
+                 subject_type == "Elixir.AshEnterprise.Execution.Invocation" and
+                 inserted_at >= parent(resolution_requested_at)
+             )
+
+      description "The task a person settles this row's unknown outcome with."
     end
   end
 end

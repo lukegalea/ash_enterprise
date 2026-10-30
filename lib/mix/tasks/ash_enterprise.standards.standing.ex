@@ -124,5 +124,6 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Standing) do
     defp outcome({:ok, %{band: band}}), do: %{band: band}
     defp outcome({:refusal, refusal}), do: %{refusal: refusal.reason}
     defp outcome({:error, error}), do: %{error: Exception.message(Ash.Error.to_ash_error(error))}
+    defp outcome({:skipped, reason}), do: %{skipped: reason}
   end
 end

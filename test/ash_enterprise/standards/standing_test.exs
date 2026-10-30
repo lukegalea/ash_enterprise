@@ -121,6 +121,24 @@ defmodule AshEnterprise.Standards.StandingTest do
              ]
     end
 
+    test "a candidate is found however many other units sort before it", %{
+      root: root,
+      opts: opts
+    } do
+      # More units than the facts query's default cap (100), all sorting
+      # before the check module and none of them candidates.
+      filler = Enum.map_join(1..150, "\n", &"  def f#{&1}(x), do: x")
+      write!(root, "lib/aaa/filler.ex", "defmodule Aaa.Filler do\n#{filler}\nend\n")
+
+      assert %{policy_check_never_queries: pending} =
+               Standing.assess(root, Keyword.put(opts, :questions, [:policy_check_never_queries]))
+
+      assert pending |> Enum.map(fn {s, _} -> s.name_path end) |> Enum.sort() == [
+               "Demo.TeamCheck.describe/1",
+               "Demo.TeamCheck.match?/3"
+             ]
+    end
+
     test "a family with no published band table admits nothing", %{
       root: root,
       tenant: tenant,
@@ -140,6 +158,135 @@ defmodule AshEnterprise.Standards.StandingTest do
       assert {:error, _reason} = result.result
       assert facts(result.subject_id) == []
       assert [{_unit, {:unknown, _}}] = Standing.statuses(root, :hs6_no_novelty_claims, opts)
+    end
+  end
+
+  describe "units too large to judge" do
+    test "are reported as :context_too_large, never judged, and read unknown", %{
+      root: root,
+      tenant: tenant,
+      opts: opts
+    } do
+      write!(root, "lib/demo_web/live/big_live.ex", big_live())
+
+      pending = Standing.assess(root, opts)
+
+      assert {big, :context_too_large} =
+               Enum.find(pending.handle_event_authorizes, fn {s, _} ->
+                 s.path == "lib/demo_web/live/big_live.ex"
+               end)
+
+      assert big.name_path == "DemoWeb.BigLive.handle_event/3"
+      refute big.id =~ "~chunk"
+
+      # :limit counts judgeable units only.
+      limited = Standing.assess(root, Keyword.put(opts, :limit, 1))
+
+      assert limited.handle_event_authorizes
+             |> Enum.map(fn {s, reason} -> {s.name_path, reason} end)
+             |> Enum.sort() == [
+               {"DemoWeb.BigLive.handle_event/3", :context_too_large},
+               {"DemoWeb.PageLive.handle_event/3", :no_fact}
+             ]
+
+      results = Standing.run(root, run_opts(opts, tenant))
+
+      assert [skipped] = Enum.filter(results, &(&1.subject_id == big.id))
+      assert skipped.result == {:skipped, :context_too_large}
+      assert skipped.reason == :context_too_large
+      assert skipped.observation_id == nil
+
+      # The four judgeable units are judged; the oversized one is not.
+      assert length(results) == 5
+      assert FakeReqLLM.calls() == 4
+
+      rows = Ash.read!(Judgment, tenant: tenant, authorize?: false)
+      assert length(rows) == 4
+      assert facts(big.id) == []
+
+      assert {_unit, {:unknown, [:context_too_large]}} =
+               root
+               |> Standing.statuses(:handle_event_authorizes, opts)
+               |> Enum.find(fn {unit, _} -> unit.id == big.id end)
+    end
+
+    test "standing --dry-run lists them with their reason", %{root: root, opts: opts} do
+      write!(root, "lib/demo_web/live/big_live.ex", big_live())
+
+      output =
+        capture_io(fn ->
+          Mix.Tasks.AshEnterprise.Standards.Standing.run([
+            root,
+            "--dry-run",
+            "--repository",
+            opts[:repository],
+            "--question",
+            "handle_event_authorizes"
+          ])
+        end)
+
+      assert %{"pending" => %{"handle_event_authorizes" => pending}} = Jason.decode!(output)
+      assert pending["count"] == 2
+
+      assert %{
+               "location" => "lib/demo_web/live/big_live.ex:" <> _,
+               "reason" => "context_too_large"
+             } =
+               Enum.find(pending["units"], &(&1["reason"] == "context_too_large"))
+
+      assert FakeReqLLM.calls() == 0
+    end
+
+    test "the review reports a touched one as unknown, never judged or admitted", %{
+      root: root,
+      opts: opts
+    } do
+      source = big_live()
+      write!(root, "lib/demo_web/live/big_live.ex", source)
+
+      diff = added_diff("lib/demo_web/live/big_live.ex", source)
+      review = Review.review(root, diff, Keyword.take(opts, [:repository, :questions]))
+
+      assert [finding] = review.advisory
+      assert finding.standard == "std-law-11-authorize-handle-event"
+      assert finding.location =~ "lib/demo_web/live/big_live.ex:"
+      assert finding.status == {:unknown, :context_too_large}
+      refute finding.admitted?
+
+      assert review.markdown =~
+               "std-law-11-authorize-handle-event: unknown (:context_too_large)"
+
+      assert FakeReqLLM.calls() == 0
+    end
+  end
+
+  describe "this checkout" do
+    # One question per code projection, two of them ADR 0038's. Each takes
+    # about 5 s over this checkout; a question asked about every doc
+    # paragraph or every commented function takes over 15 s, so the full
+    # run belongs to `standing --dry-run`.
+    @self_questions [
+      :policy_check_calls_no_model,
+      :actor_context_build_calls_no_model,
+      :third_party_api_wrapped
+    ]
+
+    @tag timeout: 120_000
+    test "assess over the real code completes, with no model call" do
+      root = Path.expand("../../..", __DIR__)
+      repository = "standards-self-#{System.unique_integer([:positive])}"
+
+      pending = Standing.assess(root, repository: repository, questions: @self_questions)
+
+      assert pending |> Map.keys() |> Enum.sort() == Enum.sort(@self_questions)
+
+      for {_name, units} <- pending, {_subject, reason} <- units do
+        assert reason in [:no_fact, :context_too_large]
+      end
+
+      assert pending.policy_check_calls_no_model != []
+      assert pending.actor_context_build_calls_no_model != []
+      assert FakeReqLLM.calls() == 0
     end
   end
 
@@ -338,6 +485,24 @@ defmodule AshEnterprise.Standards.StandingTest do
 
     write!(root, "docs/guide.md", guide("It is a groundbreaking approach."))
     root
+  end
+
+  # A LiveView whose module header alone (its alias lines) is larger than
+  # the default 7,168-token budget: its handle_event/3 cannot be chunked.
+  defp big_live do
+    aliases =
+      Enum.map_join(1..600, "\n", fn n ->
+        "  alias DemoWeb.Components.Generated.Widget#{n}.Implementation, as: W#{n}"
+      end)
+
+    """
+    defmodule DemoWeb.BigLive do
+      use DemoWeb, :live_view
+    #{aliases}
+
+      def handle_event("go", _params, socket), do: {:noreply, socket}
+    end
+    """
   end
 
   defp team_check(body) do

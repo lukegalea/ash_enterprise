@@ -13,8 +13,10 @@ defmodule Mix.Tasks.AshEnterprise.Demo do
 
   This adds a three-division tree (one of them two deep), nine people spread
   unevenly across it, three teams, and three roles that differ in grant *depth*
-  rather than only in name. Everything is created through the application's own
-  actions, and it is idempotent by name, so re-running it changes nothing.
+  rather than only in name; and a synthetic clinic whose credentials wait to be
+  activated through a governed invocation (`AshEnterprise.Credentialing.DemoData`).
+  Everything is created through the application's own actions, and it is
+  idempotent by name, so re-running it changes nothing.
 
   Run `mix ash_enterprise.seed` first — this needs a tenant to populate, and
   fails with that instruction if it does not find one.
@@ -38,6 +40,7 @@ defmodule Mix.Tasks.AshEnterprise.Demo do
     organization = organization!(opts[:organization])
 
     counts = AshEnterprise.Platform.DemoData.populate(organization.id)
+    clinic = AshEnterprise.Credentialing.DemoData.populate(organization.id)
 
     admin =
       AshEnterprise.Accounts.User
@@ -59,6 +62,11 @@ defmodule Mix.Tasks.AshEnterprise.Demo do
       people          #{counts.users}
       teams           #{counts.teams}
       roles           #{counts.roles}
+
+    Clinic credentialing (password1234):
+      #{clinic.clinic.name}: #{length(clinic.clinicians)} clinicians, #{length(clinic.credentials)} credentials to activate
+      coordinator     #{clinic.coordinator.email}
+      committee       #{Enum.map_join(clinic.committee, ", ", &to_string(&1.email))}
     """)
 
     if mdm do

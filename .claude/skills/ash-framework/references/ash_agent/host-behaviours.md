@@ -28,6 +28,23 @@ The package calls these instead of reading your actors, grants or keys. Name you
 6. The row's `delegation` column holds the principal in RFC 8693's `act` shape
    (`AshAgent.ExecutionIdentity.delegation/1`), for readers outside the package. It is informational.
 
+## `AshAgent.FailureClass` (a protocol)
+
+```elixir
+defimpl AshAgent.FailureClass, for: MyClinic.Gateway.Error do
+  def classify(%{reason: :rate_limited}), do: {:transient, "rate_limited"}
+  def classify(%{reason: :timeout}), do: {:indeterminate, "timeout"}
+  def classify(%{reason: reason}), do: {:permanent, to_string(reason)}
+end
+```
+
+1. Implement it for each error type of yours that a target can return. Unimplemented, an error is classified by the
+   Ash error it is wrapped in: forbidden is `:denied`, invalid is `:rejected`, anything else `:permanent`.
+2. Return `:transient` only when the call certainly did not take effect (refused before it was processed, such as a
+   rate limit). A timeout or a dropped connection after sending is `:indeterminate`: the effect may have happened.
+3. The code is stored in `error_code` and shown to operators; keep it short and stable, never a message with data in
+   it.
+
 ## `AshAgent.DigestKey`
 
 ```elixir

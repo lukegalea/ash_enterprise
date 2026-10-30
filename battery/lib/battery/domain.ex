@@ -46,6 +46,12 @@ defmodule Battery.Domain do
     resource Battery.Compliance.Applicant
     resource Battery.Compliance.ScheduledActivation
 
+    # Governed invocations (the ash_agent fragment), their target and the people who
+    # ask and approve.
+    resource Battery.Execution.Member
+    resource Battery.Execution.Referral
+    resource Battery.Execution.Invocation
+
     # MDM (ash_mdm resource macros + a golden entity).
     resource Battery.Mdm.Vendor
     resource Battery.Mdm.Mapping

@@ -52,8 +52,11 @@ defmodule AshEnterprise.Bpmn.HumanTask do
       # for that task before writing anything.
       extra_grants: [
         {AshEnterprise.Security.Checks.TaskCandidacy,
-         acts: [:claim_task, :complete_task, :delegate_task, :approve, :reject]}
+         acts: [:claim_task, :complete_task, :delegate_task, :approve, :reject, :resolve]}
       ],
+      # Deciding is a person's act (ADR 0055, "Approval binding"): neither engine
+      # bypass nor a system actor reaches these doors; a candidate's grant does.
+      human_only: [:approve, :reject, :resolve],
       extra_extensions: [AshAgent.Effects]
     ]
 
@@ -230,6 +233,25 @@ defmodule AshEnterprise.Bpmn.HumanTask do
       argument :comment, :string, allow_nil?: true, constraints: [max_length: 2000]
       run {AshEnterprise.Bpmn.Actions.DecideTask, outcome: "rejected"}
     end
+
+    action :resolve, :string do
+      description """
+      Settle an invocation whose outcome is unknown: it `succeeded`, it `failed`, or
+      `retry` it. Only a resolution task (`AshEnterprise.Execution.Resolution`) is
+      resolved, and a resolution task is decided only here.
+      """
+
+      argument :record_id, :uuid, allow_nil?: false
+
+      # A picker on the board (an enumerated argument is a ChoicePicker), of
+      # exactly the three outcomes a resolution task has.
+      argument :outcome, :atom,
+        allow_nil?: false,
+        constraints: [one_of: [:succeeded, :failed, :retry]]
+
+      argument :comment, :string, allow_nil?: true, constraints: [max_length: 2000]
+      run {AshEnterprise.Bpmn.Actions.DecideTask, outcome: :from_argument}
+    end
   end
 
   # A decision through ACP or a surface asks first (ADR 0057): the person
@@ -238,5 +260,6 @@ defmodule AshEnterprise.Bpmn.HumanTask do
   effects do
     action :approve, kind: :execute, open_world?: false, approval: :confirm, intent: :approve
     action :reject, kind: :execute, open_world?: false, approval: :confirm, intent: :approve
+    action :resolve, kind: :execute, open_world?: false, approval: :confirm, intent: :approve
   end
 end
