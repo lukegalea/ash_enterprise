@@ -1,127 +1,151 @@
 {
-  "judgment:v0:AshEnterprise.Canonical.Task#judgments/task_actionable": {
-    "hash": "sha256:01faed99f22ca70a9a295d9d7a20c90ace35ee7cd2153e63ed5545a9988e5c06",
-    "version": 1
+  "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/handle_event_authorizes": {
+    "hash": "sha256:d2bda0fc71062e2d386f026579817609cf3f516037529e7c57bf9eb01a2889bf",
+    "version": 2
   },
-  "judgment:v0:AshEnterprise.Licences.Dependency#judgments/package_is_public_domain_dedication": {
-    "hash": "sha256:a5f5b38e52054e84c564ac78dbee34351e35cb3a577f3a7e3b0c577b834ca4b5",
-    "version": 1
-  },
-  "judgment:v0:AshEnterprise.Licences.Dependency#judgments/package_licence_declaration_invalid": {
-    "hash": "sha256:9dfacf32b6a3db08391f87c63cda6ab903b6af33c36d666a8a3585fda848fcc5",
-    "version": 1
-  },
-  "judgment:v0:AshEnterprise.Licences.Dependency#judgments/package_licence_has_use_restrictions": {
-    "hash": "sha256:de54e770717cf718ec9d1e3729a1a890279e73e878f9137286d7aa01114892b1",
+  "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/feel_or_dmn_evaluation_calls_no_model": {
+    "hash": "sha256:61c7648229addd924fb490bd3c54ddf0d5cf7b575301270e130c00d4ef37493d",
     "version": 1
   },
   "judgment:v0:AshEnterprise.Licences.Dependency#judgments/package_licence_is_network_copyleft": {
     "hash": "sha256:eeb1c6f4ff501261242bbf0ea68c257e36a3f2726b140d73a220278a79954d42",
     "version": 1
   },
-  "judgment:v0:AshEnterprise.Licences.Dependency#judgments/package_licence_is_permissive": {
-    "hash": "sha256:25f179d306cf6ab975032007d2387638625bed8b53a47a8be251f7172d5c151b",
-    "version": 1
-  },
-  "judgment:v0:AshEnterprise.Licences.Dependency#judgments/package_licence_is_strong_copyleft": {
-    "hash": "sha256:1d83d9380af21e126e322659f32531fc99c9217e6e42238a89ba99f1e7789262",
-    "version": 1
-  },
-  "judgment:v0:AshEnterprise.Licences.Dependency#judgments/package_licence_is_weak_copyleft": {
-    "hash": "sha256:c61fbf2972342f88bbaf2109e7565d5bdf93aaf26391bd16236bde181c9551ae",
-    "version": 1
-  },
-  "judgment:v0:AshEnterprise.Licences.Dependency#judgments/package_licence_requires_attribution": {
-    "hash": "sha256:b19805fea2d9d58d085212c9fc9e48036949c3d93d9cf7adce1b69c597543fa9",
-    "version": 1
-  },
-  "judgment:v0:AshEnterprise.Licences.Dependency#judgments/package_requires_notice_file": {
-    "hash": "sha256:545dfbec358bad82798173f18c435f28e67a380272a7e969986e68c4a3bfb285",
-    "version": 1
-  },
-  "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/association_query_strategy": {
-    "hash": "sha256:9b91409346c1f4e6e34b7cb6cd2d20912d47d5997a9d62ba4c7c422c3fa57397",
-    "version": 1
-  },
-  "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/comments_are_durable_facts_only": {
-    "hash": "sha256:65bf265c7fe5321bac8bb780cadc920e2b26ad45b2ba56b9da147b80530d9604",
-    "version": 1
-  },
-  "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/handle_event_authorizes": {
-    "hash": "sha256:893f7dad5f710eefd56dfe42824867374f90754b186886a1a8df963a51ee6458",
-    "version": 1
-  },
-  "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/hs1_lead_with_outcome_or_ask": {
-    "hash": "sha256:c25b82718ab051587ddaa170ac0cbc2f3020c8993ec34287c6f69e0512987e49",
-    "version": 1
-  },
-  "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/hs2_keep_it_short": {
-    "hash": "sha256:175db23a0508cd3695a7c829e179d5228ba22e409eac1e2d2e6cc57f590a53a1",
-    "version": 1
-  },
-  "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/hs3_use_plain_words": {
-    "hash": "sha256:9bfcf69cbff830ed62aa563bc0910d4407f710535598cb284d746ee8aff00cdd",
-    "version": 1
-  },
-  "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/hs4_claim_only_built_and_proven": {
-    "hash": "sha256:68ff1b03204990d38e2c3dacb5ee84f61b9444ff25bca48cfbf415272758766b",
-    "version": 1
-  },
-  "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/hs5_promise_only_agreed_to": {
-    "hash": "sha256:a517ae882167ad7c61b3ff05b19fbe33592dcaf2de480db9f147e4d8766feff8",
-    "version": 1
-  },
   "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/hs6_no_novelty_claims": {
-    "hash": "sha256:321fc41d05f78235b819bab78ba093b2b6ece1c51da39a5b5a85475b1d49cf0d",
-    "version": 1
+    "hash": "sha256:e1ab8042a0a98c61a8a6346488567814ad3f60693ef63bd59897033b4a6cfbec",
+    "version": 2
   },
-  "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/hs7_never_invent_name_feature_or_date": {
-    "hash": "sha256:095f22bf37199376fdb41bb287b30ed61f0c4a4fc6410605634f157fa4d041c1",
-    "version": 1
-  },
-  "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/hs8_no_internal_shorthand_for_outside": {
-    "hash": "sha256:142efbc4748028fa9130e68faa5036b7882d4f3e3efe594b69a67011a0aeee78",
-    "version": 1
-  },
-  "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/hs9_interface_copy_languages": {
-    "hash": "sha256:7bfce42ab1890ee8865c1e4d03caa1e580b4f4ded0c4c2aa2592390a9c8f8759",
-    "version": 1
-  },
-  "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/no_forbid_if_for_row_access": {
-    "hash": "sha256:ca81263bc294ef9bcb9c7cf014d2fc6a0ae05f315203e0a0d9a796af28285dd8",
-    "version": 1
-  },
-  "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/oban_args_string_keyed": {
-    "hash": "sha256:6ed530e476c6c336ea37e0e51c911c174b8e40386780c1b5e32cfa4ba38ee241",
-    "version": 1
-  },
-  "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/policy_check_never_queries": {
-    "hash": "sha256:ecc318c36fe4c2150857ae53c2c4e8966f9d41df90c6e0068302aa7b1e4f1ec0",
-    "version": 1
-  },
-  "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/stores_ids_not_structs": {
-    "hash": "sha256:5550af6d500e7852d5da3a579a9c095f54a9606c2b26365e338b4894099e6e18",
-    "version": 1
-  },
-  "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/third_party_api_wrapped": {
-    "hash": "sha256:8ffbed604881981fda9231cdd597617239301a766569aea278c5ff984fc84883",
-    "version": 1
-  },
-  "judgment:v0:AshEnterprise.SystemOne.TestSupport.EvidenceFile#judgments/document_contains": {
-    "hash": "sha256:c1f19a826e4c9d40c4dffae6019426007c6e48c1968a2ce81bf47d553acca30d",
-    "version": 1
-  },
-  "judgment:v0:AshEnterprise.SystemOne.TestSupport.EvidenceFile#judgments/document_localisation": {
-    "hash": "sha256:220ce9121779d94c4038babf909271fe4e0eaefe66e90ce348735524ab1f7007",
+  "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/rules_evaluation_makes_no_live_model_call": {
+    "hash": "sha256:4b5824d6e789722eb1bc51ac5c725df1bb98ea7b86373186aad26d1760816cbd",
     "version": 1
   },
   "judgment:v0:AshEnterprise.SystemOne.TestSupport.EvidenceFile#judgments/packet_supports": {
     "hash": "sha256:82038cf4c451480a3ec922caa555243fcbf97ce4b86cd250472dd002115f15b8",
     "version": 1
   },
+  "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/hs3_use_plain_words": {
+    "hash": "sha256:d69d389b36d1b1acf4d870f049af1a87f8314c6364836d3a0d46c6bf048b5561",
+    "version": 2
+  },
+  "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/comments_are_durable_facts_only": {
+    "hash": "sha256:74f23898847a75bb258b0e6df1156d0abe661505c9e9076199b09d1ce5f5f3c6",
+    "version": 2
+  },
+  "judgment:v0:AshEnterprise.Canonical.Task#judgments/task_actionable": {
+    "hash": "sha256:01faed99f22ca70a9a295d9d7a20c90ace35ee7cd2153e63ed5545a9988e5c06",
+    "version": 1
+  },
+  "judgment:v0:AshEnterprise.Licences.Dependency#judgments/package_requires_notice_file": {
+    "hash": "sha256:545dfbec358bad82798173f18c435f28e67a380272a7e969986e68c4a3bfb285",
+    "version": 1
+  },
+  "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/policy_check_never_queries": {
+    "hash": "sha256:c05f1b3a215968ccadc8a070b34526c0ae4cb14e62bfb1ca9c2f6a690d55dd46",
+    "version": 2
+  },
+  "judgment:v0:AshEnterprise.Licences.Dependency#judgments/package_licence_requires_attribution": {
+    "hash": "sha256:b19805fea2d9d58d085212c9fc9e48036949c3d93d9cf7adce1b69c597543fa9",
+    "version": 1
+  },
+  "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/hs8_no_internal_shorthand_for_outside": {
+    "hash": "sha256:c641c1a20c71e4d1ce864bf07d05e898a22adf987fb246727b14172a497d05aa",
+    "version": 2
+  },
+  "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/third_party_api_wrapped": {
+    "hash": "sha256:923ab0ed28caadf631416fe3aa6f3c0cf65ef317edf4473f2c57cd812133d6a6",
+    "version": 2
+  },
+  "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/actor_context_build_calls_no_model": {
+    "hash": "sha256:a04257f9c20affb9dee10e6194b2fed71322843cea9a4a8aabfe14b7f708e850",
+    "version": 1
+  },
+  "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/hs4_claim_only_built_and_proven": {
+    "hash": "sha256:1ed4184145ea916f5121d8ea7939532e97bb0ce7bb253cc424b7bbc6085fe197",
+    "version": 2
+  },
+  "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/hs9_interface_copy_languages": {
+    "hash": "sha256:30fb9ee53d534ff7be92272fb382b3365cf1d91337eda460ade3c45fc009ebea",
+    "version": 2
+  },
+  "judgment:v0:AshEnterprise.Licences.Dependency#judgments/package_licence_is_permissive": {
+    "hash": "sha256:25f179d306cf6ab975032007d2387638625bed8b53a47a8be251f7172d5c151b",
+    "version": 1
+  },
   "judgment:v0:AshEnterprise.SystemOne.TestSupport.Note#judgments/notes_follow_up": {
     "hash": "sha256:f0db7a5411aaeb6684c780a945153c888540dda9d912975bb2e5f16514f70da6",
     "version": 1
+  },
+  "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/calculation_calls_no_model": {
+    "hash": "sha256:f9e4dccb517378cd0757f17ce48a514e2656ff17950d2aecff4270e913e6e9f8",
+    "version": 1
+  },
+  "judgment:v0:AshEnterprise.SystemOne.TestSupport.EvidenceFile#judgments/document_contains": {
+    "hash": "sha256:c1f19a826e4c9d40c4dffae6019426007c6e48c1968a2ce81bf47d553acca30d",
+    "version": 1
+  },
+  "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/hs2_keep_it_short": {
+    "hash": "sha256:57bc3443d5ff0a1261728ac2eea9804fdd0faa351d58528adcc0e5f72af1c855",
+    "version": 2
+  },
+  "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/hs7_never_invent_name_feature_or_date": {
+    "hash": "sha256:1706b9df9ac316986ac68f75f96749e177766c5efee2141b0e024ec3c6f932aa",
+    "version": 2
+  },
+  "judgment:v0:AshEnterprise.Licences.Dependency#judgments/package_licence_declaration_invalid": {
+    "hash": "sha256:9dfacf32b6a3db08391f87c63cda6ab903b6af33c36d666a8a3585fda848fcc5",
+    "version": 1
+  },
+  "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/projector_calls_no_model": {
+    "hash": "sha256:7057e8fddb2e12efbd819f8244247ba8087adbd9057c1c3b4a4a87d66b25e776",
+    "version": 1
+  },
+  "judgment:v0:AshEnterprise.Licences.Dependency#judgments/package_licence_has_use_restrictions": {
+    "hash": "sha256:de54e770717cf718ec9d1e3729a1a890279e73e878f9137286d7aa01114892b1",
+    "version": 1
+  },
+  "judgment:v0:AshEnterprise.Licences.Dependency#judgments/package_licence_is_weak_copyleft": {
+    "hash": "sha256:c61fbf2972342f88bbaf2109e7565d5bdf93aaf26391bd16236bde181c9551ae",
+    "version": 1
+  },
+  "judgment:v0:AshEnterprise.Licences.Dependency#judgments/package_is_public_domain_dedication": {
+    "hash": "sha256:a5f5b38e52054e84c564ac78dbee34351e35cb3a577f3a7e3b0c577b834ca4b5",
+    "version": 1
+  },
+  "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/policy_check_calls_no_model": {
+    "hash": "sha256:3921b45dfd76a5ab2205f3044b8723cd0e35d59ff956c7bcb037053f373f5990",
+    "version": 1
+  },
+  "judgment:v0:AshEnterprise.Licences.Dependency#judgments/package_licence_is_strong_copyleft": {
+    "hash": "sha256:1d83d9380af21e126e322659f32531fc99c9217e6e42238a89ba99f1e7789262",
+    "version": 1
+  },
+  "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/stores_ids_not_structs": {
+    "hash": "sha256:67268cc3aba07ea2519a4d80c9296282b4a26cf082a55a5e3a8e727dafcc01f0",
+    "version": 2
+  },
+  "judgment:v0:AshEnterprise.SystemOne.TestSupport.EvidenceFile#judgments/document_localisation": {
+    "hash": "sha256:220ce9121779d94c4038babf909271fe4e0eaefe66e90ce348735524ab1f7007",
+    "version": 1
+  },
+  "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/association_query_strategy": {
+    "hash": "sha256:7b76cb3f53c9f33ea56c9dd2ae61be7b538dfa50ef393b4477118b8ea431dc8c",
+    "version": 2
+  },
+  "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/no_forbid_if_for_row_access": {
+    "hash": "sha256:2fae42a528fdfdec55e51a093c667e521f0fc205b2ee130eaeae4be8a0d9785f",
+    "version": 2
+  },
+  "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/hs1_lead_with_outcome_or_ask": {
+    "hash": "sha256:c97b657eff1bb73099097c61d2b96cb39acfd70c793222fb95dbee8a193b1fd9",
+    "version": 2
+  },
+  "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/hs5_promise_only_agreed_to": {
+    "hash": "sha256:39f8172200960d35963c64cfb1bdfbd4ba5125dc27a7c96e12a5d69a1ef4dd01",
+    "version": 2
+  },
+  "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/oban_args_string_keyed": {
+    "hash": "sha256:abf2e3cbefa27a0f47593d710b2e6498e41747c667deed12ac9a259ba48adb1f",
+    "version": 2
   },
   "judgment:v0:AshEnterprise.SystemOne.TestSupport.Standard#judgments/commit_message_imperative": {
     "hash": "sha256:1aa515ae7aa6be21aec5de0382ca9541f3f60533996d2bdfa8e912145fda74db",

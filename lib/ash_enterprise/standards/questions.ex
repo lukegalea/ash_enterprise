@@ -3,9 +3,10 @@
 if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Fragment) do
   defmodule AshEnterprise.Standards.Questions do
     @moduledoc """
-    The seventeen confirmed standards questions as data: the clause each one
-    asks about, where its standard is written, the projection it sees, the
-    unit kinds and paths it is asked over, and which answers are violations.
+    The twenty-three confirmed standards questions as data: the clause each
+    one asks about, where its standard is written, the projection it sees,
+    the unit kinds and paths it is asked over, and which answers are
+    violations.
 
     | Question | Clause | Projection |
     |---|---|---|
@@ -19,6 +20,17 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Fragment) do
     | `third_party_api_wrapped` | iron law 20 | `FacadeView` |
     | `hs1_…` to `hs8_…` | HOUSE-STYLE.md HS-1 to HS-8 | `Text` |
     | `hs9_interface_copy_languages` | HOUSE-STYLE.md HS-9 | `ModuleHeader` |
+    | `policy_check_calls_no_model` | ADR 0038, policy checks | `PolicyView` |
+    | `actor_context_build_calls_no_model` | ADR 0038, the ActorContext build | `ModuleHeader` |
+    | `feel_or_dmn_evaluation_calls_no_model` | ADR 0038, FEEL and DMN | `ModuleHeader` |
+    | `rules_evaluation_makes_no_live_model_call` | ADR 0038, ash_rules and guard-path fact builders | `ModuleHeader` |
+    | `projector_calls_no_model` | ADR 0038, projectors | `ModuleHeader` |
+    | `calculation_calls_no_model` | ADR 0038, calculations | `ModuleHeader` |
+
+    The six ADR 0038 questions each ask about one kind of component, and
+    `AshEnterprise.Standards.Candidates.component/1` decides which kind a
+    unit is. `calculation_calls_no_model` is advisory even by its own
+    standard: ADR 0038 says "avoid" for calculations, not "never".
 
     ## What a fact's `in` means
 
@@ -144,7 +156,32 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Fragment) do
                      violations: ["not_done"],
                      roll_up: :any
                    }
-                 ]
+                 ] ++
+                 (for {name, clause, component, projection, kinds} <- [
+                        {:policy_check_calls_no_model, "std-no-model-in-check", "policy checks",
+                         PolicyView, [:function, :dsl_entity]},
+                        {:actor_context_build_calls_no_model, "std-no-model-in-check",
+                         "the ActorContext build", ModuleHeader, [:function]},
+                        {:feel_or_dmn_evaluation_calls_no_model, "std-no-model-in-feel-or-rules",
+                         "FEEL and DMN evaluation", ModuleHeader, [:function]},
+                        {:rules_evaluation_makes_no_live_model_call,
+                         "std-no-model-in-feel-or-rules",
+                         "ash_rules evaluation and guard-path fact builders", ModuleHeader,
+                         [:function]},
+                        {:projector_calls_no_model, "std-no-model-in-projector",
+                         "projector handlers", ModuleHeader, [:function]},
+                        {:calculation_calls_no_model, "std-no-model-in-projector", "calculations",
+                         ModuleHeader, [:function]}
+                      ] do
+                    Map.merge(@noul, %{
+                      name: name,
+                      clause: clause,
+                      source: "ADR 0038, #{component}",
+                      projection: projection,
+                      kinds: kinds,
+                      paths: @code_paths
+                    })
+                  end)
 
     @by_name Map.new(@questions, &{&1.name, &1})
 
