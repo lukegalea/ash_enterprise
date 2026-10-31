@@ -6,7 +6,10 @@ defmodule AshEnterprise.SystemOne.BandTablePublication.CertifyAndPublish do
 
   1. Render the run's proposal (`AshJudgments.Calibration.ProposalDmn`)
      over the score inputs of the questions the run calibrated
-     (`score_inputs/1`).
+     (`score_inputs/1`), with the family's `low_band`
+     (`config :ash_judgments, :families`): when the run also earned a lower
+     threshold, the lowest range admits a confident no or drops it, and
+     only the range between the thresholds goes to review.
   2. Save it as the family's draft definition in the platform tenant,
      where the resolver finds band tables.
   3. Record the certification as the person, in their own tenant: the
@@ -40,6 +43,7 @@ defmodule AshEnterprise.SystemOne.BandTablePublication.CertifyAndPublish do
   alias AshEnterprise.SystemOne.Banding.Resolver
   alias AshEnterprise.SystemOne.BandTableCertification
   alias AshEnterprise.SystemOne.BandTablePublication
+  alias AshJudgments.Calibration.FamilyConfig
   alias AshJudgments.Calibration.ProposalDmn
 
   @impl true
@@ -122,7 +126,10 @@ defmodule AshEnterprise.SystemOne.BandTablePublication.CertifyAndPublish do
         )
 
       inputs ->
-        case ProposalDmn.render(proposal, score_input: inputs) do
+        case ProposalDmn.render(proposal,
+               score_input: inputs,
+               low_band: FamilyConfig.low_band(run.family)
+             ) do
           {:ok, xml} ->
             {:ok, xml}
 

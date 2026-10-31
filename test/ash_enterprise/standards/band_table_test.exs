@@ -29,11 +29,7 @@ defmodule AshEnterprise.Standards.BandTableTest do
     Correlation.start_new()
 
     # The family's policy data, shrunk for tests (law 5: config, not code).
-    Application.put_env(:ash_judgments, :families, %{
-      @family => %{min_n: 2, min_n_per_class: nil, alpha: 0.016, max_age_days: 90}
-    })
-
-    on_exit(fn -> Application.delete_env(:ash_judgments, :families) end)
+    put_family!(@family, %{min_n: 2, min_n_per_class: nil, alpha: 0.016, max_age_days: 90})
 
     %{org: Ash.UUID.generate(), person: person()}
   end
@@ -117,7 +113,122 @@ defmodule AshEnterprise.Standards.BandTableTest do
     refute reviewed.decision_evaluation_id == admitted.decision_evaluation_id
   end
 
-  defp band(ctx, name, p_true) do
+  test "an earned three-range table admits a confident yes as true and a confident no as false",
+       ctx do
+    publish_earned!(ctx, %{"threshold" => "0.9", "threshold_low" => "0.12"})
+
+    # The family's configured low band admits the confident no.
+    assert AshJudgments.Calibration.FamilyConfig.low_band(@family) == :admit_no
+
+    assert {:ok, %{band: :admit, banding: yes}} =
+             band(ctx, :hs1_lead_with_outcome_or_ask, 0.97, "yes")
+
+    assert yes.matched_rule_ids == ["rule_admit"]
+    assert yes.fact_value == true
+
+    assert {:ok, %{band: :review, banding: unsure}} =
+             band(ctx, :hs1_lead_with_outcome_or_ask, 0.5, "unsure")
+
+    assert unsure.matched_rule_ids == ["rule_review"]
+    assert unsure.fact_value == nil
+
+    assert {:ok, %{band: :admit, banding: no}} =
+             band(ctx, :hs1_lead_with_outcome_or_ask, 0.05, "no")
+
+    assert no.matched_rule_ids == ["rule_admit_no"]
+    assert no.reason_code == "conformal_low_threshold_met"
+    # A boolean, the same JSON kind a yes is stored as: not the string "false".
+    assert no.fact_value == false
+
+    # Both admissions are facts (one unit each); the review wrote none. The yes holds for a
+    # yes/no standard (holds_value true) and the no does not.
+    facts =
+      AshEnterprise.SystemOne.Fact
+      |> Ash.read!(tenant: ctx.org, authorize?: false)
+      |> Enum.map(&{&1.admission_id, &1.value, &1.holds})
+      |> Enum.sort()
+
+    assert facts == Enum.sort([{yes.id, true, true}, {no.id, false, false}])
+  end
+
+  test "an :omit low band drops a confident no: a banding, and no fact", ctx do
+    put_family!(@family, %{low_band: :omit})
+    publish_earned!(ctx, %{"threshold" => "0.9", "threshold_low" => "0.12"})
+
+    assert {:ok, %{band: :omit, banding: dropped}} =
+             band(ctx, :hs1_lead_with_outcome_or_ask, 0.05)
+
+    assert dropped.matched_rule_ids == ["rule_omit"]
+    assert dropped.fact_value == nil
+    assert [] = AshEnterprise.SystemOne.Fact |> Ash.read!(tenant: ctx.org, authorize?: false)
+
+    # This table has no `fact_value` output, so the admitted yes takes its
+    # value from the answer: a yes/no answer admitted on p_true is `true`.
+    assert {:ok, %{band: :admit, banding: yes}} =
+             band(ctx, :hs1_lead_with_outcome_or_ask, 0.97, "yes")
+
+    assert yes.matched_rule_ids == ["rule_admit"]
+    assert yes.fact_value == true
+
+    assert [fact] = AshEnterprise.SystemOne.Fact |> Ash.read!(tenant: ctx.org, authorize?: false)
+    assert {fact.admission_id, fact.value, fact.holds} == {yes.id, true, true}
+  end
+
+  # Records, renders (with the family's low band, as the certify act does),
+  # certifies and publishes an earned table for the family.
+  defp publish_earned!(ctx, thresholds) do
+    platform = AshEnterprise.Platform.Seeder.seed_platform_organization()
+    AshEnterprise.Process.Resolver.forget_platform_tenant()
+    key = Resolver.band_table_key(@family)
+
+    {:ok, run, {:proposed, proposal}} =
+      Calibration.record_run(%{run_attrs() | conformal_thresholds: %{"0.016" => thresholds}},
+        actor: SystemActor.process(),
+        tenant: ctx.org
+      )
+
+    {:ok, xml} =
+      ProposalDmn.render(proposal,
+        score_input: Questions.score_inputs(@family),
+        low_band: AshJudgments.Calibration.FamilyConfig.low_band(@family)
+      )
+
+    draft =
+      Definition.create!(%{key: key, name: key, xml: xml}, authorize?: false, tenant: platform.id)
+
+    certification =
+      BandTableCertification
+      |> Ash.Changeset.for_create(
+        :record,
+        %{
+          definition_key: key,
+          definition_version: to_string(draft.version),
+          content_hash: draft.content_hash,
+          family: @family,
+          calibration_run_id: run.id,
+          certified_by: to_string(ctx.person.email)
+        },
+        actor: ctx.person,
+        tenant: ctx.org
+      )
+      |> Ash.create!()
+
+    assert {:ok, %{status: :published}} =
+             BandTablePublication.publish(
+               %{
+                 family: @family,
+                 model_digest: run.model_digest,
+                 runtime_version: run.runtime_version,
+                 region: "ca"
+               },
+               certification,
+               run,
+               actor: SystemActor.process(),
+               tenant: platform.id
+             )
+  end
+
+  defp band(ctx, name, p_true, unit \\ "x") do
     question = Questions.declared(name)
     judgment = record!(tenant: ctx.org)
 
@@ -131,7 +242,10 @@ defmodule AshEnterprise.Standards.BandTableTest do
       ],
       family: @family,
       tenant: ctx.org,
-      subject: %{"type" => Standards.subject_type(), "id" => "ash_enterprise:lib/x.ex##{name}"},
+      subject: %{
+        "type" => Standards.subject_type(),
+        "id" => "ash_enterprise:lib/#{unit}.ex##{name}"
+      },
       predicate: question.question_id,
       holds_value: Questions.fetch!(name).holds_value
     )

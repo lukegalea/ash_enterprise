@@ -299,6 +299,34 @@ defmodule AshEnterprise.SystemOne.Support do
   alias AshJudgments.Registry.Canonical
 
   @doc """
+  Overrides one family's calibration policy (`config :ash_judgments,
+  :families`) for the calling test, over what config sets for it (so its
+  configured `low_band` stays), and restores the previous config when the
+  test exits.
+  """
+  def put_family!(family, overrides) do
+    previous = Application.fetch_env(:ash_judgments, :families)
+    families = Application.get_env(:ash_judgments, :families, %{})
+    name = to_string(family)
+
+    {same, others} = Enum.split_with(families, fn {key, _} -> to_string(key) == name end)
+    configured = Enum.reduce(same, %{}, fn {_key, config}, acc -> Map.merge(acc, config) end)
+
+    Application.put_env(
+      :ash_judgments,
+      :families,
+      others |> Map.new() |> Map.put(name, Map.merge(configured, overrides))
+    )
+
+    ExUnit.Callbacks.on_exit(fn ->
+      case previous do
+        {:ok, value} -> Application.put_env(:ash_judgments, :families, value)
+        :error -> Application.delete_env(:ash_judgments, :families)
+      end
+    end)
+  end
+
+  @doc """
   A valid `:record` input set on the fragment's field contract (RFC §5
   names; the package's `:record` accept list), with per-test overrides.
   """
@@ -335,7 +363,20 @@ defmodule AshEnterprise.SystemOne.Support do
   @doc "Records one observation as the system actor, under the given tenant."
   def record!(opts \\ []) do
     tenant = Keyword.get(opts, :tenant)
-    overrides = Keyword.take(opts, [:id, :state_ciphertext])
+
+    overrides =
+      Keyword.take(opts, [
+        :id,
+        :state_ciphertext,
+        :question_id,
+        :question_hash,
+        :question_version,
+        :family,
+        :subject_type,
+        :subject_id,
+        :state_digest,
+        :probabilities
+      ])
 
     Judgment
     |> Ash.Changeset.for_create(:record, observation_inputs(overrides),

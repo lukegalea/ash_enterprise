@@ -41,24 +41,26 @@ defmodule AshEnterprise.SystemOne.Banding do
   # The verdicts surface's contract (AshJudgments.A2ui.Verdicts, ADR 0061).
   actions do
     read :awaiting_verdict do
-      description "Bandings in the review band with no person's verdict for any of their observations."
+      description "Bandings in the review band with no person's verdict for any of their observations, one per subject, question and unchanged text."
 
-      filter expr(
-               band == :review and
-                 not exists(
-                   AshEnterprise.SystemOne.HumanVerdict,
-                   judgment_id in parent(observation_ids)
-                 )
-             )
+      # The package's filter: a banding is listed only when no earlier
+      # banding awaiting a verdict holds an observation with the same
+      # subject, question hash and state digest. `:record_verdict` settles
+      # the ones left out with the same verdict.
+      prepare {AshJudgments.HumanVerdict.AwaitingVerdict,
+               verdict_resource: AshEnterprise.SystemOne.HumanVerdict,
+               judgment_resource: AshEnterprise.SystemOne.Judgment}
 
       prepare build(sort: [banded_at: :asc])
     end
 
     action :record_verdict, :map do
-      description "A person's verdict on a review-banded judgment: one HumanVerdict per observation."
+      description "A person's verdict on a review-banded judgment: one HumanVerdict per observation, and the same verdict on every banding of the same subject, question and text."
       argument :record_id, :uuid, allow_nil?: false
-      argument :value, :string, allow_nil?: false
-      argument :reason, :string
+      # Every question this host bands is a yes/no question, so the prompt
+      # is a Yes/No picker.
+      argument :answer, :atom, allow_nil?: false, constraints: [one_of: [:yes, :no]]
+      argument :why, :string
 
       run {AshJudgments.HumanVerdict.FromBanding,
            verdict_resource: AshEnterprise.SystemOne.HumanVerdict,

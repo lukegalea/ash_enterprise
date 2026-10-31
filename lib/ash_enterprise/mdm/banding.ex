@@ -7,7 +7,9 @@ defmodule AshEnterprise.Mdm.Banding do
   `publish_seed_bands!/1` publishes the wide-review seed into a tenant
   (or the platform organization, which tenants then fork). Bands tighten
   only through the calibration loop, exactly like the System One band
-  tables; this module never reads a threshold.
+  tables; this module never reads a threshold. The seed and an earned
+  table read the same input, the score as a decimal string, so the score
+  goes in one way whichever is published.
 
   With `:banding_id` set to the candidate id, the evaluation is idempotent
   per candidate (System One's AC-4 posture).
@@ -17,6 +19,8 @@ defmodule AshEnterprise.Mdm.Banding do
 
   alias AshEnterprise.Decisions
   alias AshEnterprise.Decisions.Definition
+  alias AshEnterprise.Mdm.MatchObservation
+  alias AshJudgments.Calibration.ProposalDmn
 
   @definition_key "mdm:match_bands"
   @bands ~w(admit review omit)
@@ -28,53 +32,91 @@ defmodule AshEnterprise.Mdm.Banding do
 
   defp promote_band(_), do: nil
 
-  @doc "Publishes the wide-review seed table into `tenant` (idempotent per key+tenant)."
+  @doc """
+  Publishes the wide-review seed table into `tenant`, and returns the
+  published definition.
+
+  Idempotent: when the latest published `mdm:match_bands` is the current
+  seed, or a table calibration earned, it is returned unchanged. When it is
+  an older seed (one that declared the score a number, say), the current
+  seed is published as a new version: running instances never pin a
+  decision, so the next banding reads it. A table calibration earned is
+  never replaced by a seed. A pending draft raises: bands tighten through
+  calibration, not re-seeding.
+  """
   def publish_seed_bands!(tenant) do
     xml = seed_bands_xml()
 
-    existing =
-      Definition
-      |> Ash.Query.filter(key == ^@definition_key)
-      |> Ash.read_one!(tenant: tenant, authorize?: false)
-
-    case existing do
-      %{status: :published} = definition ->
-        definition
-
-      nil ->
-        definition =
-          Definition
-          |> Ash.Changeset.for_create(
-            :create,
-            %{key: @definition_key, name: "MDM match bands", xml: xml},
-            tenant: tenant,
-            authorize?: false
-          )
-          |> Ash.create!(tenant: tenant, authorize?: false)
-
-        if definition.errors in [nil, []] do
-          :ok
+    case latest_published(tenant) do
+      %Definition{} = published ->
+        if earned?(published) or same_xml?(published.xml, xml) do
+          published
         else
-          raise "mdm_match_bands did not compile: #{inspect(definition.errors)}"
+          publish_seed!(xml, tenant)
         end
 
-        Definition.publish!(definition, tenant: tenant, authorize?: false)
-
-      other ->
-        raise "mdm:match_bands exists in status #{other.status}; bands tighten via calibration, not re-seeding"
+      nil ->
+        publish_seed!(xml, tenant)
     end
   end
+
+  defp latest_published(tenant) do
+    Definition
+    |> Ash.Query.filter(key == ^@definition_key and status == :published)
+    |> Ash.Query.sort(version: :desc)
+    |> Ash.Query.limit(1)
+    |> Ash.read_one!(tenant: tenant, authorize?: false)
+  end
+
+  defp publish_seed!(xml, tenant) do
+    if draft?(tenant) do
+      raise "mdm:match_bands has an unpublished draft; bands tighten via calibration, not re-seeding"
+    end
+
+    definition =
+      Definition
+      |> Ash.Changeset.for_create(
+        :create,
+        %{key: @definition_key, name: "MDM match bands", xml: xml},
+        tenant: tenant,
+        authorize?: false
+      )
+      |> Ash.create!(tenant: tenant, authorize?: false)
+
+    if definition.errors not in [nil, []] do
+      raise "mdm_match_bands did not compile: #{inspect(definition.errors)}"
+    end
+
+    Definition.publish!(definition, tenant: tenant, authorize?: false)
+  end
+
+  defp draft?(tenant) do
+    Definition
+    |> Ash.Query.filter(key == ^@definition_key and status == :draft)
+    |> Ash.exists?(tenant: tenant, authorize?: false)
+  end
+
+  # A table the calibration loop earned is one `ProposalDmn` rendered: its
+  # thresholds read back. The seed's rules carry no earned threshold.
+  defp earned?(%Definition{xml: xml}), do: match?({:ok, _}, ProposalDmn.thresholds(xml))
+
+  # The definition stores its XML trimmed (Ash trims string attributes).
+  defp same_xml?(stored, xml), do: String.trim(stored) == String.trim(xml)
 
   @doc """
   Bands one match score. Returns `{:ok, band_atom}` where band ∈
   `admit | review | omit`, or `{:error, reason}` — an unevaluatable table
   is an error, never a silent admit.
+
+  The score goes in as the match question's yes probability,
+  `matches_the_golden__p_true`, as its decimal string: the input both the
+  seed and a table calibration earned read, through `number(...)`.
   """
   def band(score, tenant, opts \\ []) do
-    opts =
-      Keyword.merge(opts, tenant: tenant, record: true)
+    opts = Keyword.merge(opts, tenant: tenant, record: true)
 
-    with {:ok, result} <- evaluate(score, opts),
+    with {:ok, result} <-
+           Decisions.evaluate(@definition_key, %{score_input() => score_string(score)}, opts),
          # A single-output decision promotes: outputs may be the bare value
          # or a map keyed by the output name.
          band when band in @bands <- promote_band(result.outputs) do
@@ -85,25 +127,18 @@ defmodule AshEnterprise.Mdm.Banding do
     end
   end
 
-  # The seed table declares `score` a number. A table the calibration loop
-  # earned is rendered by `AshJudgments.Calibration.ProposalDmn`, which
-  # declares its score input a decimal string (the bridge's form) and
-  # compares `number(score)`; a number is a type error there. Both are
-  # published under the one key, so the score goes in as a number first and,
-  # when the published table is the earned one, as its decimal string.
-  defp evaluate(score, opts) do
-    case Decisions.evaluate(@definition_key, %{"score" => score}, opts) do
-      {:error, {:evaluation_failed, {:type_error, "string"}}} ->
-        Decisions.evaluate(@definition_key, %{"score" => score_string(score)}, opts)
+  @doc """
+  The input name the MDM band tables read: the match question's
+  `<question>__p_true`, the name `AshJudgments.Bridge.Dmn.inputs/2`
+  flattens its answer to, and so the one the certify act renders an earned
+  table over.
+  """
+  def score_input, do: "#{MatchObservation.question().name}__p_true"
 
-      other ->
-        other
-    end
-  end
-
-  defp score_string(%Decimal{} = score), do: Decimal.to_string(score)
+  defp score_string(%Decimal{} = score), do: Decimal.to_string(score, :normal)
   defp score_string(score) when is_float(score), do: Float.to_string(score)
-  defp score_string(score), do: to_string(score)
+  defp score_string(score) when is_integer(score), do: Integer.to_string(score)
+  defp score_string(score) when is_binary(score), do: score
 
   # Sobelow reads `@sobelow_skip` out of the source AST; persisting it keeps
   # `--warnings-as-errors` from calling it unused (see AshEnterprise.Audit.Export).
