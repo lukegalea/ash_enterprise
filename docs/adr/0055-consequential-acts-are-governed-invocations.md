@@ -79,8 +79,9 @@ re-reads and applies the same comparison.
 
 An action that is governed carries `AshAgent.Validations.Governed`. It refuses to run unless its context names an
 Invocation that it loads and finds `executing` at the given epoch, for this target, with an `args_digest` equal to the
-digest of the actual inputs and an actor equal to the rebuilt executing principal. A context the caller made up is not
-enough.
+digest of the actual inputs and an actor equal to the rebuilt executing principal, and unless the context carries the
+secret the executor was given at its claim, whose digest only the claim stores. A context the caller made up is not
+enough, even one written by the requester, who knows everything about the row but that secret.
 
 ### Three execution paths
 
@@ -300,6 +301,37 @@ the host's `AshAgent.Approvals` implementation and the apply-decision trigger.
   `approval_task_id` is recorded when the decision is applied.
 - **Tests.** `approval_binding_test.exs` (durability tier) and, for the ash_agent ↔ ash_bpmn seam on the battery's own
   instantiation, `battery/test/base_integration/invocation_approval_test.exs`.
+
+## Built, 2026-10-31: what an attempt may have done
+
+A review of Phase 1 found five ways a row could record an outcome the world does not bear out. Each was reproduced
+first, and each is now the package's (ash_agent `AshAgent.Invocation`), with the host's tests in
+`attempt_outcomes_test.exs` (durability tier) and `governed_test.exs`.
+
+- **The executor alone runs a governed target.** Everything Governed checked is known to the requester, the lease
+  epoch being a small counter, so while a row was executing the requester could call `assign_governed` beside the
+  executor. Each claim now makes a secret, stores only its digest (`lease_token_digest`), and hands it to the target
+  in `context.ash_agent.lease_token`; a caller without it is refused as `:not_executor`.
+- **The subject is checked where it is written.** The claim checked the approved `version_number`, and the target
+  read the subject again in a later transaction, so an edit between them ran under the old approval. The executor now
+  compares the record the target is about to write with the approved version (inside the target's transaction for an
+  internal one); another version makes the row `stale` through `mark_stale`, with nothing run. The base resource's
+  `optimistic_lock(:version_number)` then fences the write itself to that version.
+- **An outside target that started is in doubt when it fails.** An error the host has not classified, from an outside
+  target past its start, was final (`:rejected` or `:permanent`) though the call may have gone out; `activate_credential`
+  losing its own write's version race after the registry call is the case. It is now indeterminate: an idempotent target
+  runs again with the same key, then becomes `outcome_unknown` if it runs out of attempts; one that is not idempotent is
+  `outcome_unknown` at once. A policy refusal stays `:denied`, and what is refused before the action starts (inputs that
+  do not build, a subject gone or out of reach) stays definite.
+- **A raise is an outcome, and attempts are counted.** An outside target that raised left the row `executing`, and
+  every lease expiry re-ran it. A raise is now recorded as indeterminate, and an expired lease is taken over or
+  re-readied only while `attempt_count` is below `max_attempts`; past that, `reconcile` makes it `outcome_unknown`
+  (outside) or a `:transient` failure, `"attempts_exhausted"` (internal).
+- **A row an attempt may have reached outside never ends as though nothing ran.** Going `stale` at claim (a changed
+  target, an expired approval, a changed subject, an approver who may no longer approve), being cancelled from
+  `ready`, or failing before its target ran makes such a row `outcome_unknown` instead, with the same `error_code`, and
+  reconciliation settles it. `RecheckApprover` refuses an attempt through the package's `Claim.stale/2` for the same
+  reason.
 
 ## Built, 2026-10-30: governed targets and `/mcp` `assign_role`
 

@@ -81,6 +81,7 @@ defmodule AshEnterprise.Execution.Invocation do
       :defer,
       :dispatch,
       :mark_outcome_unknown,
+      :mark_stale,
       :requeue,
       :complete_external,
       :request_resolution,
