@@ -75,6 +75,7 @@ defmodule AshEnterprise.SystemOne.Banding.Resolver do
     AshEnterprise.Decisions.Evaluation
     |> Ash.Query.filter(definition_key == ^definition_key)
     |> Ash.Query.sort(created_on: :desc)
+    |> Ash.Query.limit(1)
     |> Ash.read_one!(tenant: tenant, authorize?: false)
     |> case do
       nil -> {:error, "the band-table evaluation was not recorded (definition #{definition_key})"}

@@ -213,6 +213,23 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Fragment) do
       do: AshJudgments.Registry.Info.question(AshEnterprise.Standards.CodeUnit, name)
 
     @doc """
+    A family's band-table score inputs: `"<question>__p_true"` for each of
+    its yes/no questions, in clause order. These are the names
+    `AshJudgments.Bridge.Dmn.inputs/2` flattens their answers to, and the
+    `:score_input` of `AshJudgments.Calibration.ProposalDmn.render/2`. A
+    choice question (`hs9_interface_copy_languages`) is left out: the
+    family's calibration measured only its yes/no questions.
+    """
+    @spec score_inputs(atom() | String.t()) :: [String.t()]
+    def score_inputs(family) do
+      for %{name: name} <- @questions,
+          question = declared(name),
+          to_string(question.family) == to_string(family),
+          question.type == AshAi.Evaluate.Noul,
+          do: "#{question.name}__p_true"
+    end
+
+    @doc """
     Whether an admitted value violates the question's standard. Values
     arrive as the facts table stores them (`true`, `false`, `"not_done"`).
     """
