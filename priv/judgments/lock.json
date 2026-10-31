@@ -127,6 +127,10 @@
     "hash": "sha256:220ce9121779d94c4038babf909271fe4e0eaefe66e90ce348735524ab1f7007",
     "version": 1
   },
+  "judgment:v0:AshEnterprise.Mdm.MatchCandidate#judgments/matches_the_golden": {
+    "hash": "sha256:adf767627bd6d1a29ead1ffad3a728fa95bf5b9fd06c446f10bc69417cdf6772",
+    "version": 1
+  },
   "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/association_query_strategy": {
     "hash": "sha256:7b76cb3f53c9f33ea56c9dd2ae61be7b538dfa50ef393b4477118b8ea431dc8c",
     "version": 2

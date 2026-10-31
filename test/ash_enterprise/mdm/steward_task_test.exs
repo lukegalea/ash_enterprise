@@ -307,7 +307,7 @@ defmodule AshEnterprise.Mdm.StewardTaskTest do
              })
 
     assert reload(ctx.candidate, ctx.org).status == :confirmed
-    assert verdict_value(ctx.candidate, ctx.org) == "match"
+    assert verdict_value(ctx.candidate, ctx.org) == "true"
 
     task = reload(ctx.task, ctx.org)
     assert task.status == :completed
@@ -321,7 +321,7 @@ defmodule AshEnterprise.Mdm.StewardTaskTest do
     assert {:ok, _} = approvals(ctx.steward, "reject", ctx.task)
 
     assert reload(ctx.candidate, ctx.org).status == :rejected
-    assert verdict_value(ctx.candidate, ctx.org) == "no_match"
+    assert verdict_value(ctx.candidate, ctx.org) == "false"
 
     task = reload(ctx.task, ctx.org)
     assert task.status == :completed
