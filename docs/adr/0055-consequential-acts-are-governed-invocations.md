@@ -361,6 +361,17 @@ first, and each is now the package's (ash_agent `AshAgent.Invocation`), with the
   epoch, another tenant), other arguments and another actor are each refused; the credential activation refuses a
   direct call. `clinic_scenario_test.exs` runs the governed activation end to end.
 
+## Built, 2026-10-31: band-table certification and revocation
+
+- **Governed targets** now include `SystemOne.CalibrationRun.certify_and_publish` and
+  `SystemOne.BandTableCertification.revoke`: `approval: :confirm` by an administrator, `Governed`, an agent's request
+  keyed `certify:<run id>` / `revoke:<certification id>`. `record_verdict` is not governed and has no request action
+  (AST-136).
+- **A person's own click** goes through `invoke` as well: `Execution.Actions.ConfirmInvocation` invokes, approves the
+  task as the requester (allowed in `confirm` when they hold the approver role), and runs `apply_decision` and
+  `execute` inline. Details are in the amendment to [ADR 0061](0061-judgment-surfaces-ship-with-the-package.md).
+- **Tests.** `test/ash_enterprise_web/judgment_surfaces_test.exs`.
+
 ## Amendment, 2026-10-29 — the coding-agent bridge
 
 Decided by Luke on 2026-10-22 and recorded here a week later. The coding-agent bridge in `AshEnterprise.Agents` has two

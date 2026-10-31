@@ -72,9 +72,9 @@ read's name, the action's name and its arguments.
 
 The verdict, the certification and the revocation are human-only actions (ADR 0059). Each declares its effects
 (ADR 0057) as a person's confirmed act: `kind: :execute`, `open_world?: false`, `approval: :confirm`,
-`intent: :approve`. An agent's request for one goes through a governed invocation that the person approves
-(ADR 0055), never as the person; the verdict is never an agent's (AST-136). A background job or an engine
-call cannot run them, and the surface runs them as the person who clicks.
+`intent: :approve`. An agent's request for the certification or the revocation goes through a governed invocation
+that a person approves (ADR 0055; see the amendment below), never as the person; the verdict is never an agent's
+(AST-136). A background job or an engine call cannot run them, and the surface runs them as the person who clicks.
 
 ### This application mounts them, and keeps the cross-kind queue and question proposals as its own
 
@@ -86,6 +86,39 @@ surfaces, because their records are the host's own:
 - **the cross-kind review queue,** which also counts MDM matches (ADR 0054).
 
 The queue links each kind to the surface that settles it. Every surface keeps its `/admin` equivalent (ADR 0005).
+
+## Amendment, 2026-10-31 — certifying and revoking are governed; the click confirms its own request
+
+Certifying a band table and revoking a certification are governed targets (ADR 0055, S1-78), so an agent can ask
+for them and a person approves; the verdict is not (AST-136).
+
+- **The targets.** `CalibrationRun.certify_and_publish` and `BandTableCertification.revoke` declare `approval:
+  :confirm` with `approver_role: :administrator`, and carry `AshAgent.Validations.Governed`. A direct call is refused
+  as `Ungoverned`. "Administrator" is the role that may approve them: no narrower role for certifying band tables
+  exists, and adding one is a change to the declaration and the role seeds only. `certify_and_publish` also names
+  `preconditions: [:record_id]`; a generic action has no subject row, so what binds the approval to the run is its
+  `args_digest`, and the action refuses a run that is already certified. Its refusals are
+  `AshAgent.BusinessError`s with stable codes (`unpublished_draft_exists`, `already_certified`,
+  `verifier_refused:<findings>`, and so on).
+- **An agent's request** is `Execution.invoke` with the key `certify:<run id>` or `revoke:<certification id>`,
+  from `CalibrationRun.request_certification` and `BandTableCertification.request_revocation`. The same key and
+  request returns the same row; any other request under that key is an `:idempotency_conflict`. The request opens the
+  approval `HumanTask` for the administrators, and once one approves, the target runs as the requesting person,
+  rebuilt from their grants. An automation principal that is the executor is denied by the person-only policy, as
+  AST-136 requires.
+- **The person's own click** creates and approves its own invocation in one step. ADR 0055 lets the requester
+  confirm in `:confirm` mode (four-eyes is the mode that excludes them), so no second person is needed; but the
+  approval is still the existing `HumanTask.approve` door, decided by a person who holds the approver role, and the
+  job runner's two steps (`apply_decision`, `execute`) are run inline by the same code the triggers use. The
+  surfaces bind `certify_action: :certify_now` and `revoke_action: :revoke_now`, generic actions that call
+  `AshEnterprise.Execution.Actions.ConfirmInvocation`. The key is per click
+  (`certify:<run id>:click:<uuid>`), so a refusal the person then fixes can be tried again, and it never collides
+  with an agent's `certify:<run id>`. A person who does not hold the approver role gets the request, left waiting,
+  with its approval link, and nothing is certified. This means that clicking now needs the Administrator role, where
+  it needed only a read grant on the runs before.
+- **Why not leave the click ungoverned.** ADR 0055 says a governed target has no door but `invoke`, and an ungoverned
+  twin (the `assign` and `assign_governed` pattern) would leave the person-only act reachable by anything that
+  passes the policy, with no record of who approved what.
 
 ## Does it consume ActorContext?
 

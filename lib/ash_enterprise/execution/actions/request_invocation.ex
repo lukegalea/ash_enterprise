@@ -9,9 +9,15 @@ defmodule AshEnterprise.Execution.Actions.RequestInvocation do
       end
 
   The action's non-nil arguments are the target's arguments, and the target is the
-  action named by `target` on the same resource. Each call is a request of its own,
-  keyed by a fresh UUIDv7, so a repeated call asks again rather than returning an
-  earlier row. It runs as the caller, so the invocation is theirs and executes as them.
+  action named by `target` on the same resource. `rename` maps an argument to the name
+  the target knows it by (`%{record_id: "id"}` for an update's primary key). It runs as
+  the caller, so the invocation is theirs and executes as them.
+
+  By default each call is a request of its own, keyed by a fresh UUIDv7, so a repeated
+  call asks again rather than returning an earlier row. With `key: "certify"` and
+  `key_argument: :record_id` the key is `certify:<record id>` instead: asking again for
+  the same record returns the same row, and asking for it with different arguments is an
+  `AshAgent.Invocation.IdempotencyConflict`.
 
   It returns what a caller needs to follow the request, never what it will change:
 
@@ -36,17 +42,19 @@ defmodule AshEnterprise.Execution.Actions.RequestInvocation do
   def run(input, opts, context) do
     target = Target.name(input.resource, Keyword.fetch!(opts, :target))
 
+    rename = Keyword.get(opts, :rename, %{})
+
     args =
       for {name, value} <- input.arguments,
           not is_nil(value),
           into: %{},
-          do: {to_string(name), value}
+          do: {Map.get(rename, name, to_string(name)), value}
 
     with {:ok, row} <-
            Execution.invoke(
              target,
              args,
-             %{key: "request:" <> Ash.UUIDv7.generate()},
+             %{key: key(input, opts)},
              Ash.Context.to_opts(context)
            ) do
       {:ok,
@@ -57,6 +65,13 @@ defmodule AshEnterprise.Execution.Actions.RequestInvocation do
          "error_code" => row.error_code,
          "approval_url" => approval_url(row)
        }}
+    end
+  end
+
+  defp key(input, opts) do
+    case opts[:key_argument] do
+      nil -> "request:" <> Ash.UUIDv7.generate()
+      argument -> "#{Keyword.fetch!(opts, :key)}:#{Map.fetch!(input.arguments, argument)}"
     end
   end
 

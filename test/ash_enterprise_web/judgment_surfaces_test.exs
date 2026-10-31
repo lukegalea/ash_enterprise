@@ -5,6 +5,11 @@ defmodule AshEnterpriseWeb.JudgmentSurfacesTest do
   person settles the loop's work from them: a verdict on a review-banded
   judgment, and the certification and publication of an earned band table,
   each clicked through `AshA2ui.ActionHandler` as that person.
+
+  Certifying and revoking are governed targets (ADR 0055, ADR 0061): the button runs
+  `certify_now` / `revoke_now`, the person's own request, which they confirm in the same
+  click. An agent's request for the same acts (`certify:<run id>`, `revoke:<certification
+  id>`) runs only after a person approves it, as that person.
   """
 
   use AshEnterprise.DataCase, async: false
@@ -13,10 +18,15 @@ defmodule AshEnterpriseWeb.JudgmentSurfacesTest do
 
   require Ash.Query
 
+  alias AshAgent.Invocation.{Executor, IdempotencyConflict, Ungoverned}
+  alias AshEnterprise.Bpmn.HumanTask
   alias AshEnterprise.Decisions.Definition
+  alias AshEnterprise.Execution
+  alias AshEnterprise.Platform.AutomationPrincipal
   alias AshEnterprise.Platform.Correlation
   alias AshEnterprise.Platform.Seeder
   alias AshEnterprise.Platform.SystemActor
+  alias AshEnterprise.Security
   alias AshEnterprise.Security.ActorContext
   alias AshEnterprise.Standards.Questions
   alias AshEnterprise.SystemOne.Banding
@@ -28,6 +38,8 @@ defmodule AshEnterpriseWeb.JudgmentSurfacesTest do
   alias AshEnterpriseWeb.A2ui.Judgments
 
   @family "house_style"
+  @certify "AshEnterprise.SystemOne.CalibrationRun.certify_and_publish"
+  @revoke "AshEnterprise.SystemOne.BandTableCertification.revoke"
 
   test "the judgment surfaces are declared at their routes, in the Judgments group" do
     surfaces = Enum.filter(AshEnterprise.Surfaces.all(), &(&1.group == :judgments))
@@ -108,7 +120,7 @@ defmodule AshEnterpriseWeb.JudgmentSurfacesTest do
       run = proposed_run!(ctx.org)
       assert [run.id] == awaiting_certification(ctx)
 
-      assert {:ok, _messages} = invoke(Judgments.BandTablesUI, "certify_and_publish", run, ctx)
+      assert {:ok, _messages} = invoke(Judgments.BandTablesUI, "certify_now", run, ctx)
 
       assert [certification] =
                BandTableCertification |> Ash.read!(tenant: ctx.org, authorize?: false)
@@ -130,7 +142,17 @@ defmodule AshEnterpriseWeb.JudgmentSurfacesTest do
         tenant: platform.id
       )
 
-      assert {:error, error} =
+      assert {:error, error} = click(CalibrationRun, :certify_now, run, ctx)
+
+      assert Exception.message(error) =~ "unpublished_draft_exists"
+      assert [] = BandTableCertification |> Ash.read!(tenant: ctx.org, authorize?: false)
+      assert [run.id] == awaiting_certification(ctx)
+    end
+
+    test "the governed action refuses a direct call, and the click is no way round it", ctx do
+      run = proposed_run!(ctx.org)
+
+      assert {:error, %Ash.Error.Invalid{errors: errors}} =
                CalibrationRun
                |> Ash.ActionInput.for_action(:certify_and_publish, %{record_id: run.id},
                  actor: ctx.actor,
@@ -138,9 +160,311 @@ defmodule AshEnterpriseWeb.JudgmentSurfacesTest do
                )
                |> Ash.run_action()
 
-      assert Exception.message(error) =~ "unpublished draft"
+      assert [%Ungoverned{reason: :no_invocation}] = errors
+      assert [run.id] == awaiting_certification(ctx)
+    end
+
+    test "a click records one invocation, approved and run as the person", ctx do
+      run = proposed_run!(ctx.org)
+      assert {:ok, %{"status" => "succeeded"}} = click(CalibrationRun, :certify_now, run, ctx)
+
+      assert [row] = Execution.list_invocations!(oban(ctx))
+      assert row.target == @certify
+
+      assert {row.status, row.approval_mode, row.approved_by_id} ==
+               {:succeeded, :confirm, ctx.user.id}
+
+      assert row.executing_principal == %{type: :person, id: ctx.user.id}
+    end
+
+    test "a person who may not approve gets the request, waiting, and nothing is certified",
+         ctx do
+      run = proposed_run!(ctx.org)
+      outsider = reader!(ctx)
+
+      assert {:ok, %{"status" => "awaiting_approval", "approval_url" => url}} =
+               click(CalibrationRun, :certify_now, run, ctx, outsider)
+
+      assert url =~ "/app/r/approvals/"
+      assert [] = BandTableCertification |> Ash.read!(tenant: ctx.org, authorize?: false)
+    end
+  end
+
+  describe "an agent's request to certify" do
+    setup :tenant
+
+    setup do
+      Application.put_env(:ash_judgments, :families, %{
+        @family => %{min_n: 2, min_n_per_class: nil, alpha: 0.016, max_age_days: 90}
+      })
+
+      on_exit(fn -> Application.delete_env(:ash_judgments, :families) end)
+    end
+
+    test "is refused without an approval, and runs once a person approves it", ctx do
+      run = proposed_run!(ctx.org)
+      row = request!(ctx, run)
+      assert {row.status, row.approval_mode} == {:awaiting_approval, :confirm}
+      assert row.effects["approver_role"] == "administrator"
+
+      # Nothing is ready, so nothing runs; the table is still waiting.
+      assert {:ok, :skipped} = Executor.execute(Execution.Invocation, row.id, oban(ctx))
       assert [] = BandTableCertification |> Ash.read!(tenant: ctx.org, authorize?: false)
       assert [run.id] == awaiting_certification(ctx)
+
+      approve!(row, ctx.actor, ctx)
+      assert %{status: :ready} = ready = Execution.apply_invocation_decision!(row, oban(ctx))
+      assert {:ok, :succeeded} = Executor.execute(Execution.Invocation, ready.id, oban(ctx))
+
+      assert Execution.get_invocation!(row.id, oban(ctx)).status == :succeeded
+
+      assert [certification] =
+               BandTableCertification |> Ash.read!(tenant: ctx.org, authorize?: false)
+
+      assert certification.calibration_run_id == run.id
+      assert certification.certified_by == ctx.email
+      assert %{status: :published} = definition(@family)
+      assert [] == awaiting_certification(ctx)
+    end
+
+    test "is rejected by the person, and certifies nothing", ctx do
+      run = proposed_run!(ctx.org)
+      row = request!(ctx, run)
+      approve!(row, ctx.actor, ctx, :reject)
+
+      assert %{status: :rejected} = Execution.apply_invocation_decision!(row, oban(ctx))
+      assert [] = BandTableCertification |> Ash.read!(tenant: ctx.org, authorize?: false)
+      assert [run.id] == awaiting_certification(ctx)
+    end
+
+    test "the same key returns the same row, and another request under it is a conflict", ctx do
+      run = proposed_run!(ctx.org)
+      other = proposed_run!(ctx.org)
+      row = request!(ctx, run)
+
+      assert request!(ctx, run).id == row.id
+      assert [_one] = Execution.list_invocations!(oban(ctx))
+
+      assert {:error, %Ash.Error.Invalid{errors: [%IdempotencyConflict{key: key}]}} =
+               Execution.invoke(@certify, %{"record_id" => other.id}, %{key: "certify:#{run.id}"},
+                 actor: ctx.actor,
+                 tenant: ctx.org
+               )
+
+      assert key == "certify:#{run.id}"
+    end
+
+    test "the request action records the same keyed request and returns where it waits", ctx do
+      run = proposed_run!(ctx.org)
+
+      assert {:ok, %{"status" => "awaiting_approval", "approval_url" => url} = result} =
+               CalibrationRun
+               |> Ash.ActionInput.for_action(:request_certification, %{record_id: run.id},
+                 actor: ctx.actor,
+                 tenant: ctx.org
+               )
+               |> Ash.run_action()
+
+      assert url =~ "/app/r/approvals/"
+      assert result["target"] == @certify
+      assert request!(ctx, run).id == result["invocation_id"]
+      assert [] = BandTableCertification |> Ash.read!(tenant: ctx.org, authorize?: false)
+    end
+
+    test "an automation principal's request is denied when it runs: certifying is a person's",
+         ctx do
+      run = proposed_run!(ctx.org)
+      agent = "table-certifier"
+
+      Security.AgentStartGrant.grant!(
+        %{agent_key: agent, principal_id: ctx.user.id, principal_type: :user},
+        actor: ctx.actor,
+        tenant: ctx.org
+      )
+
+      actor = AutomationPrincipal.start(ctx.actor, :evidence_admitter, agent)
+
+      row =
+        Execution.invoke!(@certify, %{"record_id" => run.id}, %{key: "certify:#{run.id}"},
+          actor: actor,
+          tenant: ctx.org
+        )
+
+      assert row.executing_principal.type == :automation
+      approve!(row, ctx.actor, ctx)
+      assert %{status: :ready} = ready = Execution.apply_invocation_decision!(row, oban(ctx))
+      assert {:ok, :failed} = Executor.execute(Execution.Invocation, ready.id, oban(ctx))
+
+      assert %{status: :failed, failure_class: :denied} =
+               Execution.get_invocation!(row.id, oban(ctx))
+
+      assert [] = BandTableCertification |> Ash.read!(tenant: ctx.org, authorize?: false)
+    end
+
+    test "a verdict is never an agent's: no request action, no Governed validation", ctx do
+      actions = Ash.Resource.Info.actions(Banding)
+      refute Enum.any?(actions, &(&1.name in [:request_verdict, :record_verdict_now]))
+
+      refute Enum.any?(
+               Ash.Resource.Info.validations(Banding),
+               &match?({AshAgent.Validations.Governed, _}, &1.validation)
+             )
+
+      banding = review_banding!(record!(tenant: ctx.org), ctx.org)
+
+      # Asked for through an invocation by an automation principal, it is denied and
+      # records nothing (AST-136).
+      agent = "verdict-writer"
+
+      Security.AgentStartGrant.grant!(
+        %{agent_key: agent, principal_id: ctx.user.id, principal_type: :user},
+        actor: ctx.actor,
+        tenant: ctx.org
+      )
+
+      args = %{"record_id" => banding.id, "value" => "yes"}
+
+      case Execution.invoke(
+             "AshEnterprise.SystemOne.Banding.record_verdict",
+             args,
+             %{key: "verdict:#{banding.id}"},
+             actor: AutomationPrincipal.start(ctx.actor, :evidence_admitter, agent),
+             tenant: ctx.org
+           ) do
+        {:ok, row} ->
+          approve!(row, ctx.actor, ctx)
+          ready = Execution.apply_invocation_decision!(row, oban(ctx))
+          Executor.execute(Execution.Invocation, ready.id, oban(ctx))
+          assert Execution.get_invocation!(row.id, oban(ctx)).status == :failed
+
+        {:error, _refused} ->
+          :ok
+      end
+
+      assert [] == HumanVerdict |> Ash.read!(tenant: ctx.org, authorize?: false)
+    end
+  end
+
+  describe "revoke, from the certifications surface" do
+    setup :tenant
+
+    setup do
+      Application.put_env(:ash_judgments, :families, %{
+        @family => %{min_n: 2, min_n_per_class: nil, alpha: 0.016, max_age_days: 90}
+      })
+
+      on_exit(fn -> Application.delete_env(:ash_judgments, :families) end)
+    end
+
+    defp certified!(ctx) do
+      run = proposed_run!(ctx.org)
+      {:ok, _} = click(CalibrationRun, :certify_now, run, ctx)
+      [certification] = BandTableCertification |> Ash.read!(tenant: ctx.org, authorize?: false)
+      certification
+    end
+
+    test "a person's click revokes the certification as them", ctx do
+      certification = certified!(ctx)
+
+      assert {:ok, _messages} =
+               invoke(Judgments.CertificationsUI, "revoke_now", certification, ctx)
+
+      revoked =
+        Ash.get!(BandTableCertification, certification.id, tenant: ctx.org, authorize?: false)
+
+      assert {revoked.status, revoked.certified_by} == {:revoked, ctx.email}
+    end
+
+    test "a person who may not approve gets the revocation waiting, and it stays certified",
+         ctx do
+      certification = certified!(ctx)
+      outsider = reader!(ctx)
+
+      assert {:ok, %{"status" => "awaiting_approval", "approval_url" => url}} =
+               click(BandTableCertification, :revoke_now, certification, ctx, outsider)
+
+      assert url =~ "/app/r/approvals/"
+
+      still =
+        Ash.get!(BandTableCertification, certification.id, tenant: ctx.org, authorize?: false)
+
+      assert still.status != :revoked
+    end
+
+    test "the governed revoke refuses a direct call", ctx do
+      certification = certified!(ctx)
+
+      assert {:error, %Ash.Error.Invalid{errors: errors}} =
+               certification
+               |> Ash.Changeset.for_update(:revoke, %{}, actor: ctx.actor, tenant: ctx.org)
+               |> Ash.update()
+
+      assert Enum.any?(errors, &match?(%Ungoverned{reason: :no_invocation}, &1))
+
+      assert Ash.get!(BandTableCertification, certification.id,
+               tenant: ctx.org,
+               authorize?: false
+             ).status == :certified
+    end
+
+    test "an agent's request runs once a person approves it, and not before", ctx do
+      certification = certified!(ctx)
+      key = "revoke:#{certification.id}"
+
+      row =
+        Execution.invoke!(@revoke, %{"id" => certification.id}, %{key: key},
+          actor: ctx.actor,
+          tenant: ctx.org
+        )
+
+      assert row.status == :awaiting_approval
+      assert {:ok, :skipped} = Executor.execute(Execution.Invocation, row.id, oban(ctx))
+
+      assert Ash.get!(BandTableCertification, certification.id,
+               tenant: ctx.org,
+               authorize?: false
+             ).status == :certified
+
+      approve!(row, ctx.actor, ctx)
+      ready = Execution.apply_invocation_decision!(row, oban(ctx))
+      assert {:ok, :succeeded} = Executor.execute(Execution.Invocation, ready.id, oban(ctx))
+
+      assert Ash.get!(BandTableCertification, certification.id,
+               tenant: ctx.org,
+               authorize?: false
+             ).status == :revoked
+
+      assert Execution.invoke!(@revoke, %{"id" => certification.id}, %{key: key},
+               actor: ctx.actor,
+               tenant: ctx.org
+             ).id == row.id
+    end
+
+    test "the revocation request action keys the request to the certification", ctx do
+      certification = certified!(ctx)
+
+      assert {:ok, %{"status" => "awaiting_approval", "target" => @revoke}} =
+               BandTableCertification
+               |> Ash.ActionInput.for_action(:request_revocation, %{record_id: certification.id},
+                 actor: ctx.actor,
+                 tenant: ctx.org
+               )
+               |> Ash.run_action()
+
+      keys = Enum.map(Execution.list_invocations!(oban(ctx)), & &1.invocation_key)
+      assert "revoke:#{certification.id}" in keys
+    end
+  end
+
+  describe "certify and publish, more" do
+    setup :tenant
+
+    setup do
+      Application.put_env(:ash_judgments, :families, %{
+        @family => %{min_n: 2, min_n_per_class: nil, alpha: 0.016, max_age_days: 90}
+      })
+
+      on_exit(fn -> Application.delete_env(:ash_judgments, :families) end)
     end
 
     test "the run's table gates on the questions it calibrated", ctx do
@@ -164,9 +488,48 @@ defmodule AshEnterpriseWeb.JudgmentSurfacesTest do
 
     %{
       org: organization.id,
+      user: admin,
       email: to_string(admin.email),
       actor: ActorContext.attach(admin, ActorContext.build(admin, tenant: organization.id))
     }
+  end
+
+  defp oban(ctx), do: [actor: SystemActor.oban(), tenant: ctx.org]
+
+  # A former certifier: reads the runs and certifications, but is not an administrator.
+  defp reader!(ctx) do
+    AshEnterprise.Test.DailyFixtures.member!(
+      %{tenant: ctx.org, user: ctx.user},
+      "Certifier #{System.unique_integer([:positive])}",
+      [{CalibrationRun, :read, :global}, {BandTableCertification, :read, :global}]
+    )
+  end
+
+  # The button's own action, as `actor` (default: the tenant's administrator).
+  defp click(resource, action, record, ctx, who \\ nil) do
+    resource
+    |> Ash.ActionInput.for_action(action, %{record_id: record.id},
+      actor: (who && who.actor) || ctx.actor,
+      tenant: ctx.org
+    )
+    |> Ash.run_action()
+  end
+
+  # What an agent's tool call does for the person it works for.
+  defp request!(ctx, run) do
+    Execution.invoke!(@certify, %{"record_id" => run.id}, %{key: "certify:#{run.id}"},
+      actor: ctx.actor,
+      tenant: ctx.org
+    )
+  end
+
+  # The person deciding the invocation's approval task, through the task door.
+  defp approve!(row, actor, ctx, door \\ :approve) do
+    task = Ash.load!(row, :approval_task, authorize?: false).approval_task
+
+    HumanTask
+    |> Ash.ActionInput.for_action(door, %{record_id: task.id}, actor: actor, tenant: ctx.org)
+    |> Ash.run_action!()
   end
 
   defp invoke(ui, action, record, ctx, opts \\ []) do

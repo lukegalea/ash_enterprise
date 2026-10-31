@@ -67,8 +67,9 @@ defmodule AshEnterprise.SystemOne.Banding do
   end
 
   # A verdict is the person confirming their own answer on the surface
-  # (ADR 0057). The person confirms by clicking; an agent's request for
-  # it is S1-78's governed path.
+  # (ADR 0057). The person confirms by clicking. It is never governed and
+  # never an agent's request (AST-136, ADR 0061): a verdict is the reviewer's
+  # own judgement, so there is no `Governed` validation and no request action.
   effects do
     action :record_verdict,
       kind: :execute,
