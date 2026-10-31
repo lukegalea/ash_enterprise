@@ -68,16 +68,21 @@ MyClinic.Execution.invoke(
    row's `evidence`. Do not add update actions that bypass the state machine.
 7. Every claim compares the row's `target_digest` with the target as declared now. A row whose target changed since it
    was requested (its inputs or its effects declaration) becomes `stale` with `error_code: "target_changed"` and does
-   not run, so a deploy that changes a target leaves its queued and approved rows stale. Request them again.
+   not run, so a deploy that changes a target leaves its queued and approved rows stale. Request them again. A row an
+   earlier attempt of which may have reached outside (an outside target made ready again after a lost lease or a
+   failed attempt) is never ended as though nothing ran: where it would go `stale`, be cancelled from `ready`, or fail
+   before its target runs, it becomes `outcome_unknown` with the same `error_code`, and reconciliation settles it.
 8. A row that waits for an approval records what the approval binds: `authorization_details` (RFC 9396's shape: a
    URN `type` naming the action, `actions`, the subject as `identifier`, and the target digest, arguments digest and
    preconditions), its `approval_digest` (SHA-256 of the RFC 8785 canonical JSON) and `approval_expires_at` from the
    declaration's `approval_expires_in`. `apply_decision` makes an approved row ready only while the digest recomputed
    from the row, the target as declared now and the preconditions' records as they stand now still matches, and the
    approval has not expired; otherwise the row is `stale` with `error_code` `"subject_changed"`, `"target_changed"`,
-   `"approval_expired"` or `"approval_changed"`. Every claim checks the same again, so a subject written between the
-   approval and the run is never acted on under the old approval. Bump `version_number` on every write of a subject
-   (an optimistic lock), or a changed subject goes unseen.
+   `"approval_expired"` or `"approval_changed"`. Every claim checks the same again, and the executor checks the
+   subject once more on the record the target is about to write: a subject written after the claim makes the row
+   `stale` (`mark_stale`) and nothing runs. Bump `version_number` on every write of a subject with an optimistic lock
+   (`optimistic_lock(:version_number)`), or a changed subject goes unseen, and a write that races the target's own is
+   not fenced to the approved version.
 9. If your audit wrapper refuses atomic updates, nothing changes: fencing is a filter on the update plus
    `optimistic_lock`, never an atomic update.
 10. Set `lifecycle?: false` (or the equivalent) if your base resource installs a state machine of its own: the
@@ -87,7 +92,10 @@ MyClinic.Execution.invoke(
     `invoke`. It refuses the action unless the invocation named in `context.ash_agent` is `executing` under the lease
     epoch named there, for this action, with an `args_digest` matching the inputs the action was given (and, for an
     update or a destroy, the primary key of the record it acts on), and run as the principal it executes as
-    (`principal_of/1`). A context alone is not enough: the validation reads the row. It has an `atomic/3`, so an
+    (`principal_of/1`), by the executor that claimed it: the context must carry `lease_token`, the secret the
+    executor was given at its claim, whose digest the claim stored. The requester knows everything else (the row's
+    id and key, the epoch, its own arguments), so without it they could run the action themselves beside the
+    executor. A context alone is not enough: the validation reads the row. It has an `atomic/3`, so an
     update stays atomic, and it is temporal safe. Anything else is `AshAgent.Invocation.Ungoverned` (invalid), whose
     `reason` names the check that failed. Every other caller of the action (seeds, fixtures, other doors) must then
     go through `invoke`, so put it only on actions whose callers you have moved.
@@ -99,7 +107,7 @@ Which path a claimed row takes depends on the target's effects declaration:
 | Target | Path | An expired lease |
 |---|---|---|
 | `open_world?: false` | The target and the completion in one transaction: exactly one committed effect | Re-readied (`requeue`): the effect rolled back |
-| `open_world?: true, idempotent?: true` | The call goes out with no transaction open; the completion follows under the fence | Re-readied: the call is repeated with the same key |
+| `open_world?: true, idempotent?: true` | The call goes out with no transaction open; the completion follows under the fence | Re-readied, while attempts are left: the call is repeated with the same key. Then `outcome_unknown` |
 | `open_world?: true`, not idempotent | As above | `outcome_unknown`, then reconciled. Never called again blindly |
 | Returns an `AshAgent.Invocation.Dispatch` | `dispatched`: no lease, until `deadline_at` | — |
 
@@ -113,11 +121,16 @@ Which path a claimed row takes depends on the target's effects declaration:
     It must not change anything.
 15. Return `AshAgent.BusinessError` (with a stable `code`) for a refusal the domain makes, so a process can route on
     it. Implement `AshAgent.FailureClass` for your own error types (see `host-behaviours.md`); an unclassified error
-    is `:permanent`.
+    is `:permanent`, except from an outside target that had started (it built valid and reached its subject): there
+    an unclassified error, or a raise, is `:indeterminate`, because the call may already have gone out, and only a
+    forbidden error stays `:denied`. Classify the errors your outside targets return before they call out, so they
+    are not taken for doubt.
 16. A transient failure makes the row ready again after a backoff, up to `max_attempts` claims (the `invocation`
     section, default 3), then fails it as `:transient`; `retry` makes it ready again on purpose. An error that leaves
-    an outside effect in doubt (`:indeterminate`) is retried only when the target is internal or idempotent; otherwise
-    the row is `outcome_unknown`.
+    an outside effect in doubt (`:indeterminate`) is retried only when the target is internal or idempotent, and an
+    idempotent outside one out of attempts is `outcome_unknown`, not failed; a target that is not idempotent is
+    `outcome_unknown` at once. An expired lease is taken over, or re-readied, only while attempts are left, so a
+    worker that dies every time is not run forever.
 17. An `outcome_unknown` row is settled by its `reconcile_with` lookup, by a callback through `complete_external`, or by
     a person: `request_resolution` asks, and `apply_resolution` applies `:succeeded`, `:failed` or `:retry`. Attach a
     change to `request_resolution` that opens your task, and one to `apply_resolution` that sets its `outcome` from the
@@ -136,7 +149,7 @@ Which path a claimed row takes depends on the target's effects declaration:
 | A resolution task | Attach changes to `request_resolution` (open it) and `apply_resolution` (set its `outcome`) |
 | An `AshAgent.FailureClass` implementation | For each error type of yours a target can return |
 | Approval opening and deciding | Attach a change to `request` (rows that land in `awaiting_approval`) and to `apply_decision` (set its `outcome` from the decided task). The binding to the request is the fragment's (rule 8); who may approve, and whether the approver may still, is yours |
-| Any check at claim | Attach a change to `claim`, for example re-checking that the approver still holds the approver role |
+| Any check at claim | Attach a change to `claim`, for example re-checking that the approver still holds the approver role; to refuse the attempt, call `AshAgent.Invocation.Changes.Claim.stale/2`, which leaves a row an earlier attempt may have reached outside for reconciliation instead |
 
 A change you attach with `changes do change MyChange, where: [action_is(:claim)] end` runs after the fragment's own
 changes for that action and before its hooks.
