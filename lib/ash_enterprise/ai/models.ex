@@ -103,6 +103,13 @@ defmodule AshEnterprise.AI.Models do
   }
 
   @doc """
+  The name of the in-zone generative profile: the only model profile an agent version
+  may be published to run on (`AshEnterprise.Execution.Validations.Publishable`).
+  """
+  @spec in_zone_profile_name() :: String.t()
+  def in_zone_profile_name, do: @in_zone_profile
+
+  @doc """
   The model spec for interpretation, as `AshEnterprise.AI.model/0` returns it:
   an explicit `:interpreter_model` wins, then the in-zone profile, then the
   hosted default.

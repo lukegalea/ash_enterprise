@@ -141,6 +141,37 @@ defmodule AshEnterprise.Process.Resolver do
     end
   end
 
+  @doc """
+  The latest platform baseline of the agent `key`: the highest version of it registered
+  in the platform organization (`AshEnterprise.Execution.AgentVersion`), whatever its
+  status.
+
+  The second named home of the cross-tenant read, for agents. A platform agent version is
+  never published in the platform organization, which has no people to approve it: a
+  baseline is what a tenant copies (`fork_for_tenant`) and publishes under its own
+  approval, and a run pins the tenant's copy. So the latest *registered* version is the
+  baseline, not the latest published one.
+  """
+  @spec agent_baseline(String.t()) :: {:ok, struct()} | {:error, term()}
+  def agent_baseline(key) do
+    case platform_tenant() do
+      nil ->
+        {:error, {:no_platform_organization, key}}
+
+      platform ->
+        AshEnterprise.Execution.AgentVersion
+        |> Ash.Query.for_read(:read)
+        |> Ash.Query.filter(key == ^key)
+        |> Ash.Query.sort(version: :desc)
+        |> Ash.Query.limit(1)
+        |> Ash.read_one!(actor: SystemActor.process(), tenant: platform)
+        |> case do
+          nil -> {:error, {:no_baseline, :agent, key}}
+          version -> {:ok, version}
+        end
+    end
+  end
+
   defp load_definition(kind, id, tenant) do
     kind
     |> resource()

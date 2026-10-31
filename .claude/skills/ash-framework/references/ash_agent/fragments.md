@@ -153,3 +153,62 @@ Which path a claimed row takes depends on the target's effects declaration:
 
 A change you attach with `changes do change MyChange, where: [action_is(:claim)] end` runs after the fragment's own
 changes for that action and before its hooks.
+
+## `AshAgent.AgentVersion`
+
+One immutable, numbered definition of an agent, which a run pins: `key` and `version`, `instructions` (plain text),
+`model_profile`, `toolset` (each target with its digest when the version was written), `limits`, `output_type`, and
+`content_hash` over them. Lifecycle `draft → published → retired`, one way. Declare an agent in code with
+`use AshAgent.Agent` (key, instructions, model profile, tools as `{resource, action}`, limits, output type) and sync it
+with `register_from_code`.
+
+```elixir
+defmodule MyClinic.Execution.AgentVersion do
+  use Ash.Resource,
+    domain: MyClinic.Execution,
+    data_layer: AshPostgres.DataLayer,
+    extensions: [AshAgent.Effects],
+    fragments: [AshAgent.AgentVersion]
+
+  postgres do
+    table "agent_versions"
+    repo MyClinic.Repo
+  end
+end
+```
+
+### Rules
+
+1. Sync code-declared agents with `register_from_code`. It returns the key's latest version when the content hash is
+   unchanged and writes nothing; otherwise it writes the next version as a draft. Run it on every boot or deploy.
+2. Instructions are plain text. The fragment ships no template language. A version is identified by `content_hash`;
+   what a model was shown at a step is identified by `AshAi.Transcript.fingerprint/2`, recorded on the step.
+3. A toolset target is `"<resource module>.<action>"`, as for an invocation. Its digest is the target's own
+   (`AshAgent.Invocation.Target.digest/1`), derived when the version is written; a digest a caller supplies is
+   ignored. A target that does not resolve, or declares no effects, is stored with a `nil` digest, and the version
+   cannot be published.
+4. `apply_publish` refuses a draft with a toolset target that declares no effects, or whose declaration or input
+   schema changed since the draft was written, or with a limit missing
+   (`AshAgent.AgentVersion.Definition.publish_problems/1`). Revise the draft, then publish.
+5. Who runs act as is chosen at publish: `authority` defaults to the requester; an automation principal is named
+   explicitly (`%{"type" => "automation", "name" => principal}`). `requesterless: true` is allowed only with an
+   automation authority. Check that the principal exists on your resource; the fragment cannot.
+6. Publish through an approval. Put `validate {AshAgent.Validations.Governed, invocation: MyClinic.Invocation}` and an
+   effects declaration that asks for approval (`approval: :four_eyes, approver_role: ...`) on `apply_publish`, and
+   reach it only through `invoke`. The approval binds the draft's `version_number`, so a draft revised while waiting
+   goes stale. Check anything else you require of a published version (such as which model profiles may be used) in a
+   validation of your own on `apply_publish`.
+7. A run pins a version's id and calls `AshAgent.AgentVersion.Definition.check_pinned/1` before every step. A
+   drifted toolset target is `AshAgent.AgentVersion.DefinitionDrift` (`reason: :definition_drift`): fail the run
+   closed. Publishing a later version or retiring this one does not stop a run already pinned to it.
+8. Start new runs on `latest_published` for the key. Never edit a published version; publish another.
+
+### What you add on the resource
+
+| You add | Why |
+|---|---|
+| Tenancy and ownership | Versions are numbered per key within whatever scope your base gives |
+| Policies | Who may sync, draft, request a publish and retire |
+| The governed publish path | An effects declaration and `Governed` on `apply_publish`, and an action that asks for it through `invoke` (rule 6) |
+| Publish checks of your own | Allowed model profiles, known automation principals |
+| Copying a shared baseline | `AshAgent.AgentVersion.Actions.RegisterFromCode.register/3` writes content from anywhere under the same rule as the sync, with `baseline_id` |

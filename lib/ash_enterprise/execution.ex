@@ -19,6 +19,10 @@ defmodule AshEnterprise.Execution do
   A ready row runs on the `:execute` trigger, as the requesting person, rebuilt from
   their grants when it is claimed.
 
+  An agent's definition is an `AshEnterprise.Execution.AgentVersion`: registered from
+  code, published under four eyes through `request_agent_publish/3`, pinned by the runs
+  that use it.
+
   The resources come from the `ash_agent` package's fragments instantiated on the
   platform base (ADR 0056); this domain names them and their code interfaces.
   """
@@ -40,6 +44,18 @@ defmodule AshEnterprise.Execution do
       define :request_invocation_resolution, action: :request_resolution
       define :apply_invocation_resolution, action: :apply_resolution
       define :retry_invocation, action: :retry
+    end
+
+    resource AshEnterprise.Execution.AgentVersion do
+      define :register_agent_from_code, action: :register_from_code, args: [:agent]
+      define :create_agent_draft, action: :create_draft
+      define :revise_agent_draft, action: :revise_draft
+      define :fork_agent_for_tenant, action: :fork_for_tenant, args: [:key]
+      define :request_agent_publish, action: :request_publish, args: [:record_id]
+      define :retire_agent_version, action: :retire
+      define :get_agent_version, action: :read, get_by: [:id]
+      define :latest_published_agent_version, action: :latest_published, args: [:key]
+      define :list_agent_versions, action: :read
     end
   end
 end

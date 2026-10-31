@@ -1,10 +1,12 @@
 # ADR 0056 — The agent runtime is a separate public package, `ash_agent`, that the host instantiates
 
-- **Status:** accepted, not built (2026-10-23)
+- **Status:** accepted (2026-10-23); agent versions built (2026-10-31), see
+  [Built](#built-2026-10-31-agent-versions)
 - **Date:** 2026-10-23
 - **Decided:** by Luke, 2026-10-22 (name, home and boundary)
 - **Amended:** 2026-10-29 — dependency versions and the Phoenix edge; see
-  [Amendment](#amendment-2026-10-29--dependency-versions-and-the-phoenix-edge)
+  [Amendment](#amendment-2026-10-29--dependency-versions-and-the-phoenix-edge). 2026-10-31 — the prompt format (D7) and
+  where a version is published; see [Built](#built-2026-10-31-agent-versions)
 - **Related:** [ADR 0009](0009-strangler-and-bpmn-are-first-party.md) (first-party platform extensions),
   [ADR 0055](0055-consequential-acts-are-governed-invocations.md) (governed invocation),
   [ADR 0057](0057-actions-declare-their-effects.md) (effects),
@@ -141,3 +143,61 @@ and the host's `fragments:` lists, with no data migration, because no table name
   would remove the edge.
 - **The lock.** Context said this repository still locked ash_ai 1.1.1, which was true on 2026-10-23. It now locks
   1.4.1.
+
+## Built, 2026-10-31: agent versions
+
+- **The fragment.** `AshAgent.AgentVersion`: `key` and `version` (unique together), `instructions`, `model_profile`,
+  `toolset` (each target as `"Resource.action"` with its target digest, the one invocations use), `limits`
+  (`max_steps`, `max_tool_calls`, `deadline` in seconds, `token_budget` in tokens, `max_repairs`), `output_type`,
+  `source` (`:code` or `:authored`), `baseline_id`, `content_hash`, and the publish-time `authority` and
+  `requesterless`. Lifecycle `draft → published → retired`, one way. Versions are rows, not temporal (decision D11,
+  as for process and decision definitions under [ADR 0049](0049-temporal-resources-are-the-validity-substrate.md)).
+- **Agents declared in code.** `use AshAgent.Agent` with the key, instructions, model profile, tools as
+  `{resource, action}`, limits and output type. `register_from_code` is the code sync: it returns the key's latest
+  version when the content hash is unchanged and writes nothing, and otherwise writes the next version as a draft.
+  The content hash covers each tool's digest, so a changed tool also makes a new version.
+- **The prompt format (decision D7): plain text.** The decision was to adopt a logic-less subset of dotprompt only if
+  it fit cleanly after reading the specification, and otherwise to use plain text with `Transcript.fingerprint` as
+  identity. Read on 2026-10-31 (https://google.github.io/dotprompt/reference/frontmatter/ and
+  https://google.github.io/dotprompt/reference/template/): the template language is Handlebars-based, and an
+  implementation MUST support the documented Handlebars features, `#if`, `#unless` and `#each` among them, and the
+  helpers `json`, `role`, `history`, `media` and `section`. The specification defines no logic-less subset or
+  conformance level, so a subset would not be dotprompt, and there is no Elixir renderer to conform to. The
+  frontmatter's useful fields (`model`, `tools`, `input`, `output`, `config`) are already columns of the version.
+  So `instructions` are plain text with no template language. A version's identity is its `content_hash` (SHA-256
+  over RFC 8785 canonical JSON of its content); what a model was shown at a step is identified by
+  `AshAi.Transcript.fingerprint/2` over the instructions and the tools the step offered, recorded on the step by the
+  run.
+- **Publishing is a governed invocation.** The fragment's `apply_publish` refuses a draft with a toolset target that
+  declares no effects (read through `AshAgent.Effects.Info`, via `AshAgent.Invocation.Target.resolve/1`), or whose
+  declaration or input schema changed since the draft was written, or with a limit unset. Here it is a governed target
+  ([ADR 0055](0055-consequential-acts-are-governed-invocations.md)): four eyes, an administrator other than the
+  requester, expiring after seven days. `request_publish` checks the draft first, so a draft that cannot be published
+  opens no approval, and then asks through `invoke`; there is no second approval path. The approval binds the draft's
+  `version_number`, so a draft revised while it waits goes stale. This application also requires the in-zone model
+  profile ([ADR 0042](0042-in-zone-inference-leaving-the-zone-is-a-disclosure.md)) and, for an automation authority, a principal this build
+  declares (`Execution.Validations.Publishable`). Both publish actions are `changes_authority`: an automation
+  principal never publishes an agent.
+- **Authority (decision D13).** A version's runs act as the requester unless the publisher names an automation
+  principal, as an argument of the request the approver approves. `requesterless` is allowed only with an automation
+  authority, and only at publish.
+- **Pinning and drift.** A run pins a version's id and calls `AshAgent.AgentVersion.Definition.check_pinned/1` before
+  each step: the version must be published or retired, and every toolset target must still have the digest it had
+  when the version was written. Otherwise the run fails closed with `AshAgent.AgentVersion.DefinitionDrift`
+  (`:definition_drift`). Publishing version 2 changes nothing about version 1, so a run pinned to it carries on;
+  `latest_published` is what a new run starts on.
+- **Where a version is published: in a tenant, not in the platform organization.** The plan placed code-declared
+  agents in the platform organization as baselines that tenants fork, the way processes and decisions are
+  ([`Process.Resolver`](../../lib/ash_enterprise/process/resolver.ex)). That organization has no people, so nobody
+  there could be the four eyes, and process baselines are published by a deploy task rather than approved. Agent
+  baselines are registered there from code (as the `seed` system actor) and never published there. A tenant copies
+  the latest one with `fork_for_tenant`, which reads it through `Resolver.agent_baseline/1`, the named cross-tenant
+  read, records it as `baseline_id`, and writes nothing when the tenant already holds that content. The tenant then
+  publishes its copy under its own administrators' approval, and its runs pin the copy. Who a run acts as, and whether
+  it may run with no requester, are tenant choices, which is where automation principals and their start grants
+  live.
+- **Not built here.** The boot-time sync that registers every declared agent into the platform organization: no
+  agent is declared in code yet, so it lands with the first one (the run and assistant tickets). Tenant-authored
+  agents beyond `create_draft` and `revise_draft` wait for decision D16.
+- **Tests.** Package: `test/ash_agent/agent_version_test.exs`. Here:
+  `test/ash_enterprise/execution/agent_version_test.exs`.

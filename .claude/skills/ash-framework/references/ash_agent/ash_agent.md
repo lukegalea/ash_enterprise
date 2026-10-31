@@ -4,8 +4,8 @@
 
 Built: the effects extension, the invocation fragment with its execution paths, typed failure and reconciliation of
 outside work whose outcome is unknown, the `Governed` validation that keeps a governed action behind its invocation,
-and the two behaviours and one protocol it calls. Not yet built: the agent run
-fragments and the approvals and execution-history behaviours.
+the two behaviours and one protocol it calls, and the agent version fragment with code-declared agents. Not yet built:
+the run and step fragments and the approvals and execution-history behaviours.
 
 ## Understanding AshAgent
 
@@ -30,6 +30,6 @@ declarations; the application turns them into resources.
 ## Sub-rules
 
 - [effects](usage-rules/effects.md): declaring what each action does to the world, and checking exposed tools.
-- [fragments](usage-rules/fragments.md): the invocation fragment and how to include it.
+- [fragments](usage-rules/fragments.md): the invocation and agent version fragments and how to include them.
 - [triggers](usage-rules/triggers.md): the ash_oban triggers a host declares.
 - [host-behaviours](usage-rules/host-behaviours.md): the behaviours a host implements.
