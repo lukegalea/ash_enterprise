@@ -22,11 +22,13 @@ defmodule AshEnterprise.Mdm.MatchCalibrationTest do
   alias AshEnterprise.SystemOne.Banding.Resolver
   alias AshEnterprise.SystemOne.BandTableCertification
   alias AshEnterprise.SystemOne.BandTablePublication
+  alias AshEnterprise.SystemOne.BandTablePublication.CertifyAndPublish
   alias AshEnterprise.SystemOne.Calibration
   alias AshEnterprise.SystemOne.CalibrationInput
   alias AshEnterprise.SystemOne.CalibrationSample
   alias AshEnterprise.SystemOne.HumanVerdict
   alias AshEnterprise.SystemOne.Judgment
+  alias AshJudgments.Calibration.FamilyConfig
   alias AshJudgments.Calibration.ProposalDmn
 
   require Ash.Query
@@ -47,11 +49,12 @@ defmodule AshEnterprise.Mdm.MatchCalibrationTest do
       Seeder.seed_tenant(name: "Calib #{n}", unique_name: "calib-#{n}")
 
     # The family's policy data, shrunk for tests (law 5: config, not code).
-    Application.put_env(:ash_judgments, :families, %{
-      @family => %{min_n: 4, min_n_per_class: nil, alpha: 0.2, max_age_days: 90}
+    AshEnterprise.SystemOne.Support.put_family!(@family, %{
+      min_n: 4,
+      min_n_per_class: nil,
+      alpha: 0.2,
+      max_age_days: 90
     })
-
-    on_exit(fn -> Application.delete_env(:ash_judgments, :families) end)
 
     %{org: organization.id, admin: admin, platform: platform.id}
   end
@@ -214,7 +217,15 @@ defmodule AshEnterprise.Mdm.MatchCalibrationTest do
     assert run.result == :proposed_table
     assert proposal.definition_key == @key
 
-    {:ok, xml} = ProposalDmn.render(proposal, score_input: "score")
+    # Rendered as the certify act renders it: over the question's score
+    # input, with the family's low band.
+    assert CertifyAndPublish.score_inputs(run) == [Banding.score_input()]
+
+    {:ok, xml} =
+      ProposalDmn.render(proposal,
+        score_input: CertifyAndPublish.score_inputs(run),
+        low_band: FamilyConfig.low_band(@family)
+      )
 
     draft =
       Definition.create!(%{key: @key, name: "MDM match bands (earned)", xml: xml},
@@ -253,16 +264,71 @@ defmodule AshEnterprise.Mdm.MatchCalibrationTest do
                tenant: platform
              )
 
-    threshold = run.conformal_thresholds |> Map.values() |> hd() |> Map.fetch!("threshold")
-    {threshold, ""} = Float.parse(to_string(threshold))
+    earned = run.conformal_thresholds |> Map.values() |> hd()
+    {threshold, ""} = Float.parse(to_string(Map.fetch!(earned, "threshold")))
+    {threshold_low, ""} = Float.parse(to_string(Map.fetch!(earned, "threshold_low")))
 
-    # After: a score above the earned threshold is admitted, one below is not.
-    # The seed table admits at >= 0.9 and the earned threshold is stricter, so a
+    # After: a score above the earned threshold is admitted, one at or below
+    # the earned lower threshold is dropped (MDM's low band is omit: the
+    # pair is not a match), and one between them goes to a steward. The
+    # seed table admits at >= 0.9 and the earned threshold is stricter, so a
     # score between the two is admitted by the seed and reviewed only if the
     # earned table is the one evaluated.
     assert threshold > 0.91 and threshold < 0.97
+    assert threshold_low >= 0.30 and threshold_low < 0.5
     assert {:ok, :review} = Banding.band(Decimal.new("0.91"), org)
     assert {:ok, :admit} = Banding.band(Decimal.new("0.97"), org)
-    assert {:ok, :review} = Banding.band(Decimal.new("0.30"), org)
+    assert {:ok, :review} = Banding.band(Decimal.new("0.5"), org)
+    assert {:ok, :omit} = Banding.band(Decimal.new("0.30"), org)
+
+    # Seeding again leaves the earned table in place.
+    assert String.trim(Banding.publish_seed_bands!(platform).xml) == String.trim(xml)
+  end
+
+  test "the seed reads the score as a decimal string, under the earned table's input name",
+       ctx do
+    seed = Banding.publish_seed_bands!(ctx.platform)
+    assert seed.xml =~ ~s(name="#{Banding.score_input()}")
+    assert seed.xml =~ "number(#{Banding.score_input()})"
+
+    assert {:ok, :admit} = Banding.band(Decimal.new("0.95"), ctx.org)
+    assert {:ok, :review} = Banding.band(0.6, ctx.org)
+    assert {:ok, :omit} = Banding.band(Decimal.new("0.2"), ctx.org)
+
+    # A score that is not a number matches no rule: an error, never a band.
+    assert {:error, _} = Banding.band("not a number", ctx.org)
+
+    # Idempotent: seeding again publishes nothing new.
+    assert Banding.publish_seed_bands!(ctx.platform).id == seed.id
+  end
+
+  test "an older seed is replaced by a new seed version", ctx do
+    seed = Banding.publish_seed_bands!(ctx.platform)
+    xml = String.trim(seed.xml)
+
+    # The seed as it was before: the score declared a number, read bare.
+    old =
+      xml
+      |> String.replace(
+        ~s(name="#{Banding.score_input()}" typeRef="string"),
+        ~s(name="#{Banding.score_input()}" typeRef="number")
+      )
+      |> String.replace("number(#{Banding.score_input()})", Banding.score_input())
+
+    refute old == xml
+
+    older =
+      Definition.create!(%{key: @key, name: "MDM match bands", xml: old},
+        authorize?: false,
+        tenant: ctx.platform
+      )
+      |> Definition.publish!(authorize?: false, tenant: ctx.platform)
+
+    assert older.version > seed.version
+
+    republished = Banding.publish_seed_bands!(ctx.platform)
+    assert republished.version > older.version
+    assert String.trim(republished.xml) == xml
+    assert {:ok, :review} = Banding.band(Decimal.new("0.8"), ctx.org)
   end
 end

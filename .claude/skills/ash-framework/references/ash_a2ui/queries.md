@@ -37,6 +37,10 @@ a2ui do
 end
 ```
 
+- **`sortable` drives the admin grid's headers.** Under the admin catalog
+  (1.7) every column whose field is in `sortable` gets a sort control in
+  its header; a click sends the `query` action with the new sort and page 1,
+  validated against the same allowlist.
 - **Declare allowlists minimally.** Only add fields to `sortable`/`filters`/
   `search_fields` that the surface actually needs — every entry is
   client-reachable. Never mirror all public attributes "because they exist".
@@ -49,6 +53,10 @@ end
   calculations have no data-layer expression and are rejected everywhere;
   aggregates are sort-only). All verified at compile
   time — fix the declaration, do not work around the verifier.
+- **`hidden_filters` drops a filter's picker, not the filter.** List there
+  the `filters` entries the page sets itself (links to
+  `?q[filters][<name>]=...`): they still apply, the controls just draw no
+  picker for them. Each must also be in `filters`.
 - **`range_filters` is the only client-driven bound mechanism.** Each
   declared field (public attributes only) gets `/query/ranges/<field>/from`
   and `/to` string bindings, cast to the attribute's type and ANDed as
@@ -65,7 +73,52 @@ end
   richer (`not is_nil`, ranges, ORs). `default_preset` applies when the
   client selects none *and* closes the set (no `""`/"All" escape to the
   unscoped base read); without it, `""` means "no preset". Presets are UX
-  scoping — authorization stays in Ash policies.
+  scoping — authorization stays in Ash policies. `preset_picker false`
+  leaves the picker out when the page selects presets itself (tabs linking
+  to `?q[preset]=...`); the presets still apply.
+- `apply_on_change true` applies the query as its controls change (search
+  after a 300 ms pause) instead of on Apply. The Apply button stays in the
+  tree; renderers that honour the `/query` state's `autoApply` hide it.
+  A query with nothing to pick (sort and page size only) gets no controls
+  card either way.
+- **Filter bar options (admin catalog 1.10).** All opt-in; a query
+  without them emits exactly what it did.
+  - `multi_select_filters [:status]` — a picker of several values
+    (`multipleSelection`, no "All"); `/query/filters/<name>` is a list
+    (`[]` = inactive) applied with `in`.
+  - `filter_groups status: [expiring: [:expiring_soon, :renewal_scheduled]]`
+    (+ `group_labels status: [expiring: "Expiring soon"]`) — nested
+    options. A group is UI only: the filter only ever receives leaf values,
+    so a link selecting a group lists its leaves
+    (`?q[filters][status][]=expiring_soon&...`). Leaves must be declared
+    choices, each in one group, and a group value is never also a leaf.
+  - `facet_counts true` (or a list) — per-option counts at
+    `/query/facets/<name>/<value>`, counted with search, ranges, the
+    preset, the context scope and every *other* filter, under the actor's
+    policies. One aggregate call per faceted filter (a filtered count per
+    option); keep option lists short.
+  - `filter_hints status: "..."` and `filter_labels vendor: "Vendor"` —
+    the picker's footer hint and label (the label defaults to the field's
+    declared `label`, then the humanized name).
+  - `path_filters property: [:lines, :property, :name], vendor: :vendor_name`
+    — filters over a related value: a relationship path (any related value
+    matches) or one attribute/aggregate/expression calculation. Use a
+    filtered aggregate when the path alone would match the wrong related
+    records (a vendor party, not the PMC). Options are the distinct values
+    of the read the actor can see, at `/query/options/<name>`. Values cast
+    to the terminal field's type. Admin catalog only.
+  - `search_placeholder "..."`, `controls_card false` (the bare Row under
+    the same `query<sfx>_controls` id) and `page_size_options [10, 20, 50]`
+    (each `<= max_page_size`; a size change starts at page 1).
+  - `empty_state`, `no_results_state` (with `clear_action`) and a preset's
+    `empty_state` — the admin grid's empty states; the runner writes the
+    one that applies to `/query/emptyState`. The variants need the query's
+    own `empty_state`.
+  - `search_fields` may name a string aggregate (`:vendor_name`) — searched
+    in the data layer like an attribute.
+  Under the basic catalog groups flatten to their leaves, and hints,
+  counts, placeholders and path-filter pickers are left out (the basic
+  schemas are strict).
 - On multi-table surfaces each named table may attach its own query; state
   lives at `/query/<component_name>` and the `query` action context requires
   `"component"` (the emitted controls send it automatically).

@@ -38,6 +38,7 @@ defmodule AshEnterpriseWeb.JudgmentSurfacesTest do
   alias AshEnterpriseWeb.A2ui.Judgments
 
   @family "house_style"
+  @row_fields [:subject, :question_text, :lean, :judged_text, :judged_excerpt]
   @certify "AshEnterprise.SystemOne.CalibrationRun.certify_and_publish"
   @revoke "AshEnterprise.SystemOne.BandTableCertification.revoke"
 
@@ -79,15 +80,134 @@ defmodule AshEnterpriseWeb.JudgmentSurfacesTest do
 
       assert {:ok, _messages} =
                invoke(Judgments.VerdictsUI, "record_verdict", banding, ctx,
-                 values: %{"value" => "yes", "reason" => "Reads as a durable fact."}
+                 values: %{"answer" => "yes", "why" => "Reads as a durable fact."}
                )
 
       assert [verdict] = HumanVerdict |> Ash.read!(tenant: ctx.org, authorize?: false)
       assert verdict.judgment_id == judgment.id
       assert verdict.human_value == "true"
+      assert verdict.reason == "Reads as a durable fact."
       assert verdict.reviewer == ctx.email
       assert verdict.basis == :review_task
       assert [] == awaiting(ctx)
+    end
+
+    test "a row shows the subject, the question's wording, the model's lean and the text",
+         ctx do
+      question = Questions.declared(:comments_are_durable_facts_only)
+      text = "# Retries three times, because the upstream drops one call in fifty."
+      table = published_table!(%{"threshold" => "0.77", "threshold_low" => "0.12"})
+
+      judgment =
+        record!(
+          tenant: ctx.org,
+          question_id: question.question_id,
+          question_hash: question.question_hash,
+          family: "commenting",
+          subject_type: "AshEnterprise.Standards.CodeUnit",
+          subject_id: "ash_enterprise:lib/retry.ex#Retry.run/1",
+          state_ciphertext: sealed!(text)
+        )
+
+      banding =
+        review_banding!(judgment, ctx.org,
+          band_table: table,
+          inputs: %{
+            "family" => "commenting",
+            "comments_are_durable_facts_only__present" => "true",
+            "comments_are_durable_facts_only__p_true" => "0.7"
+          }
+        )
+
+      assert [row] = awaiting(ctx, load: @row_fields)
+      assert row.id == banding.id
+      assert row.subject == "ash_enterprise:lib/retry.ex#Retry.run/1"
+      assert row.question_text == question.instructions
+      assert row.lean =~ "leans yes, 0.7"
+      assert row.lean =~ "0.77 admits yes and 0.12 admits no without review"
+      assert row.judged_text == text
+      assert row.judged_excerpt == text
+
+      # The surface lists these fields on the row and the text in its detail.
+      view = AshA2ui.ResolvedView.resolve(Judgments.VerdictsUI)
+      assert inspect(view) =~ "judged_excerpt"
+    end
+
+    test "the text opens only as an actor, and only when this host sealed it", ctx do
+      sealed =
+        record!(tenant: ctx.org, subject_id: "sealed", state_ciphertext: sealed!("Sealed text."))
+
+      unsealed =
+        record!(
+          tenant: ctx.org,
+          subject_id: "unsealed",
+          state_ciphertext: "not sealed by this host"
+        )
+
+      review_banding!(sealed, ctx.org)
+      review_banding!(unsealed, ctx.org)
+
+      assert awaiting(ctx, load: [:judged_text]) |> Enum.map(& &1.judged_text) |> Enum.sort() ==
+               [nil, "Sealed text."]
+
+      # The review source reads the ledger as the actor; with none, nothing.
+      assert AshEnterprise.SystemOne.ReviewSource.open_state([sealed], tenant: ctx.org) == %{}
+
+      # A person without a read grant on the ledger gets nothing either.
+      outsider = reader!(ctx)
+
+      assert AshEnterprise.SystemOne.ReviewSource.open_state([sealed],
+               actor: outsider.actor,
+               tenant: ctx.org
+             ) == %{}
+    end
+
+    test "the answer is a Yes/No picker, and anything else is refused", ctx do
+      view = AshA2ui.ResolvedView.resolve(Judgments.VerdictsUI)
+      assert [answer, why] = view.prompts[:record_verdict]
+      assert answer.label == "Answer"
+      assert answer.choices == [{:yes, "Yes"}, {:no, "No"}]
+      assert why.label == "Why"
+
+      banding = review_banding!(record!(tenant: ctx.org), ctx.org)
+
+      assert {:error, %Ash.Error.Invalid{}} =
+               Banding
+               |> Ash.ActionInput.for_action(
+                 :record_verdict,
+                 %{record_id: banding.id, answer: "maybe"},
+                 actor: ctx.actor,
+                 tenant: ctx.org
+               )
+               |> Ash.run_action()
+
+      assert [] == HumanVerdict |> Ash.read!(tenant: ctx.org, authorize?: false)
+    end
+
+    test "two runs over the same text are one row, and one verdict settles both", ctx do
+      subject = [subject_type: "AshEnterprise.Standards.CodeUnit", subject_id: "unit#1"]
+      first = record!([tenant: ctx.org] ++ subject)
+      second = record!([tenant: ctx.org] ++ subject)
+      first_banding = review_banding!(first, ctx.org)
+      second_banding = review_banding!(second, ctx.org)
+
+      # The second run's row is the same question over the same text.
+      assert [first_banding.id] == awaiting(ctx)
+
+      assert {:ok, _messages} =
+               invoke(Judgments.VerdictsUI, "record_verdict", first_banding, ctx,
+                 values: %{"answer" => "no", "why" => "Narrates the change."}
+               )
+
+      verdicts = HumanVerdict |> Ash.read!(tenant: ctx.org, authorize?: false)
+
+      assert verdicts |> Enum.map(& &1.judgment_id) |> Enum.sort() ==
+               Enum.sort([first.id, second.id])
+
+      assert Enum.all?(verdicts, &(&1.human_value == "false"))
+      assert [] == awaiting(ctx)
+
+      refute second_banding.id in awaiting(ctx)
     end
 
     test "no system actor records a verdict", ctx do
@@ -97,7 +217,7 @@ defmodule AshEnterpriseWeb.JudgmentSurfacesTest do
                Banding
                |> Ash.ActionInput.for_action(
                  :record_verdict,
-                 %{record_id: banding.id, value: "yes"},
+                 %{record_id: banding.id, answer: :yes},
                  actor: SystemActor.oban(),
                  tenant: ctx.org
                )
@@ -109,11 +229,12 @@ defmodule AshEnterpriseWeb.JudgmentSurfacesTest do
     setup :tenant
 
     setup do
-      Application.put_env(:ash_judgments, :families, %{
-        @family => %{min_n: 2, min_n_per_class: nil, alpha: 0.016, max_age_days: 90}
+      AshEnterprise.SystemOne.Support.put_family!(@family, %{
+        min_n: 2,
+        min_n_per_class: nil,
+        alpha: 0.016,
+        max_age_days: 90
       })
-
-      on_exit(fn -> Application.delete_env(:ash_judgments, :families) end)
     end
 
     test "a person's click certifies the earned table as them and publishes it", ctx do
@@ -194,11 +315,12 @@ defmodule AshEnterpriseWeb.JudgmentSurfacesTest do
     setup :tenant
 
     setup do
-      Application.put_env(:ash_judgments, :families, %{
-        @family => %{min_n: 2, min_n_per_class: nil, alpha: 0.016, max_age_days: 90}
+      AshEnterprise.SystemOne.Support.put_family!(@family, %{
+        min_n: 2,
+        min_n_per_class: nil,
+        alpha: 0.016,
+        max_age_days: 90
       })
-
-      on_exit(fn -> Application.delete_env(:ash_judgments, :families) end)
     end
 
     test "is refused without an approval, and runs once a person approves it", ctx do
@@ -322,7 +444,7 @@ defmodule AshEnterpriseWeb.JudgmentSurfacesTest do
         tenant: ctx.org
       )
 
-      args = %{"record_id" => banding.id, "value" => "yes"}
+      args = %{"record_id" => banding.id, "answer" => "yes"}
 
       case Execution.invoke(
              "AshEnterprise.SystemOne.Banding.record_verdict",
@@ -349,11 +471,12 @@ defmodule AshEnterpriseWeb.JudgmentSurfacesTest do
     setup :tenant
 
     setup do
-      Application.put_env(:ash_judgments, :families, %{
-        @family => %{min_n: 2, min_n_per_class: nil, alpha: 0.016, max_age_days: 90}
+      AshEnterprise.SystemOne.Support.put_family!(@family, %{
+        min_n: 2,
+        min_n_per_class: nil,
+        alpha: 0.016,
+        max_age_days: 90
       })
-
-      on_exit(fn -> Application.delete_env(:ash_judgments, :families) end)
     end
 
     defp certified!(ctx) do
@@ -460,11 +583,12 @@ defmodule AshEnterpriseWeb.JudgmentSurfacesTest do
     setup :tenant
 
     setup do
-      Application.put_env(:ash_judgments, :families, %{
-        @family => %{min_n: 2, min_n_per_class: nil, alpha: 0.016, max_age_days: 90}
+      AshEnterprise.SystemOne.Support.put_family!(@family, %{
+        min_n: 2,
+        min_n_per_class: nil,
+        alpha: 0.016,
+        max_age_days: 90
       })
-
-      on_exit(fn -> Application.delete_env(:ash_judgments, :families) end)
     end
 
     test "the run's table gates on the questions it calibrated", ctx do
@@ -543,11 +667,57 @@ defmodule AshEnterpriseWeb.JudgmentSurfacesTest do
     )
   end
 
-  defp awaiting(ctx) do
-    Banding
-    |> Ash.Query.for_read(:awaiting_verdict, %{}, actor: ctx.actor, tenant: ctx.org)
-    |> Ash.read!()
-    |> Enum.map(& &1.id)
+  defp awaiting(ctx, opts \\ []) do
+    rows =
+      Banding
+      |> Ash.Query.for_read(:awaiting_verdict, %{}, actor: ctx.actor, tenant: ctx.org)
+      |> Ash.Query.load(Keyword.get(opts, :load, []))
+      |> Ash.read!()
+
+    if opts[:load], do: rows, else: Enum.map(rows, & &1.id)
+  end
+
+  # A band table version as the certify act publishes one: rendered by
+  # ProposalDmn, in the platform organization. Returns the banding's ref.
+  defp published_table!(thresholds) do
+    platform = Seeder.seed_platform_organization()
+    key = Resolver.band_table_key("commenting")
+
+    {:ok, xml} =
+      AshJudgments.Calibration.ProposalDmn.render(
+        %{
+          "definition_key" => key,
+          "family_tag" => "judgments:family:commenting",
+          "thresholds" => thresholds
+        },
+        score_input: Questions.score_inputs(:commenting),
+        low_band: :admit_no
+      )
+
+    definition =
+      Definition.create!(%{key: key, name: key, xml: xml}, authorize?: false, tenant: platform.id)
+      |> Definition.publish!(authorize?: false, tenant: platform.id)
+
+    %{
+      "definition_key" => key,
+      "definition_version" => to_string(definition.version),
+      "content_hash" => definition.content_hash,
+      "definition_id" => definition.id,
+      "tenant_fork" => nil
+    }
+  end
+
+  defp sealed!(text) do
+    scope =
+      AshEnterprise.Erasure.ensure_scope!(
+        :connection,
+        "test:verdicts-#{System.unique_integer([:positive])}",
+        %{label: "verdicts test"},
+        actor: SystemActor.oban()
+      )
+
+    {:ok, sealed} = AshEnterprise.Erasure.Keyring.seal(scope.id, text)
+    sealed
   end
 
   defp awaiting_certification(ctx) do
@@ -557,7 +727,7 @@ defmodule AshEnterpriseWeb.JudgmentSurfacesTest do
     |> Enum.map(& &1.id)
   end
 
-  defp review_banding!(judgment, org) do
+  defp review_banding!(judgment, org, opts \\ []) do
     Banding
     |> Ash.Changeset.for_create(
       :record,
@@ -566,16 +736,18 @@ defmodule AshEnterpriseWeb.JudgmentSurfacesTest do
         band: :review,
         reason_code: "below_conformal_threshold",
         matched_rule_ids: ["rule_review"],
-        band_table: %{
-          "definition_key" => "judgments_band_system_one_notes",
-          "definition_version" => "1"
-        },
+        band_table:
+          Keyword.get(opts, :band_table, %{
+            "definition_key" => "judgments_band_system_one_notes",
+            "definition_version" => "1"
+          }),
         decision_evaluation_id: Ash.UUID.generate(),
-        inputs: %{
-          "family" => "system_one_notes",
-          "notes_follow_up__present" => "true",
-          "notes_follow_up__p_true" => "0.9"
-        },
+        inputs:
+          Keyword.get(opts, :inputs, %{
+            "family" => "system_one_notes",
+            "notes_follow_up__present" => "true",
+            "notes_follow_up__p_true" => "0.9"
+          }),
         mode: :live
       },
       actor: SystemActor.process(),

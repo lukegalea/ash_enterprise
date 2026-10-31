@@ -40,11 +40,7 @@ defmodule AshEnterprise.SystemOne.ApprovalLoopTest do
     Correlation.start_new()
 
     # The family's policy data, shrunk for tests (law 5: config, not code).
-    Application.put_env(:ash_judgments, :families, %{
-      @family => %{min_n: 2, min_n_per_class: nil, alpha: 0.016, max_age_days: 90}
-    })
-
-    on_exit(fn -> Application.delete_env(:ash_judgments, :families) end)
+    put_family!(@family, %{min_n: 2, min_n_per_class: nil, alpha: 0.016, max_age_days: 90})
 
     %{org: Ash.UUID.generate(), person: person()}
   end

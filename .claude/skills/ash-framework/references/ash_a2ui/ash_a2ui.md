@@ -280,10 +280,11 @@ end
   no longer breaks reserved-path bindings — `createAshAdminCatalog` builds
   without the host passing `z` at all, and throws a loud error if a
   foreign-zod `z` is still passed. Hosts must still pin matching
-  `@a2ui/lit` / `@a2ui/web_core` versions: the admin catalog was built and
-  verified against lit 0.10.1 / web_core 0.11.0; the basic catalog's
-  Text/Button overrides resolve the upstream elements at runtime, so they
-  also bundle against 0.10.x (verified with lit 0.10.3 / web_core 0.10.6).
+  `@a2ui/lit` / `@a2ui/web_core` versions: both catalogs are verified
+  against 0.11 and 0.12 (the probes in `priv/js/probe/` run on either),
+  and the basic catalog's overrides resolve the upstream elements at
+  runtime, so they also bundle against 0.10.x (verified with lit 0.10.3 /
+  web_core 0.10.6).
   The Lit renderer registration ships in `priv/js/ash_admin_catalog.js`
   (`createAshAdminCatalog(deps)`).
 

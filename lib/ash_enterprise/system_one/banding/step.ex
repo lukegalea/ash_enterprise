@@ -156,14 +156,18 @@ defmodule AshEnterprise.SystemOne.Banding.Step do
     version =
       evaluation.band_table["definition_version"] || evaluation.band_table[:definition_version]
 
-    # boxic v0 band tables are single-output (the band). When the table
-    # does not emit them, the step derives fact_value (the gated answer's
-    # own collapsed value — the admit is a proposal FOR that answer) and
-    # reason_code (band + definition version) — flagged for v1: compound
-    # band-table outputs in boxic.
+    # A table that says which fact it admits (a three-range table with a
+    # `fact_value` output: `true` on the admit rule, `false` on the
+    # confident-no rule) is recorded as it says. When the table does not
+    # emit one, the step derives fact_value (the gated answer's own
+    # collapsed value — the admit is a proposal FOR that answer), and
+    # reason_code (band + definition version) the same way.
     # `false` is a value (an admitted Noul "no"), so absence is nil only.
     fact_value =
-      present(fact_value_of(evaluation), if(band == :admit, do: answer_value(answers)))
+      present(
+        table_fact_value(evaluation, answers),
+        if(band == :admit, do: answer_value(answers))
+      )
 
     reason_code = output_of(evaluation, "reason_code") || "band_#{band}_v#{version}"
 
@@ -284,6 +288,19 @@ defmodule AshEnterprise.SystemOne.Banding.Step do
 
   defp fact_value_of(evaluation),
     do: present(evaluation.outputs[:fact_value], evaluation.outputs["fact_value"])
+
+  # A yes/no answer's fact is a boolean. The table's output is typed
+  # boolean, but a table whose output cell arrives as the string "true" or
+  # "false" still admits the boolean, so a yes and a no are stored as the
+  # same kind of value.
+  defp table_fact_value(evaluation, answers) do
+    value = fact_value_of(evaluation)
+    if Enum.any?(answers, &noul?/1), do: boolean(value), else: value
+  end
+
+  defp boolean("true"), do: true
+  defp boolean("false"), do: false
+  defp boolean(value), do: value
 
   defp present(nil, fallback), do: fallback
   defp present(value, _fallback), do: value
