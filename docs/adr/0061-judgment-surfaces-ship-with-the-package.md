@@ -1,6 +1,6 @@
 # ADR 0061 — Judgment surfaces ship with ash_judgments; a host binds them to its own resources
 
-- **Status:** accepted, not built (2026-10-31)
+- **Status:** accepted (2026-10-31), implemented
 - **Date:** 2026-10-31
 
 ## Context
@@ -33,7 +33,7 @@ Two constraints shape the answer:
 
 ### The surfaces ship in `ash_judgments`, as macros a host binds in its web layer
 
-`ash_judgments` takes `ash_a2ui` as an optional dependency and ships four surface macros under `AshJudgments.A2ui`.
+`ash_judgments` takes `ash_a2ui` as an optional dependency and ships five surface macros under `AshJudgments.A2ui`.
 Each one compiles only when `ash_a2ui` is loaded. A host binds a surface to its own resource in its web layer:
 
 ```elixir
@@ -48,7 +48,8 @@ every field and action the surface names against the host's resource when the ho
 | Surface | Over | Shows | Acts |
 |---|---|---|---|
 | `Verdicts` | the banding resource | bandings in `review` with no verdict, oldest first: family, question, the model's answer, the reason | record a verdict (the person's value and reason) |
-| `BandTables` | the calibration-run resource | proposed tables without a certification, and certified ones with their age against the family's `max_age_days` | certify and publish; revoke |
+| `BandTables` | the calibration-run resource | proposed tables without a certification: n, the threshold at α, ECE, Brier, the model | certify and publish |
+| `Certifications` | the certification resource | the certifications in force, with who certified them | revoke |
 | `Calibration` | the calibration-run resource | every run per family in order: n, n per class, ECE, Brier, the threshold at the family's α, the result | none |
 | `Facts` | the facts resource | current facts per subject and predicate: value, holds, status, admission grade, the admission behind it | none |
 
@@ -63,15 +64,22 @@ read's name, the action's name and its arguments.
 - **Where a read crosses two host resources,** the host declares it, naming its own resource literally. The awaiting
   read is one filter:
   `band == :review and not exists(MyApp.HumanVerdict, judgment_id in parent(observation_ids))`.
-- **Where the act reaches host machinery,** the host supplies the function through ash_a2ui's `via`. Publication is
-  the example: it renders the proposal's DMN, saves the draft in the host's decisions store, certifies and publishes.
+- **Where the act reaches host machinery,** the host writes the action itself. Publication is the example: a generic
+  action that renders the proposal's DMN, saves the draft in the host's decisions store, records the certification as
+  the person and publishes, in one transaction, so a verifier refusal leaves no certification behind. It is an action,
+  not ash_a2ui's `via`: `via` swaps the action for a function at click time, so the action's own policies would not
+  guard the act.
 
-The verdict, the certification and the revocation are human-only actions (ADR 0059). A background job or an engine
+The verdict, the certification and the revocation are human-only actions (ADR 0059). Each declares its effects
+(ADR 0057) as a person's confirmed act: `kind: :execute`, `open_world?: false`, `approval: :confirm`,
+`intent: :approve`. An agent's request for one goes through a governed invocation that the person approves
+(ADR 0055), never as the person; the verdict is never an agent's (AST-136). A background job or an engine
 call cannot run them, and the surface runs them as the person who clicks.
 
 ### This application mounts them, and keeps the cross-kind queue and question proposals as its own
 
-ash_enterprise binds the four surfaces under `/app/judgments/*` and lists them in the launcher. Two parts stay host
+ash_enterprise binds the five surfaces under `/app/judgments/*`, lists them in the launcher in a Judgments group, and
+gives each an ACP command, so an agent can open one for the person in chat: the agent points, the person clicks. Two parts stay host
 surfaces, because their records are the host's own:
 
 - **question proposals** (S1-61, `SystemOne.QuestionProposal`);
@@ -88,7 +96,7 @@ allowlist on every invoke. The rows a person may not read never reach the surfac
 
 ## Consequences
 
-- An application using `ash_judgments` gets usable screens from four small modules and a handful of host actions,
+- An application using `ash_judgments` gets usable screens from five small modules and a handful of host actions,
   where it used to need scripts.
 - The package now has a UI dependency, but an optional one. CI's "compiles without the optional dependencies" job
   keeps a host without `ash_a2ui` working.

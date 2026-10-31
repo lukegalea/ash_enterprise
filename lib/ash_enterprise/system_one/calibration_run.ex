@@ -26,6 +26,7 @@ defmodule AshEnterprise.SystemOne.CalibrationRun do
     lifecycle?: false,
     archival?: false,
     policies?: false,
+    extra_extensions: [AshAgent.Effects],
     fragments: [AshJudgments.Calibration.Fragment]
 
   postgres do
@@ -37,7 +38,47 @@ defmodule AshEnterprise.SystemOne.CalibrationRun do
     create_timestamp :started_at
   end
 
+  # The band-table surface's contract (AshJudgments.A2ui.BandTables, ADR 0061).
+  actions do
+    read :awaiting_certification do
+      description "Runs that proposed a band table no one has certified yet."
+
+      filter expr(
+               result == :proposed_table and
+                 not exists(
+                   AshEnterprise.SystemOne.BandTableCertification,
+                   calibration_run_id == parent(id)
+                 )
+             )
+
+      prepare build(sort: [finished_at: :asc])
+    end
+
+    action :certify_and_publish, :map do
+      description "A person certifies the run's proposed band table, and it is published."
+      argument :record_id, :uuid, allow_nil?: false
+      run AshEnterprise.SystemOne.BandTablePublication.CertifyAndPublish
+    end
+  end
+
+  # Certifying publishes the table that bands the family live from then
+  # on (ADR 0041, 0057). The person confirms by clicking; an agent's
+  # request for it is S1-78's governed path.
+  effects do
+    action :certify_and_publish,
+      kind: :execute,
+      open_world?: false,
+      approval: :confirm,
+      intent: :approve
+  end
+
   policies do
+    # Certifying is a person's act (ADR 0041, 0059). It comes before the
+    # bypass, which covers only the policies after it.
+    policy action(:certify_and_publish) do
+      authorize_if AshEnterprise.SystemOne.Checks.PersonActor
+    end
+
     bypass AshEnterprise.Security.Checks.SystemActor do
       authorize_if always()
     end

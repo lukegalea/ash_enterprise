@@ -66,6 +66,13 @@ defmodule AshEnterprise.Surfaces do
       blurb: "The processes this tenant runs, the decisions they consult, and what starts them."
     },
     %{
+      key: :judgments,
+      label: "Judgments",
+      menu: :work,
+      blurb:
+        "What the judgment loop leaves for a person: verdicts, band tables to certify, and what calibration earned."
+    },
+    %{
       key: :compliance,
       label: "Compliance",
       menu: :work,
@@ -658,6 +665,74 @@ defmodule AshEnterprise.Surfaces do
     # :reject and :escalate actions refuse system and AI actors by policy, so
     # the queue opens to any signed-in person and the policies decide what
     # they may read and act on.
+    # The judgment surfaces (ADR 0061): ash_judgments' surfaces bound to this
+    # application's resources. The acts are person-gated by policy, not by a
+    # door.
+    %Surface{
+      key: :judgment_verdicts,
+      label: "Verdicts",
+      blurb: "Judgments the band table sent to review, awaiting your verdict.",
+      group: :judgments,
+      order: 0,
+      icon: "hero-scale",
+      path: "/app/judgments",
+      live: A2uiLive.JudgmentVerdicts,
+      ui: A2ui.Judgments.VerdictsUI,
+      resource: AshEnterprise.SystemOne.Banding,
+      acp: %{command: "verdicts", aliases: ["judgments awaiting verdict"]}
+    },
+    %Surface{
+      key: :judgment_band_tables,
+      label: "Band tables to certify",
+      blurb: "Band tables a calibration run earned, awaiting a person's certification.",
+      group: :judgments,
+      order: 1,
+      icon: "hero-check-badge",
+      path: "/app/judgments/band-tables",
+      live: A2uiLive.JudgmentBandTables,
+      ui: A2ui.Judgments.BandTablesUI,
+      resource: AshEnterprise.SystemOne.CalibrationRun,
+      acp: %{command: "band tables", aliases: ["certify band tables"]}
+    },
+    %Surface{
+      key: :judgment_certifications,
+      label: "Certified band tables",
+      blurb: "The band tables in force, with who certified them.",
+      group: :judgments,
+      order: 2,
+      icon: "hero-shield-check",
+      path: "/app/judgments/certifications",
+      live: A2uiLive.JudgmentCertifications,
+      ui: A2ui.Judgments.CertificationsUI,
+      resource: AshEnterprise.SystemOne.BandTableCertification,
+      acp: %{command: "certified band tables", aliases: ["certifications"]}
+    },
+    %Surface{
+      key: :judgment_calibration,
+      label: "Calibration",
+      blurb: "Every calibration run: what it measured and the threshold it earned.",
+      group: :judgments,
+      order: 3,
+      icon: "hero-chart-bar",
+      path: "/app/judgments/calibration",
+      live: A2uiLive.JudgmentCalibration,
+      ui: A2ui.Judgments.CalibrationUI,
+      resource: AshEnterprise.SystemOne.CalibrationRun,
+      acp: %{command: "calibration", aliases: ["calibration runs"]}
+    },
+    %Surface{
+      key: :judgment_facts,
+      label: "Facts",
+      blurb: "The facts current now, per subject, with the admission behind each.",
+      group: :judgments,
+      order: 4,
+      icon: "hero-document-check",
+      path: "/app/judgments/facts",
+      live: A2uiLive.JudgmentFacts,
+      ui: A2ui.Judgments.FactsUI,
+      resource: AshEnterprise.SystemOne.Fact,
+      acp: %{command: "facts", aliases: ["judged facts"]}
+    },
     %Surface{
       key: :steward,
       label: "Steward queue",
