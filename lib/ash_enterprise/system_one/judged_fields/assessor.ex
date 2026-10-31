@@ -42,6 +42,7 @@ defmodule AshEnterprise.SystemOne.JudgedFields.Assessor do
       SystemOne.judge_context(
         tenant: tenant,
         correlation_id: correlation_id,
+        lineage: Map.get(req, :lineage),
         judgments:
           Map.merge(
             %{subject: subject, mode: Keyword.get(config, :mode, :live)},

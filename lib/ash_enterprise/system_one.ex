@@ -63,6 +63,11 @@ defmodule AshEnterprise.SystemOne do
           )
       )
 
+  `lineage:` (a map or keyword with any of `run_id`, `step_id`,
+  `tool_call_id`, `invocation_id`, `release_manifest`) is how an agent run
+  hands its position to the ledger row; it is merged into `judgments`
+  and recorded on the ledger row.
+
   An omitted correlation id falls back to the ambient one
   (`AshEnterprise.Platform.Correlation.id/0`), so a judge action invoked
   from a request, an Oban job or a test still lands in its operation's
@@ -78,7 +83,24 @@ defmodule AshEnterprise.SystemOne do
       tenant: Keyword.get(opts, :tenant),
       correlation_id:
         Keyword.get(opts, :correlation_id) || AshEnterprise.Platform.Correlation.id(),
-      judgments: Keyword.get(opts, :judgments, %{})
+      judgments:
+        opts
+        |> Keyword.get(:judgments, %{})
+        |> Map.merge(lineage_keys(Keyword.get(opts, :lineage)))
     }
+  end
+
+  @lineage_keys [:run_id, :step_id, :tool_call_id, :invocation_id, :release_manifest]
+
+  # The agent-run lineage (ADR 0055) rides the judgments map under the flat
+  # keys `AshJudgments.Ledger.Record` reads; absent keys stay absent so a
+  # call outside an agent run records no lineage and hashes as before.
+  defp lineage_keys(nil), do: %{}
+
+  defp lineage_keys(lineage) do
+    lineage
+    |> Map.new()
+    |> Map.take(@lineage_keys)
+    |> Map.reject(fn {_key, value} -> is_nil(value) end)
   end
 end
