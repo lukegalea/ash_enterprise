@@ -257,7 +257,11 @@ defmodule AshEnterprise.Mdm.MatchCalibrationTest do
     {threshold, ""} = Float.parse(to_string(threshold))
 
     # After: a score above the earned threshold is admitted, one below is not.
-    assert threshold < 0.97
+    # The seed table admits at >= 0.9 and the earned threshold is stricter, so a
+    # score between the two is admitted by the seed and reviewed only if the
+    # earned table is the one evaluated.
+    assert threshold > 0.91 and threshold < 0.97
+    assert {:ok, :review} = Banding.band(Decimal.new("0.91"), org)
     assert {:ok, :admit} = Banding.band(Decimal.new("0.97"), org)
     assert {:ok, :review} = Banding.band(Decimal.new("0.30"), org)
   end
