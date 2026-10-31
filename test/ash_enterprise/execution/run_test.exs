@@ -15,10 +15,10 @@ defmodule AshEnterprise.Execution.RunTest do
 
   require Ash.Query
 
-  alias AshAgent.Invocation.NoPrincipal
+  alias AshAgent.Invocation.{Executor, NoPrincipal}
   alias AshEnterprise.Erasure
   alias AshEnterprise.Execution
-  alias AshEnterprise.Execution.{Run, Step}
+  alias AshEnterprise.Execution.{Invocation, Run, Step}
   alias AshEnterprise.Execution.Run.StepWorker
   alias AshEnterprise.Platform.{Seeder, SystemActor}
   alias AshEnterprise.Security
@@ -138,6 +138,53 @@ defmodule AshEnterprise.Execution.RunTest do
 
       # Each model call is recorded under the run and the journal position it filled.
       assert model_calls(run) == [{"run:#{run.id}:1", :ok}, {"run:#{run.id}:3", :ok}]
+    end
+  end
+
+  describe "a revoked start grant" do
+    # A run executing as its requester (the default authority) is held to the agent's
+    # start grant at every step and every tool call, as an automation authority's is.
+    defp revoke_start_grants!(%{admin: admin, tenant: tenant}) do
+      for grant <- Security.AgentStartGrant.read!(actor: admin.actor, tenant: tenant) do
+        Security.AgentStartGrant.destroy!(grant, actor: admin.actor, tenant: tenant)
+      end
+
+      assert Security.AgentStartGrant.read!(actor: admin.actor, tenant: tenant) == []
+    end
+
+    test "stops a run executing as its requester at its next step, before any model call",
+         %{clinic: clinic} do
+      script!([{:text, ~s({"recorded": 0})}])
+      {:ok, run} = start(clinic.nurse)
+
+      revoke_start_grants!(clinic)
+      step!(run)
+
+      failed = run(run)
+      assert {failed.status, failed.failure_class} == {:failed, :denied}
+      assert failed.error_code == "no_authority: no_start_grant"
+      refute_received {:model_request, _messages, _tools, _opts}
+      assert model_calls(run) == []
+      assert invocations(run) == []
+    end
+
+    test "denies a tool call the run already requested, before its target is tried",
+         %{clinic: %{tenant: tenant} = clinic} do
+      title = "SYNTHETIC: order the flu vaccines"
+      script!([{:tools, [record_call("order", title)]}])
+      {:ok, run} = start(clinic.nurse)
+
+      step!(run)
+      assert [%{status: :ready} = call] = invocations(run)
+      assert call.executing_principal == %{type: :person, id: clinic.nurse.user.id}
+
+      revoke_start_grants!(clinic)
+
+      assert {:ok, :failed} = Executor.execute(Invocation, call.id, oban(tenant))
+      denied = Execution.get_invocation!(call.id, oban(tenant))
+      assert {denied.status, denied.failure_class} == {:failed, :denied}
+      assert denied.error_code == "no_authority: no_start_grant"
+      assert notes(tenant, title) == []
     end
   end
 

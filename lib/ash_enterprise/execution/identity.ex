@@ -46,6 +46,12 @@ defmodule AshEnterprise.Execution.Identity do
   call it makes is requested as the person (`requester_for/1`) and so executes as the run
   does.
 
+  Whichever authority it executes as, a run is held to the agent's start grant after it
+  starts: every step, every tool call it requests and every claim of one is refused as
+  `:denied` once the person no longer holds the grant. An automation principal names its
+  agent; for a run executing as its requester the agent is read from the run (its
+  `agent_key`, or that of the run a tool call belongs to).
+
   ## Not a principal
 
   System actors are not principals: the job runner claims and completes invocations but
@@ -59,6 +65,7 @@ defmodule AshEnterprise.Execution.Identity do
   require Ash.Query
 
   alias AshEnterprise.Accounts.{BusinessUnit, User}
+  alias AshEnterprise.Execution.{Invocation, Run}
   alias AshEnterprise.Platform.AutomationPrincipal
   alias AshEnterprise.Security.{ActorContext, AgentStartGrant}
 
@@ -73,9 +80,9 @@ defmodule AshEnterprise.Execution.Identity do
   def principal_for(_actor, _context), do: {:error, :not_a_person}
 
   @impl true
-  def actor_for(%{executing_principal: principal, organization_id: tenant}) do
+  def actor_for(%{executing_principal: principal, organization_id: tenant} = row) do
     case AshAgent.ExecutionIdentity.identity(principal) do
-      {"person", id, _, _} -> person(id, tenant)
+      {"person", id, _, _} -> with {:ok, agent} <- agent_of(row), do: person(id, tenant, agent)
       {"automation", name, person_id, agent} -> automation_actor(name, person_id, agent, tenant)
       _other -> {:error, :no_principal}
     end
@@ -142,10 +149,10 @@ defmodule AshEnterprise.Execution.Identity do
   principal. A person who has lost their authority since cannot ask for more.
   """
   @impl true
-  def requester_for(%{executing_principal: principal, organization_id: tenant}) do
+  def requester_for(%{executing_principal: principal, organization_id: tenant} = run) do
     case AshAgent.ExecutionIdentity.identity(principal) do
       {"person", id, _, _} ->
-        person(id, tenant)
+        person(id, tenant, run.agent_key)
 
       {"automation", name, person_id, agent} when is_binary(person_id) ->
         with {:ok, principal} <- principal(name),
@@ -182,6 +189,35 @@ defmodule AshEnterprise.Execution.Identity do
       {:ok, ActorContext.attach(user, ActorContext.build(user, tenant: tenant))}
     end
   end
+
+  # A person running an agent does so only while they hold its start grant.
+  defp person(id, tenant, nil), do: person(id, tenant)
+
+  defp person(id, tenant, agent) do
+    with {:ok, user} <- member(id, tenant),
+         :ok <- may_start(user, agent, tenant) do
+      {:ok, ActorContext.attach(user, ActorContext.build(user, tenant: tenant))}
+    end
+  end
+
+  # The agent a person's work runs for: a run's own, the run's that a tool call belongs
+  # to, or none for an invocation a person asked for directly.
+  defp agent_of(%Run{agent_key: agent}), do: {:ok, agent}
+  defp agent_of(%Invocation{run_id: nil}), do: {:ok, nil}
+
+  defp agent_of(%Invocation{run_id: run_id, organization_id: tenant}) do
+    Run
+    |> Ash.Query.filter(id == ^run_id)
+    |> Ash.Query.select([:agent_key])
+    |> Ash.read_one(authorize?: false, tenant: tenant)
+    |> case do
+      {:ok, %Run{agent_key: agent}} -> {:ok, agent}
+      {:ok, nil} -> {:error, :no_such_run}
+      {:error, error} -> {:error, error}
+    end
+  end
+
+  defp agent_of(_row), do: {:ok, nil}
 
   defp automation_actor(_name, nil, _agent, _tenant), do: {:error, :requesterless}
 

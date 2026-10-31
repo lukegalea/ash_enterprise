@@ -227,6 +227,8 @@ and the host's `fragments:` lists, with no data migration, because no table name
 - **Who may start one (decision D13).** `start` is self-service, and `Identity.run_principal/3` refuses anyone without
   the agent's start grant ([ADR 0043](0043-automation-authority-is-a-grant.md)). The run
   executes as the version's publish-time authority: the person, or the named automation principal acting for them.
+  Either way the grant is read again at every step, every tool call the run requests and every claim of one, so a
+  revoked start grant fails the run, or the call, as `:denied` before another model call or target runs.
   Requesterless runs are still refused: nothing starts a run with no person yet.
 - **Wake-up and recovery.** `needs_step` is derived over the run's invocations, never counted.
   `AshAgent.Run.Changes.Wake` on `Execution.Invocation` enqueues `:step` when one of a run's invocations finishes;
