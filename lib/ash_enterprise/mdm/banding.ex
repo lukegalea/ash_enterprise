@@ -22,7 +22,10 @@ defmodule AshEnterprise.Mdm.Banding do
   @bands ~w(admit review omit)
 
   defp promote_band(outputs) when is_binary(outputs), do: outputs
-  defp promote_band(outputs) when is_map(outputs), do: outputs["Band"] || outputs[:Band]
+
+  defp promote_band(outputs) when is_map(outputs),
+    do: outputs["Band"] || outputs[:Band] || outputs["band"] || outputs[:band]
+
   defp promote_band(_), do: nil
 
   @doc "Publishes the wide-review seed table into `tenant` (idempotent per key+tenant)."
@@ -71,7 +74,7 @@ defmodule AshEnterprise.Mdm.Banding do
     opts =
       Keyword.merge(opts, tenant: tenant, record: true)
 
-    with {:ok, result} <- Decisions.evaluate(@definition_key, %{"score" => score}, opts),
+    with {:ok, result} <- evaluate(score, opts),
          # A single-output decision promotes: outputs may be the bare value
          # or a map keyed by the output name.
          band when band in @bands <- promote_band(result.outputs) do
@@ -81,6 +84,26 @@ defmodule AshEnterprise.Mdm.Banding do
       other -> {:error, {:bad_band_output, other}}
     end
   end
+
+  # The seed table declares `score` a number. A table the calibration loop
+  # earned is rendered by `AshJudgments.Calibration.ProposalDmn`, which
+  # declares its score input a decimal string (the bridge's form) and
+  # compares `number(score)`; a number is a type error there. Both are
+  # published under the one key, so the score goes in as a number first and,
+  # when the published table is the earned one, as its decimal string.
+  defp evaluate(score, opts) do
+    case Decisions.evaluate(@definition_key, %{"score" => score}, opts) do
+      {:error, {:evaluation_failed, {:type_error, "string"}}} ->
+        Decisions.evaluate(@definition_key, %{"score" => score_string(score)}, opts)
+
+      other ->
+        other
+    end
+  end
+
+  defp score_string(%Decimal{} = score), do: Decimal.to_string(score)
+  defp score_string(score) when is_float(score), do: Float.to_string(score)
+  defp score_string(score), do: to_string(score)
 
   # Sobelow reads `@sobelow_skip` out of the source AST; persisting it keeps
   # `--warnings-as-errors` from calling it unused (see AshEnterprise.Audit.Export).

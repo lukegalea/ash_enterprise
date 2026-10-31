@@ -154,6 +154,11 @@ defmodule AshEnterpriseWeb.Router do
       live "/app/mdm/mappings", A2uiLive.MdmMappings
       live "/app/mdm/golden", A2uiLive.MdmGolden
       live "/app/mdm/batches", A2uiLive.MdmBatches
+      live "/app/judgments", A2uiLive.JudgmentVerdicts
+      live "/app/judgments/band-tables", A2uiLive.JudgmentBandTables
+      live "/app/judgments/certifications", A2uiLive.JudgmentCertifications
+      live "/app/judgments/calibration", A2uiLive.JudgmentCalibration
+      live "/app/judgments/facts", A2uiLive.JudgmentFacts
       live "/app/tasks", A2uiLive.Tasks
 
       # The same people, over a table this application owns rather than a view over the legacy
