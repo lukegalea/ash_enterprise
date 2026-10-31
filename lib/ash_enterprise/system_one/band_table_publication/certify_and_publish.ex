@@ -45,18 +45,22 @@ defmodule AshEnterprise.SystemOne.BandTablePublication.CertifyAndPublish do
       # a refused table leaves no certification behind, so the run stays
       # in the queue.
       Ash.DataLayer.transaction([Definition, BandTableCertification], fn ->
-        with {:ok, draft} <- draft(run.family, xml),
-             {:ok, certification} <- certify(run, draft, context),
-             {:ok, published} <- publish(run, certification) do
-          %{
-            definition_key: published.key,
-            version: published.version,
-            certification_id: certification.id
-          }
-        else
-          {:error, error} -> Ash.DataLayer.rollback(BandTableCertification, error)
-        end
+        certify_and_publish(run, xml, context)
       end)
+    end
+  end
+
+  defp certify_and_publish(run, xml, context) do
+    with {:ok, draft} <- draft(run.family, xml),
+         {:ok, certification} <- certify(run, draft, context),
+         {:ok, published} <- publish(run, certification) do
+      %{
+        definition_key: published.key,
+        version: published.version,
+        certification_id: certification.id
+      }
+    else
+      {:error, error} -> Ash.DataLayer.rollback(BandTableCertification, error)
     end
   end
 

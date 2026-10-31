@@ -61,8 +61,9 @@ defmodule AshEnterprise.SystemOne.CalibrationRun do
     end
   end
 
-  # Certifying publishes the table that bands the family live from then on (ADR 0041, 0057). The person confirms by clicking; an agent's request for it is
-  # S1-78's governed path.
+  # Certifying publishes the table that bands the family live from then
+  # on (ADR 0041, 0057). The person confirms by clicking; an agent's
+  # request for it is S1-78's governed path.
   effects do
     action :certify_and_publish,
       kind: :execute,

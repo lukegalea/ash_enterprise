@@ -66,8 +66,9 @@ defmodule AshEnterprise.SystemOne.Banding do
     end
   end
 
-  # A verdict is the person confirming their own answer on the surface (ADR 0057). The person confirms by clicking; an agent's request for it is
-  # S1-78's governed path.
+  # A verdict is the person confirming their own answer on the surface
+  # (ADR 0057). The person confirms by clicking; an agent's request for
+  # it is S1-78's governed path.
   effects do
     action :record_verdict,
       kind: :execute,

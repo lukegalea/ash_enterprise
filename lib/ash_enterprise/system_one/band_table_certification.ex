@@ -44,8 +44,9 @@ defmodule AshEnterprise.SystemOne.BandTableCertification do
     change set_attribute(:certified_by, actor(:email)), on: [:update]
   end
 
-  # Revoking withdraws the table the family bands through (ADR 0057). The person confirms by clicking; an agent's request for it is
-  # S1-78's governed path.
+  # Revoking withdraws the table the family bands through (ADR 0057). The
+  # person confirms by clicking; an agent's request for it is S1-78's
+  # governed path.
   effects do
     action :revoke, kind: :execute, open_world?: false, approval: :confirm, intent: :approve
   end
