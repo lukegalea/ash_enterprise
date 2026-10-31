@@ -639,4 +639,22 @@ defmodule AshEnterpriseWeb.A2uiLive do
 
     def render(assigns), do: Chrome.page(assigns)
   end
+
+  defmodule Credentials do
+    @moduledoc "A2UI surface: the credentialing workspace, the clinic's credentials (`/app/credentialing`)."
+    use AshA2ui.LiveRenderer,
+      ui: AshEnterpriseWeb.A2ui.CredentialUI,
+      deep_link: true,
+      actor_fn: &__MODULE__.actor/1,
+      tenant_fn: &__MODULE__.tenant/1
+
+    alias AshEnterprise.Security.ActorContext
+    alias AshEnterpriseWeb.A2uiLive.Chrome
+
+    def actor(socket), do: socket.assigns[:current_user]
+
+    def tenant(socket), do: ActorContext.tenant(socket.assigns[:current_user])
+
+    def render(assigns), do: Chrome.page(assigns)
+  end
 end

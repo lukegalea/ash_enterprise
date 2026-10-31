@@ -14,19 +14,26 @@ defmodule AshEnterprise.Credentialing.Credential do
   `activate_credential` reaches the registry (`AshEnterprise.Credentialing.Registry`),
   so its effects declaration says so:
 
-    * `kind: :edit`, not destructive, and idempotent: activating the same credential
-      twice gives the same registry reference;
+    * `kind: :edit`, not destructive, and not idempotent: the registry takes no
+      idempotency key, and each activation it accepts is an entry of its own;
     * `open_world?: true`: the registry is outside this application, so the act cannot
       share a transaction with its invocation's completion;
     * `approval: :four_eyes` by the credentialing committee, a member other than the
       requester, valid for three days;
     * `reconcile_with: :lookup_activation`, the read that asks the registry whether an
-      activation it may have accepted happened.
+      activation it may have accepted happened. So an activation whose answer was lost
+      (the worker died after the registry accepted it, failure scenario F2) becomes
+      `outcome_unknown` and is settled by asking, never by activating again.
 
-  Request it through `AshEnterprise.Execution.invoke/4` with the target
+  Request it with `request_activation` (the credentialing workspace's button), or through
+  `AshEnterprise.Execution.invoke/4` with the target
   `"AshEnterprise.Credentialing.Credential.activate_credential"` and the arguments
-  `%{"id" => credential_id}`. The domain defines no code interface for it, and the action
-  refuses to run except by its own invocation (`AshAgent.Validations.Governed`).
+  `%{"id" => credential_id}`. The action itself has no code interface, and refuses to run
+  except by its own invocation (`AshAgent.Validations.Governed`).
+
+  `correct` changes the credential's number or expiry date. A correction while an
+  activation waits for approval moves the credential's version on, so the approval no
+  longer holds (failure scenario F4).
   """
 
   use AshEnterprise.Platform.Resource,
@@ -45,7 +52,7 @@ defmodule AshEnterprise.Credentialing.Credential do
       kind: :edit,
       read_only?: false,
       destructive?: false,
-      idempotent?: true,
+      idempotent?: false,
       open_world?: true,
       approval: :four_eyes,
       approver_role: :credentialing_committee,
@@ -59,6 +66,19 @@ defmodule AshEnterprise.Credentialing.Credential do
       idempotent?: true,
       open_world?: true,
       intent: :inspect
+
+    action :request_activation,
+      kind: :edit,
+      destructive?: false,
+      open_world?: false,
+      intent: :propose
+
+    action :correct,
+      kind: :edit,
+      destructive?: false,
+      idempotent?: true,
+      open_world?: false,
+      intent: :execute
   end
 
   attributes do
@@ -119,6 +139,24 @@ defmodule AshEnterprise.Credentialing.Credential do
       change set_attribute(:owning_business_unit_id, actor(:owning_business_unit_id))
     end
 
+    update :correct do
+      description "Correct the credential's number or expiry date."
+      accept [:number, :expires_on]
+    end
+
+    action :request_activation, :map do
+      description """
+      Ask for the credential to be activated with the registry. Nothing changes until a
+      member of the credentialing committee other than you approves it: the result is the
+      request, with its status and the link where it waits for approval.
+      """
+
+      argument :record_id, :uuid, allow_nil?: false, public?: true
+
+      run {AshEnterprise.Execution.Actions.RequestInvocation,
+           target: :activate_credential, rename: %{record_id: "id"}}
+    end
+
     update :activate_credential do
       description "Activate the credential with the registry, and record the registry's reference."
       accept []
@@ -130,7 +168,7 @@ defmodule AshEnterprise.Credentialing.Credential do
 
     action :lookup_activation, :map do
       description "Ask the registry whether it activated the credential."
-      argument :credential_id, :uuid, allow_nil?: false
+      argument :id, :uuid, allow_nil?: false
       run AshEnterprise.Credentialing.Actions.LookupActivation
     end
   end

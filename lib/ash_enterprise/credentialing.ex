@@ -15,8 +15,8 @@ defmodule AshEnterprise.Credentialing do
 
   `Credential.activate_credential` is the governed act. It reaches an outside registry
   (`AshEnterprise.Credentialing.Registry`, a stub), asks a committee member other than
-  the requester to approve, and is reached only through `AshEnterprise.Execution.invoke/4`:
-  there is no code interface for it here.
+  the requester to approve, and is reached only through `AshEnterprise.Execution.invoke/4`,
+  which `request_activation` calls: there is no code interface for the act itself.
 
   `AshEnterprise.Credentialing.DemoData` seeds the clinic (`mix ash_enterprise.demo`).
   """
@@ -38,7 +38,9 @@ defmodule AshEnterprise.Credentialing do
       define :record_credential, action: :record
       define :get_credential, action: :read, get_by: [:id]
       define :list_credentials, action: :read
-      define :lookup_activation, action: :lookup_activation, args: [:credential_id]
+      define :correct_credential, action: :correct
+      define :request_activation, action: :request_activation, args: [:record_id]
+      define :lookup_activation, action: :lookup_activation, args: [:id]
     end
   end
 end

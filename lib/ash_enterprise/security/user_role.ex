@@ -57,6 +57,11 @@ defmodule AshEnterprise.Security.UserRole do
       reference :role, on_delete: :delete
       reference :scoping_business_unit, on_delete: :restrict
     end
+
+    # `assign` upserts on this identity, so its index must cover only assignments in
+    # force, or re-assigning a revoked role would update the archived row and leave it
+    # revoked.
+    identity_wheres_to_sql unique_assignment: "archived_at IS NULL"
   end
 
   attributes do
@@ -90,8 +95,10 @@ defmodule AshEnterprise.Security.UserRole do
 
   identities do
     # The same role may be held twice by one user if scoped to different units --
-    # that is the feature, not a duplicate.
-    identity :unique_assignment, [:user_id, :role_id, :scoping_business_unit_id]
+    # that is the feature, not a duplicate. Only assignments in force count: a revoked
+    # (archived) one stays as history, and the role can be assigned again.
+    identity :unique_assignment, [:user_id, :role_id, :scoping_business_unit_id],
+      where: expr(is_nil(archived_at))
   end
 
   actions do

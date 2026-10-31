@@ -626,6 +626,12 @@ config :ash_a2ui,
 # a project backend, so the compiled locale set is under your control.
 config :ex_money, auto_start_exchange_rate_service: false
 
+# The showcase (AshEnterprise.Showcase): its fault panel is a demo flag, off here and in
+# production, on in config/dev.exs; it is read at compile time, because it also compiles
+# the fault points in. Model turns replay recorded transcripts unless :live is chosen,
+# and live means the in-zone generative profile only.
+config :ash_enterprise, AshEnterprise.Showcase, fault_controls?: false, model_mode: :recorded
+
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
 import_config "#{config_env()}.exs"

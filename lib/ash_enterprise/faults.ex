@@ -23,8 +23,11 @@ defmodule AshEnterprise.Faults do
 
       config :ash_enterprise, AshEnterprise.Faults, enabled?: true
 
-  is set in `config/test.exs` only. Everywhere else `point/1` compiles to `:ok` and `arm/3`
-  refuses, so a fault point left in a hot path costs a local function call and can never fire.
+  is set in `config/test.exs`. The showcase's demo flag compiles them in as well
+  (`config :ash_enterprise, AshEnterprise.Showcase, fault_controls?: true`, see
+  `AshEnterprise.Showcase`), so its fault panel can arm them; `config/dev.exs` sets it and
+  production never does. Everywhere else `point/1` compiles to `:ok` and `arm/3` refuses,
+  so a fault point left in a hot path costs a local function call and can never fire.
 
   ## What a fault does
 
@@ -44,9 +47,14 @@ defmodule AshEnterprise.Faults do
   @type action :: :raise | :exit | :kill
   @type arm_opt :: {:times, pos_integer() | :infinity} | {:notify, pid()}
 
-  @enabled? Application.compile_env(:ash_enterprise, [__MODULE__, :enabled?], false)
+  @enabled? Application.compile_env(:ash_enterprise, [__MODULE__, :enabled?], false) or
+              Application.compile_env(
+                :ash_enterprise,
+                [AshEnterprise.Showcase, :fault_controls?],
+                false
+              )
 
-  @doc "Whether fault points were compiled in. True only under the test configuration."
+  @doc "Whether fault points were compiled in: under the test configuration or the showcase's demo flag."
   @spec enabled?() :: boolean()
   def enabled?, do: @enabled?
 
@@ -129,7 +137,7 @@ defmodule AshEnterprise.Faults do
       :ok
     end
   else
-    @doc "A named fault point. Compiled out: fault points fire only under the test configuration."
+    @doc "A named fault point. Compiled out: fault points fire only under the test configuration or the showcase's demo flag."
     @spec point(atom()) :: :ok
     def point(name) when is_atom(name), do: :ok
 
@@ -143,6 +151,7 @@ defmodule AshEnterprise.Faults do
     def disarm_all, do: :ok
 
     defp compiled_out,
-      do: "fault points are compiled out; they are enabled only by config/test.exs"
+      do:
+        "fault points are compiled out; config/test.exs or the showcase's demo flag compiles them in"
   end
 end

@@ -8,7 +8,7 @@ defmodule AshEnterprise.Surfaces.Surface do
   | `label` | Human name, used in nav, the launcher and page headers |
   | `blurb` | One on-screen sentence (launcher card, page header) |
   | `description` | Model-facing: when the helper should pick this surface. `nil` means the helper may not host it |
-  | `group` | `:day`, `:operator`, `:org`, `:processes`, `:data`, `:mdm`, `:compliance`, `:judgments` or `:legacy` |
+  | `group` | `:day`, `:operator`, `:org`, `:processes`, `:data`, `:mdm`, `:compliance`, `:judgments`, `:credentialing` or `:legacy` |
   | `order` | Position within its group |
   | `icon` | Heroicon name for the launcher card |
   | `path` | The web route (`/app/...`) |
@@ -59,7 +59,16 @@ defmodule AshEnterprise.Surfaces.Surface do
 
   @type door :: :signed_in | :operator | :compliance | :lineage | :audit
   @type group ::
-          :day | :operator | :org | :processes | :data | :mdm | :compliance | :judgments | :legacy
+          :day
+          | :operator
+          | :org
+          | :processes
+          | :data
+          | :mdm
+          | :compliance
+          | :judgments
+          | :credentialing
+          | :legacy
 
   @type t :: %__MODULE__{
           key: atom(),

@@ -79,6 +79,13 @@ defmodule AshEnterprise.Surfaces do
       blurb: "Findings, the evaluations behind them, and the rules they are judged against."
     },
     %{
+      key: :credentialing,
+      label: "Credentialing",
+      menu: :work,
+      blurb:
+        "A synthetic clinic activating its clinicians' credentials through governed requests, and the tour over it."
+    },
+    %{
       key: :org,
       label: "Organization",
       menu: :org,
@@ -824,6 +831,39 @@ defmodule AshEnterprise.Surfaces do
       resource: AshEnterprise.Mdm.ImportBatch,
       context: :batch,
       acp: %{command: "import batches", aliases: ["batches"]}
+    },
+
+    # --- Credentialing -----------------------------------------------------------
+    %Surface{
+      key: :credentials,
+      label: "Credentials",
+      blurb: "The clinic's credentials: ask to activate one, and see what the registry holds.",
+      description:
+        "The synthetic clinic's clinician credentials (licences and certifications), each " <>
+          "pending or active with the registry. Activating one is a governed request that " <>
+          "a credentialing committee member other than the requester approves.",
+      group: :credentialing,
+      order: 0,
+      icon: "hero-identification",
+      path: "/app/credentialing",
+      live: A2uiLive.Credentials,
+      ui: A2ui.CredentialUI,
+      resource: AshEnterprise.Credentialing.Credential,
+      context: :credential,
+      acp: %{command: "credentials"}
+    },
+    %Surface{
+      key: :credentialing_tour,
+      label: "Credentialing tour",
+      blurb:
+        "A guided tour of governed activation: ask, approve, and what happens when the world changes in between.",
+      group: :credentialing,
+      order: 10,
+      icon: "hero-map",
+      path: "/app/showcase/credentialing",
+      live: AshEnterpriseWeb.ShowcaseLive.Credentialing,
+      resource: AshEnterprise.Credentialing.Credential,
+      acp: %{command: "credentialing tour", aliases: ["tour"]}
     },
 
     # --- Legacy ------------------------------------------------------------------

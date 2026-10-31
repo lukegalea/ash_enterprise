@@ -41,7 +41,7 @@ source every surface reads.**
 ```elixir
 effects do
   action :activate_credential,
-    kind: :edit, read_only?: false, destructive?: false, idempotent?: true, open_world?: true,
+    kind: :edit, read_only?: false, destructive?: false, idempotent?: false, open_world?: true,
     approval: :four_eyes, approver_role: :credentialing_committee, approval_expires_in: [days: 3],
     intent: :execute, reconcile_with: :lookup_activation, preconditions: [:subject]
 end

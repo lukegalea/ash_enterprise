@@ -224,10 +224,14 @@ the host's `AshAgent.Approvals` implementation and the apply-decision trigger.
   scheduler sweeps every minute, takes the tenant from the row and persists no actor (`handoff_test.exs`).
 - **Failure classes.** See "Built, 2026-10-29: execution paths, typed failure and reconciliation".
 - **The worked example.** A synthetic clinic (`AshEnterprise.Credentialing`, seeded by `mix ash_enterprise.demo`)
-  has one governed target: `Credential.activate_credential`, open-world, idempotent, four-eyes by a credentialing
-  committee, reconciled by `lookup_activation`, against a stub registry that keeps no record. Clinic and clinician are
-  the CDM `Account` and `Contact`; the credential is invented. `clinic_scenario_test.exs` runs it from `invoke`
-  through an applied approval to the registry's reference.
+  has one governed target: `Credential.activate_credential`, open-world, four-eyes by a credentialing committee,
+  reconciled by `lookup_activation`, against a stub registry. Clinic and clinician are the CDM `Account` and
+  `Contact`; the credential is invented. `clinic_scenario_test.exs` runs it from `invoke` through an applied approval
+  to the registry's reference. (Amended 2026-10-31, showcase slice 1: the target is not idempotent, because the
+  registry takes no idempotency key and each activation it accepts is an entry of its own; so a lost answer is
+  `outcome_unknown`, settled by `lookup_activation`, never a second activation. The stub remembers what it accepted
+  for as long as the node runs, so the lookup can answer, and `lookup_activation` takes the target's own `id`. The
+  tour at `/app/showcase/credentialing` walks F2, F4 and F5 over it.)
 - **Not built yet.** Opening and applying approvals (`awaiting_approval` rows wait for a host change on
   `apply_decision`), the approval trigger, the pre-check of the executing identity at request, and `rerun`. (Approvals
   and their trigger were built on 2026-10-30; see below.)

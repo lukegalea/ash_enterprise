@@ -160,6 +160,7 @@ defmodule AshEnterpriseWeb.Router do
       live "/app/judgments/calibration", A2uiLive.JudgmentCalibration
       live "/app/judgments/facts", A2uiLive.JudgmentFacts
       live "/app/tasks", A2uiLive.Tasks
+      live "/app/credentialing", A2uiLive.Credentials
 
       # The same people, over a table this application owns rather than a view over the legacy
       # one. Both are live, and the pair is the demonstration -- see
@@ -305,6 +306,17 @@ defmodule AshEnterpriseWeb.Router do
       live "/app/processes/:key/designer", Bpmn.DesignerLive
       live "/app/decisions/:key/editor", Decisions.EditorLive
       live "/app/instances/:id", Bpmn.ViewerLive
+    end
+
+    # The showcase (AshEnterprise.Showcase): the guided tour over the credentialing
+    # clinic, with its demo-only fault panel. Its own live_session so a slice can be
+    # removed with its LiveView and these routes.
+    ash_authentication_live_session :showcase,
+      on_mount: [
+        {AshEnterpriseWeb.LiveUserAuth, :live_user_required},
+        AshEnterpriseWeb.SurfaceDoor
+      ] do
+      live "/app/showcase/credentialing", ShowcaseLive.Credentialing
     end
 
     # The process flight views (PROD-10): A2UI surfaces whose diagram is a BPMN

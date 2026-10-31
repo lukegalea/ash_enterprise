@@ -1,17 +1,37 @@
 defmodule AshEnterprise.Credentialing.DemoData do
   @moduledoc """
-  The synthetic clinic (`mix ash_enterprise.demo`): one clinic, three clinicians with a
-  credential each waiting to be activated, a coordinator who registers them and asks for
-  activations, and a two-person credentialing committee to approve them.
+  The synthetic clinic (`mix ash_enterprise.demo`): one clinic, five clinicians with a
+  credential each, a coordinator who registers them and asks for activations, and a
+  two-person credentialing committee to approve them.
+
+  The credentials are in several states, so the clinic is not empty on arrival:
+
+  | Credential | State |
+  |---|---|
+  | `DEMO-PT-0001`, `DEMO-RN-0002`, `DEMO-OT-0003` | pending: nobody has asked to activate them |
+  | `DEMO-SLT-0004` | the coordinator asked; it waits for a committee member's approval |
+  | `DEMO-DT-0005` | the coordinator asked and a committee member rejected it |
+
+  The requests go through `AshEnterprise.Execution.invoke/4` as the coordinator, under
+  fixed keys (`clinic-demo:activate:<number>`) so re-running finds them, and the
+  decision through the approval task's reject door as a committee member, so they are
+  what the application would have recorded; the rejection is applied as the
+  `:apply_decision` job applies it. Nothing
+  here runs an activation: that needs a committee member's approval, which the showcase
+  tour (`/app/showcase/credentialing`) walks through.
 
   | Who | Role | May |
   |---|---|---|
   | `rosa@example.com` | Credentialing coordinator | register clinics, clinicians and credentials; activate a credential |
+  | `rosa@example.com` | Credentialing requester | read the activation requests she owns |
   | `kenji@example.com`, `amaka@example.com` | Credentialing committee | read the clinic's records |
 
-  Both roles grant at `:global` depth: the clinic is the tenant's whole credentialing
-  practice, and `lookup_activation`, a generic action, is reachable only through a
-  grant that reaches every row.
+  The coordinator and committee roles grant at `:global` depth: the clinic is the
+  tenant's whole credentialing practice, and `lookup_activation`, a generic action, is
+  reachable only through a grant that reaches every row. The requester role grants at
+  `:basic`, the holder's own rows: the coordinator follows her requests, not the
+  tenant's other invocations. A committee member reads a request while it waits for
+  their decision, through the approval candidacy.
 
   The clinic's records are created as the coordinator, through the same actions the
   application exposes, so the coordinator owns them. Everything here is illustrative:
@@ -21,8 +41,13 @@ defmodule AshEnterprise.Credentialing.DemoData do
   it changes nothing.
   """
 
+  require Ash.Query
+
+  alias AshEnterprise.Bpmn.HumanTask
   alias AshEnterprise.Credentialing
   alias AshEnterprise.Credentialing.{Clinic, Clinician, Credential}
+  alias AshEnterprise.Execution
+  alias AshEnterprise.Execution.{Approval, Invocation}
   alias AshEnterprise.Platform.DemoData
   alias AshEnterprise.Platform.SystemActor
   alias AshEnterprise.Security
@@ -30,6 +55,8 @@ defmodule AshEnterprise.Credentialing.DemoData do
 
   @coordinator "rosa@example.com"
   @committee ["kenji@example.com", "amaka@example.com"]
+  @coordinator_role "Credentialing coordinator"
+  @requester_role "Credentialing requester"
 
   @clinic "Riverside Community Clinic"
 
@@ -37,12 +64,21 @@ defmodule AshEnterprise.Credentialing.DemoData do
   @clinicians [
     {"Imogen", "Hale", "Physiotherapist", :licence, "DEMO-PT-0001"},
     {"Tariq", "Osei", "Practice nurse", :licence, "DEMO-RN-0002"},
-    {"Wen", "Larsson", "Occupational therapist", :certification, "DEMO-OT-0003"}
+    {"Wen", "Larsson", "Occupational therapist", :certification, "DEMO-OT-0003"},
+    {"Noor", "Haddad", "Speech and language therapist", :licence, "DEMO-SLT-0004"},
+    {"Mateo", "Ruiz", "Dietitian", :certification, "DEMO-DT-0005"}
   ]
+
+  # The seeded requests: {credential number, the committee's decision or nil}.
+  @requests [{"DEMO-SLT-0004", nil}, {"DEMO-DT-0005", :reject}]
+
+  @activate "AshEnterprise.Credentialing.Credential.activate_credential"
 
   @doc """
   Populates `organization_id`'s tenant with the clinic. Returns the people and records
-  that now exist: `%{coordinator:, committee:, clinic:, clinicians:, credentials:}`.
+  that now exist: `%{coordinator:, committee:, clinic:, clinicians:, credentials:,
+  requests:}`, the credentials in the order of the table above and `requests` the
+  seeded invocations.
   """
   @spec populate(Ash.UUID.t()) :: map()
   def populate(organization_id) do
@@ -52,7 +88,7 @@ defmodule AshEnterprise.Credentialing.DemoData do
 
     coordinator_role =
       DemoData.ensure_role!(
-        "Credentialing coordinator",
+        @coordinator_role,
         "Registers the clinic's clinicians and their credentials, and asks for activations.",
         privileges(read: :all, create: :all, write: [Credential]),
         :global,
@@ -72,7 +108,20 @@ defmodule AshEnterprise.Credentialing.DemoData do
         actor
       )
 
+    # The coordinator follows their own requests: invocations they own, and no others.
+    requester_role =
+      DemoData.ensure_role!(
+        @requester_role,
+        "Follows the activation requests they asked for, and no one else's.",
+        privileges(read: [Invocation]),
+        :basic,
+        root,
+        tenant,
+        actor
+      )
+
     coordinator = person!(@coordinator, coordinator_role, root, tenant, actor)
+    DemoData.ensure_user_role!(coordinator, requester_role, root, tenant, actor)
     committee = Enum.map(@committee, &person!(&1, committee_role, root, tenant, actor))
 
     as_coordinator = [actor: as_person(coordinator, tenant), tenant: tenant]
@@ -83,13 +132,70 @@ defmodule AshEnterprise.Credentialing.DemoData do
       |> Enum.map(&clinician_with_credential!(&1, clinic, as_coordinator))
       |> Enum.unzip()
 
+    by_number = Map.new(credentials, &{&1.number, &1})
+
+    requests =
+      for {number, decision} <- @requests,
+          do: request!(Map.fetch!(by_number, number), decision, as_coordinator, hd(committee))
+
     %{
       coordinator: coordinator,
       committee: committee,
       clinic: clinic,
       clinicians: clinicians,
-      credentials: credentials
+      credentials: credentials,
+      requests: requests
     }
+  end
+
+  @doc "The coordinator's email: the person who asks for activations."
+  @spec coordinator_email() :: String.t()
+  def coordinator_email, do: @coordinator
+
+  @doc "The name of the role the coordinator asks for activations under."
+  @spec coordinator_role() :: String.t()
+  def coordinator_role, do: @coordinator_role
+
+  @doc "The key the seed asks to activate the credential numbered `number` under."
+  @spec request_key(String.t()) :: String.t()
+  def request_key(number), do: "clinic-demo:activate:" <> number
+
+  # The coordinator's request, under a fixed key so asking again finds the same row,
+  # and the committee's decision on it when there is one, applied as the
+  # `:apply_decision` job would apply it.
+  defp request!(credential, decision, as_coordinator, member) do
+    row =
+      Execution.invoke!(
+        @activate,
+        %{"id" => credential.id},
+        %{key: request_key(credential.number)},
+        as_coordinator
+      )
+
+    if decision && row.status == :awaiting_approval do
+      decide!(row, decision, member, as_coordinator[:tenant])
+    else
+      row
+    end
+  end
+
+  # The member's context is built after the request, so it holds the task the request
+  # opened (an `ActorContext` is a snapshot of what its person may decide).
+  defp decide!(row, decision, member, tenant) do
+    as_member = [actor: as_person(member, tenant), tenant: tenant]
+
+    task =
+      HumanTask
+      |> Ash.Query.filter(subject_id == ^row.id and node_id == ^Approval.key())
+      |> Ash.read_one!(authorize?: false, tenant: tenant)
+
+    if task.status in [:open, :claimed] do
+      HumanTask
+      |> Ash.ActionInput.for_action(decision, %{record_id: task.id}, as_member)
+      |> Ash.run_action!()
+    end
+
+    Execution.apply_invocation_decision!(row, actor: SystemActor.oban(), tenant: tenant)
   end
 
   defp person!(email, role, root, tenant, actor) do

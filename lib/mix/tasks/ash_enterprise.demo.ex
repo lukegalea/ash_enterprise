@@ -13,8 +13,9 @@ defmodule Mix.Tasks.AshEnterprise.Demo do
 
   This adds a three-division tree (one of them two deep), nine people spread
   unevenly across it, three teams, and three roles that differ in grant *depth*
-  rather than only in name; and a synthetic clinic whose credentials wait to be
-  activated through a governed invocation (`AshEnterprise.Credentialing.DemoData`).
+  rather than only in name; and a synthetic clinic whose credentials are activated
+  through governed invocations, with requests already waiting and decided
+  (`AshEnterprise.Credentialing.DemoData`, toured at `/app/showcase/credentialing`).
   Everything is created through the application's own actions, and it is
   idempotent by name, so re-running it changes nothing.
 
@@ -64,9 +65,12 @@ defmodule Mix.Tasks.AshEnterprise.Demo do
       roles           #{counts.roles}
 
     Clinic credentialing (password1234):
-      #{clinic.clinic.name}: #{length(clinic.clinicians)} clinicians, #{length(clinic.credentials)} credentials to activate
+      #{clinic.clinic.name}: #{length(clinic.clinicians)} clinicians, #{length(clinic.credentials)} credentials
+      requests        #{Enum.map_join(clinic.requests, ", ", &Atom.to_string(&1.status))}
       coordinator     #{clinic.coordinator.email}
       committee       #{Enum.map_join(clinic.committee, ", ", &to_string(&1.email))}
+      workspace       /app/credentialing
+      guided tour     /app/showcase/credentialing
     """)
 
     if mdm do

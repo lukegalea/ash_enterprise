@@ -4,8 +4,8 @@ defmodule AshEnterprise.Execution.AttemptOutcomesTest do
   failure scenario F2): a row never ends as though nothing ran when its target may have
   reached outside, and never runs on a subject other than the one approved.
 
-  The clinic's `activate_credential` calls the registry before its own write and needs
-  four eyes; `ReferralBoard.refer_keyed` sends a referral through the Nango façade to
+  The clinic's `activate_credential` calls the registry before its own write, is not
+  idempotent and needs four eyes; `ReferralBoard.refer_keyed` sends a referral through the Nango façade to
   `AshEnterprise.Test.Execution.FakeBoard` and is idempotent. Each test moves something
   between the steps the executor takes, as a concurrent writer or a deploy would.
 
@@ -22,7 +22,7 @@ defmodule AshEnterprise.Execution.AttemptOutcomesTest do
 
   alias AshAgent.Invocation.Executor
   alias AshEnterprise.Bpmn.HumanTask
-  alias AshEnterprise.Credentialing.{Credential, DemoData}
+  alias AshEnterprise.Credentialing.{Credential, DemoData, Registry}
   alias AshEnterprise.Execution
   alias AshEnterprise.Execution.{Approval, Invocation}
   alias AshEnterprise.Security.ActorContext
@@ -139,19 +139,22 @@ defmodule AshEnterprise.Execution.AttemptOutcomesTest do
 
     on_exit(fn -> :telemetry.detach(handler) end)
 
-    assert {:ok, :deferred} = execute(ready, ctx.tenant)
-    assert_received :edited
-
-    # Idempotent: it may run again with the same key, and is not final.
-    assert %{status: :ready, failure_class: :transient} = outcome(ready, ctx.tenant)
-
-    # The next attempt finds the credential changed since its approval. An earlier attempt
-    # reached the registry, so the row is left for reconciliation rather than called stale.
-    elapse!(ready, :next_attempt_at)
+    # Not idempotent: the registry may hold the activation, so the row is left in doubt
+    # at once, never retried blindly and never called rejected.
     assert {:ok, :outcome_unknown} = execute(ready, ctx.tenant)
+    assert_received :edited
+    assert %{status: :outcome_unknown, error_code: "invalid"} = outcome(ready, ctx.tenant)
 
-    assert %{status: :outcome_unknown, error_code: "subject_changed"} =
-             outcome(ready, ctx.tenant)
+    # The reconcile sweep asks the registry, which holds it: succeeded, called once.
+    assert {:ok, :succeeded} =
+             Execution.reconcile_invocation(%{"id" => ready.id}, oban(ctx.tenant))
+
+    assert %{status: :succeeded, reconciled_via: "reconcile_with", effect_ref: ref} =
+             committed(ready.id, ctx.tenant)
+
+    assert ref == Registry.lookup(credential.id) |> elem(1) |> Map.fetch!(:reference)
+    assert Registry.activations(credential.id) == 1
+    assert status_of(credential, ctx.tenant) == :pending
   end
 
   test "a connector call that raises is recorded, and stops at max_attempts (F2)", %{
