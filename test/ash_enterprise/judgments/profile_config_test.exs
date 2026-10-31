@@ -26,7 +26,7 @@ defmodule AshEnterprise.Judgments.ProfileConfigTest do
 
       assert profile.region == :ca, "#{profile.name} must pin the stack's region"
 
-      assert {:system, _} = profile.api_key,
+      assert env_ref?(profile.api_key),
              "#{profile.name}: api_key accepts only {:system, var} — never a literal"
 
       if profile.base_url do
@@ -85,7 +85,7 @@ defmodule AshEnterprise.Judgments.ProfileConfigTest do
       # Endpoints and keys ride {:system, var} indirection only — never a
       # committed value (AST-86 wiring; §9).
       assert {:system, _} = profile.base_url
-      assert {:system, _} = profile.api_key
+      assert env_ref?(profile.api_key)
     end
 
     assert Enum.find(generative, &(&1.name == :winnow_generative)).model == "winnow:e4b"
@@ -104,4 +104,10 @@ defmodule AshEnterprise.Judgments.ProfileConfigTest do
       assert wire[:wire] in [:ollama, :openai]
     end
   end
+
+  # A key is an environment reference. The only default allowed is the
+  # in-zone placeholder for a runtime that checks no key, never a secret.
+  defp env_ref?({:system, var}), do: is_binary(var)
+  defp env_ref?({:system, var, "in-zone-no-key"}), do: is_binary(var)
+  defp env_ref?(_), do: false
 end
