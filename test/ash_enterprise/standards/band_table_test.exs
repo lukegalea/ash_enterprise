@@ -101,11 +101,19 @@ defmodule AshEnterprise.Standards.BandTableTest do
              band(ctx, :hs1_lead_with_outcome_or_ask, 0.97)
 
     assert admitted.matched_rule_ids == ["rule_admit"]
+    # The admitted yes is the fact: `true`, which holds for a yes/no
+    # standard (its holds_value).
+    assert admitted.fact_value == true
+
+    assert [fact] = AshEnterprise.SystemOne.Fact |> Ash.read!(tenant: ctx.org, authorize?: false)
+    assert fact.value == true
+    assert fact.holds == true
 
     assert {:ok, %{band: :review, banding: reviewed}} =
              band(ctx, :hs5_promise_only_agreed_to, 0.4)
 
     assert reviewed.matched_rule_ids == ["rule_review"]
+    assert reviewed.fact_value == nil
     refute reviewed.decision_evaluation_id == admitted.decision_evaluation_id
   end
 
@@ -117,7 +125,7 @@ defmodule AshEnterprise.Standards.BandTableTest do
       [
         %{
           question: question,
-          answer: %{value: true, probability: p_true},
+          answer: %AshAi.Evaluate.Noul{probability: p_true},
           observation_id: judgment.id
         }
       ],

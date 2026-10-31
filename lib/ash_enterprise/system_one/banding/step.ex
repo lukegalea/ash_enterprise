@@ -241,14 +241,31 @@ defmodule AshEnterprise.SystemOne.Banding.Step do
 
   defp answer_value(answers) do
     answers
-    |> Enum.map(&(&1.answer && present(Map.get(&1.answer, :value), Map.get(&1.answer, "value"))))
+    |> Enum.map(&gated_value/1)
     |> Enum.find(&(!is_nil(&1)))
-    |> case do
-      nil -> nil
+  end
+
+  # A choice or score answer carries its value. A noul answer carries only
+  # the probability that it is yes, and a table that admits it on that
+  # probability (a conformal threshold on p_true) admits the yes: its value
+  # is `true`. Booleans stay booleans, so `holds/2` compares them with the
+  # question's boolean holds_value.
+  defp gated_value(%{answer: nil}), do: nil
+
+  defp gated_value(%{answer: answer} = gated) do
+    case present(Map.get(answer, :value), Map.get(answer, "value")) do
+      nil -> if noul?(gated), do: true
+      value when is_boolean(value) -> value
       value when is_atom(value) -> Atom.to_string(value)
       value -> value
     end
   end
+
+  defp gated_value(_), do: nil
+
+  defp noul?(%{answer: %AshAi.Evaluate.Noul{}}), do: true
+  defp noul?(%{question: %{type: AshAi.Evaluate.Noul}}), do: true
+  defp noul?(_), do: false
 
   # RFC §7.1 → §7.2 are different layers with different vocabularies: the
   # banding's frozen band (`admit | review | omit`) becomes the admission's
