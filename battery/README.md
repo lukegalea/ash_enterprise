@@ -42,6 +42,7 @@ they touch.
 | `judgment_banding_evidence_test.exs` | **judgment → banding → evidence.** An ash_evidence document version + parse run addresses atoms; a System One `Evidence` question is judged over them (the observation cites the atoms, `answer_kind :evidence`); `AshJudgments.Bridge.Dmn.inputs/2` flattens the answer; a PUBLISHED ash_decisions band table (landed via `AshDecisions.BandTable`) is evaluated through `AshDecisions.Evaluator` (which records the evaluation); the banding row records the definition's key/version/content hash, the evaluation id and the engine's matched rule ids; the `:admit` band materialises a fact whose admission provenance and state digest tie back to the recorded observation. Negative half: a low-support answer bands to `:review`, proposes no fact value, and materialises nothing. |
 | `process_decision_routing_test.exs` | **process ↔ decisions.** A BPMN `businessRuleTask` carries a decision *reference* (`battery_amount_tier`), verified at publish time against the ash_decisions-backed `AshBpmn.DecisionResolver`; starting an instance evaluates the declared FEEL input off the subject through `AshDecisions.Evaluator`, promotes ONE declared scalar signal (`tier`) onto the token, and the gateway routes on `routing.tier`. Asserted: both branches from the same diagram+decision, the promoted token signal, and the recorded evaluation row (definition key + version + engine's matched rule ids + inputs) that carries the identity across the seam. |
 | `ledger_projection_compliance_test.exs` | **ledger → projection → compliance finding.** A vendor-review event is committed to the BIZEV ledger; the ledger's projector (`use AshDiscreteBusinessEvents.Projections`, drained per region) folds it into the `VendorState` projection; the compliance projector (`AshCompliance.Projector`) translates the review into a `Finding` by evaluating the ACTIVE `PolicyBundle` — compiled from an `ash_rules` rule set serialized through the compliance plane — with facts read off the BIZEV projection. Asserted: the finding's grain, gap, severity and bundle hash; the recorded `ComplianceEvaluation`; and the seam property — correcting the LEDGER (a new superseding event, drained) flips the finding to compliant. A vendor with no projected state lands `:error`, never `:compliant`. |
+| `process_activation_reevaluation_test.exs` | **process timer → dated compliance activation → decision re-evaluation.** A BPMN intermediate timer (`PT1H`, fired on the inline engine's virtual clock) wakes a process whose subject names an APPROVED ash_compliance `RuleSetRevision` and an instant; the `activate_scheduled_revision` service task activates it with that `effective_at` (succeeding the revision in force); the `reevaluate_scope` service task re-answers every applicant in the subject's organization — `AshCompliance.Compiler.compile/1` gathers the revisions in force at the instant, `AshRules` evaluates them over the applicant's facts, and a published ash_decisions table maps the outcome to a standing, recorded per applicant. Asserted: nothing moves before the timer fires; exactly the applicants in scope are re-evaluated; a FUTURE-dated activation leaves today's recorded answers unchanged and changes only the answer as of its instant; a BACKDATED one changes today's answers and the as-of answer after its instant, while the answer before it stands. |
 | `invocation_approval_test.exs` | **governed invocation ↔ process approval.** An `ash_agent` invocation (`Battery.Execution.Invocation`, the `AshAgent.Invocation` fragment on a plain resource) of a four-eyes target waits on a standalone ash_bpmn `HumanTask`, opened in the request's transaction through `AshBpmn.Changes.RequireApproval` (candidates from the declared approver role, the requester excluded); a candidate decides it through `AshBpmn.complete_task/2`, never `on_complete`, and `apply_decision` reads the decision off the task. Asserted: candidacy and exclusion; the RFC 9396 `authorization_details` and their JCS digest; the approved row runs once; a subject amended while the approval is pending, or after it is given, leaves the row `stale` and the subject untouched; a rejection is applied as one. |
 | `mdm_survivorship_test.exs` | **MDM survivorship over business events.** Raw source records land through the BIZEV `SourceRecord` path (two sources, same vendor); the mappings-as-data engine maps each landed payload into version-pinned canonical fields (provenance joins to the active `MappingVersion` content hash); the mapped records land on the ledger; `AshMdm.Match.score/3` scores the staged record against the golden candidate with rules-as-data and the pair is recorded as a `MatchCandidate`; `AshMdm.Survivorship.resolve/2` picks per-attribute winners (`source_rank`, `most_recent`) with provenance — and the golden `Vendor` record is written from the fold. |
 
@@ -56,7 +57,8 @@ lib/battery/                        the reference instantiation
   decisions/                        ash_decisions Definition + Evaluation
   bpmn/                             ash_bpmn Definition/Instance/Token/ProcessEvent + Subject + the three engine seams (Invoker, Resolver, DecisionResolver→ash_decisions)
   business_events/                  BIZEV DSL host (sources+mappings), SourceRecord, Ledger, MappingVersion, VendorState, Projector
-  compliance/                       ash_rules rule set, compliance Projector (facts from the BIZEV projection), event log
+  compliance/                       ash_rules rule sets (vendor review; intake revisions 1 and 2), compliance Projector (facts from the BIZEV projection), event log,
+                                    Applicant + ScheduledActivation (host subjects), Activation (the timer process's service tasks), Standing (as-of answer: compiled revisions → rules → DMN)
   mdm/                              ash_mdm Vendor (golden), Mapping, MatchRuleSet, MatchCandidate
   execution/                        ash_agent Invocation (fragment), its identity and digest key, a Referral target, the Members who ask and approve, and the approval seam to ash_bpmn
 priv/repo/migrations/               the reference schema: ported from each substrate's suite migrations (verbatim, renumbered) + codegen for the battery's own resources
@@ -66,10 +68,11 @@ test/support/                       fixtures (DMN + BPMN documents) and the ReqL
 
 ## Pins
 
-The substrates (nine, and `ash_agent`) are pinned in `mix.exs` exactly as `ash_enterprise`
-pins them, and `mix.lock` pins the same SHAs ash_enterprise's lock
-resolves (`ash_events` carries the platform's
-`temporal-as-of-support-0.7` fork with `override: true`).
+The substrates (nine, and `ash_agent`) are declared in `mix.exs` exactly as
+`ash_enterprise` declares them (`ash_events` carries the platform's
+`temporal-as-of-support-0.7` fork with `override: true`), and `mix.lock`
+pins the same SHAs ash_enterprise's lock resolves, with one exception,
+`ash_compliance`, below.
 
 This is enforced, not hoped for. `scripts/battery-pins-check.exs` (run from
 the repository root, and the first step of CI's battery job) fails, naming
@@ -85,4 +88,18 @@ elixir scripts/battery-pins-check.exs          # check again
 ```
 
 A package that genuinely cannot match goes in the script's `@exceptions`
-map with its reason; there are none today.
+map with its reason.
+
+**`ash_compliance` is locked at `a49e212`, in the root and here.** That is
+ash_compliance `main` after PR #15 (declared layer schemes) merged. It carries
+the temporal rule-set revisions and `activate`'s `effective_at` (the
+dated-activation seam `process_activation_reevaluation_test.exs` runs), with
+the activate-succession fix. It is declared in `mix.exs` exactly as the root
+declares it, with no `ref:` and no `override:`, so an app that takes the
+battery as a test dependency resolves its own `ash_compliance`, not one the
+battery picked. The declared layer schemes are not exercised here. Their
+nullable `scheme` columns (`20261025000616`) are ported anyway, so the
+battery's schema matches the code a host locking `a49e212` runs.
+
+The temporal migrations are ported verbatim from ash_compliance's suite
+(`priv/repo/migrations/2026102500061*`).

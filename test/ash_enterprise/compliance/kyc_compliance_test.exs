@@ -228,6 +228,7 @@ defmodule AshEnterprise.Compliance.KycComplianceTest do
       waiver =
         PolicyOverride
         |> Ash.Query.filter(organization_id == ^org and rule_id == "kyc.review_required")
+        |> Ash.Query.load(:expires_at)
         |> Ash.read_one!(authorize?: false)
 
       assert waiver

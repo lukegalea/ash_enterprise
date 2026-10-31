@@ -1,7 +1,8 @@
 defmodule Battery.Fixtures do
   @moduledoc """
   The battery's fixture documents: a calibration band table (DMN), a risk
-  tier decision (DMN) and the risk-review process (BPMN). These are DATA —
+  tier decision (DMN), the risk-review process (BPMN), the intake standing
+  decision (DMN) and the scheduled-activation process (BPMN). These are DATA —
   DMN XML is the single artifact, never generated from code at runtime;
   they live here as verbatim documents the tests publish.
   """
@@ -161,7 +162,103 @@ defmodule Battery.Fixtures do
   </bpmn2:definitions>
   """
 
+  # The intake standing decision: the compliance plane's overall outcome for
+  # an applicant mapped to a standing. UNIQUE, no default rule — an outcome
+  # that is neither `compliant` nor `noncompliant` (unknown, error) matches
+  # no row and refuses rather than collapsing to either standing.
+  @intake_standing_dmn """
+  <?xml version="1.0" encoding="UTF-8"?>
+  <definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/"
+               xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+               id="battery_intake_standing_definitions"
+               name="battery_intake_standing"
+               namespace="https://battery.test/battery_intake_standing"
+               expressionLanguage="https://www.omg.org/spec/DMN/20230324/FEEL/"
+               typeLanguage="https://www.omg.org/spec/DMN/20230324/FEEL/">
+    <inputData id="input_intake_outcome" name="intake_outcome">
+      <variable id="var_intake_outcome" name="intake_outcome" typeRef="string"/>
+    </inputData>
+    <decision id="decision_battery_intake_standing" name="battery_intake_standing">
+      <variable id="var_battery_intake_standing" name="battery_intake_standing" typeRef="string"/>
+      <informationRequirement id="req_intake_outcome">
+        <requiredInput href="#input_intake_outcome"/>
+      </informationRequirement>
+      <decisionTable id="table_battery_intake_standing" hitPolicy="UNIQUE" outputLabel="standing">
+        <input id="clause_intake_outcome" label="Intake outcome">
+          <inputExpression id="expr_intake_outcome" typeRef="string">
+            <text>intake_outcome</text>
+          </inputExpression>
+        </input>
+        <output id="clause_standing" name="standing" label="standing" typeRef="string"/>
+        <rule id="rule_proceed">
+          <inputEntry id="rule_proceed_0"><text>"compliant"</text></inputEntry>
+          <outputEntry id="rule_proceed_1"><text>"proceed"</text></outputEntry>
+        </rule>
+        <rule id="rule_hold">
+          <inputEntry id="rule_hold_0"><text>"noncompliant"</text></inputEntry>
+          <outputEntry id="rule_hold_1"><text>"hold"</text></outputEntry>
+        </rule>
+      </decisionTable>
+    </decision>
+  </definitions>
+  """
+
+  # The scheduled-activation process: start → a timer catch (PT1H, an ISO
+  # duration: what ash_bpmn timers take) → service task activating the
+  # subject's dated rule-set revision → service task re-evaluating every
+  # applicant in the subject's organization → end. The subject carries the
+  # revision and its effective instant; the diagram never does.
+  @scheduled_activation_process """
+  <?xml version="1.0" encoding="UTF-8"?>
+  <bpmn2:definitions xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                     xmlns:ash="https://github.com/lukegalea/ash_bpmn/ns"
+                     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                     id="Definitions_battery_scheduled_activation">
+    <bpmn2:process id="Process_battery_scheduled_activation" isExecutable="true">
+      <bpmn2:startEvent id="Start">
+        <bpmn2:outgoing>F_start</bpmn2:outgoing>
+      </bpmn2:startEvent>
+
+      <bpmn2:intermediateCatchEvent id="Wait" name="Wait for the activation window">
+        <bpmn2:incoming>F_start</bpmn2:incoming>
+        <bpmn2:outgoing>F_due</bpmn2:outgoing>
+        <bpmn2:timerEventDefinition id="Timer_wait">
+          <bpmn2:timeDuration xsi:type="bpmn2:tFormalExpression">PT1H</bpmn2:timeDuration>
+        </bpmn2:timerEventDefinition>
+      </bpmn2:intermediateCatchEvent>
+
+      <bpmn2:serviceTask id="Activate" name="Activate the dated revision">
+        <bpmn2:extensionElements>
+          <ash:taskConfig action="activate_scheduled_revision"/>
+        </bpmn2:extensionElements>
+        <bpmn2:incoming>F_due</bpmn2:incoming>
+        <bpmn2:outgoing>F_activated</bpmn2:outgoing>
+      </bpmn2:serviceTask>
+
+      <bpmn2:serviceTask id="Reevaluate" name="Re-evaluate the scope">
+        <bpmn2:extensionElements>
+          <ash:taskConfig action="reevaluate_scope"/>
+        </bpmn2:extensionElements>
+        <bpmn2:incoming>F_activated</bpmn2:incoming>
+        <bpmn2:outgoing>F_reevaluated</bpmn2:outgoing>
+      </bpmn2:serviceTask>
+
+      <bpmn2:endEvent id="End">
+        <bpmn2:extensionElements><ash:taskConfig outcome="activated"/></bpmn2:extensionElements>
+        <bpmn2:incoming>F_reevaluated</bpmn2:incoming>
+      </bpmn2:endEvent>
+
+      <bpmn2:sequenceFlow id="F_start" sourceRef="Start" targetRef="Wait"/>
+      <bpmn2:sequenceFlow id="F_due" sourceRef="Wait" targetRef="Activate"/>
+      <bpmn2:sequenceFlow id="F_activated" sourceRef="Activate" targetRef="Reevaluate"/>
+      <bpmn2:sequenceFlow id="F_reevaluated" sourceRef="Reevaluate" targetRef="End"/>
+    </bpmn2:process>
+  </bpmn2:definitions>
+  """
+
   def band_table_dmn, do: @band_table_dmn
   def amount_tier_dmn, do: @amount_tier_dmn
   def amount_tier_process, do: @amount_tier_process
+  def intake_standing_dmn, do: @intake_standing_dmn
+  def scheduled_activation_process, do: @scheduled_activation_process
 end
