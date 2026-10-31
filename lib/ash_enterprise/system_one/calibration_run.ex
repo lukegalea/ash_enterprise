@@ -92,16 +92,16 @@ defmodule AshEnterprise.SystemOne.CalibrationRun do
   end
 
   # Certifying publishes the table that bands the family live from then on
-  # (ADR 0041, 0057, 0061). `certify_and_publish` is a governed target: an
-  # administrator confirms it ("Administrator" is the role that may certify
-  # band tables; there is no narrower one). `certify_now` and
+  # (ADR 0041, 0057, 0061). `certify_and_publish` is a governed target: a
+  # Judgment certifier confirms it ("Judgment certifier" is the role that may
+  # certify band tables; Administrator does not imply it). `certify_now` and
   # `request_certification` only invoke it.
   effects do
     action :certify_and_publish,
       kind: :execute,
       open_world?: false,
       approval: :confirm,
-      approver_role: :administrator,
+      approver_role: :judgment_certifier,
       preconditions: [:record_id],
       intent: :approve
 

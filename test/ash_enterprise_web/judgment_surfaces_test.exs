@@ -205,7 +205,7 @@ defmodule AshEnterpriseWeb.JudgmentSurfacesTest do
       run = proposed_run!(ctx.org)
       row = request!(ctx, run)
       assert {row.status, row.approval_mode} == {:awaiting_approval, :confirm}
-      assert row.effects["approver_role"] == "administrator"
+      assert row.effects["approver_role"] == "judgment_certifier"
 
       # Nothing is ready, so nothing runs; the table is still waiting.
       assert {:ok, :skipped} = Executor.execute(Execution.Invocation, row.id, oban(ctx))
@@ -225,6 +225,45 @@ defmodule AshEnterpriseWeb.JudgmentSurfacesTest do
       assert certification.certified_by == ctx.email
       assert %{status: :published} = definition(@family)
       assert [] == awaiting_certification(ctx)
+    end
+
+    test "an administrator who was not given the Judgment certifier role cannot approve it",
+         ctx do
+      run = proposed_run!(ctx.org)
+      admin = administrator_without_role!(ctx)
+
+      assert {:ok, %{"status" => "awaiting_approval", "approval_url" => url}} =
+               click(CalibrationRun, :certify_now, run, ctx, admin)
+
+      assert url =~ "/app/r/approvals/"
+      assert [] = BandTableCertification |> Ash.read!(tenant: ctx.org, authorize?: false)
+    end
+
+    test "a request by one person, approved by another, certifies as the requester and names the approver",
+         ctx do
+      run = proposed_run!(ctx.org)
+      requester = reader!(ctx)
+      approver = certifier!(ctx)
+
+      row =
+        Execution.invoke!(@certify, %{"record_id" => run.id}, %{key: "certify:#{run.id}"},
+          actor: requester.actor,
+          tenant: ctx.org
+        )
+
+      approve!(row, approver.actor, ctx)
+      ready = Execution.apply_invocation_decision!(row, oban(ctx))
+      assert {:ok, :succeeded} = Executor.execute(Execution.Invocation, ready.id, oban(ctx))
+
+      done = Execution.get_invocation!(row.id, oban(ctx))
+      assert done.executing_principal == %{type: :person, id: requester.user.id}
+      assert done.approved_by_id == approver.user.id
+
+      assert [certification] =
+               BandTableCertification |> Ash.read!(tenant: ctx.org, authorize?: false)
+
+      assert certification.certified_by == approver.email
+      refute certification.certified_by == requester.email
     end
 
     test "is rejected by the person, and certifies nothing", ctx do
@@ -391,6 +430,48 @@ defmodule AshEnterpriseWeb.JudgmentSurfacesTest do
       assert still.status != :revoked
     end
 
+    test "an administrator who was not given the Judgment certifier role cannot approve a revocation",
+         ctx do
+      certification = certified!(ctx)
+      admin = administrator_without_role!(ctx)
+
+      assert {:ok, %{"status" => "awaiting_approval"}} =
+               click(BandTableCertification, :revoke_now, certification, ctx, admin)
+
+      assert Ash.get!(BandTableCertification, certification.id,
+               tenant: ctx.org,
+               authorize?: false
+             ).status == :certified
+    end
+
+    test "a revocation requested by one person and approved by another names the approver",
+         ctx do
+      certification = certified!(ctx)
+      requester = reader!(ctx)
+      approver = certifier!(ctx)
+
+      row =
+        Execution.invoke!(
+          @revoke,
+          %{"id" => certification.id},
+          %{key: "revoke:#{certification.id}"},
+          actor: requester.actor,
+          tenant: ctx.org
+        )
+
+      approve!(row, approver.actor, ctx)
+      ready = Execution.apply_invocation_decision!(row, oban(ctx))
+      assert {:ok, :succeeded} = Executor.execute(Execution.Invocation, ready.id, oban(ctx))
+
+      done = Execution.get_invocation!(row.id, oban(ctx))
+      assert done.executing_principal == %{type: :person, id: requester.user.id}
+
+      revoked =
+        Ash.get!(BandTableCertification, certification.id, tenant: ctx.org, authorize?: false)
+
+      assert {revoked.status, revoked.certified_by} == {:revoked, approver.email}
+    end
+
     test "the governed revoke refuses a direct call", ctx do
       certification = certified!(ctx)
 
@@ -486,6 +567,10 @@ defmodule AshEnterpriseWeb.JudgmentSurfacesTest do
     %{organization: organization, user: admin} =
       Seeder.seed_tenant(name: "Judgments #{n}", unique_name: "judgments-#{n}")
 
+    # Administrator does not imply the Judgment certifier role: the tenant's
+    # administrator is given it, as a person would be.
+    assign_role!(organization.id, admin, Seeder.judgment_certifier_role())
+
     %{
       org: organization.id,
       user: admin,
@@ -495,6 +580,50 @@ defmodule AshEnterpriseWeb.JudgmentSurfacesTest do
   end
 
   defp oban(ctx), do: [actor: SystemActor.oban(), tenant: ctx.org]
+
+  defp assign_role!(org, user, role_name) do
+    seed = SystemActor.seed()
+
+    role =
+      Security.Role
+      |> Ash.Query.filter(name == ^role_name)
+      |> Ash.read_one!(actor: seed, tenant: org)
+
+    Security.UserRole
+    |> Ash.Changeset.for_create(
+      :assign,
+      %{
+        user_id: user.id,
+        role_id: role.id,
+        scoping_business_unit_id: user.owning_business_unit_id
+      },
+      actor: seed,
+      tenant: org
+    )
+    |> Ash.create!()
+  end
+
+  # An administrator who was not given the Judgment certifier role.
+  defp administrator_without_role!(ctx) do
+    member = reader!(ctx)
+    assign_role!(ctx.org, member.user, "Administrator")
+
+    %{
+      member
+      | actor: ActorContext.attach(member.user, ActorContext.build(member.user, tenant: ctx.org))
+    }
+  end
+
+  # A person who holds the Judgment certifier role and nothing else.
+  defp certifier!(ctx) do
+    member = reader!(ctx)
+    assign_role!(ctx.org, member.user, Seeder.judgment_certifier_role())
+
+    %{
+      member
+      | actor: ActorContext.attach(member.user, ActorContext.build(member.user, tenant: ctx.org))
+    }
+  end
 
   # A former certifier: reads the runs and certifications, but is not an administrator.
   defp reader!(ctx) do
@@ -526,6 +655,9 @@ defmodule AshEnterpriseWeb.JudgmentSurfacesTest do
   # The person deciding the invocation's approval task, through the task door.
   defp approve!(row, actor, ctx, door \\ :approve) do
     task = Ash.load!(row, :approval_task, authorize?: false).approval_task
+
+    # Candidacy is precomputed per request: rebuild the context now that the task exists.
+    actor = ActorContext.attach(actor, ActorContext.build(actor, tenant: ctx.org))
 
     HumanTask
     |> Ash.ActionInput.for_action(door, %{record_id: task.id}, actor: actor, tenant: ctx.org)
