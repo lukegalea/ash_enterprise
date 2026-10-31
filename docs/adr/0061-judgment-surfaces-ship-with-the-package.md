@@ -94,8 +94,7 @@ for them and a person approves; the verdict is not (AST-136).
 
 - **The targets.** `CalibrationRun.certify_and_publish` and `BandTableCertification.revoke` declare `approval:
   :confirm` with `approver_role: :administrator`, and carry `AshAgent.Validations.Governed`. A direct call is refused
-  as `Ungoverned`. "Administrator" is the role that may approve them: no narrower role for certifying band tables
-  exists, and adding one is a change to the declaration and the role seeds only. `certify_and_publish` also names
+  as `Ungoverned`. (Superseded the same day by the follow-up below: the approver role is now `:judgment_certifier`.) `certify_and_publish` also names
   `preconditions: [:record_id]`; a generic action has no subject row, so what binds the approval to the run is its
   `args_digest`, and the action refuses a run that is already certified. Its refusals are
   `AshAgent.BusinessError`s with stable codes (`unpublished_draft_exists`, `already_certified`,
@@ -114,11 +113,37 @@ for them and a person approves; the verdict is not (AST-136).
   `AshEnterprise.Execution.Actions.ConfirmInvocation`. The key is per click
   (`certify:<run id>:click:<uuid>`), so a refusal the person then fixes can be tried again, and it never collides
   with an agent's `certify:<run id>`. A person who does not hold the approver role gets the request, left waiting,
-  with its approval link, and nothing is certified. This means that clicking now needs the Administrator role, where
-  it needed only a read grant on the runs before.
+  with its approval link, and nothing is certified. This means that clicking needs the approver role, where
+  it needed only a read grant on the runs before (the Judgment certifier role, per the follow-up below).
 - **Why not leave the click ungoverned.** ADR 0055 says a governed target has no door but `invoke`, and an ungoverned
   twin (the `assign` and `assign_governed` pattern) would leave the person-only act reachable by anything that
   passes the policy, with no record of who approved what.
+
+### Follow-up, 2026-10-31 — a Judgment certifier role, and the certification names its approver
+
+**The approver is a narrower role than Administrator.** `CalibrationRun.certify_and_publish` and
+`BandTableCertification.revoke` now declare `approver_role: :judgment_certifier`. `Approval.role_name/1` turns that
+into the role name "Judgment certifier", and approval candidacy is matched on that name, as it is for every other
+approver role.
+
+- **Seeding.** `Seeder.ensure_judgment_certifier_role/2` creates the role in a tenant and gives it read on calibration
+  runs and certifications. `seed_tenant/1` runs it, so a new tenant has the role. A tenant that already exists gets it
+  from `mix ash_enterprise.platform.grant_judgment_certifier` (dry run unless `--apply`), the same shape as the Data
+  Steward role. The role is assigned to nobody.
+- **Administrators do not hold it.** There is no implicit grant. Certifying publishes the table that bands a family
+  live, so a person is given the role by name in the role admin, and an administrator who has not been given it
+  gets the request, left waiting, with its approval link, like any other non-candidate. This changes the amendment
+  above: the person's own click now needs this role, not Administrator.
+- **Rollout.** The role must be created in each existing tenant and assigned to whoever certifies before the next
+  certification is clicked there. Until then a click leaves its request waiting and certifies nothing.
+
+**The certification names the person who approved it.** An approved agent request still executes as the person who
+requested it, with that person's grants and no borrowed ones. What changes is the record. `certified_by` on the new
+`BandTableCertification`, and on the row a revocation rewrites, is the email of the person who approved the invocation
+(`approved_by_id`, set by `apply_decision` from the decided approval task), not of the executing person. The executor
+hands the target its invocation under `context.ash_agent`; `AshEnterprise.Execution.Approver` reads the approver from
+it. When the requester and the approver are the same person, which is the click, nothing changes. When there is no
+invocation context or no approver on record, the executing person's email is used, as before.
 
 ## Does it consume ActorContext?
 

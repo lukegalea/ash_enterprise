@@ -86,6 +86,7 @@ defmodule AshEnterprise.Accounts do
 
     resource AshEnterprise.Accounts.User do
       define :get_user_by_email, action: :get_by_email, args: [:email]
+      define :get_user, action: :read, get_by: [:id]
     end
 
     # The organizational structure. Order here is documentation, not dependency:

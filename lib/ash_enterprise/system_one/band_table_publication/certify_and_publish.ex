@@ -12,8 +12,10 @@ defmodule AshEnterprise.SystemOne.BandTablePublication.CertifyAndPublish do
      only the range between the thresholds goes to review.
   2. Save it as the family's draft definition in the platform tenant,
      where the resolver finds band tables.
-  3. Record the certification as the person, in their own tenant: the
-     author of record is them (`certified_by` is their email).
+  3. Record the certification in the person's own tenant, as them. The author
+     of record (`certified_by`) is the person who approved the invocation
+     (`AshEnterprise.Execution.Approver`): the same person when they clicked,
+     the approver when an agent's request was approved by someone else.
   4. Publish through `AshEnterprise.SystemOne.BandTablePublication`, whose
      verifier runs first. A refusal comes back as the action's error, with
      the findings.
@@ -38,6 +40,7 @@ defmodule AshEnterprise.SystemOne.BandTablePublication.CertifyAndPublish do
   require Ash.Query
 
   alias AshEnterprise.Decisions.Definition
+  alias AshEnterprise.Execution.Approver
   alias AshEnterprise.Platform.Seeder
   alias AshEnterprise.Platform.SystemActor
   alias AshEnterprise.SystemOne.Banding.Resolver
@@ -58,14 +61,14 @@ defmodule AshEnterprise.SystemOne.BandTablePublication.CertifyAndPublish do
       # a refused table leaves no certification behind, so the run stays
       # in the queue.
       Ash.DataLayer.transaction([Definition, BandTableCertification], fn ->
-        certify_and_publish(run, xml, context)
+        certify_and_publish(run, xml, context, input.context[:ash_agent])
       end)
     end
   end
 
-  defp certify_and_publish(run, xml, context) do
+  defp certify_and_publish(run, xml, context, ash_context) do
     with {:ok, draft} <- draft(run.family, xml),
-         {:ok, certification} <- certify(run, draft, context),
+         {:ok, certification} <- certify(run, draft, context, ash_context),
          {:ok, published} <- publish(run, certification) do
       %{
         definition_key: published.key,
@@ -169,7 +172,9 @@ defmodule AshEnterprise.SystemOne.BandTablePublication.CertifyAndPublish do
     end
   end
 
-  defp certify(run, draft, context) do
+  defp certify(run, draft, context, ash_context) do
+    opts = Ash.Context.to_opts(context)
+
     BandTableCertification
     |> Ash.Changeset.for_create(
       :record,
@@ -179,9 +184,9 @@ defmodule AshEnterprise.SystemOne.BandTablePublication.CertifyAndPublish do
         content_hash: draft.content_hash,
         family: run.family,
         calibration_run_id: run.id,
-        certified_by: to_string(context.actor.email)
+        certified_by: Approver.email(ash_context, context.actor, opts[:tenant])
       },
-      Ash.Context.to_opts(context)
+      opts
     )
     |> Ash.create()
   end

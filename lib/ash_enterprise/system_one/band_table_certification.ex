@@ -69,20 +69,20 @@ defmodule AshEnterprise.SystemOne.BandTableCertification do
   end
 
   changes do
-    # The fragment's :revoke accepts `certified_by`; a revocation is the
-    # revoking person's, so it records them, whatever the input says.
-    change set_attribute(:certified_by, actor(:email)), on: [:update]
+    # The fragment's :revoke accepts `certified_by`; a revocation is the approving
+    # person's, so it records them, whatever the input says (ADR 0061).
+    change AshEnterprise.SystemOne.Changes.RecordApprover, on: [:update]
   end
 
   # Revoking withdraws the table the family bands through (ADR 0057, 0061).
-  # `revoke` is a governed target an administrator confirms; `revoke_now` and
+  # `revoke` is a governed target a Judgment certifier confirms; `revoke_now` and
   # `request_revocation` only invoke it.
   effects do
     action :revoke,
       kind: :execute,
       open_world?: false,
       approval: :confirm,
-      approver_role: :administrator,
+      approver_role: :judgment_certifier,
       intent: :approve
 
     action :revoke_now, kind: :execute, open_world?: false, approval: :confirm, intent: :approve
