@@ -195,6 +195,12 @@ missing dep is a structured error, never a crash:
   the family's `min_n` there is no table, and a refused proposal is still a recorded
   run (`result: :no_table`). A person certifies through
   `Banding.CertificationFragment`; publication is `ash_decisions`' lifecycle.
+- An earned table has two ranges (admit at or above λ̂, review below), or three when the
+  run also earned a lower threshold (`RiskControl.threshold_low/2`) and the family sets
+  `low_band` in `FamilyConfig`: `:admit_no` admits a confident no with `fact_value`
+  `false`, `:omit` drops it. Pass `low_band: FamilyConfig.low_band(family)` to
+  `ProposalDmn.render/2` wherever you render a proposal. A lower threshold at or above the
+  upper one is refused (`:thresholds_overlap`), never rendered.
 - `mix ash_judgments.calibrate <family>` runs the harness. The labelled pairs come from
   the host's `:calibration_input` MFA and the run is recorded through the host's
   `:calibration_store` resource; `--dry-run` records nothing.
@@ -210,7 +216,18 @@ missing dep is a structured error, never a crash:
   `:record_verdict` (run `AshJudgments.HumanVerdict.FromBanding`), `:certify_and_publish` (yours,
   since publication is your decisions store), and `:revoke`.
 - A read that crosses two of your resources (`:awaiting_verdict`, `:awaiting_certification`) is
-  yours to declare, naming your resource literally in `exists/2`.
+  yours to declare. For `:awaiting_verdict` use the package's filter, `prepare
+  {AshJudgments.HumanVerdict.AwaitingVerdict, verdict_resource: …, judgment_resource: …}`: it
+  lists one banding per subject, question and unchanged state, and `FromBanding` settles the
+  others with the same verdict. Elsewhere, name your resource literally in `exists/2`.
+- `:record_verdict` takes `record_id`, `answer` and `why`. Declare `answer` as `:atom` with
+  `constraints: [one_of: [:yes, :no]]` for yes/no questions, so the prompt is a Yes/No picker.
+- The verdicts surface shows the banding fragment's `:subject`, `:question_text`, `:lean` and
+  `:judged_excerpt` (`:judged_text` in the detail). Set `config :ash_judgments, :review_source`
+  to a module implementing `AshJudgments.Banding.ReviewSource`: it opens the sealed state as
+  the actor through your own key handling, and returns the DMN of the band-table version a
+  banding recorded (never the one published now). Never decrypt in the package or with
+  `authorize?: false`.
 
 ## Telemetry
 
