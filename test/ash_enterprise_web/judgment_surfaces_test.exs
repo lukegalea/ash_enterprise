@@ -180,7 +180,7 @@ defmodule AshEnterpriseWeb.JudgmentSurfacesTest do
     test "a person who may not approve gets the request, waiting, and nothing is certified",
          ctx do
       run = proposed_run!(ctx.org)
-      outsider = outsider!(ctx)
+      outsider = reader!(ctx)
 
       assert {:ok, %{"status" => "awaiting_approval", "approval_url" => url}} =
                click(CalibrationRun, :certify_now, run, ctx, outsider)
@@ -375,6 +375,22 @@ defmodule AshEnterpriseWeb.JudgmentSurfacesTest do
       assert {revoked.status, revoked.certified_by} == {:revoked, ctx.email}
     end
 
+    test "a person who may not approve gets the revocation waiting, and it stays certified",
+         ctx do
+      certification = certified!(ctx)
+      outsider = reader!(ctx)
+
+      assert {:ok, %{"status" => "awaiting_approval", "approval_url" => url}} =
+               click(BandTableCertification, :revoke_now, certification, ctx, outsider)
+
+      assert url =~ "/app/r/approvals/"
+
+      still =
+        Ash.get!(BandTableCertification, certification.id, tenant: ctx.org, authorize?: false)
+
+      assert still.status != :revoked
+    end
+
     test "the governed revoke refuses a direct call", ctx do
       certification = certified!(ctx)
 
@@ -480,12 +496,12 @@ defmodule AshEnterpriseWeb.JudgmentSurfacesTest do
 
   defp oban(ctx), do: [actor: SystemActor.oban(), tenant: ctx.org]
 
-  # A person with no role: not a candidate to approve anything.
-  defp outsider!(ctx) do
+  # A former certifier: reads the runs and certifications, but is not an administrator.
+  defp reader!(ctx) do
     AshEnterprise.Test.DailyFixtures.member!(
       %{tenant: ctx.org, user: ctx.user},
-      "Reader #{System.unique_integer([:positive])}",
-      []
+      "Certifier #{System.unique_integer([:positive])}",
+      [{CalibrationRun, :read, :global}, {BandTableCertification, :read, :global}]
     )
   end
 

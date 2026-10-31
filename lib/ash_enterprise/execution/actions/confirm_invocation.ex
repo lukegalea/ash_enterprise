@@ -69,6 +69,9 @@ defmodule AshEnterprise.Execution.Actions.ConfirmInvocation do
 
       :not_a_candidate ->
         {:ok, row}
+
+      {:error, error} ->
+        {:error, error}
     end
   end
 
@@ -85,9 +88,18 @@ defmodule AshEnterprise.Execution.Actions.ConfirmInvocation do
     |> Ash.run_action()
     |> case do
       {:ok, _decided} -> :ok
-      {:error, _not_a_candidate} -> :not_a_candidate
+      {:error, error} -> if candidate_refusal?(error), do: :not_a_candidate, else: {:error, error}
     end
   end
+
+  # Not holding the approver role reads as a refusal or an empty read of the task. Any other
+  # failure (a stale task, a database error) is a real one and fails the click.
+  defp candidate_refusal?(%Ash.Error.Forbidden{}), do: true
+
+  defp candidate_refusal?(%Ash.Error.Invalid{errors: errors}),
+    do: errors != [] and Enum.all?(errors, &match?(%Ash.Error.Query.NotFound{}, &1))
+
+  defp candidate_refusal?(_other), do: false
 
   defp report(%{status: status} = row) when status in [:failed, :rejected, :stale] do
     {:error,
