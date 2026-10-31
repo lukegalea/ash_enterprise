@@ -91,6 +91,7 @@ The concrete exit: which files change, and how much work it is.
 | [0057](0057-actions-declare-their-effects.md) | Every action exposed to an agent, an editor or a process declares its effects | accepted (2026-10-23); the extension, its verifiers and the host's ACP readers built, the library resolvers and ash_ai annotations not built (2026-10-29) |
 | [0058](0058-agent-quality-and-releases.md) | Agent quality is measured in a host Quality domain, and a release is a gated, attested manifest | accepted, not built (2026-10-23) |
 | [0059](0059-version-number-is-an-optimistic-lock.md) | `version_number` is an optimistic lock; human-only and machinery-only actions narrow the bypasses | accepted |
+| [0061](0061-judgment-surfaces-ship-with-the-package.md) | Judgment surfaces ship with ash_judgments; a host binds them to its own resources | accepted, not built (2026-10-31) |
 
 Records 0001–0005, 0007–0009, 0020–0023, 0027–0031, 0033–0037, 0050–0054 and 0059 are `accepted` and describe code that exists. 0006 is superseded by 0050. 0049 is accepted and in progress: Phase 0 (PostgreSQL 18) and the System One fact cut-over have landed.
 **0038–0047 are `accepted, not built (2026-09-28)`:** the decision is taken and none of it is built. A record with that
