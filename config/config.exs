@@ -50,6 +50,9 @@ config :ash_enterprise, Oban,
   # `:execution` runs governed invocations (ADR 0055): one job per ready invocation, each of
   # which runs an action on someone's behalf. Its own budget, so a slow target cannot hold up
   # token advances or syncs.
+  #
+  # `:agent_runs` runs agent run steps: one job per step, each holding one model call. Its own
+  # budget, so a slow model cannot hold up the invocations those steps request.
   queues: [
     default: 10,
     bpmn: 10,
@@ -57,7 +60,8 @@ config :ash_enterprise, Oban,
     ingestion: 5,
     system_one: 5,
     mdm: 10,
-    execution: 10
+    execution: 10,
+    agent_runs: 5
   ],
   repo: AshEnterprise.Repo,
   plugins: [

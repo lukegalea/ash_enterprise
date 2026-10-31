@@ -64,6 +64,10 @@ defmodule AshEnterprise.Execution.Invocation do
       (`AshEnterprise.Execution.Resolution`), and the `:apply_resolution` trigger applies
       the decision (`AshEnterprise.Execution.Changes.ReadResolution`). Never
       `on_complete`.
+    * **An agent run's tool calls.** A run's call that is not an in-loop read is one of
+      these rows, keyed `run:<run id>:<step seq>:<tool call id>` with the run as its
+      parent; when it finishes it wakes the run (`AshAgent.Run.Changes.Wake`), and the
+      run's next step reads its recorded result. See `AshEnterprise.Execution.Run`.
     * **Failure classes for the provider edge.** `AshEnterprise.Integration.ProxyError`
       implements `AshAgent.FailureClass` (`AshEnterprise.Execution.ProxyFailure`).
   """
@@ -136,6 +140,9 @@ defmodule AshEnterprise.Execution.Invocation do
       where: [action_is(:request_resolution)]
 
     change AshEnterprise.Execution.Changes.ReadResolution, where: [action_is(:apply_resolution)]
+
+    # A run's tool call that finishes wakes its run, in the same transaction.
+    change {AshAgent.Run.Changes.Wake, run: AshEnterprise.Execution.Run}, on: [:update]
   end
 
   validations do

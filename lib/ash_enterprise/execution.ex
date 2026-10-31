@@ -21,7 +21,9 @@ defmodule AshEnterprise.Execution do
 
   An agent's definition is an `AshEnterprise.Execution.AgentVersion`: registered from
   code, published under four eyes through `request_agent_publish/3`, pinned by the runs
-  that use it.
+  that use it. `start_agent_run/4` starts a run of an agent's latest published version
+  (`AshEnterprise.Execution.Run`): one model call per job, every tool call that is not an
+  in-loop read an invocation, the journal its `AshEnterprise.Execution.Step` rows.
 
   The resources come from the `ash_agent` package's fragments instantiated on the
   platform base (ADR 0056); this domain names them and their code interfaces.
@@ -56,6 +58,19 @@ defmodule AshEnterprise.Execution do
       define :get_agent_version, action: :read, get_by: [:id]
       define :latest_published_agent_version, action: :latest_published, args: [:key]
       define :list_agent_versions, action: :read
+    end
+
+    resource AshEnterprise.Execution.Run do
+      define :start_agent_run, action: :start, args: [:agent, :input]
+      define :get_agent_run, action: :read, get_by: [:id]
+      define :list_agent_runs, action: :read
+      define :request_agent_run_cancel, action: :request_cancel
+      define :step_agent_run, action: :step, args: [:primary_key]
+      define :recover_agent_run, action: :recover
+    end
+
+    resource AshEnterprise.Execution.Step do
+      define :list_agent_steps, action: :read
     end
   end
 end

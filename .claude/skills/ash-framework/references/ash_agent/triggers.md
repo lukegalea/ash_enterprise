@@ -78,3 +78,54 @@ row has been decided, and a change on the action that sets `outcome` from it.
    `execute` and `reconcile`) and keep everyone else out of them; a person's grants should never reach them.
 8. **`:reconcile` is not optional.** A host using AshOban must declare it: without it, a row whose worker died stays
    `executing` for good.
+
+## `:step` and `:recover` on a run resource
+
+`start`, every `record_step` that leaves a run queued or waiting, `recover`, and `AshAgent.Run.Changes.Wake` on the
+invocation resource enqueue `:step` in their own transaction. Its scheduler is the sweep for a run whose wake-up was
+lost. `:recover` queues again a run whose worker died holding the lease; nothing enqueues it but its sweep.
+
+```elixir
+oban do
+  triggers do
+    trigger :step do
+      action :step
+      where expr(needs_step)
+      read_action :read
+      queue :agents
+      scheduler_cron "* * * * *"
+      max_attempts 3
+      use_tenant_from_record? true
+      actor_persister :none
+      default_actor MyClinic.JobRunner.actor()
+      worker_module_name MyClinic.Execution.Run.StepWorker
+      scheduler_module_name MyClinic.Execution.Run.StepScheduler
+    end
+
+    trigger :recover do
+      action :recover
+      where expr(status == :running and lease_expires_at <= now())
+      read_action :read
+      stream_with :full_read
+      queue :agents
+      scheduler_cron "* * * * *"
+      max_attempts 3
+      use_tenant_from_record? true
+      actor_persister :none
+      default_actor MyClinic.JobRunner.actor()
+      worker_module_name MyClinic.Execution.Run.RecoverWorker
+      scheduler_module_name MyClinic.Execution.Run.RecoverScheduler
+    end
+  end
+end
+```
+
+### Rules for runs
+
+1. **`action :step`** is a generic action with no transaction: the claim, each record and the model call between
+   them are separate, so no transaction or row lock is held across the call. ash_oban does not re-check `where`
+   before a generic action runs; the step reads the run with `needs_step` and claims it, and a job with nothing to do
+   ends as `:skipped` without a model call.
+2. **`:recover` keeps ash_oban's default lock**: it is a plain database transition.
+3. The same rules as for invocations: `actor_persister :none`, `use_tenant_from_record? true`, a `scheduler_cron`
+   kept on purpose, job arguments carrying the row's id only.

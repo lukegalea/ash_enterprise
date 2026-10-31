@@ -201,3 +201,45 @@ and the host's `fragments:` lists, with no data migration, because no table name
   agents beyond `create_draft` and `revise_draft` wait for decision D16.
 - **Tests.** Package: `test/ash_agent/agent_version_test.exs`. Here:
   `test/ash_enterprise/execution/agent_version_test.exs`.
+
+## Built, 2026-10-31: agent runs
+
+- **Rows and a trigger, not a process.** `AshAgent.Run` (here `Execution.Run`, table `exec_agent_runs`) is one run of
+  a pinned agent version and is its own checkpoint: `step_seq` is the pointer and `lease_epoch` the revision.
+  `AshAgent.Step` (here `Execution.Step`, `exec_agent_steps`) is its journal, one row per message, appended only by the
+  run's `record_step` inside its fenced transaction and never changed. Steps are not audited (the content-ledger
+  pattern of `AI.ModelCall`); the run transition that commits with each one is.
+- **One `:step` job is one model call.** `claim_step` takes the next epoch under `optimistic_lock(:lease_epoch)`, so
+  a duplicate job loses before any model call, and checks the deadline, drift of the pinned version, the step and
+  tool-call limits and the token budget. The step then rebuilds the executing actor from grant rows
+  (`Execution.Identity.actor_for/1` with the run), the conversation from the journal and the tools the version offers
+  that actor, and calls ash_ai's tool loop once, with no transaction open, through
+  `Execution.AgentRuntime`: the in-zone profile only, through `AI.Models.GuardedReqLLM`, so each call is a `ModelCall`
+  whose caller is `run:<run id>:<step seq>` and a repeated call shows under the same name. Each message is recorded
+  under the fence: `record_step` is filtered on the epoch and on the `step_seq` its caller read, so an append from a
+  superseded worker or a stale copy changes nothing.
+- **Tool calls.** Only Ash `:read` actions whose declaration does not reach outside run in the loop, as the executing
+  actor. Every other call stops the loop and becomes an invocation keyed `run:<run id>:<step seq>:<tool call id>`,
+  requested as the person who started the run (`Identity.requester_for/1`) with the run as its parent
+  (`Validations.OwnsParent` accepts only a run the requester started), in the same transaction as the step that made
+  the call. A step repeated after its worker died reads each call's invocation by that key and its recorded result;
+  nothing runs twice.
+- **Who may start one (decision D13).** `start` is self-service, and `Identity.run_principal/3` refuses anyone without
+  the agent's start grant ([ADR 0043](0043-automation-authority-is-a-grant.md)). The run
+  executes as the version's publish-time authority: the person, or the named automation principal acting for them.
+  Requesterless runs are still refused: nothing starts a run with no person yet.
+- **Wake-up and recovery.** `needs_step` is derived over the run's invocations, never counted.
+  `AshAgent.Run.Changes.Wake` on `Execution.Invocation` enqueues `:step` when one of a run's invocations finishes;
+  the `:step` sweep finds a lost wake-up and `:recover` re-queues a running run whose lease expired. Both triggers run
+  on their own queue, `:agent_runs`.
+- **Output.** A final answer is cast to the version's `output_type`; one that does not cast gets up to `max_repairs`
+  repair turns, then the run fails as `:rejected` (`output_uncastable`).
+- **Cancellation.** `request_cancel` (by grant) cancels the run and its invocations that have not started; an
+  executing one records the request; nothing done is undone.
+- **Sealing.** `input`, `output` and each step's `parts` are sealed under the requester's erasure scope, as an
+  invocation's arguments are. Moving them under the subject's scope is AGT-32.
+- **Not built here.** Budget reservation across a root run and `extend` (AGT-30), waiting on a person (AGT-31), the
+  assistant on runs (AGT-33), requesterless starts.
+- **Tests.** Package: `test/ash_agent/run_test.exs`. Here: `test/ash_enterprise/execution/run_test.exs`, and in the
+  durability tier `run_resume_test.exs` (F1), `wakeup_test.exs` (invariant 9) and `cancellation_test.exs`
+  (invariant 5).

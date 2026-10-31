@@ -1,7 +1,8 @@
 # AshAgent host behaviours
 
 The package calls these instead of reading your actors, grants or keys. Name your implementations in the
-`invocation` section of the resource that includes `AshAgent.Invocation`.
+`invocation` section of the resource that includes `AshAgent.Invocation`, and `AshAgent.Runtime` in the `run` section
+of the resource that includes `AshAgent.Run`.
 
 ## `AshAgent.ExecutionIdentity`
 
@@ -9,6 +10,9 @@ The package calls these instead of reading your actors, grants or keys. Name you
 @callback principal_for(actor, context) :: {:ok, principal} | {:error, term}
 @callback actor_for(invocation) :: {:ok, actor} | {:error, term}
 @callback principal_of(actor) :: {:ok, principal} | :error
+# for agent runs (optional callbacks; required once a resource uses AshAgent.Run):
+@callback run_principal(actor, agent_version, context) :: {:ok, principal} | {:error, term}
+@callback requester_for(run) :: {:ok, actor} | {:error, term}
 
 # principal:
 %{type: :person, id: person_id}
@@ -32,6 +36,30 @@ The package calls these instead of reading your actors, grants or keys. Name you
    action runs as its invocation's principal, so it must tell an automation acting for a person from that person.
 7. The row's `delegation` column holds the principal in RFC 8693's `act` shape
    (`AshAgent.ExecutionIdentity.delegation/1`), for readers outside the package. It is informational.
+
+8. `run_principal/3` runs when a run starts. Decide there whether the actor may start this agent at all (a start
+   grant per agent key) and read the version's publish-time `authority`: the requester runs as themselves, or as the
+   named automation principal acting for them. Return an error to refuse the start.
+9. `actor_for/1` is also called with the run row at every step: the same rules as at a claim. Re-check the start
+   grant there too, so revoking it stops a run before its next model call.
+10. `requester_for/1` builds the actor that requests a run's tool calls through `invoke`: the person who started the
+    run, in the form your `principal_for/2` maps to the run's `executing_principal`. The run refuses a tool call whose
+    invocation would run as anyone else.
+
+## `AshAgent.Runtime`
+
+```elixir
+@callback loop_options(agent_version, run, caller) :: {:ok, keyword} | {:error, term}
+@callback around_step(run, fun) :: result   # optional
+```
+
+1. `loop_options/3` returns the tool loop's `:model`, `:req_llm` and `:req_llm_opts` for the version's
+   `model_profile`. Route the call through a module that applies your model policy and records the call, and name the
+   record with `caller` (`"run:<run id>:<step seq>"`). Return an error for a profile an agent may not run on now; the
+   step makes no call.
+2. The step sets everything else: system prompt, tools, approval rule, actor, tenant and `max_iterations: 1`. Do not
+   return them.
+3. `around_step/2` wraps a whole step: restore the run's correlation id and trace context there.
 
 ## `AshAgent.FailureClass` (a protocol)
 

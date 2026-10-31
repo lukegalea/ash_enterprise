@@ -142,10 +142,13 @@ defmodule AshEnterprise.Test.AssistantFixtures do
     (`downstream:`). Each `stream_text/3` call takes the next step of the
     script and reports the request to the scripting process:
 
-      * `{:tools, [{name, arguments}]}` — the model calls those tools;
+      * `{:tools, [{name, arguments}]}` — the model calls those tools
+        (`{id, name, arguments}` names the call's id);
       * `{:text, text}` — the model answers;
       * `{:error, reason}` — the call fails to open;
       * `{:raise, exception}` — the stream opens, then fails while read;
+      * `{:exit, reason}` — the stream opens, then the process reading it exits
+        with `reason`, as a worker that dies during its model call;
       * `{:pause, text}` — one chunk of `text`, then waits for
         `:scripted_continue` before sending the rest (a slow model).
 
@@ -192,11 +195,15 @@ defmodule AshEnterprise.Test.AssistantFixtures do
       chunks =
         calls
         |> Enum.with_index()
-        |> Enum.map(fn {{name, arguments}, i} ->
-          ReqLLM.StreamChunk.tool_call(name, arguments, %{
-            id: "call_#{System.unique_integer([:positive])}",
-            index: i
-          })
+        |> Enum.map(fn
+          {{id, name, arguments}, i} ->
+            ReqLLM.StreamChunk.tool_call(name, arguments, %{id: id, index: i})
+
+          {{name, arguments}, i} ->
+            ReqLLM.StreamChunk.tool_call(name, arguments, %{
+              id: "call_#{System.unique_integer([:positive])}",
+              index: i
+            })
         end)
 
       response(chunks, :tool_calls, model, context)
@@ -208,6 +215,11 @@ defmodule AshEnterprise.Test.AssistantFixtures do
     defp respond({:raise, exception}, model, context) do
       {:ok, response} = response([], :stop, model, context)
       {:ok, %{response | stream: Stream.map([1], fn _ -> raise exception end)}}
+    end
+
+    defp respond({:exit, reason}, model, context) do
+      {:ok, response} = response([], :stop, model, context)
+      {:ok, %{response | stream: Stream.map([1], fn _ -> exit(reason) end)}}
     end
 
     defp respond({:pause, text}, model, context) do

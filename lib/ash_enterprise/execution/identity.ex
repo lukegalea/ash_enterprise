@@ -37,6 +37,15 @@ defmodule AshEnterprise.Execution.Identity do
   which do not exist yet: a principal with no person is refused at the request and at
   the claim.
 
+  ## An agent run
+
+  A run (`AshEnterprise.Execution.Run`) is started by a person who holds the agent's
+  start grant (`run_principal/3`), and executes as its version's publish-time authority:
+  that person, or the automation principal the publisher named acting for them. Every
+  step rebuilds the run's actor with `actor_for/1`, exactly as a claim does; every tool
+  call it makes is requested as the person (`requester_for/1`) and so executes as the run
+  does.
+
   ## Not a principal
 
   System actors are not principals: the job runner claims and completes invocations but
@@ -95,6 +104,59 @@ defmodule AshEnterprise.Execution.Identity do
          %{type: :automation, id: Atom.to_string(name), on_behalf_of: person_id, agent: agent}}
 
   def principal_of(_actor), do: :error
+
+  @doc """
+  Who a run of `version` started by `actor` executes as (`AshEnterprise.Execution.Run`).
+  Only a person in the run's tenant who holds the agent's start grant may start it; the
+  run then executes as them, or, when the version was published with an automation
+  authority, as that principal acting for them. Read at the start, and rebuilt at every
+  step by `actor_for/1` like any principal.
+  """
+  @impl true
+  def run_principal(%User{id: id} = user, version, context) when is_binary(id) do
+    with :ok <- may_start(user, version.key, context[:tenant]) do
+      run_as(version.authority, id, version.key)
+    end
+  end
+
+  def run_principal(_actor, _version, _context), do: {:error, :not_a_person}
+
+  defp run_as(%{type: :automation, name: name}, person_id, agent) do
+    with {:ok, principal} <- principal(name) do
+      {:ok,
+       %{
+         type: :automation,
+         id: Atom.to_string(principal.name),
+         on_behalf_of: person_id,
+         agent: agent
+       }}
+    end
+  end
+
+  defp run_as(_requester, person_id, _agent), do: {:ok, %{type: :person, id: person_id}}
+
+  @doc """
+  The actor a run's tool calls are requested as: the person who started it, rebuilt
+  from their grants now, and marked to run as the run's automation principal when it has
+  one (`AutomationPrincipal.start/3`), so `principal_for/2` names exactly the run's
+  principal. A person who has lost their authority since cannot ask for more.
+  """
+  @impl true
+  def requester_for(%{executing_principal: principal, organization_id: tenant}) do
+    case AshAgent.ExecutionIdentity.identity(principal) do
+      {"person", id, _, _} ->
+        person(id, tenant)
+
+      {"automation", name, person_id, agent} when is_binary(person_id) ->
+        with {:ok, principal} <- principal(name),
+             {:ok, actor} <- person(person_id, tenant) do
+          {:ok, AutomationPrincipal.start(actor, principal.name, agent)}
+        end
+
+      _other ->
+        {:error, :requesterless}
+    end
+  end
 
   # --- request --------------------------------------------------------------
 
@@ -175,6 +237,7 @@ defmodule AshEnterprise.Execution.Identity do
   end
 
   defp may_start(_user, agent, _tenant) when not is_binary(agent), do: {:error, :no_agent}
+  defp may_start(_user, _agent, nil), do: {:error, :no_tenant}
 
   defp may_start(user, agent, tenant) do
     principal_ids = [user.id | ActorContext.team_ids_for(user.id, tenant)]

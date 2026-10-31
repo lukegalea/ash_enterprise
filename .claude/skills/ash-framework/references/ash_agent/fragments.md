@@ -212,3 +212,97 @@ end
 | The governed publish path | An effects declaration and `Governed` on `apply_publish`, and an action that asks for it through `invoke` (rule 6) |
 | Publish checks of your own | Allowed model profiles, known automation principals |
 | Copying a shared baseline | `AshAgent.AgentVersion.Actions.RegisterFromCode.register/3` writes content from anywhere under the same rule as the sync, with `baseline_id` |
+
+## `AshAgent.Run` and `AshAgent.Step`
+
+A durable agent run: one row per run of a pinned agent version (`AshAgent.Run`), and its journal, one row per message
+(`AshAgent.Step`). A run is rows and a trigger, not a process. Each `:step` job claims the run, makes one model call
+through ash_ai's tool loop with no transaction open, and records what came back under the lease it claimed; a worker
+that dies loses only the call it was making.
+
+```elixir
+defmodule MyClinic.Execution.Run do
+  use Ash.Resource,
+    domain: MyClinic.Execution,
+    data_layer: AshPostgres.DataLayer,
+    extensions: [AshOban],
+    fragments: [AshAgent.Run]
+
+  postgres do
+    table "agent_runs"
+    repo MyClinic.Repo
+  end
+
+  run do
+    agent_version MyClinic.Execution.AgentVersion
+    step MyClinic.Execution.Step
+    invocation MyClinic.Execution.Invocation
+    runtime MyClinic.AgentRuntime
+  end
+
+  # oban triggers :step and :recover: see triggers.md
+end
+
+defmodule MyClinic.Execution.Step do
+  use Ash.Resource,
+    domain: MyClinic.Execution,
+    data_layer: AshPostgres.DataLayer,
+    fragments: [AshAgent.Step]
+
+  postgres do
+    table "agent_steps"
+    repo MyClinic.Repo
+  end
+end
+```
+
+And on the invocation resource, so a finished tool call wakes its run:
+
+```elixir
+changes do
+  change {AshAgent.Run.Changes.Wake, run: MyClinic.Execution.Run}, on: [:update]
+end
+```
+
+### Rules
+
+1. Start a run with `start` (the agent's key and the request as `input`). It pins the key's latest published version
+   and refuses a drifted one. Who may start which agent, and who the run executes as, are your
+   `c:AshAgent.ExecutionIdentity.run_principal/3`'s answer; a refusal is `AshAgent.Invocation.NoPrincipal`.
+2. Never run a tool's effect in the tool loop. Only an Ash `:read` action whose effects declaration has
+   `open_world?: false` runs in the loop (as the executing actor, and only when `Ash.can?` says the actor may). Every
+   other call stops the loop and becomes an invocation keyed `run:<run id>:<step seq>:<tool call id>`, with the run as
+   its parent, requested as `c:AshAgent.ExecutionIdentity.requester_for/1`'s actor. A step repeated after a worker
+   died reads the invocation's recorded result; nothing runs twice.
+3. One `:step` job is one model call (`max_iterations: 1`). A loop that ran reads and hit the limit is queued for the
+   next step; that is not an error.
+4. `claim_step` has one winner per epoch, and checks the deadline (`failed`, `:timeout`), drift (`failed`,
+   `"definition_drift"`), `max_steps` and `max_tool_calls` (`waiting` on `:limit`) and the token budget (`waiting` on
+   `:budget`). Nothing in the package lifts a limit or a budget: a run waiting on one waits for you.
+5. `record_step` is fenced on the claimed epoch and the journal's `step_seq`. A refused record changes nothing: no
+   step, no invocation, no transition. Give the job runner alone authority over `claim_step`, `record_step`,
+   `recover`, `step` and the step resource's `append`.
+6. An answer is cast to the version's `output_type`; one that does not cast gets a repair turn (a user message saying
+   what was wrong), up to `max_repairs`, then the run fails as `:rejected`, `"output_uncastable"`.
+7. `request_cancel` cancels the run and its invocations that have not started, in one transaction; an invocation that
+   is executing records the request. Nothing done is undone: reversing an effect is a separate request. A run that
+   fails cancels its unstarted invocations the same way.
+8. `needs_step` is derived (queued, or waiting on `:tools` with no open invocation). Wake runs with
+   `AshAgent.Run.Changes.Wake` on your invocation resource, and keep the `:step` sweep: a lost wake-up costs a sweep's
+   delay, never a parked run.
+9. The run's `input` and `output` and the step's `parts` are marked `sensitive?`: seal them if you encrypt content at
+   rest. The package reads a sealed field through the calculation that opens it.
+10. A model call that fails, or a model profile your runtime cannot use now, records nothing: the run stays `running`
+    until its lease expires and `recover` queues it again, so the deadline bounds the retries.
+
+### What you add on the resources
+
+| You add | Why |
+|---|---|
+| Tenancy and ownership | A run is the requester's; copy its owner onto each step so the same grants read both |
+| Policies | Who may start (a person, for themselves), read and cancel; the machinery actions for the job runner only |
+| The `:step` and `:recover` triggers | triggers.md |
+| `Wake` on the invocation resource | A finished tool call enqueues its run's step |
+| A check that a tool call's parent run is the requester's | `invoke` records whatever `parent` it is given |
+| Sealing | `input`, `output` and `parts` |
+| `AshAgent.Runtime` | The model, and the guarded transport that records each call |
