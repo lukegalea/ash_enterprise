@@ -13,6 +13,23 @@ config :mdex_native, syntax_highlighter: :lumis
 # a theme written in the design-system tokens (a `use Cinder.Theme` module).
 config :ash_oban, pro?: false
 
+# The standards standing check (JS-11): off by default, so the entry is a
+# no-op until `enabled: true`. The worker compiles only where ash_agent_tools
+# is loaded (dev and test), so a production build has no entry for it.
+standing_cron = "17 * * * *"
+
+standing_crontab =
+  if config_env() == :prod,
+    do: [],
+    else: [{standing_cron, AshEnterprise.Standards.StandingWorker}]
+
+config :ash_enterprise, AshEnterprise.Standards.StandingWorker,
+  enabled: false,
+  root: nil,
+  tenant: "dogfood",
+  limit: nil,
+  cron: standing_cron
+
 config :ash_enterprise, Oban,
   engine: Oban.Engines.Basic,
   notifier: Oban.Notifiers.Postgres,
@@ -67,53 +84,55 @@ config :ash_enterprise, Oban,
     # record we promise anybody.
     {Oban.Plugins.Pruner, max_age: 7 * 24 * 60 * 60},
     {Oban.Plugins.Cron,
-     crontab: [
-       # The trigger sweep is the *driver*, not a safety net: the nudge on the audit log is
-       # non-transactional and can be lost, so this is what guarantees an event is eventually
-       # dispatched. Every minute, one job per tenant that has a published, enabled
-       # subscription (the fan-out reads `config :ash_bpmn, trigger_tenants`).
-       #
-       # Spelled as the literal tuple `AshBpmn.Triggers.SweepWorker.cron_entry()` returns
-       # rather than by calling it: this file is evaluated before dependencies are compiled,
-       # so a function call into a dep would break the cold `mix setup` path.
-       {"* * * * *", AshBpmn.Triggers.CronSweep, queue: :bpmn, max_attempts: 1},
-       # MDM-7: noncompliant findings open their stewardship tasks on the
-       # drain cadence (idempotent; a golden already running an instance is
-       # skipped).
-       {"*/5 * * * *", AshEnterprise.Mdm.QualityStewardshipWorker, queue: :mdm, max_attempts: 3},
-       # PROD-9: newly projected people feed MDM's cross-source resolution
-       # (one job per tenant that turned it on; idempotent).
-       {"*/15 * * * *", AshEnterprise.Mdm.People.SweepWorker, queue: :mdm, max_attempts: 3},
-       # The ledger sweep is the *recovery net*, not the driver: the ledger trigger's
-       # pg_notify wakes the drain worker promptly, and a wake lost while the listener was
-       # down is caught here. Every five minutes; the worker's `unique: [period: 30]`
-       # collapses the overlap with wake-driven jobs.
-       {"*/5 * * * *", AshEnterprise.Ledger.UserDrainWorker,
-        queue: :ash_strangler_ledger, max_attempts: 1},
-       # Epic E4: one sync step per active linked account per vertical. The
-       # scheduler only enqueues; each vertical's worker is unique per linked
-       # account, so a tick that lands while a step is still queued, running
-       # or snoozed through a long backfill collapses into it.
-       {"*/10 * * * *", AshEnterprise.Integration.SyncScheduler,
-        args: %{"integration" => "google-calendar"}},
-       {"*/5 * * * *", AshEnterprise.Integration.SyncScheduler,
-        args: %{"integration" => "google-mail"}},
-       {"*/5 * * * *", AshEnterprise.Integration.SyncScheduler,
-        args: %{"integration" => "slack"}},
-       # The morning brief: every fifteen minutes in UTC, a no-op until
-       # `:morning_brief_compose_at` (below) on the display zone's clock, then
-       # one compose per calendar owner per local day. A tick, not a 06:30
-       # entry, because the zone is runtime config and the day must survive
-       # DST and a node that was down at 06:30 — see the scheduler's moduledoc.
-       {"*/15 * * * *", AshEnterprise.Agents.MorningBriefScheduler},
-       # PROD-17: lineage past its 14-day window is deleted daily
-       # (AshEnterprise.Lineage.Retention).
-       {"17 4 * * *", AshEnterprise.Lineage.PruneWorker},
-       # PROD-18: commitments in sent mail and Slack, and follow-ups to ended
-       # meetings, proposed as action items (AshEnterprise.Canonical.Commitments).
-       # Messages are read only by the in-zone model; with none, they wait.
-       {"*/10 * * * *", AshEnterprise.Canonical.Commitments.SweepWorker}
-     ]}
+     crontab:
+       [
+         # The trigger sweep is the *driver*, not a safety net: the nudge on the audit log is
+         # non-transactional and can be lost, so this is what guarantees an event is eventually
+         # dispatched. Every minute, one job per tenant that has a published, enabled
+         # subscription (the fan-out reads `config :ash_bpmn, trigger_tenants`).
+         #
+         # Spelled as the literal tuple `AshBpmn.Triggers.SweepWorker.cron_entry()` returns
+         # rather than by calling it: this file is evaluated before dependencies are compiled,
+         # so a function call into a dep would break the cold `mix setup` path.
+         {"* * * * *", AshBpmn.Triggers.CronSweep, queue: :bpmn, max_attempts: 1},
+         # MDM-7: noncompliant findings open their stewardship tasks on the
+         # drain cadence (idempotent; a golden already running an instance is
+         # skipped).
+         {"*/5 * * * *", AshEnterprise.Mdm.QualityStewardshipWorker,
+          queue: :mdm, max_attempts: 3},
+         # PROD-9: newly projected people feed MDM's cross-source resolution
+         # (one job per tenant that turned it on; idempotent).
+         {"*/15 * * * *", AshEnterprise.Mdm.People.SweepWorker, queue: :mdm, max_attempts: 3},
+         # The ledger sweep is the *recovery net*, not the driver: the ledger trigger's
+         # pg_notify wakes the drain worker promptly, and a wake lost while the listener was
+         # down is caught here. Every five minutes; the worker's `unique: [period: 30]`
+         # collapses the overlap with wake-driven jobs.
+         {"*/5 * * * *", AshEnterprise.Ledger.UserDrainWorker,
+          queue: :ash_strangler_ledger, max_attempts: 1},
+         # Epic E4: one sync step per active linked account per vertical. The
+         # scheduler only enqueues; each vertical's worker is unique per linked
+         # account, so a tick that lands while a step is still queued, running
+         # or snoozed through a long backfill collapses into it.
+         {"*/10 * * * *", AshEnterprise.Integration.SyncScheduler,
+          args: %{"integration" => "google-calendar"}},
+         {"*/5 * * * *", AshEnterprise.Integration.SyncScheduler,
+          args: %{"integration" => "google-mail"}},
+         {"*/5 * * * *", AshEnterprise.Integration.SyncScheduler,
+          args: %{"integration" => "slack"}},
+         # The morning brief: every fifteen minutes in UTC, a no-op until
+         # `:morning_brief_compose_at` (below) on the display zone's clock, then
+         # one compose per calendar owner per local day. A tick, not a 06:30
+         # entry, because the zone is runtime config and the day must survive
+         # DST and a node that was down at 06:30 — see the scheduler's moduledoc.
+         {"*/15 * * * *", AshEnterprise.Agents.MorningBriefScheduler},
+         # PROD-17: lineage past its 14-day window is deleted daily
+         # (AshEnterprise.Lineage.Retention).
+         {"17 4 * * *", AshEnterprise.Lineage.PruneWorker},
+         # PROD-18: commitments in sent mail and Slack, and follow-ups to ended
+         # meetings, proposed as action items (AshEnterprise.Canonical.Commitments).
+         # Messages are read only by the in-zone model; with none, they wait.
+         {"*/10 * * * *", AshEnterprise.Canonical.Commitments.SweepWorker}
+       ] ++ standing_crontab}
   ]
 
 # --- The process engine's three host callbacks --------------------------------
