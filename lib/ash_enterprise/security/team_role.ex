@@ -21,7 +21,8 @@ defmodule AshEnterprise.Security.TeamRole do
   use AshEnterprise.Platform.Resource,
     domain: AshEnterprise.Security,
     ownership: :none,
-    lifecycle?: false
+    lifecycle?: false,
+    changes_authority: [:assign, :destroy]
 
   postgres do
     table "team_roles"

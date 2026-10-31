@@ -44,6 +44,10 @@ defmodule AshEnterprise.Platform.Resource do
     * `:human_only` — actions only a person may run: neither engine bypass nor
       the system-actor bypass reaches them, so only the caller's own grants
       can authorize one. Narrows bypasses; denies nothing. ADR 0059. Default `[]`.
+    * `:changes_authority` — actions that change who may do what (role
+      assignments, a role's privileges, team membership): the grant union does
+      not apply to an automation principal on them. People, system actors and
+      the engines are untouched. ADR 0043. Default `[]`.
     * `:machinery_only` — actions only the `oban` system actor may run: the
       system-actor bypass reaches them for `oban` alone, and the grant union
       does not apply to them. ADR 0059. Default `[]`.
@@ -99,6 +103,7 @@ defmodule AshEnterprise.Platform.Resource do
     {self_service, opts} = Keyword.pop(opts, :self_service, [])
     {human_only, opts} = Keyword.pop(opts, :human_only, [])
     {machinery_only, opts} = Keyword.pop(opts, :machinery_only, [])
+    {changes_authority, opts} = Keyword.pop(opts, :changes_authority, [])
     {optimistic_lock?, opts} = Keyword.pop(opts, :optimistic_lock?, true)
     {audit?, opts} = Keyword.pop(opts, :audit?, true)
     {archival?, opts} = Keyword.pop(opts, :archival?, true)
@@ -180,6 +185,7 @@ defmodule AshEnterprise.Platform.Resource do
         self_service(unquote(self_service))
         human_only(unquote(human_only))
         machinery_only(unquote(machinery_only))
+        changes_authority(unquote(changes_authority))
         optimistic_lock?(unquote(optimistic_lock?))
 
         unquote(

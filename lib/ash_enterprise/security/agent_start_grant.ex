@@ -22,7 +22,8 @@ defmodule AshEnterprise.Security.AgentStartGrant do
     domain: AshEnterprise.Security,
     ownership: :none,
     lifecycle?: false,
-    human_only: [:grant]
+    human_only: [:grant],
+    changes_authority: [:destroy]
 
   postgres do
     table "agent_start_grants"

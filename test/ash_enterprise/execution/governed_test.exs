@@ -115,6 +115,29 @@ defmodule AshEnterprise.Execution.GovernedTest do
     assert roles_of(newcomer.user, ctx.tenant) == []
   end
 
+  test "the requester cannot run it beside the executor with a context they wrote", %{
+    ctx: ctx,
+    approver: approver,
+    newcomer: newcomer
+  } do
+    args = %{"user_id" => newcomer.user.id, "role_id" => ctx.role.id}
+    claimed = ctx |> approved!(approver, args) |> claimed!(ctx.tenant)
+
+    # The requester knows the row's id from invoke, and the epoch is a small counter;
+    # the claim's secret never leaves the executor.
+    written = %{ash_agent: %{invocation_id: claimed.id, lease_epoch: claimed.lease_epoch}}
+    assert :not_executor = refusal(assign(ctx, args, written))
+
+    assert :not_executor =
+             refusal(assign(ctx, args, put_in(written, [:ash_agent, :lease_token], "guess")))
+
+    assert roles_of(newcomer.user, ctx.tenant) == []
+
+    # The executor's run, with the secret, assigns it once.
+    assert {:ok, :succeeded} = Executor.run_claimed(claimed, oban(ctx.tenant))
+    assert [_assigned] = roles_of(newcomer.user, ctx.tenant)
+  end
+
   test "an approved, executing invocation does not cover other arguments or another actor", %{
     ctx: ctx,
     approver: approver,

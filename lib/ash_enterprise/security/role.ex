@@ -41,6 +41,7 @@ defmodule AshEnterprise.Security.Role do
     domain: AshEnterprise.Security,
     ownership: :business_owned,
     cdm_entity: "Role",
+    changes_authority: [:create, :update, :destroy],
     extra_extensions: [AshAgent.Effects]
 
   postgres do

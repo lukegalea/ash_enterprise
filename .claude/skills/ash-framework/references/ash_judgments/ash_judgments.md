@@ -180,6 +180,15 @@ missing dep is a structured error, never a crash:
   Recurrence detection only proposes a question (`Exploration.Recurrence.promote/5`);
   a person declares it in the DSL.
 
+## Agent-run lineage
+
+- The ledger carries optional `run_id`, `step_id`, `tool_call_id`, `invocation_id` and
+  `release_manifest` (strings, nil by default). The judge records them from the judge
+  context's `judgments` map under those keys. They are envelope class and enter `record_hash`
+  only when non-nil, so a row without lineage hashes exactly as before.
+- Adding them to a host's ledger table is a nullable-columns migration; generate it with
+  `mix ash.codegen`.
+
 ## Calibration
 
 - `Calibration.propose_band_table/3` proposes; it never certifies or publishes. Below

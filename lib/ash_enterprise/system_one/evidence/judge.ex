@@ -187,6 +187,7 @@ defmodule AshEnterprise.SystemOne.Evidence.Judge do
     SystemOne.judge_context(
       tenant: Keyword.fetch!(opts, :tenant),
       correlation_id: keyword(opts, :correlation_id, Correlation.id()),
+      lineage: Keyword.get(opts, :lineage),
       judgments:
         %{
           subject: Keyword.get(opts, :subject),

@@ -63,7 +63,7 @@ defmodule AshEnterprise.Mdm.TestSupport do
   staged row mapped from it, and a review-banded candidate pairing them —
   the state the pipeline produces before a steward decides.
   """
-  def staged_candidate!(org, admin, name, email) do
+  def staged_candidate!(org, admin, name, email, opts \\ []) do
     golden =
       AshEnterprise.Canonical.Person
       |> Ash.Changeset.for_create(:upsert_from_source, %{
@@ -106,7 +106,7 @@ defmodule AshEnterprise.Mdm.TestSupport do
       staged_record_id: staged.id,
       golden_resource: "AshEnterprise.Canonical.Person",
       golden_id: golden.id,
-      score: Decimal.new("0.72"),
+      score: Decimal.new(Keyword.get(opts, :score, "0.72")),
       explanation: %{"rules" => [%{"rule" => "email_exact", "score" => "1.0"}]}
     })
     |> Ash.create!(tenant: org, authorize?: false)

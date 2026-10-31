@@ -15,14 +15,16 @@ defmodule AshEnterprise.Security.AutomationRole do
   Giving a machine authority is a person's decision, made in the open: `assign` is
   `human_only`, so neither a system actor nor an engine bypass reaches it, and a
   person needs a role granting it. Revoking (`destroy`) goes through the grant union
-  like any other write.
+  like any other write, except for an automation principal: it `changes_authority`, so
+  no principal revokes another's role or its own.
   """
 
   use AshEnterprise.Platform.Resource,
     domain: AshEnterprise.Security,
     ownership: :none,
     lifecycle?: false,
-    human_only: [:assign]
+    human_only: [:assign],
+    changes_authority: [:destroy]
 
   postgres do
     table "automation_roles"

@@ -36,11 +36,38 @@ defmodule AshEnterprise.Mdm.MatchCandidate do
     ownership: :organization_owned,
     lifecycle?: false,
     archival?: false,
-    policies?: false
+    policies?: false,
+    extra_extensions: [AshAi, AshJudgments.Registry]
 
   use AshMdm.Resources, {:match_candidate, []}
 
   alias AshEnterprise.Platform.Calculations.RelatedField
+
+  # The match question is declared so its id and hash are a locked contract
+  # (`priv/judgments/lock.json`). Nothing here asks a model: the matcher's
+  # rules-as-data score is the observation, recorded by
+  # `Changes.StewardVerdict` and `Changes.StewardEscalation`, and a steward
+  # answers it. A wording change is a compile error until it arrives with a
+  # version bump.
+  judgments do
+    question :matches_the_golden do
+      # judgment:v0:AshEnterprise.Mdm.MatchCandidate#judgments/matches_the_golden
+      type AshAi.Evaluate.Noul
+
+      instructions(
+        "Determine if the staged record and the golden record describe the same real-world entity."
+      )
+
+      criteria(%{
+        false: "The staged record and the golden record describe different entities.",
+        true: "The staged record and the golden record describe the same real-world entity."
+      })
+
+      version(1)
+      family(:mdm_matches)
+      profile(:winnow_gpu)
+    end
+  end
 
   postgres do
     table "mdm_match_candidates"

@@ -128,9 +128,15 @@ The mechanism exists; what any principal may admit is still a per-family grant n
   both would allow but never the reverse. A share with the person survives only where the principal's grant is
   global. The principal is never a task candidate and has no reporting chain.
 - **Paths for people only.** Self-service never admits a principal, even one acting for a person. The grant union
-  does not apply to a principal on an action its resource declares `human_only` (`Security.Checks.GrantReach`), so a
-  principal acting for an administrator still cannot assign a role. Assigning a principal's role and granting a start
-  are themselves `human_only`.
+  does not apply to a principal on an action its resource declares `human_only` or `changes_authority`
+  (`Security.Checks.GrantReach`), so a principal acting for an administrator still cannot assign a role. Assigning a
+  principal's role and granting a start are themselves `human_only`. Every other action that changes who may do what
+  is `changes_authority`, which narrows the union for principals alone and leaves people, system actors and the
+  engines as they were (the seeder and the access-request process assign roles): `UserRole` `assign`,
+  `assign_governed` and `destroy`; `Role` and `RolePrivilege` `create`, `update` and `destroy`; `TeamRole` `assign`
+  and `destroy`; `TeamMembership` `create` and `destroy`; and revoking a principal's role or a start grant. Without
+  it, a principal given role administration could assign roles, and could add privileges to its own role, widening
+  every holder of that role (`automation_principal_test.exs`, "nor may it administer anyone's authority").
 - **Starting an agent.** `Security.AgentStartGrant` holds one row per `(agent key, person or team)`, RFC 8693's
   `may_act`. A person asks with `AutomationPrincipal.start/3`, and the request is refused unless they hold the grant.
   The stored principal is `{automation, name, on_behalf_of, agent}`, and its RFC 8693 `act` form is kept in the

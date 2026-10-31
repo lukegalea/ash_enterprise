@@ -29,6 +29,27 @@ defmodule AshEnterprise.Execution.AutomationPrincipalTest do
 
   defp key, do: "test:#{System.unique_integer([:positive])}"
 
+  # The principal acting for `admin`, on the intersection of the two contexts.
+  defp acting_for(admin) do
+    AutomationPrincipal.acting(
+      AutomationPrincipal.evidence_admitter(),
+      admin.user.id,
+      @agent,
+      ActorContext.intersect(
+        ActorContext.build(admin.user, tenant: admin.tenant),
+        ActorContext.build_automation(:evidence_admitter, admin.tenant)
+      )
+    )
+  end
+
+  # A row of `resource` in `admin`'s clinic matching `filter`, read past every policy.
+  defp read_one!(resource, admin, filter) do
+    resource
+    |> Ash.Query.do_filter(filter)
+    |> Ash.Query.limit(1)
+    |> Ash.read_one!(authorize?: false, tenant: admin.tenant)
+  end
+
   defp grant(fields), do: struct(Grant, fields)
   defp units(ids), do: MapSet.new(ids)
 
@@ -186,6 +207,88 @@ defmodule AshEnterprise.Execution.AutomationPrincipalTest do
       assert ActorContext.grant(ActorContext.for_actor(acting), Security.AutomationRole, :create).global?
       refute Ash.can?({Security.AutomationRole, :assign}, acting, tenant: admin.tenant)
       refute Ash.can?({Security.AgentStartGrant, :grant}, acting, tenant: admin.tenant)
+    end
+
+    test "nor may it administer anyone's authority, its own role's included", %{admin: admin} do
+      # The principal holds every role administration grant its person holds.
+      administered = [
+        Security.UserRole,
+        Security.RolePrivilege,
+        Security.Role,
+        Security.TeamRole,
+        Security.AutomationRole,
+        Security.AgentStartGrant,
+        AshEnterprise.Accounts.TeamMembership
+      ]
+
+      %{role_id: own_role} =
+        automation_role!(
+          admin,
+          :evidence_admitter,
+          for(
+            resource <- administered,
+            verb <- [:create, :write, :delete],
+            do: {resource, verb, :global}
+          )
+        )
+
+      start_grant!(admin, admin, @agent)
+      acting = acting_for(admin)
+      tenant = [tenant: admin.tenant]
+
+      creates = [
+        {Security.UserRole, :assign},
+        {Security.UserRole, :assign_governed},
+        {Security.RolePrivilege, :create},
+        {Security.Role, :create},
+        {Security.TeamRole, :assign},
+        {AshEnterprise.Accounts.TeamMembership, :create}
+      ]
+
+      for {resource, action} <- creates do
+        assert ActorContext.grant(ActorContext.for_actor(acting), resource, :create).global?,
+               "the intersection holds create on #{inspect(resource)}"
+
+        refute Ash.can?({resource, action}, acting, tenant),
+               "a principal may not run #{inspect(resource)}.#{action}"
+      end
+
+      # Its person may, which the narrowing leaves exactly as it was.
+      assert Ash.can?({Security.UserRole, :assign}, admin.actor, tenant)
+
+      rows = [
+        {read_one!(Security.UserRole, admin, user_id: admin.user.id), [:destroy]},
+        {read_one!(Security.Role, admin, id: own_role), [:update, :destroy]},
+        {read_one!(Security.RolePrivilege, admin, role_id: own_role), [:update, :destroy]},
+        {read_one!(Security.AutomationRole, admin, role_id: own_role), [:destroy]},
+        {read_one!(Security.AgentStartGrant, admin, agent_key: @agent), [:destroy]}
+      ]
+
+      for {row, actions} <- rows, action <- actions do
+        refute Ash.can?({row, action}, acting, tenant),
+               "a principal may not run #{inspect(row.__struct__)}.#{action}"
+      end
+
+      # Widening its own role, and with it every holder of that role, is refused.
+      before = ActorContext.build_automation(:evidence_admitter, admin.tenant)
+      name = inspect(Security.UserRole)
+
+      privilege =
+        Security.Privilege
+        |> Ash.Query.filter(resource_name == ^name and access_right == :create)
+        |> Ash.read_one!(authorize?: false)
+
+      assert {:error, %Ash.Error.Forbidden{}} =
+               Security.RolePrivilege
+               |> Ash.Changeset.for_create(
+                 :create,
+                 %{role_id: own_role, privilege_id: privilege.id, depth: :global},
+                 [actor: acting] ++ tenant
+               )
+               |> Ash.create()
+
+      assert ActorContext.build_automation(:evidence_admitter, admin.tenant).grants ==
+               before.grants
     end
 
     test "a new tenant's Administrator may assign roles to principals and start grants" do
