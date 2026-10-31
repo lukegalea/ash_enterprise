@@ -72,7 +72,11 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Standing) do
     alias AshEnterprise.Standards
     alias AshEnterprise.Standards.{Candidates, CodeUnit, Questions}
     alias AshEnterprise.SystemOne
+    alias AshEnterprise.SystemOne.Banding
     alias AshEnterprise.SystemOne.Banding.Step
+    alias AshEnterprise.SystemOne.Judgment
+
+    require Ash.Query
 
     @facts AshEnterprise.SystemOne.Fact
     @repository "ash_enterprise"
@@ -117,8 +121,11 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Standing) do
     assessed unit: `%{question, subject_id, location, reason,
     observation_id, result}`, where `result` is the banding step's
     (`{:ok, %{band: ...}}`, `{:refusal, ...}` or `{:error, ...}`),
-    `{:error, ...}` from the judge, or `{:skipped, :context_too_large}` for
-    a unit that was not judged because its context cannot fit.
+    `{:error, ...}` from the judge, `{:skipped, :context_too_large}` for
+    a unit that was not judged because its context cannot fit, or
+    `{:skipped, :already_banded}` (with the earlier observation's id) for a
+    unit with no fact whose unchanged text this mode already judged and
+    banded: a review waiting for a verdict, or an omit.
     """
     @spec run(Path.t(), keyword()) :: [map()]
     def run(root, opts) do
@@ -148,8 +155,47 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Standing) do
     defp judge_unless_oversized(_question, _subject, :context_too_large, _opts),
       do: {nil, {:skipped, :context_too_large}}
 
-    defp judge_unless_oversized(question, subject, _reason, opts),
-      do: judge_and_admit(question, subject, opts)
+    defp judge_unless_oversized(question, subject, reason, opts) do
+      case already_banded(question, subject, reason, opts) do
+        nil -> judge_and_admit(question, subject, opts)
+        observation_id -> {observation_id, {:skipped, :already_banded}}
+      end
+    end
+
+    # A unit with no fact whose unchanged text was already judged and banded
+    # in this mode is not judged again: a review waits for a person's
+    # verdict, and an omit was the answer. Asking again would only record a
+    # second observation of the same text and a second row awaiting the
+    # same verdict. An answer that was never banded (no published band
+    # table, a refusal) is judged again, and an expired or stale fact always
+    # is: the text changed, or its fact's time ran out.
+    @unbanded_reasons [:no_fact, :superseded]
+
+    defp already_banded(question, subject, reason, opts) when reason in @unbanded_reasons do
+      declared = Questions.declared(question.name)
+      term = Standards.subject_term(subject)
+      digest = CodeSubjects.digest(subject, question.projection)
+      mode = Keyword.get(opts, :mode, :live)
+
+      Judgment
+      |> Ash.Query.filter(
+        subject_type == ^term["type"] and subject_id == ^term["id"] and
+          question_hash == ^declared.question_hash and state_digest == ^digest and
+          mode == ^mode and exists(Banding, parent(id) in observation_ids)
+      )
+      |> Ash.Query.sort(recorded_at: :asc)
+      |> Ash.Query.limit(1)
+      |> Ash.read_one!(
+        actor: Keyword.get(opts, :actor, SystemActor.oban()),
+        tenant: Keyword.fetch!(opts, :tenant)
+      )
+      |> case do
+        nil -> nil
+        observation -> observation.id
+      end
+    end
+
+    defp already_banded(_question, _subject, _reason, _opts), do: nil
 
     @doc """
     One unit through the judge and the banding step: the judged answer is

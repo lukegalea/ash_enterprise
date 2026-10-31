@@ -158,6 +158,51 @@ defmodule AshEnterprise.Standards.StandingTest do
       assert {:error, _reason} = result.result
       assert facts(result.subject_id) == []
       assert [{_unit, {:unknown, _}}] = Standing.statuses(root, :hs6_no_novelty_claims, opts)
+
+      # The answer was never banded, so the next run asks again.
+      [again] =
+        Standing.run(root,
+          repository: opts[:repository],
+          questions: opts[:questions],
+          paths: opts[:paths],
+          tenant: tenant,
+          judgments: %{req_llm: FakeReqLLM}
+        )
+
+      assert {:error, _reason} = again.result
+      assert again.observation_id != result.observation_id
+    end
+
+    test "a unit waiting in review is not judged again while its text is unchanged", %{
+      root: root,
+      tenant: tenant,
+      opts: opts
+    } do
+      opts = Keyword.put(opts, :questions, [:hs6_no_novelty_claims])
+      review_opts = Keyword.merge(run_opts(opts, tenant), resolver: &review_table/3)
+
+      assert [first] = Standing.run(root, review_opts)
+      assert {:ok, %{band: :review}} = first.result
+      assert FakeReqLLM.calls() == 1
+
+      # No fact, so the unit still reads as pending; the run skips it.
+      assert [{_unit, :no_fact}] = Standing.assess(root, opts).hs6_no_novelty_claims
+      assert [second] = Standing.run(root, review_opts)
+      assert second.result == {:skipped, :already_banded}
+      assert second.observation_id == first.observation_id
+      assert FakeReqLLM.calls() == 1
+      assert [_one] = Ash.read!(Judgment, tenant: tenant, authorize?: false)
+
+      # A shadow run is its own mode: it judges.
+      assert [shadow] = Standing.run(root, Keyword.put(review_opts, :mode, :shadow))
+      assert {:ok, %{band: :review}} = shadow.result
+      assert FakeReqLLM.calls() == 2
+
+      # Editing the text makes it a new state: judged again.
+      write!(root, "docs/guide.md", guide("It is a groundbreaking, first ever approach."))
+      assert [edited] = Standing.run(root, review_opts)
+      assert {:ok, %{band: :review}} = edited.result
+      assert FakeReqLLM.calls() == 3
     end
   end
 
@@ -431,6 +476,23 @@ defmodule AshEnterprise.Standards.StandingTest do
   # per family, so one unit (the event handler) is a violation.
   defp band_table("authorization", _tenant, _inputs), do: admit(false)
   defp band_table(_family, _tenant, _inputs), do: admit(true)
+
+  # Every answer to review: no fact is written.
+  defp review_table(_family, _tenant, _inputs) do
+    {:ok,
+     %{
+       band_table: %{
+         "definition_key" => "judgments_band_standards",
+         "definition_version" => "1",
+         "content_hash" => "sha256:" <> String.duplicate("c", 64),
+         "definition_id" => Ash.UUID.generate(),
+         "tenant_fork" => nil
+       },
+       outputs: %{"band" => "review"},
+       matched_rule_ids: ["rule_review"],
+       decision_evaluation_id: Ash.UUID.generate()
+     }}
+  end
 
   defp admit(value) do
     {:ok,
