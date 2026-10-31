@@ -9,9 +9,9 @@ defmodule AshEnterprise.Execution.Approver do
   `apply_decision` set from the decided approval task. When the requester approves their
   own request (the click on a judgment surface) the two are the same person.
 
-  The executor hands a target its invocation under `context.ash_agent`
-  (`AshAgent.Invocation.Executor.context/1`). `Governed` has already checked that context
-  before the target runs, so this reads it without authorization, in the action's tenant.
+  The executor hands a target its invocation under `context.ash_agent`. `Governed` has already
+  checked that context before the target runs, so this reads it without authorization, in the
+  action's tenant.
   """
 
   alias AshEnterprise.Accounts
