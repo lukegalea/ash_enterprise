@@ -74,7 +74,7 @@ row has been decided, and a change on the action that sets `outcome` from it.
 5. **`stream_with :full_read`**, because `where` depends on the time.
 6. **Job arguments carry the row's id only**, which ash_oban does by default.
 7. Give the default actor authority over the machinery actions (`claim`, `succeed`, `fail`, `defer`, `dispatch`,
-   `mark_outcome_unknown`, `requeue`, `complete_external`, `request_resolution`, `apply_resolution`, `apply_decision`,
+   `mark_outcome_unknown`, `mark_stale`, `requeue`, `complete_external`, `request_resolution`, `apply_resolution`, `apply_decision`,
    `execute` and `reconcile`) and keep everyone else out of them; a person's grants should never reach them.
 8. **`:reconcile` is not optional.** A host using AshOban must declare it: without it, a row whose worker died stays
    `executing` for good.
