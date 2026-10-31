@@ -370,6 +370,7 @@ defmodule AshEnterprise.SystemOne.Support do
     context =
       AshEnterprise.SystemOne.judge_context(
         tenant: tenant,
+        lineage: Keyword.get(opts, :lineage),
         judgments: %{
           req_llm: AshEnterprise.SystemOne.TestSupport.FakeReqLLM,
           observation_id: Keyword.fetch!(opts, :observation_id),
