@@ -369,6 +369,10 @@ config :ash_enterprise, AshEnterprise.Repo, types: AshEnterprise.PostgrexTypes
 # types module is separate.
 config :ash_evidence, AshEvidence.Repo, priv: "priv/test_repo"
 
+# The MDM match family earns the band table the matcher already bands through
+# (`AshEnterprise.Mdm.Banding`), not a `judgments_band_<family>` one.
+config :ash_enterprise, :band_table_keys, %{"mdm_matches" => "mdm:match_bands"}
+
 # MDM mapping targets: the host's golden-resource allowlist. A Mapping row
 # may only target what is declared here — fail closed (ADR 0054).
 config :ash_mdm, :allowed_targets, %{

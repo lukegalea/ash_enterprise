@@ -2,12 +2,12 @@ defmodule AshEnterprise.Mdm.Changes.StewardVerdict do
   @moduledoc """
   The steward's decision, wired to the System One machinery (MDM-4, ADR 0054):
 
-  1. **Judgment** — the model's observation is recorded on the append-only
-     judgment ledger: the match question over this candidate, the score's
-     explanation as the state, and `match` as the model's answer (the
-     candidate exists because the matcher proposed it).
-  2. **HumanVerdict** — the person's correction or confirmation of that
-     observation, on the `:review_task` basis, so it feeds the live
+  1. **Judgment** — the matcher's observation is recorded on the append-only
+     judgment ledger (`AshEnterprise.Mdm.MatchObservation`): the declared
+     `matches_the_golden` question over this candidate, the score's
+     explanation as the state, and the score as the probability of yes.
+  2. **HumanVerdict** — the person's answer to that question (`confirm` is
+     `true`, `reject` is `false`), on the `:review_task` basis, so it feeds the live
      calibration slot (S1-62) like every other review-task verdict.
   3. **The act.** `confirm` promotes the staged record: survivorship folds
      its mapped values into the golden record, its source identity opens at
@@ -29,9 +29,6 @@ defmodule AshEnterprise.Mdm.Changes.StewardVerdict do
 
   require Ash.Query
 
-  @question_id "judgment:v0:AshEnterprise.Mdm.MatchCandidate#matches_the_golden"
-  @family "mdm_matches"
-
   @impl true
   def change(changeset, _opts, _context) do
     Ash.Changeset.after_action(changeset, &decide/2)
@@ -43,7 +40,7 @@ defmodule AshEnterprise.Mdm.Changes.StewardVerdict do
     actor = changeset.context[:private][:actor]
     verdict = to_string(changeset.action.name)
 
-    judgment = record_judgment!(candidate, tenant)
+    judgment = AshEnterprise.Mdm.MatchObservation.record!(candidate, tenant)
     human = record_human_verdict!(candidate, judgment, verdict, actor, tenant)
     candidate = promote(candidate, act(verdict, candidate, tenant), actor, tenant)
 
@@ -113,46 +110,6 @@ defmodule AshEnterprise.Mdm.Changes.StewardVerdict do
 
   # -- the observation --------------------------------------------------------
 
-  defp record_judgment!(candidate, tenant) do
-    state = %{
-      "explanation" => candidate.explanation,
-      "score" => Decimal.to_string(candidate.score)
-    }
-
-    AshEnterprise.SystemOne.Judgment
-    |> Ash.Changeset.for_create(
-      :record,
-      [
-        id: Ash.UUID.generate(),
-        question_id: @question_id,
-        question_hash: AshJudgments.Registry.Canonical.digest(@question_id),
-        question_version: 1,
-        family: @family,
-        subject_type: "match_candidate",
-        subject_id: candidate.id,
-        state_digest:
-          AshJudgments.Registry.Canonical.digest(AshJudgments.Registry.Canonical.encode(state)),
-        answer_kind: :choice,
-        value: "match",
-        probabilities: %{},
-        confidence: Decimal.to_string(candidate.score),
-        model_spec_requested: "ash_mdm:rules-as-data",
-        model_version: "mdm-match-1",
-        model_digest:
-          AshJudgments.Registry.Canonical.digest(AshJudgments.Registry.Canonical.encode(state)),
-        runtime_version: "0.9.0",
-        profile: "ash_mdm",
-        latency_us: 0,
-        mode: :live,
-        correlation_id: nil,
-        valid_until: nil
-      ],
-      actor: AshEnterprise.Platform.SystemActor.process(),
-      tenant: tenant
-    )
-    |> Ash.create!()
-  end
-
   # -- the person's answer ----------------------------------------------------
 
   defp record_human_verdict!(_candidate, judgment, verdict, actor, tenant) do
@@ -162,8 +119,8 @@ defmodule AshEnterprise.Mdm.Changes.StewardVerdict do
       %{
         judgment_id: judgment.id,
         question_hash: judgment.question_hash,
-        model_answer: %{"kind" => "exact", "value" => "match", "distribution" => %{}},
-        human_value: if(verdict == "confirm", do: "match", else: "no_match"),
+        model_answer: AshEnterprise.Mdm.MatchObservation.model_answer(judgment),
+        human_value: AshEnterprise.Mdm.MatchObservation.human_value(verdict),
         reviewer: to_string(actor.email),
         basis: :review_task
       },
