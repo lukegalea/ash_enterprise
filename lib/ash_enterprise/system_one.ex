@@ -37,6 +37,7 @@ defmodule AshEnterprise.SystemOne do
     resource AshEnterprise.SystemOne.CalibrationSample
     resource AshEnterprise.SystemOne.FilterProposal
     resource AshEnterprise.SystemOne.FilterExecution
+    resource AshEnterprise.SystemOne.StandingHead
   end
 
   @doc """

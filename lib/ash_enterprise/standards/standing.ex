@@ -58,6 +58,8 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Standing) do
 
     `run/2` also takes `:tenant` (required: the ledger and the bandings are
     held per tenant), `:actor` (default the `oban` system actor),
+    `:instrument` (the instrument identity, `%{model_version:, model_digest:,
+    runtime_version:}`, recorded on each judgment; none by default),
     `:judgments` (extra judge-context entries, such as a test transport),
     `:resolver` (the band-table resolver; the step's default otherwise),
     `:mode` (`:live` by default) and `:correlation_id`.
@@ -171,6 +173,7 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Standing) do
             Map.merge(
               %{
                 req_llm: SystemOne.DecisionWire,
+                instrument: Keyword.get(opts, :instrument, %{}),
                 subject: %{type: term["type"], id: term["id"]},
                 observation_id: observation_id,
                 mode: Keyword.get(opts, :mode, :live)
