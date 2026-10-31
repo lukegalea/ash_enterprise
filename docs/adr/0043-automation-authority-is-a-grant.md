@@ -134,7 +134,10 @@ The mechanism exists; what any principal may admit is still a per-family grant n
   is `changes_authority`, which narrows the union for principals alone and leaves people, system actors and the
   engines as they were (the seeder and the access-request process assign roles): `UserRole` `assign`,
   `assign_governed` and `destroy`; `Role` and `RolePrivilege` `create`, `update` and `destroy`; `TeamRole` `assign`
-  and `destroy`; `TeamMembership` `create` and `destroy`; and revoking a principal's role or a start grant. Without
+  and `destroy`; `TeamMembership` `create` and `destroy`; `User` `assign_to_business_unit`, `assign_manager` and
+  `assign_position`, since a user's unit, manager and position are what `:local`, `:deep` and hierarchy grants reach
+  from; `AccessGrant` `share`, `revoke_direct` and `revoke_inherited`; `Privilege` `create`; and revoking a
+  principal's role or a start grant. Without
   it, a principal given role administration could assign roles, and could add privileges to its own role, widening
   every holder of that role (`automation_principal_test.exs`, "nor may it administer anyone's authority").
 - **Starting an agent.** `Security.AgentStartGrant` holds one row per `(agent key, person or team)`, RFC 8693's

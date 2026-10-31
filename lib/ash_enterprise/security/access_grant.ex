@@ -48,7 +48,8 @@ defmodule AshEnterprise.Security.AccessGrant do
     domain: AshEnterprise.Security,
     ownership: :none,
     lifecycle?: false,
-    cdm_entity: "PrincipalObjectAccess"
+    cdm_entity: "PrincipalObjectAccess",
+    changes_authority: [:share, :revoke_direct, :revoke_inherited]
 
   postgres do
     table "access_grants"

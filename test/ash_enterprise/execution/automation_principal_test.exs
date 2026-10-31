@@ -291,6 +291,59 @@ defmodule AshEnterprise.Execution.AutomationPrincipalTest do
                before.grants
     end
 
+    test "nor move a user in the hierarchy, share a record or add a privilege", %{admin: admin} do
+      # A user's unit, manager and position are what their grants, and their
+      # manager's, reach from; a share and the catalogue widen reach directly.
+      narrowed = [AshEnterprise.Accounts.User, Security.AccessGrant, Security.Privilege]
+
+      automation_role!(
+        admin,
+        :evidence_admitter,
+        for(resource <- narrowed, verb <- [:create, :write], do: {resource, verb, :global})
+      )
+
+      start_grant!(admin, admin, @agent)
+      acting = acting_for(admin)
+      tenant = [tenant: admin.tenant]
+
+      grant =
+        Ash.create!(
+          Security.AccessGrant,
+          %{
+            principal_id: admin.user.id,
+            principal_type: :user,
+            resource_name: @record,
+            record_id: Ash.UUID.generate(),
+            rights_mask: 1,
+            inherited_rights_mask: 1
+          },
+          action: :share,
+          authorize?: false,
+          tenant: admin.tenant
+        )
+
+      targets = [
+        {admin.user, :assign_to_business_unit},
+        {admin.user, :assign_manager},
+        {admin.user, :assign_position},
+        {Security.AccessGrant, :share},
+        {grant, :revoke_direct},
+        {grant, :revoke_inherited},
+        {Security.Privilege, :create}
+      ]
+
+      for {target, action} <- targets do
+        resource = if is_atom(target), do: target, else: target.__struct__
+        verb = if is_atom(target), do: :create, else: :write
+
+        assert ActorContext.grant(ActorContext.for_actor(acting), resource, verb).global?,
+               "the intersection holds #{verb} on #{inspect(resource)}"
+
+        refute Ash.can?({target, action}, acting, tenant),
+               "a principal may not run #{inspect(resource)}.#{action}"
+      end
+    end
+
     test "a new tenant's Administrator may assign roles to principals and start grants" do
       seeded = Seeder.seed_tenant(unique_name: "auto-#{System.unique_integer([:positive])}")
 

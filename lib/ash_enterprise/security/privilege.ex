@@ -47,6 +47,7 @@ defmodule AshEnterprise.Security.Privilege do
     lifecycle?: false,
     archival?: false,
     cdm_entity: "Privilege",
+    changes_authority: [:create],
     extra_extensions: [AshAgent.Effects]
 
   postgres do
