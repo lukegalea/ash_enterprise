@@ -84,6 +84,17 @@ Facts below were checked on **2026-10-15**. Upstream status goes stale quickly, 
 `fix/document-symbol-crashes`. It is only used if you point Serena at it (`.mcp.json`,
 `docs/research/serena-semantic-edits.md`). Nothing in `mix.exs` depends on it, and a template app can ignore it.
 
+### Hex overrides (no fork)
+
+`assent` is pinned `~> 0.3.2` with `override: true` (added 2026-10-31). `ash_authentication` 4.x, this app's
+`~> 4.0`, requires `assent` `> 0.2.0 and < 0.3.0`, and
+[EEF-CVE-2026-117656](https://osv.dev/vulnerability/EEF-CVE-2026-117656) (Sign in with Apple callback parameters
+overriding verified ID-token claims) is fixed only in 0.3.2, so `mix hex.audit` fails without it. The app configures
+no OAuth strategy (provider OAuth goes through Nango), so `assent` is only loaded, never called.
+
+- **Path back:** `ash_authentication` 5.0 requires `~> 0.3.0` (5.0.0-rc.15 as of 2026-10-31). Move to the first 5.x
+  release, then drop the override and run `mix deps.update assent`.
+
 ## 2. Unreleased first-party packages
 
 These are our own libraries. They are public on GitHub, declared as `github:` dependencies that track `main`, and

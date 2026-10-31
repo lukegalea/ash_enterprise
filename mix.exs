@@ -441,6 +441,10 @@ defmodule AshEnterprise.MixProject do
       {:ash_admin, "~> 1.0"},
       {:ash_authentication_phoenix, "~> 2.0"},
       {:ash_authentication, "~> 4.0"},
+      # OVERRIDE -- see docs/BLEEDING-EDGE.md. ash_authentication 4.x caps
+      # assent below 0.3, and EEF-CVE-2026-117656 is fixed only in 0.3.2;
+      # drop when an ash_authentication release accepts it.
+      {:assent, "~> 0.3.2", override: true},
       {:ash_postgres, "~> 2.0"},
       {:ash_phoenix, "~> 2.0"},
       {:ash, "~> 3.34"},
