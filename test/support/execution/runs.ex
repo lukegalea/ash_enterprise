@@ -181,12 +181,19 @@ defmodule AshEnterprise.Test.Execution.Runs do
   @doc """
   Stops the `:agent_runs` and `:execution` queues for the rest of the test, so a test
   drives every step and invocation itself. Jobs the test left behind are cancelled
-  before the queues resume.
+  before the queues resume, and so is every run it left unfinished: these tests commit,
+  and the `:step` sweep reads every tenant, so a run left queued would be stepped in a
+  later test and take that test's scripted answer.
   """
   def pause_queues! do
     for queue <- [:agent_runs, :execution], do: :ok = Oban.pause_queue(queue: queue)
 
     on_exit(fn ->
+      AshEnterprise.Repo.update_all(
+        from(r in "exec_agent_runs", where: r.status in ["queued", "running", "waiting"]),
+        set: [status: "cancelled"]
+      )
+
       Oban.cancel_all_jobs(from(j in Oban.Job, where: j.queue in ["agent_runs", "execution"]))
       for queue <- [:agent_runs, :execution], do: Oban.resume_queue(queue: queue)
     end)
