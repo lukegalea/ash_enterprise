@@ -45,6 +45,7 @@ defmodule AshEnterprise.Security.UserRole do
     ownership: :none,
     lifecycle?: false,
     self_service: [:request_assignment],
+    changes_authority: [:assign, :assign_governed, :destroy],
     extra_extensions: [AshAgent.Effects]
 
   postgres do

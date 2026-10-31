@@ -1,6 +1,7 @@
 defmodule AshEnterprise.Platform.Verifiers.NarrowedActions do
   @moduledoc """
-  Compile-time guard on `human_only` and `machinery_only` (ADR 0059).
+  Compile-time guard on `human_only`, `machinery_only` (ADR 0059) and
+  `changes_authority` (ADR 0043).
 
   - Every listed action must exist. A misspelt name would narrow nothing and
     look, in review, as if it narrowed something.
@@ -21,10 +22,12 @@ defmodule AshEnterprise.Platform.Verifiers.NarrowedActions do
     human_only = Verifier.get_option(dsl, [:platform], :human_only, [])
     machinery_only = Verifier.get_option(dsl, [:platform], :machinery_only, [])
     self_service = Verifier.get_option(dsl, [:platform], :self_service, [])
+    changes_authority = Verifier.get_option(dsl, [:platform], :changes_authority, [])
 
     problems =
       missing(dsl, :human_only, human_only) ++
         missing(dsl, :machinery_only, machinery_only) ++
+        missing(dsl, :changes_authority, changes_authority) ++
         both(machinery_only, human_only, "is both human_only and machinery_only") ++
         both(
           machinery_only,

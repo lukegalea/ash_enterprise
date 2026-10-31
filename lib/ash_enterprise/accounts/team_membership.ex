@@ -35,6 +35,7 @@ defmodule AshEnterprise.Accounts.TeamMembership do
     domain: AshEnterprise.Accounts,
     ownership: :none,
     lifecycle?: false,
+    changes_authority: [:create, :destroy],
     cdm_entity: "TeamMembership"
 
   postgres do
