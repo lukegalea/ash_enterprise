@@ -54,7 +54,10 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Standing) do
     fails, instead of recording answers with no provenance.
     """
 
-    use Oban.Worker, queue: :system_one, max_attempts: 1, unique: [period: :infinity]
+    use Oban.Worker,
+      queue: :system_one,
+      max_attempts: 1,
+      unique: [period: :infinity, states: :incomplete]
 
     require Logger
 
