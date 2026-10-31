@@ -519,6 +519,91 @@ defmodule AshEnterpriseWeb.A2uiLive do
     def render(assigns), do: Chrome.page(assigns)
   end
 
+  defmodule JudgmentVerdicts do
+    @moduledoc "A2UI surface: Judgments awaiting a person's verdict (ADR 0061)."
+    use AshA2ui.LiveRenderer,
+      ui: AshEnterpriseWeb.A2ui.Judgments.VerdictsUI,
+      actor_fn: &__MODULE__.actor/1,
+      tenant_fn: &__MODULE__.tenant/1
+
+    alias AshEnterprise.Security.ActorContext
+    alias AshEnterpriseWeb.A2uiLive.Chrome
+
+    def actor(socket), do: socket.assigns[:current_user]
+
+    def tenant(socket), do: ActorContext.tenant(socket.assigns[:current_user])
+
+    def render(assigns), do: Chrome.page(assigns)
+  end
+
+  defmodule JudgmentBandTables do
+    @moduledoc "A2UI surface: Proposed band tables awaiting a person's certification (ADR 0061)."
+    use AshA2ui.LiveRenderer,
+      ui: AshEnterpriseWeb.A2ui.Judgments.BandTablesUI,
+      actor_fn: &__MODULE__.actor/1,
+      tenant_fn: &__MODULE__.tenant/1
+
+    alias AshEnterprise.Security.ActorContext
+    alias AshEnterpriseWeb.A2uiLive.Chrome
+
+    def actor(socket), do: socket.assigns[:current_user]
+
+    def tenant(socket), do: ActorContext.tenant(socket.assigns[:current_user])
+
+    def render(assigns), do: Chrome.page(assigns)
+  end
+
+  defmodule JudgmentCertifications do
+    @moduledoc "A2UI surface: The band tables in force (ADR 0061)."
+    use AshA2ui.LiveRenderer,
+      ui: AshEnterpriseWeb.A2ui.Judgments.CertificationsUI,
+      actor_fn: &__MODULE__.actor/1,
+      tenant_fn: &__MODULE__.tenant/1
+
+    alias AshEnterprise.Security.ActorContext
+    alias AshEnterpriseWeb.A2uiLive.Chrome
+
+    def actor(socket), do: socket.assigns[:current_user]
+
+    def tenant(socket), do: ActorContext.tenant(socket.assigns[:current_user])
+
+    def render(assigns), do: Chrome.page(assigns)
+  end
+
+  defmodule JudgmentCalibration do
+    @moduledoc "A2UI surface: Every calibration run (ADR 0061)."
+    use AshA2ui.LiveRenderer,
+      ui: AshEnterpriseWeb.A2ui.Judgments.CalibrationUI,
+      actor_fn: &__MODULE__.actor/1,
+      tenant_fn: &__MODULE__.tenant/1
+
+    alias AshEnterprise.Security.ActorContext
+    alias AshEnterpriseWeb.A2uiLive.Chrome
+
+    def actor(socket), do: socket.assigns[:current_user]
+
+    def tenant(socket), do: ActorContext.tenant(socket.assigns[:current_user])
+
+    def render(assigns), do: Chrome.page(assigns)
+  end
+
+  defmodule JudgmentFacts do
+    @moduledoc "A2UI surface: The facts current now (ADR 0061)."
+    use AshA2ui.LiveRenderer,
+      ui: AshEnterpriseWeb.A2ui.Judgments.FactsUI,
+      actor_fn: &__MODULE__.actor/1,
+      tenant_fn: &__MODULE__.tenant/1
+
+    alias AshEnterprise.Security.ActorContext
+    alias AshEnterpriseWeb.A2uiLive.Chrome
+
+    def actor(socket), do: socket.assigns[:current_user]
+
+    def tenant(socket), do: ActorContext.tenant(socket.assigns[:current_user])
+
+    def render(assigns), do: Chrome.page(assigns)
+  end
+
   defmodule MdmBatches do
     @moduledoc "A2UI board of the MDM import batches, by status, with their staged rows."
     use AshA2ui.LiveRenderer,

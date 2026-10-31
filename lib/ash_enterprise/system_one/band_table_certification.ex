@@ -18,6 +18,7 @@ defmodule AshEnterprise.SystemOne.BandTableCertification do
     lifecycle?: false,
     archival?: false,
     policies?: false,
+    extra_extensions: [AshAgent.Effects],
     fragments: [AshJudgments.Banding.CertificationFragment]
 
   postgres do
@@ -27,6 +28,26 @@ defmodule AshEnterprise.SystemOne.BandTableCertification do
 
   events do
     create_timestamp :certified_at
+  end
+
+  # The certifications surface's contract (AshJudgments.A2ui.Certifications, ADR 0061).
+  actions do
+    read :certified do
+      description "Certifications in force."
+      filter expr(status == :certified)
+    end
+  end
+
+  changes do
+    # The fragment's :revoke accepts `certified_by`; a revocation is the
+    # revoking person's, so it records them, whatever the input says.
+    change set_attribute(:certified_by, actor(:email)), on: [:update]
+  end
+
+  # Revoking withdraws the table the family bands through (ADR 0057). The person confirms by clicking; an agent's request for it is
+  # S1-78's governed path.
+  effects do
+    action :revoke, kind: :execute, open_world?: false, approval: :confirm, intent: :approve
   end
 
   policies do

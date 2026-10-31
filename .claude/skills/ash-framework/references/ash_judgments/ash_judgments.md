@@ -94,8 +94,8 @@ must not.
 ## Optional integrations
 
 The bridges ride behind optional dependencies (`ash_decisions`, `ash_rules`, `ash_bpmn`,
-`ash_compliance`, `ash_events`, `opentelemetry_ash`). A missing dep is a structured
-error, never a crash:
+`ash_compliance`, `ash_events`, `opentelemetry_ash`, and `ash_a2ui` for the surfaces). A
+missing dep is a structured error, never a crash:
 
 - `AshJudgments.Bridge.Rules.available?/0` returns `:ok` or
   `{:error, {:missing_dependency, :ash_rules}}`.
@@ -189,6 +189,19 @@ error, never a crash:
 - `mix ash_judgments.calibrate <family>` runs the harness. The labelled pairs come from
   the host's `:calibration_input` MFA and the run is recorded through the host's
   `:calibration_store` resource; `--dry-run` records nothing.
+
+## The judgment surfaces (`AshJudgments.A2ui`, optional `ash_a2ui`)
+
+- Bind a surface in your **web layer**, never in a resource: `use AshJudgments.A2ui.Verdicts,
+  resource: MyApp.SystemOne.Banding` expands to an `AshA2ui.Standalone` module. The five are
+  `Verdicts`, `BandTables`, `Certifications`, `Calibration` and `Facts`.
+- Each surface's moduledoc is its contract: the read and the actions it names on your resource.
+  Declare them; a missing one is a compile error from `ash_a2ui`'s verifiers, by design.
+- Every act is an action on your resource under your policies. Make the person acts human-only:
+  `:record_verdict` (run `AshJudgments.HumanVerdict.FromBanding`), `:certify_and_publish` (yours,
+  since publication is your decisions store), and `:revoke`.
+- A read that crosses two of your resources (`:awaiting_verdict`, `:awaiting_certification`) is
+  yours to declare, naming your resource literally in `exists/2`.
 
 ## Telemetry
 
