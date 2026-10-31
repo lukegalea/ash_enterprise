@@ -18,7 +18,11 @@ defmodule Battery.Bpmn.Invoker do
 
   def invoke(action, ctx) do
     ensure_table()
-    :ets.insert(@table, {System.unique_integer([:positive]), action, DateTime.utc_now()})
+
+    :ets.insert(
+      @table,
+      {System.unique_integer([:positive, :monotonic]), action, DateTime.utc_now()}
+    )
 
     case Map.fetch(@handlers, action) do
       {:ok, {module, function}} -> apply(module, function, [ctx])
