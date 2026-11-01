@@ -12,7 +12,7 @@ defmodule Mix.Tasks.AshEnterprise.Assistant.Eval do
 
       # Also grade the answers against the agent_reply_style family
       S1_OLLAYA_GPU_BASE_URL=http://… mix ash_enterprise.assistant.eval \\
-        --judge-model-version winnow:e4b --judge-model-digest sha256:… \\
+        --judge-model-version winnow:12b --judge-model-digest sha256:… \\
         --judge-runtime-version ollaya-…
 
   Runs under `MIX_ENV=test` (the eval set and its fixtures live in
@@ -31,7 +31,7 @@ defmodule Mix.Tasks.AshEnterprise.Assistant.Eval do
   `AshEnterprise.Quality.Gate.family_report/3` for the
   `agent_reply_style` family beside the scorecard
   (`AshEnterprise.Test.AssistantEval.grade/2`). The judge is the
-  `:winnow_gpu` profile, so `S1_OLLAYA_GPU_BASE_URL` must be set too.
+  `:winnow_gpu_12b` profile, so `S1_OLLAYA_GPU_BASE_URL` must be set too.
   Every judgment records the identity given, so a person's verdict on it
   can feed the calibration slot it keys; give the digest and runtime
   version the judge runtime reports.
@@ -97,7 +97,7 @@ defmodule Mix.Tasks.AshEnterprise.Assistant.Eval do
     end
 
     if instrument && System.get_env("S1_OLLAYA_GPU_BASE_URL", "") == "" do
-      Mix.raise("Grading calls the :winnow_gpu judge: set S1_OLLAYA_GPU_BASE_URL.")
+      Mix.raise("Grading calls the :winnow_gpu_12b judge: set S1_OLLAYA_GPU_BASE_URL.")
     end
 
     # Warnings only: the test env logs every query at debug, parameters and

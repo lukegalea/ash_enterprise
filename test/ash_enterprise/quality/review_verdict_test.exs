@@ -36,7 +36,7 @@ defmodule AshEnterprise.Quality.ReviewVerdictTest do
   @broken "The SYNTHETIC launch will ship next week with every feature."
 
   @instrument %{
-    model_version: "winnow:e4b",
+    model_version: "winnow:12b",
     model_digest: "sha256:" <> String.duplicate("a", 64),
     runtime_version: "synthetic-runtime-1"
   }

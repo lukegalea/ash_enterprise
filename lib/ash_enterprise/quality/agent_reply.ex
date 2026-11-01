@@ -145,7 +145,7 @@ defmodule AshEnterprise.Quality.AgentReply do
 
       version(1)
       family(:agent_reply_style)
-      profile(:winnow_gpu)
+      profile(:winnow_gpu_12b)
       state_projection(AshEnterprise.Quality.Projections.ReplyText)
       state_shape(AshEnterprise.Quality.Projections.ReplyText.shape())
     end
@@ -167,7 +167,7 @@ defmodule AshEnterprise.Quality.AgentReply do
 
       version(1)
       family(:agent_reply_style)
-      profile(:winnow_gpu)
+      profile(:winnow_gpu_12b)
       state_projection(AshEnterprise.Quality.Projections.ReplyText)
       state_shape(AshEnterprise.Quality.Projections.ReplyText.shape())
     end
@@ -186,7 +186,7 @@ defmodule AshEnterprise.Quality.AgentReply do
 
       version(1)
       family(:agent_reply_style)
-      profile(:winnow_gpu)
+      profile(:winnow_gpu_12b)
       state_projection(AshEnterprise.Quality.Projections.ReplyText)
       state_shape(AshEnterprise.Quality.Projections.ReplyText.shape())
     end
@@ -208,7 +208,7 @@ defmodule AshEnterprise.Quality.AgentReply do
 
       version(1)
       family(:agent_reply_style)
-      profile(:winnow_gpu)
+      profile(:winnow_gpu_12b)
       state_projection(AshEnterprise.Quality.Projections.ReplyText)
       state_shape(AshEnterprise.Quality.Projections.ReplyText.shape())
     end
@@ -230,7 +230,7 @@ defmodule AshEnterprise.Quality.AgentReply do
 
       version(1)
       family(:agent_reply_style)
-      profile(:winnow_gpu)
+      profile(:winnow_gpu_12b)
       state_projection(AshEnterprise.Quality.Projections.ReplyText)
       state_shape(AshEnterprise.Quality.Projections.ReplyText.shape())
     end
@@ -249,7 +249,7 @@ defmodule AshEnterprise.Quality.AgentReply do
 
       version(1)
       family(:agent_reply_style)
-      profile(:winnow_gpu)
+      profile(:winnow_gpu_12b)
       state_projection(AshEnterprise.Quality.Projections.ReplyText)
       state_shape(AshEnterprise.Quality.Projections.ReplyText.shape())
     end
@@ -271,7 +271,7 @@ defmodule AshEnterprise.Quality.AgentReply do
 
       version(1)
       family(:agent_reply_style)
-      profile(:winnow_gpu)
+      profile(:winnow_gpu_12b)
       state_projection(AshEnterprise.Quality.Projections.ReplyText)
       state_shape(AshEnterprise.Quality.Projections.ReplyText.shape())
     end
@@ -293,7 +293,7 @@ defmodule AshEnterprise.Quality.AgentReply do
 
       version(1)
       family(:agent_reply_style)
-      profile(:winnow_gpu)
+      profile(:winnow_gpu_12b)
       state_projection(AshEnterprise.Quality.Projections.ReplyText)
       state_shape(AshEnterprise.Quality.Projections.ReplyText.shape())
     end
