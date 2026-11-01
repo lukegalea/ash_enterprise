@@ -293,8 +293,7 @@ defmodule AshEnterprise.Quality.Grader do
   defp evaluation_reply?(%{id: @evaluation_prefix <> _}), do: true
   defp evaluation_reply?(_reply), do: false
 
-  # The error's class only: a message can carry the text it was about.
+  # The error's class only: a message can carry the text it was about. The
+  # judge is an Ash action, so its error is always an Ash error struct.
   defp reason_class(%module{}), do: inspect(module)
-  defp reason_class(reason) when is_atom(reason), do: inspect(reason)
-  defp reason_class(_reason), do: "an error"
 end

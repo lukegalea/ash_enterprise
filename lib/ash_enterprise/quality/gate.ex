@@ -345,19 +345,17 @@ defmodule AshEnterprise.Quality.Gate do
   ## The verdict
 
   defp verdict(report, family, thresholds, opts) do
-    case unmeasurable(report, family, opts) do
-      nil -> measured_verdict(report, thresholds)
-      reason -> {:unmeasured, [reason]}
-    end
+    unmeasured(report, family, opts) || measured_verdict(report, thresholds)
   end
 
-  # What makes a report :unmeasured before any fact is weighed.
-  defp unmeasurable(report, family, opts) do
+  # What makes a report :unmeasured before any fact is weighed; nil when
+  # nothing does.
+  defp unmeasured(report, family, opts) do
     cond do
-      report.band_table == nil -> :no_published_band_table
-      report.certified_at == nil -> :not_certified
-      table_too_old?(report.band_table, family, opts) -> :band_table_too_old
-      report.n_subjects == 0 -> :no_replies
+      report.band_table == nil -> {:unmeasured, [:no_published_band_table]}
+      report.certified_at == nil -> {:unmeasured, [:not_certified]}
+      table_too_old?(report.band_table, family, opts) -> {:unmeasured, [:band_table_too_old]}
+      report.n_subjects == 0 -> {:unmeasured, [:no_replies]}
       true -> nil
     end
   end
