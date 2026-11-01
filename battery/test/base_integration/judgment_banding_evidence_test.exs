@@ -66,12 +66,19 @@ defmodule Battery.Integration.JudgmentBandingEvidenceTest do
     run = AshEvidence.Domain.start_parse_run!(version.id, "battery-parse-instrument", %{})
 
     atoms = [
-      AshEvidence.Domain.ingest_atom!(version.id, run.id, 1, "Coverage limit is 500000 USD"),
+      AshEvidence.Domain.ingest_atom!(
+        version.id,
+        run.id,
+        1,
+        "Coverage limit is 500000 USD",
+        :line
+      ),
       AshEvidence.Domain.ingest_atom!(
         version.id,
         run.id,
         2,
-        "The policy terminates on 2027-03-31"
+        "The policy terminates on 2027-03-31",
+        :line
       )
     ]
 
@@ -230,7 +237,13 @@ defmodule Battery.Integration.JudgmentBandingEvidenceTest do
     run = AshEvidence.Domain.start_parse_run!(version.id, "battery-parse-instrument", %{})
 
     atom =
-      AshEvidence.Domain.ingest_atom!(version.id, run.id, 1, "The summary page is unreadable")
+      AshEvidence.Domain.ingest_atom!(
+        version.id,
+        run.id,
+        1,
+        "The summary page is unreadable",
+        :line
+      )
 
     question = Info.question(Battery.SystemOne.CaseFile, :evidence_support)
 

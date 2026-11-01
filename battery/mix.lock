@@ -9,7 +9,7 @@
   "ash_discrete_business_events": {:git, "https://github.com/lukegalea/ash_discrete_business_events.git", "e5a54b6b17700b021470005e2622acc97b395fcd", []},
   "ash_events": {:git, "https://github.com/lukegalea/ash_events.git", "d71f6d066411b5a16045c20072c6d3d808de436c", [branch: "temporal-as-of-support-0.7"]},
   "ash_events_projections": {:git, "https://github.com/lukegalea/ash_events_projections.git", "f5c05d9991f23909ece4d33075f961a90e6242c5", []},
-  "ash_evidence": {:git, "https://github.com/lukegalea/ash_evidence.git", "4539af2a0481e360c6a98b313fd9ccbd483c087d", [branch: "main"]},
+  "ash_evidence": {:git, "https://github.com/lukegalea/ash_evidence.git", "9ecffb9ab184f3a301dfba51a1421977c88e1cac", [branch: "main"]},
   "ash_json_api": {:hex, :ash_json_api, "1.7.1", "d2f83d982dd15c0f246f46665f254678ac835a510bf8c2366132312183a2dc24", [:mix], [{:ash, ">= 3.19.1 and < 4.0.0-0", [hex: :ash, repo: "hexpm", optional: false]}, {:igniter, ">= 0.3.58 and < 1.0.0-0", [hex: :igniter, repo: "hexpm", optional: true]}, {:jason, "~> 1.1", [hex: :jason, repo: "hexpm", optional: false]}, {:json_xema, "~> 0.4", [hex: :json_xema, repo: "hexpm", optional: false]}, {:open_api_spex, "~> 3.16", [hex: :open_api_spex, repo: "hexpm", optional: true]}, {:phoenix, "~> 1.6", [hex: :phoenix, repo: "hexpm", optional: false]}, {:plug, "~> 1.11", [hex: :plug, repo: "hexpm", optional: false]}, {:spark, ">= 2.2.10", [hex: :spark, repo: "hexpm", optional: false]}], "hexpm", "0ff72b51d99c93f7ee655d2d5e10b29f5561ad36a0ee11dadcbcec7a4b995368"},
   "ash_judgments": {:git, "https://github.com/lukegalea/ash_judgments.git", "c0d77a65f120c8871e09152602d128df9043cded", []},
   "ash_mdm": {:git, "https://github.com/lukegalea/ash_mdm.git", "7354af7c3b417b32dfecaf20bef0fc3f120703d4", []},
