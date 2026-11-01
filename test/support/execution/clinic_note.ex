@@ -17,6 +17,8 @@ defmodule AshEnterprise.Test.Execution.ClinicNote do
       approves it, within four hours.
     * `:retitle_reviewed` is `:retitle` after a clinic lead other than the requester
       approves it, within four hours: an approval bound to a record.
+    * `:record_signed_off` is `:record` after a clinic lead other than the requester
+      signs it off, within three days: an approval that may wait for days.
     * `:record_screened` is `:record` behind a clinic rule: a title starting `DECLINED`
       is refused with a business error (`AshAgent.BusinessError`, code
       `"declined_by_clinic"`).
@@ -33,7 +35,14 @@ defmodule AshEnterprise.Test.Execution.ClinicNote do
     lifecycle?: false,
     archival?: false,
     lineage?: false,
-    self_service: [:record, :record_reviewed, :record_approved, :record_screened, :read],
+    self_service: [
+      :record,
+      :record_reviewed,
+      :record_approved,
+      :record_signed_off,
+      :record_screened,
+      :read
+    ],
     extra_extensions: [AshAgent.Effects]
 
   postgres do
@@ -72,6 +81,15 @@ defmodule AshEnterprise.Test.Execution.ClinicNote do
       approval_expires_in: [hours: 4],
       intent: :execute
 
+    action :record_signed_off,
+      kind: :edit,
+      destructive?: false,
+      open_world?: false,
+      approval: :four_eyes,
+      approver_role: :clinic_lead,
+      approval_expires_in: [days: 3],
+      intent: :execute
+
     action :record_screened,
       kind: :edit,
       destructive?: false,
@@ -95,6 +113,12 @@ defmodule AshEnterprise.Test.Execution.ClinicNote do
     end
 
     create :record_approved do
+      accept [:title]
+      change set_attribute(:owner_id, actor(:id))
+      change set_attribute(:source, "clinic_note")
+    end
+
+    create :record_signed_off do
       accept [:title]
       change set_attribute(:owner_id, actor(:id))
       change set_attribute(:source, "clinic_note")

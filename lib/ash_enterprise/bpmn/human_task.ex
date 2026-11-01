@@ -52,11 +52,11 @@ defmodule AshEnterprise.Bpmn.HumanTask do
       # for that task before writing anything.
       extra_grants: [
         {AshEnterprise.Security.Checks.TaskCandidacy,
-         acts: [:claim_task, :complete_task, :delegate_task, :approve, :reject, :resolve]}
+         acts: [:claim_task, :complete_task, :delegate_task, :approve, :reject, :resolve, :answer]}
       ],
       # Deciding is a person's act (ADR 0055, "Approval binding"): neither engine
       # bypass nor a system actor reaches these doors; a candidate's grant does.
-      human_only: [:approve, :reject, :resolve],
+      human_only: [:approve, :reject, :resolve, :answer],
       extra_extensions: [AshAgent.Effects]
     ]
 
@@ -252,6 +252,18 @@ defmodule AshEnterprise.Bpmn.HumanTask do
       argument :comment, :string, allow_nil?: true, constraints: [max_length: 2000]
       run {AshEnterprise.Bpmn.Actions.DecideTask, outcome: :from_argument}
     end
+
+    action :answer, :string do
+      description """
+      Answer a question an agent asked you (`AshEnterprise.Execution.HumanInput`): the
+      task completes as `answered`, and the agent's run carries on with your answer. Only
+      an agent's question is answered, and an agent's question is completed only here.
+      """
+
+      argument :record_id, :uuid, allow_nil?: false
+      argument :answer, :string, allow_nil?: false, constraints: [max_length: 2000]
+      run {AshEnterprise.Bpmn.Actions.DecideTask, outcome: "answered"}
+    end
   end
 
   # A decision through ACP or a surface asks first (ADR 0057): the person
@@ -261,5 +273,6 @@ defmodule AshEnterprise.Bpmn.HumanTask do
     action :approve, kind: :execute, open_world?: false, approval: :confirm, intent: :approve
     action :reject, kind: :execute, open_world?: false, approval: :confirm, intent: :approve
     action :resolve, kind: :execute, open_world?: false, approval: :confirm, intent: :approve
+    action :answer, kind: :execute, open_world?: false, approval: :confirm, intent: :approve
   end
 end

@@ -68,14 +68,14 @@ defmodule AshEnterprise.Test.Execution.Runs do
   def script!(replies), do: ScriptedModel.script!(replies)
 
   @doc """
-  Publishes the note-taking agent in `clinic`: registered from code, asked for by the
-  administrator, approved by the approver, applied and run as the job runner runs it.
-  The nurse is given its start grant. `choice` is what the publish request asks for
-  (`authority:`, `requesterless:`).
+  Publishes `agent` (the note-taking agent unless named) in `clinic`: registered from
+  code, asked for by the administrator, approved by the approver, applied and run as the
+  job runner runs it. The nurse is given its start grant. `choice` is what the publish
+  request asks for (`authority:`, `requesterless:`).
   """
-  def published!(clinic, choice \\ %{}) do
+  def published!(clinic, choice \\ %{}, agent \\ NoteTaker) do
     %{admin: admin, approver: approver, tenant: tenant} = clinic
-    draft = Execution.register_agent_from_code!(NoteTaker, actor: admin.actor, tenant: tenant)
+    draft = Execution.register_agent_from_code!(agent, actor: admin.actor, tenant: tenant)
 
     %{"invocation_id" => id} =
       Execution.request_agent_publish!(draft.id, choice, actor: admin.actor, tenant: tenant)
@@ -92,7 +92,8 @@ defmodule AshEnterprise.Test.Execution.Runs do
 
     %{status: :ready} = Execution.apply_invocation_decision!(row, oban(tenant))
     {:ok, :succeeded} = Executor.execute(Invocation, row.id, oban(tenant))
-    Authority.start_grant!(admin, clinic.nurse, @agent)
+    {:ok, %{key: key}} = AshAgent.Agent.declaration(agent)
+    Authority.start_grant!(admin, clinic.nurse, key)
 
     Execution.get_agent_version!(draft.id, authorize?: false, tenant: tenant)
   end
@@ -100,9 +101,13 @@ defmodule AshEnterprise.Test.Execution.Runs do
   @doc "Options for the job runner in `tenant`: how the machinery reads and writes rows."
   def oban(tenant), do: [actor: SystemActor.oban(), tenant: tenant]
 
-  @doc "`member` starts a run of the note-taking agent, asked `input`."
-  def start(member, input \\ "SYNTHETIC: record the notes the clinician dictates.") do
-    Execution.start_agent_run(@agent, input, actor: member.actor, tenant: member.tenant)
+  @doc "`member` starts a run of the agent keyed `agent` (the note-taking agent), asked `input`."
+  def start(
+        member,
+        input \\ "SYNTHETIC: record the notes the clinician dictates.",
+        agent \\ @agent
+      ) do
+    Execution.start_agent_run(agent, input, actor: member.actor, tenant: member.tenant)
   end
 
   @doc "A model's call to record a note titled `title`, with the call id `id`."

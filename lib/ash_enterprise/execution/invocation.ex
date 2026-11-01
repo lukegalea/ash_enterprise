@@ -70,6 +70,13 @@ defmodule AshEnterprise.Execution.Invocation do
       these rows, keyed `run:<run id>:<step seq>:<tool call id>` with the run as its
       parent; when it finishes it wakes the run (`AshAgent.Run.Changes.Wake`), and the
       run's next step reads its recorded result. See `AshEnterprise.Execution.Run`.
+    * **An agent asking a person.** A run's call to `AshEnterprise.Execution.HumanInput`
+      is `dispatched` with its input task, `invocation.input`, opened in the same
+      transaction for the person the run acts for
+      (`AshEnterprise.Execution.Changes.OpenInputTask`). Nothing runs while they have not
+      answered. They answer through `HumanTask.answer`, and the `:collect_input` trigger
+      completes the row with their answer as its `result`
+      (`AshEnterprise.Execution.Actions.CollectInput`), which wakes the run.
     * **Failure classes for the provider edge.** `AshEnterprise.Integration.ProxyError`
       implements `AshAgent.FailureClass` (`AshEnterprise.Execution.ProxyFailure`).
   """
@@ -94,7 +101,8 @@ defmodule AshEnterprise.Execution.Invocation do
       :apply_resolution,
       :apply_decision,
       :execute,
-      :reconcile
+      :reconcile,
+      :collect_input
     ],
     extra_grants: [AshEnterprise.Security.Checks.InvocationApprovalCandidacy],
     extra_extensions: [AshCloak, AshOban],
@@ -142,9 +150,22 @@ defmodule AshEnterprise.Execution.Invocation do
       where: [action_is(:request_resolution)]
 
     change AshEnterprise.Execution.Changes.ReadResolution, where: [action_is(:apply_resolution)]
+    change AshEnterprise.Execution.Changes.OpenInputTask, where: [action_is(:dispatch)]
 
     # A run's tool call that finishes wakes its run, in the same transaction.
     change {AshAgent.Run.Changes.Wake, run: AshEnterprise.Execution.Run}, on: [:update]
+  end
+
+  actions do
+    action :collect_input, :atom do
+      description "Complete a dispatched question from its answered or cancelled task."
+
+      constraints one_of: AshEnterprise.Execution.Actions.CollectInput.outcomes()
+
+      argument :primary_key, :map, allow_nil?: false
+
+      run AshEnterprise.Execution.Actions.CollectInput
+    end
   end
 
   validations do
@@ -243,6 +264,29 @@ defmodule AshEnterprise.Execution.Invocation do
         worker_module_name AshEnterprise.Execution.Invocation.ApplyResolutionWorker
         scheduler_module_name AshEnterprise.Execution.Invocation.ApplyResolutionScheduler
       end
+
+      # A person answered an agent's question, or its task was cancelled: complete the
+      # dispatched row from the task. The sweep is the only path, so a crash between the
+      # answer and its collection heals on the next run. While nobody has answered,
+      # nothing matches, and no job exists for the row or its run.
+      trigger :collect_input do
+        action :collect_input
+
+        where expr(
+                status == :dispatched and effect_system == "human_input" and
+                  exists(input_task, status in [:completed, :cancelled])
+              )
+
+        read_action :read
+        queue :execution
+        scheduler_cron "* * * * *"
+        max_attempts 3
+        use_tenant_from_record? true
+        actor_persister :none
+        default_actor AshEnterprise.Platform.SystemActor.oban()
+        worker_module_name AshEnterprise.Execution.Invocation.CollectInputWorker
+        scheduler_module_name AshEnterprise.Execution.Invocation.CollectInputScheduler
+      end
     end
   end
 
@@ -290,6 +334,21 @@ defmodule AshEnterprise.Execution.Invocation do
              )
 
       description "The task a person settles this row's unknown outcome with."
+    end
+
+    # The question a `HumanInput.request` call handed on, under the static key: one per row.
+    has_one :input_task, AshEnterprise.Bpmn.HumanTask do
+      public? true
+      from_many? true
+      destination_attribute :subject_id
+      sort inserted_at: :desc
+
+      filter expr(
+               node_id == "invocation.input" and
+                 subject_type == "Elixir.AshEnterprise.Execution.Invocation"
+             )
+
+      description "The task the person the run acts for answers this row's question with."
     end
   end
 end

@@ -40,11 +40,11 @@ defmodule AshEnterprise.Execution.Resolution do
   def task?(_task), do: false
 
   @doc """
-  Whether `task` may be decided with `outcome` through `door`: `:resolve` (the
-  `HumanTask.resolve` action) for a resolution task, `:decide` (approve, reject or
-  complete) for every other task.
+  Whether `task` may be decided through `door`: `:resolve` (the `HumanTask.resolve`
+  action) for a resolution task, any other door (approve, reject, complete, answer) for
+  every other task.
   """
-  @spec check(struct(), :resolve | :decide) :: :ok | {:error, String.t()}
+  @spec check(struct(), atom()) :: :ok | {:error, String.t()}
   def check(task, :resolve) do
     if task?(task),
       do: :ok,
@@ -52,7 +52,7 @@ defmodule AshEnterprise.Execution.Resolution do
         {:error, "only a task settling an unknown outcome is resolved; approve or complete it"}
   end
 
-  def check(task, :decide) do
+  def check(task, _door) do
     if task?(task),
       do:
         {:error,

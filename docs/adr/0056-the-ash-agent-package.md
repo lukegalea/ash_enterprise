@@ -240,8 +240,8 @@ and the host's `fragments:` lists, with no data migration, because no table name
   executing one records the request; nothing done is undone.
 - **Sealing.** `input`, `output` and each step's `parts` are sealed under the subject's erasure scope, as an
   invocation's arguments are (built 2026-11-01, AGT-32; see "Erasure of a run" below).
-- **Not built here.** Budget reservation across a root run and `extend` (AGT-30), waiting on a person (AGT-31), the
-  assistant on runs (AGT-33), requesterless starts.
+- **Not built here.** Budget reservation across a root run and `extend` (AGT-30), waiting on a person (AGT-31, below),
+  the assistant on runs (AGT-33), requesterless starts.
 - **Tests.** Package: `test/ash_agent/run_test.exs`. Here: `test/ash_enterprise/execution/run_test.exs`, and in the
   durability tier `run_resume_test.exs` (F1), `wakeup_test.exs` (invariant 9) and `cancellation_test.exs`
   (invariant 5).
@@ -268,3 +268,33 @@ so one shred reaches them all ([ADR 0024](0024-audit-retention-and-erasure.md)).
 - **One scope per row.** A run about one subject that acts on a record sealed under another seals that call under
   the record's scope; content that mentions several people lives under one of them, as the scope model says.
 - **Tests.** `test/ash_enterprise/execution/run_erasure_test.exs` (F11).
+
+## Built, 2026-11-01: waiting on a person
+
+- **The same wait as a tool.** A run that needs something only a person knows calls `human_input_request`
+  (`Execution.HumanInput.request`, `intent: :propose`, self-service). Like any tool call that is not a read, it becomes
+  an invocation. Its target writes nothing and returns an `AshAgent.Invocation.Dispatch`, so the invocation is
+  `dispatched`: no lease, no job, bounded only by its `deadline_at`, seven days out. The run waits with `blocked_on`
+  `:tools`, as on any tool call, and `needs_step` stays false while the invocation is open.
+- **The task opens with the dispatch.** `Changes.OpenInputTask` on the invocation's `dispatch` opens a standalone
+  `HumanTask` (`"invocation.input"`) in the same transaction, through `AshBpmn.Changes.RequireApproval`. Its one
+  candidate is the invocation's owner, the person the run acts for. The task is due, and the engine expires it, at the
+  dispatch's deadline.
+- **One door.** `HumanTask.answer` (human-only, `intent: :approve`) completes an input task with outcome `answered`
+  and the answer as the task's comment. `HumanInput.check/2` refuses every other door on an input task (approve,
+  reject, resolve, complete), and refuses `answer` on any other task.
+- **Collected by a sweep.** The `:collect_input` trigger (sweep only, every minute) finds a `dispatched` question
+  whose task is completed or cancelled. Its action (`Actions.CollectInput`) completes the invocation with
+  `complete_external`, the answer as its `result`, which ash_agent records only on a row that succeeds. That write
+  wakes the run, and the next step reads `{"answer": ...}` as the tool call's result. A cancelled task fails the call
+  as `:rejected` (`input_withdrawn`). An expired one fails it as `:timeout` (`deadline_passed`), as `:reconcile`
+  fails any dispatch whose deadline passed.
+- **Days of waiting are rows.** While a run waits on a question or a four-eyes approval, no Oban job exists for it or
+  its call. Every sweep finds nothing to do, and the run's lease epoch does not move. The durability tier proves this
+  over days of moved clocks (`human_wait_test.exs`). The battery proves the same seam on its own instantiation of the
+  run fragments (`battery/test/base_integration/agent_human_wait_test.exs`).
+- **Not built here.** Who a run waits on is read from its open invocation; `blocked_on :human` is unused. The answer
+  is stored in the task's comment, which is not sealed under the run's erasure scope as its tool calls are. The question is not shown in
+  the task board's subject summary.
+- **Tests.** Package: `test/ash_agent/invocation_paths_test.exs`. Here: `test/ash_enterprise/execution/human_input_test.exs`
+  and, in the durability tier, `human_wait_test.exs`.

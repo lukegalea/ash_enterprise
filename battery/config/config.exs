@@ -7,7 +7,8 @@ config :ash, :validate_domain_resource_inclusion?, false
 
 # The battery's domains: the reference instantiation (Battery.Domain) plus
 # the package-owned domains the concrete package resources belong to.
-config :ash, ash_domains: [Battery.Domain, AshEvidence.Domain, AshCompliance.Domain]
+config :ash_enterprise_battery,
+  ash_domains: [Battery.Domain, AshEvidence.Domain, AshCompliance.Domain]
 
 # ash_compliance binds its repo (and table prefix) at COMPILE time — this
 # must live in config.exs so the dep compiles against the battery's repo.

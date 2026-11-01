@@ -72,5 +72,7 @@ defmodule AshEnterprise.Execution do
     resource AshEnterprise.Execution.Step do
       define :list_agent_steps, action: :read
     end
+
+    resource AshEnterprise.Execution.HumanInput
   end
 end

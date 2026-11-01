@@ -135,6 +135,11 @@ Which path a claimed row takes depends on the target's effects declaration:
     a person: `request_resolution` asks, and `apply_resolution` applies `:succeeded`, `:failed` or `:retry`. Attach a
     change to `request_resolution` that opens your task, and one to `apply_resolution` that sets its `outcome` from the
     decided task.
+18. Work a person does (answering an agent's question, say) is handed-on work: a target that returns an
+    `AshAgent.Invocation.Dispatch` leaves its row `dispatched`, with no lease and no job, until `deadline_at`. Open the
+    person's task in a change on `dispatch`, so it commits with the row, and complete the row from the decided task
+    with `complete_external`, passing the answer as `result`: a run's next step reads it as the tool call's result. A
+    `result` is recorded only on a row that succeeds now.
 
 ### What you add on the resource
 
@@ -281,7 +286,8 @@ end
    next step; that is not an error.
 4. `claim_step` has one winner per epoch, and checks the deadline (`failed`, `:timeout`), drift (`failed`,
    `"definition_drift"`), `max_steps` and `max_tool_calls` (`waiting` on `:limit`) and the token budget (`waiting` on
-   `:budget`). Nothing in the package lifts a limit or a budget: a run waiting on one waits for you.
+   `:budget`). Nothing in the package lifts a limit: a run waiting on one waits for you. A run waiting on its budget
+   waits until `extend` raises it, which queues it again.
 5. `record_step` is fenced on the claimed epoch and the journal's `step_seq`. A refused record changes nothing: no
    step, no invocation, no transition. Give the job runner alone authority over `claim_step`, `record_step`,
    `recover`, `step` and the step resource's `append`.
@@ -297,13 +303,20 @@ end
    rest. The package reads a sealed field through the calculation that opens it.
 10. A model call that fails, or a model profile your runtime cannot use now, records nothing: the run stays `running`
     until its lease expires and `recover` queues it again, so the deadline bounds the retries.
+11. Every model call holds what is left of the run's token budget before it is made (`reserve`) and is settled after
+    it (`settle`: the hold released, the tokens its usage reports added to `budget_spent`), whatever became of it.
+    Both write under `optimistic_lock(:budget_lock)`, so holds read from one row are written once and never add up
+    past `budget_limit`; a step whose reservation is refused waits on its budget (`"token_budget"`) and makes no call.
+    A hold whose worker died is released by the run's next lease. Usage is known only after a call, so one call can
+    use more than it held: that is recorded as spent, and the run waits on its budget at its next claim. Give the job
+    runner alone `reserve` and `settle`; `extend` is for whoever may lift a run's budget (an operator, say).
 
 ### What you add on the resources
 
 | You add | Why |
 |---|---|
 | Tenancy and ownership | A run is the requester's; copy its owner onto each step so the same grants read both |
-| Policies | Who may start (a person, for themselves), read and cancel; the machinery actions for the job runner only |
+| Policies | Who may start (a person, for themselves), read, cancel and `extend`; the machinery actions (`reserve` and `settle` among them) for the job runner only |
 | The `:step` and `:recover` triggers | triggers.md |
 | `Wake` on the invocation resource | A finished tool call enqueues its run's step |
 | A check that a tool call's parent run is the requester's | `invoke` records whatever `parent` it is given |

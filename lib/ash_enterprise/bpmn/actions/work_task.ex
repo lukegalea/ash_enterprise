@@ -37,7 +37,7 @@ defmodule AshEnterprise.Bpmn.Actions.WorkTask do
 
   alias AshEnterprise.Accounts.User
   alias AshEnterprise.Bpmn.{HumanTask, Outcomes}
-  alias AshEnterprise.Execution.Resolution
+  alias AshEnterprise.Execution.{HumanInput, Resolution}
   alias AshEnterprise.Mdm.StewardTask
 
   @impl true
@@ -71,6 +71,7 @@ defmodule AshEnterprise.Bpmn.Actions.WorkTask do
 
     with :ok <- claimed(task),
          :ok <- Resolution.check(task, :decide),
+         :ok <- HumanInput.check(task, :decide),
          :ok <- Outcomes.check(task, outcome, opts) do
       complete(task, outcome, arguments[:comment], actor, opts)
     end

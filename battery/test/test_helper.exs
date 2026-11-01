@@ -36,6 +36,10 @@
   Battery.Execution.Member,
   Battery.Execution.Referral,
   Battery.Execution.Invocation,
+  Battery.Execution.AgentVersion,
+  Battery.Execution.Run,
+  Battery.Execution.Step,
+  Battery.Execution.HumanInput,
   AshEvidence.Domain,
   AshCompliance.Domain
 ]
