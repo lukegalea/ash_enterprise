@@ -2,44 +2,37 @@ defmodule AshEnterprise.Acp do
   @moduledoc """
   Host seam for `ash_acp` (Productivity OS Dogfood epic E3; dogfood §7 mapping).
 
-  Split across this module (shared tables + helpers), `AshEnterprise.Acp.SessionStore`
-  (`AshAcp.SessionStore` + `AshAcp.PromptTarget`), `AshEnterprise.Acp.Approvals`
-  (`AshAcp.PermissionRequest`; separate module because its `resolve/3` collides with
-  `PromptTarget.resolve/3`) and `AshEnterprise.Acp.ExtMethods` (the `ash` extension
-  methods: list surfaces, open one — a record selected — without a model turn, and
-  act on it, writes behind a permission request).
+  Split across this module (the session table and helpers),
+  `AshEnterprise.Acp.SessionStore` (`AshAcp.SessionStore` + `AshAcp.PromptTarget`),
+  `AshEnterprise.Acp.Approvals` (`AshAcp.PermissionRequest`; separate module because its
+  `resolve/3` collides with `PromptTarget.resolve/3`) and `AshEnterprise.Acp.ExtMethods`
+  (the `ash` extension methods: list surfaces, open one — a record selected — without a
+  model turn, and act on it, writes behind a permission request).
 
-  **The stores here are deliberately in-memory ETS**, owned by the supervised
-  `AshEnterprise.Acp.Store` process so they outlive any transient handler. E3's
-  gate is the wire round-trip against real Ash actions; the durable
-  `AgentSession` / approval resources that replace them arrive with epic E5
-  (dogfood §6, ADR 0015). The swap is contained to these modules — nothing in
-  `ash_acp` knows where sessions live.
+  **Sessions are in-memory ETS**, owned by the supervised `AshEnterprise.Acp.Store`
+  process so they outlive any transient handler; a restart empties them. **Approvals
+  are not**: a prompt's permission request is an `AshEnterprise.Execution.Invocation`
+  waiting on its approval task (ADR 0055), so it survives the session, the connection
+  and a restart, and a client asking again finds it (`AshEnterprise.Acp.Approvals`).
+  Nothing in `ash_acp` knows where either lives.
 
-  Mapping per §7: Prompt → a declared Ash action resolved from prompt text;
-  permission request → a pending approval record until E5's approval resource
-  exists; available actions pruned per actor with `Ash.can?/3` inside `ash_acp`.
+  Mapping per §7: Prompt → a declared Ash action resolved from prompt text, or, when its
+  declaration asks for an approval, a request of it; permission request → that
+  request's invocation; available actions pruned per actor with `Ash.can?/3` inside
+  `ash_acp`.
   """
 
   @table :ash_enterprise_acp_sessions
-  @approvals :ash_enterprise_acp_approvals
 
   @doc false
   def tables do
-    %{sessions: @table, approvals: @approvals}
+    %{sessions: @table}
   end
-
-  @doc false
-  def approvals_table, do: @approvals
 
   @doc false
   def ensure_tables! do
     if :ets.whereis(@table) == :undefined do
       :ets.new(@table, [:named_table, :set, :public, read_concurrency: true])
-    end
-
-    if :ets.whereis(@approvals) == :undefined do
-      :ets.new(@approvals, [:named_table, :set, :public, read_concurrency: true])
     end
 
     :ok

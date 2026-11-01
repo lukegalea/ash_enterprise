@@ -17,8 +17,10 @@ defmodule AshEnterprise.Execution.Invocation do
       temporal (ADR 0049 keeps temporal for validity; this is a state machine with
       history), no soft delete, and the fragment's state machine instead of the base's
       lifecycle (`lifecycle?: false`, spike S9).
-    * **Who may do what.** `invoke` and `request` are self-service (ADR 0052): any active
-      member may ask on their own behalf, and `request` creates only rows they own.
+    * **Who may do what.** `invoke`, `request` and `confirm` are self-service (ADR 0052):
+      any active member may ask on their own behalf, `request` creates only rows they own,
+      and `confirm` approves only a request whose declaration lets its requester confirm
+      it (`AshEnterprise.Execution.Actions.ConfirmRequest`).
       Every action the job runner drives (`claim`, the completions, `apply_decision`,
       `requeue`, the resolution actions, `execute`, `reconcile`) is machinery-only (ADR
       0059): only the `oban` system actor reaches them, and no grant does. Reads,
@@ -88,7 +90,7 @@ defmodule AshEnterprise.Execution.Invocation do
     ownership: :user_owned,
     lifecycle?: false,
     archival?: false,
-    self_service: [:invoke, :request],
+    self_service: [:invoke, :request, :confirm],
     machinery_only: [
       :claim,
       :succeed,
@@ -107,6 +109,7 @@ defmodule AshEnterprise.Execution.Invocation do
       :collect_input
     ],
     extra_grants: [AshEnterprise.Security.Checks.InvocationApprovalCandidacy],
+    notifiers: [Ash.Notifier.PubSub],
     extra_extensions: [AshCloak, AshOban],
     fragments: [AshAgent.Invocation]
 
@@ -127,6 +130,15 @@ defmodule AshEnterprise.Execution.Invocation do
   invocation do
     execution_identity(AshEnterprise.Execution.Identity)
     digest_key(AshEnterprise.Execution.DigestKey)
+  end
+
+  # Whoever waits on one row hears it move: `invocations:<id>` carries every update
+  # (a coding agent's tool call waits on its decision, `AshEnterprise.Agents.OmpSession`).
+  pub_sub do
+    module AshEnterpriseWeb.Endpoint
+    prefix "invocations"
+
+    publish_all :update, [:id]
   end
 
   cloak do
@@ -176,6 +188,21 @@ defmodule AshEnterprise.Execution.Invocation do
   end
 
   actions do
+    # A person's own request, confirmed by them and run now: what an ACP prompt that
+    # asked permission runs once they allow it (`AshEnterprise.Acp.Approvals`).
+    action :confirm, :string do
+      description """
+      Confirm a request of your own: invoke `target` with `args` under `key`, approve it
+      yourself where its declaration lets the requester confirm it, and run it now.
+      """
+
+      argument :target, :string, allow_nil?: false
+      argument :args, :map, allow_nil?: false, default: %{}
+      argument :key, :string, allow_nil?: false, constraints: [max_length: 512]
+
+      run AshEnterprise.Execution.Actions.ConfirmRequest
+    end
+
     action :collect_input, :atom do
       description "Complete a dispatched question from its answered or cancelled task."
 

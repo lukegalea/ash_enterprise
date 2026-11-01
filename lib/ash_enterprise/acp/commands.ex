@@ -36,9 +36,12 @@ defmodule AshEnterprise.Acp.Commands do
 
   Each routed action's `AshAgent.Effects` declaration (ADR 0057) says what it
   does: its ACP tool kind, and whether it asks first. Decisions, syncs and
-  composing a brief declare `approval: :confirm`, so
-  `AshEnterprise.Acp.Approvals` turns them into `session/request_permission`
-  (ADR 0015) before they run. Capturing and finishing one's own action item
+  composing a brief declare `approval: :confirm`, so they are routed as a
+  request: the spec runs `Invocation.confirm` for the action, under the key
+  `AshEnterprise.Acp.Approvals.key/4` finds or makes, and
+  `AshEnterprise.Acp.Approvals` records it as an invocation waiting on the
+  person and asks them through `session/request_permission` (ADR 0015, ADR
+  0055) before it runs. Capturing and finishing one's own action item
   declare `approval: :none`: each is the person's own act on their own row,
   and undone from the board (Drop, Reopen). Shred is not routable at all — it
   exists only on the web, behind a typed confirmation.
@@ -50,6 +53,7 @@ defmodule AshEnterprise.Acp.Commands do
   require Ash.Query
 
   alias AshEnterprise.Acp
+  alias AshEnterprise.Acp.Approvals
   alias AshEnterprise.Agents.Actions.ComposeToday
   alias AshEnterprise.Agents.{Console, MorningBrief}
   alias AshEnterprise.Bpmn.Actions.QueueDigest
@@ -57,6 +61,7 @@ defmodule AshEnterprise.Acp.Commands do
   alias AshEnterprise.Canonical.Actions.ActionItemsDigest
   alias AshEnterprise.Canonical.Task
   alias AshEnterprise.Erasure.Scope
+  alias AshEnterprise.Execution.Invocation
   alias AshEnterprise.Integration.LinkedAccount
   alias AshEnterprise.Platform.LocalTime
   alias AshEnterprise.Security.ActorContext
@@ -280,7 +285,7 @@ defmodule AshEnterprise.Acp.Commands do
   defp do_route(command, actor, tenant)
        when command in ["brief", "compose brief", "compose", "brief compose"] do
     case ComposeToday.existing(LocalTime.today(), actor, actor: actor, tenant: tenant) do
-      {:ok, nil} -> compose_brief(tenant)
+      {:ok, nil} -> compose_brief(actor, tenant)
       _brief_or_unreadable -> ok(Console, :today, %{}, "Today", tenant, {A2ui.TodayUI, []})
     end
   end
@@ -313,8 +318,11 @@ defmodule AshEnterprise.Acp.Commands do
   # A write (it opens a brief and starts its process), so it declares
   # `approval: :confirm` and asks first; a day that already has one answers
   # with that instead.
-  defp compose_brief(tenant) do
-    ok(MorningBrief, :compose_today, %{}, "Compose today's brief", tenant, {A2ui.TodayUI, []})
+  defp compose_brief(actor, tenant) do
+    ask(MorningBrief, :compose_today, %{}, "Compose today's brief", {actor, tenant}, {
+      A2ui.TodayUI,
+      []
+    })
   end
 
   # `approve 2` / `reject brief`: the target is resolved as the actor, from
@@ -326,7 +334,7 @@ defmodule AshEnterprise.Acp.Commands do
     with {:ok, task, label} <- decision_target(String.trim(which), opts) do
       title = "#{if(verb == :approve, do: "Approve", else: "Reject")}: #{label}"
 
-      ok(HumanTask, verb, %{record_id: task.id}, title, tenant, {A2ui.ApprovalsUI, []})
+      ask(HumanTask, verb, %{record_id: task.id}, title, {actor, tenant}, {A2ui.ApprovalsUI, []})
     end
   end
 
@@ -411,12 +419,12 @@ defmodule AshEnterprise.Acp.Commands do
            |> Ash.read(actor: actor, tenant: tenant) do
       label = AshEnterprise.Integration.Calculations.AccountHealth.provider(key)
 
-      ok(
+      ask(
         LinkedAccount,
         :sync_now,
         %{record_id: account.id},
         "Sync now: #{label}",
-        tenant,
+        {actor, tenant},
         {A2ui.AccountsUI, []}
       )
     else
@@ -433,6 +441,27 @@ defmodule AshEnterprise.Acp.Commands do
          resource: resource,
          action: action,
          inputs: inputs,
+         title: title,
+         kind: Acp.kind(resource, action),
+         tenant: tenant
+       },
+       surface: surface
+     }}
+  end
+
+  # An action whose declaration asks first is routed as a request of it: the spec
+  # confirms an invocation of the action (`Invocation.confirm`), so the permission
+  # request is a durable row and the action runs once, through it.
+  defp ask(resource, action, inputs, title, {actor, tenant}, surface) do
+    target = AshAgent.Invocation.Target.name(resource, action)
+    args = Map.new(inputs, fn {name, value} -> {to_string(name), value} end)
+
+    {:ok,
+     %{
+       spec: %{
+         resource: Invocation,
+         action: :confirm,
+         inputs: %{target: target, args: args, key: Approvals.key(actor, target, args, tenant)},
          title: title,
          kind: Acp.kind(resource, action),
          tenant: tenant

@@ -260,6 +260,9 @@ config :ash_acp,
   # `mix ash_acp.stdio` included — sends the same one. ash_acp prunes it per
   # actor with `Ash.can?/3` against the action each command runs.
   candidate_actions: {AshEnterprise.Surfaces, :candidate_actions, []},
+  # No "allow always": a permission request is an invocation's approval
+  # (`AshEnterprise.Acp.Approvals`), and there is no standing grant to record.
+  permission_options: [:allow_once, :reject_once],
   agent_info: %{name: "ash_enterprise", version: "0.1.0"}
 
 # The trigger sweep dispatches each event inside its own transaction -- deliberately, so a

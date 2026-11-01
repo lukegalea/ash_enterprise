@@ -279,13 +279,13 @@
       "area": "agents",
       "capability": "Tool approvals",
       "status": "partial",
-      "summary": "A coding-agent tool request pauses the run until a person approves the stored request; assistant proposals change nothing until a person executes them, and execution re-checks authorization as that person.",
-      "gap": "An approval carries no digest or expiry, and nothing checks that what runs matches what was approved; client-session approvals are held in memory, and an 'always allow' answer is treated as once.",
+      "summary": "A coding-agent tool request and an ACP permission request are governed invocations: each waits on the person's approval task, survives a restart and runs once, as approved; assistant proposals change nothing until a person executes them, and execution re-checks authorization as that person.",
+      "gap": "Assistant proposals are not yet invocations, so their approval carries no digest and nothing checks that what runs matches what was approved; ACP offers no 'always allow'.",
       "deps": ["ash_ai"],
       "tests": [
-        {"file": "test/ash_enterprise/agents_test.exs", "test": "tool request → pending invocation pauses the run → approval resumes it exactly bound"},
+        {"file": "test/ash_enterprise/agents_test.exs", "test": "tool request → invocation awaiting approval pauses the run → confirming resumes it exactly bound"},
         {"file": "test/ash_enterprise/ai/proposal_test.exs", "test": "execution re-checks authorization rather than trusting the earlier check"},
-        {"file": "test/ash_enterprise/acp_approvals_test.exs", "test": "a foreign session's ref is denied even with allow_once"}
+        {"file": "test/ash_enterprise/acp/approvals_durable_test.exs", "test": "a pending approval survives a session-store restart"}
       ]
     },
     {

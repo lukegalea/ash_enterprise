@@ -3,8 +3,8 @@ defmodule AshEnterprise.Agents.AgentMessage do
   One transcript line of a run (dogfood §6): the user's prompt, agent output
   streamed off the port, and tool traffic.
 
-  `role :tool` carries tool requests the bridge forwards into pending
-  `AshEnterprise.Agents.ToolInvocation` rows *and* bridge/runtime diagnostics
+  `role :tool` carries tool requests the bridge asks as tool-call invocations
+  (`AshEnterprise.Agents.ToolCall`) *and* bridge/runtime diagnostics
   (a missing binary, a nonzero exit) — anything spoken by the machinery rather
   than by the model or the operator.
 

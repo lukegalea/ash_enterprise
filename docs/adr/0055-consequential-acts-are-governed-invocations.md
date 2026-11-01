@@ -424,3 +424,35 @@ decision is an explicit, recorded exception instead.
   approves and never gives start grants. `--sole-administrator-approval` records the opt-in first, as that person.
 - **Tests.** `test/ash_enterprise/execution/sole_administrator_approval_test.exs` and
   `test/ash_enterprise/execution/enable_agent_test.exs`.
+
+## Built, 2026-11-01: ACP permission requests and coding-agent tool calls
+
+Phase 2b, for two of the mechanisms listed under Context. The assistant's proposals have not moved yet.
+
+- **An ACP permission request is an invocation.** A prompt routed to an action whose declaration asks first
+  (`Acp.asks_first?/2`) runs `Invocation.confirm` for it (`Execution.Actions.ConfirmRequest`, self-service): the
+  permission request is `invoke` as the session's person, waiting on its standalone approval task, and its id is the
+  request's ref (`Acp.Approvals`). `allow_once` confirms it: the person approves their own task, as they are now (a
+  fresh `ActorContext`), the decision is applied and the target runs once, inline (`ConfirmInvocation.confirm/3`).
+  `reject_once` rejects the task (`ConfirmInvocation.decline/3`). A cancel decides nothing, and the row stays on the
+  person's approvals list. The ETS approvals table is gone: the request survives the session store, the connection
+  and a restart.
+- **Asking again finds the same row.** The key is not the session's: `Acp.Approvals.key/4` reuses the key of the
+  person's own waiting request for the same target and arguments (`invoke`'s own test, through the idempotency
+  conflict), so a client that reconnects and sends the request again is answered with the same ref.
+- **No "allow always".** ACP offers `allow_once` and `reject_once` only (`config :ash_acp, permission_options:`,
+  ash_acp 0.4): there is no scoped standing grant for it to record yet.
+- **A surface click is a confirmation, not a request.** An `_a2ui/action` names the A2UI action, which may run other
+  code (`via`), so its declaration cannot be the invocation's target. ACP asks the person to confirm the click, binds
+  the answer to the session, records nothing, and the click runs as them under their policies, as on the web.
+- **A coding agent's tool call is an invocation.** A bridge `tool_request` frame becomes `invoke` of
+  `Agents.ToolCall.run_tool` (`approval: :confirm`, `open_world?`) as the run's owner, keyed
+  `omp:<run id>:<request id>`. The owner decides its approval task. Approved, the target hands the call to the process
+  (`Dispatch`, `effect_system` `"omp"`); the session hears its invocation move on `invocations:<id>` (the invocation
+  now publishes its updates) and writes `tool_response` approved when it is `dispatched`, refused when it is rejected,
+  stale or failed. `tool_result` completes it through `complete_external`. `Agents.ToolGate` and
+  `Agents.ToolInvocation` are deleted, and `agent_tool_invocations` is dropped. Nothing moves into the invocation: the
+  only frames that wrote it are the bridge dialect, which `omp --mode rpc` does not speak, and the actions on it were
+  audited.
+- **Tests.** `test/ash_enterprise/acp/approvals_durable_test.exs`, `test/ash_enterprise/acp/approvals_test.exs`,
+  `test/ash_enterprise/agents_test.exs` ("tool calls are invocations").

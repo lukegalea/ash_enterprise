@@ -28,6 +28,12 @@ defmodule AshEnterprise.Execution.Actions.ConfirmInvocation do
   A target that refuses (`AshAgent.BusinessError`, a verifier, a policy) fails the
   invocation, and the click returns its error code.
 
+  Steps 2 to 4 are `confirm/3`, for a caller that already holds the row (an ACP
+  permission request the person allowed, `AshEnterprise.Acp.Approvals`), and
+  `decline/3` is their counterpart: the person rejects the task, and the decision is
+  applied. The person approves or rejects as they are now: their `ActorContext` is
+  built afresh, so a task opened since their request began is one they may decide.
+
   It returns the request as `AshEnterprise.Execution.Actions.RequestInvocation` does:
   `invocation_id`, `target`, `status`, `error_code`, `approval_url`.
   """
@@ -38,7 +44,7 @@ defmodule AshEnterprise.Execution.Actions.ConfirmInvocation do
   alias AshAgent.Invocation.{Executor, Target}
   alias AshEnterprise.Bpmn.HumanTask
   alias AshEnterprise.Execution
-  alias AshEnterprise.Execution.Invocation
+  alias AshEnterprise.Execution.{Identity, Invocation}
   alias AshEnterprise.Platform.SystemActor
 
   @impl true
@@ -51,16 +57,23 @@ defmodule AshEnterprise.Execution.Actions.ConfirmInvocation do
     tenant = ash_opts[:tenant]
 
     with {:ok, row} <- Execution.invoke(target, args, %{key: key}, ash_opts),
-         {:ok, row} <- settle(row, context.actor, tenant) do
+         {:ok, row} <- confirm(row, context.actor, tenant) do
       report(row)
     end
   end
 
-  defp settle(%{status: :awaiting_approval} = row, actor, tenant) do
+  @doc """
+  The person confirms `row`, their own request: if it waits for approval and they are a
+  candidate, they approve its task, the decision is applied and the ready row runs, all
+  now. Returns the row as it then stands; a person who is not a candidate leaves it
+  waiting.
+  """
+  @spec confirm(Ash.Resource.record(), Ash.Resource.record(), Ash.UUID.t()) ::
+          {:ok, Ash.Resource.record()} | {:error, term()}
+  def confirm(%{status: :awaiting_approval} = row, actor, tenant) do
     runner = [actor: SystemActor.oban(), tenant: tenant]
-    task = Ash.load!(row, :approval_task, authorize?: false).approval_task
 
-    case approve(task, actor, tenant) do
+    case decide(row, :approve, actor, tenant) do
       :ok ->
         with {:ok, row} <- Execution.apply_invocation_decision(row, runner),
              {:ok, _outcome} <- run_ready(row, runner) do
@@ -75,22 +88,50 @@ defmodule AshEnterprise.Execution.Actions.ConfirmInvocation do
     end
   end
 
-  defp settle(row, _actor, _tenant), do: {:ok, row}
+  def confirm(row, _actor, _tenant), do: {:ok, row}
+
+  @doc """
+  The person declines `row`, their own request waiting for approval: they reject its
+  task and the decision is applied now, so the row is `rejected` and nothing runs.
+  """
+  @spec decline(Ash.Resource.record(), Ash.Resource.record(), Ash.UUID.t()) ::
+          {:ok, Ash.Resource.record()} | {:error, term()}
+  def decline(%{status: :awaiting_approval} = row, actor, tenant) do
+    case decide(row, :reject, actor, tenant) do
+      :ok -> Execution.apply_invocation_decision(row, actor: SystemActor.oban(), tenant: tenant)
+      :not_a_candidate -> {:ok, row}
+      {:error, error} -> {:error, error}
+    end
+  end
+
+  def decline(row, _actor, _tenant), do: {:ok, row}
 
   defp run_ready(%{status: :ready} = row, runner),
     do: Executor.execute(Invocation, row.id, runner)
 
   defp run_ready(_row, _runner), do: {:ok, :skipped}
 
-  defp approve(%{id: task_id}, actor, tenant) do
-    HumanTask
-    |> Ash.ActionInput.for_action(:approve, %{record_id: task_id}, actor: actor, tenant: tenant)
-    |> Ash.run_action()
-    |> case do
-      {:ok, _decided} -> :ok
-      {:error, error} -> if candidate_refusal?(error), do: :not_a_candidate, else: {:error, error}
+  # As the person they are now: a context built at the start of their request does not
+  # know the task the request itself opened.
+  defp decide(row, door, actor, tenant) do
+    %{approval_task: %{id: task_id}} = Ash.load!(row, :approval_task, authorize?: false)
+
+    with {:ok, person} <-
+           Identity.actor_for(%{
+             executing_principal: %{type: :person, id: actor.id},
+             organization_id: tenant
+           }) do
+      HumanTask
+      |> Ash.ActionInput.for_action(door, %{record_id: task_id}, actor: person, tenant: tenant)
+      |> Ash.run_action()
+      |> decision()
     end
   end
+
+  defp decision({:ok, _decided}), do: :ok
+
+  defp decision({:error, error}),
+    do: if(candidate_refusal?(error), do: :not_a_candidate, else: {:error, error})
 
   # Not holding the approver role reads as a refusal or an empty read of the task. Any other
   # failure (a stale task, a database error) is a real one and fails the click.
