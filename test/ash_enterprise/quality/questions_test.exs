@@ -19,6 +19,13 @@ defmodule AshEnterprise.Quality.QuestionsTest do
 
   @lock_file Path.expand("../../../priv/judgments/lock.json", __DIR__)
 
+  # Reworded to ask only what the reply text shows (confirmed 2026-11-01).
+  @versions %{
+    hs1_lead_with_outcome_or_ask: 2,
+    hs4_claim_only_built_and_proven: 2,
+    hs7_never_invent_name_feature_or_date: 2
+  }
+
   @names [
     :hs1_lead_with_outcome_or_ask,
     :hs2_keep_it_short,
@@ -38,7 +45,7 @@ defmodule AshEnterprise.Quality.QuestionsTest do
     }
 
   describe "the declared questions" do
-    test "are hs1 to hs8, yes/no, version 1, in the agent_reply_style family, seeing ReplyText" do
+    test "are hs1 to hs8, yes/no, in the agent_reply_style family, seeing ReplyText" do
       declared = Info.questions(AgentReply)
 
       assert Enum.map(declared, & &1.name) == @names
@@ -46,7 +53,7 @@ defmodule AshEnterprise.Quality.QuestionsTest do
 
       for question <- declared do
         assert question.type == AshAi.Evaluate.Noul
-        assert question.version == 1
+        assert question.version == Map.get(@versions, question.name, 1)
         assert question.family == :agent_reply_style
         assert question.profile == :winnow_gpu_12b
         assert question.state_projection == ReplyText
@@ -56,8 +63,8 @@ defmodule AshEnterprise.Quality.QuestionsTest do
       assert Questions.family() == :agent_reply_style
     end
 
-    test "are the code-unit house-style wording with the document read as the reply" do
-      for name <- @names do
+    test "at version 1, are the code-unit house-style wording with the document read as the reply" do
+      for name <- @names, not Map.has_key?(@versions, name) do
         reply_question = Info.question(AgentReply, name)
         code_question = Info.question(CodeUnit, name)
 
@@ -72,13 +79,25 @@ defmodule AshEnterprise.Quality.QuestionsTest do
       end
     end
 
-    test "the lock holds each at version 1" do
+    test "at version 2, ask only what the reply text shows, in their own wording" do
+      for name <- Map.keys(@versions) do
+        reply_question = Info.question(AgentReply, name)
+        code_question = Info.question(CodeUnit, name)
+
+        refute reply_question.instructions == as_reply(code_question.instructions), inspect(name)
+        refute reply_question.instructions =~ "document"
+        refute reply_question.criteria.true =~ "used by the code and product"
+        refute reply_question.criteria.true =~ "exists and is proven"
+      end
+    end
+
+    test "the lock holds each at its declared version" do
       lock = @lock_file |> File.read!() |> Jason.decode!()
 
       for question <- Info.questions(AgentReply) do
         assert lock[question.question_id] == %{
                  "hash" => question.question_hash,
-                 "version" => 1
+                 "version" => Map.get(@versions, question.name, 1)
                }
       end
     end
@@ -110,10 +129,10 @@ defmodule AshEnterprise.Quality.QuestionsTest do
       end
     end
 
-    test "the same change at version 2 passes, as the lock task then records it" do
+    test "the same change with a version bump passes, as the lock task then records it" do
       changed =
         AgentReply.spark_dsl_config()
-        |> redeclare(shape: %{"reply" => "string", "question" => "string"}, version: 2)
+        |> redeclare(shape: %{"reply" => "string", "question" => "string"}, bump?: true)
 
       assert VerifyLock.verify(changed) == :ok
     end
@@ -190,7 +209,8 @@ defmodule AshEnterprise.Quality.QuestionsTest do
     dsl
     |> Transformer.get_entities([:judgments])
     |> Enum.reduce(dsl, fn question, acc ->
-      version = Keyword.get(opts, :version, question.version)
+      version =
+        if Keyword.get(opts, :bump?, false), do: question.version + 1, else: question.version
 
       changed = %{
         question
