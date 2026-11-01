@@ -28,6 +28,7 @@ defmodule AshEnterprise.SystemOne.JudgedFields.Assessor do
   alias AshEnterprise.SystemOne
   alias AshEnterprise.SystemOne.Banding.Step
   alias AshEnterprise.SystemOne.JudgedFields
+  alias AshEnterprise.SystemOne.JudgedState
   alias AshJudgments.Registry.Judge
 
   @doc "Assesses one selected question for one record (see the moduledoc)."
@@ -38,6 +39,11 @@ defmodule AshEnterprise.SystemOne.JudgedFields.Assessor do
     question = field.question
     correlation_id = Correlation.id()
 
+    input =
+      Ash.ActionInput.for_action(req.resource, JudgedFields.judge_action(field), %{
+        "input" => state
+      })
+
     context =
       SystemOne.judge_context(
         tenant: tenant,
@@ -47,13 +53,12 @@ defmodule AshEnterprise.SystemOne.JudgedFields.Assessor do
           Map.merge(
             %{subject: subject, mode: Keyword.get(config, :mode, :live)},
             Keyword.get(config, :judgments, %{})
-          )
+          ),
+        judged_state: JudgedState.project(question, input),
+        judged_state_scope_id: scope_id(req)
       )
 
-    input =
-      req.resource
-      |> Ash.ActionInput.for_action(JudgedFields.judge_action(field), %{"input" => state})
-      |> Map.replace!(:context, context)
+    input = Map.replace!(input, :context, context)
 
     case Judge.judge_and_record(question, input, context, context, question: field.name) do
       {:ok, answer, [observation_id]} ->
@@ -73,4 +78,9 @@ defmodule AshEnterprise.SystemOne.JudgedFields.Assessor do
         {:error, error}
     end
   end
+
+  # The judged record's own erasure scope, when it is sealed under one: the
+  # text it was judged on is shredded with it (ADR 0024).
+  defp scope_id(%{record: %{erasure_scope_id: scope_id}}) when is_binary(scope_id), do: scope_id
+  defp scope_id(_request), do: nil
 end

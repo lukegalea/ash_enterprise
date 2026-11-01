@@ -22,8 +22,8 @@ defmodule AshEnterprise.SystemOne.ReviewSource do
     altered ciphertext) raises, as the keyring does everywhere: reporting
     those as "no text" would hide data loss.
 
-  Nothing in the judge path writes `state_ciphertext` yet, so rows show no
-  text until the state is sealed when it is recorded.
+  The text is sealed when the judgment is recorded
+  (`AshEnterprise.SystemOne.JudgedState`).
 
   ## The thresholds
 

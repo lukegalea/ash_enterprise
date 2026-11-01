@@ -14,8 +14,8 @@ defmodule AshEnterprise.Mdm.MatchObservation do
   (`human_value/1`).
   """
 
+  alias AshEnterprise.SystemOne.JudgedState
   alias AshEnterprise.SystemOne.Judgment
-  alias AshJudgments.Registry.Canonical
 
   @question :matches_the_golden
   @family "mdm_matches"
@@ -39,13 +39,8 @@ defmodule AshEnterprise.Mdm.MatchObservation do
   @doc "Records the matcher's observation of `candidate` as the system actor."
   def record!(candidate, tenant) do
     question = question()
-
-    state = %{
-      "explanation" => candidate.explanation,
-      "score" => Decimal.to_string(candidate.score)
-    }
-
-    digest = Canonical.digest(Canonical.encode(state))
+    state = state(candidate)
+    digest = JudgedState.digest(state)
 
     Judgment
     |> Ash.Changeset.for_create(
@@ -74,9 +69,20 @@ defmodule AshEnterprise.Mdm.MatchObservation do
         valid_until: nil
       ],
       actor: AshEnterprise.Platform.SystemActor.process(),
-      tenant: tenant
+      tenant: tenant,
+      # The recorded state, sealed on the observation so a reviewer can
+      # read it (AshEnterprise.SystemOne.JudgedState).
+      context: %{judgments: %{judged_state: state}}
     )
     |> Ash.create!()
+  end
+
+  @doc "The state the observation records: the score and its explanation."
+  def state(candidate) do
+    %{
+      "explanation" => candidate.explanation,
+      "score" => Decimal.to_string(candidate.score)
+    }
   end
 
   defp probabilities(score) do

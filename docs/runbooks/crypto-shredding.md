@@ -74,6 +74,15 @@ public and private channels, group DMs and DMs, all sealed under the account's s
 the other participants' names, sealed like a channel name). A shred makes the sealed columns unreadable; re-tagging
 or untagging an account does not withdraw rows already projected.
 
+### Judged text: the subject's scope, or one per tenant
+
+The text a model judged is sealed on its judgment (`AshEnterprise.SystemOne.JudgedState`) so the verdicts screen can
+show it. It goes under the judged record's own scope when the record has one, so shredding that scope reaches the
+judged text too. Otherwise (a code unit, a match candidate, a licence) it goes under the tenant's `data_subject` scope
+`judged_state:<organization id>`, labelled `Judged text`. Shredding that scope makes every such text in the tenant read
+as no text. The judgments, their digests and their verdicts stay. Later judgments in that tenant are recorded without
+their text, because a shredded scope is never reopened.
+
 ### Operator setup
 
 ```bash
