@@ -667,3 +667,19 @@ defmodule AshEnterprise.SystemOne.TestSupport.FakeReqLLM do
     %{"choice" => "supports", "probabilities" => %{"supports" => 0.9}, "confidence" => 0.9}
   end
 end
+
+defmodule AshEnterprise.SystemOne.TestSupport.FailingReqLLM do
+  @moduledoc """
+  A ReqLLM stand-in whose every call fails, as a model runtime that is down
+  or times out does: the judge gets `{:error, _}` and records nothing.
+  Counts its calls in the calling process like `FakeReqLLM`.
+  """
+
+  def evaluate(_model_spec, _state, _questions, _opts) do
+    Process.put({__MODULE__, :calls}, calls() + 1)
+    {:error, %Req.TransportError{reason: :econnrefused}}
+  end
+
+  @doc "How many calls this process has made through the fake."
+  def calls, do: Process.get({__MODULE__, :calls}, 0)
+end

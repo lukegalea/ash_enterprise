@@ -2,8 +2,8 @@ defmodule AshEnterprise.Quality do
   @moduledoc """
   Agent quality (ADR 0058): what an agent's output is graded against.
 
-  This first part holds the subject the judgment families grade an agent
-  reply as (S1-91):
+  It holds the subject the judgment families grade an agent reply as
+  (S1-91), and what grades it and reads the grades:
 
     * `AshEnterprise.Quality.AgentReply`: one assistant answer, read from
       an `AshEnterprise.Assistant.Turn` as the actor and never stored. The
@@ -12,6 +12,10 @@ defmodule AshEnterprise.Quality do
       see, the reply text and nothing else.
     * `AshEnterprise.Quality.Questions`: the questions as data, and which of
       them are asked of a given reply.
+    * `AshEnterprise.Quality.Grader`: judges, bands and admits evaluation
+      replies against those questions (S1-93).
+    * `AshEnterprise.Quality.Gate`: what the admitted facts say about a set
+      of replies, as a three-state report and a verdict (S1-94).
 
   Facts about a reply live in `AshEnterprise.SystemOne.Fact`, keyed by
   `subject_term/1` and carrying `digest/1`, as the facts about a code unit
