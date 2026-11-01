@@ -261,9 +261,15 @@ defmodule MyClinic.Execution.Step do
 end
 ```
 
-And on the invocation resource, so a finished tool call wakes its run:
+And on the invocation resource, so a finished tool call wakes its run, and a run that is not live has its tool calls
+answered from fixtures (rule 12):
 
 ```elixir
+invocation do
+  # execution_identity, digest_key ...
+  run MyClinic.Execution.Run
+end
+
 changes do
   change {AshAgent.Run.Changes.Wake, run: MyClinic.Execution.Run}, on: [:update]
 end
@@ -315,6 +321,14 @@ end
     A hold whose worker died is released by the run's next lease. Usage is known only after a call, so one call can
     use more than it held: that is recorded as spent, and the run waits on its budget at its next claim. Give the job
     runner alone `reserve` and `settle`; `extend` is for whoever may lift a run's budget (an operator, say).
+12. A run started with `mode: :eval` (a suite case) or `:shadow` (a candidate beside live work) causes no effects.
+    Name your run resource on the invocation resource (`run` in its `invocation` section) so each tool call takes the
+    run's mode, read from the run row, never from the caller. Such a call never awaits an approval and is never
+    claimed unless its target is a read that stays inside (`read_only?`, not `open_world?`); any other target is
+    answered by `simulate` from the run's `fixtures` (`%{"Resource.Module.action" => result}`): `succeeded` with
+    `simulated: true`, or `failed` with `"no_fixture"`. `prohibited_effect`-style checks are then queries over the
+    run's invocations. `run_principal/3` is told the mode (`:mode` in its context), so you can run such a run as an
+    evaluation principal whose grants exist only where evaluations run. Give the job runner alone `simulate`.
 
 ### What you add on the resources
 

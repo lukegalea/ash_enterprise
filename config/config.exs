@@ -53,6 +53,9 @@ config :ash_enterprise, Oban,
   #
   # `:agent_runs` runs agent run steps: one job per step, each holding one model call. Its own
   # budget, so a slow model cannot hold up the invocations those steps request.
+  #
+  # `:quality` finishes agent evaluation suite runs (ADR 0058): one scoring job per suite run
+  # whose cases have all finished.
   queues: [
     default: 10,
     bpmn: 10,
@@ -61,7 +64,8 @@ config :ash_enterprise, Oban,
     system_one: 5,
     mdm: 10,
     execution: 10,
-    agent_runs: 5
+    agent_runs: 5,
+    quality: 2
   ],
   repo: AshEnterprise.Repo,
   plugins: [

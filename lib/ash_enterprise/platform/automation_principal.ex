@@ -55,6 +55,10 @@ defmodule AshEnterprise.Platform.AutomationPrincipal do
   defstruct [:name, :description, :id, :agent, :__ash_enterprise_context__]
 
   @principals %{
+    evaluator:
+      "Runs agent evaluations: suite cases and shadow runs (ADR 0058). Its roles are " <>
+        "assigned only in the tenant evaluations run in, so a case reads nothing " <>
+        "elsewhere, and what a case asks for is answered from its fixtures, never run.",
     evidence_admitter:
       "Admits a judgment's evidence when a calibrated band table says to (ADR 0041, ADR " <>
         "0043). What it may admit is the roles a tenant assigns it, per question family; " <>

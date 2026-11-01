@@ -21,6 +21,17 @@ defmodule AshEnterprise.Quality do
       (`/app/judgments`), admitted as the reply's fact at person grade, so
       the gate reads it `in` or `out` (S1-96).
 
+  And the suites an agent is evaluated on (AGT-43):
+
+    * `AshEnterprise.Quality.Suite`: versioned cases in Inspect's `Sample` shape, with
+      fixtures and deterministic assertions, frozen at publish.
+    * `AshEnterprise.Quality.SuiteRun`: one run of a suite against an agent's latest
+      published version. Each case is an ordinary agent run with `mode: :eval` (or
+      `:shadow`), executing as the `evaluator` automation principal, whose tool calls are
+      answered from the case's fixtures and never run: evaluation causes no effects.
+    * `AshEnterprise.Quality.CaseResult`: what each case scored
+      (`AshEnterprise.Quality.Assertions`, the deterministic scorer).
+
   Facts about a reply live in `AshEnterprise.SystemOne.Fact`, keyed by
   `subject_term/1` and carrying `digest/1`, as the facts about a code unit
   do (`AshEnterprise.Standards`).
@@ -34,6 +45,27 @@ defmodule AshEnterprise.Quality do
   resources do
     resource AshEnterprise.Quality.AgentReply do
       define :reply_from_turn, action: :from_turn, args: [:turn_id], get?: true
+    end
+
+    resource AshEnterprise.Quality.Suite do
+      define :create_suite_draft, action: :create_draft, args: [:key]
+      define :add_suite_case, action: :add_case, args: [:case]
+      define :publish_suite, action: :publish
+      define :retire_suite, action: :retire
+      define :get_suite, action: :read, get_by: [:id]
+      define :latest_published_suite, action: :latest_published, args: [:key]
+      define :list_suites, action: :read
+    end
+
+    resource AshEnterprise.Quality.SuiteRun do
+      define :start_suite_run, action: :start, args: [:suite_id, :agent_key]
+      define :finish_suite_run, action: :finish
+      define :get_suite_run, action: :read, get_by: [:id]
+      define :list_suite_runs, action: :read
+    end
+
+    resource AshEnterprise.Quality.CaseResult do
+      define :list_case_results, action: :read
     end
   end
 

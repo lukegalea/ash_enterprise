@@ -52,6 +52,15 @@ defmodule AshEnterprise.Execution.Identity do
   agent; for a run executing as its requester the agent is read from the run (its
   `agent_key`, or that of the run a tool call belongs to).
 
+  ## A run that is not live
+
+  A run started with `mode: :eval` (a suite case) or `:shadow` (ADR 0058) executes as
+  the `evaluator` automation principal acting for the person who started it, whatever
+  authority its version was published with. The evaluator's roles are assigned only in
+  the tenant evaluations run in, so the intersection reads nothing elsewhere, and every
+  tool call it asks for is answered from the run's fixtures without running
+  (`AshEnterprise.Execution.Invocation`).
+
   ## Not a principal
 
   System actors are not principals: the job runner claims and completes invocations but
@@ -122,11 +131,19 @@ defmodule AshEnterprise.Execution.Identity do
   @impl true
   def run_principal(%User{id: id} = user, version, context) when is_binary(id) do
     with :ok <- may_start(user, version.key, context[:tenant]) do
-      run_as(version.authority, id, version.key)
+      run_as(authority(version, context[:mode]), id, version.key)
     end
   end
 
   def run_principal(_actor, _version, _context), do: {:error, :not_a_person}
+
+  # A run that is not live (a suite case, a shadow run) executes as the evaluator,
+  # whatever the version was published to run as: its roles exist only where
+  # evaluations run, so the run reads nothing anywhere else.
+  defp authority(_version, mode) when mode in [:eval, :shadow],
+    do: %{type: :automation, name: :evaluator}
+
+  defp authority(version, _mode), do: version.authority
 
   defp run_as(%{type: :automation, name: name}, person_id, agent) do
     with {:ok, principal} <- principal(name) do
