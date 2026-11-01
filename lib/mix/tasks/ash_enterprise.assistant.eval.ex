@@ -13,17 +13,19 @@ defmodule Mix.Tasks.AshEnterprise.Assistant.Eval do
   Runs under `MIX_ENV=test` (the eval set and its fixtures live in
   `test/support`), inside one sandboxed transaction on the test database that
   is rolled back at the end: the synthetic tenant, threads, answers and model
-  call records are gone afterwards. Every model call goes through the
-  runner's ADR 0042 guard with `REQUIRE_IN_ZONE_MODELS` on, so only the
-  in-zone profile can be asked.
+  call records are gone afterwards. Each answer is a run of the assistant
+  agent, published in the fixture tenant and stepped here as its jobs would
+  step it; every model call goes through the ADR 0042 guard with
+  `REQUIRE_IN_ZONE_MODELS` on, so only the in-zone profile can be asked.
 
   Prints counts and rates only. The full results — each case's tool calls
   and its (synthetic) answer — go to `tmp/assistant_eval/<timestamp>.json`,
   which is gitignored.
 
   Boots only what a run needs (iron law #23): the Repo, ReqLLM's HTTP pool,
-  and the application's PubSub (notifiers on the seeded resources broadcast
-  on it). No Oban, no endpoint, no projectors.
+  the application's PubSub (notifiers on the seeded resources broadcast on
+  it) and Oban in test's manual mode, so a run's start can enqueue its step
+  without anything running it. No endpoint, no projectors, no queues.
   """
 
   use Mix.Task
@@ -69,6 +71,7 @@ defmodule Mix.Tasks.AshEnterprise.Assistant.Eval do
     Ecto.Adapters.SQL.Sandbox.mode(AshEnterprise.Repo, {:shared, self()})
 
     ctx = fixtures.tenant!()
+    _version = fixtures.published!(ctx)
     fixture = eval.seed!(ctx)
     cases = select(eval.cases(fixture), opts[:only])
 
@@ -105,7 +108,7 @@ defmodule Mix.Tasks.AshEnterprise.Assistant.Eval do
     )
 
     Application.put_env(:ash_enterprise, ZoneAdmission, zone: @zone)
-    Application.delete_env(:ash_enterprise, AshEnterprise.Assistant.Runner)
+    Application.delete_env(:ash_enterprise, AshEnterprise.Execution.AgentRuntime)
   end
 
   defp boot! do
@@ -115,6 +118,13 @@ defmodule Mix.Tasks.AshEnterprise.Assistant.Eval do
     {:ok, _} = Application.ensure_all_started(:phoenix_pubsub)
 
     case Phoenix.PubSub.Supervisor.start_link(name: AshEnterprise.PubSub) do
+      {:ok, _pid} -> :ok
+      {:error, {:already_started, _pid}} -> :ok
+    end
+
+    # A run's start enqueues its first step. Under test's `testing: :manual` that
+    # only writes the job: the harness steps each run itself.
+    case Oban.start_link(Application.fetch_env!(:ash_enterprise, Oban)) do
       {:ok, _pid} -> :ok
       {:error, {:already_started, _pid}} -> :ok
     end

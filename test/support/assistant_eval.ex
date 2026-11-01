@@ -3,7 +3,8 @@ defmodule AshEnterprise.Test.AssistantEval do
   The assistant's eval set (PROD-46): question templates over a SYNTHETIC
   fixture tenant, each recording the tool calls and arguments it expects and
   the key facts and citations its answer must carry, and a harness that asks
-  them through `AshEnterprise.Assistant.Runner` and scores the answers.
+  them as runs of the assistant agent (`AshEnterprise.Assistant.Ask`), stepped
+  in the calling process as their jobs would step them, and scores the answers.
 
   Two drivers share it:
 
@@ -14,7 +15,9 @@ defmodule AshEnterprise.Test.AssistantEval do
 
   Every name, address and line of text below is invented (`example.test`,
   `SYNTHETIC`). Nothing real is read, and the only model the harness can
-  reach is the in-zone profile, through the runner's guard.
+  reach is the in-zone profile, through the guard every run step calls it
+  through. The fixture tenant has the assistant agent published
+  (`AssistantFixtures.published!/2`).
 
   ## The scorecard
 
@@ -32,7 +35,7 @@ defmodule AshEnterprise.Test.AssistantEval do
   """
 
   alias AshEnterprise.Assistant.Lookups.Support
-  alias AshEnterprise.Assistant.{Runner, Thread}
+  alias AshEnterprise.Assistant.Thread
   alias AshEnterprise.Bpmn.{HumanTask, TaskCandidate}
   alias AshEnterprise.Canonical.{Conversation, Message, Person, Task}
   alias AshEnterprise.Mdm.MatchCandidate
@@ -836,47 +839,38 @@ defmodule AshEnterprise.Test.AssistantEval do
   @doc """
   Asks every case in `cases` as `ctx`'s person, one fresh thread each, and
   scores it. `opts`: `:before_case` (called with the case before it is
-  asked: the scripted driver loads the oracle there), `:runner_opts`.
+  asked: the scripted driver loads the oracle there).
   """
   def run(ctx, cases, opts \\ []) do
     before_case = Keyword.get(opts, :before_case, fn _case -> :ok end)
+    # test/support: named at runtime, so the mix task can load this module alone.
+    fixtures = Module.concat([AshEnterprise, Test, AssistantFixtures])
 
     Enum.map(cases, fn kase ->
       before_case.(kase)
       # Each case is a new request: the person's context is built now, after
       # the fixture's tasks exist (task candidacy is precomputed in it).
       actor = ActorContext.attach(ctx.user, ActorContext.build(ctx.user, tenant: ctx.tenant))
-      runner_opts = [actor: actor, tenant: ctx.tenant] ++ Keyword.get(opts, :runner_opts, [])
+      ctx = %{ctx | actor: actor}
       {:ok, thread} = Thread.start("SYNTHETIC eval", actor: actor, tenant: ctx.tenant)
 
       with %{question: prior} <- kase[:prior] do
-        _ = Runner.run([thread: thread, question: prior] ++ runner_opts)
-        drain()
+        _ = fixtures.ask!(ctx, thread, prior)
       end
 
       started = System.monotonic_time(:millisecond)
-      result = Runner.run([thread: thread, question: kase.question] ++ runner_opts)
-
+      result = fixtures.ask!(ctx, thread, kase.question)
       latency = System.monotonic_time(:millisecond) - started
-      drain()
 
       {status, turn} =
         case result do
           {:ok, turn} -> {"complete", turn}
           {:error, reason, turn} -> {Atom.to_string(reason), turn}
+          {:pending, _progress} -> {"pending", nil}
         end
 
       score(kase, status, turn, latency)
     end)
-  end
-
-  # The runner reports to the calling process; nobody here is listening.
-  defp drain do
-    receive do
-      {:assistant, _ref, _event} -> drain()
-    after
-      0 -> :ok
-    end
   end
 
   defp score(kase, status, turn, latency) do

@@ -23,7 +23,7 @@ defmodule AshEnterprise.Assistant.History do
   alias AshEnterprise.Erasure.Scope
   alias AshEnterprise.Platform.SystemActor
 
-  @typedoc "A turn as the page and the runner see it."
+  @typedoc "A turn as the page and the model's next question see it."
   @type entry :: %{turn: Turn.t(), withheld?: boolean()}
 
   @doc "The actor's thread `id` with its turns, or `{:error, :not_found}`."
@@ -64,21 +64,17 @@ defmodule AshEnterprise.Assistant.History do
   end
 
   @doc """
-  The prior conversation as model messages: complete, readable turns only,
-  the last `max` of them, question and answer text and nothing else (tool
-  results are not replayed — the model looks again if it needs to).
+  The prior conversation for the model's next question: complete, readable
+  turns only, the last `max` of them, as `{role, text}` — question and answer
+  text and nothing else (tool results are not replayed: the model looks
+  again if it needs to).
   """
-  @spec messages([entry()], pos_integer()) :: [ReqLLM.Message.t()]
-  def messages(entries, max \\ 12) do
+  @spec prior([entry()], pos_integer()) :: [{:user | :assistant, String.t()}]
+  def prior(entries, max \\ 12) do
     entries
     |> Enum.filter(&replayable?/1)
     |> Enum.take(-max)
-    |> Enum.map(fn %{turn: turn} ->
-      case turn.role do
-        :user -> ReqLLM.Context.user(text(turn.content))
-        :assistant -> ReqLLM.Context.assistant(text(turn.content))
-      end
-    end)
+    |> Enum.map(&{&1.turn.role, text(&1.turn.content)})
   end
 
   defp replayable?(%{withheld?: true}), do: false

@@ -3,8 +3,9 @@ defmodule AshEnterpriseWeb.AssistantComposeLiveTest do
   `/app/agent` composing and proposing (E10.3, E10.4) through the real
   LiveView: a composed board renders inline as the person and pins into "My
   apps" on the launcher, where it opens (re-verified) and unpins; a proposal
-  waits for Confirm and then runs as the person. A scripted model stands in
-  for the in-zone runtime; every row is synthetic.
+  waits for Confirm and then runs as the person. Each answer is a run of the
+  assistant agent, stepped here as its jobs would step it; a scripted model
+  stands in for the in-zone runtime; every row is synthetic.
   """
 
   use AshEnterpriseWeb.ConnCase, async: false
@@ -14,6 +15,7 @@ defmodule AshEnterpriseWeb.AssistantComposeLiveTest do
   alias AshEnterprise.Assistant.{History, PinnedApp, Thread, Turn}
   alias AshEnterprise.Bpmn.{HumanTask, TaskCandidate}
   alias AshEnterprise.Canonical.Task
+  alias AshEnterprise.Execution
   alias AshEnterprise.Platform.LocalTime
   alias AshEnterprise.Test.AssistantFixtures, as: F
   alias AshEnterprise.Test.AssistantFixtures.ScriptedModel
@@ -43,14 +45,22 @@ defmodule AshEnterpriseWeb.AssistantComposeLiveTest do
     end) || flunk("no answer rendered: " <> render(view))
   end
 
-  defp ask(view, question) do
+  # The page's runs, run out here as their jobs would run them.
+  defp run_out!(ctx) do
+    for run <- Execution.list_agent_runs!(authorize?: false, tenant: ctx.tenant),
+        do: F.run_out!(run)
+  end
+
+  defp ask(view, ctx, question) do
     view |> form("#ask-form", ask: %{question: question}) |> render_submit()
+    run_out!(ctx)
     await_answer(view)
   end
 
   setup %{conn: conn} do
     F.in_zone!()
     ctx = F.tenant!()
+    F.published!(ctx)
     %{conn: sign_in(conn, ctx.user), ctx: ctx}
   end
 
@@ -69,7 +79,7 @@ defmodule AshEnterpriseWeb.AssistantComposeLiveTest do
     ])
 
     {:ok, view, _html} = live(conn, "/app/agent")
-    html = ask(view, "SYNTHETIC: show my tasks as a board")
+    html = ask(view, ctx, "SYNTHETIC: show my tasks as a board")
 
     [_, id] = Regex.run(~r/data-surface-id="(s[0-9a-f]+)"/, html)
     assert has_element?(view, ~s(#surface-#{id}[phx-hook="InlineA2ui"]))
@@ -136,6 +146,8 @@ defmodule AshEnterpriseWeb.AssistantComposeLiveTest do
 
     token = AssistantHandoff.token(ctx.user, question)
     {:ok, view, _html} = live(conn, "/app/agent?ask=" <> token)
+    _ = render_async(view, 5_000)
+    run_out!(ctx)
     html = await_answer(view)
 
     # Asked once, as the person's own question in their own thread.
@@ -201,7 +213,7 @@ defmodule AshEnterpriseWeb.AssistantComposeLiveTest do
     ])
 
     {:ok, view, _html} = live(conn, "/app/agent")
-    html = ask(view, "SYNTHETIC: remind me to book the room tomorrow")
+    html = ask(view, ctx, "SYNTHETIC: remind me to book the room tomorrow")
 
     [_, id] = Regex.run(~r/id="confirm-(p[0-9a-f]+)"/, html)
     assert has_element?(view, "#proposal-#{id}", "SYNTHETIC book the room")
@@ -245,7 +257,7 @@ defmodule AshEnterpriseWeb.AssistantComposeLiveTest do
     ])
 
     {:ok, view, _html} = live(conn, "/app/agent")
-    html = ask(view, "SYNTHETIC: approve the vendor contract")
+    html = ask(view, ctx, "SYNTHETIC: approve the vendor contract")
     [_, id] = Regex.run(~r/id="confirm-(p[0-9a-f]+)"/, html)
     assert has_element?(view, "#proposal-#{id}", "completes as approved")
 
@@ -320,7 +332,7 @@ defmodule AshEnterpriseWeb.AssistantComposeLiveTest do
     ])
 
     {:ok, view, _html} = live(conn, "/app/agent")
-    html = ask(view, "SYNTHETIC: remind me to water")
+    html = ask(view, ctx, "SYNTHETIC: remind me to water")
     [_, id] = Regex.run(~r/id="confirm-(p[0-9a-f]+)"/, html)
     view |> element("#cancel-#{id}") |> render_click()
 

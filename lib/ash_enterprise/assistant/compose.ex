@@ -1,13 +1,15 @@
 defmodule AshEnterprise.Assistant.Compose do
   @moduledoc """
-  The assistant's `compose_surface` tool, as a generic action
-  (`AshEnterprise.Assistant` declares it a tool).
+  The assistant's `compose_surface` tool, as a computed read
+  (`AshEnterprise.Assistant` declares it a tool): one row, saying what was
+  shown. A read, so a run takes it in its loop (`AshEnterprise.Assistant.Lookup`).
 
   The model asks for a table, a calendar or a board of the person's own
   records; `AshEnterprise.Assistant.Composer` writes the spec from a curated
   catalogue and resolves it against the host allowlist through
   `AshA2ui.Dynamic.resolve/2`. The tool answers the model with what was shown
-  (or short reasons it was not); the runner hands the request to the page,
+  (or short reasons it was not); the request rides in the row's `surface`,
+  which the page reads off the run's journal (`AshEnterprise.Assistant.Ask`),
   which composes it again as the person and renders it inline in the turn
   (`AshEnterpriseWeb.AssistantLive`). The model never sees a row through this
   tool, and the surface it describes has no form or row action.
@@ -31,8 +33,16 @@ defmodule AshEnterprise.Assistant.Compose do
     require_primary_key? false
   end
 
+  attributes do
+    attribute :shown, :string, public?: true
+    attribute :covers, :string, public?: true
+    attribute :surface, :map, public?: true
+    attribute :notes, {:array, :string}, public?: true
+    attribute :note, :string, public?: true
+  end
+
   actions do
-    action :compose_surface, :map do
+    read :compose_surface do
       description "Show the person a table, calendar or board of their own records."
 
       argument :show, :atom do
@@ -93,7 +103,7 @@ defmodule AshEnterprise.Assistant.Compose do
         description "A short heading for the person."
       end
 
-      run AshEnterprise.Assistant.Tools.ComposeSurface
+      manual AshEnterprise.Assistant.Tools.ComposeSurface
     end
   end
 
@@ -102,6 +112,7 @@ defmodule AshEnterprise.Assistant.Compose do
   effects do
     action :compose_surface,
       kind: :think,
+      read_only?: true,
       destructive?: false,
       idempotent?: true,
       open_world?: false,

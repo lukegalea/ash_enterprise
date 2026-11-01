@@ -2,36 +2,39 @@ defmodule AshEnterprise.Assistant.Tools.Proposals do
   @moduledoc """
   The proposal tools' one implementation (`AshEnterprise.Assistant.Propose`):
   build the `AshEnterprise.AI.Proposal` as the person, pre-check it with
-  `Ash.can?`, and answer the model with the proposal's summary and its wire
-  form (`Proposal.to_wire/1`). Nothing is written.
+  `Ash.can?`, and answer the model with one row: the proposal's summary and
+  its wire form (`Proposal.to_wire/1`). Nothing is written.
 
   A name that does not resolve, or a proposal the person could not carry out,
   is a refusal the model reads — never a guess.
   """
 
-  use Ash.Resource.Actions.Implementation
+  use Ash.Resource.ManualRead
 
   alias AshEnterprise.AI.Proposal
   alias AshEnterprise.Assistant.Lookups.Support
+  alias AshEnterprise.Assistant.Propose
 
   @impl true
-  def run(input, opts, context) do
-    Support.gated(input, context, fn read_opts ->
+  def read(query, _data_layer_query, opts, context) do
+    Support.gated(query, context, fn read_opts ->
       actor = read_opts[:actor]
       tenant = read_opts[:tenant]
 
-      with {:ok, proposal} <- build(opts[:kind], input.arguments, actor, tenant),
+      with {:ok, proposal} <- build(opts[:kind], query.arguments, actor, tenant),
            :ok <- Proposal.authorize(proposal, actor, tenant) do
         {:ok,
-         Support.compact(%{
-           "proposed" => proposal.summary,
-           "proposal" => Proposal.to_wire(proposal),
-           "effect" => proposal.details[:effect],
-           "status" => status(proposal.kind)
-         })}
+         [
+           Support.row(Propose, %{
+             proposed: proposal.summary,
+             proposal: Proposal.to_wire(proposal),
+             effect: proposal.details[:effect],
+             status: status(proposal.kind)
+           })
+         ]}
       else
-        {:error, message} when is_binary(message) -> Support.refused("Not proposed: " <> message)
-        {:error, _other} -> Support.refused("Not proposed: that could not be resolved.")
+        {:error, message} when is_binary(message) -> {:error, "Not proposed: " <> message}
+        {:error, _other} -> {:error, "Not proposed: that could not be resolved."}
       end
     end)
   end

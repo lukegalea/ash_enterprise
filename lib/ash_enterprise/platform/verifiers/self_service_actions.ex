@@ -9,6 +9,9 @@ defmodule AshEnterprise.Platform.Verifiers.SelfServiceActions do
   - A **create** or **read** reaches only rows the actor personally owns
     (`owner_id`), so the resource must be `:user_owned`; on any other
     ownership model there is no owner to bound it by.
+  - A **read on a computed resource** (`Ash.DataLayer.Simple`, no stored
+    rows) is authorized outright, like a generic action: its rows are computed
+    for the actor by reads made as them, a reviewer's judgement in the same way.
   - **Updates and destroys** are refused. Changing or removing an existing
     row is what a role grant is for; self-service only lets a member open and
     see their own.
@@ -22,11 +25,12 @@ defmodule AshEnterprise.Platform.Verifiers.SelfServiceActions do
   def verify(dsl) do
     resource = Verifier.get_persisted(dsl, :module)
     ownership = Verifier.get_option(dsl, [:platform], :ownership, :user_owned)
+    computed? = Ash.DataLayer.data_layer(dsl) == Ash.DataLayer.Simple
 
     dsl
     |> Verifier.get_option([:platform], :self_service, [])
     |> Enum.find_value(:ok, fn name ->
-      case problem(Ash.Resource.Info.action(dsl, name), ownership) do
+      case problem(Ash.Resource.Info.action(dsl, name), ownership, computed?) do
         nil ->
           nil
 
@@ -41,14 +45,15 @@ defmodule AshEnterprise.Platform.Verifiers.SelfServiceActions do
     end)
   end
 
-  defp problem(nil, _ownership), do: "no such action"
-  defp problem(%{type: :action}, _ownership), do: nil
+  defp problem(nil, _ownership, _computed?), do: "no such action"
+  defp problem(%{type: :action}, _ownership, _computed?), do: nil
+  defp problem(%{type: :read}, _ownership, true), do: nil
 
-  defp problem(%{type: type}, :user_owned) when type in [:create, :read], do: nil
+  defp problem(%{type: type}, :user_owned, _computed?) when type in [:create, :read], do: nil
 
-  defp problem(%{type: type}, ownership) when type in [:create, :read],
+  defp problem(%{type: type}, ownership, _computed?) when type in [:create, :read],
     do: "a #{type} is bounded by owner_id, which a #{inspect(ownership)} resource does not have"
 
-  defp problem(%{type: type}, _ownership),
+  defp problem(%{type: type}, _ownership, _computed?),
     do: "#{type} actions cannot be self-service; changing an existing row takes a role grant"
 end
