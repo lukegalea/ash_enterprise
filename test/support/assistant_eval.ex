@@ -29,6 +29,14 @@ defmodule AshEnterprise.Test.AssistantEval do
       expected none, for a decision that is not the person's, and got none);
     * **latency** — p50 and p95 of each answer's wall time, and model calls
       per answer.
+
+  ## The judgments beside it
+
+  `grade/2` grades the answers against the `agent_reply_style` family and
+  reads its gate report; `grade_lines/1` prints it beside the scorecard.
+  It runs only with a judge instrument and the evaluation tenant. Until
+  that family has a certified, published band table, the report reads
+  `unmeasured`: that is what it should say, and it is never a pass.
   """
 
   alias AshEnterprise.Assistant.Lookups.Support
@@ -37,6 +45,9 @@ defmodule AshEnterprise.Test.AssistantEval do
   alias AshEnterprise.Canonical.{Conversation, Message, Person, Task}
   alias AshEnterprise.Mdm.MatchCandidate
   alias AshEnterprise.Platform.LocalTime
+  alias AshEnterprise.Platform.SystemActor
+  alias AshEnterprise.Quality
+  alias AshEnterprise.Quality.{AgentReply, Gate, Grader}
   alias AshEnterprise.Security.ActorContext
   alias AshEnterprise.Test.DailyFixtures, as: D
 
@@ -898,6 +909,7 @@ defmodule AshEnterprise.Test.AssistantEval do
     %{
       id: kase.id,
       status: status,
+      turn_id: turn && turn.id,
       latency_ms: latency,
       steps: (turn && turn.iterations) || 0,
       tools: Enum.map(calls, &Map.take(&1, [:name, :arguments, :ok])),
@@ -1086,10 +1098,183 @@ defmodule AshEnterprise.Test.AssistantEval do
     File.write!(path, Jason.encode_to_iodata!(json_safe(body), pretty: true))
   end
 
+  defp json_safe(%DateTime{} = at), do: at
+  defp json_safe(%NaiveDateTime{} = at), do: at
   defp json_safe(%{} = map), do: Map.new(map, fn {k, v} -> {k, json_safe(v)} end)
   defp json_safe(list) when is_list(list), do: Enum.map(list, &json_safe/1)
   defp json_safe(tuple) when is_tuple(tuple), do: tuple |> Tuple.to_list() |> json_safe()
   defp json_safe(other), do: other
+
+  # -- grading the answers (S1-95) ---------------------------------------------------------
+
+  @family :agent_reply_style
+
+  @doc """
+  Grades each case's answer against the `agent_reply_style` family
+  (`AshEnterprise.Quality.Grader`) and reads the family's gate report over
+  them (`AshEnterprise.Quality.Gate.family_report/3`).
+
+  It grades only when it is given both:
+
+    * `:instrument`: the judge's identity, `%{model_version:,
+      model_digest:, runtime_version:}`, which every judgment records;
+    * `:tenant`: the evaluation tenant the cases ran in, which holds the
+      ledger and the bandings.
+
+  Without either nothing is judged, and the result says which is missing:
+  `%{graded?: false, missing: [...], family:, verdict: :unmeasured}`. An
+  ungraded family is unmeasured, never a pass.
+
+  Each answer is the subject `"agent_reply:<run_id>/<case_id>/1"`, read
+  from its turn as `:actor` (default the `oban` system actor). A case
+  whose answer cannot be read (no turn, a turn that is not an answer) is
+  not judged; it stays in the report as an unknown reply, listed under
+  `no_answer`, so it counts against the rate and never for it.
+
+  `:run_id` names the run (default from the clock). `:judgments`,
+  `:resolver` and `:mode` go to the grader; `:band_table`, `:min_grade`,
+  `:now` and the thresholds (`:max_unknown`, `:zero_violations`,
+  `:max_violations`, `:min_pass_rate`) go to the report.
+
+  Returns `%{graded?: true, family:, run_id:, no_answer:, grading:,
+  report:, verdict:}`, where `grading` is the grader's entries.
+  """
+  def grade(results, opts) do
+    case Enum.filter([:instrument, :tenant], &(Keyword.get(opts, &1) == nil)) do
+      [] -> graded(results, opts)
+      missing -> %{graded?: false, missing: missing, family: @family, verdict: :unmeasured}
+    end
+  end
+
+  defp graded(results, opts) do
+    run_id = Keyword.get_lazy(opts, :run_id, fn -> "eval-#{System.os_time(:second)}" end)
+    tenant = Keyword.fetch!(opts, :tenant)
+    actor = Keyword.get(opts, :actor, SystemActor.oban())
+
+    subjects = Enum.map(results, &subject(&1, run_id, actor, tenant))
+    replies = for {:reply, reply} <- subjects, do: reply
+
+    grading =
+      Grader.grade(
+        replies,
+        [tenant: tenant, instrument: Keyword.fetch!(opts, :instrument)] ++
+          Keyword.take(opts, [:judgments, :resolver, :mode])
+      )
+
+    report =
+      Gate.family_report(
+        Enum.map(subjects, &elem(&1, 1)),
+        @family,
+        [tenant: tenant, grading: grading] ++
+          Keyword.take(opts, [
+            :band_table,
+            :min_grade,
+            :now,
+            :max_unknown,
+            :zero_violations,
+            :max_violations,
+            :min_pass_rate
+          ])
+      )
+
+    %{
+      graded?: true,
+      family: @family,
+      run_id: run_id,
+      no_answer: for({:no_answer, reply} <- subjects, do: reply.id),
+      grading: grading,
+      report: report,
+      verdict: report.verdict
+    }
+  end
+
+  # {:reply, AgentReply} for an answer that reads, or {:no_answer, stand-in}:
+  # a subject with no text and no facts, so the report reads it unknown.
+  defp subject(result, run_id, actor, tenant) do
+    args = %{run_id: run_id, case_id: result.id, epoch: 1}
+
+    read =
+      if result[:turn_id],
+        do: Quality.reply_from_turn(result.turn_id, args, actor: actor, tenant: tenant)
+
+    case read do
+      {:ok, %AgentReply{} = reply} ->
+        {:reply, reply}
+
+      _none ->
+        {:no_answer, %{id: "agent_reply:#{run_id}/#{result.id}/1", text: "", used_tools: false}}
+    end
+  end
+
+  @doc """
+  The grade (`grade/2`) as lines of counts and rates, to print beside the
+  scorecard; never an answer.
+  """
+  def grade_lines(%{graded?: false, missing: missing, family: family}) do
+    [
+      "judgments        #{family}: unmeasured, not graded (" <>
+        Enum.map_join(missing, " and ", &missing_label/1) <>
+        " given). Not a pass."
+    ]
+  end
+
+  def grade_lines(%{graded?: true, family: family, report: report} = graded) do
+    replies = report.replies
+    grading = report.grading
+
+    [
+      "judgments        #{family}: #{report.verdict}#{reasons(report.verdict_reasons)}; " <>
+        "shown beside the scorecard, it gates no release yet",
+      "  band table     #{band_table_label(report)}",
+      "  replies        #{report.n_subjects} (#{length(graded.no_answer)} with no answer to grade): " <>
+        "#{replies.compliant} compliant · #{replies.violating} violating · " <>
+        "#{replies.unknown} unknown",
+      "  rate           #{share(report.rate)} compliant of all replies (an unknown counts " <>
+        "against it) · #{share(report.decided_rate)} of decided replies (unknowns left out)",
+      "  unknown        #{frequencies(report.unknown_reasons)} · " <>
+        "#{report.review_open || 0} open review(s) awaiting a person's verdict",
+      "  judge          #{grading.judged} answered · #{grading.judge_errors} model error(s), " <>
+        "reported and not counted (those pairs read unknown) · " <>
+        "#{grading.not_banded} answered but not banded",
+      "  violations     " <> violations(report.per_question)
+    ]
+  end
+
+  defp missing_label(:instrument), do: "no judge instrument"
+  defp missing_label(:tenant), do: "no evaluation tenant"
+
+  defp reasons([]), do: ""
+  defp reasons(reasons), do: " (" <> Enum.map_join(reasons, ", ", &reason/1) <> ")"
+
+  defp reason({:violation, name}), do: "a violation of #{name}"
+  defp reason(reason), do: reason |> to_string() |> String.replace("_", " ")
+
+  defp band_table_label(%{band_table: nil}), do: "none published"
+
+  defp band_table_label(%{band_table: table, certified_at: nil}),
+    do: "v#{table.definition_version} published, not certified"
+
+  defp band_table_label(%{band_table: table, certified_at: at}),
+    do: "v#{table.definition_version}, certified #{Date.to_iso8601(at)}"
+
+  defp share(nil), do: "n/a"
+  defp share(rate), do: "#{round(rate * 100)}%"
+
+  defp frequencies(counts) when map_size(counts) == 0, do: "none"
+
+  defp frequencies(counts),
+    do: counts |> Enum.sort() |> Enum.map_join(" · ", fn {reason, n} -> "#{reason} #{n}" end)
+
+  defp violations(per_question) do
+    case for({name, %{violating: n}} <- Enum.sort(per_question), n > 0, do: "#{name} #{n}") do
+      [] -> "none"
+      named -> Enum.join(named, " · ")
+    end
+  end
+
+  @doc "The grade as JSON-ready data for `write!/4`'s meta: the report, never the grader's raw entries."
+  def grade_summary(%{graded?: false} = ungraded), do: ungraded
+  def grade_summary(%{graded?: true} = graded), do: Map.drop(graded, [:grading])
 
   # -- the oracle ----------------------------------------------------------------------------
 
