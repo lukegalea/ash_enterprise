@@ -27,6 +27,10 @@ defmodule AshEnterprise.Process.DecisionResolver do
   get escalated" answerable six months later, and it is the thing a hand-written `case` in an
   action cannot produce at all.
 
+  So the row is required (`record: :required`): a decision whose row could not be written
+  fails the business rule task, and the process does not route on an answer nobody can
+  later show. The node is retried like any other failure.
+
   The resolver also hands the engine the ids of the rules that matched, which the engine
   writes onto the instance's `:decision_evaluated` event beside the version that decided.
   """
@@ -50,7 +54,8 @@ defmodule AshEnterprise.Process.DecisionResolver do
     case AshEnterprise.Decisions.evaluate(
            ref,
            inputs,
-           [tenant: tenant, correlation_id: correlation_id(ctx)] ++ decision_opt(ctx)
+           [tenant: tenant, correlation_id: correlation_id(ctx), record: :required] ++
+             decision_opt(ctx)
          ) do
       {:ok, result} ->
         {:ok,

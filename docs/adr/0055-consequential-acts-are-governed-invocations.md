@@ -2,7 +2,7 @@
 
 - **Status:** accepted (2026-10-23); the invocation record, `invoke`, the lease and the `:execute` handoff built
   (2026-10-29); reconciliation, typed business errors and the automation principal built (2026-10-29); approval
-  binding built (2026-10-30)
+  binding built (2026-10-30); BPMN service tasks through `invoke` built (2026-11-01)
 - **Date:** 2026-10-23
 - **Amended:** 2026-10-29 — the coding-agent bridge; see
   [Amendment](#amendment-2026-10-29--the-coding-agent-bridge). 2026-11-01 — the sole-administrator rule; see
@@ -378,6 +378,29 @@ first, and each is now the package's (ash_agent `AshAgent.Invocation`), with the
   task as the requester (allowed in `confirm` when they hold the approver role), and runs `apply_decision` and
   `execute` inline. Details are in the amendment to [ADR 0061](0061-judgment-surfaces-ship-with-the-package.md).
 - **Tests.** `test/ash_enterprise_web/judgment_surfaces_test.exs`.
+
+## Built, 2026-11-01: BPMN service tasks through invoke
+
+- **The key.** A registry entry of `AshEnterprise.Process.ActionInvoker` that names a declared target
+  (`invoke: {resource, action}`) runs through `AshEnterprise.Process.ServiceInvocation`: `Execution.invoke` with the
+  engine's invocation key written out, `bpmn:<instance>:<token>:<node>`, the same for every redelivery of one
+  execution of the node (ash_bpmn B5), and the instance and node as its parent. A redelivery gets the row back and
+  answers with what it recorded; the target runs once. Executed inline, in the advance job.
+- **Who it runs as.** The instance's starter (`started_by_id`), rebuilt from grant rows when the task asks and again
+  at the claim; a starter who is no longer active stops the task before anything is asked. The definition's
+  automation principal is not built: no definition declares one, and where a process would declare it, and which
+  agent's start grant it would need, are still open. Entries that name no target keep `process`.
+- **What may be named.** Only a target with `approval: :none` and `open_world?: false`. `ServiceInvocation.runnable/1`
+  refuses the others, and a diagram naming such an entry is refused at publish.
+- **Typed failure.** A `failed` row of class `:business` is `{:bpmn_error, code, %{"invocation_id" => id}}`, which an
+  error boundary on that `errorCode` catches; any other final failure is an error the engine retries (and the row
+  answers the same each time). The first targets are the clinic's evidence checks,
+  `Credentialing.Credential.check_documents` and `check_expiry`.
+- **Decisions are recorded or fail.** The process's business rule tasks, System One banding and MDM banding evaluate
+  with `record: :required`: a decision whose `Evaluation` row could not be written is an error, not an unrecorded
+  answer. The `judge_*` calls that run inside an invocation already carry its id through `SystemOne.judge_context`.
+- **Tests.** `test/ash_enterprise/process/invocation_key_test.exs`, `evidence_check_boundary_test.exs`,
+  `decision_resolver_test.exs`; battery scenario `process_service_task_invocation_test.exs`.
 
 ## Amendment, 2026-10-29 — the coding-agent bridge
 

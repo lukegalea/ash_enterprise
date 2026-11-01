@@ -113,7 +113,8 @@ defmodule AshEnterprise.Mdm.Banding do
   seed and a table calibration earned read, through `number(...)`.
   """
   def band(score, tenant, opts \\ []) do
-    opts = Keyword.merge(opts, tenant: tenant, record: true)
+    # Required: a band that admits a match rests on a recorded evaluation, or is an error.
+    opts = Keyword.merge(opts, tenant: tenant, record: :required)
 
     with {:ok, result} <-
            Decisions.evaluate(@definition_key, %{score_input() => score_string(score)}, opts),

@@ -26,6 +26,10 @@ defmodule AshEnterprise.SystemOne.Banding.Resolver do
   spelled as a definition key). Override per family with
   `config :ash_enterprise, :band_table_keys, %{family => key}`.
 
+  The `Evaluation` row is required (`record: :required`): a band table whose
+  evaluation could not be recorded is an error, so a banding never rests on
+  an evaluation nobody wrote (or on an earlier one read back in its place).
+
   Tests stub the whole seam (an arity-3 function); this module exists so
   the live path is compile-checked and one place.
   """
@@ -44,7 +48,7 @@ defmodule AshEnterprise.SystemOne.Banding.Resolver do
          {:ok, result} <-
            Decisions.evaluate(key, inputs,
              tenant: tenant,
-             record: true
+             record: :required
            ),
          {:ok, recorded} <- recorded_evaluation(key, tenant) do
       # matched_rule_ids and the evaluation id come from the RECORDED row

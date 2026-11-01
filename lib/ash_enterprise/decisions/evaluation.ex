@@ -24,4 +24,8 @@ defmodule AshEnterprise.Decisions.Evaluation do
       audit?: false,
       archival?: false
     ]
+
+  changes do
+    change AshEnterprise.Decisions.Changes.RecordingFaultPoint, on: [:create]
+  end
 end
