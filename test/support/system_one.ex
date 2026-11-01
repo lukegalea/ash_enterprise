@@ -375,7 +375,9 @@ defmodule AshEnterprise.SystemOne.Support do
         :subject_type,
         :subject_id,
         :state_digest,
-        :probabilities
+        :probabilities,
+        :model_digest,
+        :runtime_version
       ])
 
     Judgment

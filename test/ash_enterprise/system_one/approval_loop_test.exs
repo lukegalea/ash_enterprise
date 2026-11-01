@@ -186,6 +186,34 @@ defmodule AshEnterprise.SystemOne.ApprovalLoopTest do
       refute is_nil(sample.gold_label_digest)
     end
 
+    test "a verdict on a judgment with no instrument identity records, with no sample", ctx do
+      judgment = record!(tenant: ctx.org, model_digest: nil, runtime_version: nil)
+
+      verdict =
+        HumanVerdict
+        |> Ash.Changeset.for_create(
+          :record,
+          %{
+            judgment_id: judgment.id,
+            question_hash: judgment.question_hash,
+            model_answer: %{"kind" => "noul"},
+            human_value: "false",
+            reviewer: to_string(ctx.person.email),
+            basis: :review_task
+          },
+          actor: ctx.person,
+          tenant: ctx.org
+        )
+        |> Ash.create!()
+
+      assert verdict.human_value == "false"
+
+      assert [] =
+               CalibrationSample
+               |> Ash.Query.filter(observation_id == ^judgment.id)
+               |> Ash.read!(authorize?: false)
+    end
+
     test "review_task and audit_sample feed the slot; an override does not", ctx do
       # The slot identity pins one row per (observation, question, model,
       # region): the two feeding bases land on DIFFERENT observations.
