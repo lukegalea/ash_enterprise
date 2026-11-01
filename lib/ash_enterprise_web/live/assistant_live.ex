@@ -1460,8 +1460,9 @@ defmodule AshEnterpriseWeb.AssistantLive do
 
   def reason_message("not_published"),
     do:
-      "The assistant is not set up in this organization yet: an administrator registers " <>
-        "and publishes the assistant agent, and another approves it."
+      "The assistant is not set up in this organization yet: an administrator requests " <>
+        "its publish, another administrator approves it (or, where the organization " <>
+        "allows it, its only administrator), and each member is given a start grant."
 
   def reason_message("not_permitted"),
     do:
