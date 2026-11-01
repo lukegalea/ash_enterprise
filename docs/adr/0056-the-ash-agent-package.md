@@ -238,10 +238,33 @@ and the host's `fragments:` lists, with no data migration, because no table name
   repair turns, then the run fails as `:rejected` (`output_uncastable`).
 - **Cancellation.** `request_cancel` (by grant) cancels the run and its invocations that have not started; an
   executing one records the request; nothing done is undone.
-- **Sealing.** `input`, `output` and each step's `parts` are sealed under the requester's erasure scope, as an
-  invocation's arguments are. Moving them under the subject's scope is AGT-32.
+- **Sealing.** `input`, `output` and each step's `parts` are sealed under the subject's erasure scope, as an
+  invocation's arguments are (built 2026-11-01, AGT-32; see "Erasure of a run" below).
 - **Not built here.** Budget reservation across a root run and `extend` (AGT-30), waiting on a person (AGT-31), the
   assistant on runs (AGT-33), requesterless starts.
 - **Tests.** Package: `test/ash_agent/run_test.exs`. Here: `test/ash_enterprise/execution/run_test.exs`, and in the
   durability tier `run_resume_test.exs` (F1), `wakeup_test.exs` (invariant 9) and `cancellation_test.exs`
   (invariant 5).
+
+### Erasure of a run (built, 2026-11-01)
+
+A clinician who asks to be erased while audit retention applies must be erased from every copy an agent run made of
+them: its input and answer, each journal message, each tool call's arguments and result. One scope seals them all,
+so one shred reaches them all ([ADR 0024](0024-audit-retention-and-erasure.md)).
+
+- **A run names what it is about.** `start` takes `subject_type` and `subject_id` (the package reads the record as the
+  starter, so a record they cannot read is refused like one that does not exist, and leaves it in the changeset
+  context as an invocation's `request` leaves its subject). `Changes.SealingScope` seals the run under that record's
+  `erasure_scope_id` when it has one, and otherwise, as before, under the requester's own scope.
+- **Its steps and its tool calls follow it.** A step takes the run's scope (`Changes.FromRun`). A tool call takes the
+  scope of the record its target acts on when that record has one (ADR 0055's rule), and otherwise its run's: the
+  model wrote the arguments from what the run was given and read. A direct request with neither keeps the
+  requester's scope.
+- **Shredding reports, it does not delete.** Once the scope is shredded, `Step.parts`, `Invocation.args` and
+  `result`, and the run's `input` and `output`, read as `AshEnterprise.Erasure.Shredded`, and `Step.recorded?` and
+  `Invocation.recorded?` are false. The rows, their order in the journal, their transitions and the audit hash chain
+  stay; the audit log only ever held ciphertext or nil for these fields (spike S2), so the chain still verifies.
+  Nothing new lands under a shredded scope, so a run about an erased subject cannot start.
+- **One scope per row.** A run about one subject that acts on a record sealed under another seals that call under
+  the record's scope; content that mentions several people lives under one of them, as the scope model says.
+- **Tests.** `test/ash_enterprise/execution/run_erasure_test.exs` (F11).

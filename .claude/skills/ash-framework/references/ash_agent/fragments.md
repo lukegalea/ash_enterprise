@@ -268,7 +268,10 @@ end
 
 1. Start a run with `start` (the agent's key and the request as `input`). It pins the key's latest published version
    and refuses a drifted one. Who may start which agent, and who the run executes as, are your
-   `c:AshAgent.ExecutionIdentity.run_principal/3`'s answer; a refusal is `AshAgent.Invocation.NoPrincipal`.
+   `c:AshAgent.ExecutionIdentity.run_principal/3`'s answer; a refusal is `AshAgent.Invocation.NoPrincipal`. A run
+   about a record names it (`subject_type`, `subject_id`): the starter must be able to read it, and your own changes
+   on `start` find it in the changeset context as `ash_agent.subject`, where an invocation's `request` leaves its
+   subject. Seal the run's content under the subject's key there, so erasing the subject reaches the run.
 2. Never run a tool's effect in the tool loop. Only an Ash `:read` action whose effects declaration has
    `open_world?: false` runs in the loop (as the executing actor, and only when `Ash.can?` says the actor may). Every
    other call stops the loop and becomes an invocation keyed `run:<run id>:<step seq>:<tool call id>`, with the run as
@@ -304,5 +307,5 @@ end
 | The `:step` and `:recover` triggers | triggers.md |
 | `Wake` on the invocation resource | A finished tool call enqueues its run's step |
 | A check that a tool call's parent run is the requester's | `invoke` records whatever `parent` it is given |
-| Sealing | `input`, `output` and `parts` |
+| Sealing | `input`, `output` and `parts`, under the run's subject's key when it names one |
 | `AshAgent.Runtime` | The model, and the guarded transport that records each call |

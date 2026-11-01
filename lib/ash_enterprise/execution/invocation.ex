@@ -27,11 +27,13 @@ defmodule AshEnterprise.Execution.Invocation do
       (`AshEnterprise.Execution.Validations.OwnsParent`), so calling `request` directly
       gains nothing over `invoke`.
     * **Sealing.** `args` and `result` are sealed under an erasure scope (ADR 0024): the
-      subject's when the target acts on a record that has one, otherwise the requester's
-      own (`AshEnterprise.Execution.Changes.SealingScope`). `args_digest` is an HMAC under
-      a key derived from that scope's key (`AshEnterprise.Execution.DigestKey`), so a
-      shred makes both unreadable and the digest unrecomputable. No plaintext copy is
-      derived (spike S2).
+      subject's when the target acts on a record that has one; for an agent run's tool
+      call with no such subject, its run's (the run's subject's, when it names one);
+      otherwise the requester's own (`AshEnterprise.Execution.Changes.SealingScope`).
+      `args_digest` is an HMAC under a key derived from that scope's key
+      (`AshEnterprise.Execution.DigestKey`), so a shred makes both unreadable and the
+      digest unrecomputable; `recorded?` is then false. No plaintext copy is derived
+      (spike S2).
     * **Identity.** `AshEnterprise.Execution.Identity` names the principal (a person, or
       an automation principal acting for one, ADR 0043) and rebuilds its `ActorContext`
       from grant rows at every claim.
@@ -241,6 +243,14 @@ defmodule AshEnterprise.Execution.Invocation do
         worker_module_name AshEnterprise.Execution.Invocation.ApplyResolutionWorker
         scheduler_module_name AshEnterprise.Execution.Invocation.ApplyResolutionScheduler
       end
+    end
+  end
+
+  calculations do
+    calculate :recorded?, :boolean, expr(erasure_scope.status == :active) do
+      public? true
+
+      description "False once the erasure scope is shredded: `args` and `result` then read as erased."
     end
   end
 

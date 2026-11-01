@@ -204,7 +204,9 @@ the host's `AshAgent.Approvals` implementation and the apply-decision trigger.
 - **The parent.** A request may name only a parent invocation the requester owns or a process instance they started;
   a `run_id` is refused until runs exist. Calling `request` directly gains nothing over `invoke`.
 - **Sealing.** `args` and `result` are sealed under the subject's erasure scope when the target acts on a record that
-  has one, otherwise under the requester's own `data_subject` scope (ref `invocation_requester:<user id>`).
+  has one; an agent run's tool call with no such record takes its run's scope (amended 2026-11-01, see ADR 0056,
+  "Erasure of a run"); otherwise they are sealed under the requester's own `data_subject` scope (ref
+  `invocation_requester:<user id>`).
   `args_digest` is an HMAC-SHA256 over RFC 8785 canonical JSON, keyed by an HMAC of a fixed label under that scope's
   data key, so a shred leaves the digest unrecomputable. A requester whose scope was shredded cannot invoke until a
   scope-rotation rule exists.

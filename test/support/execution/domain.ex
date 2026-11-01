@@ -11,6 +11,10 @@ defmodule AshEnterprise.Test.Execution do
       define :list_notes, action: :read
     end
 
+    resource AshEnterprise.Test.Execution.ClinicianFile do
+      define :open_clinician_file, action: :open, args: [:title, :erasure_scope_id]
+    end
+
     resource AshEnterprise.Test.Execution.ReferralBoard
     resource AshEnterprise.Test.Execution.LeakyNote
   end

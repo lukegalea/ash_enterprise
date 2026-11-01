@@ -32,10 +32,14 @@ defmodule AshEnterprise.Execution.Run do
     * **The model.** `AshEnterprise.Execution.AgentRuntime`: the in-zone profile only,
       through the guarded ReqLLM module, so every call is an `AshEnterprise.AI.ModelCall`
       named `run:<run id>:<step seq>`.
-    * **Sealing.** `input` and `output` are sealed under the requester's erasure scope
+    * **Sealing.** `input` and `output` are sealed under the subject's erasure scope
       (ADR 0024), as an invocation's arguments are
-      (`AshEnterprise.Execution.Changes.SealingScope`); the run's steps are sealed under
-      the same scope.
+      (`AshEnterprise.Execution.Changes.SealingScope`): a run that names the record it is
+      about (`subject_type`, `subject_id`, read as the person starting it) is sealed
+      under that record's scope when it has one, any other under the requester's own.
+      The run's steps, and its tool calls that act on no sealed record, are sealed under
+      the same scope, so shredding a subject's scope erases every copy a run made of
+      them while the rows, their transitions and the audit chain stay.
     * **Correlation.** `start` records the correlation id and trace context it ran
       under; every step runs under them again, so a run's audited writes and spans join
       the request that started it.

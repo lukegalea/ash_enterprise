@@ -13,7 +13,10 @@ defmodule AshEnterprise.Execution.Step do
     * **Ownership from the run.** `owner_id` is the run's
       (`AshEnterprise.Execution.Changes.FromRun`), so the person who started a run reads
       its steps through the same grants that let them read the run, with no join.
-    * **Sealing.** `parts` is sealed under the run's erasure scope (ADR 0024).
+    * **Sealing.** `parts` is sealed under the run's erasure scope (ADR 0024): its
+      subject's, when the run names one. Once that scope is shredded, `parts` reads as
+      `AshEnterprise.Erasure.Shredded` and `recorded?` is false; the step's place in
+      the journal (`seq`, `role`, `tool_calls`) stays.
     * **Not audited** (`audit?: false`): the journal is the append-only content ledger,
       as `AshEnterprise.AI.ModelCall` is; the run transition that commits with each step
       is audited.
@@ -50,6 +53,13 @@ defmodule AshEnterprise.Execution.Step do
   changes do
     change AshEnterprise.Execution.Changes.FromRun, on: [:create]
     change {AshEnterprise.Erasure.Changes.SealUnderScope, fields: [:parts]}, on: [:create]
+  end
+
+  calculations do
+    calculate :recorded?, :boolean, expr(erasure_scope.status == :active) do
+      public? true
+      description "False once the step's erasure scope is shredded: `parts` then reads as erased."
+    end
   end
 
   relationships do
