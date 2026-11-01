@@ -20,7 +20,7 @@ defmodule AshEnterprise.Test.Execution.Runs do
   alias AshEnterprise.AI.ModelCall
   alias AshEnterprise.Bpmn.HumanTask
   alias AshEnterprise.Execution
-  alias AshEnterprise.Execution.{AgentRuntime, Invocation}
+  alias AshEnterprise.Execution.Invocation
   alias AshEnterprise.Platform.SystemActor
   alias AshEnterprise.Test.AssistantFixtures
   alias AshEnterprise.Test.AssistantFixtures.ScriptedModel
@@ -51,18 +51,7 @@ defmodule AshEnterprise.Test.Execution.Runs do
   Configures the in-zone profile and routes every run's model calls to the scripted
   model. Restored on exit.
   """
-  def in_zone! do
-    :ok = AssistantFixtures.in_zone!()
-    previous = Application.get_env(:ash_enterprise, AgentRuntime)
-
-    Application.put_env(:ash_enterprise, AgentRuntime, req_llm_opts: [downstream: ScriptedModel])
-
-    on_exit(fn ->
-      if previous,
-        do: Application.put_env(:ash_enterprise, AgentRuntime, previous),
-        else: Application.delete_env(:ash_enterprise, AgentRuntime)
-    end)
-  end
+  def in_zone!, do: AssistantFixtures.in_zone!()
 
   @doc "The script the model follows, as `ScriptedModel.script!/1` takes it."
   def script!(replies), do: ScriptedModel.script!(replies)
@@ -74,7 +63,19 @@ defmodule AshEnterprise.Test.Execution.Runs do
   request asks for (`authority:`, `requesterless:`).
   """
   def published!(clinic, choice \\ %{}, agent \\ NoteTaker) do
-    %{admin: admin, approver: approver, tenant: tenant} = clinic
+    version = publish!(clinic.admin, clinic.approver, agent, choice)
+    {:ok, %{key: key}} = AshAgent.Agent.declaration(agent)
+    Authority.start_grant!(clinic.admin, clinic.nurse, key)
+    version
+  end
+
+  @doc """
+  Publishes the agent declared in `agent` (a module) in `admin`'s tenant: registered
+  from code, asked for by `admin`, approved by `approver`, applied and run as the job
+  runner runs it. `choice` is what the publish request asks for.
+  """
+  def publish!(admin, approver, agent, choice \\ %{}) do
+    tenant = admin.tenant
     draft = Execution.register_agent_from_code!(agent, actor: admin.actor, tenant: tenant)
 
     %{"invocation_id" => id} =
@@ -92,8 +93,6 @@ defmodule AshEnterprise.Test.Execution.Runs do
 
     %{status: :ready} = Execution.apply_invocation_decision!(row, oban(tenant))
     {:ok, :succeeded} = Executor.execute(Invocation, row.id, oban(tenant))
-    {:ok, %{key: key}} = AshAgent.Agent.declaration(agent)
-    Authority.start_grant!(admin, clinic.nurse, key)
 
     Execution.get_agent_version!(draft.id, authorize?: false, tenant: tenant)
   end

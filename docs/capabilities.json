@@ -240,12 +240,12 @@
       "area": "agents",
       "capability": "Model invocation and streaming",
       "status": "existing",
-      "summary": "Model calls go through one guard that can confine them to in-zone models; every call, streamed or not, is recorded structurally without content; the assistant runs a streamed tool loop.",
+      "summary": "Model calls go through one guard that can confine them to in-zone models; every call, streamed or not, is recorded structurally without content; the assistant answers on a durable agent run, one guarded model call per step.",
       "deps": ["req_llm"],
       "tests": [
         {"file": "test/ash_enterprise/ai/models_test.exs", "test": "on: a hosted call is refused before anything is sent, and the refusal recorded"},
         {"file": "test/ash_enterprise/ai/models_test.exs", "test": "a stream is recorded with its usage once it has been read"},
-        {"file": "test/ash_enterprise/assistant/runner_test.exs", "test": "calls tools across several steps, then answers with citations"}
+        {"file": "test/ash_enterprise/assistant/ask_test.exs", "test": "it reads in its loop across several steps, then answers with citations"}
       ]
     },
     {
@@ -266,10 +266,13 @@
       "id": "durable-agent-execution",
       "area": "agents",
       "capability": "Durable agent execution",
-      "status": "missing",
-      "summary": "An assistant run lives in a temporary task and writes its answer only at the end; a run whose process dies is failed rather than resumed.",
+      "status": "existing",
+      "summary": "An assistant answer is an agent run: one model call per job, a journal a resumed step reads, and tool calls that run once. A worker killed mid-answer leaves a run the sweep resumes, and the answer is recorded once (durability tier: test/ash_enterprise/assistant/durable_answer_test.exs).",
       "deps": [],
-      "tests": []
+      "tests": [
+        {"file": "test/ash_enterprise/assistant/ask_test.exs", "test": "a model call that fails leaves the run to be tried again, not a lost answer"},
+        {"file": "test/ash_enterprise/assistant/ask_test.exs", "test": "it reads in its loop across several steps, then answers with citations"}
+      ]
     },
     {
       "id": "tool-approvals",
@@ -317,7 +320,7 @@
       "deps": [],
       "tests": [
         {"file": "test/ash_enterprise/ai/models_test.exs", "test": "with an in-zone profile it is the default, with the profile's transport"},
-        {"file": "test/ash_enterprise/assistant/runner_test.exs", "test": "with no in-zone profile nothing is asked: no hosted fallback"}
+        {"file": "test/ash_enterprise/assistant/ask_test.exs", "test": "with no in-zone profile nothing is asked: no hosted fallback"}
       ]
     },
     {
@@ -335,10 +338,10 @@
       "capability": "Agent memory",
       "status": "partial",
       "summary": "Conversations are stored as threads of turns, sealed, owner-only and erasable; the next question carries the conversation so far.",
-      "gap": "A fixed window of recent turns, text only; no journal of the steps a run took.",
+      "gap": "A fixed window of recent turns, text only: each answer's run journals its steps, but the next question carries only the turns' text.",
       "deps": [],
       "tests": [
-        {"file": "test/ash_enterprise/assistant/runner_test.exs", "test": "the next question carries the conversation so far, as text only"}
+        {"file": "test/ash_enterprise/assistant/ask_test.exs", "test": "the next question carries the conversation so far, as text only"}
       ]
     },
     {
@@ -436,7 +439,7 @@
       "gap": "No tools over process instances, decisions or model calls, so it cannot yet answer why a given execution went the way it did.",
       "deps": [],
       "tests": [
-        {"file": "test/ash_enterprise/assistant/runner_test.exs", "test": "calls tools across several steps, then answers with citations"},
+        {"file": "test/ash_enterprise/assistant/ask_test.exs", "test": "it reads in its loop across several steps, then answers with citations"},
         {"file": "test/ash_enterprise/lineage_test.exs", "test": "the ACP prompt reads the same graph as the actor"}
       ]
     },

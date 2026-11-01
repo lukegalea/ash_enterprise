@@ -1,6 +1,6 @@
 defmodule AshEnterprise.Assistant.Lookups.Messages do
   @moduledoc """
-  `Lookup.read_messages`: the messages themselves, newest first — in one
+  `Lookup.Message.read_messages`: the messages themselves, newest first — in one
   conversation (by its ref) or across all of them by sender, text and
   window (default `last_30_days`; any time within one conversation).
 
@@ -11,10 +11,11 @@ defmodule AshEnterprise.Assistant.Lookups.Messages do
   scanned and #{20} returned, each body clipped to #{600} characters.
   """
 
-  use Ash.Resource.Actions.Implementation
+  use Ash.Resource.ManualRead
 
   require Ash.Query
 
+  alias AshEnterprise.Assistant.Lookup
   alias AshEnterprise.Assistant.Lookups.{Conversations, Support}
   alias AshEnterprise.Canonical.{Conversation, Message}
 
@@ -23,25 +24,18 @@ defmodule AshEnterprise.Assistant.Lookups.Messages do
   @body 600
 
   @impl true
-  def run(input, _opts, context) do
-    Support.gated(input, context, fn opts ->
-      args = input.arguments
+  def read(query, _data_layer_query, _opts, context) do
+    Support.gated(query, context, fn opts ->
+      args = query.arguments
 
       with {:ok, conversation_id} <- conversation_id(args[:conversation]),
            {:ok, bounds} <- bounds(args[:window], conversation_id),
-           {:ok, messages} <- read(conversation_id, args[:person], bounds, opts) do
-        matched = Enum.filter(messages, &Support.matches?(Support.text(&1.body), args[:text]))
-
+           {:ok, messages} <- scan(conversation_id, args[:person], bounds, opts) do
         {:ok,
-         %{
-           "window" => Support.window_label(bounds),
-           "count" => length(matched),
-           "messages" => matched |> Enum.take(@shown) |> Enum.map(&row/1)
-         }
-         |> Support.compact()}
-      else
-        {:error, message} when is_binary(message) -> Support.refused(message)
-        {:error, error} -> {:error, error}
+         messages
+         |> Enum.filter(&Support.matches?(Support.text(&1.body), args[:text]))
+         |> Enum.take(@shown)
+         |> Enum.map(&row/1)}
       end
     end)
   end
@@ -71,7 +65,7 @@ defmodule AshEnterprise.Assistant.Lookups.Messages do
     end
   end
 
-  defp read(conversation_id, person, bounds, opts) do
+  defp scan(conversation_id, person, bounds, opts) do
     Message
     |> Ash.Query.for_read(:read, %{}, opts)
     |> in_conversation(conversation_id)
@@ -105,14 +99,13 @@ defmodule AshEnterprise.Assistant.Lookups.Messages do
   defp row(message) do
     conversation = loaded(message.conversation)
 
-    %{
-      "ref" => conversation && Support.ref(Conversation, conversation),
-      "conversation" => conversation && Support.clip(conversation.subject, 120),
-      "from" => Conversations.from(message),
-      "sent" => message.sent,
-      "text" => Support.clip(message.body, @body)
-    }
-    |> Support.compact()
+    Support.row(Lookup.Message, %{
+      ref: conversation && Support.ref(Conversation, conversation),
+      conversation: conversation && Support.clip(conversation.subject, 120),
+      from: Conversations.from(message),
+      sent: message.sent,
+      text: Support.clip(message.body, @body)
+    })
   end
 
   defp loaded(%Conversation{} = conversation), do: conversation

@@ -1,8 +1,10 @@
 defmodule AshEnterprise.Assistant.Propose do
   @moduledoc """
-  The assistant's proposal tools, as generic actions (`AshEnterprise.Assistant`
+  The assistant's proposal tools, as computed reads (`AshEnterprise.Assistant`
   declares each one a tool): add or finish an action item, draft a reply,
-  sync now.
+  sync now. Each answers with one row, the proposal. A read, so a run takes
+  it in its loop (`AshEnterprise.Assistant.Lookup`): proposing changes
+  nothing, and confirming is the person's own act on the page.
 
   **None of them changes anything.** Each builds an `AshEnterprise.AI.Proposal`
   — names resolved as the person, the concrete action authorization-checked
@@ -38,8 +40,15 @@ defmodule AshEnterprise.Assistant.Propose do
     require_primary_key? false
   end
 
+  attributes do
+    attribute :proposed, :string, public?: true
+    attribute :proposal, :map, public?: true
+    attribute :effect, :string, public?: true
+    attribute :status, :string, public?: true
+  end
+
   actions do
-    action :propose_task, :map do
+    read :propose_task do
       description "Propose adding an action item, or marking one done."
 
       argument :change, :atom do
@@ -59,10 +68,10 @@ defmodule AshEnterprise.Assistant.Propose do
         description "add only: today, tomorrow or a date like 2026-10-20. Leave out for none."
       end
 
-      run {Proposals, kind: :task}
+      manual {Proposals, kind: :task}
     end
 
-    action :propose_reply, :map do
+    read :propose_reply do
       description "Propose saving a reply draft to a conversation. It is never sent."
 
       argument :conversation, :string do
@@ -75,10 +84,10 @@ defmodule AshEnterprise.Assistant.Propose do
         description "The reply, in the person's voice."
       end
 
-      run {Proposals, kind: :reply}
+      manual {Proposals, kind: :reply}
     end
 
-    action :propose_sync, :map do
+    read :propose_sync do
       description "Propose syncing the person's linked accounts now."
 
       argument :account, :atom do
@@ -87,10 +96,10 @@ defmodule AshEnterprise.Assistant.Propose do
         description "gmail, slack, calendar or all (default all)."
       end
 
-      run {Proposals, kind: :sync}
+      manual {Proposals, kind: :sync}
     end
 
-    action :propose_decision, :map do
+    read :propose_decision do
       description "Propose deciding a task waiting on the person, or a duplicate in their steward queue."
 
       argument :on, :atom do
@@ -118,7 +127,7 @@ defmodule AshEnterprise.Assistant.Propose do
         description "task only: a note recorded with the decision."
       end
 
-      run {Proposals, kind: :decision}
+      manual {Proposals, kind: :decision}
     end
   end
 
@@ -128,6 +137,7 @@ defmodule AshEnterprise.Assistant.Propose do
   effects do
     action :propose_task,
       kind: :think,
+      read_only?: true,
       destructive?: false,
       idempotent?: true,
       open_world?: false,
@@ -135,6 +145,7 @@ defmodule AshEnterprise.Assistant.Propose do
 
     action :propose_reply,
       kind: :think,
+      read_only?: true,
       destructive?: false,
       idempotent?: true,
       open_world?: false,
@@ -142,6 +153,7 @@ defmodule AshEnterprise.Assistant.Propose do
 
     action :propose_sync,
       kind: :think,
+      read_only?: true,
       destructive?: false,
       idempotent?: true,
       open_world?: false,
@@ -149,6 +161,7 @@ defmodule AshEnterprise.Assistant.Propose do
 
     action :propose_decision,
       kind: :think,
+      read_only?: true,
       destructive?: false,
       idempotent?: true,
       open_world?: false,

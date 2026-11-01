@@ -1,6 +1,6 @@
 defmodule AshEnterprise.Assistant.Lookups.Conversations do
   @moduledoc """
-  `Lookup.find_conversations`: the person's Gmail threads and Slack
+  `Lookup.Conversation.find_conversations`: the person's Gmail threads and Slack
   conversations, newest activity first.
 
   Everything is read as the person through the canonical read actions
@@ -19,10 +19,11 @@ defmodule AshEnterprise.Assistant.Lookups.Conversations do
     else's), read from each thread's newest message.
   """
 
-  use Ash.Resource.Actions.Implementation
+  use Ash.Resource.ManualRead
 
   require Ash.Query
 
+  alias AshEnterprise.Assistant.Lookup
   alias AshEnterprise.Assistant.Lookups.Support
   alias AshEnterprise.Canonical.{Conversation, Message}
 
@@ -31,26 +32,19 @@ defmodule AshEnterprise.Assistant.Lookups.Conversations do
   @shown 25
 
   @impl true
-  def run(input, _opts, context) do
-    Support.gated(input, context, &lookup(input.arguments, &1))
+  def read(query, _data_layer_query, _opts, context) do
+    Support.gated(query, context, &lookup(query.arguments, &1))
   end
 
   defp lookup(args, opts) do
     with {:ok, bounds} <- optional_window(args[:window]),
          {:ok, threads} <- read(args, bounds, opts),
          {:ok, threads} <- by_text(threads, args[:text], bounds, opts) do
-      threads = awaiting_reply(threads, args[:needs_reply])
-
       {:ok,
-       %{
-         "window" => Support.window_label(bounds),
-         "count" => length(threads),
-         "conversations" => threads |> Enum.take(@shown) |> Enum.map(&row/1)
-       }
-       |> Support.compact()}
-    else
-      {:error, message} when is_binary(message) -> Support.refused(message)
-      {:error, error} -> {:error, error}
+       threads
+       |> awaiting_reply(args[:needs_reply])
+       |> Enum.take(@shown)
+       |> Enum.map(&row/1)}
     end
   end
 
@@ -156,18 +150,17 @@ defmodule AshEnterprise.Assistant.Lookups.Conversations do
   defp row(thread) do
     last = latest(thread)
 
-    %{
-      "ref" => Support.ref(Conversation, thread),
-      "source" => thread.external_system,
-      "kind" => thread.kind_label,
-      "subject" => Support.clip(thread.subject, 160),
-      "last_activity" => thread.last_activity,
-      "messages" => thread.message_count,
-      "last_from" => last && from(last),
-      "last_preview" => last && Support.clip(last.body, 140),
-      "needs_reply" => needs_reply?(thread)
-    }
-    |> Support.compact()
+    Support.row(Lookup.Conversation, %{
+      ref: Support.ref(Conversation, thread),
+      source: thread.external_system,
+      kind: thread.kind_label,
+      subject: Support.clip(thread.subject, 160),
+      last_activity: thread.last_activity,
+      messages: thread.message_count,
+      last_from: last && from(last),
+      last_preview: last && Support.clip(last.body, 140),
+      needs_reply: needs_reply?(thread)
+    })
   end
 
   @doc false

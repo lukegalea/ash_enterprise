@@ -11,7 +11,7 @@ defmodule AshEnterprise.Assistant.DecisionsTest do
   use AshEnterprise.DataCase, async: false
 
   alias AshEnterprise.AI.Proposal
-  alias AshEnterprise.Assistant.{ProposalSettlement, Propose, Thread}
+  alias AshEnterprise.Assistant.{ProposalSettlement, Thread}
   alias AshEnterprise.Bpmn.{HumanTask, TaskCandidate}
   alias AshEnterprise.Mdm.MatchCandidate
   alias AshEnterprise.Security.ActorContext
@@ -41,16 +41,9 @@ defmodule AshEnterprise.Assistant.DecisionsTest do
     task
   end
 
-  defp propose!(ctx, input) do
-    Propose
-    |> Ash.ActionInput.for_action(:propose_decision, input,
-      actor: ctx.actor,
-      tenant: ctx.tenant,
-      context: %{AshEnterprise.Assistant.ZoneGate.key() => F.target()},
-      authorize?: true
-    )
-    |> Ash.run_action!()
-  end
+  defp propose!(ctx, input), do: ctx |> F.tool!(:propose_decision, input) |> hd()
+
+  defp refusal(ctx, input), do: F.refusal(ctx, :propose_decision, input)
 
   defp status(task),
     do: Ash.get!(HumanTask, task.id, tenant: task.organization_id, authorize?: false).status
@@ -62,7 +55,7 @@ defmodule AshEnterprise.Assistant.DecisionsTest do
       budget = approval!(ctx, "SYNTHETIC budget exception", bob.user)
       ctx = fresh(ctx)
 
-      assert %{"count" => 1, "approvals" => [row]} = F.tool!(ctx, :pending_approvals, %{})
+      assert [row] = F.tool!(ctx, :pending_approvals, %{})
       assert row["task"] == "SYNTHETIC vendor contract sign-off"
       assert row["decisions"] == ["approve", "reject"]
 
@@ -75,11 +68,11 @@ defmodule AshEnterprise.Assistant.DecisionsTest do
       assert result["effect"] =~ "completes as approved"
 
       # Not theirs: the colleague's task is not among theirs, whatever it is called.
-      refused = propose!(ctx, %{on: :task, decision: :approve, target: "budget exception"})
-      assert refused["error"] =~ "No task waiting on you matches"
+      assert refusal(ctx, %{on: :task, decision: :approve, target: "budget exception"}) =~
+               "No task waiting on you matches"
 
       # Always named: "approve it" is not a guess the tool makes.
-      assert propose!(ctx, %{on: :task, decision: :approve})["error"] =~ "say which task"
+      assert refusal(ctx, %{on: :task, decision: :approve}) =~ "say which task"
 
       # Rebuilt as somebody else, the wire form is nothing to them.
       assert {:error, _} = Proposal.from_wire(result["proposal"], fresh(bob).actor, ctx.tenant)
@@ -99,8 +92,8 @@ defmodule AshEnterprise.Assistant.DecisionsTest do
       approval!(ctx, "SYNTHETIC vendor contract sign-off", ctx.user)
       ctx = fresh(ctx)
 
-      refused = propose!(ctx, %{on: :task, decision: :merge, target: "vendor contract"})
-      assert refused["error"] =~ "approve or reject"
+      assert refusal(ctx, %{on: :task, decision: :merge, target: "vendor contract"}) =~
+               "approve or reject"
     end
 
     test "by kind, through decision/4", ctx do
@@ -130,8 +123,7 @@ defmodule AshEnterprise.Assistant.DecisionsTest do
 
       ctx = fresh(ctx)
 
-      assert %{"count" => 1, "may_decide" => true, "duplicates" => [row]} =
-               F.tool!(ctx, :steward_queue, %{})
+      assert [%{"may_decide" => true} = row] = F.tool!(ctx, :steward_queue, %{})
 
       assert row["incoming"] == "Avery Synthetic"
       assert row["existing"] == "Avery Synthetic Existing"
@@ -152,7 +144,7 @@ defmodule AshEnterprise.Assistant.DecisionsTest do
       assert {:ok, %MatchCandidate{status: :confirmed}} =
                Proposal.execute(proposal, ctx.actor, ctx.tenant)
 
-      assert %{"count" => 0} = F.tool!(ctx, :steward_queue, %{})
+      assert [] = F.tool!(ctx, :steward_queue, %{})
     end
 
     test "a duplicate whose golden the person may not read is not theirs", ctx do
@@ -194,12 +186,12 @@ defmodule AshEnterprise.Assistant.DecisionsTest do
       ctx = fresh(ctx)
 
       # The queue counts and lists only the one they may decide...
-      assert %{"count" => 1, "duplicates" => [row]} = F.tool!(ctx, :steward_queue, %{})
+      assert [row] = F.tool!(ctx, :steward_queue, %{})
       refute row["existing"] =~ "Theirs"
 
       # ...and the other, named by id, resolves to nothing.
-      refused = propose!(ctx, %{on: :duplicate, decision: :merge, target: hidden.id})
-      assert refused["error"] =~ "No duplicate waiting for you has that ref"
+      assert refusal(ctx, %{on: :duplicate, decision: :merge, target: hidden.id}) =~
+               "No duplicate waiting for you has that ref"
 
       wire = %{"kind" => "steward_verdict", "candidate_id" => hidden.id, "verdict" => "confirm"}
       assert {:error, _} = Proposal.from_wire(wire, ctx.actor, ctx.tenant)

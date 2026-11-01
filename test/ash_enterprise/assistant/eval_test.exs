@@ -19,6 +19,7 @@ defmodule AshEnterprise.Assistant.EvalTest do
   setup do
     F.in_zone!()
     ctx = F.tenant!()
+    F.published!(ctx)
     %{ctx: ctx, fixture: Eval.seed!(ctx)}
   end
 

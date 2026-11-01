@@ -55,6 +55,8 @@ defmodule AshEnterprise.Execution.Run do
       (`AshAgent.Run.Changes.Wake`) enqueue it in their own transaction; its scheduler
       sweeps any run with a step to take whose job was lost. The action holds no
       transaction: it calls a model.
+    * **Following a run.** Every update is published on `agent_runs:<id>`
+      (`Ash.Notifier.PubSub`), so a page waiting on it is told when it moves.
     * **The `:recover` trigger.** A running run whose lease expired (its worker died, or
       its model call failed) is queued again. Only the sweep finds them.
   """
@@ -66,6 +68,7 @@ defmodule AshEnterprise.Execution.Run do
     archival?: false,
     self_service: [:start, :read],
     machinery_only: [:claim_step, :record_step, :reserve, :settle, :recover, :step],
+    notifiers: [Ash.Notifier.PubSub],
     extra_extensions: [AshCloak, AshOban],
     fragments: [AshAgent.Run]
 
@@ -84,6 +87,16 @@ defmodule AshEnterprise.Execution.Run do
     custom_indexes do
       index [:status, :lease_expires_at], all_tenants?: true
     end
+  end
+
+  # Who follows a run: a page waiting on an answer
+  # (`AshEnterprise.Assistant.Ask.topic/1`) hears each transition and step and reads the
+  # run again as its person. The message only says the run moved.
+  pub_sub do
+    module AshEnterpriseWeb.Endpoint
+    prefix "agent_runs"
+
+    publish_all :update, [:id]
   end
 
   run do
@@ -112,8 +125,10 @@ defmodule AshEnterprise.Execution.Run do
   oban do
     triggers do
       # A run with a step to take: queued, or waiting on tool calls that have all
-      # finished. The worker is unique per run while a job is pending; the claim inside
-      # `step` decides when two jobs meet, and the loser ends before any model call.
+      # finished. The worker is unique per run while a job waits to run, not while one
+      # runs: a step that leaves the run queued (its tools were reads it took in its
+      # loop) enqueues the next from inside its own job. The claim inside `step` decides
+      # when two jobs meet, and the loser ends before any model call.
       trigger :step do
         action :step
         where expr(needs_step)
@@ -121,6 +136,7 @@ defmodule AshEnterprise.Execution.Run do
         queue :agent_runs
         scheduler_cron "* * * * *"
         max_attempts 3
+        worker_opts unique: [period: :infinity, states: [:available, :scheduled, :retryable]]
         use_tenant_from_record? true
         actor_persister :none
         default_actor AshEnterprise.Platform.SystemActor.oban()

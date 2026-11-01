@@ -8,8 +8,9 @@ defmodule AshEnterprise.Assistant.InZoneLiveTest do
         test/ash_enterprise/assistant/in_zone_live_test.exs
 
   It seeds a synthetic tenant (invented events, threads and people on
-  `example.test`), asks a few questions through `AshEnterprise.Assistant.Runner`
-  — guard on, every call recorded — and prints the tools each answer used,
+  `example.test`), publishes the assistant agent there, asks a few questions as
+  runs of it (stepped here as their jobs would step them) — guard on, every call
+  recorded — and prints the tools each answer used,
   its step count and its latency. Nothing real is read and nothing leaves
   the zone: the only model it can reach is the profile's.
   """
@@ -17,7 +18,7 @@ defmodule AshEnterprise.Assistant.InZoneLiveTest do
   use AshEnterprise.DataCase, async: false
 
   alias AshEnterprise.AI.ModelCall
-  alias AshEnterprise.Assistant.{Runner, Thread}
+  alias AshEnterprise.Assistant.Thread
   alias AshEnterprise.Canonical.Projections.ZoneAdmission
   alias AshEnterprise.Test.AssistantFixtures, as: F
   alias AshEnterprise.Test.DailyFixtures, as: D
@@ -40,7 +41,11 @@ defmodule AshEnterprise.Assistant.InZoneLiveTest do
       raise "set S1_GEN_BASE_URL and S1_GEN_MODEL to run the in-zone live test"
     end
 
-    previous = Map.new([:ai, ZoneAdmission], &{&1, Application.get_env(:ash_enterprise, &1)})
+    previous =
+      Map.new(
+        [:ai, ZoneAdmission, AshEnterprise.Execution.AgentRuntime],
+        &{&1, Application.get_env(:ash_enterprise, &1)}
+      )
 
     on_exit(fn ->
       for {key, value} <- previous do
@@ -56,19 +61,20 @@ defmodule AshEnterprise.Assistant.InZoneLiveTest do
     )
 
     Application.put_env(:ash_enterprise, ZoneAdmission, zone: "synthetic-live-zone")
+    Application.delete_env(:ash_enterprise, AshEnterprise.Execution.AgentRuntime)
     :ok
   end
 
   test "answers synthetic questions with the read tools" do
     ctx = F.tenant!()
+    F.published!(ctx)
     seed!(ctx)
 
     for question <- @questions do
       {:ok, thread} = Thread.start("SYNTHETIC live", actor: ctx.actor, tenant: ctx.tenant)
       started = System.monotonic_time(:millisecond)
 
-      result =
-        Runner.run(thread: thread, actor: ctx.actor, tenant: ctx.tenant, question: question)
+      result = F.ask!(ctx, thread, question)
 
       elapsed = System.monotonic_time(:millisecond) - started
 
@@ -76,6 +82,7 @@ defmodule AshEnterprise.Assistant.InZoneLiveTest do
         case result do
           {:ok, turn} -> {:complete, turn}
           {:error, reason, turn} -> {reason, turn}
+          {:pending, _progress} -> {:pending, nil}
         end
 
       tools = Enum.map((turn && turn.tool_calls["calls"]) || [], &{&1["name"], &1["count"]})
