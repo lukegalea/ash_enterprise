@@ -401,7 +401,8 @@ config :ash_enterprise, :band_table_keys, %{"mdm_matches" => "mdm:match_bands"}
 # when calibration also earned a lower threshold; until then a table has two
 # ranges, admit and review.
 #
-# - The code standards admit a confident no: the fact is `false`, admitted
+# - The code standards, and the agent-reply style questions asked of an
+#   assistant's answers, admit a confident no: the fact is `false`, admitted
 #   without review, like a confident yes is admitted as `true`.
 # - MDM drops a confidently different pair (omit): there is no golden record
 #   to merge it into, and no fact to write.
@@ -409,6 +410,7 @@ config :ash_judgments, :families, %{
   commenting: %{low_band: :admit_no},
   house_style: %{low_band: :admit_no},
   model_call_location: %{low_band: :admit_no},
+  agent_reply_style: %{low_band: :admit_no},
   mdm_matches: %{low_band: :omit}
 }
 
@@ -457,7 +459,8 @@ config :ash_enterprise,
     AshEnterprise.Mdm,
     AshEnterprise.Lineage,
     AshEnterprise.Licences,
-    AshEnterprise.Credentialing
+    AshEnterprise.Credentialing,
+    AshEnterprise.Quality
   ],
   base_resources: [AshEnterprise.Platform.Resource]
 
