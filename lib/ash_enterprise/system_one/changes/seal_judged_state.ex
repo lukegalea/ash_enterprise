@@ -70,8 +70,7 @@ defmodule AshEnterprise.SystemOne.Changes.SealJudgedState do
   end
 
   # The reason's class only: an error's message can carry the values it
-  # was about.
-  defp reason(reason) when is_atom(reason), do: reason
-  defp reason(%{__struct__: module}), do: inspect(module)
-  defp reason(_other), do: "unknown"
+  # was about. A seal fails with an atom or an Ash error.
+  defp reason(%module{}), do: inspect(module)
+  defp reason(reason), do: reason
 end
