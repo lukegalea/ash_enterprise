@@ -67,6 +67,9 @@ defmodule AshEnterprise.Execution do
       define :request_agent_run_cancel, action: :request_cancel
       define :step_agent_run, action: :step, args: [:primary_key]
       define :recover_agent_run, action: :recover
+      define :reserve_agent_run_budget, action: :reserve
+      define :settle_agent_run_budget, action: :settle
+      define :extend_agent_run_budget, action: :extend, args: [:tokens]
     end
 
     resource AshEnterprise.Execution.Step do

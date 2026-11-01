@@ -8,10 +8,11 @@ defmodule AshEnterprise.Execution.Run do
   ## What the fragment brings
 
   The attributes (the pinned `agent_version_id`, `executing_principal`, `status` and
-  `blocked_on`, `step_seq`, the counters, the token budget, `deadline_at`, the lease),
-  the lifecycle `queued → running → (waiting) → completed | failed | cancelled`, the
-  actions (`start`, `claim_step`, `record_step`, `recover`, `request_cancel`, `step`)
-  and the derived `needs_step`. See `AshAgent.Run` and `AshAgent.Run.Stepper`.
+  `blocked_on`, `step_seq`, the counters, the token budget and its holds, `deadline_at`,
+  the lease), the lifecycle `queued → running → (waiting) → completed | failed |
+  cancelled`, the actions (`start`, `claim_step`, `record_step`, `reserve`, `settle`,
+  `extend`, `recover`, `request_cancel`, `step`) and the derived `needs_step`. See
+  `AshAgent.Run`, `AshAgent.Run.Stepper` and `AshAgent.Run.Budget`.
 
   ## What this resource adds
 
@@ -22,9 +23,15 @@ defmodule AshEnterprise.Execution.Run do
     * **Who may do what.** `start` is self-service (ADR 0052): any active member may ask,
       and `AshEnterprise.Execution.Identity.run_principal/3` refuses anyone who does not
       hold the agent's start grant (`AshEnterprise.Security.AgentStartGrant`). The step's
-      own writes (`claim_step`, `record_step`, `recover`, `step`) are machinery-only: only
-      the `oban` system actor reaches them. Reads and `request_cancel` go through the
-      grant union; a person reads the runs they started.
+      own writes (`claim_step`, `record_step`, `reserve`, `settle`, `recover`, `step`) are
+      machinery-only: only the `oban` system actor reaches them. Reads, `request_cancel`
+      and `extend` go through the grant union; a person reads the runs they started.
+    * **The token budget (decision D14).** Tokens, as each `AshEnterprise.AI.ModelCall`
+      reports them. Every model call holds what is left of the run's budget before it is
+      made and is settled after it, under `optimistic_lock(:budget_lock)`, so holds never
+      add up past the limit. A run with nothing left waits on its budget
+      (`blocked_on: :budget`, `"token_budget"`) until someone who may write runs (an
+      administrator) extends it, which queues it again.
     * **Who a run executes as.** The version's publish-time authority: the person who
       started it, or the automation principal the publisher named acting for them (ADR
       0043). Each step rebuilds that actor from grant rows; each tool call is requested
@@ -58,7 +65,7 @@ defmodule AshEnterprise.Execution.Run do
     lifecycle?: false,
     archival?: false,
     self_service: [:start, :read],
-    machinery_only: [:claim_step, :record_step, :recover, :step],
+    machinery_only: [:claim_step, :record_step, :reserve, :settle, :recover, :step],
     extra_extensions: [AshCloak, AshOban],
     fragments: [AshAgent.Run]
 

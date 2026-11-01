@@ -240,8 +240,8 @@ and the host's `fragments:` lists, with no data migration, because no table name
   executing one records the request; nothing done is undone.
 - **Sealing.** `input`, `output` and each step's `parts` are sealed under the subject's erasure scope, as an
   invocation's arguments are (built 2026-11-01, AGT-32; see "Erasure of a run" below).
-- **Not built here.** Budget reservation across a root run and `extend` (AGT-30), waiting on a person (AGT-31, below),
-  the assistant on runs (AGT-33), requesterless starts.
+- **Not built here.** Budget reservation and `extend` (AGT-30, "Built, 2026-11-01: run budgets" below), waiting on a
+  person (AGT-31, below), the assistant on runs (AGT-33), requesterless starts.
 - **Tests.** Package: `test/ash_agent/run_test.exs`. Here: `test/ash_enterprise/execution/run_test.exs`, and in the
   durability tier `run_resume_test.exs` (F1), `wakeup_test.exs` (invariant 9) and `cancellation_test.exs`
   (invariant 5).
@@ -298,3 +298,29 @@ so one shred reaches them all ([ADR 0024](0024-audit-retention-and-erasure.md)).
   the task board's subject summary.
 - **Tests.** Package: `test/ash_agent/invocation_paths_test.exs`. Here: `test/ash_enterprise/execution/human_input_test.exs`
   and, in the durability tier, `human_wait_test.exs`.
+
+## Built, 2026-11-01: run budgets
+
+- **The unit (decision D14).** Tokens: the input and output tokens each model call's usage reports, the same numbers
+  its `AI.ModelCall` row records. Cost from priced usage is not built.
+- **Hold, then settle.** The budget is columns on the run: `budget_limit` (the version's `token_budget` at start),
+  `budget_spent`, `budget_reserved` and `budget_holds` (each unsettled hold, keyed by the lease that took it). Just
+  before its model call a step holds what is left (`reserve`); after the call, however it ended, it settles
+  (`settle`: the hold released, the call's tokens added to `budget_spent`) before it records anything that could start
+  the next call. Both are machinery-only.
+- **Never past the limit under concurrency.** `reserve` and `settle` write under `optimistic_lock(:budget_lock)`, and
+  `reserve` is also filtered on `budget_spent` plus the holds staying within `budget_limit`; so of two reservations
+  read from one row at most one is written, and one that meets a concurrent write reads the row again and retries a
+  bounded number of times (`AshAgent.Run.Budget`). Neither uses an atomic update, which the audit wrapper refuses.
+- **Exhaustion (F8).** A step whose reservation is refused, or a claim of a run that has spent its limit, leaves the
+  run `waiting` on `:budget` with `error_code: "token_budget"`, and no model call is made. `extend` (through the grant
+  union, so an administrator, not the nurse who started the run) raises the limit and queues the run again in the same
+  transaction; it is audited like every run transition.
+- **What a hold does not bound.** A worker that dies between `reserve` and `settle` leaves its hold; the run's next
+  lease releases it. Usage is known only after a call, so one call can use more than it held, and a worker that
+  outlived its lease settles after the next lease took the remainder: both are recorded as spent, and the run waits on
+  its budget at its next claim. The limit bounds what a run starts, and the record shows any overrun.
+- **Root runs.** Holds are keyed by the run and lease that took them, so a child run (Phase 6, decision D6) can hold
+  on its root's row. No run has a parent yet: every run is its own root.
+- **Tests.** Package: `test/ash_agent/run_test.exs` ("the token budget"). Here, in the durability tier,
+  `test/ash_enterprise/execution/budget_test.exs` (invariant 8).
