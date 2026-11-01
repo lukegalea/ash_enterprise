@@ -3,6 +3,10 @@
     "hash": "sha256:d2bda0fc71062e2d386f026579817609cf3f516037529e7c57bf9eb01a2889bf",
     "version": 2
   },
+  "judgment:v0:AshEnterprise.Quality.AgentReply#judgments/hs6_no_novelty_claims": {
+    "hash": "sha256:2c40c7a6df09ab2f1187536851aba0afb0bdafb2606dab3e7015fc59e90a26f5",
+    "version": 1
+  },
   "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/feel_or_dmn_evaluation_calls_no_model": {
     "hash": "sha256:61c7648229addd924fb490bd3c54ddf0d5cf7b575301270e130c00d4ef37493d",
     "version": 1
@@ -19,6 +23,14 @@
     "hash": "sha256:4b5824d6e789722eb1bc51ac5c725df1bb98ea7b86373186aad26d1760816cbd",
     "version": 1
   },
+  "judgment:v0:AshEnterprise.Quality.AgentReply#judgments/hs7_never_invent_name_feature_or_date": {
+    "hash": "sha256:9ca688f7d78fc75f70167262dab0a26781141059d03bf0e85b417c3e88435a9b",
+    "version": 1
+  },
+  "judgment:v0:AshEnterprise.Quality.AgentReply#judgments/hs8_no_internal_shorthand_for_outside": {
+    "hash": "sha256:a12d4ed8bd149c18a35a4110a4927c0c5d5944ba9a475f2fcfcb8da48e6f35c5",
+    "version": 1
+  },
   "judgment:v0:AshEnterprise.SystemOne.TestSupport.EvidenceFile#judgments/packet_supports": {
     "hash": "sha256:82038cf4c451480a3ec922caa555243fcbf97ce4b86cd250472dd002115f15b8",
     "version": 1
@@ -26,6 +38,10 @@
   "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/hs3_use_plain_words": {
     "hash": "sha256:d69d389b36d1b1acf4d870f049af1a87f8314c6364836d3a0d46c6bf048b5561",
     "version": 2
+  },
+  "judgment:v0:AshEnterprise.Quality.AgentReply#judgments/hs1_lead_with_outcome_or_ask": {
+    "hash": "sha256:84bae08cb3d4b4b3ac9ad6ba91cd894737805d796bd35c2f302b2348245ec49d",
+    "version": 1
   },
   "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/comments_are_durable_facts_only": {
     "hash": "sha256:74f23898847a75bb258b0e6df1156d0abe661505c9e9076199b09d1ce5f5f3c6",
@@ -45,6 +61,10 @@
   },
   "judgment:v0:AshEnterprise.Licences.Dependency#judgments/package_licence_requires_attribution": {
     "hash": "sha256:b19805fea2d9d58d085212c9fc9e48036949c3d93d9cf7adce1b69c597543fa9",
+    "version": 1
+  },
+  "judgment:v0:AshEnterprise.Quality.AgentReply#judgments/hs3_use_plain_words": {
+    "hash": "sha256:d4f982bba2448b3f23b6dd879699dd456bebd5c0313fe77272639145877efb16",
     "version": 1
   },
   "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/hs8_no_internal_shorthand_for_outside": {
@@ -95,8 +115,16 @@
     "hash": "sha256:9dfacf32b6a3db08391f87c63cda6ab903b6af33c36d666a8a3585fda848fcc5",
     "version": 1
   },
+  "judgment:v0:AshEnterprise.Quality.AgentReply#judgments/hs5_promise_only_agreed_to": {
+    "hash": "sha256:31fbd8e31494a5b15eb02534fb5cf25cd861508ce51a92199568b86d093f117e",
+    "version": 1
+  },
   "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/projector_calls_no_model": {
     "hash": "sha256:7057e8fddb2e12efbd819f8244247ba8087adbd9057c1c3b4a4a87d66b25e776",
+    "version": 1
+  },
+  "judgment:v0:AshEnterprise.Quality.AgentReply#judgments/hs2_keep_it_short": {
+    "hash": "sha256:55d231d0b051a0efc086241da759da5225db3487ac3a93e1c4144798ac27ca87",
     "version": 1
   },
   "judgment:v0:AshEnterprise.Licences.Dependency#judgments/package_licence_has_use_restrictions": {
@@ -122,6 +150,10 @@
   "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/stores_ids_not_structs": {
     "hash": "sha256:67268cc3aba07ea2519a4d80c9296282b4a26cf082a55a5e3a8e727dafcc01f0",
     "version": 2
+  },
+  "judgment:v0:AshEnterprise.Quality.AgentReply#judgments/hs4_claim_only_built_and_proven": {
+    "hash": "sha256:4300495997215a296e87767852ae8f1b91a42c0529f82fbcacd0be30f80691c5",
+    "version": 1
   },
   "judgment:v0:AshEnterprise.SystemOne.TestSupport.EvidenceFile#judgments/document_localisation": {
     "hash": "sha256:220ce9121779d94c4038babf909271fe4e0eaefe66e90ce348735524ab1f7007",
