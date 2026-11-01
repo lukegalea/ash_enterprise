@@ -23,7 +23,11 @@ defmodule AshEnterprise.SystemOne.ReviewSource do
     those as "no text" would hide data loss.
 
   The text is sealed when the judgment is recorded
-  (`AshEnterprise.SystemOne.JudgedState`).
+  (`AshEnterprise.SystemOne.JudgedState`): a string state as it is, any
+  other state as its canonical JSON. An agent reply's state is
+  `%{"reply" => text}` (`AshEnterprise.Quality.Projections.ReplyText`), so
+  a judgment about a reply opens to the reply text, not to that JSON
+  (`ReplyText.text_of_sealed/1`).
 
   ## The thresholds
 
@@ -43,6 +47,8 @@ defmodule AshEnterprise.SystemOne.ReviewSource do
   alias AshEnterprise.Decisions.Definition
   alias AshEnterprise.Erasure.{Crypto, Keyring}
   alias AshEnterprise.Process.Resolver
+  alias AshEnterprise.Quality
+  alias AshEnterprise.Quality.Projections.ReplyText
   alias AshEnterprise.SystemOne.Judgment
 
   @impl true
@@ -56,7 +62,7 @@ defmodule AshEnterprise.SystemOne.ReviewSource do
       |> Ash.Query.filter(id in ^ids)
       |> Ash.read(read_opts(opts))
       |> case do
-        {:ok, rows} -> Map.new(rows, &{&1.id, open(&1.state_ciphertext)})
+        {:ok, rows} -> Map.new(rows, &{&1.id, shown(&1, open(&1.state_ciphertext))})
         {:error, _forbidden_or_invalid} -> %{}
       end
     end
@@ -74,6 +80,14 @@ defmodule AshEnterprise.SystemOne.ReviewSource do
   end
 
   def band_table(_banding, _opts), do: :error
+
+  # What the person reads of an opened state: a reply's text, or the
+  # state's text as it was sealed.
+  defp shown(%{subject_type: type}, text) when is_binary(text) do
+    if type == Quality.subject_type(), do: ReplyText.text_of_sealed(text), else: text
+  end
+
+  defp shown(_judgment, text), do: text
 
   defp open(nil), do: nil
 
