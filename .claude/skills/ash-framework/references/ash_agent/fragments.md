@@ -281,7 +281,12 @@ end
    `open_world?: false` runs in the loop (as the executing actor, and only when `Ash.can?` says the actor may). Every
    other call stops the loop and becomes an invocation keyed `run:<run id>:<step seq>:<tool call id>`, with the run as
    its parent, requested as `c:AshAgent.ExecutionIdentity.requester_for/1`'s actor. A step repeated after a worker
-   died reads the invocation's recorded result; nothing runs twice.
+   died reads the invocation's recorded result; nothing runs twice. An in-loop read, in the loop or run again on
+   resume, has the run in its action context (`ash_agent: %{run_id: id}`); a read that must answer only inside a run
+   can check for it there.
+   A target your domain (or its resource) exposes as an ash_ai `tool` is offered under that tool's name, description
+   and `action_parameters`: declare one for a read whose filter and sort controls a model should not see. Any other
+   target is offered as `<resource last module segment>_<action>`.
 3. One `:step` job is one model call (`max_iterations: 1`). A loop that ran reads and hit the limit is queued for the
    next step; that is not an error.
 4. `claim_step` has one winner per epoch, and checks the deadline (`failed`, `:timeout`), drift (`failed`,

@@ -1,7 +1,8 @@
 defmodule AshEnterprise.Assistant.Lookups.Support do
   @moduledoc """
   What every assistant read tool shares: the zone gate, the actor's read
-  options, time windows a small model can name, record refs, and clipping.
+  options, time windows a small model can name, record refs, clipping, and
+  the rows a lookup answers with (`row/2`).
 
   ## Windows
 
@@ -41,17 +42,36 @@ defmodule AshEnterprise.Assistant.Lookups.Support do
 
   @doc """
   Runs `fun.(opts)` as the actor in `context` if the zone gate admits the
-  run's model target; otherwise the refusal, as a tool result the model
-  reads. `fun` returns `{:ok, map}` or `{:error, term}`.
+  model the result would reach (`query.context`); otherwise the refusal, as
+  an error the model reads. `fun` returns `{:ok, rows}` or `{:error, term}`;
+  a bare message is a refusal too.
   """
-  @spec gated(Ash.ActionInput.t(), map(), (keyword() -> {:ok, map()} | {:error, term()})) ::
-          {:ok, map()} | {:error, term()}
-  def gated(input, context, fun) do
-    case ZoneGate.check_context(input.context) do
-      :ok -> fun.(read_opts(context))
-      {:error, reason} -> {:ok, %{"error" => ZoneGate.refusal(reason), "count" => 0}}
+  @spec gated(Ash.Query.t(), map(), (keyword() -> {:ok, [struct()]} | {:error, term()})) ::
+          {:ok, [struct()]} | {:error, term()}
+  def gated(query, context, fun) do
+    case ZoneGate.check_context(query.context) do
+      :ok ->
+        case fun.(read_opts(context)) do
+          {:error, message} when is_binary(message) -> refused(message)
+          other -> other
+        end
+
+      {:error, reason} ->
+        refused(ZoneGate.refusal(reason))
     end
   end
+
+  @doc "How a model names a window: what each `window` argument's description says."
+  @spec window_help() :: String.t()
+  def window_help do
+    "A time window: today, tomorrow, yesterday, this_week, next_week, next_7_days, " <>
+      "next_30_days, last_7_days, last_30_days, last_90_days, upcoming, a weekday " <>
+      "(monday: the coming one), a date (2026-10-14) or a range (2026-10-01..2026-10-14)."
+  end
+
+  @doc "A row of `resource`, the lookup's own, from `fields` without its empty ones."
+  @spec row(module(), map()) :: struct()
+  def row(resource, fields), do: struct!(resource, compact(fields))
 
   @doc """
   The read options for the calling person: their actor and tenant, and
@@ -304,7 +324,11 @@ defmodule AshEnterprise.Assistant.Lookups.Support do
     |> Map.new()
   end
 
-  @doc "A tool's error result, for the model: never an exception message."
-  @spec refused(String.t()) :: {:ok, map()}
-  def refused(message), do: {:ok, %{"error" => message, "count" => 0}}
+  @doc """
+  A lookup's refusal, for the model: `message`, said plainly, as the read's
+  error (ash_ai hands a query error's message to the model as the tool's
+  result). Never an exception message from below.
+  """
+  @spec refused(String.t()) :: {:error, Exception.t()}
+  def refused(message), do: {:error, Ash.Error.Query.InvalidQuery.exception(message: message)}
 end

@@ -27,7 +27,7 @@ defmodule AshEnterprise.Execution.AgentRuntime do
 
   @impl true
   def loop_options(version, _run, caller) do
-    target = Models.resolve(Models.default_spec())
+    target = target()
 
     cond do
       version.model_profile != Models.in_zone_profile_name() ->
@@ -43,6 +43,13 @@ defmodule AshEnterprise.Execution.AgentRuntime do
          req_llm_opts: Keyword.put(configured_opts(), :caller, caller)}
     end
   end
+
+  @doc """
+  The model target every step calls: the in-zone generative profile, resolved now. What a
+  run's tools hand content to (`AshEnterprise.Assistant.ZoneGate`).
+  """
+  @spec target() :: struct()
+  def target, do: Models.resolve(Models.default_spec())
 
   @impl true
   def around_step(run, fun) do

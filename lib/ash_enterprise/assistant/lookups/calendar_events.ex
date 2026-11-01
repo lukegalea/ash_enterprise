@@ -1,12 +1,12 @@
 defmodule AshEnterprise.Assistant.Lookups.CalendarEvents do
   @moduledoc """
-  `Lookup.calendar_events`: the person's events overlapping a window
+  `Lookup.CalendarEvent.calendar_events`: the person's events overlapping a window
   (default `this_week`), narrowed by attendee/organizer and by text.
 
   Reads `CalendarEvent.read` as the person, with its organizer and attendees
   loaded under the same policies. Title and location are sealed, so the
   text match runs on the decrypted rows, after the read — never in SQL over
-  ciphertext. At most #{500} events are scanned and #{30} returned.
+  ciphertext. At most #{500} events are scanned and #{25} returned.
 
   With `as_of` the answer is the calendar as it was known then (PROD-47;
   `CalendarEvent` is temporal, ADR 0049): "what was on my calendar last
@@ -17,40 +17,31 @@ defmodule AshEnterprise.Assistant.Lookups.CalendarEvents do
   clock, so a past day is best given as a date.
   """
 
-  use Ash.Resource.Actions.Implementation
+  use Ash.Resource.ManualRead
 
   require Ash.Query
 
+  alias AshEnterprise.Assistant.Lookup
   alias AshEnterprise.Assistant.Lookups.Support
   alias AshEnterprise.Canonical.CalendarEvent
 
   @scan 500
-  @shown 30
+  @shown 25
   @attendees_shown 8
 
   @impl true
-  def run(input, _opts, context) do
-    Support.gated(input, context, &lookup(input.arguments, &1))
+  def read(query, _data_layer_query, _opts, context) do
+    Support.gated(query, context, &lookup(query.arguments, &1))
   end
 
   defp lookup(args, opts) do
     with {:ok, as_of} <- as_of(args[:as_of]),
          {:ok, bounds} <- bounds(args[:window]),
          {:ok, events} <- read(bounds, opts ++ as_of_opt(as_of)) do
-      matched = Enum.filter(events, &wanted?(&1, args))
-      shown = Enum.take(matched, @shown)
+      shown = events |> Enum.filter(&wanted?(&1, args)) |> Enum.take(@shown)
       now = since(shown, as_of, opts)
 
-      result = %{
-        "window" => Support.window_label(bounds),
-        "count" => length(matched),
-        "events" => Enum.map(shown, &row(&1, now))
-      }
-
-      {:ok, if(as_of, do: Map.put(result, "as_of", DateTime.to_iso8601(as_of)), else: result)}
-    else
-      {:error, message} when is_binary(message) -> Support.refused(message)
-      {:error, error} -> {:error, error}
+      {:ok, Enum.map(shown, &row(&1, now))}
     end
   end
 
@@ -119,18 +110,21 @@ defmodule AshEnterprise.Assistant.Lookups.CalendarEvents do
       |> Enum.map(&Support.text(&1.label))
       |> Enum.reject(&is_nil/1)
 
-    %{
-      "ref" => Support.ref(CalendarEvent, event),
-      "title" => Support.clip(event.title, 160),
-      "when" => event.when,
-      "where" => Support.clip(event.location, 120),
-      "organizer" => Support.text(event.organizer_label),
-      "attendees" => Enum.take(names, @attendees_shown),
-      "attendee_count" => event.attendee_count,
-      "status" => event.status
+    fields = %{
+      ref: Support.ref(CalendarEvent, event),
+      title: Support.clip(event.title, 160),
+      when: event.when,
+      where: Support.clip(event.location, 120),
+      organizer: Support.text(event.organizer_label),
+      attendees: Enum.take(names, @attendees_shown),
+      attendee_count: event.attendee_count,
+      status: event.status
     }
-    |> Map.merge(changed_since(event, Map.get(now, event.id)))
-    |> Support.compact()
+
+    Support.row(
+      Lookup.CalendarEvent,
+      Map.merge(fields, changed_since(event, Map.get(now, event.id)))
+    )
   end
 
   # Nothing to say when it is unchanged, or read now. Gone today (no longer
@@ -143,8 +137,8 @@ defmodule AshEnterprise.Assistant.Lookups.CalendarEvents do
         DateTime.compare(event.ends_at, current.ends_at) != :eq
 
     %{
-      "now" => if(moved?, do: current.when),
-      "status_now" => if(current.status != event.status, do: current.status)
+      now: if(moved?, do: current.when),
+      status_now: if(current.status != event.status, do: current.status)
     }
   end
 

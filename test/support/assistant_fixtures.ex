@@ -2,12 +2,16 @@ defmodule AshEnterprise.Test.AssistantFixtures do
   @moduledoc """
   SYNTHETIC fixtures for the assistant (`AshEnterprise.Assistant`): an
   in-zone profile pointed at no host, a scripted model standing in for it,
-  and a tenant with a second person in it. Nothing here reaches a network or
-  reads real data; every name and address is on `example.test`.
+  a tenant with a second person in it, the assistant agent published there,
+  and a driver that steps an answer's run the way its jobs do. Nothing here
+  reaches a network or reads real data; every name and address is on
+  `example.test`.
   """
 
   alias AshEnterprise.Accounts.User
+  alias AshEnterprise.Assistant.{Ask, Thread}
   alias AshEnterprise.Canonical.Projections.ZoneAdmission
+  alias AshEnterprise.Execution.AgentRuntime
   alias AshEnterprise.Platform.Seeder
   alias AshEnterprise.Security
   alias AshEnterprise.Security.ActorContext
@@ -20,11 +24,11 @@ defmodule AshEnterprise.Test.AssistantFixtures do
 
   @doc """
   Configures the in-zone profile (`@model` at an unroutable host, in
-  `@zone`), names `@zone` as the canonical store's zone, and routes the
-  runner's model calls to `ScriptedModel`. Restored on exit.
+  `@zone`), names `@zone` as the canonical store's zone, and routes every
+  agent run's model calls to `ScriptedModel`. Restored on exit.
   """
   def in_zone!(opts \\ []) do
-    keys = [:ai, ZoneAdmission, AshEnterprise.Assistant.Runner]
+    keys = [:ai, ZoneAdmission, AgentRuntime]
     previous = Map.new(keys, &{&1, Application.get_env(:ash_enterprise, &1)})
 
     ExUnit.Callbacks.on_exit(fn -> Enum.each(previous, &restore/1) end)
@@ -40,7 +44,7 @@ defmodule AshEnterprise.Test.AssistantFixtures do
 
     Application.put_env(:ash_enterprise, ZoneAdmission, zone: @zone)
 
-    Application.put_env(:ash_enterprise, AshEnterprise.Assistant.Runner,
+    Application.put_env(:ash_enterprise, AgentRuntime,
       req_llm_opts: [downstream: __MODULE__.ScriptedModel]
     )
 
@@ -50,8 +54,8 @@ defmodule AshEnterprise.Test.AssistantFixtures do
   defp restore({key, nil}), do: Application.delete_env(:ash_enterprise, key)
   defp restore({key, value}), do: Application.put_env(:ash_enterprise, key, value)
 
-  @doc "The run's model target as the runner resolves it."
-  def target, do: AshEnterprise.AI.Models.resolve(AshEnterprise.AI.Models.default_spec())
+  @doc "The model target every run step calls."
+  def target, do: AgentRuntime.target()
 
   @doc "A seeded tenant: `%{actor:, user:, tenant:, role:, business_unit:}`."
   def tenant! do
@@ -117,24 +121,121 @@ defmodule AshEnterprise.Test.AssistantFixtures do
 
   def actor(user, org_id), do: ActorContext.attach(user, ActorContext.build(user, tenant: org_id))
 
-  @doc "Runs one assistant tool as `ctx`'s person, with `target` (default: the in-zone one)."
-  def tool!(ctx, name, input, target \\ :in_zone) do
-    context =
-      case target do
-        :in_zone -> %{AshEnterprise.Assistant.ZoneGate.key() => target()}
-        nil -> %{}
-        other -> %{AshEnterprise.Assistant.ZoneGate.key() => other}
-      end
+  @doc """
+  Runs one assistant tool as `ctx`'s person, as a run's step hands it its context
+  (`run?: false`: as a caller with no run), and returns its rows as the model reads
+  them: string keys, empty fields left out. A refusal raises; `refusal/4` returns it.
+  """
+  def tool!(ctx, name, input, opts \\ []) do
+    {:ok, rows} = tool(ctx, name, input, opts)
+    rows
+  end
 
-    AshEnterprise.Assistant.Lookup
-    |> Ash.ActionInput.for_action(name, input,
+  @doc "The refusal one assistant tool answers `ctx`'s person with: its message, as the model reads it."
+  def refusal(ctx, name, input, opts \\ []) do
+    {:error, error} = tool(ctx, name, input, opts)
+
+    error
+    |> Ash.Error.to_error_class()
+    |> Map.fetch!(:errors)
+    |> Enum.map_join("; ", & &1.message)
+  end
+
+  defp tool(ctx, name, input, opts) do
+    %{resource: resource, action: action} =
+      Enum.find(AshAi.Info.tools(AshEnterprise.Assistant), &(&1.name == name))
+
+    context =
+      if Keyword.get(opts, :run?, true),
+        do: %{ash_agent: %{run_id: Ash.UUID.generate()}},
+        else: %{}
+
+    resource
+    |> Ash.Query.for_read(action, input,
       actor: ctx.actor,
       tenant: ctx.tenant,
       context: context,
       authorize?: true
     )
-    |> Ash.run_action!()
+    |> Ash.read()
+    |> case do
+      {:ok, rows} -> {:ok, Enum.map(rows, &fields/1)}
+      {:error, error} -> {:error, error}
+    end
   end
+
+  defp fields(row) do
+    row.__struct__
+    |> Ash.Resource.Info.public_attributes()
+    |> Enum.flat_map(fn %{name: name} ->
+      case Map.get(row, name) do
+        value when value in [nil, "", []] -> []
+        value -> [{Atom.to_string(name), value}]
+      end
+    end)
+    |> Map.new()
+  end
+
+  @doc """
+  Publishes the assistant agent in `ctx`'s tenant under four eyes (its administrator
+  asks, a second administrator approves) and gives `members` (default: `ctx` itself)
+  its start grant. Returns the published version.
+  """
+  def published!(ctx, members \\ nil) do
+    approver = colleague!(ctx, admin?: true)
+
+    version =
+      AshEnterprise.Test.Execution.Runs.publish!(ctx, approver, AshEnterprise.Assistant.Agent)
+
+    for member <- members || [ctx],
+        do: AshEnterprise.Test.Execution.Authority.start_grant!(ctx, member, "assistant")
+
+    version
+  end
+
+  @doc """
+  Asks `question` in `thread` as `ctx`'s person and steps its run the way its jobs do,
+  until it has ended or waits on a limit, then records the answer. Returns what
+  `AshEnterprise.Assistant.Ask.settle/3` returns, or the refusal `Ask.ask/3` returned.
+  """
+  def ask!(ctx, %Thread{} = thread, question) do
+    opts = opts(ctx)
+
+    case Ask.ask(thread, question, opts) do
+      {:ok, %{run: run}} -> answer!(ctx, thread, run)
+      {:error, reason, %{answer: answer}} -> {:error, reason, answer}
+    end
+  end
+
+  @doc "Steps `run` until it ends (at most `steps` times), then records its answer."
+  def answer!(ctx, thread, run, steps \\ 12) do
+    run_out!(run, steps)
+    Ask.settle(thread, run.id, opts(ctx))
+  end
+
+  @doc """
+  Does `run`'s jobs here: steps it while it is queued or running, at most `steps`
+  times. Returns the run as it then stands.
+  """
+  def run_out!(run, steps \\ 12) do
+    Enum.reduce_while(1..steps, run, fn _n, run ->
+      case AshEnterprise.Test.Execution.Runs.run(run) do
+        %{status: status} = run when status in [:queued, :running] ->
+          _ = AshEnterprise.Test.Execution.Runs.step!(run)
+          {:cont, run}
+
+        run ->
+          {:halt, run}
+      end
+    end)
+  end
+
+  @doc "A new thread of `ctx`'s person."
+  def thread!(ctx, title \\ "SYNTHETIC: a question"),
+    do: Thread.start!(title, opts(ctx))
+
+  @doc "Options to act as `ctx`'s person."
+  def opts(ctx), do: [actor: ctx.actor, tenant: ctx.tenant, authorize?: true]
 
   defmodule ScriptedModel do
     @moduledoc """

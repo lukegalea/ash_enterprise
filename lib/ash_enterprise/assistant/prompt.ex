@@ -1,7 +1,13 @@
 defmodule AshEnterprise.Assistant.Prompt do
   @moduledoc """
-  The assistant's system prompt: short, because the model is ~27B and the
-  tool descriptions already say what each tool does.
+  The assistant's instructions and each run's input.
+
+  The instructions are the assistant agent's system prompt
+  (`AshEnterprise.Assistant.Agent`): plain text, the same for every run, so
+  a version's `content_hash` names them. Short, because the model is ~27B
+  and the tool descriptions already say what each tool does. What changes
+  per question — the time, the conversation so far, the question — is the
+  run's input (`input/3`), the first user message.
 
   Three rules carry weight and are stated plainly:
 
@@ -18,16 +24,15 @@ defmodule AshEnterprise.Assistant.Prompt do
 
   alias AshEnterprise.Platform.LocalTime
 
-  @doc "The system prompt for a run at `now` (default: the display zone's now)."
-  @spec system(DateTime.t()) :: String.t()
-  def system(now \\ LocalTime.now()) do
+  @doc "The assistant's instructions."
+  @spec instructions() :: String.t()
+  def instructions do
     """
     You are the assistant in #{AshEnterprise.Brand.product_name()}. You answer the signed-in \
     person's questions about their own calendar, email, Slack, contacts, tasks, morning \
     briefs, approvals and duplicate records, using the tools. Tools return only what this \
-    person may read.
-
-    It is #{Calendar.strftime(now, "%A %-d %B %Y, %H:%M")} (#{LocalTime.zone()}).
+    person may read. The person's message says what time it is, the conversation so far, \
+    and their question.
 
     Rules:
     - Look things up with the tools. Never guess names, dates, counts or what someone said.
@@ -52,4 +57,28 @@ defmodule AshEnterprise.Assistant.Prompt do
     - Answer briefly in plain sentences or short "- " lists. No tables, no headings.
     """
   end
+
+  @doc """
+  A run's input: the time at `now`, the conversation so far (`prior`, as
+  `{role, text}` with role `:user` or `:assistant`) and the question.
+  """
+  @spec input(String.t(), [{:user | :assistant, String.t()}], DateTime.t()) :: String.t()
+  def input(question, prior, now \\ LocalTime.now()) do
+    time = "It is #{Calendar.strftime(now, "%A %-d %B %Y, %H:%M")} (#{LocalTime.zone()})."
+
+    earlier =
+      case prior do
+        [] ->
+          []
+
+        turns ->
+          lines = Enum.map(turns, fn {role, text} -> "#{speaker(role)}: #{text}" end)
+          ["The conversation so far:\n" <> Enum.join(lines, "\n")]
+      end
+
+    Enum.join([time | earlier] ++ ["Question: " <> question], "\n\n")
+  end
+
+  defp speaker(:user), do: "Person"
+  defp speaker(:assistant), do: "You"
 end

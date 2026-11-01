@@ -22,16 +22,8 @@ defmodule AshEnterprise.Assistant.ComposeProposeTest do
     F.tenant!()
   end
 
-  defp tool!(ctx, resource, name, input) do
-    resource
-    |> Ash.ActionInput.for_action(name, input,
-      actor: ctx.actor,
-      tenant: ctx.tenant,
-      context: %{AshEnterprise.Assistant.ZoneGate.key() => F.target()},
-      authorize?: true
-    )
-    |> Ash.run_action!()
-  end
+  # A tool's one row, as the model reads it, run as a run's step runs it.
+  defp tool!(ctx, name, input), do: ctx |> F.tool!(name, input) |> hd()
 
   defp encoded(surface, ctx),
     do:
@@ -108,7 +100,7 @@ defmodule AshEnterprise.Assistant.ComposeProposeTest do
       D.event!(ctx, "SYNTHETIC tool row", 60, 30)
 
       result =
-        tool!(ctx, AshEnterprise.Assistant.Compose, :compose_surface, %{
+        tool!(ctx, :compose_surface, %{
           show: :events,
           display: :calendar
         })
@@ -117,16 +109,7 @@ defmodule AshEnterprise.Assistant.ComposeProposeTest do
       assert result["shown"] =~ "Calendar events"
       refute Jason.encode!(result) =~ "SYNTHETIC tool row"
 
-      refused =
-        AshEnterprise.Assistant.Compose
-        |> Ash.ActionInput.for_action(:compose_surface, %{show: :events},
-          actor: ctx.actor,
-          tenant: ctx.tenant,
-          authorize?: true
-        )
-        |> Ash.run_action!()
-
-      assert refused["error"] =~ "ADR 0042"
+      assert F.refusal(ctx, :compose_surface, %{show: :events}, run?: false) =~ "ADR 0042"
     end
   end
 
@@ -237,7 +220,7 @@ defmodule AshEnterprise.Assistant.ComposeProposeTest do
 
     test "the compose tool tells the model which days it showed", ctx do
       result =
-        tool!(ctx, AshEnterprise.Assistant.Compose, :compose_surface, %{
+        tool!(ctx, :compose_surface, %{
           show: :events,
           display: :calendar,
           window: "monday"
@@ -251,7 +234,7 @@ defmodule AshEnterprise.Assistant.ComposeProposeTest do
   describe "proposals" do
     test "add and finish an action item: nothing until executed, then as the person", ctx do
       result =
-        tool!(ctx, AshEnterprise.Assistant.Propose, :propose_task, %{
+        tool!(ctx, :propose_task, %{
           change: :add,
           title: "SYNTHETIC send the deck",
           due: "tomorrow"
@@ -269,7 +252,7 @@ defmodule AshEnterprise.Assistant.ComposeProposeTest do
       assert task.due_at
 
       done =
-        tool!(ctx, AshEnterprise.Assistant.Propose, :propose_task, %{
+        tool!(ctx, :propose_task, %{
           change: :done,
           title: "send the DECK"
         })
@@ -290,13 +273,10 @@ defmodule AshEnterprise.Assistant.ComposeProposeTest do
       {:ok, bobs} =
         Task.capture("SYNTHETIC bob's item", %{}, actor: bob.actor, tenant: ctx.tenant)
 
-      refused =
-        tool!(ctx, AshEnterprise.Assistant.Propose, :propose_task, %{
-          change: :done,
-          title: bobs.id
-        })
-
-      assert refused["error"] =~ "No open action item of yours"
+      assert F.refusal(ctx, :propose_task, %{
+               change: :done,
+               title: bobs.id
+             }) =~ "No open action item of yours"
 
       # The self-service completion itself does not reach it either.
       assert {:error, _} = Task.complete_mine(bobs.id, actor: ctx.actor, tenant: ctx.tenant)
@@ -309,20 +289,17 @@ defmodule AshEnterprise.Assistant.ComposeProposeTest do
           "hi"
         )
 
-      refused =
-        tool!(ctx, AshEnterprise.Assistant.Propose, :propose_reply, %{
-          conversation: "inbox:#{conversation.id}",
-          text: "SYNTHETIC reply"
-        })
-
-      assert refused["error"] =~ "No conversation of yours"
+      assert F.refusal(ctx, :propose_reply, %{
+               conversation: "inbox:#{conversation.id}",
+               text: "SYNTHETIC reply"
+             }) =~ "No conversation of yours"
     end
 
     test "a reply draft is stored, sealed and owner-only, never sent", ctx do
       conversation = D.conversation!(ctx, "gmail", "SYNTHETIC launch", "Can you confirm?")
 
       result =
-        tool!(ctx, AshEnterprise.Assistant.Propose, :propose_reply, %{
+        tool!(ctx, :propose_reply, %{
           conversation: "inbox:#{conversation.id}",
           text: "SYNTHETIC: confirmed for Friday."
         })
@@ -350,15 +327,13 @@ defmodule AshEnterprise.Assistant.ComposeProposeTest do
     end
 
     test "sync needs a linked account", ctx do
-      refused = tool!(ctx, AshEnterprise.Assistant.Propose, :propose_sync, %{})
-      assert refused["error"] =~ "no active linked accounts"
+      assert F.refusal(ctx, :propose_sync, %{}) =~ "no active linked accounts"
 
       account = D.linked_account!(ctx, "google-mail")
 
-      refused = tool!(ctx, AshEnterprise.Assistant.Propose, :propose_sync, %{account: :slack})
-      assert refused["error"] =~ "no active slack account"
+      assert F.refusal(ctx, :propose_sync, %{account: :slack}) =~ "no active slack account"
 
-      result = tool!(ctx, AshEnterprise.Assistant.Propose, :propose_sync, %{account: :gmail})
+      result = tool!(ctx, :propose_sync, %{account: :gmail})
       assert result["proposed"] == "Sync gmail now"
       assert result["proposal"] == %{"kind" => "sync_now", "account_ids" => [account.id]}
 

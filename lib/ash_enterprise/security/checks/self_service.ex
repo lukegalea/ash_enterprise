@@ -11,6 +11,7 @@ defmodule AshEnterprise.Security.Checks.SelfService do
   | Action type | Authorizes |
   |---|---|
   | generic | the action, outright — it scopes itself to the actor by construction |
+  | read on a computed resource (`Ash.DataLayer.Simple`) | the read, outright — its rows are computed for the actor, by reads made as them |
   | create / read | rows the actor personally owns: `owner_id` is the actor |
 
   Nothing else: updates and destroys cannot be declared
@@ -38,7 +39,7 @@ defmodule AshEnterprise.Security.Checks.SelfService do
   `ash_acp` prunes its command palette, `Ash.can?/3` with no options — is
   admitted: it has no rows, and everything it does runs under a tenant and
   its own checks (a create or read with no tenant is never admitted, since
-  a nil tenant reads across tenants). An automation principal is never
+  a nil tenant reads across tenants; a computed read is a read). An automation principal is never
   admitted, even acting for a person (ADR 0043): self-service is a person
   acting for themselves, and the principal's authority is its grants. Each condition is a positive requirement of this path, not a
   `forbid_if`: failing one contributes `false` to the union and takes nothing
@@ -73,10 +74,20 @@ defmodule AshEnterprise.Security.Checks.SelfService do
       not declared?(authorizer) -> false
       not active?(actor) -> false
       not own_tenant?(context, authorizer) -> false
-      authorizer.action.type == :action -> true
+      by_construction?(authorizer) -> true
       true -> expr(owner_id == ^context.user_id)
     end
   end
+
+  # A generic action, or a read of a resource with no stored rows: nothing a row-owner
+  # filter could narrow, because whatever it returns it computed for the actor, through
+  # reads made as them (the assistant's lookups, `AshEnterprise.Assistant.Lookup`).
+  defp by_construction?(%{action: %{type: :action}}), do: true
+
+  defp by_construction?(%{action: %{type: :read}, resource: resource}),
+    do: Ash.DataLayer.data_layer(resource) == Ash.DataLayer.Simple
+
+  defp by_construction?(_authorizer), do: false
 
   @doc "The actions `resource` declares self-service."
   @spec actions(module()) :: [atom()]

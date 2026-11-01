@@ -240,8 +240,15 @@ and the host's `fragments:` lists, with no data migration, because no table name
   executing one records the request; nothing done is undone.
 - **Sealing.** `input`, `output` and each step's `parts` are sealed under the subject's erasure scope, as an
   invocation's arguments are (built 2026-11-01, AGT-32; see "Erasure of a run" below).
+- **The assistant on runs (AGT-33).** Each answer at `/app/agent` is a run of `AshEnterprise.Assistant.Agent`, an
+  agent declared in code, sealed under its thread's scope (the thread is the start's subject). Its fourteen tools are
+  computed `:read` actions on row resources (`Ash.DataLayer.Simple`, effects `read_only?`), so a run takes each in its
+  loop and none is an invocation: the lookups read, the composer and the four proposals change nothing, and confirming
+  a proposal is the person's own act on the page. The page follows the run over PubSub and records the answer from
+  its journal however the run ends; a run that outlives its page is picked up again when the thread is reopened. A
+  tenant runs it once an administrator registers and publishes it (four eyes) and grants members its start.
 - **Not built here.** Budget reservation and `extend` (AGT-30, "Built, 2026-11-01: run budgets" below), waiting on a
-  person (AGT-31, below), the assistant on runs (AGT-33), requesterless starts.
+  person (AGT-31, below), requesterless starts.
 - **Tests.** Package: `test/ash_agent/run_test.exs`. Here: `test/ash_enterprise/execution/run_test.exs`, and in the
   durability tier `run_resume_test.exs` (F1), `wakeup_test.exs` (invariant 9) and `cancellation_test.exs`
   (invariant 5).
