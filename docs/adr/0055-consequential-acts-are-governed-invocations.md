@@ -5,7 +5,8 @@
   binding built (2026-10-30)
 - **Date:** 2026-10-23
 - **Amended:** 2026-10-29 — the coding-agent bridge; see
-  [Amendment](#amendment-2026-10-29--the-coding-agent-bridge)
+  [Amendment](#amendment-2026-10-29--the-coding-agent-bridge). 2026-11-01 — the sole-administrator rule; see
+  [Amendment](#amendment-2026-11-01--the-sole-administrator-rule)
 - **Related:** [ADR 0015](0015-approvals-stay-in-ash.md) (approvals stay in Ash),
   [ADR 0043](0043-automation-authority-is-a-grant.md) (automation authority is a grant),
   [ADR 0052](0052-self-service-actions.md) (self-service actions),
@@ -392,3 +393,34 @@ halves, and they go different ways.
   process and conversation. They are not the runtime's `Run` and `Step`
   ([ADR 0056](0056-the-ash-agent-package.md)), which record runs this application's own agents execute, and they are
   not merged into them.
+
+## Amendment, 2026-11-01 — the sole-administrator rule
+
+Publishing an agent (`AgentVersion.apply_publish`) is `:four_eyes` with `approver_role: :administrator`. An
+organization with one administrator could never publish one: four eyes excludes the requester and there is no second
+candidate. Adding a second administrator only to approve, or leaving agents unpublished, were the alternatives; the
+decision is an explicit, recorded exception instead.
+
+- **Opt-in, per organization.** `Organization.sole_administrator_approval`, default false, set only through
+  `set_sole_administrator_approval`: `human_only` and `changes_authority` (a person's act, never a system actor's, an
+  engine's or an automation principal's), authorized by the grant union and by `Security.Checks.OwnOrganization`
+  (the row is the actor's own organization, since `Organization` is not tenant-scoped). Audited like every update.
+- **The rule.** For a `:four_eyes` declaration whose `approver_role` is `:administrator`, and no other role, the
+  requester is not excluded while the organization has opted in and the requester is the only active member holding
+  the Administrator role, directly or through a team (`Execution.Approval.sole_administrator?/3`). Turning the opt-in
+  on in an organization with several administrators changes nothing. The credentialing committee, and every other
+  approver role, keeps four eyes unconditionally.
+- **Still an act, asked again.** The requester approves by deciding the task, as any approver does; nothing is
+  approved for them. The rule is evaluated when the task opens (`RequestApproval`, which now passes the tenant and the
+  requester to `Approval.task_options/4`), when the decision is applied (`ReadApproval`) and at every claim
+  (`RecheckApprover`, through `approver_holds?/2`). A second administrator, or the opt-in turned off, restores four
+  eyes: a self-approval not yet applied goes `stale` with `approved_by_requester`, one already applied goes `stale` at
+  its claim with `approver_unauthorized`, and nothing runs.
+- **Recorded.** `Invocation.approval_basis` is written when an approval is applied: `:confirm`, `:four_eyes` or
+  `:sole_administrator`, so a reader of the row or its audit trail can tell a self-approval from four eyes.
+- **Enabling an agent.** `AgentVersion.enable_from_code` (and `mix ash_enterprise.assistant.enable --org <org> --as
+  <email>` for the assistant) registers the code agent's platform baseline, forks it into the tenant and requests the
+  publish as the named person; a rerun returns the waiting request or reports the version already published. It never
+  approves and never gives start grants. `--sole-administrator-approval` records the opt-in first, as that person.
+- **Tests.** `test/ash_enterprise/execution/sole_administrator_approval_test.exs` and
+  `test/ash_enterprise/execution/enable_agent_test.exs`.

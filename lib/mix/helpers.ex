@@ -45,6 +45,25 @@ defmodule AshEnterprise.Mix.Helpers do
   end
 
   @doc """
+  Starts Oban for inserting jobs only, after `boot_repo/0`: no queues, no
+  plugins, no leadership, so nothing runs while the task does. For a task whose
+  action enqueues work for the application's own nodes to run (an approval's
+  expiry timer, a trigger's job). A no-op when Oban is already running.
+  """
+  @spec boot_oban_inserts() :: :ok
+  def boot_oban_inserts do
+    config =
+      :ash_enterprise
+      |> Application.fetch_env!(Oban)
+      |> Keyword.merge(queues: false, plugins: false, peer: false)
+
+    case Oban.start_link(config) do
+      {:ok, _pid} -> :ok
+      {:error, {:already_started, _pid}} -> :ok
+    end
+  end
+
+  @doc """
   Applies the configured `:logger` level to the Logger that is already
   running.
 

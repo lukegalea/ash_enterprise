@@ -33,7 +33,9 @@ defmodule AshEnterprise.Accounts.Organization do
     api_type: :organization,
     ownership: :organization_owned,
     tenant?: false,
-    cdm_entity: "Organization"
+    cdm_entity: "Organization",
+    human_only: [:set_sole_administrator_approval],
+    changes_authority: [:set_sole_administrator_approval]
 
   postgres do
     table "organizations"
@@ -96,6 +98,27 @@ defmodule AshEnterprise.Accounts.Organization do
       opts in by silence. ADR 0042.
       """
     end
+
+    # First-party (no CDM column), ADR 0055 amendment of 2026-11-01. Recorded
+    # as data for the same reason as `sub_processor_opt_in`: the update that
+    # flips it is an audited event. Read by `AshEnterprise.Execution.Approval`
+    # when it decides who may approve an administrator's four-eyes request.
+    attribute :sole_administrator_approval, :boolean do
+      allow_nil? false
+      default false
+      public? false
+
+      description """
+      Whether this tenant allows its only administrator to approve their own
+      four-eyes request that names the Administrator role (publishing an
+      agent). Takes effect only while the requester is the sole active
+      holder of the Administrator role, checked when the approval opens, when
+      it is applied and at every claim; with a second administrator, four
+      eyes applies as usual. The approval is still an explicit act on the
+      task, and is recorded with `approval_basis` `:sole_administrator`.
+      Default false. Set through `set_sole_administrator_approval`.
+      """
+    end
   end
 
   identities do
@@ -125,11 +148,40 @@ defmodule AshEnterprise.Accounts.Organization do
       # unique_name is immutable -- see the attribute description.
       accept [:name, :languagelocale_id, :base_currency_id, :sub_processor_opt_in]
     end
+
+    # Changes who may approve, so a person's own act in their own
+    # organization: `human_only` (no system actor or engine reaches it),
+    # `changes_authority` (no automation principal), and the policy below
+    # (the actor's organization, not another tenant's).
+    update :set_sole_administrator_approval do
+      description """
+      Allow, or stop allowing, this organization's only administrator to
+      approve their own four-eyes request that names the Administrator role.
+      See the `sole_administrator_approval` attribute.
+      """
+
+      accept [:sole_administrator_approval]
+    end
+  end
+
+  policies do
+    # Organization is not tenant-scoped, so a `:global` write grant reaches
+    # every tenant's row. This action is an organization's decision about its
+    # own approvals: the row must be the actor's own organization. A tenancy
+    # boundary in place of the data layer's, in addition to the grant union
+    # that authorizes the write; it takes nothing from any other action.
+    policy action(:set_sole_administrator_approval) do
+      authorize_if AshEnterprise.Security.Checks.OwnOrganization
+    end
   end
 
   code_interface do
     define :create
     define :read
     define :by_unique_name, action: :read, get_by: [:unique_name]
+
+    define :set_sole_administrator_approval,
+      action: :set_sole_administrator_approval,
+      args: [:sole_administrator_approval]
   end
 end

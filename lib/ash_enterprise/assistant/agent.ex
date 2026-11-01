@@ -19,6 +19,11 @@ defmodule AshEnterprise.Assistant.Agent do
   A tenant runs the assistant once an administrator has registered it
   (`AshEnterprise.Execution.register_agent_from_code/2`), had its publish approved by
   another, and given members its start grant (`AshEnterprise.Security.AgentStartGrant`).
+  `mix ash_enterprise.assistant.enable --org <org> --as <email>` does the first part and
+  requests the publish (`AshEnterprise.Execution.enable_agent_from_code/2`); approving it
+  and the start grants stay people's acts. An organization with one administrator may
+  opt in to let them approve it themselves (`--sole-administrator-approval`,
+  `AshEnterprise.Execution.Approval`).
   """
 
   use AshAgent.Agent,

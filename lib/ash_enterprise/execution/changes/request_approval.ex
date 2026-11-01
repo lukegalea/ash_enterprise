@@ -6,7 +6,8 @@ defmodule AshEnterprise.Execution.Changes.RequestApproval do
   `AshBpmn.Changes.RequireApproval` reads its key, candidates, exclusions and expiry
   from static options, but `request` serves every governed target, so this change
   computes them for the row from the target's effects declaration as the fragment
-  snapshotted it (`AshEnterprise.Execution.Approval.task_options/2`) and delegates, the
+  snapshotted it, the tenant and the requester (`AshEnterprise.Execution.Approval.task_options/4`,
+  which asks the sole-administrator rule) and delegates, the
   way `optimistic_lock` delegates to `increment`. The key is static,
   `"invocation.approval"`: one invocation has one approval, and the engine keeps one
   live task per subject and key. No `on_complete`: the `:apply_decision` trigger applies
@@ -28,7 +29,9 @@ defmodule AshEnterprise.Execution.Changes.RequestApproval do
         changeset,
         Approval.task_options(
           Ash.Changeset.get_attribute(changeset, :target),
-          Ash.Changeset.get_attribute(changeset, :effects)
+          Ash.Changeset.get_attribute(changeset, :effects),
+          changeset.tenant,
+          Ash.Changeset.get_attribute(changeset, :owner_id)
         ),
         context
       )

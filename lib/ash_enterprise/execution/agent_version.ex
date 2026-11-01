@@ -29,7 +29,11 @@ defmodule AshEnterprise.Execution.AgentVersion do
     * **Publishing is governed (ADR 0055).** `apply_publish` is a governed target
       (`AshAgent.Validations.Governed`): it runs only as its own invocation, and its
       effects declaration asks for four eyes, an administrator other than the person who
-      asked. `request_publish` asks for it through `invoke`
+      asked. An organization whose only administrator is the requester may opt in to
+      let them approve it themselves (`Organization.set_sole_administrator_approval`);
+      the rule holds only while they are the sole administrator, and the approval is
+      recorded as `approval_basis` `:sole_administrator`
+      (`AshEnterprise.Execution.Approval`). `request_publish` asks for it through `invoke`
       (`AshEnterprise.Execution.Actions.RequestPublish`): it checks the draft first, so
       a draft that cannot be published opens no approval, and returns the request with
       its approval link. The approval binds the draft's `version_number`, so a draft
@@ -37,6 +41,10 @@ defmodule AshEnterprise.Execution.AgentVersion do
       who asked. Who the version's runs act as (the requester by default, or a named
       automation principal, ADR 0043) and whether they may start with no requester are
       arguments of the request, so the approver approves exactly those choices.
+    * **Enabling an agent declared in code.** `enable_from_code`
+      (`AshEnterprise.Execution.Actions.EnableFromCode`, `mix ash_enterprise.assistant.enable`
+      for the assistant) registers the baseline, forks it and requests the publish, and
+      on a second run reports where things stand instead of asking again.
     * **What else a publish requires here** (`AshEnterprise.Execution.Validations.Publishable`):
       the in-zone model profile (ADR 0042) and, for an automation authority, a principal
       this build declares (`AshEnterprise.Platform.AutomationPrincipal`).
@@ -50,7 +58,7 @@ defmodule AshEnterprise.Execution.AgentVersion do
     ownership: :organization_owned,
     lifecycle?: false,
     archival?: false,
-    changes_authority: [:request_publish, :apply_publish],
+    changes_authority: [:request_publish, :apply_publish, :enable_from_code],
     extra_extensions: [AshAgent.Effects],
     fragments: [AshAgent.AgentVersion]
 
@@ -86,6 +94,24 @@ defmodule AshEnterprise.Execution.AgentVersion do
       end
 
       run AshEnterprise.Execution.Actions.RequestPublish
+    end
+
+    # The steps that turn a code agent on in a tenant, up to the request: never the
+    # approval, never a start grant (`AshEnterprise.Execution.Actions.EnableFromCode`).
+    action :enable_from_code, :map do
+      description """
+      Register an agent declared in code as a platform baseline, copy it into this tenant
+      and ask for it to be published, unless that is already done or already asked.
+      Approving the request and giving start grants remain people's acts.
+      """
+
+      argument :agent, :atom do
+        allow_nil? false
+        public? true
+        description "The agent module (`use AshAgent.Agent`)."
+      end
+
+      run AshEnterprise.Execution.Actions.EnableFromCode
     end
 
     action :fork_for_tenant, :struct do

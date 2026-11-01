@@ -59,6 +59,12 @@ defmodule AshEnterpriseWeb.AssistantLive do
   (`AshEnterprise.Assistant.Agent`), which fails the answer. A refused or
   failed run records the answer as failed with its reason, which the page
   explains.
+
+  ## Turning it on
+
+  An organization with no published assistant gets `not_published`. An operator runs
+  `mix ash_enterprise.assistant.enable --org <org> --as <administrator email>`, which
+  requests the publish and prints the approval link; members then need its start grant.
   """
 
   use AshEnterpriseWeb, :live_view

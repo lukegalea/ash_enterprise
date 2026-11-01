@@ -48,6 +48,8 @@ defmodule AshEnterprise.Execution.Invocation do
       `approval_digest`, `approval_expires_at`) and finds the row `stale` when the
       subject, the target or the clock has moved on; every claim also re-checks that
       the approver still may approve (`AshEnterprise.Execution.Changes.RecheckApprover`).
+      What an approval rests on is recorded as `approval_basis`, including a
+      self-approval under the opt-in sole-administrator rule.
       See `AshEnterprise.Execution.Approval`. Being asked to approve a row lets a person
       read it (`AshEnterprise.Security.Checks.InvocationApprovalCandidacy`).
     * **The `:execute` trigger.** `request` and `apply_decision` enqueue it for every
@@ -154,6 +156,23 @@ defmodule AshEnterprise.Execution.Invocation do
 
     # A run's tool call that finishes wakes its run, in the same transaction.
     change {AshAgent.Run.Changes.Wake, run: AshEnterprise.Execution.Run}, on: [:update]
+  end
+
+  attributes do
+    # What an approval rests on (ADR 0055, amended 2026-11-01), recorded when the
+    # decision is applied (`AshEnterprise.Execution.Changes.ReadApproval`), so a reader
+    # can tell a self-approval under the sole-administrator rule from four eyes.
+    attribute :approval_basis, :atom do
+      public? true
+      constraints one_of: [:confirm, :four_eyes, :sole_administrator]
+
+      description """
+      What the approval rests on: `:confirm` (the requester confirmed), `:four_eyes`
+      (a second person approved) or `:sole_administrator` (the organization's only
+      administrator approved their own request, under the opt-in rule). Nil until
+      approved, and for rows that needed no approval.
+      """
+    end
   end
 
   actions do

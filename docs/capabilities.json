@@ -410,10 +410,12 @@
       "area": "enterprise",
       "capability": "Human approvals and work queues",
       "status": "existing",
-      "summary": "Human tasks are claimed, completed, delegated, approved or rejected by their candidates; candidacy grants read access; maker-checker excludes the requester; exactly one of several concurrent claims wins; escalation timers fire.",
+      "summary": "Human tasks are claimed, completed, delegated, approved or rejected by their candidates; candidacy grants read access; maker-checker excludes the requester (an organization that opts in may let its only administrator approve their own agent publish, recorded as a sole-administrator approval); exactly one of several concurrent claims wins; escalation timers fire.",
       "deps": ["ash_bpmn"],
       "tests": [
         {"file": "test/ash_enterprise/security/task_candidacy_test.exs", "test": "a candidate with no task grant reads their task and no other"},
+        {"file": "test/ash_enterprise/execution/sole_administrator_approval_test.exs", "test": "the only administrator approves their own publish, recorded as such"},
+        {"file": "test/ash_enterprise/execution/sole_administrator_approval_test.exs", "test": "a second administrator added before the decision is applied makes it stale"},
         {"file": "test/ash_enterprise/morning_brief_test.exs", "test": "compose → approval → approve completes the instance with the draft stored"},
         {"dep": "ash_bpmn", "file": "test/ash_bpmn/who_acts_test.exs", "test": "a requester excluded by maker-checker cannot claim through a candidate team"},
         {"dep": "ash_bpmn", "file": "test/ash_bpmn/who_acts_test.exs", "test": "a candidate delegate takes the task, and the hand-off is recorded"},

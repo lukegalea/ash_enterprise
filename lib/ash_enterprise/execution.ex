@@ -54,6 +54,7 @@ defmodule AshEnterprise.Execution do
       define :revise_agent_draft, action: :revise_draft
       define :fork_agent_for_tenant, action: :fork_for_tenant, args: [:key]
       define :request_agent_publish, action: :request_publish, args: [:record_id]
+      define :enable_agent_from_code, action: :enable_from_code, args: [:agent]
       define :retire_agent_version, action: :retire
       define :get_agent_version, action: :read, get_by: [:id]
       define :latest_published_agent_version, action: :latest_published, args: [:key]

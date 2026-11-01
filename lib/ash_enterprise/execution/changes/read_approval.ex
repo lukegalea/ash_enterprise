@@ -10,10 +10,12 @@ defmodule AshEnterprise.Execution.Changes.ReadApproval do
 
     * **Approved** by a person who may still approve
       (`AshEnterprise.Execution.Approval.approver_holds?/2`) and, under four eyes, is
-      not the requester: `:approved`, with the decider. The fragment then checks that
-      the approval still binds the request (its digest, recomputed from the row, the
-      target as declared now and the subject as it stands now) and makes the row
-      `ready`, or `stale`.
+      not the requester, unless the sole-administrator rule holds now: `:approved`, with
+      the decider, and `approval_basis` recording what it rests on
+      (`AshEnterprise.Execution.Approval.basis/2`: `:confirm`, `:four_eyes` or
+      `:sole_administrator`). The fragment then checks that the approval still binds
+      the request (its digest, recomputed from the row, the target as declared now and
+      the subject as it stands now) and makes the row `ready`, or `stale`.
     * Approved by anyone else: `stale`, `error_code` `"approved_by_requester"` or
       `"approver_unauthorized"`. The approval is not the one asked for, so the row asks
       no further; the requester may ask again.
@@ -56,6 +58,7 @@ defmodule AshEnterprise.Execution.Changes.ReadApproval do
             |> Ash.Changeset.force_set_argument(:decided_by_id, decider_id)
             |> Ash.Changeset.force_change_attributes(%{
               approval_task_id: task && task.id,
+              approval_basis: if(outcome == :approved, do: Approval.basis(row, decider_id)),
               error_code: error_code
             })
 
@@ -83,11 +86,11 @@ defmodule AshEnterprise.Execution.Changes.ReadApproval do
 
   defp decision(row, %{status: :completed, outcome: "approved", decided_by_id: decider}, _now) do
     cond do
-      row.approval_mode == :four_eyes and decider == row.owner_id ->
-        {:ok, :stale, nil, "approved_by_requester"}
-
       Approval.approver_holds?(row, decider) ->
         {:ok, :approved, decider, nil}
+
+      row.approval_mode == :four_eyes and decider == row.owner_id ->
+        {:ok, :stale, nil, "approved_by_requester"}
 
       true ->
         {:ok, :stale, nil, "approver_unauthorized"}
