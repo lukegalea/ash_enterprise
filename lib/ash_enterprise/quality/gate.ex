@@ -34,7 +34,8 @@ defmodule AshEnterprise.Quality.Gate do
   `review_open` counts the unknown pairs whose judgment on the current
   text sits in the review band with no verdict yet. They become `in` or
   `out` only when a person records a verdict on the verdicts surface and
-  it is admitted; the gate never promotes a review-band answer.
+  it is admitted (`AshEnterprise.Quality.Changes.AdmitReplyVerdict`, at
+  person grade); the gate never promotes a review-band answer.
 
   ## The verdict
 

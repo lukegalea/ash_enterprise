@@ -35,6 +35,19 @@ defmodule AshEnterprise.Quality.Projections.ReplyText do
   @spec state(map()) :: %{String.t() => String.t()}
   def state(reply), do: %{"reply" => Quality.normalise_text(text(reply))}
 
+  @doc """
+  The reply text in a judged state as the ledger sealed it: the canonical
+  JSON of `state/1` (`AshEnterprise.SystemOne.JudgedState.text/1`). Text
+  that is not such a state is returned as it is.
+  """
+  @spec text_of_sealed(String.t()) :: String.t()
+  def text_of_sealed(sealed) when is_binary(sealed) do
+    case Jason.decode(sealed) do
+      {:ok, %{"reply" => reply} = state} when is_binary(reply) and map_size(state) == 1 -> reply
+      _not_a_reply_state -> sealed
+    end
+  end
+
   defp text(%{text: text}), do: text
   defp text(%{"text" => text}), do: text
   defp text(_reply), do: nil
