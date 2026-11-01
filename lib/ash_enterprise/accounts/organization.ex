@@ -111,10 +111,11 @@ defmodule AshEnterprise.Accounts.Organization do
       description """
       Whether this tenant allows its only administrator to approve their own
       four-eyes request that names the Administrator role (publishing an
-      agent). Takes effect only while the requester is the sole active
-      holder of the Administrator role, checked when the approval opens, when
-      it is applied and at every claim; with a second administrator, four
-      eyes applies as usual. The approval is still an explicit act on the
+      agent, or a governed role assignment). Takes effect only while the
+      requester is the only person who holds the Administrator role or has
+      ever held it (a revoked or deactivated administrator still counts),
+      checked when the approval opens, when it is applied and at every claim;
+      with a second administrator, four eyes applies as usual. The approval is still an explicit act on the
       task, and is recorded with `approval_basis` `:sole_administrator`.
       Default false. Set through `set_sole_administrator_approval`.
       """

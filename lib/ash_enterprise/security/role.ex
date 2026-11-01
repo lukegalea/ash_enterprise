@@ -108,9 +108,18 @@ defmodule AshEnterprise.Security.Role do
     identity :unique_name_per_business_unit, [:owning_business_unit_id, :name]
   end
 
+  # `history` reads archived rows too (`AshEnterprise.Execution.Approval`).
+  archive do
+    exclude_read_actions([:history])
+  end
+
   actions do
     defaults [:read, :destroy]
     default_accept [:name, :description, :is_inherited, :owning_business_unit_id]
+
+    read :history do
+      description "Every role, in use or removed (archived)."
+    end
 
     create :create do
       primary? true

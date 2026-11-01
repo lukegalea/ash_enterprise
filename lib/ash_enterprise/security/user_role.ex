@@ -101,9 +101,18 @@ defmodule AshEnterprise.Security.UserRole do
       where: expr(is_nil(archived_at))
   end
 
+  # `history` reads archived rows too (`AshEnterprise.Execution.Approval`).
+  archive do
+    exclude_read_actions([:history])
+  end
+
   actions do
     defaults [:read, :destroy]
     default_accept [:user_id, :role_id, :scoping_business_unit_id]
+
+    read :history do
+      description "Every assignment, in force or revoked (archived): who has ever held a role."
+    end
 
     create :assign do
       primary? true
