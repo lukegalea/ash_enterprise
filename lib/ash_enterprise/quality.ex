@@ -16,6 +16,10 @@ defmodule AshEnterprise.Quality do
       replies against those questions (S1-93).
     * `AshEnterprise.Quality.Gate`: what the admitted facts say about a set
       of replies, as a three-state report and a verdict (S1-94).
+    * `AshEnterprise.Quality.Changes.AdmitReplyVerdict`: a person's verdict
+      on a review-banded reply, recorded on the verdicts surface
+      (`/app/judgments`), admitted as the reply's fact at person grade, so
+      the gate reads it `in` or `out` (S1-96).
 
   Facts about a reply live in `AshEnterprise.SystemOne.Fact`, keyed by
   `subject_term/1` and carrying `digest/1`, as the facts about a code unit

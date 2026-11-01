@@ -94,6 +94,19 @@ defmodule AshEnterprise.Quality.Questions do
   def declared(name), do: AshJudgments.Registry.Info.question(AgentReply, name)
 
   @doc """
+  The name of the question whose `question_id` (the facts predicate and
+  the judgment's `question_id`) is `question_id`, or `:error` when none
+  here has it.
+  """
+  @spec name_for(String.t() | nil) :: {:ok, atom()} | :error
+  def name_for(question_id) do
+    case Enum.find(names(), &(declared(&1).question_id == question_id)) do
+      nil -> :error
+      name -> {:ok, name}
+    end
+  end
+
+  @doc """
   Whether the question is asked of `reply`: every question is asked of a
   reply that used no tools; hs4 and hs7 are not asked of one that did.
   """

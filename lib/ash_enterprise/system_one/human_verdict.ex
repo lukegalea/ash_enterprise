@@ -51,6 +51,13 @@ defmodule AshEnterprise.SystemOne.HumanVerdict do
     # not). An after_action hook: AshEvents strips hooks during replay,
     # so a replayed verdict appends nothing.
     change {AshEnterprise.SystemOne.Banding.CalibrationSampleWriter, []}, on: :create
+
+    # S1-96: a person's verdict on a review-banded agent reply is admitted
+    # as the reply's fact at person grade, so the quality gate reads it.
+    # Verdicts on other subjects stay labels. Hook-based like the writer
+    # above, so a replayed verdict writes nothing; the fact's own event is
+    # what the facts replay rebuilds from.
+    change {AshEnterprise.Quality.Changes.AdmitReplyVerdict, []}, on: :create
   end
 
   policies do
