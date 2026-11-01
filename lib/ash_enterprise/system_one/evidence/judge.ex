@@ -25,6 +25,7 @@ defmodule AshEnterprise.SystemOne.Evidence.Judge do
 
   alias AshEnterprise.Platform.Correlation
   alias AshEnterprise.SystemOne
+  alias AshEnterprise.SystemOne.JudgedState
   alias AshJudgments.Registry.Info
   alias AshJudgments.Registry.Judge, as: RegistryJudge
 
@@ -84,12 +85,9 @@ defmodule AshEnterprise.SystemOne.Evidence.Judge do
     name = Keyword.fetch!(opts, question_key)
     question = Info.question(resource, name)
 
-    judge_input =
-      resource
-      |> Ash.ActionInput.for_action(judge_action(name), %{"input" => state_args})
-      |> Map.replace!(:context, judge_context(opts))
-
-    ctx = judge_context(opts)
+    input = Ash.ActionInput.for_action(resource, judge_action(name), %{"input" => state_args})
+    ctx = judge_context(opts, nil, JudgedState.project(question, input))
+    judge_input = Map.replace!(input, :context, ctx)
 
     case RegistryJudge.judge_and_record(question, judge_input, ctx, ctx, question: name) do
       {:ok, answer, [observation_id]} ->
@@ -116,15 +114,14 @@ defmodule AshEnterprise.SystemOne.Evidence.Judge do
 
     runtime_questions = Enum.map(candidate_ids, &runtime_question(&1, question))
 
-    judge_input =
-      resource
-      |> Ash.ActionInput.for_action(judge_action(name, "_matrix"), %{
+    input =
+      Ash.ActionInput.for_action(resource, judge_action(name, "_matrix"), %{
         "input" => state_args,
         "questions" => runtime_questions
       })
-      |> Map.replace!(:context, judge_context(opts, packet_candidates))
 
-    ctx = judge_context(opts, packet_candidates)
+    ctx = judge_context(opts, packet_candidates, JudgedState.project(question, input))
+    judge_input = Map.replace!(input, :context, ctx)
 
     case RegistryJudge.judge_and_record(question, judge_input, ctx, ctx,
            question: name,
@@ -181,13 +178,16 @@ defmodule AshEnterprise.SystemOne.Evidence.Judge do
   ## The judge context — built ONLY here, next to the judge call (the
   ## domain module owns the shape; the orchestrator threads attribution).
 
-  defp judge_context(opts, packet_candidates \\ nil) do
+  # `judged_state` is the state the judge sends, sealed on each observation
+  # as the text the model judged (AshEnterprise.SystemOne.JudgedState).
+  defp judge_context(opts, packet_candidates, judged_state) do
     atom_ids = packet_candidates || []
 
     SystemOne.judge_context(
       tenant: Keyword.fetch!(opts, :tenant),
       correlation_id: keyword(opts, :correlation_id, Correlation.id()),
       lineage: Keyword.get(opts, :lineage),
+      judged_state: judged_state,
       judgments:
         %{
           subject: Keyword.get(opts, :subject),

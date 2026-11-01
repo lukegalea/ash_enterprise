@@ -74,6 +74,7 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Standing) do
     alias AshEnterprise.SystemOne
     alias AshEnterprise.SystemOne.Banding
     alias AshEnterprise.SystemOne.Banding.Step
+    alias AshEnterprise.SystemOne.JudgedState
     alias AshEnterprise.SystemOne.Judgment
 
     require Ash.Query
@@ -211,6 +212,8 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Standing) do
       observation_id = Ash.UUID.generate()
       term = Standards.subject_term(subject)
 
+      input = judge_input(question, subject, actor: actor)
+
       context =
         SystemOne.judge_context(
           tenant: tenant,
@@ -225,17 +228,11 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Standing) do
                 mode: Keyword.get(opts, :mode, :live)
               },
               Keyword.get(opts, :judgments, %{})
-            )
+            ),
+          judged_state: JudgedState.project(declared, input)
         )
 
-      judged =
-        CodeUnit
-        |> Ash.ActionInput.for_action(
-          Questions.judge_action(question.name),
-          %{"input" => subject},
-          actor: actor
-        )
-        |> Ash.run_action(context: context)
+      judged = Ash.run_action(input, context: context)
 
       case judged do
         {:ok, answer} ->
@@ -258,6 +255,70 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Standing) do
         {:error, error} ->
           {nil, {:error, error}}
       end
+    end
+
+    @doc """
+    The state a question's judge sees for one unit: the judge action's input
+    through the question's projection, as `judge_and_admit/3` sends it.
+    """
+    @spec judged_state(map(), map()) :: map()
+    def judged_state(question, subject) do
+      question.name
+      |> Questions.declared()
+      |> JudgedState.project(judge_input(question, subject))
+    end
+
+    @doc """
+    Finds the unit a judgment of `question` was recorded about again under
+    `root`, by its subject id, as the standing job extracted it (the same
+    kinds, context and chunking): `{:ok, subject}`, or
+    `{:error, :not_found}` when the file or the unit is gone. Takes the
+    chunking options of `run/2` (`:max_tokens`, `:reserve_tokens`).
+    """
+    @spec find_unit(Path.t(), map(), String.t(), keyword()) ::
+            {:ok, map()} | {:error, :not_found}
+    def find_unit(root, question, subject_id, opts \\ []) do
+      with [repository, address] <- String.split(subject_id, ":", parts: 2),
+           [path, _name_path] <- String.split(address, "#", parts: 2) do
+        root
+        |> CodeSubjects.scan(
+          repository: repository,
+          paths: [path],
+          kinds: question.kinds,
+          context: question.projection
+        )
+        |> Map.fetch!(:subjects)
+        |> Enum.flat_map(&fitted(&1, question, opts))
+        |> Enum.find(&(&1.id == subject_id))
+        |> case do
+          nil -> {:error, :not_found}
+          subject -> {:ok, subject}
+        end
+      else
+        _ -> {:error, :not_found}
+      end
+    end
+
+    # A unit as the standing job judges it: whole, or as its chunks.
+    defp fitted(subject, question, opts) do
+      budget = [
+        max_tokens: Keyword.get(opts, :max_tokens, @max_tokens),
+        reserve_tokens: Keyword.get(opts, :reserve_tokens, @reserve_tokens)
+      ]
+
+      case CodeSubjects.fit(subject, question.projection, budget) do
+        {:ok, subjects} -> subjects
+        {:error, _too_large} -> []
+      end
+    end
+
+    defp judge_input(question, subject, opts \\ []) do
+      Ash.ActionInput.for_action(
+        CodeUnit,
+        Questions.judge_action(question.name),
+        %{"input" => subject},
+        opts
+      )
     end
 
     @doc """
