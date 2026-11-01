@@ -188,7 +188,7 @@
   "test/ash_enterprise/canonical/projections/zone_admission_test.exs": 0.0,
   "test/ash_enterprise_web/mdm_surfaces_test.exs": 0.0,
   "test/mix/helpers_test.exs": 0.0,
-  "test/ash_enterprise/acp_approvals_test.exs": 0.0,
+  "test/ash_enterprise/acp/approvals_test.exs": 0.0,
   "test/ash_enterprise/legacy/estate_test.exs": 0.0,
   "test/ash_enterprise_web/legacy_surfaces_test.exs": 0.0,
   "test/ash_enterprise/execution/reauth_test.exs": 0.0,

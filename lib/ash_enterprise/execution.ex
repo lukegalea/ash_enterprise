@@ -35,6 +35,7 @@ defmodule AshEnterprise.Execution do
     resource AshEnterprise.Execution.Invocation do
       define :invoke, action: :invoke, args: [:target, :args]
       define :request_invocation, action: :request
+      define :confirm_invocation, action: :confirm, args: [:target, :args, :key]
       define :get_invocation, action: :read, get_by: [:id]
       define :list_invocations, action: :read
       define :claim_invocation, action: :claim
