@@ -482,7 +482,7 @@ defmodule AshEnterprise.SystemOne.Support do
     atom_ids =
       Enum.with_index(texts, 1)
       |> Enum.map(fn {text, seq} ->
-        AshEvidence.Domain.ingest_atom!(version.id, parse_run.id, seq, text).id
+        AshEvidence.Domain.ingest_atom!(version.id, parse_run.id, seq, text, :line).id
       end)
 
     AshEvidence.Domain.mark_parse_run_ok!(parse_run)
