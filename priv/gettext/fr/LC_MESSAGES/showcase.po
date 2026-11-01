@@ -207,8 +207,8 @@ msgstr "Ouvrir les titres"
 
 #: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:226
 #, elixir-autogen, elixir-format
-msgid "Ran the clinic's demo data again."
-msgstr "Données de démonstration de la clinique rejouées."
+msgid "Gave the coordinator their role back."
+msgstr "Le coordinateur a retrouvé son rôle."
 
 #: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:752
 #, elixir-autogen, elixir-format

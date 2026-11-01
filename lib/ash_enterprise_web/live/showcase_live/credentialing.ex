@@ -223,8 +223,8 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
   end
 
   defp fault("restore", _params, tenant) do
-    with {:ok, _clinic} <- Tour.restore(tenant) do
-      {:ok, dgettext("showcase", "Ran the clinic's demo data again.")}
+    with {:ok, _assignment} <- Tour.restore(tenant) do
+      {:ok, dgettext("showcase", "Gave the coordinator their role back.")}
     end
   end
 

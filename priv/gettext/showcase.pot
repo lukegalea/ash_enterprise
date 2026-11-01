@@ -207,7 +207,7 @@ msgstr ""
 
 #: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:226
 #, elixir-autogen, elixir-format
-msgid "Ran the clinic's demo data again."
+msgid "Gave the coordinator their role back."
 msgstr ""
 
 #: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:752

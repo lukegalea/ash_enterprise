@@ -21,11 +21,12 @@ defmodule AshEnterpriseWeb.ShowcaseCredentialingLiveTest do
   import Phoenix.LiveViewTest
   import AshEnterprise.Test.DailyFixtures, only: [tenant!: 0]
 
+  alias AshEnterprise.Accounts.BusinessUnit
   alias AshEnterprise.Credentialing.{Credential, DemoData, Registry}
   alias AshEnterprise.Execution
   alias AshEnterprise.Faults
   alias AshEnterprise.Platform.SystemActor
-  alias AshEnterprise.Security.ActorContext
+  alias AshEnterprise.Security.{ActorContext, UserRole}
   alias AshEnterprise.Showcase
   alias AshEnterprise.Showcase.Credentialing, as: Tour
 
@@ -201,6 +202,23 @@ defmodule AshEnterpriseWeb.ShowcaseCredentialingLiveTest do
     refute coordinates?(ctx)
     view |> element("#fault-restore") |> render_click()
     assert coordinates?(ctx)
+  end
+
+  test "restore in another tenant moves no one, and creates no one there", ctx do
+    other = tenant!()
+    people = [ctx.clinic.coordinator | ctx.clinic.committee]
+
+    assert {:error, :not_this_clinic} = Tour.restore(other.tenant)
+
+    # Each person's unit is still one of this clinic's.
+    for person <- people do
+      %{owning_business_unit_id: unit_id} = Ash.reload!(person, authorize?: false)
+      assert {:ok, _unit} = Ash.get(BusinessUnit, unit_id, authorize?: false, tenant: ctx.tenant)
+    end
+
+    ids = MapSet.new(people, & &1.id)
+    held = Ash.read!(UserRole, authorize?: false, tenant: other.tenant)
+    refute Enum.any?(held, &(&1.user_id in ids))
   end
 
   test "the kill control arms the fault point between the registry and the record", ctx do
