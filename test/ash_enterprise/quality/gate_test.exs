@@ -147,6 +147,20 @@ defmodule AshEnterprise.Quality.GateTest do
       assert report([reply], band_table: nil).verdict == :unmeasured
     end
 
+    test "is :unmeasured with a published band table that has no certification", %{run: run} do
+      reply = reply(run, :in)
+      put_all!(reply, :in)
+
+      uncertified = %{band_table() | certified_at: nil}
+
+      assert report([reply], band_table: uncertified).verdict_reasons == [:not_certified]
+
+      violating = reply(run, :out)
+      put_all!(violating, :out)
+
+      assert report([violating], band_table: uncertified).verdict == :unmeasured
+    end
+
     test "is :unmeasured when the band table is older than the family allows", %{run: run} do
       reply = reply(run, :in)
       put_all!(reply, :in)

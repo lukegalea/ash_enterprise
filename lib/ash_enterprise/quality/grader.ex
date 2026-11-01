@@ -47,8 +47,22 @@ defmodule AshEnterprise.Quality.Grader do
   (`"agent_reply:<run_id>/<case_id>/<epoch>"`) are graded: those are the
   replies the synthetic evaluation tenant produces (ADR 0058). A reply
   named by its turn alone (`"assistant_turn:<turn_id>"`) raises an
-  `ArgumentError` before anything is judged, so no live tenant's reply
-  goes to the judge model through this module.
+  `ArgumentError` before anything is judged.
+
+  The guard is the reply's name, not the tenant: no tenant is marked as
+  the evaluation tenant yet, so there is nothing to check `:tenant`
+  against. A caller that names a live turn's reply as an evaluation case
+  is not stopped here; the evaluation run that mints those names is.
+
+  ## The instrument identity is required
+
+  Every judgment records the model version, model digest and runtime
+  version it was answered by, and a person's verdict on it feeds the
+  calibration slot those three key. `grade/2` and `judge_and_admit/3`
+  raise an `ArgumentError` before anything is judged unless `:instrument`
+  carries all three as strings, as the standards standing job refuses to
+  judge with an instrument it cannot identify. An answer recorded without
+  them takes a verdict but can never become a calibration sample.
 
   ## Options
 
@@ -57,10 +71,8 @@ defmodule AshEnterprise.Quality.Grader do
     * `:actor`: default the `oban` system actor
     * `:questions`: the question names to ask (default all eight; a
       question is still asked only of the replies it applies to)
-    * `:instrument`: the instrument identity recorded on each judgment
-      (`%{model_version:, model_digest:, runtime_version:}`); none by
-      default. A judgment recorded without one takes a verdict but gives
-      no calibration sample
+    * `:instrument` (required): the instrument identity recorded on each
+      judgment, `%{model_version:, model_digest:, runtime_version:}`
     * `:judgments`: extra judge-context entries, such as a test transport
     * `:resolver`: the band-table resolver (the step's default otherwise)
     * `:mode`: `:live` by default
@@ -116,6 +128,7 @@ defmodule AshEnterprise.Quality.Grader do
   @spec grade([map()], keyword()) :: [map()]
   def grade(replies, opts) do
     unless Keyword.has_key?(opts, :tenant), do: raise(ArgumentError, "grade/2 needs :tenant")
+    instrument!(opts)
 
     replies
     |> assess(opts)
@@ -144,6 +157,7 @@ defmodule AshEnterprise.Quality.Grader do
   @spec judge_and_admit(atom(), map(), keyword()) :: {Ash.UUID.t() | nil, term()}
   def judge_and_admit(name, reply, opts) do
     ensure_evaluation_replies!([reply])
+    instrument = instrument!(opts)
 
     declared = Questions.declared(name)
     question = Questions.fetch!(name)
@@ -164,7 +178,7 @@ defmodule AshEnterprise.Quality.Grader do
           Map.merge(
             %{
               req_llm: SystemOne.DecisionWire,
-              instrument: Keyword.get(opts, :instrument, %{}),
+              instrument: instrument,
               subject: %{type: term["type"], id: term["id"]},
               observation_id: observation_id,
               mode: mode
@@ -259,6 +273,20 @@ defmodule AshEnterprise.Quality.Grader do
         raise ArgumentError,
               "only evaluation replies (#{@evaluation_prefix}<run_id>/<case_id>/<epoch>) are " <>
                 "graded; got #{inspect(reply.id)}"
+    end
+  end
+
+  @instrument_keys [:model_version, :model_digest, :runtime_version]
+
+  defp instrument!(opts) do
+    instrument = Keyword.get(opts, :instrument)
+
+    if is_map(instrument) and Enum.all?(@instrument_keys, &is_binary(Map.get(instrument, &1))) do
+      Map.take(instrument, @instrument_keys)
+    else
+      raise ArgumentError,
+            "grading needs :instrument with string #{inspect(@instrument_keys)}; " <>
+              "a judgment without them can never become a calibration sample"
     end
   end
 

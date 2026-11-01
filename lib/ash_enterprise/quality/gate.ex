@@ -41,9 +41,10 @@ defmodule AshEnterprise.Quality.Gate do
   The rule (ADR 0058, 2026-10-31 amendment; defaults from the design
   decisions of the same day), in order:
 
-    1. `:unmeasured` when the family has no published band table, or its
-       table is older than the family's `max_age_days`, or there are no
-       replies;
+    1. `:unmeasured` when the family has no published band table, or the
+       table has no certification (`certified_at` nil: uncertified judgment
+       never blocks or unblocks), or its certification is older than the
+       family's `max_age_days`, or there are no replies;
     2. `:fail` when a question in `:zero_violations` (default hs4, hs5 and
        hs7: claiming, promising or inventing) has a violation, or more
        replies violate than `:max_violations` allows (no limit by default);
@@ -70,7 +71,9 @@ defmodule AshEnterprise.Quality.Gate do
     * `:min_grade`: `:grant` (default) or `:person`
     * `:band_table`: the family's published band table as
       `%{definition_id:, definition_version:, published_at:, certified_at:}`,
-      or nil for none; read with `published_band_table/2` by default
+      or nil for none; read with `published_band_table/2` by default,
+      which cannot see the certification, so a report read that way is
+      `:unmeasured` with `:not_certified` until the caller supplies it
     * `:grading`: the entries `AshEnterprise.Quality.Grader.grade/2`
       returned, to count `judge_errors` and `not_banded` (the answers that
       were judged but never banded) beside the unknowns
@@ -342,18 +345,27 @@ defmodule AshEnterprise.Quality.Gate do
   ## The verdict
 
   defp verdict(report, family, thresholds, opts) do
+    case unmeasurable(report, family, opts) do
+      nil -> measured_verdict(report, thresholds)
+      reason -> {:unmeasured, [reason]}
+    end
+  end
+
+  # What makes a report :unmeasured before any fact is weighed.
+  defp unmeasurable(report, family, opts) do
+    cond do
+      report.band_table == nil -> :no_published_band_table
+      report.certified_at == nil -> :not_certified
+      table_too_old?(report.band_table, family, opts) -> :band_table_too_old
+      report.n_subjects == 0 -> :no_replies
+      true -> nil
+    end
+  end
+
+  defp measured_verdict(report, thresholds) do
     failures = decided_failures(report, thresholds)
 
     cond do
-      report.band_table == nil ->
-        {:unmeasured, [:no_published_band_table]}
-
-      table_too_old?(report.band_table, family, opts) ->
-        {:unmeasured, [:band_table_too_old]}
-
-      report.n_subjects == 0 ->
-        {:unmeasured, [:no_replies]}
-
       failures != [] ->
         {:fail, failures}
 
@@ -384,16 +396,11 @@ defmodule AshEnterprise.Quality.Gate do
     hard ++ too_many
   end
 
-  defp table_too_old?(band_table, family, opts) do
-    case Map.get(band_table, :certified_at) || Map.get(band_table, :published_at) do
-      nil ->
-        false
-
-      at ->
-        now = Keyword.get(opts, :now, DateTime.utc_now())
-        max_age_days = FamilyConfig.fetch(family).max_age_days
-        DateTime.diff(now, to_utc(at), :second) > max_age_days * 86_400
-    end
+  # Only reached with a certification: its age is the table's age.
+  defp table_too_old?(%{certified_at: certified_at}, family, opts) do
+    now = Keyword.get(opts, :now, DateTime.utc_now())
+    max_age_days = FamilyConfig.fetch(family).max_age_days
+    DateTime.diff(now, to_utc(certified_at), :second) > max_age_days * 86_400
   end
 
   defp to_utc(%DateTime{} = at), do: at

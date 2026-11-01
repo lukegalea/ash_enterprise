@@ -26,6 +26,12 @@ defmodule AshEnterprise.Quality.GraderTest do
 
   @answer "The SYNTHETIC launch checklist is due on 2026-11-06."
 
+  @instrument %{
+    model_version: "winnow:e4b",
+    model_digest: "sha256:" <> String.duplicate("a", 64),
+    runtime_version: "synthetic-runtime-1"
+  }
+
   setup do
     Correlation.start_new()
     System.put_env("S1_OLLAYA_GPU_BASE_URL", "http://127.0.0.1:11435")
@@ -51,7 +57,7 @@ defmodule AshEnterprise.Quality.GraderTest do
          ctx do
       reply = reply!(ctx, "due_soon", %{content: @answer})
 
-      results = Grader.grade([reply], tenant: ctx.tenant, judgments: %{req_llm: FakeReqLLM})
+      results = Grader.grade([reply], base_opts(ctx))
 
       assert Enum.map(results, & &1.question) == Questions.names()
       assert Enum.all?(results, &(&1.reason == :no_fact))
@@ -65,6 +71,12 @@ defmodule AshEnterprise.Quality.GraderTest do
       assert Enum.all?(rows, &(&1.state_digest == Quality.digest(reply)))
       assert Enum.all?(rows, &is_binary(&1.state_ciphertext))
 
+      # Each carries the instrument identity, so a verdict on it can feed
+      # the calibration slot.
+      assert Enum.all?(rows, &(&1.model_digest == @instrument.model_digest))
+      assert Enum.all?(rows, &(&1.runtime_version == @instrument.runtime_version))
+      assert Enum.all?(rows, &(&1.model_version == @instrument.model_version))
+
       assert facts(reply) == []
 
       report = Gate.family_report([reply], :agent_reply_style, tenant: ctx.tenant)
@@ -76,7 +88,7 @@ defmodule AshEnterprise.Quality.GraderTest do
       assert report.verdict_reasons == [:no_published_band_table]
 
       # Never banded, so the next run asks again.
-      again = Grader.grade([reply], tenant: ctx.tenant, judgments: %{req_llm: FakeReqLLM})
+      again = Grader.grade([reply], base_opts(ctx))
       assert length(again) == 8
       assert FakeReqLLM.calls() == 16
     end
@@ -195,6 +207,30 @@ defmodule AshEnterprise.Quality.GraderTest do
     end
   end
 
+  describe "the instrument identity" do
+    test "is required: a run without one, or with part of one, judges nothing", ctx do
+      reply = reply!(ctx, "due_soon", %{content: @answer})
+      opts = grade_opts(ctx, &admit_table/3)
+
+      for instrument <- [nil, %{}, Map.delete(@instrument, :runtime_version)] do
+        assert_raise ArgumentError, ~r/needs :instrument/, fn ->
+          Grader.grade([reply], Keyword.put(opts, :instrument, instrument))
+        end
+
+        assert_raise ArgumentError, ~r/needs :instrument/, fn ->
+          Grader.judge_and_admit(
+            :hs1_lead_with_outcome_or_ask,
+            reply,
+            Keyword.put(opts, :instrument, instrument)
+          )
+        end
+      end
+
+      assert FakeReqLLM.calls() == 0
+      assert judgments(ctx, reply) == []
+    end
+  end
+
   describe "evaluation replies only" do
     test "a reply named by its turn alone is refused before anything is judged", ctx do
       turn = append!(ctx, %{role: :assistant, content: @answer})
@@ -230,8 +266,10 @@ defmodule AshEnterprise.Quality.GraderTest do
     reply
   end
 
-  defp grade_opts(ctx, resolver),
-    do: [tenant: ctx.tenant, judgments: %{req_llm: FakeReqLLM}, resolver: resolver]
+  defp base_opts(ctx),
+    do: [tenant: ctx.tenant, instrument: @instrument, judgments: %{req_llm: FakeReqLLM}]
+
+  defp grade_opts(ctx, resolver), do: [{:resolver, resolver} | base_opts(ctx)]
 
   defp judgments(ctx, reply) do
     Judgment
