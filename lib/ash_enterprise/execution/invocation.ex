@@ -72,6 +72,12 @@ defmodule AshEnterprise.Execution.Invocation do
       these rows, keyed `run:<run id>:<step seq>:<tool call id>` with the run as its
       parent; when it finishes it wakes the run (`AshAgent.Run.Changes.Wake`), and the
       run's next step reads its recorded result. See `AshEnterprise.Execution.Run`.
+    * **A run that is not live.** A tool call of a run started with `mode: :eval` or
+      `:shadow` (ADR 0058) takes the run's mode. It never waits on an approval and is
+      never claimed unless its target is a read that stays inside; the `:execute` job
+      answers it from the run's fixtures (`simulate`, machinery-only), marked
+      `simulated`, so no approval task opens, nothing is written and nothing outside is
+      called.
     * **An agent asking a person.** A run's call to `AshEnterprise.Execution.HumanInput`
       is `dispatched` with its input task, `invocation.input`, opened in the same
       transaction for the person the run acts for
@@ -104,7 +110,8 @@ defmodule AshEnterprise.Execution.Invocation do
       :apply_decision,
       :execute,
       :reconcile,
-      :collect_input
+      :collect_input,
+      :simulate
     ],
     extra_grants: [AshEnterprise.Security.Checks.InvocationApprovalCandidacy],
     extra_extensions: [AshCloak, AshOban],
@@ -127,6 +134,7 @@ defmodule AshEnterprise.Execution.Invocation do
   invocation do
     execution_identity(AshEnterprise.Execution.Identity)
     digest_key(AshEnterprise.Execution.DigestKey)
+    run(AshEnterprise.Execution.Run)
   end
 
   cloak do

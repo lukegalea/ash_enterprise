@@ -1,6 +1,7 @@
 # ADR 0058 — Agent quality is measured in a host Quality domain, and a release is a gated, attested manifest
 
-- **Status:** accepted, not built (2026-10-23)
+- **Status:** accepted (2026-10-23); suites, suite runs and effect-free runs built (2026-11-01), see
+  [Built](#built-2026-11-01-suites-and-effect-free-runs)
 - **Date:** 2026-10-23
 - **Decided:** by Luke, 2026-10-23 (host domain, no separate package; deterministic-only gating in the first version); amended 2026-10-31 (a certified judgment family may gate)
 - **Related:** [ADR 0041](0041-thresholds-are-dmn-earned-by-calibration.md) (calibration earns thresholds),
@@ -152,6 +153,47 @@ not graded by this gate.
 
 **What does not change.** Deterministic assertions still gate and still block regardless of averages. An `adhoc` run
 still cannot satisfy the gate. The amendment adds one more thing that can block a release; it removes none.
+
+## Built, 2026-11-01: suites and effect-free runs
+
+- **The executor, in `ash_agent`** (ash_agent#19). `AshAgent.Run` has `mode` (`:live`, `:shadow`, `:eval`) and
+  `fixtures` (`%{"Resource.Module.action" => result}`), both accepted by `start`. Once the host names its run resource
+  in the `invocation` section (`run(AshEnterprise.Execution.Run)` here), a run's tool call takes the run's mode, read
+  from the run row by `request`, never from the caller. A row that is not live is routed `ready` even when its
+  declaration asks for an approval (`approval_mode` still records that it would have, and no approval is bound), and
+  is claimed only when its target is a read that stays inside (`AshAgent.Invocation.Changes.Claim.runs?/1`). The
+  `:execute` job answers any other row with the machinery action `simulate`: `succeeded` with `simulated: true` and
+  the run's fixture for its target as its result, or `failed` (`:permanent`, `"no_fixture"`) when there is none. No
+  lease is taken, nothing is written and nothing outside is called.
+- **The evaluator.** `run_principal/3` is told the run's mode. Here a run that is not live executes as the new
+  `evaluator` automation principal acting for the person, whatever authority its version was published with
+  (`AshEnterprise.Execution.Identity`), so its reads reach only the intersection of the person's grants and the
+  evaluator's role rows (ADR 0043).
+- **The resources.** `Quality.Suite` (`quality_suites`): organization-owned, `draft → published → retired`, cases as
+  `Quality.Case` maps in Inspect's `Sample` shape with fixtures, split, tags and assertions (`Quality.Assertion`),
+  checked when written (unique ids, every assertion measurable); `publish` records `content_hash` (SHA-256 of the
+  RFC 8785 canonical JSON of cases, thresholds and primary metric) and freezes the cases; `create_draft` numbers a
+  key's next version. `Quality.SuiteRun` (`quality_suite_runs`): user-owned; `start` pins the agent's latest published
+  version (`agent_version_id`, `candidate_digest` = its `content_hash`) and the suite's hash, and starts one agent run
+  per case in its transaction, keyed `quality:<suite run>:<case>:<epoch>`, `origin: :eval`, `mode: :eval` for an
+  `offline` run or `:shadow` for a `shadow` one; the `:finish` trigger (queue `quality`) scores it once no case's run
+  is queued, running or waiting on its tools. `Quality.CaseResult` (`quality_case_results`, `audit?: false`):
+  written only by `finish`, owned by the suite run's owner, unique per suite run, case and epoch.
+- **The scorer.** `Quality.Assertions` measures the closed vocabulary over what a run recorded: its row, the tool
+  names in its steps' `tool_calls`, its invocations and its answer. `prohibited_effect`, `tool_not_called`,
+  `schema_valid` and `within_budget` are hard; `process_transition` and `cites` report `unmeasured`. The summary keeps
+  `quality` (counts, `pass_rate`) and `safety` (`hard_failures`, `prohibited_effect_hits`) apart.
+- **Privileges.** `quality.read`, `quality.run` and `quality.publish` are the catalogue's read on the three resources,
+  create on `SuiteRun`, and create and write on `Suite`; a new tenant's Administrator holds all of them.
+- **The proof.** `test/ash_enterprise/quality/no_live_effects_test.exs`: an agent whose tools write a note, wait on a
+  four-eyes approval and call an outside board, run with `:eval` and with `:shadow`, leaves the note and approval-task
+  counts unchanged, makes no outbound request (`Req.Test`), and leaves every invocation unclaimed (`lease_epoch` and
+  `attempt_count` 0) and `simulated`; the same script run live is the control. A suite run in each mode scores its
+  case from those invocations.
+- **Not yet built.** The synthetic evaluation tenant: the evaluator's grants are the `AutomationRole` rows the tenant a
+  suite runs in gives it, none by default. Scorers as module digests or judgment question versions, `replay` and
+  `adhoc` modes, EvalLog and `Sample` import and export, the injection lane, `ReleaseManifest` and its gate, and
+  seeding from `AssistantEval`.
 
 ## Does it consume ActorContext?
 

@@ -115,7 +115,8 @@ write with neither a human nor a grant behind it.
 The mechanism exists; what any principal may admit is still a per-family grant nobody has issued.
 
 - **The principal.** `AshEnterprise.Platform.AutomationPrincipal` is the closed, compile-time list, beside
-  `SystemActor` and separate from it. Its one entry is `evidence_admitter`. It has no bypass:
+  `SystemActor` and separate from it. Its one entry is `evidence_admitter` (on 2026-11-01 `evaluator` joined it, for
+  agent evaluation, ADR 0058). It has no bypass:
   `Security.Checks.SystemActor` never matches it, and an `ActorContext` for it is never a system context.
 - **Its grants.** `Security.AutomationRole` assigns a role to a principal in a tenant, scoped to a business unit, the
   way `UserRole` does for a user. `ActorContext.build_automation/2` resolves those rows the way `build/2` resolves a
