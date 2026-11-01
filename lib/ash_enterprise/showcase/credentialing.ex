@@ -31,7 +31,7 @@ defmodule AshEnterprise.Showcase.Credentialing do
   |---|---|---|
   | `correct_during_approval/2` | F4 | corrects the credential's expiry date through `Credential.correct`, as a colleague would while its activation waits for approval |
   | `revoke_requester_grant/1` | F5 | removes the coordinator's role assignment through `UserRole.destroy`, as an administrator would before the activation runs |
-  | `restore/1` | — | runs the clinic's demo data again (`AshEnterprise.Credentialing.DemoData.populate/1`), which gives the coordinator their role back |
+  | `restore/1` | — | gives the coordinator their role back (`UserRole.assign`), in this tenant only: nothing is created and no one is moved |
   | `kill_after_registry_accepts/0` | F2 | arms the fault point `:credential_registry_accepted` with `:kill`: the next activation's worker dies after the registry accepted it and before anything was recorded |
   | `time_out_model_after_lookups/0` | F1 | arms the fault point `:model_stream_reading` with `:raise`, skipping one call: the next reading's model fails in the middle of the turn after its lookups |
 
@@ -42,6 +42,7 @@ defmodule AshEnterprise.Showcase.Credentialing do
 
   require Ash.Query
 
+  alias AshEnterprise.Accounts
   alias AshEnterprise.AI.ModelCall
   alias AshEnterprise.Audit.Chain
   alias AshEnterprise.Bpmn.HumanTask
@@ -61,6 +62,7 @@ defmodule AshEnterprise.Showcase.Credentialing do
   alias AshEnterprise.Execution
   alias AshEnterprise.Execution.Approval
   alias AshEnterprise.Faults
+  alias AshEnterprise.Platform
   alias AshEnterprise.Platform.SystemActor
   alias AshEnterprise.Security
   alias AshEnterprise.Security.ActorContext
@@ -412,10 +414,41 @@ defmodule AshEnterprise.Showcase.Credentialing do
     end)
   end
 
-  @doc "Runs the clinic's demo data again, which restores the coordinator's role."
-  @spec restore(Ash.UUID.t()) :: {:ok, map()} | {:error, :fault_controls_off}
+  @doc """
+  Undoes F5 in `tenant`: the clinic's coordinator is assigned the coordinator role
+  again, scoped as the demo data scoped it. Only when the coordinator is a member of
+  `tenant` and the role is one of its roles; otherwise `{:error, :not_this_clinic}`
+  and nothing changes. No one is created, and no one is moved from another tenant.
+  """
+  @spec restore(Ash.UUID.t()) ::
+          {:ok, struct()} | {:error, :fault_controls_off | :not_this_clinic | term()}
   def restore(tenant) do
-    with :ok <- on(), do: {:ok, DemoData.populate(tenant)}
+    opts = [actor: SystemActor.seed(), tenant: tenant]
+    email = DemoData.coordinator_email()
+    role_name = DemoData.coordinator_role()
+
+    with :ok <- on(),
+         {:ok, %{} = coordinator} <-
+           Accounts.User
+           |> Ash.Query.filter(email == ^email)
+           |> Ash.read_one(authorize?: false),
+         unit_id = coordinator.owning_business_unit_id,
+         {:ok, %{}} <-
+           Accounts.BusinessUnit |> Ash.Query.filter(id == ^unit_id) |> Ash.read_one(opts),
+         {:ok, %{} = role} <-
+           Security.Role |> Ash.Query.filter(name == ^role_name) |> Ash.read_one(opts) do
+      Security.UserRole.assign(
+        %{
+          user_id: coordinator.id,
+          role_id: role.id,
+          scoping_business_unit_id: Platform.DemoData.root_business_unit!(tenant, opts[:actor]).id
+        },
+        opts
+      )
+    else
+      {:ok, nil} -> {:error, :not_this_clinic}
+      other -> other
+    end
   end
 
   defp on, do: if(Showcase.fault_controls?(), do: :ok, else: {:error, :fault_controls_off})
