@@ -50,6 +50,14 @@ defmodule AshEnterprise.Quality.AgentReply do
   questions hs1 to hs8 declared on `AshEnterprise.Standards.CodeUnit`, with
   "the document" read as "the reply" and nothing else changed, on a new
   resource with a new projection and shape, at version 1, in a new family.
+  hs1, hs4 and hs7 are at version 2 (confirmed by Luke on 2026-11-01). On
+  the S1-92 calibration set the version 1 criteria for hs4 and hs7 asked
+  about facts outside the reply (whether a capability is built, whether a
+  name is used by the product), which a judge that sees only the reply
+  cannot know, and hs1 left most replies undecided. Version 2 asks only
+  what the reply text shows. An invented feature stated with confidence is
+  therefore not caught here: that needs a question that sees the sources.
+
   The family is new because the `house_style` band table was certified on
   code and documentation units; a certification is evidence about the text
   it measured, not about chat replies. Until a reply calibration set is
@@ -133,17 +141,18 @@ defmodule AshEnterprise.Quality.AgentReply do
       type AshAi.Evaluate.Noul
 
       instructions(
-        "Check if the reply's first sentence follows the 'Lead with the outcome or the ask' standard."
+        "Check whether the reply's first sentence gives the answer, the result, or the decision the reader must make."
       )
 
       criteria(%{
         false:
-          "The first sentence of the reply does not state what happened, what the reader must decide, or what the thing does.",
+          "The reply opens with a greeting, thanks, apology, praise of the question, a restatement of the question, or background before the answer, result or decision.",
         true:
-          "The first sentence of the reply states what happened, what the reader must decide, or what the thing does."
+          "The first sentence is the answer, the result, or the decision the reader must make."
       })
 
-      version(1)
+      # Version 2, confirmed by Luke on 2026-11-01: asks only what the reply text shows.
+      version(2)
       family(:agent_reply_style)
       profile(:winnow_gpu_12b)
       state_projection(AshEnterprise.Quality.Projections.ReplyText)
@@ -196,17 +205,18 @@ defmodule AshEnterprise.Quality.AgentReply do
       type AshAi.Evaluate.Noul
 
       instructions(
-        "Check if the reply adheres to the 'Claim only what is built and proven' standard."
+        "Check whether the reply says something is built, done or coming without saying how that is known."
       )
 
       criteria(%{
         false:
-          "The reply claims a capability that is not built and proven, or states a plan without indicating where it is tracked.",
+          "The reply says something is built, works, is done, or will ship, without saying how that is known (a record, a test, or a source the reply names). Or it states a plan or a delivery date without saying where the plan is tracked.",
         true:
-          "Every capability stated exists and is proven by a test, ledger row, or screenshot; every plan is stated as a plan with a tracking location."
+          "Every statement that something is built, works, is done or is coming says how it is known, or is stated as a plan with where it is tracked. No delivery date is promised. Or the reply makes no such statement."
       })
 
-      version(1)
+      # Version 2, confirmed by Luke on 2026-11-01: asks only what the reply text shows.
+      version(2)
       family(:agent_reply_style)
       profile(:winnow_gpu_12b)
       state_projection(AshEnterprise.Quality.Projections.ReplyText)
@@ -259,17 +269,18 @@ defmodule AshEnterprise.Quality.AgentReply do
       type AshAi.Evaluate.Noul
 
       instructions(
-        "Check if the reply adheres to the 'Never invent a name, a feature or a date' standard."
+        "Check whether the reply uses vague relative times, or offers names, numbers, features or dates as guesses."
       )
 
       criteria(%{
         false:
-          "The reply invents names, features, or dates, or uses relative time expressions like 'last week' or 'recently' instead of specific dates.",
+          "The reply uses a vague relative time (\"recently\", \"last week\", \"soon\", \"next quarter\") where a date belongs. Or it gives a name, number, feature or date it marks as a guess (\"probably\", \"I think it's called\", \"around\").",
         true:
-          "The reply uses only names already used by the code and product, and gives dates as specific dates (e.g., 2026-10-17) rather than relative time expressions."
+          "Every time is a specific date (today, tomorrow and yesterday are fine), and nothing is offered as a guess."
       })
 
-      version(1)
+      # Version 2, confirmed by Luke on 2026-11-01: asks only what the reply text shows.
+      version(2)
       family(:agent_reply_style)
       profile(:winnow_gpu_12b)
       state_projection(AshEnterprise.Quality.Projections.ReplyText)

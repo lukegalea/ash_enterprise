@@ -24,8 +24,8 @@
     "version": 1
   },
   "judgment:v0:AshEnterprise.Quality.AgentReply#judgments/hs7_never_invent_name_feature_or_date": {
-    "hash": "sha256:9ca688f7d78fc75f70167262dab0a26781141059d03bf0e85b417c3e88435a9b",
-    "version": 1
+    "hash": "sha256:ce1009a658dfeaee987a40d85523ce7dcfe06b1f89382d3295d32f25e95faf26",
+    "version": 2
   },
   "judgment:v0:AshEnterprise.Quality.AgentReply#judgments/hs8_no_internal_shorthand_for_outside": {
     "hash": "sha256:a12d4ed8bd149c18a35a4110a4927c0c5d5944ba9a475f2fcfcb8da48e6f35c5",
@@ -40,8 +40,8 @@
     "version": 2
   },
   "judgment:v0:AshEnterprise.Quality.AgentReply#judgments/hs1_lead_with_outcome_or_ask": {
-    "hash": "sha256:84bae08cb3d4b4b3ac9ad6ba91cd894737805d796bd35c2f302b2348245ec49d",
-    "version": 1
+    "hash": "sha256:12e5a23f96d1727f514e54a1eca994dfd023d8727dca10ebc9b2a268c835022d",
+    "version": 2
   },
   "judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/comments_are_durable_facts_only": {
     "hash": "sha256:74f23898847a75bb258b0e6df1156d0abe661505c9e9076199b09d1ce5f5f3c6",
@@ -160,8 +160,8 @@
     "version": 2
   },
   "judgment:v0:AshEnterprise.Quality.AgentReply#judgments/hs4_claim_only_built_and_proven": {
-    "hash": "sha256:4300495997215a296e87767852ae8f1b91a42c0529f82fbcacd0be30f80691c5",
-    "version": 1
+    "hash": "sha256:9ad70b63646c5f9680fd98e806ccd7799671d69d6a9ba4fdd5c47e8d07c40982",
+    "version": 2
   },
   "judgment:v0:AshEnterprise.SystemOne.TestSupport.EvidenceFile#judgments/document_localisation": {
     "hash": "sha256:220ce9121779d94c4038babf909271fe4e0eaefe66e90ce348735524ab1f7007",
