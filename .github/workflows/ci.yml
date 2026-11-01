@@ -2,7 +2,10 @@ name: CI
 
 on:
   push:
-    branches: [main, master]
+    # ci/** lets a change run the whole gate before it reaches main, without a
+    # pull request. The concurrency group below is per ref, so a ci/** run
+    # never cancels main's.
+    branches: [main, master, "ci/**"]
   pull_request:
 
 # A failed run tells you nothing if a later push is already superseding it.
