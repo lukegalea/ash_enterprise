@@ -31,6 +31,14 @@ defmodule AshEnterprise.Credentialing.Credential do
   `%{"id" => credential_id}`. The action itself has no code interface, and refuses to run
   except by its own invocation (`AshAgent.Validations.Governed`).
 
+  ## Evidence checks
+
+  `check_documents` and `check_expiry` are the checks a credentialing process runs side by
+  side, as service tasks through their invocations
+  (`AshEnterprise.Process.ActionInvoker`'s `check_licence_documents` and
+  `check_licence_expiry`). Each refuses with a business error a diagram's error boundary
+  catches (`AshEnterprise.Credentialing.Actions.CheckEvidence`).
+
   `correct` changes the credential's number or expiry date. A correction while an
   activation waits for approval moves the credential's version on, so the approval no
   longer holds (failure scenario F4).
@@ -79,6 +87,20 @@ defmodule AshEnterprise.Credentialing.Credential do
       idempotent?: true,
       open_world?: false,
       intent: :execute
+
+    action :check_documents,
+      kind: :read,
+      destructive?: false,
+      idempotent?: true,
+      open_world?: false,
+      intent: :inspect
+
+    action :check_expiry,
+      kind: :read,
+      destructive?: false,
+      idempotent?: true,
+      open_world?: false,
+      intent: :inspect
   end
 
   attributes do
@@ -184,6 +206,26 @@ defmodule AshEnterprise.Credentialing.Credential do
       description "Ask the registry whether it activated the credential."
       argument :id, :uuid, allow_nil?: false
       run AshEnterprise.Credentialing.Actions.LookupActivation
+    end
+
+    action :check_documents, :map do
+      description """
+      Check that a licence document is filed for the credential. Refuses with
+      `licence_document_missing` when none is.
+      """
+
+      argument :id, :uuid, allow_nil?: false
+      run {AshEnterprise.Credentialing.Actions.CheckEvidence, check: :documents}
+    end
+
+    action :check_expiry, :map do
+      description """
+      Check that the credential states an expiry date that has not passed. Refuses with
+      `expiry_date_missing` or `credential_expired`.
+      """
+
+      argument :id, :uuid, allow_nil?: false
+      run {AshEnterprise.Credentialing.Actions.CheckEvidence, check: :expiry}
     end
   end
 end

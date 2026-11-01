@@ -65,7 +65,7 @@ must not.
 
 - **Never call a model inside checks, FEEL, rules or projectors** — see law 3.
 - **Never hold thresholds in config.** Bands are versioned DMN band tables, earned by
-  calibration, per family (and per tenant risk tier where needed). A threshold in
+  calibration, per family (and per tenant severity tier where needed). A threshold in
   `config.exs` is unauditable policy.
 - **Never store policy in this package.** It records observations and proposes band
   tables; it does not decide what is allowed.
@@ -241,6 +241,10 @@ missing dep is a structured error, never a crash:
 - `bpmn_callable? true` on a question generates `judge_<name>_signals`, which returns a
   string-keyed, scalar-valued map for an `ash:call` service task to promote. Promote
   that map, never an answer struct.
+- `judge_<name>`, `judge_<name>_matrix` and `judge_<name>_signals` take an optional
+  `invocation_id` argument. It is recorded on the ledger row as `invocation_id` (agent-run
+  lineage), linking the row to the invocation that asked; a key a host already put in
+  `context[:judgments]` is overridden by the argument when both are given.
 - `Bridge.Evidence.artifact_attrs/3` builds an `EvidenceArtifact` create input from a
   recorded judgment and its banding. It never writes: the host creates the artifact
   through its own domain.

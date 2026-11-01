@@ -31,7 +31,7 @@
   "pins": [
     {
       "dep": "ash_bpmn",
-      "lock": "087880385fdfaff654c8039f1e2bb78d80bc58a0"
+      "lock": "e8ba97f0994ca1de61b3302d1e0a865a94c9ac70"
     },
     {
       "dep": "ash_oban",
@@ -125,12 +125,13 @@
       "area": "workflow",
       "capability": "Child workflows",
       "status": "partial",
-      "summary": "A call activity starts a child process by key; the parent waits and resumes when the child completes, and call depth is bounded.",
-      "gap": "The child resolves the latest published version when it starts rather than a pinned one, and cancelling the parent does not cancel the child.",
+      "summary": "A call activity starts a child process by key; the parent waits and resumes when the child completes, call depth is bounded, and a call activity may pin the child's version.",
+      "gap": "Cancelling the parent does not cancel the child; only an interrupting timer boundary on the call activity does.",
       "deps": ["ash_bpmn"],
       "tests": [
         {"dep": "ash_bpmn", "file": "test/ash_bpmn/call_activity_test.exs", "test": "the child runs and the parent carries on after it"},
-        {"dep": "ash_bpmn", "file": "test/ash_bpmn/call_activity_test.exs", "test": "the parent waits while the child does"}
+        {"dep": "ash_bpmn", "file": "test/ash_bpmn/call_activity_test.exs", "test": "the parent waits while the child does"},
+        {"dep": "ash_bpmn", "file": "test/ash_bpmn/call_activity_test.exs", "test": "a pinned child keeps v1 after v2 publishes"}
       ]
     },
     {
@@ -138,14 +139,15 @@
       "area": "workflow",
       "capability": "Durable waits",
       "status": "partial",
-      "summary": "Message, signal and timer waits and receive tasks park a token in the database; a duplicate wake loses a compare-and-set, and a deadline on a human task is a boundary timer.",
-      "gap": "No timeout on a message, receive or call-activity wait: boundaries attach to human tasks only.",
+      "summary": "Message, signal and timer waits and receive tasks park a token in the database; a duplicate wake loses a compare-and-set, and a deadline on a human task, a receive task or a call activity is a boundary timer.",
+      "gap": "No timeout on an intermediate message or signal catch event: a receive task is the waiting activity that takes one.",
       "deps": ["ash_bpmn"],
       "tests": [
         {"dep": "ash_bpmn", "file": "test/ash_bpmn/message_catch_test.exs", "test": "an event carrying the right key wakes the token and the process finishes"},
         {"dep": "ash_bpmn", "file": "test/ash_bpmn/message_catch_test.exs", "test": "a redelivered event wakes the token once"},
         {"dep": "ash_bpmn", "file": "test/ash_bpmn/timer_catch_test.exs", "test": "when the timer is due the token wakes and the process finishes"},
-        {"dep": "ash_bpmn", "file": "test/ash_bpmn/boundary_timer_test.exs", "test": "firing cancels the task, interrupts the branch, and routes out of the boundary"}
+        {"dep": "ash_bpmn", "file": "test/ash_bpmn/boundary_timer_test.exs", "test": "firing cancels the task, interrupts the branch, and routes out of the boundary"},
+        {"dep": "ash_bpmn", "file": "test/ash_bpmn/wait_boundary_test.exs", "test": "times out to its boundary"}
       ]
     },
     {
@@ -166,13 +168,16 @@
       "area": "workflow",
       "capability": "Service tasks that call application actions",
       "status": "partial",
-      "summary": "A service task names an action from an allowlist; publishing a diagram that names anything else is refused, and declared inputs reach the action.",
-      "gap": "No stable invocation key reaches the action, so idempotency under redelivery is each action's own business.",
+      "summary": "A service task names an action from an allowlist; publishing a diagram that names anything else is refused, and declared inputs reach the action. An entry that names a declared target runs it through its governed invocation, keyed bpmn:<instance>:<token>:<node> and run as the instance's starter, so a redelivery returns the recorded result; a business refusal is a BPMN error an error boundary catches.",
+      "gap": "Entries that name no declared target still run as the process actor and keep idempotency to themselves, and a definition cannot declare an automation principal to run as.",
       "deps": ["ash_bpmn"],
       "tests": [
         {"file": "test/ash_enterprise/process/action_invoker_test.exs", "test": "the declared inputs reach the action"},
         {"file": "test/ash_enterprise/process/action_invoker_test.exs", "test": "publishing a diagram that names an unregistered action is refused"},
-        {"dep": "ash_bpmn", "file": "test/ash_bpmn/ash_call_test.exs", "test": "inputs arrive evaluated and the promoted signal routes a following gateway"}
+        {"dep": "ash_bpmn", "file": "test/ash_bpmn/ash_call_test.exs", "test": "inputs arrive evaluated and the promoted signal routes a following gateway"},
+        {"file": "test/ash_enterprise/process/invocation_key_test.exs", "test": "an advance-job redelivery runs the check once and returns the recorded result"},
+        {"file": "test/ash_enterprise/process/evidence_check_boundary_test.exs", "test": "a check refused by a business rule takes its boundary while its sibling completes"},
+        {"dep": "ash_bpmn", "file": "test/ash_bpmn/invocation_key_test.exs", "test": "a retry of the advance job carries the key the failed attempt carried"}
       ]
     },
     {
@@ -202,13 +207,14 @@
       "area": "workflow",
       "capability": "Retry and timeout",
       "status": "partial",
-      "summary": "A failed service task is retried by the engine within a global attempt budget and then fails the instance; a failed instance can be resumed; external calls fail with typed reasons.",
-      "gap": "No per-node retry or timeout policy.",
+      "summary": "A failed service task is retried by the engine within a global attempt budget and then fails the instance; a business error is caught by an error boundary instead of retried; a failed instance can be resumed; external calls fail with typed reasons.",
+      "gap": "No per-node retry policy, and no timeout on a service task: a timer boundary attaches to user tasks, receive tasks and call activities.",
       "deps": ["ash_bpmn"],
       "tests": [
         {"dep": "ash_bpmn", "file": "test/ash_bpmn/service_task_failure_test.exs", "test": "exhausting the engine's attempts fails the instance and kills the token"},
         {"dep": "ash_bpmn", "file": "test/ash_bpmn/service_task_failure_test.exs", "test": "a retry after the cause is fixed advances the instance"},
-        {"file": "test/ash_enterprise/integration/nango_edge_test.exs", "test": "410 from Calendar surfaces as :gone (sync token invalid)"}
+        {"file": "test/ash_enterprise/integration/nango_edge_test.exs", "test": "410 from Calendar surfaces as :gone (sync token invalid)"},
+        {"dep": "ash_bpmn", "file": "test/ash_bpmn/error_boundary_test.exs", "test": "an uncaught code fails the instance at the task at once, without retrying"}
       ]
     },
     {

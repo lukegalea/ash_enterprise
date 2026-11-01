@@ -5,7 +5,8 @@ _Rules for working with the ash_decisions library, for humans and agents alike._
 ## What this package is, and is not
 
 It holds **DMN decisions as versioned Ash resources** and evaluates them. It is an Ash layer
-over a decision engine (`boxic_dmn` / `boxic_feel`), not a second engine: versioning, tenancy,
+over a decision engine (`boxic_dmn` / `boxic_feel`; `boxic_dmn` is pinned to the
+`lukegalea/boxic_dmn` fork, which adds `evaluate_with_trace`), not a second engine: versioning, tenancy,
 authorization, audit, publish-time refusal and the evidence trail are ours; parsing,
 FEEL and hit-policy semantics are the engine's.
 
@@ -25,7 +26,9 @@ A decision answers a question; the caller decides what to do with the answer.
    someone edits a rule row and the XML disagrees. Edit in the designer (or in the XML),
    publish, done.
 2. **Definitions are immutable and versioned.** `publish` is one-way. A changed decision is a
-   new version.
+   new version. Only a draft can be deleted: `discard/2` (the `:discard` destroy action) is
+   refused for any definition that is not a draft, including one loaded as a draft and
+   published since.
 3. **A caller may pin a version, and by default does not.** This is the opposite of how
    process definitions behave, and deliberately: a process version is a *shape*, and changing
    it under a running instance may leave a token with nowhere to stand. A decision is a
@@ -60,9 +63,19 @@ A decision answers a question; the caller decides what to do with the answer.
     comes with it: a bypass in Ash covers only the policies declared *after* it, and a base
     resource's policies are emitted first — so put `AshDecisions.Checks.AshDecisionsInteraction`
     at the top of the base's policy set.
-12. **Which rule fired is not recorded.** The engine returns the value and nothing about how it
-    got there. Do not compute a second opinion: one that disagrees with the engine that
-    actually decided is worse than no answer.
+12. **Which rule fired is the engine's answer, not ours.** Each `Evaluation` records
+    `matched_rule_ids` (the decision-table rules that matched) and `hit_policy` from
+    `Boxic.DMN.evaluate_with_trace/3`, in the same pass that produces the value. Do not
+    compute a second opinion: one that disagrees with the engine that actually decided is
+    worse than no answer. A failed evaluation records no matched rules. By default a trace
+    that cannot be written is logged and the answer returned; pass `record: :required` on a
+    governed path and the evaluation returns `{:error, {:evaluation_not_recorded, reason}}`
+    instead.
+13. **Opening the editor writes nothing.** `AshDecisions.Web.EditorLive` creates the draft on
+    the first save, from the document being saved. Until then it shows the scope's draft, its
+    latest published definition, the host's `:baseline` (read-only), or a starter table, in
+    that order. A baseline becomes editable only through the host's `:customize` callback,
+    which creates the scope's own draft; without it a baseline is view-only.
 
 ## Publish-time verifiers
 

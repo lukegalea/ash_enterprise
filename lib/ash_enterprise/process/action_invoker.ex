@@ -32,7 +32,16 @@ defmodule AshEnterprise.Process.ActionInvoker do
 
   ## Which actor a service task acts as
 
-  `AshEnterprise.Platform.SystemActor.process()`, always — not the actor the engine happens to
+  An entry that names a declared target (`invoke:`) runs as the person who started the
+  instance, through the target's invocation (`AshEnterprise.Process.ServiceInvocation`,
+  ADR 0055): one `AshEnterprise.Execution.Invocation` row per execution of the node, keyed
+  `bpmn:<instance>:<token>:<node>`, so a redelivery returns what the first delivery
+  recorded and the act runs once. Only a target that needs no approval and reaches
+  nothing outside this application may be named this way; `exists?/1` refuses any other
+  at publish.
+
+  Every other entry is a legacy one, not yet moved onto an invocation, and runs as
+  `AshEnterprise.Platform.SystemActor.process()` — not the actor the engine happens to
   be carrying.
 
   The engine's own actor is an `AshBpmn.SystemActor`, a struct this application's policy set
@@ -40,23 +49,23 @@ defmodule AshEnterprise.Process.ActionInvoker do
   service task calling a host action with it is simply forbidden. That presents as a process
   stuck mid-flow with no error surfaced anywhere, which is how it was found.
 
-  Substituting a named platform actor is also the right answer rather than merely a working
-  one. A service task is the *engine* doing something, and the trail should say so. The human
-  is not lost: they are on the instance's `started_by_id`, on the request's `created_by_id`,
-  and on `decided_by_id` for whatever approval led here — three distinct facts, which is more
-  than attributing all of them to one person would have said.
+  For a legacy entry the human is not lost: they are on the instance's `started_by_id`, on
+  the request's `created_by_id`, and on `decided_by_id` for whatever approval led here.
 
   ## Idempotency is the caller's problem, and it is real
 
   Oban redelivers. A node may execute twice, and the token claim gate makes a *double advance*
-  safe without making a *double action* safe. Every action named here must tolerate being
-  invoked a second time with the same subject — which in practice means it should be
-  expressible as "make this true" rather than "do this again".
+  safe without making a *double action* safe. An `invoke:` entry is made safe by its
+  invocation key. Every legacy action named here must tolerate being invoked a second time
+  with the same subject — which in practice means it should be expressible as "make this
+  true" rather than "do this again".
   """
 
   @behaviour AshBpmn.ActionInvoker
 
   require Logger
+
+  alias AshEnterprise.Process.ServiceInvocation
 
   # The allowlist itself: `"ref" => entry`. Deliberately explicit: see the moduledoc. Each
   # entry is reviewed like code because a diagram is what names it.
@@ -74,7 +83,18 @@ defmodule AshEnterprise.Process.ActionInvoker do
   #   * `:bespoke` — the entry carries its own label and description, for a ref whose
   #     behaviour is more than one action (`grant_role` is find-or-create *plus* grant; the
   #     diagram names the composition, not either half).
+  #
+  # An entry with `:invoke` instead names a declared target, `{resource, action}`, run
+  # through its invocation as the instance's starter with the subject as its `"id"`
+  # (`AshEnterprise.Process.ServiceInvocation`). Its catalogue entry is introspected the
+  # same way.
   @registry %{
+    "check_licence_documents" => %{
+      invoke: {AshEnterprise.Credentialing.Credential, :check_documents}
+    },
+    "check_licence_expiry" => %{
+      invoke: {AshEnterprise.Credentialing.Credential, :check_expiry}
+    },
     "record_risk" => %{
       run: &__MODULE__.record_risk/1,
       action: {AshEnterprise.Security.AccessRequest, :record_risk}
@@ -108,6 +128,9 @@ defmodule AshEnterprise.Process.ActionInvoker do
   @impl true
   def invoke(action, ctx) do
     case Map.fetch(@registry, action) do
+      {:ok, %{invoke: target}} ->
+        run(&ServiceInvocation.run(target, &1), action, ctx)
+
       {:ok, entry} ->
         run(entry.run, action, ctx)
 
@@ -131,8 +154,23 @@ defmodule AshEnterprise.Process.ActionInvoker do
 
   A voluntary export rather than a callback: the compiler detects it with
   `function_exported?/3` and verifies with it only when it is there.
+
+  An `invoke:` entry whose target needs an approval or reaches outside this application
+  is refused here too (`ServiceInvocation.runnable/1`): a diagram models the first as a
+  user task and the second as a send task and a receive task.
   """
-  def exists?(action) when is_binary(action), do: Map.has_key?(@registry, action)
+  def exists?(action) when is_binary(action) do
+    case Map.fetch(@registry, action) do
+      {:ok, %{invoke: {resource, name}}} ->
+        ServiceInvocation.runnable(AshAgent.Invocation.Target.name(resource, name)) == :ok
+
+      {:ok, _entry} ->
+        true
+
+      :error ->
+        false
+    end
+  end
 
   @doc """
   The action catalogue the designer's service-task panel renders.
@@ -145,6 +183,8 @@ defmodule AshEnterprise.Process.ActionInvoker do
     |> Enum.map(fn {ref, entry} -> catalogue_entry(ref, entry) end)
     |> Enum.sort_by(& &1.ref)
   end
+
+  defp catalogue_entry(ref, %{invoke: target}), do: catalogue_entry(ref, %{action: target})
 
   defp catalogue_entry(ref, %{action: {resource, action_name}}) do
     # Raises ArgumentError naming the ref when the action does not exist: a reviewed entry

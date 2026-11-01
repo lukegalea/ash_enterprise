@@ -165,6 +165,16 @@ defmodule AshEnterprise.Execution.Identity do
     end
   end
 
+  @doc """
+  The person `id` as an actor in `tenant`, their `ActorContext` built from their grant
+  rows now: the actor a process's service task requests a declared target as, when that
+  person started the instance (`AshEnterprise.Process.ServiceInvocation`). Refused, like
+  a claim, for a person who no longer exists, is no longer active, or belongs to another
+  tenant.
+  """
+  @spec person_actor(Ash.UUID.t(), Ash.UUID.t()) :: {:ok, User.t()} | {:error, term()}
+  def person_actor(id, tenant), do: person(id, tenant)
+
   # --- request --------------------------------------------------------------
 
   defp automation(_user, _name, _agent, nil), do: {:error, :no_tenant}

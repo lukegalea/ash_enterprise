@@ -173,6 +173,8 @@ defmodule AshEnterprise.Process.ActionInvokerTest do
 
       assert Enum.sort(refs) ==
                Enum.sort([
+                 "check_licence_documents",
+                 "check_licence_expiry",
                  "record_risk",
                  "grant_role",
                  "reject_request",
