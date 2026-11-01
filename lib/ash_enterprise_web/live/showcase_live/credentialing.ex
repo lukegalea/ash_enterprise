@@ -7,7 +7,7 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
   own declared surfaces (the credentialing workspace, the approvals surface); the tour
   only points at them.
 
-  The beats, in order:
+  The beats, in order (1 to 5 are slice 1, 6 to 9 slice 2):
 
     1. the coordinator asks to activate a credential (`Credential.request_activation`);
     2. a committee member approves it on the approvals surface, and the approval is
@@ -18,9 +18,22 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
        when it is claimed (F5);
     5. the worker is killed after the registry accepted the activation: the request's
        outcome is unknown until the reconcile sweep asks the registry and settles it,
-       without activating twice (F2).
+       without activating twice (F2);
+    6. the coordinator starts the licence reader on a credential, which reads its
+       documents into findings citing the lines they rest on, shown on the case;
+    7. the model times out in the middle of a reading, after its lookups: the run
+       resumes from what it recorded and looks nothing up again (F1);
+    8. a long bundle exhausts the run's token budget: it waits with a typed reason
+       until an administrator extends it (F8);
+    9. the clinician asks to be erased: the platform operator shreds their scope, and
+       the run's journal and tool-call arguments read as erased while the rows and the
+       audit chain stay (F11).
 
-  The fault panel produces 3 to 5 (`AshEnterprise.Showcase.Credentialing`); it is
+  The licence reader's model turns are recorded transcripts in recorded mode, the
+  default (`AshEnterprise.Showcase.RecordedModel`), so the beats need no model and no
+  key; live mode sends them to the in-zone profile only.
+
+  The fault panel produces 3 to 5 and 7 (`AshEnterprise.Showcase.Credentialing`); it is
   rendered, and its events are honoured, only when the demo flag is on
   (`AshEnterprise.Showcase.fault_controls?/0`). Everything else reads and acts as the
   signed-in person, so the beats show what that person may see.
@@ -41,6 +54,9 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
 
   @locales ~w(en fr)
   @refresh_ms 3_000
+  @extension 4_000
+  # The licence reader's own budget (`AshEnterprise.Credentialing.LicenceReader`).
+  @budget 6_000
 
   @impl true
   def mount(_params, _session, socket) do
@@ -51,6 +67,9 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
        locale: "en",
        credentials: [],
        activations: [],
+       readings: [],
+       recorded: MapSet.new(),
+       chain: nil,
        fault_controls?: Showcase.fault_controls?(),
        model_mode: Showcase.model_mode(),
        live_model: Showcase.live_model()
@@ -91,6 +110,56 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
     end
   end
 
+  def handle_event("read", %{"id" => id}, socket) do
+    case Tour.start_reading(id, socket.assigns.current_user) do
+      {:ok, _run} ->
+        {:noreply,
+         socket
+         |> put_flash(
+           :info,
+           dgettext("showcase", "Started. The licence reader reads in the background.")
+         )
+         |> load()}
+
+      {:error, error} ->
+        {:noreply, put_flash(socket, :error, refused(error))}
+    end
+  end
+
+  def handle_event("extend", %{"id" => id}, socket) do
+    case Tour.extend_budget(id, @extension, socket.assigns.current_user) do
+      {:ok, _run} ->
+        {:noreply,
+         socket
+         |> put_flash(
+           :info,
+           dgettext("showcase", "Extended by %{tokens} tokens. The run goes on.",
+             tokens: @extension
+           )
+         )
+         |> load()}
+
+      {:error, error} ->
+        {:noreply, put_flash(socket, :error, refused(error))}
+    end
+  end
+
+  def handle_event("erase", %{"id" => id}, socket) do
+    actor = socket.assigns.current_user
+
+    case Tour.erase_clinician(id, actor) do
+      {:ok, _scope} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, dgettext("showcase", "Erased. The clinician's scope is shredded."))
+         |> assign(chain: Tour.chain_verifies?(ActorContext.tenant(actor)))
+         |> load()}
+
+      {:error, error} ->
+        {:noreply, put_flash(socket, :error, refused(error))}
+    end
+  end
+
   def handle_event("fault", %{"control" => control} = params, socket) do
     actor = socket.assigns.current_user
     tenant = ActorContext.tenant(actor)
@@ -121,6 +190,16 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
        dgettext(
          "showcase",
          "Armed. The next activation's worker dies after the registry accepts it."
+       )}
+    end
+  end
+
+  defp fault("timeout", _params, _tenant) do
+    with :ok <- Tour.time_out_model_after_lookups() do
+      {:ok,
+       dgettext(
+         "showcase",
+         "Armed. The next reading's model times out in the turn after its lookups."
        )}
     end
   end
@@ -168,7 +247,9 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
     assign(socket,
       credentials: credentials,
       numbers: Map.new(credentials, &{&1.id, &1.number}),
-      activations: Tour.activations(actor)
+      activations: Tour.activations(actor),
+      readings: Tour.readings(actor),
+      recorded: MapSet.new(Showcase.RecordedModel.cases(Tour.reader()))
     )
   end
 
@@ -193,6 +274,45 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
     do: Enum.filter(activations, &(&1.invocation.status in statuses))
 
   defp pending(credentials), do: Enum.filter(credentials, &(&1.status == :pending))
+
+  # The credentials the reader has recorded turns for, in recorded mode; every one live.
+  defp readable(credentials, :recorded, recorded),
+    do: Enum.filter(credentials, &MapSet.member?(recorded, &1.number))
+
+  defp readable(credentials, :live, _recorded), do: credentials
+
+  defp timed_out(readings),
+    do: Enum.filter(readings, fn r -> Enum.any?(r.model_calls, &(&1.outcome != :ok)) end)
+
+  defp over_budget(readings),
+    do:
+      Enum.filter(
+        readings,
+        &(&1.run.blocked_on == :budget or (&1.run.budget_limit || 0) > @budget)
+      )
+
+  defp budget, do: @budget
+
+  defp read_through(readings), do: Enum.filter(readings, &(&1.findings != []))
+
+  defp erased(readings), do: Enum.filter(readings, & &1.erased?)
+
+  defp run_status_label(status) do
+    labels = %{
+      queued: dgettext("showcase", "queued"),
+      running: dgettext("showcase", "running"),
+      waiting: dgettext("showcase", "waiting"),
+      completed: dgettext("showcase", "completed"),
+      failed: dgettext("showcase", "failed"),
+      cancelled: dgettext("showcase", "cancelled")
+    }
+
+    Map.get(labels, status, to_string(status))
+  end
+
+  defp question_label("licence_number"), do: dgettext("showcase", "Licence number")
+  defp question_label("licence_valid_until"), do: dgettext("showcase", "Valid until")
+  defp question_label(other), do: other
 
   defp short(nil), do: "—"
   defp short(digest), do: String.slice(digest, 0, 12) <> "…"
@@ -247,7 +367,7 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
           <span :if={@model_mode == :recorded} class="text-foreground/70">
             {dgettext(
               "showcase",
-              "Model turns replay recorded transcripts, so the tour is the same every time. No beat in this slice calls a model."
+              "The licence reader's model turns replay recorded transcripts, so the tour is the same every time and needs no key."
             )}
           </span>
           <span :if={@model_mode == :live} class="text-foreground/70">
@@ -270,6 +390,12 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
             {dgettext(
               "showcase",
               "Sign in as rosa@example.com, the coordinator, to ask; as kenji@example.com or amaka@example.com, the committee, to approve. The password is password1234."
+            )}
+          </p>
+          <p>
+            {dgettext(
+              "showcase",
+              "The coordinator also starts the licence reader. ines@example.com, the clinic director, extends a run's budget. Erasing a clinician takes the platform operator (mix ash_enterprise.platform.grant_operator)."
             )}
           </p>
           <p>
@@ -418,6 +544,135 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
               />
             </.card>
           </li>
+
+          <li id="beat-read">
+            <.card>
+              <h2 class="font-heading text-lg">
+                {dgettext("showcase", "6. Read a credential's licence documents")}
+              </h2>
+              <p class="text-sm">
+                {dgettext(
+                  "showcase",
+                  "As the coordinator, start the licence reader on a credential. It reads the certificate and the register extract, each a lookup it calls as a governed tool call, and records what they say."
+                )}
+              </p>
+              <p class="text-sm text-foreground/70">
+                {dgettext(
+                  "showcase",
+                  "Look for: two findings, the licence number and the date it is valid until, each typed and citing the document lines it rests on. The credential's own page shows them too."
+                )}
+              </p>
+              <ul class="space-y-2">
+                <li
+                  :for={credential <- readable(@credentials, @model_mode, @recorded)}
+                  id={"readable-#{credential.id}"}
+                  class="flex flex-wrap items-center gap-3"
+                >
+                  <.link navigate={~p"/app/r/credentials/#{credential.id}"} class="underline">
+                    {credential.number}
+                  </.link>
+                  <span class="text-sm text-foreground/70">{credential.clinician.job_title}</span>
+                  <.button
+                    id={"read-#{credential.id}"}
+                    phx-click="read"
+                    phx-value-id={credential.id}
+                    size="sm"
+                  >
+                    {dgettext("showcase", "Read its documents")}
+                  </.button>
+                </li>
+              </ul>
+              <.reading_rows id="read" rows={read_through(@readings)} />
+            </.card>
+          </li>
+
+          <li id="beat-timeout">
+            <.card>
+              <h2 class="font-heading text-lg">
+                {dgettext("showcase", "7. The model times out mid-run (F1)")}
+              </h2>
+              <p class="text-sm">
+                {dgettext(
+                  "showcase",
+                  "Arm the timeout from the fault panel, then read DEMO-RN-0002. The model answers the first turn, which asks for both lookups, and fails in the middle of the next."
+                )}
+              </p>
+              <p class="text-sm text-foreground/70">
+                {dgettext(
+                  "showcase",
+                  "Look for: the failed model call is recorded and the run keeps its five-minute lease; when it runs out, the recover sweep queues the run again and the same turn is asked again. The lookups ran once each: the repeated turn reads their recorded results."
+                )}
+              </p>
+              <.reading_rows id="timed-out" rows={timed_out(@readings)} />
+            </.card>
+          </li>
+
+          <li id="beat-budget">
+            <.card>
+              <h2 class="font-heading text-lg">
+                {dgettext("showcase", "8. The token budget runs out (F8)")}
+              </h2>
+              <p class="text-sm">
+                {dgettext(
+                  "showcase",
+                  "Read DEMO-OT-0003, a long bundle. The reader's budget is %{budget} tokens; this reading needs more.",
+                  budget: budget()
+                )}
+              </p>
+              <p class="text-sm text-foreground/70">
+                {dgettext(
+                  "showcase",
+                  "Look for: the run waits on its budget with token_budget, and no model call is made past it. As the clinic director, extend it: it goes on, and its date finding is ambiguous, because the extract states two dates."
+                )}
+              </p>
+              <.reading_rows id="budget" rows={over_budget(@readings)} extend?={true} />
+            </.card>
+          </li>
+
+          <li id="beat-erase">
+            <.card>
+              <h2 class="font-heading text-lg">
+                {dgettext("showcase", "9. The clinician asks to be erased (F11)")}
+              </h2>
+              <p class="text-sm">
+                {dgettext(
+                  "showcase",
+                  "Read DEMO-SLT-0004, then, as the platform operator, erase its clinician. The shred cannot be undone: that clinician cannot be read again."
+                )}
+              </p>
+              <p class="text-sm text-foreground/70">
+                {dgettext(
+                  "showcase",
+                  "Look for: every step of the run and every tool call's arguments read as erased, while the rows, their places in the journal and the audit hash chain stay. The findings keep their values and line references; the text they quote was sealed under the clinician's scope too."
+                )}
+              </p>
+              <ul class="space-y-2">
+                <li
+                  :for={reading <- read_through(@readings)}
+                  :if={reading.credential && not reading.erased?}
+                  id={"erasable-#{reading.run.id}"}
+                  class="flex flex-wrap items-center gap-3"
+                >
+                  <span>{reading.credential.number}</span>
+                  <.button
+                    id={"erase-#{reading.credential.id}"}
+                    phx-click="erase"
+                    phx-value-id={reading.credential.id}
+                    size="sm"
+                  >
+                    {dgettext("showcase", "Erase this clinician")}
+                  </.button>
+                </li>
+              </ul>
+              <p :if={@chain == true} id="chain-verifies" class="text-sm">
+                {dgettext("showcase", "The audit hash chain verifies after the erasure.")}
+              </p>
+              <p :if={@chain == false} id="chain-broken" class="text-sm">
+                {dgettext("showcase", "The audit hash chain does not verify.")}
+              </p>
+              <.reading_rows id="erased" rows={erased(@readings)} />
+            </.card>
+          </li>
         </ol>
 
         <section
@@ -461,12 +716,20 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
             <.button id="fault-kill" phx-click="fault" phx-value-control="kill" size="sm">
               {dgettext("showcase", "Kill the worker after the registry accepts")}
             </.button>
+            <.button id="fault-timeout" phx-click="fault" phx-value-control="timeout" size="sm">
+              {dgettext("showcase", "Time out the model after the lookups")}
+            </.button>
           </div>
         </section>
 
         <section id="activations" class="space-y-3">
           <h2 class="font-heading text-lg">{dgettext("showcase", "Every activation request")}</h2>
           <.beat_rows id="all" rows={@activations} numbers={@numbers} />
+        </section>
+
+        <section id="readings" class="space-y-3">
+          <h2 class="font-heading text-lg">{dgettext("showcase", "Every reading")}</h2>
+          <.reading_rows id="all-readings" rows={@readings} />
         </section>
       </div>
     </Layouts.app>
@@ -551,6 +814,132 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
             )}
             <span :if={row.invocation.effect_ref} class="font-mono">
               {row.invocation.effect_ref}
+            </span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    """
+  end
+
+  attr :id, :string, required: true
+  attr :rows, :list, required: true
+  attr :extend?, :boolean, default: false
+
+  defp reading_rows(assigns) do
+    ~H"""
+    <p :if={@rows == []} id={"#{@id}-none"} class="text-sm text-foreground/60">
+      {dgettext("showcase", "None yet.")}
+    </p>
+    <table :if={@rows != []} id={"#{@id}-rows"} class="w-full text-left text-sm">
+      <thead>
+        <tr class="border-b-2 border-border">
+          <th class="py-1 pr-3">{dgettext("showcase", "Credential")}</th>
+          <th class="py-1 pr-3">{dgettext("showcase", "Run")}</th>
+          <th class="py-1 pr-3">{dgettext("showcase", "Model calls")}</th>
+          <th class="py-1 pr-3">{dgettext("showcase", "Lookups")}</th>
+          <th class="py-1 pr-3">{dgettext("showcase", "Findings")}</th>
+          <th class="py-1 pr-3">{dgettext("showcase", "Journal")}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr
+          :for={row <- @rows}
+          id={"#{@id}-#{row.run.id}"}
+          data-status={row.run.status}
+          data-erased={to_string(row.erased?)}
+          class="border-b border-border/30 align-top"
+        >
+          <td class="py-1 pr-3">
+            <.link
+              :if={row.credential}
+              navigate={~p"/app/r/credentials/#{row.credential.id}"}
+              class="underline"
+            >
+              {row.credential.number}
+            </.link>
+          </td>
+          <td class="py-1 pr-3">
+            <.badge status={row.run.status}>{run_status_label(row.run.status)}</.badge>
+            <div
+              :if={row.run.blocked_on}
+              class="font-mono text-xs"
+              data-blocked-on={row.run.blocked_on}
+            >
+              {row.run.blocked_on} · {row.run.error_code}
+            </div>
+            <div class="text-xs" data-budget={"#{row.run.budget_spent}/#{row.run.budget_limit}"}>
+              {dgettext("showcase", "%{spent} of %{limit} tokens",
+                spent: row.run.budget_spent || 0,
+                limit: row.run.budget_limit || 0
+              )}
+            </div>
+            <.button
+              :if={@extend? and row.run.blocked_on == :budget}
+              id={"extend-#{row.run.id}"}
+              phx-click="extend"
+              phx-value-id={row.run.id}
+              size="sm"
+            >
+              {dgettext("showcase", "Extend the budget")}
+            </.button>
+          </td>
+          <td
+            class="py-1 pr-3 font-mono text-xs"
+            data-model-calls={Enum.map_join(row.model_calls, ",", & &1.outcome)}
+          >
+            <div :for={call <- row.model_calls}>
+              {call.outcome}<span :if={call.error_class}> · {call.error_class}</span>
+            </div>
+          </td>
+          <td
+            class="py-1 pr-3 text-xs"
+            data-lookups={length(row.lookups)}
+            data-attempts={Enum.map_join(row.lookups, ",", & &1.attempt_count)}
+          >
+            <div :for={lookup <- row.lookups}>
+              {dngettext(
+                "showcase",
+                "%{status}, run %{count} time",
+                "%{status}, run %{count} times",
+                lookup.attempt_count,
+                status: status_label(lookup.status)
+              )}
+            </div>
+          </td>
+          <td class="py-1 pr-3 text-xs" data-findings={length(row.findings)}>
+            <div
+              :for={finding <- row.findings}
+              data-question={finding.question}
+              data-status={finding.status}
+            >
+              <span class="font-heading">{question_label(finding.question)}</span>:
+              <span class="font-mono">{finding.value || "—"}</span>
+              ({finding.status}; {finding.document.title}, {dngettext(
+                "showcase",
+                "line %{lines}",
+                "lines %{lines}",
+                length(finding.lines),
+                lines: Enum.map_join(finding.lines, ", ", & &1.line)
+              )})
+            </div>
+          </td>
+          <td class="py-1 pr-3 text-xs" data-steps={length(row.steps)}>
+            <span :if={not row.erased?}>
+              {dngettext(
+                "showcase",
+                "%{count} step, recorded",
+                "%{count} steps, recorded",
+                length(row.steps)
+              )}
+            </span>
+            <span :if={row.erased?}>
+              {dngettext(
+                "showcase",
+                "%{count} step, erased",
+                "%{count} steps, erased",
+                length(row.steps)
+              )}
             </span>
           </td>
         </tr>

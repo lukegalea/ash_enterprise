@@ -13,6 +13,9 @@ defmodule AshEnterpriseWeb.ShowcaseCredentialingLiveTest do
   """
 
   use AshEnterpriseWeb.ConnCase, async: false
+
+  # The clinic's demo data ingests its licence documents into the evidence store.
+  @moduletag evidence: true
   use Oban.Testing, repo: AshEnterprise.Repo
 
   import Phoenix.LiveViewTest

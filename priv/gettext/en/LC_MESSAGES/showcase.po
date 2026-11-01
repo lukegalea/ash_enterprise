@@ -11,316 +11,528 @@ msgstr ""
 "Language: en\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:545
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:806
 #, elixir-autogen, elixir-format
 msgid "%{count} activation"
 msgid_plural "%{count} activations"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:286
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:410
 #, elixir-autogen, elixir-format
 msgid "1. Ask to activate a credential"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:326
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:450
 #, elixir-autogen, elixir-format
 msgid "2. A committee member approves it"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:351
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:475
 #, elixir-autogen, elixir-format
 msgid "3. The credential changes during approval (F4)"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:372
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:496
 #, elixir-autogen, elixir-format
 msgid "4. The coordinator's grant is revoked (F5)"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:393
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:517
 #, elixir-autogen, elixir-format
 msgid "5. The worker dies after the registry accepted (F2)"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:181
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:261
 #, elixir-autogen, elixir-format
 msgid "A guided tour of governed activation: ask, approve, and what happens when the world changes in between."
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:490
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:751
 #, elixir-autogen, elixir-format
 msgid "Approval digest"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:396
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:520
 #, elixir-autogen, elixir-format
 msgid "Arm the kill from the fault panel, then ask and approve. The worker dies holding a five-minute lease, after the registry accepted the activation and before anything was recorded."
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:121
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:189
 #, elixir-autogen, elixir-format
 msgid "Armed. The next activation's worker dies after the registry accepts it."
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:329
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:453
 #, elixir-autogen, elixir-format
 msgid "As a committee member, open the request's approval and approve it. The coordinator cannot approve their own request."
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:289
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:413
 #, elixir-autogen, elixir-format
 msgid "As the coordinator, ask for a pending credential to be activated. Nothing reaches the registry yet."
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:375
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:499
 #, elixir-autogen, elixir-format
 msgid "Ask again, revoke the coordinator's role from the fault panel, then approve it. Restore the role afterwards."
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:354
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:478
 #, elixir-autogen, elixir-format
 msgid "Ask again, then correct the credential from the fault panel while the request waits, then approve it."
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:316
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:440
 #, elixir-autogen, elixir-format
 msgid "Ask to activate"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:80
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:98
 #, elixir-autogen, elixir-format
 msgid "Asked. The request waits for approval."
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:86
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:104
 #, elixir-autogen, elixir-format
 msgid "Asked: %{status}."
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:447
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:700
 #, elixir-autogen, elixir-format
 msgid "Correct %{number} during approval"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:130
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:208
 #, elixir-autogen, elixir-format
 msgid "Corrected the credential's expiry date."
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:487
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:748
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:834
 #, elixir-autogen, elixir-format
 msgid "Credential"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:179
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:259
 #, elixir-autogen, elixir-format
 msgid "Credentialing tour"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:429
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:682
 #, elixir-autogen, elixir-format
 msgid "Demo only. Each control does what another person or a failure would, through the application's own actions and fault points."
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:467
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:723
 #, elixir-autogen, elixir-format
 msgid "Every activation request"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:427
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:680
 #, elixir-autogen, elixir-format
 msgid "Fault panel"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:461
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:714
 #, elixir-autogen, elixir-format
 msgid "Kill the worker after the registry accepts"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:259
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:377
 #, elixir-autogen, elixir-format
 msgid "Live mode uses the in-zone profile only, and none is configured."
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:381
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:505
 #, elixir-autogen, elixir-format
 msgid "Look for: it runs as the coordinator rebuilt from their grants now, so it fails as denied, and the registry is never asked."
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:335
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:459
 #, elixir-autogen, elixir-format
 msgid "Look for: the approval digest is the digest of the request's target, arguments and the credential's version, so it approves this request and no other. Once approved, it runs within a minute."
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:360
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:484
 #, elixir-autogen, elixir-format
 msgid "Look for: the request goes stale with subject_changed. The approval was for the credential as it was, so it does not run."
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:295
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:419
 #, elixir-autogen, elixir-format
 msgid "Look for: the request waits for approval, with a digest of exactly what it will do."
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:402
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:526
 #, elixir-autogen, elixir-format
 msgid "Look for: when the lease runs out the request is outcome unknown, never run again. The reconcile sweep asks the registry, which holds the activation, and settles it succeeded via reconcile_with, with the registry's reference. The registry took it once. The credential's own row still says pending: reconciliation records the outcome on the request, it does not write the credential."
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:244
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:362
 #, elixir-autogen, elixir-format
 msgid "Model mode: live"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:241
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:359
 #, elixir-autogen, elixir-format
 msgid "Model mode: recorded"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:255
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:373
 #, elixir-autogen, elixir-format
 msgid "Model turns go to the in-zone profile, %{model}."
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:247
-#, elixir-autogen, elixir-format
-msgid "Model turns replay recorded transcripts, so the tour is the same every time. No beat in this slice calls a model."
-msgstr ""
-
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:482
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:743
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:829
 #, elixir-autogen, elixir-format
 msgid "None yet."
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:155
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:233
 #, elixir-autogen, elixir-format
 msgid "Not allowed for the person signed in."
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:518
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:779
 #, elixir-autogen, elixir-format
 msgid "Open the approval"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:277
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:401
 #, elixir-autogen, elixir-format
 msgid "Open the credentials"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:148
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:226
 #, elixir-autogen, elixir-format
 msgid "Ran the clinic's demo data again."
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:491
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:752
 #, elixir-autogen, elixir-format
 msgid "Registry"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:458
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:711
 #, elixir-autogen, elixir-format
 msgid "Restore the clinic"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:455
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:708
 #, elixir-autogen, elixir-format
 msgid "Revoke the coordinator's grant"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:137
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:215
 #, elixir-autogen, elixir-format
 msgid "Revoked the coordinator's role (%{count} assignment)."
 msgid_plural "Revoked the coordinator's role (%{count} assignments)."
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:269
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:387
 #, elixir-autogen, elixir-format
 msgid "Sign in as rosa@example.com, the coordinator, to ask; as kenji@example.com or amaka@example.com, the committee, to approve. The password is password1234."
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:275
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:399
 #, elixir-autogen, elixir-format
 msgid "Signed in as %{email}."
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:488
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:749
 #, elixir-autogen, elixir-format
 msgid "Status"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:157
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:235
 #, elixir-autogen, elixir-format
 msgid "That did not work."
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:111
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:179
 #, elixir-autogen, elixir-format
 msgid "The fault panel is off here."
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:489
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:750
 #, elixir-autogen, elixir-format
 msgid "Why"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:202
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:319
 #, elixir-autogen, elixir-format
 msgid "awaiting approval"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:538
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:799
 #, elixir-autogen, elixir-format
 msgid "bound to this request"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:210
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:304
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:327
 #, elixir-autogen, elixir-format
 msgid "cancelled"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:541
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:802
 #, elixir-autogen, elixir-format
 msgid "does not match"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:204
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:321
 #, elixir-autogen, elixir-format
 msgid "executing"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:206
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:303
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:323
 #, elixir-autogen, elixir-format
 msgid "failed"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:209
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:326
 #, elixir-autogen, elixir-format
 msgid "outcome unknown"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:203
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:320
 #, elixir-autogen, elixir-format
 msgid "ready"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:207
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:324
 #, elixir-autogen, elixir-format
 msgid "rejected"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:208
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:325
 #, elixir-autogen, elixir-format
 msgid "stale"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:205
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:322
 #, elixir-autogen, elixir-format
 msgid "succeeded"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:528
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:789
 #, elixir-autogen, elixir-format
 msgid "via %{via}"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:932
+#, elixir-autogen, elixir-format
+msgid "%{count} step, erased"
+msgid_plural "%{count} steps, erased"
+msgstr[0] ""
+msgstr[1] ""
+
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:924
+#, elixir-autogen, elixir-format
+msgid "%{count} step, recorded"
+msgid_plural "%{count} steps, recorded"
+msgstr[0] ""
+msgstr[1] ""
+
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:869
+#, elixir-autogen, elixir-format
+msgid "%{spent} of %{limit} tokens"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:898
+#, elixir-autogen, elixir-format
+msgid "%{status}, run %{count} time"
+msgid_plural "%{status}, run %{count} times"
+msgstr[0] ""
+msgstr[1] ""
+
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:548
+#, elixir-autogen, elixir-format
+msgid "6. Read a credential's licence documents"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:589
+#, elixir-autogen, elixir-format
+msgid "7. The model times out mid-run (F1)"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:610
+#, elixir-autogen, elixir-format
+msgid "8. The token budget runs out (F8)"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:632
+#, elixir-autogen, elixir-format
+msgid "9. The clinician asks to be erased (F11)"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:592
+#, elixir-autogen, elixir-format
+msgid "Arm the timeout from the fault panel, then read DEMO-RN-0002. The model answers the first turn, which asks for both lookups, and fails in the middle of the next."
+msgstr ""
+
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:199
+#, elixir-autogen, elixir-format
+msgid "Armed. The next reading's model times out in the turn after its lookups."
+msgstr ""
+
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:551
+#, elixir-autogen, elixir-format
+msgid "As the coordinator, start the licence reader on a credential. It reads the certificate and the register extract, each a lookup it calls as a governed tool call, and records what they say."
+msgstr ""
+
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:660
+#, elixir-autogen, elixir-format
+msgid "Erase this clinician"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:153
+#, elixir-autogen, elixir-format
+msgid "Erased. The clinician's scope is shredded."
+msgstr ""
+
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:728
+#, elixir-autogen, elixir-format
+msgid "Every reading"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:881
+#, elixir-autogen, elixir-format
+msgid "Extend the budget"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:135
+#, elixir-autogen, elixir-format
+msgid "Extended by %{tokens} tokens. The run goes on."
+msgstr ""
+
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:838
+#, elixir-autogen, elixir-format
+msgid "Findings"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:839
+#, elixir-autogen, elixir-format
+msgid "Journal"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:310
+#, elixir-autogen, elixir-format
+msgid "Licence number"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:641
+#, elixir-autogen, elixir-format
+msgid "Look for: every step of the run and every tool call's arguments read as erased, while the rows, their places in the journal and the audit hash chain stay. The findings keep their values and line references; the text they quote was sealed under the clinician's scope too."
+msgstr ""
+
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:598
+#, elixir-autogen, elixir-format
+msgid "Look for: the failed model call is recorded and the run keeps its five-minute lease; when it runs out, the recover sweep queues the run again and the same turn is asked again. The lookups ran once each: the repeated turn reads their recorded results."
+msgstr ""
+
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:620
+#, elixir-autogen, elixir-format
+msgid "Look for: the run waits on its budget with token_budget, and no model call is made past it. As the clinic director, extend it: it goes on, and its date finding is ambiguous, because the extract states two dates."
+msgstr ""
+
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:557
+#, elixir-autogen, elixir-format
+msgid "Look for: two findings, the licence number and the date it is valid until, each typed and citing the document lines it rests on. The credential's own page shows them too."
+msgstr ""
+
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:837
+#, elixir-autogen, elixir-format
+msgid "Lookups"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:836
+#, elixir-autogen, elixir-format
+msgid "Model calls"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:613
+#, elixir-autogen, elixir-format
+msgid "Read DEMO-OT-0003, a long bundle. The reader's budget is %{budget} tokens; this reading needs more."
+msgstr ""
+
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:635
+#, elixir-autogen, elixir-format
+msgid "Read DEMO-SLT-0004, then, as the platform operator, erase its clinician. The shred cannot be undone: that clinician cannot be read again."
+msgstr ""
+
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:578
+#, elixir-autogen, elixir-format
+msgid "Read its documents"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:835
+#, elixir-autogen, elixir-format
+msgid "Run"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:119
+#, elixir-autogen, elixir-format
+msgid "Started. The licence reader reads in the background."
+msgstr ""
+
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:668
+#, elixir-autogen, elixir-format
+msgid "The audit hash chain does not verify."
+msgstr ""
+
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:665
+#, elixir-autogen, elixir-format
+msgid "The audit hash chain verifies after the erasure."
+msgstr ""
+
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:393
+#, elixir-autogen, elixir-format
+msgid "The coordinator also starts the licence reader. ines@example.com, the clinic director, extends a run's budget. Erasing a clinician takes the platform operator (mix ash_enterprise.platform.grant_operator)."
+msgstr ""
+
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:365
+#, elixir-autogen, elixir-format
+msgid "The licence reader's model turns replay recorded transcripts, so the tour is the same every time and needs no key."
+msgstr ""
+
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:717
+#, elixir-autogen, elixir-format
+msgid "Time out the model after the lookups"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:311
+#, elixir-autogen, elixir-format
+msgid "Valid until"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:302
+#, elixir-autogen, elixir-format
+msgid "completed"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:915
+#, elixir-autogen, elixir-format
+msgid "line %{lines}"
+msgid_plural "lines %{lines}"
+msgstr[0] ""
+msgstr[1] ""
+
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:299
+#, elixir-autogen, elixir-format
+msgid "queued"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:300
+#, elixir-autogen, elixir-format
+msgid "running"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:301
+#, elixir-autogen, elixir-format
+msgid "waiting"
 msgstr ""

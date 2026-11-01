@@ -3,7 +3,10 @@ defmodule AshEnterprise.Showcase do
   The showcase: the governed-invocation programme's scenario as a running application a
   person can click through, built in slices over the demo data (`mix ash_enterprise.demo`).
   The first slice is the credentialing clinic (`AshEnterprise.Showcase.Credentialing`,
-  toured at `/app/showcase/credentialing`).
+  toured at `/app/showcase/credentialing`); the second, on the same tour, is an agent run
+  reading the clinic's synthetic licence documents
+  (`AshEnterprise.Credentialing.LicenceReader`): resumed after a model timeout, stopped by
+  its budget, and erased with its clinician.
 
   Two settings, under `config :ash_enterprise, AshEnterprise.Showcase`:
 
@@ -13,13 +16,15 @@ defmodule AshEnterprise.Showcase do
       read at compile time, so turning it on is a rebuild. `config/dev.exs` turns it on;
       production never does, and `config/prod.exs` must not.
     * `model_mode` (default `:recorded`) — how the showcase's agents get their model
-      turns. `:recorded` replays fixture transcripts, so a tour is deterministic and needs
-      no model; `:live` uses the in-zone generative profile and nothing else
+      turns. `:recorded` replays fixture transcripts (`AshEnterprise.Showcase.RecordedModel`,
+      through the same guarded model module and run machinery as a live call), so a tour
+      is deterministic and needs no model and no key; `:live` uses the in-zone generative profile and nothing else
       (`AshEnterprise.AI.Models`). The tour says which mode is on.
   """
 
   alias AshEnterprise.AI.Models
   alias AshEnterprise.Faults
+  alias AshEnterprise.Showcase.RecordedModel
 
   @modes [:recorded, :live]
 
@@ -45,6 +50,13 @@ defmodule AshEnterprise.Showcase do
               "showcase model_mode must be one of #{inspect(@modes)}, got #{inspect(other)}"
     end
   end
+
+  @doc """
+  Whether the agent keyed `key` takes its turns from its recorded transcript now: the
+  mode is `:recorded` and the showcase recorded it (`AshEnterprise.Showcase.RecordedModel`).
+  """
+  @spec recorded?(String.t()) :: boolean()
+  def recorded?(key), do: model_mode() == :recorded and RecordedModel.recorded?(key)
 
   @doc """
   The model live mode would use: `{:ok, label}` for the in-zone generative profile, or

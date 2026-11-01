@@ -87,6 +87,10 @@
     "hash": "sha256:30fb9ee53d534ff7be92272fb382b3365cf1d91337eda460ade3c45fc009ebea",
     "version": 2
   },
+  "judgment:v0:AshEnterprise.Credentialing.LicenceDocument#judgments/licence_valid_until": {
+    "hash": "sha256:078f745d2ac8b7ce62b4a68d7dfb2385d593220e18d1e09cc1d26727aafe5cb7",
+    "version": 1
+  },
   "judgment:v0:AshEnterprise.Licences.Dependency#judgments/package_licence_is_permissive": {
     "hash": "sha256:25f179d306cf6ab975032007d2387638625bed8b53a47a8be251f7172d5c151b",
     "version": 1
@@ -133,6 +137,10 @@
   },
   "judgment:v0:AshEnterprise.Licences.Dependency#judgments/package_licence_is_weak_copyleft": {
     "hash": "sha256:c61fbf2972342f88bbaf2109e7565d5bdf93aaf26391bd16236bde181c9551ae",
+    "version": 1
+  },
+  "judgment:v0:AshEnterprise.Credentialing.LicenceDocument#judgments/licence_number": {
+    "hash": "sha256:175700ee48000a4f51d2b23d13c711851542e64746b546cbfb8f4e9fae11e324",
     "version": 1
   },
   "judgment:v0:AshEnterprise.Licences.Dependency#judgments/package_is_public_domain_dedication": {

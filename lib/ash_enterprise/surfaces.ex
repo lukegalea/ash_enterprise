@@ -83,7 +83,7 @@ defmodule AshEnterprise.Surfaces do
       label: "Credentialing",
       menu: :work,
       blurb:
-        "A synthetic clinic activating its clinicians' credentials through governed requests, and the tour over it."
+        "A synthetic clinic activating its clinicians' credentials through governed requests, an agent reading their licence documents, and the tour over it."
     },
     %{
       key: :org,
@@ -841,7 +841,8 @@ defmodule AshEnterprise.Surfaces do
       description:
         "The synthetic clinic's clinician credentials (licences and certifications), each " <>
           "pending or active with the registry. Activating one is a governed request that " <>
-          "a credentialing committee member other than the requester approves.",
+          "a credentialing committee member other than the requester approves. A credential " <>
+          "shows what the licence reader found in its documents, with the lines it cites.",
       group: :credentialing,
       order: 0,
       icon: "hero-identification",

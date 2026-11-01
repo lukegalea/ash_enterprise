@@ -125,6 +125,20 @@ defmodule AshEnterprise.Credentialing.Credential do
       allow_nil? false
       public? true
     end
+
+    has_many :licence_documents, AshEnterprise.Credentialing.LicenceDocument do
+      public? true
+    end
+  end
+
+  calculations do
+    calculate :document_findings,
+              :string,
+              AshEnterprise.Credentialing.Calculations.DocumentFindings do
+      public? true
+
+      description "What the licence reader found in the credential's documents, and the lines it cites."
+    end
   end
 
   actions do

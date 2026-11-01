@@ -8,6 +8,9 @@ defmodule AshEnterpriseWeb.A2ui.CredentialUI do
   the credentialing committee other than them to approve it. Edit runs
   `Credential.correct`, the credential's number or expiry date.
 
+  A credential's detail shows what the licence reader found in its documents, each
+  finding with the lines it cites (`Credential.document_findings`).
+
   Served at `/app/credentialing`; `/app/r/credentials/:id` deep-links one credential.
   The guided tour over it is `/app/showcase/credentialing`.
   """
@@ -51,7 +54,16 @@ defmodule AshEnterpriseWeb.A2ui.CredentialUI do
 
     component :detail, :credential_detail do
       context :credential
-      fields [:number, :kind, :status, :expires_on, :registry_reference, :activated_at]
+
+      fields [
+        :number,
+        :kind,
+        :status,
+        :expires_on,
+        :registry_reference,
+        :activated_at,
+        :document_findings
+      ]
     end
 
     component :form do
@@ -75,6 +87,10 @@ defmodule AshEnterpriseWeb.A2ui.CredentialUI do
 
     field :expires_on do
       label "Expires"
+    end
+
+    field :document_findings do
+      label "Found in its documents"
     end
   end
 end

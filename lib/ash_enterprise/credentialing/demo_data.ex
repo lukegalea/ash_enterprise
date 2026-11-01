@@ -37,6 +37,9 @@ defmodule AshEnterprise.Credentialing.DemoData do
   application exposes, so the coordinator owns them. Everything here is illustrative:
   the names, numbers and dates are made up.
 
+  The licence documents, the clinic's directors and the published licence reader are
+  `AshEnterprise.Credentialing.LicenceDemoData`'s.
+
   Idempotent by name: each step finds its own rows before creating them, so re-running
   it changes nothing.
   """
@@ -45,7 +48,7 @@ defmodule AshEnterprise.Credentialing.DemoData do
 
   alias AshEnterprise.Bpmn.HumanTask
   alias AshEnterprise.Credentialing
-  alias AshEnterprise.Credentialing.{Clinic, Clinician, Credential}
+  alias AshEnterprise.Credentialing.{Clinic, Clinician, Credential, LicenceDemoData}
   alias AshEnterprise.Execution
   alias AshEnterprise.Execution.{Approval, Invocation}
   alias AshEnterprise.Platform.DemoData
@@ -75,10 +78,11 @@ defmodule AshEnterprise.Credentialing.DemoData do
   @activate "AshEnterprise.Credentialing.Credential.activate_credential"
 
   @doc """
-  Populates `organization_id`'s tenant with the clinic. Returns the people and records
-  that now exist: `%{coordinator:, committee:, clinic:, clinicians:, credentials:,
-  requests:}`, the credentials in the order of the table above and `requests` the
-  seeded invocations.
+  Populates `organization_id`'s tenant with the clinic, and its licence documents and
+  licence reader (`AshEnterprise.Credentialing.LicenceDemoData`). Returns the people and
+  records that now exist: `%{coordinator:, committee:, clinic:, clinicians:,
+  credentials:, requests:, director:, deputy:, documents:}`, the credentials in the order
+  of the table above and `requests` the seeded invocations.
   """
   @spec populate(Ash.UUID.t()) :: map()
   def populate(organization_id) do
@@ -138,7 +142,7 @@ defmodule AshEnterprise.Credentialing.DemoData do
       for {number, decision} <- @requests,
           do: request!(Map.fetch!(by_number, number), decision, as_coordinator, hd(committee))
 
-    %{
+    seeded = %{
       coordinator: coordinator,
       committee: committee,
       clinic: clinic,
@@ -146,6 +150,8 @@ defmodule AshEnterprise.Credentialing.DemoData do
       credentials: credentials,
       requests: requests
     }
+
+    Map.merge(seeded, LicenceDemoData.populate(tenant, seeded))
   end
 
   @doc "The coordinator's email: the person who asks for activations."

@@ -10,6 +10,9 @@ defmodule AshEnterprise.Execution.GovernedTest do
 
   use AshEnterprise.DataCase, async: false
 
+  # The clinic's demo data ingests its licence documents into the evidence store.
+  @moduletag evidence: true
+
   import AshEnterprise.Test.AssistantFixtures, only: [tenant!: 0, colleague!: 1, colleague!: 2]
 
   require Ash.Query

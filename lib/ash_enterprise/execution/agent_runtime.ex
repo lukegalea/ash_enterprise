@@ -15,6 +15,14 @@ defmodule AshEnterprise.Execution.AgentRuntime do
       under them again (`around_step/2`), so a run's audited writes join the request
       that started it, however many jobs later.
 
+    * **Recorded turns.** An agent the showcase has recorded
+      (`AshEnterprise.Showcase.recorded?/1`, while its `model_mode` is `:recorded`, the
+      default) takes its turns from its recorded transcript
+      (`AshEnterprise.Showcase.RecordedModel`) through the same guarded module, so the
+      showcase needs no model and no key, and its calls are recorded as profile
+      `"recorded"`. Its published profile is still the in-zone one: live mode calls
+      that, and nothing else.
+
   `config :ash_enterprise, #{inspect(__MODULE__)}, req_llm_opts: [...]` adds options to
   every call (tests route calls to a scripted model with `downstream:`).
   """
@@ -24,6 +32,8 @@ defmodule AshEnterprise.Execution.AgentRuntime do
   alias AshEnterprise.AI.Models
   alias AshEnterprise.AI.Models.GuardedReqLLM
   alias AshEnterprise.Platform.Correlation
+  alias AshEnterprise.Showcase
+  alias AshEnterprise.Showcase.RecordedModel
 
   @impl true
   def loop_options(version, _run, caller) do
@@ -32,6 +42,12 @@ defmodule AshEnterprise.Execution.AgentRuntime do
     cond do
       version.model_profile != Models.in_zone_profile_name() ->
         {:error, {:not_in_zone_profile, version.model_profile}}
+
+      Showcase.recorded?(version.key) ->
+        {:ok,
+         model: RecordedModel.spec(version.key),
+         req_llm: GuardedReqLLM,
+         req_llm_opts: Keyword.merge(configured_opts(), caller: caller, downstream: RecordedModel)}
 
       target.residency != :in_zone ->
         {:error, :in_zone_profile_not_configured}
@@ -59,6 +75,17 @@ defmodule AshEnterprise.Execution.AgentRuntime do
         _none -> fun.()
       end
     end)
+  end
+
+  @doc """
+  The model a step of the agent keyed `key` calls now, as its `AshEnterprise.AI.ModelCall`
+  names it: the recorded model while the showcase replays the agent, otherwise the
+  in-zone profile's.
+  """
+  @spec model_label(String.t()) :: String.t()
+  def model_label(key) do
+    spec = if Showcase.recorded?(key), do: RecordedModel.spec(key), else: Models.default_spec()
+    Models.resolve(spec).label
   end
 
   @doc "The correlation id a run started now records."

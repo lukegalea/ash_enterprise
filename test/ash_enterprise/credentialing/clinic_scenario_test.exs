@@ -13,6 +13,9 @@ defmodule AshEnterprise.Credentialing.ClinicScenarioTest do
   use AshEnterprise.DataCase, async: false
   use Oban.Testing, repo: AshEnterprise.Repo
 
+  # The clinic's demo data ingests its licence documents into the evidence store.
+  @moduletag evidence: true
+
   import AshEnterprise.Test.DailyFixtures, only: [tenant!: 0]
 
   require Ash.Query
@@ -33,7 +36,13 @@ defmodule AshEnterprise.Credentialing.ClinicScenarioTest do
 
   setup do
     admin = tenant!()
-    %{tenant: admin.tenant, clinic: DemoData.populate(admin.tenant)}
+    clinic = DemoData.populate(admin.tenant)
+
+    # The seed published the licence reader and ran its publish itself; the job the
+    # decision queued finds it done.
+    Oban.drain_queue(queue: :execution)
+
+    %{tenant: admin.tenant, clinic: clinic}
   end
 
   defp as_person(user, tenant),
@@ -44,6 +53,12 @@ defmodule AshEnterprise.Credentialing.ClinicScenarioTest do
 
   defp oban(tenant), do: [actor: SystemActor.oban(), tenant: tenant]
 
+  defp activations(tenant) do
+    Invocation
+    |> Ash.Query.filter(target == ^@activate)
+    |> Ash.read!(tenant: tenant, authorize?: false)
+  end
+
   defp count(resource, tenant),
     do: resource |> Ash.read!(tenant: tenant, authorize?: false) |> length()
 
@@ -51,7 +66,11 @@ defmodule AshEnterprise.Credentialing.ClinicScenarioTest do
     tenant: tenant,
     clinic: clinic
   } do
-    counts = fn -> Enum.map([Clinic, Clinician, Credential, Invocation], &count(&1, tenant)) end
+    counts = fn ->
+      Enum.map([Clinic, Clinician, Credential], &count(&1, tenant)) ++
+        [length(activations(tenant))]
+    end
+
     assert counts.() == [1, 5, 5, 2]
 
     again = DemoData.populate(tenant)
