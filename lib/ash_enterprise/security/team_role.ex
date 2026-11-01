@@ -65,9 +65,18 @@ defmodule AshEnterprise.Security.TeamRole do
     identity :unique_assignment, [:team_id, :role_id, :scoping_business_unit_id]
   end
 
+  # `history` reads archived rows too (`AshEnterprise.Execution.Approval`).
+  archive do
+    exclude_read_actions([:history])
+  end
+
   actions do
     defaults [:read, :destroy]
     default_accept [:team_id, :role_id, :scoping_business_unit_id]
+
+    read :history do
+      description "Every team's assignment, in force or revoked (archived): which teams have ever held a role."
+    end
 
     create :assign do
       primary? true

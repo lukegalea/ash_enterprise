@@ -30,8 +30,11 @@ defmodule AshEnterprise.Execution.Approval do
       (`Organization.sole_administrator_approval`, set by its administrator through
       `set_sole_administrator_approval`). Then, for a `:four_eyes` declaration whose
       `approver_role` is `:administrator`, and only that role, the requester is not
-      excluded while they are the only active holder of the Administrator role in the
-      tenant, directly or through a team (`sole_administrator?/3`). They still approve
+      excluded while they are the only person who holds the Administrator role in the
+      tenant or has ever held it, directly or through a team (`sole_administrator?/3`).
+      An administrator who was revoked, taken off a team or deactivated still counts:
+      each of those is one person's act, so the first administrator cannot remove the
+      second and then approve alone. They still approve
       by deciding the task; nothing is approved for them. The rule is asked when the
       task opens, when the decision is applied and at every claim: a second
       administrator, or the opt-in turned off, restores four eyes, and a self-approval
@@ -45,9 +48,7 @@ defmodule AshEnterprise.Execution.Approval do
       is applied and again at every claim; claim logic, not a policy check, so it reads.
   """
 
-  require Ash.Query
-
-  alias AshEnterprise.Accounts.{BusinessUnit, Organization, TeamMembership, User}
+  alias AshEnterprise.Accounts.{Organization, TeamMembership}
   alias AshEnterprise.Execution.Identity
   alias AshEnterprise.Process.AssignmentResolver
   alias AshEnterprise.Security.{ActorContext, Role, TeamRole, UserRole}
@@ -79,8 +80,9 @@ defmodule AshEnterprise.Execution.Approval do
   Whether the sole-administrator rule lets `requester_id` approve their own request in
   `tenant`, for a request whose effects declaration was snapshotted as `effects`: the
   declaration is `:four_eyes` with `approver_role` `:administrator`, the organization
-  has opted in (`sole_administrator_approval`), and the requester is the only active
-  member of the tenant holding the Administrator role, directly or through a team.
+  has opted in (`sole_administrator_approval`), and the requester is the only person
+  who holds the Administrator role in the tenant or has ever held it, directly or
+  through a team (revoked assignments, ended memberships and deactivated people count).
 
   Reads the organization and the role's holders as they are now; claim logic, never a
   policy check.
@@ -91,7 +93,7 @@ defmodule AshEnterprise.Execution.Approval do
         "approver_role" => "administrator"
       })
       when is_binary(tenant) and is_binary(requester_id) do
-    opted_in?(tenant) and active_holders(tenant, role_name(:administrator)) == [requester_id]
+    opted_in?(tenant) and holders(tenant, role_name(:administrator)) == [requester_id]
   end
 
   def sole_administrator?(_tenant, _requester_id, _effects), do: false
@@ -165,53 +167,30 @@ defmodule AshEnterprise.Execution.Approval do
     end
   end
 
-  # The people who hold `role` in `tenant`, directly or through a team, and could act
-  # on it: active, and members of this tenant (their business unit is the tenant's).
-  defp active_holders(tenant, role) do
+  # Everyone who holds `role` in `tenant` or has ever held it, directly or through a
+  # team: assignments in force or revoked, memberships current or ended, people active
+  # or not, wherever they are now. Revoking a role, taking someone off a team and
+  # deactivating them are each one person's act, so a holder removed that way still
+  # counts, and four eyes stays closed as it would without the rule. The `history`
+  # reads include archived rows.
+  defp holders(tenant, role) do
     opts = [authorize?: false, tenant: tenant]
+    role_ids = ids(Role, [name: role], :id, opts)
+    team_ids = ids(TeamRole, [role_id: [in: role_ids]], :team_id, opts)
 
-    role_ids =
-      Role
-      |> Ash.Query.filter(name == ^role)
-      |> Ash.Query.select([:id])
-      |> Ash.read!(opts)
-      |> Enum.map(& &1.id)
+    Enum.uniq(
+      ids(UserRole, [role_id: [in: role_ids]], :user_id, opts) ++
+        ids(TeamMembership, [team_id: [in: team_ids]], :user_id, opts)
+    )
+  end
 
-    direct =
-      UserRole
-      |> Ash.Query.filter(role_id in ^role_ids)
-      |> Ash.Query.select([:user_id])
-      |> Ash.read!(opts)
-      |> Enum.map(& &1.user_id)
-
-    team_ids =
-      TeamRole
-      |> Ash.Query.filter(role_id in ^role_ids)
-      |> Ash.Query.select([:team_id])
-      |> Ash.read!(opts)
-      |> Enum.map(& &1.team_id)
-
-    via_teams =
-      TeamMembership
-      |> Ash.Query.filter(team_id in ^team_ids)
-      |> Ash.Query.select([:user_id])
-      |> Ash.read!(opts)
-      |> Enum.map(& &1.user_id)
-
-    people =
-      User
-      |> Ash.Query.filter(id in ^Enum.uniq(direct ++ via_teams) and lifecycle_status == :active)
-      |> Ash.Query.select([:id, :owning_business_unit_id])
-      |> Ash.read!(authorize?: false)
-
-    units =
-      BusinessUnit
-      |> Ash.Query.filter(id in ^Enum.map(people, & &1.owning_business_unit_id))
-      |> Ash.Query.select([:id])
-      |> Ash.read!(opts)
-      |> MapSet.new(& &1.id)
-
-    people |> Enum.filter(&(&1.owning_business_unit_id in units)) |> Enum.map(& &1.id)
+  defp ids(resource, filter, field, opts) do
+    resource
+    |> Ash.Query.for_read(:history, %{}, opts)
+    |> Ash.Query.filter_input(filter)
+    |> Ash.Query.select([field])
+    |> Ash.read!()
+    |> Enum.map(&Map.fetch!(&1, field))
   end
 
   @units %{"days" => :days, "hours" => :hours, "minutes" => :minutes}

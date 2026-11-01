@@ -406,9 +406,10 @@ decision is an explicit, recorded exception instead.
   engine's or an automation principal's), authorized by the grant union and by `Security.Checks.OwnOrganization`
   (the row is the actor's own organization, since `Organization` is not tenant-scoped). Audited like every update.
 - **The rule.** For a `:four_eyes` declaration whose `approver_role` is `:administrator`, and no other role, the
-  requester is not excluded while the organization has opted in and the requester is the only active member holding
-  the Administrator role, directly or through a team (`Execution.Approval.sole_administrator?/3`). Turning the opt-in
-  on in an organization with several administrators changes nothing. The credentialing committee, and every other
+  requester is not excluded while the organization has opted in and the requester is the only person who holds the
+  Administrator role or has ever held it, directly or through a team (`Execution.Approval.sole_administrator?/3`).
+  Turning the opt-in on in an organization with several administrators changes nothing. That covers publishing an
+  agent and a governed role assignment (`UserRole.assign_governed`), the two targets that name the role today. The credentialing committee, and every other
   approver role, keeps four eyes unconditionally.
 - **Still an act, asked again.** The requester approves by deciding the task, as any approver does; nothing is
   approved for them. The rule is evaluated when the task opens (`RequestApproval`, which now passes the tenant and the
@@ -416,6 +417,13 @@ decision is an explicit, recorded exception instead.
   (`RecheckApprover`, through `approver_holds?/2`). A second administrator, or the opt-in turned off, restores four
   eyes: a self-approval not yet applied goes `stale` with `approved_by_requester`, one already applied goes `stale` at
   its claim with `approver_unauthorized`, and nothing runs.
+- **A removed administrator still counts** (amended the same day, after review). Revoking an assignment, taking
+  someone off a team and deactivating them are each one administrator's act. Counting only the holders in force would
+  let one of two administrators revoke the other, opt in and approve alone, where before the rule four eyes failed
+  closed. So the rule counts every holder the history holds: revoked assignments, ended team memberships and archived
+  roles, read through each resource's `history` action, and people who are no longer active. An organization whose
+  second administrator has left keeps four eyes, as it had before the rule; it needs a second administrator to
+  approve.
 - **Recorded.** `Invocation.approval_basis` is written when an approval is applied: `:confirm`, `:four_eyes` or
   `:sole_administrator`, so a reader of the row or its audit trail can tell a self-approval from four eyes.
 - **Enabling an agent.** `AgentVersion.enable_from_code` (and `mix ash_enterprise.assistant.enable --org <org> --as

@@ -177,6 +177,80 @@ defmodule AshEnterprise.Execution.SoleAdministratorApprovalTest do
     end
   end
 
+  # A second administrator removed by the first, before the first opts in and asks:
+  # revoking a role, deactivating a person and leaving a team are each one person's
+  # act, so the rule does not count them. Four eyes stays closed, as it was before the
+  # rule.
+  describe "an administrator who removed another" do
+    test "by revoking their role is not the only administrator", %{ctx: ctx} do
+      other = colleague!(ctx, admin?: true)
+
+      Security.UserRole
+      |> Ash.Query.filter(user_id == ^other.user.id)
+      |> Ash.read_one!(opts(ctx))
+      |> Security.UserRole.destroy!(opts(ctx))
+
+      allow!(ctx)
+      {draft, row} = requested!(ctx)
+
+      refute Approval.sole_administrator?(ctx.tenant, ctx.user.id, row.effects)
+      assert {:error, _not_a_candidate} = decide!(row, ctx)
+      assert Execution.get_agent_version!(draft.id, opts(ctx)).status == :draft
+    end
+
+    test "by deactivating them is not the only administrator", %{ctx: ctx} do
+      ctx |> colleague!(admin?: true) |> AshEnterprise.Test.DailyFixtures.deactivate!()
+
+      allow!(ctx)
+      {_draft, row} = requested!(ctx)
+
+      refute Approval.sole_administrator?(ctx.tenant, ctx.user.id, row.effects)
+      assert {:error, _not_a_candidate} = decide!(row, ctx)
+    end
+
+    test "by taking them off an administrators' team is not the only administrator",
+         %{ctx: ctx} do
+      colleague = colleague!(ctx, [])
+      team = admin_team!(ctx)
+
+      membership =
+        Accounts.TeamMembership
+        |> Ash.Changeset.for_create(:create, %{team_id: team.id, user_id: colleague.user.id},
+          authorize?: false,
+          tenant: ctx.tenant
+        )
+        |> Ash.create!()
+
+      Accounts.TeamMembership.destroy!(membership, opts(ctx))
+
+      allow!(ctx)
+      refute Approval.sole_administrator?(ctx.tenant, ctx.user.id, @publish)
+    end
+  end
+
+  defp admin_team!(ctx) do
+    team =
+      Accounts.Team
+      |> Ash.Changeset.for_create(
+        :create,
+        %{name: "Admins", team_type: :owner, owning_business_unit_id: ctx.business_unit.id},
+        authorize?: false,
+        tenant: ctx.tenant
+      )
+      |> Ash.create!()
+
+    Security.TeamRole
+    |> Ash.Changeset.for_create(
+      :assign,
+      %{team_id: team.id, role_id: ctx.role.id, scoping_business_unit_id: ctx.business_unit.id},
+      authorize?: false,
+      tenant: ctx.tenant
+    )
+    |> Ash.create!()
+
+    team
+  end
+
   describe "other approver roles" do
     test "a credentialing committee's four eyes is never relaxed", %{ctx: ctx} do
       allow!(ctx)
