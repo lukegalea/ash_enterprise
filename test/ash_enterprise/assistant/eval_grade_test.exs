@@ -50,6 +50,7 @@ defmodule AshEnterprise.Assistant.EvalGradeTest do
     end)
 
     ctx = F.tenant!()
+    F.published!(ctx)
     fixture = Eval.seed!(ctx)
     cases = Enum.filter(Eval.cases(fixture), &(&1.id in @cases))
     results = Eval.run(ctx, cases, before_case: &ScriptedModel.script!(Eval.oracle(&1)))
