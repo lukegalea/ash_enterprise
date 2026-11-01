@@ -27,7 +27,7 @@ defmodule AshEnterprise.Quality.GraderTest do
   @answer "The SYNTHETIC launch checklist is due on 2026-11-06."
 
   @instrument %{
-    model_version: "winnow:e4b",
+    model_version: "winnow:12b",
     model_digest: "sha256:" <> String.duplicate("a", 64),
     runtime_version: "synthetic-runtime-1"
   }

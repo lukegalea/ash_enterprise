@@ -48,7 +48,7 @@ defmodule AshEnterprise.Quality.QuestionsTest do
         assert question.type == AshAi.Evaluate.Noul
         assert question.version == 1
         assert question.family == :agent_reply_style
-        assert question.profile == :winnow_gpu
+        assert question.profile == :winnow_gpu_12b
         assert question.state_projection == ReplyText
         assert question.state_contract == Canonical.state_contract(%{"reply" => "string"})
       end

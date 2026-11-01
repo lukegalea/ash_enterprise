@@ -219,6 +219,17 @@ config :ash_judgments,
       region: :ca
     ],
     [
+      # The larger winnow on the same GPU host. The agent_reply_style family
+      # judges through it: on the S1-92 calibration set, winnow:e4b left most
+      # replies in the review band.
+      name: :winnow_gpu_12b,
+      model: "winnow:12b",
+      base_url: {:system, "S1_OLLAYA_GPU_BASE_URL"},
+      api_key: {:system, "OLLAYA_API_KEY", "in-zone-no-key"},
+      residency: :in_cluster,
+      region: :ca
+    ],
+    [
       # The generative rung on the same M5 Pro host (S1-21 proved
       # /api/generate there): policy-to-question proposals
       # (AshEnterprise.SystemOne.QuestionProposal) draft through this
@@ -256,6 +267,7 @@ config :ash_judgments,
   model_routes: %{
     "laya:typed-decisions" => {:system, "OLLAYA_BASE_URL"},
     "winnow:e4b" => {:system, "S1_OLLAYA_GPU_BASE_URL"},
+    "winnow:12b" => {:system, "S1_OLLAYA_GPU_BASE_URL"},
     splash_model => {:system, "S1_GEN_BASE_URL"}
   },
   # The host ledger the registry's judge actions record into (AST-88). The

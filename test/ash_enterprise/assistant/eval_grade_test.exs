@@ -33,7 +33,7 @@ defmodule AshEnterprise.Assistant.EvalGradeTest do
   @pairs 12
 
   @instrument %{
-    model_version: "winnow:e4b",
+    model_version: "winnow:12b",
     model_digest: "sha256:" <> String.duplicate("a", 64),
     runtime_version: "synthetic-runtime-1"
   }
@@ -257,7 +257,7 @@ defmodule AshEnterprise.Assistant.EvalGradeTest do
              ) == @instrument
 
       assert_raise Mix.Error, ~r/needs all of .*got only --judge-model-version/, fn ->
-        EvalTask.instrument!(judge_model_version: "winnow:e4b")
+        EvalTask.instrument!(judge_model_version: "winnow:12b")
       end
     end
   end
