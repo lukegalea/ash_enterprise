@@ -251,20 +251,24 @@ jobs:
           MIX_ENV=dev mix assets.build
 
   test-shards:
-    name: Test shard ${{ matrix.partition }} of 6
+    name: Test shard ${{ matrix.partition }} of 10
     runs-on: ubuntu-latest
-    # The suite, split by file across six runners with `mix test --partitions`.
-    # It is almost entirely synchronous (2026-10-30: 1,427 tests, 6,108s of
-    # 6,152s sync), so one runner took over 100 minutes; each shard runs its
-    # sixth with a database of its own. `--slowest-modules` prints where the
-    # time goes; it implies `--trace`, which also runs the few async modules
-    # one at a time, so drop it once the slow setup is found. The `tests` job
-    # below is the one result to require.
+    # The suite, split by file across ten runners. It is almost entirely
+    # synchronous (2026-10-30: 1,427 tests, 6,108s of 6,152s sync), so one
+    # runner took over 100 minutes. `mix test --partitions` splits by file
+    # hash, which left the slowest shard at 25 minutes and the fastest at 13,
+    # so scripts/ci-shard.exs packs files longest-first by the seconds
+    # recorded in test/support/ci_timings.json instead (about 610s a shard;
+    # setup and compile add roughly two minutes). MIX_TEST_PARTITION still
+    # gives each shard a database of its own. `--slowest-modules` implies
+    # `--trace`, whose per-module headers are what the timings are rebuilt
+    # from: see the header of scripts/ci-shard.exs. The `tests` job below is
+    # the one result to require.
 
     strategy:
       fail-fast: false
       matrix:
-        partition: [1, 2, 3, 4, 5, 6]
+        partition: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
     # pgvector on pg18, for the reasons given on the main job's service.
     services:
@@ -313,8 +317,15 @@ jobs:
       # Under the CANARY_INSTRUMENT preamble, so long verifications print
       # "[long verification]" lines into this log. The instrument degrades to
       # a no-op on any Elixir without the API.
+      # Every test file must be in exactly one shard; this fails otherwise.
+      - name: Check shard assignment
+        run: elixir scripts/ci-shard.exs check 10
+
       - name: Test
-        run: elixir -e "$CANARY_INSTRUMENT" -S mix test --partitions 6 --slowest-modules 10
+        run: |
+          mapfile -t files < <(elixir scripts/ci-shard.exs files ${{ matrix.partition }} 10)
+          echo "shard ${{ matrix.partition }}: ${#files[@]} files"
+          elixir -e "$CANARY_INSTRUMENT" -S mix test --slowest-modules 10 "${files[@]}"
 
   tests:
     name: Test suite (all shards)
