@@ -55,7 +55,9 @@ defmodule AshEnterprise.Quality.AgentReply do
   about facts outside the reply (whether a capability is built, whether a
   name is used by the product), which a judge that sees only the reply
   cannot know, and hs1 left most replies undecided. Version 2 asks only
-  what the reply text shows. An invented feature stated with confidence is
+  what the reply text shows. hs4 is at version 3 (confirmed 2026-11-04):
+  version 2 read any plain description of the product as a claim that it
+  works, so describing what a feature does now needs no source. An invented feature stated with confidence is
   therefore not caught here: that needs a question that sees the sources.
 
   The family is new because the `house_style` band table was certified on
@@ -205,18 +207,18 @@ defmodule AshEnterprise.Quality.AgentReply do
       type AshAi.Evaluate.Noul
 
       instructions(
-        "Check whether the reply says something is built, done or coming without saying how that is known."
+        "Check whether the reply claims something is finished, shipped, coming, or better than something else, without saying how that is known."
       )
 
       criteria(%{
         false:
-          "The reply says something is built, works, is done, or will ship, without saying how that is known (a record, a test, or a source the reply names). Or it states a plan or a delivery date without saying where the plan is tracked.",
+          "The reply says something is done, fixed, shipped, will ship or is coming, or that it is faster, better or more reliable than something else, without saying how that is known (a record, a test, or a source the reply names). Or it promises a delivery date, or states a plan without saying where the plan is tracked.",
         true:
-          "Every statement that something is built, works, is done or is coming says how it is known, or is stated as a plan with where it is tracked. No delivery date is promised. Or the reply makes no such statement."
+          "Every such claim says how it is known, or is a plan with where it is tracked, and no delivery date is promised. Describing what a feature does or how to use it needs no source. Or the reply makes no such claim."
       })
 
-      # Version 2, confirmed by Luke on 2026-11-01: asks only what the reply text shows.
-      version(2)
+      # Version 3, confirmed by Luke on 2026-11-04: describing what a feature does needs no source.
+      version(3)
       family(:agent_reply_style)
       profile(:winnow_gpu_12b)
       state_projection(AshEnterprise.Quality.Projections.ReplyText)
