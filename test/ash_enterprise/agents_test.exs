@@ -1,7 +1,7 @@
 defmodule AshEnterprise.AgentsTest do
   @moduledoc """
-  Epic E5 acceptance: the OMP bridge lifecycle, the tool gate's exact
-  binding, the clean failure when the omp binary is absent, and the ash_ai
+  Epic E5 acceptance: the OMP bridge lifecycle, a tool call's exact binding
+  to its invocation (ADR 0055), the clean failure when the omp binary is absent, and the ash_ai
   tool declarations.
 
   Every test drives a **fake** `omp` executable — a shell script speaking the
@@ -13,15 +13,20 @@ defmodule AshEnterprise.AgentsTest do
 
   use AshEnterprise.DataCase, async: false
 
+  import AshEnterprise.Test.DailyFixtures
+
+  require Ash.Query
+
   alias AshEnterprise.Agents
   alias AshEnterprise.Agents.AgentMessage
   alias AshEnterprise.Agents.AgentRun
   alias AshEnterprise.Agents.AgentSession
   alias AshEnterprise.Agents.OmpSession
-  alias AshEnterprise.Agents.ToolGate
-  alias AshEnterprise.Agents.ToolInvocation
-
-  @opts [authorize?: false]
+  alias AshEnterprise.Agents.ToolCall
+  alias AshEnterprise.Execution
+  alias AshEnterprise.Execution.Actions.ConfirmInvocation
+  alias AshEnterprise.Execution.Invocation
+  alias AshEnterprise.Platform.SystemActor
 
   setup do
     dir = Path.join(System.tmp_dir!(), "agents-test-#{System.unique_integer([:positive])}")
@@ -31,32 +36,11 @@ defmodule AshEnterprise.AgentsTest do
     previous = Application.get_env(:ash_enterprise, :omp_binary)
     on_exit(fn -> Application.put_env(:ash_enterprise, :omp_binary, previous) end)
 
-    # Tenant resources: the session (and through it the run) belongs to an
-    # organization, and the bridge inherits that tenant for its own writes.
-    org =
-      AshEnterprise.Accounts.Organization
-      |> Ash.Changeset.for_create(
-        :create,
-        %{name: "Agents Test", unique_name: "agents-test-#{System.unique_integer([:positive])}"},
-        @opts
-      )
-      |> Ash.create!()
-
-    # The operator: sessions and runs stamp ownership from the actor.
-    user =
-      AshEnterprise.Accounts.User
-      |> Ash.Changeset.for_create(
-        :register_with_password,
-        %{
-          email: "operator@agents.test",
-          password: "password1234",
-          password_confirmation: "password1234"
-        },
-        @opts
-      )
-      |> Ash.create!()
-
-    %{dir: dir, tenant: org.id, actor: user}
+    # The operator, a member of the tenant: the session (and through it the run)
+    # belongs to its organization, sessions and runs stamp ownership from the
+    # actor, and a tool call is asked as them.
+    %{actor: actor, tenant: tenant} = tenant!()
+    %{dir: dir, tenant: tenant, actor: actor}
   end
 
   describe "run lifecycle with the fake omp executable" do
@@ -314,8 +298,8 @@ defmodule AshEnterprise.AgentsTest do
     end
   end
 
-  describe "tool gate" do
-    test "tool request → pending invocation pauses the run → approval resumes it exactly bound",
+  describe "tool calls are invocations" do
+    test "tool request → invocation awaiting approval pauses the run → confirming resumes it exactly bound",
          %{dir: dir, tenant: tenant, actor: actor} do
       write_omp(dir, """
       read -r line
@@ -326,24 +310,22 @@ defmodule AshEnterprise.AgentsTest do
       """)
 
       run = start_run!(dir, "make a change", tenant, actor)
+      call = awaiting_call!(run, "req-1", tenant)
 
-      invocation =
-        eventually(fn ->
-          case ToolInvocation.for_run!(run.id, authorize?: false) do
-            [%{status: :pending} = invocation] -> {:ok, invocation}
-            _ -> :retry
-          end
-        end)
+      assert call.owner_id == actor.id
 
-      assert invocation.tool_name == "write_file"
-      assert invocation.input == %{"path" => "lib/x.ex", "bytes" => 3}
-      assert invocation.request_id == "req-1"
+      assert args(call, tenant) == %{
+               "run_id" => run.id,
+               "request_id" => "req-1",
+               "tool" => "write_file",
+               "input" => %{"path" => "lib/x.ex", "bytes" => 3}
+             }
 
-      # Paused means paused: no writes go to the port while the gate is shut.
+      # Paused means paused: no writes go to the port while the call waits.
       refute Enum.any?(AgentMessage.for_run!(run.id, authorize?: false), &(&1.text == "resumed"))
 
-      {:ok, approved} = ToolGate.approve_invocation(invocation, authorize?: false)
-      assert approved.status == :approved
+      {:ok, dispatched} = ConfirmInvocation.confirm(call, actor, tenant)
+      assert dispatched.status == :dispatched
 
       run =
         eventually(fn ->
@@ -353,19 +335,30 @@ defmodule AshEnterprise.AgentsTest do
 
       # The decision reached the process and was bound back into the result:
       # the script echoes our tool_response object inside its tool_result.
-      invocation = ToolInvocation.by_id!(invocation.id, authorize?: false)
-      assert invocation.status == :completed
-      assert invocation.result["written"] == true
-      assert invocation.result["response"]["approved"] == true
-      assert invocation.result["response"]["id"] == "req-1"
+      done =
+        eventually(fn ->
+          row = row!(call.id, tenant)
+          if row.status == :succeeded, do: {:ok, row}
+        end)
+
+      result = Ash.load!(done, [:result], actor: SystemActor.oban(), tenant: tenant).result
+      assert result["written"] == true
+
+      assert result["response"] == %{
+               "type" => "tool_response",
+               "id" => "req-1",
+               "approved" => true
+             }
 
       assert Enum.any?(AgentMessage.for_run!(run.id, authorize?: false), &(&1.text == "resumed"))
 
-      # Exactly bound: an already-decided invocation cannot be approved again.
-      assert {:error, _} = ToolGate.approve_invocation(invocation, authorize?: false)
+      # Exactly bound: a decided call has nothing left to approve, and the same
+      # request asked again is the same row.
+      assert {:ok, %{status: :succeeded}} = ConfirmInvocation.confirm(done, actor, tenant)
+      assert [_one] = calls(run, tenant)
     end
 
-    test "rejection fails the invocation and the run resumes without the tool", %{
+    test "rejection fails the call and the run resumes without the tool", %{
       dir: dir,
       tenant: tenant,
       actor: actor
@@ -379,16 +372,9 @@ defmodule AshEnterprise.AgentsTest do
       """)
 
       run = start_run!(dir, "do something dangerous", tenant, actor)
+      call = awaiting_call!(run, "req-1", tenant)
 
-      invocation =
-        eventually(fn ->
-          case ToolInvocation.for_run!(run.id, authorize?: false) do
-            [%{status: :pending} = invocation] -> {:ok, invocation}
-            _ -> :retry
-          end
-        end)
-
-      {:ok, rejected} = ToolGate.reject_invocation(invocation, authorize?: false)
+      {:ok, rejected} = ConfirmInvocation.decline(call, actor, tenant)
       assert rejected.status == :rejected
 
       run =
@@ -397,9 +383,7 @@ defmodule AshEnterprise.AgentsTest do
           if run.status == :completed, do: {:ok, run}
         end)
 
-      invocation = ToolInvocation.by_id!(invocation.id, authorize?: false)
-      assert invocation.status == :rejected
-      refute invocation.result
+      assert %{status: :rejected, error_code: "approval_rejected"} = row!(call.id, tenant)
 
       # The process heard the rejection on the wire: it wrote the exact
       # tool_response line it received to the workspace.
@@ -416,6 +400,18 @@ defmodule AshEnterprise.AgentsTest do
                AgentMessage.for_run!(run.id, authorize?: false),
                &(&1.text == "got the rejection")
              )
+    end
+
+    test "a tool call runs only as its invocation", %{tenant: tenant, actor: actor} do
+      assert {:error, _refused} =
+               ToolCall
+               |> Ash.ActionInput.for_action(
+                 :run_tool,
+                 %{run_id: Ash.UUID.generate(), tool: "shell", input: %{}},
+                 actor: actor,
+                 tenant: tenant
+               )
+               |> Ash.run_action()
     end
   end
 
@@ -492,6 +488,30 @@ defmodule AshEnterprise.AgentsTest do
 
     AgentRun.start!(session.id, prompt, tenant: tenant, actor: actor, authorize?: false)
   end
+
+  defp calls(run, tenant) do
+    Invocation
+    |> Ash.Query.filter(target == ^ToolCall.target())
+    |> Ash.read!(authorize?: false, tenant: tenant)
+    |> Enum.filter(&String.starts_with?(&1.invocation_key, "omp:#{run.id}:"))
+  end
+
+  defp awaiting_call!(run, request_id, tenant) do
+    key = ToolCall.key(run.id, request_id)
+
+    eventually(fn ->
+      case Enum.find(calls(run, tenant), &(&1.invocation_key == key)) do
+        %{status: :awaiting_approval} = row -> {:ok, row}
+        _not_yet -> :retry
+      end
+    end)
+  end
+
+  defp row!(id, tenant),
+    do: Execution.get_invocation!(id, actor: SystemActor.oban(), tenant: tenant)
+
+  defp args(row, tenant),
+    do: Ash.load!(row, [:args], actor: SystemActor.oban(), tenant: tenant).args
 
   defp process_gone?(run_id) do
     Registry.lookup(AshEnterprise.Agents.Registry, run_id) == []

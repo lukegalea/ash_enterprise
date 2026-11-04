@@ -19,9 +19,10 @@ defmodule AshEnterprise.Agents do
   Exposing only *reads* is deliberate: prompting an agent is the operator's
   act (the code interface behind it, or a future privileged-and-approved
   tool — never a plain tool an agent session could call, which would be
-  agent-to-agent nesting); approving its privileged tools happens through
-  `AshEnterprise.Agents.ToolGate`, which is not a tool — an agent must never
-  be able to approve its own tool invocations.
+  agent-to-agent nesting); its tool calls are invocations of
+  `AshEnterprise.Agents.ToolCall`, approved by the run's person on the
+  invocation's approval task, which is not a tool — an agent must never be
+  able to approve its own tool calls.
   """
 
   use Ash.Domain,
@@ -47,7 +48,7 @@ defmodule AshEnterprise.Agents do
     resource AshEnterprise.Agents.AgentSession
     resource AshEnterprise.Agents.AgentRun
     resource AshEnterprise.Agents.AgentMessage
-    resource AshEnterprise.Agents.ToolInvocation
+    resource AshEnterprise.Agents.ToolCall
     resource AshEnterprise.Agents.MorningBrief
     resource AshEnterprise.Agents.Console
   end

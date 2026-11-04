@@ -214,7 +214,10 @@ defmodule AshEnterprise.Acp.ExtMethods do
          record: record(resource, action_name, context["recordId"], actor),
          tenant: ActorContext.tenant(actor),
          resource: resource,
-         action: action_name
+         action: action_name,
+         # A click the person confirms, not a request kept anywhere
+         # (`AshEnterprise.Acp.Approvals`).
+         click: entry.label
        }}
     else
       _runs_at_once -> run(ui, action, actor)

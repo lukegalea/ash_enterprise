@@ -174,8 +174,10 @@ Two statements above no longer match the code, checked against `main` on 2026-10
   proposed.
 - The assistant at `/app/agent`: proposal tools build the same proposals, and `Assistant.ProposalSettlement` records
   the person's confirm or cancel so a second confirm cannot run the mutation twice.
-- The coding-agent bridge: `Agents.ToolGate` approves or rejects one recorded `ToolInvocation`.
-- ACP: permission requests are held in memory (`AshEnterprise.Acp`), not in a durable record.
+- The coding-agent bridge: since 2026-11-01 a tool request is a governed invocation of `Agents.ToolCall.run_tool`,
+  approved by the run's person on its `HumanTask` (ADR 0055).
+- ACP: since 2026-11-01 a prompt's permission request is a governed invocation waiting on the person's `HumanTask`,
+  so it survives a restart (`AshEnterprise.Acp.Approvals`).
 - The production `/mcp` endpoint's `assign_role` no longer writes: since 2026-10-30 it records a governed invocation
   (ADR 0055) and returns its approval link, and the role is assigned only once an administrator other than the caller
   approves. It is the first door moved onto the invocation, and the only one of this list bound to a digest of what

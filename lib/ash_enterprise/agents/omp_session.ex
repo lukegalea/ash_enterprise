@@ -16,12 +16,12 @@ defmodule AshEnterprise.Agents.OmpSession do
   What the bridge writes:
 
       {"id":<corr>,"type":"prompt","message":<run prompt>}      — on start (OMP protocol)
-      {"type":"tool_response","id":<id>,"approved":true|false}  — on a ToolGate decision (bridge dialect)
+      {"type":"tool_response","id":<id>,"approved":true|false}  — on the call's decision (bridge dialect)
 
   What the bridge understands coming back:
 
       {"type":"message","text":...}                             → :agent message (bridge dialect)
-      {"type":"tool_request","id":...,"tool":...,"input":{...}} → pending ToolInvocation, run paused (bridge dialect)
+      {"type":"tool_request","id":...,"tool":...,"input":{...}} → invocation awaiting approval, run paused (bridge dialect)
       {"type":"tool_result","id":...,"result":{...}}            → invocation completed (bridge dialect)
       {"type":"response",...,success:false}                     → :tool diagnostic (OMP protocol)
       {"type":"prompt_result",...}                              → run terminal state (OMP protocol)
@@ -39,10 +39,10 @@ defmodule AshEnterprise.Agents.OmpSession do
   permission gate (`session/acp-permission-gate.ts`, bash/edit/delete/move,
   allow_once/allow_always/reject_*) activates only when an **ACP client** is
   connected, which is exactly where epic E3's `AshEnterprise.Acp.Approvals`
-  already maps permission requests (ADR 0015). So the ToolGate on this
-  transport governs the bridge-dialect `tool_request` frames (spoken by the
-  fake executable and available to future adapters); an OMP session's live
-  tool approvals ride `omp acp`, not this port.
+  already maps permission requests (ADR 0015). So approvals on this transport
+  govern the bridge-dialect `tool_request` frames (spoken by the fake
+  executable and available to future adapters); an OMP session's live tool
+  approvals ride `omp acp`, not this port.
 
   Every other frame (`ready`, `response` success acks, `extension_ui_request`,
   `advisor_cost_changed`, command updates, ...) is the runtime's *state*, not
@@ -51,11 +51,15 @@ defmodule AshEnterprise.Agents.OmpSession do
   process speaking for itself, stderr merged into the channel) are kept
   verbatim as :agent messages so agent output is never dropped.
 
-  A tool request pauses the run: no further writes go to the port until
-  `AshEnterprise.Agents.ToolGate` resolves the pending invocation, which is
-  also what resumes it — the response write *is* the resume. This is ADR 0015
-  in miniature: approvals are resource rows, exactly bound to the invocation
-  they decide.
+  A tool request pauses the run: it becomes an invocation of
+  `AshEnterprise.Agents.ToolCall.run_tool` as the run's owner (ADR 0055), keyed
+  by the run and the request id, waiting on its approval task. No further
+  writes go to the port until the invocation is decided; the session listens
+  on its `invocations:<id>` topic and writes `tool_response` approved when it
+  is `dispatched`, refused when it is rejected, stale or failed — the response
+  write *is* the resume. The decision is the invocation's, exactly bound to
+  the call: the wire message is only its delivery. The process's
+  `tool_result` completes the invocation.
 
   ## Process discipline
 
@@ -79,7 +83,10 @@ defmodule AshEnterprise.Agents.OmpSession do
   alias AshEnterprise.Agents.AgentMessage
   alias AshEnterprise.Agents.AgentRun
   alias AshEnterprise.Agents.AgentSession
-  alias AshEnterprise.Agents.ToolInvocation
+  alias AshEnterprise.Agents.ToolCall
+  alias AshEnterprise.Execution
+  alias AshEnterprise.Execution.Identity
+  alias AshEnterprise.Platform.SystemActor
 
   @line_bytes 65_536
   # How long an eof waits for its exit_status before "went mute while alive"
@@ -134,28 +141,6 @@ defmodule AshEnterprise.Agents.OmpSession do
 
       [] ->
         AgentRun.cancel(run, authorize?: false)
-    end
-  end
-
-  @doc """
-  Delivers a tool decision to the live session: resumes the run and writes the
-  `tool_response` line binding `request_id` to `approved?`. Best-effort — a
-  session that already exited has nothing to resume; the resource row is the
-  decision of record either way.
-  """
-  @spec tool_response(String.t() | nil, String.t() | nil, boolean()) :: :ok
-  def tool_response(run_id, request_id, approved?) do
-    case Registry.lookup(AshEnterprise.Agents.Registry, run_id) do
-      [{pid, _}] ->
-        GenServer.cast(pid, {:tool_response, request_id, approved?})
-        :ok
-
-      [] ->
-        Logger.warning(
-          "tool decision for run #{inspect(run_id)} arrived after its session exited; the resource row is the record"
-        )
-
-        :ok
     end
   end
 
@@ -257,6 +242,9 @@ defmodule AshEnterprise.Agents.OmpSession do
        port: port,
        writer: writer,
        buffer: <<>>,
+       # invocation id => request id, for every tool call this session asked;
+       # `pending` holds the ones not yet decided.
+       calls: %{},
        pending: MapSet.new(),
        run_terminal?: false,
        terminated?: false
@@ -278,28 +266,12 @@ defmodule AshEnterprise.Agents.OmpSession do
     end
   end
 
-  def handle_cast({:tool_response, request_id, approved?}, state) do
-    write_line(
-      state.writer,
-      Jason.encode!(%{
-        type: "tool_response",
-        id: response_id(request_id, state),
-        approved: approved?
-      })
-    )
-
-    # The response write is the resume: nothing else is ever queued while a
-    # request is outstanding, so an emptied pending set is the unpause.
-    state = %{state | pending: MapSet.delete(state.pending, request_id)}
-
-    if Enum.empty?(state.pending) do
-      send(state.writer, :resume)
-    end
-
-    {:noreply, state}
+  # A tool call this session asked moved: decided, it is answered on the wire.
+  @impl true
+  def handle_info(%Phoenix.Socket.Broadcast{payload: %{data: %{id: id, status: status}}}, state) do
+    {:noreply, answer_call(state, id, status)}
   end
 
-  @impl true
   def handle_info({port, {:data, {:eol, line}}}, %{port: port} = state) do
     {:noreply, process_line(state, state.buffer <> line)}
   end
@@ -555,57 +527,113 @@ defmodule AshEnterprise.Agents.OmpSession do
 
   defp append_conversation_text!(_state, _message), do: :ok
 
-  # Records the request as a pending invocation and pauses the run: from here
-  # the writer buffers until the gate resolves and the response write is the
-  # resume.
+  # The request becomes an invocation of `ToolCall.run_tool` as the run's owner,
+  # and the run pauses: from here the writer buffers until the call is decided and
+  # the response write is the resume. A request that cannot be asked (its owner is
+  # gone, the declaration refuses it) is refused on the wire at once.
   defp pause_for_invocation(state, raw_line, request) do
     request_id = request["id"]
-
-    ToolInvocation.record(
-      %{
-        run_id: state.run_id,
-        tool_name: request["tool"] || "unknown",
-        input: request["input"] || %{},
-        request_id: request_id,
-        owner_id: state.owner_id,
-        owning_user_id: state.owner_id
-      },
-      tenant: state.tenant,
-      authorize?: false
-    )
-
     append_message!(state.run_id, :tool, raw_line, state.tenant, state.owner_id)
     send(state.writer, :pause)
 
-    %{state | pending: MapSet.put(state.pending, request_id)}
-  end
+    args = %{
+      "run_id" => state.run_id,
+      "request_id" => request_id,
+      "tool" => request["tool"] || "unknown",
+      "input" => request["input"] || %{}
+    }
 
-  defp complete_invocation(state, id, result) do
-    case Enum.find(
-           ToolInvocation.for_run!(state.run_id, tenant: state.tenant, authorize?: false),
-           &(&1.request_id == id)
-         ) do
-      nil ->
-        Logger.warning("tool_result for unknown invocation #{inspect(id)} on run #{state.run_id}")
+    key = ToolCall.key(state.run_id, request_id || Ash.UUID.generate())
 
-      invocation ->
-        # Only an :approved invocation can complete — a rejected one stays
-        # rejected even if the process reports a result for it anyway.
-        case ToolInvocation.complete(invocation, result, tenant: state.tenant, authorize?: false) do
-          {:ok, _} ->
-            :ok
+    with {:ok, owner} <-
+           Identity.actor_for(%{
+             executing_principal: %{type: :person, id: state.owner_id},
+             organization_id: state.tenant
+           }),
+         {:ok, row} <-
+           Execution.invoke(ToolCall.target(), args, %{key: key},
+             actor: owner,
+             tenant: state.tenant
+           ) do
+      :ok = AshEnterpriseWeb.Endpoint.subscribe("invocations:#{row.id}")
 
-          {:error, error} ->
-            Logger.warning(
-              "tool_result rejected for invocation #{invocation.id}: #{inspect(error)}"
-            )
-        end
+      state = %{
+        state
+        | calls: Map.put(state.calls, row.id, request_id),
+          pending: MapSet.put(state.pending, row.id)
+      }
+
+      # Decided before the subscription (rejected as it was asked, say): answer now.
+      answer_call(state, row.id, row.status)
+    else
+      {:error, error} ->
+        Logger.warning(
+          "tool request #{inspect(request_id)} on run #{state.run_id} could not be asked: #{inspect(error)}"
+        )
+
+        respond(state, request_id, false)
     end
   end
 
-  # A request without an id is identified by nothing but the invocation row.
-  defp response_id(request_id, state) do
-    request_id || Enum.find(MapSet.to_list(state.pending), &(&1 != nil))
+  # A call still waiting for its decision is answered once it has one:
+  # `dispatched` (approved and handed over) yes, a rejection or failure no.
+  defp answer_call(state, invocation_id, status) do
+    cond do
+      not MapSet.member?(state.pending, invocation_id) ->
+        state
+
+      status == :dispatched ->
+        decided(state, invocation_id, true)
+
+      status in [:rejected, :stale, :failed, :cancelled] ->
+        decided(state, invocation_id, false)
+
+      true ->
+        state
+    end
+  end
+
+  defp decided(state, invocation_id, approved?) do
+    :ok = AshEnterpriseWeb.Endpoint.unsubscribe("invocations:#{invocation_id}")
+    state = %{state | pending: MapSet.delete(state.pending, invocation_id)}
+    respond(state, Map.fetch!(state.calls, invocation_id), approved?)
+  end
+
+  # The response write is the resume: nothing else is ever queued while a request is
+  # outstanding, so an emptied pending set is the unpause.
+  defp respond(state, request_id, approved?) do
+    write_line(
+      state.writer,
+      Jason.encode!(%{type: "tool_response", id: request_id, approved: approved?})
+    )
+
+    if Enum.empty?(state.pending), do: send(state.writer, :resume)
+    state
+  end
+
+  # Only a call that was handed over completes: a rejected one stays rejected even
+  # if the process reports a result for it anyway.
+  defp complete_invocation(state, id, result) do
+    runner = [actor: SystemActor.oban(), tenant: state.tenant]
+
+    with {invocation_id, _request} <- Enum.find(state.calls, fn {_inv, req} -> req == id end),
+         {:ok, %{status: :dispatched} = row} <- Execution.get_invocation(invocation_id, runner),
+         {:ok, _done} <-
+           Execution.complete_invocation_externally(
+             row,
+             %{result: result, outcome: :succeeded, via: "callback"},
+             runner
+           ) do
+      :ok
+    else
+      nil ->
+        Logger.warning("tool_result for unknown invocation #{inspect(id)} on run #{state.run_id}")
+
+      other ->
+        Logger.warning(
+          "tool_result for #{inspect(id)} on run #{state.run_id} not recorded: #{inspect(other)}"
+        )
+    end
   end
 
   # --- writer (owns all port writes so the GenServer queue never blocks) -------
