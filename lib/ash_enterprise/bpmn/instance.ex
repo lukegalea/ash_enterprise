@@ -55,6 +55,12 @@ defmodule AshEnterprise.Bpmn.Instance do
     end
   end
 
+  # A tenant that runs a process may have a task waiting to hear of something, so its trigger
+  # cursor exists from its first instance on (`AshEnterprise.Bpmn.Cursor.ensure!/1`).
+  changes do
+    change AshEnterprise.Bpmn.Changes.EnsureCursor, on: [:create]
+  end
+
   actions do
     read :running_now do
       description "Running process instances the reader may see, newest first."

@@ -55,6 +55,7 @@ defmodule Battery.Domain do
     # Agent runs (the ash_agent run fragments), and the question an agent asks a person.
     resource Battery.Execution.AgentVersion
     resource Battery.Execution.Run
+    resource Battery.Execution.RunFinished
     resource Battery.Execution.Step
     resource Battery.Execution.HumanInput
 

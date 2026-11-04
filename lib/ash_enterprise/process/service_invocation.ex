@@ -102,21 +102,23 @@ defmodule AshEnterprise.Process.ServiceInvocation do
   @spec key({Ash.UUID.t(), Ash.UUID.t(), String.t()}) :: String.t()
   def key({instance_id, token_id, node_id}), do: "bpmn:#{instance_id}:#{token_id}:#{node_id}"
 
-  defp position(%{invocation_key: {instance_id, _token_id, node_id} = engine_key}),
+  @doc false
+  def position(%{invocation_key: {instance_id, _token_id, node_id} = engine_key}),
     do:
       {:ok, key(engine_key),
        %{"process_instance_id" => instance_id, "process_node_id" => node_id}}
 
-  defp position(_ctx), do: {:error, :no_invocation_key}
+  def position(_ctx), do: {:error, :no_invocation_key}
 
-  defp starter(%{started_by_id: id}, tenant) when is_binary(id) do
+  @doc false
+  def starter(%{started_by_id: id}, tenant) when is_binary(id) do
     case Identity.person_actor(id, tenant) do
       {:ok, actor} -> {:ok, actor}
       {:error, reason} -> {:error, {:starter_has_no_authority, reason}}
     end
   end
 
-  defp starter(_instance, _tenant), do: {:error, {:starter_has_no_authority, :no_starter}}
+  def starter(_instance, _tenant), do: {:error, {:starter_has_no_authority, :no_starter}}
 
   defp args(ctx) do
     inputs = if is_map(ctx[:inputs]), do: ctx[:inputs], else: %{}

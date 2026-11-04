@@ -180,7 +180,10 @@ defmodule AshEnterprise.Process.ActionInvokerTest do
                  "reject_request",
                  "compose_brief",
                  "approve_brief",
-                 "reject_brief"
+                 "reject_brief",
+                 "start_agent_run",
+                 "agent_run_outcome",
+                 "cancel_agent_run"
                ])
 
       for ref <- refs do

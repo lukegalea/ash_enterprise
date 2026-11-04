@@ -65,6 +65,7 @@ defmodule AshEnterprise.Execution do
     resource AshEnterprise.Execution.Run do
       define :start_agent_run, action: :start, args: [:agent, :input]
       define :get_agent_run, action: :read, get_by: [:id]
+      define :get_agent_run_by_key, action: :read, get_by: [:run_key]
       define :list_agent_runs, action: :read
       define :request_agent_run_cancel, action: :request_cancel
       define :step_agent_run, action: :step, args: [:primary_key]
@@ -76,6 +77,11 @@ defmodule AshEnterprise.Execution do
 
     resource AshEnterprise.Execution.Step do
       define :list_agent_steps, action: :read
+    end
+
+    resource AshEnterprise.Execution.RunFinished do
+      define :emit_run_finished, action: :emit
+      define :list_run_finished, action: :read
     end
 
     resource AshEnterprise.Execution.HumanInput

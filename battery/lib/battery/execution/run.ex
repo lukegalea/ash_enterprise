@@ -15,6 +15,11 @@ defmodule Battery.Execution.Run do
     repo Battery.Repo
   end
 
+  changes do
+    change Battery.Execution.EmitRunFinished,
+      where: [action_is([:claim_step, :record_step, :request_cancel])]
+  end
+
   run do
     agent_version(Battery.Execution.AgentVersion)
     step(Battery.Execution.Step)

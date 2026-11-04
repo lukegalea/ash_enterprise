@@ -8,6 +8,9 @@ defmodule Battery.Bpmn.Invoker do
   another substrate (the scheduled-activation scenario): those dispatch to
   their handler after being recorded, and each handler is safe to repeat.
 
+  And the agent runs a process starts and waits for (`@runs`,
+  `Battery.Execution.ProcessRun`).
+
   And the governed ones (`@targets`): a declared `ash_agent` target, run
   through its invocation as the instance's starter
   (`Battery.Execution.ProcessTask`), so a redelivery returns what the first
@@ -26,6 +29,11 @@ defmodule Battery.Bpmn.Invoker do
     "check_consent" => {Battery.Execution.Referral, :check_consent}
   }
 
+  @runs %{
+    "start_agent_run" => :start,
+    "agent_run_outcome" => :outcome
+  }
+
   def invoke(action, ctx) do
     ensure_table()
 
@@ -34,9 +42,10 @@ defmodule Battery.Bpmn.Invoker do
       {System.unique_integer([:positive, :monotonic]), action, DateTime.utc_now()}
     )
 
-    case {Map.fetch(@targets, action), Map.fetch(@handlers, action)} do
-      {{:ok, target}, _} -> Battery.Execution.ProcessTask.run(target, ctx)
-      {_, {:ok, {module, function}}} -> apply(module, function, [ctx])
+    case {Map.fetch(@targets, action), Map.fetch(@handlers, action), Map.fetch(@runs, action)} do
+      {{:ok, target}, _, _} -> Battery.Execution.ProcessTask.run(target, ctx)
+      {_, {:ok, {module, function}}, _} -> apply(module, function, [ctx])
+      {_, _, {:ok, function}} -> apply(Battery.Execution.ProcessRun, function, [ctx])
       _none -> :ok
     end
   end

@@ -57,6 +57,11 @@ defmodule AshEnterprise.Execution.Run do
       transaction: it calls a model.
     * **Following a run.** Every update is published on `agent_runs:<id>`
       (`Ash.Notifier.PubSub`), so a page waiting on it is told when it moves.
+    * **Telling a process.** A run that reaches a final state writes a CloudEvents envelope
+      (`AshEnterprise.Execution.RunFinished`) in the same transaction, which a process
+      waiting for it hears through the audit log. A run a process started names the
+      instance (`process_instance_id`), and the `:cancel_with_instance` trigger cancels it
+      when that instance is cancelled.
     * **The `:recover` trigger.** A running run whose lease expired (its worker died, or
       its model call failed) is queued again. Only the sweep finds them.
   """
@@ -81,6 +86,7 @@ defmodule AshEnterprise.Execution.Run do
     references do
       reference :erasure_scope, on_delete: :restrict
       reference :agent_version, on_delete: :restrict
+      reference :process_instance, on_delete: :restrict
     end
 
     # The sweeps' queries, across tenants, every minute.
@@ -117,6 +123,12 @@ defmodule AshEnterprise.Execution.Run do
     change set_attribute(:correlation_id, &AgentRuntime.correlation_id/0), on: [:create]
     change set_attribute(:traceparent, &AgentRuntime.traceparent/0), on: [:create]
     change AshEnterprise.Execution.Changes.SealingScope, on: [:create]
+    change AshEnterprise.Execution.Changes.ProcessOrigin, on: [:create]
+
+    # A run that reaches a final state announces it to the processes waiting for it, in the
+    # same transaction (`AshEnterprise.Execution.RunFinished`).
+    change AshEnterprise.Execution.Changes.EmitRunFinished,
+      where: [action_is([:claim_step, :record_step, :request_cancel])]
 
     change {AshEnterprise.Erasure.Changes.SealUnderScope, fields: [:input, :output]},
       on: [:create, :update]
@@ -160,10 +172,45 @@ defmodule AshEnterprise.Execution.Run do
         worker_module_name AshEnterprise.Execution.Run.RecoverWorker
         scheduler_module_name AshEnterprise.Execution.Run.RecoverScheduler
       end
+
+      # A process instance that was cancelled takes the runs it started with it. Cancelling
+      # an instance cancels its call-activity children too, so a run a child started is
+      # found by its own instance's status.
+      trigger :cancel_with_instance do
+        action :request_cancel
+
+        where expr(
+                status in [:queued, :running, :waiting] and
+                  exists(process_instance, status == :cancelled)
+              )
+
+        read_action :read
+        queue :agent_runs
+        scheduler_cron "* * * * *"
+        max_attempts 3
+        use_tenant_from_record? true
+        actor_persister :none
+        default_actor AshEnterprise.Platform.SystemActor.oban()
+        worker_module_name AshEnterprise.Execution.Run.CancelWithInstanceWorker
+        scheduler_module_name AshEnterprise.Execution.Run.CancelWithInstanceScheduler
+      end
+    end
+  end
+
+  attributes do
+    attribute :process_instance_id, :uuid do
+      public? true
+      description "The process instance that started the run, when one did."
     end
   end
 
   relationships do
+    belongs_to :process_instance, AshEnterprise.Bpmn.Instance do
+      public? true
+      define_attribute? false
+      description "The process instance that started the run, when one did."
+    end
+
     belongs_to :erasure_scope, AshEnterprise.Erasure.Scope do
       public? true
       description "The erasure scope `input`, `output` and the steps' `parts` are sealed under."

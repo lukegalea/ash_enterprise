@@ -95,6 +95,31 @@ defmodule AshEnterprise.Process.ActionInvoker do
     "check_licence_expiry" => %{
       invoke: {AshEnterprise.Credentialing.Credential, :check_expiry}
     },
+    "start_agent_run" => %{
+      run: &AshEnterprise.Process.AgentRuns.start/1,
+      action: :bespoke,
+      label: "Start an agent run",
+      description:
+        "Asks an agent (the `agent` input) to do the work in the `input` input, as the person " <>
+          "who started the process, and promotes the run's id as `run_id`. A redelivery finds " <>
+          "the run it started. Follow it with a receive task for the run's finish."
+    },
+    "agent_run_outcome" => %{
+      run: &AshEnterprise.Process.AgentRuns.outcome/1,
+      action: :bespoke,
+      label: "Read how an agent run ended",
+      description:
+        "Reads how the run named by the `run_id` input ended (`completed`, `failed` or " <>
+          "`cancelled`) and promotes it as `outcome`, for a gateway to route on."
+    },
+    "cancel_agent_run" => %{
+      run: &AshEnterprise.Process.AgentRuns.cancel/1,
+      action: :bespoke,
+      label: "Cancel an agent run",
+      description:
+        "Cancels the run named by the `run_id` input if it has not finished, as the person " <>
+          "who started the process. For the branch that leaves a wait for the run on a timeout."
+    },
     "record_risk" => %{
       run: &__MODULE__.record_risk/1,
       action: {AshEnterprise.Security.AccessRequest, :record_risk}

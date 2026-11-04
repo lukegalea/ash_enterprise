@@ -331,3 +331,46 @@ so one shred reaches them all ([ADR 0024](0024-audit-retention-and-erasure.md)).
   on its root's row. No run has a parent yet: every run is its own root.
 - **Tests.** Package: `test/ash_agent/run_test.exs` ("the token budget"). Here, in the durability tier,
   `test/ash_enterprise/execution/budget_test.exs` (invariant 8).
+
+## Built, 2026-11-04: a process waits for an agent
+
+- **The shape.** A process starts a run, waits for it, reads how it ended and routes on that: a service task
+  (`start_agent_run`) that promotes the run's id as `run_id`; a receive task correlated on `routing.run_id`, with a timer
+  boundary for the timeout; a service task (`agent_run_outcome`) that promotes `outcome` (`completed`, `failed` or
+  `cancelled`); an exclusive gateway on `routing.outcome`. On a timeout the boundary's branch runs `cancel_agent_run`, so
+  the run does not keep working for a process that stopped waiting. All three are entries of
+  `AshEnterprise.Process.ActionInvoker`, implemented in `AshEnterprise.Process.AgentRuns`.
+- **Why not `ash:call`.** The engine calls a callable as its own actor, which this application's policies do not know,
+  and a run belongs to a person. The registry entries run as the instance's starter, as the service tasks that name a
+  declared target do (ADR 0055, "BPMN service tasks through invoke").
+- **A redelivery starts no second run.** The run's key is the engine's invocation key, `bpmn:<instance>:<token>:<node>`;
+  a redelivery finds the run with that key. The run names its instance (`process_instance_id`).
+- **The message.** A run that reaches a final state writes a CloudEvents 1.0 envelope, `Execution.RunFinished`, in the
+  same transaction (`Changes.EmitRunFinished`, on the actions that can end a run): `id` is `<run id>:<lease epoch>`
+  (column `event_id`), `source` is `/execution/runs/<run id>`, `subject` is the run's id, `data` says how the run ended
+  and nothing it said, because the audit log keeps a plaintext copy of every change and a run's output is sealed. The
+  resource is audited, so the envelope reaches the processes through the audit log and the trigger sweep as every
+  other event does. `source` and `id` are the table's identity: a second envelope for the same run and epoch is
+  refused.
+- **Routing reads the run, not the message.** The message only says a run finished; the second service task reads how,
+  from the run, as the starter.
+- **Reordered and repeated messages.** The receive task declares a `lookback` of ten minutes, so a run that finishes
+  before the process reaches its wait (it was started, and the process died before the token moved) is found when the
+  token parks. A message delivered twice, or replayed by a cursor put back, finds no token waiting: one advance.
+- **Two gaps in the trigger plumbing, closed.** The sweep was fanned out only to tenants with a published message
+  subscription, so a tenant whose only listener was a parked receive task was never swept
+  (`Subscription.trigger_tenants/0` now includes tenants with a token parked at a message catch). And a tenant's cursor
+  was created by the first sweep, at the newest event, skipping everything before it; it is now also created at a
+  tenant's first process instance (`Bpmn.Cursor.ensure!/1`), at the mark as of that moment.
+- **Cancelling.** An instance that is cancelled takes its runs with it: the run trigger `:cancel_with_instance` finds
+  queued, running or waiting runs whose instance is cancelled and cancels them, each announcing itself like any other
+  final run. Cancelling an instance also cancels its call-activity children (ash_bpmn B3, not yet in this application's
+  lock); a run a child started is found by its own instance's status, so no change here is needed when it lands.
+- **Not built.** The definition's automation principal (the run starts as the starter only). The run's output is not
+  available to the process (a process that needs the answer reads the run, as the starter, in a service task of its
+  own). Run cancellation does not cascade to children (decision D6, Phase 6).
+- **Fault points.** `:process_agent_run_started` (the run exists, the token has not moved), `:agent_run_finished_announced`
+  (the run is final and announced, neither committed) and `:process_agent_run_outcome_read`.
+- **Tests.** Durability tier: `test/ash_enterprise/bridge/workflow_waits_for_agent_waiting_for_human_test.exs` (a kill at
+  each hop; a finish before the wait and a duplicate finish advance once; cancelling the instance; the timeout).
+  Battery: `battery/test/base_integration/process_agent_run_test.exs` (scenario 9).
