@@ -5,8 +5,8 @@ defmodule AshEnterprise.Process.EvidenceCheckBoundaryTest do
   `:business`) is a BPMN error its error boundary catches, while the sibling check
   carries on and completes (F7).
 
-  Each branch ends at its own end event, so the instance completes when the last one
-  does. SYNTHETIC data only.
+  Both checks rejoin at a parallel join, the refused one through its boundary, and the
+  join fires once, after both have arrived. SYNTHETIC data only.
   """
 
   use AshEnterprise.DataCase, async: false
@@ -51,16 +51,22 @@ defmodule AshEnterprise.Process.EvidenceCheckBoundaryTest do
         <bpmn2:outgoing>F_in_date</bpmn2:outgoing>
       </bpmn2:serviceTask>
 
-      <bpmn2:endEvent id="End_Documented"><bpmn2:incoming>F_documented</bpmn2:incoming></bpmn2:endEvent>
-      <bpmn2:endEvent id="End_DocumentMissing"><bpmn2:incoming>F_missing</bpmn2:incoming></bpmn2:endEvent>
-      <bpmn2:endEvent id="End_InDate"><bpmn2:incoming>F_in_date</bpmn2:incoming></bpmn2:endEvent>
+      <bpmn2:parallelGateway id="Join">
+        <bpmn2:incoming>F_documented</bpmn2:incoming>
+        <bpmn2:incoming>F_missing</bpmn2:incoming>
+        <bpmn2:incoming>F_in_date</bpmn2:incoming>
+        <bpmn2:outgoing>F_end</bpmn2:outgoing>
+      </bpmn2:parallelGateway>
+
+      <bpmn2:endEvent id="End"><bpmn2:incoming>F_end</bpmn2:incoming></bpmn2:endEvent>
 
       <bpmn2:sequenceFlow id="F_start" sourceRef="Start" targetRef="Fork"/>
       <bpmn2:sequenceFlow id="F_documents" sourceRef="Fork" targetRef="CheckDocuments"/>
       <bpmn2:sequenceFlow id="F_expiry" sourceRef="Fork" targetRef="CheckExpiry"/>
-      <bpmn2:sequenceFlow id="F_documented" sourceRef="CheckDocuments" targetRef="End_Documented"/>
-      <bpmn2:sequenceFlow id="F_missing" sourceRef="NoDocument" targetRef="End_DocumentMissing"/>
-      <bpmn2:sequenceFlow id="F_in_date" sourceRef="CheckExpiry" targetRef="End_InDate"/>
+      <bpmn2:sequenceFlow id="F_documented" sourceRef="CheckDocuments" targetRef="Join"/>
+      <bpmn2:sequenceFlow id="F_missing" sourceRef="NoDocument" targetRef="Join"/>
+      <bpmn2:sequenceFlow id="F_in_date" sourceRef="CheckExpiry" targetRef="Join"/>
+      <bpmn2:sequenceFlow id="F_end" sourceRef="Join" targetRef="End"/>
     </bpmn2:process>
   </bpmn2:definitions>
   """
@@ -98,7 +104,7 @@ defmodule AshEnterprise.Process.EvidenceCheckBoundaryTest do
 
     assert interrupted.data["details"] =~ refused.id
 
-    assert ended_at(clinic, instance) == ["End_DocumentMissing", "End_InDate"]
+    assert_joined_once(clinic, instance)
   end
 
   test "with a document on file both checks complete and no boundary is taken", %{
@@ -112,7 +118,7 @@ defmodule AshEnterprise.Process.EvidenceCheckBoundaryTest do
     assert instance.status == :completed
     assert Enum.map(invocations(clinic), & &1.status) == [:succeeded, :succeeded]
     assert events(clinic, instance, :activity_interrupted) == []
-    assert ended_at(clinic, instance) == ["End_Documented", "End_InDate"]
+    assert_joined_once(clinic, instance)
   end
 
   defp events(clinic, instance, kind) do
@@ -121,9 +127,14 @@ defmodule AshEnterprise.Process.EvidenceCheckBoundaryTest do
     |> Ash.read!(tenant: clinic.tenant, authorize?: false)
   end
 
-  defp ended_at(clinic, instance) do
-    for node <- ["End_Documented", "End_DocumentMissing", "End_InDate"],
-        tokens_at(clinic, instance, node) != [],
-        do: node
+  # The join fired once, after one arrival from each branch, and one token reached the end.
+  defp assert_joined_once(clinic, instance) do
+    assert [fired] =
+             clinic
+             |> events(instance, :node_completed)
+             |> Enum.filter(&(&1.node_id == "Join"))
+
+    assert %{"join" => "fired", "arrived_token_ids" => [_, _]} = fired.data
+    assert [_] = tokens_at(clinic, instance, "End")
   end
 end

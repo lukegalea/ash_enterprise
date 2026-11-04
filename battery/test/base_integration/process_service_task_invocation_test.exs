@@ -11,7 +11,7 @@ defmodule Battery.Integration.ProcessServiceTaskInvocationTest do
   governed `acknowledge` runs only through that row and as the starter; a redelivery of
   the node (the same engine key) gets the row back and runs nothing; and a business
   refusal (`AshAgent.BusinessError`) in one parallel branch is the BPMN error its
-  boundary catches, while the sibling branch completes.
+  boundary catches, while the sibling branch completes, and both rejoin once.
   """
 
   use ExUnit.Case, async: false
@@ -59,16 +59,22 @@ defmodule Battery.Integration.ProcessServiceTaskInvocationTest do
         <bpmn2:outgoing>F_acknowledged</bpmn2:outgoing>
       </bpmn2:serviceTask>
 
-      <bpmn2:endEvent id="End_Consented"><bpmn2:incoming>F_consented</bpmn2:incoming></bpmn2:endEvent>
-      <bpmn2:endEvent id="End_NoConsent"><bpmn2:incoming>F_no_consent</bpmn2:incoming></bpmn2:endEvent>
-      <bpmn2:endEvent id="End_Acknowledged"><bpmn2:incoming>F_acknowledged</bpmn2:incoming></bpmn2:endEvent>
+      <bpmn2:parallelGateway id="Join">
+        <bpmn2:incoming>F_consented</bpmn2:incoming>
+        <bpmn2:incoming>F_no_consent</bpmn2:incoming>
+        <bpmn2:incoming>F_acknowledged</bpmn2:incoming>
+        <bpmn2:outgoing>F_end</bpmn2:outgoing>
+      </bpmn2:parallelGateway>
+
+      <bpmn2:endEvent id="End"><bpmn2:incoming>F_end</bpmn2:incoming></bpmn2:endEvent>
 
       <bpmn2:sequenceFlow id="F_start" sourceRef="Start" targetRef="Fork"/>
       <bpmn2:sequenceFlow id="F_consent" sourceRef="Fork" targetRef="CheckConsent"/>
       <bpmn2:sequenceFlow id="F_acknowledge" sourceRef="Fork" targetRef="Acknowledge"/>
-      <bpmn2:sequenceFlow id="F_consented" sourceRef="CheckConsent" targetRef="End_Consented"/>
-      <bpmn2:sequenceFlow id="F_no_consent" sourceRef="NoConsent" targetRef="End_NoConsent"/>
-      <bpmn2:sequenceFlow id="F_acknowledged" sourceRef="Acknowledge" targetRef="End_Acknowledged"/>
+      <bpmn2:sequenceFlow id="F_consented" sourceRef="CheckConsent" targetRef="Join"/>
+      <bpmn2:sequenceFlow id="F_no_consent" sourceRef="NoConsent" targetRef="Join"/>
+      <bpmn2:sequenceFlow id="F_acknowledged" sourceRef="Acknowledge" targetRef="Join"/>
+      <bpmn2:sequenceFlow id="F_end" sourceRef="Join" targetRef="End"/>
     </bpmn2:process>
   </bpmn2:definitions>
   """
@@ -101,6 +107,7 @@ defmodule Battery.Integration.ProcessServiceTaskInvocationTest do
     instance = start!(referral, ctx.starter)
 
     assert Ash.get!(Battery.Bpmn.Instance, instance.id).status == :completed
+    assert_joined_once(instance)
 
     [acknowledge] = rows(@acknowledge)
     [token] = tokens_at(instance, "Acknowledge")
@@ -158,9 +165,20 @@ defmodule Battery.Integration.ProcessServiceTaskInvocationTest do
 
     assert interrupted.data["details"] =~ refused.id
 
-    assert tokens_at(instance, "End_NoConsent") != []
-    assert tokens_at(instance, "End_Acknowledged") != []
-    assert tokens_at(instance, "End_Consented") == []
+    assert_joined_once(instance)
+  end
+
+  # The join fired once, after one arrival from each branch, and one token reached the end.
+  defp assert_joined_once(instance) do
+    assert [fired] =
+             ProcessEvent
+             |> Ash.Query.filter(
+               instance_id == ^instance.id and node_id == "Join" and kind == :node_completed
+             )
+             |> Ash.read!()
+
+    assert %{"join" => "fired", "arrived_token_ids" => [_, _]} = fired.data
+    assert [_] = tokens_at(instance, "End")
   end
 
   defp referral!(consent: consent?) do

@@ -31,7 +31,7 @@
   "pins": [
     {
       "dep": "ash_bpmn",
-      "lock": "e8ba97f0994ca1de61b3302d1e0a865a94c9ac70"
+      "lock": "a0bda9eba0e33ff8158d78274f1b3376159391a8"
     },
     {
       "dep": "ash_oban",
@@ -92,7 +92,9 @@
       "deps": ["ash_bpmn"],
       "tests": [
         {"dep": "ash_bpmn", "file": "test/ash_bpmn/engine_test.exs", "test": "parallel process completes after join"},
-        {"dep": "ash_bpmn", "file": "test/ash_bpmn/branch_completion_test.exs", "test": "a branch parked on an approval keeps the instance running"}
+        {"dep": "ash_bpmn", "file": "test/ash_bpmn/branch_completion_test.exs", "test": "a branch parked on an approval keeps the instance running"},
+        {"dep": "ash_bpmn", "file": "test/ash_bpmn/parallel_join_test.exs", "test": "a branch two steps long is waited for, and the node after the join runs once"},
+        {"dep": "ash_bpmn", "file": "test/ash_bpmn/parallel_join_test.exs", "test": "waits for a user task and a receive task two nodes back, payment first"}
       ]
     },
     {
