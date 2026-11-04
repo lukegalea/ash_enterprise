@@ -431,7 +431,9 @@ decision is an explicit, recorded exception instead.
 - **The rule.** For a `:four_eyes` declaration whose `approver_role` is `:administrator`, and no other role, the
   requester is not excluded while the organization has opted in and the requester is the only person who holds the
   Administrator role or has ever held it, directly or through a team (`Execution.Approval.sole_administrator?/3`).
-  Turning the opt-in on in an organization with several administrators changes nothing. That covers publishing an
+  The role is found by its name, so the Administrator role cannot be renamed
+  (`Security.Validations.AdministratorKeepsItsName`): renaming the role both administrators hold and taking a new one
+  would otherwise set the second aside without revoking anything. Turning the opt-in on in an organization with several administrators changes nothing. That covers publishing an
   agent and a governed role assignment (`UserRole.assign_governed`), the two targets that name the role today. The credentialing committee, and every other
   approver role, keeps four eyes unconditionally.
 - **Still an act, asked again.** The requester approves by deciding the task, as any approver does; nothing is

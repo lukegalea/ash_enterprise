@@ -226,6 +226,21 @@ defmodule AshEnterprise.Execution.SoleAdministratorApprovalTest do
       allow!(ctx)
       refute Approval.sole_administrator?(ctx.tenant, ctx.user.id, @publish)
     end
+
+    # The rule finds the role by its name: renaming the role both hold and creating a
+    # new "Administrator" for oneself would set the second aside without revoking
+    # anything, so the Administrator role keeps its name.
+    test "by renaming the role is refused: the Administrator role keeps its name", %{ctx: ctx} do
+      colleague!(ctx, admin?: true)
+
+      assert {:error, %Ash.Error.Invalid{errors: [%{field: :name}]}} =
+               ctx.role
+               |> Ash.Changeset.for_update(:update, %{name: "Former administrators"}, opts(ctx))
+               |> Ash.update()
+
+      allow!(ctx)
+      refute Approval.sole_administrator?(ctx.tenant, ctx.user.id, @publish)
+    end
   end
 
   defp admin_team!(ctx) do

@@ -130,6 +130,8 @@ defmodule AshEnterprise.Security.Role do
 
       validate attribute_equals(:is_system_generated, false),
         message: "system-generated roles cannot be edited"
+
+      validate AshEnterprise.Security.Validations.AdministratorKeepsItsName
     end
   end
 
