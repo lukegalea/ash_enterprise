@@ -1,0 +1,87 @@
+## "msgid"s in this file come from POT (.pot) files.
+###
+### Do not add, change, or remove "msgid"s manually here as
+### they're tied to the ones in the corresponding POT file
+### (with the same domain).
+###
+### Use "mix gettext.extract --merge" or "mix gettext.merge"
+### to merge POT files into PO files.
+msgid ""
+msgstr ""
+"Language: fr\n"
+"Plural-Forms: nplurals=2; plural=(n>1);\n"
+
+msgid "Already have an account?"
+msgstr "Vous avez déjà un compte ?"
+
+msgid "Email or password was incorrect"
+msgstr "Adresse courriel ou mot de passe incorrect"
+
+msgid "Email"
+msgstr "Adresse courriel"
+
+msgid "Forgot your password?"
+msgstr "Mot de passe oublié ?"
+
+msgid "If this user exists in our database you will contacted with a sign-in link shortly."
+msgstr "Si ce compte existe, vous recevrez sous peu un lien de connexion."
+
+msgid "If this user exists in our system, you will be contacted with reset instructions shortly."
+msgstr "Si ce compte existe, vous recevrez sous peu les instructions de réinitialisation."
+
+msgid "Need an account?"
+msgstr "Pas encore de compte ?"
+
+msgid "Password"
+msgstr "Mot de passe"
+
+msgid "Password Confirmation"
+msgstr "Confirmation du mot de passe"
+
+msgid "Request magic link"
+msgstr "Recevoir un lien de connexion"
+
+msgid "Request password reset token"
+msgstr "Demander la réinitialisation du mot de passe"
+
+msgid "Requesting ..."
+msgstr "Envoi de la demande…"
+
+msgid "Reset password with token"
+msgstr "Réinitialiser le mot de passe"
+
+msgid "Sign in"
+msgstr "Se connecter"
+
+msgid "Signing in ..."
+msgstr "Connexion…"
+
+msgid "Your password has successfully been reset"
+msgstr "Votre mot de passe a été réinitialisé"
+
+msgid "Are you sure you want to sign out?"
+msgstr "Voulez-vous vraiment vous déconnecter ?"
+
+msgid "Change password"
+msgstr "Changer le mot de passe"
+
+msgid "Changing password ..."
+msgstr "Changement du mot de passe…"
+
+msgid "Register"
+msgstr "Créer un compte"
+
+msgid "Registering ..."
+msgstr "Création du compte…"
+
+msgid "Remember me"
+msgstr "Se souvenir de moi"
+
+msgid "Request reset password link"
+msgstr "Recevoir un lien de réinitialisation"
+
+msgid "Sign out"
+msgstr "Se déconnecter"
+
+msgid "or"
+msgstr "ou"

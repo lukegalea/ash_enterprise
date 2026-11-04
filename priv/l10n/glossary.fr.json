@@ -1,0 +1,13 @@
+{
+  "_comment": "Required French for this product's own words, read by mix l10n.generate. Keys starting with _ are ignored.",
+  "agent": "agent",
+  "All apps": "Toutes les applications",
+  "Helper": "Assistant",
+  "Morning brief": "Point du matin",
+  "Today": "Aujourd’hui",
+  "Email": "Adresse courriel",
+  "Sign in": "Se connecter",
+  "Sign out": "Se déconnecter",
+  "tenant": "organisation",
+  "lineage": "lignage"
+}

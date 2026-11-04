@@ -70,6 +70,10 @@ defmodule AshEnterpriseWeb.Router do
     # Must run after :load_from_session -- it resolves the authorization context
     # for whatever user that installed. See the plug's moduledoc.
     plug AshEnterpriseWeb.Plugs.LoadActorContext
+    # After the actor context: the organization's default locale is read
+    # through the tenant it resolved (ADR 0060). Stored in the session for the
+    # LiveView mount, which runs AshEnterpriseWeb.LiveLocale.
+    plug AshEnterpriseWeb.Plugs.PutLocale, session: true
   end
 
   pipeline :api do
@@ -77,6 +81,7 @@ defmodule AshEnterpriseWeb.Router do
     plug :load_from_bearer
     plug :set_actor, :user
     plug AshEnterpriseWeb.Plugs.LoadActorContext
+    plug AshEnterpriseWeb.Plugs.PutLocale
   end
 
   scope "/gql" do
@@ -116,6 +121,7 @@ defmodule AshEnterpriseWeb.Router do
     ash_authentication_live_session :launcher,
       on_mount: [
         {AshEnterpriseWeb.LiveUserAuth, :live_user_required},
+        AshEnterpriseWeb.LiveLocale,
         AshEnterpriseWeb.SurfaceDoor
       ] do
       live "/app", LauncherLive
@@ -143,6 +149,7 @@ defmodule AshEnterpriseWeb.Router do
     ash_authentication_live_session :a2ui_surfaces,
       on_mount: [
         {AshEnterpriseWeb.LiveUserAuth, :live_user_required},
+        AshEnterpriseWeb.LiveLocale,
         AshEnterpriseWeb.SurfaceDoor
       ] do
       live "/agent", AgentLive
@@ -176,6 +183,7 @@ defmodule AshEnterpriseWeb.Router do
     ash_authentication_live_session :daily_surfaces,
       on_mount: [
         {AshEnterpriseWeb.LiveUserAuth, :live_user_required},
+        AshEnterpriseWeb.LiveLocale,
         AshEnterpriseWeb.SurfaceDoor
       ] do
       live "/app/today", DailyLive.Today
@@ -199,6 +207,7 @@ defmodule AshEnterpriseWeb.Router do
     ash_authentication_live_session :lineage_surfaces,
       on_mount: [
         {AshEnterpriseWeb.LiveUserAuth, :live_user_required},
+        AshEnterpriseWeb.LiveLocale,
         AshEnterpriseWeb.SurfaceDoor
       ] do
       live "/app/lineage", LineageLive
@@ -211,6 +220,7 @@ defmodule AshEnterpriseWeb.Router do
     ash_authentication_live_session :time_travel,
       on_mount: [
         {AshEnterpriseWeb.LiveUserAuth, :live_user_required},
+        AshEnterpriseWeb.LiveLocale,
         AshEnterpriseWeb.SurfaceDoor
       ] do
       live "/app/time-travel", TimeTravelLive, :index
@@ -224,6 +234,7 @@ defmodule AshEnterpriseWeb.Router do
     ash_authentication_live_session :assistant,
       on_mount: [
         {AshEnterpriseWeb.LiveUserAuth, :live_user_required},
+        AshEnterpriseWeb.LiveLocale,
         AshEnterpriseWeb.SurfaceDoor
       ] do
       live "/app/agent", AssistantLive
@@ -242,6 +253,7 @@ defmodule AshEnterpriseWeb.Router do
     ash_authentication_live_session :mdm_surfaces,
       on_mount: [
         {AshEnterpriseWeb.LiveUserAuth, :live_user_required},
+        AshEnterpriseWeb.LiveLocale,
         AshEnterpriseWeb.SurfaceDoor
       ] do
       live "/app/mdm/import", ImportLive
@@ -250,6 +262,7 @@ defmodule AshEnterpriseWeb.Router do
     ash_authentication_live_session :legacy_surfaces,
       on_mount: [
         {AshEnterpriseWeb.LiveUserAuth, :live_user_required},
+        AshEnterpriseWeb.LiveLocale,
         AshEnterpriseWeb.SurfaceDoor
       ] do
       live "/app/legacy-users", A2uiLive.LegacyUsers
@@ -258,6 +271,7 @@ defmodule AshEnterpriseWeb.Router do
     ash_authentication_live_session :legacy_agent,
       on_mount: [
         {AshEnterpriseWeb.LiveUserAuth, :live_user_required},
+        AshEnterpriseWeb.LiveLocale,
         AshEnterpriseWeb.SurfaceDoor
       ] do
       live "/legacy/agent", LegacyAgentLive
@@ -277,6 +291,7 @@ defmodule AshEnterpriseWeb.Router do
     ash_authentication_live_session :compliance_surfaces,
       on_mount: [
         {AshEnterpriseWeb.LiveUserAuth, :live_user_required},
+        AshEnterpriseWeb.LiveLocale,
         AshEnterpriseWeb.SurfaceDoor
       ] do
       live "/app/compliance/findings", ComplianceA2uiLive.Findings
@@ -297,6 +312,7 @@ defmodule AshEnterpriseWeb.Router do
     ash_authentication_live_session :process_surfaces,
       on_mount: [
         {AshEnterpriseWeb.LiveUserAuth, :live_user_required},
+        AshEnterpriseWeb.LiveLocale,
         {AshEnterpriseWeb.Bpmn.Helpers, :assign_tenant},
         AshEnterpriseWeb.SurfaceDoor
       ] do
@@ -314,6 +330,7 @@ defmodule AshEnterpriseWeb.Router do
     ash_authentication_live_session :showcase,
       on_mount: [
         {AshEnterpriseWeb.LiveUserAuth, :live_user_required},
+        AshEnterpriseWeb.LiveLocale,
         AshEnterpriseWeb.SurfaceDoor
       ] do
       live "/app/showcase/credentialing", ShowcaseLive.Credentialing
@@ -327,6 +344,7 @@ defmodule AshEnterpriseWeb.Router do
     ash_authentication_live_session :flight_surfaces,
       on_mount: [
         {AshEnterpriseWeb.LiveUserAuth, :live_user_required},
+        AshEnterpriseWeb.LiveLocale,
         AshEnterpriseWeb.SurfaceDoor
       ] do
       live "/app/flights", FlightLive.Instance
@@ -356,13 +374,24 @@ defmodule AshEnterpriseWeb.Router do
     # signed-in visitor, /sign-in for anyone else).
     get "/", PageController, :root
     auth_routes AuthController, AshEnterprise.Accounts.User, path: "/auth"
-    sign_out_route AuthController
+
+    # The generated auth screens translate through the `auth` Gettext domain
+    # (priv/gettext/auth.pot is ash_authentication_phoenix's template), and
+    # each runs AshEnterpriseWeb.LiveLocale after its own hooks, as every other
+    # live session does.
+    sign_out_route AuthController, "/sign-out",
+      on_mount: [AshEnterpriseWeb.LiveLocale],
+      gettext_backend: {AshEnterpriseWeb.Gettext, "auth"}
 
     # Remove these if you'd like to use your own authentication views
     sign_in_route register_path: "/register",
                   reset_path: "/reset",
                   auth_routes_prefix: "/auth",
-                  on_mount: [{AshEnterpriseWeb.LiveUserAuth, :live_no_user}],
+                  on_mount: [
+                    {AshEnterpriseWeb.LiveUserAuth, :live_no_user},
+                    AshEnterpriseWeb.LiveLocale
+                  ],
+                  gettext_backend: {AshEnterpriseWeb.Gettext, "auth"},
                   overrides: [
                     AshEnterpriseWeb.AuthOverrides.Brand,
                     AshEnterpriseWeb.AuthOverrides,
@@ -371,6 +400,8 @@ defmodule AshEnterpriseWeb.Router do
 
     # Remove this if you do not want to use the reset password feature
     reset_route auth_routes_prefix: "/auth",
+                on_mount: [AshEnterpriseWeb.LiveLocale],
+                gettext_backend: {AshEnterpriseWeb.Gettext, "auth"},
                 overrides: [
                   AshEnterpriseWeb.AuthOverrides.Brand,
                   AshEnterpriseWeb.AuthOverrides,
@@ -380,6 +411,8 @@ defmodule AshEnterpriseWeb.Router do
     # Remove this if you do not use the confirmation strategy
     confirm_route AshEnterprise.Accounts.User, :confirm_new_user,
       auth_routes_prefix: "/auth",
+      on_mount: [AshEnterpriseWeb.LiveLocale],
+      gettext_backend: {AshEnterpriseWeb.Gettext, "auth"},
       overrides: [
         AshEnterpriseWeb.AuthOverrides.Brand,
         AshEnterpriseWeb.AuthOverrides,
@@ -389,6 +422,8 @@ defmodule AshEnterpriseWeb.Router do
     # Remove this if you do not use the magic link strategy.
     magic_sign_in_route(AshEnterprise.Accounts.User, :magic_link,
       auth_routes_prefix: "/auth",
+      on_mount: [AshEnterpriseWeb.LiveLocale],
+      gettext_backend: {AshEnterpriseWeb.Gettext, "auth"},
       overrides: [
         AshEnterpriseWeb.AuthOverrides.Brand,
         AshEnterpriseWeb.AuthOverrides,
@@ -504,6 +539,7 @@ defmodule AshEnterpriseWeb.Router do
     ash_authentication_live_session :canvas_dev_surface,
       on_mount: [
         {AshEnterpriseWeb.LiveUserAuth, :live_user_required},
+        AshEnterpriseWeb.LiveLocale,
         AshEnterpriseWeb.SurfaceDoor
       ] do
       scope "/", AshEnterpriseWeb do

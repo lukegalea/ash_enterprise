@@ -58,7 +58,7 @@ defmodule AshEnterpriseWeb.LauncherLive do
 
     socket =
       assign(socket,
-        page_title: "Key interfaces",
+        page_title: gettext("Key interfaces"),
         product_name: AshEnterprise.Brand.product_name(),
         email: actor && to_string(actor.email),
         today: Enum.find_value(groups, &Enum.find(&1.surfaces, fn s -> s.key == :today end)),
@@ -104,7 +104,7 @@ defmodule AshEnterpriseWeb.LauncherLive do
           key -> Map.put(acc, key, row.value)
         end
       end)
-      |> Map.update(:accounts, nil, &"#{&1} linked")
+      |> Map.update(:accounts, nil, &ngettext("%{count} linked", "%{count} linked", &1))
 
     {:noreply, assign(socket, pulse: pulse, brief: brief, signals: signals)}
   end
@@ -180,10 +180,17 @@ defmodule AshEnterpriseWeb.LauncherLive do
     <Layouts.app flash={@flash} page={assigns[:page]} width="max-w-7xl">
       <div class="space-y-10">
         <header class="space-y-1">
-          <h1 class="font-display text-3xl tracking-tight">Key interfaces</h1>
+          <h1 class="font-display text-3xl tracking-tight">{gettext("Key interfaces")}</h1>
           <p class="max-w-3xl text-sm text-foreground/70">
-            Everything you run in {@product_name}, one link away<span :if={@email}>
-              — signed in as <span class="font-heading text-foreground">{@email}</span></span>.
+            <span :if={!@email}>
+              {gettext("Everything you run in %{product}, one link away.", product: @product_name)}
+            </span>
+            <span :if={@email}>
+              {gettext("Everything you run in %{product}, one link away — signed in as %{email}.",
+                product: @product_name,
+                email: @email
+              )}
+            </span>
           </p>
           <.form
             for={@filter}
@@ -195,16 +202,16 @@ defmodule AshEnterpriseWeb.LauncherLive do
             <.input
               field={@filter[:q]}
               type="search"
-              label="Filter your apps"
-              placeholder="Calendar, lineage, time travel…"
+              label={gettext("Filter your apps")}
+              placeholder={gettext("Calendar, lineage, time travel…")}
               autocomplete="off"
               phx-debounce="100"
             />
           </.form>
           <p class="text-xs text-foreground/60">
-            From any page, <kbd class="font-mono">ctrl k</kbd>
-            opens this list and <kbd class="font-mono">ctrl p</kbd>
-            runs a command or asks the agent.
+            {gettext(
+              "From any page, ctrl k opens this list and ctrl p runs a command or asks the agent."
+            )}
           </p>
         </header>
 
@@ -225,10 +232,10 @@ defmodule AshEnterpriseWeb.LauncherLive do
                 {@today.label}
               </h2>
               <.badge :if={@brief} id="launch-brief" status={@brief.status} sticker>
-                Morning brief · {Today.brief_status(@brief.status)}
+                {gettext("Morning brief")} · {Today.brief_status(@brief.status)}
               </.badge>
               <.badge :if={@pulse && !@brief} id="launch-brief" tone="yellow" sticker>
-                No morning brief yet
+                {gettext("No morning brief yet")}
               </.badge>
             </div>
             <p class="max-w-3xl text-sm text-foreground/75">{@today.blurb}</p>
@@ -242,7 +249,7 @@ defmodule AshEnterpriseWeb.LauncherLive do
                 <dd class="truncate text-foreground/75">{row.value}</dd>
               </div>
             </dl>
-            <p :if={!@pulse} class="text-sm text-foreground/60">Reading your day…</p>
+            <p :if={!@pulse} class="text-sm text-foreground/60">{gettext("Reading your day…")}</p>
           </.card>
         </.link>
 
@@ -287,9 +294,9 @@ defmodule AshEnterpriseWeb.LauncherLive do
 
         <section :if={@pins != []} id="launch-group-mine" class="space-y-3">
           <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-            <h2 class="font-heading text-lg">My apps</h2>
+            <h2 class="font-heading text-lg">{gettext("My apps")}</h2>
             <p class="text-sm text-foreground/60">
-              Views you composed in the agent chat and pinned. Only you see them.
+              {gettext("Views you composed in the agent chat and pinned. Only you see them.")}
             </p>
           </div>
           <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -306,7 +313,7 @@ defmodule AshEnterpriseWeb.LauncherLive do
                     </span>
                     {pin.title}
                   </h3>
-                  <p class="text-sm text-foreground/75">Pinned from the agent chat.</p>
+                  <p class="text-sm text-foreground/75">{gettext("Pinned from the agent chat.")}</p>
                 </.card>
               </.link>
             </li>
@@ -314,35 +321,37 @@ defmodule AshEnterpriseWeb.LauncherLive do
         </section>
 
         <.empty_state :if={@shown && MapSet.size(@shown) == 0} icon="hero-magnifying-glass">
-          <span id="launch-no-match">No app matches “{@filter[:q].value}”.</span>
+          <span id="launch-no-match">
+            {gettext("No app matches “%{query}”.", query: @filter[:q].value)}
+          </span>
         </.empty_state>
 
         <.empty_state :if={!@today and @groups == []} icon="hero-lock-closed">
-          Nothing is open to you yet. An administrator grants access by role.
+          {gettext("Nothing is open to you yet. An administrator grants access by role.")}
         </.empty_state>
 
         <%!-- Not registry surfaces: the conversational consoles, and (only where
               its routes exist) the developer console. Plain hrefs for the dev
               routes, which a verified `~p` would warn about in test and prod. --%>
         <section id="launch-more" class="space-y-3 border-t-2 border-border pt-6">
-          <h2 class="font-heading text-lg">Helpers</h2>
+          <h2 class="font-heading text-lg">{gettext("Helpers")}</h2>
           <div class="flex flex-wrap items-center gap-2.5">
-            <.button navigate={~p"/agent"} variant="primary" size="sm">Helper</.button>
-            <.button navigate={~p"/legacy/agent"} size="sm">Legacy helper</.button>
+            <.button navigate={~p"/agent"} variant="primary" size="sm">{gettext("Helper")}</.button>
+            <.button navigate={~p"/legacy/agent"} size="sm">{gettext("Legacy helper")}</.button>
             <%= if @dev_routes? do %>
               <span class="ms-2 text-xs font-heading uppercase tracking-wide text-foreground/60">
-                Console
+                {gettext("Console")}
               </span>
-              <.button href="/admin" variant="ghost" size="xs">Admin</.button>
+              <.button href="/admin" variant="ghost" size="xs">{gettext("Admin")}</.button>
               <.button
                 href="/clarity/architect/application:ash-enterprise/ash-diagram-clarity-content-er-diagram"
                 variant="ghost"
                 size="xs"
               >
-                Domain diagram
+                {gettext("Domain diagram")}
               </.button>
-              <.button href="/canvas" variant="ghost" size="xs">Canvas</.button>
-              <.button href="/dev/dashboard" variant="ghost" size="xs">Live dashboard</.button>
+              <.button href="/canvas" variant="ghost" size="xs">{gettext("Canvas")}</.button>
+              <.button href="/dev/dashboard" variant="ghost" size="xs">{gettext("Live dashboard")}</.button>
             <% end %>
           </div>
         </section>

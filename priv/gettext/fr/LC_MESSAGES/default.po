@@ -1,0 +1,203 @@
+## "msgid"s in this file come from POT (.pot) files.
+###
+### Do not add, change, or remove "msgid"s manually here as
+### they're tied to the ones in the corresponding POT file
+### (with the same domain).
+###
+### Use "mix gettext.extract --merge" or "mix gettext.merge"
+### to merge POT files into PO files.
+msgid ""
+msgstr ""
+"Language: fr\n"
+"Plural-Forms: nplurals=2; plural=(n>1);\n"
+
+#: lib/ash_enterprise_web/live/launcher_live.ex:107
+#, elixir-autogen, elixir-format
+msgid "%{count} linked"
+msgid_plural "%{count} linked"
+msgstr[0] "%{count} associé"
+msgstr[1] "%{count} associés"
+
+#: lib/ash_enterprise_web/components/core_components.ex:735
+#, elixir-autogen, elixir-format
+msgid "Actions"
+msgstr "Actions"
+
+#: lib/ash_enterprise_web/components/layouts.ex:140
+#: lib/ash_enterprise_web/live/launcher_live.ex:345
+#, elixir-autogen, elixir-format
+msgid "Admin"
+msgstr "Administration"
+
+#: lib/ash_enterprise_web/components/layouts.ex:165
+#, elixir-autogen, elixir-format
+msgid "All apps"
+msgstr "Toutes les applications"
+
+#: lib/ash_enterprise_web/components/layouts.ex:163
+#, elixir-autogen, elixir-format
+msgid "All apps (ctrl+k)"
+msgstr "Toutes les applications (ctrl+k)"
+
+#: lib/ash_enterprise_web/components/layouts.ex:272
+#: lib/ash_enterprise_web/components/layouts.ex:287
+#, elixir-autogen, elixir-format
+msgid "Attempting to reconnect"
+msgstr "Tentative de reconnexion"
+
+#: lib/ash_enterprise_web/live/launcher_live.ex:206
+#, elixir-autogen, elixir-format
+msgid "Calendar, lineage, time travel…"
+msgstr "Calendrier, lignage, voyage dans le temps…"
+
+#: lib/ash_enterprise_web/live/launcher_live.ex:353
+#, elixir-autogen, elixir-format
+msgid "Canvas"
+msgstr "Canevas"
+
+#: lib/ash_enterprise_web/components/layouts.ex:153
+#, elixir-autogen, elixir-format
+msgid "Commands"
+msgstr "Commandes"
+
+#: lib/ash_enterprise_web/components/layouts.ex:150
+#, elixir-autogen, elixir-format
+msgid "Commands (ctrl+p)"
+msgstr "Commandes (ctrl+p)"
+
+#: lib/ash_enterprise_web/live/launcher_live.ex:343
+#, elixir-autogen, elixir-format
+msgid "Console"
+msgstr "Console"
+
+#: lib/ash_enterprise_web/live/launcher_live.ex:351
+#, elixir-autogen, elixir-format
+msgid "Domain diagram"
+msgstr "Diagramme du domaine"
+
+#: lib/ash_enterprise_web/live/launcher_live.ex:189
+#, elixir-autogen, elixir-format
+msgid "Everything you run in %{product}, one link away — signed in as %{email}."
+msgstr "Tout ce que vous gérez dans %{product}, à un lien près — connecté en tant que %{email}."
+
+#: lib/ash_enterprise_web/live/launcher_live.ex:186
+#, elixir-autogen, elixir-format
+msgid "Everything you run in %{product}, one link away."
+msgstr "Tout ce que vous gérez dans %{product}, à un lien près."
+
+#: lib/ash_enterprise_web/live/launcher_live.ex:205
+#, elixir-autogen, elixir-format
+msgid "Filter your apps"
+msgstr "Filtrer vos applications"
+
+#: lib/ash_enterprise_web/live/launcher_live.ex:212
+#, elixir-autogen, elixir-format
+msgid "From any page, ctrl k opens this list and ctrl p runs a command or asks the agent."
+msgstr "Depuis n’importe quelle page, ctrl k ouvre cette liste et ctrl p exécute une commande ou interroge l’agent."
+
+#: lib/ash_enterprise_web/components/layouts.ex:137
+#: lib/ash_enterprise_web/live/launcher_live.ex:339
+#, elixir-autogen, elixir-format
+msgid "Helper"
+msgstr "Assistant"
+
+#: lib/ash_enterprise_web/live/launcher_live.ex:337
+#, elixir-autogen, elixir-format
+msgid "Helpers"
+msgstr "Assistants"
+
+#: lib/ash_enterprise_web/live/launcher_live.ex:61
+#: lib/ash_enterprise_web/live/launcher_live.ex:183
+#, elixir-autogen, elixir-format
+msgid "Key interfaces"
+msgstr "Interfaces clés"
+
+#: lib/ash_enterprise_web/live/launcher_live.ex:340
+#, elixir-autogen, elixir-format
+msgid "Legacy helper"
+msgstr "Assistant de l’ancien système"
+
+#: lib/ash_enterprise_web/live/launcher_live.ex:354
+#, elixir-autogen, elixir-format
+msgid "Live dashboard"
+msgstr "Tableau de bord en direct"
+
+#: lib/ash_enterprise_web/components/layouts.ex:83
+#, elixir-autogen, elixir-format
+msgid "Main"
+msgstr "Principal"
+
+#: lib/ash_enterprise_web/live/launcher_live.ex:235
+#, elixir-autogen, elixir-format
+msgid "Morning brief"
+msgstr "Point du matin"
+
+#: lib/ash_enterprise_web/live/launcher_live.ex:297
+#, elixir-autogen, elixir-format
+msgid "My apps"
+msgstr "Mes applications"
+
+#: lib/ash_enterprise_web/live/launcher_live.ex:325
+#, elixir-autogen, elixir-format
+msgid "No app matches “%{query}”."
+msgstr "Aucune application ne correspond à « %{query} »."
+
+#: lib/ash_enterprise_web/live/launcher_live.ex:238
+#, elixir-autogen, elixir-format
+msgid "No morning brief yet"
+msgstr "Pas encore de point du matin"
+
+#: lib/ash_enterprise_web/live/launcher_live.ex:330
+#, elixir-autogen, elixir-format
+msgid "Nothing is open to you yet. An administrator grants access by role."
+msgstr "Rien ne vous est encore ouvert. Un administrateur accorde l’accès par rôle."
+
+#: lib/ash_enterprise_web/live/launcher_live.ex:316
+#, elixir-autogen, elixir-format
+msgid "Pinned from the agent chat."
+msgstr "Épinglée depuis la conversation avec l’agent."
+
+#: lib/ash_enterprise_web/live/launcher_live.ex:252
+#, elixir-autogen, elixir-format
+msgid "Reading your day…"
+msgstr "Lecture de votre journée…"
+
+#: lib/ash_enterprise_web/components/layouts.ex:279
+#, elixir-autogen, elixir-format
+msgid "Something went wrong!"
+msgstr "Une erreur s’est produite."
+
+#: lib/ash_enterprise_web/components/layouts.ex:92
+#, elixir-autogen, elixir-format
+msgid "Today"
+msgstr "Aujourd’hui"
+
+#: lib/ash_enterprise_web/components/layouts.ex:330
+#, elixir-autogen, elixir-format
+msgid "Use dark theme"
+msgstr "Utiliser le thème sombre"
+
+#: lib/ash_enterprise_web/components/layouts.ex:321
+#, elixir-autogen, elixir-format
+msgid "Use light theme"
+msgstr "Utiliser le thème clair"
+
+#: lib/ash_enterprise_web/components/layouts.ex:312
+#, elixir-autogen, elixir-format
+msgid "Use system theme"
+msgstr "Utiliser le thème du système"
+
+#: lib/ash_enterprise_web/live/launcher_live.ex:299
+#, elixir-autogen, elixir-format
+msgid "Views you composed in the agent chat and pinned. Only you see them."
+msgstr "Les vues que vous avez composées dans la conversation avec l’agent et épinglées. Vous seul les voyez."
+
+#: lib/ash_enterprise_web/components/layouts.ex:264
+#, elixir-autogen, elixir-format
+msgid "We can't find the internet"
+msgstr "Connexion Internet introuvable"
+
+#: lib/ash_enterprise_web/components/core_components.ex:94
+#, elixir-autogen, elixir-format
+msgid "close"
+msgstr "fermer"

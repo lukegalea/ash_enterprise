@@ -80,7 +80,7 @@ defmodule AshEnterpriseWeb.Layouts do
             aria-hidden="true"
           />
         </a>
-        <nav class="ms-auto" aria-label="Main">
+        <nav class="ms-auto" aria-label={gettext("Main")}>
           <ul class="flex flex-wrap items-center gap-1.5">
             <li :if={@menus != []}>
               <a
@@ -89,7 +89,7 @@ defmodule AshEnterpriseWeb.Layouts do
                 class={[nav_pill(), current?(@surface, :today) && current_pill()]}
                 aria-current={current?(@surface, :today) && "page"}
               >
-                Today
+                {gettext("Today")}
               </a>
             </li>
             <li :for={menu <- @menus}>
@@ -134,10 +134,10 @@ defmodule AshEnterpriseWeb.Layouts do
                 </ul>
               </details>
             </li>
-            <li :if={@menus != []}><a href="/agent" class={nav_pill()}>Helper</a></li>
+            <li :if={@menus != []}><a href="/agent" class={nav_pill()}>{gettext("Helper")}</a></li>
             <%!-- /admin is mounted only under `dev_routes`; a link to it anywhere
                   else is a link to a 404. --%>
-            <li :if={dev_routes?()}><a href="/admin" class={nav_pill()}>Admin</a></li>
+            <li :if={dev_routes?()}><a href="/admin" class={nav_pill()}>{gettext("Admin")}</a></li>
             <li class="ps-1">
               <.theme_toggle />
             </li>
@@ -147,10 +147,10 @@ defmodule AshEnterpriseWeb.Layouts do
                 id="nav-palette"
                 class={nav_pill()}
                 phx-click={AshA2ui.Shell.Component.open("palette")}
-                title="Commands (ctrl+p)"
+                title={gettext("Commands (ctrl+p)")}
               >
                 <.icon name="hero-command-line-micro" class="size-4" />
-                <span class="sr-only sm:not-sr-only">Commands</span>
+                <span class="sr-only sm:not-sr-only">{gettext("Commands")}</span>
                 <kbd class="hidden font-mono text-xs text-foreground/70 lg:inline">ctrl p</kbd>
               </button>
             </li>
@@ -160,9 +160,9 @@ defmodule AshEnterpriseWeb.Layouts do
                 variant="primary"
                 size="sm"
                 id="nav-launcher"
-                title="All apps (ctrl+k)"
+                title={gettext("All apps (ctrl+k)")}
               >
-                <.icon name="hero-squares-2x2-micro" class="size-4" /> All apps
+                <.icon name="hero-squares-2x2-micro" class="size-4" /> {gettext("All apps")}
               </.button>
             </li>
           </ul>
@@ -309,7 +309,7 @@ defmodule AshEnterpriseWeb.Layouts do
         class="relative flex w-1/3 cursor-pointer justify-center p-1.5 text-foreground [[data-theme-source=system]_&]:text-on-vivid"
         phx-click={JS.dispatch("phx:set-theme")}
         data-phx-theme="system"
-        aria-label="Use system theme"
+        aria-label={gettext("Use system theme")}
       >
         <.icon name="hero-computer-desktop-micro" class="size-4" />
       </button>
@@ -318,7 +318,7 @@ defmodule AshEnterpriseWeb.Layouts do
         class="relative flex w-1/3 cursor-pointer justify-center p-1.5 text-foreground [html[data-theme=light]:not([data-theme-source=system])_&]:text-on-vivid"
         phx-click={JS.dispatch("phx:set-theme")}
         data-phx-theme="light"
-        aria-label="Use light theme"
+        aria-label={gettext("Use light theme")}
       >
         <.icon name="hero-sun-micro" class="size-4" />
       </button>
@@ -327,7 +327,7 @@ defmodule AshEnterpriseWeb.Layouts do
         class="relative flex w-1/3 cursor-pointer justify-center p-1.5 text-foreground [html[data-theme=dark]:not([data-theme-source=system])_&]:text-on-vivid"
         phx-click={JS.dispatch("phx:set-theme")}
         data-phx-theme="dark"
-        aria-label="Use dark theme"
+        aria-label={gettext("Use dark theme")}
       >
         <.icon name="hero-moon-micro" class="size-4" />
       </button>

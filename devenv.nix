@@ -327,6 +327,7 @@ in
       mix credo --strict
       mix sobelow --config --skip --exit
       mix ash.codegen --check
+      mix gettext.extract --check-up-to-date
       mix test
       mix test.durability
       "$DEVENV_ROOT"/scripts/iron-laws.sh
