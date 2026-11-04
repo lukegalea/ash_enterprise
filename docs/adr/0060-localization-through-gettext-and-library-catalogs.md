@@ -60,7 +60,7 @@ translate PO files through LangChain. Neither uses ReqLLM, which this platform s
   (`?locale=fr`, a `showcase` domain with `fr` plurals) is on `dogfood`.
 - Keystone already calls `gettext/1` about 170 times, but has no default-domain catalog, no `fr`, no
   `put_locale`, and a hard-coded `<html lang="en">`.
-- `ash_a2ui` has no locale hook. Its `humanize/1` is copied into eight modules, and many ActionHandler messages
+- `ash_a2ui` has no locale hook. Its `humanize/1` is copied into ten modules, and many ActionHandler messages
   interpolate `inspect/1` output.
 
 So a new package would mostly re-create Ash's own catalog pattern under a name one letter away from
@@ -93,7 +93,7 @@ specified in an ash_a2ui issue rather than here:
 - An explicit `locale:` on build, refresh and dispatch, for both v0.9.1 and v1.0.
 - When the option is omitted, output is unchanged byte for byte, and protocol goldens prove it.
 - Two prerequisites:
-  - Collapse the eight `humanize/1` copies into one label resolver; that resolver is the single place a label is
+  - Collapse the ten `humanize/1` copies into one label resolver; that resolver is the single place a label is
     translated.
   - Turn ActionHandler messages into templates with `vars`, and drop `inspect/1` from user-facing feedback.
 
