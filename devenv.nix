@@ -174,6 +174,26 @@ in
     done
     unset _key
 
+    # Point the shared pre-commit hook at the main checkout's config.
+    #
+    # devenv's git-hooks:install task runs before this block. It installs the
+    # hook into the git COMMON dir, which every worktree shares, with the
+    # absolute path of whichever checkout entered devenv last. Each new worktree
+    # rewrites it to its own path. Once that worktree is removed, every commit
+    # in every checkout fails with "config file not found" (seen 2026-11-04,
+    # pointing at a deleted .claude/worktrees/ checkout). The main checkout
+    # lives as long as the repository does, so pin the hook to its config.
+    if command -v git >/dev/null; then
+      _common="$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)"
+      _hook="$_common/hooks/pre-commit"
+      _cfg="$(dirname "$_common")/.pre-commit-config.yaml"
+      if [ -n "$_common" ] && [ -f "$_hook" ] && [ -e "$_cfg" ] \
+        && ! grep -qF -- "--config=\"$_cfg\"" "$_hook"; then
+        sed -i "s|--config=\"[^\"]*\"|--config=\"$_cfg\"|" "$_hook"
+      fi
+      unset _common _hook _cfg
+    fi
+
     # Name the interpreter model after whichever provider actually has a key, so
     # nobody has to pass AI_INTERPRETER_MODEL on the command line to use the
     # helper console.
