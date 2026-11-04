@@ -160,8 +160,8 @@
     "version": 2
   },
   "judgment:v0:AshEnterprise.Quality.AgentReply#judgments/hs4_claim_only_built_and_proven": {
-    "hash": "sha256:9ad70b63646c5f9680fd98e806ccd7799671d69d6a9ba4fdd5c47e8d07c40982",
-    "version": 2
+    "hash": "sha256:52f2fb2b37c8ea512281a9ef98f7c0f8ef252e37deb1adc0d67c87a3912aa10d",
+    "version": 3
   },
   "judgment:v0:AshEnterprise.SystemOne.TestSupport.EvidenceFile#judgments/document_localisation": {
     "hash": "sha256:220ce9121779d94c4038babf909271fe4e0eaefe66e90ce348735524ab1f7007",

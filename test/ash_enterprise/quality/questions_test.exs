@@ -19,10 +19,10 @@ defmodule AshEnterprise.Quality.QuestionsTest do
 
   @lock_file Path.expand("../../../priv/judgments/lock.json", __DIR__)
 
-  # Reworded to ask only what the reply text shows (confirmed 2026-11-01).
+  # Reworded to ask only what the reply text shows (confirmed 2026-11-01; hs4 again 2026-11-04).
   @versions %{
     hs1_lead_with_outcome_or_ask: 2,
-    hs4_claim_only_built_and_proven: 2,
+    hs4_claim_only_built_and_proven: 3,
     hs7_never_invent_name_feature_or_date: 2
   }
 
@@ -79,7 +79,7 @@ defmodule AshEnterprise.Quality.QuestionsTest do
       end
     end
 
-    test "at version 2, ask only what the reply text shows, in their own wording" do
+    test "reworded ones ask only what the reply text shows, in their own wording" do
       for name <- Map.keys(@versions) do
         reply_question = Info.question(AgentReply, name)
         code_question = Info.question(CodeUnit, name)
