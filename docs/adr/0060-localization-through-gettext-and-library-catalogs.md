@@ -84,7 +84,7 @@ the reviewed catalog PR is the approval for platform copy.
 ### 2. Library copy follows Ash's catalog pattern, inside each library
 
 A library that renders user-facing text owns its catalog. **`ash_a2ui`** adopts the pattern; its contract is
-specified in an ash_a2ui issue rather than here:
+specified in ash_a2ui issues (lukegalea/ash_a2ui#65) rather than here:
 
 - A no-op marker around every encoder-owned and ActionHandler string.
 - `mix ash_a2ui.gettext.extract`, which writes a shipped `priv/gettext/ash_a2ui.pot`.
@@ -104,9 +104,12 @@ Boundary rules carried over from the first draft:
 - Each displayed string is translated exactly once.
 - A missing translation resolves to the `msgid`.
 
-**Humanized default labels.** A field label generated from `:due_date` isn't in anyone's source. On a localized
-surface, labels must be declared explicitly, which a host Credo check can enforce. A label-walking extract task in
-`ash_a2ui` stays an option if explicit labels prove too noisy.
+**Host display metadata.** A field label generated from `:due_date` isn't in anyone's source. Host display metadata
+(labels, help, descriptions, enum labels) is translated through a second Gettext domain, `metadata_domain:`
+(default `"a2ui_metadata"`).
+- `mix ash_a2ui.gettext.extract_metadata` writes that domain's `.pot` by encoding every surface with a recording
+  translator, so the msgids are exactly the labels shown. `--check-up-to-date` gates CI.
+- Enum values use `msgctxt "enum:<Module>"`.
 
 **Atlas chrome (Keystone).** Atlas elements contain no English.
 - Per-instance text arrives as slots or attributes from HEEx.
@@ -168,8 +171,8 @@ The first candidate stays `Clm.RequirementCatalog.title`, and only once its repo
 | Phase | Repo | Work |
 |---|---|---|
 | 1 | ash_a2ui | Single label resolver, templated ActionHandler messages, marker, `extract`/`gen` tasks, `gettext_fn`/`locale:` option, goldens for both protocols |
-| 2 | ash_enterprise | Locale resolution and `<html lang>`, `gettext_backend` on auth routes, generation task, `fr` catalogs, dogfood the ash_a2ui option |
-| 3 | Keystone | The same locale plumbing; `fr_CA` catalogs for existing `gettext` calls; Atlas strings map; `ProcessLive` plurals; `ContractsHubUI` pilot |
+| 2 | ash_enterprise | Locale resolution and `<html lang>`, `gettext_backend` on auth routes, generation task, `fr` catalogs, run `extract_metadata`, dogfood the ash_a2ui option |
+| 3 | Keystone | The same locale plumbing; `fr_CA` catalogs for existing `gettext` calls; run `extract_metadata`; Atlas strings map; `ProcessLive` plurals; `ContractsHubUI` pilot |
 | 4 | Both hosts | CLDR formatting |
 | — | Host | Tenant content, only under the rule in section 4 |
 
@@ -179,6 +182,7 @@ The first candidate stays `Clm.RequirementCatalog.title`, and only once its repo
   unchanged without the option, and that with it only whitelisted display strings change, each exactly once.
 - Catalog freshness in CI (`mix gettext.extract --check-up-to-date`), PO validity, and placeholder and plural
   validation. The generation task's fake adapter rejects malformed output.
+- Host metadata catalog current (`extract_metadata --check-up-to-date`).
 - A real root `lang` attribute. `ProcessLive` counts of 1 and 2 with interpolation. `ContractsHubUI` labels
   translated while record values are unchanged. Locale parity between ACP and A2UI.
 - French and pseudo-locale checks on post-render dialogs and toasts.
