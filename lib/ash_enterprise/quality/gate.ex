@@ -125,15 +125,8 @@ defmodule AshEnterprise.Quality.Gate do
     thresholds = thresholds(opts)
     min_grade = Keyword.get(opts, :min_grade, :grant)
     names = Keyword.get(opts, :questions) || questions_module.names()
-    digests = Quality.current_digests(replies)
 
-    statuses =
-      for reply <- replies, into: %{} do
-        {reply.id,
-         for name <- names, questions_module.asked?(name, reply), into: %{} do
-           {name, status(reply, name, digests, min_grade, opts)}
-         end}
-      end
+    statuses = statuses(replies, family, opts)
 
     rolled = Map.new(replies, &{&1.id, roll_up(statuses[&1.id], questions_module)})
     counts = count_replies(rolled)
@@ -160,6 +153,26 @@ defmodule AshEnterprise.Quality.Gate do
       {verdict, reasons} = verdict(report, family, thresholds, opts)
       Map.merge(report, %{verdict: verdict, verdict_reasons: reasons})
     end)
+  end
+
+  @doc """
+  What each question reads for each reply, as `family_report/3` reads it:
+  `%{reply_id => %{question_name => :in | :out | {:unknown, reason}}}`, over the
+  questions asked of the reply. Takes `family_report/3`'s `:questions` and `:min_grade`.
+  """
+  @spec statuses([map()], atom(), keyword()) :: %{String.t() => %{atom() => term()}}
+  def statuses(replies, family \\ :agent_reply_style, opts \\ []) do
+    questions_module = Map.fetch!(@families, family)
+    min_grade = Keyword.get(opts, :min_grade, :grant)
+    names = Keyword.get(opts, :questions) || questions_module.names()
+    digests = Quality.current_digests(replies)
+
+    for reply <- replies, into: %{} do
+      {reply.id,
+       for name <- names, questions_module.asked?(name, reply), into: %{} do
+         {name, status(reply, name, digests, min_grade, opts)}
+       end}
+    end
   end
 
   @doc """

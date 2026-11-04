@@ -54,6 +54,8 @@ defmodule AshEnterprise.Quality do
       define :create_suite_draft, action: :create_draft, args: [:key]
       define :add_suite_case, action: :add_case, args: [:case]
       define :save_result_as_suite_case, action: :add_case, args: [:result_id, :case_id]
+      define :import_suite_samples, action: :import_samples, args: [:jsonl]
+      define :import_suite_promptfoo, action: :import_promptfoo, args: [:yaml]
       define :publish_suite, action: :publish
       define :retire_suite, action: :retire
       define :get_suite, action: :read, get_by: [:id]
@@ -63,6 +65,7 @@ defmodule AshEnterprise.Quality do
 
     resource AshEnterprise.Quality.SuiteRun do
       define :start_suite_run, action: :start, args: [:suite_id, :agent_key]
+      define :import_eval_log, action: :import_eval_log, args: [:suite_id, :agent_key, :log]
       define :finish_suite_run, action: :finish
       define :get_suite_run, action: :read, get_by: [:id]
       define :list_suite_runs, action: :read

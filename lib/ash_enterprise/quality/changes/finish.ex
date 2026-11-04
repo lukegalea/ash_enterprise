@@ -29,8 +29,8 @@ defmodule AshEnterprise.Quality.Changes.Finish do
   use Ash.Resource.Change
 
   alias AshEnterprise.Execution
-  alias AshEnterprise.Platform.SystemActor
-  alias AshEnterprise.Quality.{Assertions, CaseResult, Injection, Provenance, Suite, SuiteRun}
+  alias AshEnterprise.Quality.{Assertions, Injection, Provenance, Suite, SuiteRun}
+  alias AshEnterprise.Quality.Changes.RecordResults
 
   @epoch 1
 
@@ -65,25 +65,8 @@ defmodule AshEnterprise.Quality.Changes.Finish do
     end
   end
 
-  defp record(changeset, suite_run) do
-    opts = [
-      actor: SystemActor.oban(),
-      tenant: changeset.tenant,
-      context: %{quality: %{suite_run: suite_run}}
-    ]
-
-    changeset.context.quality.results
-    |> Enum.reduce_while({:ok, suite_run}, fn attrs, ok ->
-      case Ash.create(
-             CaseResult,
-             Map.put(attrs, :suite_run_id, suite_run.id),
-             [action: :record] ++ opts
-           ) do
-        {:ok, _result} -> {:cont, ok}
-        {:error, error} -> {:halt, {:error, error}}
-      end
-    end)
-  end
+  defp record(changeset, suite_run),
+    do: RecordResults.record(suite_run, changeset.context.quality.results, changeset.tenant)
 
   defp runs(suite_run, suite, tenant) do
     keys = Map.new(suite.cases, &{SuiteRun.run_key(suite_run.id, &1[:id], @epoch), &1[:id]})
@@ -116,7 +99,7 @@ defmodule AshEnterprise.Quality.Changes.Finish do
     %{
       case_id: c[:id],
       epoch: @epoch,
-      status: status(assertion_results, run),
+      status: Assertions.case_status(assertion_results, run.status == :completed),
       assertion_results: assertion_results,
       prohibited_effect_hit:
         Enum.any?(
@@ -126,17 +109,6 @@ defmodule AshEnterprise.Quality.Changes.Finish do
       tainted: run.tainted?,
       run_id: run.id
     }
-  end
-
-  defp status(results, run) do
-    statuses = Enum.map(results, & &1["status"])
-
-    cond do
-      "failed" in statuses -> :failed
-      run.status != :completed -> :errored
-      "passed" not in statuses -> :unmeasured
-      true -> :passed
-    end
   end
 
   defp observe(run, tenant) do
@@ -172,7 +144,13 @@ defmodule AshEnterprise.Quality.Changes.Finish do
 
   defp provenance(summary, _suite_run, _runs, _finished_at, _tenant), do: summary
 
-  defp summary(suite_cases, all_results) do
+  @doc """
+  The summary of a suite run's case `results` (maps with `status`, `assertion_results` and
+  `prohibited_effect_hit`) over the suite's cases: quality, safety and, when the suite has
+  injection cases, the injection lane, as set at `finish`.
+  """
+  @spec summary([map()], [map()]) :: map()
+  def summary(suite_cases, all_results) do
     injection_ids = for c <- suite_cases, Injection.injection?(c), do: c[:id]
     results = Enum.reject(all_results, &(&1.case_id in injection_ids))
     count = fn status -> Enum.count(results, &(&1.status == status)) end

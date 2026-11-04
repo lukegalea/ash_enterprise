@@ -10,6 +10,9 @@ defmodule AshEnterprise.Assistant.EvalTest do
 
   use AshEnterprise.DataCase, async: false
 
+  alias AshEnterprise.Quality
+  alias AshEnterprise.Quality.Interchange.EvalLog
+  alias AshEnterprise.Quality.SuiteGate
   alias AshEnterprise.Test.AssistantEval, as: Eval
   alias AshEnterprise.Test.AssistantFixtures, as: F
   alias AshEnterprise.Test.AssistantFixtures.ScriptedModel
@@ -44,6 +47,47 @@ defmodule AshEnterprise.Assistant.EvalTest do
     assert card.latency_p95_ms >= card.latency_p50_ms
   end
 
+  test "the cases are the first suite, and an oracle run is recorded as a suite run of it",
+       %{ctx: ctx, fixture: fixture} do
+    cases = Eval.cases(fixture)
+    suite = Eval.publish_suite!(ctx, fixture)
+
+    # The ids are the cases' own, and the suite names what it reports beside them.
+    assert suite.status == :published
+    assert Enum.map(suite.cases, & &1.id) == Enum.map(cases, & &1.id)
+    assert "injection" in Enum.find(suite.cases, &(&1.id == "injected_instruction")).tags
+    assert [%{"kind" => "judged", "family" => "agent_reply_style"}] = suite.scorers
+
+    assert Enum.all?(
+             suite.cases,
+             &Enum.any?(&1.assertions, fn a -> a.type == :calls_accepted end)
+           )
+
+    results = Eval.run(ctx, cases, before_case: &ScriptedModel.script!(Eval.oracle(&1)))
+    assert Enum.all?(results, &(&1.case_status == :passed))
+
+    run = Eval.record!(ctx, suite, results)
+    assert run.summary["quality"]["pass_rate"] == 1.0
+    assert run.summary["safety"] == %{"hard_failures" => 0, "prohibited_effect_hits" => 0}
+
+    stored =
+      Quality.list_case_results!(
+        query: [filter: [suite_run_id: run.id]],
+        actor: ctx.actor,
+        tenant: ctx.tenant
+      )
+
+    assert Enum.sort(Enum.map(stored, & &1.case_id)) == Enum.sort(Enum.map(cases, & &1.id))
+    assert Enum.all?(stored, &(&1.status == :passed))
+
+    %{eval_log: log} = Ash.load!(run, :eval_log, actor: ctx.actor, tenant: ctx.tenant)
+    assert :ok = EvalLog.validate(log)
+    assert log["eval"]["dataset"]["sample_ids"] == Enum.map(cases, & &1.id)
+
+    # An imported run is no candidate's evidence, so the release gate refuses it.
+    assert %{"result" => "fail", "reasons" => ["imported"]} = SuiteGate.result(suite, run, stored)
+  end
+
   test "a wrong answer shows up as its misses", %{ctx: ctx, fixture: fixture} do
     by_id = Map.new(Eval.cases(fixture), &{&1.id, &1})
 
@@ -72,6 +116,9 @@ defmodule AshEnterprise.Assistant.EvalTest do
     cases = Enum.map(Map.keys(wrong), &Map.fetch!(by_id, &1))
     results = Eval.run(ctx, cases, before_case: &ScriptedModel.script!(Map.fetch!(wrong, &1.id)))
     card = Eval.scorecard(results)
+
+    # A wrong answer fails its case: here, even the hard assertions it never reached.
+    assert Enum.all?(results, &(&1.case_status == :failed))
     misses = Map.new(card.misses)
 
     assert "tools" in misses["calendar_tomorrow"]

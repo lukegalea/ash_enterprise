@@ -169,7 +169,6 @@ defmodule AshEnterprise.Quality.SuiteTest do
       assert status(%{type: :output_matches, expected: %{recorded: 1}}) == "passed"
       assert status(%{type: :output_matches, expected: %{recorded: 2}}) == "failed"
       assert status(%{type: :process_transition}) == "unmeasured"
-      assert status(%{type: :cites}) == "unmeasured"
     end
 
     test "names the hard assertions, which fail a case whatever else passes" do

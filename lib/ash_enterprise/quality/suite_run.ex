@@ -64,7 +64,7 @@ defmodule AshEnterprise.Quality.SuiteRun do
 
   state_machine do
     state_attribute :status
-    initial_states [:running]
+    initial_states [:running, :finished]
     default_initial_state :running
 
     transitions do
@@ -104,6 +104,16 @@ defmodule AshEnterprise.Quality.SuiteRun do
 
       change set_attribute(:owner_id, actor(:id))
       change Changes.StartCases
+    end
+
+    create :import_eval_log do
+      description "Record the results of an Inspect EvalLog against a published suite."
+      accept [:suite_id, :agent_key]
+
+      argument :log, :map, allow_nil?: false
+
+      change set_attribute(:owner_id, actor(:id))
+      change Changes.ImportEvalLog
     end
 
     update :finish do
@@ -164,6 +174,17 @@ defmodule AshEnterprise.Quality.SuiteRun do
       description "The Inspect EvalLog version results export as."
     end
 
+    attribute :imported, :boolean do
+      allow_nil? false
+      public? true
+      default false
+
+      description """
+      Whether its results were read from an EvalLog rather than produced by running the
+      candidate here. An imported run names no candidate, so no release gate takes it.
+      """
+    end
+
     attribute :finished_at, :utc_datetime_usec, public?: true
   end
 
@@ -180,6 +201,11 @@ defmodule AshEnterprise.Quality.SuiteRun do
   end
 
   calculations do
+    calculate :eval_log, :map, AshEnterprise.Quality.Calculations.EvalLog do
+      public? true
+      description "The suite run as an Inspect EvalLog v2."
+    end
+
     calculate :settled,
               :boolean,
               expr(

@@ -12,6 +12,11 @@ defmodule AshEnterprise.Quality.Suite do
       records `content_hash`, the SHA-256 of the RFC 8785 canonical JSON of the cases,
       thresholds and primary metric. A changed suite is a new version (`create_draft`
       numbers it after the key's latest).
+    * **Interchange**: cases come in from Inspect `Sample` JSONL (`import_samples`) and
+      promptfoo YAML (`import_promptfoo`), and go out as `samples_jsonl`
+      (`AshEnterprise.Quality.Interchange`).
+    * **Scorers**: judged scorers reported beside the assertions
+      (`AshEnterprise.Quality.JudgedScores`); they never gate.
     * **Thresholds** (`%{"pass_rate" => 0.9}`, say) and the primary metric are the
       suite's own; the release gate reads them.
     * **Provenance**: where the cases came from, their usage terms, consent basis and
@@ -62,7 +67,7 @@ defmodule AshEnterprise.Quality.Suite do
 
     create :create_draft do
       description "A new draft of the suite keyed `key`, numbered after its latest version."
-      accept [:key, :cases, :thresholds, :primary_metric, :provenance]
+      accept [:key, :cases, :thresholds, :primary_metric, :scorers, :provenance]
 
       change Changes.NextVersion
       validate Validations.Cases
@@ -90,6 +95,30 @@ defmodule AshEnterprise.Quality.Suite do
       validate attribute_equals(:status, :draft), message: "only a draft takes new cases"
       change Changes.CaseFromResult
       change Changes.AddCase
+      validate Validations.Cases
+    end
+
+    update :import_samples do
+      description "Add the cases of Inspect `Sample` JSONL to a draft."
+      accept []
+      require_atomic? false
+
+      argument :jsonl, :string, allow_nil?: false
+
+      validate attribute_equals(:status, :draft), message: "only a draft takes new cases"
+      change {Changes.ImportCases, format: :samples}
+      validate Validations.Cases
+    end
+
+    update :import_promptfoo do
+      description "Add the tests of a promptfoo YAML config to a draft, as cases."
+      accept []
+      require_atomic? false
+
+      argument :yaml, :string, allow_nil?: false
+
+      validate attribute_equals(:status, :draft), message: "only a draft takes new cases"
+      change {Changes.ImportCases, format: :promptfoo}
       validate Validations.Cases
     end
 
@@ -148,6 +177,18 @@ defmodule AshEnterprise.Quality.Suite do
       constraints max_length: 64
     end
 
+    attribute :scorers, {:array, :map} do
+      allow_nil? false
+      public? true
+      default []
+
+      description """
+      The model-graded scorers reported beside the assertions, each
+      `%{"kind" => "judged", "family" => "agent_reply_style"}`: ash_judgments question
+      families. They never gate a release in v1; see `AshEnterprise.Quality.JudgedScores`.
+      """
+    end
+
     attribute :provenance, :map do
       allow_nil? false
       public? true
@@ -163,6 +204,13 @@ defmodule AshEnterprise.Quality.Suite do
 
     attribute :published_at, :utc_datetime_usec, public?: true
     attribute :retired_at, :utc_datetime_usec, public?: true
+  end
+
+  calculations do
+    calculate :samples_jsonl, :string, AshEnterprise.Quality.Calculations.SamplesJsonl do
+      public? true
+      description "The cases as Inspect `Sample` JSONL."
+    end
   end
 
   identities do

@@ -5,7 +5,11 @@ defmodule Mix.Tasks.AshEnterprise.Assistant.Eval do
   Runs the assistant's eval set (`AshEnterprise.Test.AssistantEval`, PROD-46)
   against the **real in-zone model**, on a SYNTHETIC fixture tenant, and
   prints a scorecard: tool-choice accuracy, argument validity, citation
-  coverage, key facts, surfaces and proposals, latency p50/p95.
+  coverage, key facts, surfaces and proposals, latency p50/p95. The cases are
+  the `assistant.eval` suite of `AshEnterprise.Quality`: the run is recorded as
+  a suite run with one case result per case (and, when judged, the judged
+  scores with their ledger ids and the family's certification status), and the
+  full results are its Inspect EvalLog.
 
       S1_GEN_BASE_URL=http://… S1_GEN_MODEL=… mix ash_enterprise.assistant.eval
       mix ash_enterprise.assistant.eval --only calendar_tomorrow,board_tasks
@@ -46,9 +50,12 @@ defmodule Mix.Tasks.AshEnterprise.Assistant.Eval do
   `unmeasured` with the reason `not certified`. The run's ledger rows go
   with the rolled-back transaction, like everything else it writes.
 
-  Prints counts and rates only. The full results — each case's tool calls
-  and its (synthetic) answer — go to `tmp/assistant_eval/assistant-eval-<timestamp>.json`,
-  which is gitignored.
+  Prints counts and rates only. The rows are written inside the rolled-back
+  transaction, so they last as long as the task; what survives it is the
+  EvalLog, read back from them, in
+  `tmp/assistant_eval/assistant-eval-<timestamp>.eval.json` (gitignored), which
+  `inspect view` and any EvalLog reader open, and the full results (each case's
+  tool calls and its synthetic answer) in `...<timestamp>.json`.
 
   Boots only what a run needs (iron law #23): the Repo, ReqLLM's HTTP pool,
   the application's PubSub (notifiers on the seeded resources broadcast on
@@ -60,6 +67,7 @@ defmodule Mix.Tasks.AshEnterprise.Assistant.Eval do
 
   alias AshEnterprise.Canonical.Projections.ZoneAdmission
   alias AshEnterprise.Mix.Helpers
+  alias AshEnterprise.Quality.Interchange.EvalLog
 
   @requirements ["app.config"]
   @zone "assistant-eval-zone"
@@ -124,6 +132,7 @@ defmodule Mix.Tasks.AshEnterprise.Assistant.Eval do
     Mix.shell().info("asking #{length(cases)} case(s) of the in-zone model…")
     results = eval.run(ctx, cases)
     card = eval.scorecard(results)
+    suite = eval.publish_suite!(ctx, fixture)
 
     run_id = "assistant-eval-#{System.os_time(:second)}"
 
@@ -141,7 +150,16 @@ defmodule Mix.Tasks.AshEnterprise.Assistant.Eval do
         actor: ctx.actor
       )
 
+    judged = judged(grade, ctx)
+
+    suite_run =
+      eval.record!(ctx, suite, results, scores: judged.scores, judged: judged.report)
+
+    suite_run = Ash.load!(suite_run, :eval_log, actor: ctx.actor, tenant: ctx.tenant)
     path = Path.join(["tmp", "assistant_eval", "#{run_id}.json"])
+    log_path = Path.join(["tmp", "assistant_eval", "#{run_id}.eval.json"])
+    File.mkdir_p!(Path.dirname(log_path))
+    File.write!(log_path, EvalLog.encode(suite_run.eval_log))
 
     eval.write!(path, results, card, %{
       model: model,
@@ -154,7 +172,18 @@ defmodule Mix.Tasks.AshEnterprise.Assistant.Eval do
     end)
 
     Mix.shell().info("results: #{path}")
+    Mix.shell().info("eval log: #{log_path}")
   end
+
+  # The judged scores per case and the report beside them: none when nothing was graded.
+  defp judged(%{graded?: true} = grade, ctx) do
+    AshEnterprise.Quality.JudgedScores.build(grade.replies, grade.report,
+      tenant: ctx.tenant,
+      actor: ctx.actor
+    )
+  end
+
+  defp judged(_ungraded, _ctx), do: %{scores: %{}, report: nil}
 
   @doc false
   # The judge's identity from the --judge-* flags: nil when none is given;

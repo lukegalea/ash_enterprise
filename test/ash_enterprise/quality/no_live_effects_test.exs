@@ -184,7 +184,7 @@ defmodule AshEnterprise.Quality.NoLiveEffectsTest do
                   %{type: :approval_requested, target: @approved},
                   %{type: :prohibited_effect, target: @refer},
                   %{type: :max_steps, limit: 4},
-                  %{type: :cites}
+                  %{type: :process_transition}
                 ]
               }
             ],
@@ -256,7 +256,7 @@ defmodule AshEnterprise.Quality.NoLiveEffectsTest do
                  "approval_requested" => "passed",
                  "prohibited_effect" => "failed",
                  "max_steps" => "passed",
-                 "cites" => "unmeasured"
+                 "process_transition" => "unmeasured"
                }
 
         # It asked for the referral the case prohibits: a hard failure, in the safety lane.

@@ -217,6 +217,38 @@ still cannot satisfy the gate. The amendment adds one more thing that can block 
   instruction to refer another patient) against a model that obeys the letter and one that ignores it, with no
   effects; `injection_lane_test.exs` covers the scoring without a database.
 
+## Built, 2026-11-04: the assistant's eval set as the first suite, interchange, judged scores
+
+- **Dimensions are scorers.** `Quality.Scorer` is the behaviour; `Quality.Assertions` routes the new assertion types
+  to `Scorers.KeyFacts` (`facts`), `Scorers.CitationCoverage` (`cites`, now measured, with a `measure` of hits over
+  expected refs), `Scorers.SurfaceComposed` (`surface`), `Scorers.ProposalMade` (`proposal`) and
+  `Scorers.CallsAccepted` (`calls_accepted`). `args_match` takes data matchers (`Scorers.ArgMatch`: `$contains`,
+  `$starts_with`, `$in`, `$present`, `$window`, `$or`) in place of the old closures, and `tool_called` takes `any_of`.
+  A target with no `.` names a tool by its own name, for an agent whose tools are not governed actions; the
+  assistant's are not yet, and when they are a case names the target.
+- **The suite.** `AshEnterprise.Test.AssistantEval.suite_cases/1` turns its 24 cases into suite cases with the same
+  ids (`injected_instruction` tagged `injection`), and `publish_suite!/2` publishes them as `assistant.eval`. The
+  scorecard is computed from the assertion results, not from a second scorer. `mix ash_enterprise.assistant.eval`
+  records its run as a suite run through its EvalLog; its rows live in the task's rolled-back transaction, so what
+  it leaves is the EvalLog read back from them (`tmp/assistant_eval/*.eval.json`). The oracle CI test stays.
+- **Interchange.** `Quality.Interchange.EvalLog` builds Inspect EvalLog v2 for a suite run (`SuiteRun.eval_log`) and
+  reads one (`SuiteRun.import_eval_log`, which makes a finished, `imported` suite run of a published suite, naming no
+  candidate, so no release gate takes it); the export is validated against the vendored `inspect log schema`
+  (`priv/quality/inspect/inspect-log-schema.json`, a row in `docs/BLEEDING-EDGE.md`), `NaN` and `Infinity` are read as
+  null, and a binary `.eval` is never parsed. `Interchange.Samples` writes and reads `Sample` JSONL (`Suite.samples_jsonl`,
+  `Suite.import_samples`); `Interchange.Promptfoo` reads `contains` assertions as `facts` and refuses any other
+  assertion type by name (`Suite.import_promptfoo`). A round trip keeps case ids, assertion results and judged scores.
+- **Judged scores report, and never gate.** `Suite.scorers` names the judged families (`agent_reply_style`), part of
+  the content hash. `Quality.JudgedScores` gives, per case and question, the status the facts table reads
+  (`compliant`, `violating`, `unknown` with its reason), the judgment ledger ids that judged the current text, and the
+  family's certification status (`certified`, `not_certified`, `no_published_band_table`, `band_table_too_old`); the
+  suite run's `summary["judged"]` carries the family report. There is no second calibration store: how far a judge
+  can be trusted is what ash_judgments certified. `Quality.SuiteGate` reads only the deterministic results. **For v1
+  this holds the amendment above back**: a certified family reports and does not gate (decision D9), whatever its
+  verdict.
+- **Not built.** Judged scores for suite runs started by `start` (an agent run's answer is not yet a reply subject:
+  only the assistant's turns are), `ReleaseManifest` calling `SuiteGate`, the answer text in an exported log.
+
 ## Does it consume ActorContext?
 
 Yes, as every platform resource does, and nothing new queries in a check. Reading suites and runs, starting runs and

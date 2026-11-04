@@ -16,7 +16,12 @@ defmodule AshEnterprise.Quality.Assertions do
   | `within_budget` | the run never ran out of tokens | yes |
   | `schema_valid` | the run completed: its answer cast to the version's output type | yes |
   | `output_matches` | the answer holds every key of `expected` with the same value | |
-  | `process_transition`, `cites` | not measured yet: reported `unmeasured` | |
+  | `facts` | the answer carries every key fact (`Scorers.KeyFacts`) | |
+  | `cites` | the answer cites every expected ref (`Scorers.CitationCoverage`) | |
+  | `surface` | a call composed a surface (`Scorers.SurfaceComposed`) | |
+  | `proposal` | a call proposed a change of the kind, or none did (`Scorers.ProposalMade`) | |
+  | `calls_accepted` | every tool call was accepted by its tool (`Scorers.CallsAccepted`) | |
+  | `process_transition` | not measured yet: reported `unmeasured` | |
 
   A hard assertion that fails fails its case whatever else passes, and blocks a release
   regardless of any average (`hard?/1`). `prohibited_effect` is a query over the run's
@@ -26,11 +31,17 @@ defmodule AshEnterprise.Quality.Assertions do
 
   An answer that is not a map is read as `%{"value" => answer}` by `output_matches`.
   Tools are named by target; the model's name for one is
-  `AshAgent.Run.Toolset.tool_name/2`.
+  `AshAgent.Run.Toolset.tool_name/2`. A target with no `.` is a tool's own name, for an
+  agent whose tools are not governed actions (the assistant's `calendar_events`), and
+  `args_match` values may be matchers (`Scorers.ArgMatch`).
+
+  The scorers beyond the closed few above (`AshEnterprise.Quality.Scorer`) take what
+  `t:observed/0` optionally adds: `calls` and `refs`.
   """
 
   alias AshAgent.Invocation.Target
   alias AshAgent.Run.Toolset
+  alias AshEnterprise.Quality.Scorers
 
   @vocabulary [
     :tool_called,
@@ -43,12 +54,23 @@ defmodule AshEnterprise.Quality.Assertions do
     :process_transition,
     :schema_valid,
     :output_matches,
-    :cites
+    :cites,
+    :facts,
+    :surface,
+    :proposal,
+    :calls_accepted
   ]
+
+  @scorers %{
+    facts: Scorers.KeyFacts,
+    cites: Scorers.CitationCoverage,
+    surface: Scorers.SurfaceComposed,
+    proposal: Scorers.ProposalMade,
+    calls_accepted: Scorers.CallsAccepted
+  }
 
   @hard [:prohibited_effect, :tool_not_called, :schema_valid, :within_budget]
   @needs_target [
-    :tool_called,
     :tool_not_called,
     :args_match,
     :prohibited_effect,
@@ -57,13 +79,17 @@ defmodule AshEnterprise.Quality.Assertions do
 
   @typedoc """
   What a case's run recorded: the run row, the names of every tool the model called, its
-  invocations (`target`, `args`, `approval_mode`) and its answer.
+  invocations (`target`, `args`, `approval_mode`) and its answer; for an agent that answers
+  with cited text, optionally its `calls` (`name`, `arguments`, `ok`, `surface?`,
+  `proposal`) and the `refs` its tools returned.
   """
   @type observed :: %{
-          run: map(),
-          tool_names: MapSet.t(String.t()),
-          invocations: [%{target: String.t(), args: map(), approval_mode: atom()}],
-          answer: term()
+          required(:run) => map(),
+          required(:tool_names) => MapSet.t(String.t()),
+          required(:invocations) => [%{target: String.t(), args: map(), approval_mode: atom()}],
+          required(:answer) => term(),
+          optional(:calls) => [map()],
+          optional(:refs) => [String.t()]
         }
 
   @doc "The closed assertion vocabulary."
@@ -79,13 +105,26 @@ defmodule AshEnterprise.Quality.Assertions do
   def problems(%{type: type} = assertion) do
     [
       (type in @needs_target and blank?(assertion[:target])) && "#{type} needs a target",
-      (type == :args_match and empty?(assertion[:args])) && "args_match needs args",
-      (type == :max_steps and is_nil(assertion[:limit])) && "max_steps needs a limit",
-      (type == :output_matches and empty?(assertion[:expected])) &&
-        "output_matches needs expected"
+      missing(type, assertion)
     ]
     |> Enum.filter(&is_binary/1)
   end
+
+  defp missing(:tool_called, a),
+    do: (blank?(a[:target]) and empty?(a[:any_of])) && "tool_called needs a target"
+
+  defp missing(:args_match, a), do: empty?(a[:args]) && "args_match needs args"
+  defp missing(:max_steps, a), do: is_nil(a[:limit]) && "max_steps needs a limit"
+  defp missing(:output_matches, a), do: empty?(a[:expected]) && "output_matches needs expected"
+  defp missing(:facts, a), do: empty?(expected(a, "facts")) && "facts needs expected facts"
+  defp missing(:cites, a), do: empty?(expected(a, "refs")) && "cites needs expected refs"
+
+  defp missing(:proposal, a),
+    do: not Map.has_key?(a[:expected] || %{}, "kind") && "proposal needs an expected kind"
+
+  defp missing(_type, _assertion), do: nil
+
+  defp expected(assertion, key), do: (assertion[:expected] || %{})[key]
 
   @doc """
   The result of `assertion` on `observed`: `%{"type", "hard", "status", "detail"}`,
@@ -93,21 +132,50 @@ defmodule AshEnterprise.Quality.Assertions do
   """
   @spec evaluate(map(), observed()) :: %{String.t() => term()}
   def evaluate(%{type: type} = assertion, observed) do
-    {status, detail} = measure(type, assertion, observed)
+    {status, detail, measure} = type |> measure(assertion, observed) |> with_measure()
 
-    %{
+    result = %{
       "type" => Atom.to_string(type),
       "target" => assertion[:target],
       "hard" => hard?(type),
       "status" => Atom.to_string(status),
       "detail" => detail
     }
+
+    if measure, do: Map.put(result, "measure", measure), else: result
   end
 
-  defp measure(:tool_called, %{target: target}, observed) do
-    case tool_name(target) do
-      {:ok, name} -> verdict(MapSet.member?(observed.tool_names, name), "called #{name}")
-      :error -> {:unmeasured, "#{target} is not a declared target"}
+  @doc """
+  A case's status from its assertion results: `:failed` when any failed; else `:errored`
+  when its run did not complete; else `:unmeasured` when none passed; else `:passed`.
+  """
+  @spec case_status([map()], boolean()) :: :passed | :failed | :errored | :unmeasured
+  def case_status(results, completed?) do
+    statuses = Enum.map(results, & &1["status"])
+
+    cond do
+      "failed" in statuses -> :failed
+      not completed? -> :errored
+      "passed" not in statuses -> :unmeasured
+      true -> :passed
+    end
+  end
+
+  defp with_measure({status, detail, measure}), do: {status, detail, measure}
+  defp with_measure({status, detail}), do: {status, detail, nil}
+
+  defp measure(:tool_called, assertion, observed) do
+    wanted = [assertion[:target] | assertion[:any_of] || []] |> Enum.reject(&blank?/1)
+
+    case for(target <- wanted, {:ok, name} <- [tool_name(target)], do: name) do
+      [] ->
+        {:unmeasured, "#{Enum.join(wanted, " or ")} is not a declared target"}
+
+      names ->
+        verdict(
+          Enum.any?(names, &MapSet.member?(observed.tool_names, &1)),
+          "called " <> Enum.join(names, " or ")
+        )
     end
   end
 
@@ -124,7 +192,7 @@ defmodule AshEnterprise.Quality.Assertions do
   defp measure(:args_match, %{target: target, args: args}, observed) do
     observed
     |> calls(target)
-    |> Enum.any?(&subset?(stringify(args), &1.args || %{}))
+    |> Enum.any?(&Scorers.ArgMatch.holds?(stringify(args), stringify(&1.args || %{})))
     |> verdict("a call of #{target} had the arguments")
   end
 
@@ -158,15 +226,24 @@ defmodule AshEnterprise.Quality.Assertions do
     )
   end
 
-  defp measure(type, _assertion, _observed) when type in [:process_transition, :cites],
-    do: {:unmeasured, "#{type} is not measured yet"}
+  defp measure(type, assertion, observed) when is_map_key(@scorers, type),
+    do: Map.fetch!(@scorers, type).measure(assertion, observed)
+
+  defp measure(:process_transition, _assertion, _observed),
+    do: {:unmeasured, "process_transition is not measured yet"}
 
   defp verdict(true, detail), do: {:passed, detail}
   defp verdict(false, detail), do: {:failed, "not: " <> detail}
 
   defp calls(observed, target), do: Enum.filter(observed.invocations, &(&1.target == target))
 
+  defp tool_name(nil), do: :error
+
   defp tool_name(target) do
+    if String.contains?(target, "."), do: governed_tool_name(target), else: {:ok, target}
+  end
+
+  defp governed_tool_name(target) do
     case Target.resolve(target) do
       {:ok, %{resource: resource, action: action}} ->
         {:ok, Toolset.tool_name(resource, action.name)}
@@ -191,5 +268,5 @@ defmodule AshEnterprise.Quality.Assertions do
   defp stringify(value), do: value
 
   defp blank?(value), do: value in [nil, ""]
-  defp empty?(value), do: value in [nil, %{}]
+  defp empty?(value), do: value in [nil, %{}, []]
 end

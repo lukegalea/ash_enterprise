@@ -1,7 +1,7 @@
 defmodule AshEnterprise.Quality.Changes.HashContent do
   @moduledoc """
   Records a suite's `content_hash` at publish: the SHA-256 of the RFC 8785 canonical
-  JSON (`AshAgent.Digest`) of its cases, thresholds and primary metric. A suite run
+  JSON (`AshAgent.Digest`) of its cases, thresholds, primary metric and judged scorers. A suite run
   records the hash it ran, so a result names exactly the cases it measured.
   """
 
@@ -12,7 +12,8 @@ defmodule AshEnterprise.Quality.Changes.HashContent do
     content = %{
       cases: Ash.Changeset.get_attribute(changeset, :cases),
       thresholds: Ash.Changeset.get_attribute(changeset, :thresholds),
-      primary_metric: Ash.Changeset.get_attribute(changeset, :primary_metric)
+      primary_metric: Ash.Changeset.get_attribute(changeset, :primary_metric),
+      scorers: Ash.Changeset.get_attribute(changeset, :scorers)
     }
 
     Ash.Changeset.force_change_attribute(
