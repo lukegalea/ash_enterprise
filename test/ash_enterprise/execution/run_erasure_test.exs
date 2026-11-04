@@ -180,6 +180,35 @@ defmodule AshEnterprise.Execution.RunErasureTest do
     assert Chain.verify(nil).findings == []
   end
 
+  test "a run erased before it finishes fails at its next step, with no model call",
+       %{clinic: clinic, scope: scope, clinician_file: file} do
+    script!([{:tools, [record_call("note", @title)]}, {:text, ~s({"noted": 1})}])
+
+    {:ok, run} = start_about(clinic.nurse, file)
+    assert :waiting = step!(run)
+    [call] = invocations(run)
+
+    assert {:ok, :succeeded} =
+             AshAgent.Invocation.Executor.execute(
+               Execution.Invocation,
+               call.id,
+               oban(clinic.tenant)
+             )
+
+    shred!(scope)
+    calls = length(model_calls(run))
+
+    assert :failed = step!(run)
+
+    failed = run(run)
+
+    assert {failed.status, failed.failure_class, failed.error_code} ==
+             {:failed, :permanent, "journal_unreadable"}
+
+    assert failed.lease_expires_at == nil
+    assert length(model_calls(run)) == calls
+  end
+
   test "a run cannot be about a record its starter cannot read", %{clinic: clinic, scope: scope} do
     admins_file = file!(clinic.admin, scope)
 
