@@ -157,6 +157,14 @@ jobs:
       - name: Check Ash-generated code is committed
         run: mix ash.codegen --check
 
+      # ADR 0060: the POT templates are derived from the gettext calls in the
+      # source, like the migrations above are from the resources. A catalog
+      # that has drifted from the code is copy nobody can translate. This
+      # never calls a model; machine translation is `mix l10n.generate`, run
+      # by a person, and its output arrives through review like any change.
+      - name: Check the Gettext catalogs are extracted
+        run: mix gettext.extract --check-up-to-date
+
       # docs/roadmap.json is the single source for every status table in the
       # README and in docs/. Same reasoning as the gate above: a derived artifact
       # that can drift from its source will, and a status table that silently
