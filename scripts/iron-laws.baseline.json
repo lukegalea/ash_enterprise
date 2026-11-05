@@ -1,122 +1,128 @@
 [
-  {
-    "law": "10",
-    "file": "lib/mix/tasks/ash_enterprise.trace.ex",
-    "text": "module = String.to_atom(@trace_explain_module)",
-    "reason": "Compile-time constant (a module attribute naming an optional dev-only module), the exception the law names. It stays a string so the WAE compile under MIX_ENV=test never references the absent module."
-  },
-  {
-    "law": "10",
-    "file": "lib/mix/tasks/ast/check.ex",
-    "text": "module = String.to_atom(@agent_tools_module)",
-    "reason": "Compile-time constant (a module attribute naming an optional dev-only module), the exception the law names. It stays a string so the WAE compile under MIX_ENV=test never references the absent module."
-  },
-  {
-    "law": "11",
-    "file": "lib/ash_enterprise_web/live/agent_live.ex",
-    "text": "def handle_event(\"propose\", %{\"request\" => request}, socket) do",
-    "reason": "Authorized through policies: the handler passes the signed-in user as actor to Ash-backed calls, which is one of the two forms the law accepts. The detector only looks for Ash.can? in the file."
-  },
-  {
-    "law": "11",
-    "file": "lib/ash_enterprise_web/live/launcher_live.ex",
-    "text": "def handle_event(\"filter\", %{\"launch\" => %{\"q\" => q}}, socket) do",
-    "reason": "No handler reads or writes: filter narrows a list read at mount (Surfaces.openable/1, the doors and Ash.can? as the signed-in user), and launch only navigates to a surface from that list, whose own mount checks its door again (SurfaceDoor). The detector only looks for Ash.can? in the file."
-  },
-  {
-    "law": "11",
-    "file": "lib/ash_enterprise_web/live/time_travel_live.ex",
-    "text": "def handle_event(\"as_of_scrub\", params, socket) do",
-    "reason": "No handler reads or writes: each one only push_patches a URL. Every read runs in handle_params as the signed-in user (actor and tenant from current_user), through Person, SourceIdentity, MatchCandidate, the ledger and Fact under their own policies. The detector only looks for Ash.can? in the file."
-  },
-  {
-    "law": "11",
-    "file": "lib/ash_enterprise_web/live/calendar_live.ex",
-    "text": "def handle_event(\"as_of_scrub\", params, socket) do",
-    "reason": "Navigation only: it turns the scrubber position into an instant on the page's own span and push_patches the URL; nothing is read or written. The surface's reads (and the a2ui events, delegated to AshA2ui.LiveRenderer) run as the signed-in user under CalendarEvent's policies, and the history read runs as them too. The detector only looks for Ash.can? in the file."
-  },
-  {
-    "law": "11",
-    "file": "lib/ash_enterprise_web/live/bpmn/catalog_live.ex",
-    "text": "def handle_event(\"customize\", %{\"key\" => key}, socket) do",
-    "reason": "Authorized through policies: the handler passes the signed-in user as actor to Ash-backed calls, which is one of the two forms the law accepts. The detector only looks for Ash.can? in the file."
-  },
-  {
-    "law": "11",
-    "file": "lib/ash_enterprise_web/live/canvas_live.ex",
-    "text": "def handle_event(\"canvas:select\", %{\"ref\" => ref}, socket) when is_binary(ref) do",
-    "reason": "Authorized through policies: the handler passes the signed-in user as actor to Ash-backed calls, which is one of the two forms the law accepts. The detector only looks for Ash.can? in the file."
-  },
-  {
-    "law": "21",
-    "file": "lib/ash_enterprise_web/components/core_components.ex",
-    "text": "assign_new(assigns, :checked, fn ->",
-    "reason": "Phoenix-generated function component: assign_new on a function component's assigns sets a default for an attribute the caller omitted. The law is about LiveView mount, where assign_new hides per-mount state; the detector cannot tell the two apart."
-  },
-  {
-    "law": "21",
-    "file": "lib/ash_enterprise_web/components/core_components.ex",
-    "text": "assigns = assign_new(assigns, :id, fn -> \"flash-#{assigns.kind}\" end)",
-    "reason": "Phoenix-generated function component: assign_new on a function component's assigns sets a default for an attribute the caller omitted. The law is about LiveView mount, where assign_new hides per-mount state; the detector cannot tell the two apart."
-  },
-  {
-    "law": "21",
-    "file": "lib/ash_enterprise_web/components/core_components.ex",
-    "text": "|> assign_new(:name, fn -> if assigns.multiple, do: field.name <> \"[]\", else: field.name end)",
-    "reason": "Phoenix-generated function component: assign_new on a function component's assigns sets a default for an attribute the caller omitted. The law is about LiveView mount, where assign_new hides per-mount state; the detector cannot tell the two apart."
-  },
-  {
-    "law": "21",
-    "file": "lib/ash_enterprise_web/components/core_components.ex",
-    "text": "|> assign_new(:value, fn -> field.value end)",
-    "reason": "Phoenix-generated function component: assign_new on a function component's assigns sets a default for an attribute the caller omitted. The law is about LiveView mount, where assign_new hides per-mount state; the detector cannot tell the two apart."
-  },
-  {
-    "law": "23",
-    "file": "lib/mix/tasks/ash_enterprise.legacy.project.ex",
-    "text": "@requirements [\"app.start\"]",
-    "reason": "Retained after review (S1-44 follow-up): the task was converted to app.config + Repo and reverted. Each projected row is a single-record Ash write, and Ash always dispatches the resulting notification (no per-call opt-out for non-bulk actions). ProjectedUser's pub_sub block broadcasts deliberately through AshEnterpriseWeb.Endpoint, which needs the endpoint process -- and starting an endpoint in a mix task binds port 4000 (runtime.exs server: true), a worse law-23 violation. The full tree is this task's honest requirement; its siblings boot minimally via AshEnterprise.Mix.Helpers.boot_repo/0."
-  },
-  {
-    "law": "23",
-    "file": "lib/mix/tasks/ash_enterprise.bpmn.setup.ex",
-    "text": "Mix.Task.run(\"app.start\")",
-    "reason": "Retained after review (S1-44 follow-up): the task is genuinely Oban-load-bearing. It submits access requests and then drains the :bpmn and :default queues inline so the seeded processes actually run -- without the running Oban instance the demo exits with every process parked on its start node. The full supervision tree is the point of this task, unlike its siblings, which now boot minimally via AshEnterprise.Mix.Helpers.boot_repo/0 (docs/reviews/iron-law-audit.md, fix item 3; fix item 6)."
-  },
-  {
-    "law": "11",
-    "file": "lib/ash_enterprise_web/live/daily_live.ex",
-    "text": "def handle_event(\"a2ui:action\", envelope, socket) do",
-    "reason": "Authorized through policies: the handler delegates to AshA2ui.LiveRenderer.handle_action/3, which routes the envelope through AshA2ui.ActionHandler with the signed-in actor and authorize?: true (the row-action allowlist and visible_when re-check included). The detector only looks for Ash.can? in the file."
-  },
-  {
-    "law": "07",
-    "file": "lib/ash_enterprise/mdm/quality_stewardship_worker.ex",
-    "text": "use Oban.Worker,",
-    "reason": "The sweep is idempotent by design: start_stewardship_for_findings!/1 skips a golden already running an instance (its own documented contract), so a re-run costs one indexed read per tenant and never duplicates a task. The queue is declared in config; no unique constraint needed."
-  },
-  {
-    "law": "23",
-    "file": "lib/mix/tasks/ash_enterprise.demo.ex",
-    "text": "Mix.Task.run(\"app.start\")",
-    "reason": "DemoData opens an import batch through Oban (worker + inline drain) and the seed's confirmation path renders URLs from the endpoint; a minimal repo-only boot cannot run the demo and a standalone Repo collides with the app.start that legacy.project pulls in."
-  },
-  {
-    "law": "07",
-    "file": "test/ash_enterprise/standards/questions_test.exs",
-    "text": "use Oban.Worker",
-    "reason": "Synthetic source inside a string: the standards candidate-rung test feeds it to AshAgentTools.CodeSubjects as input data. It is never compiled or run, and it is shaped like a violation on purpose."
-  },
-  {
-    "law": "11",
-    "file": "test/ash_enterprise/standards/questions_test.exs",
-    "text": "def handle_event(event, state), do: Map.put(state, event.id, event)",
-    "reason": "Synthetic source inside a string: the Candidates.component/1 test feeds a projector's handle_event/2 to AshAgentTools.CodeSubjects as input data. It is never compiled or run. The judge reports one #11 hit per file, so this entry also covers the LiveView handle_event/3 fixture further down the same file."
-  },
-  {
-    "law": "11",
-    "file": "test/ash_enterprise/standards/standing_test.exs",
-    "text": "def handle_event(\"save\", params, socket), do: {:noreply, assign(socket, :p, params)}",
-    "reason": "Synthetic source inside a string: the standards candidate-rung test feeds it to AshAgentTools.CodeSubjects as input data. It is never compiled or run, and it is shaped like a violation on purpose."
-  }
+ {
+  "law": "10",
+  "file": "lib/mix/tasks/ash_enterprise.trace.ex",
+  "text": "module = String.to_atom(@trace_explain_module)",
+  "reason": "Compile-time constant (a module attribute naming an optional dev-only module), the exception the law names. It stays a string so the WAE compile under MIX_ENV=test never references the absent module."
+ },
+ {
+  "law": "10",
+  "file": "lib/mix/tasks/ast/check.ex",
+  "text": "module = String.to_atom(@agent_tools_module)",
+  "reason": "Compile-time constant (a module attribute naming an optional dev-only module), the exception the law names. It stays a string so the WAE compile under MIX_ENV=test never references the absent module."
+ },
+ {
+  "law": "11",
+  "file": "lib/ash_enterprise_web/live/agent_live.ex",
+  "text": "def handle_event(\"propose\", %{\"request\" => request}, socket) do",
+  "reason": "Authorized through policies: the handler passes the signed-in user as actor to Ash-backed calls, which is one of the two forms the law accepts. The detector only looks for Ash.can? in the file."
+ },
+ {
+  "law": "11",
+  "file": "lib/ash_enterprise_web/live/launcher_live.ex",
+  "text": "def handle_event(\"filter\", %{\"launch\" => %{\"q\" => q}}, socket) do",
+  "reason": "No handler reads or writes: filter narrows a list read at mount (Surfaces.openable/1, the doors and Ash.can? as the signed-in user), and launch only navigates to a surface from that list, whose own mount checks its door again (SurfaceDoor). The detector only looks for Ash.can? in the file."
+ },
+ {
+  "law": "11",
+  "file": "lib/ash_enterprise_web/live/time_travel_live.ex",
+  "text": "def handle_event(\"as_of_scrub\", params, socket) do",
+  "reason": "No handler reads or writes: each one only push_patches a URL. Every read runs in handle_params as the signed-in user (actor and tenant from current_user), through Person, SourceIdentity, MatchCandidate, the ledger and Fact under their own policies. The detector only looks for Ash.can? in the file."
+ },
+ {
+  "law": "11",
+  "file": "lib/ash_enterprise_web/live/calendar_live.ex",
+  "text": "def handle_event(\"as_of_scrub\", params, socket) do",
+  "reason": "Navigation only: it turns the scrubber position into an instant on the page's own span and push_patches the URL; nothing is read or written. The surface's reads (and the a2ui events, delegated to AshA2ui.LiveRenderer) run as the signed-in user under CalendarEvent's policies, and the history read runs as them too. The detector only looks for Ash.can? in the file."
+ },
+ {
+  "law": "11",
+  "file": "lib/ash_enterprise_web/live/bpmn/catalog_live.ex",
+  "text": "def handle_event(\"customize\", %{\"key\" => key}, socket) do",
+  "reason": "Authorized through policies: the handler passes the signed-in user as actor to Ash-backed calls, which is one of the two forms the law accepts. The detector only looks for Ash.can? in the file."
+ },
+ {
+  "law": "11",
+  "file": "lib/ash_enterprise_web/live/canvas_live.ex",
+  "text": "def handle_event(\"canvas:select\", %{\"ref\" => ref}, socket) when is_binary(ref) do",
+  "reason": "Authorized through policies: the handler passes the signed-in user as actor to Ash-backed calls, which is one of the two forms the law accepts. The detector only looks for Ash.can? in the file."
+ },
+ {
+  "law": "21",
+  "file": "lib/ash_enterprise_web/components/core_components.ex",
+  "text": "assign_new(assigns, :checked, fn ->",
+  "reason": "Phoenix-generated function component: assign_new on a function component's assigns sets a default for an attribute the caller omitted. The law is about LiveView mount, where assign_new hides per-mount state; the detector cannot tell the two apart."
+ },
+ {
+  "law": "21",
+  "file": "lib/ash_enterprise_web/components/core_components.ex",
+  "text": "assigns = assign_new(assigns, :id, fn -> \"flash-#{assigns.kind}\" end)",
+  "reason": "Phoenix-generated function component: assign_new on a function component's assigns sets a default for an attribute the caller omitted. The law is about LiveView mount, where assign_new hides per-mount state; the detector cannot tell the two apart."
+ },
+ {
+  "law": "21",
+  "file": "lib/ash_enterprise_web/components/core_components.ex",
+  "text": "|> assign_new(:name, fn -> if assigns.multiple, do: field.name <> \"[]\", else: field.name end)",
+  "reason": "Phoenix-generated function component: assign_new on a function component's assigns sets a default for an attribute the caller omitted. The law is about LiveView mount, where assign_new hides per-mount state; the detector cannot tell the two apart."
+ },
+ {
+  "law": "21",
+  "file": "lib/ash_enterprise_web/components/core_components.ex",
+  "text": "|> assign_new(:value, fn -> field.value end)",
+  "reason": "Phoenix-generated function component: assign_new on a function component's assigns sets a default for an attribute the caller omitted. The law is about LiveView mount, where assign_new hides per-mount state; the detector cannot tell the two apart."
+ },
+ {
+  "law": "23",
+  "file": "lib/mix/tasks/ash_enterprise.legacy.project.ex",
+  "text": "@requirements [\"app.start\"]",
+  "reason": "Retained after review (S1-44 follow-up): the task was converted to app.config + Repo and reverted. Each projected row is a single-record Ash write, and Ash always dispatches the resulting notification (no per-call opt-out for non-bulk actions). ProjectedUser's pub_sub block broadcasts deliberately through AshEnterpriseWeb.Endpoint, which needs the endpoint process -- and starting an endpoint in a mix task binds port 4000 (runtime.exs server: true), a worse law-23 violation. The full tree is this task's honest requirement; its siblings boot minimally via AshEnterprise.Mix.Helpers.boot_repo/0."
+ },
+ {
+  "law": "23",
+  "file": "lib/mix/tasks/ash_enterprise.bpmn.setup.ex",
+  "text": "Mix.Task.run(\"app.start\")",
+  "reason": "Retained after review (S1-44 follow-up): the task is genuinely Oban-load-bearing. It submits access requests and then drains the :bpmn and :default queues inline so the seeded processes actually run -- without the running Oban instance the demo exits with every process parked on its start node. The full supervision tree is the point of this task, unlike its siblings, which now boot minimally via AshEnterprise.Mix.Helpers.boot_repo/0 (docs/reviews/iron-law-audit.md, fix item 3; fix item 6)."
+ },
+ {
+  "law": "11",
+  "file": "lib/ash_enterprise_web/live/daily_live.ex",
+  "text": "def handle_event(\"a2ui:action\", envelope, socket) do",
+  "reason": "Authorized through policies: the handler delegates to AshA2ui.LiveRenderer.handle_action/3, which routes the envelope through AshA2ui.ActionHandler with the signed-in actor and authorize?: true (the row-action allowlist and visible_when re-check included). The detector only looks for Ash.can? in the file."
+ },
+ {
+  "law": "07",
+  "file": "lib/ash_enterprise/mdm/quality_stewardship_worker.ex",
+  "text": "use Oban.Worker,",
+  "reason": "The sweep is idempotent by design: start_stewardship_for_findings!/1 skips a golden already running an instance (its own documented contract), so a re-run costs one indexed read per tenant and never duplicates a task. The queue is declared in config; no unique constraint needed."
+ },
+ {
+  "law": "23",
+  "file": "lib/mix/tasks/ash_enterprise.demo.ex",
+  "text": "Mix.Task.run(\"app.start\")",
+  "reason": "DemoData opens an import batch through Oban (worker + inline drain) and the seed's confirmation path renders URLs from the endpoint; a minimal repo-only boot cannot run the demo and a standalone Repo collides with the app.start that legacy.project pulls in."
+ },
+ {
+  "law": "07",
+  "file": "test/ash_enterprise/standards/questions_test.exs",
+  "text": "use Oban.Worker",
+  "reason": "Synthetic source inside a string: the standards candidate-rung test feeds it to AshAgentTools.CodeSubjects as input data. It is never compiled or run, and it is shaped like a violation on purpose."
+ },
+ {
+  "law": "11",
+  "file": "test/ash_enterprise/standards/questions_test.exs",
+  "text": "def handle_event(event, state), do: Map.put(state, event.id, event)",
+  "reason": "Synthetic source inside a string: the Candidates.component/1 test feeds a projector's handle_event/2 to AshAgentTools.CodeSubjects as input data. It is never compiled or run. The judge reports one #11 hit per file, so this entry also covers the LiveView handle_event/3 fixture further down the same file."
+ },
+ {
+  "law": "11",
+  "file": "test/ash_enterprise/standards/standing_test.exs",
+  "text": "def handle_event(\"save\", params, socket), do: {:noreply, assign(socket, :p, params)}",
+  "reason": "Synthetic source inside a string: the standards candidate-rung test feeds it to AshAgentTools.CodeSubjects as input data. It is never compiled or run, and it is shaped like a violation on purpose."
+ },
+ {
+  "law": "14",
+  "file": "lib/ash_enterprise/planning/backend/solverl.ex",
+  "text": "Task.start_link(fn ->",
+  "reason": "Checked solves run solve_sync in a task LINKED to the awaiting SolverSession task on purpose: an abandoned session must kill its solve (link = exactly that lifetime). Supervising it would orphan abandoned solver processes - the hazard the law exists to prevent. ADR 0062 sync-mode decision; upstream async-checker defect recorded in the module docs."
+ }
 ]
