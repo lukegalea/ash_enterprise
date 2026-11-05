@@ -69,13 +69,26 @@ defmodule AshEnterprise.Quality.Suite do
     end
 
     update :add_case do
-      description "Add a case to a draft."
+      description """
+      Add a case to a draft: the one given, or one saved from a case result
+      (`AshEnterprise.Quality.Changes.CaseFromResult`).
+      """
+
       accept []
       require_atomic? false
 
-      argument :case, Case, allow_nil?: false
+      argument :case, Case
+
+      argument :result_id, :uuid do
+        description "A case result to save as the case, instead of giving one."
+      end
+
+      argument :case_id, :string do
+        description "The id of the case saved from `result_id`."
+      end
 
       validate attribute_equals(:status, :draft), message: "only a draft takes new cases"
+      change Changes.CaseFromResult
       change Changes.AddCase
       validate Validations.Cases
     end

@@ -29,6 +29,9 @@ defmodule AshEnterprise.Quality do
       published version. Each case is an ordinary agent run with `mode: :eval` (or
       `:shadow`), executing as the `evaluator` automation principal, whose tool calls are
       answered from the case's fixtures and never run: evaluation causes no effects.
+      `:adhoc` is prompt experimentation: the same cases against a draft or published
+      version named by the person, with provenance and cost labelled in the summary
+      (`AshEnterprise.Quality.Provenance`); it can never satisfy a release gate.
     * `AshEnterprise.Quality.CaseResult`: what each case scored
       (`AshEnterprise.Quality.Assertions`, the deterministic scorer).
 
@@ -50,6 +53,7 @@ defmodule AshEnterprise.Quality do
     resource AshEnterprise.Quality.Suite do
       define :create_suite_draft, action: :create_draft, args: [:key]
       define :add_suite_case, action: :add_case, args: [:case]
+      define :save_result_as_suite_case, action: :add_case, args: [:result_id, :case_id]
       define :publish_suite, action: :publish
       define :retire_suite, action: :retire
       define :get_suite, action: :read, get_by: [:id]

@@ -21,14 +21,16 @@ defmodule AshEnterprise.Quality.Changes.Finish do
     * `"safety"`: `hard_failures` (cases with a hard assertion that failed) and
       `prohibited_effect_hits`, over every case;
     * `"injection"`, only when the suite has injection cases: the lane of
-      `AshEnterprise.Quality.Injection`.
+      `AshEnterprise.Quality.Injection`;
+    * `"provenance"`, for an `:adhoc` suite run only: what it tried and what that took
+      (`AshEnterprise.Quality.Provenance`).
   """
 
   use Ash.Resource.Change
 
   alias AshEnterprise.Execution
   alias AshEnterprise.Platform.SystemActor
-  alias AshEnterprise.Quality.{Assertions, CaseResult, Injection, Suite, SuiteRun}
+  alias AshEnterprise.Quality.{Assertions, CaseResult, Injection, Provenance, Suite, SuiteRun}
 
   @epoch 1
 
@@ -49,11 +51,15 @@ defmodule AshEnterprise.Quality.Changes.Finish do
       Ash.Changeset.add_error(changeset, field: :status, message: "its cases are still running")
     else
       results = Enum.map(suite.cases, &result(&1, Map.get(runs, &1[:id]), tenant))
+      finished_at = DateTime.utc_now()
 
       changeset
       |> Ash.Changeset.force_change_attributes(%{
-        summary: summary(suite.cases, results),
-        finished_at: DateTime.utc_now()
+        summary:
+          suite.cases
+          |> summary(results)
+          |> provenance(suite_run, Map.values(runs), finished_at, tenant),
+        finished_at: finished_at
       })
       |> Ash.Changeset.set_context(%{quality: %{results: results}})
     end
@@ -152,6 +158,19 @@ defmodule AshEnterprise.Quality.Changes.Finish do
 
   defp answer(%{"value" => value}), do: value
   defp answer(_none), do: nil
+
+  # An adhoc suite run says what it tried and what that took (`Quality.Provenance`).
+  defp provenance(summary, %{mode: :adhoc} = suite_run, runs, finished_at, tenant) do
+    version =
+      Execution.get_agent_version!(suite_run.agent_version_id,
+        authorize?: false,
+        tenant: tenant
+      )
+
+    Map.put(summary, "provenance", Provenance.build(suite_run, version, runs, finished_at))
+  end
+
+  defp provenance(summary, _suite_run, _runs, _finished_at, _tenant), do: summary
 
   defp summary(suite_cases, all_results) do
     injection_ids = for c <- suite_cases, Injection.injection?(c), do: c[:id]

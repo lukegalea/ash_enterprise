@@ -27,4 +27,16 @@ defmodule AshEnterprise.Quality.Case do
         assertions: [type: {:array, AshEnterprise.Quality.Assertion}]
       ]
     ]
+
+  @doc """
+  The values a case gives the `{{variables}}` of a prompt under trial, from its metadata
+  (`%{"variables" => %{"clinician" => "RN-1"}}`), keyed by string.
+  """
+  @spec variables(map()) :: %{String.t() => String.t()}
+  def variables(%{} = c) do
+    metadata = c[:metadata] || %{}
+
+    (metadata["variables"] || metadata[:variables] || %{})
+    |> Map.new(fn {name, value} -> {to_string(name), value} end)
+  end
 end

@@ -5,10 +5,16 @@ defmodule AshEnterprise.Quality.Changes.AddCase do
 
   @impl true
   def change(changeset, _opts, _context) do
-    Ash.Changeset.force_change_attribute(
-      changeset,
-      :cases,
-      (changeset.data.cases || []) ++ [Ash.Changeset.get_argument(changeset, :case)]
-    )
+    case Ash.Changeset.get_argument(changeset, :case) do
+      nil ->
+        changeset
+
+      new ->
+        Ash.Changeset.force_change_attribute(
+          changeset,
+          :cases,
+          (changeset.data.cases || []) ++ [new]
+        )
+    end
   end
 end

@@ -226,6 +226,34 @@ Candidates run as an evaluation automation principal ([ADR 0043](0043-automation
 even if a fixture is missing. Promotion happens only through the approved `HumanTask`, whose candidacy is the host's
 existing task machinery.
 
+## Built, 2026-11-04: prompt experimentation
+
+A builder compares prompt candidates on the same cases as `:adhoc` suite runs: no playground resource, and no prompt
+registry apart from `AgentVersion`.
+
+- **A run that is not live may pin a draft** (ash_agent#21). `start` takes `agent_version_id` for `:eval` and
+  `:shadow` runs (a live run refuses it, and the version must be the agent's own); the drift check still runs at every
+  step, and only "must be published" is relaxed. Instructions may name `{{variables}}`; a run's `variables` hold their
+  values, a start with a gap is refused (no run, no model call), and the stepper renders the instructions with them.
+- **`SuiteRun` mode `:adhoc`.** `start` names `agent_version_id` (a draft or published version of the agent the
+  person may read; required for `:adhoc`, refused in the other modes). `candidate_digest` is that version's
+  `content_hash`, so two candidates on one suite are two runs told apart by it. The suite may be a draft. Each case
+  supplies its variables in `metadata["variables"]` (`Quality.Case.variables/1`); every case is checked against the
+  instructions before any run is written, and the error names each case and variable. The case runs are `:eval`: no
+  effects.
+- **Provenance** (`Quality.Provenance`), in `summary["provenance"]` when an `:adhoc` run finishes: the version
+  (id, number, status, `content_hash`), model profile and models reached, configuration (limits, output type, toolset
+  targets), `elapsed_ms`, `model_ms` and usage from `ModelCall`. Cost is labelled: `estimated` when every call recorded
+  its tokens and the operator configured the model's rate, else `unavailable` with no amount. Nothing is `measured`
+  yet: a call record carries no provider-reported cost.
+- **Save as case** is `Suite.add_case` with `result_id` and `case_id` instead of a `case`
+  (`Quality.save_result_as_suite_case`): the new case keeps the source case's input, variables, fixtures, tags and
+  assertions, takes the run's answer as its `target`, records `metadata["saved_from"]`, is always `:dev`, and is checked
+  like any case; only a draft takes it.
+- **An `:adhoc` run can never satisfy a release gate**: it measures a version nobody approved. The release gate over
+  suite runs is not built yet; when it is, it reads `:offline` runs only.
+- **The proof.** `test/ash_enterprise/quality/adhoc_comparison_test.exs`.
+
 ## Consequences
 
 - A changed agent, tool, decision or model profile cannot go live without a recorded run on exactly what goes live.

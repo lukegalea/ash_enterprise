@@ -15,7 +15,14 @@ defmodule AshEnterprise.Quality.SuiteRun do
 
     * `:offline` runs the cases with `mode: :eval`;
     * `:shadow` runs them with `mode: :shadow`: the same cases, run beside live work to
-      compare a candidate with what is live, with no effect either.
+      compare a candidate with what is live, with no effect either;
+    * `:adhoc` is prompt experimentation (ADR 0058): the cases are run with `mode: :eval`
+      against the draft or published version named by `agent_version_id`, over a draft
+      suite as well as a published one. Its `{{variables}}` are checked against every
+      case before any run starts, and `finish` records its provenance in the summary
+      (`AshEnterprise.Quality.Provenance`). An `:adhoc` suite run measures a version
+      nobody approved, so it can never satisfy a release gate: a release gate reads
+      `:offline` runs only.
 
   A run that is not live executes as the `evaluator` automation principal
   (`AshEnterprise.Execution.Identity`), whose roles exist only in the tenant evaluations
@@ -88,8 +95,12 @@ defmodule AshEnterprise.Quality.SuiteRun do
     defaults [:read]
 
     create :start do
-      description "Run a published suite against an agent's latest published version, with no effects."
-      accept [:suite_id, :agent_key, :mode]
+      description """
+      Run a published suite against an agent's latest published version, with no effects;
+      or, `:adhoc`, any suite against the draft or published version named, to try a prompt.
+      """
+
+      accept [:suite_id, :agent_key, :mode, :agent_version_id]
 
       change set_attribute(:owner_id, actor(:id))
       change Changes.StartCases
@@ -117,7 +128,11 @@ defmodule AshEnterprise.Quality.SuiteRun do
 
     attribute :agent_version_id, :uuid do
       public? true
-      description "The candidate: the agent version pinned when the suite run started."
+
+      description """
+      The candidate: the agent version pinned when the suite run started. An `:adhoc` suite
+      run names the draft or published version it tries when it starts.
+      """
     end
 
     attribute :candidate_digest, :string do
@@ -134,7 +149,7 @@ defmodule AshEnterprise.Quality.SuiteRun do
       allow_nil? false
       public? true
       default :offline
-      constraints one_of: [:offline, :shadow]
+      constraints one_of: [:offline, :shadow, :adhoc]
     end
 
     attribute :summary, :map do
