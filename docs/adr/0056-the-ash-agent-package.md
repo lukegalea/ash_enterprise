@@ -247,6 +247,10 @@ and the host's `fragments:` lists, with no data migration, because no table name
   a proposal is the person's own act on the page. The page follows the run over PubSub and records the answer from
   its journal however the run ends; a run that outlives its page is picked up again when the thread is reopened. A
   tenant runs it once an administrator registers and publishes it (four eyes) and grants members its start.
+  (Amended 2026-11-04: the proposals are gone. The toolset names the nine target actions themselves, each declaring
+  `approval: :confirm`, so a call to one is requested as the person and the answer ends at the request; the person's
+  Confirm runs it. See [ADR 0055](0055-consequential-acts-are-governed-invocations.md#amendment-2026-11-04--the-assistants-changes-are-requests).
+  Every tenant re-publishes the changed declaration.)
 - **Not built here.** Budget reservation and `extend` (AGT-30, "Built, 2026-11-01: run budgets" below), waiting on a
   person (AGT-31, below), requesterless starts.
 - **Tests.** Package: `test/ash_agent/run_test.exs`. Here: `test/ash_enterprise/execution/run_test.exs`, and in the

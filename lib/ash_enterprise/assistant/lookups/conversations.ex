@@ -152,6 +152,7 @@ defmodule AshEnterprise.Assistant.Lookups.Conversations do
 
     Support.row(Lookup.Conversation, %{
       ref: Support.ref(Conversation, thread),
+      id: thread.id,
       source: thread.external_system,
       kind: thread.kind_label,
       subject: Support.clip(thread.subject, 160),

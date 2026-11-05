@@ -105,6 +105,7 @@ defmodule AshEnterprise.Canonical.Task do
     extra_extensions: [
       AshCloak,
       AshAi,
+      AshAgent.Effects,
       AshJudgments.Registry,
       AshOban,
       AshEnterprise.SystemOne.JudgedFields
@@ -328,8 +329,9 @@ defmodule AshEnterprise.Canonical.Task do
       description """
       Capture an open action item for the actor, owned by them, into their
       Inbox. `source` records where it came from: `manual` (typed in),
-      `assistant` (proposed in the agent chat and confirmed by the person) or
-      `acp` (said as `todo …` in the terminal).
+      `assistant` (asked for in the agent chat and confirmed by the person,
+      set from the run's invocation, never by the model) or `acp` (said as
+      `todo …` in the terminal).
       """
 
       accept [:title, :due_at]
@@ -343,6 +345,7 @@ defmodule AshEnterprise.Canonical.Task do
       change set_attribute(:status, :open)
       change set_attribute(:plan, :inbox)
       change set_attribute(:source, arg(:source))
+      change AshEnterprise.Canonical.Changes.SourceFromRun
       change set_attribute(:owner_id, actor(:id))
       change set_attribute(:owner_type, :user)
       change set_attribute(:owning_user_id, actor(:id))
@@ -620,6 +623,42 @@ defmodule AshEnterprise.Canonical.Task do
       description """
       The record the task came from as a typed reference, `<surface>:<id>`
       (the `record` link target); nil for a task typed in.
+      """
+    end
+  end
+
+  # What the assistant may ask for (ADR 0055): each is a governed invocation the person
+  # confirms, and runs as them.
+  effects do
+    action :capture,
+      kind: :edit,
+      destructive?: false,
+      open_world?: false,
+      approval: :confirm,
+      intent: :execute
+
+    action :complete_mine,
+      kind: :edit,
+      destructive?: false,
+      idempotent?: true,
+      open_world?: false,
+      approval: :confirm,
+      intent: :execute
+  end
+
+  # The assistant's names for them (`AshEnterprise.Assistant.Agent`).
+  tools do
+    tool :add_action_item, :capture do
+      description """
+      Ask to add an action item for the person (a title, and optionally when it is
+      due). It is not added yet: the person confirms it on screen.
+      """
+    end
+
+    tool :finish_action_item, :complete_mine do
+      description """
+      Ask to mark one of the person's open action items done, by its id from my_tasks.
+      It is not done yet: the person confirms it on screen.
       """
     end
   end

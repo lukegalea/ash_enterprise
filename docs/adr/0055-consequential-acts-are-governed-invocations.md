@@ -6,7 +6,8 @@
 - **Date:** 2026-10-23
 - **Amended:** 2026-10-29 — the coding-agent bridge; see
   [Amendment](#amendment-2026-10-29--the-coding-agent-bridge). 2026-11-01 — the sole-administrator rule; see
-  [Amendment](#amendment-2026-11-01--the-sole-administrator-rule)
+  [Amendment](#amendment-2026-11-01--the-sole-administrator-rule). 2026-11-04 — the assistant asks, and its answer
+  ends at the request; see [Amendment](#amendment-2026-11-04--the-assistants-changes-are-requests)
 - **Related:** [ADR 0015](0015-approvals-stay-in-ash.md) (approvals stay in Ash),
   [ADR 0043](0043-automation-authority-is-a-grant.md) (automation authority is a grant),
   [ADR 0052](0052-self-service-actions.md) (self-service actions),
@@ -354,8 +355,8 @@ first, and each is now the package's (ash_agent `AshAgent.Invocation`), with the
   principal; anything else, system actors included, has none.
 - **Governed targets in Phase 1**: `Security.UserRole.assign_governed` and the clinic's
   `Credentialing.Credential.activate_credential`. `UserRole.assign` stays ungoverned for the callers that have not
-  moved to `invoke` (the tenant seeder, demo data, the access-request process, the assistant's confirmed proposals, the
-  admin UI and test fixtures): moving them is the caller inventory this ADR puts before wider use.
+  moved to `invoke` (the tenant seeder, demo data, the access-request process, the admin UI and test fixtures; the
+  assistant's confirmed proposals were a caller until 2026-11-04, when the admin chat moved to `request_assignment`): moving them is the caller inventory this ADR puts before wider use.
 - **`/mcp` `assign_role`** is now `UserRole.request_assignment`, a self-service generic action
   (`Execution.Actions.RequestInvocation`) that calls `invoke` for `assign_governed` with a per-call key
   (`request:<UUIDv7>`) and returns the request: `invocation_id`, `target`, `status`, `error_code` and, while it waits,
@@ -460,7 +461,8 @@ decision is an explicit, recorded exception instead.
 
 ## Built, 2026-11-01: ACP permission requests and coding-agent tool calls
 
-Phase 2b, for two of the mechanisms listed under Context. The assistant's proposals have not moved yet.
+Phase 2b, for two of the mechanisms listed under Context. The assistant's proposals moved on 2026-11-04 (see
+[Amendment](#amendment-2026-11-04--the-assistants-changes-are-requests)).
 
 - **An ACP permission request is an invocation.** A prompt routed to an action whose declaration asks first
   (`Acp.asks_first?/2`) runs `Invocation.confirm` for it (`Execution.Actions.ConfirmRequest`, self-service): the
@@ -489,3 +491,34 @@ Phase 2b, for two of the mechanisms listed under Context. The assistant's propos
   audited.
 - **Tests.** `test/ash_enterprise/acp/approvals_durable_test.exs`, `test/ash_enterprise/acp/approvals_test.exs`,
   `test/ash_enterprise/agents_test.exs` ("tool calls are invocations").
+
+## Amendment, 2026-11-04 — the assistant's changes are requests
+
+The third of the five mechanisms under Context. Decided by Luke on 2026-11-04.
+
+- **The answer ends at the request; the outcome shows later.** A change the assistant makes for a person (add or
+  finish an action item, save a reply draft, sync a linked account, approve or reject a task waiting on them, merge,
+  keep separate or mark unsure a duplicate in their steward queue) is a call to the target action itself, named in
+  the agent's toolset ([ADR 0056](0056-the-ash-agent-package.md)). Each target declares `approval: :confirm`, so the
+  run requests it as the person and waits on it; the turn's answer is recorded there and says what was asked. The
+  page shows the request with Confirm and Cancel (`Assistant.Requests`, which reads only the person's own), follows
+  it on `invocations:<id>` and then shows its outcome. Confirm is `ConfirmInvocation.confirm/3`: the person approves
+  their own task as they are now, and the target runs once, as them. Cancel is `decline/3`.
+- **The run's deadline does not reach the request.** The run keeps its five minutes. A run that ends with a request
+  still waiting neither fails nor cancels it, and a Confirm after the deadline still runs the target as the person;
+  the run fails `deadline_passed` at its next step, and the request stands.
+- **No backfill.** `AI.Proposal`, `Assistant.Propose`, `Assistant.Tools.Proposals` and `Assistant.ProposalSettlement`
+  are deleted, and `assistant_proposal_settlements` is dropped. A turn recorded before the change still carries its
+  proposal; the page shows it as "proposed (before 4 November 2026)" and offers nothing.
+- **Re-publish per tenant.** The assistant's declaration changed, so each tenant's published version has drifted
+  from the code and its runs fail `definition_drift` until it is published again. `mix ash_enterprise.assistant.enable`
+  registers the new baseline, forks it into a draft and requests the publish; rerun, it returns the waiting request.
+  The publish needs four eyes, or the sole-administrator rule where the organization opted in.
+- **The admin chat asks too.** `AgentLive`'s "assign the X role to Y" is a role request: the names are resolved as
+  the person (`AI.Interpreter`), and sending it is `UserRole.request_assignment`, the same four-eyes request `/mcp`
+  `assign_role` makes. Nothing in the chat assigns a role.
+- **Tests.** `test/ash_enterprise/assistant/ask_test.exs` (the answer ends at the request; confirming runs it as the
+  person; after the deadline; declining),
+  `test/ash_enterprise/assistant/decisions_test.exs`, `test/ash_enterprise/assistant/compose_propose_test.exs`,
+  `test/ash_enterprise_web/live/assistant_compose_live_test.exs`, `test/ash_enterprise/ai/role_request_test.exs`,
+  and `test/ash_enterprise/execution/enable_agent_test.exs` (a tenant whose published copy has drifted).

@@ -1,18 +1,20 @@
 defmodule AshEnterprise.Assistant.ComposeProposeTest do
   @moduledoc """
-  The assistant's composer and proposal tools (E10.3, E10.4) on synthetic
-  data: what a composed spec may name, that its rows are read as the person,
-  that a proposal resolves names as the person and changes nothing until it
-  is executed with them as the actor, and that pinned apps and drafts are
-  their owner's alone.
+  The assistant's composer and the changes it may ask for (E10.3, E10.4) on
+  synthetic data: what a composed spec may name, that its rows are read as the
+  person, that a change it asks for is a governed invocation (ADR 0055) that changes
+  nothing until the person confirms it and then runs as them, and that pinned apps
+  and drafts are their owner's alone.
   """
 
   use AshEnterprise.DataCase, async: false
 
-  alias AshEnterprise.AI.Proposal
-  alias AshEnterprise.Assistant.{Composer, PinnedApp, ReplyDraft}
+  alias AshAgent.Run.Toolset
+  alias AshEnterprise.Assistant.{Composer, PinnedApp, ReplyDraft, Requests}
   alias AshEnterprise.Assistant.Lookups.Support
   alias AshEnterprise.Canonical.Task
+  alias AshEnterprise.Execution
+  alias AshEnterprise.Integration.LinkedAccount
   alias AshEnterprise.Platform.LocalTime
   alias AshEnterprise.Test.AssistantFixtures, as: F
   alias AshEnterprise.Test.DailyFixtures, as: D
@@ -24,6 +26,25 @@ defmodule AshEnterprise.Assistant.ComposeProposeTest do
 
   # A tool's one row, as the model reads it, run as a run's step runs it.
   defp tool!(ctx, name, input), do: ctx |> F.tool!(name, input) |> hd()
+
+  # What a run's call to `target` asks for, requested as the person.
+  defp request!(ctx, target, args) do
+    Execution.invoke!(
+      "AshEnterprise." <> target,
+      args,
+      %{key: "assistant-test:#{Ash.UUID.generate()}"},
+      actor: ctx.actor,
+      tenant: ctx.tenant
+    )
+  end
+
+  # Confirmed, or refused before it could be: what became of it.
+  defp decided(ctx, %{status: :awaiting_approval} = request) do
+    {:ok, row} = Requests.confirm(request.id, ctx.actor, ctx.tenant)
+    row
+  end
+
+  defp decided(_ctx, request), do: request
 
   defp encoded(surface, ctx),
     do:
@@ -231,55 +252,39 @@ defmodule AshEnterprise.Assistant.ComposeProposeTest do
     end
   end
 
-  describe "proposals" do
-    test "add and finish an action item: nothing until executed, then as the person", ctx do
-      result =
-        tool!(ctx, :propose_task, %{
-          change: :add,
-          title: "SYNTHETIC send the deck",
-          due: "tomorrow"
-        })
-
-      assert result["proposed"] =~ "SYNTHETIC send the deck"
-      assert result["proposal"]["kind"] == "create_task"
-      assert Task.mine!(actor: ctx.actor, tenant: ctx.tenant) == []
-
-      {:ok, proposal} = Proposal.from_wire(result["proposal"], ctx.actor, ctx.tenant)
-      assert {:ok, %Task{} = task} = Proposal.execute(proposal, ctx.actor, ctx.tenant)
-      assert task.owner_id == ctx.user.id
-      assert task.source == "assistant"
-      assert task.status == :open
-      assert task.due_at
-
-      done =
-        tool!(ctx, :propose_task, %{
-          change: :done,
-          title: "send the DECK"
-        })
-
-      assert done["proposal"] == %{"kind" => "complete_task", "task_id" => task.id}
-
-      {:ok, proposal} = Proposal.from_wire(done["proposal"], ctx.actor, ctx.tenant)
-      assert {:ok, %Task{status: :done}} = Proposal.execute(proposal, ctx.actor, ctx.tenant)
-
-      # Done once: rebuilding the same proposal now refuses, rather than re-running.
-      assert {:error, message} = Proposal.from_wire(done["proposal"], ctx.actor, ctx.tenant)
-      assert message =~ "already done"
+  describe "requests" do
+    test "the model names each change as the assistant declares it" do
+      assert Toolset.tool_name(Task, :capture) == "add_action_item"
+      assert Toolset.tool_name(Task, :complete_mine) == "finish_action_item"
+      assert Toolset.tool_name(ReplyDraft, :draft) == "draft_reply"
+      assert Toolset.tool_name(LinkedAccount, :sync_now) == "sync_account"
     end
 
-    test "another person's task or conversation does not resolve", ctx do
+    test "finish an action item: nothing until confirmed, then as the person", ctx do
+      {:ok, task} =
+        Task.capture("SYNTHETIC send the deck", %{}, actor: ctx.actor, tenant: ctx.tenant)
+
+      request = request!(ctx, "Canonical.Task.complete_mine", %{"record_id" => task.id})
+      assert request.status == :awaiting_approval
+
+      assert %{kind: :finish_action_item, title: "SYNTHETIC send the deck"} =
+               Requests.describe(request, ctx.actor, ctx.tenant)
+
+      assert [%{status: :open}] = Task.mine!(actor: ctx.actor, tenant: ctx.tenant)
+
+      assert %{status: :succeeded} = decided(ctx, request)
+      assert [%{status: :done}] = Task.mine!(actor: ctx.actor, tenant: ctx.tenant)
+    end
+
+    test "another person's task or conversation is never touched", ctx do
       bob = F.colleague!(ctx, admin?: true)
 
       {:ok, bobs} =
         Task.capture("SYNTHETIC bob's item", %{}, actor: bob.actor, tenant: ctx.tenant)
 
-      assert F.refusal(ctx, :propose_task, %{
-               change: :done,
-               title: bobs.id
-             }) =~ "No open action item of yours"
-
-      # The self-service completion itself does not reach it either.
-      assert {:error, _} = Task.complete_mine(bobs.id, actor: ctx.actor, tenant: ctx.tenant)
+      request = request!(ctx, "Canonical.Task.complete_mine", %{"record_id" => bobs.id})
+      assert decided(ctx, request).status in [:rejected, :failed]
+      assert [%{status: :open}] = Task.mine!(actor: bob.actor, tenant: ctx.tenant)
 
       conversation =
         D.conversation!(
@@ -289,31 +294,36 @@ defmodule AshEnterprise.Assistant.ComposeProposeTest do
           "hi"
         )
 
-      assert F.refusal(ctx, :propose_reply, %{
-               conversation: "inbox:#{conversation.id}",
-               text: "SYNTHETIC reply"
-             }) =~ "No conversation of yours"
+      request =
+        request!(ctx, "Assistant.ReplyDraft.draft", %{
+          "conversation_id" => conversation.id,
+          "body" => "SYNTHETIC reply"
+        })
+
+      assert decided(ctx, request).status in [:rejected, :failed]
+      assert Ash.read!(ReplyDraft, authorize?: false, tenant: ctx.tenant) == []
     end
 
     test "a reply draft is stored, sealed and owner-only, never sent", ctx do
       conversation = D.conversation!(ctx, "gmail", "SYNTHETIC launch", "Can you confirm?")
 
-      result =
-        tool!(ctx, :propose_reply, %{
-          conversation: "inbox:#{conversation.id}",
-          text: "SYNTHETIC: confirmed for Friday."
+      request =
+        request!(ctx, "Assistant.ReplyDraft.draft", %{
+          "conversation_id" => conversation.id,
+          "body" => "SYNTHETIC: confirmed for Friday."
         })
 
-      assert result["proposed"] =~ "SYNTHETIC launch"
+      assert %{kind: :draft_reply, subject: "SYNTHETIC launch", body: body} =
+               Requests.describe(request, ctx.actor, ctx.tenant)
+
+      assert body == "SYNTHETIC: confirmed for Friday."
       assert ReplyDraft.mine!(actor: ctx.actor, tenant: ctx.tenant) == []
 
-      {:ok, proposal} = Proposal.from_wire(result["proposal"], ctx.actor, ctx.tenant)
-      assert proposal.details[:sent] =~ "never"
-      assert {:ok, draft} = Proposal.execute(proposal, ctx.actor, ctx.tenant)
-      assert draft.erasure_scope_id == conversation.erasure_scope_id
+      assert %{status: :succeeded} = decided(ctx, request)
 
       [mine] = ReplyDraft.mine!(actor: ctx.actor, tenant: ctx.tenant)
       assert mine.body == "SYNTHETIC: confirmed for Friday."
+      assert mine.erasure_scope_id == conversation.erasure_scope_id
 
       # Ciphertext at rest, and nobody else's to read.
       [%{encrypted_body: ciphertext}] =
@@ -326,21 +336,20 @@ defmodule AshEnterprise.Assistant.ComposeProposeTest do
       assert Ash.read!(ReplyDraft, actor: bob.actor, tenant: ctx.tenant) == []
     end
 
-    test "sync needs a linked account", ctx do
-      assert F.refusal(ctx, :propose_sync, %{}) =~ "no active linked accounts"
+    test "sync names one of the person's linked accounts", ctx do
+      assert F.tool!(ctx, :my_accounts, %{}) == []
 
       account = D.linked_account!(ctx, "google-mail")
 
-      assert F.refusal(ctx, :propose_sync, %{account: :slack}) =~ "no active slack account"
-
-      result = tool!(ctx, :propose_sync, %{account: :gmail})
-      assert result["proposed"] == "Sync gmail now"
-      assert result["proposal"] == %{"kind" => "sync_now", "account_ids" => [account.id]}
-
-      assert {:ok, %Proposal{params: [%{record_id: id}]}} =
-               Proposal.from_wire(result["proposal"], ctx.actor, ctx.tenant)
-
+      assert [%{"id" => id, "provider" => "Gmail"}] = F.tool!(ctx, :my_accounts, %{})
       assert id == account.id
+
+      request = request!(ctx, "Integration.LinkedAccount.sync_now", %{"record_id" => account.id})
+
+      assert %{kind: :sync_account, account: "Gmail"} =
+               Requests.describe(request, ctx.actor, ctx.tenant)
+
+      assert %{status: :succeeded} = decided(ctx, request)
     end
   end
 

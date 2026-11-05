@@ -7,16 +7,21 @@ defmodule AshEnterprise.Assistant.Lookups.Approvals do
   that person. The same read the Approvals surface and the ACP `approvals`
   prompt use.
 
-  At most #{25}, the oldest first. Each row says which decisions its step takes, so the
-  model proposes only those (`propose_decision`); deciding stays the
-  person's confirm.
+  At most #{25}, the oldest first. Each row carries the task's `id` and says which
+  decisions its step takes, so the model asks only for those (`approve_task`,
+  `reject_task`); deciding stays the person's confirm. The confirmations of the
+  person's own requests (`invocation.approval` tasks of invocations they asked for) are
+  left out: those are answered where the request was made, not asked for again.
   """
+
+  require Ash.Query
 
   use Ash.Resource.ManualRead
 
   alias AshEnterprise.Assistant.Lookup
   alias AshEnterprise.Assistant.Lookups.Support
   alias AshEnterprise.Bpmn.HumanTask
+  alias AshEnterprise.Execution.Invocation
   alias AshEnterprise.Platform.LocalTime
 
   @shown 25
@@ -30,15 +35,42 @@ defmodule AshEnterprise.Assistant.Lookups.Approvals do
       |> Ash.Query.limit(@shown)
       |> Ash.read(opts)
       |> case do
-        {:ok, tasks} -> {:ok, Enum.map(tasks, &row/1)}
+        {:ok, tasks} -> {:ok, tasks |> without_own_requests(opts) |> Enum.map(&row/1)}
         error -> error
       end
     end)
   end
 
+  # The person's own requests wait on them too, as the approval of their invocation:
+  # read by owner, since a person may hold no grant on invocations.
+  defp without_own_requests(tasks, opts) do
+    ids =
+      for %{node_id: "invocation.approval", subject_id: id} <- tasks,
+          is_binary(id),
+          do: id
+
+    own =
+      case ids do
+        [] ->
+          MapSet.new()
+
+        ids ->
+          owner_id = opts[:actor].id
+
+          Invocation
+          |> Ash.Query.filter(id in ^ids and owner_id == ^owner_id)
+          |> Ash.Query.select([:id])
+          |> Ash.read!(authorize?: false, tenant: opts[:tenant])
+          |> MapSet.new(& &1.id)
+      end
+
+    Enum.reject(tasks, &(&1.node_id == "invocation.approval" and &1.subject_id in own))
+  end
+
   defp row(task) do
     Support.row(Lookup.Approval, %{
       ref: Support.ref(HumanTask, task),
+      id: task.id,
       task: task.name,
       about: Support.text(task.subject_label),
       outline: Support.text(task.subject_outline),
@@ -49,7 +81,7 @@ defmodule AshEnterprise.Assistant.Lookups.Approvals do
     })
   end
 
-  # What `propose_decision` can do with it: approve and reject, unless its
+  # What can be asked for it: approve and reject, unless its
   # step declares other outcomes (decided on the task board). A steward
   # decision's approve and reject are its merge and keep-separate
   # (`AshEnterprise.Mdm.StewardTask`).

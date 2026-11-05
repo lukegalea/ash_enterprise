@@ -71,7 +71,7 @@ defmodule AshEnterprise.Integration.LinkedAccount do
     ownership: :user_owned,
     tenant?: true,
     archival?: false,
-    extra_extensions: [AshAgent.Effects]
+    extra_extensions: [AshAgent.Effects, AshAi]
 
   postgres do
     table "integration_linked_accounts"
@@ -431,6 +431,17 @@ defmodule AshEnterprise.Integration.LinkedAccount do
       idempotent?: true,
       approval: :confirm,
       intent: :execute
+  end
+
+  # The assistant's name for a sync (`AshEnterprise.Assistant.Agent`): a request the
+  # person confirms on screen.
+  tools do
+    tool :sync_account, :sync_now do
+      description """
+      Ask to sync one of the person's linked accounts now, by its id from my_accounts.
+      Nothing is synced until they confirm on screen.
+      """
+    end
   end
 
   code_interface do

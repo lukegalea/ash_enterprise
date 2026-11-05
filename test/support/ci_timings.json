@@ -28,7 +28,6 @@
   "test/ash_enterprise/execution/invocation_test.exs": 80.2,
   "test/ash_enterprise/acp_ext_methods_test.exs": 76.8,
   "test/ash_enterprise_web/live/shell_live_test.exs": 72.3,
-  "test/ash_enterprise/ai/proposal_test.exs": 66.5,
   "test/ash_enterprise/process/binding_test.exs": 66.0,
   "test/ash_enterprise/assistant/compose_propose_test.exs": 65.5,
   "test/ash_enterprise/process/action_invoker_test.exs": 65.2,

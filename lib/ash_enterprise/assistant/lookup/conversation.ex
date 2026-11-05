@@ -26,6 +26,7 @@ defmodule AshEnterprise.Assistant.Lookup.Conversation do
 
   attributes do
     attribute :ref, :string, public?: true
+    attribute :id, :uuid, public?: true
     attribute :source, :string, public?: true
     attribute :kind, :string, public?: true
     attribute :subject, :string, public?: true

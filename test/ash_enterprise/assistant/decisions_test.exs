@@ -1,18 +1,19 @@
 defmodule AshEnterprise.Assistant.DecisionsTest do
   @moduledoc """
-  The assistant's decisions (`propose_decision`, `Proposal.decide_task/5`,
-  `Proposal.steward_verdict/4`) and the lookups behind them, on synthetic
-  data: a decision resolves only through the engine's candidacy read or the
-  person's steward queue, it is rebuilt and authorized again as whoever
-  confirms it, and it runs through the real actions as that person. Plus the
-  settlement rows that let a proposal outlive the page.
+  The assistant's decisions on synthetic data: the lookups that name them
+  (`pending_approvals`, `steward_queue`, each row with its id) and what it may ask for
+  (`approve_task`, `reject_task`, `merge_duplicate`, `keep_duplicate_separate`,
+  `mark_duplicate_unsure`). Each is a governed invocation requested as the person
+  (ADR 0055) that waits for their Confirm (`AshEnterprise.Assistant.Requests`) and then
+  runs through the real action as them; a decision that is not theirs is never made.
   """
 
   use AshEnterprise.DataCase, async: false
 
-  alias AshEnterprise.AI.Proposal
-  alias AshEnterprise.Assistant.{ProposalSettlement, Thread}
+  alias AshAgent.Run.Toolset
+  alias AshEnterprise.Assistant.Requests
   alias AshEnterprise.Bpmn.{HumanTask, TaskCandidate}
+  alias AshEnterprise.Execution
   alias AshEnterprise.Mdm.MatchCandidate
   alias AshEnterprise.Security.ActorContext
   alias AshEnterprise.Test.AssistantFixtures, as: F
@@ -41,15 +42,34 @@ defmodule AshEnterprise.Assistant.DecisionsTest do
     task
   end
 
-  defp propose!(ctx, input), do: ctx |> F.tool!(:propose_decision, input) |> hd()
-
-  defp refusal(ctx, input), do: F.refusal(ctx, :propose_decision, input)
+  # What a run's call to `target` asks for, requested as the person.
+  defp request!(ctx, target, args) do
+    Execution.invoke!(
+      "AshEnterprise." <> target,
+      args,
+      %{key: "assistant-test:#{Ash.UUID.generate()}"},
+      actor: ctx.actor,
+      tenant: ctx.tenant
+    )
+  end
 
   defp status(task),
     do: Ash.get!(HumanTask, task.id, tenant: task.organization_id, authorize?: false).status
 
+  defp candidate(candidate),
+    do:
+      Ash.get!(MatchCandidate, candidate.id, tenant: candidate.organization_id, authorize?: false)
+
+  test "the model names each decision as the assistant declares it" do
+    assert Toolset.tool_name(HumanTask, :approve) == "approve_task"
+    assert Toolset.tool_name(HumanTask, :reject) == "reject_task"
+    assert Toolset.tool_name(MatchCandidate, :confirm) == "merge_duplicate"
+    assert Toolset.tool_name(MatchCandidate, :reject) == "keep_duplicate_separate"
+    assert Toolset.tool_name(MatchCandidate, :escalate) == "mark_duplicate_unsure"
+  end
+
   describe "a task decision" do
-    test "resolves among the tasks waiting on the person and runs as them", ctx do
+    test "is asked for by id, waits for the person, and runs as them", ctx do
       bob = F.colleague!(ctx)
       contract = approval!(ctx, "SYNTHETIC vendor contract sign-off", ctx.user)
       budget = approval!(ctx, "SYNTHETIC budget exception", bob.user)
@@ -57,63 +77,65 @@ defmodule AshEnterprise.Assistant.DecisionsTest do
 
       assert [row] = F.tool!(ctx, :pending_approvals, %{})
       assert row["task"] == "SYNTHETIC vendor contract sign-off"
+      assert row["id"] == contract.id
       assert row["decisions"] == ["approve", "reject"]
 
-      result = propose!(ctx, %{on: :task, decision: :approve, target: row["ref"]})
+      request = request!(ctx, "Bpmn.HumanTask.approve", %{"record_id" => contract.id})
+      assert request.status == :awaiting_approval
+      assert status(contract) == :open
 
-      assert %{"kind" => "decide_task", "task_id" => id, "decision" => "approve"} =
-               result["proposal"]
+      assert %{kind: :approve_task, task: "SYNTHETIC vendor contract sign-off"} =
+               Requests.describe(request, ctx.actor, ctx.tenant)
 
+      # Their own request waits on them too, but it is not a decision to ask for again.
+      ctx = fresh(ctx)
+      assert [%{"id" => id}] = F.tool!(ctx, :pending_approvals, %{})
       assert id == contract.id
-      assert result["effect"] =~ "completes as approved"
 
-      # Not theirs: the colleague's task is not among theirs, whatever it is called.
-      assert refusal(ctx, %{on: :task, decision: :approve, target: "budget exception"}) =~
-               "No task waiting on you matches"
+      # Nobody else confirms it.
+      assert {:error, :not_found} = Requests.confirm(request.id, fresh(bob).actor, ctx.tenant)
+      assert status(contract) == :open
 
-      # Always named: "approve it" is not a guess the tool makes.
-      assert refusal(ctx, %{on: :task, decision: :approve}) =~ "say which task"
-
-      # Rebuilt as somebody else, the wire form is nothing to them.
-      assert {:error, _} = Proposal.from_wire(result["proposal"], fresh(bob).actor, ctx.tenant)
-
-      assert {:ok, proposal} = Proposal.from_wire(result["proposal"], ctx.actor, ctx.tenant)
-      assert proposal.details[:task] == "SYNTHETIC vendor contract sign-off"
-      assert {:ok, message} = Proposal.execute(proposal, ctx.actor, ctx.tenant)
-      assert message =~ "Approved"
+      assert {:ok, %{status: :succeeded}} = Requests.confirm(request.id, ctx.actor, ctx.tenant)
       assert status(contract) == :completed
       assert status(budget) == :open
-
-      # Decided: it no longer waits on them, so the same wire form is refused.
-      assert {:error, _} = Proposal.from_wire(result["proposal"], fresh(ctx).actor, ctx.tenant)
     end
 
-    test "a merge or a keep-separate is not a task's decision", ctx do
-      approval!(ctx, "SYNTHETIC vendor contract sign-off", ctx.user)
+    test "a task that is not theirs is never decided", ctx do
+      bob = F.colleague!(ctx)
+      budget = approval!(ctx, "SYNTHETIC budget exception", bob.user)
       ctx = fresh(ctx)
 
-      assert refusal(ctx, %{on: :task, decision: :merge, target: "vendor contract"}) =~
-               "approve or reject"
+      assert F.tool!(ctx, :pending_approvals, %{}) == []
+
+      request = request!(ctx, "Bpmn.HumanTask.approve", %{"record_id" => budget.id})
+
+      {:ok, decided} =
+        if request.status == :awaiting_approval,
+          do: Requests.confirm(request.id, ctx.actor, ctx.tenant),
+          else: {:ok, request}
+
+      assert decided.status in [:rejected, :failed]
+      assert status(budget) == :open
     end
 
-    test "by kind, through decision/4", ctx do
-      approval!(ctx, "SYNTHETIC vendor contract sign-off", ctx.user)
+    test "declining it decides nothing", ctx do
+      contract = approval!(ctx, "SYNTHETIC vendor contract sign-off", ctx.user)
       ctx = fresh(ctx)
 
-      assert {:ok, %Proposal{kind: :decide_task, action: :reject}} =
-               Proposal.decision(:decide_task, ctx.actor, ctx.tenant, %{
-                 task: "vendor contract",
-                 decision: :reject
-               })
+      request = request!(ctx, "Bpmn.HumanTask.reject", %{"record_id" => contract.id})
+      assert %{kind: :reject_task} = Requests.describe(request, ctx.actor, ctx.tenant)
 
-      assert {:error, _} = Proposal.decision(:steward_verdict, ctx.actor, ctx.tenant, nil)
-      assert Proposal.decision_kinds() == [:decide_brief, :decide_task, :steward_verdict]
+      assert {:ok, %{status: :rejected, error_code: "approval_rejected"}} =
+               Requests.decline(request.id, ctx.actor, ctx.tenant)
+
+      assert status(contract) == :open
     end
   end
 
   describe "a steward verdict" do
-    test "resolves in the person's queue, shows both sides, and merges as them", ctx do
-      {candidate, _staged, _golden} =
+    test "is asked for by id, shows both sides, and merges as them", ctx do
+      {avery, _staged, _golden} =
         AshEnterprise.Mdm.TestSupport.staged_candidate!(
           ctx.tenant,
           ctx.user,
@@ -124,27 +146,40 @@ defmodule AshEnterprise.Assistant.DecisionsTest do
       ctx = fresh(ctx)
 
       assert [%{"may_decide" => true} = row] = F.tool!(ctx, :steward_queue, %{})
-
       assert row["incoming"] == "Avery Synthetic"
       assert row["existing"] == "Avery Synthetic Existing"
+      assert row["id"] == avery.id
 
-      result = propose!(ctx, %{on: :duplicate, decision: :merge})
+      request = request!(ctx, "Mdm.MatchCandidate.confirm", %{"id" => avery.id})
+      assert request.status == :awaiting_approval
+      assert candidate(avery).status == :pending
 
-      assert result["proposal"] == %{
-               "kind" => "steward_verdict",
-               "candidate_id" => candidate.id,
-               "verdict" => "confirm"
-             }
+      assert %{
+               kind: :merge_duplicate,
+               incoming: "Avery Synthetic",
+               existing: "Avery Synthetic Existing"
+             } = Requests.describe(request, ctx.actor, ctx.tenant)
 
-      assert result["proposed"] =~ "Merge \"Avery Synthetic\" into \"Avery Synthetic Existing\""
+      assert {:ok, %{status: :succeeded}} = Requests.confirm(request.id, ctx.actor, ctx.tenant)
+      assert candidate(avery).status == :confirmed
+      assert [] = F.tool!(fresh(ctx), :steward_queue, %{})
+    end
 
-      {:ok, proposal} = Proposal.from_wire(result["proposal"], ctx.actor, ctx.tenant)
-      assert proposal.details[:email_kept] == "the incoming record's"
+    test "unsure keeps it in the queue", ctx do
+      {avery, _staged, _golden} =
+        AshEnterprise.Mdm.TestSupport.staged_candidate!(
+          ctx.tenant,
+          ctx.user,
+          "Avery Synthetic",
+          "avery@example.test"
+        )
 
-      assert {:ok, %MatchCandidate{status: :confirmed}} =
-               Proposal.execute(proposal, ctx.actor, ctx.tenant)
+      ctx = fresh(ctx)
+      request = request!(ctx, "Mdm.MatchCandidate.escalate", %{"id" => avery.id})
+      assert %{kind: :mark_duplicate_unsure} = Requests.describe(request, ctx.actor, ctx.tenant)
 
-      assert [] = F.tool!(ctx, :steward_queue, %{})
+      assert {:ok, %{status: :succeeded}} = Requests.confirm(request.id, ctx.actor, ctx.tenant)
+      assert candidate(avery).status == :pending
     end
 
     test "a duplicate whose golden the person may not read is not theirs", ctx do
@@ -189,31 +224,16 @@ defmodule AshEnterprise.Assistant.DecisionsTest do
       assert [row] = F.tool!(ctx, :steward_queue, %{})
       refute row["existing"] =~ "Theirs"
 
-      # ...and the other, named by id, resolves to nothing.
-      assert refusal(ctx, %{on: :duplicate, decision: :merge, target: hidden.id}) =~
-               "No duplicate waiting for you has that ref"
+      # ...and asking for the other by its id merges nothing.
+      request = request!(ctx, "Mdm.MatchCandidate.confirm", %{"id" => hidden.id})
 
-      wire = %{"kind" => "steward_verdict", "candidate_id" => hidden.id, "verdict" => "confirm"}
-      assert {:error, _} = Proposal.from_wire(wire, ctx.actor, ctx.tenant)
-    end
-  end
+      {:ok, decided} =
+        if request.status == :awaiting_approval,
+          do: Requests.confirm(request.id, ctx.actor, ctx.tenant),
+          else: {:ok, request}
 
-  describe "settlements" do
-    test "one confirm per proposal, on the person's own thread only", ctx do
-      {:ok, thread} = Thread.start("SYNTHETIC", actor: ctx.actor, tenant: ctx.tenant)
-      opts = [actor: ctx.actor, tenant: ctx.tenant]
-
-      assert {:ok, _} = ProposalSettlement.settle(thread.id, "p0123", :confirmed, opts)
-      assert {:error, _} = ProposalSettlement.settle(thread.id, "p0123", :confirmed, opts)
-      assert {:ok, _} = ProposalSettlement.settle(thread.id, "p0123", :failed, opts)
-
-      assert [:confirmed, :failed] =
-               thread.id |> ProposalSettlement.for_thread!(opts) |> Enum.map(& &1.outcome)
-
-      bob = F.colleague!(ctx, admin?: true)
-      bob_opts = [actor: bob.actor, tenant: ctx.tenant]
-      assert {:error, _} = ProposalSettlement.settle(thread.id, "p9999", :cancelled, bob_opts)
-      assert ProposalSettlement.for_thread!(thread.id, bob_opts) == []
+      assert decided.status in [:rejected, :failed]
+      assert candidate(hidden).status == :pending
     end
   end
 end

@@ -13,9 +13,18 @@ defmodule AshEnterprise.Assistant.Ask do
   told of, `topic/1`) and records the answer when the run ends (`settle/2`); a page that
   was closed records it when the thread is next opened (`pending/2`).
 
-    * **Tools** — every assistant tool is a `:read`, so a run takes each in its loop and
-      journals its result as a step. Composed surfaces and proposals are read off those
-      results.
+    * **Tools** — a lookup is a `:read`, so a run takes it in its loop and journals its
+      result as a step; composed surfaces are read off those results. A change (add an
+      action item, draft a reply, decide a task, ...) is not taken in the loop: the run
+      requests it as a governed invocation (ADR 0055), as the person, and it waits for
+      their Confirm (`AshEnterprise.Assistant.Requests`).
+    * **The answer ends at a request** — a run waiting on nothing but requests awaiting
+      the person's approval has said all it can: its answer is recorded then, carrying
+      each request, and the run is left waiting. Confirming one later runs it as the
+      person, whether or not the run is still within its deadline; the run is never
+      cancelled for it, so nothing cancels the request either. A run woken by the
+      decision within its deadline takes one more step the page does not show; past its
+      deadline, it fails when next claimed, and the request stands as decided.
     * **Input** — the time, the conversation so far and the question
       (`AshEnterprise.Assistant.Prompt.input/3`): one user message, the run's sealed
       `input`.
@@ -53,7 +62,7 @@ defmodule AshEnterprise.Assistant.Ask do
 
   alias AshAi.Transcript
   alias AshEnterprise.AI.Models
-  alias AshEnterprise.Assistant.{Agent, History, Prompt, Turn, ZoneGate}
+  alias AshEnterprise.Assistant.{Agent, History, Prompt, Requests, Turn, ZoneGate}
   alias AshEnterprise.Canonical.{CalendarEvent, Conversation}
   alias AshEnterprise.Execution
   alias AshEnterprise.Execution.AgentRuntime
@@ -79,11 +88,13 @@ defmodule AshEnterprise.Assistant.Ask do
 
   @typedoc """
   A run as the page follows it: its tool calls so far (`"name"`, `"arguments"`,
-  `"count"`, `"ok"`, and `"surface"` or `"proposal"` when the call put one on the page),
-  the text of its latest model turn, and how many model calls it has made.
+  `"count"`, `"ok"`, and `"surface"` or `"request"` when the call put one on the page),
+  the text of its latest model turn, how many model calls it has made, and the requests
+  it made, by tool call id.
   """
   @type progress :: %{
           run: Ash.Resource.record(),
+          requests: %{String.t() => Ash.Resource.record()},
           calls: [map()],
           text: String.t(),
           model_calls: non_neg_integer(),
@@ -238,7 +249,10 @@ defmodule AshEnterprise.Assistant.Ask do
     key |> String.replace_prefix(prefix, "") |> String.split(":", parts: 2)
   end
 
-  @doc "The run `run_id` and its journal so far, as the actor in `opts` reads them."
+  @doc """
+  The run `run_id` and its journal so far, as the actor in `opts` reads them, with the
+  requests it made as theirs.
+  """
   @spec progress(Ash.UUID.t(), keyword()) :: {:ok, progress()} | {:error, term()}
   def progress(run_id, opts) do
     with {:ok, run} <- Execution.get_agent_run(run_id, opts),
@@ -249,7 +263,7 @@ defmodule AshEnterprise.Assistant.Ask do
                load: [:parts]
              )
            ) do
-      {:ok, journal(run, steps)}
+      {:ok, journal(run, steps, Requests.of_run(run.id, opts[:actor], opts[:tenant]))}
     end
   end
 
@@ -257,14 +271,16 @@ defmodule AshEnterprise.Assistant.Ask do
   Records the answer of the run `run_id` once it has ended, as the actor in `opts`:
   `{:ok, turn}` for a completed run, `{:error, reason, turn}` for one that failed, was
   stopped or reached a limit, and `{:pending, progress}` while it is still working. A
-  run waiting on a limit is cancelled first: an answer's limits are not lifted.
+  run waiting on a limit is cancelled first: an answer's limits are not lifted. A run
+  waiting on nothing but the person's approval of its requests has ended its answer,
+  which is recorded as complete; the run is left as it is (see the moduledoc).
   Recording twice records once.
   """
   @spec settle(Ash.Resource.record(), Ash.UUID.t(), keyword()) ::
           {:ok, Turn.t()} | {:error, reason() | :stopped, Turn.t() | nil} | {:pending, progress()}
   def settle(thread, run_id, opts) do
     case progress(run_id, opts) do
-      {:ok, progress} -> settled(thread, progress, verdict(progress.run), opts)
+      {:ok, progress} -> settled(thread, progress, verdict(progress), opts)
       {:error, _error} -> {:error, :internal, nil}
     end
   end
@@ -297,12 +313,25 @@ defmodule AshEnterprise.Assistant.Ask do
     end
   end
 
-  defp verdict(%{status: :completed}), do: {:complete, nil}
-  defp verdict(%{status: :cancelled}), do: {:stopped, nil}
-  defp verdict(%{status: :failed} = run), do: {:failed, failure(run)}
-  defp verdict(%{status: :waiting, blocked_on: :limit}), do: {:limit, :step_cap}
-  defp verdict(%{status: :waiting, blocked_on: :budget}), do: {:limit, :budget}
-  defp verdict(_run), do: :pending
+  defp verdict(%{run: %{status: :completed}}), do: {:complete, nil}
+  defp verdict(%{run: %{status: :cancelled}}), do: {:stopped, nil}
+  defp verdict(%{run: %{status: :failed} = run}), do: {:failed, failure(run)}
+  defp verdict(%{run: %{status: :waiting, blocked_on: :limit}}), do: {:limit, :step_cap}
+  defp verdict(%{run: %{status: :waiting, blocked_on: :budget}}), do: {:limit, :budget}
+
+  defp verdict(%{run: %{status: :waiting, blocked_on: :tools}, requests: requests}) do
+    if asked?(requests), do: {:complete, nil}, else: :pending
+  end
+
+  defp verdict(_progress), do: :pending
+
+  # The run waits on the person and nothing else: at least one request is still open,
+  # and every open one is awaiting their approval (none is still being checked, or
+  # running after a confirm).
+  defp asked?(requests) do
+    open = requests |> Map.values() |> Enum.reject(&(&1.status in Requests.final()))
+    open != [] and Enum.all?(open, &(&1.status == :awaiting_approval))
+  end
 
   defp failure(%{failure_class: :timeout}), do: :timeout
   defp failure(%{failure_class: :denied}), do: :denied
@@ -385,7 +414,7 @@ defmodule AshEnterprise.Assistant.Ask do
 
   # -- the journal --------------------------------------------------------------------
 
-  defp journal(run, steps) do
+  defp journal(run, steps, requests) do
     parts = Enum.flat_map(steps, &(&1.parts || []))
 
     results =
@@ -395,11 +424,12 @@ defmodule AshEnterprise.Assistant.Ask do
 
     calls =
       for %{"type" => "tool_call", "id" => id} = part <- parts do
-        call(run, part, Map.fetch(results, id))
+        call(run, part, Map.fetch(results, id), requests[id])
       end
 
     %{
       run: run,
+      requests: requests,
       calls: calls,
       text: latest_text(steps),
       model_calls: run.step_count,
@@ -407,13 +437,15 @@ defmodule AshEnterprise.Assistant.Ask do
     }
   end
 
-  defp call(run, part, result) do
-    base = %{
-      "name" => part["name"],
-      "arguments" => decode(part["arguments"]),
-      "ok" => nil,
-      "count" => nil
-    }
+  defp call(run, part, result, request) do
+    base =
+      %{
+        "name" => part["name"],
+        "arguments" => decode(part["arguments"]),
+        "ok" => nil,
+        "count" => nil
+      }
+      |> requested(run, part["id"], request)
 
     case result do
       :error ->
@@ -422,30 +454,34 @@ defmodule AshEnterprise.Assistant.Ask do
       {:ok, rows} when is_list(rows) ->
         shown(%{base | "ok" => true, "count" => length(rows)}, run, part["id"], rows)
 
+      # A request that ran: the record it touched, or the value it returned.
+      {:ok, result} when not is_nil(request) and not is_map_key(result, "error") ->
+        %{base | "ok" => true}
+
       {:ok, _refusal} ->
         %{base | "ok" => false}
     end
   end
 
-  # What a compose or propose tool put on the page: a surface to render or a proposal
-  # to confirm, under an id of the page's own, derived from the run and the call so the
-  # page and the recorded answer name it alike.
+  # A call the run requested rather than ran: the page shows the request, under an id of
+  # its own, and follows it by its invocation.
+  defp requested(call, _run, _call_id, nil), do: call
+
+  defp requested(call, run, call_id, request) do
+    Map.put(call, "request", %{
+      "id" => page_id("r", run, call_id),
+      "invocation_id" => request.id
+    })
+  end
+
+  # What a compose tool put on the page: a surface to render, under an id of the page's
+  # own, derived from the run and the call so the page and the recorded answer name it
+  # alike.
   defp shown(call, run, call_id, [%{"surface" => %{} = request} = row]) do
     Map.put(call, "surface", %{
       "id" => page_id("s", run, call_id),
       "request" => request,
       "title" => row["shown"]
-    })
-  end
-
-  defp shown(call, run, call_id, [%{"proposal" => %{} = wire} = row]) do
-    Map.put(call, "proposal", %{
-      "id" => page_id("p", run, call_id),
-      "wire" => wire,
-      "summary" => row["proposed"],
-      # What the person does with it is recorded as a settlement, so the page may offer
-      # it again until then.
-      "settled" => "recorded"
     })
   end
 

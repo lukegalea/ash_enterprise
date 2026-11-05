@@ -6,7 +6,7 @@ defmodule AshEnterprise.Assistant.ReplyDraft do
   There is no send. No send scope exists on any linked account, and this
   resource has no action that delivers anything anywhere: a draft is a row the
   person can read back (in the agent chat, or composed into a table) and copy
-  from. The assistant proposes one (`AshEnterprise.AI.Proposal.draft_reply/4`)
+  from. The assistant asks for one (`draft_reply`, a governed invocation, ADR 0055)
   and it is written only when the person confirms, with them as the actor.
 
   ## Owner-only, sealed under the conversation's scope
@@ -29,7 +29,7 @@ defmodule AshEnterprise.Assistant.ReplyDraft do
     lifecycle?: false,
     archival?: false,
     self_service: [:draft, :read, :mine],
-    extra_extensions: [AshCloak]
+    extra_extensions: [AshCloak, AshAgent.Effects]
 
   alias AshEnterprise.Platform.Calculations.RelatedField
 
@@ -120,6 +120,15 @@ defmodule AshEnterprise.Assistant.ReplyDraft do
       change AshEnterprise.Assistant.Changes.InheritConversationScope
       change {AshEnterprise.Erasure.Changes.SealUnderScope, fields: [:body]}
     end
+  end
+
+  effects do
+    action :draft,
+      kind: :edit,
+      destructive?: false,
+      open_world?: false,
+      approval: :confirm,
+      intent: :execute
   end
 
   code_interface do

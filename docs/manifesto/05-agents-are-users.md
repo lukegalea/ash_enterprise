@@ -169,11 +169,13 @@ Two statements above no longer match the code, checked against `main` on 2026-10
 "Human-in-the-loop" describes a mechanism that was not the one built. What exists:
 
 - The console at `/agent` (`AshEnterpriseWeb.AgentLive`): the model returns a typed intent and holds no tools;
-  `AshEnterprise.AI.Proposal` resolves the names in it as the person, checks with `Ash.can?` before showing it, and
-  runs it with the person as the actor once they confirm. Only the mutations that module has a constructor for can be
-  proposed.
-- The assistant at `/app/agent`: proposal tools build the same proposals, and `Assistant.ProposalSettlement` records
-  the person's confirm or cancel so a second confirm cannot run the mutation twice.
+  `AshEnterprise.AI.Interpreter` resolves the names in a role request as the person, and sending it is
+  `UserRole.request_assignment`, a governed invocation another administrator approves (since 2026-11-04; before, the
+  person's own confirm ran the assignment).
+- The assistant at `/app/agent`: since 2026-11-04 a change it makes for the person is a governed invocation of the
+  target action, requested as them and waiting on their Confirm; the answer ends at the request, and the Confirm runs
+  it once, as them (ADR 0055, amended 2026-11-04). Before, proposal tools built proposals and a settlement row
+  recorded the person's confirm or cancel.
 - The coding-agent bridge: since 2026-11-01 a tool request is a governed invocation of `Agents.ToolCall.run_tool`,
   approved by the run's person on its `HumanTask` (ADR 0055).
 - ACP: since 2026-11-01 a prompt's permission request is a governed invocation waiting on the person's `HumanTask`,

@@ -10,7 +10,8 @@ defmodule AshEnterprise.Assistant.AskTest do
   use AshEnterprise.DataCase, async: false
 
   alias AshEnterprise.AI.ModelCall
-  alias AshEnterprise.Assistant.{Ask, History, Thread, Turn}
+  alias AshEnterprise.Assistant.{Ask, History, Requests, Thread, Turn}
+  alias AshEnterprise.Canonical.Task
   alias AshEnterprise.Execution
   alias AshEnterprise.Test.AssistantFixtures, as: F
   alias AshEnterprise.Test.AssistantFixtures.ScriptedModel
@@ -27,6 +28,36 @@ defmodule AshEnterprise.Assistant.AskTest do
   defp ask(ctx, question), do: F.ask!(ctx, ctx.thread, question)
 
   defp calls, do: Ash.read!(ModelCall, authorize?: false)
+
+  defp settle(ctx, run), do: Ask.settle(ctx.thread, run.id, F.opts(ctx))
+
+  # The model asks to add an action item, saying so, then answers once it hears back.
+  defp ask_to_add!(_ctx) do
+    ScriptedModel.script!([
+      {:tools, [{"add_action_item", %{"input" => %{"title" => "SYNTHETIC file the report"}}}],
+       "SYNTHETIC: I asked to add it; confirm it to add it."},
+      {:text, "SYNTHETIC: added."}
+    ])
+  end
+
+  # The step the decision's wake-up enqueued (the queues are manual here), then the rest.
+  defp wake!(run) do
+    _ = Runs.step!(Runs.run(run))
+    F.run_out!(run)
+  end
+
+  # The run's deadline passed a minute ago. Written past the actions, as the clock is.
+  defp deadline_passes!(run) do
+    past = DateTime.add(DateTime.utc_now(), -60, :second)
+
+    {1, _} =
+      AshEnterprise.Repo.update_all(
+        Ecto.Query.from(r in "exec_agent_runs", where: r.id == type(^run.id, Ecto.UUID)),
+        set: [deadline_at: past]
+      )
+
+    :ok
+  end
 
   defp runs(ctx),
     do: Execution.list_agent_runs!(authorize?: false, tenant: ctx.tenant)
@@ -80,7 +111,9 @@ defmodule AshEnterprise.Assistant.AskTest do
       # Every tool is offered, under its own name; each result went back to the model.
       assert_received {:model_request, first, tools, _opts}
       assert "calendar_events" in tools and "count_activity" in tools
-      assert "compose_surface" in tools and "propose_decision" in tools and length(tools) == 14
+      assert "compose_surface" in tools and "my_accounts" in tools
+      assert "add_action_item" in tools and "merge_duplicate" in tools and length(tools) == 20
+      refute Enum.any?(tools, &String.starts_with?(&1, "propose_"))
       assert Enum.any?(first, &(&1.role == :system))
       assert_received {:model_request, second, _tools, _opts}
       assert Enum.any?(second, &(&1.role == :tool and text(&1) =~ "SYNTHETIC planning review"))
@@ -302,25 +335,104 @@ defmodule AshEnterprise.Assistant.AskTest do
              end)
     end
 
-    test "a proposal is read off the journal and changes nothing", ctx do
-      ScriptedModel.script!([
-        {:tools,
-         [
-           {"propose_task",
-            %{"input" => %{"change" => "add", "title" => "SYNTHETIC file the report"}}}
-         ]},
-        {:text, "SYNTHETIC: I proposed adding it; confirm to add it."}
-      ])
+    test "a change is asked for, not made: the answer ends at the request", ctx do
+      ask_to_add!(ctx)
 
       assert {:ok, answer} = ask(ctx, "SYNTHETIC: remind me to file the report")
+      assert answer.status == :complete
+      assert answer.content == "SYNTHETIC: I asked to add it; confirm it to add it."
 
-      assert [%{"name" => "propose_task", "proposal" => %{"wire" => wire, "id" => "p" <> _}}] =
+      # The call is a request the page follows by its invocation, not a write.
+      assert [%{"name" => "add_action_item", "request" => %{"id" => "r" <> _} = request}] =
                answer.tool_calls["calls"]
 
-      assert wire["kind"] == "create_task"
-      assert AshEnterprise.Canonical.Task.mine!(actor: ctx.actor, tenant: ctx.tenant) == []
       assert [run] = runs(ctx)
-      assert Runs.invocations(run) == []
+      assert run.status == :waiting and run.blocked_on == :tools
+      assert [invocation] = Runs.invocations(run)
+      assert request["invocation_id"] == invocation.id
+      assert invocation.status == :awaiting_approval
+      assert invocation.target == "AshEnterprise.Canonical.Task.capture"
+      assert invocation.owner_id == ctx.user.id
+      assert Task.mine!(actor: ctx.actor, tenant: ctx.tenant) == []
+
+      # Recording it again records it once, and it stays a request.
+      assert {:ok, %{id: id}} = Ask.settle(ctx.thread, run.id, F.opts(ctx))
+      assert id == answer.id
+      assert [_waiting] = Runs.invocations(run)
+    end
+
+    test "confirming it runs it as the person; the run then answers once more", ctx do
+      ask_to_add!(ctx)
+      assert {:ok, answer} = ask(ctx, "SYNTHETIC: remind me to file the report")
+      [run] = runs(ctx)
+      [%{"request" => %{"invocation_id" => id}}] = answer.tool_calls["calls"]
+
+      assert {:ok, %{status: :succeeded}} = Requests.confirm(id, ctx.actor, ctx.tenant)
+
+      assert [%{title: "SYNTHETIC file the report", source: "assistant", owner_id: owner}] =
+               Task.mine!(actor: ctx.actor, tenant: ctx.tenant)
+
+      assert owner == ctx.user.id
+
+      # A second confirm (another tab) finds it decided and runs nothing again.
+      assert {:ok, %{status: :succeeded}} = Requests.confirm(id, ctx.actor, ctx.tenant)
+      assert [_one] = Task.mine!(actor: ctx.actor, tenant: ctx.tenant)
+
+      # The run wakes on the decision, sees the result and answers; the recorded answer
+      # is the one the person already has.
+      assert %{status: :completed} = wake!(run)
+      assert {:ok, %{id: id_answer, content: content}} = settle(ctx, run)
+      assert id_answer == answer.id
+      assert content == answer.content
+    end
+
+    # The run fails at its next step, and that cancels nothing.
+    test "confirmed after the run's deadline, it still runs as the person", ctx do
+      ask_to_add!(ctx)
+      assert {:ok, answer} = ask(ctx, "SYNTHETIC: remind me to file the report")
+      [run] = runs(ctx)
+      [%{"request" => %{"invocation_id" => id}}] = answer.tool_calls["calls"]
+
+      deadline_passes!(run)
+
+      assert {:ok, %{status: :succeeded}} = Requests.confirm(id, ctx.actor, ctx.tenant)
+      assert [%{source: "assistant"}] = Task.mine!(actor: ctx.actor, tenant: ctx.tenant)
+
+      # Its next step finds the deadline passed: the run fails, and the request stands.
+      _ = Runs.step!(Runs.run(run))
+      assert %{status: :failed, error_code: "deadline_passed"} = Runs.run(run)
+      assert [%{status: :succeeded}] = Runs.invocations(run)
+    end
+
+    test "declining it runs nothing, and the run hears why", ctx do
+      ask_to_add!(ctx)
+      assert {:ok, answer} = ask(ctx, "SYNTHETIC: remind me to file the report")
+      [run] = runs(ctx)
+      [%{"request" => %{"invocation_id" => id}}] = answer.tool_calls["calls"]
+
+      assert {:ok, %{status: :rejected, error_code: "approval_rejected"}} =
+               Requests.decline(id, ctx.actor, ctx.tenant)
+
+      assert Task.mine!(actor: ctx.actor, tenant: ctx.tenant) == []
+      assert %{status: :completed} = wake!(run)
+      assert_received {:model_request, _first, _, _}
+      assert_received {:model_request, second, _, _}
+
+      assert Enum.any?(second, fn message ->
+               message.role == :tool and text(message) =~ "approval_rejected"
+             end)
+    end
+
+    test "a request names only the person's own", ctx do
+      ask_to_add!(ctx)
+      assert {:ok, answer} = ask(ctx, "SYNTHETIC: remind me to file the report")
+      [%{"request" => %{"invocation_id" => id}}] = answer.tool_calls["calls"]
+      colleague = F.colleague!(ctx)
+
+      assert :error = Requests.get(id, colleague.actor, ctx.tenant)
+      assert {:error, :not_found} = Requests.confirm(id, colleague.actor, ctx.tenant)
+      assert Task.mine!(actor: ctx.actor, tenant: ctx.tenant) == []
+      assert {:ok, %{status: :awaiting_approval}} = Requests.get(id, ctx.actor, ctx.tenant)
     end
   end
 end

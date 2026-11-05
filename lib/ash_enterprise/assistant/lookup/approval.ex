@@ -26,6 +26,7 @@ defmodule AshEnterprise.Assistant.Lookup.Approval do
 
   attributes do
     attribute :ref, :string, public?: true
+    attribute :id, :uuid, public?: true
     attribute :task, :string, public?: true
     attribute :about, :string, public?: true
     attribute :outline, :string, public?: true

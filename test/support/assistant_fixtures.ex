@@ -245,6 +245,8 @@ defmodule AshEnterprise.Test.AssistantFixtures do
 
       * `{:tools, [{name, arguments}]}` — the model calls those tools
         (`{id, name, arguments}` names the call's id);
+      * `{:tools, calls, text}` — the model says `text` and calls those tools in the
+        same turn (as it does when it asks for a change);
       * `{:text, text}` — the model answers;
       * `{:error, reason}` — the call fails to open;
       * `{:raise, exception}` — the stream opens, then fails while read;
@@ -292,7 +294,12 @@ defmodule AshEnterprise.Test.AssistantFixtures do
 
     defp respond({:error, reason}, _model, _context), do: {:error, reason}
 
-    defp respond({:tools, calls}, model, context) do
+    defp respond({:tools, calls}, model, context),
+      do: respond({:tools, calls, nil}, model, context)
+
+    defp respond({:tools, calls, text}, model, context) do
+      said = if text, do: [ReqLLM.StreamChunk.text(text)], else: []
+
       chunks =
         calls
         |> Enum.with_index()
@@ -307,7 +314,7 @@ defmodule AshEnterprise.Test.AssistantFixtures do
             })
         end)
 
-      response(chunks, :tool_calls, model, context)
+      response(said ++ chunks, :tool_calls, model, context)
     end
 
     defp respond({:text, text}, model, context),

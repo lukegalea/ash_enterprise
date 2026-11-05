@@ -5,7 +5,7 @@ defmodule Mix.Tasks.AshEnterprise.Assistant.Eval do
   Runs the assistant's eval set (`AshEnterprise.Test.AssistantEval`, PROD-46)
   against the **real in-zone model**, on a SYNTHETIC fixture tenant, and
   prints a scorecard: tool-choice accuracy, argument validity, citation
-  coverage, key facts, surfaces and proposals, latency p50/p95. The cases are
+  coverage, key facts, surfaces and requests, latency p50/p95. The cases are
   the `assistant.eval` suite of `AshEnterprise.Quality`: the run is recorded as
   a suite run with one case result per case (and, when judged, the judged
   scores with their ledger ids and the family's certification status), and the

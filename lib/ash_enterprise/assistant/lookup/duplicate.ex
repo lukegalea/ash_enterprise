@@ -26,6 +26,7 @@ defmodule AshEnterprise.Assistant.Lookup.Duplicate do
 
   attributes do
     attribute :ref, :string, public?: true
+    attribute :id, :uuid, public?: true
     attribute :incoming, :string, public?: true
     attribute :incoming_email, :string, public?: true
     attribute :existing, :string, public?: true

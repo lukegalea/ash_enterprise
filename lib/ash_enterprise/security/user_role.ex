@@ -32,12 +32,13 @@ defmodule AshEnterprise.Security.UserRole do
   (ADR 0055): it runs only when `AshEnterprise.Execution.Invocation` runs it, after an
   administrator other than the requester approved it (`AshAgent.Validations.Governed`
   refuses every other call). `request_assignment` asks for it through `invoke` and
-  returns the request with its approval link; it is the MCP `assign_role` tool, so a
-  model asking for a role changes nothing until a second person approves.
+  returns the request with its approval link; it is the MCP `assign_role` tool and the
+  admin chat's (`AshEnterpriseWeb.AgentLive`), so a model asking for a role changes
+  nothing until a second person approves.
 
   `assign` stays ungoverned for the callers that have not moved to `invoke` yet: the
-  tenant seeder, the demo data, the access-request process, the assistant's
-  confirmed proposals, the admin UI and test fixtures.
+  tenant seeder, the demo data, the access-request process, the admin UI and test
+  fixtures.
   """
 
   use AshEnterprise.Platform.Resource,

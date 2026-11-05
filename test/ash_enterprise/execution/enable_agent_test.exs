@@ -19,6 +19,7 @@ defmodule AshEnterprise.Execution.EnableAgentTest do
   alias AshEnterprise.Platform.SystemActor
   alias AshEnterprise.Process.Resolver
   alias AshEnterprise.Security.AgentStartGrant
+  alias AshEnterprise.Test.EarlierAssistant
   alias Mix.Tasks.AshEnterprise.Assistant.Enable
 
   setup do
@@ -74,10 +75,9 @@ defmodule AshEnterprise.Execution.EnableAgentTest do
     assert length(publish_requests(ctx)) == 1
   end
 
-  test "once published, it is a no-op that says so", %{ctx: ctx} do
-    approver = colleague!(ctx, admin?: true)
-    {:ok, %{"invocation_id" => id}} = Execution.enable_agent_from_code(Agent, opts(ctx))
-
+  # `approver`, another administrator (one when the request opened its task), approves
+  # the publish request `id`, and it runs.
+  defp published!(ctx, approver, id) do
     row = Execution.get_invocation!(id, authorize?: false, tenant: ctx.tenant)
     task = Ash.load!(row, :approval_task, authorize?: false).approval_task
 
@@ -87,11 +87,51 @@ defmodule AshEnterprise.Execution.EnableAgentTest do
 
     %{status: :ready} = Execution.apply_invocation_decision!(row, oban(ctx.tenant))
     {:ok, :succeeded} = Executor.execute(Invocation, row.id, oban(ctx.tenant))
+  end
+
+  test "once published, it is a no-op that says so", %{ctx: ctx} do
+    approver = colleague!(ctx, admin?: true)
+    {:ok, %{"invocation_id" => id}} = Execution.enable_agent_from_code(Agent, opts(ctx))
+    published!(ctx, approver, id)
 
     assert {:ok, %{"outcome" => "already_published", "version" => 1}} =
              Execution.enable_agent_from_code(Agent, opts(ctx))
 
     assert length(publish_requests(ctx)) == 1
+  end
+
+  test "a tenant whose published copy has drifted from the code is asked to publish anew",
+       %{ctx: ctx} do
+    approver = colleague!(ctx, admin?: true)
+
+    {:ok, %{"invocation_id" => id}} =
+      Execution.enable_agent_from_code(EarlierAssistant, opts(ctx))
+
+    published!(ctx, approver, id)
+
+    # The code changed since: the new baseline, forked into a new draft, asked for.
+    assert {:ok, drifted} = Execution.enable_agent_from_code(Agent, opts(ctx))
+    assert %{"outcome" => "requested", "status" => "awaiting_approval"} = drifted
+    assert drifted["version"] == 2
+    assert %{status: :draft} = Execution.get_agent_version!(drifted["version_id"], opts(ctx))
+
+    {:ok, %{id: baseline_id}} = Resolver.agent_baseline("assistant")
+
+    assert Execution.get_agent_version!(drifted["version_id"], opts(ctx)).baseline_id ==
+             baseline_id
+
+    # Run again, it returns that request instead of asking twice.
+    assert {:ok, again} = Execution.enable_agent_from_code(Agent, opts(ctx))
+    assert again["outcome"] == "already_requested"
+    assert again["invocation_id"] == drifted["invocation_id"]
+    assert again["version_id"] == drifted["version_id"]
+    assert length(publish_requests(ctx)) == 2
+
+    # Once approved, the current code is what the tenant runs.
+    published!(ctx, approver, drifted["invocation_id"])
+
+    assert {:ok, %{"outcome" => "already_published", "version" => 2}} =
+             Execution.enable_agent_from_code(Agent, opts(ctx))
   end
 
   describe "mix ash_enterprise.assistant.enable" do

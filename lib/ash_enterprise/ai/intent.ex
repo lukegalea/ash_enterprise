@@ -4,13 +4,14 @@ defmodule AshEnterprise.AI.Intent do
 
   A plain typed struct with no behaviour, deliberately. It is the *only* thing
   the model produces, and it cannot do anything — it names an intent and the
-  values it mentioned. Turning it into a mutation is
-  `AshEnterprise.AI.Proposal`'s job, and executing one is the human's.
+  values it mentioned. Turning it into a request is
+  `AshEnterprise.AI.Interpreter.plan/4`'s job, and sending and approving one are
+  people's.
 
   ## Reads and writes take different paths, on purpose
 
-  `:assign_role` changes something, so it becomes a proposal that a person reads
-  and approves before anything happens. `:show_surface` and `:design_surface` do
+  `:assign_role` changes something, so it becomes a request that the person reads
+  and sends, and another administrator approves, before anything happens. `:show_surface` and `:design_surface` do
   not: they render a table, and a table is filtered by the viewer's own policies
   before a single row reaches the page. Asking somebody to approve a *read* they
   are already authorized for teaches them to click through confirmations, which

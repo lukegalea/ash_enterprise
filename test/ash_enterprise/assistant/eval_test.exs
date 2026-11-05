@@ -2,8 +2,8 @@ defmodule AshEnterprise.Assistant.EvalTest do
   @moduledoc """
   The assistant's eval set (PROD-46), driven by a scripted oracle instead of
   the in-zone model: CI's proof that every case is answerable with the tools
-  as they are (the oracle's calls are accepted, its surfaces resolve, its
-  proposals resolve as the person) and that the harness scores what it
+  as they are (the oracle's calls are accepted, its surfaces resolve, the changes
+  it asks for are requested as the person) and that the harness scores what it
   should — a perfect run scores perfectly, a wrong one shows its misses.
   `mix ash_enterprise.assistant.eval` runs the same set against the real model.
   """
@@ -42,7 +42,7 @@ defmodule AshEnterprise.Assistant.EvalTest do
     assert c > 0
     assert {f, f} = card.facts
     assert {5, 5} = card.surfaces
-    # Six proposals made, and one decision that is not the person's refused.
+    # Six changes asked for, and one decision that is not the person's refused.
     assert {7, 7} = card.proposals
     assert card.latency_p95_ms >= card.latency_p50_ms
   end
@@ -99,17 +99,11 @@ defmodule AshEnterprise.Assistant.EvalTest do
         {:tools, [{"my_tasks", %{"input" => %{}}}]},
         {:text, "SYNTHETIC: two open tasks."}
       ],
-      # Approves the task that *is* waiting instead of refusing the one that
-      # is not the person's, and claims it is done.
+      # Asks to approve the task that *is* waiting instead of refusing the one
+      # that is not the person's, and claims it is done.
       "not_a_candidate" => [
-        {:tools,
-         [
-           {"propose_decision",
-            %{
-              "input" => %{"on" => "task", "decision" => "approve", "target" => "vendor contract"}
-            }}
-         ]},
-        {:text, "SYNTHETIC: done, approved."}
+        {:tools, [{"approve_task", %{"input" => %{"record_id" => fixture.contract_id}}}],
+         "SYNTHETIC: done, approved."}
       ]
     }
 

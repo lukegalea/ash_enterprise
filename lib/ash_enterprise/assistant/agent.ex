@@ -6,10 +6,13 @@ defmodule AshEnterprise.Assistant.Agent do
 
     * **Instructions** — `AshEnterprise.Assistant.Prompt.instructions/0`, the same for
       every run; the time, the conversation so far and the question are the run's input.
-    * **Tools** — the fourteen `AshEnterprise.Assistant` declares, every one a `:read`
-      (nine lookups, the composer, four proposals), so a run takes each in its loop and
-      none is an invocation: none changes anything. Confirming a proposal is the
-      person's own act on the page.
+    * **Tools** — eleven reads a run takes in its loop (ten lookups and the composer,
+      `AshEnterprise.Assistant`), and nine changes it may only ask for: actions of
+      their own resources whose effects say `approval: :confirm`. A call to one of those
+      is a governed invocation (ADR 0055) requested as the person; the answer ends
+      there, and the person's Confirm on the page runs it as them
+      (`AshEnterprise.Assistant.Requests`). The run asks; it never changes anything
+      itself.
     * **Model** — the in-zone generative profile, the only one a version publishes on
       (ADR 0042).
     * **Limits** — six model calls, as many tool calls as a short answer needs, five
@@ -40,11 +43,17 @@ defmodule AshEnterprise.Assistant.Agent do
       {AshEnterprise.Assistant.Lookup.Approval, :pending_approvals},
       {AshEnterprise.Assistant.Lookup.Duplicate, :steward_queue},
       {AshEnterprise.Assistant.Lookup.ActivityCount, :count_activity},
+      {AshEnterprise.Assistant.Lookup.Account, :my_accounts},
       {AshEnterprise.Assistant.Compose, :compose_surface},
-      {AshEnterprise.Assistant.Propose, :propose_task},
-      {AshEnterprise.Assistant.Propose, :propose_reply},
-      {AshEnterprise.Assistant.Propose, :propose_sync},
-      {AshEnterprise.Assistant.Propose, :propose_decision}
+      {AshEnterprise.Canonical.Task, :capture},
+      {AshEnterprise.Canonical.Task, :complete_mine},
+      {AshEnterprise.Assistant.ReplyDraft, :draft},
+      {AshEnterprise.Integration.LinkedAccount, :sync_now},
+      {AshEnterprise.Bpmn.HumanTask, :approve},
+      {AshEnterprise.Bpmn.HumanTask, :reject},
+      {AshEnterprise.Mdm.MatchCandidate, :confirm},
+      {AshEnterprise.Mdm.MatchCandidate, :reject},
+      {AshEnterprise.Mdm.MatchCandidate, :escalate}
     ],
     limits: [
       max_steps: 6,

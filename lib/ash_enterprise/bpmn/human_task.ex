@@ -57,7 +57,7 @@ defmodule AshEnterprise.Bpmn.HumanTask do
       # Deciding is a person's act (ADR 0055, "Approval binding"): neither engine
       # bypass nor a system actor reaches these doors; a candidate's grant does.
       human_only: [:approve, :reject, :resolve, :answer],
-      extra_extensions: [AshAgent.Effects]
+      extra_extensions: [AshAgent.Effects, AshAi]
     ]
 
   # --- the daily-loop surfaces (Approvals, Today; ACP `approvals`) ----------
@@ -274,5 +274,23 @@ defmodule AshEnterprise.Bpmn.HumanTask do
     action :reject, kind: :execute, open_world?: false, approval: :confirm, intent: :approve
     action :resolve, kind: :execute, open_world?: false, approval: :confirm, intent: :approve
     action :answer, kind: :execute, open_world?: false, approval: :confirm, intent: :approve
+  end
+
+  # The assistant's names for a decision (`AshEnterprise.Assistant.Agent`): asking for
+  # one is a request the person confirms on screen, and it runs as them.
+  tools do
+    tool :approve_task, :approve do
+      description """
+      Ask to approve a task waiting on the person's decision, by its id from
+      pending_approvals. Nothing is decided until they confirm on screen.
+      """
+    end
+
+    tool :reject_task, :reject do
+      description """
+      Ask to reject a task waiting on the person's decision, by its id from
+      pending_approvals. Nothing is decided until they confirm on screen.
+      """
+    end
   end
 end

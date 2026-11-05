@@ -9,9 +9,11 @@ defmodule AshEnterpriseWeb.AgentLive do
 
       "assign the Administrator role to dana@corp.example"
         --> Interpreter     (model plans; holds no tools, changes nothing)
-        --> Proposal        (names resolved AS YOU, authorization pre-checked)
-        --> confirmation    (you read the concrete mutation)
-        --> Proposal.execute with YOU as the actor
+        --> a role request  (names resolved AS YOU)
+        --> confirmation    (you read the concrete change, and send it)
+        --> UserRole.request_assignment as YOU: a governed invocation (ADR 0055)
+        --> another administrator approves it (four eyes; where the organization
+            allows it, its only administrator), then it runs as you
         --> policies, then the audit log
 
       "show me the legacy users"
@@ -28,7 +30,7 @@ defmodule AshEnterpriseWeb.AgentLive do
         --> Interpreter     --> the person's OWN records: not this console's
         --> handed to the assistant at /app/agent, which reads them as you
 
-  The write waits for a human. **The reads do not**, and that asymmetry is the
+  The write waits for humans: you, and then a second administrator. **The reads do not**, and that asymmetry is the
   point rather than an oversight. A table is filtered by the viewer's own
   policies before a single row reaches the page, so there is nothing for a person
   to decide by looking at it — and asking somebody to approve a read they are
@@ -61,8 +63,8 @@ defmodule AshEnterpriseWeb.AgentLive do
   use AshEnterpriseWeb, :live_view
 
   alias AshEnterprise.AI.Interpreter
-  alias AshEnterprise.AI.Proposal
   alias AshEnterprise.Security.ActorContext
+  alias AshEnterprise.Security.UserRole
   alias AshEnterpriseWeb.A2ui.Host
   alias AshEnterpriseWeb.AssistantHandoff
   alias AshEnterpriseWeb.Layouts
@@ -78,9 +80,10 @@ defmodule AshEnterpriseWeb.AgentLive do
     {:ok,
      socket
      |> assign(:request, "")
-     |> assign(:proposal, nil)
+     |> assign(:role_request, nil)
      |> assign(:error, nil)
      |> assign(:result, nil)
+     |> assign(:approval_url, nil)
      |> assign(:thinking?, false)
      |> assign(:presentation, nil)
      |> assign(:refresh_scheduled?, false)
@@ -93,7 +96,14 @@ defmodule AshEnterpriseWeb.AgentLive do
     actor = socket.assigns.current_user
     tenant = tenant(socket)
 
-    socket = assign(socket, request: request, error: nil, result: nil, proposal: nil)
+    socket =
+      assign(socket,
+        request: request,
+        error: nil,
+        result: nil,
+        approval_url: nil,
+        role_request: nil
+      )
 
     case Interpreter.interpret(request, actor, tenant, Locale.live_locale(socket)) do
       {:ok, plan} -> {:noreply, carry_out(plan, socket, actor, tenant)}
@@ -101,32 +111,58 @@ defmodule AshEnterpriseWeb.AgentLive do
     end
   end
 
-  def handle_event("approve", _params, %{assigns: %{proposal: nil}} = socket) do
+  def handle_event("approve", _params, %{assigns: %{role_request: nil}} = socket) do
     {:noreply, socket}
   end
 
-  def handle_event("approve", _params, socket) do
+  # Sends the request as the person: a governed invocation that waits for another
+  # administrator, and runs as them once approved. Nothing is assigned here.
+  def handle_event("approve", _params, %{assigns: %{role_request: request}} = socket) do
     actor = socket.assigns.current_user
 
-    case Proposal.execute(socket.assigns.proposal, actor, tenant(socket)) do
-      {:ok, _record} ->
+    case UserRole.request_assignment(request.user_id, request.role_id,
+           actor: actor,
+           tenant: tenant(socket)
+         ) do
+      {:ok, %{"status" => "awaiting_approval"} = sent} ->
         {:noreply,
          socket
-         |> assign(:proposal, nil)
-         |> assign(:request, "")
-         |> assign(:result, "Done. #{socket.assigns.proposal.summary}.")}
+         |> assign(role_request: nil, request: "", approval_url: sent["approval_url"])
+         |> assign(:result, requested_message(request))}
 
-      {:error, %{__exception__: true} = error} ->
-        {:noreply, assign(socket, :error, Exception.message(error))}
+      {:ok, %{"status" => "succeeded"}} ->
+        {:noreply,
+         socket
+         |> assign(role_request: nil, request: "")
+         |> assign(:result, done_message(request))}
 
-      {:error, message} when is_binary(message) ->
-        {:noreply, assign(socket, :error, message)}
+      {:ok, %{"status" => status} = sent} ->
+        {:noreply,
+         assign(socket, role_request: nil, error: not_sent_message(status, sent["error_code"]))}
+
+      {:error, %Ash.Error.Forbidden{}} ->
+        {:noreply,
+         assign(socket,
+           role_request: nil,
+           error: dgettext("assistant", "You may not ask for that. Nothing was changed.")
+         )}
+
+      {:error, _error} ->
+        {:noreply,
+         assign(socket,
+           role_request: nil,
+           error: dgettext("assistant", "The request could not be sent. Nothing was changed.")
+         )}
     end
   end
 
   def handle_event("reject", _params, socket) do
     {:noreply,
-     assign(socket, proposal: nil, error: nil, result: "Cancelled. Nothing was changed.")}
+     assign(socket,
+       role_request: nil,
+       error: nil,
+       result: dgettext("assistant", "Cancelled. Nothing was changed.")
+     )}
   end
 
   # The declared surfaces, one click away. A person who already knows which table
@@ -141,7 +177,7 @@ defmodule AshEnterpriseWeb.AgentLive do
       surface ->
         socket =
           socket
-          |> assign(error: nil, proposal: nil, request: "")
+          |> assign(error: nil, role_request: nil, request: "")
           |> present(Host.declared(surface), socket.assigns.current_user, tenant(socket))
 
         {:noreply, socket}
@@ -226,16 +262,11 @@ defmodule AshEnterpriseWeb.AgentLive do
     end
   end
 
-  # A write: hold it, show it, and wait. Authorization is pre-flighted so the
-  # confirmation is only ever shown for something that can actually happen --
-  # asking someone to confirm an action that will then fail trains them to click
-  # through errors.
-  defp carry_out({:proposal, proposal}, socket, actor, tenant) do
-    case Proposal.authorize(proposal, actor, tenant) do
-      :ok -> assign(socket, :proposal, proposal)
-      {:error, message} -> assign(socket, :error, message)
-    end
-  end
+  # A write: hold it, show it, and wait for the person to send it. Sending it is
+  # asking (`UserRole.request_assignment`): another administrator decides, so nothing
+  # here can assign a role.
+  defp carry_out({:role_request, request}, socket, _actor, _tenant),
+    do: assign(socket, :role_request, request)
 
   # A read: show it. No confirmation, because the surface is built by running the
   # resource's own read action with this user as the actor -- the rows a person
@@ -276,6 +307,36 @@ defmodule AshEnterpriseWeb.AgentLive do
   defp tenant(socket) do
     ActorContext.tenant(socket.assigns[:current_user])
   end
+
+  defp role_request_details(request) do
+    [
+      {dgettext("assistant", "User"), request.user},
+      {dgettext("assistant", "Role"), request.role},
+      {dgettext("assistant", "Scope"), dgettext("assistant", "the user's own business unit")}
+    ]
+  end
+
+  defp requested_message(request),
+    do:
+      dgettext(
+        "assistant",
+        "Requested: assign the %{role} role to %{user}. Nothing changes until another administrator approves it.",
+        role: request.role,
+        user: request.user
+      )
+
+  defp done_message(request),
+    do:
+      dgettext("assistant", "Done: the %{role} role is assigned to %{user}.",
+        role: request.role,
+        user: request.user
+      )
+
+  defp not_sent_message(status, code),
+    do:
+      dgettext("assistant", "The request was not sent (%{reason}). Nothing was changed.",
+        reason: code || status
+      )
 
   @impl true
   def render(assigns) do
@@ -331,42 +392,59 @@ defmodule AshEnterpriseWeb.AgentLive do
 
         <.callout :if={@result} kind={:success} role="status">
           <span>{@result}</span>
+          <.link
+            :if={@approval_url}
+            id="role-request-link"
+            href={@approval_url}
+            class="ms-1 underline"
+          >
+            {dgettext("assistant", "Open the request")}
+          </.link>
         </.callout>
 
         <%!--
-        The confirmation. This is the human-in-the-loop step: the proposal is
-        inert until "Approve" is pressed, and the mutation then runs with THIS
-        user as the actor -- so the audit entry names the person who decided,
-        not the model that suggested.
+        The confirmation. This is the first human-in-the-loop step: the request is
+        inert until "Send request" is pressed, and even then it only asks. It is a
+        governed invocation as THIS user, and another administrator approves it
+        before the role is assigned -- so the audit trail names the person who
+        asked and the person who decided, not the model that suggested.
       --%>
-        <.card :if={@proposal} accent="yellow" class="gap-4" data-role="proposal">
-          <h2 class="text-base font-heading">Confirm this change</h2>
+        <.card :if={@role_request} accent="yellow" class="gap-4" data-role="role-request">
+          <h2 class="text-base font-heading">
+            {dgettext("assistant", "Ask for this change")}
+          </h2>
 
-          <p class="text-lg">{@proposal.summary}</p>
+          <p class="text-lg">
+            {dgettext("assistant", "Assign the %{role} role to %{user}",
+              role: @role_request.role,
+              user: @role_request.user
+            )}
+          </p>
 
           <%!--
-            `display: contents` rather than a `<template>`. A `<template>` element
-            is inert: the browser parses its children into a document fragment and
-            never renders them, so the details -- the concrete user, role and scope
-            being changed -- were silently absent from every confirmation, leaving
-            only the one-line summary to approve. A plain wrapper would render but
-            would also break the two-column grid, since the dt/dd pairs would no
-            longer be grid items; `contents` keeps both.
+            `display: contents` rather than a `<template>`: a `<template>` is inert
+            and never renders its children, and a plain wrapper would break the
+            two-column grid.
           --%>
           <dl class="grid grid-cols-[8rem_1fr] gap-x-4 gap-y-1 text-sm">
-            <div :for={{label, value} <- @proposal.details} class="contents">
-              <dt class="text-foreground/70">{label |> to_string() |> String.capitalize()}</dt>
+            <div :for={{label, value} <- role_request_details(@role_request)} class="contents">
+              <dt class="text-foreground/70">{label}</dt>
               <dd>{value}</dd>
             </div>
           </dl>
 
           <p class="text-foreground/70 text-xs">
-            Runs as you, through the same permissions as the admin UI, and is recorded in the audit log.
+            {dgettext(
+              "assistant",
+              "Sending it asks: another administrator approves it before the role is assigned (or, where your organization allows it, its only administrator). It then runs as you, and is recorded in the audit log."
+            )}
           </p>
 
           <div class="flex justify-end gap-3">
-            <.button phx-click="reject" variant="ghost">Cancel</.button>
-            <.button phx-click="approve" data-role="approve" variant="primary">Approve</.button>
+            <.button phx-click="reject" variant="ghost">{dgettext("assistant", "Cancel")}</.button>
+            <.button phx-click="approve" data-role="approve" variant="primary">
+              {dgettext("assistant", "Send request")}
+            </.button>
           </div>
         </.card>
 

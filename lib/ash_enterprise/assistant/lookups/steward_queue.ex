@@ -57,6 +57,7 @@ defmodule AshEnterprise.Assistant.Lookups.StewardQueue do
   defp row(candidate, may_decide?) do
     Support.row(Lookup.Duplicate, %{
       ref: Support.ref(MatchCandidate, candidate),
+      id: candidate.id,
       incoming: Support.clip(candidate.staged_label, 120),
       incoming_email: Support.clip(candidate.staged_email, 200),
       existing: Support.clip(candidate.golden_label, 120),

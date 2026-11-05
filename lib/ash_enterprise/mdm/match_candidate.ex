@@ -37,7 +37,7 @@ defmodule AshEnterprise.Mdm.MatchCandidate do
     lifecycle?: false,
     archival?: false,
     policies?: false,
-    extra_extensions: [AshAi, AshJudgments.Registry]
+    extra_extensions: [AshAi, AshAgent.Effects, AshJudgments.Registry]
 
   use AshMdm.Resources, {:match_candidate, []}
 
@@ -304,6 +304,56 @@ defmodule AshEnterprise.Mdm.MatchCandidate do
       require_atomic? false
 
       change AshEnterprise.Mdm.Changes.StewardEscalation
+    end
+  end
+
+  # A verdict the assistant may ask for (ADR 0055): a governed invocation the steward
+  # confirms, and runs as them.
+  effects do
+    action :confirm,
+      kind: :edit,
+      destructive?: true,
+      open_world?: false,
+      approval: :confirm,
+      intent: :approve
+
+    action :reject,
+      kind: :edit,
+      destructive?: false,
+      open_world?: false,
+      approval: :confirm,
+      intent: :approve
+
+    action :escalate,
+      kind: :edit,
+      destructive?: false,
+      idempotent?: true,
+      open_world?: false,
+      approval: :confirm,
+      intent: :approve
+  end
+
+  # The assistant's names for them (`AshEnterprise.Assistant.Agent`).
+  tools do
+    tool :merge_duplicate, :confirm do
+      description """
+      Ask to merge a possible duplicate in the person's steward queue into the existing
+      record, by its id from steward_queue. Nothing is merged until they confirm.
+      """
+    end
+
+    tool :keep_duplicate_separate, :reject do
+      description """
+      Ask to keep a possible duplicate separate from the existing record, by its id
+      from steward_queue. Nothing changes until the person confirms.
+      """
+    end
+
+    tool :mark_duplicate_unsure, :escalate do
+      description """
+      Ask to mark a possible duplicate as unsure, by its id from steward_queue: it
+      stays in the queue. Nothing changes until the person confirms.
+      """
     end
   end
 end

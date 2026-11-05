@@ -18,7 +18,7 @@ defmodule AshEnterprise.L10n.CatalogsTest do
 
   # Catalogs a person translated in full. A message added to a template
   # without a French translation fails here, not in front of a French reader.
-  @complete %{"fr" => ~w(default auth errors showcase)}
+  @complete %{"fr" => ~w(default auth errors showcase assistant)}
 
   defp templates, do: @root |> Path.join("*.pot") |> Path.wildcard() |> Enum.sort()
 

@@ -2,8 +2,8 @@ defmodule AshEnterpriseWeb.AssistantComposeLiveTest do
   @moduledoc """
   `/app/agent` composing and proposing (E10.3, E10.4) through the real
   LiveView: a composed board renders inline as the person and pins into "My
-  apps" on the launcher, where it opens (re-verified) and unpins; a proposal
-  waits for Confirm and then runs as the person. Each answer is a run of the
+  apps" on the launcher, where it opens (re-verified) and unpins; a change the
+  assistant asks for waits for the person's Confirm and then runs once, as them. Each answer is a run of the
   assistant agent, stepped here as its jobs would step it; a scripted model
   stands in for the in-zone runtime; every row is synthetic.
   """
@@ -196,44 +196,47 @@ defmodule AshEnterpriseWeb.AssistantComposeLiveTest do
     assert_redirect(view, "/app", 10_000)
   end
 
-  test "a proposal waits for Confirm, then runs as the person", %{conn: conn, ctx: ctx} do
+  test "a request waits for Confirm, then runs once, as the person", %{conn: conn, ctx: ctx} do
     ScriptedModel.script!([
       {:tools,
        [
-         {"propose_task",
+         {"add_action_item",
           %{
-            "input" => %{
-              "change" => "add",
-              "title" => "SYNTHETIC book the room",
-              "due" => "tomorrow"
-            }
+            "input" => %{"title" => "SYNTHETIC book the room", "due_at" => "2030-01-02T09:00:00Z"}
           }}
-       ]},
-      {:text, "SYNTHETIC: I proposed adding it. Confirm to add it."}
+       ], "SYNTHETIC: I asked to add it. Confirm to add it."}
     ])
 
     {:ok, view, _html} = live(conn, "/app/agent")
-    html = ask(view, ctx, "SYNTHETIC: remind me to book the room tomorrow")
+    html = ask(view, ctx, "SYNTHETIC: remind me to book the room")
 
-    [_, id] = Regex.run(~r/id="confirm-(p[0-9a-f]+)"/, html)
-    assert has_element?(view, "#proposal-#{id}", "SYNTHETIC book the room")
-    assert has_element?(view, "#proposal-#{id}", "nothing has happened yet")
+    [_, id] = Regex.run(~r/id="confirm-(r[0-9a-f]+)"/, html)
+
+    assert has_element?(
+             view,
+             "#request-#{id}[data-status=awaiting_approval]",
+             "SYNTHETIC book the room"
+           )
+
+    assert has_element?(view, "#request-#{id}", "nothing has happened yet")
     assert Task.mine!(actor: ctx.actor, tenant: ctx.tenant) == []
 
     view |> element("#confirm-#{id}") |> render_click()
+    render_async(view, 10_000)
 
     assert [%Task{title: "SYNTHETIC book the room", source: "assistant"}] =
              Task.mine!(actor: ctx.actor, tenant: ctx.tenant)
 
-    assert has_element?(view, "#proposal-#{id}", "Added to your action items")
+    assert has_element?(view, "#request-#{id}", "added to your action items")
     refute has_element?(view, "#confirm-#{id}")
 
-    # Confirmed once: there is nothing left to confirm again.
+    # Decided once: there is nothing left to confirm again.
     render_click(view, "confirm", %{"id" => id})
+    render_async(view, 10_000)
     assert [_one] = Task.mine!(actor: ctx.actor, tenant: ctx.tenant)
   end
 
-  test "a pending decision survives a reload, runs through the engine once, and stays settled",
+  test "an open request survives a reload, runs once, and every page shows it decided",
        %{conn: conn, ctx: ctx} do
     task =
       HumanTask.create!(%{node_id: "Review", name: "SYNTHETIC vendor contract sign-off"},
@@ -248,43 +251,42 @@ defmodule AshEnterpriseWeb.AssistantComposeLiveTest do
     )
 
     ScriptedModel.script!([
-      {:tools,
-       [
-         {"propose_decision",
-          %{"input" => %{"on" => "task", "decision" => "approve", "target" => "vendor contract"}}}
-       ]},
-      {:text, "SYNTHETIC: I proposed approving it. Confirm to approve."}
+      {:tools, [{"approve_task", %{"input" => %{"record_id" => task.id}}}],
+       "SYNTHETIC: I asked to approve it. Confirm to approve."}
     ])
 
     {:ok, view, _html} = live(conn, "/app/agent")
     html = ask(view, ctx, "SYNTHETIC: approve the vendor contract")
-    [_, id] = Regex.run(~r/id="confirm-(p[0-9a-f]+)"/, html)
-    assert has_element?(view, "#proposal-#{id}", "completes as approved")
+    [_, id] = Regex.run(~r/id="confirm-(r[0-9a-f]+)"/, html)
+    assert has_element?(view, "#request-#{id}", "Approve “SYNTHETIC vendor contract sign-off”")
 
     [thread] = History.threads(actor: ctx.actor, tenant: ctx.tenant)
 
-    # A reload offers it again, rebuilt as the person.
+    # A reload offers it again, read as the person.
     {:ok, reloaded, _html} = live(conn, "/app/agent/#{thread.id}")
     await_answer(reloaded, "#confirm-#{id}")
 
     reloaded |> element("#confirm-#{id}") |> render_click()
-    assert has_element?(reloaded, "#proposal-#{id}", "Approved")
+    render_async(reloaded, 10_000)
+    assert has_element?(reloaded, "#request-#{id}", "approved.")
 
     assert Ash.get!(HumanTask, task.id, tenant: ctx.tenant, authorize?: false).status ==
              :completed
 
-    # The first page still holds it as pending; its confirm is refused, not run twice.
-    view |> element("#confirm-#{id}") |> render_click()
-    assert has_element?(view, "#proposal-#{id}", "already confirmed")
+    # The first page hears the decision on the request's topic and offers nothing more.
+    _ = :sys.get_state(view.pid)
+    render_async(view, 10_000)
+    refute has_element?(view, "#confirm-#{id}")
+    assert has_element?(view, "#request-#{id}", "approved.")
 
-    # And it stays settled.
+    # And it stays decided.
     {:ok, again, _html} = live(conn, "/app/agent/#{thread.id}")
-    await_answer(again, "#proposal-#{id}")
+    await_answer(again, "#request-#{id}")
     refute has_element?(again, "#confirm-#{id}")
-    assert has_element?(again, "#proposal-#{id}", "confirmed earlier")
+    assert has_element?(again, "#request-#{id}[data-status=succeeded]")
   end
 
-  test "a proposal recorded before settlements existed is shown, never offered again",
+  test "a proposal recorded before requests is shown as earlier, never offered",
        %{conn: conn, ctx: ctx} do
     opts = [actor: ctx.actor, tenant: ctx.tenant]
     {:ok, thread} = Thread.start("SYNTHETIC older", opts)
@@ -319,28 +321,34 @@ defmodule AshEnterpriseWeb.AssistantComposeLiveTest do
       )
 
     {:ok, view, _html} = live(conn, "/app/agent/#{thread.id}")
-    await_answer(view, "#proposal-pold0001")
+    await_answer(view, "#earlier-pold0001")
     refute has_element?(view, "#confirm-pold0001")
-    assert has_element?(view, "#proposal-pold0001", "Proposed earlier")
+
+    assert has_element?(
+             view,
+             "#earlier-pold0001[data-role=earlier]",
+             "SYNTHETIC older: proposed (before 4 November 2026)."
+           )
   end
 
-  test "a cancelled proposal stays cancelled after a reload", %{conn: conn, ctx: ctx} do
+  test "a cancelled request stays cancelled after a reload", %{conn: conn, ctx: ctx} do
     ScriptedModel.script!([
-      {:tools,
-       [{"propose_task", %{"input" => %{"change" => "add", "title" => "SYNTHETIC water"}}}]},
-      {:text, "SYNTHETIC: proposed."}
+      {:tools, [{"add_action_item", %{"input" => %{"title" => "SYNTHETIC water"}}}],
+       "SYNTHETIC: I asked to add it."}
     ])
 
     {:ok, view, _html} = live(conn, "/app/agent")
     html = ask(view, ctx, "SYNTHETIC: remind me to water")
-    [_, id] = Regex.run(~r/id="confirm-(p[0-9a-f]+)"/, html)
+    [_, id] = Regex.run(~r/id="confirm-(r[0-9a-f]+)"/, html)
     view |> element("#cancel-#{id}") |> render_click()
+    render_async(view, 10_000)
+    assert has_element?(view, "#request-#{id}", "cancelled. Nothing was changed.")
 
     [thread] = History.threads(actor: ctx.actor, tenant: ctx.tenant)
     {:ok, reloaded, _html} = live(conn, "/app/agent/#{thread.id}")
-    await_answer(reloaded, "#proposal-#{id}")
+    await_answer(reloaded, "#request-#{id}")
     refute has_element?(reloaded, "#confirm-#{id}")
-    assert has_element?(reloaded, "#proposal-#{id}", "cancelled")
+    assert has_element?(reloaded, "#request-#{id}", "cancelled")
     assert Task.mine!(actor: ctx.actor, tenant: ctx.tenant) == []
   end
 end
