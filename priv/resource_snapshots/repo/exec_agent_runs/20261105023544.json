@@ -274,6 +274,18 @@
       "type": "map"
     },
     {
+      "allow_nil?": false,
+      "default": "%{}",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "variables",
+      "type": "map"
+    },
+    {
       "allow_nil?": true,
       "default": "nil",
       "generated?": false,
@@ -699,7 +711,7 @@
   ],
   "custom_statements": [],
   "has_create_action": false,
-  "hash": "582CD0AF7912780359F0AD45A2969BAC4EF68C73A496DCEFE5164E8C5125DFED",
+  "hash": "DD875A917E4E404E708D4A06F83BB4CE09225CA0720B5CBC6D724A8FE6030652",
   "identities": [
     {
       "all_tenants?": false,
