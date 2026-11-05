@@ -102,4 +102,83 @@ defmodule AshEnterprise.Canonical.ActionItemsTest do
     {:ok, today} = Task.due_today(opts(me))
     assert Enum.map(today, & &1.id) == [overdue.id, tonight.id, planned.id]
   end
+
+  describe "estimate and schedule (planning moves)" do
+    @start ~U[2026-11-09 09:00:00.000000Z]
+    @finish ~U[2026-11-09 10:30:00.000000Z]
+
+    test "set_estimate_mine records a positive estimate", %{me: me} do
+      task = capture!(me, "Draft the review")
+      assert task.estimated_minutes == nil
+
+      assert {:ok, %Task{estimated_minutes: 90}} = Task.set_estimate_mine(task.id, 90, opts(me))
+    end
+
+    test "an estimate must be positive", %{me: me} do
+      task = capture!(me, "Draft the review")
+
+      for bad <- [0, -5] do
+        assert {:error, %Ash.Error.Invalid{}} = Task.set_estimate_mine(task.id, bad, opts(me))
+      end
+
+      assert Ash.get!(Task, task.id, tenant: me.tenant, authorize?: false).estimated_minutes ==
+               nil
+    end
+
+    test "schedule_mine places the task and unschedule_mine clears it", %{me: me} do
+      task = capture!(me, "Draft the review")
+
+      assert {:ok, %Task{scheduled_start_at: @start, scheduled_end_at: @finish}} =
+               Task.schedule_mine(task.id, @start, @finish, opts(me))
+
+      assert {:ok, %Task{scheduled_start_at: nil, scheduled_end_at: nil}} =
+               Task.unschedule_mine(task.id, opts(me))
+    end
+
+    test "the end must be after the start", %{me: me} do
+      task = capture!(me, "Draft the review")
+
+      for {from, to} <- [{@start, @start}, {@finish, @start}] do
+        assert {:error, %Ash.Error.Invalid{}} =
+                 Task.schedule_mine(task.id, from, to, opts(me))
+      end
+
+      reloaded = Ash.get!(Task, task.id, tenant: me.tenant, authorize?: false)
+      assert reloaded.scheduled_start_at == nil
+      assert reloaded.scheduled_end_at == nil
+    end
+
+    test "another member's task is not found by estimate, schedule or unschedule", %{
+      me: me,
+      other: other
+    } do
+      mine = capture!(me, "Renew the passport")
+
+      for result <- [
+            Task.set_estimate_mine(mine.id, 30, opts(other)),
+            Task.schedule_mine(mine.id, @start, @finish, opts(other)),
+            Task.unschedule_mine(mine.id, opts(other))
+          ] do
+        assert {:error, error} = result
+        assert Exception.message(error) =~ "not found" or match?(%Ash.Error.Invalid{}, error)
+      end
+
+      reloaded = Ash.get!(Task, mine.id, tenant: me.tenant, authorize?: false)
+      assert reloaded.estimated_minutes == nil
+      assert reloaded.scheduled_start_at == nil
+    end
+
+    test "an existing move still works when arguments are forwarded as update input", %{me: me} do
+      task = capture!(me, "Regression guard")
+
+      # `record_id` is stripped before forwarding; `plan_today` accepts nothing.
+      assert {:ok, %Task{plan: :today, estimated_minutes: nil}} =
+               Task.plan_today_mine(task.id, opts(me))
+
+      {:ok, _} = Task.set_estimate_mine(task.id, 45, opts(me))
+
+      assert {:ok, %Task{status: :done, estimated_minutes: 45}} =
+               Task.complete_mine(task.id, opts(me))
+    end
+  end
 end
