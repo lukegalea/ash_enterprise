@@ -249,6 +249,27 @@ defmodule AshEnterprise.Bridge.WorkflowWaitsForAgentWaitingForHumanTest do
     :ok
   end
 
+  defp pause_engine_queue, do: Oban.pause_queue(queue: AshBpmn.Config.queue())
+  defp resume_engine_queue, do: Oban.resume_queue(queue: AshBpmn.Config.queue())
+
+  # The advance job the engine queued for `instance`'s token at `node_id`.
+  defp advance_job!(instance, node_id) do
+    id = instance.id
+
+    jobs =
+      Repo.all(
+        from(j in Oban.Job,
+          where:
+            j.worker == "AshBpmn.Runtime.AdvanceWorker" and
+              fragment("?->>'instance_id' = ?", j.args, ^id) and
+              fragment("?->>'node_id' = ?", j.args, ^node_id)
+        )
+      )
+
+    [job] = jobs
+    job
+  end
+
   # The sweep the cron fans out to this tenant: delivers what is in the log past the cursor.
   defp sweep!(clinic), do: SweepWorker.perform(%Oban.Job{args: %{"tenant" => clinic.tenant}})
 
@@ -557,8 +578,15 @@ defmodule AshEnterprise.Bridge.WorkflowWaitsForAgentWaitingForHumanTest do
     # In production the sweep's delivery commits the wake and its claim, and the advance runs
     # later as a job of its own: the engine queues rather than running inline. That job is
     # picked up by a worker that dies holding the claim on the node it reaches.
+    # The engine's queue is paused so that no worker of the tier's own takes the job, and
+    # the test runs it, and dies in it, itself.
     Application.put_env(:ash_bpmn, :oban_testing, nil)
-    on_exit(fn -> Application.put_env(:ash_bpmn, :oban_testing, :inline) end)
+    pause_engine_queue()
+
+    on_exit(fn ->
+      Application.put_env(:ash_bpmn, :oban_testing, :inline)
+      resume_engine_queue()
+    end)
 
     Faults.arm(:process_agent_run_outcome_read, :kill)
     sweep!(clinic)
@@ -571,7 +599,9 @@ defmodule AshEnterprise.Bridge.WorkflowWaitsForAgentWaitingForHumanTest do
 
     assert instance(clinic, definition).status == :running
 
-    killed(fn -> Oban.drain_queue(queue: AshBpmn.Config.queue()) end)
+    # The job is this test's own: the queue is shared with every other test's leftovers.
+    job = advance_job!(instance, "ReadOutcome")
+    killed(fn -> AdvanceWorker.perform(job) end)
     assert instance(clinic, definition).status == :running
     assert token_status(clinic, instance, "ReadOutcome") == [:executing]
 
@@ -585,5 +615,6 @@ defmodule AshEnterprise.Bridge.WorkflowWaitsForAgentWaitingForHumanTest do
     done = instance(clinic, definition)
     assert {done.status, done.outcome} == {:completed, "agent_completed"}
     assert [_one] = heard(clinic, instance)
+    Oban.cancel_job(job.id)
   end
 end
