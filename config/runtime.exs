@@ -20,6 +20,21 @@ if System.get_env("PHX_SERVER") do
   config :ash_enterprise, AshEnterpriseWeb.Endpoint, server: true
 end
 
+# The showcase's fault panel defaults per environment (on in dev and test, off in prod). An
+# instance that runs the dev config but is shown to people turns it off with
+# `SHOWCASE_FAULT_CONTROLS=false`; `true` turns it on, and only takes effect where the fault
+# points were compiled in.
+case System.get_env("SHOWCASE_FAULT_CONTROLS") do
+  value when value in ~w(true 1) ->
+    config :ash_enterprise, AshEnterprise.Showcase, fault_controls?: true
+
+  value when value in ~w(false 0) ->
+    config :ash_enterprise, AshEnterprise.Showcase, fault_controls?: false
+
+  _ ->
+    :ok
+end
+
 # Dev's :debug level logs every query with its parameters, and on an instance holding real
 # data those parameters are names and addresses. `LOG_LEVEL=info` keeps them out of the log.
 case System.get_env("LOG_LEVEL") do

@@ -18,6 +18,9 @@ defmodule AshEnterprise.Showcase do
       configuration) and shows the tour's fault panel, whose buttons arm them. It is
       read at compile time, so turning it on is a rebuild. `config/dev.exs` turns it on;
       production never does, and `config/prod.exs` must not.
+      An instance that runs the dev config but is shown to people hides the panel and
+      refuses its controls with `SHOWCASE_FAULT_CONTROLS=false` (`config/runtime.exs`),
+      which `fault_controls?/0` reads at runtime; the compiled-in points stay unarmed.
     * `model_mode` (default `:recorded`) — how the showcase's agents get their model
       turns. `:recorded` replays fixture transcripts (`AshEnterprise.Showcase.RecordedModel`,
       through the same guarded model module and run machinery as a live call), so a tour
