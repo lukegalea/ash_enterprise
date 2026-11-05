@@ -16,6 +16,7 @@ defmodule AshEnterprise.Test.Execution do
     end
 
     resource AshEnterprise.Test.Execution.ReferralBoard
+    resource AshEnterprise.Test.Execution.ReferralLetters
     resource AshEnterprise.Test.Execution.LeakyNote
   end
 end

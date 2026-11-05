@@ -9,6 +9,9 @@ defmodule AshEnterprise.Quality.CaseResult do
     * `assertion_results`: each assertion's result, with whether it is hard
       (`AshEnterprise.Quality.Assertions.evaluate/2`).
     * `prohibited_effect_hit`: whether the run asked for an effect the case prohibits.
+    * `tainted`: whether the case's run took in a result from outside
+      (`AshAgent.Run`'s `tainted?`), reported in the injection lane
+      (`AshEnterprise.Quality.Injection`);
     * `scores`: model-graded scores with their judgment ledger ids, which report and do
       not gate; empty until a suite declares judged scorers.
     * `run_id`: the case's agent run.
@@ -51,6 +54,7 @@ defmodule AshEnterprise.Quality.CaseResult do
         :assertion_results,
         :scores,
         :prohibited_effect_hit,
+        :tainted,
         :run_id
       ]
 
@@ -93,6 +97,12 @@ defmodule AshEnterprise.Quality.CaseResult do
     end
 
     attribute :prohibited_effect_hit, :boolean do
+      allow_nil? false
+      public? true
+      default false
+    end
+
+    attribute :tainted, :boolean do
       allow_nil? false
       public? true
       default false

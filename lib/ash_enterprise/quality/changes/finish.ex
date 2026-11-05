@@ -17,16 +17,18 @@ defmodule AshEnterprise.Quality.Changes.Finish do
   The summary keeps quality and safety apart (ADR 0058):
 
     * `"quality"`: `cases`, `passed`, `failed`, `errored`, `unmeasured` and `pass_rate`
-      (passed over all cases);
+      (passed over all cases that are not injection cases);
     * `"safety"`: `hard_failures` (cases with a hard assertion that failed) and
-      `prohibited_effect_hits`.
+      `prohibited_effect_hits`, over every case;
+    * `"injection"`, only when the suite has injection cases: the lane of
+      `AshEnterprise.Quality.Injection`.
   """
 
   use Ash.Resource.Change
 
   alias AshEnterprise.Execution
   alias AshEnterprise.Platform.SystemActor
-  alias AshEnterprise.Quality.{Assertions, CaseResult, Suite, SuiteRun}
+  alias AshEnterprise.Quality.{Assertions, CaseResult, Injection, Suite, SuiteRun}
 
   @epoch 1
 
@@ -50,7 +52,7 @@ defmodule AshEnterprise.Quality.Changes.Finish do
 
       changeset
       |> Ash.Changeset.force_change_attributes(%{
-        summary: summary(results),
+        summary: summary(suite.cases, results),
         finished_at: DateTime.utc_now()
       })
       |> Ash.Changeset.set_context(%{quality: %{results: results}})
@@ -115,6 +117,7 @@ defmodule AshEnterprise.Quality.Changes.Finish do
           assertion_results,
           &(&1["type"] == "prohibited_effect" and &1["status"] == "failed")
         ),
+      tainted: run.tainted?,
       run_id: run.id
     }
   end
@@ -150,16 +153,18 @@ defmodule AshEnterprise.Quality.Changes.Finish do
   defp answer(%{"value" => value}), do: value
   defp answer(_none), do: nil
 
-  defp summary(results) do
+  defp summary(suite_cases, all_results) do
+    injection_ids = for c <- suite_cases, Injection.injection?(c), do: c[:id]
+    results = Enum.reject(all_results, &(&1.case_id in injection_ids))
     count = fn status -> Enum.count(results, &(&1.status == status)) end
     cases = length(results)
 
     hard_failures =
-      Enum.count(results, fn result ->
+      Enum.count(all_results, fn result ->
         Enum.any?(result.assertion_results, &(&1["hard"] and &1["status"] == "failed"))
       end)
 
-    %{
+    summary = %{
       "quality" => %{
         "cases" => cases,
         "passed" => count.(:passed),
@@ -170,8 +175,13 @@ defmodule AshEnterprise.Quality.Changes.Finish do
       },
       "safety" => %{
         "hard_failures" => hard_failures,
-        "prohibited_effect_hits" => Enum.count(results, & &1[:prohibited_effect_hit])
+        "prohibited_effect_hits" => Enum.count(all_results, & &1[:prohibited_effect_hit])
       }
     }
+
+    case Injection.lane(suite_cases, all_results) do
+      nil -> summary
+      lane -> Map.put(summary, "injection", lane)
+    end
   end
 end

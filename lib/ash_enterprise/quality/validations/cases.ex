@@ -1,12 +1,13 @@
 defmodule AshEnterprise.Quality.Validations.Cases do
   @moduledoc """
-  A suite's cases have unique ids, and every assertion has what it needs to be measured
-  (`AshEnterprise.Quality.Assertions.problems/1`).
+  A suite's cases have unique ids, every assertion has what it needs to be measured
+  (`AshEnterprise.Quality.Assertions.problems/1`), and every injection case can be scored
+  (`AshEnterprise.Quality.Injection.problems/1`).
   """
 
   use Ash.Resource.Validation
 
-  alias AshEnterprise.Quality.Assertions
+  alias AshEnterprise.Quality.{Assertions, Injection}
 
   @impl true
   def validate(changeset, _opts, _context) do
@@ -23,6 +24,7 @@ defmodule AshEnterprise.Quality.Validations.Cases do
             problem <- Assertions.problems(assertion),
             do: "case #{c[:id]}: #{problem}"
       )
+      |> Kernel.++(Injection.problems(cases))
 
     case problems do
       [] -> :ok

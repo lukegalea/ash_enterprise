@@ -330,6 +330,11 @@ end
     run's invocations. `run_principal/3` is told the mode (`:mode` in its context), so you can run such a run as an
     evaluation principal whose grants exist only where evaluations run. Give the job runner alone `simulate`.
 
+13. A run records `tainted?` once a call that reaches outside (`open_world?`, or an effects snapshot that says
+    nothing) has succeeded and answered it: the answer is content the host did not write. In-loop reads and writes
+    that stay inside never taint it. It is set once and never cleared, and nothing here enforces it: a host reports it
+    (an evaluation's injection lane) or admits on it. Hosts generate a migration for the column.
+
 ### What you add on the resources
 
 | You add | Why |
