@@ -10,7 +10,13 @@ defmodule AshEnterprise.Process.AgentRuns do
       gateway        routes on `routing.outcome`
 
   A timeout leaves the wait by the boundary; `cancel_agent_run` there stops the run that is
-  still working for a process that has stopped waiting.
+  still working for a process that has stopped waiting, and the flow then goes to the same
+  `agent_run_outcome` task and gateway, with `cancelled` routed to the timed-out end. The
+  message is the only wake a token has, and the receive task's lookback covers a run that
+  finished moments before the token parked, not a wait that began long after (a worker that
+  died and was redelivered late, a sweep that was down). That run is complete, `cancel` leaves
+  a final run alone, and routing on how the run ended reports it as it ended and not as timed
+  out.
 
   ## Starting the run
 

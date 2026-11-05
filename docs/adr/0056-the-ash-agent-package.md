@@ -342,7 +342,8 @@ so one shred reaches them all ([ADR 0024](0024-audit-retention-and-erasure.md)).
   (`start_agent_run`) that promotes the run's id as `run_id`; a receive task correlated on `routing.run_id`, with a timer
   boundary for the timeout; a service task (`agent_run_outcome`) that promotes `outcome` (`completed`, `failed` or
   `cancelled`); an exclusive gateway on `routing.outcome`. On a timeout the boundary's branch runs `cancel_agent_run`, so
-  the run does not keep working for a process that stopped waiting. All three are entries of
+  the run does not keep working for a process that stopped waiting, and then goes to the same outcome task and
+  gateway, with `cancelled` routed to the timed-out end. All three are entries of
   `AshEnterprise.Process.ActionInvoker`, implemented in `AshEnterprise.Process.AgentRuns`.
 - **Why not `ash:call`.** The engine calls a callable as its own actor, which this application's policies do not know,
   and a run belongs to a person. The registry entries run as the instance's starter, as the service tasks that name a
@@ -360,7 +361,11 @@ so one shred reaches them all ([ADR 0024](0024-audit-retention-and-erasure.md)).
   from the run, as the starter.
 - **Reordered and repeated messages.** The receive task declares a `lookback` of ten minutes, so a run that finishes
   before the process reaches its wait (it was started, and the process died before the token moved) is found when the
-  token parks. A message delivered twice, or replayed by a cursor put back, finds no token waiting: one advance.
+  token parks. A message delivered twice, or replayed by a cursor put back, finds no token waiting: one advance. The lookback is a
+  window, not a guarantee: a run that finished more than ten minutes before its token parked (a worker that died and
+  was redelivered after the claim timeout and its backoff, a sweep that was down) is not heard, and the token waits
+  for its timer. That is why the timeout branch reads the run's outcome after stopping it: a run that completed is
+  reported as completed, late, not as timed out.
 - **Two gaps in the trigger plumbing, closed.** The sweep was fanned out only to tenants with a published message
   subscription, so a tenant whose only listener was a parked receive task was never swept
   (`Subscription.trigger_tenants/0` now includes tenants with a token parked at a message catch). And a tenant's cursor

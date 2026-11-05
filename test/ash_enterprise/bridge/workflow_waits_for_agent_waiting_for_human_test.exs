@@ -19,7 +19,9 @@ defmodule AshEnterprise.Bridge.WorkflowWaitsForAgentWaitingForHumanTest do
 
   A finish that comes before the wait, and a finish delivered twice, move the process on
   once. Cancelling the instance cancels its run, and a timeout cancels the run it stops
-  waiting for.
+  waiting for, then reads how the run ended and routes on that: a run that finished while
+  its message was never heard (a wait that began after the lookback window, a sweep that
+  was down) is not reported as timed out.
 
   Committed for real, with a real Oban whose agent queues are paused so each test drives
   every step by hand. The process engine's own jobs run inline, as in every test. SYNTHETIC
@@ -97,12 +99,14 @@ defmodule AshEnterprise.Bridge.WorkflowWaitsForAgentWaitingForHumanTest do
           <ash:promote><ash:signal name="outcome" required="true"/></ash:promote>
         </bpmn2:extensionElements>
         <bpmn2:incoming>F3</bpmn2:incoming>
+        <bpmn2:incoming>F_stopped</bpmn2:incoming>
         <bpmn2:outgoing>F4</bpmn2:outgoing>
       </bpmn2:serviceTask>
 
       <bpmn2:exclusiveGateway id="Route" default="F_other">
         <bpmn2:incoming>F4</bpmn2:incoming>
         <bpmn2:outgoing>F_done</bpmn2:outgoing>
+        <bpmn2:outgoing>F_cancelled</bpmn2:outgoing>
         <bpmn2:outgoing>F_other</bpmn2:outgoing>
       </bpmn2:exclusiveGateway>
 
@@ -125,7 +129,7 @@ defmodule AshEnterprise.Bridge.WorkflowWaitsForAgentWaitingForHumanTest do
       </bpmn2:endEvent>
       <bpmn2:endEvent id="TimedOut">
         <bpmn2:extensionElements><ash:taskConfig outcome="agent_timed_out"/></bpmn2:extensionElements>
-        <bpmn2:incoming>F_stopped</bpmn2:incoming>
+        <bpmn2:incoming>F_cancelled</bpmn2:incoming>
       </bpmn2:endEvent>
 
       <bpmn2:sequenceFlow id="F1" sourceRef="Start" targetRef="StartRun"/>
@@ -138,7 +142,11 @@ defmodule AshEnterprise.Bridge.WorkflowWaitsForAgentWaitingForHumanTest do
       </bpmn2:sequenceFlow>
       <bpmn2:sequenceFlow id="F_other" sourceRef="Route" targetRef="NotFinished"/>
       <bpmn2:sequenceFlow id="F_slow" sourceRef="TooSlow" targetRef="StopRun"/>
-      <bpmn2:sequenceFlow id="F_stopped" sourceRef="StopRun" targetRef="TimedOut"/>
+      <bpmn2:sequenceFlow id="F_stopped" sourceRef="StopRun" targetRef="ReadOutcome"/>
+      <bpmn2:sequenceFlow id="F_cancelled" sourceRef="Route" targetRef="TimedOut">
+        <bpmn2:conditionExpression xsi:type="bpmn2:tFormalExpression"
+          language="feel">routing.outcome = "cancelled"</bpmn2:conditionExpression>
+      </bpmn2:sequenceFlow>
     </bpmn2:process>
   </bpmn2:definitions>
   """
@@ -367,8 +375,10 @@ defmodule AshEnterprise.Bridge.WorkflowWaitsForAgentWaitingForHumanTest do
     # The process has not heard yet.
     assert token_status(clinic, instance, "AwaitRun") == [:waiting]
 
-    # Hop 3: the sweep dies in the middle of delivering the message. Nothing of the delivery
-    # survives, so the next sweep delivers it.
+    # Hop 3, as the engine's inline mode runs it: the sweep dies in the middle of delivering
+    # the message, and the advance runs inside the sweep's transaction, so nothing of the
+    # delivery survives and the next sweep delivers it. (With the engine queueing as it does
+    # in production, the wake is committed first: the test after the timeout one.)
     Faults.arm(:process_agent_run_outcome_read, :kill)
     killed(fn -> sweep!(clinic) end)
     assert instance(clinic, definition).status == :running
@@ -492,5 +502,88 @@ defmodule AshEnterprise.Bridge.WorkflowWaitsForAgentWaitingForHumanTest do
     assert {done.status, done.outcome} == {:completed, "agent_timed_out"}
     assert %{status: :cancelled} = run(run)
     assert heard(clinic, instance) == []
+  end
+
+  test "a run that finished while the wake was lost is read, not cancelled, when the wait times out",
+       %{clinic: clinic} do
+    published!(clinic)
+    credential = credential!(clinic)
+    definition = process!(clinic, agent())
+    script!([{:text, ~s({"recorded": 0})}])
+
+    # The run is started and the token parks; the run finishes and its message is on file,
+    # but nothing delivers it: the sweep is down, or the wait started after the window the
+    # lookback reads. The wake is lost.
+    Faults.arm(:process_agent_run_started, :kill)
+    killed(fn -> start_instance(clinic, definition, credential) end)
+    instance = instance(clinic, definition)
+    [token] = EvidenceChecks.tokens_at(clinic, instance, "StartRun")
+    [run] = runs(clinic)
+
+    step!(run)
+    assert %{status: :completed} = run(run)
+    assert [_message] = announcements(clinic)
+
+    # Parked after the window (the log was never read), a fortnight passes unheard.
+    claim_lapses!(token)
+    Faults.disarm_all()
+    token_job = EvidenceChecks.retry_job(clinic, instance, token, 2)
+    AshEnterprise.Repo.query!("UPDATE bpmn_cursors SET last_sequence = last_sequence + 100000")
+    assert {:ok, :advanced} = AdvanceWorker.perform(token_job)
+    assert token_status(clinic, instance, "AwaitRun") == [:waiting]
+
+    assert TestJobs.fire_due!(DateTime.add(DateTime.utc_now(), 15 * 86_400, :second)) >= 1
+
+    # The process timed out, but the run had completed: it routes on what the run recorded.
+    done = instance(clinic, definition)
+    assert {done.status, done.outcome} == {:completed, "agent_completed"}
+    assert %{status: :completed} = run(run)
+  end
+
+  test "a wake committed to the queue survives a worker that dies reading the outcome",
+       %{clinic: clinic} do
+    published!(clinic)
+    credential = credential!(clinic)
+    definition = process!(clinic, agent())
+    script!([{:text, ~s({"recorded": 0})}])
+
+    instance = start_instance(clinic, definition, credential)
+    [run] = runs(clinic)
+    assert token_status(clinic, instance, "AwaitRun") == [:waiting]
+
+    step!(run)
+    assert %{status: :completed} = run(run)
+
+    # In production the sweep's delivery commits the wake and its claim, and the advance runs
+    # later as a job of its own: the engine queues rather than running inline. That job is
+    # picked up by a worker that dies holding the claim on the node it reaches.
+    Application.put_env(:ash_bpmn, :oban_testing, nil)
+    on_exit(fn -> Application.put_env(:ash_bpmn, :oban_testing, :inline) end)
+
+    Faults.arm(:process_agent_run_outcome_read, :kill)
+    sweep!(clinic)
+
+    assert [_one] = heard(clinic, instance)
+    assert token_status(clinic, instance, "AwaitRun") == [:consumed]
+
+    assert [%{status: :active} = read] =
+             EvidenceChecks.tokens_at(clinic, instance, "ReadOutcome")
+
+    assert instance(clinic, definition).status == :running
+
+    killed(fn -> Oban.drain_queue(queue: AshBpmn.Config.queue()) end)
+    assert instance(clinic, definition).status == :running
+    assert token_status(clinic, instance, "ReadOutcome") == [:executing]
+
+    # Only a retry of the job, once the dead worker's claim has lapsed, takes the node back.
+    Application.put_env(:ash_bpmn, :oban_testing, :inline)
+    claim_lapses!(read)
+
+    assert {:ok, :advanced} =
+             AdvanceWorker.perform(EvidenceChecks.retry_job(clinic, instance, read, 2))
+
+    done = instance(clinic, definition)
+    assert {done.status, done.outcome} == {:completed, "agent_completed"}
+    assert [_one] = heard(clinic, instance)
   end
 end
