@@ -403,6 +403,10 @@ config :ash_evidence, AshEvidence.Repo, priv: "priv/test_repo"
 # (`AshEnterprise.Mdm.Banding`), not a `judgments_band_<family>` one.
 config :ash_enterprise, :band_table_keys, %{"mdm_matches" => "mdm:match_bands"}
 
+# The processes an agent may start through the `start_process` tool
+# (`AshEnterprise.Process.StartableKey`). None until a deployment names one.
+config :ash_enterprise, :agent_startable_processes, []
+
 # What the lowest range of an earned band table does
 # (`AshJudgments.Calibration.FamilyConfig`, `low_band`). It takes effect only
 # when calibration also earned a lower threshold; until then a table has two

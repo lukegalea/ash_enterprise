@@ -58,6 +58,7 @@ defmodule Battery.Domain do
     resource Battery.Execution.RunFinished
     resource Battery.Execution.Step
     resource Battery.Execution.HumanInput
+    resource Battery.Execution.StartProcess
 
     # MDM (ash_mdm resource macros + a golden entity).
     resource Battery.Mdm.Vendor

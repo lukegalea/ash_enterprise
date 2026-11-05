@@ -23,7 +23,7 @@ defmodule Battery.Execution.RequestApproval do
         key: @key,
         name: "Approve #{Ash.Changeset.get_attribute(changeset, :target)}",
         outcomes: [:approved, :rejected],
-        candidates: [%{"kind" => "role", "of" => effects["approver_role"]}],
+        candidates: candidates(effects),
         excluding: if(effects["approval"] == "four_eyes", do: ["subject.owner_id"], else: []),
         expire_in: Enum.map(effects["approval_expires_in"] || %{}, &unit/1)
       ]
@@ -33,6 +33,13 @@ defmodule Battery.Execution.RequestApproval do
       changeset
     end
   end
+
+  # The holders of the declared role; a `:confirm` target that names none is confirmed
+  # by the person who asked.
+  defp candidates(%{"approver_role" => role}) when is_binary(role),
+    do: [%{"kind" => "role", "of" => role}]
+
+  defp candidates(_effects), do: [%{"kind" => "user", "of" => "subject.owner_id"}]
 
   defp unit({"days", n}), do: {:days, n}
   defp unit({"hours", n}), do: {:hours, n}

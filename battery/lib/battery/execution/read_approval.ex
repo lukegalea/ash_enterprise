@@ -1,7 +1,8 @@
 defmodule Battery.Execution.ReadApproval do
   @moduledoc """
   On `apply_decision`: the outcome comes from the row's decided approval task, never
-  from the caller. Approved by someone other than the requester: `:approved` (the
+  from the caller. Approved by someone other than the requester, or by the requester of a `:confirm`
+  target: `:approved` (the
   fragment then checks the approval still binds the request); rejected: `:rejected`;
   undecided: refused.
   """
@@ -32,7 +33,7 @@ defmodule Battery.Execution.ReadApproval do
 
     case task do
       %{status: :completed, outcome: "approved", decided_by_id: decider}
-      when decider != row.owner_id ->
+      when decider != row.owner_id or row.approval_mode == :confirm ->
         outcome(changeset, :approved, decider, task)
 
       %{status: :completed, outcome: "rejected", decided_by_id: decider} ->

@@ -552,3 +552,20 @@ asking as its starter.
   the demo build.
 - **Tests.** `test/ash_enterprise/showcase/credentialing_case_test.exs`, `test/ash_enterprise_web/live/showcase_case_live_test.exs`,
   `test/ash_enterprise/acp/case_approval_durable_test.exs`, `test/ash_enterprise/platform/demo_tenant_test.exs`.
+
+## Built, 2026-11-05: an agent starts a process
+
+- **`start_process` is a governed target.** `Execution.StartProcess.start` (`approval: :confirm`, `open_world?: false`,
+  idempotent) takes a process key, the resource of the record it is about and its id. The person the run acts for
+  confirms through the ordinary approval task. Until they do there is no instance; once they do the target runs inline
+  with the invocation's completion, in one transaction, so a redelivery starts nothing more.
+- **Only a listed process.** `config :ash_enterprise, :agent_startable_processes` is the allowlist, empty until a
+  deployment names a process. The argument's type (`Process.StartableKey`) refuses any other key where the request is
+  made, before an approval is asked for, and again where the approved request runs, so a key taken off the list while
+  a request waited stops it.
+- **As the person.** The record is read as them (one they cannot read is the same refusal as one that does not
+  exist) and they are the instance's starter, so what its service tasks do runs as them (D5). The definition is the
+  one the tenant runs now, and the instance is pinned to the active release manifest that names its process
+  (`Bpmn.Changes.PinReleaseManifest`); the approval binds that release's digest like any other.
+- **Tests.** `test/ash_enterprise/execution/start_process_test.exs`; the seam is in the battery
+  (`battery/test/base_integration/agent_start_process_test.exs`).

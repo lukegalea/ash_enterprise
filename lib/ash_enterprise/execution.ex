@@ -104,5 +104,6 @@ defmodule AshEnterprise.Execution do
     end
 
     resource AshEnterprise.Execution.HumanInput
+    resource AshEnterprise.Execution.StartProcess
   end
 end
