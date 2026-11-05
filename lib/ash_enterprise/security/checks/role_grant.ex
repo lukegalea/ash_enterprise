@@ -73,7 +73,8 @@ defmodule AshEnterprise.Security.Checks.RoleGrant do
   # grant that reaches every row -- `:global` -- authorizes it; a narrower one
   # contributes `false`. This is the answer the raise already enforced, made
   # a clean refusal that `Ash.can?/3` (the ACP palette's pruning) can report.
-  defp generic?(authorizer), do: authorizer.action.type == :action
+  defp generic?(%{action: %{type: :action}}), do: true
+  defp generic?(_authorizer), do: false
 
   defp verb(authorizer) do
     AccessRight.for_action_type(authorizer.action.type)

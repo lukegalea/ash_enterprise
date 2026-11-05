@@ -40,11 +40,7 @@ defmodule AshEnterprise.SystemOne.ApprovalLoopTest do
     Correlation.start_new()
 
     # The family's policy data, shrunk for tests (law 5: config, not code).
-    Application.put_env(:ash_judgments, :families, %{
-      @family => %{min_n: 2, min_n_per_class: nil, alpha: 0.016, max_age_days: 90}
-    })
-
-    on_exit(fn -> Application.delete_env(:ash_judgments, :families) end)
+    put_family!(@family, %{min_n: 2, min_n_per_class: nil, alpha: 0.016, max_age_days: 90})
 
     %{org: Ash.UUID.generate(), person: person()}
   end
@@ -188,6 +184,34 @@ defmodule AshEnterprise.SystemOne.ApprovalLoopTest do
       assert sample.region == judgment.region
       assert sample.pair_digest =~ ~r/^sha256:[0-9a-f]{64}$/
       refute is_nil(sample.gold_label_digest)
+    end
+
+    test "a verdict on a judgment with no instrument identity records, with no sample", ctx do
+      judgment = record!(tenant: ctx.org, model_digest: nil, runtime_version: nil)
+
+      verdict =
+        HumanVerdict
+        |> Ash.Changeset.for_create(
+          :record,
+          %{
+            judgment_id: judgment.id,
+            question_hash: judgment.question_hash,
+            model_answer: %{"kind" => "noul"},
+            human_value: "false",
+            reviewer: to_string(ctx.person.email),
+            basis: :review_task
+          },
+          actor: ctx.person,
+          tenant: ctx.org
+        )
+        |> Ash.create!()
+
+      assert verdict.human_value == "false"
+
+      assert [] =
+               CalibrationSample
+               |> Ash.Query.filter(observation_id == ^judgment.id)
+               |> Ash.read!(authorize?: false)
     end
 
     test "review_task and audit_sample feed the slot; an override does not", ctx do

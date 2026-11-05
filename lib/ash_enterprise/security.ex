@@ -58,13 +58,18 @@ defmodule AshEnterprise.Security do
       description "List which users hold which roles, and in which business unit scope."
     end
 
-    tool :assign_role, AshEnterprise.Security.UserRole, :assign do
+    # Governed (ADR 0055): the tool records a request through `invoke` and
+    # changes nothing. The assignment runs once an administrator other than the
+    # caller approves it, as the caller, rebuilt from their grants at that time.
+    tool :assign_role, AshEnterprise.Security.UserRole, :request_assignment do
       description """
-      Assign a security role to a user, scoped to a business unit.
+      Ask for a security role to be assigned to a user, scoped to a business unit.
 
-      Idempotent: assigning a role the user already holds in the same scope is a
-      no-op rather than an error. If no scoping business unit is given, the
-      user's own is used.
+      Nothing changes yet: the assignment waits for an administrator other than
+      you to approve it. The result is the request: its status and the
+      approval_url where it waits. Assigning a role the user already holds in
+      the same scope is a no-op once approved. If no scoping business unit is
+      given, the user's own is used.
       """
     end
   end

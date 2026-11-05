@@ -24,6 +24,7 @@ defmodule AshEnterprise.SystemOne.Banding do
     lifecycle?: false,
     archival?: false,
     policies?: false,
+    extra_extensions: [AshAgent.Effects],
     fragments: [AshJudgments.Banding.Fragment]
 
   postgres do
@@ -37,7 +38,55 @@ defmodule AshEnterprise.SystemOne.Banding do
     create_timestamp :banded_at
   end
 
+  # The verdicts surface's contract (AshJudgments.A2ui.Verdicts, ADR 0061).
+  actions do
+    read :awaiting_verdict do
+      description "Bandings in the review band with no person's verdict for any of their observations, one per subject, question and unchanged text."
+
+      # The package's filter: a banding is listed only when no earlier
+      # banding awaiting a verdict holds an observation with the same
+      # subject, question hash and state digest. `:record_verdict` settles
+      # the ones left out with the same verdict.
+      prepare {AshJudgments.HumanVerdict.AwaitingVerdict,
+               verdict_resource: AshEnterprise.SystemOne.HumanVerdict,
+               judgment_resource: AshEnterprise.SystemOne.Judgment}
+
+      prepare build(sort: [banded_at: :asc])
+    end
+
+    action :record_verdict, :map do
+      description "A person's verdict on a review-banded judgment: one HumanVerdict per observation, and the same verdict on every banding of the same subject, question and text."
+      argument :record_id, :uuid, allow_nil?: false
+      # Every question this host bands is a yes/no question, so the prompt
+      # is a Yes/No picker.
+      argument :answer, :atom, allow_nil?: false, constraints: [one_of: [:yes, :no]]
+      argument :why, :string
+
+      run {AshJudgments.HumanVerdict.FromBanding,
+           verdict_resource: AshEnterprise.SystemOne.HumanVerdict,
+           judgment_resource: AshEnterprise.SystemOne.Judgment}
+    end
+  end
+
+  # A verdict is the person confirming their own answer on the surface
+  # (ADR 0057). The person confirms by clicking. It is never governed and
+  # never an agent's request (AST-136, ADR 0061): a verdict is the reviewer's
+  # own judgement, so there is no `Governed` validation and no request action.
+  effects do
+    action :record_verdict,
+      kind: :execute,
+      open_world?: false,
+      approval: :confirm,
+      intent: :approve
+  end
+
   policies do
+    # A verdict is a person's act (ADR 0059). It comes before the bypass,
+    # which covers only the policies after it.
+    policy action(:record_verdict) do
+      authorize_if AshEnterprise.SystemOne.Checks.PersonActor
+    end
+
     bypass AshEnterprise.Security.Checks.SystemActor do
       authorize_if always()
     end

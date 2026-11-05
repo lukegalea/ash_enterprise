@@ -1,6 +1,6 @@
 defmodule AshEnterprise.Test.Execution do
   @moduledoc """
-  Test-only domain for the governed-invocation tests' target. Compiled only in `:test`
+  Test-only domain for the governed-invocation tests' targets. Compiled only in `:test`
   and never registered, so it reaches no migration and no running application.
   """
 
@@ -10,5 +10,13 @@ defmodule AshEnterprise.Test.Execution do
     resource AshEnterprise.Test.Execution.ClinicNote do
       define :list_notes, action: :read
     end
+
+    resource AshEnterprise.Test.Execution.ClinicianFile do
+      define :open_clinician_file, action: :open, args: [:title, :erasure_scope_id]
+    end
+
+    resource AshEnterprise.Test.Execution.ReferralBoard
+    resource AshEnterprise.Test.Execution.ReferralLetters
+    resource AshEnterprise.Test.Execution.LeakyNote
   end
 end

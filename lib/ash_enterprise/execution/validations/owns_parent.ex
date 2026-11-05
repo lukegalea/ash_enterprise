@@ -1,12 +1,11 @@
 defmodule AshEnterprise.Execution.Validations.OwnsParent do
   @moduledoc """
   A request may name only a parent its requester owns (ADR 0055, "Does it consume
-  ActorContext?"): a parent invocation they requested, or a process instance they
-  started. Without it, calling `request` directly, past `invoke`, could attach a request
-  to someone else's work and inherit its lineage.
-
-  Agent runs do not exist yet, so a request naming a `run_id` is refused rather than
-  recorded unchecked.
+  ActorContext?"): a parent invocation they requested, a process instance they started,
+  or an agent run they started (`AshEnterprise.Execution.Run`; a run's tool calls are
+  requested as the person who started it). Without it, calling `request` directly, past
+  `invoke`, could attach a request to someone else's work and inherit its lineage, or
+  wake someone else's run.
 
   This is action logic, so it may read: it reads the parent without authorization and
   compares its owner with the actor. A parent that does not exist and one owned by
@@ -18,6 +17,7 @@ defmodule AshEnterprise.Execution.Validations.OwnsParent do
   require Ash.Query
 
   alias AshEnterprise.Bpmn.Instance
+  alias AshEnterprise.Execution.Run
 
   @impl true
   def validate(changeset, _opts, context) do
@@ -26,7 +26,7 @@ defmodule AshEnterprise.Execution.Validations.OwnsParent do
     [
       parent_invocation(changeset, actor_id),
       process_instance(changeset, actor_id),
-      run(changeset)
+      run(changeset, actor_id)
     ]
     |> Enum.find(:ok, &match?({:error, _}, &1))
   end
@@ -60,10 +60,16 @@ defmodule AshEnterprise.Execution.Validations.OwnsParent do
     end
   end
 
-  defp run(changeset) do
+  defp run(changeset, actor_id) do
     case Ash.Changeset.get_attribute(changeset, :run_id) do
-      nil -> :ok
-      _id -> {:error, field: :run_id, message: "agent runs do not exist yet"}
+      nil ->
+        :ok
+
+      id ->
+        Run
+        |> Ash.Query.filter(id == ^id and owner_id == ^actor_id)
+        |> Ash.exists?(tenant: changeset.tenant, authorize?: false)
+        |> refuse_unless(:run_id)
     end
   end
 

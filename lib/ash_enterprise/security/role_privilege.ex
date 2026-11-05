@@ -31,6 +31,7 @@ defmodule AshEnterprise.Security.RolePrivilege do
     domain: AshEnterprise.Security,
     ownership: :none,
     lifecycle?: false,
+    changes_authority: [:create, :update, :destroy],
     cdm_entity: "RolePrivileges"
 
   postgres do

@@ -41,7 +41,8 @@ defmodule AshEnterprise.Integration.Nango.RunOperation do
                connection_id: account.connection_id
              }),
              profile: Info.errors(resource),
-             operation: operation.name
+             operation: operation.name,
+             numbers: operation.numbers
            ) do
       {:ok, body}
     end

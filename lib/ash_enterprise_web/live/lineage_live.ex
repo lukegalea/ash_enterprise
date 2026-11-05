@@ -22,6 +22,8 @@ defmodule AshEnterpriseWeb.LineageLive do
   """
 
   use AshA2ui.LiveRenderer,
+    locale_fn: &AshEnterpriseWeb.Locale.live_locale/1,
+    gettext_backend: {AshEnterpriseWeb.Gettext, "ash_a2ui"},
     ui: AshEnterpriseWeb.A2ui.LineageUI,
     deep_link: true,
     actor_fn: &__MODULE__.actor/1,

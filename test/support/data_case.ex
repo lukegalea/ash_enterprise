@@ -38,6 +38,18 @@ defmodule AshEnterprise.DataCase do
   def setup_sandbox(tags) do
     pid = Ecto.Adapters.SQL.Sandbox.start_owner!(AshEnterprise.Repo, shared: not tags[:async])
     on_exit(fn -> Ecto.Adapters.SQL.Sandbox.stop_owner(pid) end)
+
+    if tags[:evidence], do: evidence_sandbox(tags)
+  end
+
+  @doc """
+  Gives the test a sandbox owner on the evidence store's repo (`AshEvidence.Repo`, the
+  same database), as a test tagged `evidence: true` gets: one that ingests documents, such
+  as the clinic's demo data (`AshEnterprise.Credentialing.DemoData`).
+  """
+  def evidence_sandbox(tags) do
+    pid = Ecto.Adapters.SQL.Sandbox.start_owner!(AshEvidence.Repo, shared: not tags[:async])
+    on_exit(fn -> Ecto.Adapters.SQL.Sandbox.stop_owner(pid) end)
   end
 
   @doc """

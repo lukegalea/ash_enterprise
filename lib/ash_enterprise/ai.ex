@@ -4,9 +4,9 @@ defmodule AshEnterprise.AI do
 
   It holds exactly one action, and that action returns a value rather than
   changing anything. That is the whole design — see
-  `docs/manifesto/05-agents-are-users.md`. Mutations proposed by an agent are
-  executed by `AshEnterprise.AI.Proposal` with the approving human as the actor,
-  through the same policies as every other caller.
+  `docs/manifesto/05-agents-are-users.md`. A change an agent asks for is a
+  governed invocation (ADR 0055): it runs only once a person approves it, as the
+  person it runs for, through the same policies as every other caller.
 
   One table: `AshEnterprise.AI.ModelCall`, the append-only record of every
   model call (ADR 0042's flow record, written by `AshEnterprise.AI.Models`).

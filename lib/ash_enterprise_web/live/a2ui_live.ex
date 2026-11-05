@@ -133,6 +133,8 @@ defmodule AshEnterpriseWeb.A2uiLive do
   defmodule Users do
     @moduledoc "A2UI surface for users."
     use AshA2ui.LiveRenderer,
+      locale_fn: &AshEnterpriseWeb.Locale.live_locale/1,
+      gettext_backend: {AshEnterpriseWeb.Gettext, "ash_a2ui"},
       ui: AshEnterpriseWeb.A2ui.UserUI,
       deep_link: true,
       actor_fn: &__MODULE__.actor/1,
@@ -151,6 +153,8 @@ defmodule AshEnterpriseWeb.A2uiLive do
   defmodule Roles do
     @moduledoc "A2UI surface for security roles."
     use AshA2ui.LiveRenderer,
+      locale_fn: &AshEnterpriseWeb.Locale.live_locale/1,
+      gettext_backend: {AshEnterpriseWeb.Gettext, "ash_a2ui"},
       ui: AshEnterpriseWeb.A2ui.RoleUI,
       deep_link: true,
       actor_fn: &__MODULE__.actor/1,
@@ -169,6 +173,8 @@ defmodule AshEnterpriseWeb.A2uiLive do
   defmodule Teams do
     @moduledoc "A2UI surface for teams."
     use AshA2ui.LiveRenderer,
+      locale_fn: &AshEnterpriseWeb.Locale.live_locale/1,
+      gettext_backend: {AshEnterpriseWeb.Gettext, "ash_a2ui"},
       ui: AshEnterpriseWeb.A2ui.TeamUI,
       deep_link: true,
       actor_fn: &__MODULE__.actor/1,
@@ -252,6 +258,8 @@ defmodule AshEnterpriseWeb.A2uiLive do
     `## Visual cue` in docs/plans/ash-strangler-in-reference-app.md.
     """
     use AshA2ui.LiveRenderer,
+      locale_fn: &AshEnterpriseWeb.Locale.live_locale/1,
+      gettext_backend: {AshEnterpriseWeb.Gettext, "ash_a2ui"},
       ui: AshEnterpriseWeb.A2ui.LegacyUserUI,
       deep_link: true,
       actor_fn: &__MODULE__.actor/1,
@@ -350,6 +358,8 @@ defmodule AshEnterpriseWeb.A2uiLive do
     of what this design gives you, and hiding it would be claiming a guarantee it does not make.
     """
     use AshA2ui.LiveRenderer,
+      locale_fn: &AshEnterpriseWeb.Locale.live_locale/1,
+      gettext_backend: {AshEnterpriseWeb.Gettext, "ash_a2ui"},
       ui: AshEnterpriseWeb.A2ui.ProjectedUserUI,
       deep_link: true,
       actor_fn: &__MODULE__.actor/1,
@@ -411,6 +421,8 @@ defmodule AshEnterpriseWeb.A2uiLive do
   defmodule BusinessUnits do
     @moduledoc "A2UI surface for the business-unit hierarchy."
     use AshA2ui.LiveRenderer,
+      locale_fn: &AshEnterpriseWeb.Locale.live_locale/1,
+      gettext_backend: {AshEnterpriseWeb.Gettext, "ash_a2ui"},
       ui: AshEnterpriseWeb.A2ui.BusinessUnitUI,
       deep_link: true,
       actor_fn: &__MODULE__.actor/1,
@@ -429,6 +441,8 @@ defmodule AshEnterpriseWeb.A2uiLive do
   defmodule MdmMappings do
     @moduledoc "A2UI surface for the MDM mapping version chain (MDM-6)."
     use AshA2ui.LiveRenderer,
+      locale_fn: &AshEnterpriseWeb.Locale.live_locale/1,
+      gettext_backend: {AshEnterpriseWeb.Gettext, "ash_a2ui"},
       ui: AshEnterpriseWeb.A2ui.MdmMappingUI,
       deep_link: true,
       actor_fn: &__MODULE__.actor/1,
@@ -455,6 +469,8 @@ defmodule AshEnterpriseWeb.A2uiLive do
     here at the instant its scrubber is on.
     """
     use AshA2ui.LiveRenderer,
+      locale_fn: &AshEnterpriseWeb.Locale.live_locale/1,
+      gettext_backend: {AshEnterpriseWeb.Gettext, "ash_a2ui"},
       ui: AshEnterpriseWeb.A2ui.MdmGoldenUI,
       deep_link: true,
       time_travel: true,
@@ -504,8 +520,105 @@ defmodule AshEnterpriseWeb.A2uiLive do
   defmodule MdmSteward do
     @moduledoc "A2UI surface for the steward queue (MDM-4): review-banded match candidates."
     use AshA2ui.LiveRenderer,
+      locale_fn: &AshEnterpriseWeb.Locale.live_locale/1,
+      gettext_backend: {AshEnterpriseWeb.Gettext, "ash_a2ui"},
       ui: AshEnterpriseWeb.A2ui.MdmStewardUI,
       deep_link: true,
+      actor_fn: &__MODULE__.actor/1,
+      tenant_fn: &__MODULE__.tenant/1
+
+    alias AshEnterprise.Security.ActorContext
+    alias AshEnterpriseWeb.A2uiLive.Chrome
+
+    def actor(socket), do: socket.assigns[:current_user]
+
+    def tenant(socket), do: ActorContext.tenant(socket.assigns[:current_user])
+
+    def render(assigns), do: Chrome.page(assigns)
+  end
+
+  defmodule JudgmentVerdicts do
+    @moduledoc "A2UI surface: Judgments awaiting a person's verdict (ADR 0061)."
+    use AshA2ui.LiveRenderer,
+      locale_fn: &AshEnterpriseWeb.Locale.live_locale/1,
+      gettext_backend: {AshEnterpriseWeb.Gettext, "ash_a2ui"},
+      ui: AshEnterpriseWeb.A2ui.Judgments.VerdictsUI,
+      actor_fn: &__MODULE__.actor/1,
+      tenant_fn: &__MODULE__.tenant/1
+
+    alias AshEnterprise.Security.ActorContext
+    alias AshEnterpriseWeb.A2uiLive.Chrome
+
+    def actor(socket), do: socket.assigns[:current_user]
+
+    def tenant(socket), do: ActorContext.tenant(socket.assigns[:current_user])
+
+    def render(assigns), do: Chrome.page(assigns)
+  end
+
+  defmodule JudgmentBandTables do
+    @moduledoc "A2UI surface: Proposed band tables awaiting a person's certification (ADR 0061)."
+    use AshA2ui.LiveRenderer,
+      locale_fn: &AshEnterpriseWeb.Locale.live_locale/1,
+      gettext_backend: {AshEnterpriseWeb.Gettext, "ash_a2ui"},
+      ui: AshEnterpriseWeb.A2ui.Judgments.BandTablesUI,
+      actor_fn: &__MODULE__.actor/1,
+      tenant_fn: &__MODULE__.tenant/1
+
+    alias AshEnterprise.Security.ActorContext
+    alias AshEnterpriseWeb.A2uiLive.Chrome
+
+    def actor(socket), do: socket.assigns[:current_user]
+
+    def tenant(socket), do: ActorContext.tenant(socket.assigns[:current_user])
+
+    def render(assigns), do: Chrome.page(assigns)
+  end
+
+  defmodule JudgmentCertifications do
+    @moduledoc "A2UI surface: The band tables in force (ADR 0061)."
+    use AshA2ui.LiveRenderer,
+      locale_fn: &AshEnterpriseWeb.Locale.live_locale/1,
+      gettext_backend: {AshEnterpriseWeb.Gettext, "ash_a2ui"},
+      ui: AshEnterpriseWeb.A2ui.Judgments.CertificationsUI,
+      actor_fn: &__MODULE__.actor/1,
+      tenant_fn: &__MODULE__.tenant/1
+
+    alias AshEnterprise.Security.ActorContext
+    alias AshEnterpriseWeb.A2uiLive.Chrome
+
+    def actor(socket), do: socket.assigns[:current_user]
+
+    def tenant(socket), do: ActorContext.tenant(socket.assigns[:current_user])
+
+    def render(assigns), do: Chrome.page(assigns)
+  end
+
+  defmodule JudgmentCalibration do
+    @moduledoc "A2UI surface: Every calibration run (ADR 0061)."
+    use AshA2ui.LiveRenderer,
+      locale_fn: &AshEnterpriseWeb.Locale.live_locale/1,
+      gettext_backend: {AshEnterpriseWeb.Gettext, "ash_a2ui"},
+      ui: AshEnterpriseWeb.A2ui.Judgments.CalibrationUI,
+      actor_fn: &__MODULE__.actor/1,
+      tenant_fn: &__MODULE__.tenant/1
+
+    alias AshEnterprise.Security.ActorContext
+    alias AshEnterpriseWeb.A2uiLive.Chrome
+
+    def actor(socket), do: socket.assigns[:current_user]
+
+    def tenant(socket), do: ActorContext.tenant(socket.assigns[:current_user])
+
+    def render(assigns), do: Chrome.page(assigns)
+  end
+
+  defmodule JudgmentFacts do
+    @moduledoc "A2UI surface: The facts current now (ADR 0061)."
+    use AshA2ui.LiveRenderer,
+      locale_fn: &AshEnterpriseWeb.Locale.live_locale/1,
+      gettext_backend: {AshEnterpriseWeb.Gettext, "ash_a2ui"},
+      ui: AshEnterpriseWeb.A2ui.Judgments.FactsUI,
       actor_fn: &__MODULE__.actor/1,
       tenant_fn: &__MODULE__.tenant/1
 
@@ -522,6 +635,8 @@ defmodule AshEnterpriseWeb.A2uiLive do
   defmodule MdmBatches do
     @moduledoc "A2UI board of the MDM import batches, by status, with their staged rows."
     use AshA2ui.LiveRenderer,
+      locale_fn: &AshEnterpriseWeb.Locale.live_locale/1,
+      gettext_backend: {AshEnterpriseWeb.Gettext, "ash_a2ui"},
       ui: AshEnterpriseWeb.A2ui.MdmBatchUI,
       deep_link: true,
       actor_fn: &__MODULE__.actor/1,
@@ -540,7 +655,29 @@ defmodule AshEnterpriseWeb.A2uiLive do
   defmodule Tasks do
     @moduledoc "A2UI board of the process tasks waiting on the signed-in person (`/app/tasks`)."
     use AshA2ui.LiveRenderer,
+      locale_fn: &AshEnterpriseWeb.Locale.live_locale/1,
+      gettext_backend: {AshEnterpriseWeb.Gettext, "ash_a2ui"},
       ui: AshEnterpriseWeb.A2ui.TaskBoardUI,
+      deep_link: true,
+      actor_fn: &__MODULE__.actor/1,
+      tenant_fn: &__MODULE__.tenant/1
+
+    alias AshEnterprise.Security.ActorContext
+    alias AshEnterpriseWeb.A2uiLive.Chrome
+
+    def actor(socket), do: socket.assigns[:current_user]
+
+    def tenant(socket), do: ActorContext.tenant(socket.assigns[:current_user])
+
+    def render(assigns), do: Chrome.page(assigns)
+  end
+
+  defmodule Credentials do
+    @moduledoc "A2UI surface: the credentialing workspace, the clinic's credentials (`/app/credentialing`)."
+    use AshA2ui.LiveRenderer,
+      locale_fn: &AshEnterpriseWeb.Locale.live_locale/1,
+      gettext_backend: {AshEnterpriseWeb.Gettext, "ash_a2ui"},
+      ui: AshEnterpriseWeb.A2ui.CredentialUI,
       deep_link: true,
       actor_fn: &__MODULE__.actor/1,
       tenant_fn: &__MODULE__.tenant/1

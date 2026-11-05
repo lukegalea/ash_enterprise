@@ -15,6 +15,13 @@ defmodule AshEnterprise.SystemOne.Banding.CalibrationSampleWriter do
   label itself never does (§8.1: labelled text stays in the zone's
   evaluation store).
 
+  A judgment recorded without its instrument identity (no `model_digest`
+  or `runtime_version`, as the standing check's runs before it resolved
+  one recorded) has no slot: the thresholds a sample feeds belong to one
+  model on one runtime. Its verdict is still recorded, as a label against
+  that observation; it appends no sample, and the skip is logged by
+  observation id.
+
   Replay safety: the write runs in an after_action hook, and AshEvents
   strips hooks during replay — a replayed verdict appends nothing. Within
   live traffic the sample fragment's `:unique_observation` identity is
@@ -22,6 +29,8 @@ defmodule AshEnterprise.SystemOne.Banding.CalibrationSampleWriter do
   """
 
   use Ash.Resource.Change
+
+  require Logger
 
   alias AshEnterprise.SystemOne.CalibrationSample
   alias AshEnterprise.SystemOne.Judgment
@@ -46,6 +55,22 @@ defmodule AshEnterprise.SystemOne.Banding.CalibrationSampleWriter do
     # not a widening — the row id was already the person's input.
     judgment = Ash.get!(Judgment, verdict.judgment_id, authorize?: false)
 
+    if keyed?(judgment) do
+      write_sample!(judgment, verdict, changeset)
+    else
+      Logger.info(
+        "verdict on judgment #{verdict.judgment_id} appended no calibration sample: " <>
+          "the judgment records no instrument identity"
+      )
+    end
+
+    :ok
+  end
+
+  defp keyed?(judgment),
+    do: is_binary(judgment.model_digest) and is_binary(judgment.runtime_version)
+
+  defp write_sample!(judgment, verdict, changeset) do
     CalibrationSample
     |> Ash.Changeset.for_create(
       :record,
@@ -68,8 +93,6 @@ defmodule AshEnterprise.SystemOne.Banding.CalibrationSampleWriter do
       tenant: changeset.tenant
     )
     |> Ash.create!()
-
-    :ok
   end
 
   defp tenant_of(changeset) do

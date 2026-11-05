@@ -161,23 +161,47 @@ defmodule AshEnterprise.Licences.Rungs do
           Keyword.get(opts, :judgments, %{})
         )
 
-      Dependency
-      |> Ash.ActionInput.for_action(
-        Map.fetch!(@judge_actions, question),
-        %{input: model_input(subject)},
-        actor: Keyword.fetch!(opts, :actor),
-        tenant: Keyword.fetch!(opts, :tenant)
-      )
-      |> Ash.run_action(
+      input =
+        judge_input(subject, question,
+          actor: Keyword.fetch!(opts, :actor),
+          tenant: Keyword.fetch!(opts, :tenant)
+        )
+
+      Ash.run_action(input,
         context:
           SystemOne.judge_context(
             tenant: Keyword.fetch!(opts, :tenant),
             correlation_id: Keyword.get(opts, :correlation_id),
-            judgments: judgments
+            judgments: judgments,
+            judged_state: judged_state(question, input)
           )
       )
     else
       {:error, {:answered_without_model, question}}
     end
+  end
+
+  @doc """
+  The state a question's judge sees for a subject: `model_input/1` as the
+  judge action's input, through the question's projection
+  (`AshEnterprise.SystemOne.JudgedState.project/2`).
+  """
+  @spec judged_state(atom(), Dependency.t() | map() | Ash.ActionInput.t()) :: term()
+  def judged_state(question, %Ash.ActionInput{} = input) when question in @questions do
+    Dependency
+    |> AshJudgments.Registry.Info.question(question)
+    |> AshEnterprise.SystemOne.JudgedState.project(input)
+  end
+
+  def judged_state(question, subject) when question in @questions,
+    do: judged_state(question, judge_input(subject, question, []))
+
+  defp judge_input(subject, question, opts) do
+    Ash.ActionInput.for_action(
+      Dependency,
+      Map.fetch!(@judge_actions, question),
+      %{input: model_input(subject)},
+      opts
+    )
   end
 end

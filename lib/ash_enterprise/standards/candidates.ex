@@ -13,6 +13,26 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Fragment) do
     question with no rule of its own (HS-2 to HS-5, HS-7 and HS-8) is asked
     about every doc paragraph.
 
+    ## ADR 0038 components
+
+    The six ADR 0038 questions each ask about one kind of component.
+    `component/1` decides which kind a unit is, and a unit is a candidate
+    for that kind's question only, so no unit is asked two of them. The
+    first match wins:
+
+    | Component | Unit | Question |
+    |---|---|---|
+    | `:policy_check` | a function in a module using `Ash.Policy.SimpleCheck`, `FilterCheck` or `Check`; a policy entity with an `expr(` | `policy_check_calls_no_model` |
+    | `:actor_context_build` | a function in a module whose name contains `ActorContext` | `actor_context_build_calls_no_model` |
+    | `:projector` | a function in a module that uses or implements a `*Projector` | `projector_calls_no_model` |
+    | `:calculation` | a function in a module using `Ash.Resource.Calculation` | `calculation_calls_no_model` |
+    | `:feel_or_dmn_evaluation` | a function that calls `Decisions.evaluate`, `AshDecisions.Evaluator.evaluate` or `Feel.evaluate` | `feel_or_dmn_evaluation_calls_no_model` |
+    | `:rules_evaluation` | a function in a module using `AshRules`, or one that calls `AshRules.evaluate`, an `AshRules.Evaluator` or the `AshJudgments.Bridge.Rules` fact builders | `rules_evaluation_makes_no_live_model_call` |
+
+    The structural kinds (what the module is) come before the call-site
+    kinds (what the function calls): a projector that evaluates a decision
+    is asked the projector question.
+
     Rules read a subject's text, kind, name path and, where they need it,
     its module header, so a subject must be extracted with the context of
     the question's projection (`AshEnterprise.Standards.Questions`).
@@ -30,6 +50,30 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Fragment) do
     @http ~r/\bReq\.(get|post|put|patch|delete|request|new)|Finch\.|:httpc\.|HTTPoison\./
     @gettext ~r/gettext|dgettext|pgettext/
 
+    @projector ~r/\buse [\w.]*Projector\b|@behaviour [\w.]*Projector\b/
+    @calculation ~r/\buse Ash\.Resource\.Calculation\b|@behaviour Ash\.Resource\.Calculation\b/
+    @dmn_call ~r/\b(AshDecisions\.Evaluator|AshDecisions\.Feel|Feel|Decisions)\.evaluate(!|_unary_test)?\(/
+    @rules_module ~r/\buse AshRules\b/
+    @rules_call ~r/\bAshRules(\.Evaluator(\.Direct|\.Wongi)?)?\.evaluate\(|\bBridge\.Rules\.(facts_for|facts_and_snapshot|snapshot_hash)\(/
+
+    @components [
+      :policy_check,
+      :actor_context_build,
+      :projector,
+      :calculation,
+      :feel_or_dmn_evaluation,
+      :rules_evaluation
+    ]
+
+    @component_questions %{
+      policy_check_calls_no_model: :policy_check,
+      actor_context_build_calls_no_model: :actor_context_build,
+      projector_calls_no_model: :projector,
+      calculation_calls_no_model: :calculation,
+      feel_or_dmn_evaluation_calls_no_model: :feel_or_dmn_evaluation,
+      rules_evaluation_makes_no_live_model_call: :rules_evaluation
+    }
+
     @doc """
     Whether `subject` is a candidate for the named question. A unit under a
     vendored path (`priv/cdm/`, `deps/`, `_build/`) never is.
@@ -40,6 +84,43 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Fragment) do
     end
 
     defp vendored?(subject), do: String.starts_with?(subject.path || "", @vendored)
+
+    @doc """
+    The ADR 0038 component a unit is, or `nil`: the first of
+    #{inspect(@components)} whose rule matches (see the moduledoc).
+    """
+    @spec component(map()) :: atom() | nil
+    def component(subject), do: Enum.find(@components, &component?(&1, subject))
+
+    @doc "The ADR 0038 component each component question asks about."
+    @spec component_questions() :: %{atom() => atom()}
+    def component_questions, do: @component_questions
+
+    defp component?(:policy_check, s) do
+      (function?(s) and header(s) =~ @check_module) or
+        (s.kind == :dsl_entity and String.contains?(s.name_path, "/policies/") and
+           String.contains?(s.text, "expr("))
+    end
+
+    defp component?(:actor_context_build, s),
+      do: function?(s) and String.contains?(module_part(s), "ActorContext")
+
+    defp component?(:projector, s), do: function?(s) and header(s) =~ @projector
+    defp component?(:calculation, s), do: function?(s) and header(s) =~ @calculation
+    defp component?(:feel_or_dmn_evaluation, s), do: function?(s) and s.text =~ @dmn_call
+
+    defp component?(:rules_evaluation, s),
+      do: function?(s) and (header(s) =~ @rules_module or s.text =~ @rules_call)
+
+    # The module part of a function's name path ("A.B.fun/2" -> "A.B").
+    defp module_part(s) do
+      s.name_path
+      |> String.split("/")
+      |> hd()
+      |> String.split(".")
+      |> Enum.drop(-1)
+      |> Enum.join(".")
+    end
 
     defp rule(:no_forbid_if_for_row_access, s) do
       s.kind in [:dsl_entity, :function] and String.contains?(s.text, "forbid_if") and
@@ -76,6 +157,9 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Fragment) do
     defp rule(:hs9_interface_copy_languages, s) do
       function?(s) and String.contains?(s.text, "~H") and live?(s) and not (s.text =~ @gettext)
     end
+
+    defp rule(question, s) when is_map_key(@component_questions, question),
+      do: component(s) == Map.fetch!(@component_questions, question)
 
     defp rule(question, s)
          when question in [

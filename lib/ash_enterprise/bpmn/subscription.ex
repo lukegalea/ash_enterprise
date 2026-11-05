@@ -24,7 +24,7 @@ defmodule AshEnterprise.Bpmn.Subscription do
   exists*, so the cursor is established here instead, stamped at the mark as of
   publish. `Cursor.create/1` is an upsert, so re-publishing, enabling,
   disabling or retiring never resets an existing cursor — see
-  `Changes.EnsureCursor` below.
+  `AshEnterprise.Bpmn.Changes.EnsureCursor`.
   """
 
   use AshBpmn.Resources.Subscription,
@@ -51,7 +51,7 @@ defmodule AshEnterprise.Bpmn.Subscription do
   # rather than within a minute. The index's own TTL remains the backstop for
   # a lost refresh. See `Changes.RefreshTriggerIndex` below.
   changes do
-    change {AshEnterprise.Bpmn.Subscription.Changes.EnsureCursor, []}, on: [:update]
+    change {AshEnterprise.Bpmn.Changes.EnsureCursor, []}, on: [:update]
     change {AshEnterprise.Bpmn.Subscription.Changes.RefreshTriggerIndex, []}, on: [:update]
   end
 
@@ -66,11 +66,12 @@ defmodule AshEnterprise.Bpmn.Subscription do
 
   @doc """
   The tenants the trigger sweep fans out to: every organization with a
-  published, enabled subscription.
+  published, enabled subscription, or with a token parked at a message catch (a process
+  waiting to hear of something).
 
   Wired as `config :ash_bpmn, trigger_tenants: {__MODULE__, :trigger_tenants,
   []}` — the `ash_oban` `list_tenants` pattern, evaluated per call. Deliberately
-  derived from the subscriptions rather than from a listing of all
+  derived from what is listening rather than from a listing of all
   organizations, which is how the prototype's cron sweep enumerated tenants:
   a tenant with nothing listening costs nothing, and the ordering guarantee the
   cursor relies on holds *within* a tenant, so there is one sweep per tenant
@@ -82,12 +83,22 @@ defmodule AshEnterprise.Bpmn.Subscription do
   """
   @spec trigger_tenants() :: [Ash.UUID.t()]
   def trigger_tenants do
-    __MODULE__
-    |> Ash.Query.for_read(:read)
-    |> Ash.Query.filter(status == :published and enabled == true and kind == :message)
-    |> Ash.Query.select(:organization_id)
-    |> Ash.read!(actor: AshEnterprise.Platform.SystemActor.process(), tenant: nil)
-    |> Enum.map(& &1.organization_id)
+    subscribed =
+      __MODULE__
+      |> Ash.Query.for_read(:read)
+      |> Ash.Query.filter(status == :published and enabled == true and kind == :message)
+
+    waiting =
+      AshEnterprise.Bpmn.Token
+      |> Ash.Query.for_read(:read)
+      |> Ash.Query.filter(status == :waiting and contains(subscription_signature, "message:"))
+
+    Enum.flat_map([subscribed, waiting], fn query ->
+      query
+      |> Ash.Query.select(:organization_id)
+      |> Ash.read!(actor: AshEnterprise.Platform.SystemActor.process(), tenant: nil)
+      |> Enum.map(& &1.organization_id)
+    end)
     |> Enum.uniq()
   end
 
@@ -135,76 +146,6 @@ defmodule AshEnterprise.Bpmn.Subscription do
              "start processes that feed it"}
       else
         :ok
-      end
-    end
-  end
-
-  defmodule Changes.EnsureCursor do
-    @moduledoc """
-    Establishes the tenant's dispatch cursor at the current high-water mark,
-    the publish lane the engine leaves to its host.
-
-    Creating a cursor at zero would be the obvious thing and is badly wrong:
-    the sweep would walk the tenant's entire history and start a process for
-    every matching event that ever happened. A subscription fires on what
-    happens *after it exists*, so the cursor begins at the newest event as of
-    this write.
-
-    Attached to every update (`publish`, `retire`, `enable`, `disable`) rather
-    than to `publish` alone, because the create is an **upsert** on the
-    one-per-tenant identity: when the cursor already exists it is returned
-    untouched, so an enable/disable/retire can never roll it back to the
-    present and silently skip everything in between. Only the first lifecycle
-    act on a tenant without a cursor stamps the mark.
-    """
-
-    use Ash.Resource.Change
-
-    require Ash.Query
-
-    alias AshEnterprise.Platform.SystemActor
-
-    @impl true
-    def change(changeset, _opts, _context) do
-      Ash.Changeset.after_action(changeset, fn changeset, subscription ->
-        tenant = changeset.tenant
-
-        # Read first, create only when absent — the engine's sweep does the same.
-        # Upserts were tried here and rejected deliberately: an upsert's conflict
-        # clause is a write, and one written carelessly re-stamps the mark on
-        # every lifecycle act, silently skipping everything in between. The
-        # one-per-tenant unique index is the race arbiter: two concurrent first
-        # publishes cannot double-create, and the loser fails loudly rather than
-        # resetting anything.
-        unless has_cursor?(tenant) do
-          AshEnterprise.Bpmn.Cursor.create!(
-            %{last_sequence: high_water(tenant)},
-            actor: SystemActor.process(),
-            tenant: tenant
-          )
-        end
-
-        {:ok, subscription}
-      end)
-    end
-
-    defp has_cursor?(tenant) do
-      AshEnterprise.Bpmn.Cursor
-      |> Ash.Query.for_read(:read)
-      |> Ash.read_one!(actor: SystemActor.process(), tenant: tenant)
-      |> is_nil()
-      |> Kernel.not()
-    end
-
-    defp high_water(tenant) do
-      AshEnterprise.Audit.EventLog
-      |> Ash.Query.for_read(:read)
-      |> Ash.Query.sort(sequence: :desc)
-      |> Ash.Query.limit(1)
-      |> Ash.read!(actor: SystemActor.process(), tenant: tenant)
-      |> case do
-        [%{sequence: sequence}] -> sequence
-        [] -> 0
       end
     end
   end

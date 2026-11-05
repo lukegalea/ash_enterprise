@@ -106,6 +106,45 @@ defmodule AshEnterprise.SystemOne.JudgmentTest do
     end
   end
 
+  # --- JS-10: lineage to the agent run -------------------------------------------
+
+  describe "agent-run lineage (JS-10)" do
+    test "a judge call inside an agent run records its run and step ids" do
+      org = Ash.UUID.generate()
+
+      lineage = %{
+        run_id: Ash.UUID.generate(),
+        step_id: "step-3",
+        tool_call_id: "call-7",
+        invocation_id: Ash.UUID.generate(),
+        release_manifest: "sha256:abc"
+      }
+
+      judgment = judge!(tenant: org, observation_id: Ash.UUID.generate(), lineage: lineage)
+
+      assert judgment.run_id == lineage.run_id
+      assert judgment.step_id == "step-3"
+      assert judgment.tool_call_id == "call-7"
+      assert judgment.invocation_id == lineage.invocation_id
+      assert judgment.release_manifest == "sha256:abc"
+
+      plain = judge!(tenant: org, observation_id: Ash.UUID.generate())
+      assert plain.run_id == nil
+      assert plain.step_id == nil
+      refute plain.record_hash == judgment.record_hash
+    end
+
+    test "nil lineage values are dropped from the judge context" do
+      context =
+        AshEnterprise.SystemOne.judge_context(
+          tenant: nil,
+          lineage: %{run_id: "r1", step_id: nil, other: "ignored"}
+        )
+
+      assert context.judgments == %{run_id: "r1"}
+    end
+  end
+
   # --- the host tombstone ------------------------------------------------------
 
   describe "erasure on the host" do

@@ -38,4 +38,22 @@ EOF
   exit 1
 fi
 
-echo "usage-rules: AGENTS.md and .claude/skills match the locked dependencies"
+# AGENTS.md is read into every agent session, so it is held under a fixed
+# size budget. The lever is in mix.exs: switch a rarely-needed package to
+# `link: :markdown` and re-sync.
+max_bytes=150000
+size="$(wc -c < AGENTS.md)"
+if [ "$size" -gt "$max_bytes" ]; then
+  cat >&2 <<EOF
+
+usage-rules: AGENTS.md is ${size} bytes, over the ${max_bytes}-byte budget.
+Link a rarely-needed package instead of inlining it -- change it to
+{:pkg, link: :markdown} in the usage_rules list in mix.exs -- then:
+
+    devenv shell -- mix usage_rules.sync --yes
+    git add AGENTS.md .claude/skills
+EOF
+  exit 1
+fi
+
+echo "usage-rules: AGENTS.md (${size} bytes) and .claude/skills match the locked dependencies"

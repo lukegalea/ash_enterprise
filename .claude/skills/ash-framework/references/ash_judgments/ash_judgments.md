@@ -65,7 +65,7 @@ must not.
 
 - **Never call a model inside checks, FEEL, rules or projectors** — see law 3.
 - **Never hold thresholds in config.** Bands are versioned DMN band tables, earned by
-  calibration, per family (and per tenant risk tier where needed). A threshold in
+  calibration, per family (and per tenant severity tier where needed). A threshold in
   `config.exs` is unauditable policy.
 - **Never store policy in this package.** It records observations and proposes band
   tables; it does not decide what is allowed.
@@ -94,8 +94,8 @@ must not.
 ## Optional integrations
 
 The bridges ride behind optional dependencies (`ash_decisions`, `ash_rules`, `ash_bpmn`,
-`ash_compliance`, `ash_events`, `opentelemetry_ash`). A missing dep is a structured
-error, never a crash:
+`ash_compliance`, `ash_events`, `opentelemetry_ash`, and `ash_a2ui` for the surfaces). A
+missing dep is a structured error, never a crash:
 
 - `AshJudgments.Bridge.Rules.available?/0` returns `:ok` or
   `{:error, {:missing_dependency, :ash_rules}}`.
@@ -180,15 +180,54 @@ error, never a crash:
   Recurrence detection only proposes a question (`Exploration.Recurrence.promote/5`);
   a person declares it in the DSL.
 
+## Agent-run lineage
+
+- The ledger carries optional `run_id`, `step_id`, `tool_call_id`, `invocation_id` and
+  `release_manifest` (strings, nil by default). The judge records them from the judge
+  context's `judgments` map under those keys. They are envelope class and enter `record_hash`
+  only when non-nil, so a row without lineage hashes exactly as before.
+- Adding them to a host's ledger table is a nullable-columns migration; generate it with
+  `mix ash.codegen`.
+
 ## Calibration
 
 - `Calibration.propose_band_table/3` proposes; it never certifies or publishes. Below
   the family's `min_n` there is no table, and a refused proposal is still a recorded
   run (`result: :no_table`). A person certifies through
   `Banding.CertificationFragment`; publication is `ash_decisions`' lifecycle.
+- An earned table has two ranges (admit at or above λ̂, review below), or three when the
+  run also earned a lower threshold (`RiskControl.threshold_low/2`) and the family sets
+  `low_band` in `FamilyConfig`: `:admit_no` admits a confident no with `fact_value`
+  `false`, `:omit` drops it. Pass `low_band: FamilyConfig.low_band(family)` to
+  `ProposalDmn.render/2` wherever you render a proposal. A lower threshold at or above the
+  upper one is refused (`:thresholds_overlap`), never rendered.
 - `mix ash_judgments.calibrate <family>` runs the harness. The labelled pairs come from
   the host's `:calibration_input` MFA and the run is recorded through the host's
   `:calibration_store` resource; `--dry-run` records nothing.
+
+## The judgment surfaces (`AshJudgments.A2ui`, optional `ash_a2ui`)
+
+- Bind a surface in your **web layer**, never in a resource: `use AshJudgments.A2ui.Verdicts,
+  resource: MyApp.SystemOne.Banding` expands to an `AshA2ui.Standalone` module. The five are
+  `Verdicts`, `BandTables`, `Certifications`, `Calibration` and `Facts`.
+- Each surface's moduledoc is its contract: the read and the actions it names on your resource.
+  Declare them; a missing one is a compile error from `ash_a2ui`'s verifiers, by design.
+- Every act is an action on your resource under your policies. Make the person acts human-only:
+  `:record_verdict` (run `AshJudgments.HumanVerdict.FromBanding`), `:certify_and_publish` (yours,
+  since publication is your decisions store), and `:revoke`.
+- A read that crosses two of your resources (`:awaiting_verdict`, `:awaiting_certification`) is
+  yours to declare. For `:awaiting_verdict` use the package's filter, `prepare
+  {AshJudgments.HumanVerdict.AwaitingVerdict, verdict_resource: …, judgment_resource: …}`: it
+  lists one banding per subject, question and unchanged state, and `FromBanding` settles the
+  others with the same verdict. Elsewhere, name your resource literally in `exists/2`.
+- `:record_verdict` takes `record_id`, `answer` and `why`. Declare `answer` as `:atom` with
+  `constraints: [one_of: [:yes, :no]]` for yes/no questions, so the prompt is a Yes/No picker.
+- The verdicts surface shows the banding fragment's `:subject`, `:question_text`, `:lean` and
+  `:judged_excerpt` (`:judged_text` in the detail). Set `config :ash_judgments, :review_source`
+  to a module implementing `AshJudgments.Banding.ReviewSource`: it opens the sealed state as
+  the actor through your own key handling, and returns the DMN of the band-table version a
+  banding recorded (never the one published now). Never decrypt in the package or with
+  `authorize?: false`.
 
 ## Telemetry
 
@@ -202,6 +241,10 @@ error, never a crash:
 - `bpmn_callable? true` on a question generates `judge_<name>_signals`, which returns a
   string-keyed, scalar-valued map for an `ash:call` service task to promote. Promote
   that map, never an answer struct.
+- `judge_<name>`, `judge_<name>_matrix` and `judge_<name>_signals` take an optional
+  `invocation_id` argument. It is recorded on the ledger row as `invocation_id` (agent-run
+  lineage), linking the row to the invocation that asked; a key a host already put in
+  `context[:judgments]` is overridden by the argument when both are given.
 - `Bridge.Evidence.artifact_attrs/3` builds an `EvidenceArtifact` create input from a
   recorded judgment and its banding. It never writes: the host creates the artifact
   through its own domain.

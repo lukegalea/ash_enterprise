@@ -1,6 +1,6 @@
 # AshA2ui layout rules
 
-Rules for the `group`, `step` and `row_layout` layout entities, for boards
+Rules for the `group`, `step`, `row_layout` and `column` layout entities, for boards
 (`display :board`) and for calendars (`display :calendar`). See the Layout,
 Wizard Steps, Multi-Section Surfaces and Calendars topics for the full
 contracts.
@@ -99,13 +99,110 @@ contracts.
   every refresh alike).
 - Give the badge a semantic tone with `badge_tones` (matched like
   `badge_text`, e.g. `badge_tones true: :success, false: :neutral`). Tones
-  are `:neutral`, `:info`, `:success`, `:warning`, `:danger` and `:accent`;
+  are `:neutral`, `:info`, `:success`, `:warning`, `:danger`, `:accent`,
+  `:pending` (gold: waiting on someone) and `:gray` (inactive, distinct from
+  `:neutral`);
   unmatched values are `:neutral`. Rows carry the tone at
   `_badge_tone_<field>` and the admin dataGrid's badge column binds it as
   `tonePath`. Use tones for meaning (state), not decoration.
 - Without a `row_layout`, rows stay flat cell Rows — both layouts are
   byte-identical to the pre-layout encoder when undeclared, so adding one
   never breaks existing renderers.
+
+## Table columns
+
+- A `column` entity on a `:table` says how the admin data grid draws one
+  field's cell beyond its value: `subtitle` (a second line), `icon` (a
+  leading icon picked per row through `icon_names`, with `icon_tones` and
+  `icon_labels`), `more` (a count field; 2 or more adds "+N more") and
+  `detail` (a line under the value, its text per value in `detail_text`,
+  `{date}` filled from `detail_date`, after an optional icon per value in
+  `detail_icon_names` / `detail_icon_tones`):
+
+  ```elixir
+  column :title do
+    subtitle :assignee_name
+    icon :priority
+    icon_names high: :alert, low: :check
+    icon_tones high: :danger, low: :success
+  end
+
+  column :status do
+    detail :status_detail
+    detail_date :due_on
+    detail_text overdue: "Overdue since {date}"
+    detail_icon_names overdue: :alert
+    detail_icon_tones overdue: :danger
+  end
+  ```
+
+- Every field a column reads from must be a table field: rows carry it, and
+  the grid draws it inside the column instead of as a column of its own. A
+  field a column reads from cannot be a column itself.
+- Icons come from a small generic vocabulary (`AshA2ui.Column.icons/0`:
+  `:check`, `:x`, `:user_check`, `:user_x`, `:alert`, `:clock`, `:info`,
+  `:refresh`, `:extend`);
+  each renderer maps the names onto its own icons. Give every meaningful
+  icon an `icon_labels` entry — it is the icon's accessible name.
+- Rows carry the computed parts at reserved keys: `_icon_<column>`,
+  `_icon_tone_<column>`, `_icon_label_<column>`, `_detail_<column>`, and
+  with detail icons `_detail_icon_<column>` and `_detail_icon_tone_<column>`
+  (`""` when the row's value has none). A detail icon is decorative: the
+  line's text carries the meaning.
+- Only the admin data grid draws these hints (catalog 1.8); a renderer that
+  ignores them draws the plain value, and the basic composition keeps
+  showing the folded fields as cells.
+- Catalog 1.10 adds, all optional and admin-only:
+  - `help_title` + `help` — header help behind an info mark; paragraphs
+    split on blank lines, a line `**Term** — text` is a definition. The
+    column carries `"help": {"title", "body"}`.
+  - `detail_help :field` — a field explaining the detail line, drawn as an
+    info mark with a tooltip; rows carry it at `_detail_help_<column>` and
+    the column's `detail` at `helpPath`. Needs `detail`.
+  - `sort_by :field` — the header sorts by another field (a module
+    calculation shown, a stored copy sorted). It must be in the query's
+    `sortable`; the column carries `"sortField"`.
+  - `width 320` — a fixed width in px (`"width"`); `primary_action` takes
+    `width` too (`rowClick.width`).
+  - `more_values :field` (a `list` aggregate) and `more_noun "properties"`
+    — every value behind "+N more", as strings at `_more_values_<column>`
+    (`more.valuesPath`), and the noun for their caption (`"moreNoun"`).
+    Needs `more`.
+- `column_order :fields` on a table with a `row_layout` orders the admin
+  grid's columns as the component's `fields` (default `:layout`: title,
+  badge, meta). The badge column keeps its `badge_text`/`badge_tones`
+  wherever it lands.
+
+## Primary action (admin dataGrid)
+
+- `primary_action` on a `:table` draws the row click (the
+  `select_context` selection, else View) as one button per row, in a final
+  column. Use it when the list's last column reads differently per row but
+  always opens the record ("Review", "Approve", "View"):
+
+  ```elixir
+  primary_action do
+    label_from :next_step
+    labels review: "Review", approve: "Approve"
+    variants review: :primary, approve: :default
+    variant :borderless
+  end
+  ```
+
+- `label_from` is any public attribute, calculation or aggregate; it is
+  loaded for the table without becoming a column. Values with no
+  `labels`/`variants` entry get `label` (default: the row click's own
+  label) and `variant` (default `:default`). Variants are the A2UI
+  Button's: `:default`, `:primary`, `:borderless`.
+- Rows carry `_primary_label` and `_primary_variant`; the grid's
+  `rowClick` gains `labelPath`, `variantPath` and `inline: true`, and the
+  row action the row click mirrors (View, or the `select_context` entry)
+  leaves `rowActions`, so the row shows that action once. The
+  button dispatches exactly what the row click does: never use it for an
+  action that does something else (declare a row action with
+  `visible_when` instead).
+- The table needs a row click: a `select_context`, or a `:form` on the
+  surface with the table over the surface's own resource (verified).
 
 ## Boards
 

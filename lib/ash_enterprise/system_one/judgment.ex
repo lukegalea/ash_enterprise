@@ -14,10 +14,12 @@ defmodule AshEnterprise.SystemOne.Judgment do
 
   ## Posture
 
-  - **Append-only.** No update exists except the fragment's
-    `:tombstone_state` (ADR 0024 erasure: the state payload goes, the
-    digests stay, `record_hash` still verifies) — and the erasure is itself
-    an audit event. Soft delete is off (`archival?: false`): rows are never
+  - **Append-only.** Two updates exist, both on the state payload alone,
+    which `record_hash` leaves out: the fragment's `:tombstone_state`
+    (ADR 0024 erasure: the state payload goes, the digests stay,
+    `record_hash` still verifies), and `:seal_state`, which fills a payload
+    that was never written, once (the S1-98 backfill). Each is an audit
+    event. Soft delete is off (`archival?: false`): rows are never
     deleted; re-inference is a new row (law 2). Lifecycle is off: an
     observation has no lifecycle.
   - **Replay-safe by construction** (RFC §6.1). The `:record` create accepts
@@ -67,6 +69,28 @@ defmodule AshEnterprise.SystemOne.Judgment do
   # platform base's `event_log` declaration.
   events do
     create_timestamp :recorded_at
+  end
+
+  # The judged text is sealed as the observation is recorded: the one seam
+  # every recorder goes through (S1-98, AshEnterprise.SystemOne.JudgedState).
+  changes do
+    change AshEnterprise.SystemOne.Changes.SealJudgedState, on: [:create]
+  end
+
+  actions do
+    update :seal_state do
+      description """
+      Seals the judged text of an observation recorded before its text was
+      sealed (S1-98). Accepts only `state_ciphertext`, and only while the row
+      has none: a payload is never replaced, and one `:tombstone_state`
+      erased is never written back by this action's callers, which skip
+      tombstoned rows.
+      """
+
+      accept [:state_ciphertext]
+      validate present(:state_ciphertext)
+      change filter(expr(is_nil(state_ciphertext)))
+    end
   end
 
   policies do

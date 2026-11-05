@@ -1,7 +1,7 @@
 defmodule AshEnterprise.Assistant.LookupTest do
   @moduledoc """
-  The assistant's read tools (E10.2), each run as a person: what they return
-  to their owner, that another person's mail, Slack, contacts and calendar
+  The assistant's read tools (E10.2), each a computed read run as a person, as
+  a run's step runs it: what they return to their owner, that another person's mail, Slack, contacts and calendar
   are not in it (owner-only, ADR 0042), and that content reaches only an
   in-zone model in the canonical store's zone — and never content the zone
   gate refused at projection. Synthetic data only.
@@ -9,7 +9,6 @@ defmodule AshEnterprise.Assistant.LookupTest do
 
   use AshEnterprise.DataCase, async: false
 
-  alias AshEnterprise.AI.Models
   alias AshEnterprise.Canonical.Projections.Gmail, as: GmailProjection
   alias AshEnterprise.Ingestion.SourceObject
   alias AshEnterprise.Integration.Gmail.Sync
@@ -47,16 +46,14 @@ defmodule AshEnterprise.Assistant.LookupTest do
       # At noon today, not relative to now: an hour from now is tomorrow after 23:00.
       D.event!(alice, "SYNTHETIC-ALICE-REVIEW", 0, 30, starts_at: D.today_at(~T[12:00:00]))
 
-      result = F.tool!(alice, :calendar_events, %{window: "today", text: "review"})
-      assert %{"count" => 1, "events" => [event]} = result
+      assert [event] = F.tool!(alice, :calendar_events, %{window: "today", text: "review"})
       assert event["title"] == "SYNTHETIC-ALICE-REVIEW"
       assert "calendar:" <> _ = event["ref"]
 
-      assert %{"count" => 0} =
+      assert [] =
                F.tool!(alice, :calendar_events, %{window: "last_7_days", text: "nothing-like-it"})
 
-      assert %{"error" => error} = F.tool!(alice, :calendar_events, %{window: "SYNTHETIC-BAD"})
-      assert error =~ "not a window"
+      assert F.refusal(alice, :calendar_events, %{window: "SYNTHETIC-BAD"}) =~ "not a window"
     end
 
     test "calendar_events as_of: the day as it was known then, and what has moved since",
@@ -79,15 +76,14 @@ defmodule AshEnterprise.Assistant.LookupTest do
 
       before_move = DateTime.add(moved, -1, :hour) |> DateTime.to_iso8601()
 
-      assert %{"as_of" => _, "count" => 1, "events" => [then]} =
+      assert [then] =
                F.tool!(alice, :calendar_events, %{window: "2030-03-19", as_of: before_move})
 
       assert then["title"] == "SYNTHETIC-ALICE-PLANNING"
       assert then["when"] =~ "10:00"
       assert then["now"] =~ "15:00"
 
-      assert %{"count" => 1, "events" => [now]} =
-               F.tool!(alice, :calendar_events, %{window: "2030-03-19"})
+      assert [now] = F.tool!(alice, :calendar_events, %{window: "2030-03-19"})
 
       assert now["when"] =~ "15:00"
       refute Map.has_key?(now, "now")
@@ -95,39 +91,32 @@ defmodule AshEnterprise.Assistant.LookupTest do
       # Before it was on the calendar at all.
       long_ago = known |> DateTime.add(-1, :day) |> DateTime.to_iso8601()
 
-      assert %{"count" => 0} =
-               F.tool!(alice, :calendar_events, %{window: "2030-03-19", as_of: long_ago})
+      assert [] = F.tool!(alice, :calendar_events, %{window: "2030-03-19", as_of: long_ago})
 
-      assert %{"error" => error} =
-               F.tool!(alice, :calendar_events, %{window: "2030-03-19", as_of: "last friday"})
-
-      assert error =~ "as_of"
+      assert F.refusal(alice, :calendar_events, %{window: "2030-03-19", as_of: "last friday"}) =~
+               "as_of"
 
       # Nobody else's past either.
       carol = F.colleague!(alice)
 
-      assert %{"count" => 0} =
-               F.tool!(carol, :calendar_events, %{window: "2030-03-19", as_of: before_move})
+      assert [] = F.tool!(carol, :calendar_events, %{window: "2030-03-19", as_of: before_move})
     end
 
     test "find_conversations and read_messages: decrypted for the owner, cited by thread",
          %{alice: alice, thread: thread, slack: slack} do
-      assert %{"count" => 2} = F.tool!(alice, :find_conversations, %{})
+      assert [_, _] = F.tool!(alice, :find_conversations, %{})
 
-      assert %{"count" => 1, "conversations" => [found]} =
-               F.tool!(alice, :find_conversations, %{source: :gmail, text: "alice-body"})
+      assert [found] = F.tool!(alice, :find_conversations, %{source: :gmail, text: "alice-body"})
 
       assert found["subject"] == "SYNTHETIC-ALICE-SUBJECT"
       assert found["ref"] == "inbox:#{thread.id}"
       assert found["needs_reply"] == true
 
-      assert %{"conversations" => [%{"ref" => ref}]} =
-               F.tool!(alice, :find_conversations, %{source: :slack})
+      assert [%{"ref" => ref}] = F.tool!(alice, :find_conversations, %{source: :slack})
 
       assert ref == "slack:#{slack.id}"
 
-      assert %{"count" => 1, "messages" => [message]} =
-               F.tool!(alice, :read_messages, %{conversation: "inbox:#{thread.id}"})
+      assert [message] = F.tool!(alice, :read_messages, %{conversation: "inbox:#{thread.id}"})
 
       assert message["text"] == "SYNTHETIC-ALICE-BODY"
       assert message["ref"] == "inbox:#{thread.id}"
@@ -135,15 +124,16 @@ defmodule AshEnterprise.Assistant.LookupTest do
     end
 
     test "find_people, count_activity", %{alice: alice} do
-      assert %{"people" => [%{"name" => "Zed Example", "ref" => "people:" <> _}]} =
+      assert [%{"name" => "Zed Example", "ref" => "people:" <> _}] =
                F.tool!(alice, :find_people, %{query: "zed"})
 
-      assert %{"total" => 2, "groups" => groups} =
+      # The total first, then the groups.
+      assert [%{"key" => "all", "count" => 2, "window" => _} | groups] =
                F.tool!(alice, :count_activity, %{metric: :messages, group_by: :source})
 
       assert Enum.sort(Enum.map(groups, & &1["key"])) == ["gmail", "slack"]
 
-      assert %{"total" => 1} =
+      assert [%{"key" => "all", "count" => 1} | _groups] =
                F.tool!(alice, :count_activity, %{
                  metric: :events,
                  group_by: :day,
@@ -179,35 +169,29 @@ defmodule AshEnterprise.Assistant.LookupTest do
       |> Ash.update!()
 
       # Now: the merged record answers through its survivor.
-      assert %{"people" => [%{"name" => "Yan Example"} = now]} =
-               F.tool!(alice, :find_people, %{query: "yan"})
+      assert [%{"name" => "Yan Example"} = now] = F.tool!(alice, :find_people, %{query: "yan"})
 
       refute Map.has_key?(now, "records_then")
 
       # A week ago: Yan was two records.
       week_ago = Date.add(Date.utc_today(), -7) |> Date.to_iso8601()
 
-      assert %{"as_of" => _, "people" => people} =
-               F.tool!(alice, :find_people, %{query: "yan", as_of: week_ago})
+      people = F.tool!(alice, :find_people, %{query: "yan", as_of: week_ago})
 
       yan = Enum.find(people, &(&1["name"] == "Yan Example"))
 
       assert [%{"name" => "Yan Example", "identities" => 1}, %{"name" => "Yan Home"}] =
                yan["records_then"]
 
-      assert %{"error" => _} = F.tool!(alice, :find_people, %{query: "yan", as_of: "last friday"})
+      assert F.refusal(alice, :find_people, %{query: "yan", as_of: "last friday"}) =~ "as_of"
     end
 
     test "pending_approvals and morning_briefs: the brief waiting on its owner", %{alice: alice} do
       D.brief!(alice)
 
-      assert %{"count" => 1, "briefs" => [%{"ref" => "today:" <> _}]} =
-               F.tool!(alice, :morning_briefs, %{})
+      assert [%{"ref" => "today:" <> _}] = F.tool!(alice, :morning_briefs, %{})
 
-      assert %{"count" => count, "approvals" => approvals} =
-               F.tool!(alice, :pending_approvals, %{})
-
-      assert count >= 1
+      assert [_ | _] = approvals = F.tool!(alice, :pending_approvals, %{})
       assert Enum.all?(approvals, &match?(%{"ref" => "approvals:" <> _}, &1))
     end
   end
@@ -217,14 +201,14 @@ defmodule AshEnterprise.Assistant.LookupTest do
          %{alice: alice} do
       bob = F.colleague!(alice, admin?: true)
 
-      assert %{"count" => 0} = F.tool!(bob, :find_conversations, %{})
-      assert %{"count" => 0} = F.tool!(bob, :read_messages, %{window: "last_90_days"})
-      assert %{"count" => 0} = F.tool!(bob, :find_people, %{query: "example"})
+      assert [] = F.tool!(bob, :find_conversations, %{})
+      assert [] = F.tool!(bob, :read_messages, %{window: "last_90_days"})
+      assert [] = F.tool!(bob, :find_people, %{query: "example"})
 
-      assert %{"total" => 0} =
+      assert [%{"key" => "all", "count" => 0}] =
                F.tool!(bob, :count_activity, %{metric: :messages, group_by: :person})
 
-      assert %{"total" => 0} =
+      assert [%{"key" => "all", "count" => 0}] =
                F.tool!(bob, :count_activity, %{metric: :conversations, group_by: :person})
 
       refute inspect(Enum.map(@tools, fn {name, input} -> F.tool!(bob, name, input) end)) =~
@@ -246,21 +230,30 @@ defmodule AshEnterprise.Assistant.LookupTest do
     } do
       bob = F.colleague!(alice, admin?: true)
 
-      assert %{"count" => 0} =
-               F.tool!(bob, :read_messages, %{conversation: "inbox:#{thread.id}"})
+      assert [] = F.tool!(bob, :read_messages, %{conversation: "inbox:#{thread.id}"})
     end
   end
 
   describe "the zone gate" do
-    test "no model target, or one outside the zone, gets a refusal and no content",
+    test "a caller with no run, or a run whose model is outside the zone, gets a refusal",
          %{alice: alice} do
-      hosted = Models.resolve("anthropic:claude-haiku-4-5-20251001")
-      other_zone = %{F.target() | zone: "SYNTHETIC-OTHER-ZONE"}
+      for {name, input} <- @tools do
+        assert "Refused: " <> _ = F.refusal(alice, name, input, run?: false)
+      end
 
-      for target <- [nil, hosted, other_zone], {name, input} <- @tools do
-        result = F.tool!(alice, name, input, target)
-        assert %{"error" => "Refused: " <> _, "count" => 0} = result
-        refute inspect(result) =~ "SYNTHETIC-ALICE"
+      # The run's model is the in-zone profile: outside the canonical store's zone, or
+      # not configured at all, nothing is returned to it.
+      for setup <- [
+            fn -> F.in_zone!(profile_zone: "SYNTHETIC-OTHER-ZONE") end,
+            fn -> Application.put_env(:ash_enterprise, :ai, []) end
+          ] do
+        setup.()
+
+        for {name, input} <- @tools do
+          message = F.refusal(alice, name, input)
+          assert "Refused: " <> _ = message
+          refute message =~ "SYNTHETIC-ALICE"
+        end
       end
     end
 
@@ -293,7 +286,7 @@ defmodule AshEnterprise.Assistant.LookupTest do
                GmailProjection.replay(owner: owner.user, tenant: owner.organization)
 
       found = F.tool!(owner, :find_conversations, %{})
-      assert %{"count" => 1, "conversations" => [%{"subject" => "SYNTHETIC-ADMITTED"}]} = found
+      assert [%{"subject" => "SYNTHETIC-ADMITTED"}] = found
 
       messages = F.tool!(owner, :read_messages, %{window: "last_90_days"})
       refute inspect(messages) =~ "SYNTHETIC-REFUSED"

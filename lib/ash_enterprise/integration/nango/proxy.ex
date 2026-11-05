@@ -10,6 +10,12 @@ defmodule AshEnterprise.Integration.Nango.Proxy do
     * `Provider-Config-Key: <integration>`
     * `Connection-Id: <connection id>`
 
+  plus `Idempotency-Key: <key>` when the request carries an `:idempotency_key`
+  (the IETF HTTP API working group's `Idempotency-Key` header, which providers
+  that deduplicate writes read). A governed invocation of an idempotent outside
+  target passes its invocation key here, so a call repeated after a lost
+  acknowledgement is taken once by the provider.
+
   Nango injects the provider's OAuth token and forwards to the provider's base
   URL, passing the provider's status and body back.
 
@@ -54,7 +60,8 @@ defmodule AshEnterprise.Integration.Nango.Proxy do
           required(:provider_config_key) => String.t(),
           required(:connection_id) => String.t(),
           optional(:query) => [{String.t(), String.t()}],
-          optional(:body) => map() | nil
+          optional(:body) => map() | nil,
+          optional(:idempotency_key) => String.t()
         }
 
   @type response :: %{status: pos_integer(), body: term()}
@@ -63,7 +70,9 @@ defmodule AshEnterprise.Integration.Nango.Proxy do
   Proxy one request through Nango.
 
   Options: `:profile` (`:http` | `:google` | `:slack`, default `:http`),
-  `:operation` (an atom, for errors and telemetry only).
+  `:operation` (an atom, for errors and telemetry only), `:numbers`
+  (`:float`, the default, or `:decimal`: JSON numbers with a fraction decode
+  as `Decimal`, so money never passes through a float).
   """
   @spec request(request(), keyword()) :: {:ok, response()} | {:error, ProxyError.t()}
   def request(%{method: method, path: path} = request, opts \\ []) do
@@ -84,7 +93,7 @@ defmodule AshEnterprise.Integration.Nango.Proxy do
 
           secret ->
             request
-            |> build_req(secret)
+            |> build_req(secret, Keyword.get(opts, :numbers, :float))
             |> attempt(%{profile: profile, labels: labels, method: method, path: path}, 1)
         end
 
@@ -94,26 +103,36 @@ defmodule AshEnterprise.Integration.Nango.Proxy do
 
   # --- request -----------------------------------------------------------------
 
-  defp build_req(request, secret) do
+  defp build_req(request, secret, numbers) do
     [
       base_url: base_url(),
       url: "/proxy" <> request.path,
       method: request.method,
       params: Map.get(request, :query, []),
-      headers: [
-        {"provider-config-key", request.provider_config_key},
-        {"connection-id", request.connection_id}
-      ],
+      headers:
+        [
+          {"provider-config-key", request.provider_config_key},
+          {"connection-id", request.connection_id}
+        ] ++ idempotency_header(Map.get(request, :idempotency_key)),
       auth: {:bearer, secret},
       retry: false
     ]
     |> maybe_json(Map.get(request, :body))
+    |> maybe_decimal_numbers(numbers)
     |> Req.new()
     |> Req.merge(config(:req_options, []))
   end
 
+  defp idempotency_header(nil), do: []
+  defp idempotency_header(key) when is_binary(key), do: [{"idempotency-key", key}]
+
   defp maybe_json(opts, nil), do: opts
   defp maybe_json(opts, body), do: Keyword.put(opts, :json, body)
+
+  defp maybe_decimal_numbers(opts, :decimal),
+    do: Keyword.put(opts, :decoders, json: &Jason.decode(&1, floats: :decimals))
+
+  defp maybe_decimal_numbers(opts, _float), do: opts
 
   defp attempt(req, ctx, n) do
     case Req.request(req) do

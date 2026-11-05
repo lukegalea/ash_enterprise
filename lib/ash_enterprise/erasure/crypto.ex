@@ -96,6 +96,32 @@ defmodule AshEnterprise.Erasure.Crypto do
     header <> iv <> tag <> ciphertext
   end
 
+  @doc """
+  A subkey of a scope's DEK for one purpose, named by `label`
+  (HMAC-SHA256 of the label under the DEK). Each purpose gets its own key, so
+  a digest key is never also the sealing key. Destroying the DEK destroys
+  every subkey with it.
+  """
+  @spec derive_key(binary(), String.t()) :: binary()
+  def derive_key(<<_::binary-size(@key_bytes)>> = key, label) when is_binary(label) do
+    :crypto.mac(:hmac, :sha256, key, "ash_enterprise/erasure/subkey/v1:" <> label)
+  end
+
+  @doc """
+  A keyed digest (HMAC-SHA256, hex) of `data` under a subkey from
+  `derive_key/2`.
+
+  For telling two sealed values apart without opening them, and for ids
+  derived from content. An unkeyed hash of short content is a dictionary
+  away from the content and outlives a shred; a keyed one is neither: once
+  the scope's key is destroyed, nobody can recompute it, so it identifies
+  nothing.
+  """
+  @spec keyed_digest(binary(), iodata()) :: String.t()
+  def keyed_digest(subkey, data) when is_binary(subkey) do
+    :hmac |> :crypto.mac(:sha256, subkey, data) |> Base.encode16(case: :lower)
+  end
+
   @doc "Reads the scope id out of a sealed binary's header without decrypting it."
   @spec scope_of(binary()) :: {:ok, Ash.UUID.t()} | :error
   def scope_of(<<@magic, scope::binary-size(16), _rest::binary>>), do: Ecto.UUID.load(scope)

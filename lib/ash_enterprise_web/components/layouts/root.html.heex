@@ -1,5 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<%!-- The request's locale (AshEnterpriseWeb.Locale): set by the PutLocale plug on
+      a controller page and by AshEnterpriseWeb.LiveLocale on a LiveView. The root
+      layout renders once per page load, so a changed preference shows here after
+      a full reload (see LiveLocale's moduledoc). --%>
+<html lang={AshEnterpriseWeb.Locale.html_lang(assigns[:locale])}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />

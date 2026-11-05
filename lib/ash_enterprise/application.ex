@@ -40,6 +40,10 @@ defmodule AshEnterprise.Application do
         # Owns the ACP session/approval ETS tables (epic E3) so they outlive
         # any transient handler process.
         AshEnterprise.Acp.Store,
+        # The stub credential registry's memory of the activations it accepted
+        # (AshEnterprise.Credentialing.Registry): an ETS table that outlives
+        # the job processes that write to it.
+        AshEnterprise.Credentialing.Registry,
         # Epic E5: the OMP bridge. The registry names one OmpSession per run
         # id; the dynamic supervisor owns the sessions themselves — children
         # are operator events, not boot-time facts.

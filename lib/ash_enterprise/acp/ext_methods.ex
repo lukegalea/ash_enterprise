@@ -154,8 +154,15 @@ defmodule AshEnterprise.Acp.ExtMethods do
   defp query_opts(_none), do: []
 
   defp build(ui, opts, actor) do
-    AshA2ui.Info.build_surface(ui, [actor: actor, tenant: ActorContext.tenant(actor)] ++ opts)
+    AshA2ui.Info.build_surface(
+      ui,
+      [actor: actor, tenant: ActorContext.tenant(actor)] ++ opts ++ l10n(actor)
+    )
   end
+
+  # The session's person's locale, explicit: ACP carries no `Accept-Language`.
+  defp l10n(actor),
+    do: AshEnterpriseWeb.Locale.a2ui_opts(AshEnterpriseWeb.Locale.for_actor(actor))
 
   defp surface_id(messages, ui) do
     Enum.find_value(messages, fn
@@ -214,7 +221,10 @@ defmodule AshEnterprise.Acp.ExtMethods do
          record: record(resource, action_name, context["recordId"], actor),
          tenant: ActorContext.tenant(actor),
          resource: resource,
-         action: action_name
+         action: action_name,
+         # A click the person confirms, not a request kept anywhere
+         # (`AshEnterprise.Acp.Approvals`).
+         click: entry.label
        }}
     else
       _runs_at_once -> run(ui, action, actor)
@@ -231,9 +241,10 @@ defmodule AshEnterprise.Acp.ExtMethods do
   defp act(_entry, ui, action, _name, _context, actor, _approved, _by), do: run(ui, action, actor)
 
   defp run(ui, action, actor) do
-    case AshA2ui.ActionHandler.handle(ui, action,
-           actor: actor,
-           tenant: ActorContext.tenant(actor)
+    case AshA2ui.ActionHandler.handle(
+           ui,
+           action,
+           [actor: actor, tenant: ActorContext.tenant(actor)] ++ l10n(actor)
          ) do
       {:ok, messages} ->
         {:ok, %{"outcome" => "applied", "a2ui" => messages}}

@@ -45,6 +45,12 @@ Sub-rules (addressable as `ash_a2ui:<name>`):
   (ctrl+k) and `/open <surface> [id | n]`: `AshA2ui.Shell`'s key table and
   slash grammar, the `AshA2ui.Shell.Host` lists in ACP wire shapes, and
   mounting `AshA2ui.Shell.Component` in a layout.
+- `ash_a2ui:localization` — translating the library's own strings and the
+  app's display labels: the shipped gettext catalog
+  (`mix ash_a2ui.gen.gettext`), the metadata catalog
+  (`mix ash_a2ui.gettext.extract_metadata`), the two domains, the
+  `gettext_backend:`/`gettext_fn:` translators and the explicit `locale:`,
+  and what is and is not translated.
 - `ash_a2ui:time-travel` — surfaces read as of an instant (`:as_of`,
   `?as_of=`, `AshA2ui.AsOf`) over Ash temporal resources, why a pinned
   surface is view-only, and the `AshA2ui.TimeScrubber` control.
@@ -280,10 +286,11 @@ end
   no longer breaks reserved-path bindings — `createAshAdminCatalog` builds
   without the host passing `z` at all, and throws a loud error if a
   foreign-zod `z` is still passed. Hosts must still pin matching
-  `@a2ui/lit` / `@a2ui/web_core` versions: the admin catalog was built and
-  verified against lit 0.10.1 / web_core 0.11.0; the basic catalog's
-  Text/Button overrides resolve the upstream elements at runtime, so they
-  also bundle against 0.10.x (verified with lit 0.10.3 / web_core 0.10.6).
+  `@a2ui/lit` / `@a2ui/web_core` versions: both catalogs are verified
+  against 0.11 and 0.12 (the probes in `priv/js/probe/` run on either),
+  and the basic catalog's overrides resolve the upstream elements at
+  runtime, so they also bundle against 0.10.x (verified with lit 0.10.3 /
+  web_core 0.10.6).
   The Lit renderer registration ships in `priv/js/ash_admin_catalog.js`
   (`createAshAdminCatalog(deps)`).
 

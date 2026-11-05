@@ -34,8 +34,10 @@ defmodule AshEnterpriseBattery.MixProject do
   defp elixirc_paths(:test), do: ["lib", "test/support"]
   defp elixirc_paths(_), do: ["lib"]
 
-  # The 9 substrate deps, pinned exactly as ash_enterprise pins them
-  # (same refs, so the battery resolves the same code the platform ships).
+  # The substrate deps (nine, and ash_agent), declared exactly as
+  # ash_enterprise declares them (same refs, so the battery resolves the same
+  # code the platform ships, and an app that takes the battery as a test
+  # dependency resolves nothing the battery chose for it).
   # ash_events carries the platform's `override: true` fork declaration:
   # one package cannot resolve from both hex and git.
   defp deps do
@@ -46,6 +48,9 @@ defmodule AshEnterpriseBattery.MixProject do
       {:ash_evidence, github: "lukegalea/ash_evidence", branch: "main"},
       # --- Rules engine and the compliance plane it powers --------------------
       {:ash_rules, github: "lukegalea/ash_rules"},
+      # Declared as the platform root declares it (no ref): the battery's own
+      # mix.lock pins the commit. A `ref:` here would diverge from every
+      # derived app's declaration and force it to override. See README "Pins".
       {:ash_compliance, github: "lukegalea/ash_compliance"},
       # --- Business processes and the decisions they route on -----------------
       # NOTE: ash_decisions brings boxic_dmn, which shells out to `xmllint`:
@@ -56,6 +61,8 @@ defmodule AshEnterpriseBattery.MixProject do
       {:ash_discrete_business_events, github: "lukegalea/ash_discrete_business_events"},
       # --- Master data management (builds on the BIZEV raw layer) -------------
       {:ash_mdm, github: "lukegalea/ash_mdm"},
+      # --- Governed invocations (the agent runtime's fragments) ---------------
+      {:ash_agent, github: "lukegalea/ash_agent"},
       # --- AshEvents (the audit log extension) ---------------------------------
       {:ash_events,
        github: "lukegalea/ash_events", branch: "temporal-as-of-support-0.7", override: true},

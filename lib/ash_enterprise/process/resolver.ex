@@ -107,6 +107,36 @@ defmodule AshEnterprise.Process.Resolver do
   end
 
   @doc """
+  The latest published definition of `key` that `tenant` is entitled to, ignoring a hold it
+  has put on a platform version: the tenant's own latest when it has forked the key
+  (`source: :tenant`), the platform baseline's latest otherwise.
+
+  `resolve/3` answers what the tenant runs now, and a hold (`source: :platform`) is exactly
+  what a release writes, so a release looking for what is newest asks this instead.
+  """
+  @spec latest(:process | :decision, String.t(), Ash.UUID.t()) ::
+          {:ok, struct()} | {:error, term()}
+  def latest(kind, key, tenant) do
+    case binding_for(kind, key, tenant) do
+      %Binding{source: :tenant} ->
+        kind
+        |> resource()
+        |> Ash.Query.for_read(:read)
+        |> Ash.Query.filter(key == ^key and status == :published)
+        |> Ash.Query.sort(version: :desc)
+        |> Ash.Query.limit(1)
+        |> Ash.read_one!(actor: SystemActor.process(), tenant: tenant)
+        |> case do
+          nil -> {:error, {:no_published_definition, kind, key}}
+          definition -> {:ok, definition}
+        end
+
+      _followed_or_held ->
+        latest_platform_definition(kind, key)
+    end
+  end
+
+  @doc """
   Loads a definition belonging to the platform organization, by id.
 
   The named home of the cross-tenant read. Callers -- including the `ash_bpmn` definition
@@ -120,6 +150,23 @@ defmodule AshEnterprise.Process.Resolver do
       platform -> load_definition(kind, id, platform)
     end
   end
+
+  @doc """
+  The definition of `kind` with this `id`, whether `tenant` owns it or follows the platform
+  baseline it is. What a release manifest pins an entry to.
+  """
+  @spec definition(:process | :decision, Ash.UUID.t(), Ash.UUID.t()) ::
+          {:ok, struct()} | {:error, term()}
+  def definition(kind, id, tenant) do
+    case load_definition(kind, id, tenant) do
+      {:ok, definition} -> {:ok, definition}
+      {:error, _not_the_tenants} -> load_platform_definition(kind, id)
+    end
+  end
+
+  @doc "Whether `tenant` owns the definition of `kind` with this `id`, rather than following the platform's."
+  @spec owned?(:process | :decision, Ash.UUID.t(), Ash.UUID.t()) :: boolean()
+  def owned?(kind, id, tenant), do: match?({:ok, _definition}, load_definition(kind, id, tenant))
 
   defp latest_platform_definition(kind, key) do
     case platform_tenant() do
@@ -137,6 +184,37 @@ defmodule AshEnterprise.Process.Resolver do
         |> case do
           [definition] -> {:ok, definition}
           [] -> {:error, {:no_published_baseline, kind, key}}
+        end
+    end
+  end
+
+  @doc """
+  The latest platform baseline of the agent `key`: the highest version of it registered
+  in the platform organization (`AshEnterprise.Execution.AgentVersion`), whatever its
+  status.
+
+  The second named home of the cross-tenant read, for agents. A platform agent version is
+  never published in the platform organization, which has no people to approve it: a
+  baseline is what a tenant copies (`fork_for_tenant`) and publishes under its own
+  approval, and a run pins the tenant's copy. So the latest *registered* version is the
+  baseline, not the latest published one.
+  """
+  @spec agent_baseline(String.t()) :: {:ok, struct()} | {:error, term()}
+  def agent_baseline(key) do
+    case platform_tenant() do
+      nil ->
+        {:error, {:no_platform_organization, key}}
+
+      platform ->
+        AshEnterprise.Execution.AgentVersion
+        |> Ash.Query.for_read(:read)
+        |> Ash.Query.filter(key == ^key)
+        |> Ash.Query.sort(version: :desc)
+        |> Ash.Query.limit(1)
+        |> Ash.read_one!(actor: SystemActor.process(), tenant: platform)
+        |> case do
+          nil -> {:error, {:no_baseline, :agent, key}}
+          version -> {:ok, version}
         end
     end
   end

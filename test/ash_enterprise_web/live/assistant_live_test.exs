@@ -1,11 +1,12 @@
 defmodule AshEnterpriseWeb.AssistantLiveTest do
   @moduledoc """
-  `/app/agent` through the real LiveView (E10.1): a question streams an
-  answer with its lookups shown inline and its citations linked; the thread
-  is kept and reopens; somebody else's thread is "not found"; a failed
-  answer says why and retries; Stop stops; and with no in-zone model the
-  page says so and asks nothing. A scripted model stands in for the in-zone
-  runtime; every row is synthetic.
+  `/app/agent` through the real LiveView (E10.1): a question starts a run of
+  the assistant agent, which the test steps as its jobs would; the page follows
+  it, shows its lookups inline and links its citations; the thread is kept and
+  reopens, with a run still going picked up again; somebody else's thread is
+  "not found"; a failed answer says why and retries; Stop stops; and with no
+  in-zone model the page says so and asks nothing. A scripted model stands in
+  for the in-zone runtime; every row is synthetic.
   """
 
   use AshEnterpriseWeb.ConnCase, async: false
@@ -13,6 +14,7 @@ defmodule AshEnterpriseWeb.AssistantLiveTest do
   import Phoenix.LiveViewTest
 
   alias AshEnterprise.Assistant.Thread
+  alias AshEnterprise.Execution
   alias AshEnterprise.Test.AssistantFixtures, as: F
   alias AshEnterprise.Test.AssistantFixtures.ScriptedModel
   alias AshEnterprise.Test.DailyFixtures, as: D
@@ -25,8 +27,15 @@ defmodule AshEnterpriseWeb.AssistantLiveTest do
     |> Plug.Conn.put_session("user_token", token)
   end
 
-  # The answer lands from a run in another process; wait for the live turn
-  # to go and the recorded answer to appear.
+  # The page's runs, run out here as their jobs would run them; each step reaches
+  # the page over PubSub.
+  defp run_out!(ctx) do
+    for run <- Execution.list_agent_runs!(authorize?: false, tenant: ctx.tenant),
+        do: F.run_out!(run)
+  end
+
+  # The page settles the answer when it hears the run end; wait for the live
+  # turn to go and the recorded answer to appear.
   defp await_answer(view, selector \\ "#turns article") do
     Enum.reduce_while(1..100, nil, fn _, _ ->
       if not has_element?(view, "#live-turn") and has_element?(view, selector) do
@@ -45,6 +54,7 @@ defmodule AshEnterpriseWeb.AssistantLiveTest do
   setup %{conn: conn} do
     F.in_zone!()
     ctx = F.tenant!()
+    F.published!(ctx)
     %{conn: sign_in(conn, ctx.user), ctx: ctx}
   end
 
@@ -77,6 +87,8 @@ defmodule AshEnterpriseWeb.AssistantLiveTest do
     |> form("#ask-form", ask: %{question: "SYNTHETIC: what is on today?"})
     |> render_submit()
 
+    assert has_element?(view, "#live-turn")
+    run_out!(ctx)
     html = await_answer(view)
 
     assert html =~ "SYNTHETIC: what is on today?"
@@ -96,13 +108,30 @@ defmodule AshEnterpriseWeb.AssistantLiveTest do
     assert html =~ "thread-#{thread.id}" or has_element?(reopened, "#thread-#{thread.id}")
   end
 
-  test "an uncited or invented ref is not linked", %{conn: conn} do
+  test "a reopened thread picks up the run still answering it", %{conn: conn, ctx: ctx} do
+    ScriptedModel.script!([{:text, "SYNTHETIC: answered after the page was gone."}])
+
+    {:ok, view, _html} = live(conn, "/app/agent")
+    view |> form("#ask-form", ask: %{question: "SYNTHETIC: later?"}) |> render_submit()
+    [thread] = Thread.mine!(actor: ctx.actor, tenant: ctx.tenant)
+    GenServer.stop(view.pid)
+
+    {:ok, reopened, _html} = live(conn, "/app/agent/#{thread.id}")
+    _ = render_async(reopened, 5_000)
+    assert has_element?(reopened, "#live-turn")
+
+    run_out!(ctx)
+    assert await_answer(reopened) =~ "SYNTHETIC: answered after the page was gone."
+  end
+
+  test "an uncited or invented ref is not linked", %{conn: conn, ctx: ctx} do
     ScriptedModel.script!([
       {:text, "SYNTHETIC answer [[calendar:#{Ash.UUID.generate()}]]."}
     ])
 
     {:ok, view, _html} = live(conn, "/app/agent")
     view |> form("#ask-form", ask: %{question: "SYNTHETIC?"}) |> render_submit()
+    run_out!(ctx)
     html = await_answer(view)
 
     assert html =~ "SYNTHETIC answer"
@@ -121,44 +150,56 @@ defmodule AshEnterpriseWeb.AssistantLiveTest do
     refute render(view) =~ "SYNTHETIC-BOBS-THREAD"
   end
 
-  test "a failed answer says why, and Retry answers it", %{conn: conn} do
+  test "a failed answer says why, and Retry answers it", %{conn: conn, ctx: ctx} do
     ScriptedModel.script!([
-      {:error, %ReqLLM.Error.API.Request{reason: "SYNTHETIC unreachable"}},
+      {:text, ""},
+      {:text, ""},
       {:text, "SYNTHETIC: answered on the second try."}
     ])
 
     {:ok, view, _html} = live(conn, "/app/agent")
     view |> form("#ask-form", ask: %{question: "SYNTHETIC: hello?"}) |> render_submit()
+    run_out!(ctx)
 
     html = await_answer(view, "#turns button[phx-click=retry]")
-    assert html =~ "did not answer"
-    assert html =~ "Nothing was sent anywhere else"
+    assert html =~ "empty answer"
 
     view |> element("#turns button[phx-click=retry]") |> render_click()
-
+    run_out!(ctx)
     await_answer(view)
 
     assert eventually(fn -> render(view) =~ "answered on the second try" end)
   end
 
-  test "Stop stops the run and keeps what it had", %{conn: conn} do
-    ScriptedModel.script!([{:pause, "SYNTHETIC-PARTIAL"}])
+  test "Stop stops the run and keeps what it had", %{conn: conn, ctx: ctx} do
+    ScriptedModel.script!([{:tools, [{"pending_approvals", %{"input" => %{}}}]}])
 
     {:ok, view, _html} = live(conn, "/app/agent")
     view |> form("#ask-form", ask: %{question: "SYNTHETIC: go on…"}) |> render_submit()
 
-    assert eventually(fn -> render(view) =~ "SYNTHETIC-PARTIAL" end)
-    assert has_element?(view, "#ask-stop")
+    # One step: the lookup is in the run's journal, and the run goes on.
+    [run] = Execution.list_agent_runs!(authorize?: false, tenant: ctx.tenant)
+    AshEnterprise.Test.Execution.Runs.step!(run)
+    assert eventually(fn -> render(view) =~ "Pending approvals" end)
 
     view |> element("#ask-stop") |> render_click()
-    # The scripted model is waiting for its next chunk; let it send one so
-    # the run notices the stop at that chunk.
-    for pid <- Task.Supervisor.children(AshEnterprise.TaskSupervisor),
-        do: send(pid, :scripted_continue)
 
     assert eventually(fn -> not has_element?(view, "#live-turn") end)
     assert render(view) =~ "Stopped."
-    assert render(view) =~ "SYNTHETIC-PARTIAL"
+    assert has_element?(view, "#turns details summary", "Pending approvals")
+    assert AshEnterprise.Test.Execution.Runs.run(run).status == :cancelled
+  end
+
+  test "a member not given the assistant is told so, and nothing is asked",
+       %{conn: conn, ctx: ctx} do
+    carol = F.colleague!(ctx)
+    ScriptedModel.script!([{:text, "SYNTHETIC: must never be produced"}])
+
+    {:ok, view, _html} = live(sign_in(conn, carol.user), "/app/agent")
+    view |> form("#ask-form", ask: %{question: "SYNTHETIC: may I?"}) |> render_submit()
+
+    assert eventually(fn -> render(view) =~ "start grant" end)
+    refute_received {:model_request, _, _, _}
   end
 
   test "with no in-zone model the page says so and asks nothing", %{conn: conn} do

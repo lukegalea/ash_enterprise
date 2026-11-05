@@ -13,6 +13,11 @@
   half-open (`>= 0.5 and < 0.9`) so the three ranges are disjoint and
   cover the whole [0, 1] domain; a score outside [0, 1] is a scoring bug
   that fails loudly rather than bands silently.
+
+  The input is the one a table earned by calibration reads: the match
+  question's yes probability, `matches_the_golden__p_true`, as a decimal
+  string (the bridge's form), compared as `number(...)`. A score that is
+  absent or not a number matches no rule, which is a refusal.
 -->
 <definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/"
              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -25,8 +30,8 @@
              expressionLanguage="https://www.omg.org/spec/DMN/20230324/FEEL/"
              typeLanguage="https://www.omg.org/spec/DMN/20230324/FEEL/">
 
-  <inputData id="input_score" name="score">
-    <variable id="var_score" name="score" typeRef="number"/>
+  <inputData id="input_score" name="matches_the_golden__p_true">
+    <variable id="var_score" name="matches_the_golden__p_true" typeRef="string"/>
   </inputData>
 
   <decision id="decision_band" name="Band">
@@ -38,7 +43,7 @@
     <decisionTable id="table_band" hitPolicy="UNIQUE" outputLabel="Band">
       <input id="clause_score" label="Match score">
         <inputExpression id="expr_score" typeRef="number">
-          <text>score</text>
+          <text>number(matches_the_golden__p_true)</text>
         </inputExpression>
       </input>
       <output id="clause_band" name="Band" typeRef="string">

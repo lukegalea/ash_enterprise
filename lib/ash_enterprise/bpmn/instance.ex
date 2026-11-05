@@ -23,6 +23,22 @@ defmodule AshEnterprise.Bpmn.Instance do
       extra_grants: [{AshEnterprise.Security.Checks.TaskInstance, field: :id}]
     ]
 
+  attributes do
+    attribute :release_manifest_id, :uuid do
+      public? true
+
+      description """
+      The release manifest this run started under (`AshEnterprise.Execution.ReleaseManifest`):
+      the active one that pins its process. The decisions it pins are the ones the run
+      evaluates, whatever is published or bound later.
+      """
+    end
+  end
+
+  changes do
+    change AshEnterprise.Bpmn.Changes.PinReleaseManifest, on: [:create]
+  end
+
   # --- the flight views (`/app/flights`, AshEnterprise.Process.FlightDiagram) ---
   #
   # What a person reads about a run beside its diagram. Each is read as the
@@ -53,6 +69,12 @@ defmodule AshEnterprise.Bpmn.Instance do
       public? true
       description "When the run started, on the operator's wall clock."
     end
+  end
+
+  # A tenant that runs a process may have a task waiting to hear of something, so its trigger
+  # cursor exists from its first instance on (`AshEnterprise.Bpmn.Cursor.ensure!/1`).
+  changes do
+    change AshEnterprise.Bpmn.Changes.EnsureCursor, on: [:create]
   end
 
   actions do

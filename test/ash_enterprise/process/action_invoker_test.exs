@@ -173,12 +173,18 @@ defmodule AshEnterprise.Process.ActionInvokerTest do
 
       assert Enum.sort(refs) ==
                Enum.sort([
+                 "check_licence_documents",
+                 "check_licence_expiry",
+                 "request_licence_document",
                  "record_risk",
                  "grant_role",
                  "reject_request",
                  "compose_brief",
                  "approve_brief",
-                 "reject_brief"
+                 "reject_brief",
+                 "start_agent_run",
+                 "agent_run_outcome",
+                 "cancel_agent_run"
                ])
 
       for ref <- refs do

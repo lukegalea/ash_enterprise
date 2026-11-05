@@ -299,6 +299,34 @@ defmodule AshEnterprise.SystemOne.Support do
   alias AshJudgments.Registry.Canonical
 
   @doc """
+  Overrides one family's calibration policy (`config :ash_judgments,
+  :families`) for the calling test, over what config sets for it (so its
+  configured `low_band` stays), and restores the previous config when the
+  test exits.
+  """
+  def put_family!(family, overrides) do
+    previous = Application.fetch_env(:ash_judgments, :families)
+    families = Application.get_env(:ash_judgments, :families, %{})
+    name = to_string(family)
+
+    {same, others} = Enum.split_with(families, fn {key, _} -> to_string(key) == name end)
+    configured = Enum.reduce(same, %{}, fn {_key, config}, acc -> Map.merge(acc, config) end)
+
+    Application.put_env(
+      :ash_judgments,
+      :families,
+      others |> Map.new() |> Map.put(name, Map.merge(configured, overrides))
+    )
+
+    ExUnit.Callbacks.on_exit(fn ->
+      case previous do
+        {:ok, value} -> Application.put_env(:ash_judgments, :families, value)
+        :error -> Application.delete_env(:ash_judgments, :families)
+      end
+    end)
+  end
+
+  @doc """
   A valid `:record` input set on the fragment's field contract (RFC §5
   names; the package's `:record` accept list), with per-test overrides.
   """
@@ -335,7 +363,22 @@ defmodule AshEnterprise.SystemOne.Support do
   @doc "Records one observation as the system actor, under the given tenant."
   def record!(opts \\ []) do
     tenant = Keyword.get(opts, :tenant)
-    overrides = Keyword.take(opts, [:id, :state_ciphertext])
+
+    overrides =
+      Keyword.take(opts, [
+        :id,
+        :state_ciphertext,
+        :question_id,
+        :question_hash,
+        :question_version,
+        :family,
+        :subject_type,
+        :subject_id,
+        :state_digest,
+        :probabilities,
+        :model_digest,
+        :runtime_version
+      ])
 
     Judgment
     |> Ash.Changeset.for_create(:record, observation_inputs(overrides),
@@ -370,6 +413,7 @@ defmodule AshEnterprise.SystemOne.Support do
     context =
       AshEnterprise.SystemOne.judge_context(
         tenant: tenant,
+        lineage: Keyword.get(opts, :lineage),
         judgments: %{
           req_llm: AshEnterprise.SystemOne.TestSupport.FakeReqLLM,
           observation_id: Keyword.fetch!(opts, :observation_id),
@@ -438,7 +482,7 @@ defmodule AshEnterprise.SystemOne.Support do
     atom_ids =
       Enum.with_index(texts, 1)
       |> Enum.map(fn {text, seq} ->
-        AshEvidence.Domain.ingest_atom!(version.id, parse_run.id, seq, text).id
+        AshEvidence.Domain.ingest_atom!(version.id, parse_run.id, seq, text, :line).id
       end)
 
     AshEvidence.Domain.mark_parse_run_ok!(parse_run)
@@ -622,4 +666,20 @@ defmodule AshEnterprise.SystemOne.TestSupport.FakeReqLLM do
   defp canned_choice do
     %{"choice" => "supports", "probabilities" => %{"supports" => 0.9}, "confidence" => 0.9}
   end
+end
+
+defmodule AshEnterprise.SystemOne.TestSupport.FailingReqLLM do
+  @moduledoc """
+  A ReqLLM stand-in whose every call fails, as a model runtime that is down
+  or times out does: the judge gets `{:error, _}` and records nothing.
+  Counts its calls in the calling process like `FakeReqLLM`.
+  """
+
+  def evaluate(_model_spec, _state, _questions, _opts) do
+    Process.put({__MODULE__, :calls}, calls() + 1)
+    {:error, %Req.TransportError{reason: :econnrefused}}
+  end
+
+  @doc "How many calls this process has made through the fake."
+  def calls, do: Process.get({__MODULE__, :calls}, 0)
 end

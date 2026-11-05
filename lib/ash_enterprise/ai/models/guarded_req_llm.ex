@@ -12,10 +12,13 @@ defmodule AshEnterprise.AI.Models.GuardedReqLLM do
   without one is recorded as `"unnamed"` — still guarded, still recorded.
 
   `downstream: Module` substitutes the module that actually makes the request.
-  Tests use it; nothing else should.
+  Tests use it, and so does the showcase's recorded model mode
+  (`AshEnterprise.Showcase.RecordedModel`, through
+  `AshEnterprise.Execution.AgentRuntime`); nothing else should.
   """
 
   alias AshEnterprise.AI.Models
+  alias AshEnterprise.Faults
   alias ReqLLM.StreamResponse
   alias ReqLLM.StreamResponse.MetadataHandle
 
@@ -72,17 +75,29 @@ defmodule AshEnterprise.AI.Models.GuardedReqLLM do
   # ends -- read to the end, abandoned by the reader, or failed mid-stream (a
   # transport error surfaces as a raise while the reader enumerates). Only the
   # first is a call that answered.
+  #
+  # The fault point `:model_stream_reading` is where a model that stops
+  # answering mid-stream (a timeout) fails: armed with `:raise`, the first
+  # chunk's read raises as a transport error would, and the call is recorded
+  # as an incomplete stream (`AshEnterprise.Faults`).
   defp recorded(%StreamResponse{stream: stream} = response, target, caller, started) do
     Stream.transform(
       stream,
       fn -> :reading end,
-      fn chunk, acc -> {[chunk], acc} end,
+      fn
+        chunk, :reading ->
+          Faults.point(:model_stream_reading)
+          {[chunk], :read}
+
+        chunk, acc ->
+          {[chunk], acc}
+      end,
       fn _acc -> {[], :finished} end,
       fn
         :finished ->
           record_stream(target, caller, :ok, usage(response), started, nil)
 
-        :reading ->
+        _reading ->
           record_stream(target, caller, :error, nil, started, "incomplete_stream")
       end
     )

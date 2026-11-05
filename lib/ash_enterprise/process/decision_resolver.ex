@@ -27,6 +27,10 @@ defmodule AshEnterprise.Process.DecisionResolver do
   get escalated" answerable six months later, and it is the thing a hand-written `case` in an
   action cannot produce at all.
 
+  So the row is required (`record: :required`): a decision whose row could not be written
+  fails the business rule task, and the process does not route on an answer nobody can
+  later show. The node is retried like any other failure.
+
   The resolver also hands the engine the ids of the rules that matched, which the engine
   writes onto the instance's `:decision_evaluated` event beside the version that decided.
   """
@@ -50,7 +54,8 @@ defmodule AshEnterprise.Process.DecisionResolver do
     case AshEnterprise.Decisions.evaluate(
            ref,
            inputs,
-           [tenant: tenant, correlation_id: correlation_id(ctx)] ++ decision_opt(ctx)
+           [tenant: tenant, correlation_id: correlation_id(ctx), record: :required] ++
+             decision_opt(ctx) ++ pinned_opt(ref, ctx, tenant)
          ) do
       {:ok, result} ->
         {:ok,
@@ -65,6 +70,21 @@ defmodule AshEnterprise.Process.DecisionResolver do
 
       {:error, reason} ->
         {:error, reason}
+    end
+  end
+
+  # A case that started under a release manifest evaluates the decision version that
+  # manifest pinned, whatever the tenant is bound to now (ADR 0058). A case that started
+  # under none, or under one that does not pin this decision, resolves it as ever.
+  defp pinned_opt(ref, ctx, tenant) do
+    with %{release_manifest_id: id} when is_binary(id) <- ctx[:instance],
+         {:ok, manifest} <-
+           AshEnterprise.Execution.get_release_manifest(id, authorize?: false, tenant: tenant),
+         %{"annotations" => %{"id" => pinned}} <-
+           AshEnterprise.Execution.Release.Entries.find(manifest.entries, :decision, ref) do
+      [pinned: pinned]
+    else
+      _not_pinned -> []
     end
   end
 

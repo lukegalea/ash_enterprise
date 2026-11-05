@@ -1,6 +1,6 @@
 defmodule AshEnterprise.Assistant.Lookups.People do
   @moduledoc """
-  `Lookup.find_people`: the person's contacts whose name or address contains
+  `Lookup.Person.find_people`: the person's contacts whose name or address contains
   the query, as `Person.read` returns them to that person (owner-only). A
   merged duplicate (MDM) is left out; its survivor answers for it. At most
   15 people.
@@ -13,10 +13,11 @@ defmodule AshEnterprise.Assistant.Lookups.People do
   last Friday" asks.
   """
 
-  use Ash.Resource.Actions.Implementation
+  use Ash.Resource.ManualRead
 
   require Ash.Query
 
+  alias AshEnterprise.Assistant.Lookup
   alias AshEnterprise.Assistant.Lookups.Support
   alias AshEnterprise.Canonical.Person
   alias AshEnterprise.Mdm.Resolution
@@ -24,19 +25,19 @@ defmodule AshEnterprise.Assistant.Lookups.People do
   @shown 15
 
   @impl true
-  def run(input, _opts, context) do
-    query = String.trim(input.arguments[:query] || "")
+  def read(query, _data_layer_query, _opts, context) do
+    text = String.trim(query.arguments[:query] || "")
 
-    Support.gated(input, context, fn opts ->
-      case Support.as_of(input.arguments[:as_of]) do
-        {:ok, as_of} -> search(query, as_of, opts)
-        :error -> Support.refused("Give as_of as a date (2026-10-16) or a UTC time.")
+    Support.gated(query, context, fn opts ->
+      case Support.as_of(query.arguments[:as_of]) do
+        {:ok, as_of} -> search(text, as_of, opts)
+        :error -> {:error, "Give as_of as a date (2026-10-16) or a UTC time."}
       end
     end)
   end
 
   defp search("", _as_of, _opts),
-    do: Support.refused("Give part of a name or an email address to search for.")
+    do: {:error, "Give part of a name or an email address to search for."}
 
   defp search(query, as_of, opts) do
     pattern = Support.like(query)
@@ -46,19 +47,12 @@ defmodule AshEnterprise.Assistant.Lookups.People do
     |> Ash.Query.filter(ilike(name, ^pattern) or ilike(type(email, :string), ^pattern))
     |> only_goldens(as_of)
     |> Ash.Query.sort(name: :asc_nils_last, email: :asc)
-    |> Ash.Query.limit(@shown + 1)
+    |> Ash.Query.limit(@shown)
     |> Ash.Query.load([:label, :conversation_count, :next_event])
     |> Ash.read(opts)
     |> case do
       {:ok, people} ->
-        {:ok,
-         %{
-           "count" => min(length(people), @shown),
-           "more" => length(people) > @shown,
-           "as_of" => as_of && DateTime.to_iso8601(as_of),
-           "people" => people |> Enum.take(@shown) |> Enum.map(&row(&1, as_of, opts))
-         }
-         |> Support.compact()}
+        {:ok, Enum.map(people, &row(&1, as_of, opts))}
 
       error ->
         error
@@ -69,15 +63,14 @@ defmodule AshEnterprise.Assistant.Lookups.People do
   defp only_goldens(query, _as_of), do: query
 
   defp row(person, as_of, opts) do
-    %{
-      "ref" => Support.ref(Person, person),
-      "name" => Support.text(person.name),
-      "email" => Support.text(person.email),
-      "conversations" => person.conversation_count,
-      "next_event" => Support.text(person.next_event),
-      "records_then" => as_of && records_then(person, as_of, opts)
-    }
-    |> Support.compact()
+    Support.row(Lookup.Person, %{
+      ref: Support.ref(Person, person),
+      name: Support.text(person.name),
+      email: Support.text(person.email),
+      conversations: person.conversation_count,
+      next_event: Support.text(person.next_event),
+      records_then: as_of && records_then(person, as_of, opts)
+    })
   end
 
   defp records_then(person, as_of, opts) do

@@ -159,7 +159,7 @@ defmodule AshEnterprise.Mdm.StewardReviewBpmnTest do
       |> Ash.Query.filter(id == ^candidate.human_verdict_ref["verdict_id"])
       |> Ash.read_one!(tenant: org, authorize?: false)
 
-    assert to_string(verdict.human_value) == "match"
+    assert to_string(verdict.human_value) == "true"
     assert verdict.basis == :review_task
   end
 end

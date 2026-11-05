@@ -1,7 +1,7 @@
 defmodule AshEnterprise.FaultsTest do
   @moduledoc """
-  Fault points do nothing until armed, fire as armed, and go quiet after the number of firings
-  they were armed for, counted across processes.
+  Fault points do nothing until armed, let through the passes they were armed to skip, fire as
+  armed, and go quiet after the number of firings they were armed for, counted across processes.
   """
 
   use ExUnit.Case, async: false
@@ -61,6 +61,15 @@ defmodule AshEnterprise.FaultsTest do
       |> Enum.count(&match?({:ok, :fired}, &1))
 
     assert fired == 3
+  end
+
+  test "a point armed to skip n passes lets n through, then fires" do
+    Faults.arm(:faults_test_skip, :raise, skip: 2)
+
+    assert Faults.point(:faults_test_skip) == :ok
+    assert Faults.point(:faults_test_skip) == :ok
+    assert_raise Fault, fn -> Faults.point(:faults_test_skip) end
+    assert Faults.point(:faults_test_skip) == :ok
   end
 
   test "a disarmed point does nothing" do

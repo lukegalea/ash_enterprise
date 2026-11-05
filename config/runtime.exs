@@ -199,12 +199,14 @@ config :ash_judgments,
   # `AshEnterprise.Zones.ResidencyPolicy` and
   # `AshEnterprise.Accounts.Organization.sub_processor_opt_in`).
   residency_policy: AshEnterprise.Zones.ResidencyPolicy,
+  # The in-zone runtimes (OLLAYA_*, S1_GEN_*) check no key, but ReqLLM
+  # refuses an empty one, so an unset or empty key sends "in-zone-no-key".
   profiles: [
     [
       name: :laya_cpu,
       model: "laya:typed-decisions",
       base_url: {:system, "OLLAYA_BASE_URL"},
-      api_key: {:system, "OLLAYA_API_KEY"},
+      api_key: {:system, "OLLAYA_API_KEY", "in-zone-no-key"},
       residency: :in_cluster,
       region: :ca
     ],
@@ -212,7 +214,18 @@ config :ash_judgments,
       name: :winnow_gpu,
       model: "winnow:e4b",
       base_url: {:system, "S1_OLLAYA_GPU_BASE_URL"},
-      api_key: {:system, "OLLAYA_API_KEY"},
+      api_key: {:system, "OLLAYA_API_KEY", "in-zone-no-key"},
+      residency: :in_cluster,
+      region: :ca
+    ],
+    [
+      # The larger winnow on the same GPU host. The agent_reply_style family
+      # judges through it: on the S1-92 calibration set, winnow:e4b left most
+      # replies in the review band.
+      name: :winnow_gpu_12b,
+      model: "winnow:12b",
+      base_url: {:system, "S1_OLLAYA_GPU_BASE_URL"},
+      api_key: {:system, "OLLAYA_API_KEY", "in-zone-no-key"},
       residency: :in_cluster,
       region: :ca
     ],
@@ -228,7 +241,7 @@ config :ash_judgments,
       name: :winnow_generative,
       model: "winnow:e4b",
       base_url: {:system, "S1_OLLAYA_GPU_BASE_URL"},
-      api_key: {:system, "OLLAYA_API_KEY"},
+      api_key: {:system, "OLLAYA_API_KEY", "in-zone-no-key"},
       residency: :in_cluster,
       region: :ca
     ],
@@ -243,7 +256,7 @@ config :ash_judgments,
       name: :splash_generative,
       model: splash_model,
       base_url: {:system, "S1_GEN_BASE_URL"},
-      api_key: {:system, "S1_GEN_API_KEY"},
+      api_key: {:system, "S1_GEN_API_KEY", "in-zone-no-key"},
       residency: :in_cluster,
       region: :ca,
       # A whole policy's proposals in one structured answer outlasts the
@@ -254,6 +267,7 @@ config :ash_judgments,
   model_routes: %{
     "laya:typed-decisions" => {:system, "OLLAYA_BASE_URL"},
     "winnow:e4b" => {:system, "S1_OLLAYA_GPU_BASE_URL"},
+    "winnow:12b" => {:system, "S1_OLLAYA_GPU_BASE_URL"},
     splash_model => {:system, "S1_GEN_BASE_URL"}
   },
   # The host ledger the registry's judge actions record into (AST-88). The

@@ -50,14 +50,18 @@ defmodule AshEnterprise.Decisions do
   decision is a *rule*, and the whole reason a business keeps rules outside code is that
   changing one takes effect without redeploying or restarting what is already in flight.
 
-  Options: `:tenant` (required), `:decision` (when the document defines several), `:timeout`,
+  A release manifest may pin a decision (`AshEnterprise.Execution.ReleaseManifest`): a case
+  that started under it passes `:pinned`, the id of the definition the manifest pinned, and
+  that exact definition is evaluated whatever the tenant is bound to now.
+
+  Options: `:tenant` (required), `:pinned` (a definition id), `:decision` (when the document defines several), `:timeout`,
   `:correlation_id`, and `:record` to suppress the evidence row for a designer preview.
   """
   @spec evaluate(String.t(), map(), keyword()) :: {:ok, map()} | {:error, term()}
   def evaluate(key, inputs, opts) do
     tenant = Keyword.fetch!(opts, :tenant)
 
-    with {:ok, definition} <- AshEnterprise.Process.Resolver.resolve(:decision, key, tenant) do
+    with {:ok, definition} <- definition(key, tenant, opts[:pinned]) do
       AshDecisions.Evaluator.evaluate(
         definition,
         inputs,
@@ -73,4 +77,10 @@ defmodule AshEnterprise.Decisions do
       )
     end
   end
+
+  defp definition(key, tenant, nil),
+    do: AshEnterprise.Process.Resolver.resolve(:decision, key, tenant)
+
+  defp definition(_key, tenant, id),
+    do: AshEnterprise.Process.Resolver.definition(:decision, id, tenant)
 end

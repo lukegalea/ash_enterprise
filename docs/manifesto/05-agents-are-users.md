@@ -169,18 +169,24 @@ Two statements above no longer match the code, checked against `main` on 2026-10
 "Human-in-the-loop" describes a mechanism that was not the one built. What exists:
 
 - The console at `/agent` (`AshEnterpriseWeb.AgentLive`): the model returns a typed intent and holds no tools;
-  `AshEnterprise.AI.Proposal` resolves the names in it as the person, checks with `Ash.can?` before showing it, and
-  runs it with the person as the actor once they confirm. Only the mutations that module has a constructor for can be
-  proposed.
-- The assistant at `/app/agent`: proposal tools build the same proposals, and `Assistant.ProposalSettlement` records
-  the person's confirm or cancel so a second confirm cannot run the mutation twice.
-- The coding-agent bridge: `Agents.ToolGate` approves or rejects one recorded `ToolInvocation`.
-- ACP: permission requests are held in memory (`AshEnterprise.Acp`), not in a durable record.
-- The production `/mcp` endpoint exposes `assign_role` with no approval step at all. "Writes need a human" does not
-  hold there today.
+  `AshEnterprise.AI.Interpreter` resolves the names in a role request as the person, and sending it is
+  `UserRole.request_assignment`, a governed invocation another administrator approves (since 2026-11-04; before, the
+  person's own confirm ran the assignment).
+- The assistant at `/app/agent`: since 2026-11-04 a change it makes for the person is a governed invocation of the
+  target action, requested as them and waiting on their Confirm; the answer ends at the request, and the Confirm runs
+  it once, as them (ADR 0055, amended 2026-11-04). Before, proposal tools built proposals and a settlement row
+  recorded the person's confirm or cancel.
+- The coding-agent bridge: since 2026-11-01 a tool request is a governed invocation of `Agents.ToolCall.run_tool`,
+  approved by the run's person on its `HumanTask` (ADR 0055).
+- ACP: since 2026-11-01 a prompt's permission request is a governed invocation waiting on the person's `HumanTask`,
+  so it survives a restart (`AshEnterprise.Acp.Approvals`).
+- The production `/mcp` endpoint's `assign_role` no longer writes: since 2026-10-30 it records a governed invocation
+  (ADR 0055) and returns its approval link, and the role is assigned only once an administrator other than the caller
+  approves. It is the first door moved onto the invocation, and the only one of this list bound to a digest of what
+  was approved.
 
 The steps' substance is right where a proposal is used: the person sees the concrete mutation, and it runs through the
-policies with the person as the actor. None of these mechanisms binds an approval to a digest of what was approved.
+policies with the person as the actor. None of the others binds an approval to a digest of what was approved.
 [ADR 0055](../adr/0055-consequential-acts-are-governed-invocations.md) (accepted, not built) replaces them with one
 governed invocation whose approval is an ash_bpmn `HumanTask` and is bound to the exact request.
 

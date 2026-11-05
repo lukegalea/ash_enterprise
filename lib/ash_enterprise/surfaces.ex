@@ -36,6 +36,8 @@ defmodule AshEnterprise.Surfaces do
   live.
   """
 
+  use Gettext, backend: AshEnterpriseWeb.Gettext
+
   alias AshEnterprise.Agents.{Console, MorningBrief}
   alias AshEnterprise.Bpmn.HumanTask
   alias AshEnterprise.Integration.LinkedAccount
@@ -49,63 +51,108 @@ defmodule AshEnterprise.Surfaces do
   @groups [
     %{
       key: :day,
-      label: "My day",
+      label: dgettext_noop("default", "My day"),
       menu: :day,
-      blurb: "Your calendar, mail, people and the approvals waiting on you."
+      blurb:
+        dgettext_noop("default", "Your calendar, mail, people and the approvals waiting on you.")
     },
     %{
       key: :operator,
-      label: "Operator",
+      label: dgettext_noop("default", "Operator"),
       menu: :day,
-      blurb: "Linked accounts, their syncs, erasure, lineage and the audit trail."
+      blurb:
+        dgettext_noop(
+          "default",
+          "Linked accounts, their syncs, erasure, lineage and the audit trail."
+        )
     },
     %{
       key: :processes,
-      label: "Processes",
+      label: dgettext_noop("default", "Processes"),
       menu: :work,
-      blurb: "The processes this tenant runs, the decisions they consult, and what starts them."
+      blurb:
+        dgettext_noop(
+          "default",
+          "The processes this tenant runs, the decisions they consult, and what starts them."
+        )
+    },
+    %{
+      key: :judgments,
+      label: dgettext_noop("default", "Judgments"),
+      menu: :work,
+      blurb:
+        dgettext_noop(
+          "default",
+          "What the judgment loop leaves for a person: verdicts, band tables to certify, and what calibration earned."
+        )
     },
     %{
       key: :compliance,
-      label: "Compliance",
+      label: dgettext_noop("default", "Compliance"),
       menu: :work,
-      blurb: "Findings, the evaluations behind them, and the rules they are judged against."
+      blurb:
+        dgettext_noop(
+          "default",
+          "Findings, the evaluations behind them, and the rules they are judged against."
+        )
+    },
+    %{
+      key: :credentialing,
+      label: dgettext_noop("default", "Credentialing"),
+      menu: :work,
+      blurb:
+        dgettext_noop(
+          "default",
+          "A synthetic clinic activating its clinicians' credentials through governed requests, an agent reading their licence documents, and the tour over it."
+        )
     },
     %{
       key: :org,
-      label: "Organization",
+      label: dgettext_noop("default", "Organization"),
       menu: :org,
-      blurb: "Who can sign in, the teams and units they belong to, and their roles."
+      blurb:
+        dgettext_noop(
+          "default",
+          "Who can sign in, the teams and units they belong to, and their roles."
+        )
     },
     %{
       key: :data,
-      label: "Projections",
+      label: dgettext_noop("default", "Projections"),
       menu: :data,
-      blurb: "Tables this application owns, projected from elsewhere."
+      blurb: dgettext_noop("default", "Tables this application owns, projected from elsewhere.")
     },
     %{
       key: :mdm,
-      label: "Master data",
+      label: dgettext_noop("default", "Master data"),
       menu: :data,
       blurb:
-        "Customer files imported, matched into golden records, and the matches a person decides."
+        dgettext_noop(
+          "default",
+          "Customer files imported, matched into golden records, and the matches a person decides."
+        )
     },
     %{
       key: :legacy,
-      label: "Legacy",
+      label: dgettext_noop("default", "Legacy"),
       menu: :data,
-      blurb: "The old system, read live through compatibility views."
+      blurb: dgettext_noop("default", "The old system, read live through compatibility views.")
     }
   ]
 
-  @menus [day: "My day", work: "Work", org: "Organization", data: "Data"]
+  @menus [
+    day: dgettext_noop("default", "My day"),
+    work: dgettext_noop("default", "Work"),
+    org: dgettext_noop("default", "Organization"),
+    data: dgettext_noop("default", "Data")
+  ]
 
   @surfaces [
     # --- My day -------------------------------------------------------------
     %Surface{
       key: :today,
-      label: "Today",
-      blurb: "Your morning brief, today's agenda and the day's pulse.",
+      label: dgettext_noop("default", "Today"),
+      blurb: dgettext_noop("default", "Your morning brief, today's agenda and the day's pulse."),
       group: :day,
       order: 0,
       icon: "hero-sun",
@@ -132,10 +179,12 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :agent,
-      label: "Agent",
+      label: dgettext_noop("default", "Agent"),
       blurb:
-        "Ask about your calendar, mail, Slack, people and approvals. Answers cite the " <>
-          "records they came from; the model runs in the zone.",
+        dgettext_noop(
+          "default",
+          "Ask about your calendar, mail, Slack, people and approvals. Answers cite the records they came from; the model runs in the zone."
+        ),
       group: :day,
       order: 5,
       icon: "hero-sparkles",
@@ -145,10 +194,12 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :calendar,
-      label: "Calendar",
+      label: dgettext_noop("default", "Calendar"),
       blurb:
-        "Your events on a month or week grid, with today, tomorrow, this week and the " <>
-          "next two weeks as quick ranges.",
+        dgettext_noop(
+          "default",
+          "Your events on a month or week grid, with today, tomorrow, this week and the next two weeks as quick ranges."
+        ),
       group: :day,
       order: 10,
       icon: "hero-calendar-days",
@@ -168,8 +219,8 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :inbox,
-      label: "Inbox",
-      blurb: "Gmail threads, newest first.",
+      label: dgettext_noop("default", "Inbox"),
+      blurb: dgettext_noop("default", "Gmail threads, newest first."),
       group: :day,
       order: 20,
       icon: "hero-envelope",
@@ -189,8 +240,8 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :slack,
-      label: "Slack",
-      blurb: "Slack channels, group DMs and DMs, newest first.",
+      label: dgettext_noop("default", "Slack"),
+      blurb: dgettext_noop("default", "Slack channels, group DMs and DMs, newest first."),
       group: :day,
       order: 30,
       icon: "hero-chat-bubble-left-right",
@@ -209,8 +260,8 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :people,
-      label: "People",
-      blurb: "Everyone you correspond and meet with, and their events.",
+      label: dgettext_noop("default", "People"),
+      blurb: dgettext_noop("default", "Everyone you correspond and meet with, and their events."),
       group: :day,
       order: 40,
       icon: "hero-user-circle",
@@ -232,10 +283,12 @@ defmodule AshEnterprise.Surfaces do
     # of the `todo` list (AshEnterprise.Acp.Commands).
     %Surface{
       key: :action_items,
-      label: "Action items",
+      label: dgettext_noop("default", "Action items"),
       blurb:
-        "Everything you have to do: captured items in Inbox, Today, Later and Done, " <>
-          "with the process tasks waiting on you beside them.",
+        dgettext_noop(
+          "default",
+          "Everything you have to do: captured items in Inbox, Today, Later and Done, with the process tasks waiting on you beside them."
+        ),
       group: :day,
       order: 45,
       icon: "hero-check-circle",
@@ -263,8 +316,8 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :approvals,
-      label: "Approvals",
-      blurb: "The tasks waiting on your decision.",
+      label: dgettext_noop("default", "Approvals"),
+      blurb: dgettext_noop("default", "The tasks waiting on your decision."),
       group: :day,
       order: 50,
       icon: "hero-check-badge",
@@ -299,8 +352,8 @@ defmodule AshEnterprise.Surfaces do
     # --- Operator -------------------------------------------------------------
     %Surface{
       key: :accounts,
-      label: "Accounts & syncs",
-      blurb: "Your linked accounts and how their syncs are doing.",
+      label: dgettext_noop("default", "Accounts & syncs"),
+      blurb: dgettext_noop("default", "Your linked accounts and how their syncs are doing."),
       group: :operator,
       order: 0,
       icon: "hero-arrow-path",
@@ -327,8 +380,9 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :erasure,
-      label: "Erasure scopes",
-      blurb: "Erasure scopes and the irreversible, typed-confirmation shred.",
+      label: dgettext_noop("default", "Erasure scopes"),
+      blurb:
+        dgettext_noop("default", "Erasure scopes and the irreversible, typed-confirmation shred."),
       group: :operator,
       order: 10,
       icon: "hero-trash",
@@ -349,8 +403,12 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :lineage,
-      label: "Lineage",
-      blurb: "What ran, what it read and wrote, and what failed, drawn as a live graph.",
+      label: dgettext_noop("default", "Lineage"),
+      blurb:
+        dgettext_noop(
+          "default",
+          "What ran, what it read and wrote, and what failed, drawn as a live graph."
+        ),
       description:
         "The lineage graph: every job (syncs, projections, writes) and the datasets it " <>
           "reads and writes, with failed and running runs marked, and each run's audit " <>
@@ -376,8 +434,12 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :audit,
-      label: "Audit trail",
-      blurb: "Every recorded change, newest first, each linked to the run that made it.",
+      label: dgettext_noop("default", "Audit trail"),
+      blurb:
+        dgettext_noop(
+          "default",
+          "Every recorded change, newest first, each linked to the run that made it."
+        ),
       group: :operator,
       order: 30,
       icon: "hero-clipboard-document-list",
@@ -393,8 +455,12 @@ defmodule AshEnterprise.Surfaces do
     # --- Processes ----------------------------------------------------------
     %Surface{
       key: :tasks,
-      label: "My tasks",
-      blurb: "Every process task routed to you: claim it, complete it, or hand it on.",
+      label: dgettext_noop("default", "My tasks"),
+      blurb:
+        dgettext_noop(
+          "default",
+          "Every process task routed to you: claim it, complete it, or hand it on."
+        ),
       group: :processes,
       order: 0,
       icon: "hero-inbox-stack",
@@ -411,8 +477,12 @@ defmodule AshEnterprise.Surfaces do
     # opens there; the two process views list every run of one process.
     %Surface{
       key: :flight,
-      label: "Flight view",
-      blurb: "One process run on its diagram, with a marker on the step it is on now.",
+      label: dgettext_noop("default", "Flight view"),
+      blurb:
+        dgettext_noop(
+          "default",
+          "One process run on its diagram, with a marker on the step it is on now."
+        ),
       group: :processes,
       order: 5,
       icon: "hero-map",
@@ -425,8 +495,8 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :brief_flight,
-      label: "Brief approvals in flight",
-      blurb: "Every running morning brief, on the step it is on now.",
+      label: dgettext_noop("default", "Brief approvals in flight"),
+      blurb: dgettext_noop("default", "Every running morning brief, on the step it is on now."),
       group: :processes,
       order: 6,
       icon: "hero-sun",
@@ -438,8 +508,9 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :steward_flight,
-      label: "Stewardship in flight",
-      blurb: "Every match under steward review, on the step it is on now.",
+      label: dgettext_noop("default", "Stewardship in flight"),
+      blurb:
+        dgettext_noop("default", "Every match under steward review, on the step it is on now."),
       group: :processes,
       order: 7,
       icon: "hero-hand-raised",
@@ -451,8 +522,12 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :processes,
-      label: "Processes",
-      blurb: "Every BPMN process this tenant can run: baselines and its own customizations.",
+      label: dgettext_noop("default", "Processes"),
+      blurb:
+        dgettext_noop(
+          "default",
+          "Every BPMN process this tenant can run: baselines and its own customizations."
+        ),
       group: :processes,
       order: 10,
       icon: "hero-square-3-stack-3d",
@@ -464,8 +539,12 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :decisions,
-      label: "Decisions",
-      blurb: "The DMN decisions processes route on, resolved when they are asked.",
+      label: dgettext_noop("default", "Decisions"),
+      blurb:
+        dgettext_noop(
+          "default",
+          "The DMN decisions processes route on, resolved when they are asked."
+        ),
       group: :processes,
       order: 20,
       icon: "hero-table-cells",
@@ -477,8 +556,12 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :triggers,
-      label: "Triggers",
-      blurb: "What starts a process: a watched write, a guard, and what it starts.",
+      label: dgettext_noop("default", "Triggers"),
+      blurb:
+        dgettext_noop(
+          "default",
+          "What starts a process: a watched write, a guard, and what it starts."
+        ),
       group: :processes,
       order: 30,
       icon: "hero-bolt",
@@ -492,8 +575,8 @@ defmodule AshEnterprise.Surfaces do
     # --- Compliance (ADR 0035) -----------------------------------------------
     %Surface{
       key: :findings,
-      label: "Findings",
-      blurb: "Who is breaching which control, and why.",
+      label: dgettext_noop("default", "Findings"),
+      blurb: dgettext_noop("default", "Who is breaching which control, and why."),
       group: :compliance,
       order: 0,
       icon: "hero-shield-exclamation",
@@ -506,8 +589,12 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :evaluations,
-      label: "Evaluations",
-      blurb: "The append-only log of what the engine decided, and on what facts.",
+      label: dgettext_noop("default", "Evaluations"),
+      blurb:
+        dgettext_noop(
+          "default",
+          "The append-only log of what the engine decided, and on what facts."
+        ),
       group: :compliance,
       order: 10,
       icon: "hero-clipboard-document-check",
@@ -520,8 +607,9 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :rule_sets,
-      label: "Rule sets",
-      blurb: "Rule set revisions: their layer, lifecycle and content hash.",
+      label: dgettext_noop("default", "Rule sets"),
+      blurb:
+        dgettext_noop("default", "Rule set revisions: their layer, lifecycle and content hash."),
       group: :compliance,
       order: 20,
       icon: "hero-scale",
@@ -534,8 +622,9 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :bundles,
-      label: "Policy bundles",
-      blurb: "Compiled bundles: which is active for whom, and since when.",
+      label: dgettext_noop("default", "Policy bundles"),
+      blurb:
+        dgettext_noop("default", "Compiled bundles: which is active for whom, and since when."),
       group: :compliance,
       order: 30,
       icon: "hero-archive-box",
@@ -548,8 +637,9 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :catalogs,
-      label: "Catalogs",
-      blurb: "Compliance catalogs, and the OSCAL documents they came from.",
+      label: dgettext_noop("default", "Catalogs"),
+      blurb:
+        dgettext_noop("default", "Compliance catalogs, and the OSCAL documents they came from."),
       group: :compliance,
       order: 40,
       icon: "hero-book-open",
@@ -563,8 +653,9 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :profiles,
-      label: "Profiles",
-      blurb: "Tailoring profiles: who tailored what, against which catalog.",
+      label: dgettext_noop("default", "Profiles"),
+      blurb:
+        dgettext_noop("default", "Tailoring profiles: who tailored what, against which catalog."),
       group: :compliance,
       order: 50,
       icon: "hero-adjustments-horizontal",
@@ -579,8 +670,8 @@ defmodule AshEnterprise.Surfaces do
     # --- Organization ------------------------------------------------------------
     %Surface{
       key: :users,
-      label: "Users",
-      blurb: "People with accounts in this application.",
+      label: dgettext_noop("default", "Users"),
+      blurb: dgettext_noop("default", "People with accounts in this application."),
       description:
         "People with accounts in this application, with their status and sign-up date.",
       group: :org,
@@ -595,8 +686,8 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :teams,
-      label: "Teams",
-      blurb: "Teams, which own records alongside users.",
+      label: dgettext_noop("default", "Teams"),
+      blurb: dgettext_noop("default", "Teams, which own records alongside users."),
       description: "Teams, which own records alongside users in the polymorphic ownership model.",
       group: :org,
       order: 10,
@@ -610,8 +701,8 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :roles,
-      label: "Roles",
-      blurb: "Named bundles of privileges a user can hold.",
+      label: dgettext_noop("default", "Roles"),
+      blurb: dgettext_noop("default", "Named bundles of privileges a user can hold."),
       description: "Security roles, which are the named bundles of privileges a user can hold.",
       group: :org,
       order: 20,
@@ -624,8 +715,8 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :business_units,
-      label: "Business units",
-      blurb: "The hierarchy that authorization depth expands over.",
+      label: dgettext_noop("default", "Business units"),
+      blurb: dgettext_noop("default", "The hierarchy that authorization depth expands over."),
       description: "The business-unit hierarchy that authorization depth expands over.",
       group: :org,
       order: 30,
@@ -641,8 +732,12 @@ defmodule AshEnterprise.Surfaces do
     # --- Projections -----------------------------------------------------------
     %Surface{
       key: :directory,
-      label: "Directory",
-      blurb: "The legacy estate's people, projected into a table this application owns.",
+      label: dgettext_noop("default", "Directory"),
+      blurb:
+        dgettext_noop(
+          "default",
+          "The legacy estate's people, projected into a table this application owns."
+        ),
       group: :data,
       order: 0,
       icon: "hero-identification",
@@ -658,10 +753,98 @@ defmodule AshEnterprise.Surfaces do
     # :reject and :escalate actions refuse system and AI actors by policy, so
     # the queue opens to any signed-in person and the policies decide what
     # they may read and act on.
+    # The judgment surfaces (ADR 0061): ash_judgments' surfaces bound to this
+    # application's resources. The acts are person-gated by policy, not by a
+    # door.
+    %Surface{
+      key: :judgment_verdicts,
+      label: dgettext_noop("default", "Verdicts"),
+      blurb:
+        dgettext_noop(
+          "default",
+          "Judgments the band table sent to review, awaiting your verdict."
+        ),
+      group: :judgments,
+      order: 0,
+      icon: "hero-scale",
+      path: "/app/judgments",
+      live: A2uiLive.JudgmentVerdicts,
+      ui: A2ui.Judgments.VerdictsUI,
+      resource: AshEnterprise.SystemOne.Banding,
+      acp: %{command: "verdicts", aliases: ["judgments awaiting verdict"]}
+    },
+    %Surface{
+      key: :judgment_band_tables,
+      label: dgettext_noop("default", "Band tables to certify"),
+      blurb:
+        dgettext_noop(
+          "default",
+          "Band tables a calibration run earned, awaiting a person's certification."
+        ),
+      group: :judgments,
+      order: 1,
+      icon: "hero-check-badge",
+      path: "/app/judgments/band-tables",
+      live: A2uiLive.JudgmentBandTables,
+      ui: A2ui.Judgments.BandTablesUI,
+      resource: AshEnterprise.SystemOne.CalibrationRun,
+      acp: %{command: "band tables", aliases: ["certify band tables"]}
+    },
+    %Surface{
+      key: :judgment_certifications,
+      label: dgettext_noop("default", "Certified band tables"),
+      blurb: dgettext_noop("default", "The band tables in force, with who certified them."),
+      group: :judgments,
+      order: 2,
+      icon: "hero-shield-check",
+      path: "/app/judgments/certifications",
+      live: A2uiLive.JudgmentCertifications,
+      ui: A2ui.Judgments.CertificationsUI,
+      resource: AshEnterprise.SystemOne.BandTableCertification,
+      acp: %{command: "certified band tables", aliases: ["certifications"]}
+    },
+    %Surface{
+      key: :judgment_calibration,
+      label: dgettext_noop("default", "Calibration"),
+      blurb:
+        dgettext_noop(
+          "default",
+          "Every calibration run: what it measured and the threshold it earned."
+        ),
+      group: :judgments,
+      order: 3,
+      icon: "hero-chart-bar",
+      path: "/app/judgments/calibration",
+      live: A2uiLive.JudgmentCalibration,
+      ui: A2ui.Judgments.CalibrationUI,
+      resource: AshEnterprise.SystemOne.CalibrationRun,
+      acp: %{command: "calibration", aliases: ["calibration runs"]}
+    },
+    %Surface{
+      key: :judgment_facts,
+      label: dgettext_noop("default", "Facts"),
+      blurb:
+        dgettext_noop(
+          "default",
+          "The facts current now, per subject, with the admission behind each."
+        ),
+      group: :judgments,
+      order: 4,
+      icon: "hero-document-check",
+      path: "/app/judgments/facts",
+      live: A2uiLive.JudgmentFacts,
+      ui: A2ui.Judgments.FactsUI,
+      resource: AshEnterprise.SystemOne.Fact,
+      acp: %{command: "facts", aliases: ["judged facts"]}
+    },
     %Surface{
       key: :steward,
-      label: "Steward queue",
-      blurb: "Review-banded matches awaiting a person's confirm, reject or unsure.",
+      label: dgettext_noop("default", "Steward queue"),
+      blurb:
+        dgettext_noop(
+          "default",
+          "Review-banded matches awaiting a person's confirm, reject or unsure."
+        ),
       group: :mdm,
       order: 0,
       icon: "hero-hand-raised",
@@ -674,8 +857,12 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :mdm_import,
-      label: "Import CSV",
-      blurb: "Upload a customer file, map its columns onto the golden record, run the import.",
+      label: dgettext_noop("default", "Import CSV"),
+      blurb:
+        dgettext_noop(
+          "default",
+          "Upload a customer file, map its columns onto the golden record, run the import."
+        ),
       group: :mdm,
       order: 10,
       icon: "hero-arrow-up-tray",
@@ -686,8 +873,8 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :mdm_golden,
-      label: "Golden records",
-      blurb: "The merged view of the customer, with merge lineage.",
+      label: dgettext_noop("default", "Golden records"),
+      blurb: dgettext_noop("default", "The merged view of the customer, with merge lineage."),
       description:
         "Golden records (canonical people) built by the MDM pipeline, with each row's " <>
           "merge lineage readable: who absorbed whom, pointing at whom.",
@@ -705,8 +892,12 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :time_travel,
-      label: "Time travel",
-      blurb: "Who a person resolved to, and what was true about them, at any moment.",
+      label: dgettext_noop("default", "Time travel"),
+      blurb:
+        dgettext_noop(
+          "default",
+          "Who a person resolved to, and what was true about them, at any moment."
+        ),
       group: :mdm,
       order: 25,
       icon: "hero-clock",
@@ -717,8 +908,8 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :mdm_mappings,
-      label: "MDM mappings",
-      blurb: "The mapping version chain: no-deploy onboarding.",
+      label: dgettext_noop("default", "MDM mappings"),
+      blurb: dgettext_noop("default", "The mapping version chain: no-deploy onboarding."),
       description:
         "Versioned schema mappings (ADR 0054): draft → validate → activate, one per " <>
           "customer schema. Activation supersedes; nothing is overwritten.",
@@ -734,8 +925,9 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :mdm_batches,
-      label: "Import batches",
-      blurb: "Every import by status, with its counts and its staged rows.",
+      label: dgettext_noop("default", "Import batches"),
+      blurb:
+        dgettext_noop("default", "Every import by status, with its counts and its staged rows."),
       description:
         "MDM import batches (ADR 0054) as a board by status — open, staging, matching, " <>
           "review, closed, failed — each with its counters, failure reason, pinned mapping " <>
@@ -751,11 +943,56 @@ defmodule AshEnterprise.Surfaces do
       acp: %{command: "import batches", aliases: ["batches"]}
     },
 
+    # --- Credentialing -----------------------------------------------------------
+    %Surface{
+      key: :credentials,
+      label: dgettext_noop("default", "Credentials"),
+      blurb:
+        dgettext_noop(
+          "default",
+          "The clinic's credentials: ask to activate one, and see what the registry holds."
+        ),
+      description:
+        "The synthetic clinic's clinician credentials (licences and certifications), each " <>
+          "pending or active with the registry. Activating one is a governed request that " <>
+          "a credentialing committee member other than the requester approves. A credential " <>
+          "shows what the licence reader found in its documents, with the lines it cites.",
+      group: :credentialing,
+      order: 0,
+      icon: "hero-identification",
+      path: "/app/credentialing",
+      live: A2uiLive.Credentials,
+      ui: A2ui.CredentialUI,
+      resource: AshEnterprise.Credentialing.Credential,
+      context: :credential,
+      acp: %{command: "credentials"}
+    },
+    %Surface{
+      key: :credentialing_tour,
+      label: dgettext_noop("default", "Credentialing tour"),
+      blurb:
+        dgettext_noop(
+          "default",
+          "A guided tour of governed activation: ask, approve, and what happens when the world changes in between."
+        ),
+      group: :credentialing,
+      order: 10,
+      icon: "hero-map",
+      path: "/app/showcase/credentialing",
+      live: AshEnterpriseWeb.ShowcaseLive.Credentialing,
+      resource: AshEnterprise.Credentialing.Credential,
+      acp: %{command: "credentialing tour", aliases: ["tour"]}
+    },
+
     # --- Legacy ------------------------------------------------------------------
     %Surface{
       key: :legacy_users,
-      label: "Legacy users",
-      blurb: "The old system's people, read live through a compatibility view.",
+      label: dgettext_noop("default", "Legacy users"),
+      blurb:
+        dgettext_noop(
+          "default",
+          "The old system's people, read live through a compatibility view."
+        ),
       description:
         "People in the OLD system — a 2010-era Rails schema, read through a compatibility " <>
           "view. Ask for these when the request mentions the legacy system, the old " <>
@@ -781,6 +1018,16 @@ defmodule AshEnterprise.Surfaces do
   @doc "Every surface, in group order then `order`."
   @spec all() :: [Surface.t()]
   def all, do: @sorted
+
+  @doc """
+  A registry label or blurb in the current process's Gettext locale. The texts
+  are marked for extraction where they are declared (`dgettext_noop/2`), so
+  they sit in the `default` domain; one with no translation reads as written.
+  The ambient locale is the rendering convenience `PutLocale` and `LiveLocale`
+  set; it is not read where a surface leaves the request (ACP).
+  """
+  @spec translate(String.t()) :: String.t()
+  def translate(text), do: Gettext.dgettext(AshEnterpriseWeb.Gettext, "default", text)
 
   @doc "The groups, in display order: `%{key, label, menu, blurb}`."
   @spec groups() :: [map()]

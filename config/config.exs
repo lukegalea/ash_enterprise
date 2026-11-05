@@ -13,6 +13,23 @@ config :mdex_native, syntax_highlighter: :lumis
 # a theme written in the design-system tokens (a `use Cinder.Theme` module).
 config :ash_oban, pro?: false
 
+# The standards standing check (JS-11): off by default, so the entry is a
+# no-op until `enabled: true`. The worker compiles only where ash_agent_tools
+# is loaded (dev and test), so a production build has no entry for it.
+standing_cron = "17 * * * *"
+
+standing_crontab =
+  if config_env() == :prod,
+    do: [],
+    else: [{standing_cron, AshEnterprise.Standards.StandingWorker}]
+
+config :ash_enterprise, AshEnterprise.Standards.StandingWorker,
+  enabled: false,
+  root: nil,
+  tenant: "dogfood",
+  limit: nil,
+  cron: standing_cron
+
 config :ash_enterprise, Oban,
   engine: Oban.Engines.Basic,
   notifier: Oban.Notifiers.Postgres,
@@ -33,6 +50,12 @@ config :ash_enterprise, Oban,
   # `:execution` runs governed invocations (ADR 0055): one job per ready invocation, each of
   # which runs an action on someone's behalf. Its own budget, so a slow target cannot hold up
   # token advances or syncs.
+  #
+  # `:agent_runs` runs agent run steps: one job per step, each holding one model call. Its own
+  # budget, so a slow model cannot hold up the invocations those steps request.
+  #
+  # `:quality` finishes agent evaluation suite runs (ADR 0058): one scoring job per suite run
+  # whose cases have all finished.
   queues: [
     default: 10,
     bpmn: 10,
@@ -40,7 +63,9 @@ config :ash_enterprise, Oban,
     ingestion: 5,
     system_one: 5,
     mdm: 10,
-    execution: 10
+    execution: 10,
+    agent_runs: 5,
+    quality: 2
   ],
   repo: AshEnterprise.Repo,
   plugins: [
@@ -67,53 +92,55 @@ config :ash_enterprise, Oban,
     # record we promise anybody.
     {Oban.Plugins.Pruner, max_age: 7 * 24 * 60 * 60},
     {Oban.Plugins.Cron,
-     crontab: [
-       # The trigger sweep is the *driver*, not a safety net: the nudge on the audit log is
-       # non-transactional and can be lost, so this is what guarantees an event is eventually
-       # dispatched. Every minute, one job per tenant that has a published, enabled
-       # subscription (the fan-out reads `config :ash_bpmn, trigger_tenants`).
-       #
-       # Spelled as the literal tuple `AshBpmn.Triggers.SweepWorker.cron_entry()` returns
-       # rather than by calling it: this file is evaluated before dependencies are compiled,
-       # so a function call into a dep would break the cold `mix setup` path.
-       {"* * * * *", AshBpmn.Triggers.CronSweep, queue: :bpmn, max_attempts: 1},
-       # MDM-7: noncompliant findings open their stewardship tasks on the
-       # drain cadence (idempotent; a golden already running an instance is
-       # skipped).
-       {"*/5 * * * *", AshEnterprise.Mdm.QualityStewardshipWorker, queue: :mdm, max_attempts: 3},
-       # PROD-9: newly projected people feed MDM's cross-source resolution
-       # (one job per tenant that turned it on; idempotent).
-       {"*/15 * * * *", AshEnterprise.Mdm.People.SweepWorker, queue: :mdm, max_attempts: 3},
-       # The ledger sweep is the *recovery net*, not the driver: the ledger trigger's
-       # pg_notify wakes the drain worker promptly, and a wake lost while the listener was
-       # down is caught here. Every five minutes; the worker's `unique: [period: 30]`
-       # collapses the overlap with wake-driven jobs.
-       {"*/5 * * * *", AshEnterprise.Ledger.UserDrainWorker,
-        queue: :ash_strangler_ledger, max_attempts: 1},
-       # Epic E4: one sync step per active linked account per vertical. The
-       # scheduler only enqueues; each vertical's worker is unique per linked
-       # account, so a tick that lands while a step is still queued, running
-       # or snoozed through a long backfill collapses into it.
-       {"*/10 * * * *", AshEnterprise.Integration.SyncScheduler,
-        args: %{"integration" => "google-calendar"}},
-       {"*/5 * * * *", AshEnterprise.Integration.SyncScheduler,
-        args: %{"integration" => "google-mail"}},
-       {"*/5 * * * *", AshEnterprise.Integration.SyncScheduler,
-        args: %{"integration" => "slack"}},
-       # The morning brief: every fifteen minutes in UTC, a no-op until
-       # `:morning_brief_compose_at` (below) on the display zone's clock, then
-       # one compose per calendar owner per local day. A tick, not a 06:30
-       # entry, because the zone is runtime config and the day must survive
-       # DST and a node that was down at 06:30 — see the scheduler's moduledoc.
-       {"*/15 * * * *", AshEnterprise.Agents.MorningBriefScheduler},
-       # PROD-17: lineage past its 14-day window is deleted daily
-       # (AshEnterprise.Lineage.Retention).
-       {"17 4 * * *", AshEnterprise.Lineage.PruneWorker},
-       # PROD-18: commitments in sent mail and Slack, and follow-ups to ended
-       # meetings, proposed as action items (AshEnterprise.Canonical.Commitments).
-       # Messages are read only by the in-zone model; with none, they wait.
-       {"*/10 * * * *", AshEnterprise.Canonical.Commitments.SweepWorker}
-     ]}
+     crontab:
+       [
+         # The trigger sweep is the *driver*, not a safety net: the nudge on the audit log is
+         # non-transactional and can be lost, so this is what guarantees an event is eventually
+         # dispatched. Every minute, one job per tenant that has a published, enabled
+         # subscription (the fan-out reads `config :ash_bpmn, trigger_tenants`).
+         #
+         # Spelled as the literal tuple `AshBpmn.Triggers.SweepWorker.cron_entry()` returns
+         # rather than by calling it: this file is evaluated before dependencies are compiled,
+         # so a function call into a dep would break the cold `mix setup` path.
+         {"* * * * *", AshBpmn.Triggers.CronSweep, queue: :bpmn, max_attempts: 1},
+         # MDM-7: noncompliant findings open their stewardship tasks on the
+         # drain cadence (idempotent; a golden already running an instance is
+         # skipped).
+         {"*/5 * * * *", AshEnterprise.Mdm.QualityStewardshipWorker,
+          queue: :mdm, max_attempts: 3},
+         # PROD-9: newly projected people feed MDM's cross-source resolution
+         # (one job per tenant that turned it on; idempotent).
+         {"*/15 * * * *", AshEnterprise.Mdm.People.SweepWorker, queue: :mdm, max_attempts: 3},
+         # The ledger sweep is the *recovery net*, not the driver: the ledger trigger's
+         # pg_notify wakes the drain worker promptly, and a wake lost while the listener was
+         # down is caught here. Every five minutes; the worker's `unique: [period: 30]`
+         # collapses the overlap with wake-driven jobs.
+         {"*/5 * * * *", AshEnterprise.Ledger.UserDrainWorker,
+          queue: :ash_strangler_ledger, max_attempts: 1},
+         # Epic E4: one sync step per active linked account per vertical. The
+         # scheduler only enqueues; each vertical's worker is unique per linked
+         # account, so a tick that lands while a step is still queued, running
+         # or snoozed through a long backfill collapses into it.
+         {"*/10 * * * *", AshEnterprise.Integration.SyncScheduler,
+          args: %{"integration" => "google-calendar"}},
+         {"*/5 * * * *", AshEnterprise.Integration.SyncScheduler,
+          args: %{"integration" => "google-mail"}},
+         {"*/5 * * * *", AshEnterprise.Integration.SyncScheduler,
+          args: %{"integration" => "slack"}},
+         # The morning brief: every fifteen minutes in UTC, a no-op until
+         # `:morning_brief_compose_at` (below) on the display zone's clock, then
+         # one compose per calendar owner per local day. A tick, not a 06:30
+         # entry, because the zone is runtime config and the day must survive
+         # DST and a node that was down at 06:30 — see the scheduler's moduledoc.
+         {"*/15 * * * *", AshEnterprise.Agents.MorningBriefScheduler},
+         # PROD-17: lineage past its 14-day window is deleted daily
+         # (AshEnterprise.Lineage.Retention).
+         {"17 4 * * *", AshEnterprise.Lineage.PruneWorker},
+         # PROD-18: commitments in sent mail and Slack, and follow-ups to ended
+         # meetings, proposed as action items (AshEnterprise.Canonical.Commitments).
+         # Messages are read only by the in-zone model; with none, they wait.
+         {"*/10 * * * *", AshEnterprise.Canonical.Commitments.SweepWorker}
+       ] ++ standing_crontab}
   ]
 
 # --- The process engine's three host callbacks --------------------------------
@@ -237,6 +264,9 @@ config :ash_acp,
   # `mix ash_acp.stdio` included — sends the same one. ash_acp prunes it per
   # actor with `Ash.can?/3` against the action each command runs.
   candidate_actions: {AshEnterprise.Surfaces, :candidate_actions, []},
+  # No "allow always": a permission request is an invocation's approval
+  # (`AshEnterprise.Acp.Approvals`), and there is no standing grant to record.
+  permission_options: [:allow_once, :reject_once],
   agent_info: %{name: "ash_enterprise", version: "0.1.0"}
 
 # The trigger sweep dispatches each event inside its own transaction -- deliberately, so a
@@ -369,6 +399,37 @@ config :ash_enterprise, AshEnterprise.Repo, types: AshEnterprise.PostgrexTypes
 # types module is separate.
 config :ash_evidence, AshEvidence.Repo, priv: "priv/test_repo"
 
+# The MDM match family earns the band table the matcher already bands through
+# (`AshEnterprise.Mdm.Banding`), not a `judgments_band_<family>` one.
+config :ash_enterprise, :band_table_keys, %{"mdm_matches" => "mdm:match_bands"}
+
+# The processes an agent may start through the `start_process` tool
+# (`AshEnterprise.Process.StartableKey`). None until a deployment names one.
+config :ash_enterprise, :agent_startable_processes, []
+
+# What the lowest range of an earned band table does
+# (`AshJudgments.Calibration.FamilyConfig`, `low_band`). It takes effect only
+# when calibration also earned a lower threshold; until then a table has two
+# ranges, admit and review.
+#
+# - The code standards, and the agent-reply style questions asked of an
+#   assistant's answers, admit a confident no: the fact is `false`, admitted
+#   without review, like a confident yes is admitted as `true`.
+# - MDM drops a confidently different pair (omit): there is no golden record
+#   to merge it into, and no fact to write.
+config :ash_judgments, :families, %{
+  commenting: %{low_band: :admit_no},
+  house_style: %{low_band: :admit_no},
+  model_call_location: %{low_band: :admit_no},
+  agent_reply_style: %{low_band: :admit_no},
+  mdm_matches: %{low_band: :omit}
+}
+
+# The verdicts surface opens the sealed text a model judged, and reads the
+# thresholds of the band-table version that banded it, through this host
+# (`AshJudgments.Banding.ReviewSource`).
+config :ash_judgments, :review_source, AshEnterprise.SystemOne.ReviewSource
+
 # MDM mapping targets: the host's golden-resource allowlist. A Mapping row
 # may only target what is declared here — fail closed (ADR 0054).
 config :ash_mdm, :allowed_targets, %{
@@ -408,7 +469,9 @@ config :ash_enterprise,
     AshEnterprise.Assistant,
     AshEnterprise.Mdm,
     AshEnterprise.Lineage,
-    AshEnterprise.Licences
+    AshEnterprise.Licences,
+    AshEnterprise.Credentialing,
+    AshEnterprise.Quality
   ],
   base_resources: [AshEnterprise.Platform.Resource]
 
@@ -576,6 +639,12 @@ config :ash_a2ui,
 # you need locales beyond en. At that point add {:ex_cldr, "~> 2.0"} and define
 # a project backend, so the compiled locale set is under your control.
 config :ex_money, auto_start_exchange_rate_service: false
+
+# The showcase (AshEnterprise.Showcase): its fault panel is a demo flag, off here and in
+# production, on in config/dev.exs; it is read at compile time, because it also compiles
+# the fault points in. Model turns replay recorded transcripts unless :live is chosen,
+# and live means the in-zone generative profile only.
+config :ash_enterprise, AshEnterprise.Showcase, fault_controls?: false, model_mode: :recorded
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.

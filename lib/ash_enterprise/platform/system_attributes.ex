@@ -143,6 +143,22 @@ defmodule AshEnterprise.Platform.SystemAttributes do
         (`AshEnterprise.Platform.Verifiers.NarrowedActions`).
         """
       ],
+      changes_authority: [
+        type: {:list, :atom},
+        default: [],
+        doc: """
+        Actions that change who may do what: assigning or revoking a role, writing a
+        role's privileges, adding someone to a team that holds roles (ADR 0043). The
+        grant union does not apply to an automation principal on them, so no
+        principal, even one acting for an administrator, administers authority; it
+        could otherwise widen its own role, and with it every holder of that role.
+
+        People, system actors and the engines reach these actions exactly as before:
+        this narrows one actor's grant path and adds no deny. An action that is
+        `human_only` already excludes principals. Every listed action must exist
+        (`AshEnterprise.Platform.Verifiers.NarrowedActions`).
+        """
+      ],
       machinery_only: [
         type: {:list, :atom},
         default: [],

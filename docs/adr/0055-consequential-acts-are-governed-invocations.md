@@ -1,10 +1,13 @@
 # ADR 0055 — Every consequential act is one governed invocation
 
 - **Status:** accepted (2026-10-23); the invocation record, `invoke`, the lease and the `:execute` handoff built
-  (2026-10-29); approvals, reconciliation, typed business errors and the automation principal not built
+  (2026-10-29); reconciliation, typed business errors and the automation principal built (2026-10-29); approval
+  binding built (2026-10-30); BPMN service tasks through `invoke` built (2026-11-01)
 - **Date:** 2026-10-23
 - **Amended:** 2026-10-29 — the coding-agent bridge; see
-  [Amendment](#amendment-2026-10-29--the-coding-agent-bridge)
+  [Amendment](#amendment-2026-10-29--the-coding-agent-bridge). 2026-11-01 — the sole-administrator rule; see
+  [Amendment](#amendment-2026-11-01--the-sole-administrator-rule). 2026-11-04 — the assistant asks, and its answer
+  ends at the request; see [Amendment](#amendment-2026-11-04--the-assistants-changes-are-requests)
 - **Related:** [ADR 0015](0015-approvals-stay-in-ash.md) (approvals stay in Ash),
   [ADR 0043](0043-automation-authority-is-a-grant.md) (automation authority is a grant),
   [ADR 0052](0052-self-service-actions.md) (self-service actions),
@@ -78,8 +81,9 @@ re-reads and applies the same comparison.
 
 An action that is governed carries `AshAgent.Validations.Governed`. It refuses to run unless its context names an
 Invocation that it loads and finds `executing` at the given epoch, for this target, with an `args_digest` equal to the
-digest of the actual inputs and an actor equal to the rebuilt executing principal. A context the caller made up is not
-enough.
+digest of the actual inputs and an actor equal to the rebuilt executing principal, and unless the context carries the
+secret the executor was given at its claim, whose digest only the claim stores. A context the caller made up is not
+enough, even one written by the requester, who knows everything about the row but that secret.
 
 ### Three execution paths
 
@@ -202,7 +206,9 @@ the host's `AshAgent.Approvals` implementation and the apply-decision trigger.
 - **The parent.** A request may name only a parent invocation the requester owns or a process instance they started;
   a `run_id` is refused until runs exist. Calling `request` directly gains nothing over `invoke`.
 - **Sealing.** `args` and `result` are sealed under the subject's erasure scope when the target acts on a record that
-  has one, otherwise under the requester's own `data_subject` scope (ref `invocation_requester:<user id>`).
+  has one; an agent run's tool call with no such record takes its run's scope (amended 2026-11-01, see ADR 0056,
+  "Erasure of a run"); otherwise they are sealed under the requester's own `data_subject` scope (ref
+  `invocation_requester:<user id>`).
   `args_digest` is an HMAC-SHA256 over RFC 8785 canonical JSON, keyed by an HMAC of a fixed label under that scope's
   data key, so a shred leaves the digest unrecomputable. A requester whose scope was shredded cannot invoke until a
   scope-rotation rule exists.
@@ -216,16 +222,186 @@ the host's `AshAgent.Approvals` implementation and the apply-decision trigger.
 - **Lease and paths.** `claim` takes the next epoch under `optimistic_lock(:lease_epoch)`; `succeed` and `fail` are
   filtered on the claimed epoch, after a locked re-read. An internal target runs in one transaction with `succeed`,
   so a superseded worker's effect rolls back with its refused completion (`lease_fencing_test.exs`). An expired lease
-  is taken over only for an internal target. An external target runs with no transaction open and `succeed` follows;
-  `outcome_unknown` and reconciliation are not built, and a worker that dies mid-run leaves its row `executing` until
-  they are.
+  is taken over only for an internal target. An external target runs with no transaction open and `succeed` follows.
+  Reconciliation is under "Built, 2026-10-29: execution paths, typed failure and reconciliation".
 - **Handoff.** `request` and `apply_decision` enqueue the `:execute` job in their own transaction; the trigger's
   scheduler sweeps every minute, takes the tenant from the row and persists no actor (`handoff_test.exs`).
-- **Failure classes so far.** A forbidden target is `:denied`, an invalid one `:rejected`, anything else `:permanent`.
-  `AshAgent.BusinessError`, transient retries and timeouts are not built.
+- **Failure classes.** See "Built, 2026-10-29: execution paths, typed failure and reconciliation".
+- **The worked example.** A synthetic clinic (`AshEnterprise.Credentialing`, seeded by `mix ash_enterprise.demo`)
+  has one governed target: `Credential.activate_credential`, open-world, four-eyes by a credentialing committee,
+  reconciled by `lookup_activation`, against a stub registry. Clinic and clinician are the CDM `Account` and
+  `Contact`; the credential is invented. `clinic_scenario_test.exs` runs it from `invoke` through an applied approval
+  to the registry's reference. (Amended 2026-10-31, showcase slice 1: the target is not idempotent, because the
+  registry takes no idempotency key and each activation it accepts is an entry of its own; so a lost answer is
+  `outcome_unknown`, settled by `lookup_activation`, never a second activation. The stub remembers what it accepted
+  for as long as the node runs, so the lookup can answer, and `lookup_activation` takes the target's own `id`. The
+  tour at `/app/showcase/credentialing` walks F2, F4 and F5 over it.)
 - **Not built yet.** Opening and applying approvals (`awaiting_approval` rows wait for a host change on
-  `apply_decision`), the approval and reconciliation triggers, the pre-check of the executing identity at request,
-  and `retry` and `rerun`.
+  `apply_decision`), the approval trigger, the pre-check of the executing identity at request, and `rerun`. (Approvals
+  and their trigger were built on 2026-10-30; see below.)
+
+## Built, 2026-10-29: execution paths, typed failure and reconciliation
+
+- **Paths by effect.** The executor takes the path from the target's declaration, which the claim has matched to the one
+  requested. An internal target's expired lease is made ready again (`requeue`): its effect rolled back with its
+  transaction. An idempotent outside target is given the invocation key in `context.ash_agent.invocation_key`, and the
+  Nango façade sends it as `Idempotency-Key` when a target passes `idempotency_key`; its expired lease is re-readied
+  too, and the provider takes the repeated call once. An outside target that is not idempotent is never called twice
+  for one claim: an error that leaves its effect in doubt, or a lease that expires with nothing recorded, makes the row
+  `outcome_unknown` (`reconcile_test.exs`).
+- **Reconciliation.** The `:reconcile` trigger (a sweep every minute, and enqueued by `mark_outcome_unknown` in its own
+  transaction) runs the package's `reconcile` action. An unknown outcome is settled by the target's `reconcile_with`
+  lookup, run as the rebuilt principal: found is `succeeded` with the effect's reference, not found is `failed` as
+  `:transient`, which only a deliberate `retry` runs again. Without a lookup, or when it cannot tell, a person is asked.
+- **Resolution by a person.** `request_resolution` opens a standalone `HumanTask` under the key
+  `"invocation.resolution"` for the tenant's administrators, through `AshBpmn.Changes.RequireApproval`. Its outcomes are
+  `succeeded`, `failed` and `retry`, which no door offered: the board's Complete is limited to outcomes the checked-in
+  baselines declare, and standalone approvals to approve and reject. `HumanTask.resolve` offers exactly those three
+  (an enumerated argument, so a picker), accepts only a resolution task, and `approve`, `reject` and `complete_task`
+  refuse one. The `:apply_resolution` trigger reads the completed task, requires a person as the decider, and applies
+  it: `succeeded`, `failed`, or `retry` (ready again, same key and arguments) (`resolution_test.exs`). Never
+  `on_complete`.
+- **Dispatch.** A target that hands its work on returns an `AshAgent.Invocation.Dispatch`: the row is `dispatched`,
+  holds no lease, and is settled by `complete_external` or by its deadline: `outcome_unknown` with `:timeout` for
+  outside work that is not idempotent, a `:timeout` failure otherwise. A callback for a row that is already final is
+  appended to `evidence` and changes nothing else.
+- **Typed failure.** As the Typed failure table above, from `AshAgent.Invocation.Failure`. `AshEnterprise.Integration.ProxyError`
+  classifies itself (`AshAgent.FailureClass`): `:rate_limited` is `:transient`; `:server_error`, `:transport` and
+  `:nango_error` are indeterminate (the effect may have happened); the rest `:permanent`. A transient failure backs off
+  (30 seconds, quadrupling) for up to three claims, then fails, and `retry` makes it ready again. `:budget` has no
+  source in the host until agent runs exist. `AshAgent.Invocation.Failure.bpmn/1` gives what a process sees: a
+  business error code, an incident, or waiting (`typed_failure_test.exs`).
+- **The no-network contract.** `no_network_contract_test.exs` is a CI gate over every target declared internal and not
+  read-only in the registered domains: built with generated inputs as an administrator, it may attach no transaction
+  hook, and run inside a rolled-back transaction with every outbound `Req` request blocked, it may make no request. A
+  canary target whose `after_transaction` hook calls the Nango façade fails it. Generated inputs do not reach every
+  action's end (a target needing an existing record stops at its lookup), so for those the hook check is what holds.
+
+## Built, 2026-10-30: approval binding
+
+- **What an approval binds** is the package's (ash_agent `AshAgent.Invocation.Approval`). `request` writes, for a row
+  awaiting approval, `authorization_details` in RFC 9396's shape (a URN `type` naming the action, `actions`, the
+  subject as `identifier`, and `target_digest`, `args_digest`, `preconditions`, `manifest_digest` reserved as nil until
+  release manifests exist), `approval_digest` (SHA-256 of their RFC 8785 canonical JSON) and `approval_expires_at`
+  from the declaration's `approval_expires_in`. `apply_decision` makes an approved row ready only while the digest
+  recomputed from the row, the target as declared now and the subject's current `version_number` still matches and
+  the approval has not expired; `claim` checks the same, inside its transaction, before every attempt. Otherwise the
+  row is `stale` with `error_code` `subject_changed`, `target_changed`, `approval_expired` or `approval_changed`.
+- **The task.** `Execution.Changes.RequestApproval` opens the standalone `HumanTask` under `"invocation.approval"`
+  through `AshBpmn.Changes.RequireApproval` in the request's transaction. Candidates are the holders of the
+  declaration's `approver_role`, named in words (`:credentialing_committee` is the role "Credentialing committee"); a
+  `:confirm` target with no role is confirmed by the requester; `:four_eyes` excludes the requester even when they hold
+  the role. Automation principals hold no person's role, so they are never candidates.
+- **The decision.** `HumanTask.approve`, `reject` and `resolve` are now `human_only` ([ADR 0059](0059-version-number-is-an-optimistic-lock.md)):
+  no system actor and no engine-flagged context reaches them. The `:apply_decision` trigger (a sweep every minute,
+  `use_tenant_from_record?`, `actor_persister :none`, ash_oban's default lock) selects rows whose task is completed or
+  cancelled, or whose approval expired undecided. `Execution.Changes.ReadApproval` takes the outcome from the task,
+  never from the caller: approved by a person who may still approve and, under four eyes, is not the requester is
+  `:approved`; a rejection is `rejected`; an expired or cancelled task, or an expiry with no decision, is `stale`; an
+  approval by someone without authority is `stale` with `approver_unauthorized`. The task is recorded as
+  `approval_task_id`.
+- **Authority at every claim.** `Execution.Changes.RecheckApprover` re-resolves the approval's candidates and builds
+  the approver's `ActorContext` afresh: an approver who lost the role, left the tenant or was deactivated makes the row
+  `stale` (`approver_unauthorized`) and nothing runs.
+- **Reading.** `Security.Checks.InvocationApprovalCandidacy` lets a candidate read the invocation they are asked to
+  approve. It filters on `exists(approval_task, id in ^task_ids)` rather than on the `approval_task_id` column, because
+  the engine creates the task after the row is inserted and writing the id back would cost a second audited write;
+  `approval_task_id` is recorded when the decision is applied.
+- **Tests.** `approval_binding_test.exs` (durability tier) and, for the ash_agent ↔ ash_bpmn seam on the battery's own
+  instantiation, `battery/test/base_integration/invocation_approval_test.exs`.
+
+## Built, 2026-10-31: what an attempt may have done
+
+A review of Phase 1 found five ways a row could record an outcome the world does not bear out. Each was reproduced
+first, and each is now the package's (ash_agent `AshAgent.Invocation`), with the host's tests in
+`attempt_outcomes_test.exs` (durability tier) and `governed_test.exs`.
+
+- **The executor alone runs a governed target.** Everything Governed checked is known to the requester, the lease
+  epoch being a small counter, so while a row was executing the requester could call `assign_governed` beside the
+  executor. Each claim now makes a secret, stores only its digest (`lease_token_digest`), and hands it to the target
+  in `context.ash_agent.lease_token`; a caller without it is refused as `:not_executor`.
+- **The subject is checked where it is written.** The claim checked the approved `version_number`, and the target
+  read the subject again in a later transaction, so an edit between them ran under the old approval. The executor now
+  compares the record the target is about to write with the approved version (inside the target's transaction for an
+  internal one); another version makes the row `stale` through `mark_stale`, with nothing run. The base resource's
+  `optimistic_lock(:version_number)` then fences the write itself to that version.
+- **An outside target that started is in doubt when it fails.** An error the host has not classified, from an outside
+  target past its start, was final (`:rejected` or `:permanent`) though the call may have gone out; `activate_credential`
+  losing its own write's version race after the registry call is the case. It is now indeterminate: an idempotent target
+  runs again with the same key, then becomes `outcome_unknown` if it runs out of attempts; one that is not idempotent is
+  `outcome_unknown` at once. A policy refusal stays `:denied`, and what is refused before the action starts (inputs that
+  do not build, a subject gone or out of reach) stays definite.
+- **A raise is an outcome, and attempts are counted.** An outside target that raised left the row `executing`, and
+  every lease expiry re-ran it. A raise is now recorded as indeterminate, and an expired lease is taken over or
+  re-readied only while `attempt_count` is below `max_attempts`; past that, `reconcile` makes it `outcome_unknown`
+  (outside) or a `:transient` failure, `"attempts_exhausted"` (internal).
+- **A row an attempt may have reached outside never ends as though nothing ran.** Going `stale` at claim (a changed
+  target, an expired approval, a changed subject, an approver who may no longer approve), being cancelled from
+  `ready`, or failing before its target ran makes such a row `outcome_unknown` instead, with the same `error_code`, and
+  reconciliation settles it. `RecheckApprover` refuses an attempt through the package's `Claim.stale/2` for the same
+  reason.
+
+## Built, 2026-10-30: governed targets and `/mcp` `assign_role`
+
+- **The validation** is the package's (ash_agent `AshAgent.Validations.Governed`, taking the host resource as
+  `invocation: AshEnterprise.Execution.Invocation`). It reads the invocation named in `context.ash_agent` without
+  authorization, in the action's tenant, and refuses unless it is `executing` under the named epoch, for this target,
+  with an `args_digest` equal to the HMAC of the inputs given plus the acted-on record's primary key (taken from the
+  record), and run as its principal. A refusal is `AshAgent.Invocation.Ungoverned` (invalid) with a `reason`. It has an
+  `atomic/3` and is temporal safe.
+- **The principal check** needs the inverse of `actor_for/1`, so `AshAgent.ExecutionIdentity` gained
+  `principal_of/1`. `Execution.Identity` reads it from the actor alone: a `User` is the person (one asking to start an
+  agent is not an actor `actor_for/1` builds), an `AutomationPrincipal` acting for a person is that automation
+  principal; anything else, system actors included, has none.
+- **Governed targets in Phase 1**: `Security.UserRole.assign_governed` and the clinic's
+  `Credentialing.Credential.activate_credential`. `UserRole.assign` stays ungoverned for the callers that have not
+  moved to `invoke` (the tenant seeder, demo data, the access-request process, the admin UI and test fixtures; the
+  assistant's confirmed proposals were a caller until 2026-11-04, when the admin chat moved to `request_assignment`): moving them is the caller inventory this ADR puts before wider use.
+- **`/mcp` `assign_role`** is now `UserRole.request_assignment`, a self-service generic action
+  (`Execution.Actions.RequestInvocation`) that calls `invoke` for `assign_governed` with a per-call key
+  (`request:<UUIDv7>`) and returns the request: `invocation_id`, `target`, `status`, `error_code` and, while it waits,
+  `approval_url` (`/app/r/approvals/<task id>`), which the MCP router sends as `structuredContent`. Nothing is assigned
+  until an administrator other than the caller approves; the assignment then runs as the caller, rebuilt from their
+  grants.
+- **Tests.** `test/ash_enterprise_web/mcp_assign_role_test.exs` drives the tool through the MCP router with a bearer
+  token: the call returns the approval URL and assigns nothing; approved by a second administrator it runs once.
+  `test/ash_enterprise/execution/governed_test.exs`: a direct call, a forged context (awaiting approval, ready, another
+  epoch, another tenant), other arguments and another actor are each refused; the credential activation refuses a
+  direct call. `clinic_scenario_test.exs` runs the governed activation end to end.
+
+## Built, 2026-10-31: band-table certification and revocation
+
+- **Governed targets** now include `SystemOne.CalibrationRun.certify_and_publish` and
+  `SystemOne.BandTableCertification.revoke`: `approval: :confirm` by an administrator, `Governed`, an agent's request
+  keyed `certify:<run id>` / `revoke:<certification id>`. `record_verdict` is not governed and has no request action
+  (AST-136).
+- **A person's own click** goes through `invoke` as well: `Execution.Actions.ConfirmInvocation` invokes, approves the
+  task as the requester (allowed in `confirm` when they hold the approver role), and runs `apply_decision` and
+  `execute` inline. Details are in the amendment to [ADR 0061](0061-judgment-surfaces-ship-with-the-package.md).
+- **Tests.** `test/ash_enterprise_web/judgment_surfaces_test.exs`.
+
+## Built, 2026-11-01: BPMN service tasks through invoke
+
+- **The key.** A registry entry of `AshEnterprise.Process.ActionInvoker` that names a declared target
+  (`invoke: {resource, action}`) runs through `AshEnterprise.Process.ServiceInvocation`: `Execution.invoke` with the
+  engine's invocation key written out, `bpmn:<instance>:<token>:<node>`, the same for every redelivery of one
+  execution of the node (ash_bpmn B5), and the instance and node as its parent. A redelivery gets the row back and
+  answers with what it recorded; the target runs once. Executed inline, in the advance job.
+- **Who it runs as.** The instance's starter (`started_by_id`), rebuilt from grant rows when the task asks and again
+  at the claim; a starter who is no longer active stops the task before anything is asked. The definition's
+  automation principal is not built: no definition declares one, and where a process would declare it, and which
+  agent's start grant it would need, are still open. Entries that name no target keep `process`.
+- **What may be named.** Only a target with `approval: :none` and `open_world?: false`. `ServiceInvocation.runnable/1`
+  refuses the others, and a diagram naming such an entry is refused at publish.
+- **Typed failure.** A `failed` row of class `:business` is `{:bpmn_error, code, %{"invocation_id" => id}}`, which an
+  error boundary on that `errorCode` catches; any other final failure is an error the engine retries (and the row
+  answers the same each time). The first targets are the clinic's evidence checks,
+  `Credentialing.Credential.check_documents` and `check_expiry`.
+- **Decisions are recorded or fail.** The process's business rule tasks, System One banding and MDM banding evaluate
+  with `record: :required`: a decision whose `Evaluation` row could not be written is an error, not an unrecorded
+  answer. The `judge_*` calls that run inside an invocation already carry its id through `SystemOne.judge_context`.
+- **Tests.** `test/ash_enterprise/process/invocation_key_test.exs`, `evidence_check_boundary_test.exs`,
+  `decision_resolver_test.exs`; battery scenario `process_service_task_invocation_test.exs`.
 
 ## Amendment, 2026-10-29 — the coding-agent bridge
 
@@ -241,3 +417,155 @@ halves, and they go different ways.
   process and conversation. They are not the runtime's `Run` and `Step`
   ([ADR 0056](0056-the-ash-agent-package.md)), which record runs this application's own agents execute, and they are
   not merged into them.
+
+## Amendment, 2026-11-01 — the sole-administrator rule
+
+Publishing an agent (`AgentVersion.apply_publish`) is `:four_eyes` with `approver_role: :administrator`. An
+organization with one administrator could never publish one: four eyes excludes the requester and there is no second
+candidate. Adding a second administrator only to approve, or leaving agents unpublished, were the alternatives; the
+decision is an explicit, recorded exception instead.
+
+- **Opt-in, per organization.** `Organization.sole_administrator_approval`, default false, set only through
+  `set_sole_administrator_approval`: `human_only` and `changes_authority` (a person's act, never a system actor's, an
+  engine's or an automation principal's), authorized by the grant union and by `Security.Checks.OwnOrganization`
+  (the row is the actor's own organization, since `Organization` is not tenant-scoped). Audited like every update.
+- **The rule.** For a `:four_eyes` declaration whose `approver_role` is `:administrator`, and no other role, the
+  requester is not excluded while the organization has opted in and the requester is the only person who holds the
+  Administrator role or has ever held it, directly or through a team (`Execution.Approval.sole_administrator?/3`).
+  The role is found by its name, so the Administrator role cannot be renamed
+  (`Security.Validations.AdministratorKeepsItsName`): renaming the role both administrators hold and taking a new one
+  would otherwise set the second aside without revoking anything. Turning the opt-in on in an organization with several administrators changes nothing. That covers publishing an
+  agent and a governed role assignment (`UserRole.assign_governed`), the two targets that name the role today. The credentialing committee, and every other
+  approver role, keeps four eyes unconditionally.
+- **Still an act, asked again.** The requester approves by deciding the task, as any approver does; nothing is
+  approved for them. The rule is evaluated when the task opens (`RequestApproval`, which now passes the tenant and the
+  requester to `Approval.task_options/4`), when the decision is applied (`ReadApproval`) and at every claim
+  (`RecheckApprover`, through `approver_holds?/2`). A second administrator, or the opt-in turned off, restores four
+  eyes: a self-approval not yet applied goes `stale` with `approved_by_requester`, one already applied goes `stale` at
+  its claim with `approver_unauthorized`, and nothing runs.
+- **A removed administrator still counts** (amended the same day, after review). Revoking an assignment, taking
+  someone off a team and deactivating them are each one administrator's act. Counting only the holders in force would
+  let one of two administrators revoke the other, opt in and approve alone, where before the rule four eyes failed
+  closed. So the rule counts every holder the history holds: revoked assignments, ended team memberships and archived
+  roles, read through each resource's `history` action, and people who are no longer active. An organization whose
+  second administrator has left keeps four eyes, as it had before the rule; it needs a second administrator to
+  approve.
+- **Recorded.** `Invocation.approval_basis` is written when an approval is applied: `:confirm`, `:four_eyes` or
+  `:sole_administrator`, so a reader of the row or its audit trail can tell a self-approval from four eyes.
+- **Enabling an agent.** `AgentVersion.enable_from_code` (and `mix ash_enterprise.assistant.enable --org <org> --as
+  <email>` for the assistant) registers the code agent's platform baseline, forks it into the tenant and requests the
+  publish as the named person; a rerun returns the waiting request or reports the version already published. It never
+  approves and never gives start grants. `--sole-administrator-approval` records the opt-in first, as that person.
+- **Tests.** `test/ash_enterprise/execution/sole_administrator_approval_test.exs` and
+  `test/ash_enterprise/execution/enable_agent_test.exs`.
+
+## Built, 2026-11-01: ACP permission requests and coding-agent tool calls
+
+Phase 2b, for two of the mechanisms listed under Context. The assistant's proposals moved on 2026-11-04 (see
+[Amendment](#amendment-2026-11-04--the-assistants-changes-are-requests)).
+
+- **An ACP permission request is an invocation.** A prompt routed to an action whose declaration asks first
+  (`Acp.asks_first?/2`) runs `Invocation.confirm` for it (`Execution.Actions.ConfirmRequest`, self-service): the
+  permission request is `invoke` as the session's person, waiting on its standalone approval task, and its id is the
+  request's ref (`Acp.Approvals`). `allow_once` confirms it: the person approves their own task, as they are now (a
+  fresh `ActorContext`), the decision is applied and the target runs once, inline (`ConfirmInvocation.confirm/3`).
+  `reject_once` rejects the task (`ConfirmInvocation.decline/3`). A cancel decides nothing, and the row stays on the
+  person's approvals list. The ETS approvals table is gone: the request survives the session store, the connection
+  and a restart.
+- **Asking again finds the same row.** The key is not the session's: `Acp.Approvals.key/4` reuses the key of the
+  person's own waiting request for the same target and arguments (`invoke`'s own test, through the idempotency
+  conflict), so a client that reconnects and sends the request again is answered with the same ref.
+- **No "allow always".** ACP offers `allow_once` and `reject_once` only (`config :ash_acp, permission_options:`,
+  ash_acp 0.4): there is no scoped standing grant for it to record yet.
+- **A surface click is a confirmation, not a request.** An `_a2ui/action` names the A2UI action, which may run other
+  code (`via`), so its declaration cannot be the invocation's target. ACP asks the person to confirm the click, binds
+  the answer to the session, records nothing, and the click runs as them under their policies, as on the web.
+- **A coding agent's tool call is an invocation.** A bridge `tool_request` frame becomes `invoke` of
+  `Agents.ToolCall.run_tool` (`approval: :confirm`, `open_world?`) as the run's owner, keyed
+  `omp:<run id>:<request id>`. The owner decides its approval task. Approved, the target hands the call to the process
+  (`Dispatch`, `effect_system` `"omp"`); the session hears its invocation move on `invocations:<id>` (the invocation
+  now publishes its updates) and writes `tool_response` approved when it is `dispatched`, refused when it is rejected,
+  stale or failed. `tool_result` completes it through `complete_external`. `Agents.ToolGate` and
+  `Agents.ToolInvocation` are deleted, and `agent_tool_invocations` is dropped. Nothing moves into the invocation: the
+  only frames that wrote it are the bridge dialect, which `omp --mode rpc` does not speak, and the actions on it were
+  audited.
+- **Tests.** `test/ash_enterprise/acp/approvals_durable_test.exs`, `test/ash_enterprise/acp/approvals_test.exs`,
+  `test/ash_enterprise/agents_test.exs` ("tool calls are invocations").
+
+## Amendment, 2026-11-04 — the assistant's changes are requests
+
+The third of the five mechanisms under Context. Decided by Luke on 2026-11-04.
+
+- **The answer ends at the request; the outcome shows later.** A change the assistant makes for a person (add or
+  finish an action item, save a reply draft, sync a linked account, approve or reject a task waiting on them, merge,
+  keep separate or mark unsure a duplicate in their steward queue) is a call to the target action itself, named in
+  the agent's toolset ([ADR 0056](0056-the-ash-agent-package.md)). Each target declares `approval: :confirm`, so the
+  run requests it as the person and waits on it; the turn's answer is recorded there and says what was asked. The
+  page shows the request with Confirm and Cancel (`Assistant.Requests`, which reads only the person's own), follows
+  it on `invocations:<id>` and then shows its outcome. Confirm is `ConfirmInvocation.confirm/3`: the person approves
+  their own task as they are now, and the target runs once, as them. Cancel is `decline/3`.
+- **The run's deadline does not reach the request.** The run keeps its five minutes. A run that ends with a request
+  still waiting neither fails nor cancels it, and a Confirm after the deadline still runs the target as the person;
+  the run fails `deadline_passed` at its next step, and the request stands.
+- **No backfill.** `AI.Proposal`, `Assistant.Propose`, `Assistant.Tools.Proposals` and `Assistant.ProposalSettlement`
+  are deleted, and `assistant_proposal_settlements` is dropped. A turn recorded before the change still carries its
+  proposal; the page shows it as "proposed (before 4 November 2026)" and offers nothing.
+- **Re-publish per tenant.** The assistant's declaration changed, so each tenant's published version has drifted
+  from the code and its runs fail `definition_drift` until it is published again. `mix ash_enterprise.assistant.enable`
+  registers the new baseline, forks it into a draft and requests the publish; rerun, it returns the waiting request.
+  The publish needs four eyes, or the sole-administrator rule where the organization opted in.
+- **The admin chat asks too.** `AgentLive`'s "assign the X role to Y" is a role request: the names are resolved as
+  the person (`AI.Interpreter`), and sending it is `UserRole.request_assignment`, the same four-eyes request `/mcp`
+  `assign_role` makes. Nothing in the chat assigns a role.
+- **Tests.** `test/ash_enterprise/assistant/ask_test.exs` (the answer ends at the request; confirming runs it as the
+  person; after the deadline; declining),
+  `test/ash_enterprise/assistant/decisions_test.exs`, `test/ash_enterprise/assistant/compose_propose_test.exs`,
+  `test/ash_enterprise_web/live/assistant_compose_live_test.exs`, `test/ash_enterprise/ai/role_request_test.exs`,
+  and `test/ash_enterprise/execution/enable_agent_test.exs` (a tenant whose published copy has drifted).
+
+## Built, 2026-11-05: the credentialing case as a process (showcase slice 3)
+
+The clinic's case runs as a BPMN process (`priv/showcase/credentialing_case.bpmn`, key `credentialing.case`), opened from the tour
+(`/app/showcase/credentialing`, beats 10 to 15) by `Credential.open_case`, a generic action that starts the instance with the person
+asking as its starter.
+
+- **Parallel checks, one refused (F7).** `check_documents` and `check_expiry` are service tasks through their invocations, as the
+  starter. The documents check's business refusal (`licence_document_missing`) is caught by its error boundary, which asks for the
+  document (`Credential.request_documents`, a service task target that writes a `document.requested` envelope once per execution of
+  the task) while the expiry check completes; the parallel join fires when both branches have arrived.
+- **A correlated wait (F6).** The request is a CloudEvents envelope (`Credentialing.DocumentEvent`, unique on source and id), and the
+  case waits for the credential's `document.received` envelope on a receive task correlated on the credential, with a 24-hour
+  lookback. `Credentialing.DocumentWebhook.deliver/4` is what the filing system's webhook does: idempotent on the sender's delivery id,
+  so a delivery repeated is `:duplicate`, and one that arrives before the case waits is found by the lookback. However many
+  deliveries and in whatever order, the case has one `message_received`. Verifying and routing the HTTP request is not built: the
+  tour's control calls the handler.
+- **The committee decides on a user task** (`approved` or `rejected`), candidates the credentialing committee, the credential's
+  owner excluded. An approved case waits on a `P365D` timer catch event, a durable Oban job; the tour shows its date (the parked
+  token's time plus the duration its wait recorded).
+- **An ACP approval survives a restart.** The committee's decision on the case task, asked over ACP, is an invocation like any
+  other (`Acp.Approvals`): `test/ash_enterprise/acp/case_approval_durable_test.exs` empties the session store with the request
+  waiting, sends the same request from a new session, and allows it; the case moves on to its timer.
+- **The demo is safe beside real tenants.** `mix ash_enterprise.demo` writes only to its own tenant, `clinic-demo`
+  (`Platform.DemoTenant`): it creates it when missing, refuses to populate any other organization, and refuses to move a person who
+  already belongs to another tenant. The case process is published into that tenant, never the platform baselines.
+- **Fault controls read honestly with the flag off.** Every beat that needs one (3, 4, 5, 7 and 12) says in place that it runs in
+  the demo build.
+- **Tests.** `test/ash_enterprise/showcase/credentialing_case_test.exs`, `test/ash_enterprise_web/live/showcase_case_live_test.exs`,
+  `test/ash_enterprise/acp/case_approval_durable_test.exs`, `test/ash_enterprise/platform/demo_tenant_test.exs`.
+
+## Built, 2026-11-05: an agent starts a process
+
+- **`start_process` is a governed target.** `Execution.StartProcess.start` (`approval: :confirm`, `open_world?: false`,
+  idempotent) takes a process key, the resource of the record it is about and its id. The person the run acts for
+  confirms through the ordinary approval task. Until they do there is no instance; once they do the target runs inline
+  with the invocation's completion, in one transaction, so a redelivery starts nothing more.
+- **Only a listed process.** `config :ash_enterprise, :agent_startable_processes` is the allowlist, empty until a
+  deployment names a process. The argument's type (`Process.StartableKey`) refuses any other key where the request is
+  made, before an approval is asked for, and again where the approved request runs, so a key taken off the list while
+  a request waited stops it.
+- **As the person.** The record is read as them (one they cannot read is the same refusal as one that does not
+  exist) and they are the instance's starter, so what its service tasks do runs as them (D5). The definition is the
+  one the tenant runs now, and the instance is pinned to the active release manifest that names its process
+  (`Bpmn.Changes.PinReleaseManifest`); the approval binds that release's digest like any other.
+- **Tests.** `test/ash_enterprise/execution/start_process_test.exs`; the seam is in the battery
+  (`battery/test/base_integration/agent_start_process_test.exs`).

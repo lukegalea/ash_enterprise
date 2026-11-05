@@ -20,6 +20,12 @@ defmodule AshEnterprise.AI.Models do
     Both of the first two must be set; then the profile exists and is the
     default model for every caller that does not name one explicitly.
 
+  * **A recorded model** (`recorded_spec/1`): turns replayed from a recorded
+    transcript inside this process (`AshEnterprise.Showcase.RecordedModel`).
+    Nothing is sent anywhere, so it is in-zone; its profile is `"recorded"`.
+    Its address (`recorded://…`) is not a host: a recorded spec handed to
+    the real ReqLLM reaches nothing.
+
   * **Anything else** — a `"provider:model"` catalogue spec such as
     `"anthropic:claude-haiku-4-5-20251001"` or `"openrouter:…"`. A hosted model
     is outside every declared zone, so it is classed `:outside_zone`. Nothing
@@ -46,8 +52,8 @@ defmodule AshEnterprise.AI.Models do
     The same two options work for `AshAi.ToolLoop.run/2` and `stream/2`.
   * Code calling ReqLLM itself: `resolve/1` for the spec and options, then
     `call/5` around the request.
-  * The assistant (`AshEnterprise.Assistant.Runner`): `AshAi.ToolLoop.stream/2`
-    through `GuardedReqLLM`, in-zone targets only.
+  * Agent runs (`AshEnterprise.Execution.AgentRuntime`), the assistant's among
+    them: `AshAi.ToolLoop.stream/2` through `GuardedReqLLM`, in-zone targets only.
   """
 
   alias AshEnterprise.AI.ModelCall
@@ -93,6 +99,7 @@ defmodule AshEnterprise.AI.Models do
   end
 
   @in_zone_profile "in_zone_generative"
+  @recorded "recorded://"
   @default_hosted "anthropic:claude-haiku-4-5-20251001"
   @efforts %{
     "none" => :none,
@@ -101,6 +108,13 @@ defmodule AshEnterprise.AI.Models do
     "medium" => :medium,
     "high" => :high
   }
+
+  @doc """
+  The name of the in-zone generative profile: the only model profile an agent version
+  may be published to run on (`AshEnterprise.Execution.Validations.Publishable`).
+  """
+  @spec in_zone_profile_name() :: String.t()
+  def in_zone_profile_name, do: @in_zone_profile
 
   @doc """
   The model spec for interpretation, as `AshEnterprise.AI.model/0` returns it:
@@ -130,7 +144,13 @@ defmodule AshEnterprise.AI.Models do
   nothing — `call/5` does that.
   """
   @spec resolve(term()) :: Target.t()
-  def resolve(spec \\ interpreter_spec()) do
+  def resolve(spec \\ interpreter_spec())
+
+  def resolve(%{base_url: @recorded <> _, id: id} = spec) do
+    %Target{profile: "recorded", spec: spec, label: id, residency: :in_zone}
+  end
+
+  def resolve(spec) do
     profile = in_zone_profile()
 
     if profile && same_model?(spec, profile) do
@@ -145,6 +165,15 @@ defmodule AshEnterprise.AI.Models do
     else
       %Target{profile: "hosted", spec: spec, label: label(spec), residency: :outside_zone}
     end
+  end
+
+  @doc """
+  The spec of the recorded model named `name`: what `resolve/1` classes as the
+  `"recorded"` profile, labelled `recorded:<name>`.
+  """
+  @spec recorded_spec(String.t()) :: LLMDB.Model.t()
+  def recorded_spec(name) when is_binary(name) do
+    ReqLLM.model!(%{provider: :openai, id: "recorded:" <> name, base_url: @recorded <> name})
   end
 
   @doc """

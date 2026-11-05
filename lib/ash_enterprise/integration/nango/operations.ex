@@ -84,7 +84,17 @@ defmodule AshEnterprise.Integration.Nango.Operations do
         doc:
           "Provider path relative to the integration's base URL; `{param}` placeholders allowed."
       ],
-      description: [type: :string, doc: "The generated action's description."]
+      description: [type: :string, doc: "The generated action's description."],
+      numbers: [
+        type: {:one_of, [:float, :decimal]},
+        default: :float,
+        doc: """
+        How JSON numbers with a fraction are decoded. `:decimal` decodes them
+        as `Decimal`, never as a float: for an operation whose numbers are
+        money (a spreadsheet's amounts), a float would round before anything
+        could stop it.
+        """
+      ]
     ]
   }
 

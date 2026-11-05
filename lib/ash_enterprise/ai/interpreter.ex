@@ -5,9 +5,11 @@ defmodule AshEnterprise.AI.Interpreter do
 
   This is the only part of the agent flow that involves a model, and it is
   deliberately the *smallest* part. It produces a plan; it never performs
-  anything. Everything safety-relevant — authorization, execution, audit —
-  happens in `AshEnterprise.AI.Proposal` as ordinary Ash code, which is why the
-  agent flow is testable end to end without an API key.
+  anything. Everything safety-relevant — authorization, approval, execution,
+  audit — happens in ordinary Ash code, which is why the agent flow is testable
+  end to end without an API key: a role assignment is requested through
+  `AshEnterprise.Security.UserRole.request_assignment/3`, a governed invocation
+  another administrator approves (ADR 0055).
 
   ## Structured output, not tool calling
 
@@ -22,7 +24,7 @@ defmodule AshEnterprise.AI.Interpreter do
       "model your domain, derive the rest" property as everywhere else.
 
   Name resolution deliberately happens **after** interpretation, in
-  `Proposal.assign_role/4`, running as the requesting actor. If the model
+  `plan/4`, running as the requesting actor. If the model
   resolved names itself it would need read tools, and its view of who exists
   could differ from the requester's.
 
@@ -41,22 +43,32 @@ defmodule AshEnterprise.AI.Interpreter do
 
   require Logger
 
+  require Ash.Query
+
+  alias AshEnterprise.Accounts
   alias AshEnterprise.AI.Models
-  alias AshEnterprise.AI.Proposal
   alias AshEnterprise.AI.RequestClassifier
+  alias AshEnterprise.Security
   alias AshEnterprise.Surfaces
 
   @typedoc """
   What the console should do about a request.
 
   A tagged tuple rather than a single struct, because the three outcomes are not
-  variations on one thing: a proposal is inert until a human approves it, and
-  the two surfaces are shown immediately because a read is already filtered by
-  the viewer's policies. Collapsing them would mean either confirming reads or
-  performing writes unasked.
+  variations on one thing: a role request is inert until the person sends it
+  and another administrator approves it, and the two surfaces are shown
+  immediately because a read is already filtered by the viewer's policies.
+  Collapsing them would mean either confirming reads or performing writes unasked.
   """
+  @type role_request :: %{
+          user_id: Ash.UUID.t(),
+          role_id: Ash.UUID.t(),
+          user: String.t(),
+          role: String.t()
+        }
+
   @type plan ::
-          {:proposal, Proposal.t()}
+          {:role_request, role_request()}
           | {:surface, map()}
           | {:designed, struct(), String.t()}
           | {:assistant, String.t()}
@@ -64,10 +76,11 @@ defmodule AshEnterprise.AI.Interpreter do
   @doc """
   Interprets `request` and returns `{:ok, plan}` or `{:error, message}`.
   """
-  @spec interpret(String.t(), term(), term()) :: {:ok, plan()} | {:error, String.t()}
-  def interpret(request, actor, tenant) do
+  @spec interpret(String.t(), term(), term(), String.t()) ::
+          {:ok, plan()} | {:error, String.t()}
+  def interpret(request, actor, tenant, locale \\ "en") do
     with {:ok, intent} <- infer_intent(request) do
-      to_plan(intent, request, actor, tenant)
+      to_plan(intent, request, actor, tenant, locale)
     end
   end
 
@@ -79,18 +92,23 @@ defmodule AshEnterprise.AI.Interpreter do
   code, and the moduledoc's claim that the flow is exercised without an API key
   depends on that half being reachable. Applications should call `interpret/3`.
   """
-  @spec plan(AshEnterprise.AI.Intent.t(), String.t(), term(), term()) ::
+  @spec plan(AshEnterprise.AI.Intent.t(), String.t(), term(), term(), String.t()) ::
           {:ok, plan()} | {:error, String.t()}
-  def plan(intent, request, actor, tenant), do: to_plan(intent, request, actor, tenant)
+  def plan(intent, request, actor, tenant, locale \\ "en"),
+    do: to_plan(intent, request, actor, tenant, locale)
 
-  defp to_plan(%{kind: :assign_role} = intent, _request, actor, tenant) do
-    with {:ok, proposal} <-
-           Proposal.assign_role(actor, tenant, intent.user_email, intent.role_name) do
-      {:ok, {:proposal, proposal}}
+  # The names, resolved as the requester: a user or role they cannot read is one
+  # they cannot ask about.
+  defp to_plan(%{kind: :assign_role} = intent, _request, actor, tenant, _locale) do
+    with {:ok, user} <- find_user(actor, tenant, intent.user_email),
+         {:ok, role} <- find_role(actor, tenant, intent.role_name) do
+      {:ok,
+       {:role_request,
+        %{user_id: user.id, role_id: role.id, user: to_string(user.email), role: role.name}}}
     end
   end
 
-  defp to_plan(%{kind: :show_surface} = intent, _request, actor, _tenant) do
+  defp to_plan(%{kind: :show_surface} = intent, _request, actor, _tenant, _locale) do
     case Surfaces.fetch_helper(intent.surface, actor) do
       nil ->
         # The model named a surface that does not exist. Listing the real names
@@ -105,17 +123,17 @@ defmodule AshEnterprise.AI.Interpreter do
     end
   end
 
-  defp to_plan(%{kind: :design_surface}, request, _actor, _tenant) do
-    design(request, &compose/2)
+  defp to_plan(%{kind: :design_surface}, request, _actor, _tenant, locale) do
+    design(request, &compose(&1, &2, locale))
   end
 
   # The requester's own calendar, mail or tasks: not this console's to read.
   # The assistant reads them as the person, so the request goes there.
-  defp to_plan(%{kind: :ask_assistant}, request, _actor, _tenant) do
+  defp to_plan(%{kind: :ask_assistant}, request, _actor, _tenant, _locale) do
     {:ok, {:assistant, request}}
   end
 
-  defp to_plan(%{kind: kind}, _request, _actor, _tenant) do
+  defp to_plan(%{kind: kind}, _request, _actor, _tenant, _locale) do
     {:error,
      "I understood that as #{inspect(kind)}, which this console does not support. " <>
        "It can assign a role to a user, show one of the declared surfaces " <>
@@ -226,8 +244,8 @@ defmodule AshEnterprise.AI.Interpreter do
   defp query_name(%{"name" => name}), do: name
   defp query_name(_query), do: nil
 
-  defp compose(request, feedback) do
-    case RequestClassifier.compose_surface(request, %{feedback: feedback}) do
+  defp compose(request, feedback, locale) do
+    case RequestClassifier.compose_surface(request, %{feedback: feedback, locale: locale}) do
       {:ok, %AshEnterprise.AI.SurfaceSpec{spec: json}} when is_binary(json) ->
         decode_spec(json)
 
@@ -336,4 +354,28 @@ defmodule AshEnterprise.AI.Interpreter do
   rescue
     error -> {:error, "Could not interpret that request: #{Exception.message(error)}"}
   end
+
+  defp find_user(actor, tenant, email) do
+    Accounts.User
+    |> Ash.Query.filter(email == ^normalize(email))
+    |> Ash.read_one(actor: actor, tenant: tenant)
+    |> case do
+      {:ok, nil} -> {:error, "No user found with the email #{inspect(email)}."}
+      {:ok, user} -> {:ok, user}
+      {:error, error} -> {:error, Exception.message(error)}
+    end
+  end
+
+  defp find_role(actor, tenant, name) do
+    Security.Role
+    |> Ash.Query.filter(name == ^normalize(name))
+    |> Ash.read_one(actor: actor, tenant: tenant)
+    |> case do
+      {:ok, nil} -> {:error, "No role found named #{inspect(name)}."}
+      {:ok, role} -> {:ok, role}
+      {:error, error} -> {:error, Exception.message(error)}
+    end
+  end
+
+  defp normalize(value), do: value |> to_string() |> String.trim()
 end

@@ -17,20 +17,32 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Fragment) do
 
     ## The questions
 
-    The seventeen questions below are Luke Galea's confirmation of
-    2026-10-21 (dogfood records `61a388e9-1f61-4bdd-913b-ab45f61590a6`, the
-    CLAUDE.md non-negotiables; `04d37ab9-e18b-401e-8b89-02473d5619ae`, the
-    iron laws; `dee2d586-d943-4c2f-8e01-bbb06866efe3`, the house style),
+    The twenty-three questions below are Luke Galea's confirmations, each
     rendered by `AshEnterprise.SystemOne.QuestionProposal.to_dsl/2` and
-    landed verbatim at version 1 with the `:winnow_gpu` decision instrument.
-    Their hashes are locked in `priv/judgments/lock.json`, so a wording
-    change is a compile error until it arrives with a version bump.
+    landed verbatim with the `:winnow_gpu` decision instrument:
+
+      * Seventeen at version 2 (confirmed in dogfood on 2026-10-29,
+        record `43864d09-edbc-4ba1-b3f1-48e0017c5409`): the CLAUDE.md
+        non-negotiables, the iron laws and the house style as confirmed
+        on 2026-10-21 (records
+        `61a388e9-1f61-4bdd-913b-ab45f61590a6`,
+        `04d37ab9-e18b-401e-8b89-02473d5619ae` and
+        `dee2d586-d943-4c2f-8e01-bbb06866efe3`), with a `state_shape`
+        added and nothing else changed. The shape is part of a question's
+        hash, so declaring it is a new question identity: hence version 2.
+      * Six at version 1 (confirmed in dogfood on 2026-10-29, record
+        `9f91e62a-ce8c-4729-8e4b-0342fde5f26d`): the ADR 0038 rows, one
+        yes/no per component.
+
+    The hashes are locked in `priv/judgments/lock.json`, so a wording or
+    shape change is a compile error until it arrives with a version bump.
 
     Each question names the projection it sees
-    (`AshEnterprise.Standards.Projections`). None declares a `state_shape`:
-    the shape is part of a question's hash, and the confirmed hashes were
-    taken without one. Declaring it is a new question identity, for a
-    version bump and a fresh confirmation.
+    (`AshEnterprise.Standards.Projections`) and declares that projection's
+    `shape/0` as its `state_shape`. The shape comes from
+    `AshAgentTools.CodeSubjects.shape/1`, so a change to what the
+    projection shows the model changes the hash, and the lock refuses it
+    without a version bump.
 
     Which units each question is asked about is
     `AshEnterprise.Standards.Candidates`' decision, never a model's.
@@ -70,10 +82,11 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Fragment) do
             "The code does not use `forbid_if` for row-level access. `forbid_if` may only be present for non-row concerns like disabled accounts or dead tenants."
         })
 
-        version(1)
+        version(2)
         family(:security)
         profile(:winnow_gpu)
         state_projection(AshEnterprise.Standards.Projections.PolicyView)
+        state_shape(AshEnterprise.Standards.Projections.PolicyView.shape())
       end
 
       question :policy_check_never_queries do
@@ -91,10 +104,11 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Fragment) do
             "The policy check performs no queries. All required data (team ids, business-unit subtree, privilege map, reporting chain) is read from the precomputed `AshEnterprise.Security.ActorContext` or in-memory state."
         })
 
-        version(1)
+        version(2)
         family(:performance)
         profile(:winnow_gpu)
         state_projection(AshEnterprise.Standards.Projections.PolicyView)
+        state_shape(AshEnterprise.Standards.Projections.PolicyView.shape())
       end
 
       question :handle_event_authorizes do
@@ -108,10 +122,11 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Fragment) do
           true: "The event handler routes through Ash actions with policies or checks Ash.can?"
         })
 
-        version(1)
+        version(2)
         family(:authorization)
         profile(:winnow_gpu)
         state_projection(AshEnterprise.Standards.Projections.ModuleHeader)
+        state_shape(AshEnterprise.Standards.Projections.ModuleHeader.shape())
       end
 
       question :comments_are_durable_facts_only do
@@ -127,10 +142,11 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Fragment) do
           true: "The comments contain only durable facts, with narrative excluded"
         })
 
-        version(1)
+        version(2)
         family(:commenting)
         profile(:winnow_gpu)
         state_projection(AshEnterprise.Standards.Projections.Text)
+        state_shape(AshEnterprise.Standards.Projections.Text.shape())
       end
 
       question :association_query_strategy do
@@ -147,10 +163,11 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Fragment) do
             "Joins a has_many association in one query, multiplying rows (what the law forbids)"
         })
 
-        version(1)
+        version(2)
         family(:query_strategy)
         profile(:winnow_gpu)
         state_projection(AshEnterprise.Standards.Projections.ModuleHeader)
+        state_shape(AshEnterprise.Standards.Projections.ModuleHeader.shape())
       end
 
       question :oban_args_string_keyed do
@@ -163,10 +180,11 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Fragment) do
           true: "Args are string-keyed to survive JSON serialization"
         })
 
-        version(1)
+        version(2)
         family(:oban_serialization)
         profile(:winnow_gpu)
         state_projection(AshEnterprise.Standards.Projections.ModuleHeader)
+        state_shape(AshEnterprise.Standards.Projections.ModuleHeader.shape())
       end
 
       question :stores_ids_not_structs do
@@ -179,10 +197,11 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Fragment) do
           true: "IDs are stored and passed to allow fresh re-reading"
         })
 
-        version(1)
+        version(2)
         family(:state_persistence)
         profile(:winnow_gpu)
         state_projection(AshEnterprise.Standards.Projections.ModuleHeader)
+        state_shape(AshEnterprise.Standards.Projections.ModuleHeader.shape())
       end
 
       question :third_party_api_wrapped do
@@ -195,10 +214,11 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Fragment) do
           true: "Third-party APIs are wrapped in a single façade module per external service"
         })
 
-        version(1)
+        version(2)
         family(:external_services)
         profile(:winnow_gpu)
         state_projection(AshEnterprise.Standards.Projections.FacadeView)
+        state_shape(AshEnterprise.Standards.Projections.FacadeView.shape())
       end
 
       question :hs1_lead_with_outcome_or_ask do
@@ -216,10 +236,11 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Fragment) do
             "The first sentence of the document states what happened, what the reader must decide, or what the thing does."
         })
 
-        version(1)
+        version(2)
         family(:house_style)
         profile(:winnow_gpu)
         state_projection(AshEnterprise.Standards.Projections.Text)
+        state_shape(AshEnterprise.Standards.Projections.Text.shape())
       end
 
       question :hs2_keep_it_short do
@@ -237,10 +258,11 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Fragment) do
             "The document uses short paragraphs and presents items as a table or a list when there are more than three of anything."
         })
 
-        version(1)
+        version(2)
         family(:house_style)
         profile(:winnow_gpu)
         state_projection(AshEnterprise.Standards.Projections.Text)
+        state_shape(AshEnterprise.Standards.Projections.Text.shape())
       end
 
       question :hs3_use_plain_words do
@@ -255,10 +277,11 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Fragment) do
             "The document uses plain words, avoids filler openers, apologises at most once, and contains no exclamation marks."
         })
 
-        version(1)
+        version(2)
         family(:house_style)
         profile(:winnow_gpu)
         state_projection(AshEnterprise.Standards.Projections.Text)
+        state_shape(AshEnterprise.Standards.Projections.Text.shape())
       end
 
       question :hs4_claim_only_built_and_proven do
@@ -276,10 +299,11 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Fragment) do
             "Every capability stated exists and is proven by a test, ledger row, or screenshot; every plan is stated as a plan with a tracking location."
         })
 
-        version(1)
+        version(2)
         family(:house_style)
         profile(:winnow_gpu)
         state_projection(AshEnterprise.Standards.Projections.Text)
+        state_shape(AshEnterprise.Standards.Projections.Text.shape())
       end
 
       question :hs5_promise_only_agreed_to do
@@ -297,10 +321,11 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Fragment) do
             "The document contains no dates, scope, or commitments that the person with the authority has not made, and explicitly states when something cannot be committed."
         })
 
-        version(1)
+        version(2)
         family(:house_style)
         profile(:winnow_gpu)
         state_projection(AshEnterprise.Standards.Projections.Text)
+        state_shape(AshEnterprise.Standards.Projections.Text.shape())
       end
 
       question :hs6_no_novelty_claims do
@@ -315,10 +340,11 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Fragment) do
             "The document does not describe any idea as novel, new, first, unprecedented, or something nobody has done, instead stating what the design does and why it was chosen."
         })
 
-        version(1)
+        version(2)
         family(:house_style)
         profile(:winnow_gpu)
         state_projection(AshEnterprise.Standards.Projections.Text)
+        state_shape(AshEnterprise.Standards.Projections.Text.shape())
       end
 
       question :hs7_never_invent_name_feature_or_date do
@@ -336,10 +362,11 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Fragment) do
             "The document uses only names already used by the code and product, and gives dates as specific dates (e.g., 2026-10-17) rather than relative time expressions."
         })
 
-        version(1)
+        version(2)
         family(:house_style)
         profile(:winnow_gpu)
         state_projection(AshEnterprise.Standards.Projections.Text)
+        state_shape(AshEnterprise.Standards.Projections.Text.shape())
       end
 
       question :hs8_no_internal_shorthand_for_outside do
@@ -357,10 +384,11 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Fragment) do
             "The document contains no ticket keys, internal codenames, or team jargon in product copy, public docs, or anything sent outside, spelling out the meaning instead."
         })
 
-        version(1)
+        version(2)
         family(:house_style)
         profile(:winnow_gpu)
         state_projection(AshEnterprise.Standards.Projections.Text)
+        state_shape(AshEnterprise.Standards.Projections.Text.shape())
       end
 
       question :hs9_interface_copy_languages do
@@ -379,10 +407,133 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Fragment) do
           not_done: "At least one user-facing string lacks either an English or a French version."
         })
 
-        version(1)
+        version(2)
         family(:house_style)
         profile(:winnow_gpu)
         state_projection(AshEnterprise.Standards.Projections.ModuleHeader)
+        state_shape(AshEnterprise.Standards.Projections.ModuleHeader.shape())
+      end
+
+      question :policy_check_calls_no_model do
+        # judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/policy_check_calls_no_model
+        type AshAi.Evaluate.Noul
+
+        instructions(
+          "This code unit is a policy check (a SimpleCheck, a FilterCheck or a policy expr). Follow its code path. Does it call a model, directly or through a module it calls? If it does, the answer is false. If it does not, the answer is true."
+        )
+
+        criteria(%{
+          false:
+            "The check, or something it calls, sends a request to a model (an LLM client, ash_ai, ReqLLM, an inference endpoint).",
+          true: "No model call anywhere on the check's code path."
+        })
+
+        version(1)
+        family(:model_call_location)
+        profile(:winnow_gpu)
+        state_projection(AshEnterprise.Standards.Projections.PolicyView)
+        state_shape(AshEnterprise.Standards.Projections.PolicyView.shape())
+      end
+
+      question :actor_context_build_calls_no_model do
+        # judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/actor_context_build_calls_no_model
+        type AshAi.Evaluate.Noul
+
+        instructions(
+          "This code unit builds AshEnterprise.Security.ActorContext. Does it call a model? Reading a fact that was already materialised is allowed; inferring one with a model is not. If it calls a model, the answer is false. Otherwise the answer is true."
+        )
+
+        criteria(%{
+          false: "The build, or something it calls, sends a request to a model.",
+          true: "The build reads data, including materialised facts, and calls no model."
+        })
+
+        version(1)
+        family(:model_call_location)
+        profile(:winnow_gpu)
+        state_projection(AshEnterprise.Standards.Projections.ModuleHeader)
+        state_shape(AshEnterprise.Standards.Projections.ModuleHeader.shape())
+      end
+
+      question :feel_or_dmn_evaluation_calls_no_model do
+        # judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/feel_or_dmn_evaluation_calls_no_model
+        type AshAi.Evaluate.Noul
+
+        instructions(
+          "This code unit evaluates a FEEL expression or a DMN decision. Does the evaluation path call a model? Model answers may enter as inputs prepared before evaluation; a call during evaluation is not allowed. If it calls a model, the answer is false. Otherwise the answer is true."
+        )
+
+        criteria(%{
+          false: "A model is called while the expression or decision is evaluated.",
+          true: "Evaluation uses only its inputs and calls no model."
+        })
+
+        version(1)
+        family(:model_call_location)
+        profile(:winnow_gpu)
+        state_projection(AshEnterprise.Standards.Projections.ModuleHeader)
+        state_shape(AshEnterprise.Standards.Projections.ModuleHeader.shape())
+      end
+
+      question :rules_evaluation_makes_no_live_model_call do
+        # judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/rules_evaluation_makes_no_live_model_call
+        type AshAi.Evaluate.Noul
+
+        instructions(
+          "This code unit is an ash_rules evaluation or a fact builder on a guard path. Does it make a live model call? Reading recorded judgments from the ledger is allowed. If it makes a live model call, the answer is false. Otherwise the answer is true."
+        )
+
+        criteria(%{
+          false: "It sends a request to a model while evaluating or building facts.",
+          true: "It reads the ledger or its inputs and makes no live model call."
+        })
+
+        version(1)
+        family(:model_call_location)
+        profile(:winnow_gpu)
+        state_projection(AshEnterprise.Standards.Projections.ModuleHeader)
+        state_shape(AshEnterprise.Standards.Projections.ModuleHeader.shape())
+      end
+
+      question :projector_calls_no_model do
+        # judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/projector_calls_no_model
+        type AshAi.Evaluate.Noul
+
+        instructions(
+          "This code unit is a projector handler. Projectors rebuild from event 0 and consume recorded observations. Does the handler call a model? If it does, the answer is false. If it does not, the answer is true."
+        )
+
+        criteria(%{
+          false: "The handler, or something it calls, sends a request to a model.",
+          true: "The handler uses only the event and recorded observations, and calls no model."
+        })
+
+        version(1)
+        family(:model_call_location)
+        profile(:winnow_gpu)
+        state_projection(AshEnterprise.Standards.Projections.ModuleHeader)
+        state_shape(AshEnterprise.Standards.Projections.ModuleHeader.shape())
+      end
+
+      question :calculation_calls_no_model do
+        # judgment:v0:AshEnterprise.Standards.CodeUnit#judgments/calculation_calls_no_model
+        type AshAi.Evaluate.Noul
+
+        instructions(
+          "This code unit is an Ash calculation. A calculation over the ledger is fine; a calculation that calls a model is not, because calculations load in lists and filters and can be pulled into policy expressions. Does it call a model? If it does, the answer is false. If it does not, the answer is true. ADR 0038 says 'avoid' here, not 'never', so a false answer is advisory."
+        )
+
+        criteria(%{
+          false: "The calculation, or something it calls, sends a request to a model.",
+          true:
+            "The calculation reads attributes, relationships or the ledger, and calls no model."
+        })
+
+        version(1)
+        family(:model_call_location)
+        profile(:winnow_gpu)
+        state_projection(AshEnterprise.Standards.Projections.ModuleHeader)
+        state_shape(AshEnterprise.Standards.Projections.ModuleHeader.shape())
       end
     end
   end

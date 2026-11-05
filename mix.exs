@@ -94,13 +94,17 @@ defmodule AshEnterprise.MixProject do
   # still one file-read away, and is inlined in full inside the `ash-framework`
   # skill below for whenever an agent is actually working with one of them.
   #
-  # Every other dependency stays inlined because it's touched on nearly every
-  # task (:ash, ash_postgres, ash_phoenix, phoenix) or is small enough that
-  # linking wouldn't move the needle. Because inlining vs. linking is set
-  # per-package below rather than through the `~r/^ash_/` catch-all, a new
-  # ash_* dependency needs a line added here to appear in AGENTS.md -- it will
-  # still appear automatically in the `ash-framework` skill either way, so
-  # nothing is silently missing, just not inlined by default.
+  # Only what nearly every task touches stays inlined: :ash, ash_postgres,
+  # ash_phoenix, ash_oban, phoenix, the elixir/otp rules and the iron laws.
+  # Everything else is linked, including rule sets that are merely set up once
+  # and rarely revisited (ash_authentication, reactor, igniter, the GraphQL and
+  # JSON:API extensions, ash_money, ash_credo). AGENTS.md must stay under
+  # 150,000 bytes -- scripts/usage-rules-check.sh fails CI above that -- and
+  # linking another package here is the lever when it creeps up. Because
+  # inlining vs. linking is set per-package below rather than through the
+  # `~r/^ash_/` catch-all, a new ash_* dependency needs a line added here to
+  # appear in AGENTS.md -- it will still appear automatically in the
+  # `ash-framework` skill either way, so nothing is silently missing.
   #
   # NOTE: usage_rules 1.0 REMOVED the old CLI flags (`--all`, `--inline`,
   # `--link-to-folder`). Everything is configured here now, and
@@ -118,12 +122,12 @@ defmodule AshEnterprise.MixProject do
         {:ash_bpmn, link: :markdown},
         {:ash_decisions, link: :markdown},
         {:ash_ai, link: :markdown},
-        :ash_authentication,
-        :ash_credo,
+        {:ash_authentication, link: :markdown},
+        {:ash_credo, link: :markdown},
         {:ash_events, link: :markdown},
-        :ash_graphql,
-        :ash_json_api,
-        :ash_money,
+        {:ash_graphql, link: :markdown},
+        {:ash_json_api, link: :markdown},
+        {:ash_money, link: :markdown},
         :ash_oban,
         :ash_phoenix,
         :ash_postgres,
@@ -145,8 +149,8 @@ defmodule AshEnterprise.MixProject do
         {:ash_mdm, link: :markdown},
         {:ash_rules, link: :markdown},
         :phoenix,
-        :igniter,
-        :reactor,
+        {:igniter, link: :markdown},
+        {:reactor, link: :markdown},
         :elixir,
         # `:otp` aliases to the same `usage_rules` package as `:elixir` (both
         # are sub-rules of it); without `main: false` here its shared
@@ -441,6 +445,10 @@ defmodule AshEnterprise.MixProject do
       {:ash_admin, "~> 1.0"},
       {:ash_authentication_phoenix, "~> 2.0"},
       {:ash_authentication, "~> 4.0"},
+      # OVERRIDE -- see docs/BLEEDING-EDGE.md. ash_authentication 4.x caps
+      # assent below 0.3, and EEF-CVE-2026-117656 is fixed only in 0.3.2;
+      # drop when an ash_authentication release accepts it.
+      {:assent, "~> 0.3.2", override: true},
       {:ash_postgres, "~> 2.0"},
       {:ash_phoenix, "~> 2.0"},
       {:ash, "~> 3.34"},
@@ -469,6 +477,8 @@ defmodule AshEnterprise.MixProject do
       {:telemetry_poller, "~> 1.0"},
       {:gettext, "~> 1.0"},
       {:jason, "~> 1.2"},
+      {:jsv, "~> 0.26"},
+      {:yaml_elixir, "~> 2.11"},
       {:dns_cluster, "~> 0.2.0"},
       {:bandit, "~> 1.5"}
     ]

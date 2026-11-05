@@ -99,7 +99,7 @@ defmodule AshEnterprise.SystemOne.JudgedFields do
     transformers: [AshEnterprise.SystemOne.JudgedFields.Transformer],
     verifiers: [AshEnterprise.SystemOne.JudgedFields.Verifier]
 
-  alias AshJudgments.Registry.Canonical
+  alias AshEnterprise.SystemOne.JudgedState
 
   @digest_attribute :judgment_digests
   @reassess_action :reassess_judgments
@@ -175,31 +175,25 @@ defmodule AshEnterprise.SystemOne.JudgedFields do
   while the record's projection fields are unchanged.
   """
   def state_digest(resource, field, state_input) do
+    resource
+    |> judged_state(field, state_input)
+    |> JudgedState.digest()
+  end
+
+  @doc """
+  The state the question's judge sees for `state_input`: the judge
+  action's input, through the question's projection
+  (`AshEnterprise.SystemOne.JudgedState.project/2`).
+  """
+  def judged_state(resource, field, state_input) do
     input =
       Ash.ActionInput.for_action(resource, judge_action(field), %{"input" => state_input})
 
-    field.question
-    |> project(input)
-    |> Canonical.encode()
-    |> Canonical.digest()
+    JudgedState.project(field.question, input)
   end
 
   @doc "The question's generated judge action."
   def judge_action(field), do: String.to_existing_atom("judge_#{field.name}")
-
-  # The registry's projection dispatch (`AshJudgments.Registry.Judge`),
-  # repeated here so the digest is computed exactly as the judge computes it.
-  defp project(%{state_projection: nil}, input) do
-    Map.new(input.arguments, fn {k, v} -> {Atom.to_string(k), v} end)
-  end
-
-  defp project(%{state_projection: projection}, input) when is_function(projection, 2),
-    do: projection.(input, input.context)
-
-  defp project(%{state_projection: {m, f, a}}, input),
-    do: apply(m, f, [input, input.context | a])
-
-  defp project(%{state_projection: m}, input) when is_atom(m), do: m.project(input, input.context)
 
   defp json_value(%DateTime{} = value), do: DateTime.to_iso8601(value)
   defp json_value(%NaiveDateTime{} = value), do: NaiveDateTime.to_iso8601(value)

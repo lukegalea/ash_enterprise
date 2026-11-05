@@ -13,8 +13,10 @@ defmodule AshEnterprise.Security.Checks.GrantReach do
   action's union is untouched.
 
   Nor does the union apply to an automation principal (ADR 0043) on an action the
-  resource declares `human_only`: such an action is a person's own, and a principal
-  acting for a person is not that person. The person's grants on it are untouched.
+  resource declares `human_only` or `changes_authority`: the first is a person's own,
+  and a principal acting for a person is not that person; the second changes who may
+  do what, and a principal that could would widen its own role and every holder's.
+  The person's grants on either are untouched.
 
   A simple check over compile-time DSL (`AshEnterprise.Security.ActionReach`) and the
   actor's struct; it never builds a context.
@@ -27,11 +29,12 @@ defmodule AshEnterprise.Security.Checks.GrantReach do
 
   @impl true
   def describe(_opts),
-    do: "action is not machinery_only, nor human_only for an automation principal"
+    do:
+      "action is not machinery_only, nor human_only or changes_authority for an automation principal"
 
   @impl true
   def match?(%AutomationPrincipal{}, %{resource: resource, action: action}, _opts),
-    do: ActionReach.grants?(resource, action) and not ActionReach.human_only?(resource, action)
+    do: ActionReach.grants?(resource, action) and ActionReach.automation?(resource, action)
 
   def match?(_actor, %{resource: resource, action: action}, _opts),
     do: ActionReach.grants?(resource, action)

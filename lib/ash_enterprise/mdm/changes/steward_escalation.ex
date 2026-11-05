@@ -19,9 +19,6 @@ defmodule AshEnterprise.Mdm.Changes.StewardEscalation do
 
   use Ash.Resource.Change
 
-  @question_id "judgment:v0:AshEnterprise.Mdm.MatchCandidate#matches_the_golden"
-  @family "mdm_matches"
-
   @impl true
   def change(changeset, _opts, _context) do
     Ash.Changeset.after_action(changeset, &escalate/2)
@@ -32,7 +29,7 @@ defmodule AshEnterprise.Mdm.Changes.StewardEscalation do
     actor = changeset.context[:private][:actor]
     verdict = "unsure"
 
-    judgment = record_judgment!(candidate, tenant)
+    judgment = AshEnterprise.Mdm.MatchObservation.record!(candidate, tenant)
     human = record_human_verdict!(candidate, judgment, verdict, actor, tenant)
 
     ref = %{"verdict" => verdict, "verdict_id" => human.id, "judgment_id" => judgment.id}
@@ -47,46 +44,6 @@ defmodule AshEnterprise.Mdm.Changes.StewardEscalation do
     {:ok, candidate}
   end
 
-  defp record_judgment!(candidate, tenant) do
-    state = %{
-      "explanation" => candidate.explanation,
-      "score" => Decimal.to_string(candidate.score)
-    }
-
-    AshEnterprise.SystemOne.Judgment
-    |> Ash.Changeset.for_create(
-      :record,
-      [
-        id: Ash.UUID.generate(),
-        question_id: @question_id,
-        question_hash: AshJudgments.Registry.Canonical.digest(@question_id),
-        question_version: 1,
-        family: @family,
-        subject_type: "match_candidate",
-        subject_id: candidate.id,
-        state_digest:
-          AshJudgments.Registry.Canonical.digest(AshJudgments.Registry.Canonical.encode(state)),
-        answer_kind: :choice,
-        value: "match",
-        probabilities: %{},
-        confidence: Decimal.to_string(candidate.score),
-        model_spec_requested: "ash_mdm:rules-as-data",
-        model_version: "mdm-match-1",
-        model_digest:
-          AshJudgments.Registry.Canonical.digest(AshJudgments.Registry.Canonical.encode(state)),
-        runtime_version: "0.9.0",
-        profile: "ash_mdm",
-        latency_us: 0,
-        mode: :live,
-        correlation_id: nil,
-        valid_until: nil
-      ],
-      actor: AshEnterprise.Platform.SystemActor.process(),
-      tenant: tenant
-    )
-    |> Ash.create!()
-  end
-
   defp record_human_verdict!(candidate, judgment, verdict, actor, tenant) do
     AshEnterprise.SystemOne.HumanVerdict
     |> Ash.Changeset.for_create(
@@ -94,12 +51,14 @@ defmodule AshEnterprise.Mdm.Changes.StewardEscalation do
       %{
         judgment_id: judgment.id,
         question_hash: judgment.question_hash,
-        model_answer: %{"kind" => "exact", "value" => "match", "distribution" => %{}},
+        model_answer: AshEnterprise.Mdm.MatchObservation.model_answer(judgment),
         human_value: verdict,
         reason:
           "Steward escalated match candidate #{candidate.id}: the verdict stays open for a senior steward.",
         reviewer: to_string(actor.email),
-        basis: :review_task
+        # An escalation is not an answer to the question, so it does not
+        # feed calibration: `:override` is the basis the sample writer skips.
+        basis: :override
       },
       actor: actor,
       tenant: tenant

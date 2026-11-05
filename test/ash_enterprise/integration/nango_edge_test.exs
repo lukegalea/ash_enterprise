@@ -13,6 +13,7 @@ defmodule AshEnterprise.Integration.NangoEdgeTest do
 
   alias AshEnterprise.Integration.Gmail
   alias AshEnterprise.Integration.GoogleCalendar
+  alias AshEnterprise.Integration.GoogleSheets
   alias AshEnterprise.Integration.Landing
   alias AshEnterprise.Integration.LinkedAccount
   alias AshEnterprise.Integration.Nango.{Info, Proxy}
@@ -173,7 +174,8 @@ defmodule AshEnterprise.Integration.NangoEdgeTest do
     end
 
     test "every declared operation is a generic action with a code interface" do
-      for resource <- [GoogleCalendar, Gmail, Slack], operation <- Info.operations(resource) do
+      for resource <- [GoogleCalendar, Gmail, Slack, GoogleSheets],
+          operation <- Info.operations(resource) do
         action = Ash.Resource.Info.action(resource, operation.name)
         assert action.type == :action, "#{inspect(resource)}.#{operation.name}"
         assert function_exported?(resource, operation.name, 2)
@@ -193,6 +195,62 @@ defmodule AshEnterprise.Integration.NangoEdgeTest do
 
       assert Enum.map(Info.operations(Slack), & &1.name) ==
                [:user_conversations, :conversation_history, :user_info]
+
+      assert Enum.map(Info.operations(GoogleSheets), & &1.name) == [:batch_get_values]
+    end
+
+    test "Sheets values.batchGet: repeated ranges, and fractional numbers decode as Decimal",
+         ctx do
+      test_pid = self()
+      link!(ctx.alice, "google-sheet", "conn-sheet-alice-synthetic")
+
+      # Raw JSON, so the amounts reach the decoder as JSON numbers.
+      Req.Test.stub(@stub, fn conn ->
+        send(test_pid, {:request, request_summary(conn)})
+
+        conn
+        |> Plug.Conn.put_resp_content_type("application/json")
+        |> Plug.Conn.send_resp(200, ~s({"spreadsheetId":"sheet-synthetic","valueRanges":[
+          {"range":"Sheet1!A1:B2","majorDimension":"ROWS","values":[["Coffee",-4.35],["Units",3]]},
+          {"range":"Sheet2!A1:A1","majorDimension":"ROWS","values":[[0.1]]}]}))
+      end)
+
+      assert {:ok, body} =
+               GoogleSheets.batch_get_values(
+                 %{
+                   spreadsheet_id: "sheet-synthetic",
+                   ranges: ["Sheet1!A1:B2", "Sheet2!A1:A1"],
+                   value_render_option: "UNFORMATTED_VALUE",
+                   date_time_render_option: "SERIAL_NUMBER"
+                 },
+                 actor: ctx.alice
+               )
+
+      assert [first, second] = body["valueRanges"]
+      assert first["values"] == [["Coffee", Decimal.new("-4.35")], ["Units", 3]]
+      assert second["values"] == [[Decimal.new("0.1")]]
+
+      assert_received {:request, request}
+      assert request.path == "/proxy/v4/spreadsheets/sheet-synthetic/values:batchGet"
+      assert {"ranges", "Sheet1!A1:B2"} in request.query
+      assert {"ranges", "Sheet2!A1:A1"} in request.query
+      assert {"valueRenderOption", "UNFORMATTED_VALUE"} in request.query
+      assert request.provider_config_key == ["google-sheet"]
+      assert request.connection_id == ["conn-sheet-alice-synthetic"]
+    end
+
+    test "an operation without numbers: :decimal still decodes fractions as floats", ctx do
+      Req.Test.stub(@stub, fn conn ->
+        conn
+        |> Plug.Conn.put_resp_content_type("application/json")
+        |> Plug.Conn.send_resp(
+          200,
+          ~s({"items":[],"nextSyncToken":"t","accessRole":"owner","x":0.5})
+        )
+      end)
+
+      assert {:ok, %{"x" => 0.5}} =
+               GoogleCalendar.list_events(%{calendar_id: "primary"}, actor: ctx.alice)
     end
   end
 
@@ -690,7 +748,8 @@ defmodule AshEnterprise.Integration.NangoEdgeTest do
       {inspect(LinkedAccount), :create} => %Grant{basic?: true},
       {inspect(GoogleCalendar), :read} => %Grant{global?: true},
       {inspect(Gmail), :read} => %Grant{global?: true},
-      {inspect(Slack), :read} => %Grant{global?: true}
+      {inspect(Slack), :read} => %Grant{global?: true},
+      {inspect(GoogleSheets), :read} => %Grant{global?: true}
     }
   end
 

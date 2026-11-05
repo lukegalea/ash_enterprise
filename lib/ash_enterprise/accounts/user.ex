@@ -23,6 +23,8 @@ defmodule AshEnterprise.Accounts.User do
     tenant?: false,
     archival?: false,
     cdm_entity: "SystemUser",
+    # Each moves what a user's grants, or a manager's, reach.
+    changes_authority: [:assign_manager, :assign_position, :assign_to_business_unit],
     # The holder of a task reads whom it may be handed to (the task board's
     # Delegate picker), with no grant on users: see `delegate_candidates`.
     extra_grants: [

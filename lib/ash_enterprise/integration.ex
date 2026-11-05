@@ -10,8 +10,8 @@ defmodule AshEnterprise.Integration do
     * `AshEnterprise.Integration.LinkedAccount` maps one of an actor's own
       provider accounts to a Nango connection. It is the only place a Nango
       connection id lives.
-    * `AshEnterprise.Integration.GoogleCalendar`, `.Gmail` and `.Slack` are
-      operation resources. Each declares its provider operations with the
+    * `AshEnterprise.Integration.GoogleCalendar`, `.Gmail`, `.Slack` and
+      `.GoogleSheets` are operation resources. Each declares its provider operations with the
       `AshEnterprise.Integration.Nango.Operations` DSL, and each declared
       operation becomes **one generic action** — policy-gated, traced and
       correlated like any other action. There is no integration log.
@@ -35,6 +35,9 @@ defmodule AshEnterprise.Integration do
     * Gmail and Slack project what a step landed at the end of that step
       (`AshEnterprise.Canonical.Projections.Pending`), keeping their position
       in `AshEnterprise.Integration.ProjectionCursor`.
+    * Google Sheets is read-only and has no sync of its own here: a vertical
+      that reads a sheet declares its own step and lands into its own raw
+      layer.
     * `AshEnterprise.Integration.SyncScheduler` enqueues one step per active
       linked account per vertical, on a cron.
 
@@ -59,6 +62,7 @@ defmodule AshEnterprise.Integration do
     resource AshEnterprise.Integration.GoogleCalendar
     resource AshEnterprise.Integration.Gmail
     resource AshEnterprise.Integration.Slack
+    resource AshEnterprise.Integration.GoogleSheets
 
     resource AshEnterprise.Integration.Calendar.SyncCursor
     resource AshEnterprise.Integration.Calendar.Sync

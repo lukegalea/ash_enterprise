@@ -1,10 +1,12 @@
 # ADR 0056 — The agent runtime is a separate public package, `ash_agent`, that the host instantiates
 
-- **Status:** accepted, not built (2026-10-23)
+- **Status:** accepted (2026-10-23); agent versions built (2026-10-31), see
+  [Built](#built-2026-10-31-agent-versions)
 - **Date:** 2026-10-23
 - **Decided:** by Luke, 2026-10-22 (name, home and boundary)
 - **Amended:** 2026-10-29 — dependency versions and the Phoenix edge; see
-  [Amendment](#amendment-2026-10-29--dependency-versions-and-the-phoenix-edge)
+  [Amendment](#amendment-2026-10-29--dependency-versions-and-the-phoenix-edge). 2026-10-31 — the prompt format (D7) and
+  where a version is published; see [Built](#built-2026-10-31-agent-versions)
 - **Related:** [ADR 0009](0009-strangler-and-bpmn-are-first-party.md) (first-party platform extensions),
   [ADR 0055](0055-consequential-acts-are-governed-invocations.md) (governed invocation),
   [ADR 0057](0057-actions-declare-their-effects.md) (effects),
@@ -141,3 +143,243 @@ and the host's `fragments:` lists, with no data migration, because no table name
   would remove the edge.
 - **The lock.** Context said this repository still locked ash_ai 1.1.1, which was true on 2026-10-23. It now locks
   1.4.1.
+
+## Built, 2026-10-31: agent versions
+
+- **The fragment.** `AshAgent.AgentVersion`: `key` and `version` (unique together), `instructions`, `model_profile`,
+  `toolset` (each target as `"Resource.action"` with its target digest, the one invocations use), `limits`
+  (`max_steps`, `max_tool_calls`, `deadline` in seconds, `token_budget` in tokens, `max_repairs`), `output_type`,
+  `source` (`:code` or `:authored`), `baseline_id`, `content_hash`, and the publish-time `authority` and
+  `requesterless`. Lifecycle `draft → published → retired`, one way. Versions are rows, not temporal (decision D11,
+  as for process and decision definitions under [ADR 0049](0049-temporal-resources-are-the-validity-substrate.md)).
+- **Agents declared in code.** `use AshAgent.Agent` with the key, instructions, model profile, tools as
+  `{resource, action}`, limits and output type. `register_from_code` is the code sync: it returns the key's latest
+  version when the content hash is unchanged and writes nothing, and otherwise writes the next version as a draft.
+  The content hash covers each tool's digest, so a changed tool also makes a new version.
+- **The prompt format (decision D7): plain text.** The decision was to adopt a logic-less subset of dotprompt only if
+  it fit cleanly after reading the specification, and otherwise to use plain text with `Transcript.fingerprint` as
+  identity. Read on 2026-10-31 (https://google.github.io/dotprompt/reference/frontmatter/ and
+  https://google.github.io/dotprompt/reference/template/): the template language is Handlebars-based, and an
+  implementation MUST support the documented Handlebars features, `#if`, `#unless` and `#each` among them, and the
+  helpers `json`, `role`, `history`, `media` and `section`. The specification defines no logic-less subset or
+  conformance level, so a subset would not be dotprompt, and there is no Elixir renderer to conform to. The
+  frontmatter's useful fields (`model`, `tools`, `input`, `output`, `config`) are already columns of the version.
+  So `instructions` are plain text with no template language. A version's identity is its `content_hash` (SHA-256
+  over RFC 8785 canonical JSON of its content); what a model was shown at a step is identified by
+  `AshAi.Transcript.fingerprint/2` over the instructions and the tools the step offered, recorded on the step by the
+  run.
+- **Publishing is a governed invocation.** The fragment's `apply_publish` refuses a draft with a toolset target that
+  declares no effects (read through `AshAgent.Effects.Info`, via `AshAgent.Invocation.Target.resolve/1`), or whose
+  declaration or input schema changed since the draft was written, or with a limit unset. Here it is a governed target
+  ([ADR 0055](0055-consequential-acts-are-governed-invocations.md)): four eyes, an administrator other than the
+  requester, expiring after seven days. `request_publish` checks the draft first, so a draft that cannot be published
+  opens no approval, and then asks through `invoke`; there is no second approval path. The approval binds the draft's
+  `version_number`, so a draft revised while it waits goes stale. This application also requires the in-zone model
+  profile ([ADR 0042](0042-in-zone-inference-leaving-the-zone-is-a-disclosure.md)) and, for an automation authority, a principal this build
+  declares (`Execution.Validations.Publishable`). Both publish actions are `changes_authority`: an automation
+  principal never publishes an agent.
+- **Authority (decision D13).** A version's runs act as the requester unless the publisher names an automation
+  principal, as an argument of the request the approver approves. `requesterless` is allowed only with an automation
+  authority, and only at publish.
+- **Pinning and drift.** A run pins a version's id and calls `AshAgent.AgentVersion.Definition.check_pinned/1` before
+  each step: the version must be published or retired, and every toolset target must still have the digest it had
+  when the version was written. Otherwise the run fails closed with `AshAgent.AgentVersion.DefinitionDrift`
+  (`:definition_drift`). Publishing version 2 changes nothing about version 1, so a run pinned to it carries on;
+  `latest_published` is what a new run starts on.
+- **Where a version is published: in a tenant, not in the platform organization.** The plan placed code-declared
+  agents in the platform organization as baselines that tenants fork, the way processes and decisions are
+  ([`Process.Resolver`](../../lib/ash_enterprise/process/resolver.ex)). That organization has no people, so nobody
+  there could be the four eyes, and process baselines are published by a deploy task rather than approved. Agent
+  baselines are registered there from code (as the `seed` system actor) and never published there. A tenant copies
+  the latest one with `fork_for_tenant`, which reads it through `Resolver.agent_baseline/1`, the named cross-tenant
+  read, records it as `baseline_id`, and writes nothing when the tenant already holds that content. The tenant then
+  publishes its copy under its own administrators' approval, and its runs pin the copy. Who a run acts as, and whether
+  it may run with no requester, are tenant choices, which is where automation principals and their start grants
+  live.
+- **Not built here.** The boot-time sync that registers every declared agent into the platform organization: no
+  agent is declared in code yet, so it lands with the first one (the run and assistant tickets). Tenant-authored
+  agents beyond `create_draft` and `revise_draft` wait for decision D16.
+- **Tests.** Package: `test/ash_agent/agent_version_test.exs`. Here:
+  `test/ash_enterprise/execution/agent_version_test.exs`.
+
+## Built, 2026-10-31: agent runs
+
+- **Rows and a trigger, not a process.** `AshAgent.Run` (here `Execution.Run`, table `exec_agent_runs`) is one run of
+  a pinned agent version and is its own checkpoint: `step_seq` is the pointer and `lease_epoch` the revision.
+  `AshAgent.Step` (here `Execution.Step`, `exec_agent_steps`) is its journal, one row per message, appended only by the
+  run's `record_step` inside its fenced transaction and never changed. Steps are not audited (the content-ledger
+  pattern of `AI.ModelCall`); the run transition that commits with each one is.
+- **One `:step` job is one model call.** `claim_step` takes the next epoch under `optimistic_lock(:lease_epoch)`, so
+  a duplicate job loses before any model call, and checks the deadline, drift of the pinned version, the step and
+  tool-call limits and the token budget. The step then rebuilds the executing actor from grant rows
+  (`Execution.Identity.actor_for/1` with the run), the conversation from the journal and the tools the version offers
+  that actor, and calls ash_ai's tool loop once, with no transaction open, through
+  `Execution.AgentRuntime`: the in-zone profile only, through `AI.Models.GuardedReqLLM`, so each call is a `ModelCall`
+  whose caller is `run:<run id>:<step seq>` and a repeated call shows under the same name. Each message is recorded
+  under the fence: `record_step` is filtered on the epoch and on the `step_seq` its caller read, so an append from a
+  superseded worker or a stale copy changes nothing.
+- **Tool calls.** Only Ash `:read` actions whose declaration does not reach outside run in the loop, as the executing
+  actor. Every other call stops the loop and becomes an invocation keyed `run:<run id>:<step seq>:<tool call id>`,
+  requested as the person who started the run (`Identity.requester_for/1`) with the run as its parent
+  (`Validations.OwnsParent` accepts only a run the requester started), in the same transaction as the step that made
+  the call. A step repeated after its worker died reads each call's invocation by that key and its recorded result;
+  nothing runs twice.
+- **Who may start one (decision D13).** `start` is self-service, and `Identity.run_principal/3` refuses anyone without
+  the agent's start grant ([ADR 0043](0043-automation-authority-is-a-grant.md)). The run
+  executes as the version's publish-time authority: the person, or the named automation principal acting for them.
+  Either way the grant is read again at every step, every tool call the run requests and every claim of one, so a
+  revoked start grant fails the run, or the call, as `:denied` before another model call or target runs.
+  Requesterless runs are still refused: nothing starts a run with no person yet.
+- **Wake-up and recovery.** `needs_step` is derived over the run's invocations, never counted.
+  `AshAgent.Run.Changes.Wake` on `Execution.Invocation` enqueues `:step` when one of a run's invocations finishes;
+  the `:step` sweep finds a lost wake-up and `:recover` re-queues a running run whose lease expired. Both triggers run
+  on their own queue, `:agent_runs`.
+- **Output.** A final answer is cast to the version's `output_type`; one that does not cast gets up to `max_repairs`
+  repair turns, then the run fails as `:rejected` (`output_uncastable`).
+- **Cancellation.** `request_cancel` (by grant) cancels the run and its invocations that have not started; an
+  executing one records the request; nothing done is undone.
+- **Sealing.** `input`, `output` and each step's `parts` are sealed under the subject's erasure scope, as an
+  invocation's arguments are (built 2026-11-01, AGT-32; see "Erasure of a run" below).
+- **The assistant on runs (AGT-33).** Each answer at `/app/agent` is a run of `AshEnterprise.Assistant.Agent`, an
+  agent declared in code, sealed under its thread's scope (the thread is the start's subject). Its fourteen tools are
+  computed `:read` actions on row resources (`Ash.DataLayer.Simple`, effects `read_only?`), so a run takes each in its
+  loop and none is an invocation: the lookups read, the composer and the four proposals change nothing, and confirming
+  a proposal is the person's own act on the page. The page follows the run over PubSub and records the answer from
+  its journal however the run ends; a run that outlives its page is picked up again when the thread is reopened. A
+  tenant runs it once an administrator registers and publishes it (four eyes) and grants members its start.
+  (Amended 2026-11-04: the proposals are gone. The toolset names the nine target actions themselves, each declaring
+  `approval: :confirm`, so a call to one is requested as the person and the answer ends at the request; the person's
+  Confirm runs it. See [ADR 0055](0055-consequential-acts-are-governed-invocations.md#amendment-2026-11-04--the-assistants-changes-are-requests).
+  Every tenant re-publishes the changed declaration.)
+- **Not built here.** Budget reservation and `extend` (AGT-30, "Built, 2026-11-01: run budgets" below), waiting on a
+  person (AGT-31, below), requesterless starts.
+- **Tests.** Package: `test/ash_agent/run_test.exs`. Here: `test/ash_enterprise/execution/run_test.exs`, and in the
+  durability tier `run_resume_test.exs` (F1), `wakeup_test.exs` (invariant 9) and `cancellation_test.exs`
+  (invariant 5).
+
+### Erasure of a run (built, 2026-11-01)
+
+A clinician who asks to be erased while audit retention applies must be erased from every copy an agent run made of
+them: its input and answer, each journal message, each tool call's arguments and result. One scope seals them all,
+so one shred reaches them all ([ADR 0024](0024-audit-retention-and-erasure.md)).
+
+- **A run names what it is about.** `start` takes `subject_type` and `subject_id` (the package reads the record as the
+  starter, so a record they cannot read is refused like one that does not exist, and leaves it in the changeset
+  context as an invocation's `request` leaves its subject). `Changes.SealingScope` seals the run under that record's
+  `erasure_scope_id` when it has one, and otherwise, as before, under the requester's own scope.
+- **Its steps and its tool calls follow it.** A step takes the run's scope (`Changes.FromRun`). A tool call takes the
+  scope of the record its target acts on when that record has one (ADR 0055's rule), and otherwise its run's: the
+  model wrote the arguments from what the run was given and read. A direct request with neither keeps the
+  requester's scope.
+- **Shredding reports, it does not delete.** Once the scope is shredded, `Step.parts`, `Invocation.args` and
+  `result`, and the run's `input` and `output`, read as `AshEnterprise.Erasure.Shredded`, and `Step.recorded?` and
+  `Invocation.recorded?` are false. The rows, their order in the journal, their transitions and the audit hash chain
+  stay; the audit log only ever held ciphertext or nil for these fields (spike S2), so the chain still verifies.
+  Nothing new lands under a shredded scope, so a run about an erased subject cannot start.
+- **One scope per row.** A run about one subject that acts on a record sealed under another seals that call under
+  the record's scope; content that mentions several people lives under one of them, as the scope model says.
+- **Tests.** `test/ash_enterprise/execution/run_erasure_test.exs` (F11).
+
+## Built, 2026-11-01: waiting on a person
+
+- **The same wait as a tool.** A run that needs something only a person knows calls `human_input_request`
+  (`Execution.HumanInput.request`, `intent: :propose`, self-service). Like any tool call that is not a read, it becomes
+  an invocation. Its target writes nothing and returns an `AshAgent.Invocation.Dispatch`, so the invocation is
+  `dispatched`: no lease, no job, bounded only by its `deadline_at`, seven days out. The run waits with `blocked_on`
+  `:tools`, as on any tool call, and `needs_step` stays false while the invocation is open.
+- **The task opens with the dispatch.** `Changes.OpenInputTask` on the invocation's `dispatch` opens a standalone
+  `HumanTask` (`"invocation.input"`) in the same transaction, through `AshBpmn.Changes.RequireApproval`. Its one
+  candidate is the invocation's owner, the person the run acts for. The task is due, and the engine expires it, at the
+  dispatch's deadline.
+- **One door.** `HumanTask.answer` (human-only, `intent: :approve`) completes an input task with outcome `answered`
+  and the answer as the task's comment. `HumanInput.check/2` refuses every other door on an input task (approve,
+  reject, resolve, complete), and refuses `answer` on any other task.
+- **Collected by a sweep.** The `:collect_input` trigger (sweep only, every minute) finds a `dispatched` question
+  whose task is completed or cancelled. Its action (`Actions.CollectInput`) completes the invocation with
+  `complete_external`, the answer as its `result`, which ash_agent records only on a row that succeeds. That write
+  wakes the run, and the next step reads `{"answer": ...}` as the tool call's result. A cancelled task fails the call
+  as `:rejected` (`input_withdrawn`). An expired one fails it as `:timeout` (`deadline_passed`), as `:reconcile`
+  fails any dispatch whose deadline passed.
+- **Days of waiting are rows.** While a run waits on a question or a four-eyes approval, no Oban job exists for it or
+  its call. Every sweep finds nothing to do, and the run's lease epoch does not move. The durability tier proves this
+  over days of moved clocks (`human_wait_test.exs`). The battery proves the same seam on its own instantiation of the
+  run fragments (`battery/test/base_integration/agent_human_wait_test.exs`).
+- **Not built here.** Who a run waits on is read from its open invocation; `blocked_on :human` is unused. The answer
+  is stored in the task's comment, which is not sealed under the run's erasure scope as its tool calls are. The question is not shown in
+  the task board's subject summary.
+- **Tests.** Package: `test/ash_agent/invocation_paths_test.exs`. Here: `test/ash_enterprise/execution/human_input_test.exs`
+  and, in the durability tier, `human_wait_test.exs`.
+
+## Built, 2026-11-01: run budgets
+
+- **The unit (decision D14).** Tokens: the input and output tokens each model call's usage reports, the same numbers
+  its `AI.ModelCall` row records. Cost from priced usage is not built.
+- **Hold, then settle.** The budget is columns on the run: `budget_limit` (the version's `token_budget` at start),
+  `budget_spent`, `budget_reserved` and `budget_holds` (each unsettled hold, keyed by the lease that took it). Just
+  before its model call a step holds what is left (`reserve`); after the call, however it ended, it settles
+  (`settle`: the hold released, the call's tokens added to `budget_spent`) before it records anything that could start
+  the next call. Both are machinery-only.
+- **Never past the limit under concurrency.** `reserve` and `settle` write under `optimistic_lock(:budget_lock)`, and
+  `reserve` is also filtered on `budget_spent` plus the holds staying within `budget_limit`; so of two reservations
+  read from one row at most one is written, and one that meets a concurrent write reads the row again and retries a
+  bounded number of times (`AshAgent.Run.Budget`). Neither uses an atomic update, which the audit wrapper refuses.
+- **Exhaustion (F8).** A step whose reservation is refused, or a claim of a run that has spent its limit, leaves the
+  run `waiting` on `:budget` with `error_code: "token_budget"`, and no model call is made. `extend` (through the grant
+  union, so an administrator, not the nurse who started the run) raises the limit and queues the run again in the same
+  transaction; it is audited like every run transition.
+- **What a hold does not bound.** A worker that dies between `reserve` and `settle` leaves its hold; the run's next
+  lease releases it. Usage is known only after a call, so one call can use more than it held, and a worker that
+  outlived its lease settles after the next lease took the remainder: both are recorded as spent, and the run waits on
+  its budget at its next claim. The limit bounds what a run starts, and the record shows any overrun.
+- **Root runs.** Holds are keyed by the run and lease that took them, so a child run (Phase 6, decision D6) can hold
+  on its root's row. No run has a parent yet: every run is its own root.
+- **Tests.** Package: `test/ash_agent/run_test.exs` ("the token budget"). Here, in the durability tier,
+  `test/ash_enterprise/execution/budget_test.exs` (invariant 8).
+
+## Built, 2026-11-04: a process waits for an agent
+
+- **The shape.** A process starts a run, waits for it, reads how it ended and routes on that: a service task
+  (`start_agent_run`) that promotes the run's id as `run_id`; a receive task correlated on `routing.run_id`, with a timer
+  boundary for the timeout; a service task (`agent_run_outcome`) that promotes `outcome` (`completed`, `failed` or
+  `cancelled`); an exclusive gateway on `routing.outcome`. On a timeout the boundary's branch runs `cancel_agent_run`, so
+  the run does not keep working for a process that stopped waiting, and then goes to the same outcome task and
+  gateway, with `cancelled` routed to the timed-out end. All three are entries of
+  `AshEnterprise.Process.ActionInvoker`, implemented in `AshEnterprise.Process.AgentRuns`.
+- **Why not `ash:call`.** The engine calls a callable as its own actor, which this application's policies do not know,
+  and a run belongs to a person. The registry entries run as the instance's starter, as the service tasks that name a
+  declared target do (ADR 0055, "BPMN service tasks through invoke").
+- **A redelivery starts no second run.** The run's key is the engine's invocation key, `bpmn:<instance>:<token>:<node>`;
+  a redelivery finds the run with that key. The run names its instance (`process_instance_id`).
+- **The message.** A run that reaches a final state writes a CloudEvents 1.0 envelope, `Execution.RunFinished`, in the
+  same transaction (`Changes.EmitRunFinished`, on the actions that can end a run): `id` is `<run id>:<lease epoch>`
+  (column `event_id`), `source` is `/execution/runs/<run id>`, `subject` is the run's id, `data` says how the run ended
+  and nothing it said, because the audit log keeps a plaintext copy of every change and a run's output is sealed. The
+  resource is audited, so the envelope reaches the processes through the audit log and the trigger sweep as every
+  other event does. `source` and `id` are the table's identity: a second envelope for the same run and epoch is
+  refused.
+- **Routing reads the run, not the message.** The message only says a run finished; the second service task reads how,
+  from the run, as the starter.
+- **Reordered and repeated messages.** The receive task declares a `lookback` of ten minutes, so a run that finishes
+  before the process reaches its wait (it was started, and the process died before the token moved) is found when the
+  token parks. A message delivered twice, or replayed by a cursor put back, finds no token waiting: one advance. The lookback is a
+  window, not a guarantee: a run that finished more than ten minutes before its token parked (a worker that died and
+  was redelivered after the claim timeout and its backoff, a sweep that was down) is not heard, and the token waits
+  for its timer. That is why the timeout branch reads the run's outcome after stopping it: a run that completed is
+  reported as completed, late, not as timed out.
+- **Two gaps in the trigger plumbing, closed.** The sweep was fanned out only to tenants with a published message
+  subscription, so a tenant whose only listener was a parked receive task was never swept
+  (`Subscription.trigger_tenants/0` now includes tenants with a token parked at a message catch). And a tenant's cursor
+  was created by the first sweep, at the newest event, skipping everything before it; it is now also created at a
+  tenant's first process instance (`Bpmn.Cursor.ensure!/1`), at the mark as of that moment.
+- **Cancelling.** An instance that is cancelled takes its runs with it: the run trigger `:cancel_with_instance` finds
+  queued, running or waiting runs whose instance is cancelled and cancels them, each announcing itself like any other
+  final run. Cancelling an instance also cancels its call-activity children (ash_bpmn B3, not yet in this application's
+  lock); a run a child started is found by its own instance's status, so no change here is needed when it lands.
+- **Not built.** The definition's automation principal (the run starts as the starter only). The run's output is not
+  available to the process (a process that needs the answer reads the run, as the starter, in a service task of its
+  own). Run cancellation does not cascade to children (decision D6, Phase 6).
+- **Fault points.** `:process_agent_run_started` (the run exists, the token has not moved), `:agent_run_finished_announced`
+  (the run is final and announced, neither committed) and `:process_agent_run_outcome_read`.
+- **Tests.** Durability tier: `test/ash_enterprise/bridge/workflow_waits_for_agent_waiting_for_human_test.exs` (a kill at
+  each hop; a finish before the wait and a duplicate finish advance once; cancelling the instance; the timeout).
+  Battery: `battery/test/base_integration/process_agent_run_test.exs` (scenario 9).

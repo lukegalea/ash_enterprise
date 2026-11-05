@@ -110,8 +110,8 @@
   {
     "law": "11",
     "file": "test/ash_enterprise/standards/questions_test.exs",
-    "text": "def handle_event(\"save\", params, socket), do: {:noreply, assign(socket, :p, params)}",
-    "reason": "Synthetic source inside a string: the standards candidate-rung test feeds it to AshAgentTools.CodeSubjects as input data. It is never compiled or run, and it is shaped like a violation on purpose."
+    "text": "def handle_event(event, state), do: Map.put(state, event.id, event)",
+    "reason": "Synthetic source inside a string: the Candidates.component/1 test feeds a projector's handle_event/2 to AshAgentTools.CodeSubjects as input data. It is never compiled or run. The judge reports one #11 hit per file, so this entry also covers the LiveView handle_event/3 fixture further down the same file."
   },
   {
     "law": "11",

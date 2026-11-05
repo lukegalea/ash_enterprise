@@ -81,7 +81,7 @@ defmodule AshEnterprise.SystemOne.CalibrationInput do
   assembled from a seam input by the package's own modules, exactly as
   `mix ash_judgments.calibrate` assembles them: `Calibration.Metrics` for
   the metrics and `Calibration.RiskControl` at the family's α for the
-  conformal threshold.
+  conformal thresholds (the upper one, and the lower one when earned).
 
   The task's own recording path cannot be used on this host: its create
   carries no actor and no tenant, and `CalibrationRun` is tenanted and
@@ -93,11 +93,19 @@ defmodule AshEnterprise.SystemOne.CalibrationInput do
     metrics = AshJudgments.Calibration.Metrics.noul_metrics(input.pairs)
     alpha = AshJudgments.Calibration.FamilyConfig.alpha(family)
 
-    thresholds =
-      case AshJudgments.Calibration.RiskControl.threshold(input.scored, alpha) do
-        nil -> %{}
-        lambda -> %{Float.to_string(alpha) => %{"threshold" => to_string(lambda)}}
-      end
+    # The upper threshold and, when the pairs earn it, the lower one, as the
+    # task records them: a family's `low_band` decides what the range at or
+    # below the lower one does, so a run that earns it can propose a
+    # three-range table. Neither earned is an empty map.
+    earned =
+      %{
+        "threshold" => AshJudgments.Calibration.RiskControl.threshold(input.scored, alpha),
+        "threshold_low" => AshJudgments.Calibration.RiskControl.threshold_low(input.scored, alpha)
+      }
+      |> Enum.reject(fn {_key, lambda} -> is_nil(lambda) end)
+      |> Map.new(fn {key, lambda} -> {key, to_string(lambda)} end)
+
+    thresholds = if earned == %{}, do: %{}, else: %{Float.to_string(alpha) => earned}
 
     %{
       family: family,

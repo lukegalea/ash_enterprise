@@ -6,11 +6,15 @@ defmodule AshEnterprise.Process.DecisionResolverTest do
   A document with one decision and no name works, which is the common case; a document with
   several and no name is an *error* rather than a guess — that is the evaluator's contract,
   and the resolver must neither break it nor paper over it.
+
+  A process routes only on an answer that was recorded: a decision whose `Evaluation` row
+  could not be written fails (`record: :required`).
   """
 
   use AshEnterprise.DataCase, async: false
 
   alias AshEnterprise.Decisions
+  alias AshEnterprise.Faults
   alias AshEnterprise.Platform.{Seeder, SystemActor}
   alias AshEnterprise.Process.{DecisionResolver, Resolver}
 
@@ -153,6 +157,29 @@ defmodule AshEnterprise.Process.DecisionResolverTest do
 
       assert result.outputs == %{"RiskTier" => "low"}
       assert result.rule_ids == ["rule_standard_argued"]
+    end
+
+    test "a decision whose evaluation could not be recorded fails", %{
+      platform: platform,
+      tenant: tenant
+    } do
+      on_exit(&Faults.disarm_all/0)
+      publish!("resolver.risk", File.read!("priv/dmn/access_request_risk.dmn"), platform)
+      inputs = %{"requestedRoleTier" => "standard", "justificationLength" => 50}
+      evaluations = fn -> Ash.count!(Decisions.Evaluation, opts(tenant)) end
+
+      Faults.arm(:decision_evaluation_recording, :raise)
+
+      assert {:error, {:evaluation_not_recorded, _reason}} =
+               DecisionResolver.decide("resolver.risk", inputs, %{tenant: tenant})
+
+      assert evaluations.() == 0
+
+      # The fault fired once; the same decision, recorded, answers.
+      assert {:ok, %{outputs: %{"RiskTier" => "low"}}} =
+               DecisionResolver.decide("resolver.risk", inputs, %{tenant: tenant})
+
+      assert evaluations.() == 1
     end
 
     test "several decisions and no name is an error, not a guess", %{

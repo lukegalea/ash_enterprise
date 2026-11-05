@@ -1,7 +1,8 @@
 # ADR 0060 — Localization through Gettext and library-shipped catalogs
 
-- **Status:** proposed
+- **Status:** accepted, in progress (2026-11-05). Phases 1 and 2 are built; phases 3, 3b and 4 are not
 - **Date:** 2026-10-29, reworked 2026-11-04
+- **Implementation note:** 2026-11-05, at the end of this record
 
 ## Context
 
@@ -55,7 +56,7 @@ can be translated.
 **LLM generation of PO files has prior art and isn't Ash-specific.** `gettext_llm` and `gettext_translator` both
 translate PO files through LangChain. Neither uses ReqLLM, which this platform standardizes on.
 
-**Current state:**
+**State when this was written (2026-11-04, before phases 1 and 2 landed; see the implementation note):**
 - This repository's main branch has `priv/gettext/errors.po` only. The French credentialing showcase
   (`?locale=fr`, a `showcase` domain with `fr` plurals) is on `dogfood`.
 - Keystone already calls `gettext/1` about 170 times, but has no default-domain catalog, no `fr`, no
@@ -136,7 +137,8 @@ structured output.
 - CI checks catalog freshness and never calls a model.
 - No model is called at compile time or on read.
 
-Try `gettext_translator` before writing the task. The task becomes a standalone package, named without an `ash_`
+Try `gettext_translator` before writing the task. (It was tried and not adopted; the implementation note says why.)
+The task becomes a standalone package, named without an `ash_`
 prefix since nothing in it is Ash-specific, only when a second repository wants it.
 
 ### 4. Tenant-authored content is deferred, with a decision rule
@@ -189,14 +191,14 @@ The first candidate stays `Clm.RequirementCatalog.title`, and only once its repo
 
 ### Rollout
 
-| Phase | Repo | Work |
-|---|---|---|
-| 1 | ash_a2ui | Single label resolver, templated ActionHandler messages, marker, `extract`/`gen` tasks, `gettext_fn`/`locale:` option, goldens for both protocols |
-| 2 | ash_enterprise | Locale resolution and `<html lang>`, `gettext_backend` on auth routes, generation task, `fr` catalogs, run `extract_metadata`, dogfood the ash_a2ui option |
-| 3 | Keystone | The same locale plumbing; `fr_CA` catalogs for existing `gettext` calls; run `extract_metadata`; Atlas strings map; `ProcessLive` plurals; `ContractsHubUI` pilot; user preference from the users twin; per-recipient locale in notification jobs |
-| 3b | Keystone | Organization wording overlay, once the web app's keys are mapped to msgids |
-| 4 | Both hosts | CLDR formatting |
-| — | Host | Tenant content, only under the rule in section 4 |
+| Phase | Repo | Work | State (2026-11-05) |
+|---|---|---|---|
+| 1 | ash_a2ui | Single label resolver, templated ActionHandler messages, marker, `extract`/`gen` tasks, `gettext_fn`/`locale:` option, goldens for both protocols | built |
+| 2 | ash_enterprise | Locale resolution and `<html lang>`, `gettext_backend` on auth routes, generation task, `fr` catalogs, run `extract_metadata`, dogfood the ash_a2ui option | built (#66, #67) |
+| 3 | Keystone | The same locale plumbing; `fr_CA` catalogs for existing `gettext` calls; run `extract_metadata`; Atlas strings map; `ProcessLive` plurals; `ContractsHubUI` pilot; user preference from the users twin; per-recipient locale in notification jobs | not built |
+| 3b | Keystone | Organization wording overlay, once the web app's keys are mapped to msgids | not built |
+| 4 | Both hosts | CLDR formatting | not built |
+| — | Host | Tenant content, only under the rule in section 4 | not built |
 
 ### Release gates
 
@@ -242,3 +244,26 @@ current behavior. If a package turns out to be warranted later, for example beca
 label-walking extractor, these catalogs become its input unchanged. If tenant content was built on `ash_translation`,
 reversing it means dropping one embedded attribute per resource, after exporting any approved text the customer's
 contract requires us to keep.
+
+## Implementation note — phases 1 and 2 (2026-11-05)
+
+Phases 1 and 2 landed in ash_enterprise as #66 (locale resolution, `fr` catalogs, the generation task) and #67
+(ash_a2ui catalogs and an explicit locale at every A2UI boundary), against the ash_a2ui release this repository locks.
+Where the code differs from, or settles, the text above:
+
+- **Locale resolution** is `AshEnterpriseWeb.Locale`, gathered per request by `AshEnterpriseWeb.Plugs.PutLocale` and
+  carried into LiveViews by `AshEnterpriseWeb.LiveLocale`. The root layout renders `<html lang>` from it. A2UI, ACP,
+  GraphQL and MCP receive the locale explicitly, through `Locale.a2ui_opts/1` for A2UI.
+- **The user preference is a seam.** This repository has no legacy users table, so `Locale.user_preference/1` answers
+  `nil` until a user field is added. Reading the legacy `users.locale` (section 5) is Keystone's phase 3.
+- **The organization's locale is one read in the plug**, made once per request after `LoadActorContext`, rather than
+  a field ActorContext loads. It still never runs inside a policy check.
+- **Authentication screens** use `gettext_backend: {AshEnterpriseWeb.Gettext, "auth"}`.
+- **The generation task** is `mix l10n.generate` (`AshEnterprise.L10n.Generator`, Expo and ReqLLM, a fake translator
+  in tests) with a glossary at `priv/l10n/glossary.fr.json`. `gettext_translator` 0.9.3 was evaluated first and not
+  adopted: it depends on LangChain, translates one message per call without a glossary or context, writes unvalidated
+  output, and is not idempotent. The task's moduledoc has the full reasoning.
+- **CI gates** run `mix gettext.extract --check-up-to-date` and `mix ash_a2ui.gettext.extract_metadata
+  --check-up-to-date`. Neither calls a model.
+- **Not yet in place:** the `CODEOWNERS` entry naming a French language reviewer (section 1). The `fr` catalogs that
+  landed are machine-drafted and still need that review.

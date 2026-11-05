@@ -43,6 +43,11 @@ defmodule AshEnterprise.Platform.NarrowedActionsTest do
                "machinery_only :clam: no such action"
     end
 
+    test "a misspelt changes_authority action is refused" do
+      assert refusal(NarrowedActions, widget(changes_authority: [:asign])) =~
+               "changes_authority :asign: no such action"
+    end
+
     test "an action cannot be both human-only and machinery-only" do
       assert refusal(NarrowedActions, widget(human_only: [:approve, :claim])) =~
                "machinery_only :claim is both human_only and machinery_only"

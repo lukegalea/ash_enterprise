@@ -185,9 +185,13 @@ config :ash_enterprise, privilege_sync?: false
 # MDM proposals: tests stub the LLM MFA per test; no default model runs.
 config :ash_enterprise, :mdm_proposal_llm, nil
 
-# Fault points (`AshEnterprise.Faults.point/1`) are compiled in only here; everywhere else
-# they compile to `:ok` and cannot be armed.
+# Fault points (`AshEnterprise.Faults.point/1`) are compiled in here, and by the showcase's
+# demo flag; everywhere else they compile to `:ok` and cannot be armed.
 config :ash_enterprise, AshEnterprise.Faults, enabled?: true
+
+# The showcase tour's fault panel is on, so its LiveView tests drive it; a test turns it off
+# to see it go.
+config :ash_enterprise, AshEnterprise.Showcase, fault_controls?: true
 
 # The durability tier (`mix test.durability`, see docs/DURABILITY-TESTS.md). Its tests need
 # what the SQL sandbox takes away: commits other connections can see, and a real Oban

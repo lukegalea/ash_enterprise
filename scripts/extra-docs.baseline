@@ -10,10 +10,7 @@
 # Anything in hand-written docs or moduledocs is fixed, never baselined.
 
 # AGENTS.md, from dependency usage-rules.md files (inlined by usage_rules.sync).
-# ash_authentication's rules cite AshAuthentication.Info.strategies/1, which its Info
-# module does not define (the generated accessor is authentication_strategies/1);
 # phoenix's Ecto rules cite validate_number/2, which only exists as /3.
-documentation references function "AshAuthentication.Info.strategies/1" but it is undefined or private	AGENTS.md
 documentation references function "Ecto.Changeset.validate_number/2" but it is undefined or private	AGENTS.md
 
 # The ash-framework and phoenix-web skills, built by usage_rules.sync from the

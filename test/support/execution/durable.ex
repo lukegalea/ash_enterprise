@@ -75,9 +75,44 @@ defmodule AshEnterprise.Test.Execution.Durable do
     :ok
   end
 
+  @doc "`member` invokes `ReferralBoard.<action>` for a synthetic patient, under a fresh key."
+  def refer(member, action, extra \\ %{}) do
+    invoke(
+      member,
+      "AshEnterprise.Test.Execution.ReferralBoard.#{action}",
+      %{"patient" => "SYNTHETIC patient #{System.unique_integer([:positive])}"},
+      "refer:#{System.unique_integer([:positive])}",
+      extra
+    )
+  end
+
+  @doc """
+  Time passes for `row`: its `field` (`lease_expires_at`, `next_attempt_at`,
+  `deadline_at`, `approval_expires_at`) is moved a minute into the past. Written past the actions, as the
+  clock is.
+  """
+  def elapse!(row, field)
+      when field in [:lease_expires_at, :next_attempt_at, :deadline_at, :approval_expires_at] do
+    past = DateTime.add(DateTime.utc_now(), -60, :second)
+
+    {1, _} =
+      Repo.update_all(
+        from(i in "exec_invocations", where: i.id == type(^row.id, Ecto.UUID)),
+        set: [{field, past}]
+      )
+
+    :ok
+  end
+
+  @doc "The invocation `id` as committed now."
+  def committed(id, tenant), do: Execution.get_invocation!(id, oban(tenant))
+
   @doc "The `:execute` jobs Oban holds for the invocation `id`, oldest first."
-  def jobs(id) do
-    worker = inspect(ExecuteWorker)
+  def jobs(id), do: jobs(id, ExecuteWorker)
+
+  @doc "The jobs of `worker` Oban holds for the invocation `id`, oldest first."
+  def jobs(id, worker) do
+    worker = inspect(worker)
 
     Repo.all(
       from(j in Oban.Job,

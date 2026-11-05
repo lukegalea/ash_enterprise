@@ -40,6 +40,26 @@ defmodule Battery.Domain do
     resource Battery.BusinessEvents.MappingVersion
     resource Battery.BusinessEvents.VendorState
 
+    # Scheduled activation (ash_bpmn timer → ash_compliance dated revision →
+    # ash_decisions re-evaluation): the applicants a rule set answers for,
+    # and the activation request a process instance runs against.
+    resource Battery.Compliance.Applicant
+    resource Battery.Compliance.ScheduledActivation
+
+    # Governed invocations (the ash_agent fragment), their target and the people who
+    # ask and approve.
+    resource Battery.Execution.Member
+    resource Battery.Execution.Referral
+    resource Battery.Execution.Invocation
+
+    # Agent runs (the ash_agent run fragments), and the question an agent asks a person.
+    resource Battery.Execution.AgentVersion
+    resource Battery.Execution.Run
+    resource Battery.Execution.RunFinished
+    resource Battery.Execution.Step
+    resource Battery.Execution.HumanInput
+    resource Battery.Execution.StartProcess
+
     # MDM (ash_mdm resource macros + a golden entity).
     resource Battery.Mdm.Vendor
     resource Battery.Mdm.Mapping

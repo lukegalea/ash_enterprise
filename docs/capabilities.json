@@ -31,7 +31,7 @@
   "pins": [
     {
       "dep": "ash_bpmn",
-      "lock": "087880385fdfaff654c8039f1e2bb78d80bc58a0"
+      "lock": "009b768c19857c3d4f954b044f64b72512ccad45"
     },
     {
       "dep": "ash_oban",
@@ -92,7 +92,9 @@
       "deps": ["ash_bpmn"],
       "tests": [
         {"dep": "ash_bpmn", "file": "test/ash_bpmn/engine_test.exs", "test": "parallel process completes after join"},
-        {"dep": "ash_bpmn", "file": "test/ash_bpmn/branch_completion_test.exs", "test": "a branch parked on an approval keeps the instance running"}
+        {"dep": "ash_bpmn", "file": "test/ash_bpmn/branch_completion_test.exs", "test": "a branch parked on an approval keeps the instance running"},
+        {"dep": "ash_bpmn", "file": "test/ash_bpmn/parallel_join_test.exs", "test": "a branch two steps long is waited for, and the node after the join runs once"},
+        {"dep": "ash_bpmn", "file": "test/ash_bpmn/parallel_join_test.exs", "test": "waits for a user task and a receive task two nodes back, payment first"}
       ]
     },
     {
@@ -125,12 +127,13 @@
       "area": "workflow",
       "capability": "Child workflows",
       "status": "partial",
-      "summary": "A call activity starts a child process by key; the parent waits and resumes when the child completes, and call depth is bounded.",
-      "gap": "The child resolves the latest published version when it starts rather than a pinned one, and cancelling the parent does not cancel the child.",
+      "summary": "A call activity starts a child process by key; the parent waits and resumes when the child completes, call depth is bounded, and a call activity may pin the child's version.",
+      "gap": "Cancelling the parent does not cancel the child; only an interrupting timer boundary on the call activity does.",
       "deps": ["ash_bpmn"],
       "tests": [
         {"dep": "ash_bpmn", "file": "test/ash_bpmn/call_activity_test.exs", "test": "the child runs and the parent carries on after it"},
-        {"dep": "ash_bpmn", "file": "test/ash_bpmn/call_activity_test.exs", "test": "the parent waits while the child does"}
+        {"dep": "ash_bpmn", "file": "test/ash_bpmn/call_activity_test.exs", "test": "the parent waits while the child does"},
+        {"dep": "ash_bpmn", "file": "test/ash_bpmn/call_activity_test.exs", "test": "a pinned child keeps v1 after v2 publishes"}
       ]
     },
     {
@@ -138,14 +141,15 @@
       "area": "workflow",
       "capability": "Durable waits",
       "status": "partial",
-      "summary": "Message, signal and timer waits and receive tasks park a token in the database; a duplicate wake loses a compare-and-set, and a deadline on a human task is a boundary timer.",
-      "gap": "No timeout on a message, receive or call-activity wait: boundaries attach to human tasks only.",
+      "summary": "Message, signal and timer waits and receive tasks park a token in the database; a duplicate wake loses a compare-and-set, and a deadline on a human task, a receive task or a call activity is a boundary timer.",
+      "gap": "No timeout on an intermediate message or signal catch event: a receive task is the waiting activity that takes one.",
       "deps": ["ash_bpmn"],
       "tests": [
         {"dep": "ash_bpmn", "file": "test/ash_bpmn/message_catch_test.exs", "test": "an event carrying the right key wakes the token and the process finishes"},
         {"dep": "ash_bpmn", "file": "test/ash_bpmn/message_catch_test.exs", "test": "a redelivered event wakes the token once"},
         {"dep": "ash_bpmn", "file": "test/ash_bpmn/timer_catch_test.exs", "test": "when the timer is due the token wakes and the process finishes"},
-        {"dep": "ash_bpmn", "file": "test/ash_bpmn/boundary_timer_test.exs", "test": "firing cancels the task, interrupts the branch, and routes out of the boundary"}
+        {"dep": "ash_bpmn", "file": "test/ash_bpmn/boundary_timer_test.exs", "test": "firing cancels the task, interrupts the branch, and routes out of the boundary"},
+        {"dep": "ash_bpmn", "file": "test/ash_bpmn/wait_boundary_test.exs", "test": "times out to its boundary"}
       ]
     },
     {
@@ -166,13 +170,16 @@
       "area": "workflow",
       "capability": "Service tasks that call application actions",
       "status": "partial",
-      "summary": "A service task names an action from an allowlist; publishing a diagram that names anything else is refused, and declared inputs reach the action.",
-      "gap": "No stable invocation key reaches the action, so idempotency under redelivery is each action's own business.",
+      "summary": "A service task names an action from an allowlist; publishing a diagram that names anything else is refused, and declared inputs reach the action. An entry that names a declared target runs it through its governed invocation, keyed bpmn:<instance>:<token>:<node> and run as the instance's starter, so a redelivery returns the recorded result; a business refusal is a BPMN error an error boundary catches.",
+      "gap": "Entries that name no declared target still run as the process actor and keep idempotency to themselves, and a definition cannot declare an automation principal to run as.",
       "deps": ["ash_bpmn"],
       "tests": [
         {"file": "test/ash_enterprise/process/action_invoker_test.exs", "test": "the declared inputs reach the action"},
         {"file": "test/ash_enterprise/process/action_invoker_test.exs", "test": "publishing a diagram that names an unregistered action is refused"},
-        {"dep": "ash_bpmn", "file": "test/ash_bpmn/ash_call_test.exs", "test": "inputs arrive evaluated and the promoted signal routes a following gateway"}
+        {"dep": "ash_bpmn", "file": "test/ash_bpmn/ash_call_test.exs", "test": "inputs arrive evaluated and the promoted signal routes a following gateway"},
+        {"file": "test/ash_enterprise/process/invocation_key_test.exs", "test": "an advance-job redelivery runs the check once and returns the recorded result"},
+        {"file": "test/ash_enterprise/process/evidence_check_boundary_test.exs", "test": "a check refused by a business rule takes its boundary while its sibling completes"},
+        {"dep": "ash_bpmn", "file": "test/ash_bpmn/invocation_key_test.exs", "test": "a retry of the advance job carries the key the failed attempt carried"}
       ]
     },
     {
@@ -202,13 +209,14 @@
       "area": "workflow",
       "capability": "Retry and timeout",
       "status": "partial",
-      "summary": "A failed service task is retried by the engine within a global attempt budget and then fails the instance; a failed instance can be resumed; external calls fail with typed reasons.",
-      "gap": "No per-node retry or timeout policy.",
+      "summary": "A failed service task is retried by the engine within a global attempt budget and then fails the instance; a business error is caught by an error boundary instead of retried; a failed instance can be resumed; external calls fail with typed reasons.",
+      "gap": "No per-node retry policy, and no timeout on a service task: a timer boundary attaches to user tasks, receive tasks and call activities.",
       "deps": ["ash_bpmn"],
       "tests": [
         {"dep": "ash_bpmn", "file": "test/ash_bpmn/service_task_failure_test.exs", "test": "exhausting the engine's attempts fails the instance and kills the token"},
         {"dep": "ash_bpmn", "file": "test/ash_bpmn/service_task_failure_test.exs", "test": "a retry after the cause is fixed advances the instance"},
-        {"file": "test/ash_enterprise/integration/nango_edge_test.exs", "test": "410 from Calendar surfaces as :gone (sync token invalid)"}
+        {"file": "test/ash_enterprise/integration/nango_edge_test.exs", "test": "410 from Calendar surfaces as :gone (sync token invalid)"},
+        {"dep": "ash_bpmn", "file": "test/ash_bpmn/error_boundary_test.exs", "test": "an uncaught code fails the instance at the task at once, without retrying"}
       ]
     },
     {
@@ -240,12 +248,12 @@
       "area": "agents",
       "capability": "Model invocation and streaming",
       "status": "existing",
-      "summary": "Model calls go through one guard that can confine them to in-zone models; every call, streamed or not, is recorded structurally without content; the assistant runs a streamed tool loop.",
+      "summary": "Model calls go through one guard that can confine them to in-zone models; every call, streamed or not, is recorded structurally without content; the assistant answers on a durable agent run, one guarded model call per step.",
       "deps": ["req_llm"],
       "tests": [
         {"file": "test/ash_enterprise/ai/models_test.exs", "test": "on: a hosted call is refused before anything is sent, and the refusal recorded"},
         {"file": "test/ash_enterprise/ai/models_test.exs", "test": "a stream is recorded with its usage once it has been read"},
-        {"file": "test/ash_enterprise/assistant/runner_test.exs", "test": "calls tools across several steps, then answers with citations"}
+        {"file": "test/ash_enterprise/assistant/ask_test.exs", "test": "it reads in its loop across several steps, then answers with citations"}
       ]
     },
     {
@@ -266,23 +274,27 @@
       "id": "durable-agent-execution",
       "area": "agents",
       "capability": "Durable agent execution",
-      "status": "missing",
-      "summary": "An assistant run lives in a temporary task and writes its answer only at the end; a run whose process dies is failed rather than resumed.",
+      "status": "existing",
+      "summary": "An assistant answer is an agent run: one model call per job, a journal a resumed step reads, and tool calls that run once. A worker killed mid-answer leaves a run the sweep resumes, and the answer is recorded once (durability tier: test/ash_enterprise/assistant/durable_answer_test.exs).",
       "deps": [],
-      "tests": []
+      "tests": [
+        {"file": "test/ash_enterprise/assistant/ask_test.exs", "test": "a model call that fails leaves the run to be tried again, not a lost answer"},
+        {"file": "test/ash_enterprise/assistant/ask_test.exs", "test": "it reads in its loop across several steps, then answers with citations"}
+      ]
     },
     {
       "id": "tool-approvals",
       "area": "agents",
       "capability": "Tool approvals",
       "status": "partial",
-      "summary": "A coding-agent tool request pauses the run until a person approves the stored request; assistant proposals change nothing until a person executes them, and execution re-checks authorization as that person.",
-      "gap": "An approval carries no digest or expiry, and nothing checks that what runs matches what was approved; client-session approvals are held in memory, and an 'always allow' answer is treated as once.",
+      "summary": "A coding-agent tool request and an ACP permission request are governed invocations: each waits on the person's approval task, survives a restart and runs once, as approved; so is a change the assistant asks for, which waits for the person's Confirm and then runs once, as them, even after the run that asked has ended.",
+      "gap": "ACP offers no 'always allow'.",
       "deps": ["ash_ai"],
       "tests": [
-        {"file": "test/ash_enterprise/agents_test.exs", "test": "tool request → pending invocation pauses the run → approval resumes it exactly bound"},
-        {"file": "test/ash_enterprise/ai/proposal_test.exs", "test": "execution re-checks authorization rather than trusting the earlier check"},
-        {"file": "test/ash_enterprise/acp_approvals_test.exs", "test": "a foreign session's ref is denied even with allow_once"}
+        {"file": "test/ash_enterprise/agents_test.exs", "test": "tool request → invocation awaiting approval pauses the run → confirming resumes it exactly bound"},
+        {"file": "test/ash_enterprise/assistant/ask_test.exs", "test": "a change is asked for, not made: the answer ends at the request"},
+        {"file": "test/ash_enterprise/assistant/ask_test.exs", "test": "confirmed after the run's deadline, it still runs as the person"},
+        {"file": "test/ash_enterprise/acp/approvals_durable_test.exs", "test": "a pending approval survives a session-store restart"}
       ]
     },
     {
@@ -317,7 +329,7 @@
       "deps": [],
       "tests": [
         {"file": "test/ash_enterprise/ai/models_test.exs", "test": "with an in-zone profile it is the default, with the profile's transport"},
-        {"file": "test/ash_enterprise/assistant/runner_test.exs", "test": "with no in-zone profile nothing is asked: no hosted fallback"}
+        {"file": "test/ash_enterprise/assistant/ask_test.exs", "test": "with no in-zone profile nothing is asked: no hosted fallback"}
       ]
     },
     {
@@ -335,10 +347,10 @@
       "capability": "Agent memory",
       "status": "partial",
       "summary": "Conversations are stored as threads of turns, sealed, owner-only and erasable; the next question carries the conversation so far.",
-      "gap": "A fixed window of recent turns, text only; no journal of the steps a run took.",
+      "gap": "A fixed window of recent turns, text only: each answer's run journals its steps, but the next question carries only the turns' text.",
       "deps": [],
       "tests": [
-        {"file": "test/ash_enterprise/assistant/runner_test.exs", "test": "the next question carries the conversation so far, as text only"}
+        {"file": "test/ash_enterprise/assistant/ask_test.exs", "test": "the next question carries the conversation so far, as text only"}
       ]
     },
     {
@@ -407,10 +419,13 @@
       "area": "enterprise",
       "capability": "Human approvals and work queues",
       "status": "existing",
-      "summary": "Human tasks are claimed, completed, delegated, approved or rejected by their candidates; candidacy grants read access; maker-checker excludes the requester; exactly one of several concurrent claims wins; escalation timers fire.",
+      "summary": "Human tasks are claimed, completed, delegated, approved or rejected by their candidates; candidacy grants read access; maker-checker excludes the requester (an organization that opts in may let its only administrator approve their own agent publish, recorded as a sole-administrator approval, while no one else holds or has held the Administrator role); exactly one of several concurrent claims wins; escalation timers fire.",
       "deps": ["ash_bpmn"],
       "tests": [
         {"file": "test/ash_enterprise/security/task_candidacy_test.exs", "test": "a candidate with no task grant reads their task and no other"},
+        {"file": "test/ash_enterprise/execution/sole_administrator_approval_test.exs", "test": "the only administrator approves their own publish, recorded as such"},
+        {"file": "test/ash_enterprise/execution/sole_administrator_approval_test.exs", "test": "a second administrator added before the decision is applied makes it stale"},
+        {"file": "test/ash_enterprise/execution/sole_administrator_approval_test.exs", "test": "by revoking their role is not the only administrator"},
         {"file": "test/ash_enterprise/morning_brief_test.exs", "test": "compose → approval → approve completes the instance with the draft stored"},
         {"dep": "ash_bpmn", "file": "test/ash_bpmn/who_acts_test.exs", "test": "a requester excluded by maker-checker cannot claim through a candidate team"},
         {"dep": "ash_bpmn", "file": "test/ash_bpmn/who_acts_test.exs", "test": "a candidate delegate takes the task, and the hand-off is recorded"},
@@ -436,7 +451,7 @@
       "gap": "No tools over process instances, decisions or model calls, so it cannot yet answer why a given execution went the way it did.",
       "deps": [],
       "tests": [
-        {"file": "test/ash_enterprise/assistant/runner_test.exs", "test": "calls tools across several steps, then answers with citations"},
+        {"file": "test/ash_enterprise/assistant/ask_test.exs", "test": "it reads in its loop across several steps, then answers with citations"},
         {"file": "test/ash_enterprise/lineage_test.exs", "test": "the ACP prompt reads the same graph as the actor"}
       ]
     },

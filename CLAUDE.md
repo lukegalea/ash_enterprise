@@ -54,6 +54,15 @@ That is why `processes.phoenix` is deliberately absent from `devenv.nix`.
 6. **`priv/cdm/schemaDocuments/` is vendored third-party content** (Microsoft CDM, CC-BY-4.0, pinned commit). Never edit
    it. To change a generated resource, edit the resource. See `priv/cdm/ATTRIBUTION.md`.
 
+## Shipping a change
+
+Finished work goes straight to `main`, through CI. Work in your own worktree, run the local checks
+and the tests you touched, push to a `ci/<name>` branch, and wait for CI there. It runs the whole
+suite and every blocking check in about 25 minutes, where the whole suite run locally takes about
+two hours. Then rebase and push to `main`. Do not run the whole suite locally to prove a change. The
+worktree pre-flight, the rebase rules and how to share the host are in the `ship-a-change` skill
+(`.claude/skills/ship-a-change/SKILL.md`).
+
 ## Adding or changing a dependency
 
 A git dependency, a fork or an `override:` gets a row in `docs/BLEEDING-EDGE.md` in the same commit, with its

@@ -20,7 +20,9 @@ if Code.ensure_loaded?(AshJudgments.Query) and
     finding, with the status `AshJudgments.Query.status/4` reads against the
     unit's current digest, rolled up over its chunks. A unit edited by the
     change reads `unknown (:stale)` until the standing job has judged it on
-    `main`.
+    `main`. A unit whose declared context alone exceeds the token budget
+    reads `unknown (:context_too_large)`, as the standing job never judges
+    it.
     """
 
     alias AshAgentTools.CodeSubjects
@@ -36,7 +38,8 @@ if Code.ensure_loaded?(AshJudgments.Query) and
     `%{laws:, advisory:, markdown:}`.
 
     Options: `:repository` (default `"ash_enterprise"`), `:questions`,
-    `:facts_resource`, `:max_tokens`, `:reserve_tokens` and `:laws_opts`
+    `:facts_resource`, `:max_tokens`, `:reserve_tokens`, `:token_count` and
+    `:laws_opts`
     (passed to the judge).
     """
     @spec review(Path.t(), String.t(), keyword()) :: map()
@@ -93,8 +96,15 @@ if Code.ensure_loaded?(AshJudgments.Query) and
     defp overlaps?(%{start_line: a, end_line: b}, {c, d}), do: a <= d and c <= b
 
     defp status(unit, question, opts) do
-      chunk_opts = Keyword.take(opts, [:max_tokens, :reserve_tokens])
-      pieces = CodeSubjects.chunk(unit, question.projection, chunk_opts)
+      chunk_opts = Keyword.take(opts, [:max_tokens, :reserve_tokens, :token_count])
+
+      case CodeSubjects.fit(unit, question.projection, chunk_opts) do
+        {:ok, pieces} -> pieces_status(pieces, question, opts)
+        {:error, {:context_too_large, _budget}} -> {:unknown, :context_too_large}
+      end
+    end
+
+    defp pieces_status(pieces, question, opts) do
       predicate = Standing.predicate(question)
       facts = Keyword.get(opts, :facts_resource, @facts)
 

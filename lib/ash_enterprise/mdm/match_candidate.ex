@@ -36,11 +36,38 @@ defmodule AshEnterprise.Mdm.MatchCandidate do
     ownership: :organization_owned,
     lifecycle?: false,
     archival?: false,
-    policies?: false
+    policies?: false,
+    extra_extensions: [AshAi, AshAgent.Effects, AshJudgments.Registry]
 
   use AshMdm.Resources, {:match_candidate, []}
 
   alias AshEnterprise.Platform.Calculations.RelatedField
+
+  # The match question is declared so its id and hash are a locked contract
+  # (`priv/judgments/lock.json`). Nothing here asks a model: the matcher's
+  # rules-as-data score is the observation, recorded by
+  # `Changes.StewardVerdict` and `Changes.StewardEscalation`, and a steward
+  # answers it. A wording change is a compile error until it arrives with a
+  # version bump.
+  judgments do
+    question :matches_the_golden do
+      # judgment:v0:AshEnterprise.Mdm.MatchCandidate#judgments/matches_the_golden
+      type AshAi.Evaluate.Noul
+
+      instructions(
+        "Determine if the staged record and the golden record describe the same real-world entity."
+      )
+
+      criteria(%{
+        false: "The staged record and the golden record describe different entities.",
+        true: "The staged record and the golden record describe the same real-world entity."
+      })
+
+      version(1)
+      family(:mdm_matches)
+      profile(:winnow_gpu)
+    end
+  end
 
   postgres do
     table "mdm_match_candidates"
@@ -277,6 +304,56 @@ defmodule AshEnterprise.Mdm.MatchCandidate do
       require_atomic? false
 
       change AshEnterprise.Mdm.Changes.StewardEscalation
+    end
+  end
+
+  # A verdict the assistant may ask for (ADR 0055): a governed invocation the steward
+  # confirms, and runs as them.
+  effects do
+    action :confirm,
+      kind: :edit,
+      destructive?: true,
+      open_world?: false,
+      approval: :confirm,
+      intent: :approve
+
+    action :reject,
+      kind: :edit,
+      destructive?: false,
+      open_world?: false,
+      approval: :confirm,
+      intent: :approve
+
+    action :escalate,
+      kind: :edit,
+      destructive?: false,
+      idempotent?: true,
+      open_world?: false,
+      approval: :confirm,
+      intent: :approve
+  end
+
+  # The assistant's names for them (`AshEnterprise.Assistant.Agent`).
+  tools do
+    tool :merge_duplicate, :confirm do
+      description """
+      Ask to merge a possible duplicate in the person's steward queue into the existing
+      record, by its id from steward_queue. Nothing is merged until they confirm.
+      """
+    end
+
+    tool :keep_duplicate_separate, :reject do
+      description """
+      Ask to keep a possible duplicate separate from the existing record, by its id
+      from steward_queue. Nothing changes until the person confirms.
+      """
+    end
+
+    tool :mark_duplicate_unsure, :escalate do
+      description """
+      Ask to mark a possible duplicate as unsure, by its id from steward_queue: it
+      stays in the queue. Nothing changes until the person confirms.
+      """
     end
   end
 end

@@ -109,7 +109,8 @@ defmodule AshEnterprise.Platform.Seeder do
   Provisions a tenant: organization, root business unit, default team, an
   administrator role granting everything at `:global` (bar the operator-only
   privileges, and `:basic` on the owner-only ones), the starter Data Steward
-  role (`ensure_data_steward_role/2`), and an admin user.
+  role (`ensure_data_steward_role/2`), the starter Judgment certifier role
+  (`ensure_judgment_certifier_role/2`, assigned to nobody), and an admin user.
 
   Returns `%{organization: _, business_unit: _, role: _, user: _}`.
   """
@@ -163,6 +164,7 @@ defmodule AshEnterprise.Platform.Seeder do
 
     role = seed_admin_role(root, tenant, actor)
     _steward = ensure_data_steward_role(tenant, dry_run?: false)
+    _certifier = ensure_judgment_certifier_role(tenant, dry_run?: false)
     user = seed_admin_user(email, password, root, organization)
 
     Security.UserRole
@@ -431,6 +433,9 @@ defmodule AshEnterprise.Platform.Seeder do
     {AshEnterprise.Mdm.Egress, :read}
   ]
 
+  @data_steward_description "Decides MDM match candidates (confirm, reject, unsure) and runs the MDM egress. " <>
+                              "Seeded by the platform."
+
   @doc "The starter steward role's name."
   @spec data_steward_role() :: String.t()
   def data_steward_role, do: @data_steward
@@ -460,13 +465,72 @@ defmodule AshEnterprise.Platform.Seeder do
   """
   @spec ensure_data_steward_role(Ash.UUID.t(), keyword()) :: map()
   def ensure_data_steward_role(tenant, opts \\ []) do
+    ensure_role(tenant, @data_steward, @data_steward_description, @data_steward_grants, opts)
+  end
+
+  @judgment_certifier "Judgment certifier"
+
+  @judgment_certifier_description "Approves and revokes band-table certification: the person whose " <>
+                                    "confirmation lets a calibrated band table go live. Held by a " <>
+                                    "named person, never implied by Administrator. Seeded by the platform."
+
+  # What a certifier reads to decide: the runs awaiting certification and the
+  # certifications in force. Approving is candidacy for the approval task (the
+  # role's name, `AshEnterprise.Execution.Approval.role_name/1`), not a grant.
+  @judgment_certifier_grants [
+    {AshEnterprise.SystemOne.CalibrationRun, :read},
+    {AshEnterprise.SystemOne.BandTableCertification, :read}
+  ]
+
+  @doc "The role that approves band-table certification and revocation."
+  @spec judgment_certifier_role() :: String.t()
+  def judgment_certifier_role, do: @judgment_certifier
+
+  @doc "The `{resource, verb}` grants the Judgment certifier role carries, each at its widest depth."
+  @spec judgment_certifier_grants() :: [{module(), atom()}]
+  def judgment_certifier_grants, do: @judgment_certifier_grants
+
+  @doc """
+  Makes sure `tenant` has the **Judgment certifier** role, the approver of
+  `CalibrationRun.certify_and_publish` and `BandTableCertification.revoke`
+  (`approver_role: :judgment_certifier`, ADR 0061).
+
+  Same contract as `ensure_data_steward_role/2`: idempotent, additive, dry run
+  by default, assigns the role to nobody. Administrators do not hold it
+  implicitly; a person is given it in the role admin.
+  """
+  @spec ensure_judgment_certifier_role(Ash.UUID.t(), keyword()) :: map()
+  def ensure_judgment_certifier_role(tenant, opts \\ []) do
+    ensure_role(
+      tenant,
+      @judgment_certifier,
+      @judgment_certifier_description,
+      @judgment_certifier_grants,
+      opts
+    )
+  end
+
+  @doc """
+  `ensure_judgment_certifier_role/2` across tenants, as `regrant_data_steward/1`.
+  """
+  @spec regrant_judgment_certifier(keyword()) :: [map()]
+  def regrant_judgment_certifier(opts \\ []) do
+    opts
+    |> Keyword.get(:tenant)
+    |> steward_tenants()
+    |> Enum.map(
+      &ensure_judgment_certifier_role(&1.id, dry_run?: Keyword.get(opts, :dry_run?, true))
+    )
+  end
+
+  defp ensure_role(tenant, name, description, grants, opts) do
     dry_run? = Keyword.get(opts, :dry_run?, true)
     actor = SystemActor.seed()
     ash = [actor: actor, tenant: tenant]
 
     role =
       Security.Role
-      |> Ash.Query.filter(name == ^@data_steward)
+      |> Ash.Query.filter(name == ^name)
       |> Ash.read_one!(ash)
 
     held =
@@ -480,7 +544,7 @@ defmodule AshEnterprise.Platform.Seeder do
       end
 
     missing =
-      for {resource, verb} <- @data_steward_grants,
+      for {resource, verb} <- grants,
           privilege = privilege!(resource, verb, actor),
           not MapSet.member?(held, privilege.id),
           do: {privilege, Security.Privilege.widest_depth(privilege)}
@@ -496,7 +560,9 @@ defmodule AshEnterprise.Platform.Seeder do
       }
     else
       {status, role} =
-        if role, do: {:exists, role}, else: {:created, create_data_steward!(tenant, actor)}
+        if role,
+          do: {:exists, role},
+          else: {:created, create_role!(tenant, name, description, actor)}
 
       for {privilege, depth} <- missing do
         Security.RolePrivilege
@@ -564,7 +630,7 @@ defmodule AshEnterprise.Platform.Seeder do
     end
   end
 
-  defp create_data_steward!(tenant, actor) do
+  defp create_role!(tenant, name, description, actor) do
     root =
       Accounts.BusinessUnit
       |> Ash.Query.filter(is_nil(parent_business_unit_id))
@@ -573,13 +639,7 @@ defmodule AshEnterprise.Platform.Seeder do
     Security.Role
     |> Ash.Changeset.for_create(
       :create,
-      %{
-        name: @data_steward,
-        description:
-          "Decides MDM match candidates (confirm, reject, unsure) and runs the MDM egress. " <>
-            "Seeded by the platform.",
-        owning_business_unit_id: root.id
-      },
+      %{name: name, description: description, owning_business_unit_id: root.id},
       actor: actor,
       tenant: tenant
     )

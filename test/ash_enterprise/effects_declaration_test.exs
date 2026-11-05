@@ -58,15 +58,26 @@ defmodule AshEnterprise.EffectsDeclarationTest do
       refute message =~ "assign"
     end
 
-    test "assign_role's target declares four-eyes approval by an administrator" do
-      assert %{
-               kind: :edit,
-               read_only?: false,
-               open_world?: false,
-               approval: :four_eyes,
-               approver_role: :administrator,
-               intent: :execute
-             } = Info.effect(UserRole, :assign)
+    test "assign_role only requests; its governed target declares four-eyes approval" do
+      assert %{action: :request_assignment} =
+               Enum.find(AshAi.Info.tools(AshEnterprise.Security), &(&1.name == :assign_role))
+
+      assert %{approval: :none, intent: :propose, read_only?: false} =
+               Info.effect(UserRole, :request_assignment)
+
+      for action <- [:assign, :assign_governed] do
+        assert %{
+                 kind: :edit,
+                 read_only?: false,
+                 open_world?: false,
+                 approval: :four_eyes,
+                 approver_role: :administrator,
+                 intent: :execute
+               } = Info.effect(UserRole, action)
+      end
+
+      # That only `assign_governed` refuses to run outside its invocation is
+      # AshEnterprise.Execution.GovernedTest's.
     end
   end
 

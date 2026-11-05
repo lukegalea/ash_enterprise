@@ -35,6 +35,7 @@ defmodule AshEnterprise.Accounts.TeamMembership do
     domain: AshEnterprise.Accounts,
     ownership: :none,
     lifecycle?: false,
+    changes_authority: [:create, :destroy],
     cdm_entity: "TeamMembership"
 
   postgres do
@@ -72,9 +73,18 @@ defmodule AshEnterprise.Accounts.TeamMembership do
     identity :unique_membership, [:user_id, :team_id]
   end
 
+  # `history` reads archived rows too (`AshEnterprise.Execution.Approval`).
+  archive do
+    exclude_read_actions([:history])
+  end
+
   actions do
     defaults [:read, :destroy]
     default_accept [:user_id, :team_id]
+
+    read :history do
+      description "Every membership, current or ended (archived): who has ever been on a team."
+    end
 
     create :create do
       primary? true

@@ -1,13 +1,14 @@
 defmodule AshEnterprise.Assistant.Lookups.ActivityCounts do
   @moduledoc """
-  `Lookup.count_activity`: counts of messages, calendar events or
-  conversations over a window (default `last_30_days`), grouped by person,
-  local day or source.
+  `Lookup.ActivityCount.count_activity`: counts of messages, calendar events
+  or conversations over a window (default `last_30_days`), grouped by person,
+  local day or source. The first row, `all`, is the total; the groups follow
+  it, at most #{25}.
 
   Counted from the same reads the other tools make, as the person — so a
   count is over exactly the rows they may read, never a total across
   owners, tenants or zones. Up to #{5000} rows are counted; past that the
-  result says `truncated` rather than presenting a partial total as whole.
+  `all` row says `truncated` rather than presenting a partial total as whole.
 
   | metric | person | day | source |
   |---|---|---|---|
@@ -16,10 +17,11 @@ defmodule AshEnterprise.Assistant.Lookups.ActivityCounts do
   | conversations | each participant, once per thread | the day of latest activity | gmail / slack |
   """
 
-  use Ash.Resource.Actions.Implementation
+  use Ash.Resource.ManualRead
 
   require Ash.Query
 
+  alias AshEnterprise.Assistant.Lookup
   alias AshEnterprise.Assistant.Lookups.{Conversations, Support}
   alias AshEnterprise.Canonical.{CalendarEvent, Conversation, Message}
   alias AshEnterprise.Platform.LocalTime
@@ -28,32 +30,35 @@ defmodule AshEnterprise.Assistant.Lookups.ActivityCounts do
   @shown 25
 
   @impl true
-  def run(input, _opts, context) do
-    Support.gated(input, context, fn opts ->
-      metric = input.arguments[:metric]
-      group_by = input.arguments[:group_by]
+  def read(query, _data_layer_query, _opts, context) do
+    Support.gated(query, context, fn opts ->
+      metric = query.arguments[:metric]
+      group_by = query.arguments[:group_by]
 
-      with {:ok, bounds} <- bounds(input.arguments[:window]),
-           {:ok, rows} <- read(metric, bounds, opts) do
-        counts = rows |> Enum.flat_map(&keys(metric, group_by, &1)) |> Enum.frequencies()
-
-        {:ok,
-         %{
-           "metric" => metric,
-           "group_by" => group_by,
-           "window" => Support.window_label(bounds),
-           "total" => length(rows),
-           "truncated" => length(rows) >= @scan,
-           "groups" =>
-             counts
-             |> order(group_by)
-             |> Enum.take(@shown)
-             |> Enum.map(fn {key, count} -> %{"key" => key, "count" => count} end)
-         }}
-      else
-        {:error, message} when is_binary(message) -> Support.refused(message)
-        {:error, error} -> {:error, error}
+      with {:ok, bounds} <- bounds(query.arguments[:window]),
+           {:ok, rows} <- scan(metric, bounds, opts) do
+        {:ok, [total(rows, bounds) | groups(rows, metric, group_by)]}
       end
+    end)
+  end
+
+  defp total(rows, bounds) do
+    Support.row(Lookup.ActivityCount, %{
+      key: "all",
+      count: length(rows),
+      window: Support.window_label(bounds),
+      truncated: length(rows) >= @scan
+    })
+  end
+
+  defp groups(rows, metric, group_by) do
+    rows
+    |> Enum.flat_map(&keys(metric, group_by, &1))
+    |> Enum.frequencies()
+    |> order(group_by)
+    |> Enum.take(@shown)
+    |> Enum.map(fn {key, count} ->
+      Support.row(Lookup.ActivityCount, %{key: key, count: count})
     end)
   end
 
@@ -64,7 +69,7 @@ defmodule AshEnterprise.Assistant.Lookups.ActivityCounts do
     end
   end
 
-  defp read(:messages, {from, to}, opts) do
+  defp scan(:messages, {from, to}, opts) do
     Message
     |> Ash.Query.for_read(:read, %{}, opts)
     |> Ash.Query.filter(sent_at >= ^from and sent_at < ^to)
@@ -74,7 +79,7 @@ defmodule AshEnterprise.Assistant.Lookups.ActivityCounts do
     |> Ash.read(opts)
   end
 
-  defp read(:events, {from, to}, opts) do
+  defp scan(:events, {from, to}, opts) do
     CalendarEvent
     |> Ash.Query.for_read(:read, %{}, opts)
     |> Ash.Query.filter(starts_at < ^to and ends_at > ^from)
@@ -84,7 +89,7 @@ defmodule AshEnterprise.Assistant.Lookups.ActivityCounts do
     |> Ash.read(opts)
   end
 
-  defp read(:conversations, {from, to}, opts) do
+  defp scan(:conversations, {from, to}, opts) do
     Conversation
     |> Ash.Query.for_read(:read, %{}, opts)
     |> Ash.Query.filter(exists(messages, sent_at >= ^from and sent_at < ^to))

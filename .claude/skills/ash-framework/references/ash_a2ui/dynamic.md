@@ -27,7 +27,8 @@ end
   rejected unless the host passes it; like `:allowlist`, it is host
   configuration.
 - The spec vocabulary covers components, fields, queries (presets, range
-  filters), `row_layout` (with `badge_text` and `badge_tones`), form
+  filters), `row_layout` (with `badge_text` and `badge_tones`),
+  `primary_action`, form
   `groups` and `nested_forms`, sectioned tables (`sections`), `action`
   metadata (`label`, `refreshes`, `prompt_fields`, `visible_when`, `via`), contexts
   (`contexts`, plus `select_context` / `context_filter` /

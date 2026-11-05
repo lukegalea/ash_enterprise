@@ -209,3 +209,6 @@ config :phoenix_live_view,
 
 # Disable swoosh api client as it is only required for production adapters.
 config :swoosh, :api_client, false
+
+# The showcase's fault panel (AshEnterprise.Showcase) and the fault points it arms.
+config :ash_enterprise, AshEnterprise.Showcase, fault_controls?: true
