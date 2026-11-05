@@ -17,13 +17,19 @@ defmodule Battery.Bpmn.DecisionResolver do
 
   @impl true
   def decide(ref, inputs, _context) do
-    with {:ok, definition} <- latest_published(ref),
-         {:ok, result} <-
+    with {:ok, definition} <- latest_published(ref), do: evaluate(definition, inputs)
+  end
+
+  @doc """
+  Evaluates `definition` over `inputs` and answers in the engine's shape. A single-output
+  table answers with the scalar; the engine-shaped result always exposes an OUTPUTS MAP for
+  promotion.
+  """
+  def evaluate(definition, inputs) do
+    with {:ok, result} <-
            AshDecisions.Evaluator.evaluate(definition, inputs,
              evaluation_resource: Battery.Decisions.Evaluation
            ) do
-      # A single-output table answers with the scalar; the engine-shaped
-      # result always exposes an OUTPUTS MAP for promotion.
       outputs =
         case result.outputs do
           %{} = map -> map

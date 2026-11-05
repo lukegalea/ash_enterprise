@@ -137,6 +137,7 @@ defmodule AshEnterprise.Execution.Invocation do
   invocation do
     execution_identity(AshEnterprise.Execution.Identity)
     digest_key(AshEnterprise.Execution.DigestKey)
+    release_manifest(AshEnterprise.Execution.Manifests)
     run(AshEnterprise.Execution.Run)
   end
 

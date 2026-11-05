@@ -98,12 +98,14 @@ defmodule AshEnterprise.Quality.SuiteRun do
       description """
       Run a published suite against an agent's latest published version, with no effects;
       or, `:adhoc`, any suite against the draft or published version named, to try a prompt.
+      A run may name the release manifest it measures (`release_manifest_id`).
       """
 
-      accept [:suite_id, :agent_key, :mode, :agent_version_id]
+      accept [:suite_id, :agent_key, :mode, :agent_version_id, :release_manifest_id]
 
       change set_attribute(:owner_id, actor(:id))
       change Changes.StartCases
+      change Changes.PinManifest
     end
 
     create :import_eval_log do
@@ -147,7 +149,17 @@ defmodule AshEnterprise.Quality.SuiteRun do
 
     attribute :candidate_digest, :string do
       public? true
-      description "The candidate's `content_hash`."
+
+      description "The candidate's `content_hash`; a run on a release manifest records its `manifest_digest`."
+    end
+
+    attribute :release_manifest_id, :uuid do
+      public? true
+
+      description """
+      The release manifest this run measures (`AshEnterprise.Execution.ReleaseManifest`): an
+      offline run of a suite and agent it pins, which is what its release gate reads.
+      """
     end
 
     attribute :suite_content_hash, :string do

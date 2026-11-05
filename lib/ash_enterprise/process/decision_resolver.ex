@@ -55,7 +55,7 @@ defmodule AshEnterprise.Process.DecisionResolver do
            ref,
            inputs,
            [tenant: tenant, correlation_id: correlation_id(ctx), record: :required] ++
-             decision_opt(ctx)
+             decision_opt(ctx) ++ pinned_opt(ref, ctx, tenant)
          ) do
       {:ok, result} ->
         {:ok,
@@ -70,6 +70,21 @@ defmodule AshEnterprise.Process.DecisionResolver do
 
       {:error, reason} ->
         {:error, reason}
+    end
+  end
+
+  # A case that started under a release manifest evaluates the decision version that
+  # manifest pinned, whatever the tenant is bound to now (ADR 0058). A case that started
+  # under none, or under one that does not pin this decision, resolves it as ever.
+  defp pinned_opt(ref, ctx, tenant) do
+    with %{release_manifest_id: id} when is_binary(id) <- ctx[:instance],
+         {:ok, manifest} <-
+           AshEnterprise.Execution.get_release_manifest(id, authorize?: false, tenant: tenant),
+         %{"annotations" => %{"id" => pinned}} <-
+           AshEnterprise.Execution.Release.Entries.find(manifest.entries, :decision, ref) do
+      [pinned: pinned]
+    else
+      _not_pinned -> []
     end
   end
 

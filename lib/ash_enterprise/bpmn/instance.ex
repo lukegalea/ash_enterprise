@@ -23,6 +23,22 @@ defmodule AshEnterprise.Bpmn.Instance do
       extra_grants: [{AshEnterprise.Security.Checks.TaskInstance, field: :id}]
     ]
 
+  attributes do
+    attribute :release_manifest_id, :uuid do
+      public? true
+
+      description """
+      The release manifest this run started under (`AshEnterprise.Execution.ReleaseManifest`):
+      the active one that pins its process. The decisions it pins are the ones the run
+      evaluates, whatever is published or bound later.
+      """
+    end
+  end
+
+  changes do
+    change AshEnterprise.Bpmn.Changes.PinReleaseManifest, on: [:create]
+  end
+
   # --- the flight views (`/app/flights`, AshEnterprise.Process.FlightDiagram) ---
   #
   # What a person reads about a run beside its diagram. Each is read as the

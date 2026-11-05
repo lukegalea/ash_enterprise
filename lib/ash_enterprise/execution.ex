@@ -25,6 +25,11 @@ defmodule AshEnterprise.Execution do
   (`AshEnterprise.Execution.Run`): one model call per job, every tool call that is not an
   in-loop read an invocation, the journal its `AshEnterprise.Execution.Step` rows.
 
+  A release (`AshEnterprise.Execution.ReleaseManifest`) is an immutable set of agents,
+  tools, decisions and the rest that were tested together: resolved from what is published,
+  gated on suite runs of exactly that set, approved under four eyes and promoted, with
+  rollback and an in-toto export.
+
   The resources come from the `ash_agent` package's fragments instantiated on the
   platform base (ADR 0056); this domain names them and their code interfaces.
   """
@@ -60,6 +65,20 @@ defmodule AshEnterprise.Execution do
       define :get_agent_version, action: :read, get_by: [:id]
       define :latest_published_agent_version, action: :latest_published, args: [:key]
       define :list_agent_versions, action: :read
+    end
+
+    resource AshEnterprise.Execution.ReleaseManifest do
+      define :create_release_draft, action: :draft
+      define :resolve_release_manifest, action: :resolve
+      define :check_release_gate, action: :check_gate
+      define :request_release, action: :request_release, args: [:record_id]
+      define :promote_release, action: :promote
+      define :supersede_release_manifest, action: :supersede
+      define :rollback_release, action: :rollback
+      define :export_release_attestation, action: :export_attestation, args: [:record_id]
+      define :get_release_manifest, action: :read, get_by: [:id]
+      define :active_release_manifests, action: :active
+      define :list_release_manifests, action: :read
     end
 
     resource AshEnterprise.Execution.Run do

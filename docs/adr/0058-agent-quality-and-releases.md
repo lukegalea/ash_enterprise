@@ -1,7 +1,8 @@
 # ADR 0058 — Agent quality is measured in a host Quality domain, and a release is a gated, attested manifest
 
 - **Status:** accepted (2026-10-23); suites, suite runs and effect-free runs built (2026-11-01), see
-  [Built](#built-2026-11-01-suites-and-effect-free-runs)
+  [Built](#built-2026-11-01-suites-and-effect-free-runs); release manifests built (2026-11-05), see
+  [Built](#built-2026-11-05-release-manifests)
 - **Date:** 2026-10-23
 - **Decided:** by Luke, 2026-10-23 (host domain, no separate package; deterministic-only gating in the first version); amended 2026-10-31 (a certified judgment family may gate)
 - **Related:** [ADR 0041](0041-thresholds-are-dmn-earned-by-calibration.md) (calibration earns thresholds),
@@ -84,7 +85,7 @@ It also rechecks that every entry resolves and is published and that tool digest
 |---|---|
 | `entries` | in-toto `ResourceDescriptor` shape (`name`, `uri`, `digest: %{sha256: …}`) plus a kind: process, decision, ruleset, agent, judgment question, tool, model profile or suite |
 | `manifest_digest` | SHA-256 of the RFC 8785 canonical JSON of the entries |
-| `status` | `draft → resolved → requested → approved → active`, then `superseded` or `retired` |
+| `status` | `draft → resolved → requested → active`, then `superseded` or `rolled_back` (built; see [Built, 2026-11-05](#built-2026-11-05-release-manifests)) |
 
 `resolve` pins the latest published version of each requested key, and the entries never change after it.
 `request_release` runs the gate and opens a four-eyes `HumanTask` that excludes the author. `promote` writes
@@ -247,7 +248,63 @@ still cannot satisfy the gate. The amendment adds one more thing that can block 
   this holds the amendment above back**: a certified family reports and does not gate (decision D9), whatever its
   verdict.
 - **Not built.** Judged scores for suite runs started by `start` (an agent run's answer is not yet a reply subject:
-  only the assistant's turns are), `ReleaseManifest` calling `SuiteGate`, the answer text in an exported log.
+  only the assistant's turns are), the answer text in an exported log.
+
+## Built, 2026-11-05: release manifests
+
+- **The approval carries the release, in `ash_agent`** (ash_agent#23). The `invocation` section takes an optional
+  `release_manifest`, a module implementing `AshAgent.ReleaseManifest` (`active(target, tenant)`: the release that
+  covers a target, with its id and digest). `request` records it as `release_manifest_id`; an approval binds its
+  digest as `manifest_digest` in `authorization_details`, so it is part of `approval_digest`; `apply_decision` and
+  every `claim` find the row `stale` (`manifest_changed`) once the release that covers its target has another digest.
+  `AshEnterprise.Execution.Manifests` is the host's answer: the active manifest with a `tool` entry for the target.
+- **`Execution.ReleaseManifest`** (`exec_release_manifests`): organization-owned, audited, `draft → resolved →
+  requested → active`, then `superseded` (a newer one was promoted) or `rolled_back`. One manifest of a key is active
+  at a time (`identity :one_active, [:key], where: expr(status == :active)`, with `identity_wheres_to_sql`), so a
+  tenant can run several release lines.
+  - `draft` takes `requests`, each a kind and a key, and numbers the version after the key's latest.
+    `resolve` pins each to an entry (`Execution.Release.Entries`): processes and decisions through
+    `Process.Resolver`, agents and suites at their latest published version, tools by their target's digest, rule sets
+    by their compiled bundle's hash, judgment questions by their question hash, model profiles by a digest of the
+    profile and the model behind it. Every entry is an in-toto `ResourceDescriptor` with the kind, id and version
+    in its annotations. `manifest_digest` is the SHA-256 of the RFC 8785 canonical JSON of the entries ordered by
+    kind and name, and the entries are not written again.
+  - `request_release` is the author's only (the approval excludes the requester, so it excludes the author). It runs
+    the gate and keeps what it found as `gate_result` and `suite_run_ids` before it answers, so a refusal leaves its
+    reasons on the manifest, which stays `resolved`. A manifest that passes is `requested` and a four-eyes approval by
+    an administrator other than the author is opened for `promote`, as publishing an agent is (ADR 0055).
+  - **The gate** (`Execution.Release.Gate`) requires that every entry still holds (published, same content, tool
+    digests unchanged), that a manifest pinning an agent also pins a suite, and, for each suite entry, a finished
+    `:offline` suite run on exactly this manifest (`release_manifest_id`, and `candidate_digest` equal to its digest) of
+    exactly the suite version it pins, which `Quality.SuiteGate` passes: no hard failure, no failed injection case and
+    the suite's primary metric at or above its threshold. An imported run is never one. `Quality.SuiteRun.start`
+    takes `release_manifest_id` for this (`Quality.Changes.PinManifest`): the manifest must pin the suite and the
+    agent's latest published version, or the run is refused and the manifest must be resolved again. Only deterministic
+    scorers gate. A run in any other mode, `:adhoc` among them, is never read.
+  - `promote` is a governed target: it runs only as its approved invocation, as the author. It checks the entries once
+    more, makes the manifest the active one of its key, moving the one it replaces to `superseded`, and binds every
+    process and decision entry in `Process.Binding` (`Execution.Release.Bindings`: a definition the tenant owns binds
+    as `:tenant`, a platform baseline as `:platform`, held at the pinned version; entries the replaced manifest named
+    and this one does not are unbound). `rollback` makes a superseded manifest active again with no new approval, since
+    it passed the gate and was approved when it was promoted, after the same check of its entries; the manifest it
+    replaces is `rolled_back`. `export_attestation` is the manifest as an in-toto Statement v1
+    (`Execution.Release.Attestation`), with the manifest and its entries as subjects and the gate result as the
+    predicate. It carries no signature.
+- **A running case keeps what it started under.** An instance records the active manifest that pins its process as
+  `release_manifest_id` when it starts, and `Process.DecisionResolver` evaluates the decision version that manifest
+  pinned for it (`Decisions.evaluate/3`, `pinned:`), whatever the tenant is bound to now. One that started under no
+  manifest, or under one that does not pin the decision, resolves as before.
+- **Tests.** `test/ash_enterprise/releases/gate_test.exs`: new instructions that pass the ordinary clinic case and fail
+  the injection case are refused with the reasons recorded and no approval asked; an unmeasured manifest and an agent
+  with no suite are refused; a manifest that passes is approved, promoted and attested; only the author asks; an
+  approval granted under one release is `stale` under another (F3, `manifest_changed`); rollback; `promote` outside its
+  invocation is refused. `releases/pinning_test.exs`: decision version 2 published and released while an instance on the
+  first release exists, the old instance evaluates version 1 and a new one version 2 (F10); promotion and rollback write
+  and restore the bindings. The battery's `release_manifest_test.exs` covers the digest carried into an ash_bpmn
+  approval and a decision version pinned for an older case.
+- **Not built.** Platform-organization manifests (a release is read in the tenant it is promoted in); narrowing an
+  approval to the release's entry for its target (an approval is bound to the whole release that covers the target, so
+  any change to that release stales it); a promotion's history as a read over AshEvents; canary splits (Phase 6).
 
 ## Does it consume ActorContext?
 

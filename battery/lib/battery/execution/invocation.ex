@@ -33,6 +33,7 @@ defmodule Battery.Execution.Invocation do
   invocation do
     execution_identity(Battery.Execution.Identity)
     digest_key(Battery.Execution.DigestKey)
+    release_manifest(Battery.Execution.ReleaseManifest)
   end
 
   actions do

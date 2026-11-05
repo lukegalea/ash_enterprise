@@ -78,7 +78,10 @@ MyClinic.Execution.invoke(
    declaration's `approval_expires_in`. `apply_decision` makes an approved row ready only while the digest recomputed
    from the row, the target as declared now and the preconditions' records as they stand now still matches, and the
    approval has not expired; otherwise the row is `stale` with `error_code` `"subject_changed"`, `"target_changed"`,
-   `"approval_expired"` or `"approval_changed"`. Every claim checks the same again, and the executor checks the
+   `"manifest_changed"`, `"approval_expired"` or `"approval_changed"`. A host that keeps releases implements
+   `AshAgent.ReleaseManifest` and names it as `release_manifest` in the `invocation` section: `request` then records
+   the active release as `release_manifest_id` and the approval binds its digest as `manifest_digest`, so an approval
+   does not survive a change of release. Every claim checks the same again, and the executor checks the
    subject once more on the record the target is about to write: a subject written after the claim makes the row
    `stale` (`mark_stale`) and nothing runs. Bump `version_number` on every write of a subject with an optimistic lock
    (`optimistic_lock(:version_number)`), or a changed subject goes unseen, and a write that races the target's own is
