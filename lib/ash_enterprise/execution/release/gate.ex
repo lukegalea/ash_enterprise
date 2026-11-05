@@ -22,8 +22,12 @@ defmodule AshEnterprise.Execution.Release.Gate do
     * for each suite entry there is a finished `:offline` suite run on exactly this manifest
       (`release_manifest_id` and `candidate_digest`, the manifest's digest) of exactly this
       version of the suite (its content hash), which `AshEnterprise.Quality.SuiteGate`
-      passes: no hard failure, whatever the averages say; no failed injection case; the
-      suite's primary metric at or above its threshold, when the suite sets one.
+      passes: no hard failure, whatever the averages say; every injection case passed; the
+      suite's primary metric at or above its threshold, when the suite sets one, and no step
+      back from the same release's predecessor (the active manifest of its key); a suite
+      with neither wants every ordinary case to pass;
+    * every agent entry was measured: some of those runs ran exactly the agent version the
+      entry pins, so a release of several agents is not carried by the measurement of one.
 
   Only deterministic scorers gate (`SuiteGate` never reads a judged score). A run in another
   mode (`:adhoc` experiments, `:shadow` comparisons) is never looked at: an adhoc run
@@ -32,6 +36,7 @@ defmodule AshEnterprise.Execution.Release.Gate do
 
   require Ash.Query
 
+  alias AshEnterprise.Execution
   alias AshEnterprise.Execution.Release.Entries
   alias AshEnterprise.Quality
   alias AshEnterprise.Quality.{SuiteGate, SuiteRun}
@@ -49,7 +54,8 @@ defmodule AshEnterprise.Execution.Release.Gate do
 
     problems =
       Entries.problems(entries, tenant) ++
-        agent_needs_suite(entries, suites) ++ List.flatten(suite_problems)
+        agent_needs_suite(entries, suites) ++
+        agents_measured(entries, suite_results) ++ List.flatten(suite_problems)
 
     %{
       "passed" => problems == [],
@@ -72,6 +78,17 @@ defmodule AshEnterprise.Execution.Release.Gate do
       else: []
   end
 
+  # With no suite pinned, `agent_needs_suite/2` already says so.
+  defp agents_measured(_entries, []), do: []
+
+  defp agents_measured(entries, suite_results) do
+    measured = for %{"agent_version_id" => id} when is_binary(id) <- suite_results, do: id
+
+    for %{"annotations" => %{"kind" => "agent", "id" => id}} = entry <- entries,
+        id not in measured,
+        do: "agent #{entry["name"]}: no suite run measured this version"
+  end
+
   defp suite(entry, manifest, tenant) do
     name = entry["name"]
     suite_id = entry["annotations"]["id"]
@@ -91,7 +108,10 @@ defmodule AshEnterprise.Execution.Release.Gate do
             tenant: tenant
           )
 
-        %{"result" => result, "reasons" => reasons} = SuiteGate.result(suite, run, case_results)
+        %{"result" => result, "reasons" => reasons} =
+          SuiteGate.result(suite, run, case_results,
+            baseline: baseline(manifest, name, suite, tenant)
+          )
 
         problems =
           [
@@ -102,8 +122,13 @@ defmodule AshEnterprise.Execution.Release.Gate do
           |> Kernel.++(Enum.map(reasons, &reason(&1, run, suite)))
           |> Enum.map(&"suite #{name}: #{&1}")
 
-        {%{"name" => name, "suite_run_id" => run.id, "result" => result, "reasons" => reasons},
-         problems}
+        {%{
+           "name" => name,
+           "suite_run_id" => run.id,
+           "agent_version_id" => run.agent_version_id,
+           "result" => result,
+           "reasons" => reasons
+         }, problems}
     end
   end
 
@@ -120,11 +145,38 @@ defmodule AshEnterprise.Execution.Release.Gate do
     |> Ash.read_one!(authorize?: false, tenant: tenant)
   end
 
+  # The suite's primary metric in the run the active release of this manifest's key rests on,
+  # for the suite of the same name: what a candidate must not fall below.
+  defp baseline(manifest, name, suite, tenant) do
+    with %{} = active <-
+           [authorize?: false, tenant: tenant]
+           |> Execution.active_release_manifests!()
+           |> Enum.find(&(&1.key == manifest.key and &1.id != manifest.id)),
+         %{"suite_run_id" => id} when is_binary(id) <-
+           Enum.find(active.gate_result["suites"] || [], &(&1["name"] == name)),
+         %{} = run <- Ash.get!(SuiteRun, id, authorize?: false, tenant: tenant) do
+      get_in(run.summary, ["quality", suite.primary_metric || "pass_rate"])
+    else
+      _none -> nil
+    end
+  end
+
   defp reason("hard_failure", run, _suite),
     do: "#{get_in(run.summary, ["safety", "hard_failures"])} hard failure(s)"
 
   defp reason("injection_failed", run, _suite),
     do: "injection case(s) failed (#{failed_cases(run.summary)})"
+
+  defp reason("ordinary_case_failed", run, suite) do
+    "ordinary case(s) failed, #{suite.primary_metric || "pass_rate"} " <>
+      "#{inspect(get_in(run.summary, ["quality", suite.primary_metric || "pass_rate"]))}"
+  end
+
+  defp reason("regressed", run, suite) do
+    "#{suite.primary_metric || "pass_rate"} " <>
+      "#{inspect(get_in(run.summary, ["quality", suite.primary_metric || "pass_rate"]))} " <>
+      "is a step back from the active release"
+  end
 
   defp reason("below_threshold", run, suite) do
     "#{suite.primary_metric} #{inspect(get_in(run.summary, ["quality", suite.primary_metric]))} " <>

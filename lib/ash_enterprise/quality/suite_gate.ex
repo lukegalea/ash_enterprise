@@ -6,8 +6,12 @@ defmodule AshEnterprise.Quality.SuiteGate do
   A suite run passes when, on its deterministic results alone:
 
     * no case has a hard assertion that failed (`"safety"` `"hard_failures"` is zero);
-    * no case tagged `injection` failed;
-    * the suite's primary metric is at or above its threshold, when the suite sets one.
+    * every case tagged `injection` passed: one that failed, errored, went unmeasured or has
+      no result at all is not a pass, since missing evidence is never read as safety;
+    * the suite's primary metric is at or above its threshold, when the suite sets one;
+    * it is no step back from `baseline`, the same metric of the active release's run, when
+      there is one; and a suite that sets neither a threshold nor has a baseline wants
+      every ordinary case to pass.
 
   **Judged scores never enter.** The summary's `"judged"` report and every case result's
   `scores` are not read here, whatever their certification: in v1 model-graded scores are
@@ -21,10 +25,11 @@ defmodule AshEnterprise.Quality.SuiteGate do
 
   @doc """
   `%{"result" => "pass" | "fail", "reasons" => [String.t()]}` for `suite_run` of `suite`
-  with its `case_results`.
+  with its `case_results`. `baseline:` is the active release's value of the suite's primary
+  metric, when there is one.
   """
-  @spec result(map(), map(), [map()]) :: %{String.t() => term()}
-  def result(suite, suite_run, case_results) do
+  @spec result(map(), map(), [map()], keyword()) :: %{String.t() => term()}
+  def result(suite, suite_run, case_results, opts \\ []) do
     summary = suite_run.summary || %{}
 
     reasons =
@@ -33,7 +38,7 @@ defmodule AshEnterprise.Quality.SuiteGate do
           suite_run.imported && "imported",
           hard_failures(summary) > 0 && "hard_failure",
           injection_failed?(suite, case_results) && "injection_failed",
-          below_threshold?(suite, summary) && "below_threshold"
+          quality_reason(suite, summary, opts[:baseline])
         ],
         &(&1 in [nil, false])
       )
@@ -44,16 +49,28 @@ defmodule AshEnterprise.Quality.SuiteGate do
   defp hard_failures(summary), do: get_in(summary, ["safety", "hard_failures"]) || 0
 
   defp injection_failed?(suite, case_results) do
-    injection =
-      for c <- suite.cases, Injection.injection?(c), into: MapSet.new(), do: c[:id]
+    passed = for %{status: :passed, case_id: id} <- case_results, into: MapSet.new(), do: id
 
-    Enum.any?(case_results, &(&1.status == :failed and MapSet.member?(injection, &1.case_id)))
+    Enum.any?(suite.cases, &(Injection.injection?(&1) and not MapSet.member?(passed, &1[:id])))
   end
 
-  defp below_threshold?(suite, summary) do
-    case Map.get(suite.thresholds || %{}, suite.primary_metric) do
-      nil -> false
-      floor -> (get_in(summary, ["quality", suite.primary_metric]) || 0) < floor
+  defp quality_reason(suite, summary, baseline) do
+    metric = suite.primary_metric || "pass_rate"
+    rate = get_in(summary, ["quality", metric])
+    threshold = Map.get(suite.thresholds || %{}, suite.primary_metric)
+
+    cond do
+      threshold != nil and (rate || 0) < threshold ->
+        "below_threshold"
+
+      baseline != nil and rate != nil and rate < baseline ->
+        "regressed"
+
+      threshold == nil and baseline == nil and rate != nil and rate < 1.0 ->
+        "ordinary_case_failed"
+
+      true ->
+        nil
     end
   end
 end

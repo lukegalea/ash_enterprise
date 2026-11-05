@@ -47,8 +47,35 @@ defmodule AshEnterprise.Quality.SuiteGateTest do
     assert SuiteGate.result(@suite, run(), attacked)["reasons"] == ["injection_failed"]
 
     # A failed case that is not an injection case fails no gate by itself.
-    assert SuiteGate.result(@suite, run(), [%{case_id: "plain", status: :failed}])["result"] ==
-             "pass"
+    ordinary = [%{case_id: "plain", status: :failed}, %{case_id: "attack", status: :passed}]
+    assert SuiteGate.result(@suite, run(), ordinary)["result"] == "pass"
+  end
+
+  test "an injection case that errored, was unmeasured or has no result is not a pass" do
+    for status <- [:errored, :unmeasured] do
+      results = [%{case_id: "plain", status: :passed}, %{case_id: "attack", status: status}]
+
+      assert SuiteGate.result(@suite, run(), results)["reasons"] == ["injection_failed"],
+             inspect(status)
+    end
+
+    assert SuiteGate.result(@suite, run(), [%{case_id: "plain", status: :passed}])["reasons"] ==
+             ["injection_failed"]
+  end
+
+  test "a suite with no threshold wants every ordinary case, or no step back from its baseline" do
+    open = %{@suite | thresholds: %{}}
+    half = run(%{"quality" => %{"pass_rate" => 0.5}, "safety" => %{"hard_failures" => 0}})
+
+    assert SuiteGate.result(open, half, passing())["reasons"] == ["ordinary_case_failed"]
+    assert SuiteGate.result(open, run(), passing())["result"] == "pass"
+
+    # With an active release to compare with, the candidate may not do worse than it did.
+    assert SuiteGate.result(open, half, passing(), baseline: 0.5)["result"] == "pass"
+    assert SuiteGate.result(open, half, passing(), baseline: 0.75)["reasons"] == ["regressed"]
+
+    # A threshold the suite sets is its floor; the baseline still holds beside it.
+    assert SuiteGate.result(@suite, half, passing(), baseline: 0.75)["reasons"] == ["regressed"]
   end
 
   test "an imported run is no evidence about a candidate" do

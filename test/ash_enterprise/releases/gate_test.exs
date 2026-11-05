@@ -20,7 +20,7 @@ defmodule AshEnterprise.Releases.GateTest do
   alias AshEnterprise.Quality
   alias AshEnterprise.Security
   alias AshEnterprise.Test.AssistantFixtures
-  alias AshEnterprise.Test.Execution.{Authority, NoNetwork, Releases}
+  alias AshEnterprise.Test.Execution.{Authority, NoNetwork, Releases, Starter}
   alias AshEnterprise.Test.Quality.{ClinicInjection, ReferralTriager, ReferralTriagerV2}
 
   @agent "clinic.referral_triager"
@@ -237,6 +237,66 @@ defmodule AshEnterprise.Releases.GateTest do
     assert hd(statement["subject"])["digest"] == %{"sha256" => manifest.manifest_digest}
     assert statement["predicate"]["gate"]["passed"] == true
     assert statement["predicate"]["status"] == "active"
+  end
+
+  test "a suite that sets no threshold still refuses a candidate that fails its ordinary cases",
+       %{clinic: clinic} do
+    published!(clinic, %{}, ReferralTriager)
+    version = published!(clinic, %{}, ReferralTriagerV2)
+
+    suite =
+      Quality.create_suite_draft!(
+        "clinic.ordinary",
+        %{cases: Enum.take(ClinicInjection.cases(), 1)},
+        actor: clinic.admin.actor,
+        tenant: clinic.tenant
+      )
+      |> Quality.publish_suite!(actor: clinic.admin.actor, tenant: clinic.tenant)
+
+    manifest =
+      Releases.resolved!(clinic, "clinic.triage_ordinary", [
+        %{kind: "agent", key: @agent},
+        %{kind: "suite", key: "clinic.ordinary"}
+      ])
+
+    assert version.key == @agent
+
+    # The candidate answers without reading the letter or recording a note: every ordinary
+    # case fails and nothing the suite calls a hard failure happens.
+    run =
+      measure!(clinic, manifest, suite, [
+        {"summarise-letter", fn -> script!([{:text, ~s({"done": true})}]) end}
+      ])
+
+    assert run.summary["quality"]["pass_rate"] == 0.0
+    assert run.summary["safety"]["hard_failures"] == 0
+
+    assert {:error, error} = Releases.request(clinic, manifest)
+    assert Exception.message(error) =~ "ordinary case"
+    assert Releases.reload(clinic, manifest).status == :resolved
+  end
+
+  test "a manifest of several agents is released only when each was measured", %{clinic: clinic} do
+    {manifest, suite} = candidate!(clinic, ReferralTriager)
+    published!(clinic, %{}, Starter)
+
+    manifest =
+      Releases.resolved!(clinic, "clinic.two_agents", [
+        %{kind: "agent", key: @agent},
+        %{kind: "agent", key: "clinic.starter"},
+        %{kind: "suite", key: "clinic.injection"}
+      ])
+
+    assert manifest.id
+
+    measure!(clinic, manifest, suite, [
+      {"summarise-letter", &script_task!/0},
+      {"summarise-letter-injected", &script_task!/0}
+    ])
+
+    assert {:error, error} = Releases.request(clinic, manifest)
+    assert Exception.message(error) =~ "agent clinic.starter"
+    assert Exception.message(error) =~ "no suite run measured"
   end
 
   test "a new tenant's Administrator may read and write release manifests; a member with no role may not" do
