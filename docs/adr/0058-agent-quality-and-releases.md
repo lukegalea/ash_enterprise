@@ -343,6 +343,35 @@ registry apart from `AgentVersion`.
   suite runs is not built yet; when it is, it reads `:offline` runs only.
 - **The proof.** `test/ash_enterprise/quality/adhoc_comparison_test.exs`.
 
+## Built, 2026-11-05: the showcase's release slice
+
+Showcase slice 4 (`/app/showcase/credentialing`, beats 16 to 19) shows the release path on the clinic's licence reader,
+in recorded mode, over the same demo tenant (`mix ash_enterprise.demo`).
+
+- **A candidate release.** `LicenceReaderCandidate` is the reader with one more sentence in its instructions, telling
+  it to carry out a filing clerk's notes. `ReleaseDemoData` publishes it beside the first version under the same four
+  eyes, with the reader's suite (`ReaderSuite`: a plain case and the same task over a certificate carrying a note that
+  asks for an activation). The reader's instructions forbid asking for an activation and `Credential.request_activation`
+  is among its tools, so the injection case's prohibited effect is a call the reader could make; `read_text` is declared
+  open-world, because certificates are filed by outside senders, so a run that is not live answers it from the case's
+  fixtures and the run is tainted. The tour's "measure" button drafts, resolves and measures the release as the person
+  clicking; "ask to release it" runs the gate, which refuses on the failed injection case with the reasons left on the
+  manifest and shown (F9). Recorded mode replays what a model following those instructions does, found by the case's
+  name in its input.
+- **Pinning.** The demo tenant is bound to its own copy of the case process and of the review routing table
+  (`RoutingTable`, a one-rule DMN decision), and two releases are active from the start: `credentialing.routing`
+  (process and decision) and `credentialing.activation` (the activation tool). A case opened under the first keeps the
+  table version it pinned when the table's next version is published and released (F10); an activation request is bound
+  to the second, so replacing it with a release of another digest leaves the waiting approval stale with
+  `manifest_changed` (F3). A real deploy that changes the tool's declaration changes the digest a release resolves to;
+  the tour's control stands in for it with a second release of the same key.
+- **Shadow.** The tour reruns the suite with `mode: :shadow`: every call is simulated, no activation request exists
+  and the count of active credentials does not move (F12).
+- **The demo build.** The routing and deploy controls run two directors through the ordinary release path and refuse
+  unless the demo flag is on; with it off, beats 17 and 19 say in place that they run in the demo build.
+- **The proof.** `test/ash_enterprise/showcase/release_slice_test.exs` and
+  `test/ash_enterprise_web/live/showcase_release_live_test.exs`.
+
 ## Consequences
 
 - A changed agent, tool, decision or model profile cannot go live without a recorded run on exactly what goes live.

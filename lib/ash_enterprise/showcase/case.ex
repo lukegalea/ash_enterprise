@@ -78,7 +78,14 @@ defmodule AshEnterprise.Showcase.Case do
     instances =
       Instance
       |> Ash.Query.filter(subject_type == ^@subject_type and subject_id in ^credential_ids)
-      |> Ash.Query.select([:id, :status, :outcome, :subject_id, :inserted_at])
+      |> Ash.Query.select([
+        :id,
+        :status,
+        :outcome,
+        :subject_id,
+        :inserted_at,
+        :release_manifest_id
+      ])
       |> Ash.Query.sort(inserted_at: :desc)
       |> Ash.read!(authorize?: false, tenant: tenant)
 

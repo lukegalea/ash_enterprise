@@ -161,11 +161,14 @@ defmodule AshEnterprise.Credentialing.LicenceDocument do
   end
 
   effects do
+    # Certificates and extracts are filed by outside senders, so what a reading takes in
+    # is text the clinic did not write: in a run that is not live the case's fixtures
+    # answer it, which is where an injection case puts its attack.
     action :read_text,
       kind: :read,
       destructive?: false,
       idempotent?: true,
-      open_world?: false,
+      open_world?: true,
       intent: :inspect
 
     action :record_finding,

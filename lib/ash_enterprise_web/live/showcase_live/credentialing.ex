@@ -7,7 +7,8 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
   own declared surfaces (the credentialing workspace, the approvals surface); the tour
   only points at them.
 
-  The beats, in order (1 to 5 are slice 1, 6 to 9 slice 2, 10 to 15 slice 3):
+  The beats, in order (1 to 5 are slice 1, 6 to 9 slice 2, 10 to 15 slice 3, 16 to 19
+  slice 4):
 
     1. the coordinator asks to activate a credential (`Credential.request_activation`);
     2. a committee member approves it on the approvals surface, and the approval is
@@ -36,14 +37,23 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
        the case moves on once (F6);
    13. the credentialing committee decides on the case's task;
    14. the approved case waits for its re-credentialing date, shown on the case;
-   15. an approval requested over ACP survives a restart of the application.
+   15. an approval requested over ACP survives a restart of the application;
+   16. the clinic director measures a candidate release of the licence reader, a prompt
+       change: its injection case fails and the gate refuses the release, with the reason
+       shown (F9);
+   17. the routing table changes while a case runs, and the older case keeps the version it
+       started under (F10);
+   18. the suite is rerun in shadow mode: every call is simulated and nobody is activated
+       (F12);
+   19. a deploy changes what covers `activate_credential` while an approval waits, and the
+       approval goes stale (F3).
 
   The licence reader's model turns are recorded transcripts in recorded mode, the
   default (`AshEnterprise.Showcase.RecordedModel`), so the beats need no model and no
   key; live mode sends them to the in-zone profile only.
 
-  The fault panel produces 3 to 5, 7 and 12 (`AshEnterprise.Showcase.Credentialing`,
-  `AshEnterprise.Showcase.Case`); it is rendered, and its events are honoured, only when
+  The fault panel produces 3 to 5, 7, 12, 17 and 19 (`AshEnterprise.Showcase.Credentialing`,
+  `AshEnterprise.Showcase.Case`, `AshEnterprise.Showcase.Release`); it is rendered, and its events are honoured, only when
   the demo flag is on (`AshEnterprise.Showcase.fault_controls?/0`). With it off, each of
   those beats says in place that its control runs in the demo build only
   (`AshEnterpriseWeb.ShowcaseLive.CaseBeats.demo_build_note/1`). Everything else reads and acts as the
@@ -62,8 +72,9 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
   alias AshEnterprise.Showcase
   alias AshEnterprise.Showcase.Case, as: CaseTour
   alias AshEnterprise.Showcase.Credentialing, as: Tour
+  alias AshEnterprise.Showcase.Release, as: ReleaseTour
   alias AshEnterpriseWeb.Layouts
-  alias AshEnterpriseWeb.ShowcaseLive.CaseBeats
+  alias AshEnterpriseWeb.ShowcaseLive.{CaseBeats, ReleaseBeats}
 
   @locales ~w(en fr)
   @refresh_ms 3_000
@@ -82,6 +93,7 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
        activations: [],
        readings: [],
        cases: [],
+       release: ReleaseTour.empty(),
        recorded: MapSet.new(),
        chain: nil,
        fault_controls?: Showcase.fault_controls?(),
@@ -187,6 +199,78 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
     end
   end
 
+  def handle_event("measure", _params, socket) do
+    case ReleaseTour.measure(socket.assigns.current_user) do
+      {:ok, _run} ->
+        {:noreply,
+         socket
+         |> put_flash(
+           :info,
+           dgettext("showcase", "Started. The suite runs in the background, with no effect.")
+         )
+         |> load()}
+
+      {:error, error} ->
+        {:noreply, put_flash(socket, :error, refused(error))}
+    end
+  end
+
+  def handle_event("request_release", _params, socket) do
+    case ReleaseTour.request(socket.assigns.current_user) do
+      {:ok, _asked} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, dgettext("showcase", "Asked. The release waits for approval."))
+         |> load()}
+
+      {:error, %Ash.Error.Invalid{}} ->
+        {:noreply,
+         socket
+         |> put_flash(
+           :error,
+           dgettext("showcase", "The release was refused. The reasons are shown on it.")
+         )
+         |> load()}
+
+      {:error, error} ->
+        {:noreply, put_flash(socket, :error, refused(error))}
+    end
+  end
+
+  def handle_event("shadow", _params, socket) do
+    case ReleaseTour.shadow(socket.assigns.current_user) do
+      {:ok, _run} ->
+        {:noreply,
+         socket
+         |> put_flash(
+           :info,
+           dgettext("showcase", "Started. The shadow run goes on in the background.")
+         )
+         |> load()}
+
+      {:error, error} ->
+        {:noreply, put_flash(socket, :error, refused(error))}
+    end
+  end
+
+  def handle_event("route", %{"id" => id}, socket) do
+    case ReleaseTour.route(socket.assigns.current_user, id) do
+      {:ok, {route, version}} ->
+        {:noreply,
+         put_flash(
+           socket,
+           :info,
+           dgettext("showcase", "Routed to the %{route} by table version %{version}.",
+             route: route,
+             version: version
+           )
+         )}
+
+      {:error, error} ->
+        {:noreply, put_flash(socket, :error, refused(error))}
+    end
+  end
+
   def handle_event("fault", %{"control" => control} = params, socket) do
     actor = socket.assigns.current_user
     tenant = ActorContext.tenant(actor)
@@ -252,6 +336,28 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
   defp fault("webhook", %{"id" => id}, tenant), do: webhook(id, tenant, 1)
   defp fault("webhook_twice", %{"id" => id}, tenant), do: webhook(id, tenant, 2)
 
+  defp fault("routing", _params, tenant) do
+    with {:ok, released} <- ReleaseTour.change_routing(tenant) do
+      case released do
+        :unchanged ->
+          {:ok, dgettext("showcase", "The table has no further version.")}
+
+        _released ->
+          {:ok, dgettext("showcase", "Published the next version of the table and released it.")}
+      end
+    end
+  end
+
+  defp fault("deploy", _params, tenant) do
+    with {:ok, _release} <- ReleaseTour.deploy_change(tenant) do
+      {:ok,
+       dgettext(
+         "showcase",
+         "Deployed. The release that covers activate_credential has a new digest."
+       )}
+    end
+  end
+
   defp fault("restore", _params, tenant) do
     with {:ok, _assignment} <- Tour.restore(tenant) do
       {:ok, dgettext("showcase", "Gave the coordinator their role back.")}
@@ -285,13 +391,15 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
   defp load(socket) do
     actor = socket.assigns.current_user
     credentials = Tour.credentials(actor)
+    cases = CaseTour.cases(actor)
 
     assign(socket,
       credentials: credentials,
       numbers: Map.new(credentials, &{&1.id, &1.number}),
       activations: Tour.activations(actor),
       readings: Tour.readings(actor),
-      cases: CaseTour.cases(actor),
+      cases: cases,
+      release: ReleaseTour.read(actor, cases),
       recorded: MapSet.new(Showcase.RecordedModel.cases(Tour.reader()))
     )
   end
@@ -722,6 +830,14 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
           </li>
 
           <CaseBeats.beats
+            cases={@cases}
+            credentials={@credentials}
+            activations={@activations}
+            fault_controls?={@fault_controls?}
+          />
+
+          <ReleaseBeats.beats
+            release={@release}
             cases={@cases}
             credentials={@credentials}
             activations={@activations}

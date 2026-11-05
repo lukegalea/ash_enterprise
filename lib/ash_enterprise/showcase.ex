@@ -6,7 +6,10 @@ defmodule AshEnterprise.Showcase do
   toured at `/app/showcase/credentialing`); the second, on the same tour, is an agent run
   reading the clinic's synthetic licence documents
   (`AshEnterprise.Credentialing.LicenceReader`): resumed after a model timeout, stopped by
-  its budget, and erased with its clinician.
+  its budget, and erased with its clinician. The third is the credentialing case as a BPMN
+  process, and the fourth the licence reader's release: a candidate prompt measured and
+  refused by its injection case, a routing table changed under a running case, a shadow
+  rerun, and a deploy that leaves an approval stale (`AshEnterprise.Showcase.Release`).
 
   Two settings, under `config :ash_enterprise, AshEnterprise.Showcase`:
 

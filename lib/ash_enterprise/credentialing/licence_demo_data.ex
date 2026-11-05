@@ -32,7 +32,7 @@ defmodule AshEnterprise.Credentialing.LicenceDemoData do
   alias AshAgent.Invocation.Executor
   alias AshEnterprise.Bpmn.HumanTask
   alias AshEnterprise.Credentialing
-  alias AshEnterprise.Credentialing.{LicenceDocument, LicenceReader}
+  alias AshEnterprise.Credentialing.{LicenceDocument, LicenceReader, ReleaseDemoData}
   alias AshEnterprise.Execution
   alias AshEnterprise.Execution.Invocation
   alias AshEnterprise.Platform.DemoData
@@ -118,8 +118,11 @@ defmodule AshEnterprise.Credentialing.LicenceDemoData do
 
     published!(director, deputy, tenant)
     start_grant!(director, clinic.coordinator, tenant)
+    start_grant!(director, director, tenant)
 
-    %{director: director, deputy: deputy, documents: documents}
+    release = ReleaseDemoData.populate(tenant, director, deputy)
+
+    %{director: director, deputy: deputy, documents: documents, release: release}
   end
 
   @doc "The clinic director's email: asks for the licence reader to be published."
@@ -255,36 +258,56 @@ defmodule AshEnterprise.Credentialing.LicenceDemoData do
   # The director asks, the deputy approves, and the publish runs as the job runner runs
   # it: the same path an administrator's request takes in the application.
   defp published!(director, deputy, tenant) do
-    oban = [actor: SystemActor.oban(), tenant: tenant]
-
     case Execution.latest_published_agent_version(LicenceReader.key(),
            authorize?: false,
            tenant: tenant
          ) do
-      {:ok, %{} = version} ->
-        version
-
-      _none ->
-        as_director = [actor: as_person(director, tenant), tenant: tenant]
-        draft = Execution.register_agent_from_code!(LicenceReader, as_director)
-
-        %{"invocation_id" => id} =
-          Execution.request_agent_publish!(draft.id, %{}, as_director)
-
-        row = Execution.get_invocation!(id, authorize?: false, tenant: tenant)
-        task = Ash.load!(row, :approval_task, authorize?: false).approval_task
-
-        HumanTask
-        |> Ash.ActionInput.for_action(:approve, %{record_id: task.id},
-          actor: as_person(deputy, tenant),
-          tenant: tenant
-        )
-        |> Ash.run_action!()
-
-        Execution.apply_invocation_decision!(row, oban)
-        {:ok, :succeeded} = Executor.execute(Invocation, row.id, oban)
-        Execution.get_agent_version!(draft.id, authorize?: false, tenant: tenant)
+      {:ok, %{} = version} -> version
+      _none -> publish!(LicenceReader, director, deputy, tenant)
     end
+  end
+
+  @doc """
+  Publishes the agent declared in `agent` in `tenant`: `director` registers it and asks,
+  `deputy` approves, and the publish runs as the job runner runs it. Returns the version.
+  """
+  @spec publish!(module(), struct(), struct(), Ash.UUID.t()) :: struct()
+  def publish!(agent, director, deputy, tenant) do
+    as_director = [actor: as_person(director, tenant), tenant: tenant]
+    draft = Execution.register_agent_from_code!(agent, as_director)
+    %{"invocation_id" => id} = Execution.request_agent_publish!(draft.id, %{}, as_director)
+    decide!(id, deputy, tenant)
+    Execution.get_agent_version!(draft.id, authorize?: false, tenant: tenant)
+  end
+
+  @doc """
+  `deputy` approves the invocation `id`, and the job runner applies the decision and runs
+  it: what an approval does in the application.
+  """
+  @spec decide!(Ash.UUID.t(), struct(), Ash.UUID.t()) :: :ok
+  def decide!(id, deputy, tenant) do
+    oban = [actor: SystemActor.oban(), tenant: tenant]
+    row = Execution.get_invocation!(id, authorize?: false, tenant: tenant)
+    task = Ash.load!(row, :approval_task, authorize?: false).approval_task
+
+    HumanTask
+    |> Ash.ActionInput.for_action(:approve, %{record_id: task.id},
+      actor: as_person(deputy, tenant),
+      tenant: tenant
+    )
+    |> Ash.run_action!()
+
+    Execution.apply_invocation_decision!(row, oban)
+    {:ok, :succeeded} = Executor.execute(Invocation, row.id, oban)
+    :ok
+  end
+
+  @doc "The person with `email` in `tenant`."
+  @spec user!(String.t(), Ash.UUID.t()) :: struct()
+  def user!(email, tenant) do
+    AshEnterprise.Accounts.User
+    |> Ash.Query.filter(email == ^email)
+    |> Ash.read_one!(tenant: tenant, authorize?: false)
   end
 
   defp start_grant!(director, person, tenant) do
