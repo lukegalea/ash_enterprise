@@ -239,6 +239,42 @@ defmodule AshEnterprise.Releases.GateTest do
     assert statement["predicate"]["status"] == "active"
   end
 
+  test "a candidate published after a release is not live until a release promotes it",
+       %{clinic: clinic} do
+    # The release: the triager, measured on the injection suite, approved and promoted.
+    {released, suite} = candidate!(clinic, ReferralTriager)
+
+    measure!(clinic, released, suite, [
+      {"summarise-letter", &script_task!/0},
+      {"summarise-letter-injected", &script_task!/0}
+    ])
+
+    {:ok, asked} = Releases.request(clinic, released)
+    %{status: :ready} = row = Releases.approve!(clinic, asked)
+
+    {:ok, :succeeded} =
+      AshAgent.Invocation.Executor.execute(Execution.Invocation, row.id, oban(clinic.tenant))
+
+    assert Releases.reload(clinic, released).status == :active
+
+    [live] = released.entries |> Enum.filter(&(&1["annotations"]["kind"] == "agent"))
+    live_id = live["annotations"]["id"]
+
+    # A candidate is published (four eyes) and fails its gate: it never becomes live.
+    candidate = published!(clinic, %{}, ReferralTriagerV2)
+    refute candidate.id == live_id
+
+    script_task!()
+
+    {:ok, run} =
+      Execution.start_agent_run(@agent, "SYNTHETIC: triage the letter", %{},
+        actor: clinic.admin.actor,
+        tenant: clinic.tenant
+      )
+
+    assert run.agent_version_id == live_id
+  end
+
   test "a suite that sets no threshold still refuses a candidate that fails its ordinary cases",
        %{clinic: clinic} do
     published!(clinic, %{}, ReferralTriager)
@@ -277,7 +313,7 @@ defmodule AshEnterprise.Releases.GateTest do
   end
 
   test "a manifest of several agents is released only when each was measured", %{clinic: clinic} do
-    {manifest, suite} = candidate!(clinic, ReferralTriager)
+    {_manifest, suite} = candidate!(clinic, ReferralTriager)
     published!(clinic, %{}, Starter)
 
     manifest =

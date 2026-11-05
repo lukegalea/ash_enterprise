@@ -81,7 +81,8 @@ MyClinic.Execution.invoke(
    `"manifest_changed"`, `"approval_expired"` or `"approval_changed"`. A host that keeps releases implements
    `AshAgent.ReleaseManifest` and names it as `release_manifest` in the `invocation` section: `request` then records
    the active release as `release_manifest_id` and the approval binds its digest as `manifest_digest`, so an approval
-   does not survive a change of release. Every claim checks the same again, and the executor checks the
+   does not survive a change of release. The same module may implement `agent_version/2`, the version of an agent the
+   active release pins: a live run then starts on it, and publishing a candidate does not make it live. Every claim checks the same again, and the executor checks the
    subject once more on the record the target is about to write: a subject written after the claim makes the row
    `stale` (`mark_stale`) and nothing runs. Bump `version_number` on every write of a subject with an optimistic lock
    (`optimistic_lock(:version_number)`), or a changed subject goes unseen, and a write that races the target's own is
