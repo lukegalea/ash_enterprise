@@ -22,7 +22,7 @@ defmodule AshEnterprise.Planning.SnapshotBuilder do
       and not cancelled, read **as of the run's `knowledge_cutoff`** (the calendar is
       temporal). A confirmed event is mandatory (priority 3); a tentative one is optional
       (priority 1).
-    * **requirements** — the tenant's `canonical.planning_requirements` decision evaluated
+    * **requirements** — the tenant's `canonical_planning.requirements` decision evaluated
       once per weekday. It is a *definition*, pinned into the snapshot by key, version and
       content hash; when the run's binding pins a different version or hash, preparation
       fails with `definition_drift` rather than planning against a decision nobody bound.
@@ -62,7 +62,7 @@ defmodule AshEnterprise.Planning.SnapshotBuilder do
   alias AshOpenLineage.Snapshot
   alias AshOpenLineage.Snapshot.{CanonicalJSON, Definition, Input}
 
-  @decision_key "canonical.planning_requirements"
+  @decision_key "canonical_planning.requirements"
 
   @purposes %{"planning.personal_week" => :"planning.personal_week"}
   @roles %{"task" => :task, "calendar_event" => :calendar_event, "pinned_task" => :pinned_task}
@@ -73,20 +73,40 @@ defmodule AshEnterprise.Planning.SnapshotBuilder do
     "missing_citation" => :missing_citation
   }
   @worlds %{"operational" => :operational, "scenario" => :scenario}
-  @completeness %{"complete" => :complete, "partial" => :partial}
+  @completeness %{
+    "authorized_subset" => :authorized_subset,
+    "declared_complete" => :declared_complete
+  }
   @kinds %{"dmn" => :dmn, "bpmn" => :bpmn, "mzn" => :mzn, "validator" => :validator}
 
-  @doc "Prepares a pending run. See the moduledoc."
-  @spec prepare(struct()) :: {:ok, struct()} | {:error, term()}
-  def prepare(%Run{preparation_status: :pending} = run) do
+  @doc "The key the shipped requirements decision is published under."
+  @spec decision_key() :: String.t()
+  def decision_key, do: @decision_key
+
+  @doc """
+  Prepares a pending run. See the moduledoc.
+
+  Option `:completeness` is the run's declared *scope* (the envelope's
+  `authority.completeness`): `:authorized_subset` (default: the run reads only what
+  authorization admits) or `:declared_complete` (an explicit declaration that the input set is
+  the complete universe). It never reflects input resolution; that is each input's `status`.
+  """
+  @spec prepare(struct(), keyword()) :: {:ok, struct()} | {:error, term()}
+  def prepare(run, opts \\ [])
+
+  def prepare(%Run{preparation_status: :pending} = run, opts) do
     cutoff = run.knowledge_cutoff || DateTime.utc_now()
+    completeness = Keyword.get(opts, :completeness, :authorized_subset)
+
+    unless completeness in [:authorized_subset, :declared_complete],
+      do: raise(ArgumentError, "unknown completeness #{inspect(completeness)}")
 
     run
-    |> build(cutoff)
+    |> build(cutoff, completeness)
     |> record(run, cutoff)
   end
 
-  def prepare(%Run{} = run), do: {:ok, run}
+  def prepare(%Run{} = run, _opts), do: {:ok, run}
 
   @doc """
   The snapshot envelope stored in a prepared run's decoded problem payload, rebuilt as a
@@ -136,7 +156,7 @@ defmodule AshEnterprise.Planning.SnapshotBuilder do
 
   # ── build ──────────────────────────────────────────────────────────────────
 
-  defp build(run, cutoff) do
+  defp build(run, cutoff, completeness) do
     stamped = %{run | knowledge_cutoff: cutoff}
     week_start = Lowering.week_start(cutoff)
 
@@ -153,13 +173,13 @@ defmodule AshEnterprise.Planning.SnapshotBuilder do
          {:ok, requirements, decision} <- requirements(run, binding),
          {:ok, reads} <- read_inputs(run, cutoff, week_start) do
       definitions = definitions(binding, mv, decision)
-      assemble(run, cutoff, week_start, purpose, reads, requirements, definitions)
+      assemble(run, cutoff, week_start, purpose, reads, requirements, definitions, completeness)
     else
       {:error, reason} -> {:failed, reason}
     end
   end
 
-  defp assemble(run, cutoff, week_start, purpose, reads, requirements, definitions) do
+  defp assemble(run, cutoff, week_start, purpose, reads, requirements, definitions, completeness) do
     inputs = reads.inputs
     unresolved = Enum.filter(inputs, &(&1.status != :value))
     stats = reads.stats
@@ -173,7 +193,7 @@ defmodule AshEnterprise.Planning.SnapshotBuilder do
       authority: %{
         tenant: run.organization_id,
         actor_id: run.requested_actor_id,
-        completeness: if(unresolved == [], do: :complete, else: :partial)
+        completeness: completeness
       },
       inputs: inputs,
       definitions: definitions

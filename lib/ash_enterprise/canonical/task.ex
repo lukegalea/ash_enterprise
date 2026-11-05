@@ -555,12 +555,14 @@ defmodule AshEnterprise.Canonical.Task do
     update :set_estimate do
       description "Record how many minutes the task is expected to take."
       accept [:estimated_minutes]
+      validate attribute_equals(:status, :open), message: "only an open task can be estimated"
       validate present(:estimated_minutes)
     end
 
     update :schedule do
       description "Place the task on the calendar: a half-open interval [start, end)."
       accept [:scheduled_start_at, :scheduled_end_at]
+      validate attribute_equals(:status, :open), message: "only an open task can be scheduled"
       validate present([:scheduled_start_at, :scheduled_end_at])
       validate compare(:scheduled_end_at, greater_than: :scheduled_start_at)
     end
@@ -568,6 +570,7 @@ defmodule AshEnterprise.Canonical.Task do
     update :unschedule do
       description "Take the task off the calendar."
       accept []
+      validate attribute_equals(:status, :open), message: "only an open task can be unscheduled"
       change set_attribute(:scheduled_start_at, nil)
       change set_attribute(:scheduled_end_at, nil)
     end

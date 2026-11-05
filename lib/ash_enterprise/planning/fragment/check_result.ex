@@ -56,7 +56,7 @@ defmodule AshEnterprise.Planning.Fragment.CheckResult do
     end
 
     attribute :violation_details, :binary do
-      public? true
+      public? false
       sensitive? true
       description "What was violated, in detail. Sealed by the host."
     end

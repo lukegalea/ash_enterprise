@@ -40,7 +40,7 @@ defmodule AshEnterprise.Planning.TestKit do
     definition =
       DecisionDefinition.create!(
         %{
-          key: "canonical.planning_requirements",
+          key: "canonical_planning.requirements",
           name: "Canonical planning requirements",
           xml: xml
         },

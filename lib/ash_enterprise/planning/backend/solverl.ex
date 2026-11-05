@@ -23,6 +23,14 @@ defmodule AshEnterprise.Planning.Backend.Solverl do
   Config (`config :ash_enterprise, #{inspect(__MODULE__)}`): `:minizinc_executable`, `:max_memory_bytes`
   ceiling (default 2_000_000_000), `:max_candidates` retained (default 5),
   `:cancel_grace_ms` (default 5_000).
+
+  Trust boundary: the `:governor_lookup` start option is a TEST-ONLY hook
+  (injected lookup for the governance refusal tests). Production callers pass
+  no opts beyond `model_path`/`checker_path`/`limits`/`solver` — `RunWorker` and
+  `SolverSession` construct the call and never forward external input into it,
+  so the hook is reachable only by in-repo code, not by run data. If that
+  changes, the hook must become an application-env override with the same
+  refusal matrix enforced after lookup.
   """
 
   @behaviour AshEnterprise.Planning.Backend

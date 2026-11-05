@@ -56,7 +56,7 @@ defmodule AshEnterpriseWeb.A2ui.PlanningUI do
       max_page_size 100
     end
 
-    component :table do
+    component :table, :candidates do
       fields [:index, :check_status, :freshness, :disposition, :run_id, :created_on]
       read_action :read
       query :candidates
@@ -91,8 +91,7 @@ defmodule AshEnterpriseWeb.A2ui.PlanningUI do
         :freshness,
         :disposition,
         :unresolved_obligations,
-        :applied_by_actor_id,
-        :check_results
+        :applied_by_actor_id
       ]
     end
 
@@ -162,10 +161,6 @@ defmodule AshEnterpriseWeb.A2ui.PlanningUI do
     field :applied_by_actor_id do
       label "Applied by"
       link {:users, :applied_by_actor_id}
-    end
-
-    field :check_results do
-      label "Check outcomes"
     end
 
     field :preparation_status do

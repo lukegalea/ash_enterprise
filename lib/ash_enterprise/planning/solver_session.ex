@@ -423,8 +423,10 @@ defmodule AshEnterprise.Planning.SolverSession do
       {:ok, %{cancellation_reason: reason}} when not is_nil(reason) ->
         {:noreply, begin_cancel(state, cancelled_args(state))}
 
-      {:ok, _row} ->
-        renew_lease(state)
+      {:ok, row} ->
+        # The row's current version: a cancel request written since the last renewal moved it,
+        # and the optimistic lock would otherwise refuse our next write.
+        renew_lease(%{state | run: row})
 
       {:error, _} ->
         # A transient read failure is not a reason to lose a solve; the lease deadline is.
@@ -493,8 +495,17 @@ defmodule AshEnterprise.Planning.SolverSession do
   end
 
   defp record(state, args) do
+    # Re-read for the current `version_number`: someone else may have written the row (a
+    # cancel request) since this session last did. The epoch fence, not the version, is what
+    # decides whether this session still owns the run.
+    run =
+      case Planning.get_planning_run(state.run.id, tenant: state.tenant, authorize?: false) do
+        {:ok, fresh} -> fresh
+        {:error, _} -> state.run
+      end
+
     case Planning.record_planning_result(
-           state.run,
+           run,
            Map.put(args, :epoch, state.run.lease_epoch),
            machinery(state)
          ) do

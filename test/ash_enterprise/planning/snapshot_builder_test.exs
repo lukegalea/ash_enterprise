@@ -44,14 +44,14 @@ defmodule AshEnterprise.Planning.SnapshotBuilderTest do
 
     assert {:ok, snapshot} = SnapshotBuilder.snapshot_from_payload(payload)
     assert snapshot.digest == run.snapshot_digest
-    assert snapshot.authority.completeness == :complete
+    assert snapshot.authority.completeness == :authorized_subset
 
     sources = for %{source: %{} = s} <- snapshot.inputs, do: {s.id, is_integer(s.version_number)}
     assert length(sources) == 4 and Enum.all?(sources, &elem(&1, 1))
 
     assert Enum.any?(
              snapshot.definitions,
-             &(&1.kind == :dmn and &1.key == "canonical.planning_requirements")
+             &(&1.kind == :dmn and &1.key == "canonical_planning.requirements")
            )
 
     assert Enum.any?(snapshot.definitions, &(&1.kind == :validator))
@@ -78,6 +78,26 @@ defmodule AshEnterprise.Planning.SnapshotBuilderTest do
 
     assert id == bare.id
     assert resource == "AshEnterprise.Canonical.Task"
+  end
+
+  test "unresolved inputs do not change the declared scope", %{w: w} do
+    task!(w, "no estimate")
+    assert {:ok, run} = SnapshotBuilder.prepare(w.run)
+    assert run.preparation_status == :needs_input
+    assert [%{"status" => "unresolved"}] = run.unresolved_inputs
+  end
+
+  test "an explicit declared_complete round-trips through the sealed envelope", %{w: w} do
+    task!(w, "t", 15)
+    assert {:ok, run} = SnapshotBuilder.prepare(w.run, completeness: :declared_complete)
+    assert {:ok, payload} = SnapshotBuilder.problem_payload(run)
+    assert payload["snapshot"]["authority"]["completeness"] == "declared_complete"
+    assert {:ok, snapshot} = SnapshotBuilder.snapshot_from_payload(payload)
+    assert snapshot.authority.completeness == :declared_complete
+  end
+
+  test "an unknown completeness is refused", %{w: w} do
+    assert_raise ArgumentError, fn -> SnapshotBuilder.prepare(w.run, completeness: :complete) end
   end
 
   test "an unsupported purpose fails preparation with a reason code" do

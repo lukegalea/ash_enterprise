@@ -18,17 +18,19 @@ defmodule AshEnterprise.Planning.Changes.ApplyCandidate do
 
     1. **Recheck every source.** The run's sealed problem carries the snapshot envelope; each
        input with a source `(resource, id, version_number)` is read again. A row that is gone
-       or whose `version_number` moved is *drift*. Any drift refuses the apply and, after the
-       transaction, `mark_stale` records the candidate `:stale` (machinery actor): a stale
-       candidate is never applied, it is superseded by a replan.
+       or whose `version_number` moved is *drift*. Any drift refuses the apply (nothing is
+       written).
     2. **Write, in one transaction.** Each scheduled task assignment becomes
        `Canonical.Task.schedule_mine/4`, each assignment that leaves a currently scheduled task
        unscheduled `unschedule_mine/2`, all as the approving person inside one
-       `Ash.transaction/2`. Meeting assignments write nothing: a meeting is a fact the plan
+       the apply action's own transaction. Meeting assignments write nothing: a meeting is a fact the plan
        respected, not something it changes. The first refusal (a validation, an optimistic-lock
        conflict from a concurrent edit) rolls every write back.
-    3. A refusal after the recheck passed also records the candidate `:rejected` (as the
-       person, through `reject`), after the rollback. The error is returned either way.
+    3. **Settlement.** Drift and a write-time refusal both end the candidate `:rejected` AND
+       `:stale`, after the rollback: `mark_stale` (machinery actor) first, then `reject` (as the
+       approving person). That order is forced by the guards: `mark_stale` is refused once a
+       candidate is decided, while `reject` is allowed from `:approved` whatever its freshness.
+       The error is returned either way; never an approved-looking stale row.
 
   ## Targets without a version precondition (contingency C6)
 
@@ -41,6 +43,9 @@ defmodule AshEnterprise.Planning.Changes.ApplyCandidate do
   """
 
   use Ash.Resource.Change
+
+  require Ash.Query
+  require Logger
 
   alias AshEnterprise.Canonical.{CalendarEvent, Task}
   alias AshEnterprise.Planning
@@ -98,10 +103,12 @@ defmodule AshEnterprise.Planning.Changes.ApplyCandidate do
   defp recheck(snapshot, tenant) do
     snapshot.inputs
     |> Enum.filter(&(&1.status == :value and not is_nil(&1.source)))
+    # A source with no version precondition cannot be rechecked; its target is excluded
+    # from the writes (`partition/2`, contingency C6), not treated as drift.
+    |> Enum.reject(&is_nil(&1.source.version_number))
     |> Enum.reduce_while({:ok, %{}}, fn %{source: source}, {:ok, rows} ->
       with {:ok, module} <- Map.fetch(@sources, to_string(source.resource)),
-           {:ok, %{version_number: current} = row} <-
-             Ash.get(module, source.id, tenant: tenant, authorize?: false),
+           {:ok, %{version_number: current} = row} <- read_locked(module, source.id, tenant),
            true <- current == source.version_number do
         {:cont, {:ok, Map.put(rows, source.id, row)}}
       else
@@ -110,9 +117,30 @@ defmodule AshEnterprise.Planning.Changes.ApplyCandidate do
     end)
   end
 
+  # The recheck runs inside the apply action's transaction (this is a `before_action` hook),
+  # and each source row is read `FOR SHARE`: a concurrent edit that has not committed blocks
+  # until this transaction ends, and one that committed first is seen as a moved
+  # `version_number`. Without the lock, an edit landing between the recheck and `schedule_mine`
+  # (which re-reads and locks against the fresh version) would be silently overwritten.
+  defp read_locked(module, id, tenant) do
+    case module |> source_query(id) |> Ash.read_one(tenant: tenant, authorize?: false) do
+      {:ok, nil} -> {:error, :not_found}
+      other -> other
+    end
+  end
+
+  @doc false
+  # The query the recheck reads each source with: one row by id, `FOR SHARE`.
+  @spec source_query(module(), String.t()) :: Ash.Query.t()
+  def source_query(module, id) do
+    module
+    |> Ash.Query.filter(id == ^id)
+    |> Ash.Query.lock("FOR SHARE")
+  end
+
   defp assignments(candidate, tenant) do
     with {:ok, binary} <- SnapshotBuilder.unseal(candidate, :assignments, tenant),
-         {:ok, list} when is_list(list) <- Jason.decode(binary) do
+         {:ok, list} when is_list(list) <- Jason.decode(binary, floats: :decimals) do
       {:ok, list}
     else
       {:ok, _} -> {:error, :assignments_unreadable}
@@ -124,29 +152,23 @@ defmodule AshEnterprise.Planning.Changes.ApplyCandidate do
   defp transact(changeset, snapshot, payload, rows, assignments, actor, tenant) do
     ids = payload["ids"]["tasks"]
     durations = payload["t_dur"]
-    versioned = versioned_tasks(snapshot)
-
-    {writable, excluded} =
-      assignments
-      |> Enum.filter(&(&1["kind"] == "task"))
-      |> Enum.split_with(&MapSet.member?(versioned, &1["id"]))
+    {writable, excluded} = partition(snapshot, assignments)
 
     opts = [actor: actor, tenant: tenant]
 
+    # We are already inside the apply action's transaction: every write below joins it, and
+    # returning the error from this hook rolls all of them back together. (An inner
+    # `Ash.DataLayer.rollback/2` would poison that outer transaction and swallow the error.)
     result =
-      Ash.transaction(Task, fn ->
-        Enum.each(writable, fn assignment ->
-          case apply_one(assignment, rows, ids, durations, snapshot.effective_at, opts) do
-            :ok -> :ok
-            {:error, error} -> Ash.DataLayer.rollback(Task, error)
-          end
-        end)
-
-        :ok
+      Enum.reduce_while(writable, :ok, fn assignment, :ok ->
+        case apply_one(assignment, rows, ids, durations, snapshot.effective_at, opts) do
+          :ok -> {:cont, :ok}
+          {:error, error} -> {:halt, {:error, error}}
+        end
       end)
 
     case result do
-      {:ok, :ok} ->
+      :ok ->
         Ash.Changeset.set_context(changeset, %{planning_excluded: length(excluded)})
 
       {:error, error} ->
@@ -157,6 +179,18 @@ defmodule AshEnterprise.Planning.Changes.ApplyCandidate do
           message: "apply refused: #{reason_text(error)}"
         )
     end
+  end
+
+  @doc false
+  # Splits the task assignments into those whose target carries a version precondition (written)
+  # and those that do not (excluded, counted; contingency C6).
+  @spec partition(AshOpenLineage.Snapshot.t(), [map()]) :: {[map()], [map()]}
+  def partition(snapshot, assignments) do
+    versioned = versioned_tasks(snapshot)
+
+    assignments
+    |> Enum.filter(&(&1["kind"] == "task"))
+    |> Enum.split_with(&MapSet.member?(versioned, &1["id"]))
   end
 
   # Task sources that carry a version precondition (contingency C6).
@@ -175,7 +209,8 @@ defmodule AshEnterprise.Planning.Changes.ApplyCandidate do
          durations,
          week_start,
          opts
-       ) do
+       )
+       when is_integer(slot) do
     index = Enum.find_index(ids, &(&1 == id))
     slots = index && Enum.at(durations, index)
 
@@ -225,24 +260,30 @@ defmodule AshEnterprise.Planning.Changes.ApplyCandidate do
         true -> nil
       end
 
-    case reason do
-      :drift ->
-        Planning.mark_planning_candidate_stale(candidate, %{},
-          actor: SystemActor.oban(),
-          tenant: tenant
-        )
-
-      :refused ->
-        Planning.reject_planning_candidate(candidate, %{}, actor: context.actor, tenant: tenant)
-
-      _ ->
-        :ok
-    end
+    if reason in [:drift, :refused], do: settle_refusal(candidate, context.actor, tenant)
 
     result
   end
 
   defp settle(_changeset, result, _context), do: result
+
+  # A refused apply ends `:rejected` AND `:stale`, never an approved-looking stale row. The
+  # freshness mark goes first (machinery): `mark_stale` is only allowed on an undecided or
+  # approved candidate, and `reject` is allowed from `:approved` whatever its freshness.
+  defp settle_refusal(candidate, actor, tenant) do
+    with {:ok, stale} <-
+           Planning.mark_planning_candidate_stale(candidate, %{},
+             actor: SystemActor.oban(),
+             tenant: tenant
+           ),
+         {:ok, _rejected} <-
+           Planning.reject_planning_candidate(stale, %{}, actor: actor, tenant: tenant) do
+      :ok
+    else
+      {:error, error} ->
+        Logger.error("planning apply settlement failed: #{reason_text(error)}")
+    end
+  end
 
   defp reason_text(reason) when is_atom(reason), do: Atom.to_string(reason)
 

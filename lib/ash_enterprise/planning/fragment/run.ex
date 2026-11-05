@@ -102,13 +102,13 @@ defmodule AshEnterprise.Planning.Fragment.Run do
     end
 
     attribute :problem_payload, :binary do
-      public? true
+      public? false
       sensitive? true
       description "The bounded problem document handed to the solver. Sealed by the host."
     end
 
     attribute :result_payload, :binary do
-      public? true
+      public? false
       sensitive? true
       description "The solve result, objective, bound and gap included. Sealed by the host."
     end

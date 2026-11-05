@@ -49,7 +49,7 @@ defmodule AshEnterprise.Planning.Fragment.Candidate do
 
     attribute :assignments, :binary do
       allow_nil? false
-      public? true
+      public? false
       sensitive? true
       description "The typed assignments. Sealed by the host."
     end

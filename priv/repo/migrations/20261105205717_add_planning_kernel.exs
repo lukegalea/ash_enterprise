@@ -50,7 +50,8 @@ defmodule AshEnterprise.Repo.Migrations.AddPlanningKernel do
             type: :uuid,
             prefix: "public",
             on_delete: :restrict
-          ), null: false
+          ),
+          null: false
 
       add :encrypted_violation_details, :binary
     end
@@ -124,7 +125,8 @@ defmodule AshEnterprise.Repo.Migrations.AddPlanningKernel do
             type: :uuid,
             prefix: "public",
             on_delete: :restrict
-          ), null: false
+          ),
+          null: false
 
       add :encrypted_assignments, :binary, null: false
     end
@@ -216,7 +218,8 @@ defmodule AshEnterprise.Repo.Migrations.AddPlanningKernel do
             type: :uuid,
             prefix: "public",
             on_delete: :restrict
-          ), null: false
+          ),
+          null: false
 
       add :binding_id, :uuid, null: false
       add :snapshot_digest, :text
@@ -253,7 +256,8 @@ defmodule AshEnterprise.Repo.Migrations.AddPlanningKernel do
             type: :uuid,
             prefix: "public",
             on_delete: :restrict
-          ), null: false
+          ),
+          null: false
 
       add :encrypted_problem_payload, :binary
       add :encrypted_result_payload, :binary
