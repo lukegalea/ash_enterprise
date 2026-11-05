@@ -78,8 +78,12 @@ Host templates and LiveViews use `gettext`/`dgettext`/`ngettext`. Host DSL title
 `mix gettext.extract --merge` sees them. No custom extractor is built for anything that is a literal in host source.
 Count-bearing strings are resolved on the server with `ngettext`, because client-side templating can't pluralize.
 
-Authentication screens get the `gettext_backend:` option that `ash_authentication_phoenix` already accepts. Merging
-the reviewed catalog PR is the approval for platform copy.
+Authentication screens get the `gettext_backend:` option that `ash_authentication_phoenix` already accepts.
+
+**Who approves the words.** Merging a catalog PR is the approval for platform copy, and code owners approve code,
+not French. A change to a French catalog therefore also needs the approval of a named French language reviewer,
+enforced by a `CODEOWNERS` entry on the French `.po` files. Machine-drafted text is a proposal until that reviewer
+approves it. The reviewer and the generation task (section 3) work from the same checked-in glossary.
 
 ### 2. Library copy follows Ash's catalog pattern, inside each library
 
@@ -146,7 +150,8 @@ There is no consumer today with a known recipient locale. When one arrives:
   exact revision and hash. Ordinary reads never return draft, pending or rejected revisions. A changed source falls
   back to the source text until a matching revision is approved. Resolution is set-oriented, by tenant and locale,
   and never one query per label. Review, if needed, is a host BPMN process under ordinary policies.
-- In both cases tenant content never overrides platform copy, and model-generated text is only ever a proposal.
+- In both cases tenant content never overrides platform copy, and model-generated text is only ever a proposal. The
+  one sanctioned override is an organization's wording overlay (section 5).
 
 The first candidate stays `Clm.RequirementCatalog.title`, and only once its report projection carries
 `catalog_entry_id`. `EmailTemplate` and `ComposeLive` are not pilots.
@@ -155,12 +160,28 @@ The first candidate stays `Clm.RequirementCatalog.title`, and only once its repo
 
 - Precedence: user preference → organization (`Organization.languagelocale_id` → `Reference.LanguageLocale.code`)
   → `Accept-Language` → `en`. `Accept-Language` is the last fallback, because it is the only signal a JSON:API call
-  has before a preference is stored. Adding `User.preferred_language_locale_id` is an explicit host schema change,
-  not something this record presumes.
-- Validate codes as BCP 47 without creating atoms. Map them to Gettext locales (`fr-CA` → `fr_CA`) only at the
-  adapter boundary.
+  has before a preference is stored.
+- **The user preference is the one the legacy web app already stores.** Its language switcher writes `users.locale`
+  (`en` or `fr`), and the users twin already carries that column. Keystone reads it there rather than adding a
+  second preference, so a person sees the same language in both apps. ActorContext loads it with the actor, so
+  resolution adds no query. Keystone does not write it while the web app owns the users table.
+- Validate codes as BCP 47 without creating atoms. Map them to Gettext locales only at the adapter boundary. A
+  language-only code maps to the regional catalog the host ships: `fr-CA` and the stored `fr` both become `fr_CA`
+  in Keystone, and `fr` in ash_enterprise.
 - Resolve the locale after actor and tenant resolution, and after the `LiveUserAuth` mirror. Pass it explicitly to
   A2UI and ACP; don't rely on the ambient process locale.
+- **Work with no request** (renewal and expiry notices, digests, other Oban jobs) resolves a locale per recipient
+  when it builds each message: the recipient's preference → the recipient's organization → the sending
+  organization → `en`. A job carries recipient ids, never a locale captured at enqueue, and sets the locale for
+  each message explicitly (`Gettext.with_locale/3` around that message only).
+- **Organization wording overrides.** The legacy web app lets an administrator override platform copy for one
+  organization, in English and French, keyed by its own translation keys. Keystone must not contradict that wording.
+  Overrides apply as an overlay translator: the organization's overrides are loaded once per request into
+  ActorContext, keyed by domain, msgid and locale, and consulted before the Gettext backend. Host copy reaches it
+  through one host translation helper, and A2UI through `gettext_fn`. Only display strings are overridable, never
+  identifiers or values. The open question is the mapping from the web app's keys to msgids: only keys that name the
+  same string in both apps carry over. Until the overlay is built this is a known gap: an organization with
+  customized wording sees the default wording in Keystone.
 - Render `<html lang>` dynamically. A mid-session preference change triggers a remount, so the root layout re-renders.
 - URL locale selection is not supported. The credentialing showcase's `?locale=` is a documented demo exception.
 - CLDR formatting (`ex_cldr`) is a separate, later concern. It takes an explicit locale and preserves timezone,
@@ -172,7 +193,8 @@ The first candidate stays `Clm.RequirementCatalog.title`, and only once its repo
 |---|---|---|
 | 1 | ash_a2ui | Single label resolver, templated ActionHandler messages, marker, `extract`/`gen` tasks, `gettext_fn`/`locale:` option, goldens for both protocols |
 | 2 | ash_enterprise | Locale resolution and `<html lang>`, `gettext_backend` on auth routes, generation task, `fr` catalogs, run `extract_metadata`, dogfood the ash_a2ui option |
-| 3 | Keystone | The same locale plumbing; `fr_CA` catalogs for existing `gettext` calls; run `extract_metadata`; Atlas strings map; `ProcessLive` plurals; `ContractsHubUI` pilot |
+| 3 | Keystone | The same locale plumbing; `fr_CA` catalogs for existing `gettext` calls; run `extract_metadata`; Atlas strings map; `ProcessLive` plurals; `ContractsHubUI` pilot; user preference from the users twin; per-recipient locale in notification jobs |
+| 3b | Keystone | Organization wording overlay, once the web app's keys are mapped to msgids |
 | 4 | Both hosts | CLDR formatting |
 | — | Host | Tenant content, only under the rule in section 4 |
 
@@ -183,6 +205,7 @@ The first candidate stays `Clm.RequirementCatalog.title`, and only once its repo
 - Catalog freshness in CI (`mix gettext.extract --check-up-to-date`), PO validity, and placeholder and plural
   validation. The generation task's fake adapter rejects malformed output.
 - Host metadata catalog current (`extract_metadata --check-up-to-date`).
+- Every change to a French catalog approved by the French language reviewer.
 - A real root `lang` attribute. `ProcessLive` counts of 1 and 2 with interpolation. `ContractsHubUI` labels
   translated while record values are unchanged. Locale parity between ACP and A2UI.
 - French and pseudo-locale checks on post-render dialogs and toasts.
@@ -190,7 +213,8 @@ The first candidate stays `Clm.RequirementCatalog.title`, and only once its repo
 ## Does it consume ActorContext?
 
 Static catalog lookup is pure and reads no actor or tenant data. Locale resolution reads the actor's preference and
-organization, which ActorContext has already loaded, so it adds no query. Design-time extraction and generation never
+organization, which ActorContext has already loaded, so it adds no query. The organization's wording overrides, once
+built, are loaded into ActorContext once per request in the same way. Design-time extraction and generation never
 read tenant records. Tenant content, if it is ever built, is an ordinary platform resource under ordinary policies,
 with no translation-specific ACL.
 
@@ -201,11 +225,12 @@ Ash's own errors already are, so a host learns one workflow. Nothing new needs t
 Static copy has no runtime dependency on a model, a database or an actor.
 
 **Made hard.** Each library that renders text has to adopt the marker-and-catalog convention itself; `ash_a2ui`
-first, then Atlas through the host strings map. Explicit labels on localized surfaces add some DSL noise. Tenant
-content stays unsolved until a consumer forces the decision.
+first, then Atlas through the host strings map. Host metadata catalogs must be regenerated whenever a surface changes. Tenant
+content stays unsolved until a consumer forces the decision. Every French catalog change waits for a French
+reviewer.
 
 **Foreclosed for now.** A new package for translation. A database-backed static catalog, or a read per label.
-Generic attribute translation. Tenant overrides of platform copy. Compile-time or on-read model calls. Recursive
+Generic attribute translation. Tenant text replacing platform copy outside the organization wording overlay. Compile-time or on-read model calls. Recursive
 payload rewriting. A JavaScript-owned catalog. Ambient locale at the A2UI and ACP boundaries. URL locale selection
 outside the showcase.
 
