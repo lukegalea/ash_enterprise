@@ -13,8 +13,8 @@ defmodule AshEnterprise.Mdm.Changes.EndStewardReview do
 
   Runs in `after_action`, so it only cancels for a committed supersession,
   and inside the same transaction, so the candidate and its run end
-  together. The cancel is engine work (`AshBpmn.cancel_instance/2`), not
-  the actor's.
+  together. The cancel is engine work (`AshBpmn.cancel_instance/2`), but it
+  records who ended the review and why on the instance's cancelled event.
   """
 
   use Ash.Resource.Change
@@ -22,10 +22,10 @@ defmodule AshEnterprise.Mdm.Changes.EndStewardReview do
   require Ash.Query
 
   @impl true
-  def change(changeset, _opts, _context) do
+  def change(changeset, _opts, context) do
     if Ash.Changeset.changing_attribute?(changeset, :status) and
          Ash.Changeset.get_attribute(changeset, :status) == :superseded do
-      Ash.Changeset.after_action(changeset, &cancel_review/2)
+      Ash.Changeset.after_action(changeset, &cancel_review(&1, &2, context.actor))
     else
       changeset
     end
@@ -36,11 +36,17 @@ defmodule AshEnterprise.Mdm.Changes.EndStewardReview do
   @impl true
   def atomic(changeset, opts, context), do: {:ok, change(changeset, opts, context)}
 
-  defp cancel_review(changeset, candidate) do
+  defp cancel_review(changeset, candidate, actor) do
     AshEnterprise.Bpmn.Instance
     |> Ash.Query.filter(subject_id == ^candidate.id and status == :running)
     |> Ash.read!(tenant: changeset.tenant, authorize?: false)
-    |> Enum.each(&AshBpmn.cancel_instance!(&1, tenant: changeset.tenant))
+    |> Enum.each(
+      &AshBpmn.cancel_instance!(&1,
+        tenant: changeset.tenant,
+        actor: actor,
+        reason: "candidate superseded"
+      )
+    )
 
     {:ok, candidate}
   end

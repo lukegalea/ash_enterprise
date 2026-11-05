@@ -396,6 +396,14 @@ defmodule AshEnterprise.Mdm.PeopleTest do
     assert instance.status == :cancelled
     assert reload(ctx, task).status == :cancelled
     assert queue(ctx) == []
+
+    # The cancelled event says why, and who (the system here: no person closed it).
+    assert [event] =
+             AshEnterprise.Bpmn.ProcessEvent
+             |> Ash.Query.filter(instance_id == ^instance.id and kind == :instance_cancelled)
+             |> Ash.read!(system(ctx))
+
+    assert %{"reason" => "candidate superseded"} = event.data
   end
 
   test "replay: delete the goldens, replay, the same rows come back", ctx do

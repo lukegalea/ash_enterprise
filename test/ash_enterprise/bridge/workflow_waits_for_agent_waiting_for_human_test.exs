@@ -151,6 +151,67 @@ defmodule AshEnterprise.Bridge.WorkflowWaitsForAgentWaitingForHumanTest do
   </bpmn2:definitions>
   """
 
+  # The run is started by the parent and handed to the child below (see the test): a child a
+  # call activity starts does not inherit who started its parent, so it cannot start a run as
+  # that person itself.
+  @parent """
+  <?xml version="1.0" encoding="UTF-8"?>
+  <bpmn2:definitions xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                     xmlns:ash="https://github.com/lukegalea/ash_bpmn/ns"
+                     id="Definitions_intake_parent"
+                     targetNamespace="https://github.com/lukegalea/ash_bpmn/ns">
+    <bpmn2:process id="Process_intake_parent" name="Intake, drawn once" isExecutable="true">
+      <bpmn2:startEvent id="Start"><bpmn2:outgoing>F1</bpmn2:outgoing></bpmn2:startEvent>
+      <bpmn2:serviceTask id="StartRun" name="Ask the agent">
+        <bpmn2:extensionElements>
+          <ash:taskConfig action="start_agent_run"/>
+          <ash:inputs>
+            <ash:input name="agent" from="&quot;AGENT&quot;"/>
+            <ash:input name="input" from="&quot;SYNTHETIC: take the intake for the new referral.&quot;"/>
+          </ash:inputs>
+          <ash:promote><ash:signal name="run_id" required="true"/></ash:promote>
+        </bpmn2:extensionElements>
+        <bpmn2:incoming>F1</bpmn2:incoming>
+        <bpmn2:outgoing>F2</bpmn2:outgoing>
+      </bpmn2:serviceTask>
+      <bpmn2:callActivity id="Intake" name="Intake">
+        <bpmn2:extensionElements><ash:process key="CHILD_KEY"/></bpmn2:extensionElements>
+        <bpmn2:incoming>F2</bpmn2:incoming>
+        <bpmn2:outgoing>F3</bpmn2:outgoing>
+      </bpmn2:callActivity>
+      <bpmn2:endEvent id="End"><bpmn2:incoming>F3</bpmn2:incoming></bpmn2:endEvent>
+      <bpmn2:sequenceFlow id="F1" sourceRef="Start" targetRef="StartRun"/>
+      <bpmn2:sequenceFlow id="F2" sourceRef="StartRun" targetRef="Intake"/>
+      <bpmn2:sequenceFlow id="F3" sourceRef="Intake" targetRef="End"/>
+    </bpmn2:process>
+  </bpmn2:definitions>
+  """
+
+  @child """
+  <?xml version="1.0" encoding="UTF-8"?>
+  <bpmn2:definitions xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                     xmlns:ash="https://github.com/lukegalea/ash_bpmn/ns"
+                     id="Definitions_intake_review"
+                     targetNamespace="https://github.com/lukegalea/ash_bpmn/ns">
+    <bpmn2:process id="Process_intake_review" name="Review the intake" isExecutable="true">
+      <bpmn2:startEvent id="Start"><bpmn2:outgoing>F1</bpmn2:outgoing></bpmn2:startEvent>
+      <bpmn2:userTask id="Review" name="Review">
+        <bpmn2:extensionElements>
+          <ash:taskConfig>
+            <ash:candidates><ash:candidate kind="role" of="Administrator"/></ash:candidates>
+            <ash:outcomes><ash:outcome name="done"/></ash:outcomes>
+          </ash:taskConfig>
+        </bpmn2:extensionElements>
+        <bpmn2:incoming>F1</bpmn2:incoming>
+        <bpmn2:outgoing>F2</bpmn2:outgoing>
+      </bpmn2:userTask>
+      <bpmn2:endEvent id="End"><bpmn2:incoming>F2</bpmn2:incoming></bpmn2:endEvent>
+      <bpmn2:sequenceFlow id="F1" sourceRef="Start" targetRef="Review"/>
+      <bpmn2:sequenceFlow id="F2" sourceRef="Review" targetRef="End"/>
+    </bpmn2:process>
+  </bpmn2:definitions>
+  """
+
   setup do
     in_zone!()
     pause_queues!()
@@ -191,6 +252,11 @@ defmodule AshEnterprise.Bridge.WorkflowWaitsForAgentWaitingForHumanTest do
   # The process, published in the clinic, asking the agent keyed `agent`.
   defp process!(clinic, agent) do
     EvidenceChecks.publish!(clinic, String.replace(@process, "AGENT", agent))
+  end
+
+  defp process_with_child!(clinic, agent, child) do
+    xml = @parent |> String.replace("AGENT", agent) |> String.replace("CHILD_KEY", child.key)
+    EvidenceChecks.publish!(clinic, xml)
   end
 
   # The nurse starts an instance of `definition`: the engine acts as the process actor, and
@@ -500,6 +566,64 @@ defmodule AshEnterprise.Bridge.WorkflowWaitsForAgentWaitingForHumanTest do
     sweep!(clinic)
     assert %{status: :cancelled} = instance(clinic, definition)
     assert heard(clinic, instance) == []
+  end
+
+  test "cancelling the parent cancels the child its call activity started, and the child's run",
+       %{clinic: clinic} do
+    published!(clinic, %{}, Intake)
+    credential = credential!(clinic)
+    child = EvidenceChecks.publish!(clinic, @child)
+    parent = process_with_child!(clinic, "clinic.intake", child)
+    question_script!([])
+
+    parent_instance = start_instance(clinic, parent, credential)
+    child_instance = instance(clinic, child)
+    assert child_instance.status == :running
+    assert [run] = runs(clinic)
+    Oban.drain_queue(queue: :agent_runs)
+    assert %{status: :waiting} = run(run)
+
+    # Hand the run to the child, as a run the child would have started: the trigger finds a
+    # run by its own instance's status, and only the cascade changes the child's.
+    id = run.id
+    child_id = child_instance.id
+
+    {1, _} =
+      AshEnterprise.Repo.update_all(
+        from(r in "exec_agent_runs", where: r.id == type(^id, Ecto.UUID)),
+        set: [process_instance_id: Ecto.UUID.dump!(child_id)]
+      )
+
+    Oban.insert!(Run.CancelWithInstanceScheduler.new(%{}))
+    Oban.drain_queue(queue: :agent_runs, with_recursion: true)
+    assert %{status: :waiting} = run(run)
+
+    nurse = clinic.nurse.user
+
+    AshBpmn.cancel_instance!(parent_instance,
+      tenant: clinic.tenant,
+      actor: nurse,
+      reason: "referral withdrawn"
+    )
+
+    assert %{status: :cancelled} = instance(clinic, child)
+
+    assert [event] =
+             ProcessEvent
+             |> Ash.Query.filter(
+               instance_id == ^child_instance.id and kind == :instance_cancelled
+             )
+             |> Ash.read!(tenant: clinic.tenant, authorize?: false)
+
+    assert event.data == %{
+             "cancelled_by_id" => nurse.id,
+             "reason" => "referral withdrawn",
+             "cascaded_from_instance_id" => parent_instance.id
+           }
+
+    Oban.insert!(Run.CancelWithInstanceScheduler.new(%{}))
+    Oban.drain_queue(queue: :agent_runs, with_recursion: true)
+    assert %{status: :cancelled} = run(run)
   end
 
   test "a timeout leaves the wait and cancels the run the process stopped waiting for",

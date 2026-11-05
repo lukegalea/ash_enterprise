@@ -175,8 +175,7 @@ defmodule AshEnterprise.Execution.Run do
 
       # A process instance that was cancelled takes the runs it started with it. A run a
       # call-activity child started is found by its own instance's status, which becomes
-      # `cancelled` only when cancelling the parent cascades to its children (ash_bpmn B3,
-      # not in this application's lock: ADR 0056).
+      # `cancelled` when cancelling the parent cascades to its children (ash_bpmn B3, ADR 0056).
       trigger :cancel_with_instance do
         action :request_cancel
 

@@ -31,7 +31,7 @@
   "pins": [
     {
       "dep": "ash_bpmn",
-      "lock": "009b768c19857c3d4f954b044f64b72512ccad45"
+      "lock": "2f0aa77f7cdea8a6ebdaf3d3da15c606c8012f0a"
     },
     {
       "dep": "ash_oban",
@@ -127,13 +127,14 @@
       "area": "workflow",
       "capability": "Child workflows",
       "status": "partial",
-      "summary": "A call activity starts a child process by key; the parent waits and resumes when the child completes, call depth is bounded, and a call activity may pin the child's version.",
-      "gap": "Cancelling the parent does not cancel the child; only an interrupting timer boundary on the call activity does.",
+      "summary": "A call activity starts a child process by key; the parent waits and resumes when the child completes, call depth is bounded, and a call activity may pin the child's version. Cancelling the parent cancels its running children, to the bottom of the tree, in one transaction.",
+      "gap": "A child a call activity starts does not inherit who started its parent, so it cannot start an agent run as that person.",
       "deps": ["ash_bpmn"],
       "tests": [
         {"dep": "ash_bpmn", "file": "test/ash_bpmn/call_activity_test.exs", "test": "the child runs and the parent carries on after it"},
         {"dep": "ash_bpmn", "file": "test/ash_bpmn/call_activity_test.exs", "test": "the parent waits while the child does"},
-        {"dep": "ash_bpmn", "file": "test/ash_bpmn/call_activity_test.exs", "test": "a pinned child keeps v1 after v2 publishes"}
+        {"dep": "ash_bpmn", "file": "test/ash_bpmn/call_activity_test.exs", "test": "a pinned child keeps v1 after v2 publishes"},
+        {"dep": "ash_bpmn", "file": "test/ash_bpmn/cancel_cascade_test.exs", "test": "cancelling the parent cancels a call-activity child; the event carries actor and reason"}
       ]
     },
     {
@@ -234,13 +235,14 @@
       "area": "workflow",
       "capability": "Pause, cancel, retry and rerun",
       "status": "partial",
-      "summary": "An instance can be cancelled (its open tasks' timers go with it), a failed instance retried, and a parked instance superseded by a fresh run of another version.",
-      "gap": "No paused state; cancelling is not one transaction and records no actor; a rerun always starts from the beginning.",
+      "summary": "An instance can be cancelled, in one transaction that records who and why (its open tasks' timers and its call-activity children go with it), a failed instance retried, and a parked instance superseded by a fresh run of another version.",
+      "gap": "No paused state; a rerun always starts from the beginning.",
       "deps": ["ash_bpmn"],
       "tests": [
         {"dep": "ash_bpmn", "file": "test/ash_bpmn/engine_test.exs", "test": "cancelling an instance cancels its open tasks' timers and records them"},
         {"dep": "ash_bpmn", "file": "test/ash_bpmn/service_task_failure_test.exs", "test": "retry_instance resumes a failed instance once the cause is fixed"},
-        {"dep": "ash_bpmn", "file": "test/ash_bpmn/instance_restart_test.exs", "test": "the successor starts from the beginning and parks on the target's signature"}
+        {"dep": "ash_bpmn", "file": "test/ash_bpmn/instance_restart_test.exs", "test": "the successor starts from the beginning and parks on the target's signature"},
+        {"dep": "ash_bpmn", "file": "test/ash_bpmn/cancel_cascade_test.exs", "test": "cancelling the parent cancels a call-activity child; the event carries actor and reason"}
       ]
     },
     {

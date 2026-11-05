@@ -373,8 +373,9 @@ so one shred reaches them all ([ADR 0024](0024-audit-retention-and-erasure.md)).
   tenant's first process instance (`Bpmn.Cursor.ensure!/1`), at the mark as of that moment.
 - **Cancelling.** An instance that is cancelled takes its runs with it: the run trigger `:cancel_with_instance` finds
   queued, running or waiting runs whose instance is cancelled and cancels them, each announcing itself like any other
-  final run. Cancelling an instance also cancels its call-activity children (ash_bpmn B3, not yet in this application's
-  lock); a run a child started is found by its own instance's status, so no change here is needed when it lands.
+  final run. Cancelling an instance also cancels its call-activity children (ash_bpmn B3), in one transaction, recording the
+  actor and reason on each `:instance_cancelled` event; a run a child started is found by its own instance's status,
+  so the trigger needed no change.
 - **Not built.** The definition's automation principal (the run starts as the starter only). The run's output is not
   available to the process (a process that needs the answer reads the run, as the starter, in a service task of its
   own). Run cancellation does not cascade to children (decision D6, Phase 6).
