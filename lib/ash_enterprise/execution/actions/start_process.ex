@@ -4,13 +4,28 @@ defmodule AshEnterprise.Execution.Actions.StartProcess do
 
   The record is read as that person, so one they cannot read is the same refusal as one
   that does not exist. The instance is started in the invocation's transaction.
+
+  An agent whose runs execute as an automation principal starts nothing: the instance
+  records only the person who started it, and its governed tasks run as that person's whole
+  authority, which is more than the principal acting for them holds (the intersection rule,
+  ADR 0043). Recording the principal on the instance, so its tasks run on the same
+  intersection, is what would lift this.
   """
 
   use Ash.Resource.Actions.Implementation
 
+  alias AshEnterprise.Platform.AutomationPrincipal
   alias AshEnterprise.Process.Resolver
 
   @impl true
+  def run(_input, _opts, %{actor: %AutomationPrincipal{}}),
+    do:
+      {:error,
+       Ash.Error.Changes.InvalidArgument.exception(
+         field: :process,
+         message: "cannot be started by an agent that runs as an automation principal"
+       )}
+
   def run(input, _opts, context) do
     %{process: key, subject_type: type, subject_id: id} = input.arguments
     opts = Ash.Context.to_opts(context)

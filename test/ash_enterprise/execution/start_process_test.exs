@@ -19,7 +19,9 @@ defmodule AshEnterprise.Execution.StartProcessTest do
   alias AshEnterprise.Bpmn.{Definition, HumanTask, Instance}
   alias AshEnterprise.Execution
   alias AshEnterprise.Execution.Invocation
-  alias AshEnterprise.Platform.{Seeder, SystemActor}
+  alias AshEnterprise.Execution.Actions.StartProcess, as: StartProcessAction
+  alias AshEnterprise.Platform.{AutomationPrincipal, Seeder, SystemActor}
+  alias AshEnterprise.Security.ActorContext
   alias AshEnterprise.Process.Resolver
   alias AshEnterprise.Test.DailyFixtures
   alias AshEnterprise.Test.Execution.{ClinicNote, Releases, Starter}
@@ -200,5 +202,33 @@ defmodule AshEnterprise.Execution.StartProcessTest do
 
     assert {:succeeded, _done} = confirm!(clinic, asked)
     assert [_one] = instances(clinic.tenant)
+  end
+
+  test "an agent that runs as an automation principal starts no process as the person alone",
+       %{clinic: clinic, note: note} do
+    # The run's tool call is executed as the principal acting for the nurse, on the
+    # intersection of their authority. An instance records only the person who started it,
+    # and its service tasks run as that person's whole authority, so it is refused.
+    person = clinic.nurse
+    principal = AutomationPrincipal.evidence_admitter()
+
+    acting =
+      AutomationPrincipal.acting(
+        principal,
+        person.user.id,
+        "clinic.starter",
+        ActorContext.intersect(
+          ActorContext.build(person.user, tenant: clinic.tenant),
+          ActorContext.build_automation(:evidence_admitter, clinic.tenant)
+        )
+      )
+
+    input = %{arguments: Map.new(args(note), fn {k, v} -> {String.to_existing_atom(k), v} end)}
+    context = %Ash.Resource.Actions.Implementation.Context{actor: acting, tenant: clinic.tenant}
+
+    assert {:error, %Ash.Error.Changes.InvalidArgument{field: :process}} =
+             StartProcessAction.run(input, [], context)
+
+    assert instances(clinic.tenant) == []
   end
 end
