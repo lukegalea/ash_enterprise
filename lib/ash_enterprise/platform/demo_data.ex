@@ -39,6 +39,17 @@ defmodule AshEnterprise.Platform.DemoData do
 
   @password "password1234"
 
+  @typedoc """
+  A demo person: their `AshEnterprise.Accounts.User`, carrying the tenant they were seeded
+  into as `organization_id`. A user has no tenant attribute of its own, so the struct with
+  that key added is no longer `AshEnterprise.Accounts.User.t()`.
+  """
+  @type person :: %{
+          required(:__struct__) => Accounts.User,
+          required(:organization_id) => Ash.UUID.t(),
+          optional(atom()) => term()
+        }
+
   # The tree. Depth two on one branch and depth one on the others, because a
   # uniform tree does not show that depth is what grant scope is measured in.
   @divisions [
@@ -152,7 +163,7 @@ defmodule AshEnterprise.Platform.DemoData do
   the first time, found by email after that. Shared with the other demo seeds
   (`AshEnterprise.Credentialing.DemoData`).
   """
-  @spec ensure_user!(String.t(), Accounts.BusinessUnit.t(), Ash.UUID.t()) :: Accounts.User.t()
+  @spec ensure_user!(String.t(), Accounts.BusinessUnit.t(), Ash.UUID.t()) :: person()
   def ensure_user!(email, unit, tenant) do
     existing =
       Accounts.User
@@ -344,7 +355,7 @@ defmodule AshEnterprise.Platform.DemoData do
 
   @doc "Assigns `role` to `user`, scoped to `unit`, unless they already hold it."
   @spec ensure_user_role!(
-          Accounts.User.t(),
+          Accounts.User.t() | person(),
           Security.Role.t(),
           Accounts.BusinessUnit.t(),
           Ash.UUID.t(),

@@ -231,12 +231,10 @@ defmodule AshEnterprise.Mdm.DemoData do
   end
 
   defp demo_mapping!(org_id, admin) do
-    mapping =
-      Mapping
-      |> Ash.Query.filter(stream == ^@demo_stream and status == ^:active)
-      |> Ash.read_one!(tenant: org_id, authorize?: false)
-
-    mapping || (seed_mapping!(org_id, admin) && active_demo_mapping!(org_id))
+    with nil <- active_demo_mapping!(org_id) do
+      seed_mapping!(org_id, admin)
+      active_demo_mapping!(org_id)
+    end
   end
 
   defp active_demo_mapping!(org_id) do

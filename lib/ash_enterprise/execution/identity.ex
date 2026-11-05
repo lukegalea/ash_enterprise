@@ -189,7 +189,7 @@ defmodule AshEnterprise.Execution.Identity do
   a claim, for a person who no longer exists, is no longer active, or belongs to another
   tenant.
   """
-  @spec person_actor(Ash.UUID.t(), Ash.UUID.t()) :: {:ok, User.t()} | {:error, term()}
+  @spec person_actor(Ash.UUID.t(), Ash.UUID.t()) :: {:ok, ActorContext.actor()} | {:error, term()}
   def person_actor(id, tenant), do: person(id, tenant)
 
   # --- request --------------------------------------------------------------

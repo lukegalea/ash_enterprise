@@ -110,6 +110,7 @@ defmodule Mix.Tasks.L10n.Generate do
     end
   end
 
+  @spec refuse(Path.t(), [{String.t() | nil, String.t()}]) :: no_return()
   defp refuse(path, problems) do
     lines =
       Enum.map_join(problems, "\n", fn {msgid, reason} -> "  #{inspect(msgid)}: #{reason}" end)

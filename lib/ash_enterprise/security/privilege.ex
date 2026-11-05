@@ -219,10 +219,11 @@ defmodule AshEnterprise.Security.Privilege do
   `:basic`), or nil if none. What an Administrator is auto-granted.
   """
   @spec widest_depth(%{
-          can_be_global: boolean(),
-          can_be_deep: boolean(),
-          can_be_local: boolean(),
-          can_be_basic: boolean()
+          required(:can_be_global) => boolean(),
+          required(:can_be_deep) => boolean(),
+          required(:can_be_local) => boolean(),
+          required(:can_be_basic) => boolean(),
+          optional(atom()) => term()
         }) :: atom() | nil
   def widest_depth(privilege) do
     cond do

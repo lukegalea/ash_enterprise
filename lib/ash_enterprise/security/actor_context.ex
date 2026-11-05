@@ -125,6 +125,12 @@ defmodule AshEnterprise.Security.ActorContext do
           automation: atom() | nil
         }
 
+  @typedoc """
+  An actor with its context attached (`attach/2`): the user struct plus one key the
+  struct does not declare, so it is no longer that resource's `t()`.
+  """
+  @type actor :: %{required(:__ash_enterprise_context__) => t(), optional(atom()) => term()}
+
   @doc """
   A context granting everything, for non-human actors.
 
@@ -345,6 +351,7 @@ defmodule AshEnterprise.Security.ActorContext do
   def tenant(actor), do: for_actor(actor).organization_id
 
   @doc "Attaches a context to a user struct so it travels as the actor."
+  @spec attach(map(), t()) :: actor()
   def attach(user, %__MODULE__{} = context) do
     Map.put(user, :__ash_enterprise_context__, context)
   end

@@ -119,11 +119,13 @@ defmodule AshEnterpriseWeb.DailyLive do
         def handle_event("a2ui:open_surface", args, socket),
           do: AshA2ui.LiveRenderer.handle_open_surface(__ash_a2ui_config__(), args, socket)
 
-        # Only Today offers it; the action itself is authorized as the actor.
-        def handle_event("compose_brief", _params, socket) do
-          if @daily_compose_brief,
-            do: {:noreply, DailyLive.compose_brief(socket)},
-            else: {:noreply, socket}
+        # Only Today offers it; the action itself is authorized as the actor. Chosen when
+        # the module compiles, so each surface's clause has one body.
+        if @daily_compose_brief do
+          def handle_event("compose_brief", _params, socket),
+            do: {:noreply, DailyLive.compose_brief(socket)}
+        else
+          def handle_event("compose_brief", _params, socket), do: {:noreply, socket}
         end
 
         @impl true

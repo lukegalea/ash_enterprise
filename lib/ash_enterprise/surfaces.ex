@@ -1081,9 +1081,11 @@ defmodule AshEnterprise.Surfaces do
   The surface that shows one record of `resource` in detail (the first of
   `for_resource/1`), or `nil`. With a `record`, the surface whose
   `record_match` the record satisfies — a Slack conversation opens in Slack,
-  a Gmail thread in the Inbox — falling back to the first.
+  a Gmail thread in the Inbox — falling back to the first. The record may be a map
+  of only the fields `record_match` reads (`AshEnterprise.Canonical.Calculations.OriginRef`
+  passes `%{external_system: source}`).
   """
-  @spec record_surface(module(), struct() | nil) :: Surface.t() | nil
+  @spec record_surface(module(), map() | nil) :: Surface.t() | nil
   def record_surface(resource, record \\ nil)
 
   def record_surface(resource, nil), do: resource |> for_resource() |> List.first()
