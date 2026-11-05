@@ -18,11 +18,11 @@ defmodule AshEnterprise.Execution.StartProcessTest do
   alias AshAgent.Invocation.Executor
   alias AshEnterprise.Bpmn.{Definition, HumanTask, Instance}
   alias AshEnterprise.Execution
-  alias AshEnterprise.Execution.Invocation
   alias AshEnterprise.Execution.Actions.StartProcess, as: StartProcessAction
+  alias AshEnterprise.Execution.Invocation
   alias AshEnterprise.Platform.{AutomationPrincipal, Seeder, SystemActor}
-  alias AshEnterprise.Security.ActorContext
   alias AshEnterprise.Process.Resolver
+  alias AshEnterprise.Security.ActorContext
   alias AshEnterprise.Test.DailyFixtures
   alias AshEnterprise.Test.Execution.{ClinicNote, Releases, Starter}
 

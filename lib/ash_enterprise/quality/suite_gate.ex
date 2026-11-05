@@ -57,20 +57,25 @@ defmodule AshEnterprise.Quality.SuiteGate do
   defp quality_reason(suite, summary, baseline) do
     metric = suite.primary_metric || "pass_rate"
     rate = get_in(summary, ["quality", metric])
-    threshold = Map.get(suite.thresholds || %{}, suite.primary_metric)
 
-    cond do
-      threshold != nil and (rate || 0) < threshold ->
-        "below_threshold"
-
-      baseline != nil and rate != nil and rate < baseline ->
-        "regressed"
-
-      threshold == nil and baseline == nil and rate != nil and rate < 1.0 ->
-        "ordinary_case_failed"
-
-      true ->
-        nil
+    case Map.get(suite.thresholds || %{}, suite.primary_metric) do
+      nil -> unthresholded(rate, baseline)
+      threshold -> thresholded(rate, threshold, baseline)
     end
   end
+
+  defp thresholded(rate, threshold, _baseline) when is_nil(rate) or rate < threshold,
+    do: "below_threshold"
+
+  defp thresholded(rate, _threshold, baseline), do: regressed(rate, baseline)
+
+  # A suite with no threshold wants every ordinary case, unless there is an active release
+  # to compare with.
+  defp unthresholded(rate, nil) when is_number(rate) and rate < 1.0, do: "ordinary_case_failed"
+  defp unthresholded(rate, baseline), do: regressed(rate, baseline)
+
+  defp regressed(rate, baseline) when is_number(rate) and is_number(baseline) and rate < baseline,
+    do: "regressed"
+
+  defp regressed(_rate, _baseline), do: nil
 end
