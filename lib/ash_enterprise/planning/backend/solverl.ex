@@ -19,6 +19,16 @@ defmodule AshEnterprise.Planning.Backend.Solverl do
       OS pid plus a recursive descendant sweep (`fzn-gecode` has its own process
       group and traps SIGTERM). Never kills by name; start-time guarded against
       pid reuse; emptiness verified.
+    * **Checked solves run sync (upstream Solverl defect)** — async `solve/4` with a
+      checker delivers *no* events when the checker fails (verified against MiniZinc
+      2.10.1; Solverl was last tested against 2.4.3). `solve_sync/4` works and returns
+      `{:error, summary}` carrying the solutions, so a Problem with `checker_path`
+      runs `solve_sync` in a linked task. Consequences: checked solves are NOT
+      mid-flight cancellable (`cancel/1` returns `{:error, :not_running}`; the
+      `time_limit` bounds them), `status/1` is coarse (`stage: :solving`, no
+      compile/solve split), and compile errors surface at `await/2`, not `start/2`.
+      Unchecked solves stay async and cancellable. A solution-bearing checker failure
+      is a `:feasible` result with every candidate `checker_ok?: false`.
 
   Config (`config :ash_enterprise, #{inspect(__MODULE__)}`): `:minizinc_executable`, `:max_memory_bytes`
   ceiling (default 2_000_000_000), `:max_candidates` retained (default 5),
@@ -559,26 +569,54 @@ defmodule AshEnterprise.Planning.Backend.Solverl do
       Process.flag(:trap_exit, true)
       opts = Solverl.solver_opts(p, exe, limits, self())
 
-      case start_solver(p, opts) do
-        {:ok, port} ->
-          {:ok,
-           %{
-             port: port,
-             ospid: ospid(port),
-             buffer: [],
-             solverl_solutions: [],
-             pending: nil,
-             checker_unsat?: false,
-             candidates: [],
-             total: 0,
-             waiters: [],
-             result: nil,
-             cancelled?: false
-           }}
-
-        {:error, %Error{} = error} ->
-          {:stop, error}
+      if p.checker_path do
+        {:ok, start_sync(p, opts)}
+      else
+        case start_solver(p, opts) do
+          {:ok, port} -> {:ok, new_state(:async, port, ospid(port))}
+          {:error, %Error{} = error} -> {:stop, error}
+        end
       end
+    end
+
+    defp new_state(mode, port, ospid) do
+      %{
+        mode: mode,
+        port: port,
+        ospid: ospid,
+        started_at: System.monotonic_time(:millisecond),
+        buffer: [],
+        solverl_solutions: [],
+        pending: nil,
+        checker_unsat?: false,
+        candidates: [],
+        total: 0,
+        waiters: [],
+        result: nil,
+        cancelled?: false
+      }
+    end
+
+    # Upstream Solverl defect: async `solve/4` with a checker delivers no events when
+    # the checker fails. `solve_sync/4` works, so checked solves run sync in a linked
+    # task and the outcome comes back as `{:sync_done, outcome}`.
+    defp start_sync(p, opts) do
+      collector = self()
+
+      Task.start_link(fn ->
+        outcome =
+          try do
+            MinizincSolver.solve_sync(p.model_path, p.data, opts)
+          rescue
+            e -> {:error, %Error{kind: :runtime, message: Exception.message(e)}}
+          catch
+            :exit, reason -> {:error, %Error{kind: :runtime, message: inspect(reason)}}
+          end
+
+        send(collector, {:sync_done, outcome})
+      end)
+
+      new_state(:sync, nil, nil)
     end
 
     defp start_solver(p, opts) do
@@ -617,6 +655,17 @@ defmodule AshEnterprise.Planning.Backend.Solverl do
     def handle_call(:status, _from, %{result: result} = state) when not is_nil(result),
       do: {:reply, {:error, :not_running}, state, @idle_after_done_ms}
 
+    # Coarser in sync mode: Solverl's status API needs the port, which solve_sync hides.
+    def handle_call(:status, _from, %{mode: :sync} = state) do
+      {:reply,
+       {:ok,
+        %{
+          stage: :solving,
+          solution_count: state.total,
+          running_time_ms: System.monotonic_time(:millisecond) - state.started_at
+        }}, state}
+    end
+
     def handle_call(:status, _from, state) do
       reply =
         try do
@@ -640,6 +689,10 @@ defmodule AshEnterprise.Planning.Backend.Solverl do
     end
 
     def handle_call(:info, _from, state), do: {:reply, %{ospid: state.ospid}, state}
+
+    # Checked (sync-mode) solves are not mid-flight cancellable: report not_running.
+    def handle_call(:begin_cancel, _from, %{mode: :sync} = state),
+      do: {:reply, %{done?: true, port: nil, ospid: nil}, state}
 
     def handle_call(:begin_cancel, _from, state) do
       {:reply, %{done?: state.result != nil, port: state.port, ospid: state.ospid},
@@ -682,6 +735,10 @@ defmodule AshEnterprise.Planning.Backend.Solverl do
       {:noreply, finish(state, result)}
     end
 
+    def handle_info({:sync_done, outcome}, state) do
+      {:noreply, finish(state, sync_result(outcome, state))}
+    end
+
     def handle_info({:EXIT, port, reason}, %{port: port, result: nil} = state)
         when reason != :normal or state.cancelled? do
       result =
@@ -702,6 +759,39 @@ defmodule AshEnterprise.Planning.Backend.Solverl do
       Enum.each(state.waiters, &GenServer.reply(&1, result))
       Process.send_after(self(), :timeout, @idle_after_done_ms)
       %{state | result: result, waiters: []}
+    end
+
+    # Maps a `solve_sync` outcome (checked solves). A failing checker makes Solverl return
+    # `{:error, summary}` *with* the solutions: those stay feasible candidates, flagged
+    # `checker_ok?: false`; only solution-less errors are real solve failures.
+    defp sync_result({:ok, %{} = res}, state) do
+      candidates = sync_candidates(res[:solutions], state)
+      {:ok, Solverl.build_result(res[:summary] || %{}, candidates, length(candidates), false)}
+    end
+
+    defp sync_result({:error, %Error{} = error}, _state), do: {:error, error}
+
+    defp sync_result({:error, %{solutions: [_ | _] = solutions}}, state) do
+      failed = solutions |> sync_candidates(state) |> Enum.map(&Solverl.checker_failed/1)
+      {:ok, Solverl.build_result(%{}, failed, length(failed), false)}
+    end
+
+    defp sync_result({:error, %{minizinc_error: error}}, _state),
+      do: {:error, Solverl.classify_error(error[:error] || error)}
+
+    defp sync_result({:error, text}, _state) when is_binary(text),
+      do: {:error, %Error{kind: :invalid_model, message: String.trim(text)}}
+
+    defp sync_result(other, _state),
+      do: {:error, %Error{kind: :runtime, message: inspect(other)}}
+
+    # Prefer decimal-exact raw-line candidates; else Solverl's decoded solutions.
+    defp sync_candidates(_solutions, %{candidates: [_ | _] = raw}), do: Enum.reverse(raw)
+
+    defp sync_candidates(solutions, _state) do
+      (solutions || [])
+      |> Enum.map(&Solverl.candidate_from_solution(&1.index, &1.data))
+      |> Enum.take(-Solverl.max_candidates())
     end
 
     # Prefer decimal-exact raw-line candidates; fall back to Solverl's own solutions.
