@@ -299,7 +299,15 @@ defmodule AshEnterprise.MixProject do
       # visible to LiveView. See docs/plans/ash-strangler-in-reference-app.md.
       {:ash_strangler, github: "lukegalea/ash_strangler"},
       # Epic E2 / ADR 0012: OpenLineage emission from action notifications.
-      {:ash_open_lineage, github: "lukegalea/ash_open_lineage"},
+      # ash_planning Wave 1 (PLN-3): pinned to the snapshot value contract
+      # (Snapshot + RFC 8785 CanonicalJSON + digest-only facet) merged as
+      # b9aef350; floating on main ends here. BIZEV declares the same dep
+      # unpinned; the first-party pin wins tree-wide (0.2.0 is additive —
+      # BIZEV's run_id/3 API is unchanged).
+      {:ash_open_lineage,
+       github: "lukegalea/ash_open_lineage",
+       ref: "b9aef350acafe8a2f0485e9bc0b1d0585b5f4b93",
+       override: true},
       # ADR 0051: the business-event ledger (BIZEV). Its `:ledger` resource
       # macro is instantiated on the platform base as
       # `AshEnterprise.BusinessEvents.Ledger`; events are derived from the
