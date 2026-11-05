@@ -541,6 +541,8 @@ defmodule AshEnterprise.Planning.Backend.Solverl do
              port: port,
              ospid: ospid(port),
              buffer: [],
+             pending: nil,
+             checker_unsat?: false,
              candidates: [],
              total: 0,
              waiters: [],
@@ -660,37 +662,86 @@ defmodule AshEnterprise.Planning.Backend.Solverl do
       %{state | result: result, waiters: []}
     end
 
-    # JSON objects arrive as multi-line text terminated by "----------"; stray
-    # `%`-lines (stats/time) and one-line typed events are dropped.
-    defp raw_line("----------", %{buffer: []} = state), do: state
-
+    # MiniZinc JSON mode prints one or more `{ ... }` objects (solution, then possibly
+    # a checker object) before each "----------". Objects are merged per solution.
+    # A bare `=====UNSATISFIABLE=====` line next to a solution is the *checker's*
+    # verdict: it marks the candidate `checker_ok?: false` and NEVER drops it. The
+    # same line with no solution seen is the solve status (handled by Solverl).
     defp raw_line("----------", state) do
-      text = state.buffer |> Enum.reverse() |> Enum.join("\n")
-      state = %{state | buffer: []}
+      state |> close_object() |> flush_pending()
+    end
 
-      case Solverl.decode_json_object(text) do
-        {:ok, decoded} -> add_candidate(state, decoded)
-        :error -> state
+    defp raw_line("=====UNSATISFIABLE=====", state) do
+      cond do
+        state.pending != nil or state.buffer != [] -> %{state | checker_unsat?: true}
+        state.total > 0 -> mark_last_checker_failed(state)
+        true -> state
       end
     end
 
-    defp raw_line("=" <> _, state), do: %{state | buffer: []}
+    defp raw_line("=" <> _, state), do: state
     defp raw_line("%" <> _, state), do: state
     defp raw_line("", state), do: state
 
     defp raw_line(line, state) do
       trimmed = String.trim(line)
 
-      if state.buffer == [] and String.starts_with?(trimmed, "{") and
-           String.ends_with?(trimmed, "}") do
-        case Solverl.decode_json_object(trimmed) do
-          {:ok, %{"type" => _}} -> state
-          _ -> %{state | buffer: [line]}
-        end
-      else
-        %{state | buffer: [line | state.buffer]}
+      cond do
+        state.buffer == [] and String.starts_with?(trimmed, "{") and
+            String.ends_with?(trimmed, "}") ->
+          case Solverl.decode_json_object(trimmed) do
+            {:ok, %{"type" => _}} -> state
+            {:ok, decoded} -> merge_pending(state, decoded)
+            :error -> state
+          end
+
+        trimmed == "}" ->
+          buffered = %{state | buffer: [line | state.buffer]}
+          text = buffered.buffer |> Enum.reverse() |> Enum.join("\n")
+
+          # nested `}` lines don't yet form valid JSON: keep buffering until they do
+          case Solverl.decode_json_object(text) do
+            {:ok, decoded} -> merge_pending(%{buffered | buffer: []}, decoded)
+            :error -> buffered
+          end
+
+        true ->
+          %{state | buffer: [line | state.buffer]}
       end
     end
+
+    defp close_object(%{buffer: []} = state), do: state
+
+    defp close_object(state) do
+      text = state.buffer |> Enum.reverse() |> Enum.join("\n")
+      state = %{state | buffer: []}
+
+      case Solverl.decode_json_object(text) do
+        {:ok, decoded} -> merge_pending(state, decoded)
+        :error -> state
+      end
+    end
+
+    defp merge_pending(state, decoded),
+      do: %{state | pending: Map.merge(state.pending || %{}, decoded)}
+
+    defp flush_pending(%{pending: nil} = state), do: %{state | checker_unsat?: false}
+
+    defp flush_pending(%{pending: decoded, checker_unsat?: unsat?} = state) do
+      decoded =
+        if unsat? and not is_binary(decoded["_checker"]),
+          do: Map.put(decoded, "_checker", "=====UNSATISFIABLE=====\n"),
+          else: decoded
+
+      add_candidate(%{state | pending: nil, checker_unsat?: false}, decoded)
+    end
+
+    defp mark_last_checker_failed(%{candidates: [last | rest]} = state) do
+      last = %{last | checker_output: "=====UNSATISFIABLE=====\n", checker_ok?: false}
+      %{state | candidates: [last | rest]}
+    end
+
+    defp mark_last_checker_failed(state), do: state
 
     defp add_candidate(state, decoded) do
       total = state.total + 1
