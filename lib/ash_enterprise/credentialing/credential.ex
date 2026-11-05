@@ -39,6 +39,11 @@ defmodule AshEnterprise.Credentialing.Credential do
   `check_licence_expiry`). Each refuses with a business error a diagram's error boundary
   catches (`AshEnterprise.Credentialing.Actions.CheckEvidence`).
 
+  `request_documents` is the case's request for a missing document: it writes the request
+  (`AshEnterprise.Credentialing.DocumentEvent`) and nothing else, so the credential's own
+  row, and any approval bound to its version, is not touched. `open_case` starts the case
+  (`AshEnterprise.Credentialing.CaseProcess`) as the person asking.
+
   `correct` changes the credential's number or expiry date. A correction while an
   activation waits for approval moves the credential's version on, so the approval no
   longer holds (failure scenario F4).
@@ -101,6 +106,20 @@ defmodule AshEnterprise.Credentialing.Credential do
       idempotent?: true,
       open_world?: false,
       intent: :inspect
+
+    action :request_documents,
+      kind: :edit,
+      destructive?: false,
+      idempotent?: true,
+      open_world?: false,
+      intent: :execute
+
+    action :open_case,
+      kind: :edit,
+      destructive?: false,
+      idempotent?: true,
+      open_world?: false,
+      intent: :execute
   end
 
   attributes do
@@ -226,6 +245,26 @@ defmodule AshEnterprise.Credentialing.Credential do
 
       argument :id, :uuid, allow_nil?: false
       run {AshEnterprise.Credentialing.Actions.CheckEvidence, check: :expiry}
+    end
+
+    action :request_documents, :map do
+      description """
+      Ask for the licence document the credential lacks. Records the request once per
+      execution of the case's task that asks.
+      """
+
+      argument :id, :uuid, allow_nil?: false
+      run AshEnterprise.Credentialing.Actions.RequestDocuments
+    end
+
+    action :open_case, :map do
+      description """
+      Open the credential's case: the credentialing process, started as you. Asking again
+      while the case is open returns it.
+      """
+
+      argument :record_id, :uuid, allow_nil?: false, public?: true
+      run AshEnterprise.Credentialing.Actions.OpenCase
     end
   end
 end

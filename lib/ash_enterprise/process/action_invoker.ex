@@ -95,6 +95,9 @@ defmodule AshEnterprise.Process.ActionInvoker do
     "check_licence_expiry" => %{
       invoke: {AshEnterprise.Credentialing.Credential, :check_expiry}
     },
+    "request_licence_document" => %{
+      invoke: {AshEnterprise.Credentialing.Credential, :request_documents}
+    },
     "start_agent_run" => %{
       run: &AshEnterprise.Process.AgentRuns.start/1,
       action: :bespoke,

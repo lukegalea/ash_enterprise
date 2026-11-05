@@ -175,6 +175,7 @@ defmodule AshEnterprise.Process.ActionInvokerTest do
                Enum.sort([
                  "check_licence_documents",
                  "check_licence_expiry",
+                 "request_licence_document",
                  "record_risk",
                  "grant_role",
                  "reject_request",

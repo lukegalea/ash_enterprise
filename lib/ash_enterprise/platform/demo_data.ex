@@ -68,6 +68,10 @@ defmodule AshEnterprise.Platform.DemoData do
     {"Finance approvals", "Finance"}
   ]
 
+  @doc "The addresses of the people `populate/1` creates."
+  @spec emails() :: [String.t()]
+  def emails, do: Enum.map(@people, &elem(&1, 0))
+
   @doc """
   Populate `organization_id`'s tenant with demo records.
 

@@ -125,7 +125,7 @@ rows are argued at length in [thesis 7](docs/manifesto/07-what-we-do-not-have.md
 devenv up -d                            # Postgres (with pgvector)
 devenv shell -- mix setup               # deps, database, migrations
 devenv shell -- mix ash_enterprise.seed # a tenant, a role, a user
-devenv shell -- mix ash_enterprise.demo # a business-unit tree, people, teams, roles
+devenv shell -- mix ash_enterprise.demo # the demo tenant: a business-unit tree, people, a clinic
 devenv shell -- iex-server              # the app
 ```
 
@@ -136,7 +136,8 @@ says which, why, and the path back to a Hex release for each.
 
 `seed` provisions the minimum — one organization, one business unit, one
 administrator — which is what tests want and what a first run needs. `demo`
-fills it out, because most of what this platform argues for is invisible against
+creates a tenant of its own (`clinic-demo`, administrator `demo-admin@example.com`) and fills it,
+touching no other tenant, so it is safe on a database that holds real ones. Most of what this platform argues for is invisible against
 a single row: grant depth needs a subtree to be measured over, and policies that
 differ per actor need a second actor. Everything it creates goes through the
 application's own actions, so the people it adds can sign in.
@@ -161,8 +162,8 @@ Sign in with the credentials the seeder prints, then visit:
 | `/clarity` | ER, class, policy and state-machine diagrams (dev only) |
 | `/api/json/swaggerui` · `/gql/playground` | JSON:API + OpenAPI, GraphQL |
 
-**The MDM demo, end to end** (fresh DB): sign in as `admin@example.com` /
-`password1234` — the seeded tenant owns the demo data.
+**The MDM demo, end to end** (fresh DB): sign in as `demo-admin@example.com` /
+`password1234` — the demo tenant owns the demo data.
 
 1. `mix ash_enterprise.demo` seeds the machinery and one in-flight import:
    a golden "Ann Existing" with a merged duplicate, and a review-banded

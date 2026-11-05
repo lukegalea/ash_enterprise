@@ -11,6 +11,11 @@ defmodule AshEnterprise.Credentialing.DemoData do
   | `DEMO-PT-0001`, `DEMO-RN-0002`, `DEMO-OT-0003` | pending: nobody has asked to activate them |
   | `DEMO-SLT-0004` | the coordinator asked; it waits for a committee member's approval |
   | `DEMO-DT-0005` | the coordinator asked and a committee member rejected it |
+  | `DEMO-PH-0006` | pending, with no licence document filed: the credentialing case (slice 3) asks for one |
+
+  The sixth credential is the case's: it is not in `credentials` below (the five of the first two
+  slices), and is returned as `case_credential`. The credentialing case process
+  (`AshEnterprise.Credentialing.CaseProcess`) is published into the tenant.
 
   The requests go through `AshEnterprise.Execution.invoke/4` as the coordinator, under
   fixed keys (`clinic-demo:activate:<number>`) so re-running finds them, and the
@@ -48,7 +53,15 @@ defmodule AshEnterprise.Credentialing.DemoData do
 
   alias AshEnterprise.Bpmn.HumanTask
   alias AshEnterprise.Credentialing
-  alias AshEnterprise.Credentialing.{Clinic, Clinician, Credential, LicenceDemoData}
+
+  alias AshEnterprise.Credentialing.{
+    CaseProcess,
+    Clinic,
+    Clinician,
+    Credential,
+    LicenceDemoData
+  }
+
   alias AshEnterprise.Execution
   alias AshEnterprise.Execution.{Approval, Invocation}
   alias AshEnterprise.Platform.DemoData
@@ -75,14 +88,17 @@ defmodule AshEnterprise.Credentialing.DemoData do
   # The seeded requests: {credential number, the committee's decision or nil}.
   @requests [{"DEMO-SLT-0004", nil}, {"DEMO-DT-0005", :reject}]
 
+  # The case's own: no licence document is ever filed for it by the seed.
+  @case_clinician {"Lindiwe", "Okafor", "Pharmacy technician", :licence, "DEMO-PH-0006"}
+
   @activate "AshEnterprise.Credentialing.Credential.activate_credential"
 
   @doc """
   Populates `organization_id`'s tenant with the clinic, and its licence documents and
   licence reader (`AshEnterprise.Credentialing.LicenceDemoData`). Returns the people and
   records that now exist: `%{coordinator:, committee:, clinic:, clinicians:,
-  credentials:, requests:, director:, deputy:, documents:}`, the credentials in the order
-  of the table above and `requests` the seeded invocations.
+  credentials:, case_credential:, requests:, director:, deputy:, documents:}`, the credentials
+  in the order of the table above and `requests` the seeded invocations.
   """
   @spec populate(Ash.UUID.t()) :: map()
   def populate(organization_id) do
@@ -136,6 +152,9 @@ defmodule AshEnterprise.Credentialing.DemoData do
       |> Enum.map(&clinician_with_credential!(&1, clinic, as_coordinator))
       |> Enum.unzip()
 
+    {_case_clinician, case_credential} =
+      clinician_with_credential!(@case_clinician, clinic, as_coordinator)
+
     by_number = Map.new(credentials, &{&1.number, &1})
 
     requests =
@@ -148,11 +167,21 @@ defmodule AshEnterprise.Credentialing.DemoData do
       clinic: clinic,
       clinicians: clinicians,
       credentials: credentials,
+      case_credential: case_credential,
       requests: requests
     }
 
+    CaseProcess.publish!(tenant)
     Map.merge(seeded, LicenceDemoData.populate(tenant, seeded))
   end
+
+  @doc "The addresses of the people `populate/1` creates, and the directors the licence demo adds."
+  @spec emails() :: [String.t()]
+  def emails,
+    do:
+      [
+        @coordinator | @committee
+      ] ++ [LicenceDemoData.director_email(), LicenceDemoData.deputy_email()]
 
   @doc "The coordinator's email: the person who asks for activations."
   @spec coordinator_email() :: String.t()

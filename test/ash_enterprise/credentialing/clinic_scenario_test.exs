@@ -71,10 +71,10 @@ defmodule AshEnterprise.Credentialing.ClinicScenarioTest do
         [length(activations(tenant))]
     end
 
-    assert counts.() == [1, 5, 5, 2]
+    assert counts.() == [1, 6, 6, 2]
 
     again = DemoData.populate(tenant)
-    assert counts.() == [1, 5, 5, 2]
+    assert counts.() == [1, 6, 6, 2]
     assert Enum.map(again.credentials, & &1.id) == Enum.map(clinic.credentials, & &1.id)
     assert Enum.map(again.requests, & &1.id) == Enum.map(clinic.requests, & &1.id)
 
@@ -92,7 +92,7 @@ defmodule AshEnterprise.Credentialing.ClinicScenarioTest do
     # The committee reads the clinic's records and may not change them.
     member = hd(clinic.committee)
     [credential | _] = clinic.credentials
-    assert length(Credentialing.list_credentials!(as_person(member, tenant))) == 5
+    assert length(Credentialing.list_credentials!(as_person(member, tenant))) == 6
 
     refute Ash.can?({credential, :activate_credential}, as_person(member, tenant)[:actor],
              tenant: tenant

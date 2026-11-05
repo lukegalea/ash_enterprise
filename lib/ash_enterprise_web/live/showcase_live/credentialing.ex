@@ -7,7 +7,7 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
   own declared surfaces (the credentialing workspace, the approvals surface); the tour
   only points at them.
 
-  The beats, in order (1 to 5 are slice 1, 6 to 9 slice 2):
+  The beats, in order (1 to 5 are slice 1, 6 to 9 slice 2, 10 to 15 slice 3):
 
     1. the coordinator asks to activate a credential (`Credential.request_activation`);
     2. a committee member approves it on the approvals surface, and the approval is
@@ -27,15 +27,26 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
        until an administrator extends it (F8);
     9. the clinician asks to be erased: the platform operator shreds their scope, and
        the run's journal and tool-call arguments read as erased while the rows and the
-       audit chain stay (F11).
+       audit chain stay (F11);
+   10. the coordinator opens a credential's case, a BPMN process whose two evidence checks
+       run side by side;
+   11. one of the checks is refused by a business rule and the case takes its error boundary
+       and asks for the missing document, while the other check completes (F7);
+   12. the filing system's document webhook arrives twice, or before the case waits, and
+       the case moves on once (F6);
+   13. the credentialing committee decides on the case's task;
+   14. the approved case waits for its re-credentialing date, shown on the case;
+   15. an approval requested over ACP survives a restart of the application.
 
   The licence reader's model turns are recorded transcripts in recorded mode, the
   default (`AshEnterprise.Showcase.RecordedModel`), so the beats need no model and no
   key; live mode sends them to the in-zone profile only.
 
-  The fault panel produces 3 to 5 and 7 (`AshEnterprise.Showcase.Credentialing`); it is
-  rendered, and its events are honoured, only when the demo flag is on
-  (`AshEnterprise.Showcase.fault_controls?/0`). Everything else reads and acts as the
+  The fault panel produces 3 to 5, 7 and 12 (`AshEnterprise.Showcase.Credentialing`,
+  `AshEnterprise.Showcase.Case`); it is rendered, and its events are honoured, only when
+  the demo flag is on (`AshEnterprise.Showcase.fault_controls?/0`). With it off, each of
+  those beats says in place that its control runs in the demo build only
+  (`AshEnterpriseWeb.ShowcaseLive.CaseBeats.demo_build_note/1`). Everything else reads and acts as the
   signed-in person, so the beats show what that person may see.
 
   Copy is in English and French (`?locale=fr`), through the `showcase` Gettext domain.
@@ -49,8 +60,10 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
   alias AshEnterprise.Credentialing.Credential
   alias AshEnterprise.Security.ActorContext
   alias AshEnterprise.Showcase
+  alias AshEnterprise.Showcase.Case, as: CaseTour
   alias AshEnterprise.Showcase.Credentialing, as: Tour
   alias AshEnterpriseWeb.Layouts
+  alias AshEnterpriseWeb.ShowcaseLive.CaseBeats
 
   @locales ~w(en fr)
   @refresh_ms 3_000
@@ -68,6 +81,7 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
        credentials: [],
        activations: [],
        readings: [],
+       cases: [],
        recorded: MapSet.new(),
        chain: nil,
        fault_controls?: Showcase.fault_controls?(),
@@ -103,6 +117,19 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
         {:noreply,
          socket
          |> put_flash(:info, dgettext("showcase", "Asked: %{status}.", status: status))
+         |> load()}
+
+      {:error, error} ->
+        {:noreply, put_flash(socket, :error, refused(error))}
+    end
+  end
+
+  def handle_event("open_case", %{"id" => id}, socket) do
+    case CaseTour.open_case(id, socket.assigns.current_user) do
+      {:ok, _case} ->
+        {:noreply,
+         socket
+         |> put_flash(:info, dgettext("showcase", "Opened. The case runs in the background."))
          |> load()}
 
       {:error, error} ->
@@ -222,6 +249,9 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
     end
   end
 
+  defp fault("webhook", %{"id" => id}, tenant), do: webhook(id, tenant, 1)
+  defp fault("webhook_twice", %{"id" => id}, tenant), do: webhook(id, tenant, 2)
+
   defp fault("restore", _params, tenant) do
     with {:ok, _assignment} <- Tour.restore(tenant) do
       {:ok, dgettext("showcase", "Gave the coordinator their role back.")}
@@ -229,6 +259,18 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
   end
 
   defp fault(_control, _params, _tenant), do: {:error, :unknown_control}
+
+  defp webhook(id, tenant, times) do
+    with {:ok, answers} <- CaseTour.deliver_webhook(id, tenant, times) do
+      {:ok,
+       dgettext(
+         "showcase",
+         "Delivered %{count} time(s): %{answers}.",
+         count: times,
+         answers: Enum.map_join(answers, ", ", &to_string/1)
+       )}
+    end
+  end
 
   defp refused(%Ash.Error.Forbidden{}),
     do: dgettext("showcase", "Not allowed for the person signed in.")
@@ -249,6 +291,7 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
       numbers: Map.new(credentials, &{&1.id, &1.number}),
       activations: Tour.activations(actor),
       readings: Tour.readings(actor),
+      cases: CaseTour.cases(actor),
       recorded: MapSet.new(Showcase.RecordedModel.cases(Tour.reader()))
     )
   end
@@ -489,6 +532,7 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
                   "Look for: the request goes stale with subject_changed. The approval was for the credential as it was, so it does not run."
                 )}
               </p>
+              <CaseBeats.demo_build_note fault_controls?={@fault_controls?} />
               <.beat_rows id="stale" rows={with_status(@activations, [:stale])} numbers={@numbers} />
             </.card>
           </li>
@@ -510,6 +554,7 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
                   "Look for: it runs as the coordinator rebuilt from their grants now, so it fails as denied, and the registry is never asked."
                 )}
               </p>
+              <CaseBeats.demo_build_note fault_controls?={@fault_controls?} />
               <.beat_rows id="denied" rows={with_status(@activations, [:failed])} numbers={@numbers} />
             </.card>
           </li>
@@ -531,6 +576,7 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
                   "Look for: when the lease runs out the request is outcome unknown, never run again. The reconcile sweep asks the registry, which holds the activation, and settles it succeeded via reconcile_with, with the registry's reference. The registry took it once. The credential's own row still says pending: reconciliation records the outcome on the request, it does not write the credential."
                 )}
               </p>
+              <CaseBeats.demo_build_note fault_controls?={@fault_controls?} />
               <.beat_rows
                 id="reconciled"
                 rows={
@@ -603,6 +649,7 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
                   "Look for: the failed model call is recorded and the run keeps its five-minute lease; when it runs out, the recover sweep queues the run again and the same turn is asked again. The lookups ran once each: the repeated turn reads their recorded results."
                 )}
               </p>
+              <CaseBeats.demo_build_note fault_controls?={@fault_controls?} />
               <.reading_rows id="timed-out" rows={timed_out(@readings)} />
             </.card>
           </li>
@@ -673,6 +720,13 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
               <.reading_rows id="erased" rows={erased(@readings)} />
             </.card>
           </li>
+
+          <CaseBeats.beats
+            cases={@cases}
+            credentials={@credentials}
+            activations={@activations}
+            fault_controls?={@fault_controls?}
+          />
         </ol>
 
         <section

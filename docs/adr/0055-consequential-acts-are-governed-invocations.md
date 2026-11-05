@@ -522,3 +522,33 @@ The third of the five mechanisms under Context. Decided by Luke on 2026-11-04.
   `test/ash_enterprise/assistant/decisions_test.exs`, `test/ash_enterprise/assistant/compose_propose_test.exs`,
   `test/ash_enterprise_web/live/assistant_compose_live_test.exs`, `test/ash_enterprise/ai/role_request_test.exs`,
   and `test/ash_enterprise/execution/enable_agent_test.exs` (a tenant whose published copy has drifted).
+
+## Built, 2026-11-05: the credentialing case as a process (showcase slice 3)
+
+The clinic's case runs as a BPMN process (`priv/showcase/credentialing_case.bpmn`, key `credentialing.case`), opened from the tour
+(`/app/showcase/credentialing`, beats 10 to 15) by `Credential.open_case`, a generic action that starts the instance with the person
+asking as its starter.
+
+- **Parallel checks, one refused (F7).** `check_documents` and `check_expiry` are service tasks through their invocations, as the
+  starter. The documents check's business refusal (`licence_document_missing`) is caught by its error boundary, which asks for the
+  document (`Credential.request_documents`, a service task target that writes a `document.requested` envelope once per execution of
+  the task) while the expiry check completes; the parallel join fires when both branches have arrived.
+- **A correlated wait (F6).** The request is a CloudEvents envelope (`Credentialing.DocumentEvent`, unique on source and id), and the
+  case waits for the credential's `document.received` envelope on a receive task correlated on the credential, with a 24-hour
+  lookback. `Credentialing.DocumentWebhook.deliver/4` is what the filing system's webhook does: idempotent on the sender's delivery id,
+  so a delivery repeated is `:duplicate`, and one that arrives before the case waits is found by the lookback. However many
+  deliveries and in whatever order, the case has one `message_received`. Verifying and routing the HTTP request is not built: the
+  tour's control calls the handler.
+- **The committee decides on a user task** (`approved` or `rejected`), candidates the credentialing committee, the credential's
+  owner excluded. An approved case waits on a `P365D` timer catch event, a durable Oban job; the tour shows its date (the parked
+  token's time plus the duration its wait recorded).
+- **An ACP approval survives a restart.** The committee's decision on the case task, asked over ACP, is an invocation like any
+  other (`Acp.Approvals`): `test/ash_enterprise/acp/case_approval_durable_test.exs` empties the session store with the request
+  waiting, sends the same request from a new session, and allows it; the case moves on to its timer.
+- **The demo is safe beside real tenants.** `mix ash_enterprise.demo` writes only to its own tenant, `clinic-demo`
+  (`Platform.DemoTenant`): it creates it when missing, refuses to populate any other organization, and refuses to move a person who
+  already belongs to another tenant. The case process is published into that tenant, never the platform baselines.
+- **Fault controls read honestly with the flag off.** Every beat that needs one (3, 4, 5, 7 and 12) says in place that it runs in
+  the demo build.
+- **Tests.** `test/ash_enterprise/showcase/credentialing_case_test.exs`, `test/ash_enterprise_web/live/showcase_case_live_test.exs`,
+  `test/ash_enterprise/acp/case_approval_durable_test.exs`, `test/ash_enterprise/platform/demo_tenant_test.exs`.
