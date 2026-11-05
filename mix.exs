@@ -300,13 +300,13 @@ defmodule AshEnterprise.MixProject do
       {:ash_strangler, github: "lukegalea/ash_strangler"},
       # Epic E2 / ADR 0012: OpenLineage emission from action notifications.
       # ash_planning Wave 1 (PLN-3): pinned to the snapshot value contract
-      # (Snapshot + RFC 8785 CanonicalJSON + digest-only facet) merged as
-      # b9aef350; floating on main ends here. BIZEV declares the same dep
-      # unpinned; the first-party pin wins tree-wide (0.2.0 is additive —
-      # BIZEV's run_id/3 API is unchanged).
+      # (Snapshot + RFC 8785 CanonicalJSON + digest-only facet) reconciled to
+      # the #147 extraction vocabulary as 205d072f; floating on main ends here.
+      # BIZEV declares the same dep unpinned; the first-party pin wins tree-wide
+      # (additive releases only — BIZEV's run_id/3 API is unchanged).
       {:ash_open_lineage,
        github: "lukegalea/ash_open_lineage",
-       ref: "b9aef350acafe8a2f0485e9bc0b1d0585b5f4b93",
+       ref: "205d072f00d0308e0e950bcab43b2fda1cb461d7",
        override: true},
       # ADR 0051: the business-event ledger (BIZEV). Its `:ledger` resource
       # macro is instantiated on the platform base as
