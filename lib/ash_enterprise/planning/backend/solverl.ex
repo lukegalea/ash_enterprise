@@ -458,6 +458,31 @@ defmodule AshEnterprise.Planning.Backend.Solverl do
   defp to_decimal(_other), do: nil
 
   @doc false
+  # Fallback when only Solverl's decoded solution is available (error path). Floats
+  # are converted via their shortest decimal representation, never carried as Float.
+  def candidate_from_solution(index, %{} = data), do: candidate(index, deep_decimal(data))
+
+  defp deep_decimal(f) when is_float(f), do: Decimal.new(Float.to_string(f))
+
+  defp deep_decimal(%{} = m) when not is_struct(m),
+    do: Map.new(m, fn {k, v} -> {k, deep_decimal(v)} end)
+
+  defp deep_decimal(l) when is_list(l), do: Enum.map(l, &deep_decimal/1)
+  defp deep_decimal(other), do: other
+
+  @doc false
+  # A checker that rejected (or aborted on) the candidate: recorded, never suppressed.
+  def checker_failed(%{} = candidate) do
+    output =
+      case candidate.checker_output do
+        out when is_binary(out) and out != "" -> out
+        _ -> @unsat_marker <> "\n"
+      end
+
+    %{candidate | checker_ok?: false, checker_output: output}
+  end
+
+  @doc false
   def build_result(summary, candidates, total, cancelled?) do
     status = summary[:status]
     reason = reason(summary[:exit_reason], cancelled?)
@@ -541,6 +566,7 @@ defmodule AshEnterprise.Planning.Backend.Solverl do
              port: port,
              ospid: ospid(port),
              buffer: [],
+             solverl_solutions: [],
              pending: nil,
              checker_unsat?: false,
              candidates: [],
@@ -629,12 +655,28 @@ defmodule AshEnterprise.Planning.Backend.Solverl do
       {:noreply, finish(state, result)}
     end
 
+    # Solverl's async path streams `:solution` events; with a failing checker MiniZinc
+    # exits abnormally, which Solverl reports as `:minizinc_error` (solve_sync folds that
+    # into `{:error, summary}`). Solutions found before that are still feasible results
+    # whose per-candidate checker verdict is failed — never a whole-solve error.
+    def handle_info(%{solver_results: {:solution, solution}}, state) do
+      {:noreply, %{state | solverl_solutions: [solution | state.solverl_solutions]}}
+    end
+
     def handle_info(%{solver_results: {:minizinc_error, error}}, state) do
+      candidates = Enum.reverse(error_candidates(state))
+
       result =
-        if state.cancelled? do
-          {:ok, Solverl.build_result(%{}, Enum.reverse(state.candidates), state.total, true)}
-        else
-          {:error, Solverl.classify_error(error[:error] || error)}
+        cond do
+          state.cancelled? ->
+            {:ok, Solverl.build_result(%{}, candidates, state.total, true)}
+
+          candidates != [] ->
+            failed = Enum.map(candidates, &Solverl.checker_failed/1)
+            {:ok, Solverl.build_result(%{}, failed, length(failed), false)}
+
+          true ->
+            {:error, Solverl.classify_error(error[:error] || error)}
         end
 
       {:noreply, finish(state, result)}
@@ -660,6 +702,15 @@ defmodule AshEnterprise.Planning.Backend.Solverl do
       Enum.each(state.waiters, &GenServer.reply(&1, result))
       Process.send_after(self(), :timeout, @idle_after_done_ms)
       %{state | result: result, waiters: []}
+    end
+
+    # Prefer decimal-exact raw-line candidates; fall back to Solverl's own solutions.
+    defp error_candidates(%{candidates: [_ | _] = candidates}), do: candidates
+
+    defp error_candidates(%{solverl_solutions: solutions}) do
+      solutions
+      |> Enum.take(Solverl.max_candidates())
+      |> Enum.map(fn s -> Solverl.candidate_from_solution(s.index, s.data) end)
     end
 
     # MiniZinc JSON mode prints one or more `{ ... }` objects (solution, then possibly

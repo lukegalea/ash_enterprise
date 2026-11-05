@@ -25,7 +25,8 @@ defmodule AshEnterprise.Planning.Integration.SolverlAdapterTest do
   @decimal_model "var 0.0..10.0: x;\nconstraint x = 1.25;\nsolve minimize x;\n"
   @tiny_model "var 1..3: x;\nsolve satisfy;\n"
   @checker_ok "int: x;\nconstraint x >= 1;\n"
-  @checker_bad "int: x;\nconstraint x > 100;\n"
+  @checker_bad "int: x;\nconstraint false;\n"
+  @checker_fail "int: x;\nconstraint x = 9;\n"
   @unsat_model "var 1..3: x;\nconstraint x > 5;\nsolve satisfy;\n"
   @hog_model "array[1..20000000] of var 0..1: a;\nsolve satisfy;\n"
   # A 13-mark Golomb ruler: minutes of branch-and-bound, far past any test deadline.
@@ -102,6 +103,19 @@ defmodule AshEnterprise.Planning.Integration.SolverlAdapterTest do
       for candidate <- result.payload.candidates do
         assert candidate.checker_ok? == false
         assert candidate.checker_output =~ "UNSATISFIABLE"
+      end
+    end
+
+    test "a non-UNSAT failing checker still returns candidates flagged failed", %{dir: dir} do
+      model = write!(dir, "tiny.mzn", @tiny_model)
+      checker = write!(dir, "tiny_fail.mzc.mzn", @checker_fail)
+      result = solve!(%Problem{model_path: model, checker_path: checker, limits: limits()})
+
+      assert [_ | _] = result.payload.candidates
+
+      for candidate <- result.payload.candidates do
+        assert candidate.checker_ok? == false
+        assert is_binary(candidate.checker_output) and candidate.checker_output != ""
       end
     end
   end
