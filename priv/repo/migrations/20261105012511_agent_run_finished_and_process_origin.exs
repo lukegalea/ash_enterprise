@@ -47,7 +47,7 @@ defmodule AshEnterprise.Repo.Migrations.AgentRunFinishedAndProcessOrigin do
             column: :id,
             name: "exec_agent_runs_process_instance_id_fkey",
             type: :uuid,
-            prefix: "public",
+            prefix: prefix(),
             on_delete: :restrict
           )
     end
