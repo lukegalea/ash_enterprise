@@ -32,6 +32,8 @@ defmodule AshEnterpriseWeb.FlightLive do
 
       quote do
         use AshA2ui.LiveRenderer,
+          locale_fn: &AshEnterpriseWeb.Locale.live_locale/1,
+          gettext_backend: {AshEnterpriseWeb.Gettext, "ash_a2ui"},
           ui: unquote(ui),
           deep_link: true,
           actor_fn: &__MODULE__.actor/1,

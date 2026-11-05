@@ -17,6 +17,7 @@ defmodule AshEnterpriseWeb.Router do
     plug :load_from_bearer
     plug :set_actor, :user
     plug AshEnterpriseWeb.Plugs.LoadActorContext
+    plug AshEnterpriseWeb.Plugs.PutLocale
     plug AshGraphql.Plug
   end
 
@@ -449,6 +450,7 @@ defmodule AshEnterpriseWeb.Router do
     plug :load_from_bearer
     plug :set_actor, :user
     plug AshEnterpriseWeb.Plugs.LoadActorContext
+    plug AshEnterpriseWeb.Plugs.PutLocale
     plug AshEnterpriseWeb.Plugs.RequireActor
   end
 

@@ -211,7 +211,7 @@ defmodule AshEnterpriseWeb.AssistantLive do
 
       surface ->
         {_outcome, messages} =
-          AshA2ui.Dynamic.handle_action(surface, envelope, actor_opts(socket))
+          AshA2ui.Dynamic.handle_action(surface, envelope, a2ui_opts(socket))
 
         {:noreply, push_event(socket, "a2ui:messages:" <> id, %{messages: messages})}
     end
@@ -297,7 +297,10 @@ defmodule AshEnterpriseWeb.AssistantLive do
     case Composer.compose(request, surface_id: id) do
       {:ok, composed} ->
         messages =
-          AshA2ui.Dynamic.build_surface(composed.surface, Composer.build_opts(composed, opts))
+          AshA2ui.Dynamic.build_surface(
+            composed.surface,
+            Composer.build_opts(composed, a2ui_opts(socket, opts))
+          )
 
         socket
         |> assign(:surfaces, Map.put(socket.assigns.surfaces, id, composed.surface))
@@ -882,6 +885,9 @@ defmodule AshEnterpriseWeb.AssistantLive do
     actor = socket.assigns.current_user
     [actor: actor, tenant: ActorContext.tenant(actor), authorize?: true]
   end
+
+  defp a2ui_opts(socket, opts \\ nil),
+    do: (opts || actor_opts(socket)) ++ AshEnterpriseWeb.Locale.a2ui_opts(socket.assigns[:locale])
 
   defp title(question) do
     if String.length(question) > 80, do: String.slice(question, 0, 79) <> "…", else: question

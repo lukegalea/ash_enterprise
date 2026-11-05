@@ -64,10 +64,11 @@ defmodule AshEnterprise.AI.Interpreter do
   @doc """
   Interprets `request` and returns `{:ok, plan}` or `{:error, message}`.
   """
-  @spec interpret(String.t(), term(), term()) :: {:ok, plan()} | {:error, String.t()}
-  def interpret(request, actor, tenant) do
+  @spec interpret(String.t(), term(), term(), String.t()) ::
+          {:ok, plan()} | {:error, String.t()}
+  def interpret(request, actor, tenant, locale \\ "en") do
     with {:ok, intent} <- infer_intent(request) do
-      to_plan(intent, request, actor, tenant)
+      to_plan(intent, request, actor, tenant, locale)
     end
   end
 
@@ -79,18 +80,19 @@ defmodule AshEnterprise.AI.Interpreter do
   code, and the moduledoc's claim that the flow is exercised without an API key
   depends on that half being reachable. Applications should call `interpret/3`.
   """
-  @spec plan(AshEnterprise.AI.Intent.t(), String.t(), term(), term()) ::
+  @spec plan(AshEnterprise.AI.Intent.t(), String.t(), term(), term(), String.t()) ::
           {:ok, plan()} | {:error, String.t()}
-  def plan(intent, request, actor, tenant), do: to_plan(intent, request, actor, tenant)
+  def plan(intent, request, actor, tenant, locale \\ "en"),
+    do: to_plan(intent, request, actor, tenant, locale)
 
-  defp to_plan(%{kind: :assign_role} = intent, _request, actor, tenant) do
+  defp to_plan(%{kind: :assign_role} = intent, _request, actor, tenant, _locale) do
     with {:ok, proposal} <-
            Proposal.assign_role(actor, tenant, intent.user_email, intent.role_name) do
       {:ok, {:proposal, proposal}}
     end
   end
 
-  defp to_plan(%{kind: :show_surface} = intent, _request, actor, _tenant) do
+  defp to_plan(%{kind: :show_surface} = intent, _request, actor, _tenant, _locale) do
     case Surfaces.fetch_helper(intent.surface, actor) do
       nil ->
         # The model named a surface that does not exist. Listing the real names
@@ -105,17 +107,17 @@ defmodule AshEnterprise.AI.Interpreter do
     end
   end
 
-  defp to_plan(%{kind: :design_surface}, request, _actor, _tenant) do
-    design(request, &compose/2)
+  defp to_plan(%{kind: :design_surface}, request, _actor, _tenant, locale) do
+    design(request, &compose(&1, &2, locale))
   end
 
   # The requester's own calendar, mail or tasks: not this console's to read.
   # The assistant reads them as the person, so the request goes there.
-  defp to_plan(%{kind: :ask_assistant}, request, _actor, _tenant) do
+  defp to_plan(%{kind: :ask_assistant}, request, _actor, _tenant, _locale) do
     {:ok, {:assistant, request}}
   end
 
-  defp to_plan(%{kind: kind}, _request, _actor, _tenant) do
+  defp to_plan(%{kind: kind}, _request, _actor, _tenant, _locale) do
     {:error,
      "I understood that as #{inspect(kind)}, which this console does not support. " <>
        "It can assign a role to a user, show one of the declared surfaces " <>
@@ -226,8 +228,8 @@ defmodule AshEnterprise.AI.Interpreter do
   defp query_name(%{"name" => name}), do: name
   defp query_name(_query), do: nil
 
-  defp compose(request, feedback) do
-    case RequestClassifier.compose_surface(request, %{feedback: feedback}) do
+  defp compose(request, feedback, locale) do
+    case RequestClassifier.compose_surface(request, %{feedback: feedback, locale: locale}) do
       {:ok, %AshEnterprise.AI.SurfaceSpec{spec: json}} when is_binary(json) ->
         decode_spec(json)
 

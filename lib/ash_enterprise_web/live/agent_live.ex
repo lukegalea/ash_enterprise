@@ -66,6 +66,7 @@ defmodule AshEnterpriseWeb.AgentLive do
   alias AshEnterpriseWeb.A2ui.Host
   alias AshEnterpriseWeb.AssistantHandoff
   alias AshEnterpriseWeb.Layouts
+  alias AshEnterpriseWeb.Locale
   alias Phoenix.LiveView.JS
 
   on_mount {AshEnterpriseWeb.LiveUserAuth, :live_user_required}
@@ -94,7 +95,7 @@ defmodule AshEnterpriseWeb.AgentLive do
 
     socket = assign(socket, request: request, error: nil, result: nil, proposal: nil)
 
-    case Interpreter.interpret(request, actor, tenant) do
+    case Interpreter.interpret(request, actor, tenant, Locale.live_locale(socket)) do
       {:ok, plan} -> {:noreply, carry_out(plan, socket, actor, tenant)}
       {:error, message} -> {:noreply, assign(socket, :error, message)}
     end

@@ -45,6 +45,12 @@ Sub-rules (addressable as `ash_a2ui:<name>`):
   (ctrl+k) and `/open <surface> [id | n]`: `AshA2ui.Shell`'s key table and
   slash grammar, the `AshA2ui.Shell.Host` lists in ACP wire shapes, and
   mounting `AshA2ui.Shell.Component` in a layout.
+- `ash_a2ui:localization` — translating the library's own strings and the
+  app's display labels: the shipped gettext catalog
+  (`mix ash_a2ui.gen.gettext`), the metadata catalog
+  (`mix ash_a2ui.gettext.extract_metadata`), the two domains, the
+  `gettext_backend:`/`gettext_fn:` translators and the explicit `locale:`,
+  and what is and is not translated.
 - `ash_a2ui:time-travel` — surfaces read as of an instant (`:as_of`,
   `?as_of=`, `AshA2ui.AsOf`) over Ash temporal resources, why a pinned
   surface is view-only, and the `AshA2ui.TimeScrubber` control.

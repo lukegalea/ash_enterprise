@@ -91,6 +91,35 @@ defmodule AshEnterpriseWeb.LiveLocaleTest do
     end
   end
 
+  describe "GraphQL and MCP" do
+    test "GraphQL resolves the locale after the actor, Accept-Language last", %{conn: conn} do
+      ctx = tenant!()
+
+      query = fn conn ->
+        conn |> bearer(ctx.user) |> post("/gql", %{"query" => "{ __typename }"})
+      end
+
+      assert query.(put_req_header(conn, "accept-language", "fr")).assigns.locale == "fr"
+
+      organization_locale!(ctx, "en-CA")
+
+      assert query.(put_req_header(build_conn(), "accept-language", "fr")).assigns.locale == "en"
+    end
+
+    test "MCP resolves it too", %{conn: conn} do
+      ctx = tenant!()
+
+      conn =
+        conn
+        |> bearer(ctx.user)
+        |> put_req_header("accept-language", "fr-CA")
+        |> put_req_header("content-type", "application/json")
+        |> post("/mcp", %{"jsonrpc" => "2.0", "id" => 1, "method" => "tools/list"})
+
+      assert conn.assigns.locale == "fr"
+    end
+  end
+
   describe "without an organization default" do
     test "Accept-Language decides, then English", %{conn: conn} do
       ctx = tenant!()

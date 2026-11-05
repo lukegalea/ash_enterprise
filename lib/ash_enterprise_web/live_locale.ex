@@ -40,13 +40,6 @@ defmodule AshEnterpriseWeb.LiveLocale do
   end
 
   defp resolve(socket) do
-    actor = socket.assigns[:current_user]
-
-    Locale.resolve(
-      user: Locale.user_preference(actor),
-      organization: actor && actor |> organization_id() |> Locale.organization_locale()
-    )
+    Locale.for_actor(socket.assigns[:current_user])
   end
-
-  defp organization_id(actor), do: AshEnterprise.Security.ActorContext.tenant(actor)
 end

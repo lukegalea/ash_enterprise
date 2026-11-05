@@ -111,6 +111,10 @@ defmodule AshEnterprise.AI.RequestClassifier do
       # (`AshEnterprise.AI.Interpreter`, bounded there).
       argument :feedback, :string, allow_nil?: true
 
+      # The viewer's Gettext locale: the language the spec's titles and labels
+      # are written in (`AshA2ui.Dynamic.locale_instruction/1`).
+      argument :locale, :string, allow_nil?: false, default: "en"
+
       # Same reasoning as `:interpret_request` -- and `tools: false` matters more
       # here, not less. This action's whole job is to emit a description of a
       # table, and a model holding a mutation tool could perform one on the way.
@@ -128,7 +132,7 @@ defmodule AshEnterprise.AI.RequestClassifier do
             Return ONLY an object with a single key "spec", whose value is the
             JSON text of one table specification matching this schema:
 
-            <%= AshEnterprise.AI.RequestClassifier.spec_schema_json() %>
+            <%= AshEnterprise.AI.RequestClassifier.spec_schema_json(@input.arguments.locale) %>
 
             The resources you may use, with their real field and action names:
 
@@ -142,6 +146,7 @@ defmodule AshEnterprise.AI.RequestClassifier do
               - `resource` must be one of the names above, exactly.
               - One table component is almost always right. Give it a `read_action`
                 that exists on the resource.
+              - <%= AshA2ui.Dynamic.locale_instruction(@input.arguments.locale) %>
               - A component's `query` names an entry of the spec's `queries`
                 list. Declare every query you reference there, or leave
                 `query` out.
@@ -166,9 +171,9 @@ defmodule AshEnterprise.AI.RequestClassifier do
   same object. A hand-written copy would drift the first time the DSL gained a
   key, and the symptom would be a model producing specs the server refuses.
   """
-  def spec_schema_json do
+  def spec_schema_json(locale \\ "en") do
     AshEnterprise.Surfaces.dynamic_allowlist()
-    |> AshA2ui.Dynamic.spec_schema()
+    |> AshA2ui.Dynamic.spec_schema(locale: locale)
     |> JSON.encode!()
   end
 

@@ -1,0 +1,359 @@
+## "msgid"s in this file come from POT (.pot) files.
+###
+### Do not add, change, or remove "msgid"s manually here as
+### they're tied to the ones in the corresponding POT file
+### (with the same domain).
+###
+### Use "mix gettext.extract --merge" or "mix gettext.merge"
+### to merge POT files into PO files.
+msgid ""
+msgstr ""
+"Language: fr\n"
+"Plural-Forms: nplurals=2; plural=(n>1);\n"
+
+#: lib/ash_a2ui/action_handler.ex:1661
+msgid "%{action} completed."
+msgstr "%{action} terminé."
+
+#: lib/ash_a2ui/action_handler.ex:1666
+msgid "%{action} is not available for this record."
+msgstr "%{action} n’est pas disponible pour cet enregistrement."
+
+#: lib/ash_a2ui/bulk.ex:359
+msgid "%{action}: %{ok} of %{selected} selected records done"
+msgid_plural "%{action}: %{ok} of %{selected} selected records done"
+msgstr[0] "%{action} : %{ok} enregistrement sélectionné sur %{selected} traité"
+msgstr[1] "%{action} : %{ok} enregistrements sélectionnés sur %{selected} traités"
+
+#: lib/ash_a2ui/action_handler.ex:1658
+msgid "%{action}: done."
+msgstr "%{action} : terminé."
+
+#: lib/ash_a2ui/bulk.ex:351
+msgid "%{count} failed"
+msgid_plural "%{count} failed"
+msgstr[0] "%{count} échec"
+msgstr[1] "%{count} échecs"
+
+#: lib/ash_a2ui/presence_bar.ex:101
+msgid "%{count} more people viewing this surface"
+msgid_plural "%{count} more people viewing this surface"
+msgstr[0] "%{count} autre personne consulte cette vue"
+msgstr[1] "%{count} autres personnes consultent cette vue"
+
+#: lib/ash_a2ui/bulk.ex:349
+msgid "%{count} refused"
+msgid_plural "%{count} refused"
+msgstr[0] "%{count} refusé"
+msgstr[1] "%{count} refusés"
+
+#: lib/ash_a2ui/bulk.ex:350
+msgid "%{count} skipped"
+msgid_plural "%{count} skipped"
+msgstr[0] "%{count} ignoré"
+msgstr[1] "%{count} ignorés"
+
+#: lib/ash_a2ui/encoder/v0_9_1.ex:2590
+msgid "%{field} from"
+msgstr "%{field} à partir du"
+
+#: lib/ash_a2ui/encoder/v0_9_1.ex:2590
+msgid "%{field} to"
+msgstr "%{field} jusqu’au"
+
+#: lib/ash_a2ui/action_handler.ex:2099
+#: lib/ash_a2ui/action_handler.ex:3314
+msgid "%{field}: %{message}"
+msgstr "%{field} : %{message}"
+
+#: lib/ash_a2ui/bulk.ex:376
+msgid "%{first}, %{rest}"
+msgstr "%{first}, %{rest}"
+
+#: lib/ash_a2ui/action_handler.ex:2104
+#: lib/ash_a2ui/action_handler.ex:3494
+msgid "%{first}; %{rest}"
+msgstr "%{first} ; %{rest}"
+
+#: lib/ash_a2ui/experience.ex:400
+msgid "%{first}–%{last} of %{total}"
+msgstr "%{first}–%{last} sur %{total}"
+
+#: lib/ash_a2ui/presence_bar.ex:108
+msgid "%{label}: +%{count}"
+msgstr "%{label} : +%{count}"
+
+#: lib/ash_a2ui/presence_bar.ex:148
+msgid "%{name} is viewing this surface"
+msgstr "%{name} consulte cette vue"
+
+#: lib/ash_a2ui/bulk.ex:371
+msgid "%{status}."
+msgstr "%{status}."
+
+#: lib/ash_a2ui/bulk.ex:374
+msgid "%{status}; %{others}."
+msgstr "%{status} ; %{others}."
+
+#: lib/ash_a2ui/diagram.ex:294
+msgid "Active"
+msgstr "Actif"
+
+#: lib/ash_a2ui/encoder/v0_9_1.ex:4391
+#: lib/ash_a2ui/encoder/v0_9_1.ex:4417
+msgid "Add"
+msgstr "Ajouter"
+
+#: lib/ash_a2ui/encoder/v0_9_1.ex:2414
+#: lib/ash_a2ui/encoder/v0_9_1.ex:2446
+msgid "All"
+msgstr "Tout"
+
+#: lib/ash_a2ui/encoder/v0_9_1.ex:2050
+msgid "All days"
+msgstr "Tous les jours"
+
+#: lib/ash_a2ui/encoder/v0_9_1.ex:2603
+msgid "Apply"
+msgstr "Appliquer"
+
+#: lib/ash_a2ui/time_scrubber.ex:315
+msgid "As of %{instant}"
+msgstr "Au %{instant}"
+
+#: lib/ash_a2ui/wizard.ex:350
+msgid "Back"
+msgstr "Retour"
+
+#: lib/ash_a2ui/encoder/v0_9_1.ex:3754
+msgid "Cancel"
+msgstr "Annuler"
+
+#: lib/ash_a2ui/bulk.ex:422
+#: lib/ash_a2ui/encoder/v0_9_1.ex:3963
+msgid "Clear"
+msgstr "Effacer"
+
+#: lib/ash_a2ui/encoder/v0_9_1.ex:1207
+#: lib/ash_a2ui/encoder/v0_9_1.ex:3300
+msgid "Confirm"
+msgstr "Confirmer"
+
+#: lib/ash_a2ui/experience.ex:175
+msgid "Create %{resource}"
+msgstr "Créer %{resource}"
+
+#: lib/ash_a2ui/action_handler.ex:1412
+msgid "Created successfully."
+msgstr "Création réussie."
+
+#: lib/ash_a2ui/encoder/v0_9_1.ex:2087
+msgid "Day"
+msgstr "Jour"
+
+#: lib/ash_a2ui/diagram.ex:298
+msgid "Done"
+msgstr "Terminé"
+
+#: lib/ash_a2ui/encoder/v0_9_1.ex:1117
+#: lib/ash_a2ui/encoder/v0_9_1.ex:2754
+msgid "Edit"
+msgstr "Modifier"
+
+#: lib/ash_a2ui/experience.ex:195
+msgid "Edit %{resource}"
+msgstr "Modifier %{resource}"
+
+#: lib/ash_a2ui/diagram.ex:295
+msgid "Executing"
+msgstr "En cours d’exécution"
+
+#: lib/ash_a2ui/encoder/v0_9_1.ex:4260
+msgid "Export CSV"
+msgstr "Exporter en CSV"
+
+#: lib/ash_a2ui/action_handler.ex:2576
+msgid "Exported %{filename} (%{count} rows)."
+msgid_plural "Exported %{filename} (%{count} rows)."
+msgstr[0] "%{filename} exporté (%{count} ligne)."
+msgstr[1] "%{filename} exporté (%{count} lignes)."
+
+#: lib/ash_a2ui/diagram.ex:297
+msgid "Failed"
+msgstr "Échec"
+
+#: lib/ash_a2ui/encoder/v0_9_1.ex:2508
+msgid "False"
+msgstr "Faux"
+
+#: lib/ash_a2ui/time_scrubber.ex:312
+msgid "Live: now"
+msgstr "En direct : maintenant"
+
+#: lib/ash_a2ui/time_scrubber.ex:188
+msgid "Moments"
+msgstr "Moments"
+
+#: lib/ash_a2ui/encoder/v0_9_1.ex:2085
+msgid "Month"
+msgstr "Mois"
+
+#: lib/ash_a2ui/time_scrubber.ex:186
+msgid "Move through time"
+msgstr "Parcourir le temps"
+
+#: lib/ash_a2ui/encoder/v0_9_1.ex:2014
+#: lib/ash_a2ui/encoder/v0_9_1.ex:2665
+#: lib/ash_a2ui/wizard.ex:83
+msgid "Next"
+msgstr "Suivant"
+
+#: lib/ash_a2ui/experience.ex:238
+msgid "No %{resource} records yet."
+msgstr "Aucun enregistrement %{resource} pour le moment."
+
+#: lib/ash_a2ui/time_scrubber.ex:187
+msgid "Now"
+msgstr "Maintenant"
+
+#: lib/ash_a2ui/presence_bar.ex:89
+msgid "People viewing this surface"
+msgstr "Personnes consultant cette vue"
+
+#: lib/ash_a2ui/encoder/v0_9_1.ex:2009
+#: lib/ash_a2ui/encoder/v0_9_1.ex:2649
+msgid "Previous"
+msgstr "Précédent"
+
+#: lib/ash_a2ui/encoder/v0_9_1.ex:4438
+msgid "Remove"
+msgstr "Retirer"
+
+#: lib/ash_a2ui/action_handler.ex:2442
+msgid "Report complete: %{count} row."
+msgid_plural "Report complete: %{count} rows."
+msgstr[0] "Rapport terminé : %{count} ligne."
+msgstr[1] "Rapport terminé : %{count} lignes."
+
+#: lib/ash_a2ui/time_scrubber.ex:185
+msgid "Return to now"
+msgstr "Revenir à maintenant"
+
+#: lib/ash_a2ui/encoder/v0_9_1.ex:4172
+msgid "Run"
+msgstr "Exécuter"
+
+#: lib/ash_a2ui/encoder/v0_9_1.ex:3140
+msgid "Save"
+msgstr "Enregistrer"
+
+#: lib/ash_a2ui/experience.ex:182
+msgid "Save changes"
+msgstr "Enregistrer les modifications"
+
+#: lib/ash_a2ui/encoder/v0_9_1.ex:2384
+#: lib/ash_a2ui/encoder/v0_9_1.ex:3844
+#: lib/ash_a2ui/encoder/v0_9_1.ex:3861
+#: lib/ash_a2ui/encoder/v0_9_1.ex:3977
+#: lib/ash_a2ui/encoder/v0_9_1.ex:3999
+msgid "Search"
+msgstr "Rechercher"
+
+#: lib/ash_a2ui/bulk.ex:474
+msgid "Select"
+msgstr "Sélectionner"
+
+#: lib/ash_a2ui/action_handler.ex:2499
+msgid "Select at least one column to export."
+msgstr "Sélectionnez au moins une colonne à exporter."
+
+#: lib/ash_a2ui/bulk.ex:182
+msgid "Select at least one record first."
+msgstr "Sélectionnez d’abord au moins un enregistrement."
+
+#: lib/ash_a2ui/bulk.ex:421
+msgid "Select page"
+msgstr "Sélectionner la page"
+
+#: lib/ash_a2ui/bulk.ex:259
+msgid "Selected the first %{cap} of %{count} records: a bulk action runs on at most %{cap} records."
+msgid_plural "Selected the first %{cap} of %{count} records: a bulk action runs on at most %{cap} records."
+msgstr[0] "Les %{cap} premiers des %{count} enregistrements sont sélectionnés : une action en lot s’applique à %{cap} enregistrements au plus."
+msgstr[1] "Les %{cap} premiers des %{count} enregistrements sont sélectionnés : une action en lot s’applique à %{cap} enregistrements au plus."
+
+#: lib/ash_a2ui/experience.ex:403
+msgid "Showing %{first}–%{last}"
+msgstr "Affichage de %{first} à %{last}"
+
+#: lib/ash_a2ui/action_handler.ex:408
+#: lib/ash_a2ui/action_handler.ex:3417
+#: lib/ash_a2ui/action_handler.ex:3441
+msgid "The action failed."
+msgstr "L’action a échoué."
+
+#: lib/ash_a2ui/action_handler.ex:933
+#: lib/ash_a2ui/action_handler.ex:1215
+#: lib/ash_a2ui/action_handler.ex:1300
+msgid "The selected option was not found."
+msgstr "L’option sélectionnée est introuvable."
+
+#: lib/ash_a2ui/diagram.ex:201
+msgid "This diagram is unavailable."
+msgstr "Ce diagramme n’est pas disponible."
+
+#: lib/ash_a2ui/action_handler.ex:271
+msgid "This view shows an earlier moment, so nothing on it can be changed. Return to now to make changes."
+msgstr "Cette vue montre un moment antérieur : rien ne peut y être modifié. Revenez à maintenant pour apporter des modifications."
+
+#: lib/ash_a2ui/time_scrubber.ex:183
+msgid "Time travel"
+msgstr "Voyage dans le temps"
+
+#: lib/ash_a2ui/encoder/v0_9_1.ex:2017
+msgid "Today"
+msgstr "Aujourd’hui"
+
+#: lib/ash_a2ui/bulk.ex:188
+msgid "Too many records selected (%{count}): a bulk action runs on at most %{cap} records, one page."
+msgid_plural "Too many records selected (%{count}): a bulk action runs on at most %{cap} records, one page."
+msgstr[0] "Trop d’enregistrements sélectionnés (%{count}) : une action en lot s’applique à %{cap} enregistrements au plus, soit une page."
+msgstr[1] "Trop d’enregistrements sélectionnés (%{count}) : une action en lot s’applique à %{cap} enregistrements au plus, soit une page."
+
+#: lib/ash_a2ui/encoder/v0_9_1.ex:2507
+msgid "True"
+msgstr "Vrai"
+
+#: lib/ash_a2ui/action_handler.ex:2682
+msgid "Updated %{field}."
+msgstr "%{field} mis à jour."
+
+#: lib/ash_a2ui/action_handler.ex:1421
+msgid "Updated successfully."
+msgstr "Mise à jour réussie."
+
+#: lib/ash_a2ui/action_handler.ex:3420
+msgid "Validation failed. Please review the field errors."
+msgstr "La validation a échoué. Veuillez vérifier les erreurs des champs."
+
+#: lib/ash_a2ui/encoder/v0_9_1.ex:883
+#: lib/ash_a2ui/encoder/v0_9_1.ex:1113
+#: lib/ash_a2ui/encoder/v0_9_1.ex:2420
+#: lib/ash_a2ui/encoder/v0_9_1.ex:2749
+msgid "View"
+msgstr "Afficher"
+
+#: lib/ash_a2ui/experience.ex:192
+msgid "View %{resource}"
+msgstr "Afficher %{resource}"
+
+#: lib/ash_a2ui/diagram.ex:296
+msgid "Waiting"
+msgstr "En attente"
+
+#: lib/ash_a2ui/encoder/v0_9_1.ex:2086
+msgid "Week"
+msgstr "Semaine"
+
+#: lib/ash_a2ui/action_handler.ex:3298
+msgid "You are not authorized to perform this action."
+msgstr "Vous n’êtes pas autorisé à effectuer cette action."

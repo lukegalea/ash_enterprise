@@ -165,6 +165,12 @@ jobs:
       - name: Check the Gettext catalogs are extracted
         run: mix gettext.extract --check-up-to-date
 
+      # The A2UI catalogs are derived too: the surfaces' labels
+      # (`mix ash_a2ui.gettext.extract_metadata`) and the library's strings
+      # (`mix ash_a2ui.gen.gettext`).
+      - name: Check the A2UI catalogs are extracted
+        run: mix ash_a2ui.gettext.extract_metadata --check-up-to-date
+
       # docs/roadmap.json is the single source for every status table in the
       # README and in docs/. Same reasoning as the gate above: a derived artifact
       # that can drift from its source will, and a status table that silently

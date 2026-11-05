@@ -34,6 +34,7 @@ defmodule AshEnterpriseWeb.A2ui.Host do
   import Phoenix.LiveView, only: [push_event: 3]
 
   alias AshEnterprise.Surfaces
+  alias AshEnterpriseWeb.Locale
 
   @messages_event "a2ui:messages"
   @refresh_message {:ash_a2ui_host, :refresh}
@@ -61,8 +62,8 @@ defmodule AshEnterpriseWeb.A2ui.Host do
     %Presentation{
       kind: :declared,
       surface: surface.ui,
-      title: surface.label,
-      subtitle: surface.blurb,
+      title: Surfaces.translate(surface.label),
+      subtitle: Surfaces.translate(surface.blurb),
       topics: Surfaces.topics(surface)
     }
   end
@@ -97,7 +98,7 @@ defmodule AshEnterpriseWeb.A2ui.Host do
   def present(socket, %Presentation{} = presentation, opts) do
     Enum.each(presentation.topics, &Phoenix.PubSub.subscribe(AshEnterprise.PubSub, &1))
 
-    messages = build_surface(presentation, opts)
+    messages = build_surface(presentation, l10n(opts, socket))
 
     {push_messages(socket, messages), track_query(presentation, messages)}
   end
@@ -126,7 +127,8 @@ defmodule AshEnterpriseWeb.A2ui.Host do
   @spec refresh(Phoenix.LiveView.Socket.t(), Presentation.t(), keyword()) ::
           {Phoenix.LiveView.Socket.t(), Presentation.t()}
   def refresh(socket, %Presentation{} = presentation, opts) do
-    data_model = build_data_model(presentation, with_query_state(opts, presentation))
+    data_model =
+      build_data_model(presentation, with_query_state(l10n(opts, socket), presentation))
 
     {push_messages(socket, [data_model]), track_query(presentation, [data_model])}
   end
@@ -159,13 +161,13 @@ defmodule AshEnterpriseWeb.A2ui.Host do
           {Phoenix.LiveView.Socket.t(), Presentation.t()}
   def handle_action(socket, %Presentation{kind: :declared} = presentation, envelope, opts) do
     presentation.surface
-    |> AshA2ui.ActionHandler.handle(envelope, opts)
+    |> AshA2ui.ActionHandler.handle(envelope, l10n(opts, socket))
     |> apply_action_result(socket, presentation)
   end
 
   def handle_action(socket, %Presentation{kind: :dynamic} = presentation, envelope, opts) do
     presentation.surface
-    |> AshA2ui.Dynamic.handle_action(envelope, opts)
+    |> AshA2ui.Dynamic.handle_action(envelope, l10n(opts, socket))
     |> apply_action_result(socket, presentation)
   end
 
@@ -206,6 +208,9 @@ defmodule AshEnterpriseWeb.A2ui.Host do
        when result in [:ok, :error] do
     {push_messages(socket, messages), track_query(presentation, messages)}
   end
+
+  # The viewer's locale, explicit on every build, refresh and action.
+  defp l10n(opts, socket), do: opts ++ Locale.a2ui_opts(socket.assigns[:locale])
 
   defp push_messages(socket, messages),
     do: push_event(socket, @messages_event, %{messages: messages})

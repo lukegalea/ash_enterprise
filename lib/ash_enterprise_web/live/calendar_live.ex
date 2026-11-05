@@ -23,6 +23,8 @@ defmodule AshEnterpriseWeb.DailyLive.Calendar do
   """
 
   use AshA2ui.LiveRenderer,
+    locale_fn: &AshEnterpriseWeb.Locale.live_locale/1,
+    gettext_backend: {AshEnterpriseWeb.Gettext, "ash_a2ui"},
     ui: AshEnterpriseWeb.A2ui.CalendarUI,
     deep_link: true,
     time_travel: true,
@@ -129,6 +131,7 @@ defmodule AshEnterpriseWeb.DailyLive.Calendar do
           </p>
         </div>
         <TimeScrubber.scrubber
+          {AshEnterpriseWeb.Locale.a2ui_opts(assigns[:locale])}
           id="calendar-timeline"
           from={@from}
           to={@to}

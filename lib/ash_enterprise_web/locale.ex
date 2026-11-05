@@ -44,6 +44,7 @@ defmodule AshEnterpriseWeb.Locale do
 
   alias AshEnterprise.Accounts.Organization
   alias AshEnterprise.Reference.LanguageLocale
+  alias AshEnterprise.Security.ActorContext
 
   @backend AshEnterpriseWeb.Gettext
   @default "en"
@@ -196,6 +197,33 @@ defmodule AshEnterpriseWeb.Locale do
       _none_or_error -> nil
     end
   end
+
+  @doc """
+  The locale for `actor` outside an HTTP request (ACP, a job): precedence
+  steps 1, 2 and 4. There is no `Accept-Language` to read. One query.
+  """
+  @spec for_actor(term()) :: gettext_locale()
+  def for_actor(actor) do
+    resolve(
+      user: user_preference(actor),
+      organization: actor && actor |> ActorContext.tenant() |> organization_locale()
+    )
+  end
+
+  @doc """
+  The options every `ash_a2ui` boundary is given (build, refresh, action,
+  scrubber, canvas): the locale, always explicit, and the catalogs the
+  library's strings live in. A `locale` with no catalog is the default.
+  The metadata and errors domains are the library's defaults
+  (`"a2ui_metadata"`, `"errors"`).
+  """
+  @spec a2ui_opts(term()) :: keyword()
+  def a2ui_opts(locale),
+    do: [locale: known(locale) || @default, gettext_backend: {@backend, "ash_a2ui"}]
+
+  @doc "The `locale_fn` of an `AshA2ui.LiveRenderer`: the socket's `:locale` assign."
+  @spec live_locale(Phoenix.LiveView.Socket.t()) :: gettext_locale()
+  def live_locale(socket), do: known(socket.assigns[:locale]) || @default
 
   @doc """
   `locale` (a Gettext locale) as the BCP 47 tag `<html lang>` wants:

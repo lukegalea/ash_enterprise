@@ -49,10 +49,10 @@ defmodule AshEnterprise.Acp.Surfaces do
            allowlist: %{"BusinessUnit" => AshEnterprise.Accounts.BusinessUnit}
          ) do
       {:ok, surface} ->
-        AshA2ui.Dynamic.build_surface(surface,
-          actor: actor,
-          authorize?: true,
-          tenant: AshEnterprise.Acp.tenant_of(actor)
+        AshA2ui.Dynamic.build_surface(
+          surface,
+          [actor: actor, authorize?: true, tenant: AshEnterprise.Acp.tenant_of(actor)] ++
+            l10n(actor)
         )
 
       {:error, errors} ->
@@ -63,12 +63,17 @@ defmodule AshEnterprise.Acp.Surfaces do
 
   defp build({ui, opts}, actor) do
     opts =
-      [actor: actor, tenant: AshEnterprise.Acp.tenant_of(actor)]
+      ([actor: actor, tenant: AshEnterprise.Acp.tenant_of(actor)] ++ l10n(actor))
       |> put_present(:query_state, opts[:query_state])
       |> put_present(:context_state, opts[:context_state])
 
     AshA2ui.Info.build_surface(ui, opts)
   end
+
+  # The session's person's locale (their organization's default: ACP carries no
+  # `Accept-Language`), explicit on every build.
+  defp l10n(actor),
+    do: AshEnterpriseWeb.Locale.a2ui_opts(AshEnterpriseWeb.Locale.for_actor(actor))
 
   defp put_present(opts, _key, nil), do: opts
   defp put_present(opts, key, value), do: Keyword.put(opts, key, value)

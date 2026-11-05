@@ -1,0 +1,2839 @@
+## "msgid"s in this file come from POT (.pot) files.
+###
+### Do not add, change, or remove "msgid"s manually here as
+### they're tied to the ones in the corresponding POT file
+### (with the same domain).
+###
+### Use "mix gettext.extract --merge" or "mix gettext.merge"
+### to merge POT files into PO files.
+msgid ""
+msgstr ""
+"Language: en\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
+msgid "About"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
+msgid "Accept"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/team_ui.ex:1
+msgid "Access"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/team_ui.ex:1
+msgctxt "enum:Elixir.AshEnterprise.Accounts.Types.TeamType"
+msgid "Access"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Access grant"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Access request"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:1
+msgid "Account"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:1
+msgid "Account detail"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Accounts"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:1
+msgid "Accounts & syncs"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/audit_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
+msgid "Action"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
+msgid "Action item"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
+msgid "Action items"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:1
+msgid "Activate"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/credential_ui.ex:1
+msgid "Activated at"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_mapping_ui.ex:1
+msgid "Activation note"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/business_unit_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/credential_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
+msgid "Active"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/legacy_user_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/projected_user_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/user_ui.ex:1
+msgctxt "one_of:lifecycle_status"
+msgid "Active"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/credential_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/mdm_mapping_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:284
+#: lib/ash_enterprise_web/a2ui/policy_bundle_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/rule_set_revision_ui.ex:1
+msgctxt "one_of:status"
+msgid "Active"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/policy_bundle_ui.ex:1
+msgid "Active at"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/team_ui.ex:1
+msgid "Administrator"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/judgments/facts_ui.ex:1
+msgid "Admission"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
+msgctxt "one_of:band"
+msgid "Admit"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
+msgctxt "one_of:status"
+msgid "Admitted"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/judgments/facts_ui.ex:1
+msgid "Admitted as"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Advance"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
+msgid "Agenda"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Agent start grant"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Ai"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/business_unit_ui.ex:1
+msgid "Ancestry"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+#: lib/ash_enterprise_web/a2ui/judgments/verdicts_ui.ex:1
+msgid "Answer"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
+msgid "Approval"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+msgid "Approvals"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+msgid "Approve"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
+msgid "Approved"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
+msgctxt "one_of:outcome"
+msgid "Approved"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/rule_set_revision_ui.ex:1
+msgctxt "one_of:status"
+msgid "Approved"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Ash Enterprise"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Ash events replay assign governed update"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Ash events replay assign update"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Ash events replay bind update"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Ash events replay create update"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Ash events replay grant update"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Ash events replay project update"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Ash events replay share update"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/credential_ui.ex:1
+msgid "Ask to activate"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
+msgid "Asserted by"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Assign"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Assign governed"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Assign manager"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Assign position"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Assign to business unit"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Attach timers"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
+msgid "Attendee"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
+msgid "Attendees"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Audit"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
+msgid "Audit entries"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/audit_ui.ex:1
+msgid "Audit trail"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
+msgctxt "one_of:status"
+msgid "Auto merged"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Automation role"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Awaiting actor"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Awaiting me"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
+msgid "Band"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/judgments/band_tables_ui.ex:1
+msgid "Band tables to certify"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
+msgid "Batch detail"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
+msgid "Batches"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Bind"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Binding"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
+msgid "Board"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Bpmn"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/finding_ui.ex:1
+msgid "Breach count"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/flight_ui.ex:72
+msgid "Brief"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/flight_ui.ex:72
+msgid "Brief approvals in flight"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
+msgid "Brief detail"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/judgments/band_tables_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/judgments/calibration_ui.ex:1
+msgid "Brier"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/compliance_evaluation_ui.ex:1
+msgid "Bundle"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+#: lib/ash_enterprise_web/a2ui/business_unit_ui.ex:1
+msgid "Business unit"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/business_unit_ui.ex:1
+msgid "Business unit detail"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/business_unit_ui.ex:1
+msgid "Business units"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/audit_ui.ex:1
+msgid "By"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "By key"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
+msgid "Calendar"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/judgments/calibration_ui.ex:1
+msgid "Calibration"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/judgments/band_tables_ui.ex:1
+msgid "Calibration n"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
+msgid "Came from"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Cancel"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
+msgid "Cancelled"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
+msgctxt "one_of:status"
+msgid "Cancelled"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_steward_ui.ex:1
+msgid "Candidate"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_steward_ui.ex:1
+msgid "Candidate detail"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
+msgid "Captured"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/catalog_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/profile_ui.ex:1
+msgid "Catalog"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/catalog_ui.ex:1
+msgid "Catalog detail"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/credential_ui.ex:1
+msgctxt "one_of:kind"
+msgid "Certification"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/judgments/certifications_ui.ex:1
+msgid "Certified"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/judgments/certifications_ui.ex:1
+msgctxt "one_of:status"
+msgid "Certified"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/judgments/certifications_ui.ex:1
+msgid "Certified band tables"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/judgments/certifications_ui.ex:1
+msgid "Certified by"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/judgments/band_tables_ui.ex:1
+msgid "Certify and publish"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Chain"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Change password"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Claim"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+#: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
+msgid "Claim task"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Claim waiting"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
+msgid "Claimed"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
+msgctxt "one_of:status"
+msgid "Claimed"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
+msgid "Claimed by"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/credential_ui.ex:1
+msgid "Clinician"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
+msgctxt "one_of:status"
+msgid "Closed"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/rule_set_revision_ui.ex:1
+msgid "Combining"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
+msgid "Comment"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Companies"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/policy_bundle_ui.ex:1
+msgctxt "one_of:status"
+msgid "Compiled"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+#: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
+msgid "Complete"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
+msgctxt "one_of:state"
+msgid "Complete"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+#: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
+msgid "Complete task"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
+msgid "Complete — the outcome, and a note for the record (optional)"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
+msgctxt "one_of:status"
+msgid "Completed"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/compliance_evaluation_ui.ex:1
+msgid "Compliance evaluation"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/compliance_evaluation_ui.ex:1
+msgctxt "one_of:outcome"
+msgid "Compliant"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/finding_ui.ex:1
+msgctxt "one_of:status"
+msgid "Compliant"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Compose surface"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
+msgid "Confidence"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
+msgid "Confirm"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
+msgctxt "one_of:outcome"
+msgid "Confirm"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_steward_ui.ex:1
+msgid "Confirm match"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
+msgid "Confirmed"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
+#: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
+msgctxt "one_of:status"
+msgid "Confirmed"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:284
+msgctxt "one_of:kind"
+msgid "Connection"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Consume"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/policy_bundle_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/rule_set_revision_ui.ex:1
+msgid "Content hash"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_mapping_ui.ex:1
+msgid "Content hash (batches pin this)"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/compliance_evaluation_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/finding_ui.ex:1
+msgid "Control id"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:559
+msgid "Conversation"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:559
+msgid "Conversation detail"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
+msgid "Conversations"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:284
+msgid "Conversations sealed"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/audit_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/compliance_evaluation_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
+msgid "Correlation id"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/business_unit_ui.ex:1
+msgid "Cost center"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
+msgid "Counts"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Create"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/audit_ui.ex:1
+msgctxt "one_of:action_type"
+msgid "Create"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Create default for business unit"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/user_ui.ex:1
+msgid "Created"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
+msgctxt "one_of:status"
+msgid "Created"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/credential_ui.ex:1
+msgid "Credential"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/credential_ui.ex:1
+msgid "Credential detail"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/credential_ui.ex:1
+msgid "Credentials"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/finding_ui.ex:1
+msgctxt "one_of:severity"
+msgid "Critical"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Currency"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Cursor"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:1
+msgctxt "enum:Elixir.AshEnterprise.Zones.Types.DataClass"
+msgid "Customer confidential"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:1
+msgid "Data class"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:284
+msgctxt "one_of:kind"
+msgid "Data subject"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
+msgid "Dataset"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:1
+msgid "Deactivate"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Decisions"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Definition"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/judgments/certifications_ui.ex:1
+msgid "Definition key"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Delegate"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Delegate candidates"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+#: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
+msgid "Delegate task"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
+msgid "Delegate to"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
+msgid "Delegate — the person taking it over"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/rule_set_revision_ui.ex:1
+msgctxt "one_of:combining"
+msgid "Deny overrides"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/catalog_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/role_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/team_ui.ex:1
+msgid "Description"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Destroy"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/audit_ui.ex:1
+msgctxt "one_of:action_type"
+msgid "Destroy"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
+msgid "Details"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/role_ui.ex:1
+msgid "Direct"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/user_ui.ex:1
+msgid "Direct reports"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/role_ui.ex:1
+msgctxt "enum:Elixir.AshEnterprise.Security.Types.RoleInheritance"
+msgid "Direct user and team"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_mapping_ui.ex:1
+msgid "Direction"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/projected_user_ui.ex:1
+msgid "Directory"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Disable"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/business_unit_ui.ex:1
+msgid "Disabled"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Discard"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
+msgid "Dismiss"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Dispatch"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/business_unit_ui.ex:1
+msgid "Division name"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
+msgid "Done"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
+msgctxt "one_of:lane"
+msgid "Done"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_mapping_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/rule_set_revision_ui.ex:1
+msgctxt "one_of:status"
+msgid "Draft"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
+msgid "Drop"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
+msgid "Dropped"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
+msgctxt "one_of:lane"
+msgid "Dropped"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
+msgid "Due"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
+msgid "Due (optional)"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
+msgid "Due calendar"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/judgments/band_tables_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/judgments/calibration_ui.ex:1
+msgid "ECE"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_mapping_ui.ex:1
+msgctxt "one_of:direction"
+msgid "Egress"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
+#: lib/ash_enterprise_web/a2ui/legacy_user_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/projected_user_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/user_ui.ex:1
+msgid "Email"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_steward_ui.ex:1
+msgid "Email (golden)"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_steward_ui.ex:1
+msgid "Email (staged)"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_steward_ui.ex:1
+msgid "Email kept on confirm"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Enable"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
+msgid "Ended"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/audit_ui.ex:1
+msgid "Entry"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/audit_ui.ex:1
+msgid "Entry detail"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:1
+msgid "Erasure scope"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:284
+msgid "Erasure scopes"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
+msgid "Error"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/compliance_evaluation_ui.ex:1
+msgctxt "one_of:outcome"
+msgid "Error"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/finding_ui.ex:1
+msgctxt "one_of:status"
+msgid "Error"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
+msgctxt "one_of:outcome"
+msgid "Escalate"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/compliance_evaluation_ui.ex:1
+msgid "Evaluated at"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Evaluation"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/compliance_evaluation_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
+msgid "Event"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
+msgid "Event detail"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Event log"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
+msgid "Events"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
+msgid "Events organized"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:284
+msgid "Events sealed"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/flight_ui.ex:121
+msgid "Every review under way, on the step it is on now."
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/flight_ui.ex:72
+msgid "Every running brief, on the step it is on now."
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Expired"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/credential_ui.ex:1
+msgid "Expires"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Expunge expired"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/judgments/facts_ui.ex:1
+msgid "Facts"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
+msgid "Failed"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
+msgctxt "one_of:state"
+msgid "Failed"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
+msgctxt "one_of:status"
+msgid "Failed"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/judgments/band_tables_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/judgments/calibration_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/judgments/certifications_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/judgments/verdicts_ui.ex:1
+msgid "Family"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_mapping_ui.ex:1
+msgid "Field rules"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/finding_ui.ex:1
+msgid "Finding"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
+msgid "Findings"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/judgments/calibration_ui.ex:1
+msgid "Finished"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/rule_set_revision_ui.ex:1
+msgctxt "one_of:combining"
+msgid "First applicable"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/flight_ui.ex:1
+msgid "Flight view"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "For export"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "For kind"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "For principals"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Force complete"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/credential_ui.ex:1
+msgid "Found in its documents"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:455
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:559
+msgid "From"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/legacy_user_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/projected_user_ui.ex:1
+msgid "Full name"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Get by email"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Get by subject"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Get confirmation changes"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Get token"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
+msgid "Golden records"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Grant"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/judgments/facts_ui.ex:1
+msgctxt "one_of:admission_grade"
+msgid "Grant"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:1
+msgid "Health"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/finding_ui.ex:1
+msgctxt "one_of:severity"
+msgid "High"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "History"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/judgments/facts_ui.ex:1
+msgid "Holds"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Human task"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
+msgid "Identities"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
+msgid "Import batches"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
+msgid "In"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "In flight"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
+msgid "In their words"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/legacy_user_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/projected_user_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/user_ui.ex:1
+msgctxt "one_of:lifecycle_status"
+msgid "Inactive"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:455
+msgid "Inbox"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
+msgctxt "one_of:lane"
+msgid "Inbox"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_mapping_ui.ex:1
+msgctxt "one_of:direction"
+msgid "Ingress"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/role_ui.ex:1
+msgid "Inherited"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+#: lib/ash_enterprise_web/a2ui/flight_ui.ex:1
+msgid "Instance"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:1
+msgctxt "enum:Elixir.AshEnterprise.Zones.Types.DataClass"
+msgid "Internal"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Interpret request"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
+msgid "Invited"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
+msgid "Invited to"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/team_ui.ex:1
+msgid "Is default"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/business_unit_ui.ex:1
+msgid "Is disabled"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/role_ui.ex:1
+msgid "Is inherited"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
+msgid "Item"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
+msgid "Item detail"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
+msgid "Job"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
+msgid "Job runs"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
+msgid "Jobs"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
+msgid "Jobs and the datasets they read and write. A red marker is a failed run, a pulsing one is still running. Pick a window or a job to narrow it."
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/judgments/verdicts_ui.ex:1
+msgid "Judgment"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/judgments/verdicts_ui.ex:1
+msgid "Judgment detail"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/judgments/verdicts_ui.ex:1
+msgid "Judgments the band table sends to review appear here. Each verdict is recorded as a calibration label for its family."
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/projected_user_ui.ex:1
+msgid "KYC status"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Kill"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/audit_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/credential_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:559
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:284
+msgid "Kind"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Language locale"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:455
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:559
+msgid "Last activity"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:284
+msgid "Last changed by"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
+msgid "Last event"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
+msgid "Last event at"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:1
+msgid "Last sync"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
+msgid "Later"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
+msgctxt "one_of:lane"
+msgid "Later"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:455
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:559
+msgid "Latest"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Latest published"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:1
+msgid "Latest sync run"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/rule_set_revision_ui.ex:1
+msgid "Layer"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Legacy"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Legacy agent"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/legacy_user_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/projected_user_ui.ex:1
+msgid "Legacy id"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/legacy_user_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/projected_user_ui.ex:1
+msgid "Legacy state"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/legacy_user_ui.ex:1
+msgid "Legacy users"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/credential_ui.ex:1
+msgctxt "one_of:kind"
+msgid "Licence"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_mapping_ui.ex:1
+msgid "Lifecycle"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/user_ui.ex:1
+msgid "Lifecycle status"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
+msgid "Lineage"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
+msgid "Lineage graph"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/audit_ui.ex:1
+msgid "Lineage run"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:284
+msgid "Linked account"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
+msgid "List"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Log out everywhere"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/legacy_user_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/projected_user_ui.ex:1
+msgid "Login"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/finding_ui.ex:1
+msgctxt "one_of:severity"
+msgid "Low"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/judgments/band_tables_ui.ex:1
+msgid "Lower threshold (at α)"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_mapping_ui.ex:1
+msgid "MDM mappings"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/flight_ui.ex:121
+msgid "MDM steward review"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/user_ui.ex:1
+msgid "Manager"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/policy_bundle_ui.ex:1
+msgid "Manifest revision"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/mdm_mapping_ui.ex:1
+msgid "Mapping"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
+msgctxt "one_of:asserted_by"
+msgid "Mapping"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_mapping_ui.ex:1
+msgid "Mapping detail"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Mark completed"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Mark errored"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Mark failed"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_steward_ui.ex:1
+msgid "Mark unsure"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_steward_ui.ex:1
+msgid "Match candidate"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
+msgctxt "one_of:status"
+msgid "Matched"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
+msgctxt "one_of:status"
+msgid "Matching"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/finding_ui.ex:1
+msgctxt "one_of:severity"
+msgid "Medium"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/team_ui.ex:1
+msgid "Members"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
+msgid "Merge history"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
+msgctxt "one_of:status"
+msgid "Merged"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
+msgid "Merged into"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:455
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:559
+msgid "Message"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:455
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:559
+msgid "Messages"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:284
+msgid "Messages sealed"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
+msgid "Messages sent"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/compliance_evaluation_ui.ex:1
+msgid "Missing facts"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/judgments/band_tables_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/judgments/calibration_ui.ex:1
+msgid "Model"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Model call"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/flight_ui.ex:72
+msgid "Morning brief"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
+msgid "My tasks"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/business_unit_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/catalog_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
+#: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/profile_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/role_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/rule_set_revision_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/team_ui.ex:1
+msgid "Name"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_steward_ui.ex:1
+msgid "Name (golden)"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_steward_ui.ex:1
+msgid "Name (staged)"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_steward_ui.ex:1
+msgid "Name kept on confirm"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
+msgid "Next event"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/judgments/verdicts_ui.ex:1
+msgctxt "one_of:answer"
+msgid "No"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/judgments/calibration_ui.ex:1
+msgctxt "one_of:result"
+msgid "No table"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/compliance_evaluation_ui.ex:1
+msgctxt "one_of:outcome"
+msgid "Noncompliant"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/finding_ui.ex:1
+msgctxt "one_of:status"
+msgid "Noncompliant"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/compliance_evaluation_ui.ex:1
+msgctxt "one_of:outcome"
+msgid "Not applicable"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/judgments/verdicts_ui.ex:1
+msgid "Nothing awaits a verdict"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/credential_ui.ex:1
+msgid "Number"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/audit_ui.ex:1
+msgid "Occurred at"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/team_ui.ex:1
+msgid "Office group"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/team_ui.ex:1
+msgctxt "enum:Elixir.AshEnterprise.Accounts.Types.TeamType"
+msgid "Office group"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
+msgctxt "one_of:band"
+msgid "Omit"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
+msgctxt "one_of:status"
+msgid "Omitted"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/rule_set_revision_ui.ex:1
+msgctxt "one_of:combining"
+msgid "Only one applicable"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
+msgid "Open"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
+msgctxt "one_of:status"
+msgid "Open"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
+msgid "Open a batch"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
+msgid "Open a person"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/projected_user_ui.ex:1
+msgid "Open gaps"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:284
+msgid "Opened"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:284
+msgid "Opened by"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Organization"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/catalog_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/policy_bundle_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/profile_ui.ex:1
+msgid "Organization id"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
+msgid "Organized"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
+msgid "Organizer"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
+msgid "Organizes"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/catalog_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/profile_ui.ex:1
+msgid "Oscal uuid"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/compliance_evaluation_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
+msgid "Outcome"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+msgid "Outline"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/team_ui.ex:1
+msgid "Owner"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/team_ui.ex:1
+msgctxt "enum:Elixir.AshEnterprise.Accounts.Types.TeamType"
+msgid "Owner"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/business_unit_ui.ex:1
+msgid "Parent"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Park"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:1
+msgid "Paused"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/credential_ui.ex:1
+msgid "Pending"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/credential_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
+msgctxt "one_of:status"
+msgid "Pending"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
+msgctxt "one_of:status"
+msgid "Pending approval"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:455
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:559
+msgid "People"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/rule_set_revision_ui.ex:1
+msgctxt "one_of:combining"
+msgid "Permit overrides"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
+msgid "Person"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/judgments/facts_ui.ex:1
+msgctxt "one_of:admission_grade"
+msgid "Person"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
+#: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
+msgid "Person detail"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/policy_bundle_ui.ex:1
+msgid "Policy bundle"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Position"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_steward_ui.ex:1
+msgid "Possible duplicate of"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/judgments/facts_ui.ex:1
+msgid "Predicate"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Privilege"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+#: lib/ash_enterprise_web/a2ui/flight_ui.ex:1
+msgid "Process"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Process event"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/profile_ui.ex:1
+msgid "Profile"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Project"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/projected_user_ui.ex:1
+msgid "Projected"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Projected user"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Promote routing"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
+msgid "Proposed"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
+msgctxt "one_of:lane"
+msgid "Proposed"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
+msgid "Proposed by"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/judgments/calibration_ui.ex:1
+msgctxt "one_of:result"
+msgid "Proposed table"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:1
+msgid "Provider"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Provision with password"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:1
+msgctxt "enum:Elixir.AshEnterprise.Zones.Types.DataClass"
+msgid "Public"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Publish"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
+msgid "Pulse"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/judgments/verdicts_ui.ex:1
+msgid "Question"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/judgments/verdicts_ui.ex:1
+msgid "Question id"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:1
+msgid "Reach"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Reactivate"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Read"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Read expired"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
+msgid "Read with"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
+msgid "Reads"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:284
+msgid "Reason"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+#: lib/ash_enterprise_web/a2ui/audit_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
+msgid "Record"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Record risk"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/judgments/verdicts_ui.ex:1
+msgid "Record verdict"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Recover"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:284
+msgid "Ref"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Reference"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Register with password"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/credential_ui.ex:1
+msgid "Registry reference"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/judgments/calibration_ui.ex:1
+msgctxt "one_of:result"
+msgid "Regression"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+msgid "Reject"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
+msgctxt "one_of:outcome"
+msgid "Reject"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_steward_ui.ex:1
+msgid "Reject match"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+msgid "Reject — add a note for the record (optional)"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
+msgid "Rejected"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
+msgctxt "one_of:outcome"
+msgid "Rejected"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
+msgctxt "one_of:status"
+msgid "Rejected"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Release"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
+msgid "Reopen"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Replay"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Reproject"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Request assignment"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Request classifier"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Request password reset token"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Reset password with token"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:1
+msgid "Residency"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Resolve"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
+msgctxt "one_of:outcome"
+msgid "Resolved"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/audit_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
+msgid "Resource"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
+msgid "Response"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/judgments/calibration_ui.ex:1
+msgid "Result"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Resume"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Retire"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_mapping_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/policy_bundle_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/rule_set_revision_ui.ex:1
+msgctxt "one_of:status"
+msgid "Retired"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/flight_ui.ex:121
+#: lib/ash_enterprise_web/a2ui/mdm_steward_ui.ex:1
+msgid "Review"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
+msgctxt "one_of:band"
+msgid "Review"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
+msgctxt "one_of:status"
+msgid "Review"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/rule_set_revision_ui.ex:1
+msgid "Revision"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/judgments/certifications_ui.ex:1
+msgid "Revoke"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Revoke all stored for subject"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Revoke direct"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Revoke inherited"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Revoke jti"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Revoke token"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/judgments/certifications_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/rule_set_revision_ui.ex:1
+msgctxt "one_of:status"
+msgid "Revoked"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Revoked?"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Role"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Role privilege"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/role_ui.ex:1
+msgid "Roles"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/rule_set_revision_ui.ex:1
+msgid "Rule set revision"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/flight_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
+msgid "Run"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
+msgid "Run detail"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/judgments/band_tables_ui.ex:1
+msgid "Run finished"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
+msgid "Running"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
+msgctxt "one_of:state"
+msgid "Running"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Running briefs"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Running now"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Running process"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Running steward reviews"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/judgments/calibration_ui.ex:1
+msgid "Runtime"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Save xml"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:284
+msgid "Scope"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:284
+msgid "Scope detail"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/mdm_steward_ui.ex:1
+msgid "Score"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Security"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/team_ui.ex:1
+msgid "Security group"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/team_ui.ex:1
+msgctxt "enum:Elixir.AshEnterprise.Accounts.Types.TeamType"
+msgid "Security group"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:1
+msgctxt "select_context"
+msgid "Select account"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
+msgctxt "select_context"
+msgid "Select batch"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
+msgctxt "select_context"
+msgid "Select brief"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/business_unit_ui.ex:1
+msgctxt "select_context"
+msgid "Select business unit"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_steward_ui.ex:1
+msgctxt "select_context"
+msgid "Select candidate"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/catalog_ui.ex:1
+msgctxt "select_context"
+msgid "Select catalog"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:559
+msgctxt "select_context"
+msgid "Select conversation"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/credential_ui.ex:1
+msgctxt "select_context"
+msgid "Select credential"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/audit_ui.ex:1
+msgctxt "select_context"
+msgid "Select entry"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
+msgctxt "select_context"
+msgid "Select event"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
+msgctxt "select_context"
+msgid "Select item"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/judgments/verdicts_ui.ex:1
+msgctxt "select_context"
+msgid "Select judgment"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_mapping_ui.ex:1
+msgctxt "select_context"
+msgid "Select mapping"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
+#: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
+msgctxt "select_context"
+msgid "Select person"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
+msgctxt "select_context"
+msgid "Select run"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:284
+msgctxt "select_context"
+msgid "Select scope"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
+msgctxt "select_context"
+msgid "Select task"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/team_ui.ex:1
+msgctxt "select_context"
+msgid "Select team"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:455
+msgctxt "select_context"
+msgid "Select thread"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/user_ui.ex:1
+msgctxt "select_context"
+msgid "Select user"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:455
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:559
+msgid "Sent"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Set sole administrator approval"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/finding_ui.ex:1
+msgid "Severity"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Share"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
+msgid "Shred"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
+msgid "Shred permanently: type this scope's ref in Confirm, and give a reason (audited). Its key is destroyed; this cannot be undone."
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:284
+msgid "Shredded"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:284
+msgctxt "one_of:status"
+msgid "Shredded"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Sign in with password"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Sign in with remember me"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Sign in with token"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
+msgid "Signal"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:559
+msgid "Slack"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/mdm_mapping_ui.ex:1
+msgid "Source"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
+msgid "Source id"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
+msgctxt "one_of:status"
+msgid "Staged"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_steward_ui.ex:1
+msgid "Staged in"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/mdm_steward_ui.ex:1
+msgid "Staged record"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
+msgid "Staged row"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
+msgid "Staged rows"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
+msgctxt "one_of:status"
+msgid "Staging"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/flight_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/flight_ui.ex:121
+#: lib/ash_enterprise_web/a2ui/flight_ui.ex:72
+#: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
+msgid "Started"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:1
+msgid "State"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/credential_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/finding_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/judgments/certifications_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/legacy_user_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:284
+#: lib/ash_enterprise_web/a2ui/policy_bundle_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/projected_user_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/rule_set_revision_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
+msgid "Status"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
+msgid "Step"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
+msgctxt "one_of:asserted_by"
+msgid "Steward"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_steward_ui.ex:1
+msgid "Steward queue"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/flight_ui.ex:121
+msgid "Stewardship in flight"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Store confirmation changes"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Store token"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/mdm_mapping_ui.ex:1
+msgid "Stream"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:455
+#: lib/ash_enterprise_web/a2ui/judgments/facts_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/judgments/verdicts_ui.ex:1
+msgid "Subject"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/compliance_evaluation_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/finding_ui.ex:1
+msgid "Subject id"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Submit"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Subscription"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Subtree"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Supersede"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
+msgctxt "one_of:status"
+msgid "Superseded"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_mapping_ui.ex:1
+msgid "Supersedes"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:1
+msgid "Sync now"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:1
+msgctxt "enum:Elixir.AshEnterprise.Zones.Types.DataClass"
+msgid "Synthetic"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:455
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:559
+#: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
+msgid "Table"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
+msgid "Takes part in"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_mapping_ui.ex:1
+msgid "Target resource"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
+msgid "Task"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Task candidate"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
+msgid "Task detail"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+#: lib/ash_enterprise_web/a2ui/team_ui.ex:1
+msgid "Team"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/team_ui.ex:1
+msgid "Team detail"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Team membership"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/role_ui.ex:1
+msgctxt "enum:Elixir.AshEnterprise.Security.Types.RoleInheritance"
+msgid "Team privileges only"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Team role"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/team_ui.ex:1
+msgid "Team type"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/team_ui.ex:1
+msgid "Teams"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
+msgid "Tentative"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
+msgctxt "one_of:status"
+msgid "Tentative"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/judgments/verdicts_ui.ex:1
+msgid "The model"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/flight_ui.ex:1
+msgid "The run's process, with a marker on each step it is on now."
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
+msgid "This step's outcomes"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
+msgid "This week"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:455
+msgid "Thread"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:455
+msgid "Thread detail"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/judgments/band_tables_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/judgments/calibration_ui.ex:1
+msgid "Threshold (at α)"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
+msgid "Time"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Time zone definition"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
+msgid "Title"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
+msgid "Today"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
+msgctxt "one_of:lane"
+msgid "Today"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
+msgid "Today items"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Token"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
+msgid "Tomorrow"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Twins"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Unbind"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:1
+msgid "Unblock sync"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/business_unit_ui.ex:1
+msgid "Units under it"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/compliance_evaluation_ui.ex:1
+msgctxt "one_of:outcome"
+msgid "Unknown"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/finding_ui.ex:1
+msgctxt "one_of:status"
+msgid "Unknown"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
+msgid "Upcoming"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Update"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/audit_ui.ex:1
+msgctxt "one_of:action_type"
+msgid "Update"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+#: lib/ash_enterprise_web/a2ui/user_ui.ex:1
+msgid "User"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/user_ui.ex:1
+msgid "User detail"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "User role"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+#: lib/ash_enterprise_web/a2ui/user_ui.ex:1
+msgid "Users"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_mapping_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/rule_set_revision_ui.ex:1
+msgctxt "one_of:status"
+msgid "Validated"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/judgments/facts_ui.ex:1
+msgid "Value"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/judgments/verdicts_ui.ex:1
+msgid "Verdicts"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/judgments/certifications_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/mdm_mapping_ui.ex:1
+msgid "Version"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
+msgid "Waiting"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
+msgid "Waiting for your approval"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
+msgid "Waiting on you"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/judgments/verdicts_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/mdm_steward_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
+msgid "Waiting since"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
+msgctxt "one_of:outcome"
+msgid "Waived"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/judgments/verdicts_ui.ex:1
+msgid "What the model judged"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/audit_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
+#: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
+msgid "When"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
+msgid "Where"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/flight_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/flight_ui.ex:121
+#: lib/ash_enterprise_web/a2ui/flight_ui.ex:72
+#: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
+msgid "Where it stands"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/finding_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/judgments/verdicts_ui.ex:1
+msgid "Why"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
+msgid "Why it failed"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_steward_ui.ex:1
+msgid "Why it matched"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
+msgid "Window"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
+msgid "Writes"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/judgments/verdicts_ui.ex:1
+msgctxt "one_of:answer"
+msgid "Yes"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/judgments/verdicts_ui.ex:1
+msgid "Your verdict, recorded as a calibration label"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
+msgid "action item"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+msgid "approval"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/audit_ui.ex:1
+msgid "audit entry"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/flight_ui.ex:72
+msgid "brief run"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/business_unit_ui.ex:1
+msgid "business unit"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/judgments/calibration_ui.ex:1
+msgid "calibration run"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/judgments/certifications_ui.ex:1
+msgid "certification"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/credential_ui.ex:1
+msgid "credential"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/projected_user_ui.ex:1
+msgid "directory entry"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:284
+msgid "erasure scope"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/judgments/facts_ui.ex:1
+msgid "fact"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
+msgid "import batch"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/judgments/verdicts_ui.ex:1
+msgid "judgment"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/legacy_user_ui.ex:1
+msgid "legacy user"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:1
+msgid "linked account"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_mapping_ui.ex:1
+msgid "mapping version"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_steward_ui.ex:1
+msgid "match candidate"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/judgments/calibration_ui.ex:1
+msgid "n"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/flight_ui.ex:1
+msgid "process run"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/judgments/band_tables_ui.ex:1
+msgid "proposed band table"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/role_ui.ex:1
+msgid "role"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/flight_ui.ex:121
+msgid "steward review"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
+msgid "task"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/team_ui.ex:1
+msgid "team"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/user_ui.ex:1
+msgid "user"
+msgstr ""

@@ -38,6 +38,7 @@ metadata:
 - [dynamic](references/ash_a2ui/dynamic.md)
 - [layout](references/ash_a2ui/layout.md)
 - [liveview](references/ash_a2ui/liveview.md)
+- [localization](references/ash_a2ui/localization.md)
 - [queries](references/ash_a2ui/queries.md)
 - [relationships](references/ash_a2ui/relationships.md)
 - [reports](references/ash_a2ui/reports.md)
@@ -203,6 +204,9 @@ mix usage_rules.search_docs "search term" -p ash -p ash_a2ui -p ash_acp -p ash_a
 - `mix ash.signals` - Prints the signals of your application, and what emits and listens to them
 - `mix ash.tear_down` - Runs all tear_down tasks for any extension on any resource/domain in your application.
 - `mix compile.ash_signals`
+- `mix ash_a2ui.gen.gettext` - Copies ash_a2ui's .pot file for interface translation
+- `mix ash_a2ui.gettext.extract` - Extracts ash_a2ui's translatable strings into a .pot file
+- `mix ash_a2ui.gettext.extract_metadata` - Extracts your A2UI surfaces' display labels into a .pot file
 - `mix ash_a2ui.install` - Installs AshA2ui
 - `mix ash_a2ui.install.docs`
 - `mix ash_acp.stdio` - Runs the ash_acp ACP server on stdio
