@@ -44,6 +44,8 @@ defmodule AshEnterprise.Process.ServiceInvocation do
   | not final yet (another worker holds it) | an error, so the node is retried until it is |
   """
 
+  import Ash.Expr, only: [expr: 1]
+
   alias AshAgent.Invocation.{Failure, Target}
   alias AshEnterprise.Execution
   alias AshEnterprise.Execution.Identity
@@ -62,7 +64,8 @@ defmodule AshEnterprise.Process.ServiceInvocation do
     tenant = EngineContext.tenant(ctx)
 
     with :ok <- runnable(name),
-         {:ok, key, parent} <- position(ctx),
+         {:ok, base, parent} <- position(ctx),
+         key = round_key(base, ctx, tenant),
          {:ok, starter} <- starter(ctx[:instance], tenant),
          {:ok, row} <-
            Execution.invoke(name, args(ctx), %{key: key, parent: parent},
@@ -109,6 +112,40 @@ defmodule AshEnterprise.Process.ServiceInvocation do
        %{"process_instance_id" => instance_id, "process_node_id" => node_id}}
 
   def position(_ctx), do: {:error, :no_invocation_key}
+
+  # An operator's `AshBpmn.retry_instance/2` reactivates the same token, so the engine's key
+  # is the key of the attempt that failed, and asking under it again would be answered with
+  # the failure it recorded. A failure is final, so such an answer could never change. The
+  # retry is told apart from a redelivery by the token's attempts: the engine's budget is
+  # kept across a redelivery and reset by a retry, so a token on its first claim whose key
+  # already holds a failed answer has been retried. It asks under the key's next round
+  # (`<key>:r1`, `:r2`, ...), and the earlier refusals stay on record.
+  defp round_key(base, ctx, tenant) do
+    retried? = (ctx.token.attempts || 0) <= 1
+
+    case latest_round(base, tenant) do
+      {nil, _row} -> base
+      {round, %{status: :failed}} when retried? -> round_name(base, round + 1)
+      {round, _row} -> round_name(base, round)
+    end
+  end
+
+  defp round_name(base, 0), do: base
+  defp round_name(base, round), do: "#{base}:r#{round}"
+
+  defp latest_round(base, tenant) do
+    [query: [filter: expr(contains(invocation_key, ^base))], authorize?: false, tenant: tenant]
+    |> Execution.list_invocations!()
+    |> Enum.map(&{round_of(&1.invocation_key, base), &1})
+    |> Enum.max_by(&elem(&1, 0), fn -> {nil, nil} end)
+  end
+
+  defp round_of(key, base) do
+    case String.replace_prefix(key, base, "") do
+      "" -> 0
+      ":r" <> round -> String.to_integer(round)
+    end
+  end
 
   @doc false
   def starter(%{started_by_id: id}, tenant) when is_binary(id) do
