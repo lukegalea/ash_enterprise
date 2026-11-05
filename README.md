@@ -140,7 +140,11 @@ creates a tenant of its own (`clinic-demo`, administrator `demo-admin@example.co
 touching no other tenant, so it is safe on a database that holds real ones. Most of what this platform argues for is invisible against
 a single row: grant depth needs a subtree to be measured over, and policies that
 differ per actor need a second actor. Everything it creates goes through the
-application's own actions, so the people it adds can sign in.
+application's own actions, so the people it adds can sign in. Their password is the fixed
+`password1234`, for local development only. On an instance other people can reach, run
+`mix ash_enterprise.demo --password-file PATH` instead: the people get the password in that
+file, a random one is written there (mode 0600) when it does not exist, and it is never
+printed. A re-run does not reset the password of a person who already exists.
 
 Sign in with the credentials the seeder prints, then visit:
 
@@ -163,7 +167,7 @@ Sign in with the credentials the seeder prints, then visit:
 | `/api/json/swaggerui` · `/gql/playground` | JSON:API + OpenAPI, GraphQL |
 
 **The MDM demo, end to end** (fresh DB): sign in as `demo-admin@example.com` /
-`password1234` — the demo tenant owns the demo data.
+`password1234` (or the password in your `--password-file`) — the demo tenant owns the demo data.
 
 1. `mix ash_enterprise.demo` seeds the machinery and one in-flight import:
    a golden "Ann Existing" with a merged duplicate, and a review-banded

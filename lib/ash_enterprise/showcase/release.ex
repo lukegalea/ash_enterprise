@@ -86,7 +86,8 @@ defmodule AshEnterprise.Showcase.Release do
   # --- the candidate ----------------------------------------------------------------
 
   defp candidate(tenant) do
-    case manifests(tenant, key(), 1) do
+    # The reader's first release is the demo's baseline, not a candidate.
+    case manifests(tenant, key(), 1, version: [greater_than: 1]) do
       [manifest] ->
         run = offline_run(manifest, tenant)
 
@@ -103,11 +104,11 @@ defmodule AshEnterprise.Showcase.Release do
     end
   end
 
-  defp manifests(tenant, key, limit) do
+  defp manifests(tenant, key, limit, filter) do
     Execution.list_release_manifests!(
       authorize?: false,
       tenant: tenant,
-      query: [filter: [key: key], sort: [version: :desc], limit: limit]
+      query: [filter: [key: key] ++ filter, sort: [version: :desc], limit: limit]
     )
   end
 
@@ -259,7 +260,7 @@ defmodule AshEnterprise.Showcase.Release do
   def request(actor) do
     opts = opts(actor)
 
-    case manifests(ActorContext.tenant(actor), key(), 1) do
+    case manifests(ActorContext.tenant(actor), key(), 1, version: [greater_than: 1]) do
       [manifest] -> Execution.request_release(manifest.id, opts)
       [] -> {:error, :no_release}
     end

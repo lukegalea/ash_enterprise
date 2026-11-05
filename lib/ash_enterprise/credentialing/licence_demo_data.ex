@@ -64,8 +64,8 @@ defmodule AshEnterprise.Credentialing.LicenceDemoData do
   `clinic` (`AshEnterprise.Credentialing.DemoData.populate/1`'s result) in `tenant`.
   Returns `%{director:, deputy:, documents:}`.
   """
-  @spec populate(Ash.UUID.t(), map()) :: map()
-  def populate(tenant, clinic) do
+  @spec populate(Ash.UUID.t(), map(), String.t()) :: map()
+  def populate(tenant, clinic, password) do
     actor = SystemActor.seed()
     root = DemoData.root_business_unit!(tenant, actor)
 
@@ -97,8 +97,8 @@ defmodule AshEnterprise.Credentialing.LicenceDemoData do
     DemoData.ensure_user_role!(clinic.coordinator, filer, root, tenant, actor)
 
     administrator = administrator_role!(tenant, actor)
-    director = director!(@director, administrator, root, tenant, actor)
-    deputy = director!(@deputy, administrator, root, tenant, actor)
+    director = director!(@director, administrator, root, tenant, actor, password)
+    deputy = director!(@deputy, administrator, root, tenant, actor, password)
 
     as_coordinator = [actor: as_person(clinic.coordinator, tenant), tenant: tenant]
 
@@ -249,8 +249,8 @@ defmodule AshEnterprise.Credentialing.LicenceDemoData do
     |> Ash.read_one!(actor: actor, tenant: tenant)
   end
 
-  defp director!(email, role, root, tenant, actor) do
-    user = DemoData.ensure_user!(email, root, tenant)
+  defp director!(email, role, root, tenant, actor, password) do
+    user = DemoData.ensure_user!(email, root, tenant, password)
     DemoData.ensure_user_role!(user, role, root, tenant, actor)
     user
   end

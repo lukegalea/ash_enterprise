@@ -89,14 +89,15 @@ defmodule AshEnterprise.Platform.DemoData do
   Returns a map of what now exists, counted rather than listed — the caller is a
   mix task printing a summary, not something that needs the records.
   """
-  @spec populate(Ash.UUID.t()) :: map
-  def populate(organization_id) do
+  @spec populate(Ash.UUID.t(), keyword()) :: map
+  def populate(organization_id, opts \\ []) do
+    password = Keyword.get(opts, :password, @password)
     actor = SystemActor.seed()
     tenant = organization_id
 
     root = root_business_unit!(tenant, actor)
     units = create_divisions(root, tenant, actor)
-    users = create_people(units, root, tenant)
+    users = create_people(units, root, tenant, password)
     teams = create_teams(units, root, tenant, actor)
     roles = create_roles(root, tenant, actor)
 
@@ -152,25 +153,30 @@ defmodule AshEnterprise.Platform.DemoData do
   # cannot sign in is a demo that stops at the first click. Not through
   # `:register_with_password`, which sends a confirmation email built against
   # the endpoint that `mix ash_enterprise.demo` does not start.
-  defp create_people(units, root, tenant) do
+  defp create_people(units, root, tenant, password) do
     Enum.map(@people, fn {email, unit_name} ->
-      ensure_user!(email, Map.get(units, unit_name, root), tenant)
+      ensure_user!(email, Map.get(units, unit_name, root), tenant, password)
     end)
   end
+
+  @doc "The password demo people get when none is given: for local development only."
+  @spec default_password() :: String.t()
+  def default_password, do: @password
 
   @doc """
   A demo person who can sign in with the demo password, placed in `unit`: provisioned
   the first time, found by email after that. Shared with the other demo seeds
   (`AshEnterprise.Credentialing.DemoData`).
   """
-  @spec ensure_user!(String.t(), Accounts.BusinessUnit.t(), Ash.UUID.t()) :: person()
-  def ensure_user!(email, unit, tenant) do
+  @spec ensure_user!(String.t(), Accounts.BusinessUnit.t(), Ash.UUID.t(), String.t()) ::
+          person()
+  def ensure_user!(email, unit, tenant, password \\ @password) do
     existing =
       Accounts.User
       |> Ash.Query.filter(email == ^email)
       |> Ash.read_one!(authorize?: false)
 
-    user = existing || Seeder.provision_user!(email, @password)
+    user = existing || Seeder.provision_user!(email, password)
 
     user
     |> Ash.Changeset.for_update(

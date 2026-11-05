@@ -100,8 +100,9 @@ defmodule AshEnterprise.Credentialing.DemoData do
   credentials:, case_credential:, requests:, director:, deputy:, documents:}`, the credentials
   in the order of the table above and `requests` the seeded invocations.
   """
-  @spec populate(Ash.UUID.t()) :: map()
-  def populate(organization_id) do
+  @spec populate(Ash.UUID.t(), keyword()) :: map()
+  def populate(organization_id, opts \\ []) do
+    password = Keyword.get(opts, :password, DemoData.default_password())
     actor = SystemActor.seed()
     tenant = organization_id
     root = DemoData.root_business_unit!(tenant, actor)
@@ -140,9 +141,9 @@ defmodule AshEnterprise.Credentialing.DemoData do
         actor
       )
 
-    coordinator = person!(@coordinator, coordinator_role, root, tenant, actor)
+    coordinator = person!(@coordinator, coordinator_role, root, tenant, actor, password)
     DemoData.ensure_user_role!(coordinator, requester_role, root, tenant, actor)
-    committee = Enum.map(@committee, &person!(&1, committee_role, root, tenant, actor))
+    committee = Enum.map(@committee, &person!(&1, committee_role, root, tenant, actor, password))
 
     as_coordinator = [actor: as_person(coordinator, tenant), tenant: tenant]
     clinic = clinic!(as_coordinator)
@@ -172,7 +173,7 @@ defmodule AshEnterprise.Credentialing.DemoData do
     }
 
     CaseProcess.publish!(tenant)
-    Map.merge(seeded, LicenceDemoData.populate(tenant, seeded))
+    Map.merge(seeded, LicenceDemoData.populate(tenant, seeded, password))
   end
 
   @doc "The addresses of the people `populate/1` creates, and the directors the licence demo adds."
@@ -233,8 +234,8 @@ defmodule AshEnterprise.Credentialing.DemoData do
     Execution.apply_invocation_decision!(row, actor: SystemActor.oban(), tenant: tenant)
   end
 
-  defp person!(email, role, root, tenant, actor) do
-    user = DemoData.ensure_user!(email, root, tenant)
+  defp person!(email, role, root, tenant, actor, password) do
+    user = DemoData.ensure_user!(email, root, tenant, password)
     DemoData.ensure_user_role!(user, role, root, tenant, actor)
     user
   end

@@ -35,6 +35,10 @@ defmodule AshEnterprise.Platform.DemoTenant do
   alias AshEnterprise.Mdm.DemoData, as: MdmData
   alias AshEnterprise.Platform.{DemoData, Seeder}
 
+  # Sobelow reads `@sobelow_skip` from the source AST; persisting it keeps
+  # `--warnings-as-errors` from calling it unused (see Zones).
+  Module.register_attribute(__MODULE__, :sobelow_skip, persist: true)
+
   @slug "clinic-demo"
   @name "Riverside Demo"
   @admin_email "demo-admin@example.com"
@@ -60,19 +64,47 @@ defmodule AshEnterprise.Platform.DemoTenant do
   end
 
   @doc "The demo tenant, created with its administrator when it does not exist yet."
-  @spec provision!() :: Organization.t()
-  def provision! do
+  @spec provision!(keyword()) :: Organization.t()
+  def provision!(opts \\ []) do
     find() ||
-      Seeder.seed_tenant(name: @name, unique_name: @slug, email: @admin_email).organization
+      Seeder.seed_tenant(
+        name: @name,
+        unique_name: @slug,
+        email: @admin_email,
+        password: Keyword.get(opts, :password, DemoData.default_password())
+      ).organization
   end
 
   @doc """
-  Fills the demo tenant `organization`; raises `ArgumentError` for any other.
+  The password in the file at `path`; when there is no file, a random one, written to `path`
+  (mode 0600, the directory created) first. It is never returned to anyone who prints it:
+  the file is where it is read.
+  """
+  # The path is the operator's `--password-file` argument, never request input.
+  @sobelow_skip ["Traversal.FileModule"]
+  @spec password_from_file!(Path.t()) :: String.t()
+  def password_from_file!(path) do
+    case File.read(path) do
+      {:ok, contents} ->
+        String.trim(contents)
+
+      {:error, :enoent} ->
+        password = 24 |> :crypto.strong_rand_bytes() |> Base.url_encode64()
+        File.mkdir_p!(Path.dirname(path))
+        File.touch!(path)
+        File.chmod!(path, 0o600)
+        File.write!(path, password)
+        password
+    end
+  end
+
+  @doc """
+  Fills the demo tenant `organization`; raises `ArgumentError` for any other. `opts` as for `run!/1`.
   Returns `%{counts:, clinic:, mdm:}`, `mdm` being `nil` when the demo administrator is
   missing.
   """
-  @spec populate!(Organization.t()) :: map()
-  def populate!(organization) do
+  @spec populate!(Organization.t(), keyword()) :: map()
+  def populate!(organization, opts \\ []) do
     unless demo?(organization) do
       raise ArgumentError,
             "refusing to populate #{inspect(organization.unique_name)}: the demo writes only to " <>
@@ -81,8 +113,8 @@ defmodule AshEnterprise.Platform.DemoTenant do
 
     tenant = organization.id
     refuse_foreign_people!(tenant)
-    counts = DemoData.populate(tenant)
-    clinic = ClinicData.populate(tenant)
+    counts = DemoData.populate(tenant, opts)
+    clinic = ClinicData.populate(tenant, opts)
 
     admin =
       User
@@ -116,15 +148,21 @@ defmodule AshEnterprise.Platform.DemoTenant do
     |> Ash.exists?(tenant: tenant, authorize?: false)
   end
 
-  @doc "Provisions the demo tenant and fills it. Safe on a database that holds other tenants."
-  @spec run!() :: %{
+  @doc """
+  Provisions the demo tenant and fills it. Safe on a database that holds other tenants.
+
+  `password:` is the password the people it creates sign in with (default: the fixed local
+  development one). A person who already exists keeps the password they have: a re-run
+  never resets one.
+  """
+  @spec run!(keyword()) :: %{
           organization: Organization.t(),
           counts: map(),
           clinic: map(),
           mdm: map() | nil
         }
-  def run! do
-    organization = provision!()
-    Map.put(populate!(organization), :organization, organization)
+  def run!(opts \\ []) do
+    organization = provision!(opts)
+    Map.put(populate!(organization, opts), :organization, organization)
   end
 end

@@ -21,7 +21,10 @@ defmodule AshEnterprise.Showcase.RecordedModel do
        "cases": {"DEMO-PT-0001": [turn, turn, ...]}}
 
   A case is chosen by the run's input, which names it (the first case whose key the
-  input contains). A turn is `{"usage": {"input_tokens": n, "output_tokens": n},
+  input contains). One name may have several cases, `NAME#variant`: a variant listed in the
+  file's `"when"` (`{"NAME#variant": "text"}`) is replayed only when the conversation's system
+  prompt contains that text, and otherwise the unlisted `NAME` is, so two versions of an
+  agent can answer the same input differently. A turn is `{"usage": {"input_tokens": n, "output_tokens": n},
   "parts": [...]}`, its parts in `AshAi.Transcript`'s shape (`"text"`, and
   `"tool_call"` with `"id"`, `"name"` and `"arguments"`).
 
@@ -90,8 +93,8 @@ defmodule AshEnterprise.Showcase.RecordedModel do
     messages = messages(context)
     turn = Enum.count(messages, &(&1.role == :assistant))
 
-    with {:ok, %{"cases" => cases}} <- transcript(key),
-         {:ok, turns} <- case_for(cases, messages),
+    with {:ok, %{"cases" => cases} = transcript} <- transcript(key),
+         {:ok, turns} <- case_for(cases, Map.get(transcript, "when", %{}), messages),
          %{} = recorded <- Enum.at(turns, turn) do
       response(recorded, model, context)
     else
@@ -139,15 +142,31 @@ defmodule AshEnterprise.Showcase.RecordedModel do
 
   defp usage(_none), do: %{input_tokens: 0, output_tokens: 0}
 
-  # The first case the run's input names.
-  defp case_for(cases, messages) do
+  # The first case the run's input names, a variant whose `when` text the system prompt
+  # contains before the plain one.
+  defp case_for(cases, whens, messages) do
     input = messages |> Enum.find(&(&1.role == :user)) |> text()
+    system = messages |> Enum.filter(&(&1.role == :system)) |> Enum.map_join(" ", &text/1)
 
-    case Enum.find(Enum.sort(cases), fn {name, _turns} -> String.contains?(input, name) end) do
+    named =
+      cases
+      |> Enum.sort()
+      |> Enum.filter(fn {name, _turns} -> String.contains?(input, base_name(name)) end)
+
+    applies? = fn {name, _turns} ->
+      case whens do
+        %{^name => needle} -> String.contains?(system, needle)
+        _plain -> false
+      end
+    end
+
+    case Enum.find(named, applies?) || Enum.find(named, &(not Map.has_key?(whens, elem(&1, 0)))) do
       {_name, turns} -> {:ok, turns}
       nil -> :error
     end
   end
+
+  defp base_name(name), do: name |> String.split("#") |> hd()
 
   defp text(nil), do: ""
 

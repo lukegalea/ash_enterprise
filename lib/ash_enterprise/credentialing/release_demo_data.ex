@@ -1,9 +1,11 @@
 defmodule AshEnterprise.Credentialing.ReleaseDemoData do
   @moduledoc """
   What showcase slice 4 stands on in the clinic (`/app/showcase/credentialing`, beats 16 to
-  19), added by `AshEnterprise.Credentialing.LicenceDemoData.populate/2` once the directors
+  19), added by `AshEnterprise.Credentialing.LicenceDemoData.populate/3` once the directors
   and the published licence reader exist:
 
+    * the **reader's own release**, first: the published reader measured on the suite and
+      approved, so live runs start on it and not on whatever is published next;
     * the **candidate**: a prompt change to the licence reader
       (`AshEnterprise.Credentialing.LicenceReaderCandidate`), published beside the first
       version under the same four eyes, and the reader's release suite
@@ -34,6 +36,7 @@ defmodule AshEnterprise.Credentialing.ReleaseDemoData do
   alias AshEnterprise.Process.Binding
   alias AshEnterprise.Quality
   alias AshEnterprise.Security.ActorContext
+  alias AshEnterprise.Showcase.Release
 
   @routing "credentialing.routing"
   @activation "credentialing.activation"
@@ -51,8 +54,9 @@ defmodule AshEnterprise.Credentialing.ReleaseDemoData do
   @doc "Adds the candidate, the suite and the two releases to `tenant`."
   @spec populate(Ash.UUID.t(), map(), map()) :: map()
   def populate(tenant, director, deputy) do
-    candidate = candidate!(director, deputy, tenant)
     suite = suite!(director, tenant)
+    reader = release_reader!(tenant, director, deputy)
+    candidate = candidate!(director, deputy, tenant)
 
     RoutingTable.publish_next!(tenant)
     bind_process!(tenant)
@@ -68,7 +72,13 @@ defmodule AshEnterprise.Credentialing.ReleaseDemoData do
       released(tenant, @activation) ||
         release!(tenant, director, deputy, @activation, [%{kind: "tool", key: @activate}])
 
-    %{candidate: candidate, suite: suite, routing: routing, activation: activation}
+    %{
+      candidate: candidate,
+      suite: suite,
+      reader: reader,
+      routing: routing,
+      activation: activation
+    }
   end
 
   @doc """
@@ -129,6 +139,53 @@ defmodule AshEnterprise.Credentialing.ReleaseDemoData do
     [authorize?: false, tenant: tenant]
     |> Execution.active_release_manifests!()
     |> Enum.find(&(&1.key == key))
+  end
+
+  # The reader's first version is released, measured on the suite and approved, before the
+  # candidate is published: a published candidate is the latest version, and an agent no
+  # active release names runs its latest published version live. The release names the
+  # first version, so the candidate waits for its own release (ADR 0058).
+  defp release_reader!(tenant, director, deputy) do
+    case released(tenant, LicenceReader.key()) do
+      %{} = manifest ->
+        manifest
+
+      nil ->
+        actor = person(director, tenant)
+        {:ok, run} = Release.measure(actor)
+        settle!(run, tenant)
+
+        {:ok, %{"invocation_id" => id}} =
+          Execution.request_release(run.release_manifest_id, actor: actor, tenant: tenant)
+
+        LicenceDemoData.decide!(id, deputy, tenant)
+        released(tenant, LicenceReader.key())
+    end
+  end
+
+  # The recorded model answers each case from its transcript. The run's jobs are driven
+  # here, in this process, until its cases settle; a queue that is running meanwhile only
+  # shares the work.
+  defp settle!(run, tenant, rounds \\ 20)
+
+  defp settle!(_run, _tenant, 0), do: raise("the licence reader's suite run did not settle")
+
+  defp settle!(run, tenant, rounds) do
+    %{success: steps} = Oban.drain_queue(queue: :agent_runs, with_recursion: true)
+    %{success: calls} = Oban.drain_queue(queue: :execution, with_recursion: true)
+    current = Quality.get_suite_run!(run.id, authorize?: false, tenant: tenant, load: [:settled])
+
+    cond do
+      current.status == :finished ->
+        :ok
+
+      current.settled ->
+        Quality.finish_suite_run!(current, actor: SystemActor.oban(), tenant: tenant)
+
+      true ->
+        if steps + calls == 0, do: Process.sleep(250)
+        settle!(run, tenant, rounds - 1)
+    end
   end
 
   defp candidate!(director, deputy, tenant) do

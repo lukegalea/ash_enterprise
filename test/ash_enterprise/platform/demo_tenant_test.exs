@@ -14,9 +14,13 @@ defmodule AshEnterprise.Platform.DemoTenantTest do
 
   alias AshEnterprise.Accounts.{BusinessUnit, Team, User}
   alias AshEnterprise.Credentialing
-  alias AshEnterprise.Credentialing.{Clinic, Clinician, Credential}
+  alias AshEnterprise.Credentialing.{Clinic, Clinician, Credential, LicenceReader}
+  alias AshEnterprise.Execution
+  alias AshEnterprise.Execution.Manifests
   alias AshEnterprise.Platform.{DemoData, DemoTenant, Seeder}
+  alias AshEnterprise.Security.ActorContext
   alias AshEnterprise.Security.{Role, UserRole}
+  alias AshEnterprise.Showcase.Credentialing, as: Tour
 
   @tenant_resources [BusinessUnit, Team, Role, UserRole, Clinic, Clinician, Credential]
 
@@ -133,6 +137,77 @@ defmodule AshEnterprise.Platform.DemoTenantTest do
     kept = User |> Ash.Query.filter(id == ^someone.id) |> Ash.read_one!(authorize?: false)
     assert kept.owning_business_unit_id == other_unit.id
     assert admin.id != someone.id
+  end
+
+  describe "passwords" do
+    @tag :tmp_dir
+    test "a password file is read when it exists and made, privately, when it does not", %{
+      tmp_dir: dir
+    } do
+      path = Path.join([dir, "nested", "demo.pw"])
+
+      generated = DemoTenant.password_from_file!(path)
+      assert byte_size(generated) >= 32
+      assert File.read!(path) == generated
+      assert File.stat!(path).mode |> Bitwise.band(0o777) == 0o600
+      assert DemoTenant.password_from_file!(path) == generated
+
+      File.write!(path, "chosen-by-someone\n")
+      assert DemoTenant.password_from_file!(path) == "chosen-by-someone"
+    end
+
+    test "the demo people sign in with the given password, and not the fixed one" do
+      DemoTenant.run!(password: "a-long-private-password")
+
+      assert signs_in?(DemoTenant.admin_email(), "a-long-private-password")
+      assert signs_in?("dana@example.com", "a-long-private-password")
+      refute signs_in?(DemoTenant.admin_email(), "password1234")
+    end
+
+    test "without one the fixed local-development password is kept" do
+      DemoTenant.run!()
+      assert signs_in?(DemoTenant.admin_email(), "password1234")
+    end
+
+    test "a re-run with another password does not reset the people who exist" do
+      DemoTenant.run!(password: "first-password-123")
+      DemoTenant.run!(password: "second-password-456")
+
+      assert signs_in?(DemoTenant.admin_email(), "first-password-123")
+      refute signs_in?(DemoTenant.admin_email(), "second-password-456")
+    end
+
+    defp signs_in?(email, password) do
+      user = User |> Ash.Query.filter(email == ^email) |> Ash.read_one!(authorize?: false)
+      Bcrypt.verify_pass(password, user.hashed_password)
+    end
+  end
+
+  test "a live reading of the licence reader starts on the released first version, not the candidate" do
+    %{organization: organization, clinic: clinic} = DemoTenant.run!()
+    tenant = organization.id
+    key = LicenceReader.key()
+
+    assert [baseline, candidate] =
+             Execution.list_agent_versions!(
+               authorize?: false,
+               tenant: tenant,
+               query: [filter: [key: key, status: :published], sort: [version: :asc]]
+             )
+
+    # The baseline is released; the candidate is published and waits for its own release.
+    assert {:ok, id} = Manifests.agent_version(key, tenant)
+    assert id == baseline.id
+
+    coordinator =
+      ActorContext.attach(
+        clinic.coordinator,
+        ActorContext.build(clinic.coordinator, tenant: tenant)
+      )
+
+    assert {:ok, run} = Tour.start_reading(hd(clinic.credentials).id, coordinator)
+    assert run.agent_version_id == baseline.id
+    refute run.agent_version_id == candidate.id
   end
 
   defp admin(result) do
