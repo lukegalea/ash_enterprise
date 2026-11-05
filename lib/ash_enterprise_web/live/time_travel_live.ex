@@ -267,6 +267,7 @@ defmodule AshEnterpriseWeb.TimeTravelLive do
         </div>
 
         <TimeScrubber.scrubber
+          {AshEnterpriseWeb.Locale.a2ui_opts(assigns[:locale])}
           id="person-timeline"
           from={@from}
           to={@to}
@@ -336,6 +337,7 @@ defmodule AshEnterpriseWeb.TimeTravelLive do
         </div>
 
         <TimeScrubber.scrubber
+          {AshEnterpriseWeb.Locale.a2ui_opts(assigns[:locale])}
           id="facts-timeline"
           from={@from}
           to={@to}

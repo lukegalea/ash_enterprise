@@ -1732,6 +1732,10 @@ _An Ash extension that generates A2UI (Agent to UI) v0.9.1 or v1.0 payloads from
 ## ash_a2ui:liveview usage
 [ash_a2ui:liveview usage rules](deps/ash_a2ui/usage-rules/liveview.md)
 <!-- ash_a2ui:liveview-end -->
+<!-- ash_a2ui:localization-start -->
+## ash_a2ui:localization usage
+[ash_a2ui:localization usage rules](deps/ash_a2ui/usage-rules/localization.md)
+<!-- ash_a2ui:localization-end -->
 <!-- ash_a2ui:queries-start -->
 ## ash_a2ui:queries usage
 [ash_a2ui:queries usage rules](deps/ash_a2ui/usage-rules/queries.md)

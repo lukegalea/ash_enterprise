@@ -36,10 +36,11 @@ defmodule AshEnterpriseWeb.CanvasLive do
   alias AshEnterprise.Security.ActorContext
   alias AshEnterprise.Surfaces
   alias AshEnterpriseWeb.A2ui.Host
+  alias AshEnterpriseWeb.Locale
 
   @impl true
   def mount(_params, _session, socket) do
-    graph = Canvas.build_graph(Registry)
+    graph = Canvas.build_graph(Registry, Locale.a2ui_opts(socket.assigns[:locale]))
 
     socket =
       assign(socket,
@@ -218,7 +219,7 @@ defmodule AshEnterpriseWeb.CanvasLive do
     actor = socket.assigns[:current_user]
     tenant = actor && ActorContext.tenant(actor)
 
-    case select(ref, actor, tenant) do
+    case select(ref, actor, tenant, Locale.a2ui_opts(socket.assigns[:locale])) do
       {:ok, object} ->
         socket =
           socket
@@ -328,10 +329,10 @@ defmodule AshEnterpriseWeb.CanvasLive do
   # The selection seam, separate from the socket so the fail-closed contract
   # is testable without a route: exactly the library's resolve, with the
   # signed-in actor and tenant — and exactly its fail-closed error.
-  @spec select(String.t() | term, term, term) ::
+  @spec select(String.t() | term, term, term, keyword()) ::
           {:ok, Object.t()} | {:error, :unknown_object}
-  def select(ref, actor, tenant) do
-    Canvas.resolve(ref, registry: Registry, actor: actor, tenant: tenant)
+  def select(ref, actor, tenant, l10n \\ []) do
+    Canvas.resolve(ref, [registry: Registry, actor: actor, tenant: tenant] ++ l10n)
   end
 
   @doc false

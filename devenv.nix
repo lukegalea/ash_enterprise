@@ -328,6 +328,7 @@ in
       mix sobelow --config --skip --exit
       mix ash.codegen --check
       mix gettext.extract --check-up-to-date
+      "$DEVENV_ROOT"/scripts/a2ui-gettext-check.sh
       mix test
       mix test.durability
       "$DEVENV_ROOT"/scripts/iron-laws.sh

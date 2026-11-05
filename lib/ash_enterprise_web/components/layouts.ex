@@ -102,7 +102,7 @@ defmodule AshEnterpriseWeb.Layouts do
                     menu.current? && current_pill()
                   ]}
                 >
-                  {menu.label}
+                  {AshEnterprise.Surfaces.translate(menu.label)}
                   <.icon
                     name="hero-chevron-down-micro"
                     class="size-4 transition-transform group-open:rotate-180"
@@ -118,7 +118,7 @@ defmodule AshEnterpriseWeb.Layouts do
                         index > 0 && "mt-1.5 border-t-2 border-border"
                       ]}
                     >
-                      {group.label}
+                      {AshEnterprise.Surfaces.translate(group.label)}
                     </li>
                     <li :for={surface <- group.surfaces}>
                       <a
@@ -127,7 +127,7 @@ defmodule AshEnterpriseWeb.Layouts do
                         class={[menu_item(), current?(@surface, surface.key) && current_item()]}
                         aria-current={current?(@surface, surface.key) && "page"}
                       >
-                        {surface.label}
+                        {AshEnterprise.Surfaces.translate(surface.label)}
                       </a>
                     </li>
                   <% end %>
@@ -187,8 +187,8 @@ defmodule AshEnterpriseWeb.Layouts do
         <.page_header
           :if={@surface}
           id="page-header"
-          title={@surface.label}
-          blurb={@surface.blurb}
+          title={AshEnterprise.Surfaces.translate(@surface.label)}
+          blurb={AshEnterprise.Surfaces.translate(@surface.blurb)}
           icon={@surface.icon}
           as_of={@as_of}
           live={AshEnterprise.Surfaces.live?(@surface)}

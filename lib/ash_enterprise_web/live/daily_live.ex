@@ -41,6 +41,8 @@ defmodule AshEnterpriseWeb.DailyLive do
 
       quote do
         use AshA2ui.LiveRenderer,
+          locale_fn: &AshEnterpriseWeb.Locale.live_locale/1,
+          gettext_backend: {AshEnterpriseWeb.Gettext, "ash_a2ui"},
           ui: unquote(ui),
           deep_link: true,
           actor_fn: &__MODULE__.actor/1,
@@ -179,7 +181,9 @@ defmodule AshEnterpriseWeb.DailyLive do
   def run_reports(socket, _ui, []), do: socket
 
   def run_reports(socket, ui, reports) do
-    opts = [actor: socket.assigns.ash_a2ui_actor, tenant: socket.assigns.ash_a2ui_tenant]
+    opts =
+      [actor: socket.assigns.ash_a2ui_actor, tenant: socket.assigns.ash_a2ui_tenant] ++
+        AshEnterpriseWeb.Locale.a2ui_opts(socket.assigns[:locale])
 
     start_async(socket, :daily_reports, fn ->
       Enum.flat_map(reports, &report_messages(ui, &1, opts))

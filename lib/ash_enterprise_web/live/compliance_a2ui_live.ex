@@ -24,6 +24,8 @@ defmodule AshEnterpriseWeb.ComplianceA2uiLive do
   defmodule Findings do
     @moduledoc "KYC findings: who breaches which control, and why."
     use AshA2ui.LiveRenderer,
+      locale_fn: &AshEnterpriseWeb.Locale.live_locale/1,
+      gettext_backend: {AshEnterpriseWeb.Gettext, "ash_a2ui"},
       ui: AshEnterpriseWeb.A2ui.FindingUI,
       deep_link: true,
       actor_fn: &__MODULE__.actor/1,
@@ -37,6 +39,8 @@ defmodule AshEnterpriseWeb.ComplianceA2uiLive do
   defmodule Evaluations do
     @moduledoc "The append-only evaluation log: what the engine decided and why."
     use AshA2ui.LiveRenderer,
+      locale_fn: &AshEnterpriseWeb.Locale.live_locale/1,
+      gettext_backend: {AshEnterpriseWeb.Gettext, "ash_a2ui"},
       ui: AshEnterpriseWeb.A2ui.ComplianceEvaluationUI,
       deep_link: true,
       actor_fn: &__MODULE__.actor/1,
@@ -50,6 +54,8 @@ defmodule AshEnterpriseWeb.ComplianceA2uiLive do
   defmodule Bundles do
     @moduledoc "Compiled policy bundles and their lifecycle."
     use AshA2ui.LiveRenderer,
+      locale_fn: &AshEnterpriseWeb.Locale.live_locale/1,
+      gettext_backend: {AshEnterpriseWeb.Gettext, "ash_a2ui"},
       ui: AshEnterpriseWeb.A2ui.PolicyBundleUI,
       deep_link: true,
       actor_fn: &__MODULE__.actor/1,
@@ -63,6 +69,8 @@ defmodule AshEnterpriseWeb.ComplianceA2uiLive do
   defmodule RuleSets do
     @moduledoc "Rule set revisions: layers, lifecycle, content hashes."
     use AshA2ui.LiveRenderer,
+      locale_fn: &AshEnterpriseWeb.Locale.live_locale/1,
+      gettext_backend: {AshEnterpriseWeb.Gettext, "ash_a2ui"},
       ui: AshEnterpriseWeb.A2ui.RuleSetRevisionUI,
       deep_link: true,
       actor_fn: &__MODULE__.actor/1,
@@ -76,6 +84,8 @@ defmodule AshEnterpriseWeb.ComplianceA2uiLive do
   defmodule Catalogs do
     @moduledoc "Compliance catalogs."
     use AshA2ui.LiveRenderer,
+      locale_fn: &AshEnterpriseWeb.Locale.live_locale/1,
+      gettext_backend: {AshEnterpriseWeb.Gettext, "ash_a2ui"},
       ui: AshEnterpriseWeb.A2ui.CatalogUI,
       deep_link: true,
       actor_fn: &__MODULE__.actor/1,
@@ -89,6 +99,8 @@ defmodule AshEnterpriseWeb.ComplianceA2uiLive do
   defmodule Profiles do
     @moduledoc "Tailoring profiles."
     use AshA2ui.LiveRenderer,
+      locale_fn: &AshEnterpriseWeb.Locale.live_locale/1,
+      gettext_backend: {AshEnterpriseWeb.Gettext, "ash_a2ui"},
       ui: AshEnterpriseWeb.A2ui.ProfileUI,
       deep_link: true,
       actor_fn: &__MODULE__.actor/1,

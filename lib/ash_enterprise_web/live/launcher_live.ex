@@ -229,7 +229,7 @@ defmodule AshEnterpriseWeb.LauncherLive do
                 <span class="grid size-10 shrink-0 place-items-center rounded-base border-2 border-border bg-main text-on-vivid">
                   <.icon name={@today.icon} class="size-5" />
                 </span>
-                {@today.label}
+                {Surfaces.translate(@today.label)}
               </h2>
               <.badge :if={@brief} id="launch-brief" status={@brief.status} sticker>
                 {gettext("Morning brief")} · {Today.brief_status(@brief.status)}
@@ -238,7 +238,7 @@ defmodule AshEnterpriseWeb.LauncherLive do
                 {gettext("No morning brief yet")}
               </.badge>
             </div>
-            <p class="max-w-3xl text-sm text-foreground/75">{@today.blurb}</p>
+            <p class="max-w-3xl text-sm text-foreground/75">{Surfaces.translate(@today.blurb)}</p>
             <dl
               :if={@pulse}
               id="launch-pulse"
@@ -260,8 +260,8 @@ defmodule AshEnterpriseWeb.LauncherLive do
           class="space-y-3"
         >
           <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-            <h2 class="font-heading text-lg">{group.label}</h2>
-            <p class="text-sm text-foreground/60">{group.blurb}</p>
+            <h2 class="font-heading text-lg">{Surfaces.translate(group.label)}</h2>
+            <p class="text-sm text-foreground/60">{Surfaces.translate(group.blurb)}</p>
           </div>
           <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <li :for={surface <- group.surfaces} :if={shown?(surface, @shown)}>
@@ -279,13 +279,13 @@ defmodule AshEnterpriseWeb.LauncherLive do
                       <span class="grid size-8 shrink-0 place-items-center rounded-base border-2 border-border bg-background">
                         <.icon name={surface.icon} class="size-4" />
                       </span>
-                      {surface.label}
+                      {Surfaces.translate(surface.label)}
                     </h3>
                     <.badge :if={@signals[surface.key]} id={"launch-#{surface.key}-signal"}>
                       {@signals[surface.key]}
                     </.badge>
                   </div>
-                  <p class="text-sm text-foreground/75">{surface.blurb}</p>
+                  <p class="text-sm text-foreground/75">{Surfaces.translate(surface.blurb)}</p>
                 </.card>
               </.link>
             </li>
