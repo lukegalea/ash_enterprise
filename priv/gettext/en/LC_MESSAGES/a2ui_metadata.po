@@ -81,15 +81,26 @@ msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/business_unit_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/credential_ui.ex:1
-#: lib/ash_enterprise_web/a2ui/legacy_user_ui.ex:1
-#: lib/ash_enterprise_web/a2ui/mdm_mapping_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/operator_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
+msgid "Active"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/legacy_user_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/projected_user_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/user_ui.ex:1
+msgctxt "one_of:lifecycle_status"
+msgid "Active"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/credential_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/mdm_mapping_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
 #: lib/ash_enterprise_web/a2ui/operator_ui.ex:284
 #: lib/ash_enterprise_web/a2ui/policy_bundle_ui.ex:1
-#: lib/ash_enterprise_web/a2ui/projected_user_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/rule_set_revision_ui.ex:1
-#: lib/ash_enterprise_web/a2ui/user_ui.ex:1
+msgctxt "one_of:status"
 msgid "Active"
 msgstr ""
 
@@ -106,10 +117,12 @@ msgid "Admission"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
+msgctxt "one_of:band"
 msgid "Admit"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
+msgctxt "one_of:status"
 msgid "Admitted"
 msgstr ""
 
@@ -157,8 +170,17 @@ msgid "Approve"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
-#: lib/ash_enterprise_web/a2ui/rule_set_revision_ui.ex:1
+msgid "Approved"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
+msgctxt "one_of:outcome"
+msgid "Approved"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/rule_set_revision_ui.ex:1
+msgctxt "one_of:status"
 msgid "Approved"
 msgstr ""
 
@@ -247,6 +269,7 @@ msgid "Audit trail"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
+msgctxt "one_of:status"
 msgid "Auto merged"
 msgstr ""
 
@@ -363,9 +386,14 @@ msgid "Cancel"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
+msgid "Cancelled"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
+msgctxt "one_of:status"
 msgid "Cancelled"
 msgstr ""
 
@@ -391,10 +419,16 @@ msgid "Catalog detail"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/credential_ui.ex:1
+msgctxt "one_of:kind"
 msgid "Certification"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/judgments/certifications_ui.ex:1
+msgid "Certified"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/judgments/certifications_ui.ex:1
+msgctxt "one_of:status"
 msgid "Certified"
 msgstr ""
 
@@ -438,6 +472,12 @@ msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
+msgctxt "one_of:status"
+msgid "Claimed"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
 msgid "Claimed by"
 msgstr ""
 
@@ -446,6 +486,7 @@ msgid "Clinician"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
+msgctxt "one_of:status"
 msgid "Closed"
 msgstr ""
 
@@ -463,11 +504,17 @@ msgid "Companies"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/policy_bundle_ui.ex:1
+msgctxt "one_of:status"
 msgid "Compiled"
 msgstr ""
 
 #: lib/ash_enterprise/canvas/registry.ex:2
 #: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
+msgid "Complete"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
+msgctxt "one_of:state"
 msgid "Complete"
 msgstr ""
 
@@ -482,6 +529,7 @@ msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
+msgctxt "one_of:status"
 msgid "Completed"
 msgstr ""
 
@@ -490,7 +538,12 @@ msgid "Compliance evaluation"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/compliance_evaluation_ui.ex:1
+msgctxt "one_of:outcome"
+msgid "Compliant"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/finding_ui.ex:1
+msgctxt "one_of:status"
 msgid "Compliant"
 msgstr ""
 
@@ -504,7 +557,11 @@ msgstr ""
 
 #: lib/ash_enterprise/canvas/registry.ex:2
 #: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
+msgid "Confirm"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
+msgctxt "one_of:outcome"
 msgid "Confirm"
 msgstr ""
 
@@ -513,13 +570,19 @@ msgid "Confirm match"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
+msgid "Confirmed"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
 #: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
+msgctxt "one_of:status"
 msgid "Confirmed"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
 #: lib/ash_enterprise_web/a2ui/operator_ui.ex:284
+msgctxt "one_of:kind"
 msgid "Connection"
 msgstr ""
 
@@ -573,7 +636,11 @@ msgid "Counts"
 msgstr ""
 
 #: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Create"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/audit_ui.ex:1
+msgctxt "one_of:action_type"
 msgid "Create"
 msgstr ""
 
@@ -581,8 +648,12 @@ msgstr ""
 msgid "Create default for business unit"
 msgstr ""
 
-#: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/user_ui.ex:1
+msgid "Created"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
+msgctxt "one_of:status"
 msgid "Created"
 msgstr ""
 
@@ -599,6 +670,7 @@ msgid "Credentials"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/finding_ui.ex:1
+msgctxt "one_of:severity"
 msgid "Critical"
 msgstr ""
 
@@ -621,6 +693,7 @@ msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
 #: lib/ash_enterprise_web/a2ui/operator_ui.ex:284
+msgctxt "one_of:kind"
 msgid "Data subject"
 msgstr ""
 
@@ -667,6 +740,7 @@ msgid "Delegate — the person taking it over"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/rule_set_revision_ui.ex:1
+msgctxt "one_of:combining"
 msgid "Deny overrides"
 msgstr ""
 
@@ -677,7 +751,11 @@ msgid "Description"
 msgstr ""
 
 #: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Destroy"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/audit_ui.ex:1
+msgctxt "one_of:action_type"
 msgid "Destroy"
 msgstr ""
 
@@ -692,10 +770,6 @@ msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/user_ui.ex:1
 msgid "Direct reports"
-msgstr ""
-
-#: lib/ash_enterprise_web/a2ui/role_ui.ex:1
-msgid "Direct user and team"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/role_ui.ex:1
@@ -739,8 +813,14 @@ msgstr ""
 msgid "Done"
 msgstr ""
 
+#: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
+msgctxt "one_of:lane"
+msgid "Done"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/mdm_mapping_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/rule_set_revision_ui.ex:1
+msgctxt "one_of:status"
 msgid "Draft"
 msgstr ""
 
@@ -749,6 +829,11 @@ msgid "Drop"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
+msgid "Dropped"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
+msgctxt "one_of:lane"
 msgid "Dropped"
 msgstr ""
 
@@ -771,6 +856,7 @@ msgid "ECE"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/mdm_mapping_ui.ex:1
+msgctxt "one_of:direction"
 msgid "Egress"
 msgstr ""
 
@@ -820,13 +906,22 @@ msgstr ""
 msgid "Erasure scopes"
 msgstr ""
 
-#: lib/ash_enterprise_web/a2ui/compliance_evaluation_ui.ex:1
-#: lib/ash_enterprise_web/a2ui/finding_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
 msgid "Error"
 msgstr ""
 
+#: lib/ash_enterprise_web/a2ui/compliance_evaluation_ui.ex:1
+msgctxt "one_of:outcome"
+msgid "Error"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/finding_ui.ex:1
+msgctxt "one_of:status"
+msgid "Error"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
+msgctxt "one_of:outcome"
 msgid "Escalate"
 msgstr ""
 
@@ -890,7 +985,16 @@ msgid "Facts"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
+msgid "Failed"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
+msgctxt "one_of:state"
+msgid "Failed"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
+msgctxt "one_of:status"
 msgid "Failed"
 msgstr ""
 
@@ -918,6 +1022,7 @@ msgid "Finished"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/rule_set_revision_ui.ex:1
+msgctxt "one_of:combining"
 msgid "First applicable"
 msgstr ""
 
@@ -978,7 +1083,11 @@ msgid "Golden records"
 msgstr ""
 
 #: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Grant"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/judgments/facts_ui.ex:1
+msgctxt "one_of:admission_grade"
 msgid "Grant"
 msgstr ""
 
@@ -987,6 +1096,7 @@ msgid "Health"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/finding_ui.ex:1
+msgctxt "one_of:severity"
 msgid "High"
 msgstr ""
 
@@ -1026,6 +1136,7 @@ msgstr ""
 #: lib/ash_enterprise_web/a2ui/operator_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/projected_user_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/user_ui.ex:1
+msgctxt "one_of:lifecycle_status"
 msgid "Inactive"
 msgstr ""
 
@@ -1034,7 +1145,13 @@ msgstr ""
 msgid "Inbox"
 msgstr ""
 
+#: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
+msgctxt "one_of:lane"
+msgid "Inbox"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/mdm_mapping_ui.ex:1
+msgctxt "one_of:direction"
 msgid "Ingress"
 msgstr ""
 
@@ -1161,6 +1278,11 @@ msgstr ""
 msgid "Later"
 msgstr ""
 
+#: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
+msgctxt "one_of:lane"
+msgid "Later"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:455
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:559
 msgid "Latest"
@@ -1201,6 +1323,7 @@ msgid "Legacy users"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/credential_ui.ex:1
+msgctxt "one_of:kind"
 msgid "Licence"
 msgstr ""
 
@@ -1245,6 +1368,7 @@ msgid "Login"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/finding_ui.ex:1
+msgctxt "one_of:severity"
 msgid "Low"
 msgstr ""
 
@@ -1269,8 +1393,12 @@ msgid "Manifest revision"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
-#: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/mdm_mapping_ui.ex:1
+msgid "Mapping"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
+msgctxt "one_of:asserted_by"
 msgid "Mapping"
 msgstr ""
 
@@ -1299,14 +1427,17 @@ msgid "Match candidate"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
+msgctxt "one_of:status"
 msgid "Matched"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
+msgctxt "one_of:status"
 msgid "Matching"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/finding_ui.ex:1
+msgctxt "one_of:severity"
 msgid "Medium"
 msgstr ""
 
@@ -1319,6 +1450,7 @@ msgid "Merge history"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
+msgctxt "one_of:status"
 msgid "Merged"
 msgstr ""
 
@@ -1396,19 +1528,27 @@ msgid "Next event"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/judgments/verdicts_ui.ex:1
+msgctxt "one_of:answer"
 msgid "No"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/judgments/calibration_ui.ex:1
+msgctxt "one_of:result"
 msgid "No table"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/compliance_evaluation_ui.ex:1
+msgctxt "one_of:outcome"
+msgid "Noncompliant"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/finding_ui.ex:1
+msgctxt "one_of:status"
 msgid "Noncompliant"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/compliance_evaluation_ui.ex:1
+msgctxt "one_of:outcome"
 msgid "Not applicable"
 msgstr ""
 
@@ -1434,20 +1574,29 @@ msgid "Office group"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
+msgctxt "one_of:band"
 msgid "Omit"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
+msgctxt "one_of:status"
 msgid "Omitted"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/rule_set_revision_ui.ex:1
+msgctxt "one_of:combining"
 msgid "Only one applicable"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
+msgid "Open"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
 #: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
+msgctxt "one_of:status"
 msgid "Open"
 msgstr ""
 
@@ -1533,11 +1682,17 @@ msgid "Paused"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/credential_ui.ex:1
+msgid "Pending"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/credential_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
+msgctxt "one_of:status"
 msgid "Pending"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
+msgctxt "one_of:status"
 msgid "Pending approval"
 msgstr ""
 
@@ -1548,11 +1703,16 @@ msgid "People"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/rule_set_revision_ui.ex:1
+msgctxt "one_of:combining"
 msgid "Permit overrides"
 msgstr ""
 
-#: lib/ash_enterprise_web/a2ui/judgments/facts_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
+msgid "Person"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/judgments/facts_ui.ex:1
+msgctxt "one_of:admission_grade"
 msgid "Person"
 msgstr ""
 
@@ -1617,10 +1777,16 @@ msgid "Proposed"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
+msgctxt "one_of:lane"
+msgid "Proposed"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
 msgid "Proposed by"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/judgments/calibration_ui.ex:1
+msgctxt "one_of:result"
 msgid "Proposed table"
 msgstr ""
 
@@ -1718,13 +1884,18 @@ msgid "Registry reference"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/judgments/calibration_ui.ex:1
+msgctxt "one_of:result"
 msgid "Regression"
 msgstr ""
 
 #: lib/ash_enterprise/canvas/registry.ex:2
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+msgid "Reject"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
+msgctxt "one_of:outcome"
 msgid "Reject"
 msgstr ""
 
@@ -1737,9 +1908,18 @@ msgid "Reject — add a note for the record (optional)"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
+msgid "Rejected"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
+msgctxt "one_of:outcome"
+msgid "Rejected"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
-#: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
+msgctxt "one_of:status"
 msgid "Rejected"
 msgstr ""
 
@@ -1784,6 +1964,7 @@ msgid "Resolve"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
+msgctxt "one_of:outcome"
 msgid "Resolved"
 msgstr ""
 
@@ -1812,13 +1993,22 @@ msgstr ""
 #: lib/ash_enterprise_web/a2ui/mdm_mapping_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/policy_bundle_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/rule_set_revision_ui.ex:1
+msgctxt "one_of:status"
 msgid "Retired"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/flight_ui.ex:121
-#: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
-#: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/mdm_steward_ui.ex:1
+msgid "Review"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
+msgctxt "one_of:band"
+msgid "Review"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
+msgctxt "one_of:status"
 msgid "Review"
 msgstr ""
 
@@ -1852,6 +2042,7 @@ msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/judgments/certifications_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/rule_set_revision_ui.ex:1
+msgctxt "one_of:status"
 msgid "Revoked"
 msgstr ""
 
@@ -1889,6 +2080,11 @@ msgid "Run finished"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
+msgid "Running"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
+msgctxt "one_of:state"
 msgid "Running"
 msgstr ""
 
@@ -2078,6 +2274,12 @@ msgstr ""
 msgid "Shredded"
 msgstr ""
 
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:284
+msgctxt "one_of:status"
+msgid "Shredded"
+msgstr ""
+
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Sign in with password"
 msgstr ""
@@ -2108,6 +2310,7 @@ msgid "Source id"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
+msgctxt "one_of:status"
 msgid "Staged"
 msgstr ""
 
@@ -2129,6 +2332,7 @@ msgid "Staged rows"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
+msgctxt "one_of:status"
 msgid "Staging"
 msgstr ""
 
@@ -2170,6 +2374,7 @@ msgid "Step"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
+msgctxt "one_of:asserted_by"
 msgid "Steward"
 msgstr ""
 
@@ -2222,6 +2427,7 @@ msgid "Supersede"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
+msgctxt "one_of:status"
 msgid "Superseded"
 msgstr ""
 
@@ -2283,10 +2489,6 @@ msgid "Team membership"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/role_ui.ex:1
-msgid "Team privileges only"
-msgstr ""
-
-#: lib/ash_enterprise_web/a2ui/role_ui.ex:1
 msgctxt "enum:Elixir.AshEnterprise.Security.Types.RoleInheritance"
 msgid "Team privileges only"
 msgstr ""
@@ -2304,7 +2506,12 @@ msgid "Teams"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
+msgid "Tentative"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
+msgctxt "one_of:status"
 msgid "Tentative"
 msgstr ""
 
@@ -2355,6 +2562,11 @@ msgstr ""
 msgid "Today"
 msgstr ""
 
+#: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
+msgctxt "one_of:lane"
+msgid "Today"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
 msgid "Today items"
 msgstr ""
@@ -2384,7 +2596,12 @@ msgid "Units under it"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/compliance_evaluation_ui.ex:1
+msgctxt "one_of:outcome"
+msgid "Unknown"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/finding_ui.ex:1
+msgctxt "one_of:status"
 msgid "Unknown"
 msgstr ""
 
@@ -2393,7 +2610,11 @@ msgid "Upcoming"
 msgstr ""
 
 #: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Update"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/audit_ui.ex:1
+msgctxt "one_of:action_type"
 msgid "Update"
 msgstr ""
 
@@ -2417,6 +2638,7 @@ msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/mdm_mapping_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/rule_set_revision_ui.ex:1
+msgctxt "one_of:status"
 msgid "Validated"
 msgstr ""
 
@@ -2455,6 +2677,7 @@ msgid "Waiting since"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
+msgctxt "one_of:outcome"
 msgid "Waived"
 msgstr ""
 
@@ -2506,6 +2729,7 @@ msgid "Writes"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/judgments/verdicts_ui.ex:1
+msgctxt "one_of:answer"
 msgid "Yes"
 msgstr ""
 

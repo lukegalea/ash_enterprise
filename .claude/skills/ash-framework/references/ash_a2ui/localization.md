@@ -54,8 +54,10 @@ Both are translated only when the host passes a translator and a locale.
   exported, it is called as `Module.function(msgid, bindings, locale, meta)`
   for every message: `locale` is the `locale:` option or `nil`, and `meta`
   is a keyword list with `:domain` (`"ash_a2ui"` for library strings, the
-  metadata domain for labels) and, when the message has one, `:context`
-  (its `msgctxt`). Otherwise it is called as
+  metadata domain for labels, the errors domain for an Ash error's
+  message: match all three, or the function crashes on the first
+  validation error) and, when the message has one, `:context` (its
+  `msgctxt`). Otherwise it is called as
   `Module.function(msgid, bindings)`, or with the locale as a third
   argument when `locale:` is given, and receives both domains' messages
   without telling them apart. `bindings` is a keyword list; return the
@@ -64,8 +66,10 @@ Both are translated only when the host passes a translator and a locale.
   `AshA2ui.Label.translate/3` and `AshA2ui.L10n.metadata/3`) is looked up
   under that `msgctxt` (`dpgettext` for a backend), and the extractor writes
   it, so a homograph translates separately. A value's label is given the
-  name of what it is a value of, `"enum:" <> Atom.to_string(EnumModule)`:
-  "Open" the status and "Open" the action are two entries.
+  name of what it is a value of: `"enum:" <> Atom.to_string(EnumModule)` for
+  an enum, `"one_of:" <> field` for a `one_of` value. "Open" the status and
+  "Open" the action are two entries. A context's "Select <context>" row
+  label has the context `"select_context"`.
 - `AshA2ui.LiveRenderer`: pass `locale_fn: &(&1.assigns.locale)` and
   `gettext_backend:` (or `gettext_fn:`, and `metadata_domain:` when not the
   default) to `use AshA2ui.LiveRenderer`. They reach the build, every
@@ -80,7 +84,7 @@ Both are translated only when the host passes a translator and a locale.
   actions, contexts, groups, steps, prompt fields), surface and record
   titles, the other declared display text (column `help_title`, `help` and
   `more_noun`, step and diagram `description`, `search_placeholder`,
-  `empty_state` and `no_results_state` text, `prompt_title`, `group_labels`,
+  `empty_state` and `no_results_state` text, `prompt_title`, `group_labels`, `filter_hints`,
   `icon_labels`, `detail_text`, `badge_text`, primary action labels, board
   lane and swimlane headings), the labels of enum and `one_of` choices,
   canvas registry labels, and the library's chrome and feedback templates
@@ -94,9 +98,11 @@ Both are translated only when the host passes a translator and a locale.
   translated label inside ("Create %{resource}") gets the translated label
   as a binding.
 - A missing translation falls back to the English msgid, string by string.
-- Not translated: section headings read from records, and Ash's own error
-  messages (translate those with `mix ash.gen.gettext`, as the Ash docs
-  describe).
+- Not translated: section headings read from records. Ash's field error
+  messages are translated by their own msgid in the errors domain
+  (`errors_domain:`, default `"errors"`, where `mix ash.gen.gettext --domain
+  errors` merges Ash's catalog; without `--domain` pass `errors_domain: "ash"`). A
+  required field's error is Ash's `"is required"`.
 - Canvas: `AshA2ui.Canvas.build_graph/2` and `AshA2ui.Canvas.resolve/2`
   take the same `gettext_backend`, `gettext_fn`, `locale` and
   `metadata_domain` options. The extractor collects every
