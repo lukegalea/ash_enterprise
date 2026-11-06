@@ -164,6 +164,11 @@ defmodule AshEnterprise.Execution.Invocation do
     change set_attribute(:correlation_id, &AshEnterprise.Platform.Correlation.id/0),
       on: [:create]
 
+    # The trace it was requested in, which its execution's span joins
+    # (`AshEnterprise.Telemetry.GenAI`): a run's tool call sits under the step that asked.
+    change set_attribute(:traceparent, &AshEnterprise.Execution.AgentRuntime.traceparent/0),
+      on: [:create]
+
     change AshEnterprise.Execution.Changes.SealingScope, on: [:create]
 
     change {AshEnterprise.Erasure.Changes.SealUnderScope, fields: [:args, :result]},

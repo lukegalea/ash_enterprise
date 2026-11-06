@@ -60,6 +60,10 @@ of the resource that includes `AshAgent.Run`.
 2. The step sets everything else: system prompt, tools, approval rule, actor, tenant and `max_iterations: 1`. Do not
    return them.
 3. `around_step/2` wraps a whole step: restore the run's correlation id and trace context there.
+4. To export spans, attach a `:telemetry` handler to `AshAgent.OpenTelemetry.events/0` (a claimed step, a claimed
+   invocation's execution) and start each span from `AshAgent.OpenTelemetry.step/3` or `tool/1`, ending it with
+   `status/2`. The names follow the GenAI semantic conventions at the version `AshAgent.OpenTelemetry.version/0`
+   pins. Do not add instructions, messages, tool arguments or results to these spans.
 
 ## `AshAgent.FailureClass` (a protocol)
 

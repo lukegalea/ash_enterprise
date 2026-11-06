@@ -90,6 +90,14 @@ changeset, validation and calculation becomes a span with no per-resource wiring
 `traces_exporter` is `:none` by default — exporting by accident is worse than not
 exporting. Set `OTEL_EXPORTER_OTLP_ENDPOINT` to turn it on.
 
+Agent runs add GenAI spans (`AshEnterprise.Telemetry.GenAI`, attached at boot): each
+step is `invoke_agent {agent}` in the trace of the request that started the run, each
+model call is req_llm's `chat {model}` span under its step, and each governed tool
+call is `execute_tool {target}` under the step that asked for it. Names follow the
+OpenTelemetry GenAI conventions at the version `AshAgent.OpenTelemetry` pins. No
+content (instructions, messages, tool arguments, results) is ever put on a span, and
+there is no switch for it; req_llm's bridge is attached with `content: :none`.
+
 Metrics are declared **per domain** in `AshEnterpriseWeb.Telemetry`, which is the
 granularity Ash emits at. Adding a resource needs no change here; **adding a
 domain does**. That is the one place this is not automatic.

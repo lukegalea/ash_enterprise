@@ -83,10 +83,23 @@ defmodule AshEnterprise.Execution.AgentRuntime do
   in-zone profile's.
   """
   @spec model_label(String.t()) :: String.t()
-  def model_label(key) do
-    spec = if Showcase.recorded?(key), do: RecordedModel.spec(key), else: Models.default_spec()
-    Models.resolve(spec).label
+  def model_label(key), do: Models.resolve(spec(key)).label
+
+  @doc """
+  The provider of the model a step of the agent keyed `key` calls now, as the OpenTelemetry
+  GenAI conventions name it (`gen_ai.provider.name`, through req_llm's own table), or nil
+  when the model cannot be read.
+  """
+  @spec provider(String.t()) :: String.t() | nil
+  def provider(key) do
+    case ReqLLM.model(Models.resolve(spec(key)).spec) do
+      {:ok, %{provider: provider}} -> ReqLLM.OpenTelemetry.SemConv.provider_name(provider)
+      _unreadable -> nil
+    end
   end
+
+  defp spec(key),
+    do: if(Showcase.recorded?(key), do: RecordedModel.spec(key), else: Models.default_spec())
 
   @doc "The correlation id a run started now records."
   @spec correlation_id() :: String.t()

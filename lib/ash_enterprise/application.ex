@@ -255,7 +255,8 @@ defmodule AshEnterprise.Application do
   defp setup_opentelemetry do
     OpentelemetryPhoenix.setup(adapter: :bandit, liveview: true)
     OpentelemetryEcto.setup([:ash_enterprise, :repo], db_statement: :disabled)
-    :ok
+    # Agent steps, tool executions and model calls, as GenAI spans.
+    AshEnterprise.Telemetry.GenAI.attach()
   end
 
   @impl true
