@@ -1,6 +1,6 @@
 defmodule AshEnterprise.Planning.Candidate do
   @moduledoc """
-  One candidate plan a run proposed (ADR 0062): `AshEnterprise.Planning.Fragment.Candidate` on
+  One candidate plan a run proposed (ADR 0062): `AshPlanning.Fragment.Candidate` on
   the platform base, in table `planning_candidates`. A candidate is a proposal, never an
   operational fact: no operational resource reads this table, so an unapplied candidate is
   inert.
@@ -38,7 +38,7 @@ defmodule AshEnterprise.Planning.Candidate do
     machinery_only: [:propose, :record_check, :mark_stale, :supersede],
     human_only: [:approve, :reject, :apply],
     extra_extensions: [AshCloak],
-    fragments: [AshEnterprise.Planning.Fragment.Candidate]
+    fragments: [AshPlanning.Fragment.Candidate]
 
   alias AshEnterprise.Planning.Changes
 

@@ -1,6 +1,6 @@
 defmodule AshEnterprise.Planning.ModelVersion do
   @moduledoc """
-  One immutable planning model version (ADR 0062): `AshEnterprise.Planning.Fragment.ModelVersion`
+  One immutable planning model version (ADR 0062): `AshPlanning.Fragment.ModelVersion`
   on the platform base, in table `planning_model_versions`.
 
   The fragment supplies the contract: `(key, version)` identity, the model, checker and
@@ -25,7 +25,7 @@ defmodule AshEnterprise.Planning.ModelVersion do
     ownership: :organization_owned,
     lifecycle?: false,
     archival?: false,
-    fragments: [AshEnterprise.Planning.Fragment.ModelVersion]
+    fragments: [AshPlanning.Fragment.ModelVersion]
 
   postgres do
     table "planning_model_versions"

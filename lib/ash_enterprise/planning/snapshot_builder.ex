@@ -60,6 +60,7 @@ defmodule AshEnterprise.Planning.SnapshotBuilder do
   alias AshEnterprise.Planning.{Lowering, ModelVersion, Run}
   alias AshEnterprise.Platform.SystemActor
   alias AshOpenLineage.Snapshot
+  alias AshPlanning.Snapshot, as: PlanningSnapshot
   alias AshOpenLineage.Snapshot.{CanonicalJSON, Definition, Input}
 
   @decision_key "canonical_planning.requirements"
@@ -115,7 +116,7 @@ defmodule AshEnterprise.Planning.SnapshotBuilder do
   @spec snapshot_from_payload(map()) :: {:ok, Snapshot.t()} | {:error, term()}
   def snapshot_from_payload(%{"snapshot" => %{} = map}) do
     with {:ok, snapshot} <- decode_snapshot(map) do
-      if Snapshot.put_digest(%{snapshot | digest: nil}).digest == snapshot.digest,
+      if PlanningSnapshot.verify(snapshot),
         do: {:ok, snapshot},
         else: {:error, :snapshot_digest_mismatch}
     end
@@ -211,7 +212,7 @@ defmodule AshEnterprise.Planning.SnapshotBuilder do
 
       case Lowering.lower(lowering) do
         {:ok, lowered} ->
-          snapshot = Snapshot.put_digest(%{base | payload_hash: hash(lowered)})
+          snapshot = PlanningSnapshot.seal(%{base | payload_hash: hash(lowered)})
           payload = Map.put(lowered, "snapshot", encode_snapshot(snapshot))
           {:prepared, snapshot, payload, stats}
 
@@ -219,7 +220,8 @@ defmodule AshEnterprise.Planning.SnapshotBuilder do
           {:failed, reason}
       end
     else
-      {:needs_input, Snapshot.put_digest(base), Enum.map(unresolved, &unresolved_entry/1), stats}
+      {:needs_input, PlanningSnapshot.seal(base), Enum.map(unresolved, &unresolved_entry/1),
+       stats}
     end
   end
 
@@ -513,8 +515,10 @@ defmodule AshEnterprise.Planning.SnapshotBuilder do
 
     with true <- is_integer(start_minute) and is_integer(end_minute) and start_minute < end_minute,
          date = DateTime.to_date(starts_at),
-         window_start = DateTime.new!(date, Time.add(~T[00:00:00], start_minute * 60, :second), "Etc/UTC"),
-         window_end = DateTime.new!(date, Time.add(~T[00:00:00], end_minute * 60, :second), "Etc/UTC") do
+         window_start =
+           DateTime.new!(date, Time.add(~T[00:00:00], start_minute * 60, :second), "Etc/UTC"),
+         window_end =
+           DateTime.new!(date, Time.add(~T[00:00:00], end_minute * 60, :second), "Etc/UTC") do
       DateTime.compare(starts_at, window_end) == :lt and
         DateTime.compare(window_start, ends_at) == :lt
     else

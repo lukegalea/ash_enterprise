@@ -524,7 +524,7 @@ config :ash_enterprise, :planning,
   max_heavy_sessions: 1,
   lease_ms: 300_000,
   poll_ms: 2_000,
-  backends: %{"solverl" => AshEnterprise.Planning.Backend.Solverl},
+  backends: %{"solverl" => AshPlanning.Backend.Solverl},
   sweep_orphans_on_boot?: true
 
 # The adjudication orchestrator's plumbing knobs (AST-152). Two numbers, and

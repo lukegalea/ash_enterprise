@@ -1,7 +1,7 @@
 defmodule AshEnterprise.Planning.Binding do
   @moduledoc """
   A tenant's binding of `(model_key, purpose)` to the definitions a plan is made with (ADR
-  0062): `AshEnterprise.Planning.Fragment.Binding` on the platform base, in table
+  0062): `AshPlanning.Fragment.Binding` on the platform base, in table
   `planning_bindings`.
 
   Temporal (ADR 0049): re-binding closes the version valid until `as_of` and opens a new one,
@@ -24,7 +24,7 @@ defmodule AshEnterprise.Planning.Binding do
     ownership: :organization_owned,
     lifecycle?: false,
     archival?: false,
-    fragments: [AshEnterprise.Planning.Fragment.Binding]
+    fragments: [AshPlanning.Fragment.Binding]
 
   postgres do
     table "planning_bindings"

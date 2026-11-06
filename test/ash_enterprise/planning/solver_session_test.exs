@@ -11,7 +11,7 @@ defmodule AshEnterprise.Planning.SolverSessionTest do
   import AshEnterprise.Planning.TestKit
 
   alias AshEnterprise.Planning
-  alias AshEnterprise.Planning.Backend.Fake
+  alias AshPlanning.Backend.Fake
   alias AshEnterprise.Planning.Registry, as: PlanningRegistry
   alias AshEnterprise.Planning.SessionSupervisor
   alias AshEnterprise.Planning.SnapshotBuilder
@@ -22,7 +22,7 @@ defmodule AshEnterprise.Planning.SolverSessionTest do
     # Fake, with the script taken from `:planning_test_script` (merged over the problem data)
     # and, when `:planning_test_gate` names a pid, a solve that holds until released or
     # cancelled.
-    @behaviour AshEnterprise.Planning.Backend
+    @behaviour AshPlanning.Backend
 
     @impl true
     defdelegate capabilities, to: Fake

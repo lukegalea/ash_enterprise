@@ -1,6 +1,6 @@
 defmodule AshEnterprise.Planning.CheckResult do
   @moduledoc """
-  One check of one candidate (ADR 0062): `AshEnterprise.Planning.Fragment.CheckResult` on the
+  One check of one candidate (ADR 0062): `AshPlanning.Fragment.CheckResult` on the
   platform base, in table `planning_check_results`.
 
   Create-only: there is no update and no destroy, and a re-check is a new row. The MiniZinc
@@ -29,7 +29,7 @@ defmodule AshEnterprise.Planning.CheckResult do
     self_service: [:read],
     machinery_only: [:record],
     extra_extensions: [AshCloak],
-    fragments: [AshEnterprise.Planning.Fragment.CheckResult]
+    fragments: [AshPlanning.Fragment.CheckResult]
 
   alias AshEnterprise.Planning.Changes
 

@@ -15,7 +15,7 @@ defmodule AshEnterprise.Planning do
     * `AshEnterprise.Planning.CheckResult`: create-only outcomes of the MiniZinc checker and
       the independent Elixir validator.
 
-  The resources instantiate the `AshEnterprise.Planning.Fragment.*` fragments on the platform
+  The resources instantiate the `AshPlanning.Fragment.*` fragments on the platform
   base: the fragments are the contract and move into the `ash_planning` package; this
   domain owns the host side (tenancy, authority, audit, sealing, policies).
 

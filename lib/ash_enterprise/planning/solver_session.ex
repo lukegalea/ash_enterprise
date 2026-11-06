@@ -56,7 +56,6 @@ defmodule AshEnterprise.Planning.SolverSession do
   require Logger
 
   alias AshEnterprise.Planning
-  alias AshEnterprise.Planning.Backend
   alias AshEnterprise.Planning.Lowering
   alias AshEnterprise.Planning.Registry, as: PlanningRegistry
   alias AshEnterprise.Planning.Run
@@ -68,7 +67,7 @@ defmodule AshEnterprise.Planning.SolverSession do
   # `--warnings-as-errors` from calling it unused (see Audit.Export).
   Module.register_attribute(__MODULE__, :sobelow_skip, persist: true)
 
-  @default_backends %{"solverl" => AshEnterprise.Planning.Backend.Solverl}
+  @default_backends %{"solverl" => AshPlanning.Backend.Solverl}
   @key_pattern ~r/\A[a-z][a-z0-9_]{0,63}\z/
   # Slack on top of the declared solve time before this process stops waiting on the backend.
   @deadline_slack_ms 60_000
@@ -98,7 +97,7 @@ defmodule AshEnterprise.Planning.SolverSession do
          :ok <- check_governor(),
          {:ok, paths} <- model_paths(version),
          {:ok, data} <- load_problem(run) do
-      problem = %Backend.Problem{
+      problem = %AshPlanning.Problem{
         model_path: paths.model,
         checker_path: paths.checker,
         data: data,
@@ -341,7 +340,7 @@ defmodule AshEnterprise.Planning.SolverSession do
         {:noreply,
          %{state | ref: ref, os_pid: os_pid, tree: ProcessTree.snapshot(os_pid), await: task.ref}}
 
-      {:error, %Backend.Error{} = error} ->
+      {:error, %AshPlanning.Error{} = error} ->
         finish(state, error_args(state, error))
     end
   end
@@ -402,7 +401,7 @@ defmodule AshEnterprise.Planning.SolverSession do
     else
       Logger.error("planning run #{state.run.id}: backend await exited (#{inspect(reason)})")
       ProcessTree.kill_all(merge_tree(state.tree, ProcessTree.snapshot(state.os_pid)))
-      finish(state, error_args(state, %Backend.Error{kind: :backend_crashed}))
+      finish(state, error_args(state, %AshPlanning.Error{kind: :backend_crashed}))
     end
   end
 
@@ -497,7 +496,7 @@ defmodule AshEnterprise.Planning.SolverSession do
         # An outcome the axes refuse (a backend claiming something the contract forbids) is
         # a failed backend, not a result: record that instead, once.
         if args.solve_status != :backend_failed do
-          record(state, error_args(state, %Backend.Error{kind: :backend_crashed}))
+          record(state, error_args(state, %AshPlanning.Error{kind: :backend_crashed}))
         end
     end
 
@@ -526,7 +525,7 @@ defmodule AshEnterprise.Planning.SolverSession do
 
   defp stop(state), do: {:stop, :normal, state}
 
-  defp result_args(state, {:ok, %Backend.SolveResult{} = result}) do
+  defp result_args(state, {:ok, %AshPlanning.SolveResult{} = result}) do
     {status, optimality} = solve_axes(result)
     complete? = status in [:optimal, :infeasible] or (status == :feasible and result.complete?)
 
@@ -546,8 +545,10 @@ defmodule AshEnterprise.Planning.SolverSession do
     end
   end
 
-  defp result_args(state, {:error, %Backend.Error{} = error}), do: error_args(state, error)
-  defp result_args(state, _other), do: error_args(state, %Backend.Error{kind: :backend_crashed})
+  defp result_args(state, {:error, %AshPlanning.Error{} = error}), do: error_args(state, error)
+
+  defp result_args(state, _other),
+    do: error_args(state, %AshPlanning.Error{kind: :backend_crashed})
 
   # The backend's status and optimality proof, mapped onto the run's solve axes.
   defp solve_axes(%{status: :feasible, optimality: :proven}), do: {:optimal, :optimal}
@@ -558,7 +559,7 @@ defmodule AshEnterprise.Planning.SolverSession do
   defp put_result_payload(base, state, payload) do
     case Jason.encode(payload) do
       {:ok, json} -> Map.put(base, :result_payload, json)
-      {:error, _} -> error_args(state, %Backend.Error{kind: :backend_crashed})
+      {:error, _} -> error_args(state, %AshPlanning.Error{kind: :backend_crashed})
     end
   end
 
@@ -567,7 +568,7 @@ defmodule AshEnterprise.Planning.SolverSession do
 
   defp timeout_reason(_reason), do: nil
 
-  defp error_args(state, %Backend.Error{kind: kind}) do
+  defp error_args(state, %AshPlanning.Error{kind: kind}) do
     {status, reason} =
       case kind do
         :invalid_model ->
