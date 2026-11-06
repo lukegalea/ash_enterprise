@@ -116,7 +116,10 @@ defmodule AshEnterprise.Planning.Lowering do
          "t_dur" => Enum.map(tasks, &ceil_div(&1.duration_minutes * 60, @slot_seconds)),
          "t_release" => Enum.map(tasks, fn _ -> release end),
          "t_due" => Enum.map(tasks, &due_slot(&1.due_at, ws, horizon)),
-         "t_must" => Enum.map(tasks, fn _ -> false end),
+         # v1 dogfood semantics: every plannable open task is part of the week —
+         # parking tasks is not a plan. Optional/must distinctions arrive with the
+         # Wave-4+ task model.
+         "t_must" => Enum.map(tasks, fn _ -> true end),
          "t_hard_due" => Enum.map(tasks, fn _ -> false end),
          "t_weight" => Enum.map(tasks, fn _ -> 1 end),
          "n_prec" => 0,
