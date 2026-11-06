@@ -16,16 +16,21 @@ defmodule AshEnterprise.Bpmn.Actions.DecideTask do
   `HumanTask.resolve` runs here too, with the outcome from its argument:
   `succeeded`, `failed` or `retry` on a task settling an invocation's
   unknown outcome. So does `HumanTask.answer`: outcome `answered`, the
-  person's answer as the task's comment, on a task asking them an agent's
-  question.
+  person's answer as the task's comment, on a task asking them a question
+  (an agent's, or an approver's about their request). And
+  `HumanTask.request_info`: outcome `request_info`, the approver's question
+  as the comment, on an invocation's approval task.
 
   Three host rules sit on top:
 
-    * **Resolution and input tasks.** A task settling an invocation's
-      unknown outcome is decided only through `resolve`, and `resolve` decides
-      only such a task (`AshEnterprise.Execution.Resolution`); an agent's
-      question is completed only through `answer`, and `answer` completes only
-      such a task (`AshEnterprise.Execution.HumanInput`);
+    * **Resolution, input and information tasks.** A task settling an
+      invocation's unknown outcome is decided only through `resolve`, and
+      `resolve` decides only such a task (`AshEnterprise.Execution.Resolution`);
+      a question (an agent's, or an approver's) is completed only through
+      `answer`, and `answer` completes only such a task
+      (`AshEnterprise.Execution.HumanInput`,
+      `AshEnterprise.Execution.InfoRequest`); only an invocation's approval
+      task is answered with `request_info`;
     * **Declared outcomes.** `approved` / `rejected` must be outcomes the
       task's step declares (`AshEnterprise.Bpmn.Outcomes`), except on a
       steward-decision task;
@@ -38,7 +43,7 @@ defmodule AshEnterprise.Bpmn.Actions.DecideTask do
   use Ash.Resource.Actions.Implementation
 
   alias AshEnterprise.Bpmn.{HumanTask, Outcomes}
-  alias AshEnterprise.Execution.{HumanInput, Resolution}
+  alias AshEnterprise.Execution.{HumanInput, InfoRequest, Resolution}
   alias AshEnterprise.Mdm.StewardTask
 
   @impl true
@@ -50,6 +55,9 @@ defmodule AshEnterprise.Bpmn.Actions.DecideTask do
 
         "answered" ->
           {"answered", :answer, input.arguments.answer}
+
+        "request_info" ->
+          {"request_info", :request_info, input.arguments.question}
 
         outcome ->
           {outcome, :decide, input.arguments[:comment]}
@@ -67,7 +75,8 @@ defmodule AshEnterprise.Bpmn.Actions.DecideTask do
 
   defp decide(task, door, outcome, comment, actor, opts) do
     with :ok <- Resolution.check(task, door),
-         :ok <- HumanInput.check(task, door) do
+         :ok <- HumanInput.check(task, door),
+         :ok <- InfoRequest.check(task, door) do
       decide(task, outcome, comment, actor, opts)
     end
   end
@@ -93,5 +102,6 @@ defmodule AshEnterprise.Bpmn.Actions.DecideTask do
 
   defp verb("approved"), do: "Approved"
   defp verb("rejected"), do: "Rejected"
+  defp verb("request_info"), do: "Asked for more information"
   defp verb(other), do: String.capitalize(other)
 end

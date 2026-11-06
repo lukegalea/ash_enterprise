@@ -54,6 +54,7 @@ defmodule AshEnterprise.Execution do
       define :list_invocations, action: :read
       define :claim_invocation, action: :claim
       define :apply_invocation_decision, action: :apply_decision
+      define :provide_invocation_info, action: :provide_info
       define :request_invocation_cancel, action: :request_cancel
       define :execute_invocation, action: :execute, args: [:primary_key]
       define :reconcile_invocation, action: :reconcile, args: [:primary_key]

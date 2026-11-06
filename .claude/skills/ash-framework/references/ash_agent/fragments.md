@@ -158,6 +158,7 @@ Which path a claimed row takes depends on the target's effects declaration:
 | A resolution task | Attach changes to `request_resolution` (open it) and `apply_resolution` (set its `outcome`) |
 | An `AshAgent.FailureClass` implementation | For each error type of yours a target can return |
 | Approval opening and deciding | Attach a change to `request` (rows that land in `awaiting_approval`) and to `apply_decision` (set its `outcome` from the decided task). The binding to the request is the fragment's (rule 8); who may approve, and whether the approver may still, is yours |
+| A request for more information | `apply_decision` with `outcome: :request_info` parks the row in `request_info` (a waiting status, never claimed); open the requester's task there, and call `provide_info` when they answer. It returns the row to `awaiting_approval` with a new approval window and the same binding, so only a later approval makes it ready. An amendment is a new request, not an answer |
 | Any check at claim | Attach a change to `claim`, for example re-checking that the approver still holds the approver role; to refuse the attempt, call `AshAgent.Invocation.Changes.Claim.stale/2`, which leaves a row an earlier attempt may have reached outside for reconciliation instead |
 
 A change you attach with `changes do change MyChange, where: [action_is(:claim)] end` runs after the fragment's own

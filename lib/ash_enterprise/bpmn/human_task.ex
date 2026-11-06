@@ -52,11 +52,20 @@ defmodule AshEnterprise.Bpmn.HumanTask do
       # for that task before writing anything.
       extra_grants: [
         {AshEnterprise.Security.Checks.TaskCandidacy,
-         acts: [:claim_task, :complete_task, :delegate_task, :approve, :reject, :resolve, :answer]}
+         acts: [
+           :claim_task,
+           :complete_task,
+           :delegate_task,
+           :approve,
+           :reject,
+           :request_info,
+           :resolve,
+           :answer
+         ]}
       ],
       # Deciding is a person's act (ADR 0055, "Approval binding"): neither engine
       # bypass nor a system actor reaches these doors; a candidate's grant does.
-      human_only: [:approve, :reject, :resolve, :answer],
+      human_only: [:approve, :reject, :request_info, :resolve, :answer],
       extra_extensions: [AshAgent.Effects, AshAi]
     ]
 
@@ -82,6 +91,73 @@ defmodule AshEnterprise.Bpmn.HumanTask do
   end
 
   calculations do
+    # The review packet of an invocation's approval task
+    # (`AshEnterprise.Execution.ReviewPacket`); nil on every other task.
+    calculate :review_target,
+              :string,
+              {AshEnterprise.Bpmn.Calculations.ReviewPacket, field: :target} do
+      public? true
+      description "The action an invocation approval would let run, and its declared effects."
+    end
+
+    calculate :review_arguments,
+              :string,
+              {AshEnterprise.Bpmn.Calculations.ReviewPacket, field: :arguments} do
+      public? true
+      description "The request's arguments, named and typed by the target's input schema."
+    end
+
+    calculate :review_digest,
+              :string,
+              {AshEnterprise.Bpmn.Calculations.ReviewPacket, field: :digest} do
+      public? true
+      description "The approval digest a decision on this task binds."
+    end
+
+    calculate :review_currency,
+              :string,
+              {AshEnterprise.Bpmn.Calculations.ReviewPacket, field: :currency} do
+      public? true
+
+      description "Whether approving would still decide what was asked: current, stale (and why), decided or unknown."
+    end
+
+    calculate :review_evidence,
+              :string,
+              {AshEnterprise.Bpmn.Calculations.ReviewPacket, field: :evidence} do
+      public? true
+
+      description "References to what the request rests on: the subject's version, the work it belongs to, observations."
+    end
+
+    calculate :review_decision,
+              :string,
+              {AshEnterprise.Bpmn.Calculations.ReviewPacket, field: :decision} do
+      public? true
+      description "The decisions evaluated for the request, with the rules that matched."
+    end
+
+    calculate :due_label,
+              :string,
+              {AshEnterprise.Bpmn.Calculations.ReviewPacket, field: :due} do
+      public? true
+      description "When the task is due and when the approval window closes."
+    end
+
+    calculate :escalation_label,
+              :string,
+              {AshEnterprise.Bpmn.Calculations.ReviewPacket, field: :escalation} do
+      public? true
+      description "What the engine recorded about escalating the task."
+    end
+
+    calculate :info_exchange,
+              :string,
+              {AshEnterprise.Bpmn.Calculations.ReviewPacket, field: :questions} do
+      public? true
+      description "An approver's questions to the requester, and the answers."
+    end
+
     calculate :subject_label,
               :string,
               {AshEnterprise.Bpmn.Calculations.SubjectSummary, field: :label} do
@@ -234,6 +310,24 @@ defmodule AshEnterprise.Bpmn.HumanTask do
       run {AshEnterprise.Bpmn.Actions.DecideTask, outcome: "rejected"}
     end
 
+    action :request_info, :string do
+      description """
+      Ask the person who made a request for more information before deciding it: the
+      approval task completes as `request_info`, the request waits, and the requester is
+      asked your question. Only an invocation's approval task asks
+      (`AshEnterprise.Execution.InfoRequest`).
+      """
+
+      argument :record_id, :uuid, allow_nil?: false
+
+      argument :question, :string,
+        allow_nil?: false,
+        constraints: [max_length: 2000],
+        description: "What you need to know, as the requester will read it."
+
+      run {AshEnterprise.Bpmn.Actions.DecideTask, outcome: "request_info"}
+    end
+
     action :resolve, :string do
       description """
       Settle an invocation whose outcome is unknown: it `succeeded`, it `failed`, or
@@ -255,9 +349,11 @@ defmodule AshEnterprise.Bpmn.HumanTask do
 
     action :answer, :string do
       description """
-      Answer a question an agent asked you (`AshEnterprise.Execution.HumanInput`): the
-      task completes as `answered`, and the agent's run carries on with your answer. Only
-      an agent's question is answered, and an agent's question is completed only here.
+      Answer a question you were asked: an agent's (`AshEnterprise.Execution.HumanInput`),
+      whose run carries on with your answer, or an approver's about your request
+      (`AshEnterprise.Execution.InfoRequest`), which then goes back to them. The task
+      completes as `answered`. Only a question is answered, and a question is completed
+      only here.
       """
 
       argument :record_id, :uuid, allow_nil?: false
@@ -272,6 +368,7 @@ defmodule AshEnterprise.Bpmn.HumanTask do
   effects do
     action :approve, kind: :execute, open_world?: false, approval: :confirm, intent: :approve
     action :reject, kind: :execute, open_world?: false, approval: :confirm, intent: :approve
+    action :request_info, kind: :execute, open_world?: false, approval: :confirm, intent: :approve
     action :resolve, kind: :execute, open_world?: false, approval: :confirm, intent: :approve
     action :answer, kind: :execute, open_world?: false, approval: :confirm, intent: :approve
   end

@@ -675,7 +675,12 @@ defmodule AshEnterpriseWeb.A2ui.ApprovalsUI do
   Approvals — the human tasks waiting on the actor (or one of their teams),
   oldest first, with what each is about. Approve / Reject decide the task
   through the process engine (`HumanTask.approve` / `.reject`, which check
-  candidacy first); Reject asks for an optional comment. An open task is any
+  candidacy first); Reject asks for an optional comment. On a request an
+  agent or a person made (an invocation), the detail carries its review
+  packet (`AshEnterprise.Execution.ReviewPacket`): what would run, with what,
+  the digest approved, whether that still binds, the evidence and decisions
+  behind it, due and escalation; and Ask for more information parks it until
+  the requester answers (`HumanTask.request_info`). An open task is any
   candidate's to decide; a claimed one only its holder's, and anyone else's
   click is refused as Forbidden.
 
@@ -700,7 +705,7 @@ defmodule AshEnterpriseWeb.A2ui.ApprovalsUI do
     component :table do
       fields [:subject_label, :status, :subject_outline, :name, :waiting_since]
       read_action :awaiting_me
-      row_actions [:approve, :reject]
+      row_actions [:approve, :reject, :request_info, :answer, :resolve]
       select_context :task
 
       row_layout do
@@ -722,7 +727,16 @@ defmodule AshEnterpriseWeb.A2ui.ApprovalsUI do
         :waiting_since,
         :assignee_label,
         :run_stage,
-        :subject_detail
+        :subject_detail,
+        :review_currency,
+        :review_target,
+        :review_arguments,
+        :review_digest,
+        :review_evidence,
+        :review_decision,
+        :due_label,
+        :escalation_label,
+        :info_exchange
       ]
     end
 
@@ -734,6 +748,28 @@ defmodule AshEnterpriseWeb.A2ui.ApprovalsUI do
     action :reject do
       prompt_fields [:comment]
       prompt_title "Reject — add a note for the record (optional)"
+    end
+
+    # Only an invocation's approval task asks; `DecideTask` refuses the rest
+    # (`AshEnterprise.Execution.InfoRequest`).
+    action :request_info do
+      label "Ask for more information"
+      prompt_fields [:question]
+      prompt_title "Ask the requester — they answer before you decide"
+    end
+
+    # A question you were asked, an agent's or an approver's; and an invocation whose
+    # outcome is unknown, settled. `DecideTask` refuses each on any other task.
+    action :answer do
+      label "Answer"
+      prompt_fields [:answer]
+      prompt_title "Answer the question"
+    end
+
+    action :resolve do
+      label "Settle"
+      prompt_fields [:outcome, :comment]
+      prompt_title "What happened? Succeeded, failed, or try again"
     end
 
     # The subject is polymorphic: a typed reference (`<surface>:<id>`) the
@@ -762,6 +798,42 @@ defmodule AshEnterpriseWeb.A2ui.ApprovalsUI do
 
     field :subject_detail do
       label "Details"
+    end
+
+    field :review_currency do
+      label "Approval binding"
+    end
+
+    field :review_target do
+      label "Would run"
+    end
+
+    field :review_arguments do
+      label "With"
+    end
+
+    field :review_digest do
+      label "Approval digest"
+    end
+
+    field :review_evidence do
+      label "Evidence"
+    end
+
+    field :review_decision do
+      label "Decisions"
+    end
+
+    field :due_label do
+      label "Due"
+    end
+
+    field :escalation_label do
+      label "Escalation"
+    end
+
+    field :info_exchange do
+      label "Questions"
     end
 
     # The task's process run, on its flight view (the task's reader may read

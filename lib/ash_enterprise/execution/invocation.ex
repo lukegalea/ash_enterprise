@@ -56,6 +56,14 @@ defmodule AshEnterprise.Execution.Invocation do
       self-approval under the opt-in sole-administrator rule.
       See `AshEnterprise.Execution.Approval`. Being asked to approve a row lets a person
       read it (`AshEnterprise.Security.Checks.InvocationApprovalCandidacy`).
+    * **A request for more information.** An approver who cannot decide yet answers
+      the approval task with `HumanTask.request_info` and a question. `apply_decision`
+      parks the row in `request_info` and opens the requester's task,
+      `invocation.info` (`AshEnterprise.Execution.Changes.OpenInfoTask`); once they
+      answer through `HumanTask.answer`, the `:provide_info` trigger returns the row to
+      `awaiting_approval` with a new approval task
+      (`AshEnterprise.Execution.Changes.ReadInfo`). Only a later approval makes it
+      ready. See `AshEnterprise.Execution.InfoRequest`.
     * **The `:execute` trigger.** `request` and `apply_decision` enqueue it for every
       ready row in their own transaction; its scheduler sweeps any ready row whose job
       was lost. It takes the tenant from the row, persists no actor, and runs a generic
@@ -112,6 +120,7 @@ defmodule AshEnterprise.Execution.Invocation do
       :request_resolution,
       :apply_resolution,
       :apply_decision,
+      :provide_info,
       :execute,
       :reconcile,
       :collect_input,
@@ -179,9 +188,11 @@ defmodule AshEnterprise.Execution.Invocation do
     change AshEnterprise.Execution.Changes.HandoffFaultPoints, on: [:create]
 
     change AshEnterprise.Execution.Changes.RequestApproval,
-      where: [action_is([:request, :rerun])]
+      where: [action_is([:request, :rerun, :provide_info])]
 
     change AshEnterprise.Execution.Changes.ReadApproval, where: [action_is(:apply_decision)]
+    change AshEnterprise.Execution.Changes.OpenInfoTask, where: [action_is(:apply_decision)]
+    change AshEnterprise.Execution.Changes.ReadInfo, where: [action_is(:provide_info)]
     change AshEnterprise.Execution.Changes.RecheckApprover, where: [action_is(:claim)]
 
     change AshEnterprise.Execution.Changes.OpenResolutionTask,
@@ -305,6 +316,24 @@ defmodule AshEnterprise.Execution.Invocation do
         scheduler_module_name AshEnterprise.Execution.Invocation.ApplyDecisionScheduler
       end
 
+      # The requester answered an approver's question: the row goes back to its
+      # approver, with a new approval task. The sweep is the only path, so a crash
+      # between the answer and its application heals on the next run. While they have
+      # not answered, nothing matches.
+      trigger :provide_info do
+        action :provide_info
+        where expr(status == :request_info and exists(info_task, status == :completed))
+        read_action :read
+        queue :execution
+        scheduler_cron "* * * * *"
+        max_attempts 3
+        use_tenant_from_record? true
+        actor_persister :none
+        default_actor AshEnterprise.Platform.SystemActor.oban()
+        worker_module_name AshEnterprise.Execution.Invocation.ProvideInfoWorker
+        scheduler_module_name AshEnterprise.Execution.Invocation.ProvideInfoScheduler
+      end
+
       # Rows no job is coming for: a worker died holding the lease, a dispatch deadline
       # passed, or the outcome is unknown and nobody has been asked yet.
       # `mark_outcome_unknown` enqueues it in its own transaction; the scheduler is the
@@ -421,6 +450,22 @@ defmodule AshEnterprise.Execution.Invocation do
              )
 
       description "The task a person settles this row's unknown outcome with."
+    end
+
+    # The latest question an approver asked the requester (`InfoRequest`). A row asked
+    # again gets a new task, and only the newest counts.
+    has_one :info_task, AshEnterprise.Bpmn.HumanTask do
+      public? true
+      from_many? true
+      destination_attribute :subject_id
+      sort inserted_at: :desc
+
+      filter expr(
+               node_id == "invocation.info" and
+                 subject_type == "Elixir.AshEnterprise.Execution.Invocation"
+             )
+
+      description "The task the requester answers an approver's question with."
     end
 
     # The question a `HumanInput.request` call handed on, under the static key: one per row.

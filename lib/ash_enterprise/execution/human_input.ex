@@ -97,11 +97,14 @@ defmodule AshEnterprise.Execution.HumanInput do
 
   @doc """
   Whether `task` may be completed through `door`: `:answer` (the `HumanTask.answer`
-  action) for an input task only, any other door for every other task.
+  action) for a question only, an agent's or an approver's
+  (`AshEnterprise.Execution.InfoRequest`); any other door for every other task.
   """
   @spec check(struct(), atom()) :: :ok | {:error, String.t()}
   def check(task, :answer) do
-    if task?(task), do: :ok, else: {:error, "only an agent's question is answered"}
+    if task?(task) or AshEnterprise.Execution.InfoRequest.task?(task),
+      do: :ok,
+      else: {:error, "only a question you were asked is answered"}
   end
 
   def check(task, _door) do

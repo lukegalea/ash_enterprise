@@ -20,6 +20,10 @@ defmodule AshEnterprise.Execution.Changes.ReadApproval do
       `"approver_unauthorized"`. The approval is not the one asked for, so the row asks
       no further; the requester may ask again.
     * **Rejected**: `:rejected`.
+    * **More information asked for** (`HumanTask.request_info`): `:request_info`. The
+      row waits on the requester, who is asked in the same transaction
+      (`AshEnterprise.Execution.Changes.OpenInfoTask`); it is not a decision, so
+      nothing about the approver is checked or recorded on the row.
     * The task expired, or `approval_expires_at` passed with no decision: `stale`,
       `"approval_expired"`. The task was cancelled: `stale`, `"approval_withdrawn"`.
     * Otherwise (still open) the update is refused and writes nothing.
@@ -71,7 +75,9 @@ defmodule AshEnterprise.Execution.Changes.ReadApproval do
     end
   end
 
-  defp approval_task(row, tenant) do
+  @doc "The latest approval task of invocation `row`, read with the engine's authority."
+  @spec approval_task(Ash.Resource.record(), term()) :: {:ok, struct() | nil} | {:error, term()}
+  def approval_task(row, tenant) do
     subject_type = to_string(row.__struct__)
     key = Approval.key()
 
@@ -99,6 +105,9 @@ defmodule AshEnterprise.Execution.Changes.ReadApproval do
 
   defp decision(_row, %{status: :completed, outcome: "rejected", decided_by_id: decider}, _now),
     do: {:ok, :rejected, decider, "approval_rejected"}
+
+  defp decision(_row, %{status: :completed, outcome: "request_info"}, _now),
+    do: {:ok, :request_info, nil, nil}
 
   defp decision(_row, %{status: :completed, outcome: "expired"}, _now),
     do: {:ok, :stale, nil, "approval_expired"}

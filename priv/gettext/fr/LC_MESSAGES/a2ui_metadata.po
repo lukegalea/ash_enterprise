@@ -151,9 +151,14 @@ msgid "Ancestry"
 msgstr "Ascendance"
 
 #: lib/ash_enterprise/canvas/registry.ex:2
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
 #: lib/ash_enterprise_web/a2ui/judgments/verdicts_ui.ex:1
 msgid "Answer"
 msgstr "Réponse"
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+msgid "Answer the question"
+msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
 msgctxt "one_of:disposition"
@@ -171,6 +176,16 @@ msgstr ""
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
 msgid "Approval"
 msgstr "Approbation"
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#, fuzzy
+msgid "Approval binding"
+msgstr "Approbation"
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#, fuzzy
+msgid "Approval digest"
+msgstr "Approbations"
 
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
 msgid "Approvals"
@@ -234,6 +249,14 @@ msgstr "Relecture des événements Ash : mise à jour de projection"
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Ash events replay share update"
 msgstr "Relecture des événements Ash : mise à jour de partage"
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+msgid "Ask for more information"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+msgid "Ask the requester — they answer before you decide"
+msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/credential_ui.ex:1
 msgid "Ask to activate"
@@ -776,6 +799,7 @@ msgid "Decision"
 msgstr ""
 
 #: lib/ash_enterprise/canvas/registry.ex:2
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
 msgid "Decisions"
 msgstr "Décisions"
 
@@ -908,6 +932,7 @@ msgstr "Abandonné"
 
 #: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
 msgid "Due"
 msgstr "Échéance"
 
@@ -994,6 +1019,11 @@ msgctxt "one_of:outcome"
 msgid "Escalate"
 msgstr "Escalader"
 
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#, fuzzy
+msgid "Escalation"
+msgstr "Évaluation"
+
 #: lib/ash_enterprise_web/a2ui/compliance_evaluation_ui.ex:1
 msgid "Evaluated at"
 msgstr "Évalué le"
@@ -1037,6 +1067,10 @@ msgstr "Chaque revue en cours, à l’étape où elle se trouve actuellement."
 msgid "Every running brief, on the step it is on now."
 msgstr "Chaque synthèse en cours, à l’étape où elle se trouve actuellement."
 
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+msgid "Evidence"
+msgstr ""
+
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Expired"
 msgstr "Expiré"
@@ -1054,6 +1088,12 @@ msgid "Facts"
 msgstr "Faits"
 
 #: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
+msgid "Failed"
+msgstr "Échec"
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#, fuzzy
+msgctxt "one_of:outcome"
 msgid "Failed"
 msgstr "Échec"
 
@@ -1745,6 +1785,11 @@ msgstr "Ouvrir un lot"
 msgid "Open a person"
 msgstr "Ouvrir une personne"
 
+#: lib/ash_enterprise_web/a2ui/credential_ui.ex:1
+#, fuzzy
+msgid "Open case"
+msgstr "Écarts ouverts"
+
 #: lib/ash_enterprise_web/a2ui/projected_user_ui.ex:1
 msgid "Open gaps"
 msgstr "Écarts ouverts"
@@ -1812,6 +1857,7 @@ msgid "Oscal uuid"
 msgstr "UUID OSCAL"
 
 #: lib/ash_enterprise_web/a2ui/compliance_evaluation_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
 #: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
 msgid "Outcome"
@@ -2002,6 +2048,7 @@ msgstr "Publier"
 msgid "Pulse"
 msgstr "Pouls"
 
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
 #: lib/ash_enterprise_web/a2ui/judgments/verdicts_ui.ex:1
 msgid "Question"
 msgstr "Question"
@@ -2009,6 +2056,11 @@ msgstr "Question"
 #: lib/ash_enterprise_web/a2ui/judgments/verdicts_ui.ex:1
 msgid "Question id"
 msgstr "Identifiant de la question"
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#, fuzzy
+msgid "Questions"
+msgstr "Question"
 
 #: lib/ash_enterprise_web/a2ui/operator_ui.ex:1
 msgid "Reach"
@@ -2145,6 +2197,10 @@ msgid "Request classifier"
 msgstr "Classificateur de demandes"
 
 #: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Request info"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Request password reset token"
 msgstr "Demander un jeton de réinitialisation du mot de passe"
 
@@ -2198,6 +2254,12 @@ msgstr "Retirer"
 msgctxt "one_of:status"
 msgid "Retired"
 msgstr "Retiré"
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#, fuzzy
+msgctxt "one_of:outcome"
+msgid "Retry"
+msgstr "Retirer"
 
 #: lib/ash_enterprise_web/a2ui/flight_ui.ex:121
 #: lib/ash_enterprise_web/a2ui/mdm_steward_ui.ex:1
@@ -2472,6 +2534,11 @@ msgstr "Envoyé"
 msgid "Set sole administrator approval"
 msgstr "Définir l’approbation de l’administrateur unique"
 
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#, fuzzy
+msgid "Settle"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/finding_ui.ex:1
 msgid "Severity"
 msgstr "Gravité"
@@ -2658,6 +2725,12 @@ msgstr "Abonnement"
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Subtree"
 msgstr "Sous-arbre"
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#, fuzzy
+msgctxt "one_of:outcome"
+msgid "Succeeded"
+msgstr ""
 
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Supersede"
@@ -2951,6 +3024,10 @@ msgctxt "one_of:outcome"
 msgid "Waived"
 msgstr "Dispensé"
 
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+msgid "What happened? Succeeded, failed, or try again"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/judgments/verdicts_ui.ex:1
 msgid "What the model judged"
 msgstr "Ce que le modèle a jugé"
@@ -2994,8 +3071,16 @@ msgstr "Pourquoi cela correspond"
 msgid "Window"
 msgstr "Fenêtre"
 
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+msgid "With"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
 msgid "World"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+msgid "Would run"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1

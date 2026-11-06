@@ -138,7 +138,7 @@ defmodule AshEnterprise.Execution.HumanInputTest do
     approval = task(row, Approval.key(), clinic.tenant)
 
     assert {:error, error} = door(:answer, approval, lead, %{answer: "SYNTHETIC: yes"})
-    assert Exception.message(error) =~ "only an agent's question is answered"
+    assert Exception.message(error) =~ "only a question you were asked is answered"
     assert task(row, Approval.key(), clinic.tenant).status == :open
   end
 

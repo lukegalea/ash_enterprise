@@ -16,6 +16,9 @@ defmodule AshEnterprise.Execution.Approval do
       `AshEnterprise.Execution.Changes.RequestApproval`, decided through the existing
       `HumanTask.approve` and `reject` doors, and applied by the `:apply_decision`
       trigger (`AshEnterprise.Execution.Changes.ReadApproval`). Never `on_complete`.
+      An approver may instead ask the requester for more information
+      (`HumanTask.request_info`, `AshEnterprise.Execution.InfoRequest`); the row's
+      next approval task opens when they have answered.
     * **The candidates.** The holders of the declaration's `approver_role`, the role
       named by it in words (`:credentialing_committee` is the role "Credentialing
       committee", `:administrator` is "Administrator"). A `:confirm` target that names
@@ -69,7 +72,7 @@ defmodule AshEnterprise.Execution.Approval do
     [
       key: @key,
       name: "Approve #{target |> String.split(".") |> Enum.take(-2) |> Enum.join(".")}",
-      outcomes: [:approved, :rejected],
+      outcomes: [:approved, :rejected, :request_info],
       candidates: candidates(effects),
       excluding: excluding(effects, sole_administrator?(tenant, requester_id, effects)),
       expire_in: expire_in(effects)
