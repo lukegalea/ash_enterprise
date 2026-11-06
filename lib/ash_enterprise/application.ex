@@ -10,6 +10,7 @@ defmodule AshEnterprise.Application do
   @impl true
   def start(_type, _args) do
     setup_opentelemetry()
+    AshEnterprise.Telemetry.Operations.attach()
     check_external_binaries()
     configure_acp_agent_info()
 

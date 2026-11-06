@@ -21,6 +21,8 @@ defmodule AshEnterprise.Credentialing.Changes.ActivateInRegistry do
 
   alias AshEnterprise.Credentialing.RegistryApi
   alias AshEnterprise.Faults
+  alias AshEnterprise.Lineage
+  alias AshEnterprise.Platform.Correlation
 
   @impl true
   def change(changeset, _opts, context) do
@@ -41,6 +43,7 @@ defmodule AshEnterprise.Credentialing.Changes.ActivateInRegistry do
     case RegistryApi.activate(arguments, opts) do
       {:ok, %{"id" => reference}} when is_binary(reference) ->
         Faults.point(:credential_registry_accepted)
+        emit_lineage(changeset.tenant)
 
         Ash.Changeset.force_change_attributes(changeset, %{
           status: :active,
@@ -61,5 +64,17 @@ defmodule AshEnterprise.Credentialing.Changes.ActivateInRegistry do
       {:error, error} ->
         Ash.Changeset.add_error(changeset, error)
     end
+  end
+
+  # ADR 0012, the hole rule: the registry's own dataset is not covered by a tap, so the
+  # activation is emitted as a job that writes it. Structural names only (the leak rule): no
+  # reference, id or licence number enters the event.
+  defp emit_lineage(tenant) do
+    Lineage.ingestion_event(:complete, "ash_enterprise", "credential_registry.activate",
+      run_id:
+        Lineage.job_run_id(Correlation.id(), "ash_enterprise", "credential_registry.activate"),
+      outputs: [{"credential-registry", "activations"}],
+      tenant: tenant
+    )
   end
 end
