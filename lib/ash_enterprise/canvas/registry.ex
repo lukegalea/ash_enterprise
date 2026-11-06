@@ -67,4 +67,25 @@ defmodule AshEnterprise.Canvas.Registry do
   def projections(AshEnterprise.Bpmn.Definition, derived), do: derived ++ [:diagram]
   def projections(AshEnterprise.Decisions.Definition, derived), do: derived ++ [:diagram]
   def projections(_other, _derived), do: nil
+
+  @doc """
+  What running an action does, from its `AshAgent.Effects` declaration: the
+  same declaration ACP labels its tool calls from (`AshEnterprise.Acp.kind/2`).
+
+  A declared read-only action is `:read`, so a generic action that only
+  reads is not shown as a change. A declared destructive one is
+  `:destructive`, which makes the canvas ask for confirmation; the
+  declaration's default, as in MCP, is destructive. Anything else declared
+  is `:mutation`. An undeclared action answers `nil`, and the canvas keeps
+  the consequence it derives from the action's type.
+  """
+  @impl true
+  def consequence(resource, action, _derived) do
+    case AshAgent.Effects.Info.effect(resource, action) do
+      %{read_only?: true} -> :read
+      %{destructive?: true} -> :destructive
+      %{} -> :mutation
+      nil -> nil
+    end
+  end
 end

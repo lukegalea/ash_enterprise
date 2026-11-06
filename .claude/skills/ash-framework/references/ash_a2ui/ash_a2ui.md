@@ -27,7 +27,9 @@ Sub-rules (addressable as `ash_a2ui:<name>`):
   (title + badge header, metadata grid), `display :board` boards (lanes
   over an attribute's values, optionally split into swimlanes), and
   `display :calendar` calendars (a month/week/day window over a queried
-  table).
+  table), `display :timeline` timelines (a table in time order, each row
+  led by its moment) and `display :matrix` matrices (a server-built grid
+  of one attribute by another).
 - `ash_a2ui:contexts` — surface `context` entities (server-validated
   selections, dependent options, `context_filter`/`require_context`/
   `select_context`) and `:detail` components.

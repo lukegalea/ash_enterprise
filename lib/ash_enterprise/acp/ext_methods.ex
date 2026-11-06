@@ -217,7 +217,6 @@ defmodule AshEnterprise.Acp.ExtMethods do
       {:request_permission,
        %{
          title: "#{humanize(action_name)} · #{entry.label}",
-         kind: Acp.kind(resource, action_name),
          inputs: inputs(resource, action_name, context),
          record: record(resource, action_name, context["recordId"], actor),
          tenant: ActorContext.tenant(actor),

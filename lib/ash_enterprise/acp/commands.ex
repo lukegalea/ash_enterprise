@@ -613,7 +613,8 @@ defmodule AshEnterprise.Acp.Commands do
   defp ok_as(resource, action, inputs, title, {_actor, tenant}, surface),
     do: ok(resource, action, inputs, title, tenant, surface)
 
-  # The route's ACP tool kind comes from the action's effects declaration.
+  # ash_acp names the route's tool kind through the host's kind resolver
+  # (`Acp.kind/2`, the action's effects declaration).
   defp ok(resource, action, inputs, title, tenant, surface) do
     {:ok,
      %{
@@ -622,7 +623,6 @@ defmodule AshEnterprise.Acp.Commands do
          action: action,
          inputs: inputs,
          title: title,
-         kind: Acp.kind(resource, action),
          tenant: tenant
        },
        surface: surface

@@ -139,7 +139,10 @@ These ship with the package but are opt-in; none of them changes the wire.
   domains (`build_graph/1`) and opaque object refs resolved with the actor
   (`resolve/2`, server-derived capabilities). The host implements
   `AshA2ui.Canvas.Registry`; what it does not list does not exist. Never
-  turn a client-supplied string into a module or atom to reach it.
+  turn a client-supplied string into a module or atom to reach it. The
+  optional `consequence/3` callback states what running an action does
+  (`:read`, `:mutation`, `:destructive`) when its type says less; `nil` or
+  any other answer keeps the derived consequence.
 
 ## When not to use it
 

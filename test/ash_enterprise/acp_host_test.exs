@@ -125,4 +125,61 @@ defmodule AshEnterprise.AcpHostTest do
     assert is_list(records) and records != [], "surface records must be non-empty"
     assert hd(records)["name"] == seeded.business_unit.name
   end
+
+  test "a routed call's tool kind is the action's declared kind", %{email: email} do
+    Application.put_env(:ash_enterprise, :acp_operator_email, email)
+    on_exit(fn -> Application.delete_env(:ash_enterprise, :acp_operator_email) end)
+
+    # `help` runs `Console.help`, a generic action declared `kind: :read`; its
+    # route names no kind, so the label comes from the configured resolver.
+    assert tool_kind(AshAcp.config(), "help") == "read"
+
+    # Without the resolver ash_acp labels a generic action `execute`, which is
+    # what shows the resolver, not the route, named it.
+    assert tool_kind(AshAcp.config() |> Map.put(:kind_resolver, nil), "help") == "execute"
+  end
+
+  defp tool_kind(config, text) do
+    {_, _, state} =
+      Server.handle_message(
+        %{
+          "jsonrpc" => "2.0",
+          "id" => 1,
+          "method" => "initialize",
+          "params" => %{"protocolVersion" => 1, "clientCapabilities" => %{}}
+        },
+        Server.new(config)
+      )
+
+    {resp, _, state} =
+      Server.handle_message(
+        %{
+          "jsonrpc" => "2.0",
+          "id" => 2,
+          "method" => "session/new",
+          "params" => %{"cwd" => "/tmp"}
+        },
+        state
+      )
+
+    {_resp, updates, _state} =
+      Server.handle_message(
+        %{
+          "jsonrpc" => "2.0",
+          "id" => 3,
+          "method" => "session/prompt",
+          "params" => %{
+            "sessionId" => resp["result"]["sessionId"],
+            "prompt" => [%{"type" => "text", "text" => text}]
+          }
+        },
+        state
+      )
+
+    call =
+      Enum.find(updates, &(get_in(&1, ["params", "update", "sessionUpdate"]) == "tool_call"))
+
+    assert call, "expected a tool_call, got: #{inspect(Enum.map(updates, & &1["method"]))}"
+    call["params"]["update"]["kind"]
+  end
 end

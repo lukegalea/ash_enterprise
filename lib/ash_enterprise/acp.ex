@@ -22,6 +22,8 @@ defmodule AshEnterprise.Acp do
   `ash_acp`.
   """
 
+  @behaviour AshAcp.KindResolver
+
   @table :ash_enterprise_acp_sessions
 
   @doc false
@@ -79,7 +81,12 @@ defmodule AshEnterprise.Acp do
   The ACP tool kind of `action` on `resource`: its declared `kind`, or for an
   undeclared action `ash_acp`'s own default (`read` for an Ash `:read`
   action, `execute` otherwise).
+
+  This is the host's `AshAcp.KindResolver` (`config :ash_acp, kind_resolver:`),
+  so every tool call and permission request ash_acp builds is labelled from
+  the same declaration, whichever spec it came from.
   """
+  @impl AshAcp.KindResolver
   @spec kind(Ash.Resource.t(), atom()) :: AshAgent.Effects.Effect.kind()
   def kind(resource, action) do
     case AshAgent.Effects.Info.effect(resource, action) do

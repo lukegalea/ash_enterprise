@@ -271,6 +271,9 @@ config :ash_acp,
   # No "allow always": a permission request is an invocation's approval
   # (`AshEnterprise.Acp.Approvals`), and there is no standing grant to record.
   permission_options: [:allow_once, :reject_once],
+  # The tool kind of every call, from the action's `AshAgent.Effects`
+  # declaration (`AshEnterprise.Acp.kind/2`), so a spec need not name it.
+  kind_resolver: AshEnterprise.Acp,
   agent_info: %{name: "ash_enterprise", version: "0.1.0"}
 
 # The trigger sweep dispatches each event inside its own transaction -- deliberately, so a

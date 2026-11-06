@@ -1,9 +1,10 @@
 # AshA2ui layout rules
 
 Rules for the `group`, `step`, `row_layout` and `column` layout entities, for boards
-(`display :board`) and for calendars (`display :calendar`). See the Layout,
-Wizard Steps, Multi-Section Surfaces and Calendars topics for the full
-contracts.
+(`display :board`), for calendars (`display :calendar`) and for timelines
+and matrices (`display :timeline`, `display :matrix`). See the Layout,
+Wizard Steps, Multi-Section Surfaces, Calendars and Timelines and Matrices
+topics for the full contracts.
 
 ## Form groups
 
@@ -358,6 +359,23 @@ contracts.
   list); the admin catalog (1.3) emits a `calendarView` wrapping the
   table's `dataGrid`, so row actions, prompts and pagination work
   unchanged.
+
+## Timelines and matrices
+
+- A timeline is a `:table` read in time order: `display :timeline` and a
+  `date_field` (a public date or datetime attribute). Without a declared or
+  requested sort it reads oldest first. Rows carry `_timeline_at` and
+  `_timeline_when` (both `""` with no value) and each basic row leads with a
+  caption bound to `_timeline_when`. No `sections`.
+- A matrix is a `:table` laid out as a grid: `display :matrix` with
+  distinct `row_field`, `column_field` and `cell_field` attributes. The
+  server serves the grid at `/_matrix_<table>`; a cell with no value is
+  `"recorded": false` ("Not recorded"), never an empty value. An enumerated
+  `column_field` keeps every declared value as a column. No `sections`,
+  `row_layout`, `row_actions`, `bulk_actions` or `editable`. Give it a page
+  size that holds the grid: it is built from the page read.
+- Both render basic-catalog compositions under every catalog, so a client
+  that only advertises the basic catalog shows them in full.
 
 ## Avoid
 

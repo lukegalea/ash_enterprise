@@ -104,7 +104,7 @@ end
     — filters over a related value: a relationship path (any related value
     matches) or one attribute/aggregate/expression calculation. Use a
     filtered aggregate when the path alone would match the wrong related
-    records (a vendor party, not the PMC). Options are the distinct values
+    records (a vendor party, not the owner). Options are the distinct values
     of the read the actor can see, at `/query/options/<name>`. Values cast
     to the terminal field's type. Admin catalog only.
   - `search_placeholder "..."`, `controls_card false` (the bare Row under

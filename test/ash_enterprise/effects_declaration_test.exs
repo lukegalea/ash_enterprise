@@ -144,5 +144,24 @@ defmodule AshEnterprise.EffectsDeclarationTest do
       refute Acp.asks_first?(LinkedAccount, :mine)
       assert Acp.kind(LinkedAccount, :mine) == :read
     end
+
+    test "ash_acp names a call's tool kind through the declarations" do
+      assert AshAcp.config().kind_resolver == Acp
+
+      # Generic actions, which ash_acp alone labels `execute`.
+      assert AshAcp.KindResolver.resolve(Acp, Console, :today, :execute) == :read
+      assert AshAcp.KindResolver.resolve(Acp, Console, :todo, :execute) == :edit
+    end
+
+    test "an undeclared or unknown action keeps ash_acp's default, never a lighter kind" do
+      assert AshAcp.KindResolver.resolve(Acp, LinkedAccount, :relabel, :execute) == :execute
+
+      refute Ash.Resource.Info.action(LinkedAccount, :no_such_action)
+
+      assert AshAcp.KindResolver.resolve(Acp, LinkedAccount, :no_such_action, :execute) ==
+               :execute
+
+      assert AshAcp.KindResolver.resolve(Acp, LinkedAccount, nil, :execute) == :execute
+    end
   end
 end

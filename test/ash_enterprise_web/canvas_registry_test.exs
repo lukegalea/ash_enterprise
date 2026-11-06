@@ -54,6 +54,41 @@ defmodule AshEnterpriseWeb.CanvasRegistryTest do
     assert graph.revision == AshA2ui.Canvas.build_graph(Registry).revision
   end
 
+  describe "consequences come from the effects declaration" do
+    test "a declared action carries its declared consequence" do
+      # Ash derives `:mutation` for every generic action; the declaration says
+      # approving a task cannot be undone (MCP's default), so the canvas asks.
+      assert %{consequence: :destructive, confirmation: :required} =
+               capability("resource:bpmn.human_task", "approve")
+
+      assert %{consequence: :mutation, confirmation: :none} =
+               capability("resource:security.user_role", "request_assignment")
+
+      assert %{consequence: :read, confirmation: :none} =
+               capability("resource:accounts.team", "read")
+    end
+
+    test "an undeclared action keeps the consequence the canvas derives" do
+      refute AshAgent.Effects.Info.declared?(AshEnterprise.Accounts.Team, :destroy)
+
+      assert %{consequence: :destructive, confirmation: :required} =
+               capability("resource:accounts.team", "destroy")
+    end
+
+    test "nothing undeclared, unknown or outside Ash is given a consequence" do
+      assert Registry.consequence(AshEnterprise.Accounts.Team, :destroy, :destructive) == nil
+      assert Registry.consequence(AshEnterprise.Accounts.Team, :no_such_action, :mutation) == nil
+      assert Registry.consequence(String, :read, :read) == nil
+    end
+  end
+
+  defp capability(ref, action_name) do
+    {:ok, object} = AshA2ui.Canvas.resolve(ref, registry: Registry)
+
+    Enum.find(object.capabilities, &(&1.action_name == action_name)) ||
+      flunk("#{ref} #{action_name}")
+  end
+
   defp edge_tuples(graph) do
     Enum.map(graph.edges, &{&1.kind, &1.from, &1.to, &1.name})
   end
