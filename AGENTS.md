@@ -2685,6 +2685,12 @@ _Strangler-fig migrations for Ash: map an Ash resource onto a legacy Postgres sc
 
 [ash_strangler usage rules](deps/ash_strangler/usage-rules.md)
 <!-- ash_strangler-end -->
+<!-- ash_operations-start -->
+## ash_operations usage
+_Declare a provider's HTTP operations on an Ash resource: one generic action per operation, a spec pinned at compile time, one retry table and typed errors._
+
+[ash_operations usage rules](deps/ash_operations/usage-rules.md)
+<!-- ash_operations-end -->
 <!-- ash_open_lineage-start -->
 ## ash_open_lineage usage
 _Emits OpenLineage spec 2-0-2 RunEvents from Ash: a Spark extension +

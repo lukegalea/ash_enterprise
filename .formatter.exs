@@ -4,6 +4,7 @@
     # the formatter treats its DSL as ordinary function calls and rewrites
     # `fields [:a, :b]` to `fields([:a, :b])`.
     :ash_a2ui,
+    :ash_operations,
     :clarity,
     :cinder,
     :ash_rate_limiter,

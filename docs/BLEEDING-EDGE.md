@@ -20,7 +20,7 @@ dependency can be fetched anonymously.
 `test/ash_enterprise/bleeding_edge_doc_test.exs` fails if a git dependency or an `override: true` exists in `mix.exs` or
 `mix.lock` without being named on this page. Add the row in the same commit as the dependency.
 
-Facts below were checked on **2026-10-15**. Upstream status goes stale quickly, so check it before acting on it.
+Facts below were checked on **2026-11-06**. Upstream status goes stale quickly, so check it before acting on it.
 
 ## 1. Forks
 
@@ -106,6 +106,7 @@ confined so that removing one is a deletion, not a refactor.
 |---|---|---|---|
 | `ash_a2ui` | agent-renderable UI surfaces (ADR 0033) | none | yes |
 | `ash_strangler` | strangler-fig read model over `legacy.*` (ADR 0009) | none | yes |
+| `ash_operations` | declared provider operations: the credential registry connector and webhook ingress (ADR 0063) | none | yes |
 | `ash_open_lineage` | OpenLineage emission (ADR 0012) | none | yes |
 | `ash_acp` | Agent Client Protocol adapter | none | yes |
 | `ash_rules` | rule IR, fact schemas, evaluator | none | yes |
