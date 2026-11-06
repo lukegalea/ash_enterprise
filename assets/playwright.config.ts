@@ -25,16 +25,22 @@ export default defineConfig({
     // those natively, so no special wiring is needed here.
   },
   webServer: {
-    // devenv owns the toolchain (bare `mix` picks the wrong Elixir/MIX_HOME),
-    // so the server must go through `devenv shell`. This runs in Playwright's
-    // process tree, not a developer terminal, so it does not sit on the
-    // _build lock the way a long-lived interactive devenv session would. An
-    // already-running server is reused -- start one by hand with
-    // `devenv shell -- env PORT=4100 mix phx.server` when iterating.
-    command: `devenv shell -- env PORT=${port} mix phx.server`,
+    // Locally devenv owns the toolchain (bare `mix` picks the wrong
+    // Elixir/MIX_HOME), so the default goes through `devenv shell`. This runs
+    // in Playwright's process tree, not a developer terminal, so it does not
+    // sit on the _build lock the way a long-lived interactive devenv session
+    // would. CI has no devenv (its toolchain comes from
+    // .github/actions/setup-beam) and sets E2E_SERVER_COMMAND to plain
+    // `mix phx.server`; PORT is set below either way.
+    command: process.env.E2E_SERVER_COMMAND ?? "devenv shell -- mix phx.server",
+    env: {PORT: port},
     url: `${baseURL}/sign-in`,
     cwd: repoRoot,
-    reuseExistingServer: true,
+    // The suite starts the server it tests, so a stray server on the port
+    // (another checkout's, an old build) fails the run instead of being
+    // tested by mistake. E2E_REUSE=1 reuses one you started by hand while
+    // iterating: `devenv shell -- env PORT=4100 mix phx.server`.
+    reuseExistingServer: process.env.E2E_REUSE === "1",
     timeout: 180_000,
   },
 });

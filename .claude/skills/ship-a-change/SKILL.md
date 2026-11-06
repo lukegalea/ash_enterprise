@@ -40,6 +40,7 @@ Before the first test run, do the pre-flight:
 scripts/pre-ci                    # CI's static steps, in CI's order; --keep-going runs them all
 mix test <the test files you added or affected>
 mix test.durability <the durability files you added or affected>   # by file, see docs/DURABILITY-TESTS.md
+E2E_PORT=<a free port> npm --prefix assets run test:e2e -- <the specs you added or affected>
 ```
 
 `scripts/pre-ci` runs the main job's checks that need no test run (format, the compile gate, Credo,
@@ -68,7 +69,9 @@ gh run watch <run-id>                             # block until it finishes
 ```
 
 - **A job goes red.** Reproduce that file locally with `mix test <file>`, fix it, and push to the
-  same `ci/` branch again. The Dialyzer job is advisory; add no new warnings.
+  same `ci/` branch again. The Dialyzer job is advisory; add no new warnings. The browser
+  end-to-end job is advisory until it has been green three runs in a row; a red spec you touched
+  is still yours to fix.
 - **Everything is green.** Fetch again. If `main` moved and the rebase touches files you changed,
   push to `ci/` and wait again. Otherwise:
 

@@ -298,8 +298,38 @@ defmodule AshEnterprise.Credentialing.LicenceDemoData do
     |> Ash.run_action!()
 
     Execution.apply_invocation_decision!(row, oban)
-    {:ok, :succeeded} = Executor.execute(Invocation, row.id, oban)
+    :succeeded = run!(row.id, tenant, oban)
     :ok
+  end
+
+  # The demo task boots the whole application, so a running queue may claim the row before
+  # this process does, and then `execute/3` here ends `:skipped`. That says only that another
+  # worker holds it: wait for that worker's outcome, and take nothing but `:succeeded` as done.
+  defp run!(id, tenant, oban, rounds \\ 120)
+
+  defp run!(id, _tenant, _oban, 0), do: raise("invocation #{id} did not settle")
+
+  defp run!(id, tenant, oban, rounds) do
+    case Executor.execute(Invocation, id, oban) do
+      {:ok, :skipped} ->
+        case Execution.get_invocation!(id, authorize?: false, tenant: tenant).status do
+          :succeeded ->
+            :succeeded
+
+          status when status in [:ready, :executing] ->
+            Process.sleep(250)
+            run!(id, tenant, oban, rounds - 1)
+
+          status ->
+            raise "invocation #{id} ended #{status}"
+        end
+
+      {:ok, :succeeded} ->
+        :succeeded
+
+      other ->
+        raise "invocation #{id} ended #{inspect(other)}"
+    end
   end
 
   @doc "The person with `email` in `tenant`."

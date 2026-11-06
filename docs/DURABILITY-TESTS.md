@@ -18,8 +18,9 @@ devenv shell -- mix test.durability test/ash_enterprise/durability/harness_test.
 `MIX_TEST_PARTITION` is honoured as everywhere else, so two checkouts on one cluster do not
 share a database.
 
-CI runs the whole tier in a step of its own after the main suite, and so does `devenv shell --
-check`, so a durability test gates a merge like any other.
+CI runs the whole tier in a job of its own (`Durability tier`), with its own database server,
+alongside the suite's shards, and `devenv shell -- check` runs it too, so a durability test gates a
+merge like any other.
 
 The ordinary `mix test` excludes the tier. `mix test --only durability` does not run it either:
 the tests fail at once and say to use `mix test.durability`, because running them on the

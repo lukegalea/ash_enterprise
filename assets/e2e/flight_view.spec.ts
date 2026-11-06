@@ -1,4 +1,5 @@
 import {test, expect} from "@playwright/test"
+import {signIn} from "./support/sign_in"
 
 /**
  * The process flight view in a real browser (PROD-10): mermaid loads on
@@ -10,20 +11,6 @@ import {test, expect} from "@playwright/test"
  * `mix ash_enterprise.bpmn.publish`, then compose the brief from /app/today
  * (this spec composes it if the page offers the button).
  */
-
-const EMAIL = "admin@example.com"
-const PASSWORD = "password1234"
-
-async function signIn(page) {
-  await page.goto("/sign-in", {waitUntil: "networkidle"})
-  // The sign-in form is a LiveView: fill it once it has connected, or the
-  // connected render resets the inputs.
-  await page.locator(".phx-connected").first().waitFor({timeout: 15_000})
-  await page.fill('input[type="email"]', EMAIL)
-  await page.fill('input[type="password"]', PASSWORD)
-  await page.click('button[type="submit"]')
-  await page.waitForURL((url) => !url.pathname.includes("sign-in"), {timeout: 15_000})
-}
 
 test("the brief approval flight view draws the process with its marker", async ({page}) => {
   await signIn(page)

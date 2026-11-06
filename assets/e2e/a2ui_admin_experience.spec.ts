@@ -1,5 +1,6 @@
 import {test, expect} from "@playwright/test"
 import AxeBuilder from "@axe-core/playwright"
+import {signIn} from "./support/sign_in"
 
 /**
  * The A2UI experience layer (v2 + admin catalog) on a real surface.
@@ -24,20 +25,13 @@ import AxeBuilder from "@axe-core/playwright"
  * row action -- destroying data is out of scope for a browse tier).
  */
 
-const EMAIL = "admin@example.com"
-const PASSWORD = "password1234"
-
-async function signIn(page) {
-  await page.goto("/sign-in", {waitUntil: "networkidle"})
-  await page.fill('input[type="email"]', EMAIL)
-  await page.fill('input[type="password"]', PASSWORD)
-  await page.click('button[type="submit"]')
-  await page.waitForURL((url) => !url.pathname.includes("sign-in"), {timeout: 15_000})
-}
-
-/** The surface mounts over a LiveView push-event round trip; give it a beat. */
+/**
+ * The surface mounts over a LiveView push-event round trip, so the grid is
+ * what says the page is ready. Not `networkidle`: the live connection can
+ * keep the network busy past any idle window, and the wait then never ends.
+ */
 async function gotoTeams(page) {
-  await page.goto("/app/teams", {waitUntil: "networkidle"})
+  await page.goto("/app/teams")
   const grid = page.locator("ash-admin-data-grid table")
   await expect(grid).toBeVisible({timeout: 15_000})
 }
@@ -65,8 +59,9 @@ test.describe.serial("a2ui admin experience", () => {
     // table with an accessible name derived from the surface's collection
     // label.
     await expect(page.locator("ash-admin-entity-page")).toBeVisible()
-    const table = page.locator('ash-admin-data-grid table[aria-label="Team"]')
+    const table = page.locator("ash-admin-data-grid table")
     await expect(table).toBeVisible()
+    await expect(table).toHaveAttribute("aria-label", "team")
     await expect(table.locator("thead th")).toContainText(["Name", "Team type"])
 
     // Row identity is stable: each row carries the record id in its DOM id.
@@ -93,18 +88,18 @@ test.describe.serial("a2ui admin experience", () => {
     // No panel while browsing.
     await expect(page.locator("ash-admin-record-panel")).not.toBeVisible()
 
-    await page.getByRole("button", {name: "Create Team"}).click()
+    await page.getByRole("button", {name: "Create team"}).click()
     const panel = page.locator("ash-admin-record-panel")
     await expect(panel).toBeVisible()
 
     // Mode heading: an accessible, focused panel title.
-    await expect(panel.locator("section.panel")).toHaveAttribute("aria-label", "Create Team")
-    await expect(panel.locator("[data-panel-heading]")).toHaveText("Create Team")
+    await expect(panel.locator("section.panel")).toHaveAttribute("aria-label", "Create team")
+    await expect(panel.locator("[data-panel-heading]")).toHaveText("Create team")
 
     // The primary action is the action bar's own button -- distinct from the
     // page-level create affordance.
     await expect(
-      page.locator("ash-admin-action-bar").getByRole("button", {name: "Create Team"})
+      page.locator("ash-admin-action-bar").getByRole("button", {name: "Create team"})
     ).toBeVisible()
 
     // Cancel returns to browse.
@@ -118,7 +113,7 @@ test.describe.serial("a2ui admin experience", () => {
     await page.getByRole("button", {name: "View"}).first().click()
     const panel = page.locator("ash-admin-record-panel")
     await expect(panel).toBeVisible()
-    await expect(panel.locator("section.panel")).toHaveAttribute("aria-label", "View Team")
+    await expect(panel.locator("section.panel")).toHaveAttribute("aria-label", "View team")
 
     // Read-only values render as a definition list of field displays -- text
     // semantics, never disabled inputs.
@@ -140,9 +135,9 @@ test.describe.serial("a2ui admin experience", () => {
     // seeded tenant data is not renamed out from under the next run.
     const teamName = `QA Team ${Date.now()}`
 
-    await page.getByRole("button", {name: "Create Team"}).click()
+    await page.getByRole("button", {name: "Create team"}).click()
     await page.locator("#form_input_name-input").fill(teamName)
-    await page.locator("ash-admin-action-bar").getByRole("button", {name: "Create Team"}).click()
+    await page.locator("ash-admin-action-bar").getByRole("button", {name: "Create team"}).click()
 
     const banner = page.locator("ash-admin-status-banner")
     await expect(banner).toBeVisible()
@@ -158,7 +153,7 @@ test.describe.serial("a2ui admin experience", () => {
     // Edit it: the panel opens in edit mode with the record's values.
     await createdRow.getByRole("button", {name: "Edit"}).click()
     const panel = page.locator("ash-admin-record-panel")
-    await expect(panel.locator("section.panel")).toHaveAttribute("aria-label", "Edit Team")
+    await expect(panel.locator("section.panel")).toHaveAttribute("aria-label", "Edit team")
     await expect(page.locator("#form_input_name-input")).toHaveValue(teamName)
 
     // A real edit round-trip.
@@ -181,11 +176,11 @@ test.describe.serial("a2ui admin experience", () => {
     await gotoTeams(page)
 
     await page.locator("#query_search_input-input").fill("zzz-no-such-team-zzz")
-    await page.locator("a2ui-basic-button").filter({hasText: "Apply"}).click()
+    await page.getByText("Apply", {exact: true}).click()
 
     const empty = page.locator("ash-admin-empty-state")
     await expect(empty).toBeVisible()
-    await expect(empty).toContainText("No Team records yet.")
+    await expect(empty).toContainText("No team records yet.")
 
     // Still no pagination chrome -- and no rows.
     await expect(page.locator("ash-admin-pagination")).not.toBeVisible()
@@ -196,7 +191,7 @@ test.describe.serial("a2ui admin experience", () => {
     await gotoTeams(page)
 
     const results = await new AxeBuilder({page})
-      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
+      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
       .analyze()
 
     const serious = results.violations.filter((v) =>
@@ -208,11 +203,11 @@ test.describe.serial("a2ui admin experience", () => {
   test("axe: open create panel has no serious or critical violations", async () => {
     await gotoTeams(page)
 
-    await page.getByRole("button", {name: "Create Team"}).click()
+    await page.getByRole("button", {name: "Create team"}).click()
     await expect(page.locator("ash-admin-record-panel")).toBeVisible()
 
     const results = await new AxeBuilder({page})
-      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
+      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
       .analyze()
 
     const serious = results.violations.filter((v) =>

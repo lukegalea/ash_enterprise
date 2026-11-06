@@ -1,4 +1,5 @@
 import {test, expect} from "@playwright/test"
+import {signIn} from "./support/sign_in"
 
 /**
  * The command palette (ctrl+p) and surface launcher (ctrl+k) in a real
@@ -7,20 +8,6 @@ import {test, expect} from "@playwright/test"
  *
  * Seed state: the tenant seeder's administrator (admin@example.com).
  */
-
-const EMAIL = "admin@example.com"
-const PASSWORD = "password1234"
-
-async function signIn(page) {
-  await page.goto("/sign-in", {waitUntil: "networkidle"})
-  // The sign-in form is a LiveView: fill it once it has connected, or the
-  // connected render resets the inputs.
-  await page.locator(".phx-connected").first().waitFor({timeout: 15_000})
-  await page.fill('input[type="email"]', EMAIL)
-  await page.fill('input[type="password"]', PASSWORD)
-  await page.click('button[type="submit"]')
-  await page.waitForURL((url) => !url.pathname.includes("sign-in"), {timeout: 15_000})
-}
 
 async function connected(page, path) {
   await page.goto(path, {waitUntil: "networkidle"})

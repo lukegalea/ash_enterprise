@@ -187,16 +187,8 @@ jobs:
       - name: Retired and vulnerable dependencies
         run: mix hex.audit
 
-      # The suite itself runs in the `test-shards` jobs below, alongside this one.
-
-      # The durability tier (docs/DURABILITY-TESTS.md): races between connections, jobs
-      # killed between two commits, leases taken over. The suite excludes it, because
-      # the SQL sandbox cannot show any of that, so without this step the tests for the
-      # invocation invariants (one row per key, the ready-row handoff, lease fencing) would
-      # gate nothing. It uses a database of its own on the same service and drops it when
-      # it ends.
-      - name: Durability tier
-        run: mix test.durability
+      # The suite itself runs in the `test-shards` jobs below, and the durability
+      # tier in the `durability` job, both alongside this one.
 
       # The suite migrates into `public`. The VendorPM workspace hosts this app
       # in a schema of its own (ASH_SCHEMA), and a regenerated migration that
@@ -351,6 +343,169 @@ jobs:
     steps:
       - name: Every shard passed
         run: test "${{ needs.test-shards.result }}" = success
+
+  durability:
+    name: Durability tier
+    runs-on: ubuntu-latest
+    # The durability tier (docs/DURABILITY-TESTS.md): races between connections,
+    # jobs killed between two commits, leases taken over. The suite excludes it,
+    # because the SQL sandbox cannot show any of that, so without this job the
+    # tests for the invocation invariants (one row per key, the ready-row
+    # handoff, lease fencing) would gate nothing. A job of its own, with a
+    # database server of its own, because it was the longest step of the main
+    # job and nothing else in that job waits on it. Blocking.
+
+    # pgvector on pg18, for the reasons given on the main job's service. The
+    # tier creates its own `ash_enterprise_test_durability` database and drops
+    # it when it ends, so no POSTGRES_DB here.
+    services:
+      postgres:
+        image: pgvector/pgvector:pg18
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: beam
+        uses: ./.github/actions/setup-beam
+
+      # Restore only: the main job saves this cache.
+      - name: Restore dependency and build cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            deps
+            _build
+          key: ${{ runner.os }}-mix-${{ steps.beam.outputs.elixir-version }}-${{ hashFiles('mix.lock') }}
+          restore-keys: ${{ runner.os }}-mix-${{ steps.beam.outputs.elixir-version }}-
+
+      # boxic_dmn shells out to `xmllint`; see the main job's step.
+      - name: Install xmllint
+        run: sudo apt-get update -y && sudo apt-get install -y libxml2-utils
+
+      - run: mix deps.get
+
+      # Dependencies first, so their warnings stay in their own step; the
+      # main job holds the --warnings-as-errors gate.
+      - run: mix deps.compile
+
+      - name: Durability tier
+        run: mix test.durability
+
+  e2e:
+    name: Browser end-to-end (advisory)
+    runs-on: ubuntu-latest
+    # Every Playwright spec in assets/e2e, in chromium, against the dev server
+    # the specs drive locally. Advisory until it has been green three runs in a
+    # row; then this line goes and the job gates like the others.
+    continue-on-error: true
+
+    # pgvector on pg18, for the reasons given on the main job's service. The
+    # dev config connects to `ash_enterprise_dev`, created below.
+    services:
+      postgres:
+        image: pgvector/pgvector:pg18
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    # The specs test the dev server: its dev-only routes (/canvas), and the
+    # showcase's fault panel, which the dev config compiles in and turns on.
+    # Saying so here keeps a runtime default from turning it off unnoticed.
+    # LOG_LEVEL=info keeps every query's parameters out of the server log.
+    env:
+      MIX_ENV: dev
+      SHOWCASE_FAULT_CONTROLS: "true"
+      LOG_LEVEL: info
+      E2E_PORT: "4100"
+      E2E_SERVER_COMMAND: mix phx.server
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: beam
+        uses: ./.github/actions/setup-beam
+
+      # Restore only: the main job saves this cache, and has compiled the dev
+      # dependencies into it.
+      - name: Restore dependency and build cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            deps
+            _build
+          key: ${{ runner.os }}-mix-${{ steps.beam.outputs.elixir-version }}-${{ hashFiles('mix.lock') }}
+          restore-keys: ${{ runner.os }}-mix-${{ steps.beam.outputs.elixir-version }}-
+
+      # boxic_dmn shells out to `xmllint`; see the main job's step.
+      - name: Install xmllint
+        run: sudo apt-get update -y && sudo apt-get install -y libxml2-utils
+
+      - run: mix deps.get
+      - run: mix deps.compile
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: assets/package-lock.json
+
+      # The server's esbuild and tailwind watchers rebuild on change; the
+      # first build happens here so the first page a spec loads is styled.
+      - name: Build assets
+        run: |
+          npm ci --prefix assets
+          mix assets.setup
+          mix assets.build
+
+      - name: Install chromium
+        working-directory: assets
+        run: npx playwright install --with-deps chromium
+
+      # The order of `mix setup`, then the tenants the specs sign in to: the
+      # seeder's example tenant (admin@example.com), the baseline processes
+      # the flight view draws, and the clinic-demo tenant. The demo people get
+      # a random password, written to E2E_DEMO_PASSWORD_FILE for the specs to
+      # read (assets/e2e/support/demo.ts) and never printed.
+      - name: Create and seed the database
+        env:
+          E2E_DEMO_PASSWORD_FILE: ${{ runner.temp }}/e2e/demo-password
+        run: |
+          mix ecto.create --quiet
+          mix ash_enterprise.legacy.setup
+          mix ash.setup
+          mix ash_enterprise.seed
+          mix ash_enterprise.bpmn.publish
+          mix ash_enterprise.demo --password-file "$E2E_DEMO_PASSWORD_FILE"
+
+      # Playwright's webServer starts the app (E2E_SERVER_COMMAND) and stops
+      # it when the run ends.
+      - name: Playwright
+        env:
+          E2E_DEMO_PASSWORD_FILE: ${{ runner.temp }}/e2e/demo-password
+        run: npm --prefix assets run test:e2e
+
+      - name: Upload the Playwright results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results
+          path: assets/test-results
+          retention-days: 7
 
   battery:
     name: Cross-substrate integration battery

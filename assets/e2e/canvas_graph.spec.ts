@@ -1,5 +1,6 @@
 import {test, expect} from "@playwright/test"
 import AxeBuilder from "@axe-core/playwright"
+import {signIn} from "./support/sign_in"
 
 /**
  * The dev-only /canvas surface: the `<ash-canvas-graph>` element (renderer
@@ -22,11 +23,7 @@ test.describe("canvas graph", () => {
     const context = await browser.newContext()
     page = await context.newPage()
 
-    await page.goto("/sign-in", {waitUntil: "networkidle"})
-    await page.fill('input[type="email"]', "admin@example.com")
-    await page.fill('input[type="password"]', "password1234")
-    await page.click('button[type="submit"]')
-    await page.waitForURL((url) => !url.pathname.includes("sign-in"), {timeout: 15_000})
+    await signIn(page)
 
     await page.goto("/canvas", {waitUntil: "networkidle"})
     // The element receives the graph payload over the LiveView push_event.
@@ -95,7 +92,7 @@ test.describe("canvas graph", () => {
 
   test("axe: the canvas surface has no serious or critical violations", async () => {
     const results = await new AxeBuilder({page})
-      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
+      .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
       .analyze()
 
     // Violations INSIDE <ash-canvas-graph> belong to the renderer lane (see

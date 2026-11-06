@@ -5,8 +5,8 @@
 # needs no test suite: formatting, the compile gate, Credo, the generated-code
 # and catalog checks, Sobelow, the migration replay, the agent docs, the laws
 # judge, the usage rules and the battery pins. The suite, the durability tier,
-# the battery itself and the asset build stay with CI (see the ship-a-change
-# skill for which of those to run by file).
+# the browser specs, the battery itself and the asset build stay with CI (see
+# the ship-a-change skill for which of those to run by file).
 #
 # Usage: scripts/pre-ci [--keep-going]
 #
@@ -67,7 +67,7 @@ step() {
   fi
 }
 
-# The main job, in order. Its durability tier is a test run, not a static step.
+# The main job, in order. The durability and e2e jobs are test runs, not static steps.
 step deps.get mix deps.get
 step deps.compile mix deps.compile
 step format mix format --check-formatted
