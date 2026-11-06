@@ -173,7 +173,8 @@ defmodule AshEnterprise.Audit.EventLog do
     custom_indexes do
       # The chain trigger reads the tail of each tenant's chain on every insert,
       # so this index is on the hot path of every audited write in the system,
-      # not just of reading the log.
+      # not just of reading the log. Only a lookup the index can serve uses it:
+      # see the two branches in `audit_events_chain_function` below.
       index [:organization_id, :sequence], name: "audit_events_chain_index"
     end
 
@@ -193,11 +194,24 @@ defmodule AshEnterprise.Audit.EventLog do
           -- disagree. See AshEnterprise.Platform.Changes.StampCorrelation.
           NEW.organization_id := NULLIF(NEW.metadata->>'organization_id', '')::uuid;
 
-          SELECT hash INTO prev
-          FROM audit_events
-          WHERE organization_id IS NOT DISTINCT FROM NEW.organization_id
-          ORDER BY sequence DESC
-          LIMIT 1;
+          -- The tail of the chain, read backwards off audit_events_chain_index.
+          -- `IS NOT DISTINCT FROM` cannot use the index, so the two cases are
+          -- written apart; and only with the index's own order does the planner
+          -- see that an `IS NULL` match is already ordered by sequence. Without
+          -- either, every audited insert reads and sorts the whole table.
+          IF NEW.organization_id IS NULL THEN
+            SELECT hash INTO prev
+            FROM audit_events
+            WHERE organization_id IS NULL
+            ORDER BY organization_id DESC, sequence DESC
+            LIMIT 1;
+          ELSE
+            SELECT hash INTO prev
+            FROM audit_events
+            WHERE organization_id = NEW.organization_id
+            ORDER BY organization_id DESC, sequence DESC
+            LIMIT 1;
+          END IF;
 
           NEW.previous_hash := prev;
           NEW.hash := encode(sha256(convert_to(concat_ws('|',
@@ -222,12 +236,18 @@ defmodule AshEnterprise.Audit.EventLog do
         $fn$ LANGUAGE plpgsql;
         """
 
-        down "DROP FUNCTION IF EXISTS ash_enterprise_audit_chain() CASCADE;"
+        # Not CASCADE. A changed statement migrates as its old `down` and then its
+        # new `up`, and CASCADE took the trigger with the function, leaving no chain.
+        # Without it, a change to this statement alone fails its migration; change
+        # the trigger statement with it, so the trigger is dropped first and rebuilt.
+        down "DROP FUNCTION IF EXISTS ash_enterprise_audit_chain();"
       end
 
+      # Migrated with every change to the function statement above, which cannot
+      # be dropped while this trigger exists. `OR REPLACE` makes rerunning it safe.
       statement :audit_events_chain_trigger do
         up """
-        CREATE TRIGGER audit_events_chain
+        CREATE OR REPLACE TRIGGER audit_events_chain
           BEFORE INSERT ON audit_events
           FOR EACH ROW EXECUTE FUNCTION ash_enterprise_audit_chain();
         """

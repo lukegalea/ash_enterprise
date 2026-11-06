@@ -108,6 +108,47 @@ defmodule AshEnterprise.Audit.ChainTest do
     end
   end
 
+  describe "finding the tail of a chain" do
+    test "events with no tenant form a chain of their own" do
+      first = insert_event!(nil)
+      second = insert_event!(nil)
+
+      assert [[first_hash]] =
+               Repo.query!("SELECT hash FROM audit_events WHERE id = $1", [first]).rows
+
+      assert [[^first_hash, nil]] =
+               Repo.query!(
+                 "SELECT previous_hash, organization_id FROM audit_events WHERE id = $1",
+                 [second]
+               ).rows
+    end
+
+    # The trigger runs on every audited write, so a lookup that scans the table makes
+    # each write cost as much as the whole log: the durability tier's tenant seeding
+    # went from seconds to over a minute as the log grew. A log large enough that the
+    # planner prefers the index, then two writes, one per branch of the lookup.
+    test "reads the index, not the table, for a tenant and for no tenant", ctx do
+      without_chaining(fn ->
+        Repo.query!(
+          "INSERT INTO audit_events (record_id, occurred_at, resource, action, action_type, organization_id) " <>
+            "SELECT gen_random_uuid(), now(), 'Elixir.Filler', 'create', 'create', " <>
+            "CASE WHEN g % 4 = 0 THEN NULL ELSE $1::uuid END FROM generate_series(1, 20000) g",
+          [Ecto.UUID.dump!(ctx.org)]
+        )
+      end)
+
+      Repo.query!("ANALYZE audit_events")
+      before = scans()
+
+      insert_event!(ctx.org)
+      insert_event!(nil)
+
+      after_writes = scans()
+      assert after_writes.seq == before.seq
+      assert after_writes.index >= before.index + 2
+    end
+  end
+
   describe "the trigger prevents" do
     test "UPDATE is refused", ctx do
       create_bu("Root", ctx.org)
@@ -213,6 +254,33 @@ defmodule AshEnterprise.Audit.ChainTest do
     fun.()
   after
     Repo.query!("ALTER TABLE audit_events ENABLE TRIGGER audit_events_immutable")
+  end
+
+  # An event written straight to the table, so the chain trigger is all that runs.
+  defp insert_event!(org) do
+    metadata = if org, do: ~s({"organization_id": "#{org}"}), else: "{}"
+
+    [[id]] =
+      Repo.query!(
+        "INSERT INTO audit_events (record_id, metadata, occurred_at, resource, action, action_type) " <>
+          "VALUES (gen_random_uuid(), $1::jsonb, now(), 'Elixir.Probe', 'create', 'create') RETURNING id",
+        [metadata]
+      ).rows
+
+    id
+  end
+
+  # This transaction's scans of audit_events and of the chain index. The row must be
+  # there: a missing one is a failed match, never a pass.
+  defp scans do
+    [[seq, index]] =
+      Repo.query!("""
+      SELECT seq_scan, pg_stat_get_xact_numscans('audit_events_chain_index'::regclass)
+      FROM pg_stat_xact_user_tables
+      WHERE relid = 'audit_events'::regclass
+      """).rows
+
+    %{seq: seq, index: index}
   end
 
   defp without_chaining(fun) do
