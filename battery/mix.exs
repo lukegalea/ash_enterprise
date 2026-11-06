@@ -68,6 +68,8 @@ defmodule AshEnterpriseBattery.MixProject do
        override: true},
       # --- Master data management (builds on the BIZEV raw layer) -------------
       {:ash_mdm, github: "lukegalea/ash_mdm"},
+      # The planning kernel (fragments, Backend/Fake, IR, validators).
+      {:ash_planning, github: "lukegalea/ash_planning"},
       # --- Governed invocations (the agent runtime's fragments) ---------------
       {:ash_agent, github: "lukegalea/ash_agent"},
       # --- AshEvents (the audit log extension) ---------------------------------

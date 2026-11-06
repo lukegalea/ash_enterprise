@@ -301,6 +301,8 @@ defmodule AshEnterprise.MixProject do
       # Wave 2 (ADR 0062): the Solverl adapter for the planning kernel's
       # MiniZinc backend. Governance is prlimit + Solverl timeouts (ADR 0062 §6).
       {:solverl, "~> 1.1"},
+      # Extracted planning kernel (ADR 0062): fragments, backend behaviour, IR, validators.
+      {:ash_planning, github: "lukegalea/ash_planning"},
       # Epic E2 / ADR 0012: OpenLineage emission from action notifications.
       # ash_planning Wave 1 (PLN-3): pinned to the snapshot value contract
       # (Snapshot + RFC 8785 CanonicalJSON + digest-only facet) reconciled to

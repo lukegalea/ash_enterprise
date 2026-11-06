@@ -44,7 +44,7 @@ defmodule AshEnterprise.Planning.CheckPipeline do
   require Logger
 
   alias AshEnterprise.Planning
-  alias AshEnterprise.Planning.Backend.{Problem, SolveResult}
+  alias AshPlanning.{Problem, SolveResult}
 
   alias AshEnterprise.Planning.{
     Candidate,
@@ -239,7 +239,7 @@ defmodule AshEnterprise.Planning.CheckPipeline do
     name = get_in(run.backend || %{}, ["backend"]) || "solverl"
 
     case Map.fetch(
-           SolverSession.config(:backends, %{"solverl" => AshEnterprise.Planning.Backend.Solverl}),
+           SolverSession.config(:backends, %{"solverl" => AshPlanning.Backend.Solverl}),
            name
          ) do
       {:ok, module} -> {:ok, module}

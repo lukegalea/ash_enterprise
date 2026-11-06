@@ -11,7 +11,7 @@ defmodule AshEnterprise.Planning.RunWorkerTest do
   import AshEnterprise.Planning.TestKit
 
   alias AshEnterprise.Planning
-  alias AshEnterprise.Planning.Backend.Fake
+  alias AshPlanning.Backend.Fake
   alias AshEnterprise.Planning.LeaseSweeper
   alias AshEnterprise.Planning.Registry, as: PlanningRegistry
   alias AshEnterprise.Planning.RunWorker

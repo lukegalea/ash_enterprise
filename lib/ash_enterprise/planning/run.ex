@@ -1,6 +1,6 @@
 defmodule AshEnterprise.Planning.Run do
   @moduledoc """
-  One planning run (ADR 0062): `AshEnterprise.Planning.Fragment.Run` on the platform base, in
+  One planning run (ADR 0062): `AshPlanning.Fragment.Run` on the platform base, in
   table `planning_runs`. A run is rows and a lease, not a process: the solver session is
   supervised separately (`AshEnterprise.Planning.SolverSession`) and the row decides
   recovery.
@@ -39,7 +39,7 @@ defmodule AshEnterprise.Planning.Run do
     self_service: [:request, :cancel, :mine, :read],
     machinery_only: [:prepare, :start, :renew_lease, :record_result],
     extra_extensions: [AshCloak],
-    fragments: [AshEnterprise.Planning.Fragment.Run]
+    fragments: [AshPlanning.Fragment.Run]
 
   alias AshEnterprise.Planning.Changes
 
