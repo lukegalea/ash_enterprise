@@ -19,6 +19,8 @@ defmodule AshEnterprise.Surfaces.Surface do
   | `context` | The A2UI context on `ui` that selects one `resource` record for detail, or `nil` |
   | `record_match` | Attribute values a record must have to be *this* surface's, when several surfaces show the same resource (Inbox and Slack over `Conversation`); `[]` matches any |
   | `door` | `:signed_in`, `:operator`, `:compliance`, `:lineage` or `:audit`; checked by `AshEnterprise.Surfaces.Doors` on web and ACP |
+  | `audience` | Who the surface is for, one or more of `:member` (anyone signed in, about their own day), `:reviewer` (decides or checks what others did), `:builder` (shapes processes, rules and mappings) and `:operator` (runs the platform). The launcher's views filter by it. Not a door: it never refuses anybody |
+  | `searchable` | Attributes of `resource` that identify one record to a person, a business reference such as a licence number, or `:id` for a run id. `AshEnterprise.Surfaces.Search` looks a typed value up in them; `[]` keeps the surface out of search. Needs a `context`, since a hit opens in detail |
   | `acp` | `nil` or the ACP command spec, see below |
 
   ## `acp`
@@ -70,11 +72,14 @@ defmodule AshEnterprise.Surfaces.Surface do
     :acp,
     :renderer,
     record_match: [],
+    audience: [],
+    searchable: [],
     icon: "hero-squares-2x2",
     door: :signed_in
   ]
 
   @type renderer :: :generated | :specialist | nil
+  @type audience :: :member | :reviewer | :builder | :operator
   @type door :: :signed_in | :operator | :compliance | :lineage | :audit
   @type group ::
           :day
@@ -104,6 +109,8 @@ defmodule AshEnterprise.Surfaces.Surface do
           context: atom() | nil,
           record_match: keyword(),
           door: door(),
+          audience: [audience(), ...],
+          searchable: [atom()],
           acp: map() | nil,
           renderer: renderer()
         }

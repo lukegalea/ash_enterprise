@@ -27,6 +27,22 @@ defmodule AshEnterpriseWeb.LauncherLive do
   (`AshEnterprise.Assistant.PinnedApp`, owner-only), read as them once the
   socket connects. Nobody else's launcher lists them.
 
+  ## Views by audience
+
+  `?for=reviewer` (or `builder`, `operator`, `member`) narrows the grid to
+  the surfaces declared for that audience (`Surfaces.for_audience/2`), so a
+  reviewer, a builder and an operator each see their own launcher. It only
+  narrows: the doors and policies still decide what is listed at all, and an
+  unknown name shows everything.
+
+  ## Finding a record
+
+  When nothing on the grid matches what was typed, Enter looks the text up as
+  a business reference or a run id (`AshEnterprise.Surfaces.Search`, as the
+  viewer). One record found opens on its surface, through the deep link that
+  re-authorizes it; several are listed. A surface that could not be searched
+  is named, so a failed lookup never reads as "nothing found".
+
   Replaces the operator hub (`/app/hub`, and `/app/demo` before it), which
   both redirect here.
   """
@@ -39,6 +55,7 @@ defmodule AshEnterpriseWeb.LauncherLive do
   alias AshEnterprise.Canonical.Task
   alias AshEnterprise.Security.ActorContext
   alias AshEnterprise.Surfaces
+  alias AshEnterprise.Surfaces.Search
   alias AshEnterpriseWeb.Layouts
   alias AshEnterpriseWeb.Shell
 
@@ -61,12 +78,9 @@ defmodule AshEnterpriseWeb.LauncherLive do
         page_title: gettext("Key interfaces"),
         product_name: AshEnterprise.Brand.product_name(),
         email: actor && to_string(actor.email),
-        today: Enum.find_value(groups, &Enum.find(&1.surfaces, fn s -> s.key == :today end)),
-        groups:
-          Enum.map(
-            groups,
-            &%{&1 | surfaces: Enum.reject(&1.surfaces, fn s -> s.key == :today end)}
-          ),
+        all_groups: groups,
+        audience: nil,
+        found: nil,
         pulse: nil,
         brief: nil,
         signals: %{},
@@ -87,6 +101,28 @@ defmodule AshEnterpriseWeb.LauncherLive do
     else
       {:ok, socket}
     end
+  end
+
+  # The audience view. Narrowing only: the groups were read through the doors
+  # and policies on mount.
+  @impl true
+  def handle_params(params, _uri, socket) do
+    audience = Surfaces.audience(params["for"])
+
+    groups =
+      socket.assigns.all_groups
+      |> Enum.map(&%{&1 | surfaces: Surfaces.for_audience(&1.surfaces, audience)})
+      |> Enum.reject(&(&1.surfaces == []))
+
+    {:noreply,
+     assign(socket,
+       audience: audience,
+       today: Enum.find_value(groups, &Enum.find(&1.surfaces, fn s -> s.key == :today end)),
+       groups:
+         groups
+         |> Enum.map(&%{&1 | surfaces: Enum.reject(&1.surfaces, fn s -> s.key == :today end)})
+         |> Enum.reject(&(&1.surfaces == []))
+     )}
   end
 
   # A brief or a task changed: re-read the summary. Whatever arrives on those
@@ -119,16 +155,34 @@ defmodule AshEnterpriseWeb.LauncherLive do
   # matching surface keys, or nil for all of them.
   @impl true
   def handle_event("filter", %{"launch" => %{"q" => q}}, socket) do
-    {:noreply, assign(socket, filter: to_form(%{"q" => q}, as: :launch), shown: shown(socket, q))}
+    {:noreply,
+     assign(socket,
+       filter: to_form(%{"q" => q}, as: :launch),
+       shown: shown(socket, q),
+       found: nil
+     )}
   end
 
+  # Enter: the first app left, else the record the text names, read as the
+  # viewer. The deep link re-authorizes whatever is opened.
   def handle_event("launch", %{"launch" => %{"q" => q}}, socket) do
     case matches(socket, q) do
       [%{"id" => id} | _] ->
         {:noreply, push_navigate(socket, to: Surfaces.fetch!(id).path)}
 
       [] ->
-        {:noreply, assign(socket, filter: to_form(%{"q" => q}, as: :launch), shown: MapSet.new())}
+        case Search.find(q, socket.assigns[:current_user]) do
+          %{hits: [hit], failed: []} ->
+            {:noreply, redirect(socket, to: hit.path)}
+
+          found ->
+            {:noreply,
+             assign(socket,
+               filter: to_form(%{"q" => q}, as: :launch),
+               shown: MapSet.new(),
+               found: found
+             )}
+        end
     end
   end
 
@@ -212,8 +266,56 @@ defmodule AshEnterpriseWeb.LauncherLive do
             {gettext(
               "From any page, ctrl k opens this list and ctrl p runs a command or asks the agent."
             )}
+            {gettext("Enter on a licence number or a run id opens that record.")}
           </p>
+          <nav id="launch-audience" aria-label={gettext("Show the apps for")} class="pt-2">
+            <ul class="flex flex-wrap gap-2">
+              <li>
+                <.link
+                  id="launch-for-all"
+                  patch={~p"/app"}
+                  aria-current={if(is_nil(@audience), do: "page")}
+                  class={audience_class(is_nil(@audience))}
+                >
+                  {gettext("Everyone")}
+                </.link>
+              </li>
+              <li :for={{key, label} <- Surfaces.audiences()}>
+                <.link
+                  id={"launch-for-#{key}"}
+                  patch={~p"/app?#{[for: key]}"}
+                  aria-current={if(@audience == key, do: "page")}
+                  class={audience_class(@audience == key)}
+                >
+                  {Surfaces.translate(label)}
+                </.link>
+              </li>
+            </ul>
+          </nav>
         </header>
+
+        <section :if={@found} id="launch-found" class="space-y-3" aria-live="polite">
+          <h2 class="font-heading text-lg">{gettext("Records")}</h2>
+          <ul :if={@found.hits != []} class="space-y-2">
+            <li :for={hit <- @found.hits}>
+              <.link
+                id={"launch-hit-#{hit.surface.key}-#{hit.id}"}
+                href={hit.path}
+                class="font-heading underline"
+              >
+                {Surfaces.translate(hit.surface.label)}
+              </.link>
+              <span class="text-sm text-foreground/70">
+                {gettext("matched on %{field}", field: Phoenix.Naming.humanize(hit.field))}
+              </span>
+            </li>
+          </ul>
+          <p :if={@found.failed != []} id="launch-search-failed" role="alert" class="text-sm">
+            {gettext("Could not search %{surfaces}. Try again, or open it and search there.",
+              surfaces: Enum.map_join(@found.failed, ", ", &Surfaces.translate(&1.label))
+            )}
+          </p>
+        </section>
 
         <%!-- The lead: Today, with the day's pulse. Full width and in the
               primary tone, because the day is why you opened the app. --%>
@@ -320,9 +422,12 @@ defmodule AshEnterpriseWeb.LauncherLive do
           </ul>
         </section>
 
-        <.empty_state :if={@shown && MapSet.size(@shown) == 0} icon="hero-magnifying-glass">
+        <.empty_state
+          :if={@shown && MapSet.size(@shown) == 0 && (is_nil(@found) || @found.hits == [])}
+          icon="hero-magnifying-glass"
+        >
           <span id="launch-no-match">
-            {gettext("No app matches “%{query}”.", query: @filter[:q].value)}
+            {gettext("No app or record matches “%{query}”.", query: @filter[:q].value)}
           </span>
         </.empty_state>
 
@@ -358,6 +463,16 @@ defmodule AshEnterpriseWeb.LauncherLive do
       </div>
     </Layouts.app>
     """
+  end
+
+  defp audience_class(current?) do
+    [
+      "inline-block rounded-base border-2 border-border px-3 py-1 text-sm font-heading focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring",
+      if(current?,
+        do: "bg-main text-on-vivid shadow-shadow",
+        else: "bg-background hover:bg-secondary-background"
+      )
+    ]
   end
 
   defp pin_icon(:calendar), do: "hero-calendar-days"

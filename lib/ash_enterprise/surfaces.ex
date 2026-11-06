@@ -9,7 +9,10 @@ defmodule AshEnterprise.Surfaces do
       `live` gets a generated `AshA2ui.LiveRenderer`
       (`AshEnterpriseWeb.SurfaceLive`) routed at its `path` (`generated/0`);
       hand-written renderers are declared `renderer: :specialist`;
-    * the web nav (grouped menus) and the `/app` launcher;
+    * the web nav (grouped menus) and the `/app` launcher, with its views by
+      `audience` (`for_audience/2`) and its lookup of a record by a business
+      reference or a run id over each entry's `searchable` attributes
+      (`AshEnterprise.Surfaces.Search`);
     * the web door (`AshEnterpriseWeb.SurfaceDoor`), which finds the entry for
       the LiveView being mounted and checks its `door`;
     * the ACP grammar (`AshEnterprise.Acp.Commands`), which opens any entry by
@@ -154,6 +157,7 @@ defmodule AshEnterprise.Surfaces do
     # --- My day -------------------------------------------------------------
     %Surface{
       key: :today,
+      audience: [:member],
       label: dgettext_noop("default", "Today"),
       blurb: dgettext_noop("default", "Your morning brief, today's agenda and the day's pulse."),
       group: :day,
@@ -183,6 +187,7 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :agent,
+      audience: [:member],
       label: dgettext_noop("default", "Agent"),
       blurb:
         dgettext_noop(
@@ -198,6 +203,7 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :calendar,
+      audience: [:member],
       label: dgettext_noop("default", "Calendar"),
       blurb:
         dgettext_noop(
@@ -224,6 +230,7 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :inbox,
+      audience: [:member],
       label: dgettext_noop("default", "Inbox"),
       blurb: dgettext_noop("default", "Gmail threads, newest first."),
       group: :day,
@@ -246,6 +253,7 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :slack,
+      audience: [:member],
       label: dgettext_noop("default", "Slack"),
       blurb: dgettext_noop("default", "Slack channels, group DMs and DMs, newest first."),
       group: :day,
@@ -267,6 +275,7 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :people,
+      audience: [:member],
       label: dgettext_noop("default", "People"),
       blurb: dgettext_noop("default", "Everyone you correspond and meet with, and their events."),
       group: :day,
@@ -291,6 +300,7 @@ defmodule AshEnterprise.Surfaces do
     # of the `todo` list (AshEnterprise.Acp.Commands).
     %Surface{
       key: :action_items,
+      audience: [:member],
       label: dgettext_noop("default", "Action items"),
       blurb:
         dgettext_noop(
@@ -325,6 +335,7 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :approvals,
+      audience: [:member, :reviewer],
       label: dgettext_noop("default", "Approvals"),
       blurb: dgettext_noop("default", "The tasks waiting on your decision."),
       group: :day,
@@ -362,6 +373,7 @@ defmodule AshEnterprise.Surfaces do
     # --- Operator -------------------------------------------------------------
     %Surface{
       key: :accounts,
+      audience: [:member, :operator],
       label: dgettext_noop("default", "Accounts & syncs"),
       blurb: dgettext_noop("default", "Your linked accounts and how their syncs are doing."),
       group: :operator,
@@ -391,6 +403,7 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :erasure,
+      audience: [:operator],
       label: dgettext_noop("default", "Erasure scopes"),
       blurb:
         dgettext_noop("default", "Erasure scopes and the irreversible, typed-confirmation shred."),
@@ -415,6 +428,8 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :lineage,
+      audience: [:operator],
+      searchable: [:id],
       label: dgettext_noop("default", "Lineage"),
       blurb:
         dgettext_noop(
@@ -447,6 +462,7 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :audit,
+      audience: [:operator, :reviewer],
       label: dgettext_noop("default", "Audit trail"),
       blurb:
         dgettext_noop(
@@ -469,6 +485,7 @@ defmodule AshEnterprise.Surfaces do
     # --- Processes ----------------------------------------------------------
     %Surface{
       key: :tasks,
+      audience: [:member, :reviewer],
       label: dgettext_noop("default", "My tasks"),
       blurb:
         dgettext_noop(
@@ -490,6 +507,8 @@ defmodule AshEnterprise.Surfaces do
     # opens there; the two process views list every run of one process.
     %Surface{
       key: :flight,
+      audience: [:operator, :reviewer],
+      searchable: [:id],
       label: dgettext_noop("default", "Flight view"),
       blurb:
         dgettext_noop(
@@ -509,6 +528,7 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :brief_flight,
+      audience: [:operator],
       label: dgettext_noop("default", "Brief approvals in flight"),
       blurb: dgettext_noop("default", "Every running morning brief, on the step it is on now."),
       group: :processes,
@@ -523,6 +543,7 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :steward_flight,
+      audience: [:operator],
       label: dgettext_noop("default", "Stewardship in flight"),
       blurb:
         dgettext_noop("default", "Every match under steward review, on the step it is on now."),
@@ -538,6 +559,7 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :processes,
+      audience: [:builder],
       label: dgettext_noop("default", "Processes"),
       blurb:
         dgettext_noop(
@@ -555,6 +577,7 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :decisions,
+      audience: [:builder],
       label: dgettext_noop("default", "Decisions"),
       blurb:
         dgettext_noop(
@@ -572,6 +595,7 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :triggers,
+      audience: [:builder],
       label: dgettext_noop("default", "Triggers"),
       blurb:
         dgettext_noop(
@@ -591,6 +615,7 @@ defmodule AshEnterprise.Surfaces do
     # --- Compliance (ADR 0035) -----------------------------------------------
     %Surface{
       key: :findings,
+      audience: [:reviewer],
       label: dgettext_noop("default", "Findings"),
       blurb: dgettext_noop("default", "Who is breaching which control, and why."),
       group: :compliance,
@@ -604,6 +629,7 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :evaluations,
+      audience: [:reviewer],
       label: dgettext_noop("default", "Evaluations"),
       blurb:
         dgettext_noop(
@@ -621,6 +647,7 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :rule_sets,
+      audience: [:builder],
       label: dgettext_noop("default", "Rule sets"),
       blurb:
         dgettext_noop("default", "Rule set revisions: their layer, lifecycle and content hash."),
@@ -635,6 +662,7 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :bundles,
+      audience: [:builder],
       label: dgettext_noop("default", "Policy bundles"),
       blurb:
         dgettext_noop("default", "Compiled bundles: which is active for whom, and since when."),
@@ -649,6 +677,7 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :catalogs,
+      audience: [:builder],
       label: dgettext_noop("default", "Catalogs"),
       blurb:
         dgettext_noop("default", "Compliance catalogs, and the OSCAL documents they came from."),
@@ -664,6 +693,7 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :profiles,
+      audience: [:builder],
       label: dgettext_noop("default", "Profiles"),
       blurb:
         dgettext_noop("default", "Tailoring profiles: who tailored what, against which catalog."),
@@ -680,6 +710,7 @@ defmodule AshEnterprise.Surfaces do
     # --- Organization ------------------------------------------------------------
     %Surface{
       key: :users,
+      audience: [:operator],
       label: dgettext_noop("default", "Users"),
       blurb: dgettext_noop("default", "People with accounts in this application."),
       description:
@@ -695,6 +726,7 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :teams,
+      audience: [:operator],
       label: dgettext_noop("default", "Teams"),
       blurb: dgettext_noop("default", "Teams, which own records alongside users."),
       description: "Teams, which own records alongside users in the polymorphic ownership model.",
@@ -709,6 +741,7 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :roles,
+      audience: [:operator],
       label: dgettext_noop("default", "Roles"),
       blurb: dgettext_noop("default", "Named bundles of privileges a user can hold."),
       description: "Security roles, which are the named bundles of privileges a user can hold.",
@@ -722,6 +755,7 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :business_units,
+      audience: [:operator],
       label: dgettext_noop("default", "Business units"),
       blurb: dgettext_noop("default", "The hierarchy that authorization depth expands over."),
       description: "The business-unit hierarchy that authorization depth expands over.",
@@ -738,6 +772,7 @@ defmodule AshEnterprise.Surfaces do
     # --- Projections -----------------------------------------------------------
     %Surface{
       key: :directory,
+      audience: [:member],
       label: dgettext_noop("default", "Directory"),
       blurb:
         dgettext_noop(
@@ -765,6 +800,7 @@ defmodule AshEnterprise.Surfaces do
     # door.
     %Surface{
       key: :judgment_verdicts,
+      audience: [:reviewer],
       label: dgettext_noop("default", "Verdicts"),
       blurb:
         dgettext_noop(
@@ -781,6 +817,7 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :judgment_band_tables,
+      audience: [:reviewer],
       label: dgettext_noop("default", "Band tables to certify"),
       blurb:
         dgettext_noop(
@@ -797,6 +834,7 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :judgment_certifications,
+      audience: [:reviewer],
       label: dgettext_noop("default", "Certified band tables"),
       blurb: dgettext_noop("default", "The band tables in force, with who certified them."),
       group: :judgments,
@@ -809,6 +847,7 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :judgment_calibration,
+      audience: [:builder],
       label: dgettext_noop("default", "Calibration"),
       blurb:
         dgettext_noop(
@@ -825,6 +864,7 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :judgment_facts,
+      audience: [:reviewer],
       label: dgettext_noop("default", "Facts"),
       blurb:
         dgettext_noop(
@@ -841,6 +881,7 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :steward,
+      audience: [:reviewer],
       label: dgettext_noop("default", "Steward queue"),
       blurb:
         dgettext_noop(
@@ -858,6 +899,7 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :mdm_import,
+      audience: [:operator],
       label: dgettext_noop("default", "Import CSV"),
       blurb:
         dgettext_noop(
@@ -874,6 +916,7 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :mdm_golden,
+      audience: [:member],
       label: dgettext_noop("default", "Golden records"),
       blurb: dgettext_noop("default", "The merged view of the customer, with merge lineage."),
       description:
@@ -894,6 +937,7 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :time_travel,
+      audience: [:reviewer],
       label: dgettext_noop("default", "Time travel"),
       blurb:
         dgettext_noop(
@@ -910,6 +954,7 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :mdm_mappings,
+      audience: [:builder],
       label: dgettext_noop("default", "MDM mappings"),
       blurb: dgettext_noop("default", "The mapping version chain: no-deploy onboarding."),
       description:
@@ -926,6 +971,7 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :mdm_batches,
+      audience: [:operator],
       label: dgettext_noop("default", "Import batches"),
       blurb:
         dgettext_noop("default", "Every import by status, with its counts and its staged rows."),
@@ -946,6 +992,8 @@ defmodule AshEnterprise.Surfaces do
     # --- Credentialing -----------------------------------------------------------
     %Surface{
       key: :credentials,
+      audience: [:member, :reviewer],
+      searchable: [:number, :registry_reference],
       label: dgettext_noop("default", "Credentials"),
       blurb:
         dgettext_noop(
@@ -968,6 +1016,7 @@ defmodule AshEnterprise.Surfaces do
     },
     %Surface{
       key: :credentialing_tour,
+      audience: [:member, :builder],
       label: dgettext_noop("default", "Credentialing tour"),
       blurb:
         dgettext_noop(
@@ -986,6 +1035,7 @@ defmodule AshEnterprise.Surfaces do
     # --- Legacy ------------------------------------------------------------------
     %Surface{
       key: :legacy_users,
+      audience: [:member],
       label: dgettext_noop("default", "Legacy users"),
       blurb:
         dgettext_noop(
@@ -1008,6 +1058,21 @@ defmodule AshEnterprise.Surfaces do
       acp: %{command: "legacy users"}
     }
   ]
+
+  @audiences [
+    member: dgettext_noop("default", "Members"),
+    reviewer: dgettext_noop("default", "Reviewers"),
+    builder: dgettext_noop("default", "Builders"),
+    operator: dgettext_noop("default", "Operators")
+  ]
+
+  # Every surface says who it is for, from the closed set.
+  for %Surface{key: key, audience: audience} <- @surfaces,
+      audience == [] or not Enum.all?(audience, &Keyword.has_key?(@audiences, &1)) do
+    raise ArgumentError,
+          "surface #{inspect(key)} has audience #{inspect(audience)}; " <>
+            "declare one or more of #{inspect(Keyword.keys(@audiences))}"
+  end
 
   # A thin surface names its UI and no LiveView: the registry names the page
   # it gets, which AshEnterpriseWeb.SurfaceLive defines and the router routes.
@@ -1050,6 +1115,28 @@ defmodule AshEnterprise.Surfaces do
   """
   @spec translate(String.t()) :: String.t()
   def translate(text), do: Gettext.dgettext(AshEnterpriseWeb.Gettext, "default", text)
+
+  @doc """
+  The audiences a surface can be for, in the launcher's order, with their
+  labels (marked for extraction, translate with `translate/1`).
+  """
+  @spec audiences() :: keyword(String.t())
+  def audiences, do: @audiences
+
+  @doc """
+  The audience a launcher was asked for (`"reviewer"`), or `nil` for
+  everyone: an unknown or missing name is `nil`, never a new atom.
+  """
+  @spec audience(String.t() | nil) :: Surface.audience() | nil
+  def audience(name) when is_binary(name),
+    do: Enum.find_value(@audiences, fn {key, _label} -> Atom.to_string(key) == name && key end)
+
+  def audience(_name), do: nil
+
+  @doc "The `surfaces` for `audience`; `nil` keeps them all."
+  @spec for_audience([Surface.t()], Surface.audience() | nil) :: [Surface.t()]
+  def for_audience(surfaces, nil), do: surfaces
+  def for_audience(surfaces, audience), do: Enum.filter(surfaces, &(audience in &1.audience))
 
   @doc "The groups, in display order: `%{key, label, menu, blurb}`."
   @spec groups() :: [map()]
