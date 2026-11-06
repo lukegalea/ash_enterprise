@@ -18,6 +18,14 @@ defmodule AshEnterprise.Acp.Commands do
   | `people [search]` | `Console.people` | `PeopleUI`, searched |
   | `approvals` | `Console.approvals` | `ApprovalsUI` |
   | `approve N` / `reject N` / `approve brief` / `reject brief` | `HumanTask.approve` / `.reject` | `ApprovalsUI` |
+  | `ask N <question>` — ask the requester before deciding | `HumanTask.request_info` | `ApprovalsUI` |
+  | `answer N <text>` — a question you were asked | `HumanTask.answer` | `ApprovalsUI` |
+  | `retry <invocation id> <reason>` | `Intervention.rerun` | none |
+  | `cancel <invocation id> <reason>` | `Intervention.cancel` | none |
+  | `reconcile <invocation id> succeeded\|failed\|retry <reason>` | `Intervention.resolve` | none |
+  | `publish <agent version id>` | `AgentVersion.request_publish` | none |
+  | `release <manifest id>` — ask to promote it | `ReleaseManifest.request_release` | none |
+  | `grant <role name> to <email>` — ask for a role assignment | `UserRole.request_assignment` | none |
   | `accounts` | `Console.accounts` | `AccountsUI` |
   | `sync calendar\\|gmail\\|slack` | `LinkedAccount.sync_now` | `AccountsUI` |
   | `erasure` | `Scope.scopes_digest` | `ErasureReadOnlyUI` — no shred over ACP |
@@ -32,7 +40,13 @@ defmodule AshEnterprise.Acp.Commands do
   (`AshEnterprise.Surfaces`): a prompt that names a surface is matched there
   first (longest command or alias wins), and a surface whose door is closed
   for the actor is refused — the same door the web checks. What is left are
-  the verbs: `brief`, `approve`, `reject`, `sync`, `done`, `help`.
+  the verbs: `brief`, `approve`, `reject`, `ask`, `answer`, `retry`, `cancel`,
+  `reconcile`, `publish`, `release`, `sync`, `done`, `help`. `verbs/0` lists each
+  with the action it runs, so a channel-parity check reads them from here.
+
+  The verbs that carry a person's words (`ask`, `answer`, `retry`, `cancel`,
+  `reconcile`) keep them as typed, as `todo <text>` does; none needs a model to
+  read the prompt.
 
   Each routed action's `AshAgent.Effects` declaration (ADR 0057) says what it
   does: its ACP tool kind, and whether it asks first. Decisions, syncs and
@@ -61,7 +75,7 @@ defmodule AshEnterprise.Acp.Commands do
   alias AshEnterprise.Canonical.Actions.ActionItemsDigest
   alias AshEnterprise.Canonical.Task
   alias AshEnterprise.Erasure.Scope
-  alias AshEnterprise.Execution.Invocation
+  alias AshEnterprise.Execution.{AgentVersion, Intervention, Invocation, ReleaseManifest}
   alias AshEnterprise.Integration.LinkedAccount
   alias AshEnterprise.Platform.LocalTime
   alias AshEnterprise.Security.ActorContext
@@ -85,6 +99,38 @@ defmodule AshEnterprise.Acp.Commands do
     "slack" => "slack"
   }
 
+  @verbs [
+    %{verb: "approve N", resource: HumanTask, action: :approve},
+    %{verb: "reject N", resource: HumanTask, action: :reject},
+    %{verb: "ask N <question>", resource: HumanTask, action: :request_info},
+    %{verb: "answer N <text>", resource: HumanTask, action: :answer},
+    %{verb: "retry <invocation id> <reason>", resource: Intervention, action: :rerun},
+    %{verb: "cancel <invocation id> <reason>", resource: Intervention, action: :cancel},
+    %{
+      verb: "reconcile <invocation id> succeeded|failed|retry <reason>",
+      resource: Intervention,
+      action: :resolve
+    },
+    %{verb: "publish <agent version id>", resource: AgentVersion, action: :request_publish},
+    %{verb: "release <manifest id>", resource: ReleaseManifest, action: :request_release},
+    %{
+      verb: "grant <role name> to <email>",
+      resource: AshEnterprise.Security.UserRole,
+      action: :request_assignment
+    },
+    %{verb: "brief", resource: MorningBrief, action: :compose_today},
+    %{verb: "sync calendar|gmail|slack", resource: LinkedAccount, action: :sync_now},
+    %{verb: "todo <text>", resource: Console, action: :todo},
+    %{verb: "done N", resource: Console, action: :done}
+  ]
+
+  @doc """
+  The verbs this grammar routes to an act, each with the resource and action it runs:
+  what a channel-parity check reads (`test/ash_enterprise/channels/parity_test.exs`).
+  """
+  @spec verbs() :: [%{verb: String.t(), resource: module(), action: atom()}]
+  def verbs, do: @verbs
+
   @typedoc "A routed prompt: the action spec ash_acp runs, and the surface to close the turn with."
   @type route :: %{spec: map(), surface: {module(), keyword()} | nil}
 
@@ -98,9 +144,87 @@ defmodule AshEnterprise.Acp.Commands do
     command = normalize(text)
     open? = String.starts_with?(command, "open ")
 
-    case capture_text(text) do
-      {:ok, title} -> capture(title, actor, tenant)
-      :none -> route_command(command, open?, actor, tenant)
+    case {capture_text(text), worded(text)} do
+      {{:ok, title}, _worded} -> capture(title, actor, tenant)
+      {:none, {:grant, role, email}} -> grant(role, email, actor, tenant)
+      {:none, {verb, target, words}} -> worded_route(verb, target, words, actor, tenant)
+      {:none, :none} -> route_command(command, open?, actor, tenant)
+    end
+  end
+
+  # The verbs that carry a person's words, as typed: `{verb, target, words}`.
+  @worded ~w(ask answer retry cancel reconcile)
+
+  defp worded(text) do
+    case Regex.run(~r/^\/?grant\s+(.+?)\s+to\s+(\S+@\S+)$/iu, String.trim(text)) do
+      [_, role, email] -> {:grant, String.trim(role), email}
+      nil -> worded_verb(text)
+    end
+  end
+
+  defp worded_verb(text) do
+    case Regex.run(~r/^\/?(\w+)\s+(\S+)\s+(.+)$/su, String.trim(text)) do
+      [_, verb, target, words] ->
+        verb = String.downcase(verb)
+        if verb in @worded, do: {verb, target, String.trim(words)}, else: :none
+
+      nil ->
+        :none
+    end
+  end
+
+  # `ask 2 <question>` / `answer 2 <text>`: the task is the one the `approvals` list
+  # numbers, read as the actor.
+  defp worded_route(verb, number, words, actor, tenant) when verb in ["ask", "answer"] do
+    {action, inputs, title} =
+      case verb do
+        "ask" -> {:request_info, %{question: words}, "Ask for more information"}
+        "answer" -> {:answer, %{answer: words}, "Answer"}
+      end
+
+    with {:ok, task, label} <- decision_target(number, actor: actor, tenant: tenant) do
+      ask(
+        HumanTask,
+        action,
+        Map.put(inputs, :record_id, task.id),
+        "#{title}: #{label}",
+        {actor, tenant},
+        {A2ui.ApprovalsUI, []}
+      )
+    end
+  end
+
+  # The recovery acts, on an invocation named by its id (the recovery surface's own
+  # address for it): each says why.
+  defp worded_route("reconcile", id, words, actor, tenant) do
+    case String.split(words, ~r/\s+/u, parts: 2) do
+      [resolution, reason] when resolution in ~w(succeeded failed retry) ->
+        recover(:resolve, id, %{resolution: resolution, reason: reason}, actor, tenant)
+
+      _other ->
+        {:error, "reconcile takes an invocation id, succeeded, failed or retry, and why"}
+    end
+  end
+
+  defp worded_route(verb, id, reason, actor, tenant) do
+    act = if verb == "retry", do: :rerun, else: :cancel
+    recover(act, id, %{reason: reason}, actor, tenant)
+  end
+
+  defp recover(act, id, inputs, actor, tenant) do
+    case Ecto.UUID.cast(id) do
+      {:ok, id} ->
+        ask(
+          Intervention,
+          act,
+          Map.put(inputs, :invocation_id, id),
+          "#{String.capitalize(to_string(act))} invocation #{String.slice(id, 0, 8)}",
+          {actor, tenant},
+          nil
+        )
+
+      :error ->
+        {:error, "name the invocation by its id"}
     end
   end
 
@@ -293,6 +417,13 @@ defmodule AshEnterprise.Acp.Commands do
   defp do_route("approve " <> which, actor, tenant), do: decide(:approve, which, actor, tenant)
   defp do_route("reject " <> which, actor, tenant), do: decide(:reject, which, actor, tenant)
   defp do_route("sync " <> provider, actor, tenant), do: sync(provider, actor, tenant)
+
+  defp do_route("publish " <> id, actor, tenant),
+    do: request(AgentVersion, :request_publish, id, "Ask to publish", {actor, tenant})
+
+  defp do_route("release " <> id, actor, tenant),
+    do: request(ReleaseManifest, :request_release, id, "Ask to release", {actor, tenant})
+
   defp do_route("done " <> which, actor, tenant), do: finish(String.trim(which), actor, tenant)
 
   defp do_route(command, _actor, tenant) when command in ["help", "?", "commands"] do
@@ -432,6 +563,55 @@ defmodule AshEnterprise.Acp.Commands do
       _ -> {:error, "no active linked account for #{String.trim(provider)}"}
     end
   end
+
+  # `grant Clinic lead to dana@clinic.example`: the names resolved as the actor, the way
+  # the agent console resolves the ones its model reads (`Interpreter.plan/5`, the seam
+  # below the model), then the request door, which waits for another administrator.
+  defp grant(role, email, actor, tenant) do
+    intent = %AshEnterprise.AI.Intent{kind: :assign_role, role_name: role, user_email: email}
+
+    case AshEnterprise.AI.Interpreter.plan(intent, "", actor, tenant) do
+      {:ok, {:role_request, request}} ->
+        resource = AshEnterprise.Security.UserRole
+        route = if Acp.asks_first?(resource, :request_assignment), do: &ask/6, else: &ok_as/6
+
+        route.(
+          resource,
+          :request_assignment,
+          %{user_id: request.user_id, role_id: request.role_id},
+          "Ask to grant #{request.role} to #{request.user}",
+          {actor, tenant},
+          nil
+        )
+
+      {:error, message} ->
+        {:error, message}
+    end
+  end
+
+  # A request door (`publish`, `release`): it asks for a governed act that waits on a
+  # second person, so it runs as itself, and its result is pending.
+  defp request(resource, action, id, title, {actor, tenant}) do
+    case Ecto.UUID.cast(String.trim(id)) do
+      {:ok, id} ->
+        route = if Acp.asks_first?(resource, action), do: &ask/6, else: &ok_as/6
+
+        route.(
+          resource,
+          action,
+          %{record_id: id},
+          "#{title} #{String.slice(id, 0, 8)}",
+          {actor, tenant},
+          nil
+        )
+
+      :error ->
+        {:error, "name it by its id"}
+    end
+  end
+
+  defp ok_as(resource, action, inputs, title, {_actor, tenant}, surface),
+    do: ok(resource, action, inputs, title, tenant, surface)
 
   # The route's ACP tool kind comes from the action's effects declaration.
   defp ok(resource, action, inputs, title, tenant, surface) do

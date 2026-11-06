@@ -6,7 +6,8 @@ defmodule AshEnterpriseWeb.A2ui.CredentialUI do
   **Ask to activate** runs `Credential.request_activation` as the person clicking: the
   request for the governed `activate_credential` (ADR 0055), which waits for a member of
   the credentialing committee other than them to approve it. Edit runs
-  `Credential.correct`, the credential's number or expiry date.
+  `Credential.correct`, the credential's number or expiry date. **Open case** starts the
+  credential's case (`Credential.open_case`), the credentialing process, as you.
 
   A credential's detail shows what the licence reader found in its documents, each
   finding with the lines it cites (`Credential.document_findings`).
@@ -41,7 +42,7 @@ defmodule AshEnterpriseWeb.A2ui.CredentialUI do
       read_action :read
       query :default
       select_context :credential
-      row_actions [:request_activation]
+      row_actions [:request_activation, :open_case]
 
       row_layout do
         title :number
@@ -73,6 +74,11 @@ defmodule AshEnterpriseWeb.A2ui.CredentialUI do
 
     action :request_activation do
       label "Ask to activate"
+      visible_when status: :pending
+    end
+
+    action :open_case do
+      label "Open case"
       visible_when status: :pending
     end
 

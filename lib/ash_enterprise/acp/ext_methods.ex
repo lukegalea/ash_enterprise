@@ -9,7 +9,7 @@ defmodule AshEnterprise.Acp.ExtMethods do
   |---|---|
   | `_ash/surfaces/list` | The registry's A2UI surfaces whose door is open for the actor and whose resource they may read (`Ash.can?`) |
   | `_ash/surface/open` | Builds the surface (`AshA2ui.Info.build_surface/2`); with a `recordId`, the record selected through `AshEnterprise.Surfaces.Records` (door, authorized read, context selection — "not found" for anything else). Recorded in the session store, so `session/load` re-emits it, with a one-line `opened <surface>` transcript entry |
-  | `_a2ui/action` | Runs the A2UI action through `AshA2ui.ActionHandler` as the session actor. An action that runs an Ash action (`submit_form`, `invoke`, `bulk_invoke`, `edit_cell`) asks first (`{:request_permission, spec}` → `AshEnterprise.Acp.Approvals`) when that action's effects declaration says so (`AshEnterprise.Acp.asks_first?/2`); everything else (query, select, search, prompt, report, export) runs at once. Answers `applied` only when the action succeeded, `denied` when an approval was declined, and `failed` (with a `{kind, message}` error) when policy refused it, its input was invalid or it errored |
+  | `_a2ui/action` | Runs the A2UI action through `AshA2ui.ActionHandler` as the session actor. An action that runs an Ash action (`submit_form`, `invoke`, `bulk_invoke`, `edit_cell`) asks first (`{:request_permission, spec}` → `AshEnterprise.Acp.Approvals`) when that action's effects declaration says so (`AshEnterprise.Acp.asks_first?/2`); everything else (query, select, search, prompt, report, export) runs at once. Answers `applied` only when the action succeeded, `denied` when an approval was declined, and `failed` (with a `{kind, message}` error) when policy refused it, its input was invalid or it errored; and, beside it, the channels' `result` (`applied`, `pending`, `declined`, `forbidden`, `invalid`, `failed`) and, for a blocked act, its `blockedReason` (`AshEnterprise.Channels`) |
 
   Nothing here bypasses policy: every build and action runs with the actor
   and `authorize?: true`, and a client-supplied surface or record id is only a
@@ -23,6 +23,7 @@ defmodule AshEnterprise.Acp.ExtMethods do
 
   alias AshEnterprise.Acp
   alias AshEnterprise.Acp.SessionStore
+  alias AshEnterprise.Channels
   alias AshEnterprise.Security.ActorContext
   alias AshEnterprise.Surfaces
   alias AshEnterprise.Surfaces.Records
@@ -227,32 +228,44 @@ defmodule AshEnterprise.Acp.ExtMethods do
          click: entry.label
        }}
     else
-      _runs_at_once -> run(ui, action, actor)
+      _runs_at_once -> run(ui, action, target(ui, name, context), actor)
     end
   end
 
   # Refused by policy up front: a failed write, not a declined one.
   defp act(_entry, _ui, _action, _name, _context, _actor, :denied, :policy),
-    do: {:ok, AshAcp.ExtMethods.action_failed(:forbidden)}
+    do: {:ok, answer(AshAcp.ExtMethods.action_failed(:forbidden), :forbidden)}
 
   defp act(_entry, _ui, _action, _name, _context, _actor, :denied, _by),
-    do: {:ok, %{"outcome" => "denied", "a2ui" => []}}
+    do: {:ok, answer(%{"outcome" => "denied", "a2ui" => []}, Channels.declined())}
 
-  defp act(_entry, ui, action, _name, _context, actor, _approved, _by), do: run(ui, action, actor)
+  defp act(_entry, ui, action, name, context, actor, _approved, _by),
+    do: run(ui, action, target(ui, name, context), actor)
 
-  defp run(ui, action, actor) do
-    case AshA2ui.ActionHandler.handle(
-           ui,
-           action,
-           [actor: actor, tenant: ActorContext.tenant(actor)] ++ l10n(actor)
-         ) do
+  # The answer carries the channels' result and blocked reason beside the wire's own
+  # `outcome` (`AshEnterprise.Channels`), computed from the same handler outcome the
+  # web's `/ui/feedback` is.
+  defp run(ui, action, target, actor) do
+    handled =
+      AshA2ui.ActionHandler.handle(
+        ui,
+        action,
+        [actor: actor, tenant: ActorContext.tenant(actor)] ++ l10n(actor)
+      )
+
+    result = Channels.result(handled, target)
+
+    case handled do
       {:ok, messages} ->
-        {:ok, %{"outcome" => "applied", "a2ui" => messages}}
+        {:ok, answer(%{"outcome" => "applied", "a2ui" => messages}, result)}
 
       {:error, messages} ->
-        {:ok, AshAcp.ExtMethods.action_failed(failure_kind(messages), messages)}
+        {:ok, answer(AshAcp.ExtMethods.action_failed(failure_kind(messages), messages), result)}
     end
   end
+
+  defp answer(answer, result),
+    do: Channels.annotate_answer(answer, result, Channels.blocked_reason(result))
 
   # The input the run passes, as `AshA2ui.ActionHandler` builds it: the
   # form's values, and a generic row action's `record_id` argument.
@@ -290,75 +303,13 @@ defmodule AshEnterprise.Acp.ExtMethods do
 
   defp record(_resource, _action_name, _id, _actor), do: nil
 
-  # `AshA2ui.ActionHandler` answers a failure with data-model messages only,
-  # so the kind is read back from them. A field error is under
-  # `/errors/<field>`. A policy refusal carries nothing else, so policy
-  # details do not leak: on an A2UI 1.0 surface `/ui/response` with code
-  # `UNAUTHORIZED`, on a 0.9.1 one the typed `/ui/feedback` error carrying
-  # exactly this sentence (0.9.1 has no error codes; the sentence is the
-  # handler's fixed refusal text). `test/ash_enterprise/acp_low_privilege_test.exs`
-  # and `test/ash_enterprise_web/a2ui/mdm_steward_ui_test.exs` pin both
-  # against the real handler.
-  @forbidden_status "You are not authorized to perform this action."
-
   @doc false
+  # The kind a failed action's messages say it failed with
+  # (`AshEnterprise.Channels.failure_kind/1`, which both channels read).
   @spec failure_kind([map()]) :: :forbidden | :invalid | :error
-  def failure_kind(messages) do
-    updates =
-      for %{"updateDataModel" => %{"path" => path} = update} <- messages,
-          do: {path, update["value"]}
+  defdelegate failure_kind(messages), to: Channels
 
-    cond do
-      Enum.any?(updates, &invalid?/1) -> :invalid
-      Enum.any?(updates, &forbidden?/1) -> :forbidden
-      true -> :error
-    end
-  end
-
-  defp invalid?({"/errors/" <> _field, _value}), do: true
-  defp invalid?({"/ui/response", %{"code" => "VALIDATION_FAILED"}}), do: true
-  defp invalid?(_update), do: false
-
-  defp forbidden?({"/ui/response", %{"code" => "UNAUTHORIZED"}}), do: true
-
-  defp forbidden?({"/ui/feedback", %{"kind" => "error", "message" => @forbidden_status}}),
-    do: true
-
-  defp forbidden?(_update), do: false
-
-  # The resource and the Ash action an A2UI action runs, as
-  # `AshA2ui.ActionHandler` resolves it: a form by its create or update
-  # action, a row or bulk action by its name in the view's allowlist, a cell
-  # by its table's update action. `nil` for an A2UI action that runs no Ash
-  # action (a query, a search, a prompt opening, a report, an export), or one
-  # the handler will refuse anyway.
-  defp target(ui, name, context) do
-    view = AshA2ui.ResolvedView.resolve(ui, [])
-    {view.resource, ash_action(view, name, context)}
-  end
-
-  defp ash_action(view, "submit_form", context),
-    do: if(context["recordId"], do: view.update_action, else: view.create_action)
-
-  defp ash_action(view, "invoke", context), do: named(view.row_actions, context["action"])
-  defp ash_action(view, "bulk_invoke", context), do: named(view.bulk_actions, context["action"])
-
-  defp ash_action(%{tables: tables}, "edit_cell", context) do
-    table =
-      case tables do
-        [table] -> table
-        tables -> Enum.find(tables, &(to_string(&1.name) == context["component"]))
-      end
-
-    case table do
-      %{editable: %{update_action: action}} -> action
-      _none -> nil
-    end
-  end
-
-  defp ash_action(_view, _name, _context), do: nil
-
-  defp named(actions, requested), do: Enum.find(actions, &(Atom.to_string(&1) == requested))
+  defp target(ui, name, context), do: Channels.target(ui, name, context)
 
   defp humanize(name), do: name |> to_string() |> String.replace("_", " ") |> String.capitalize()
 

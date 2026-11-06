@@ -26,7 +26,8 @@ defmodule AshEnterprise.Execution.Intervention do
     ownership: :user_owned,
     lifecycle?: false,
     archival?: false,
-    self_service: [:read, :rerun, :cancel, :resolve, :simulate]
+    self_service: [:read, :rerun, :cancel, :resolve, :simulate],
+    extra_extensions: [AshAgent.Effects]
 
   alias AshEnterprise.Execution.Changes.Intervene
 
@@ -70,6 +71,43 @@ defmodule AshEnterprise.Execution.Intervention do
 
   changes do
     change set_attribute(:owner_id, actor(:id)), on: [:create]
+  end
+
+  # What each act does, for the channels that offer it (ADR 0057): the recovery
+  # surface on the web, `retry`, `cancel` and `reconcile` over ACP, which ask first.
+  # A rerun is a new request, so doing it twice asks twice; a cancel or a settlement
+  # of the same row is the same act again.
+  effects do
+    action :rerun,
+      kind: :edit,
+      destructive?: false,
+      idempotent?: false,
+      open_world?: false,
+      approval: :confirm,
+      intent: :execute
+
+    action :cancel,
+      kind: :edit,
+      destructive?: true,
+      idempotent?: true,
+      open_world?: false,
+      approval: :confirm,
+      intent: :execute
+
+    action :resolve,
+      kind: :edit,
+      destructive?: false,
+      idempotent?: true,
+      open_world?: false,
+      approval: :confirm,
+      intent: :approve
+
+    action :simulate,
+      kind: :read,
+      destructive?: false,
+      idempotent?: true,
+      open_world?: false,
+      intent: :inspect
   end
 
   attributes do

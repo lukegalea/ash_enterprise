@@ -225,7 +225,7 @@ defmodule AshEnterprise.AcpExtMethodsTest do
         state
       )
 
-    assert resp["result"] == %{"outcome" => "denied", "a2ui" => []}
+    assert resp["result"] == %{"outcome" => "denied", "a2ui" => [], "result" => "declined"}
     assert %{status: :pending_approval} = reload_brief!(brief, ctx.tenant)
   end
 

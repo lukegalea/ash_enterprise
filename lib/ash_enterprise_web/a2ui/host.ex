@@ -33,6 +33,7 @@ defmodule AshEnterpriseWeb.A2ui.Host do
 
   import Phoenix.LiveView, only: [push_event: 3]
 
+  alias AshEnterprise.Channels
   alias AshEnterprise.Surfaces
   alias AshEnterpriseWeb.Locale
 
@@ -161,7 +162,7 @@ defmodule AshEnterpriseWeb.A2ui.Host do
           {Phoenix.LiveView.Socket.t(), Presentation.t()}
   def handle_action(socket, %Presentation{kind: :declared} = presentation, envelope, opts) do
     presentation.surface
-    |> AshA2ui.ActionHandler.handle(envelope, l10n(opts, socket))
+    |> act(envelope, l10n(opts, socket))
     |> apply_action_result(socket, presentation)
   end
 
@@ -169,6 +170,19 @@ defmodule AshEnterpriseWeb.A2ui.Host do
     presentation.surface
     |> AshA2ui.Dynamic.handle_action(envelope, l10n(opts, socket))
     |> apply_action_result(socket, presentation)
+  end
+
+  @doc """
+  Runs a client action envelope on a declared surface through the action handler, and
+  adds the channels' result and blocked reason to the `/ui/feedback` it writes
+  (`AshEnterprise.Channels`): the same answer ACP gives for the same act.
+  """
+  @spec act(module(), map(), keyword()) :: {:ok | :error, [map()]}
+  def act(ui, envelope, opts) do
+    {status, messages} = handled = AshA2ui.ActionHandler.handle(ui, envelope, opts)
+    target = Channels.envelope_target(ui, envelope)
+    result = Channels.result(handled, target)
+    {status, Channels.annotate_feedback(messages, result, Channels.blocked_reason(result))}
   end
 
   @doc """
