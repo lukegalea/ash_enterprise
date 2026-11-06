@@ -86,7 +86,7 @@ defmodule AshEnterpriseWeb.Layouts do
               <a
                 id="nav-today"
                 href="/app/today"
-                class={[nav_pill(), current?(@surface, :today) && current_pill()]}
+                class={nav_pill(current?(@surface, :today))}
                 aria-current={current?(@surface, :today) && "page"}
               >
                 {gettext("Today")}
@@ -96,11 +96,7 @@ defmodule AshEnterpriseWeb.Layouts do
               <details class="group relative">
                 <summary
                   id={"nav-#{menu.key}"}
-                  class={[
-                    nav_pill(),
-                    "list-none [&::-webkit-details-marker]:hidden",
-                    menu.current? && current_pill()
-                  ]}
+                  class={[nav_pill(menu.current?), "list-none [&::-webkit-details-marker]:hidden"]}
                 >
                   {AshEnterprise.Surfaces.translate(menu.label)}
                   <.icon
@@ -124,7 +120,7 @@ defmodule AshEnterpriseWeb.Layouts do
                       <a
                         id={"nav-#{surface.key}"}
                         href={surface.path}
-                        class={[menu_item(), current?(@surface, surface.key) && current_item()]}
+                        class={menu_item(current?(@surface, surface.key))}
                         aria-current={current?(@surface, surface.key) && "page"}
                       >
                         {AshEnterprise.Surfaces.translate(surface.label)}
@@ -229,18 +225,28 @@ defmodule AshEnterpriseWeb.Layouts do
   # constant here is a type warning in whichever env makes it always true.
   defp dev_routes?, do: Application.get_env(:ash_enterprise, :dev_routes, false)
 
-  # Static strings so Tailwind's scanner sees every class.
-  defp nav_pill do
-    "inline-flex h-8 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-full border-2 border-border bg-secondary-background px-3 text-sm font-base text-foreground shadow-press transition-all hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-shadow focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:translate-x-0 active:translate-y-0 active:shadow-none"
+  # Static strings so Tailwind's scanner sees every class. The current pill or item takes the
+  # accent fill instead of the plain one, never both: with both in one class list the stylesheet's
+  # order picks the winner, and the plain navy fill under the accent's black ink measures 1.3:1.
+  defp nav_pill(current? \\ false) do
+    [
+      "inline-flex h-8 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-full border-2 border-border px-3 text-sm font-base shadow-press transition-all hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-shadow focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:translate-x-0 active:translate-y-0 active:shadow-none",
+      if(current?,
+        do: "bg-main text-main-foreground",
+        else: "bg-secondary-background text-foreground"
+      )
+    ]
   end
 
-  defp current_pill, do: "bg-main text-main-foreground"
-
-  defp menu_item do
-    "block rounded-[3px] border-2 border-transparent px-3 py-1.5 text-sm font-base text-foreground hover:border-border hover:bg-main hover:text-main-foreground focus-visible:outline-hidden focus-visible:border-border focus-visible:bg-main focus-visible:text-main-foreground"
+  defp menu_item(current?) do
+    [
+      "block rounded-[3px] border-2 px-3 py-1.5 text-sm font-base hover:border-border hover:bg-main hover:text-main-foreground focus-visible:outline-hidden focus-visible:border-border focus-visible:bg-main focus-visible:text-main-foreground",
+      if(current?,
+        do: "border-border bg-main text-main-foreground",
+        else: "border-transparent text-foreground"
+      )
+    ]
   end
-
-  defp current_item, do: "border-border bg-main text-main-foreground"
 
   @doc """
   Shows the flash group with standard titles and content.

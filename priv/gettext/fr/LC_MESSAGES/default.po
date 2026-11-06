@@ -23,24 +23,24 @@ msgstr[1] "%{count} associés"
 msgid "Actions"
 msgstr "Actions"
 
-#: lib/ash_enterprise_web/components/layouts.ex:140
+#: lib/ash_enterprise_web/components/layouts.ex:136
 #: lib/ash_enterprise_web/live/launcher_live.ex:450
 #, elixir-autogen, elixir-format
 msgid "Admin"
 msgstr "Administration"
 
-#: lib/ash_enterprise_web/components/layouts.ex:165
+#: lib/ash_enterprise_web/components/layouts.ex:161
 #, elixir-autogen, elixir-format
 msgid "All apps"
 msgstr "Toutes les applications"
 
-#: lib/ash_enterprise_web/components/layouts.ex:163
+#: lib/ash_enterprise_web/components/layouts.ex:159
 #, elixir-autogen, elixir-format
 msgid "All apps (ctrl+k)"
 msgstr "Toutes les applications (ctrl+k)"
 
-#: lib/ash_enterprise_web/components/layouts.ex:272
-#: lib/ash_enterprise_web/components/layouts.ex:287
+#: lib/ash_enterprise_web/components/layouts.ex:278
+#: lib/ash_enterprise_web/components/layouts.ex:293
 #, elixir-autogen, elixir-format
 msgid "Attempting to reconnect"
 msgstr "Tentative de reconnexion"
@@ -55,12 +55,12 @@ msgstr "Calendrier, lignage, voyage dans le temps…"
 msgid "Canvas"
 msgstr "Canevas"
 
-#: lib/ash_enterprise_web/components/layouts.ex:153
+#: lib/ash_enterprise_web/components/layouts.ex:149
 #, elixir-autogen, elixir-format
 msgid "Commands"
 msgstr "Commandes"
 
-#: lib/ash_enterprise_web/components/layouts.ex:150
+#: lib/ash_enterprise_web/components/layouts.ex:146
 #, elixir-autogen, elixir-format
 msgid "Commands (ctrl+p)"
 msgstr "Commandes (ctrl+p)"
@@ -95,7 +95,7 @@ msgstr "Filtrer vos applications"
 msgid "From any page, ctrl k opens this list and ctrl p runs a command or asks the agent."
 msgstr "Depuis n’importe quelle page, ctrl k ouvre cette liste et ctrl p exécute une commande ou interroge l’agent."
 
-#: lib/ash_enterprise_web/components/layouts.ex:137
+#: lib/ash_enterprise_web/components/layouts.ex:133
 #: lib/ash_enterprise_web/live/launcher_live.ex:444
 #, elixir-autogen, elixir-format
 msgid "Helper"
@@ -157,7 +157,7 @@ msgstr "Épinglée depuis la conversation avec l’agent."
 msgid "Reading your day…"
 msgstr "Lecture de votre journée…"
 
-#: lib/ash_enterprise_web/components/layouts.ex:279
+#: lib/ash_enterprise_web/components/layouts.ex:285
 #, elixir-autogen, elixir-format
 msgid "Something went wrong!"
 msgstr "Une erreur s’est produite."
@@ -168,17 +168,17 @@ msgstr "Une erreur s’est produite."
 msgid "Today"
 msgstr "Aujourd’hui"
 
-#: lib/ash_enterprise_web/components/layouts.ex:330
+#: lib/ash_enterprise_web/components/layouts.ex:336
 #, elixir-autogen, elixir-format
 msgid "Use dark theme"
 msgstr "Utiliser le thème sombre"
 
-#: lib/ash_enterprise_web/components/layouts.ex:321
+#: lib/ash_enterprise_web/components/layouts.ex:327
 #, elixir-autogen, elixir-format
 msgid "Use light theme"
 msgstr "Utiliser le thème clair"
 
-#: lib/ash_enterprise_web/components/layouts.ex:312
+#: lib/ash_enterprise_web/components/layouts.ex:318
 #, elixir-autogen, elixir-format
 msgid "Use system theme"
 msgstr "Utiliser le thème du système"
@@ -188,7 +188,7 @@ msgstr "Utiliser le thème du système"
 msgid "Views you composed in the agent chat and pinned. Only you see them."
 msgstr "Les vues que vous avez composées dans la conversation avec l’agent et épinglées. Vous seul les voyez."
 
-#: lib/ash_enterprise_web/components/layouts.ex:264
+#: lib/ash_enterprise_web/components/layouts.ex:270
 #, elixir-autogen, elixir-format
 msgid "We can't find the internet"
 msgstr "Connexion Internet introuvable"
