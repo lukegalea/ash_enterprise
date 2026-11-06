@@ -12,8 +12,8 @@ defmodule AshEnterprise.Planning.Integration.SolverlAdapterTest do
 
   use ExUnit.Case, async: false
 
-  alias AshPlanning.{Error, Problem, SolveResult}
   alias AshPlanning.Backend.Solverl
+  alias AshPlanning.{Error, Problem, SolveResult}
 
   @moduletag :integration
   @moduletag skip:

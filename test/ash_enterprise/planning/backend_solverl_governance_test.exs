@@ -2,8 +2,8 @@ defmodule AshPlanning.Backend.SolverlGovernanceTest do
   # Refusal paths happen before any spawn, so no minizinc is needed.
   use ExUnit.Case, async: true
 
-  alias AshPlanning.{Error, Problem}
   alias AshPlanning.Backend.Solverl
+  alias AshPlanning.{Error, Problem}
 
   @fake_prlimit "/usr/bin/prlimit"
 

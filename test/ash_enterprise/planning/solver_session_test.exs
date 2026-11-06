@@ -11,11 +11,11 @@ defmodule AshEnterprise.Planning.SolverSessionTest do
   import AshEnterprise.Planning.TestKit
 
   alias AshEnterprise.Planning
-  alias AshPlanning.Backend.Fake
   alias AshEnterprise.Planning.Registry, as: PlanningRegistry
   alias AshEnterprise.Planning.SessionSupervisor
   alias AshEnterprise.Planning.SnapshotBuilder
   alias AshEnterprise.Planning.SolverSession
+  alias AshPlanning.Backend.Fake
 
   defmodule Scripted do
     @moduledoc false

@@ -60,8 +60,8 @@ defmodule AshEnterprise.Planning.SnapshotBuilder do
   alias AshEnterprise.Planning.{Lowering, ModelVersion, Run}
   alias AshEnterprise.Platform.SystemActor
   alias AshOpenLineage.Snapshot
-  alias AshPlanning.Snapshot, as: PlanningSnapshot
   alias AshOpenLineage.Snapshot.{CanonicalJSON, Definition, Input}
+  alias AshPlanning.Snapshot, as: PlanningSnapshot
 
   @decision_key "canonical_planning.requirements"
 
@@ -513,16 +513,19 @@ defmodule AshEnterprise.Planning.SnapshotBuilder do
     start_minute = day["workStartMinute"]
     end_minute = day["workEndMinute"]
 
-    with true <- is_integer(start_minute) and is_integer(end_minute) and start_minute < end_minute,
-         date = DateTime.to_date(starts_at),
-         window_start =
-           DateTime.new!(date, Time.add(~T[00:00:00], start_minute * 60, :second), "Etc/UTC"),
-         window_end =
-           DateTime.new!(date, Time.add(~T[00:00:00], end_minute * 60, :second), "Etc/UTC") do
+    if is_integer(start_minute) and is_integer(end_minute) and start_minute < end_minute do
+      date = DateTime.to_date(starts_at)
+
+      window_start =
+        DateTime.new!(date, Time.add(~T[00:00:00], start_minute * 60, :second), "Etc/UTC")
+
+      window_end =
+        DateTime.new!(date, Time.add(~T[00:00:00], end_minute * 60, :second), "Etc/UTC")
+
       DateTime.compare(starts_at, window_end) == :lt and
         DateTime.compare(window_start, ends_at) == :lt
     else
-      _ -> false
+      false
     end
   end
 
