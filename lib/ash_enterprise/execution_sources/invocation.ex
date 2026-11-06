@@ -11,8 +11,9 @@ defmodule AshEnterprise.ExecutionSources.Invocation do
     * its **effect**, once it succeeded and was not simulated, or `uncertain` while its
       outcome is unknown.
 
-  Reads the rows recorded under the trace's correlation id, named by it, or asked for by
-  one of its runs, process instances or invocations. Arguments and results are sealed and
+  Reads the rows recorded under the trace's correlation id, named by it, asked for by
+  one of its runs, process instances or invocations, or rerunning one of its invocations
+  (under the row they rerun). Arguments and results are sealed and
   never in an entry; a row whose arguments were erased is not recorded.
   """
 
@@ -52,7 +53,8 @@ defmodule AshEnterprise.ExecutionSources.Invocation do
                id: invocations,
                run_id: ExecutionSources.uuids(scope, :run),
                process_instance_id: ExecutionSources.uuids(scope, :process_instance),
-               parent_invocation_id: invocations
+               parent_invocation_id: invocations,
+               rerun_of_id: invocations
              ],
              opts,
              load: [:recorded?]
@@ -113,6 +115,8 @@ defmodule AshEnterprise.ExecutionSources.Invocation do
 
   defp parent(%{process_instance_id: id}) when is_binary(id),
     do: Source.ref(:process_instance, id)
+
+  defp parent(%{rerun_of_id: id}) when is_binary(id), do: Source.ref(:invocation, id)
 
   defp parent(_row), do: nil
 

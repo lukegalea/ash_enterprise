@@ -30,6 +30,11 @@ defmodule AshEnterprise.Execution do
   gated on suite runs of exactly that set, approved under four eyes and promoted, with
   rollback and an in-toto export.
 
+  What an operator does about an invocation that went wrong (rerun it as a new request,
+  cancel it, settle an unknown outcome) is an `AshEnterprise.Execution.Intervention`,
+  recorded with who did it and why; `simulate_rerun/2` says what a rerun would run
+  without running it.
+
   `trace/2` follows one piece of work through every record it left, in order and as the
   caller may read them (`AshEnterprise.Execution.Entry`, over the sources registered in
   `AshEnterprise.ExecutionSources`).
@@ -56,6 +61,14 @@ defmodule AshEnterprise.Execution do
       define :request_invocation_resolution, action: :request_resolution
       define :apply_invocation_resolution, action: :apply_resolution
       define :retry_invocation, action: :retry
+    end
+
+    resource AshEnterprise.Execution.Intervention do
+      define :rerun_invocation, action: :rerun, args: [:invocation_id, :reason]
+      define :cancel_invocation, action: :cancel, args: [:invocation_id, :reason]
+      define :resolve_invocation, action: :resolve, args: [:invocation_id, :resolution, :reason]
+      define :simulate_rerun, action: :simulate, args: [:invocation_id]
+      define :list_interventions, action: :read
     end
 
     resource AshEnterprise.Execution.AgentVersion do

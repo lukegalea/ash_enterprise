@@ -32,6 +32,7 @@ defmodule AshEnterprise.Showcase.Credentialing do
   | `correct_during_approval/2` | F4 | corrects the credential's expiry date through `Credential.correct`, as a colleague would while its activation waits for approval |
   | `revoke_requester_grant/1` | F5 | removes the coordinator's role assignment through `UserRole.destroy`, as an administrator would before the activation runs |
   | `restore/1` | — | gives the coordinator their role back (`UserRole.assign`), in this tenant only: nothing is created and no one is moved |
+  | `lose_registry_answer/0` | F2, settled by a person | arms `:credential_registry_accepted` and `:credential_registry_lookup` with `:raise`: the next activation's answer is lost after the registry accepted it, and the registry cannot say afterwards whether it did, so the request's outcome stays unknown until a person settles it on the recovery surface (`/app/recovery`) |
   | `kill_after_registry_accepts/0` | F2 | arms the fault point `:credential_registry_accepted` with `:kill`: the next activation's worker dies after the registry accepted it and before anything was recorded |
   | `time_out_model_after_lookups/0` | F1 | arms the fault point `:model_stream_reading` with `:raise`, skipping one call: the next reading's model fails in the middle of the turn after its lookups |
 
@@ -70,6 +71,7 @@ defmodule AshEnterprise.Showcase.Credentialing do
 
   @activate "AshEnterprise.Credentialing.Credential.activate_credential"
   @kill_point :credential_registry_accepted
+  @lookup_point :credential_registry_lookup
   @reader LicenceReader.key()
   @read_text "AshEnterprise.Credentialing.LicenceDocument.read_text"
   @timeout_point :model_stream_reading
@@ -365,6 +367,18 @@ defmodule AshEnterprise.Showcase.Credentialing do
   @spec time_out_model_after_lookups() :: :ok | {:error, :fault_controls_off}
   def time_out_model_after_lookups do
     with :ok <- on(), do: Faults.arm(@timeout_point, :raise, skip: 1)
+  end
+
+  @doc """
+  F2, settled by a person: the next activation's answer is lost after the registry
+  accepted it, and the registry's next lookup cannot answer, so the request's outcome
+  stays unknown until a person settles it.
+  """
+  @spec lose_registry_answer() :: :ok | {:error, :fault_controls_off}
+  def lose_registry_answer do
+    with :ok <- on(),
+         :ok <- Faults.arm(@kill_point, :raise),
+         do: Faults.arm(@lookup_point, :raise)
   end
 
   @doc "F2: the next activation's worker is killed after the registry accepted it."

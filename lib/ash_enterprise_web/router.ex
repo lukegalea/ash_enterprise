@@ -312,6 +312,19 @@ defmodule AshEnterpriseWeb.Router do
       live "/app/showcase/credentialing", ShowcaseLive.Credentialing
     end
 
+    # Recovery (AshEnterpriseWeb.RecoveryLive): settle, simulate, rerun and cancel an
+    # invocation, each act recorded with who and why. Behind the registry's
+    # `:recovery` entry. Removable with the LiveView, this live_session and the entry.
+    ash_authentication_live_session :recovery,
+      on_mount: [
+        {AshEnterpriseWeb.LiveUserAuth, :live_user_required},
+        AshEnterpriseWeb.LiveLocale,
+        AshEnterpriseWeb.SurfaceDoor
+      ] do
+      live "/app/recovery", RecoveryLive, :index
+      live "/app/recovery/:id", RecoveryLive, :show
+    end
+
     # The process flight views (PROD-10): A2UI surfaces whose diagram is a BPMN
     # process with a marker per live token, moved over the engine's PubSub
     # broadcasts. See AshEnterpriseWeb.FlightLive and

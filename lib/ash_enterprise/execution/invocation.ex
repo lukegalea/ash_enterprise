@@ -17,10 +17,12 @@ defmodule AshEnterprise.Execution.Invocation do
       temporal (ADR 0049 keeps temporal for validity; this is a state machine with
       history), no soft delete, and the fragment's state machine instead of the base's
       lifecycle (`lifecycle?: false`, spike S9).
-    * **Who may do what.** `invoke`, `request` and `confirm` are self-service (ADR 0052):
-      any active member may ask on their own behalf, `request` creates only rows they own,
-      and `confirm` approves only a request whose declaration lets its requester confirm
-      it (`AshEnterprise.Execution.Actions.ConfirmRequest`).
+    * **Who may do what.** `invoke`, `request`, `rerun` and `confirm` are self-service
+      (ADR 0052): any active member may ask on their own behalf, `request` and `rerun`
+      create only rows they own, `rerun` copies only a row they may read
+      (`AshEnterprise.Execution.Changes.Rerun`), and `confirm` approves only a request
+      whose declaration lets its requester confirm it
+      (`AshEnterprise.Execution.Actions.ConfirmRequest`).
       Every action the job runner drives (`claim`, the completions, `apply_decision`,
       `requeue`, the resolution actions, `execute`, `reconcile`) is machinery-only (ADR
       0059): only the `oban` system actor reaches them, and no grant does. Reads,
@@ -96,7 +98,7 @@ defmodule AshEnterprise.Execution.Invocation do
     ownership: :user_owned,
     lifecycle?: false,
     archival?: false,
-    self_service: [:invoke, :request, :confirm],
+    self_service: [:invoke, :request, :confirm, :rerun],
     machinery_only: [
       :claim,
       :succeed,
@@ -176,7 +178,9 @@ defmodule AshEnterprise.Execution.Invocation do
 
     change AshEnterprise.Execution.Changes.HandoffFaultPoints, on: [:create]
 
-    change AshEnterprise.Execution.Changes.RequestApproval, where: [action_is(:request)]
+    change AshEnterprise.Execution.Changes.RequestApproval,
+      where: [action_is([:request, :rerun])]
+
     change AshEnterprise.Execution.Changes.ReadApproval, where: [action_is(:apply_decision)]
     change AshEnterprise.Execution.Changes.RecheckApprover, where: [action_is(:claim)]
 
@@ -208,6 +212,23 @@ defmodule AshEnterprise.Execution.Invocation do
   end
 
   actions do
+    # A rerun (`AshEnterprise.Execution.Intervention`'s `rerun`): the same target and
+    # arguments as the row named by `of`, asked again as a new request of the actor's,
+    # under a new key, naming that row as `rerun_of_id`. From there it is `request`.
+    create :rerun do
+      description """
+      Ask again for what the invocation `of` asked for, as a new request of yours with a
+      new key, linked to it. Refused while its outcome is unknown.
+      """
+
+      accept [:args]
+
+      argument :of, :uuid, allow_nil?: false
+
+      change AshEnterprise.Execution.Changes.Rerun
+      change AshAgent.Invocation.Changes.Request
+    end
+
     # A person's own request, confirmed by them and run now: what an ACP prompt that
     # asked permission runs once they allow it (`AshEnterprise.Acp.Approvals`).
     action :confirm, :string do

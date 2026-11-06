@@ -10,6 +10,7 @@ defmodule AshEnterprise.ExecutionSources do
   | `:step` | `ExecutionSources.Step` | their journals |
   | `:model_call` | `ExecutionSources.ModelCall` | model calls |
   | `:invocation` | `ExecutionSources.Invocation` | invocations, their attempts and effects |
+  | `:intervention` | `ExecutionSources.Intervention` | what people did about them, and why |
   | `:human_task` | `ExecutionSources.HumanTask` | approval and process tasks |
   | `:process_event` | `ExecutionSources.ProcessEvent` | process history |
   | `:evaluation` | `ExecutionSources.Evaluation` | decision evaluations |
@@ -48,6 +49,7 @@ defmodule AshEnterprise.ExecutionSources do
     {:step, S.Step, limit: 100},
     {:model_call, S.ModelCall, limit: 100},
     {:invocation, S.Invocation, limit: 50},
+    {:intervention, S.Intervention, limit: 50},
     {:human_task, S.HumanTask, limit: 50},
     {:process_event, S.ProcessEvent, limit: 200},
     {:evaluation, S.Evaluation, limit: 50},

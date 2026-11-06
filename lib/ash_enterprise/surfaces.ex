@@ -461,6 +461,26 @@ defmodule AshEnterprise.Surfaces do
       }
     },
     %Surface{
+      key: :recovery,
+      audience: [:operator],
+      label: dgettext_noop("default", "Recovery"),
+      blurb:
+        dgettext_noop(
+          "default",
+          "Settle an uncertain outcome, simulate or rerun a request, or cancel one, saying why."
+        ),
+      description:
+        "Recovery for governed invocations: the uncertain outcomes waiting for a person, " <>
+          "and for any invocation the acts its status allows (settle, simulate, rerun, " <>
+          "cancel), each stating what it does and recorded with who did it and why.",
+      group: :operator,
+      order: 25,
+      icon: "hero-lifebuoy",
+      path: "/app/recovery",
+      live: AshEnterpriseWeb.RecoveryLive,
+      resource: AshEnterprise.Execution.Invocation
+    },
+    %Surface{
       key: :audit,
       audience: [:operator, :reviewer],
       label: dgettext_noop("default", "Audit trail"),

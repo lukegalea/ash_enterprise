@@ -38,8 +38,10 @@ defmodule AshEnterprise.L10n.CatalogsTest do
       "No app or record matches “%{query}”.",
       "Operators",
       "Records",
+      "Recovery",
       "Reviewers",
       "Run mode unknown",
+      "Settle an uncertain outcome, simulate or rerun a request, or cancel one, saying why.",
       "Show the apps for",
       "Signed in as",
       "Tenant",
@@ -52,6 +54,10 @@ defmodule AshEnterprise.L10n.CatalogsTest do
       "none",
       "shadow, beside live work",
       "unknown"
+    ],
+    {"fr", "showcase"} => [
+      "Armed. The next activation's answer is lost after the registry accepts it, and the registry cannot say afterwards: settle it on the recovery page.",
+      "Lose the registry's answer"
     ]
   }
 

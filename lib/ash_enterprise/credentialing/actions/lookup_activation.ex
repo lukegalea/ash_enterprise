@@ -11,12 +11,17 @@ defmodule AshEnterprise.Credentialing.Actions.LookupActivation do
   arguments carry it, so reconciliation passes it straight through. The credential is
   read as the caller first, so the action answers only about a credential the caller
   may read.
+
+  The fault point `:credential_registry_lookup` sits before the registry is asked
+  (`AshEnterprise.Faults`): a lookup that cannot be answered, which leaves an unknown
+  outcome for a person to settle.
   """
 
   use Ash.Resource.Actions.Implementation
 
   alias AshEnterprise.Credentialing
   alias AshEnterprise.Credentialing.Registry
+  alias AshEnterprise.Faults
 
   @effect_system "credential-registry"
 
@@ -24,6 +29,7 @@ defmodule AshEnterprise.Credentialing.Actions.LookupActivation do
   def run(input, _opts, context) do
     with {:ok, credential} <-
            Credentialing.get_credential(input.arguments.id, Ash.Context.to_opts(context)),
+         :ok <- Faults.point(:credential_registry_lookup),
          {:ok, answer} <- Registry.lookup(credential.id) do
       {:ok,
        %{

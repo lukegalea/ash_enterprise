@@ -305,6 +305,16 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
     end
   end
 
+  defp fault("lose", _params, _tenant) do
+    with :ok <- Tour.lose_registry_answer() do
+      {:ok,
+       dgettext(
+         "showcase",
+         "Armed. The next activation's answer is lost after the registry accepts it, and the registry cannot say afterwards: settle it on the recovery page."
+       )}
+    end
+  end
+
   defp fault("timeout", _params, _tenant) do
     with :ok <- Tour.time_out_model_after_lookups() do
       {:ok,
@@ -885,6 +895,9 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
             </.button>
             <.button id="fault-kill" phx-click="fault" phx-value-control="kill" size="sm">
               {dgettext("showcase", "Kill the worker after the registry accepts")}
+            </.button>
+            <.button id="fault-lose" phx-click="fault" phx-value-control="lose" size="sm">
+              {dgettext("showcase", "Lose the registry's answer")}
             </.button>
             <.button id="fault-timeout" phx-click="fault" phx-value-control="timeout" size="sm">
               {dgettext("showcase", "Time out the model after the lookups")}

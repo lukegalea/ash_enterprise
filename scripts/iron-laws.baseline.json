@@ -19,6 +19,12 @@
  },
  {
   "law": "11",
+  "file": "lib/ash_enterprise_web/live/recovery_live.ex",
+  "text": "def handle_event(_act, _params, %{assigns: %{invocation: nil}} = socket) do",
+  "reason": "Authorized through policies: every act (simulate, rerun, cancel, settle) calls the Execution code interface (simulate_rerun, rerun_invocation, cancel_invocation, resolve_invocation) as the signed-in user, so each is checked by Intervention's policy and the policy of the action it wraps (Invocation :rerun, :request_cancel, HumanTask :resolve). The flagged clause refuses any act on a page with no readable invocation and writes nothing. The detector only looks for Ash.can? in the file."
+ },
+ {
+  "law": "11",
   "file": "lib/ash_enterprise_web/live/launcher_live.ex",
   "text": "def handle_event(\"filter\", %{\"launch\" => %{\"q\" => q}}, socket) do",
   "reason": "No handler reads or writes: filter narrows a list read at mount (Surfaces.openable/1, the doors and Ash.can? as the signed-in user), and launch only navigates to a surface from that list, whose own mount checks its door again (SurfaceDoor). The detector only looks for Ash.can? in the file."
