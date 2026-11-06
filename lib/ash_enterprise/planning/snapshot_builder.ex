@@ -171,7 +171,7 @@ defmodule AshEnterprise.Planning.SnapshotBuilder do
              :model_version_unavailable
            ),
          {:ok, requirements, decision} <- requirements(run, binding),
-         {:ok, reads} <- read_inputs(run, cutoff, week_start) do
+         {:ok, reads} <- read_inputs(run, cutoff, week_start, requirements) do
       definitions = definitions(binding, mv, decision)
       assemble(run, cutoff, week_start, purpose, reads, requirements, definitions, completeness)
     else
@@ -406,14 +406,14 @@ defmodule AshEnterprise.Planning.SnapshotBuilder do
 
   # ── reads ──────────────────────────────────────────────────────────────────
 
-  defp read_inputs(run, cutoff, week_start) do
+  defp read_inputs(run, cutoff, week_start, requirements) do
     horizon_end = DateTime.add(week_start, 7 * 86_400, :second)
     opts = [tenant: run.organization_id, authorize?: false]
     owner = run.requested_actor_id
 
     with {:ok, rows} <- read_tasks(owner, opts),
          {:ok, events} <- read_events(owner, week_start, horizon_end, cutoff, opts) do
-      {:ok, classify(rows, events, week_start, horizon_end)}
+      {:ok, classify(rows, events, week_start, horizon_end, requirements)}
     else
       {:error, _} -> {:error, :read_failed}
     end
@@ -444,7 +444,7 @@ defmodule AshEnterprise.Planning.SnapshotBuilder do
     |> Ash.read(Keyword.put(opts, :as_of, cutoff))
   end
 
-  defp classify(task_rows, events, week_start, horizon_end) do
+  defp classify(task_rows, events, week_start, horizon_end, requirements) do
     {pinned, free} =
       task_rows
       |> Enum.reject(&scheduled_outside?(&1, week_start, horizon_end))
@@ -479,7 +479,13 @@ defmodule AshEnterprise.Planning.SnapshotBuilder do
             id: event.id,
             starts_at: event.starts_at,
             ends_at: event.ends_at,
-            mandatory?: confirmed?,
+            # A confirmed event is a work commitment only when it overlaps the
+            # working window its weekday gets from the requirements decision.
+            # Confirmed events on non-working days (weekends, per the DMN) or
+            # wholly outside the window never bind the schedule — a hard
+            # mandatory there made every real-calendar week UNSAT (dogfood:
+            # all-day weekend double-bookings).
+            mandatory?: confirmed? and working_event?(event, requirements),
             priority: if(confirmed?, do: 3, else: 1)
           }
         end),
@@ -494,6 +500,27 @@ defmodule AshEnterprise.Planning.SnapshotBuilder do
 
   defp scheduled?(%{scheduled_start_at: s, scheduled_end_at: e}),
     do: not is_nil(s) and not is_nil(e)
+
+  @doc false
+  # A confirmed event binds the schedule only when it overlaps the working
+  # window its weekday gets from the requirements decision (UTC). Events on
+  # non-working days or wholly outside the window never become mandatory.
+  def working_event?(%{starts_at: starts_at, ends_at: ends_at}, requirements) do
+    weekday = Lowering.weekdays() |> Enum.at(Date.day_of_week(DateTime.to_date(starts_at)) - 1)
+    day = Map.get(requirements, weekday) || %{}
+    start_minute = day["workStartMinute"]
+    end_minute = day["workEndMinute"]
+
+    with true <- is_integer(start_minute) and is_integer(end_minute) and start_minute < end_minute,
+         date = DateTime.to_date(starts_at),
+         window_start = DateTime.new!(date, Time.add(~T[00:00:00], start_minute * 60, :second), "Etc/UTC"),
+         window_end = DateTime.new!(date, Time.add(~T[00:00:00], end_minute * 60, :second), "Etc/UTC") do
+      DateTime.compare(starts_at, window_end) == :lt and
+        DateTime.compare(window_start, ends_at) == :lt
+    else
+      _ -> false
+    end
+  end
 
   defp scheduled_outside?(row, from, until) do
     scheduled?(row) and
