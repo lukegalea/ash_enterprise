@@ -118,11 +118,5 @@
   "file": "test/ash_enterprise/standards/standing_test.exs",
   "text": "def handle_event(\"save\", params, socket), do: {:noreply, assign(socket, :p, params)}",
   "reason": "Synthetic source inside a string: the standards candidate-rung test feeds it to AshAgentTools.CodeSubjects as input data. It is never compiled or run, and it is shaped like a violation on purpose."
- },
- {
-  "law": "14",
-  "file": "lib/ash_enterprise/planning/backend/solverl.ex",
-  "text": "Task.start_link(fn ->",
-  "reason": "Checked solves run solve_sync in a task LINKED to the awaiting SolverSession task on purpose: an abandoned session must kill its solve (link = exactly that lifetime). Supervising it would orphan abandoned solver processes - the hazard the law exists to prevent. ADR 0062 sync-mode decision; upstream async-checker defect recorded in the module docs."
  }
 ]
