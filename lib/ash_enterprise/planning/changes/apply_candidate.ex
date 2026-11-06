@@ -288,7 +288,7 @@ defmodule AshEnterprise.Planning.Changes.ApplyCandidate do
   defp reason_text(reason) when is_atom(reason), do: Atom.to_string(reason)
 
   defp reason_text(%Ash.Changeset{errors: errors}),
-    do: errors |> Enum.map(&reason_text/1) |> Enum.join("; ")
+    do: Enum.map_join(errors, "; ", &reason_text/1)
 
   defp reason_text(%{__exception__: true} = error), do: Exception.message(error)
   defp reason_text(_), do: "refused"

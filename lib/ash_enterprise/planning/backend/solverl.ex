@@ -629,9 +629,6 @@ defmodule AshEnterprise.Planning.Backend.Solverl do
 
         {:error, other} ->
           {:error, %Error{kind: :solver_unavailable, message: inspect(other)}}
-
-        other ->
-          {:error, %Error{kind: :runtime, message: inspect(other)}}
       end
     rescue
       e -> {:error, %Error{kind: :runtime, message: Exception.message(e)}}
@@ -828,26 +825,31 @@ defmodule AshEnterprise.Planning.Backend.Solverl do
       trimmed = String.trim(line)
 
       cond do
-        state.buffer == [] and String.starts_with?(trimmed, "{") and
-            String.ends_with?(trimmed, "}") ->
-          case Solverl.decode_json_object(trimmed) do
-            {:ok, %{"type" => _}} -> state
-            {:ok, decoded} -> merge_pending(state, decoded)
-            :error -> state
-          end
+        state.buffer == [] and one_line_object?(trimmed) -> one_line_object(state, trimmed)
+        trimmed == "}" -> closing_brace(state, line)
+        true -> %{state | buffer: [line | state.buffer]}
+      end
+    end
 
-        trimmed == "}" ->
-          buffered = %{state | buffer: [line | state.buffer]}
-          text = buffered.buffer |> Enum.reverse() |> Enum.join("\n")
+    defp one_line_object?(trimmed),
+      do: String.starts_with?(trimmed, "{") and String.ends_with?(trimmed, "}")
 
-          # nested `}` lines don't yet form valid JSON: keep buffering until they do
-          case Solverl.decode_json_object(text) do
-            {:ok, decoded} -> merge_pending(%{buffered | buffer: []}, decoded)
-            :error -> buffered
-          end
+    defp one_line_object(state, trimmed) do
+      case Solverl.decode_json_object(trimmed) do
+        {:ok, %{"type" => _}} -> state
+        {:ok, decoded} -> merge_pending(state, decoded)
+        :error -> state
+      end
+    end
 
-        true ->
-          %{state | buffer: [line | state.buffer]}
+    defp closing_brace(state, line) do
+      buffered = %{state | buffer: [line | state.buffer]}
+      text = buffered.buffer |> Enum.reverse() |> Enum.join("\n")
+
+      # nested `}` lines don't yet form valid JSON: keep buffering until they do
+      case Solverl.decode_json_object(text) do
+        {:ok, decoded} -> merge_pending(%{buffered | buffer: []}, decoded)
+        :error -> buffered
       end
     end
 

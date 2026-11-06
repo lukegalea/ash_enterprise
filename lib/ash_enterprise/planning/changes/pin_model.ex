@@ -57,24 +57,24 @@ defmodule AshEnterprise.Planning.Changes.PinModel do
   defp stage(:prepare, changeset) do
     case Ash.Changeset.get_attribute(changeset, :preparation_status) do
       status when status in [:prepared, :needs_input] ->
-        case Ash.Changeset.get_attribute(changeset, :knowledge_cutoff) do
-          %DateTime{} = cutoff ->
-            if DateTime.compare(cutoff, DateTime.utc_now()) == :gt do
-              error(changeset, :knowledge_cutoff, "may not be in the future")
-            else
-              changeset
-              |> pin_model_version(changeset, [:published, :retired])
-              |> pin_binding(cutoff)
-            end
-
-          _missing ->
-            error(changeset, :knowledge_cutoff, "is required")
-        end
+        pin_at_cutoff(changeset, Ash.Changeset.get_attribute(changeset, :knowledge_cutoff))
 
       _failed ->
         changeset
     end
   end
+
+  defp pin_at_cutoff(changeset, %DateTime{} = cutoff) do
+    if DateTime.compare(cutoff, DateTime.utc_now()) == :gt do
+      error(changeset, :knowledge_cutoff, "may not be in the future")
+    else
+      changeset
+      |> pin_model_version(changeset, [:published, :retired])
+      |> pin_binding(cutoff)
+    end
+  end
+
+  defp pin_at_cutoff(changeset, _missing), do: error(changeset, :knowledge_cutoff, "is required")
 
   defp pin_model_version(changeset, source, allowed) do
     id = Ash.Changeset.get_attribute(source, :model_version_id)

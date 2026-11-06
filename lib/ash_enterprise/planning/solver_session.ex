@@ -143,17 +143,20 @@ defmodule AshEnterprise.Planning.SolverSession do
     if is_binary(dir) and is_binary(key) and Regex.match?(@key_pattern, key) do
       base = Path.join(dir, key)
 
-      paths = %{
+      pinned_paths(%{
         model: {Path.join(base, key <> ".mzn"), version.model_sha256},
         checker: {Path.join(base, key <> ".mzc.mzn"), version.checker_sha256},
         validator: {Path.join(base, "validator.ex"), version.validator_sha256}
-      }
+      })
+    else
+      {:error, :model_missing}
+    end
+  end
 
-      if Enum.all?(paths, fn {_name, {path, sha}} -> pinned?(path, sha) end) do
-        {:ok, Map.new(paths, fn {name, {path, _sha}} -> {name, path} end)}
-      else
-        {:error, :model_missing}
-      end
+  # Every file must be on disk with the content hash the version pinned.
+  defp pinned_paths(paths) do
+    if Enum.all?(paths, fn {_name, {path, sha}} -> pinned?(path, sha) end) do
+      {:ok, Map.new(paths, fn {name, {path, _sha}} -> {name, path} end)}
     else
       {:error, :model_missing}
     end
@@ -517,14 +520,7 @@ defmodule AshEnterprise.Planning.SolverSession do
   defp stop(state), do: {:stop, :normal, state}
 
   defp result_args(state, {:ok, %Backend.SolveResult{} = result}) do
-    {status, optimality} =
-      case result do
-        %{status: :feasible, optimality: :proven} -> {:optimal, :optimal}
-        %{status: :feasible} -> {:feasible, :none}
-        %{status: :infeasible} -> {:infeasible, :none}
-        %{status: :unknown} -> {:unknown, :none}
-      end
-
+    {status, optimality} = solve_axes(result)
     complete? = status in [:optimal, :infeasible] or (status == :feasible and result.complete?)
 
     base = %{
@@ -537,10 +533,7 @@ defmodule AshEnterprise.Planning.SolverSession do
     }
 
     if status in [:optimal, :feasible] do
-      case Jason.encode(result.payload) do
-        {:ok, json} -> Map.put(base, :result_payload, json)
-        {:error, _} -> error_args(state, %Backend.Error{kind: :backend_crashed})
-      end
+      put_result_payload(base, state, result.payload)
     else
       base
     end
@@ -548,6 +541,19 @@ defmodule AshEnterprise.Planning.SolverSession do
 
   defp result_args(state, {:error, %Backend.Error{} = error}), do: error_args(state, error)
   defp result_args(state, _other), do: error_args(state, %Backend.Error{kind: :backend_crashed})
+
+  # The backend's status and optimality proof, mapped onto the run's solve axes.
+  defp solve_axes(%{status: :feasible, optimality: :proven}), do: {:optimal, :optimal}
+  defp solve_axes(%{status: :feasible}), do: {:feasible, :none}
+  defp solve_axes(%{status: :infeasible}), do: {:infeasible, :none}
+  defp solve_axes(%{status: :unknown}), do: {:unknown, :none}
+
+  defp put_result_payload(base, state, payload) do
+    case Jason.encode(payload) do
+      {:ok, json} -> Map.put(base, :result_payload, json)
+      {:error, _} -> error_args(state, %Backend.Error{kind: :backend_crashed})
+    end
+  end
 
   defp timeout_reason(reason) when reason in [:time_limit, :solution_timeout, :fzn_timeout],
     do: reason

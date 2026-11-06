@@ -59,6 +59,13 @@ defmodule AshEnterpriseBattery.MixProject do
       {:ash_decisions, github: "lukegalea/ash_decisions"},
       # --- The business-event ledger (BIZEV) -----------------------------------
       {:ash_discrete_business_events, github: "lukegalea/ash_discrete_business_events"},
+      # BIZEV declares ash_open_lineage unpinned; the platform pins it (mix.exs,
+      # ash_planning PLN-3) with `override: true`, so the battery does the same
+      # to resolve the commit the platform runs.
+      {:ash_open_lineage,
+       github: "lukegalea/ash_open_lineage",
+       ref: "205d072f00d0308e0e950bcab43b2fda1cb461d7",
+       override: true},
       # --- Master data management (builds on the BIZEV raw layer) -------------
       {:ash_mdm, github: "lukegalea/ash_mdm"},
       # --- Governed invocations (the agent runtime's fragments) ---------------

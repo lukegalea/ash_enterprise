@@ -141,14 +141,16 @@ defmodule AshEnterprise.Planning.RunWorker do
         await_session(run, pid)
 
       :error ->
-        if lease_lapsed?(run) do
-          case LeaseSweeper.expire(run) do
-            :ok -> :ok
-            {:error, _} -> settled_or_error(run)
-          end
-        else
-          {:snooze, seconds_until_lapse(run) + 1}
-        end
+        if lease_lapsed?(run),
+          do: expire_lapsed(run),
+          else: {:snooze, seconds_until_lapse(run) + 1}
+    end
+  end
+
+  defp expire_lapsed(run) do
+    case LeaseSweeper.expire(run) do
+      :ok -> :ok
+      {:error, _} -> settled_or_error(run)
     end
   end
 
@@ -197,17 +199,17 @@ defmodule AshEnterprise.Planning.RunWorker do
         {:ok, run}
 
       {:error, error} ->
-        case Ash.Error.to_error_class(error) do
-          %Ash.Error.Invalid{errors: errors} ->
-            if Enum.any?(errors, &match?(%Ash.Error.Query.NotFound{}, &1)),
-              do: {:error, :not_found},
-              else: {:error, :read_failed}
-
-          _ ->
-            {:error, :read_failed}
-        end
+        {:error, read_error(Ash.Error.to_error_class(error))}
     end
   end
+
+  defp read_error(%Ash.Error.Invalid{errors: errors}) do
+    if Enum.any?(errors, &match?(%Ash.Error.Query.NotFound{}, &1)),
+      do: :not_found,
+      else: :read_failed
+  end
+
+  defp read_error(_error_class), do: :read_failed
 
   defp lease_lapsed?(%Run{lease_expires_at: nil}), do: true
 

@@ -74,18 +74,7 @@ defmodule AshEnterprise.Planning.CheckPipeline do
          {:ok, validator} <- load_validator(version, paths.validator) do
       ctx = %{run: run, payload: payload, paths: paths, validator: validator, tenant: tenant}
 
-      outcome =
-        result["candidates"]
-        |> List.wrap()
-        |> Enum.sort_by(&(&1["index"] || 0), :desc)
-        |> Enum.with_index()
-        |> Enum.reduce_while(:ok, fn {candidate, position}, :ok ->
-          case check_candidate(ctx, candidate, position) do
-            :ok -> {:cont, :ok}
-            {:error, _} = error -> {:halt, error}
-          end
-        end)
-
+      outcome = check_candidates(ctx, result["candidates"])
       emit(run, snapshot, outcome)
       outcome
     else
@@ -109,6 +98,20 @@ defmodule AshEnterprise.Planning.CheckPipeline do
   end
 
   # ── per candidate ──────────────────────────────────────────────────────────
+
+  # Highest index first; the first candidate that fails stops the pass.
+  defp check_candidates(ctx, candidates) do
+    candidates
+    |> List.wrap()
+    |> Enum.sort_by(&(&1["index"] || 0), :desc)
+    |> Enum.with_index()
+    |> Enum.reduce_while(:ok, fn {candidate, position}, :ok ->
+      case check_candidate(ctx, candidate, position) do
+        :ok -> {:cont, :ok}
+        {:error, _} = error -> {:halt, error}
+      end
+    end)
+  end
 
   defp check_candidate(ctx, candidate, position) do
     with {:ok, assignments} <- Lowering.assignments(ctx.payload, candidate["data"] || %{}),

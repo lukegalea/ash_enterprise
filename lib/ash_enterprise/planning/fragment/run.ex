@@ -401,6 +401,14 @@ defmodule AshEnterprise.Planning.Fragment.Run.Validations.ResultAxes do
     complete? = Ash.Changeset.get_attribute(changeset, :complete?)
     optimality = Ash.Changeset.get_attribute(changeset, :optimality)
 
+    # Checked in this order; the first refusal is the one reported.
+    certificate_error(status, optimality) ||
+      completeness_error(status, complete?) ||
+      claim_error(status, optimality) ||
+      :ok
+  end
+
+  defp certificate_error(status, optimality) do
     cond do
       status == :optimal and optimality != :optimal ->
         {:error, field: :optimality, message: "an optimal run carries an optimality certificate"}
@@ -408,6 +416,13 @@ defmodule AshEnterprise.Planning.Fragment.Run.Validations.ResultAxes do
       status != :optimal and optimality == :optimal ->
         {:error, field: :optimality, message: "only an optimal solve carries optimality :optimal"}
 
+      true ->
+        nil
+    end
+  end
+
+  defp completeness_error(status, complete?) do
+    cond do
       status in [:optimal, :infeasible] and complete? != true ->
         {:error,
          field: :complete?, message: "an #{status} outcome means the search ran to its end"}
@@ -415,6 +430,13 @@ defmodule AshEnterprise.Planning.Fragment.Run.Validations.ResultAxes do
       status in @no_answer and complete? != false ->
         {:error, field: :complete?, message: "a run with no answer did not finish its search"}
 
+      true ->
+        nil
+    end
+  end
+
+  defp claim_error(status, optimality) do
+    cond do
       status in @no_answer and optimality != :none ->
         {:error, field: :optimality, message: "a run with no answer has no optimality claim"}
 
@@ -422,7 +444,7 @@ defmodule AshEnterprise.Planning.Fragment.Run.Validations.ResultAxes do
         {:error, field: :optimality, message: "a bound only qualifies a feasible solve"}
 
       true ->
-        :ok
+        nil
     end
   end
 end

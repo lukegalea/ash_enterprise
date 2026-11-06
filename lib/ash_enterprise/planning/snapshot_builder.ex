@@ -349,19 +349,22 @@ defmodule AshEnterprise.Planning.SnapshotBuilder do
              :decision_unavailable
            ),
          :ok <- check_pin(binding, definition) do
-      Enum.reduce_while(Lowering.weekdays(), {:ok, %{}, definition}, fn weekday,
-                                                                        {:ok, acc, def} ->
-        case Decisions.evaluate(@decision_key, %{"weekday" => weekday},
-               tenant: tenant,
-               pinned: definition.id
-             ) do
-          {:ok, %{outputs: outputs}} ->
-            {:cont, {:ok, Map.put(acc, weekday, requirement(outputs)), def}}
-
-          {:error, _} ->
-            {:halt, {:error, :decision_failed}}
-        end
+      Enum.reduce_while(Lowering.weekdays(), {:ok, %{}, definition}, fn weekday, acc ->
+        evaluate_weekday(weekday, acc, definition, tenant)
       end)
+    end
+  end
+
+  defp evaluate_weekday(weekday, {:ok, acc, resolved}, definition, tenant) do
+    case Decisions.evaluate(@decision_key, %{"weekday" => weekday},
+           tenant: tenant,
+           pinned: definition.id
+         ) do
+      {:ok, %{outputs: outputs}} ->
+        {:cont, {:ok, Map.put(acc, weekday, requirement(outputs)), resolved}}
+
+      {:error, _} ->
+        {:halt, {:error, :decision_failed}}
     end
   end
 
