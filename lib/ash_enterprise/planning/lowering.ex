@@ -133,7 +133,15 @@ defmodule AshEnterprise.Planning.Lowering do
 
   @doc "The map the solver is given: the payload minus the keys that are not model parameters."
   @spec solver_data(map()) :: map()
-  def solver_data(payload) when is_map(payload), do: Map.drop(payload, ["ids", "snapshot"])
+  def solver_data(payload) when is_map(payload),
+    do:
+      payload
+      |> Map.drop(["ids", "snapshot"])
+      |> Map.reject(fn {_k, v} -> is_list(v) and v == [] end)
+
+  # Empty lists are dropped: MiniZincData.to_dzn/1 emits them as `array0d([])`,
+  # which MiniZinc 2.10 rejects, and their size is already pinned by the
+  # matching `n_*` scalar.
 
   @doc """
   The model's output arrays lifted into assignments, index-aligned with `payload["ids"]`.
