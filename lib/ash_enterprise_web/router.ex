@@ -215,6 +215,19 @@ defmodule AshEnterpriseWeb.Router do
       live "/app/audit", AuditLive
     end
 
+    # The execution explorer (AGT-50): one piece of work on one timeline, with the
+    # diagram and detail sharing its selection. Read-only, read as the viewer.
+    # Removable with AshEnterpriseWeb.ExplorerLive, this live_session and its
+    # registry entry.
+    ash_authentication_live_session :execution_explorer,
+      on_mount: [
+        {AshEnterpriseWeb.LiveUserAuth, :live_user_required},
+        AshEnterpriseWeb.LiveLocale,
+        AshEnterpriseWeb.SurfaceDoor
+      ] do
+      live "/app/explorer", ExplorerLive
+    end
+
     # Time travel (PROD-47): who a person resolved to, and what was true about
     # a subject, at any instant (`?as_of=`). Read-only. Removable with
     # AshEnterpriseWeb.TimeTravelLive, this live_session and its registry entry.

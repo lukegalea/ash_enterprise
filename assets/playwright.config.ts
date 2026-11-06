@@ -12,13 +12,24 @@ const baseURL = process.env.E2E_BASE_URL ?? `http://127.0.0.1:${port}`;
 // working directory, and this config lives in assets/.
 const repoRoot = path.resolve(__dirname, "..");
 
+// Specs that run a credential activation through the demo registry (see projects).
+const ACTIVATING = ["**/execution_explorer.spec.ts", "**/recovery.spec.ts"];
+
 export default defineConfig({
   testDir: "./e2e",
   timeout: 60_000,
   expect: {timeout: 10_000},
   // Browser-only this round: the renderer under test is the same on every
   // engine, and the gate runs where chromium is already installed.
-  projects: [{name: "chromium", use: {browserName: "chromium"}}],
+  //
+  // The specs that run a credential activation share the clinic's one registry,
+  // and recovery.spec.ts arms a fault that loses the *next* activation's answer:
+  // run beside another activation, the fault can land on the wrong request. They
+  // run one at a time in their own project; every other spec runs in parallel.
+  projects: [
+    {name: "chromium", use: {browserName: "chromium"}, testIgnore: ACTIVATING},
+    {name: "chromium-activations", use: {browserName: "chromium"}, testMatch: ACTIVATING, workers: 1},
+  ],
   use: {
     baseURL,
     // Lit renders everything in open shadow roots; Playwright's engines pierce

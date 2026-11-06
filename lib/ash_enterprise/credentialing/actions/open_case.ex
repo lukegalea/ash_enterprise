@@ -6,15 +6,17 @@ defmodule AshEnterprise.Credentialing.Actions.OpenCase do
   The credential is read as the caller, and the caller must be one who may change it
   (`Credential.correct`), as opening a case is a clinic coordinator's act. The engine runs
   as the process actor and the caller is the instance's starter, which is who its service
-  tasks run as. A case already open for the credential is returned, not started twice.
-  Answers with the instance's id and status.
+  tasks run as. The instance carries the request's correlation id, so the decisions it
+  consults and the work it does are traced with the request that started it. A case
+  already open for the credential is returned, not started twice. Answers with the
+  instance's id and status.
   """
 
   use Ash.Resource.Actions.Implementation
 
   alias AshEnterprise.Credentialing
   alias AshEnterprise.Credentialing.CaseProcess
-  alias AshEnterprise.Platform.SystemActor
+  alias AshEnterprise.Platform.{Correlation, SystemActor}
 
   @impl true
   def run(input, _opts, context) do
@@ -44,6 +46,7 @@ defmodule AshEnterprise.Credentialing.Actions.OpenCase do
             subject: credential,
             actor: SystemActor.process(),
             started_by_id: actor.id,
+            correlation_id: Correlation.id(),
             tenant: tenant
           )
         end

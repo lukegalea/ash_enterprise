@@ -501,6 +501,25 @@ defmodule AshEnterprise.Surfaces do
       door: :audit,
       acp: %{command: "audit trail", aliases: ["audit"]}
     },
+    # One piece of work on one timeline, read as the viewer (AGT-50). Its door is open:
+    # the trace shows only what the person may read, so a closed door would explain
+    # nothing the trace does not.
+    %Surface{
+      key: :explorer,
+      audience: [:operator, :reviewer],
+      label: dgettext_noop("default", "Execution explorer"),
+      blurb:
+        dgettext_noop(
+          "default",
+          "One piece of work, followed through its process, runs, decisions, approvals and calls, on one timeline."
+        ),
+      group: :operator,
+      order: 40,
+      icon: "hero-queue-list",
+      path: "/app/explorer",
+      live: AshEnterpriseWeb.ExplorerLive,
+      resource: AshEnterprise.Execution.Entry
+    },
 
     # --- Processes ----------------------------------------------------------
     %Surface{

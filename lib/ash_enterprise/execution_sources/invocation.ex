@@ -13,7 +13,8 @@ defmodule AshEnterprise.ExecutionSources.Invocation do
 
   Reads the rows recorded under the trace's correlation id, named by it, asked for by
   one of its runs, process instances or invocations, or rerunning one of its invocations
-  (under the row they rerun). Arguments and results are sealed and
+  (under the row they rerun). A guardrail's outcome is in the operation's summary:
+  `rejected`, `stale` or `denied`, beside its error code. Arguments and results are sealed and
   never in an entry; a row whose arguments were erased is not recorded.
   """
 
@@ -120,8 +121,18 @@ defmodule AshEnterprise.ExecutionSources.Invocation do
 
   defp parent(_row), do: nil
 
-  defp summary(%{error_code: code} = row) when is_binary(code), do: "#{row.target}: #{code}"
-  defp summary(row), do: row.target
+  # A guardrail's outcome is named on the row it stopped: rejected by its approver,
+  # stale because what was approved changed, denied because the actor may not.
+  defp summary(row) do
+    case Enum.reject([guardrail(row), row.error_code], &is_nil/1) do
+      [] -> row.target
+      said -> "#{row.target}: #{Enum.join(Enum.uniq(said), ", ")}"
+    end
+  end
+
+  defp guardrail(%{status: status}) when status in [:rejected, :stale], do: to_string(status)
+  defp guardrail(%{failure_class: :denied}), do: "denied"
+  defp guardrail(_row), do: nil
 
   # Each claim opens an attempt, which ends as the next transition that is not a claim
   # does. The last one, with nothing after it yet, is as the row is now.

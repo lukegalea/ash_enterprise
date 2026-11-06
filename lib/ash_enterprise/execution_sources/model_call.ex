@@ -58,8 +58,17 @@ defmodule AshEnterprise.ExecutionSources.ModelCall do
 
   defp run_ref(_caller), do: nil
 
-  defp summary(%{error_class: class} = call) when is_binary(class),
-    do: "#{call.operation} by #{call.caller}: #{class}"
+  # A refusal is a guardrail's outcome, named on the call it stopped.
+  defp summary(call) do
+    said =
+      Enum.reject(
+        [call.outcome == :refused && "refused", call.error_class],
+        &(&1 in [nil, false])
+      )
 
-  defp summary(call), do: "#{call.operation} by #{call.caller}"
+    case said do
+      [] -> "#{call.operation} by #{call.caller}"
+      said -> "#{call.operation} by #{call.caller}: #{Enum.join(said, ", ")}"
+    end
+  end
 end

@@ -6,6 +6,7 @@ defmodule AshEnterprise.ExecutionSources do
 
   | Name | Module | Reads |
   |---|---|---|
+  | `:process_instance` | `ExecutionSources.ProcessInstance` | process runs |
   | `:run` | `ExecutionSources.Run` | agent runs |
   | `:step` | `ExecutionSources.Step` | their journals |
   | `:model_call` | `ExecutionSources.ModelCall` | model calls |
@@ -24,7 +25,8 @@ defmodule AshEnterprise.ExecutionSources do
   the rows recorded under the correlation id or pointing at a reference already in the
   trace, and the references of the entries it gives join the trace for the sources after
   it: a run's steps are found through the run, an invocation's approval task through the
-  invocation. The order above is what lets each find its rows.
+  invocation, a process run's events and tasks through the run. The order above is what
+  lets each find its rows.
 
   Each source declares a `limit`, the most rows one trace reads from it, and returns a
   cursor when there are more: a long trace pages, it never becomes one large read. Each
@@ -45,6 +47,7 @@ defmodule AshEnterprise.ExecutionSources do
   @default_timeout 5_000
 
   @sources [
+    {:process_instance, S.ProcessInstance, limit: 20},
     {:run, S.Run, limit: 20},
     {:step, S.Step, limit: 100},
     {:model_call, S.ModelCall, limit: 100},
