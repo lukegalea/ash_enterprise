@@ -12,7 +12,7 @@ defmodule AshEnterprise.Telemetry.Operations do
   path carries ids; the package's events carry none of them, and this module would drop them
   if they did). `attributes/2` is the whole of what it will set, and the tests pin it.
 
-  `attach/0` is called from `AshEnterprise.Application.start/2`, once; attaching is idempotent.
+  `attach/0` is called from the application start callback, once; attaching is idempotent.
   """
 
   @request [:operations, :request, :stop]

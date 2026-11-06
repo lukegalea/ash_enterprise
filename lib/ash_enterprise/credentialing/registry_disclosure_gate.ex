@@ -8,7 +8,7 @@ defmodule AshEnterprise.Credentialing.RegistryDisclosureGate do
        `"no_tenant"`.
     2. The actor must be able to read the credential that `disclosure_ref` names, in that
        tenant: the record that justifies the send. Otherwise `"ref_unreadable"`.
-    3. `AshEnterprise.Zones.ResidencyPolicy.allow?/3` decides on the registry's residency
+    3. the zone residency policy decides on the registry's residency
        (`RegistryApi.Transport.residency/0`): an in-cluster registry is allowed; a sub-processor
        only when the tenant recorded an opt-in and the in-zone flow guard is off. Otherwise
        `"residency_denied"`.
