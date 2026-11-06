@@ -31,7 +31,7 @@
   "pins": [
     {
       "dep": "ash_bpmn",
-      "lock": "2f0aa77f7cdea8a6ebdaf3d3da15c606c8012f0a"
+      "lock": "b2d6a186034e69567337feb114e16afd2e0aef1c"
     },
     {
       "dep": "ash_oban",
@@ -127,8 +127,8 @@
       "area": "workflow",
       "capability": "Child workflows",
       "status": "partial",
-      "summary": "A call activity starts a child process by key; the parent waits and resumes when the child completes, call depth is bounded, and a call activity may pin the child's version. Cancelling the parent cancels its running children, to the bottom of the tree, in one transaction.",
-      "gap": "A child a call activity starts does not inherit who started its parent, so it cannot start an agent run as that person.",
+      "summary": "A call activity starts a child process by key; the parent waits and resumes when the child completes, call depth is bounded, and a call activity may pin the child's version. Cancelling the parent cancels its running children, to the bottom of the tree, in one transaction. A child, and its own children, are accountable to whoever started the parent.",
+      "gap": "No host test yet starts an agent run from a call-activity child as the person who started its parent.",
       "deps": ["ash_bpmn"],
       "tests": [
         {"dep": "ash_bpmn", "file": "test/ash_bpmn/call_activity_test.exs", "test": "the child runs and the parent carries on after it"},
@@ -142,7 +142,7 @@
       "area": "workflow",
       "capability": "Durable waits",
       "status": "partial",
-      "summary": "Message, signal and timer waits and receive tasks park a token in the database; a duplicate wake loses a compare-and-set, and a deadline on a human task, a receive task or a call activity is a boundary timer.",
+      "summary": "Message, signal and timer waits and receive tasks park a token in the database; a duplicate wake loses a compare-and-set, a lookback scan wakes a token only on an earlier event of the resource and action it subscribed to, and a deadline on a human task, a receive task or a call activity is a boundary timer.",
       "gap": "No timeout on an intermediate message or signal catch event: a receive task is the waiting activity that takes one.",
       "deps": ["ash_bpmn"],
       "tests": [

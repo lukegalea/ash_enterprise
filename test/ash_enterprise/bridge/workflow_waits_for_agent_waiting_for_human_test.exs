@@ -151,9 +151,9 @@ defmodule AshEnterprise.Bridge.WorkflowWaitsForAgentWaitingForHumanTest do
   </bpmn2:definitions>
   """
 
-  # The run is started by the parent and handed to the child below (see the test): a child a
-  # call activity starts does not inherit who started its parent, so it cannot start a run as
-  # that person itself.
+  # The run is started by the parent and handed to the child below (see the test). A child a
+  # call activity starts is accountable to whoever started its parent, so it could start the run
+  # itself; no test here does that yet (docs/capabilities.json, child-workflows).
   @parent """
   <?xml version="1.0" encoding="UTF-8"?>
   <bpmn2:definitions xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL"
