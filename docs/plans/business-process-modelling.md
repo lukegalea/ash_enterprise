@@ -5,8 +5,8 @@
   [thesis 6](../manifesto/06-reversibility.md). This document exists so that when the question is asked (and on an
   enterprise reference architecture it is always asked), the answer is already reasoned rather than improvised.
 - **Date:** 2026-08-13
-- **Replaces the guidance in:** `docs/BPMN.md`, which is a raw research transcript for a *different* application. See
-  [Appendix A](#appendix-a--what-docsbpmnmd-proposes-and-why-it-does-not-transfer).
+- **Replaces the guidance in:** an earlier raw research transcript written for a *different* application (removed from
+  the repository on 2026-11-06). See [Appendix A](#appendix-a--what-the-earlier-transcript-proposed-and-why-it-does-not-transfer).
 - **Depends on:** ADR 0004 (Reactor over Oban Pro for orchestration), still `planned`.
 
 ---
@@ -182,7 +182,7 @@ reorganisation.
 | **jBPM** | Apache-2.0 | The embeddable engine is frozen at **7.74.1.Final (Jul 2023)**. "Apache KIE jBPM" 10.x is a different, Kogito-derived engine, and KIE is still an Apache **podling**. | None. |
 | **Temporal** | MIT (server), commercial cloud | Free self-hosted, heavy ops | No official SDK |
 
-**The Camunda 8 licence change is decisive and it invalidates the recommendation in `docs/BPMN.md`,** which states that
+**The Camunda 8 licence change is decisive and it invalidates the recommendation in the earlier transcript,** which states that
 "Self-Managed is free/open-source under the Camunda Community License." That was true before 8.6 and is not true now.
 [Thesis 6](../manifesto/06-reversibility.md) records that open-source-only was a requirement for this repository.
 Camunda 8 fails it.
@@ -435,12 +435,12 @@ Rejected, for four reasons in descending weight:
    attached to JVM services, and Flowable's open-source distribution no longer includes a modeller at all (§3.2).
    Activiti and jBPM are, in practice, no longer options.
 2. **No client.** There is no Elixir client for Zeebe, Flowable, Operaton or Temporal. The "thin ~150-line gRPC bridge"
-   in `docs/BPMN.md` is optimistic; a job worker needs long-polling, lease renewal, backpressure, reconnection,
+   in the earlier transcript is optimistic; a job worker needs long-polling, lease renewal, backpressure, reconnection,
    idempotency and failure semantics, and it is unmaintained infrastructure the day after it is written. (Camunda 8.8+
    does now expose job activation over REST, which softens this — but does not change the licence.)
 3. **Two sources of truth.** The engine owns "where the process is"; Ash owns "what is true." Every operational question
    then requires correlating two systems, and every write is a dual-write with an idempotency requirement.
-   `docs/BPMN.md` names this risk correctly and then proceeds anyway.
+   The earlier transcript names this risk correctly and then proceeds anyway.
 4. **It contradicts the thesis.** This repository's claim is that cross-cutting enterprise concerns are *declarable*.
    Answering the most-requested enterprise workflow question with "run a JVM next to it" is a legitimate engineering
    answer and an admission that the thesis has a hole. If the hole is real, [thesis 7](../manifesto/07-what-we-do-not-have.md)
@@ -479,7 +479,7 @@ authorization must stay in the existing policy union because a second authorizat
 Every node calls an Ash action. The action carries the business rule, the validation, and the policy check. If a process
 definition contains a business invariant, that invariant is now enforced in one place and bypassed by every other
 caller — which is the controller-layer authorization mistake in a new costume. This is the same discipline
-`docs/BPMN.md` correctly identifies for its bridge module, generalised.
+the earlier transcript correctly identifies for its bridge module, generalised.
 
 ---
 
@@ -586,7 +586,7 @@ one transaction, with a unique constraint doing the deadlock prevention.
 
 ### 6.3 Assignment, candidates, and maker-checker
 
-This is the part worth the most care, and the part `docs/BPMN.md` does not address at all.
+This is the part worth the most care, and the part the earlier transcript does not address at all.
 
 When a `human_task` node is entered, the interpreter runs an **assignment resolver** that turns the declared candidate
 clauses into a set of principal ids, and writes them as `Process.TaskCandidate` rows. Three consequences follow, and
@@ -901,20 +901,19 @@ Named honestly, in the spirit of [thesis 7](../manifesto/07-what-we-do-not-have.
 12. **Business logic in the process graph.** §5.3. It bypasses policies for every non-process caller and reintroduces
     the exact defect [thesis 1](../manifesto/01-model-your-domain.md) exists to eliminate.
 13. **Business data in process variables.** Tokens carry ids and routing signals. Everything else is read from the
-    subject through Ash. `docs/BPMN.md` gets this right and it is worth preserving.
+    subject through Ash. The earlier transcript gets this right and it is worth preserving.
 14. **A `forbid_if` for maker-checker.** It would work, it would be two lines, and it would break the additive model
     that [thesis 3](../manifesto/03-authorization-is-data.md) is built on. §6.3 exists to avoid it.
 15. **BPMN conformance as a goal.** Nobody is asking. Conformance serves interchange, and we do not interchange.
 
 ---
 
-## Appendix A — what `docs/BPMN.md` proposes, and why it does not transfer
+## Appendix A — what the earlier transcript proposed, and why it does not transfer
 
-`docs/BPMN.md` is a ~1,100-line Perplexity research transcript (with four large embedded PNGs accounting for ~95% of its
-1.2MB). It is retained for provenance. Its substance:
+The earlier transcript was a ~1,100-line Perplexity research transcript written for another application. It was removed
+from the repository on 2026-11-06 because it was not about this one. Its substance:
 
-**What it proposes.** For a product called **VendorPM** — a vendor-compliance platform built on an *existing Node.js and
-Postgres system* — deploy **Camunda 8 Self-Managed** (Zeebe, Operate, Tasklist, Identity) alongside a new Elixir/Ash
+**What it proposes.** For a different product built on an *existing Node.js and Postgres system*, deploy **Camunda 8 Self-Managed** (Zeebe, Operate, Tasklist, Identity) alongside a new Elixir/Ash
 service. Ash owns domain truth via `AshStateMachine` + `AshPaperTrail` + `AshOban`; Zeebe owns the BPMN diagram, human
 task routing, and timers; a "~150-line" Elixir gRPC bridge translates Zeebe jobs into Ash actions and back. Reactor is
 used inside a single job handler for compensating side effects. It includes a PRD, a TRD, a resource sketch, a bridge
@@ -927,8 +926,7 @@ process layer for orchestration; use Ash for business truth"* — is the correct
 
 **Why it does not transfer:**
 
-1. **Different application.** It is scoped to a specific vendor-compliance product with a legacy Node.js system that
-   needs bridging. This repository is a reference architecture with no legacy system, and the Node.js constraint —
+1. **Different application.** It is scoped to a specific product with a legacy Node.js system that needs bridging. This repository is a reference architecture with no legacy system, and the Node.js constraint —
    which drives much of its reasoning, including the choice of an engine with a good Node SDK — does not exist here.
 2. **Its licence claim is now false.** It states Camunda 8 Self-Managed is "free/open-source under the Camunda Community
    License" with cost "only for infrastructure." Since Camunda 8.6 (October 2024), production use of Zeebe, Operate,

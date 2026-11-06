@@ -36,10 +36,10 @@ const GITHUB_BLOB = 'https://github.com/lukegalea/ash_enterprise/blob/main';
 const GITHUB_TREE = 'https://github.com/lukegalea/ash_enterprise/tree/main';
 
 /**
- * Raw research transcripts. Superseded by the plans in `docs/plans/`, and
- * `BPMN.md` alone is 1.2 MB of interview transcript. Explicitly not published.
+ * Raw research transcripts. Superseded by the plans in `docs/plans/`.
+ * Explicitly not published.
  */
-const SKIP = [/^AshStrangler\.md$/i, /^BPMN\.md$/i, /strangler fig migrations/i];
+const SKIP = [/^AshStrangler\.md$/i, /strangler fig migrations/i];
 
 const isSkipped = (basename) => SKIP.some((re) => re.test(basename));
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Replay every migration into a non-public schema, the way the VendorPM
-# workspace hosts this application (ASH_SCHEMA=canonical, see config/dev.exs),
+# Replay every migration into a non-public schema, the way a host that embeds
+# this application in a shared database runs it (ASH_SCHEMA=canonical, see config/dev.exs),
 # and fail if any migration creates a table outside that schema or any foreign
 # key crosses out of it.
 #

@@ -88,8 +88,8 @@ repo-root `docs/` tree into `src/content/docs/docs/` and, on the way:
 - copies the root-level ledger documents (`QUESTIONS.md`, `COMPLIANCE.md`, `ROADMAP.md`,
   `HANDOFF.md`) to their own routes — add to `ROOT_FILES` when another one appears, or it will be
   silently absent and any hand-written link to it in `src/pages/` will 404;
-- skips the three raw research transcripts at the root of `docs/` (`AshStrangler.md`, `BPMN.md`, and
-  the Strangler Fig one). They are superseded, and one is 1.2 MB;
+- skips the two raw research transcripts at the root of `docs/` (`AshStrangler.md` and the Strangler
+  Fig one). They are superseded;
 - **exits non-zero if it rewrote a link to a page that does not exist.** A dead link in generated docs
   is worse than a missing page, so this fails the build rather than shipping it.
 
