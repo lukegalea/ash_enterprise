@@ -12,7 +12,7 @@ User-visible text here comes from four places, each with a different owner and r
    with a deploy.
 2. **Library copy:** strings owned by a dependency. Examples are `ash_a2ui`'s encoder chrome ("Save changes",
    "Showing …", "Select page"), its ActionHandler feedback ("Created successfully."), labels it humanizes from field
-   names, Atlas element chrome, and Ash's own error messages. The host can't see these with an ordinary
+   names, a host design system's element chrome, and Ash's own error messages. The host can't see these with an ordinary
    `mix gettext.extract`, because the strings aren't in the host's source.
 3. **Formatting:** dates, numbers and currency. This is a CLDR concern, not message translation.
 4. **Tenant-authored content:** for example a requirement catalog entry's title. This is data, with tenant scope,
@@ -59,7 +59,7 @@ translate PO files through LangChain. Neither uses ReqLLM, which this platform s
 **State when this was written (2026-11-04, before phases 1 and 2 landed; see the implementation note):**
 - This repository's main branch has `priv/gettext/errors.po` only. The French credentialing showcase
   (`?locale=fr`, a `showcase` domain with `fr` plurals) is on `dogfood`.
-- Keystone already calls `gettext/1` about 170 times, but has no default-domain catalog, no `fr`, no
+- A downstream host already calls `gettext/1` about 170 times, but has no default-domain catalog, no `fr`, no
   `put_locale`, and a hard-coded `<html lang="en">`.
 - `ash_a2ui` has no locale hook. Its `humanize/1` is copied into ten modules, and many ActionHandler messages
   interpolate `inspect/1` output.
@@ -116,7 +116,7 @@ Boundary rules carried over from the first draft:
   translator, so the msgids are exactly the labels shown. `--check-up-to-date` gates CI.
 - Enum values use `msgctxt "enum:<Module>"`.
 
-**Atlas chrome (Keystone).** Atlas elements contain no English.
+**Design-system element chrome (downstream host).** The host's custom elements contain no English.
 - Per-instance text arrives as slots or attributes from HEEx.
 - A2UI payloads carry resolved strings, never keys.
 - Element-internal chrome, such as "Close", "Previous page", "Loading" and the upload hints, comes from one
@@ -155,8 +155,8 @@ There is no consumer today with a known recipient locale. When one arrives:
 - In both cases tenant content never overrides platform copy, and model-generated text is only ever a proposal. The
   one sanctioned override is an organization's wording overlay (section 5).
 
-The first candidate stays `Clm.RequirementCatalog.title`, and only once its report projection carries
-`catalog_entry_id`. `EmailTemplate` and `ComposeLive` are not pilots.
+The first candidate stays a downstream host's requirement catalog entry title, and only once its report projection
+carries the catalog entry id. Email templates and message composition are not pilots.
 
 ### 5. Locale selection and propagation
 
@@ -164,12 +164,12 @@ The first candidate stays `Clm.RequirementCatalog.title`, and only once its repo
   → `Accept-Language` → `en`. `Accept-Language` is the last fallback, because it is the only signal a JSON:API call
   has before a preference is stored.
 - **The user preference is the one the legacy web app already stores.** Its language switcher writes `users.locale`
-  (`en` or `fr`), and the users twin already carries that column. Keystone reads it there rather than adding a
+  (`en` or `fr`), and the users twin already carries that column. The downstream host reads it there rather than adding a
   second preference, so a person sees the same language in both apps. ActorContext loads it with the actor, so
-  resolution adds no query. Keystone does not write it while the web app owns the users table.
+  resolution adds no query. That host does not write it while the web app owns the users table.
 - Validate codes as BCP 47 without creating atoms. Map them to Gettext locales only at the adapter boundary. A
   language-only code maps to the regional catalog the host ships: `fr-CA` and the stored `fr` both become `fr_CA`
-  in Keystone, and `fr` in ash_enterprise.
+  in that host, and `fr` in ash_enterprise.
 - Resolve the locale after actor and tenant resolution, and after the `LiveUserAuth` mirror. Pass it explicitly to
   A2UI and ACP; don't rely on the ambient process locale.
 - **Work with no request** (renewal and expiry notices, digests, other Oban jobs) resolves a locale per recipient
@@ -177,13 +177,13 @@ The first candidate stays `Clm.RequirementCatalog.title`, and only once its repo
   organization → `en`. A job carries recipient ids, never a locale captured at enqueue, and sets the locale for
   each message explicitly (`Gettext.with_locale/3` around that message only).
 - **Organization wording overrides.** The legacy web app lets an administrator override platform copy for one
-  organization, in English and French, keyed by its own translation keys. Keystone must not contradict that wording.
+  organization, in English and French, keyed by its own translation keys. The downstream host must not contradict that wording.
   Overrides apply as an overlay translator: the organization's overrides are loaded once per request into
   ActorContext, keyed by domain, msgid and locale, and consulted before the Gettext backend. Host copy reaches it
   through one host translation helper, and A2UI through `gettext_fn`. Only display strings are overridable, never
   identifiers or values. The open question is the mapping from the web app's keys to msgids: only keys that name the
   same string in both apps carry over. Until the overlay is built this is a known gap: an organization with
-  customized wording sees the default wording in Keystone.
+  customized wording sees the default wording in that host.
 - Render `<html lang>` dynamically. A mid-session preference change triggers a remount, so the root layout re-renders.
 - URL locale selection is not supported. The credentialing showcase's `?locale=` is a documented demo exception.
 - CLDR formatting (`ex_cldr`) is a separate, later concern. It takes an explicit locale and preserves timezone,
@@ -195,8 +195,8 @@ The first candidate stays `Clm.RequirementCatalog.title`, and only once its repo
 |---|---|---|---|
 | 1 | ash_a2ui | Single label resolver, templated ActionHandler messages, marker, `extract`/`gen` tasks, `gettext_fn`/`locale:` option, goldens for both protocols | built |
 | 2 | ash_enterprise | Locale resolution and `<html lang>`, `gettext_backend` on auth routes, generation task, `fr` catalogs, run `extract_metadata`, dogfood the ash_a2ui option | built (#66, #67) |
-| 3 | Keystone | The same locale plumbing; `fr_CA` catalogs for existing `gettext` calls; run `extract_metadata`; Atlas strings map; `ProcessLive` plurals; `ContractsHubUI` pilot; user preference from the users twin; per-recipient locale in notification jobs | not built |
-| 3b | Keystone | Organization wording overlay, once the web app's keys are mapped to msgids | not built |
+| 3 | Downstream host | The same locale plumbing; `fr_CA` catalogs for existing `gettext` calls; run `extract_metadata`; design-system strings map; process-view plurals; one pilot screen; user preference from the users twin; per-recipient locale in notification jobs | not built |
+| 3b | Downstream host | Organization wording overlay, once the web app's keys are mapped to msgids | not built |
 | 4 | Both hosts | CLDR formatting | not built |
 | — | Host | Tenant content, only under the rule in section 4 | not built |
 
@@ -208,7 +208,7 @@ The first candidate stays `Clm.RequirementCatalog.title`, and only once its repo
   validation. The generation task's fake adapter rejects malformed output.
 - Host metadata catalog current (`extract_metadata --check-up-to-date`).
 - Every change to a French catalog approved by the French language reviewer.
-- A real root `lang` attribute. `ProcessLive` counts of 1 and 2 with interpolation. `ContractsHubUI` labels
+- A real root `lang` attribute. Process-view counts of 1 and 2 with interpolation. The pilot screen's labels
   translated while record values are unchanged. Locale parity between ACP and A2UI.
 - French and pseudo-locale checks on post-render dialogs and toasts.
 
@@ -227,7 +227,7 @@ Ash's own errors already are, so a host learns one workflow. Nothing new needs t
 Static copy has no runtime dependency on a model, a database or an actor.
 
 **Made hard.** Each library that renders text has to adopt the marker-and-catalog convention itself; `ash_a2ui`
-first, then Atlas through the host strings map. Host metadata catalogs must be regenerated whenever a surface changes. Tenant
+first, then the host design system through the host strings map. Host metadata catalogs must be regenerated whenever a surface changes. Tenant
 content stays unsolved until a consumer forces the decision. Every French catalog change waits for a French
 reviewer.
 
@@ -255,7 +255,7 @@ Where the code differs from, or settles, the text above:
   carried into LiveViews by `AshEnterpriseWeb.LiveLocale`. The root layout renders `<html lang>` from it. A2UI, ACP,
   GraphQL and MCP receive the locale explicitly, through `Locale.a2ui_opts/1` for A2UI.
 - **The user preference is a seam.** This repository has no legacy users table, so `Locale.user_preference/1` answers
-  `nil` until a user field is added. Reading the legacy `users.locale` (section 5) is Keystone's phase 3.
+  `nil` until a user field is added. Reading the legacy `users.locale` (section 5) is the downstream host's phase 3.
 - **The organization's locale is one read in the plug**, made once per request after `LoadActorContext`, rather than
   a field ActorContext loads. It still never runs inside a policy check.
 - **Authentication screens** use `gettext_backend: {AshEnterpriseWeb.Gettext, "auth"}`.

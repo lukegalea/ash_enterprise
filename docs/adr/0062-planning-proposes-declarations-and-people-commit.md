@@ -54,7 +54,7 @@ personal plan is never presented as a complete fleet/tenant plan.
 
 - A feasible, checked candidate is auditable and replayable, but the platform never claims the model faithfully represents reality or that a checked solution is optimal without a solver optimality certificate.
 - Hosts must author and review model/checker/validator triples before value appears.
-- A second host can adopt the capability without adopting private dogfood, clinic, or keystone
+- A second host can adopt the capability without adopting another host's private
   models.
 - Solver failures and limits are operational states, not authorization failures.
 

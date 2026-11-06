@@ -12,12 +12,12 @@ defmodule AshEnterprise.Repo.Migrations.AddStranglerCompatibility do
   use Ecto.Migration
 
   # 2026-10-17: reduced to its Legacy.User statements. As generated this file
-  # also built compatibility views over VendorPM's tables (`vendorpm.*`,
-  # `public.clm_*`) for a contracting proof of concept, which has moved to the
-  # private VendorPM repository along with the fixture tables those views
+  # also built compatibility views over a downstream application's legacy
+  # tables for a contracting proof of concept, which has moved to that
+  # application's private repository along with the fixture tables those views
   # needed. What remains is byte-for-byte the body of
   # 20260819024549_add_legacy_user_read_model.exs, so a fresh replay builds the
-  # same users view twice, idempotently, and no longer needs a VendorPM schema.
+  # same users view twice, idempotently, and no longer needs that schema.
   # A database that already ran the original keeps whatever it built.
 
   def up do

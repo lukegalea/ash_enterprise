@@ -860,7 +860,7 @@ Follow Camunda's published Kubernetes reference architectures . Zeebe scales hor
 - **Idempotency required on all workers** — Zeebe will re-deliver jobs on worker crash; every handler must be safe to call twice (use upserts, dedup keys)
 - **No business logic in the bridge** — the bridge is pure translation; all domain rules live in Ash changes/validations or Reactor steps
 - **Zeebe variables carry IDs, not data** — process variables are routing signals (`request_id`, `reviewer_id`, `decision`); all full data reads come from Postgres via Ash
-- **Schema separation** — Elixir-owned tables use the `vendorpm_` prefix; Node.js tables are read-only from the Elixir side (via Ash read actions), written to only via explicit API contract
+- **Schema separation** — Elixir-owned tables use the `app_` prefix; Node.js tables are read-only from the Elixir side (via Ash read actions), written to only via explicit API contract
 - **Process model versioning** — deploy BPMN with explicit version tags; never migrate in-flight instances unless version includes a migration plan
 
 ---
@@ -1080,10 +1080,10 @@ Camunda Identity provides platform authentication and role mapping for Tasklist/
 ```text
 vendorpm/
   apps/
-    vendorpm_web/           # existing or future UI/API
-    vendorpm_domain/        # Ash resources, actions, policies
-    vendorpm_bridge/        # Zeebe worker/message bridge
-    vendorpm_workflows/     # BPMN files, deployment tooling
+    app_web/           # existing or future UI/API
+    app_domain/        # Ash resources, actions, policies
+    app_bridge/        # Zeebe worker/message bridge
+    app_workflows/     # BPMN files, deployment tooling
   priv/
     bpmn/
       vendor_compliance.bpmn
