@@ -86,3 +86,7 @@ next to the README when feeding an agent or LLM.
   optional `namespace`/`facets`, atom- or string-keyed.
 - The extension is spec **2-0-2**; the vendored schema in
   `priv/openlineage/s/run-event.json` is the conformance ground truth.
+- `AshOpenLineage.Snapshot` and the `ashOpenLineageSnapshot` facet are
+  digest-only: the snapshot envelope carries references (resource, id,
+  version) and hashes, never actor, tenant, or data values. The facet exposes
+  only the digest, purpose, input count, and definition kinds.
