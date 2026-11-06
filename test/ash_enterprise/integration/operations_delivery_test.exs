@@ -91,6 +91,22 @@ defmodule AshEnterprise.Integration.OperationsDeliveryTest do
     refute_enqueued(worker: ReconcileWorker, args: %{"primary_key" => %{"id" => other_row.id}})
   end
 
+  test "an unknown outcome already handed to a person is not reconciled by the nudge",
+       %{tenant: tenant, unknown: [{credential, row}, {_other, _other_row}]} do
+    row
+    |> Ash.reload!(actor: SystemActor.oban(), tenant: tenant)
+    |> Ash.update!(%{},
+      action: :request_resolution,
+      actor: SystemActor.oban(),
+      tenant: tenant
+    )
+
+    registry_knows!(RegistryApi.reference(tenant, credential.id))
+
+    assert "act-77" |> deliver!() |> follow_up!() |> Map.fetch!(:state) == :ignored
+    refute_enqueued(worker: ReconcileWorker)
+  end
+
   test "a delivery for an activation with nothing waiting is ignored", %{tenant: tenant} do
     # The registry names a credential nobody is waiting on, and a tenant that is not ours.
     for reference <- [

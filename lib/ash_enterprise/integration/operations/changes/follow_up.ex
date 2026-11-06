@@ -6,7 +6,8 @@ defmodule AshEnterprise.Integration.Operations.Changes.FollowUp do
   follow-up reads that activation from the registry through a declared operation
   (`RegistryApi.get_activation`, as the `oban` system actor), parses the credential reference
   the **registry** answered with into a tenant and a credential, and finds the governed
-  activations of that credential left `outcome_unknown` in that tenant. It enqueues their
+  activations of that credential left `outcome_unknown` in that tenant and not already
+  handed to a person (`resolution_requested_at` unset, as the `:reconcile` trigger also requires). It enqueues their
   reconcile and marks the delivery `followed_up`; when there is nothing to settle, or the
   registry's answer names no one, it marks it `ignored`.
 
@@ -70,7 +71,10 @@ defmodule AshEnterprise.Integration.Operations.Changes.FollowUp do
         # `args` is sealed (a calculation) and not filterable: read the tenant's unknown
         # activations and match the credential on the opened arguments.
         Invocation
-        |> Ash.Query.filter(target == ^@activate and status == :outcome_unknown)
+        |> Ash.Query.filter(
+          target == ^@activate and status == :outcome_unknown and
+            is_nil(resolution_requested_at)
+        )
         |> Ash.read!(opts)
         |> Enum.filter(&(Executor.stored_args(&1, opts)["id"] == credential_id))
 

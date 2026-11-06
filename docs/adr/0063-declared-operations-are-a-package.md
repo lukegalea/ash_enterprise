@@ -68,9 +68,10 @@ retired in favour of `operations do transport Nango.Transport ... end`. Until th
 
 ### Consequences worth knowing
 
-- **Every transport failure of a non-idempotent call is `:ambiguous`**, including a refused connection where the request was
-  provably never sent. The stub reported "unavailable" as transient. After this change the same event leaves the invocation
-  `outcome_unknown` and reconciles it. That is safe, and slower.
+- **A non-idempotent call that may have been sent is `:ambiguous`**: 5xx responses, timeouts and other transport
+  failures after a send are never re-sent, and leave the invocation `outcome_unknown` to be reconciled. Connection-level
+  failures that prove nothing was sent (`:econnrefused`, `:nxdomain`, `:ehostunreach`, `:enetunreach`, `:eaddrnotavail`)
+  are retried and end as `:transport`, which the host classifies as transient and defers.
 - **The generated actions are not writes**, so neither the event log nor lineage records an operation call. The record of an
   outbound act is the governed invocation and the subject's own update, both platform resources. The remote dataset is a hole
   in lineage, filled by one explicit `AshOpenLineage` emit (ADR 0012), structural names only.

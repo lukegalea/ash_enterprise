@@ -14,9 +14,12 @@ defmodule AshEnterpriseWeb.Plugs.ProviderWebhooks do
   |---|---|
   | `credential-registry` | `AshEnterprise.Credentialing.RegistryWebhook` |
 
-  Deliveries are rate limited per provider and remote address (429, empty body) before the
-  ingress reads a byte. Responses are the ingress's own: empty bodies, and the statuses in
-  its moduledoc.
+  Failed verifications (400 and 401) are counted per provider and remote address, and past
+  the limit they answer 429 instead. A verified delivery is never limited: behind a TLS
+  proxy every sender shares the proxy's address, so limiting deliveries by address would let
+  an unsigned flood starve the provider's real ones. A segment that names no provider is a
+  404 and creates no bucket. Responses are otherwise the ingress's own: empty bodies, and the
+  statuses in its moduledoc.
   """
 
   @behaviour Plug
@@ -27,8 +30,7 @@ defmodule AshEnterpriseWeb.Plugs.ProviderWebhooks do
 
   @providers %{"credential-registry" => AshEnterprise.Credentialing.RegistryWebhook}
 
-  # Per provider and address: generous for a provider's retries, tight enough that an
-  # unauthenticated sender cannot make the ingress read bodies without bound.
+  # Failed verifications per provider and address.
   @window_ms 60_000
   @limit 300
 
@@ -37,17 +39,27 @@ defmodule AshEnterpriseWeb.Plugs.ProviderWebhooks do
 
   @impl Plug
   def call(%Plug.Conn{method: "POST", path_info: ["webhooks", provider]} = conn, opts) do
-    case AshEnterprise.Hammer.hit("webhook:#{provider}:#{address(conn)}", @window_ms, @limit) do
-      {:allow, _count} ->
-        conn = %{conn | path_params: Map.put(conn.path_params, "provider", provider)}
-        Ingress.call(conn, Ingress.init(providers: Keyword.fetch!(opts, :providers)))
+    providers = Keyword.fetch!(opts, :providers)
+    conn = %{conn | path_params: Map.put(conn.path_params, "provider", provider)}
 
-      {:deny, _retry_after_ms} ->
-        conn |> send_resp(429, "") |> halt()
-    end
+    conn =
+      if Map.has_key?(providers, provider),
+        do: register_before_send(conn, &limit_failures(&1, provider)),
+        else: conn
+
+    Ingress.call(conn, Ingress.init(providers: providers))
   end
 
   def call(conn, _opts), do: conn
+
+  defp limit_failures(%Plug.Conn{status: status} = conn, provider) when status in [400, 401] do
+    case AshEnterprise.Hammer.hit("webhook:#{provider}:#{address(conn)}", @window_ms, @limit) do
+      {:allow, _count} -> conn
+      {:deny, _retry_after_ms} -> %{conn | status: 429, resp_body: ""}
+    end
+  end
+
+  defp limit_failures(conn, _provider), do: conn
 
   defp address(%Plug.Conn{remote_ip: ip}), do: ip |> :inet.ntoa() |> to_string()
 end

@@ -103,6 +103,25 @@ defmodule AshEnterpriseWeb.ProviderWebhooksTest do
     assert conn |> deliver(body, id, provider: "someone-else") |> response(404)
   end
 
+  test "a flood of unsigned posts never 429s a correctly signed delivery", %{
+    conn: conn,
+    delivery_id: id
+  } do
+    body = Jason.encode!(%{"activationId" => "act-8"})
+
+    on_exit(fn ->
+      AshEnterprise.Hammer.set("webhook:credential-registry:127.0.0.1", 60_000, 0)
+    end)
+
+    statuses =
+      for n <- 1..320 do
+        build_conn() |> deliver(body, "flood-#{n}", secret: "wrong") |> Map.fetch!(:status)
+      end
+
+    assert 429 in statuses
+    assert conn |> deliver(body, id) |> response(204) == ""
+  end
+
   test "an oversized body is 413", %{conn: conn, delivery_id: id} do
     body = Jason.encode!(%{"activationId" => "act-7", "padding" => String.duplicate("x", 20_000)})
 

@@ -27,12 +27,12 @@ defmodule AshEnterprise.Telemetry.Operations do
   @spec attach() :: :ok
   def attach do
     :telemetry.detach(@handler_id)
-    :telemetry.attach_many(@handler_id, [@request, @webhook], &__MODULE__.handle_event/4, nil)
+    :telemetry.attach_many(@handler_id, [@request, @webhook], &__MODULE__.on_event/4, nil)
     :ok
   end
 
   @doc false
-  def handle_event(event, _measurements, metadata, _config) do
+  def on_event(event, _measurements, metadata, _config) do
     OpenTelemetry.Tracer.set_attributes(attributes(event, metadata))
   end
 

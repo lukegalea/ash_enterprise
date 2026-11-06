@@ -56,9 +56,8 @@ defmodule AshEnterprise.Credentialing.Registry.FakeProvider do
     reference = conn.query_params["subjectReference"]
 
     entries =
-      with {:ok, {_org, credential_id}} <- RegistryApi.parse_reference(reference) do
-        Registry.entries(credential_id)
-      else
+      case RegistryApi.parse_reference(reference) do
+        {:ok, {_org, credential_id}} -> Registry.entries(credential_id)
         _ -> []
       end
 
