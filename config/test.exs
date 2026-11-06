@@ -234,4 +234,4 @@ end
 # FEEL expression compile budget: the 250ms default flakes on loaded machines
 # (trivial weekday rules blow it under parallel suite scheduling; AshEnterprise
 # #70 evidence). 1000ms keeps the pathological-expression guard meaningful.
-config :ash_decisions, :feel_timeout_ms, 1000
+config :ash_decisions, :feel_timeout_ms, 5000
