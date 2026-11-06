@@ -65,7 +65,8 @@ config :ash_enterprise, Oban,
     mdm: 10,
     execution: 10,
     agent_runs: 5,
-    quality: 2
+    quality: 2,
+    planning: 3
   ],
   repo: AshEnterprise.Repo,
   plugins: [
@@ -139,7 +140,10 @@ config :ash_enterprise, Oban,
          # PROD-18: commitments in sent mail and Slack, and follow-ups to ended
          # meetings, proposed as action items (AshEnterprise.Canonical.Commitments).
          # Messages are read only by the in-zone model; with none, they wait.
-         {"*/10 * * * *", AshEnterprise.Canonical.Commitments.SweepWorker}
+         {"*/10 * * * *", AshEnterprise.Canonical.Commitments.SweepWorker},
+         # ADR 0062: planning runs whose solver session is gone (lease expired, no outcome) end
+         # `:unknown` / `:lease_lost` -- or `:cancelled` when a cancel is on record.
+         {"* * * * *", AshEnterprise.Planning.LeaseSweeper, queue: :planning, max_attempts: 1}
        ] ++ standing_crontab}
   ]
 
@@ -471,7 +475,8 @@ config :ash_enterprise,
     AshEnterprise.Lineage,
     AshEnterprise.Licences,
     AshEnterprise.Credentialing,
-    AshEnterprise.Quality
+    AshEnterprise.Quality,
+    AshEnterprise.Planning
   ],
   base_resources: [AshEnterprise.Platform.Resource]
 
@@ -496,6 +501,31 @@ config :ash_enterprise, AshEnterprise.Integration.Landing,
 # set this false on every instance but one, or the first boot will fail the
 # other instance's live runs. See AshEnterprise.Agents.OmpSession.
 config :ash_enterprise, :agents, sweep_orphans_on_boot?: true
+
+# Planning runtime (ADR 0062). `planning_memory_bytes` / `planning_cpu_seconds` are the ceilings a
+# model version's declared limits are refused above (the `prlimit --as` cap is the declared
+# memory, never more). `planning_model_dir` holds `<key>/<key>.mzn`, `<key>.mzc.mzn` and
+# `validator.ex` per model: set per deployment (`PLANNING_MODEL_DIR` in config/runtime.exs), nil
+# means no model can run. The `:planning` keyword is the session runtime:
+#
+#   * `max_heavy_sessions` -- live solver sessions allowed at once (a heavy solve is one OS
+#     process tree under `prlimit`);
+#   * `lease_ms` / `poll_ms` -- run lease length, and how often a session renews it and checks
+#     for a recorded cancel;
+#   * `backends` -- the allow-list a model version's `backend_profile["backend"]` is looked up
+#     in (a profile never reaches `String.to_atom/1`);
+#   * `sweep_orphans_on_boot?` -- like the OMP bridge's: the registry it checks is local, so
+#     leave it on only for the node that owns the solver.
+config :ash_enterprise,
+  planning_memory_bytes: 2_000_000_000,
+  planning_cpu_seconds: 900
+
+config :ash_enterprise, :planning,
+  max_heavy_sessions: 1,
+  lease_ms: 300_000,
+  poll_ms: 2_000,
+  backends: %{"solverl" => AshEnterprise.Planning.Backend.Solverl},
+  sweep_orphans_on_boot?: true
 
 # The adjudication orchestrator's plumbing knobs (AST-152). Two numbers, and
 # neither is a threshold in the law-4 sense: nothing here decides what is

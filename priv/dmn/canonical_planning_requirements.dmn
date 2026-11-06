@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  What does a planning week look like on this weekday?
+
+  The parameter decision behind the personal-week planning model (ADR 0062): the working
+  window, the buffer that must follow a task, and the break policy, per weekday. The solver is
+  given these as inputs and never hardcodes them, so a person (or a tenant) who works differently
+  forks this decision and rebinds, without a deploy and without touching the model.
+
+  All times are minutes in the requester's calendar zone: `workStartMinute` and `workEndMinute`
+  are minutes after local midnight and form a half-open window [start, end); a day with equal
+  values has no working window (the planner schedules nothing on it). `bufferMinutes` is the gap
+  that must follow a task before the next task or meeting. `breakAfterMinutes` and `breakMinutes`
+  say: in any window of their sum, at most `breakAfterMinutes` are busy. A value of 0 for
+  `breakMinutes` disables the break rule.
+
+  Hit policy UNIQUE: exactly one rule may match each weekday. The input is the lowercase English
+  weekday name; a name that is not one of the seven matches no rule, which is a refusal rather
+  than a silent default.
+
+  This baseline is deliberately generic (Monday to Friday, 09:00 to 17:00). It is a policy
+  seed, not anyone's calendar.
+-->
+<definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xmlns:dmndi="https://www.omg.org/spec/DMN/20230324/DMNDI/"
+             xmlns:dc="http://www.omg.org/spec/DMN/20180521/DC/"
+             xmlns:di="http://www.omg.org/spec/DMN/20180521/DI/"
+             id="canonical_planning_requirements_definitions"
+             name="Canonical planning requirements"
+             namespace="https://ash-enterprise.example/dmn/canonical-planning-requirements"
+             expressionLanguage="https://www.omg.org/spec/DMN/20230324/FEEL/"
+             typeLanguage="https://www.omg.org/spec/DMN/20230324/FEEL/">
+
+  <itemDefinition id="item_requirements" name="tPlanningRequirements">
+    <itemComponent id="item_work_start" name="workStartMinute">
+      <typeRef>number</typeRef>
+    </itemComponent>
+    <itemComponent id="item_work_end" name="workEndMinute">
+      <typeRef>number</typeRef>
+    </itemComponent>
+    <itemComponent id="item_buffer" name="bufferMinutes">
+      <typeRef>number</typeRef>
+    </itemComponent>
+    <itemComponent id="item_break_after" name="breakAfterMinutes">
+      <typeRef>number</typeRef>
+    </itemComponent>
+    <itemComponent id="item_break" name="breakMinutes">
+      <typeRef>number</typeRef>
+    </itemComponent>
+  </itemDefinition>
+
+  <inputData id="input_weekday" name="weekday">
+    <variable id="var_weekday" name="weekday" typeRef="string"/>
+  </inputData>
+
+  <decision id="decision_requirements" name="PlanningRequirements">
+    <variable id="var_requirements" name="PlanningRequirements" typeRef="tPlanningRequirements"/>
+    <informationRequirement id="req_weekday">
+      <requiredInput href="#input_weekday"/>
+    </informationRequirement>
+
+    <decisionTable id="table_requirements" hitPolicy="UNIQUE" outputLabel="PlanningRequirements">
+      <input id="clause_weekday" label="Weekday">
+        <inputExpression id="expr_weekday" typeRef="string">
+          <text>weekday</text>
+        </inputExpression>
+        <inputValues>
+          <text>"monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"</text>
+        </inputValues>
+      </input>
+      <output id="clause_work_start" name="workStartMinute" typeRef="number"/>
+      <output id="clause_work_end" name="workEndMinute" typeRef="number"/>
+      <output id="clause_buffer" name="bufferMinutes" typeRef="number"/>
+      <output id="clause_break_after" name="breakAfterMinutes" typeRef="number"/>
+      <output id="clause_break" name="breakMinutes" typeRef="number"/>
+
+      <rule id="rule_monday">
+        <inputEntry id="e_monday"><text>"monday"</text></inputEntry>
+        <outputEntry id="o_monday_start"><text>540</text></outputEntry>
+        <outputEntry id="o_monday_end"><text>1020</text></outputEntry>
+        <outputEntry id="o_monday_buffer"><text>15</text></outputEntry>
+        <outputEntry id="o_monday_break_after"><text>120</text></outputEntry>
+        <outputEntry id="o_monday_break"><text>15</text></outputEntry>
+      </rule>
+
+      <rule id="rule_tuesday">
+        <inputEntry id="e_tuesday"><text>"tuesday"</text></inputEntry>
+        <outputEntry id="o_tuesday_start"><text>540</text></outputEntry>
+        <outputEntry id="o_tuesday_end"><text>1020</text></outputEntry>
+        <outputEntry id="o_tuesday_buffer"><text>15</text></outputEntry>
+        <outputEntry id="o_tuesday_break_after"><text>120</text></outputEntry>
+        <outputEntry id="o_tuesday_break"><text>15</text></outputEntry>
+      </rule>
+
+      <rule id="rule_wednesday">
+        <inputEntry id="e_wednesday"><text>"wednesday"</text></inputEntry>
+        <outputEntry id="o_wednesday_start"><text>540</text></outputEntry>
+        <outputEntry id="o_wednesday_end"><text>1020</text></outputEntry>
+        <outputEntry id="o_wednesday_buffer"><text>15</text></outputEntry>
+        <outputEntry id="o_wednesday_break_after"><text>120</text></outputEntry>
+        <outputEntry id="o_wednesday_break"><text>15</text></outputEntry>
+      </rule>
+
+      <rule id="rule_thursday">
+        <inputEntry id="e_thursday"><text>"thursday"</text></inputEntry>
+        <outputEntry id="o_thursday_start"><text>540</text></outputEntry>
+        <outputEntry id="o_thursday_end"><text>1020</text></outputEntry>
+        <outputEntry id="o_thursday_buffer"><text>15</text></outputEntry>
+        <outputEntry id="o_thursday_break_after"><text>120</text></outputEntry>
+        <outputEntry id="o_thursday_break"><text>15</text></outputEntry>
+      </rule>
+
+      <rule id="rule_friday">
+        <inputEntry id="e_friday"><text>"friday"</text></inputEntry>
+        <outputEntry id="o_friday_start"><text>540</text></outputEntry>
+        <outputEntry id="o_friday_end"><text>1020</text></outputEntry>
+        <outputEntry id="o_friday_buffer"><text>0</text></outputEntry>
+        <outputEntry id="o_friday_break_after"><text>120</text></outputEntry>
+        <outputEntry id="o_friday_break"><text>15</text></outputEntry>
+      </rule>
+
+      <rule id="rule_saturday">
+        <inputEntry id="e_saturday"><text>"saturday"</text></inputEntry>
+        <outputEntry id="o_saturday_start"><text>0</text></outputEntry>
+        <outputEntry id="o_saturday_end"><text>0</text></outputEntry>
+        <outputEntry id="o_saturday_buffer"><text>0</text></outputEntry>
+        <outputEntry id="o_saturday_break_after"><text>120</text></outputEntry>
+        <outputEntry id="o_saturday_break"><text>15</text></outputEntry>
+      </rule>
+
+      <rule id="rule_sunday">
+        <inputEntry id="e_sunday"><text>"sunday"</text></inputEntry>
+        <outputEntry id="o_sunday_start"><text>0</text></outputEntry>
+        <outputEntry id="o_sunday_end"><text>0</text></outputEntry>
+        <outputEntry id="o_sunday_buffer"><text>0</text></outputEntry>
+        <outputEntry id="o_sunday_break_after"><text>120</text></outputEntry>
+        <outputEntry id="o_sunday_break"><text>15</text></outputEntry>
+      </rule>
+    </decisionTable>
+  </decision>
+
+  <!--
+    Diagram interchange, for the same reason as the neighbouring baselines: without it dmn-js
+    opens an empty canvas. (XML forbids a double hyphen inside a comment.)
+  -->
+  <dmndi:DMNDI>
+    <dmndi:DMNDiagram id="diagram_requirements" name="Canonical planning requirements">
+      <dmndi:DMNShape id="shape_decision_requirements" dmnElementRef="decision_requirements">
+        <dc:Bounds height="80" width="180" x="270" y="80"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNShape id="shape_input_weekday" dmnElementRef="input_weekday">
+        <dc:Bounds height="60" width="180" x="270" y="280"/>
+      </dmndi:DMNShape>
+      <dmndi:DMNEdge id="edge_req_weekday" dmnElementRef="req_weekday">
+        <di:waypoint x="360" y="280"/>
+        <di:waypoint x="360" y="160"/>
+      </dmndi:DMNEdge>
+    </dmndi:DMNDiagram>
+  </dmndi:DMNDI>
+</definitions>

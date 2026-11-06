@@ -49,6 +49,12 @@ defmodule AshEnterprise.Application do
         # are operator events, not boot-time facts.
         {Registry, keys: :unique, name: AshEnterprise.Agents.Registry},
         AshEnterprise.Agents.OmpSupervisor,
+        # Wave 2 (ADR 0062): the planning kernel. The registry names one
+        # SolverSession per run id; the dynamic supervisor owns the sessions —
+        # children are solve events, not boot-time facts (heavy-solve slot
+        # is a unique registry key, so it is race-free and self-releasing).
+        AshEnterprise.Planning.Registry,
+        AshEnterprise.Planning.SessionSupervisor,
         # The trigger index. Started after the Repo because it loads published triggers.
         # Start a worker by calling: AshEnterprise.Worker.start_link(arg)
         # {AshEnterprise.Worker, arg},
@@ -65,6 +71,7 @@ defmodule AshEnterprise.Application do
         AshEvents.Projections.Supervisor
       ] ++
         orphans_sweep() ++
+        planning_orphans_sweep() ++
         trace_sink() ++ trigger_index() ++ legacy_listener() ++ privilege_sync()
 
     # See https://elixir.hexdocs.pm/Supervisor.html
@@ -160,6 +167,21 @@ defmodule AshEnterprise.Application do
     if Application.get_env(:ash_enterprise, :agents, [])
        |> Keyword.get(:sweep_orphans_on_boot?, true) do
       [{Task, &AshEnterprise.Agents.OmpSession.fail_orphaned_runs/0}]
+    else
+      []
+    end
+  end
+
+  # The planning kernel's orphan sweep (see AshEnterprise.Planning.LeaseSweeper): runs left
+  # started with no outcome by a previous BEAM are ended. Same local-registry caveat as above.
+  defp planning_orphans_sweep do
+    if Application.get_env(:ash_enterprise, :planning, [])
+       |> Keyword.get(:sweep_orphans_on_boot?, true) do
+      [
+        Supervisor.child_spec({Task, &AshEnterprise.Planning.LeaseSweeper.sweep_orphans/0},
+          id: :planning_orphans_sweep
+        )
+      ]
     else
       []
     end

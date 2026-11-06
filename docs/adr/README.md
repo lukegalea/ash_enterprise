@@ -93,6 +93,7 @@ The concrete exit: which files change, and how much work it is.
 | [0059](0059-version-number-is-an-optimistic-lock.md) | `version_number` is an optimistic lock; human-only and machinery-only actions narrow the bypasses | accepted |
 | [0060](0060-localization-through-gettext-and-library-catalogs.md) | Localization through Gettext and library-shipped catalogs | accepted, in progress |
 | [0061](0061-judgment-surfaces-ship-with-the-package.md) | Judgment surfaces ship with ash_judgments; a host binds them to its own resources | accepted |
+| [0062](0062-planning-proposes-declarations-and-people-commit.md) | Planning proposes; declarations and people commit | accepted, not built (2026-11-05) |
 
 Records 0001–0005, 0007–0009, 0020–0023, 0027–0031, 0033–0037, 0050–0054, 0059 and 0061 are `accepted` and describe code that exists. 0006 is superseded by 0050. 0049 is accepted and in progress: Phase 0 (PostgreSQL 18) and the System One fact cut-over have landed. 0060 is accepted and in progress: its phases 1 (ash_a2ui) and 2 (this repository) have landed; the Keystone phases and CLDR formatting are not built.
 **0038–0047 are `accepted, not built (2026-09-28)`:** the decision is taken and none of it is built. A record with that

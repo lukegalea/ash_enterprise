@@ -61,6 +61,20 @@ defmodule AshEnterprise.Canonical.Task do
   cannot decide what it proposed. `proposer` and `instrument` keep the
   proposal's lineage: which proposer, which model in which zone.
 
+  ## Scheduling (ADR 0062)
+
+  A task may carry an estimate and a calendar placement, which a planning
+  candidate proposes and a person applies through the same self-service path:
+
+  | Self-service action | Update | Rule |
+  |---|---|---|
+  | `set_estimate_mine` | `:set_estimate` | `estimated_minutes` is a positive integer |
+  | `schedule_mine` | `:schedule` | half-open `[scheduled_start_at, scheduled_end_at)`; the end is after the start |
+  | `unschedule_mine` | `:unschedule` | clears both ends |
+
+  These updates take their values from the generic action's arguments
+  (`ActOnOwnTask` forwards them).
+
   ## Erasure (ADR 0024)
 
   A proposal's words are canonical content: `commitment` (the action item as
@@ -99,7 +113,10 @@ defmodule AshEnterprise.Canonical.Task do
       :reopen_mine,
       :drop_mine,
       :accept_mine,
-      :dismiss_mine
+      :dismiss_mine,
+      :set_estimate_mine,
+      :schedule_mine,
+      :unschedule_mine
     ],
     notifiers: [Ash.Notifier.PubSub],
     extra_extensions: [
@@ -184,6 +201,22 @@ defmodule AshEnterprise.Canonical.Task do
       public? true
       constraints max_length: 1024
       description "What is to be done."
+    end
+
+    attribute :estimated_minutes, :integer do
+      public? true
+      constraints min: 1
+      description "How long the task is expected to take, in minutes. Nil until estimated."
+    end
+
+    attribute :scheduled_start_at, :utc_datetime_usec do
+      public? true
+      description "When work on the task is placed to start (inclusive). Nil when unscheduled."
+    end
+
+    attribute :scheduled_end_at, :utc_datetime_usec do
+      public? true
+      description "When work on the task is placed to end (exclusive); after the start."
     end
 
     attribute :due_at, :utc_datetime_usec do
@@ -519,6 +552,74 @@ defmodule AshEnterprise.Canonical.Task do
       run {AshEnterprise.Canonical.Actions.ActOnOwnTask, update: :dismiss}
     end
 
+    update :set_estimate do
+      description "Record how many minutes the task is expected to take."
+      accept [:estimated_minutes]
+      validate attribute_equals(:status, :open), message: "only an open task can be estimated"
+      validate present(:estimated_minutes)
+    end
+
+    update :schedule do
+      description "Place the task on the calendar: a half-open interval [start, end)."
+      accept [:scheduled_start_at, :scheduled_end_at]
+      validate attribute_equals(:status, :open), message: "only an open task can be scheduled"
+      validate present([:scheduled_start_at, :scheduled_end_at])
+      validate compare(:scheduled_end_at, greater_than: :scheduled_start_at)
+    end
+
+    update :unschedule do
+      description "Take the task off the calendar."
+      accept []
+      validate attribute_equals(:status, :open), message: "only an open task can be unscheduled"
+      change set_attribute(:scheduled_start_at, nil)
+      change set_attribute(:scheduled_end_at, nil)
+    end
+
+    action :set_estimate_mine, :struct do
+      description "Record the estimate, in minutes, on one of the actor's own tasks."
+      constraints instance_of: __MODULE__
+
+      argument :record_id, :uuid,
+        allow_nil?: false,
+        description: "The task (one of the actor's own)."
+
+      argument :estimated_minutes, :integer,
+        allow_nil?: false,
+        description: "Expected effort in minutes; must be positive."
+
+      run {AshEnterprise.Canonical.Actions.ActOnOwnTask, update: :set_estimate}
+    end
+
+    action :schedule_mine, :struct do
+      description "Place one of the actor's own tasks on the calendar (start inclusive, end exclusive)."
+      constraints instance_of: __MODULE__
+
+      argument :record_id, :uuid,
+        allow_nil?: false,
+        description: "The task (one of the actor's own)."
+
+      argument :scheduled_start_at, :utc_datetime_usec,
+        allow_nil?: false,
+        description: "When work on it starts."
+
+      argument :scheduled_end_at, :utc_datetime_usec,
+        allow_nil?: false,
+        description: "When work on it ends; after the start."
+
+      run {AshEnterprise.Canonical.Actions.ActOnOwnTask, update: :schedule}
+    end
+
+    action :unschedule_mine, :struct do
+      description "Take one of the actor's own tasks off the calendar."
+      constraints instance_of: __MODULE__
+
+      argument :record_id, :uuid,
+        allow_nil?: false,
+        description: "The task (one of the actor's own)."
+
+      run {AshEnterprise.Canonical.Actions.ActOnOwnTask, update: :unschedule}
+    end
+
     read :by_external do
       description """
       Look up the canonical row projected from one raw SourceObject.
@@ -664,6 +765,9 @@ defmodule AshEnterprise.Canonical.Task do
   end
 
   code_interface do
+    define :set_estimate_mine, args: [:record_id, :estimated_minutes]
+    define :schedule_mine, args: [:record_id, :scheduled_start_at, :scheduled_end_at]
+    define :unschedule_mine, args: [:record_id]
     define :by_external, args: [:system, :id], not_found_error?: false
     define :upsert_from_source
     define :read
