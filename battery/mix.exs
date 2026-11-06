@@ -34,7 +34,7 @@ defmodule AshEnterpriseBattery.MixProject do
   defp elixirc_paths(:test), do: ["lib", "test/support"]
   defp elixirc_paths(_), do: ["lib"]
 
-  # The substrate deps (nine, and ash_agent), declared exactly as
+  # The substrate deps (nine, ash_agent and ash_operations), declared exactly as
   # ash_enterprise declares them (same refs, so the battery resolves the same
   # code the platform ships, and an app that takes the battery as a test
   # dependency resolves nothing the battery chose for it).
@@ -72,6 +72,8 @@ defmodule AshEnterpriseBattery.MixProject do
       {:ash_planning, github: "lukegalea/ash_planning"},
       # --- Governed invocations (the agent runtime's fragments) ---------------
       {:ash_agent, github: "lukegalea/ash_agent"},
+      # --- Declared provider operations (HTTP transport, signed webhook ingress) -
+      {:ash_operations, github: "lukegalea/ash_operations"},
       # --- AshEvents (the audit log extension) ---------------------------------
       {:ash_events,
        github: "lukegalea/ash_events", branch: "temporal-as-of-support-0.7", override: true},
