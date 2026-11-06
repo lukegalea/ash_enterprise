@@ -89,3 +89,30 @@ end
 2. If you encrypt content per subject, derive the key from that subject's key, so destroying the subject's key also
    makes the digest unrecomputable.
 3. The same row must always give the same key: `invoke` compares a new request's digest with the stored one.
+
+## `AshAgent.Execution.Source`
+
+```elixir
+@callback read(scope, opts) :: {:ok, rows, next_cursor | nil} | {:error, term}
+@callback to_entries(rows) :: [entry]
+
+# scope: %{correlation_id: id | nil, refs: MapSet.t("<type>:<id>")}
+# opts:  actor:, tenant:, limit:, after: cursor | nil
+```
+
+1. Implement one source per kind of record a reader follows an execution through: invocations, runs and their
+   steps, approval tasks, process events, decision evaluations, model calls, judgments. Keep the list of sources in
+   your application (a registry), and combine their entries in your own view.
+2. Read through the resource's own read action, **as the viewer**, with the actor and tenant you are given. Never read
+   with authorization off: a row the viewer may not read must not appear, and must not be counted.
+3. Read the rows that carry the scope's correlation id or point at one of its references
+   (`AshAgent.Execution.Source.ids/2`). With nothing to match, read nothing and return `{:ok, [], nil}`.
+4. Read at most `limit` rows, after the `after` cursor, in a stable order (a timestamp, then the primary key), and
+   return the cursor of the next page or `nil`. A long trace must never become an unbounded read.
+5. Return `{:error, reason}` when the read fails. The host's view reports it for that source; an error is never
+   "nothing happened".
+6. Build entries with `AshAgent.Execution.Source.entry/1`. Map statuses through `AshAgent.Execution.Status`
+   (`invocation/1`, `run/1`), or to one of its six values for a lifecycle of your own; anything you cannot place is
+   `:uncertain`, never `:succeeded`.
+7. Keep sealed content out of entries: no arguments, results, messages or judged text in `summary`. Set `recorded?`
+   to `false` when the record's content was erased or its telemetry never arrived.

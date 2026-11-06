@@ -158,6 +158,12 @@ defmodule AshEnterprise.Execution.Invocation do
 
   changes do
     change set_attribute(:owner_id, actor(:id)), on: [:create]
+
+    # The operation that asked, so a trace (`AshEnterprise.Execution.Entry`) finds the
+    # row with the run, model calls and decisions recorded under the same id.
+    change set_attribute(:correlation_id, &AshEnterprise.Platform.Correlation.id/0),
+      on: [:create]
+
     change AshEnterprise.Execution.Changes.SealingScope, on: [:create]
 
     change {AshEnterprise.Erasure.Changes.SealUnderScope, fields: [:args, :result]},

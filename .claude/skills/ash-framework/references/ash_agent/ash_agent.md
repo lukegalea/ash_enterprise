@@ -5,8 +5,9 @@
 Built: the effects extension, the invocation fragment with its execution paths, typed failure and reconciliation of
 outside work whose outcome is unknown, the `Governed` validation that keeps a governed action behind its invocation,
 the two behaviours and one protocol it calls, the agent version fragment with code-declared agents, and durable agent
-runs (the run and step fragments, the step cycle and the runtime behaviour). Not yet built: the approvals and
-execution-history behaviours.
+runs (the run and step fragments, the step cycle and the runtime behaviour), and the execution-history behaviour
+(`AshAgent.Execution.Source`, with the six shared statuses in `AshAgent.Execution.Status`). Not yet built: the
+approvals behaviour.
 
 ## Understanding AshAgent
 

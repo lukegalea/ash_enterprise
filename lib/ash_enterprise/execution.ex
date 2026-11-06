@@ -30,6 +30,10 @@ defmodule AshEnterprise.Execution do
   gated on suite runs of exactly that set, approved under four eyes and promoted, with
   rollback and an in-toto export.
 
+  `trace/2` follows one piece of work through every record it left, in order and as the
+  caller may read them (`AshEnterprise.Execution.Entry`, over the sources registered in
+  `AshEnterprise.ExecutionSources`).
+
   The resources come from the `ash_agent` package's fragments instantiated on the
   platform base (ADR 0056); this domain names them and their code interfaces.
   """
@@ -101,6 +105,10 @@ defmodule AshEnterprise.Execution do
     resource AshEnterprise.Execution.RunFinished do
       define :emit_run_finished, action: :emit
       define :list_run_finished, action: :read
+    end
+
+    resource AshEnterprise.Execution.Entry do
+      define :trace, action: :trace
     end
 
     resource AshEnterprise.Execution.HumanInput
