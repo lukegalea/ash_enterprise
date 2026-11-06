@@ -66,7 +66,7 @@ defmodule AshEnterprise.Channels do
   the view's allowlist, a cell by its table's update action. `{resource, nil}` for an
   action that runs no Ash action (a query, a search, a prompt, a report, an export).
   """
-  @spec target(module(), String.t(), map()) :: {Ash.Resource.t(), atom() | nil}
+  @spec target(module(), String.t() | nil, map() | nil) :: {Ash.Resource.t(), atom() | nil}
   def target(ui, name, context) do
     view = AshA2ui.ResolvedView.resolve(ui, [])
     {view.resource, ash_action(view, name, context || %{})}
@@ -102,7 +102,7 @@ defmodule AshEnterprise.Channels do
   defp ash_action(_view, _name, _context), do: nil
 
   defp named(actions, name) when is_binary(name),
-    do: Enum.find(actions || [], &(Atom.to_string(&1) == name))
+    do: Enum.find(List.wrap(actions), &(Atom.to_string(&1) == name))
 
   defp named(_actions, _name), do: nil
 
