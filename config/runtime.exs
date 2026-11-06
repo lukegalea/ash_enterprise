@@ -20,6 +20,13 @@ if System.get_env("PHX_SERVER") do
   config :ash_enterprise, AshEnterpriseWeb.Endpoint, server: true
 end
 
+# The directory of reviewed planning model artifacts (`<key>/<key>.mzn`, `<key>.mzc.mzn`,
+# `validator.ex`). Deployment-owned and kept out of the repository: private models live elsewhere
+# and are named here. Unset, no model can run.
+if planning_model_dir = System.get_env("PLANNING_MODEL_DIR") do
+  config :ash_enterprise, planning_model_dir: planning_model_dir
+end
+
 # The showcase's fault panel defaults per environment (on in dev and test, off in prod). An
 # instance that runs the dev config but is shown to people turns it off with
 # `SHOWCASE_FAULT_CONTROLS=false`; `true` turns it on, and only takes effect where the fault
