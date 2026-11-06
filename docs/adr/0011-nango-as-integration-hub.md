@@ -4,6 +4,7 @@
 - **Date:** 2026-08-18
 - **Amended (deviations recorded):** 2026-10-09 — see [Dogfood deviations](#dogfood-deviations-2026-10-09) at the end of this document.
 - **Implementation note:** 2026-10-12, at the end of this record
+- **Amended:** 2026-11-06. Declared operations are now also the `ash_operations` package; see [ADR 0063](0063-declared-operations-are-a-package.md). Nango stays the OAuth transport, and the in-repo operations DSL stays until the package hands call context to its transport.
 
 ## Context
 
