@@ -92,6 +92,20 @@ defmodule AshEnterprise.Planning.LoweringTest do
     refute Map.has_key?(Lowering.solver_data(Map.put(p, "snapshot", %{})), "snapshot")
   end
 
+  test "solver_data drops empty lists (MiniZinc 2.10 rejects array0d)" do
+    p = %{
+      "n_prec" => 0,
+      "prec_before" => [],
+      "slot_minutes" => 15,
+      "t_dur" => [3, 2]
+    }
+
+    data = Lowering.solver_data(p)
+    refute Map.has_key?(data, "prec_before")
+    assert data["slot_minutes"] == 15
+    assert data["t_dur"] == [3, 2]
+  end
+
   test "week_start is the Monday of the UTC week" do
     assert Lowering.week_start(at(3, 15)) == at(0, 0)
   end
