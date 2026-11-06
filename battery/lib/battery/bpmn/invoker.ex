@@ -21,7 +21,9 @@ defmodule Battery.Bpmn.Invoker do
 
   @handlers %{
     "activate_scheduled_revision" => {Battery.Compliance.Activation, :activate_from_process},
-    "reevaluate_scope" => {Battery.Compliance.Activation, :reevaluate_from_process}
+    "reevaluate_scope" => {Battery.Compliance.Activation, :reevaluate_from_process},
+    "submission_activation" => {Battery.Operations.ProcessTasks, :submission_activation},
+    "activation_status" => {Battery.Operations.ProcessTasks, :activation_status}
   }
 
   @targets %{

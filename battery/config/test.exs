@@ -19,7 +19,10 @@ pg_common = [
   queue_target: 1000
 ]
 
-db = "platform_battery_test"
+# `PLATFORM_BATTERY_DB` names the database, so two checkouts (or a developer's own and a
+# CI worker's) can run the battery against one server without sharing tables.
+db =
+  System.get_env("PLATFORM_BATTERY_DB") || System.get_env("BATTERY_DB", "platform_battery_test")
 
 config :ash_enterprise_battery, ecto_repos: [Battery.Repo]
 
@@ -60,3 +63,11 @@ config :ash_bpmn, oban_testing: :inline
 # the BPMN trigger bridge.
 
 config :logger, level: :warning
+
+# ── ash_open_lineage: events are captured in memory, never sent ─────────────
+config :ash_open_lineage,
+  transport: Battery.Lineage.Capture,
+  correlation_provider: Battery.Lineage.Correlation
+
+# ── ash_operations: the battery registry's webhook secrets ──────────────────
+config :ash_enterprise_battery, Battery.Operations.Webhook, secrets: ["battery-synthetic-secret"]

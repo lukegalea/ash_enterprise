@@ -4,14 +4,15 @@ defmodule Mix.Tasks.PlatformBattery do
 
       mix platform_battery
 
-  1. Ensures the `platform_battery_test` database exists (creates
-     it if missing — idempotent).
+  1. Ensures the battery database exists (creates it if missing — idempotent). It is
+     `platform_battery_test` unless `PLATFORM_BATTERY_DB` names another, so two checkouts
+     can run against one Postgres server without sharing tables.
   2. Runs pending migrations (idempotent).
   3. Runs the battery's ExUnit suite.
   4. Exits nonzero if any test failed.
 
-  Deterministic: no host-specific configuration beyond the standard
-  PGHOST/PGPORT/PGUSER/PGPASSWORD env vars.
+  Deterministic: no network and no host-specific configuration beyond the standard
+  PGHOST/PGPORT/PGUSER/PGPASSWORD env vars and the optional `PLATFORM_BATTERY_DB`.
 
   Two execution modes. Inside the battery project (its own mix.exs) the
   suite runs in-process. Consumed as a dependency — the point of the

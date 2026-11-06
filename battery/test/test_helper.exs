@@ -41,6 +41,10 @@
   Battery.Execution.RunFinished,
   Battery.Execution.Step,
   Battery.Execution.HumanInput,
+  Battery.Operations.Registry,
+  Battery.Operations.Submission,
+  Battery.Operations.Delivery,
+  Battery.Operations.ActivationSettled,
   AshEvidence.Domain,
   AshCompliance.Domain
 ]

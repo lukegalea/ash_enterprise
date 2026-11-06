@@ -16,6 +16,11 @@ defmodule Battery.Execution.Invocation do
     * A row of an agent run that finishes wakes the run (`AshAgent.Run.Changes.Wake`),
       which here enqueues nothing: the run resource has no `:step` trigger.
 
+  * Every transition is recorded once in the AshEvents log (`Battery.Events.EventLog`) and
+    emits one OpenLineage COMPLETE through the capturing transport
+    (`Battery.Lineage.Capture`), as the platform's own invocation, a platform resource,
+    already does.
+
   No triggers: the battery drives `apply_decision`, `execute`, `collect_input` and
   the run's steps itself.
   """
@@ -23,11 +28,20 @@ defmodule Battery.Execution.Invocation do
   use Ash.Resource,
     domain: Battery.Domain,
     data_layer: AshPostgres.DataLayer,
-    fragments: [AshAgent.Invocation]
+    fragments: [AshAgent.Invocation],
+    extensions: [AshEvents.Events, AshOpenLineage.Extension]
 
   postgres do
     table "battery_invocations"
     repo Battery.Repo
+  end
+
+  events do
+    event_log Battery.Events.EventLog
+  end
+
+  lineage do
+    transport Battery.Lineage.Capture
   end
 
   invocation do
