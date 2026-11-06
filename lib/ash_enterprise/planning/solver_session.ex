@@ -64,6 +64,10 @@ defmodule AshEnterprise.Planning.SolverSession do
   alias AshEnterprise.Planning.SolverSession.ProcessTree
   alias AshEnterprise.Platform.SystemActor
 
+  # Sobelow reads `@sobelow_skip` from the source AST; persisting it keeps
+  # `--warnings-as-errors` from calling it unused (see Audit.Export).
+  Module.register_attribute(__MODULE__, :sobelow_skip, persist: true)
+
   @default_backends %{"solverl" => AshEnterprise.Planning.Backend.Solverl}
   @key_pattern ~r/\A[a-z][a-z0-9_]{0,63}\z/
   # Slack on top of the declared solve time before this process stops waiting on the backend.
@@ -162,6 +166,9 @@ defmodule AshEnterprise.Planning.SolverSession do
     end
   end
 
+  # `path` is the configured model directory joined with a key matched against
+  # @key_pattern (model_paths/1): never request input.
+  @sobelow_skip ["Traversal.FileModule"]
   defp pinned?(path, sha) do
     case File.read(path) do
       {:ok, bytes} -> :crypto.hash(:sha256, bytes) |> Base.encode16(case: :lower) == sha
@@ -633,6 +640,10 @@ defmodule AshEnterprise.Planning.SolverSession do
     # time (clock ticks since boot) pins an entry to one process, so a pid the kernel recycled
     # after the solver exited is never signalled.
 
+    # Sobelow reads `@sobelow_skip` from the source AST; persisting it keeps
+    # `--warnings-as-errors` from calling it unused (see Audit.Export).
+    Module.register_attribute(__MODULE__, :sobelow_skip, persist: true)
+
     @type entry :: {pos_integer(), String.t()}
 
     @spec snapshot(pos_integer() | nil) :: [entry()]
@@ -654,6 +665,8 @@ defmodule AshEnterprise.Planning.SolverSession do
       end
     end
 
+    # Reads only /proc/<integer pid>/task/*/children: never request input.
+    @sobelow_skip ["Traversal.FileModule"]
     defp children(pid) do
       "/proc/#{pid}/task/*/children"
       |> Path.wildcard()
@@ -675,6 +688,8 @@ defmodule AshEnterprise.Planning.SolverSession do
 
     # Field 22 of /proc/<pid>/stat. The command name (field 2) may contain spaces and
     # parentheses, so count fields after the *last* closing paren (field 3 is index 0).
+    # `pid` is an integer from /proc: never request input.
+    @sobelow_skip ["Traversal.FileModule"]
     defp start_time(pid) do
       with {:ok, stat} <- File.read("/proc/#{pid}/stat"),
            fields = stat |> String.split(")") |> List.last() |> String.split(),

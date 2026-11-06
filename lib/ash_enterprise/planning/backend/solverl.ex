@@ -50,6 +50,10 @@ defmodule AshEnterprise.Planning.Backend.Solverl do
 
   require Logger
 
+  # Sobelow reads `@sobelow_skip` from the source AST; persisting it keeps
+  # `--warnings-as-errors` from calling it unused (see Audit.Export).
+  Module.register_attribute(__MODULE__, :sobelow_skip, persist: true)
+
   @default_memory_ceiling 2_000_000_000
   @default_max_candidates 5
   @default_grace_ms 5_000
@@ -428,6 +432,8 @@ defmodule AshEnterprise.Planning.Backend.Solverl do
     end
   end
 
+  # `pid` is a /proc directory name already matched against ^\d+$: never request input.
+  @sobelow_skip ["Traversal.FileModule"]
   defp read_stat(pid) do
     with {:ok, content} <- File.read("/proc/#{pid}/stat"),
          [_, rest] <- Regex.run(~r/^\d+ \(.*\) (.*)$/s, content),
