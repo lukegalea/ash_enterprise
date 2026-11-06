@@ -144,7 +144,14 @@ defmodule AshEnterprise.Security.Privilege do
   # grant of one can only be made by a system actor
   # (`AshEnterprise.Security.Validations.OperatorPrivilegeNeedsSystemActor`,
   # `AshEnterprise.Platform.Seeder.grant_platform_operator/1`).
+  #
+  # The credential registry's declared operations (ADR 0063) are here for the same reason
+  # by another road: the one credential is the deployment's, not a tenant's, and a
+  # tenant role's `:global` read would let it call `activate` directly, past the governed
+  # act's four-eyes approval. The governed act reaches it through
+  # `AshEnterprise.Security.Checks.GovernedCall`, which needs no role.
   @operator_only [
+    "AshEnterprise.Credentialing.RegistryApi",
     "AshEnterprise.Erasure.Key",
     "AshEnterprise.Erasure.Scope",
     "AshEnterprise.Ingestion.SourceObject"

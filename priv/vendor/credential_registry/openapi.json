@@ -1,0 +1,87 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Credential registry (synthetic)",
+    "version": "2026-11-01",
+    "description": "SYNTHETIC. Invented for the ash_enterprise template: no real registry publishes this document. It stands in for a provider's vendored OpenAPI file so the declared operations in AshEnterprise.Credentialing.RegistryApi have something to be pinned against."
+  },
+  "paths": {
+    "/v1/activations": {
+      "post": {
+        "operationId": "createActivation",
+        "summary": "Activate a credential. Not idempotent: every accepted call is a new activation.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["subjectReference"],
+                "properties": {
+                  "subjectReference": {"type": "string"},
+                  "licenceNumber": {"type": "string"}
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {"description": "The activation.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Activation"}}}},
+          "default": {"$ref": "#/components/responses/Error"}
+        }
+      },
+      "get": {
+        "operationId": "listActivations",
+        "summary": "Activations, filtered by credential reference.",
+        "parameters": [
+          {"name": "subjectReference", "in": "query", "schema": {"type": "string"}},
+          {"name": "pageSize", "in": "query", "schema": {"type": "integer", "minimum": 1, "maximum": 100}}
+        ],
+        "responses": {
+          "200": {
+            "description": "A page of activations.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {"data": {"type": "array", "items": {"$ref": "#/components/schemas/Activation"}}}
+                }
+              }
+            }
+          },
+          "default": {"$ref": "#/components/responses/Error"}
+        }
+      }
+    },
+    "/v1/activations/{activationId}": {
+      "get": {
+        "operationId": "getActivation",
+        "summary": "One activation.",
+        "parameters": [{"name": "activationId", "in": "path", "required": true, "schema": {"type": "string"}}],
+        "responses": {
+          "200": {"description": "The activation.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Activation"}}}},
+          "default": {"$ref": "#/components/responses/Error"}
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Activation": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "string"},
+          "subjectReference": {"type": "string"},
+          "status": {"type": "string", "enum": ["active"]}
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {"code": {"type": "string"}, "requestId": {"type": "string"}}
+      }
+    },
+    "responses": {
+      "Error": {"description": "The error envelope.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}}
+    }
+  }
+}

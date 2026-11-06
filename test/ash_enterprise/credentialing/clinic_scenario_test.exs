@@ -24,7 +24,7 @@ defmodule AshEnterprise.Credentialing.ClinicScenarioTest do
   alias AshEnterprise.Bpmn.HumanTask
   alias AshEnterprise.Credentialing
   alias AshEnterprise.Credentialing.{Clinic, Clinician, Credential, DemoData}
-  alias AshEnterprise.Credentialing.{Registry, RegistryError}
+  alias AshEnterprise.Credentialing.Registry
   alias AshEnterprise.Execution
   alias AshEnterprise.Execution.{Approval, Invocation}
   alias AshEnterprise.Execution.Invocation.ExecuteWorker
@@ -212,14 +212,13 @@ defmodule AshEnterprise.Credentialing.ClinicScenarioTest do
   end
 
   test "a registry failure is typed, so an invocation can classify it" do
-    unavailable = RegistryError.exception(reason: :unavailable)
-    refused = RegistryError.exception(reason: :refused)
+    failed = AshOperations.Error.exception(reason: :server_error, provider: :credential_registry)
+    refused = AshOperations.Error.exception(reason: :unauthorized, provider: :credential_registry)
 
-    assert Failure.classify(Ash.Error.to_ash_error(unavailable)) ==
-             {:transient, "registry_unavailable"}
+    assert Failure.classify(Ash.Error.to_ash_error(failed)) == {:transient, "server_error"}
 
     assert Failure.classify_started(Ash.Error.to_ash_error(refused)) ==
-             {:permanent, "registry_refused"}
+             {:permanent, "unauthorized"}
   end
 
   test "a new tenant's Administrator holds the credentialing privileges" do
