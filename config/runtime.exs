@@ -347,6 +347,10 @@ config :ash_enterprise, AshEnterprise.SystemOne.QuestionProposal.Transport,
 #   * CREDENTIAL_REGISTRY_RESIDENCY   `in_cluster` or `sub_processor` (the default). A
 #                                     sub-processor needs the tenant's recorded opt-in before a
 #                                     licence number is sent (`RegistryDisclosureGate`).
+#   * CREDENTIAL_REGISTRY_WEBHOOK_SECRETS
+#                                     comma-separated HMAC secrets for the provider webhook
+#                                     ingress (`POST /webhooks/credential-registry`); several at
+#                                     once is how a secret is rotated. None: the route answers 503.
 if config_env() != :test do
   registry_residency =
     case System.get_env("CREDENTIAL_REGISTRY_RESIDENCY") do
@@ -358,6 +362,13 @@ if config_env() != :test do
     base_url: System.get_env("CREDENTIAL_REGISTRY_URL"),
     api_key: System.get_env("CREDENTIAL_REGISTRY_API_KEY"),
     residency: registry_residency
+
+  config :ash_enterprise, AshEnterprise.Credentialing.RegistryWebhook,
+    secrets:
+      "CREDENTIAL_REGISTRY_WEBHOOK_SECRETS"
+      |> System.get_env("")
+      |> String.split(",", trim: true)
+      |> Enum.map(&String.trim/1)
 end
 
 if config_env() == :dev do
