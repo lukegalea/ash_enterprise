@@ -5,6 +5,10 @@ defmodule AshEnterprise.Surfaces do
   Everything that needs to know "what surfaces exist" derives from the list
   below rather than keeping its own copy:
 
+    * the thin pages and their routes: an entry that names a `ui` and no
+      `live` gets a generated `AshA2ui.LiveRenderer`
+      (`AshEnterpriseWeb.SurfaceLive`) routed at its `path` (`generated/0`);
+      hand-written renderers are declared `renderer: :specialist`;
     * the web nav (grouped menus) and the `/app` launcher;
     * the web door (`AshEnterpriseWeb.SurfaceDoor`), which finds the entry for
       the LiveView being mounted and checks its `door`;
@@ -45,7 +49,6 @@ defmodule AshEnterprise.Surfaces do
   alias AshEnterprise.Surfaces.{Doors, Surface}
   alias AshEnterpriseWeb.A2ui
   alias AshEnterpriseWeb.A2uiLive
-  alias AshEnterpriseWeb.ComplianceA2uiLive
   alias AshEnterpriseWeb.DailyLive
 
   @groups [
@@ -158,6 +161,7 @@ defmodule AshEnterprise.Surfaces do
       icon: "hero-sun",
       path: "/app/today",
       live: DailyLive.Today,
+      renderer: :specialist,
       ui: A2ui.TodayUI,
       resource: MorningBrief,
       context: :brief,
@@ -205,6 +209,7 @@ defmodule AshEnterprise.Surfaces do
       icon: "hero-calendar-days",
       path: "/app/calendar",
       live: DailyLive.Calendar,
+      renderer: :specialist,
       ui: A2ui.CalendarUI,
       resource: AshEnterprise.Canonical.CalendarEvent,
       context: :event,
@@ -226,6 +231,7 @@ defmodule AshEnterprise.Surfaces do
       icon: "hero-envelope",
       path: "/app/inbox",
       live: DailyLive.Inbox,
+      renderer: :specialist,
       ui: A2ui.InboxUI,
       resource: AshEnterprise.Canonical.Conversation,
       context: :thread,
@@ -247,6 +253,7 @@ defmodule AshEnterprise.Surfaces do
       icon: "hero-chat-bubble-left-right",
       path: "/app/slack",
       live: DailyLive.Slack,
+      renderer: :specialist,
       ui: A2ui.SlackUI,
       resource: AshEnterprise.Canonical.Conversation,
       context: :conversation,
@@ -267,6 +274,7 @@ defmodule AshEnterprise.Surfaces do
       icon: "hero-user-circle",
       path: "/app/people",
       live: DailyLive.People,
+      renderer: :specialist,
       ui: A2ui.PeopleUI,
       resource: AshEnterprise.Canonical.Person,
       context: :person,
@@ -294,6 +302,7 @@ defmodule AshEnterprise.Surfaces do
       icon: "hero-check-circle",
       path: "/app/action-items",
       live: DailyLive.ActionItems,
+      renderer: :specialist,
       ui: A2ui.ActionItemsUI,
       resource: AshEnterprise.Canonical.Task,
       context: :item,
@@ -323,6 +332,7 @@ defmodule AshEnterprise.Surfaces do
       icon: "hero-check-badge",
       path: "/app/approvals",
       live: DailyLive.Approvals,
+      renderer: :specialist,
       ui: A2ui.ApprovalsUI,
       resource: HumanTask,
       context: :task,
@@ -359,6 +369,7 @@ defmodule AshEnterprise.Surfaces do
       icon: "hero-arrow-path",
       path: "/app/accounts",
       live: DailyLive.Accounts,
+      renderer: :specialist,
       ui: A2ui.AccountsUI,
       resource: LinkedAccount,
       context: :account,
@@ -388,6 +399,7 @@ defmodule AshEnterprise.Surfaces do
       icon: "hero-trash",
       path: "/app/erasure",
       live: DailyLive.Erasure,
+      renderer: :specialist,
       ui: A2ui.ErasureUI,
       resource: AshEnterprise.Erasure.Scope,
       context: :scope,
@@ -419,6 +431,7 @@ defmodule AshEnterprise.Surfaces do
       icon: "hero-share",
       path: "/app/lineage",
       live: AshEnterpriseWeb.LineageLive,
+      renderer: :specialist,
       ui: A2ui.LineageUI,
       resource: AshEnterprise.Lineage.Run,
       context: :run,
@@ -445,6 +458,7 @@ defmodule AshEnterprise.Surfaces do
       icon: "hero-clipboard-document-list",
       path: "/app/audit",
       live: AshEnterpriseWeb.AuditLive,
+      renderer: :specialist,
       ui: A2ui.AuditUI,
       resource: AshEnterprise.Audit.EventLog,
       context: :entry,
@@ -465,7 +479,6 @@ defmodule AshEnterprise.Surfaces do
       order: 0,
       icon: "hero-inbox-stack",
       path: "/app/tasks",
-      live: A2uiLive.Tasks,
       ui: A2ui.TaskBoardUI,
       resource: HumanTask,
       context: :task,
@@ -488,6 +501,7 @@ defmodule AshEnterprise.Surfaces do
       icon: "hero-map",
       path: "/app/flights",
       live: AshEnterpriseWeb.FlightLive.Instance,
+      renderer: :specialist,
       ui: A2ui.FlightUI,
       resource: AshEnterprise.Bpmn.Instance,
       context: :instance,
@@ -502,6 +516,7 @@ defmodule AshEnterprise.Surfaces do
       icon: "hero-sun",
       path: "/app/flights/briefs",
       live: AshEnterpriseWeb.FlightLive.Briefs,
+      renderer: :specialist,
       ui: A2ui.BriefFlightUI,
       resource: AshEnterprise.Bpmn.Instance,
       acp: %{command: "brief flight", aliases: ["briefs in flight"]}
@@ -516,6 +531,7 @@ defmodule AshEnterprise.Surfaces do
       icon: "hero-hand-raised",
       path: "/app/flights/stewardship",
       live: AshEnterpriseWeb.FlightLive.Stewardship,
+      renderer: :specialist,
       ui: A2ui.StewardFlightUI,
       resource: AshEnterprise.Bpmn.Instance,
       acp: %{command: "stewardship flight", aliases: ["steward flight"]}
@@ -581,7 +597,6 @@ defmodule AshEnterprise.Surfaces do
       order: 0,
       icon: "hero-shield-exclamation",
       path: "/app/compliance/findings",
-      live: ComplianceA2uiLive.Findings,
       ui: A2ui.FindingUI,
       resource: AshCompliance.Resources.Finding,
       door: :compliance,
@@ -599,7 +614,6 @@ defmodule AshEnterprise.Surfaces do
       order: 10,
       icon: "hero-clipboard-document-check",
       path: "/app/compliance/evaluations",
-      live: ComplianceA2uiLive.Evaluations,
       ui: A2ui.ComplianceEvaluationUI,
       resource: AshCompliance.Resources.ComplianceEvaluation,
       door: :compliance,
@@ -614,7 +628,6 @@ defmodule AshEnterprise.Surfaces do
       order: 20,
       icon: "hero-scale",
       path: "/app/compliance/rule-sets",
-      live: ComplianceA2uiLive.RuleSets,
       ui: A2ui.RuleSetRevisionUI,
       resource: AshCompliance.Resources.RuleSetRevision,
       door: :compliance,
@@ -629,7 +642,6 @@ defmodule AshEnterprise.Surfaces do
       order: 30,
       icon: "hero-archive-box",
       path: "/app/compliance/bundles",
-      live: ComplianceA2uiLive.Bundles,
       ui: A2ui.PolicyBundleUI,
       resource: AshCompliance.Resources.PolicyBundle,
       door: :compliance,
@@ -644,7 +656,6 @@ defmodule AshEnterprise.Surfaces do
       order: 40,
       icon: "hero-book-open",
       path: "/app/compliance/catalogs",
-      live: ComplianceA2uiLive.Catalogs,
       ui: A2ui.CatalogUI,
       resource: AshCompliance.Resources.Catalog,
       context: :catalog,
@@ -660,7 +671,6 @@ defmodule AshEnterprise.Surfaces do
       order: 50,
       icon: "hero-adjustments-horizontal",
       path: "/app/compliance/profiles",
-      live: ComplianceA2uiLive.Profiles,
       ui: A2ui.ProfileUI,
       resource: AshCompliance.Resources.Profile,
       door: :compliance,
@@ -678,7 +688,6 @@ defmodule AshEnterprise.Surfaces do
       order: 0,
       icon: "hero-users",
       path: "/app/users",
-      live: A2uiLive.Users,
       ui: A2ui.UserUI,
       resource: AshEnterprise.Accounts.User,
       context: :user,
@@ -693,7 +702,6 @@ defmodule AshEnterprise.Surfaces do
       order: 10,
       icon: "hero-user-group",
       path: "/app/teams",
-      live: A2uiLive.Teams,
       ui: A2ui.TeamUI,
       resource: AshEnterprise.Accounts.Team,
       context: :team,
@@ -708,7 +716,6 @@ defmodule AshEnterprise.Surfaces do
       order: 20,
       icon: "hero-key",
       path: "/app/roles",
-      live: A2uiLive.Roles,
       ui: A2ui.RoleUI,
       resource: AshEnterprise.Security.Role,
       acp: %{command: "roles"}
@@ -722,7 +729,6 @@ defmodule AshEnterprise.Surfaces do
       order: 30,
       icon: "hero-building-office-2",
       path: "/app/business-units",
-      live: A2uiLive.BusinessUnits,
       ui: A2ui.BusinessUnitUI,
       resource: AshEnterprise.Accounts.BusinessUnit,
       context: :business_unit,
@@ -743,6 +749,7 @@ defmodule AshEnterprise.Surfaces do
       icon: "hero-identification",
       path: "/app/directory",
       live: A2uiLive.ProjectedUsers,
+      renderer: :specialist,
       ui: A2ui.ProjectedUserUI,
       resource: AshEnterprise.Accounts.ProjectedUser,
       acp: %{command: "directory"}
@@ -768,7 +775,6 @@ defmodule AshEnterprise.Surfaces do
       order: 0,
       icon: "hero-scale",
       path: "/app/judgments",
-      live: A2uiLive.JudgmentVerdicts,
       ui: A2ui.Judgments.VerdictsUI,
       resource: AshEnterprise.SystemOne.Banding,
       acp: %{command: "verdicts", aliases: ["judgments awaiting verdict"]}
@@ -785,7 +791,6 @@ defmodule AshEnterprise.Surfaces do
       order: 1,
       icon: "hero-check-badge",
       path: "/app/judgments/band-tables",
-      live: A2uiLive.JudgmentBandTables,
       ui: A2ui.Judgments.BandTablesUI,
       resource: AshEnterprise.SystemOne.CalibrationRun,
       acp: %{command: "band tables", aliases: ["certify band tables"]}
@@ -798,7 +803,6 @@ defmodule AshEnterprise.Surfaces do
       order: 2,
       icon: "hero-shield-check",
       path: "/app/judgments/certifications",
-      live: A2uiLive.JudgmentCertifications,
       ui: A2ui.Judgments.CertificationsUI,
       resource: AshEnterprise.SystemOne.BandTableCertification,
       acp: %{command: "certified band tables", aliases: ["certifications"]}
@@ -815,7 +819,6 @@ defmodule AshEnterprise.Surfaces do
       order: 3,
       icon: "hero-chart-bar",
       path: "/app/judgments/calibration",
-      live: A2uiLive.JudgmentCalibration,
       ui: A2ui.Judgments.CalibrationUI,
       resource: AshEnterprise.SystemOne.CalibrationRun,
       acp: %{command: "calibration", aliases: ["calibration runs"]}
@@ -832,7 +835,6 @@ defmodule AshEnterprise.Surfaces do
       order: 4,
       icon: "hero-document-check",
       path: "/app/judgments/facts",
-      live: A2uiLive.JudgmentFacts,
       ui: A2ui.Judgments.FactsUI,
       resource: AshEnterprise.SystemOne.Fact,
       acp: %{command: "facts", aliases: ["judged facts"]}
@@ -849,7 +851,6 @@ defmodule AshEnterprise.Surfaces do
       order: 0,
       icon: "hero-hand-raised",
       path: "/app/mdm",
-      live: A2uiLive.MdmSteward,
       ui: A2ui.MdmStewardUI,
       resource: AshEnterprise.Mdm.MatchCandidate,
       context: :candidate,
@@ -883,6 +884,7 @@ defmodule AshEnterprise.Surfaces do
       icon: "hero-star",
       path: "/app/mdm/golden",
       live: A2uiLive.MdmGolden,
+      renderer: :specialist,
       ui: A2ui.MdmGoldenUI,
       resource: AshEnterprise.Canonical.Person,
       # People is the first surface over Person, so a plain person link opens
@@ -917,7 +919,6 @@ defmodule AshEnterprise.Surfaces do
       order: 30,
       icon: "hero-arrows-right-left",
       path: "/app/mdm/mappings",
-      live: A2uiLive.MdmMappings,
       ui: A2ui.MdmMappingUI,
       resource: AshEnterprise.Mdm.Mapping,
       context: :mapping,
@@ -936,7 +937,6 @@ defmodule AshEnterprise.Surfaces do
       order: 40,
       icon: "hero-rectangle-stack",
       path: "/app/mdm/batches",
-      live: A2uiLive.MdmBatches,
       ui: A2ui.MdmBatchUI,
       resource: AshEnterprise.Mdm.ImportBatch,
       context: :batch,
@@ -961,7 +961,6 @@ defmodule AshEnterprise.Surfaces do
       order: 0,
       icon: "hero-identification",
       path: "/app/credentialing",
-      live: A2uiLive.Credentials,
       ui: A2ui.CredentialUI,
       resource: AshEnterprise.Credentialing.Credential,
       context: :credential,
@@ -1003,11 +1002,27 @@ defmodule AshEnterprise.Surfaces do
       icon: "hero-user",
       path: "/app/legacy-users",
       live: A2uiLive.LegacyUsers,
+      renderer: :specialist,
       ui: A2ui.LegacyUserUI,
       resource: AshEnterprise.Legacy.User,
       acp: %{command: "legacy users"}
     }
   ]
+
+  # A thin surface names its UI and no LiveView: the registry names the page
+  # it gets, which AshEnterpriseWeb.SurfaceLive defines and the router routes.
+  @surfaces Enum.map(@surfaces, fn
+              %Surface{live: nil, ui: nil, key: key} ->
+                raise ArgumentError,
+                      "surface #{inspect(key)} names neither a LiveView nor a UI to generate one from"
+
+              %Surface{live: nil, key: key} = surface ->
+                live = Module.concat(AshEnterpriseWeb.SurfaceLive, Macro.camelize("#{key}"))
+                %{surface | live: live, renderer: :generated}
+
+              surface ->
+                surface
+            end)
 
   @group_rank @groups |> Enum.with_index() |> Map.new(fn {g, i} -> {g.key, i} end)
   @sorted Enum.sort_by(@surfaces, &{Map.fetch!(@group_rank, &1.group), &1.order})
@@ -1018,6 +1033,13 @@ defmodule AshEnterprise.Surfaces do
   @doc "Every surface, in group order then `order`."
   @spec all() :: [Surface.t()]
   def all, do: @sorted
+
+  @doc """
+  The surfaces whose page is generated from the entry
+  (`AshEnterpriseWeb.SurfaceLive` defines it, the router routes it).
+  """
+  @spec generated() :: [Surface.t()]
+  def generated, do: Enum.filter(@sorted, &(&1.renderer == :generated))
 
   @doc """
   A registry label or blurb in the current process's Gettext locale. The texts

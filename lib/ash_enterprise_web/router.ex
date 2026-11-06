@@ -142,7 +142,15 @@ defmodule AshEnterpriseWeb.Router do
     #
     # Declarative, agent-renderable screens derived from resource metadata. Each
     # runs the resource's own read actions with the signed-in actor, so it is
-    # filtered by the same policies as /admin and the APIs.
+    # filtered by the same policies as /admin and the APIs. Each entry's door
+    # (the compliance surfaces' `:compliance`, say) is checked per page by
+    # SurfaceDoor.
+    #
+    # The thin ones are generated: every registry entry that names a UI and no
+    # LiveView (AshEnterprise.Surfaces.generated/0) gets a page from
+    # AshEnterpriseWeb.SurfaceLive, routed here at its path. Adding one is a
+    # registry entry, not a route. `alias: false` because the registry names
+    # each LiveView in full.
     #
     # Tier 3 (docs/manifesto/06-reversibility.md): removing ash_a2ui means
     # deleting lib/ash_enterprise_web/a2ui/, this live_session, and these
@@ -153,22 +161,14 @@ defmodule AshEnterpriseWeb.Router do
         AshEnterpriseWeb.LiveLocale,
         AshEnterpriseWeb.SurfaceDoor
       ] do
+      scope "/", alias: false do
+        for surface <- AshEnterprise.Surfaces.generated() do
+          live surface.path, surface.live
+        end
+      end
+
       live "/agent", AgentLive
-      live "/app/users", A2uiLive.Users
-      live "/app/teams", A2uiLive.Teams
-      live "/app/roles", A2uiLive.Roles
-      live "/app/business-units", A2uiLive.BusinessUnits
-      live "/app/mdm", A2uiLive.MdmSteward
-      live "/app/mdm/mappings", A2uiLive.MdmMappings
       live "/app/mdm/golden", A2uiLive.MdmGolden
-      live "/app/mdm/batches", A2uiLive.MdmBatches
-      live "/app/judgments", A2uiLive.JudgmentVerdicts
-      live "/app/judgments/band-tables", A2uiLive.JudgmentBandTables
-      live "/app/judgments/certifications", A2uiLive.JudgmentCertifications
-      live "/app/judgments/calibration", A2uiLive.JudgmentCalibration
-      live "/app/judgments/facts", A2uiLive.JudgmentFacts
-      live "/app/tasks", A2uiLive.Tasks
-      live "/app/credentialing", A2uiLive.Credentials
 
       # The same people, over a table this application owns rather than a view over the legacy
       # one. Both are live, and the pair is the demonstration -- see
@@ -276,31 +276,6 @@ defmodule AshEnterpriseWeb.Router do
         AshEnterpriseWeb.SurfaceDoor
       ] do
       live "/legacy/agent", LegacyAgentLive
-    end
-
-    # Compliance surfaces (ADR 0035): findings, evaluations, bundle/rule-set
-    # lifecycle, catalogs and profiles. A separate live_session because these
-    # sit behind the registry's `:compliance` door (AshEnterprise.Surfaces.Doors,
-    # checked by SurfaceDoor) — a read grant on the compliance finding resource,
-    # the same (role, privilege, depth) tuple every other governed surface
-    # resolves — because the surfaces read foreign `ash_compliance` resources
-    # whose access is admin-shaped.
-    #
-    # Tier 3, like the surfaces above: removing ash_compliance means deleting
-    # lib/ash_enterprise/compliance/, lib/ash_enterprise_web/a2ui/'s
-    # compliance surfaces, this live_session, and these routes.
-    ash_authentication_live_session :compliance_surfaces,
-      on_mount: [
-        {AshEnterpriseWeb.LiveUserAuth, :live_user_required},
-        AshEnterpriseWeb.LiveLocale,
-        AshEnterpriseWeb.SurfaceDoor
-      ] do
-      live "/app/compliance/findings", ComplianceA2uiLive.Findings
-      live "/app/compliance/evaluations", ComplianceA2uiLive.Evaluations
-      live "/app/compliance/bundles", ComplianceA2uiLive.Bundles
-      live "/app/compliance/rule-sets", ComplianceA2uiLive.RuleSets
-      live "/app/compliance/catalogs", ComplianceA2uiLive.Catalogs
-      live "/app/compliance/profiles", ComplianceA2uiLive.Profiles
     end
 
     # Process and decision surfaces. A separate live_session from the A2UI one because these

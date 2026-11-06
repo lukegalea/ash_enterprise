@@ -12,8 +12,9 @@ defmodule AshEnterprise.Surfaces.Surface do
   | `order` | Position within its group |
   | `icon` | Heroicon name for the launcher card |
   | `path` | The web route (`/app/...`) |
-  | `live` / `live_action` | The LiveView (and action) routed at `path`; how the web door finds the entry |
+  | `live` / `live_action` | The LiveView (and action) routed at `path`; how the web door finds the entry. Left out when the page is generated (see `renderer`) |
   | `ui` | The `AshA2ui` UI module the page renders, or `nil` for a hand-written page |
+  | `renderer` | `:generated`, `:specialist` or `nil`, see below |
   | `resource` | The Ash resource the surface is about |
   | `context` | The A2UI context on `ui` that selects one `resource` record for detail, or `nil` |
   | `record_match` | Attribute values a record must have to be *this* surface's, when several surfaces show the same resource (Inbox and Slack over `Conversation`); `[]` matches any |
@@ -35,9 +36,24 @@ defmodule AshEnterprise.Surfaces.Surface do
       }
 
   Surfaces without a bespoke action open through `Console.open` (`open <command>`).
+
+  ## `renderer`
+
+    * `:generated`: the entry names a `ui` and no `live`. The registry names
+      the LiveView (`AshEnterpriseWeb.SurfaceLive.<Key>`),
+      `AshEnterpriseWeb.SurfaceLive` defines it as a plain
+      `AshA2ui.LiveRenderer` over `ui`, and the router routes it at `path`.
+      Never declared by hand.
+    * `:specialist`: a hand-written `AshA2ui.LiveRenderer` that adds live
+      behaviour the UI module cannot declare (a refresh banner, reports run on
+      arrival, a diagram, an `?as_of=` banner). Declared, so a reviewer sees
+      each one; the renderer test refuses any hand-written renderer that is
+      not.
+    * `nil`: a hand-written LiveView that is not a renderer (a designer, a
+      wizard, the tour).
   """
 
-  @enforce_keys [:key, :label, :blurb, :group, :order, :path, :live]
+  @enforce_keys [:key, :label, :blurb, :group, :order, :path]
   defstruct [
     :key,
     :label,
@@ -52,11 +68,13 @@ defmodule AshEnterprise.Surfaces.Surface do
     :resource,
     :context,
     :acp,
+    :renderer,
     record_match: [],
     icon: "hero-squares-2x2",
     door: :signed_in
   ]
 
+  @type renderer :: :generated | :specialist | nil
   @type door :: :signed_in | :operator | :compliance | :lineage | :audit
   @type group ::
           :day
@@ -86,6 +104,7 @@ defmodule AshEnterprise.Surfaces.Surface do
           context: atom() | nil,
           record_match: keyword(),
           door: door(),
-          acp: map() | nil
+          acp: map() | nil,
+          renderer: renderer()
         }
 end

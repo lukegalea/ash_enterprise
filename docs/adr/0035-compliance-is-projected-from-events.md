@@ -117,8 +117,8 @@ compensating controls — the compiler refuses the last of these outright.
 
 The wire-up is narrow and greppable. To undo: delete
 `lib/ash_enterprise/compliance/`, the compliance surfaces in
-`lib/ash_enterprise_web/` (a2ui modules, `ComplianceA2uiLive`,
-`ComplianceAuth`, the router's `:compliance_surfaces` session), the
+`lib/ash_enterprise_web/` (a2ui modules, and their entries in
+`AshEnterprise.Surfaces`, from which their pages and routes are generated), the
 `:ash_compliance` / `:ash_events_projections` / `:ash_strangler ledger_drain`
 config blocks, the two dependencies, and the three migrations
 (`add_compliance_ledger`, `add_compliance_control_plane`,
