@@ -37,14 +37,16 @@ Before the first test run, do the pre-flight:
 ## 2. Run the local checks, not the whole suite
 
 ```bash
-mix format --check-formatted
-mix compile --warnings-as-errors
-mix credo --strict
-mix ash.codegen --check
-scripts/iron-laws.sh
+scripts/pre-ci                    # CI's static steps, in CI's order; --keep-going runs them all
 mix test <the test files you added or affected>
 mix test.durability <the durability files you added or affected>   # by file, see docs/DURABILITY-TESTS.md
 ```
+
+`scripts/pre-ci` runs the main job's checks that need no test run (format, the compile gate, Credo,
+the codegen, Gettext and roadmap checks, Sobelow, the migration replay into a non-public schema, the
+agent docs, the laws judge, the usage rules), the shard assignment and the battery pins check. It
+prints one line per step, stops at the first failure with the end of that step's output, and keeps
+every step's full log. Outside devenv it re-runs itself under `devenv shell` from the main checkout.
 
 If you touched a seam between substrates or a dependency pin, also run the battery (`mix platform_battery`
 in `battery/`, see `battery/README.md`). Every run uses the one `platform_battery_test` database, so

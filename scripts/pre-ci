@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+#
+# Run CI's static checks locally, in the order and with the commands of
+# .github/workflows/ci.yml, before pushing to a ci/** branch. It runs what
+# needs no test suite: formatting, the compile gate, Credo, the generated-code
+# and catalog checks, Sobelow, the migration replay, the agent docs, the laws
+# judge, the usage rules and the battery pins. The suite, the durability tier,
+# the battery itself and the asset build stay with CI (see the ship-a-change
+# skill for which of those to run by file).
+#
+# Usage: scripts/pre-ci [--keep-going]
+#
+# Prints one line per step and stops at the first failure, showing the end of
+# that step's output; --keep-going runs every step and fails at the end if any
+# did. Full output of each step is kept in the log directory it prints.
+#
+# Outside the project environment it re-runs itself under `devenv shell`,
+# from the main checkout when called in a worktree (devenv lives there, and so
+# does the cluster that sets PGPORT). Steps run under MIX_ENV=test, as CI's
+# do; the ones CI runs under MIX_ENV=dev set it themselves.
+#
+# The migration replay needs the database. It uses a partition of its own,
+# derived from MIX_TEST_PARTITION, so it never drops the suite's database.
+
+set -euo pipefail
+
+keep_going=false
+case "${1:-}" in
+  "") ;;
+  --keep-going) keep_going=true ;;
+  *)
+    echo "usage: scripts/pre-ci [--keep-going]" >&2
+    exit 2
+    ;;
+esac
+
+root="$(git rev-parse --show-toplevel)"
+
+if [ -z "${DEVENV_ROOT:-}" ] && command -v devenv >/dev/null; then
+  main="$(dirname "$(git -C "$root" rev-parse --path-format=absolute --git-common-dir)")"
+  cd "$main"
+  exec devenv shell -- bash -c 'cd "$1" && shift && exec scripts/pre-ci "$@"' pre-ci "$root" "$@"
+fi
+
+cd "$root"
+export MIX_ENV=test
+
+logs="$(mktemp -d -t pre-ci.XXXXXX)"
+failed=()
+
+step() {
+  local name="$1"
+  shift
+  local log="$logs/$name.log" start=$SECONDS
+
+  if "$@" >"$log" 2>&1; then
+    printf 'pre-ci: %-16s ok    %4ss\n' "$name" $((SECONDS - start))
+  else
+    printf 'pre-ci: %-16s FAIL  %4ss  (%s)\n' "$name" $((SECONDS - start)) "$log"
+    failed+=("$name")
+
+    if ! $keep_going; then
+      echo "---- last 40 lines of $name ----" >&2
+      tail -n 40 "$log" >&2
+      exit 1
+    fi
+  fi
+}
+
+# The main job, in order. Its durability tier is a test run, not a static step.
+step deps.get mix deps.get
+step deps.compile mix deps.compile
+step format mix format --check-formatted
+step unused-deps mix deps.unlock --check-unused
+step compile mix compile --warnings-as-errors
+step credo mix credo --strict
+step ash.codegen mix ash.codegen --check
+step gettext mix gettext.extract --check-up-to-date
+step a2ui-gettext mix ash_a2ui.gettext.extract_metadata --check-up-to-date
+step roadmap mix ash_enterprise.roadmap --check
+step sobelow mix sobelow --config --skip --exit
+step hex.audit mix hex.audit
+step schema-replay env MIX_TEST_PARTITION="${MIX_TEST_PARTITION:-}_schema_portable" \
+  scripts/schema-portable-migrations.sh
+step ast.check mix ast.check
+step dev-deps env MIX_ENV=dev mix deps.compile
+# CI judges the lines added since the push's base; locally that is origin/main.
+step iron-laws env IRON_LAWS_BASE="${IRON_LAWS_BASE:-origin/main}" scripts/iron-laws.sh
+step extra-docs scripts/extra-docs.sh
+step usage-rules scripts/usage-rules-check.sh
+
+# The test-shards job: every test file lands in exactly one shard.
+step shards elixir scripts/ci-shard.exs check 10
+
+# The battery job's first step; the battery itself is `mix platform_battery`.
+step battery-pins elixir scripts/battery-pins-check.exs
+
+if [ ${#failed[@]} -gt 0 ]; then
+  echo "pre-ci: failed: ${failed[*]} (logs in $logs)" >&2
+  exit 1
+fi
+
+echo "pre-ci: all steps passed (logs in $logs)"

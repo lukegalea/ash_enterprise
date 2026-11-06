@@ -51,7 +51,8 @@ load, and the Ecto Sandbox pool would be missing.
 ## Checks
 
 ```bash
-devenv shell -- check              # the full local gate, same as CI
+scripts/pre-ci                     # CI's static checks, in CI's order (no test run)
+devenv shell -- check              # the static checks plus the whole suite (about two hours)
 devenv shell -- mix test
 devenv shell -- mix ash.codegen --check   # schema drift gate
 devenv shell -- reset-db
