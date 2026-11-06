@@ -386,11 +386,11 @@ defmodule AshEnterpriseWeb.AgentLive do
           </.button>
         </div>
 
-        <.callout :if={@error} kind={:error} role="alert">
+        <.status_message id="agent-error" role="alert" show={@error != nil} kind={:error}>
           <span class="whitespace-pre-line">{@error}</span>
-        </.callout>
+        </.status_message>
 
-        <.callout :if={@result} kind={:success} role="status">
+        <.status_message id="agent-result" show={@result != nil} kind={:success}>
           <span>{@result}</span>
           <.link
             :if={@approval_url}
@@ -400,7 +400,7 @@ defmodule AshEnterpriseWeb.AgentLive do
           >
             {dgettext("assistant", "Open the request")}
           </.link>
-        </.callout>
+        </.status_message>
 
         <%!--
         The confirmation. This is the first human-in-the-loop step: the request is

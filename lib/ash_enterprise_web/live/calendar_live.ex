@@ -37,6 +37,8 @@ defmodule AshEnterpriseWeb.DailyLive.Calendar do
 
   use AshEnterpriseWeb, :verified_routes
 
+  import AshEnterpriseWeb.StatusComponents, only: [status_message: 1]
+
   alias AshA2ui.{AsOf, TimeScrubber}
   alias AshEnterprise.Canonical.CalendarHistory
   alias AshEnterprise.Platform.LocalTime
@@ -109,15 +111,10 @@ defmodule AshEnterpriseWeb.DailyLive.Calendar do
     ~H"""
     <Layouts.app flash={@flash} page={assigns[:page]} width="max-w-7xl">
       <div :if={@week} class="space-y-3">
-        <div
-          :if={@ash_a2ui_as_of}
-          id="calendar-as-of"
-          role="status"
-          class="rounded-base border-2 border-border bg-yellow px-4 py-2 text-sm text-on-vivid shadow-shadow"
-        >
+        <.status_message id="calendar-as-of" show={@ash_a2ui_as_of != nil} kind={:warning}>
           Your calendar as it was known on {LocalTime.stamp(@ash_a2ui_as_of)}. Who was invited, and
           people's names, are shown as they are today. Nothing here can be changed.
-        </div>
+        </.status_message>
         <div class="flex flex-wrap items-baseline justify-between gap-2">
           <h2 id="calendar-week" class="font-heading text-lg">
             The week of {LocalTime.day(@week)}, through time

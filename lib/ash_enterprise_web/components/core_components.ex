@@ -440,12 +440,16 @@ defmodule AshEnterpriseWeb.CoreComponents do
   end
 
   @doc """
-  Renders a callout: an inline status block for a result, an error or a
-  warning, with an icon chip in the kind's colour.
+  Renders a callout: an inline block for a result, an error or a warning,
+  with an icon chip in the kind's colour.
+
+  A callout that is news, something to announce without moving focus, goes
+  through `AshEnterpriseWeb.StatusComponents.status_message/1`, which keeps
+  its live region on the page between messages.
 
   ## Examples
 
-      <.callout kind={:error} role="alert">Something went wrong.</.callout>
+      <.callout kind={:warning}>Nothing here can be changed.</.callout>
   """
   attr :kind, :atom, values: [:info, :success, :warning, :error], default: :info
   attr :class, :any, default: nil

@@ -43,11 +43,13 @@ defmodule AshEnterpriseWeb.Layouts do
   attr :page, :map,
     default: nil,
     doc: """
-    The chrome `AshEnterpriseWeb.SurfaceDoor` assigns: `%{surface:, nav:, as_of:, actor:}`.
+    The chrome `AshEnterpriseWeb.SurfaceDoor` assigns: `%{surface:, nav:, as_of:, actor:, context:}`.
     `nav` draws the grouped menus (only the surfaces whose door is open for the
     viewer); `surface` marks the current item and, when present, draws the page
     header -- the registry's label and blurb, and the as-of line. With an
     `actor`, the page gets the command palette and launcher (`AshEnterpriseWeb.Shell`).
+    `context` draws the context band under the menus: tenant, identity and
+    impersonation (`context_band/1`).
     """
 
   slot :toolbar, doc: "controls on the right of the page header (surface pages only)"
@@ -61,6 +63,7 @@ defmodule AshEnterpriseWeb.Layouts do
       |> assign(:surface, page[:surface])
       |> assign(:as_of, page[:as_of])
       |> assign(:shell_actor, page[:actor])
+      |> assign(:context, page[:context])
       |> assign(:menus, menus(page[:nav] || [], page[:surface]))
 
     ~H"""
@@ -164,6 +167,7 @@ defmodule AshEnterpriseWeb.Layouts do
           </ul>
         </nav>
       </div>
+      <.context_band :if={@context} context={@context} />
     </header>
 
     <%!-- The command palette (ctrl+p) and surface launcher (ctrl+k), on every
@@ -198,6 +202,66 @@ defmodule AshEnterpriseWeb.Layouts do
     <.flash_group flash={@flash} />
     """
   end
+
+  @doc """
+  The context band: the tenant the person is working in, whom they act as,
+  and, when they act on someone else's behalf, the operator really there.
+  Drawn under the menus on every page whose chrome `AshEnterpriseWeb.SurfaceDoor`
+  built; `context` is `AshEnterpriseWeb.SessionContext.for_actor/1`'s.
+
+  An unreadable tenant reads "unknown", never blank, and impersonation is shown
+  in the warning colour even when the operator cannot be named.
+  """
+  attr :context, :map, required: true
+
+  def context_band(assigns) do
+    ~H"""
+    <dl
+      id="context-band"
+      class={[
+        "flex flex-wrap items-center gap-x-5 gap-y-1 border-t-2 border-border px-4 py-1.5 text-xs sm:px-6 lg:px-8",
+        @context.impersonator && "bg-yellow text-on-vivid"
+      ]}
+    >
+      <div id="context-tenant" data-tenant={tenant_state(@context.tenant)} class="flex gap-1.5">
+        <dt class="opacity-70">{gettext("Tenant")}</dt>
+        <dd class="font-heading">{tenant_label(@context.tenant)}</dd>
+      </div>
+      <div id="context-identity" class="flex gap-1.5">
+        <dt class="opacity-70">
+          {if @context.impersonator, do: gettext("Acting as"), else: gettext("Signed in as")}
+        </dt>
+        <dd class="font-heading">{@context.identity || gettext("an actor with no email")}</dd>
+      </div>
+      <div
+        :if={@context.impersonator}
+        id="context-impersonation"
+        data-impersonator={impersonator_state(@context.impersonator)}
+        class="flex items-center gap-1.5"
+      >
+        <dt class="flex items-center gap-1">
+          <.icon name="hero-eye-micro" class="size-4" />
+          <span class="opacity-70">{gettext("Impersonated by")}</span>
+        </dt>
+        <dd class="font-heading">{impersonator_label(@context.impersonator)}</dd>
+        <dd>{gettext("Both are recorded on everything done here.")}</dd>
+      </div>
+    </dl>
+    """
+  end
+
+  defp tenant_state({:named, _name}), do: "named"
+  defp tenant_state(state), do: to_string(state)
+
+  defp tenant_label({:named, name}), do: name
+  defp tenant_label(:none), do: gettext("none")
+  defp tenant_label(_unknown), do: gettext("unknown")
+
+  defp impersonator_state({:named, _email}), do: "named"
+  defp impersonator_state(_unknown), do: "unknown"
+
+  defp impersonator_label({:named, email}), do: email
+  defp impersonator_label(_unknown), do: gettext("an operator who could not be named")
 
   # The nav's menus, from the registry groups the viewer may open: each menu
   # (`AshEnterprise.Surfaces.menus/0`) with its non-empty groups. Today is
@@ -261,6 +325,8 @@ defmodule AshEnterpriseWeb.Layouts do
   def flash_group(assigns) do
     ~H"""
     <div id={@id} aria-live="polite">
+      <%!-- Phoenix's own flash region; page messages go through
+            AshEnterpriseWeb.StatusComponents.status_message/1. --%>
       <.flash kind={:info} flash={@flash} />
       <.flash kind={:error} flash={@flash} />
 

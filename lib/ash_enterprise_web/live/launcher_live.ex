@@ -194,6 +194,10 @@ defmodule AshEnterpriseWeb.LauncherLive do
       else: socket |> matches(q) |> MapSet.new(&String.to_existing_atom(&1["id"]))
   end
 
+  # Whether the results region has anything to say: records Enter looked up,
+  # or a filter that left nothing on the grid. Empty, it takes no space.
+  defp results?(found, shown), do: found != nil or (shown != nil and MapSet.size(shown) == 0)
+
   defp shown?(_surface, nil), do: true
   defp shown?(surface, shown), do: MapSet.member?(shown, surface.key)
 
@@ -294,28 +298,50 @@ defmodule AshEnterpriseWeb.LauncherLive do
           </nav>
         </header>
 
-        <section :if={@found} id="launch-found" class="space-y-3" aria-live="polite">
-          <h2 class="font-heading text-lg">{gettext("Records")}</h2>
-          <ul :if={@found.hits != []} class="space-y-2">
-            <li :for={hit <- @found.hits}>
-              <.link
-                id={"launch-hit-#{hit.surface.key}-#{hit.id}"}
-                href={hit.path}
-                class="font-heading underline"
-              >
-                {Surfaces.translate(hit.surface.label)}
-              </.link>
-              <span class="text-sm text-foreground/70">
-                {gettext("matched on %{field}", field: Phoenix.Naming.humanize(hit.field))}
-              </span>
-            </li>
-          </ul>
-          <p :if={@found.failed != []} id="launch-search-failed" role="alert" class="text-sm">
-            {gettext("Could not search %{surfaces}. Try again, or open it and search there.",
-              surfaces: Enum.map_join(@found.failed, ", ", &Surfaces.translate(&1.label))
-            )}
-          </p>
-        </section>
+        <%!-- What Enter or the filter found, announced without moving focus
+              from the input: the region stays on the page between searches. --%>
+        <.live_region
+          id="launch-results"
+          class={["space-y-3", !results?(@found, @shown) && "sr-only"]}
+        >
+          <section :if={@found} id="launch-found" class="space-y-3">
+            <h2 class="font-heading text-lg">{gettext("Records")}</h2>
+            <ul :if={@found.hits != []} class="space-y-2">
+              <li :for={hit <- @found.hits}>
+                <.link
+                  id={"launch-hit-#{hit.surface.key}-#{hit.id}"}
+                  href={hit.path}
+                  class="font-heading underline"
+                >
+                  {Surfaces.translate(hit.surface.label)}
+                </.link>
+                <span class="text-sm text-foreground/70">
+                  {gettext("matched on %{field}", field: Phoenix.Naming.humanize(hit.field))}
+                </span>
+              </li>
+            </ul>
+          </section>
+
+          <.empty_state
+            :if={@shown && MapSet.size(@shown) == 0 && (is_nil(@found) || @found.hits == [])}
+            icon="hero-magnifying-glass"
+          >
+            <span id="launch-no-match">
+              {gettext("No app or record matches “%{query}”.", query: @filter[:q].value)}
+            </span>
+          </.empty_state>
+        </.live_region>
+
+        <.status_message
+          id="launch-search-failed"
+          role="alert"
+          show={@found != nil and @found.failed != []}
+          kind={:error}
+        >
+          {gettext("Could not search %{surfaces}. Try again, or open it and search there.",
+            surfaces: Enum.map_join(@found.failed, ", ", &Surfaces.translate(&1.label))
+          )}
+        </.status_message>
 
         <%!-- The lead: Today, with the day's pulse. Full width and in the
               primary tone, because the day is why you opened the app. --%>
@@ -421,15 +447,6 @@ defmodule AshEnterpriseWeb.LauncherLive do
             </li>
           </ul>
         </section>
-
-        <.empty_state
-          :if={@shown && MapSet.size(@shown) == 0 && (is_nil(@found) || @found.hits == [])}
-          icon="hero-magnifying-glass"
-        >
-          <span id="launch-no-match">
-            {gettext("No app or record matches “%{query}”.", query: @filter[:q].value)}
-          </span>
-        </.empty_state>
 
         <.empty_state :if={!@today and @groups == []} icon="hero-lock-closed">
           {gettext("Nothing is open to you yet. An administrator grants access by role.")}

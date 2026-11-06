@@ -385,6 +385,8 @@ defmodule AshEnterpriseWeb.A2uiLive do
       actor_fn: &__MODULE__.actor/1,
       tenant_fn: &__MODULE__.tenant/1
 
+    import AshEnterpriseWeb.StatusComponents, only: [status_message: 1]
+
     alias AshEnterprise.Platform.LocalTime
     alias AshEnterprise.Security.ActorContext
     alias AshEnterpriseWeb.A2uiLive.Chrome
@@ -397,19 +399,17 @@ defmodule AshEnterpriseWeb.A2uiLive do
     def render(%{ash_a2ui_as_of: %DateTime{}} = assigns) do
       ~H"""
       <Layouts.app flash={@flash} page={assigns[:page]} width="max-w-7xl">
-        <div
-          id="golden-as-of"
-          role="status"
-          class="flex flex-wrap items-center justify-between gap-3 rounded-base border-2 border-border bg-yellow px-4 py-2 text-sm text-on-vivid shadow-shadow"
-        >
-          <span>
-            Source identities as of {LocalTime.stamp(@ash_a2ui_as_of)}. The people are shown as
-            they are today. Nothing here can be changed.
-          </span>
-          <.link navigate={now_path(@ash_a2ui_uri)} class="font-heading underline">
-            Return to now
-          </.link>
-        </div>
+        <.status_message id="golden-as-of" kind={:warning}>
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <span>
+              Source identities as of {LocalTime.stamp(@ash_a2ui_as_of)}. The people are shown as
+              they are today. Nothing here can be changed.
+            </span>
+            <.link navigate={now_path(@ash_a2ui_uri)} class="font-heading underline">
+              Return to now
+            </.link>
+          </div>
+        </.status_message>
         {AshA2ui.LiveRenderer.surface_container(assigns)}
       </Layouts.app>
       """

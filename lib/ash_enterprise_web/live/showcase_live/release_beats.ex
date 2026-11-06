@@ -6,7 +6,9 @@ defmodule AshEnterpriseWeb.ShowcaseLive.ReleaseBeats do
   deploy that changes what an approval was bound to.
 
   The page owns the events and the data (`AshEnterprise.Showcase.Release.read/2`); this
-  renders them. A beat that needs a fault control says in place that it runs in the demo
+  renders them. Every suite run it shows carries the test-versus-live cue
+  (`AshEnterpriseWeb.StatusComponents.run_mode/1`): the candidate's measurement and the
+  shadow reruns are tests, never live work. A beat that needs a fault control says in place that it runs in the demo
   build when the fault panel is off (`AshEnterpriseWeb.ShowcaseLive.CaseBeats.demo_build_note/1`).
   Copy is in English and French through the `showcase` Gettext domain.
   """
@@ -156,7 +158,9 @@ defmodule AshEnterpriseWeb.ShowcaseLive.ReleaseBeats do
             data-status={row.run.status}
             data-calls={length(row.calls)}
             data-simulated={Enum.count(row.calls, & &1.simulated?)}
+            class="flex flex-wrap items-center gap-2"
           >
+            <.run_mode mode={row.run.mode} id={"shadow-#{row.run.id}-mode"} />
             {dgettext("showcase", "Shadow run: %{status}.", status: run_status(row.run.status))}
             <span :if={row.calls != []}>
               {dgettext("showcase", "%{simulated} of %{calls} tool calls simulated.",
@@ -253,7 +257,8 @@ defmodule AshEnterpriseWeb.ShowcaseLive.ReleaseBeats do
       data-run={@candidate.run && @candidate.run.status}
       class="space-y-2 text-sm"
     >
-      <p>
+      <p class="flex flex-wrap items-center gap-2">
+        <.run_mode :if={@candidate.run} mode={@candidate.run.mode} id="candidate-run-mode" />
         {dgettext("showcase", "Release %{version} of the licence reader: %{status}.",
           version: @candidate.manifest.version,
           status: manifest_status(@candidate.manifest.status)

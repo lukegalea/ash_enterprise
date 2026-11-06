@@ -9,10 +9,12 @@ defmodule AshEnterpriseWeb.SurfaceDoor do
     * `:surface` — the `AshEnterprise.Surfaces.Surface`, or `nil` for a page
       that is not a registry surface (the launcher, the helper, the canvas);
     * `:page` — what the app layout needs to draw its chrome:
-      `%{surface:, nav:, as_of:, actor:}`, where `nav` is the registry groups
-      the actor may open (the grouped menus), `as_of` is when the page loaded
-      (the header's as-of line) and `actor` is whom the command palette and
-      launcher (`AshEnterpriseWeb.Shell`) list for. Pass it on:
+      `%{surface:, nav:, as_of:, actor:, context:}`, where `nav` is the registry
+      groups the actor may open (the grouped menus), `as_of` is when the page
+      loaded (the header's as-of line), `actor` is whom the command palette and
+      launcher (`AshEnterpriseWeb.Shell`) list for, and `context` is what the
+      context band says: tenant, identity and impersonation
+      (`AshEnterpriseWeb.SessionContext`). Pass it on:
       `<Layouts.app page={assigns[:page]}>`.
 
   A closed door halts the mount and sends the person to the launcher with a
@@ -29,6 +31,7 @@ defmodule AshEnterpriseWeb.SurfaceDoor do
 
   alias AshEnterprise.Surfaces
   alias AshEnterprise.Surfaces.Doors
+  alias AshEnterpriseWeb.SessionContext
 
   def on_mount(:default, _params, _session, socket) do
     actor = socket.assigns[:current_user]
@@ -39,7 +42,8 @@ defmodule AshEnterpriseWeb.SurfaceDoor do
         surface: surface,
         nav: Surfaces.grouped(actor),
         as_of: DateTime.utc_now(),
-        actor: actor
+        actor: actor,
+        context: SessionContext.for_actor(actor)
       }
 
       {:cont, Phoenix.Component.assign(socket, surface: surface, page: page)}

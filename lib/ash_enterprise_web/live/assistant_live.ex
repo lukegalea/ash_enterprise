@@ -948,9 +948,14 @@ defmodule AshEnterpriseWeb.AssistantLive do
         <section class="flex min-h-[60vh] flex-col gap-4">
           <.model_line model={@model} />
 
-          <.callout :if={@notice} id="assistant-notice" kind={elem(@notice, 0)} role="alert">
+          <.status_message
+            id="assistant-notice"
+            role="alert"
+            show={@notice != nil}
+            kind={if(@notice, do: elem(@notice, 0), else: :error)}
+          >
             {elem(@notice, 1)}
-          </.callout>
+          </.status_message>
 
           <div :if={@empty? and is_nil(@run)} id="assistant-empty" class="flex flex-col gap-3">
             <.empty_state icon="hero-sparkles">
@@ -1042,11 +1047,11 @@ defmodule AshEnterpriseWeb.AssistantLive do
 
   defp model_line(%{model: :not_configured} = assigns) do
     ~H"""
-    <.callout id="model-status" kind={:warning} role="status">
+    <.status_message id="model-status" kind={:warning}>
       The in-zone model is not configured (<code>S1_GEN_BASE_URL</code>
       and <code>S1_GEN_MODEL</code>). The assistant uses only the in-zone model and
       never falls back to a hosted one, so it cannot answer until it is.
-    </.callout>
+    </.status_message>
     """
   end
 
@@ -1137,10 +1142,10 @@ defmodule AshEnterpriseWeb.AssistantLive do
       )
 
     ~H"""
-    <article
+    <.live_region
       id="live-turn"
       class="flex max-w-[92%] flex-col gap-3 rounded-base border-2 border-border bg-secondary-background px-4 py-3 shadow-shadow"
-      aria-live="polite"
+      role="log"
     >
       <.tool_calls calls={Enum.map(@run.calls, &shown_call/1)} />
       <p :if={@run.text != ""} class="whitespace-pre-wrap text-sm">{@run.text}</p>
@@ -1149,11 +1154,11 @@ defmodule AshEnterpriseWeb.AssistantLive do
         <.icon name="hero-arrow-path" class="size-4 animate-spin" />
         {phase_label(@run)} · step {@run.step} of {@max_steps} · {@run.elapsed}s
       </p>
-      <.callout :if={@run.slow?} id="run-slow" kind={:warning} class="shadow-none" role="status">
+      <.status_message id="run-slow" show={@run.slow?} kind={:warning} class="shadow-none">
         The in-zone model has not answered for a while — it may be busy, warming up or
         unreachable. Nothing is sent anywhere else. Keep waiting, or Stop.
-      </.callout>
-    </article>
+      </.status_message>
+    </.live_region>
     """
   end
 
@@ -1255,9 +1260,15 @@ defmodule AshEnterpriseWeb.AssistantLive do
           "If you confirm, it runs once, as you, under your permissions, and is recorded in the audit log."
         )}
       </p>
-      <p :if={@item.failed?} class="text-xs text-red-700" role="alert">
+      <.status_message
+        id={@prefix <> "failed-" <> @id}
+        role="alert"
+        show={@item.failed?}
+        kind={:error}
+        class="shadow-none"
+      >
         {dgettext("assistant", "That did not go through. Nothing was changed. Try again.")}
-      </p>
+      </.status_message>
       <div :if={@prefix == ""} class="flex justify-end gap-2">
         <.button
           id={"cancel-" <> @id}

@@ -86,6 +86,8 @@ defmodule AshEnterpriseWeb do
       import Phoenix.HTML
       # Core UI components
       import AshEnterpriseWeb.CoreComponents
+      # Status messages and the test-versus-live run cue
+      import AshEnterpriseWeb.StatusComponents
 
       # Common modules used in templates
       alias AshEnterpriseWeb.Layouts

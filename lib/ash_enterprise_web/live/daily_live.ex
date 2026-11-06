@@ -138,7 +138,8 @@ defmodule AshEnterpriseWeb.DailyLive do
 
   require Logger
 
-  import AshEnterpriseWeb.CoreComponents, only: [button: 1, callout: 1]
+  import AshEnterpriseWeb.CoreComponents, only: [button: 1]
+  import AshEnterpriseWeb.StatusComponents, only: [status_message: 1]
 
   import Phoenix.LiveView,
     only: [connected?: 1, push_event: 3, put_flash: 3, start_async: 3]
@@ -155,10 +156,10 @@ defmodule AshEnterpriseWeb.DailyLive do
   def page(assigns) do
     ~H"""
     <Layouts.app flash={@flash} page={assigns[:page]} width="max-w-7xl">
-      <.callout :if={@inbox_notice} id="inbox-notice" kind={:warning} role="status">
+      <.status_message id="inbox-notice" show={@inbox_notice != nil} kind={:warning}>
         {@inbox_notice}
-      </.callout>
-      <.callout :if={@brief_prompt} id="brief-prompt" kind={:info} role="status">
+      </.status_message>
+      <.status_message id="brief-prompt" show={@brief_prompt != nil} kind={:info}>
         <div class="flex flex-wrap items-center justify-between gap-3">
           <span>No morning brief yet today.</span>
           <.button
@@ -171,7 +172,7 @@ defmodule AshEnterpriseWeb.DailyLive do
             {if @brief_prompt == :composing, do: "Composing…", else: "Compose today's brief"}
           </.button>
         </div>
-      </.callout>
+      </.status_message>
       {AshA2ui.LiveRenderer.surface_container(assigns)}
     </Layouts.app>
     """

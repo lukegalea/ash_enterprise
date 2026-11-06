@@ -125,11 +125,13 @@ defmodule AshEnterpriseWeb.CanvasLive do
         </section>
 
         <div id="canvas-inspector" class="space-y-3">
-          <%= if @selection_error == :unknown_object do %>
-            <.callout kind={:warning} role="status">
-              Unknown object — the reference does not name anything this canvas exposes.
-            </.callout>
-          <% end %>
+          <.status_message
+            id="canvas-unknown-object"
+            show={@selection_error == :unknown_object}
+            kind={:warning}
+          >
+            Unknown object — the reference does not name anything this canvas exposes.
+          </.status_message>
 
           <%= if @selected do %>
             <.inspector object={@selected} destinations={destinations_for(@selected)} />

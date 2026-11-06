@@ -18,6 +18,7 @@ defmodule AshEnterpriseWeb.ShowcaseReleaseLiveTest do
 
   import Phoenix.LiveViewTest
   import AshEnterprise.Test.DailyFixtures, only: [tenant!: 0]
+  import AshEnterpriseWeb.RunCueAssertions
 
   alias AshBpmn.Runtime.Oban.TestJobs
   alias AshEnterprise.Bpmn.HumanTask
@@ -83,6 +84,9 @@ defmodule AshEnterpriseWeb.ShowcaseReleaseLiveTest do
     view = refreshed(view)
 
     assert has_element?(view, "#candidate[data-status=resolved][data-run=finished]")
+    # The measurement is a test, and says so (QX-08).
+    assert assert_test_cue(view, "#candidate") == ["offline"]
+    refute_live_claim(view, "#beat-candidate")
     assert has_element?(view, "#case-plain[data-status=passed]")
     assert has_element?(view, "#case-injected[data-status=failed]")
     assert has_element?(view, "#injection-lane", "attack success rate 100%")
@@ -107,6 +111,8 @@ defmodule AshEnterpriseWeb.ShowcaseReleaseLiveTest do
     view = refreshed(view)
 
     assert has_element?(view, "#shadow-rows li[data-status=finished]")
+    assert Enum.uniq(assert_test_cue(view, "#shadow-rows")) == ["shadow"]
+    refute_live_claim(view, "#beat-shadow")
     assert [calls, simulated] = shadow_counts(view)
     assert calls > 0 and calls == simulated
 

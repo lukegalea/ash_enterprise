@@ -26,17 +26,32 @@ defmodule AshEnterprise.L10n.CatalogsTest do
   # since been translated fails too, so the list only shrinks.
   @awaiting %{
     {"fr", "default"} => [
+      "Acting as",
+      "Both are recorded on everything done here.",
       "Builders",
       "Could not search %{surfaces}. Try again, or open it and search there.",
       "Enter on a licence number or a run id opens that record.",
       "Everyone",
+      "Impersonated by",
+      "Live run",
       "Members",
       "No app or record matches “%{query}”.",
       "Operators",
       "Records",
       "Reviewers",
+      "Run mode unknown",
       "Show the apps for",
-      "matched on %{field}"
+      "Signed in as",
+      "Tenant",
+      "Test run: %{kind}",
+      "an actor with no email",
+      "an operator who could not be named",
+      "evaluation",
+      "experiment",
+      "matched on %{field}",
+      "none",
+      "shadow, beside live work",
+      "unknown"
     ]
   }
 
