@@ -7,6 +7,9 @@ defmodule AshEnterprise.Repo.Migrations.AddPlanningKernel do
 
   use Ecto.Migration
 
+  # `prefix: prefix()` rather than the generated `prefix: "public"`, so foreign keys
+  # follow the migrator's schema (ASH_SCHEMA). See 20260813155542_add_hierarchy_security.exs.
+
   def up do
     create table(:planning_check_results, primary_key: false) do
       add :organization_id, :uuid, null: false
@@ -48,7 +51,7 @@ defmodule AshEnterprise.Repo.Migrations.AddPlanningKernel do
             column: :id,
             name: "planning_check_results_erasure_scope_id_fkey",
             type: :uuid,
-            prefix: "public",
+            prefix: prefix(),
             on_delete: :restrict
           ),
           null: false
@@ -88,7 +91,7 @@ defmodule AshEnterprise.Repo.Migrations.AddPlanningKernel do
                column: :id,
                name: "planning_check_results_candidate_id_fkey",
                type: :uuid,
-               prefix: "public",
+               prefix: prefix(),
                on_delete: :restrict
              )
     end
@@ -123,7 +126,7 @@ defmodule AshEnterprise.Repo.Migrations.AddPlanningKernel do
             column: :id,
             name: "planning_candidates_erasure_scope_id_fkey",
             type: :uuid,
-            prefix: "public",
+            prefix: prefix(),
             on_delete: :restrict
           ),
           null: false
@@ -205,7 +208,7 @@ defmodule AshEnterprise.Repo.Migrations.AddPlanningKernel do
                column: :id,
                name: "planning_candidates_run_id_fkey",
                type: :uuid,
-               prefix: "public",
+               prefix: prefix(),
                on_delete: :restrict
              )
     end
@@ -216,7 +219,7 @@ defmodule AshEnterprise.Repo.Migrations.AddPlanningKernel do
             column: :id,
             name: "planning_runs_model_version_id_fkey",
             type: :uuid,
-            prefix: "public",
+            prefix: prefix(),
             on_delete: :restrict
           ),
           null: false
@@ -254,7 +257,7 @@ defmodule AshEnterprise.Repo.Migrations.AddPlanningKernel do
             column: :id,
             name: "planning_runs_erasure_scope_id_fkey",
             type: :uuid,
-            prefix: "public",
+            prefix: prefix(),
             on_delete: :restrict
           ),
           null: false

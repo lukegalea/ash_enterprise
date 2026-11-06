@@ -155,6 +155,19 @@ msgstr "Ascendance"
 msgid "Answer"
 msgstr "Réponse"
 
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgctxt "one_of:disposition"
+msgid "Applied"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgid "Applied by"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgid "Apply"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
 msgid "Approval"
 msgstr "Approbation"
@@ -166,12 +179,18 @@ msgstr "Approbations"
 #: lib/ash_enterprise/canvas/registry.ex:2
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
 msgid "Approve"
 msgstr "Approuver"
 
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
 msgid "Approved"
 msgstr "Approuvé"
+
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgctxt "one_of:disposition"
+msgid "Approved"
+msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
 msgctxt "one_of:outcome"
@@ -285,6 +304,16 @@ msgstr "En attente d’un intervenant"
 msgid "Awaiting me"
 msgstr "En attente de moi"
 
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgctxt "one_of:outcome_reason"
+msgid "Backend error"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgctxt "one_of:solve_status"
+msgid "Backend failed"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
 msgid "Band"
 msgstr "Bande"
@@ -313,6 +342,11 @@ msgstr "Liaison"
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
 msgid "Board"
 msgstr "Tableau"
+
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgctxt "one_of:optimality"
+msgid "Bound"
+msgstr ""
 
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Bpmn"
@@ -389,6 +423,11 @@ msgstr "Annuler"
 msgid "Cancelled"
 msgstr "Annulé"
 
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgctxt "one_of:solve_status"
+msgid "Cancelled"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
@@ -398,12 +437,18 @@ msgid "Cancelled"
 msgstr "Annulé"
 
 #: lib/ash_enterprise_web/a2ui/mdm_steward_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
 msgid "Candidate"
 msgstr "Candidat"
 
 #: lib/ash_enterprise_web/a2ui/mdm_steward_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
 msgid "Candidate detail"
 msgstr "Détail du candidat"
+
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgid "Candidates"
+msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
 msgid "Captured"
@@ -451,6 +496,15 @@ msgstr "Chaîne"
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Change password"
 msgstr "Changer le mot de passe"
+
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgid "Check"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgctxt "one_of:check_status"
+msgid "Checker failed"
+msgstr ""
 
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Claim"
@@ -510,6 +564,7 @@ msgstr "Compilé"
 
 #: lib/ash_enterprise/canvas/registry.ex:2
 #: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
 msgid "Complete"
 msgstr "Terminer"
 
@@ -621,6 +676,11 @@ msgstr "Conversations"
 msgid "Conversations sealed"
 msgstr "Conversations scellées"
 
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgctxt "one_of:check_status"
+msgid "Correct"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/audit_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/compliance_evaluation_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
@@ -678,6 +738,11 @@ msgstr "Critique"
 msgid "Currency"
 msgstr "Devise"
 
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgctxt "one_of:freshness"
+msgid "Current"
+msgstr ""
+
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Cursor"
 msgstr "Curseur"
@@ -705,6 +770,10 @@ msgstr "Jeu de données"
 #: lib/ash_enterprise_web/a2ui/operator_ui.ex:1
 msgid "Deactivate"
 msgstr "Désactiver"
+
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgid "Decision"
+msgstr ""
 
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Decisions"
@@ -1005,6 +1074,11 @@ msgstr "Échec"
 msgid "Family"
 msgstr "Famille"
 
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgctxt "one_of:solve_status"
+msgid "Feasible"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/mdm_mapping_ui.ex:1
 msgid "Field rules"
 msgstr "Règles de champ"
@@ -1050,6 +1124,10 @@ msgstr "Forcer l’achèvement"
 msgid "Found in its documents"
 msgstr "Trouvé dans ses documents"
 
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgid "Freshness"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:455
@@ -1061,6 +1139,11 @@ msgstr "De"
 #: lib/ash_enterprise_web/a2ui/projected_user_ui.ex:1
 msgid "Full name"
 msgstr "Nom complet"
+
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgctxt "one_of:outcome_reason"
+msgid "Fzn timeout"
+msgstr ""
 
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Get by email"
@@ -1094,6 +1177,11 @@ msgstr "Accordé"
 #: lib/ash_enterprise_web/a2ui/operator_ui.ex:1
 msgid "Health"
 msgstr "Santé"
+
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgctxt "one_of:outcome_reason"
+msgid "Heavy solve busy"
+msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/finding_ui.ex:1
 msgctxt "one_of:severity"
@@ -1150,6 +1238,21 @@ msgctxt "one_of:lane"
 msgid "Inbox"
 msgstr "Boîte de réception"
 
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgctxt "one_of:check_status"
+msgid "Incomplete"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgctxt "one_of:check_status"
+msgid "Incorrect"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgctxt "one_of:solve_status"
+msgid "Infeasible"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/mdm_mapping_ui.ex:1
 msgctxt "one_of:direction"
 msgid "Ingress"
@@ -1172,6 +1275,11 @@ msgstr "Interne"
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Interpret request"
 msgstr "Interpréter la demande"
+
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgctxt "one_of:solve_status"
+msgid "Invalid model"
+msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
@@ -1247,6 +1355,10 @@ msgstr "Arrêter"
 msgid "Kind"
 msgstr "Type"
 
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgid "Knowledge cutoff"
+msgstr ""
+
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Language locale"
 msgstr "Langue et région"
@@ -1299,6 +1411,11 @@ msgstr "Dernière exécution de synchronisation"
 #: lib/ash_enterprise_web/a2ui/rule_set_revision_ui.ex:1
 msgid "Layer"
 msgstr "Couche"
+
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgctxt "one_of:outcome_reason"
+msgid "Lease lost"
+msgstr ""
 
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Legacy"
@@ -1445,6 +1562,11 @@ msgstr "Moyen"
 msgid "Members"
 msgstr "Membres"
 
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgctxt "one_of:outcome_reason"
+msgid "Memory limit"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
 msgid "Merge history"
 msgstr "Historique des fusions"
@@ -1491,6 +1613,11 @@ msgstr "Modèle"
 msgid "Model call"
 msgstr "Appel de modèle"
 
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgctxt "one_of:outcome_reason"
+msgid "Model missing"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/flight_ui.ex:72
 msgid "Morning brief"
@@ -1523,6 +1650,11 @@ msgstr "Nom (en transit)"
 msgid "Name kept on confirm"
 msgstr "Nom conservé à la confirmation"
 
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgctxt "one_of:preparation_status"
+msgid "Needs input"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
 msgid "Next event"
 msgstr "Prochain événement"
@@ -1546,6 +1678,11 @@ msgstr "Non conforme"
 msgctxt "one_of:status"
 msgid "Noncompliant"
 msgstr "Non conforme"
+
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgctxt "one_of:optimality"
+msgid "None"
+msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/compliance_evaluation_ui.ex:1
 msgctxt "one_of:outcome"
@@ -1623,6 +1760,25 @@ msgstr "Ouvert"
 msgid "Opened by"
 msgstr "Ouvert par"
 
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgctxt "one_of:world"
+msgid "Operational"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgctxt "one_of:optimality"
+msgid "Optimal"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgctxt "one_of:solve_status"
+msgid "Optimal"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgid "Optimality"
+msgstr ""
+
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Organization"
 msgstr "Organisation"
@@ -1645,12 +1801,18 @@ msgstr "Organisateur"
 msgid "Organizes"
 msgstr "Organise"
 
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgctxt "one_of:outcome_reason"
+msgid "Orphan swept"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/catalog_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/profile_ui.ex:1
 msgid "Oscal uuid"
 msgstr "UUID OSCAL"
 
 #: lib/ash_enterprise_web/a2ui/compliance_evaluation_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
 msgid "Outcome"
 msgstr "Résultat"
@@ -1684,6 +1846,11 @@ msgstr "En pause"
 #: lib/ash_enterprise_web/a2ui/credential_ui.ex:1
 msgid "Pending"
 msgstr "En attente"
+
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgctxt "one_of:preparation_status"
+msgid "Pending"
+msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/credential_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
@@ -1721,6 +1888,10 @@ msgstr "Personne"
 msgid "Person detail"
 msgstr "Détail de la personne"
 
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgid "Planning review"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/policy_bundle_ui.ex:1
 msgid "Policy bundle"
 msgstr "Ensemble de politiques"
@@ -1736,6 +1907,20 @@ msgstr "Doublon possible de"
 #: lib/ash_enterprise_web/a2ui/judgments/facts_ui.ex:1
 msgid "Predicate"
 msgstr "Prédicat"
+
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgid "Preparation"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgctxt "one_of:preparation_status"
+msgid "Preparation failed"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgctxt "one_of:preparation_status"
+msgid "Prepared"
+msgstr ""
 
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Privilege"
@@ -1773,8 +1958,14 @@ msgstr "Promouvoir l’acheminement"
 
 #: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
 msgid "Proposed"
 msgstr "Proposé"
+
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgctxt "one_of:disposition"
+msgid "Proposed"
+msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
 msgctxt "one_of:lane"
@@ -1891,6 +2082,7 @@ msgstr "Régression"
 #: lib/ash_enterprise/canvas/registry.ex:2
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
 msgid "Reject"
 msgstr "Rejeter"
 
@@ -1910,6 +2102,11 @@ msgstr "Rejeter : ajoutez une note pour le dossier (facultatif)"
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
 msgid "Rejected"
 msgstr "Rejeté"
+
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgctxt "one_of:disposition"
+msgid "Rejected"
+msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
 msgctxt "one_of:outcome"
@@ -1972,6 +2169,11 @@ msgstr "Résolu"
 #: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
 msgid "Resource"
 msgstr "Ressource"
+
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgctxt "one_of:outcome_reason"
+msgid "Resource governor unavailable"
+msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
@@ -2068,10 +2270,12 @@ msgstr "Révision de l’ensemble de règles"
 
 #: lib/ash_enterprise_web/a2ui/flight_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
 msgid "Run"
 msgstr "Exécuter"
 
 #: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
 msgid "Run detail"
 msgstr "Détail de l’exécution"
 
@@ -2104,6 +2308,10 @@ msgstr "Processus en cours"
 msgid "Running steward reviews"
 msgstr "Revues de gardien en cours"
 
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgid "Runs"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/judgments/calibration_ui.ex:1
 msgid "Runtime"
 msgstr "Durée d’exécution"
@@ -2111,6 +2319,15 @@ msgstr "Durée d’exécution"
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Save xml"
 msgstr "Enregistrer le XML"
+
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgid "Scenario"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgctxt "one_of:world"
+msgid "Scenario"
+msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
 #: lib/ash_enterprise_web/a2ui/operator_ui.ex:284
@@ -2161,6 +2378,7 @@ msgid "Select business unit"
 msgstr "Sélectionner une unité d’affaires"
 
 #: lib/ash_enterprise_web/a2ui/mdm_steward_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
 msgctxt "select_context"
 msgid "Select candidate"
 msgstr "Sélectionner un candidat"
@@ -2212,6 +2430,7 @@ msgid "Select person"
 msgstr "Sélectionner une personne"
 
 #: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
 msgctxt "select_context"
 msgid "Select run"
 msgstr "Sélectionner une exécution"
@@ -2300,6 +2519,19 @@ msgstr "Signal"
 msgid "Slack"
 msgstr "Slack"
 
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgid "Snapshot digest"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgctxt "one_of:outcome_reason"
+msgid "Solution timeout"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgid "Solve"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/mdm_mapping_ui.ex:1
 msgid "Source"
@@ -2335,6 +2567,11 @@ msgstr "Lignes en transit"
 msgctxt "one_of:status"
 msgid "Staging"
 msgstr "En préparation"
+
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgctxt "one_of:freshness"
+msgid "Stale"
+msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/flight_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/flight_ui.ex:121
@@ -2425,6 +2662,11 @@ msgstr "Sous-arbre"
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Supersede"
 msgstr "Remplacer"
+
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgctxt "one_of:disposition"
+msgid "Superseded"
+msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
 msgctxt "one_of:status"
@@ -2548,6 +2790,11 @@ msgstr "Seuil (à α)"
 msgid "Time"
 msgstr "Heure"
 
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgctxt "one_of:outcome_reason"
+msgid "Time limit"
+msgstr ""
+
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Time zone definition"
 msgstr "Définition du fuseau horaire"
@@ -2591,6 +2838,11 @@ msgstr "Délier"
 msgid "Unblock sync"
 msgstr "Débloquer la synchronisation"
 
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgctxt "one_of:check_status"
+msgid "Unchecked"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/business_unit_ui.ex:1
 msgid "Units under it"
 msgstr "Unités subordonnées"
@@ -2600,10 +2852,23 @@ msgctxt "one_of:outcome"
 msgid "Unknown"
 msgstr "Inconnu"
 
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgctxt "one_of:solve_status"
+msgid "Unknown"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/finding_ui.ex:1
 msgctxt "one_of:status"
 msgid "Unknown"
 msgstr "Inconnu"
+
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgid "Unresolved"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgid "Unresolved inputs"
+msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
 msgid "Upcoming"
@@ -2641,6 +2906,11 @@ msgstr "Utilisateurs"
 msgctxt "one_of:status"
 msgid "Validated"
 msgstr "Validé"
+
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgctxt "one_of:check_status"
+msgid "Validator failed"
+msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/judgments/facts_ui.ex:1
@@ -2723,6 +2993,10 @@ msgstr "Pourquoi cela correspond"
 #: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
 msgid "Window"
 msgstr "Fenêtre"
+
+#: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
+msgid "World"
+msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
 msgid "Writes"
