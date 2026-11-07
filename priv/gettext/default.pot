@@ -1462,3 +1462,38 @@ msgstr ""
 #, elixir-autogen, elixir-format
 msgid "Which model each profile runs, what it may be used for, whether it is known to answer, and what it is restricted from."
 msgstr ""
+
+#: lib/ash_enterprise_web/live/pinned_app_live.ex:292
+#, elixir-autogen, elixir-format
+msgid "Data freshness unknown"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/pinned_app_live.ex:283
+#, elixir-autogen, elixir-format
+msgid "Data read at %{time}"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/pinned_app_live.ex:287
+#, elixir-autogen, elixir-format
+msgid "Data read at %{time}, over %{minutes} minutes ago"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/pinned_app_live.ex:271
+#, elixir-autogen, elixir-format
+msgid "Definition invalid"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/pinned_app_live.ex:272
+#, elixir-autogen, elixir-format
+msgid "Definition not checked yet"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/pinned_app_live.ex:270
+#, elixir-autogen, elixir-format
+msgid "Definition valid"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/pinned_app_live.ex:220
+#, elixir-autogen, elixir-format
+msgid "Read again"
+msgstr ""
