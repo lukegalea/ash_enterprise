@@ -1009,12 +1009,12 @@ msgstr "oui"
 #: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:313
 #, elixir-autogen, elixir-format
 msgid "Armed. The next activation's answer is lost after the registry accepts it, and the registry cannot say afterwards: settle it on the recovery page."
-msgstr ""
+msgstr "Armé. La réponse de la prochaine activation est perdue après que le registre l'accepte, et le registre ne peut pas le dire après : réglez-le sur la page de récupération."
 
 #: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:959
 #, elixir-autogen, elixir-format
 msgid "Lose the registry's answer"
-msgstr ""
+msgstr "Perdre la réponse du registre"
 
 #: lib/ash_enterprise_web/live/showcase_live/tour_index.ex:271
 #, elixir-autogen, elixir-format
