@@ -58,7 +58,7 @@ defmodule AshEnterprise.Integration.OperationsDeliveryTest do
 
   defp follow_up!(delivery) do
     delivery
-    |> Ash.Changeset.for_update(:follow_up, %{}, actor: SystemActor.oban())
+    |> Ash.Changeset.for_update(:mark_followed_up, %{}, actor: SystemActor.oban())
     |> Ash.update!()
   end
 
@@ -140,7 +140,7 @@ defmodule AshEnterprise.Integration.OperationsDeliveryTest do
 
     assert {:error, _} =
              delivery
-             |> Ash.Changeset.for_update(:follow_up, %{}, actor: SystemActor.oban())
+             |> Ash.Changeset.for_update(:mark_followed_up, %{}, actor: SystemActor.oban())
              |> Ash.update()
 
     assert Ash.reload!(delivery, authorize?: false).state == :received

@@ -18,13 +18,11 @@ defmodule AshEnterprise.Repo.Migrations.DeliveriesFromSharedMacro do
         default: fragment("(now() AT TIME ZONE 'utc')")
 
       add :followed_up_at, :utc_datetime_usec
-      modify :subject_id, :text, null: true
     end
   end
 
   def down do
     alter table(:integration_provider_webhook_deliveries) do
-      modify :subject_id, :text, null: false
       remove :followed_up_at
       remove :received_at
       remove :signature_verdict

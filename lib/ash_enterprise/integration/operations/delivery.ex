@@ -3,7 +3,7 @@ defmodule AshEnterprise.Integration.Operations.Delivery do
   A provider webhook delivery, recorded once (`AshOperations.Webhook.Ingress`, ADR 0063). The
   attributes, the identity and the `record`, `awaiting_follow_up` and `volume_report` actions come
   from `AshOperations.Resources.Delivery`, instantiated on this application's base resource; the
-  `follow_up` action, the trigger and the policies are this application's.
+  `mark_followed_up` action's settle (`FollowUp`, layered on through `settle_changes`), the trigger and the policies are this application's.
 
   A webhook is a nudge, so a delivery holds only what the follow-up needs: the `provider`, the
   provider's redelivery-stable `dedup_key`, and `subject_id`, the id the provider says to look
@@ -17,12 +17,15 @@ defmodule AshEnterprise.Integration.Operations.Delivery do
   | `followed_up` | the follow-up found activations waiting on a reconcile and enqueued it |
   | `ignored` | the follow-up found nothing waiting, or the provider's answer named no one |
 
-  `record`, `mark_followed_up` and `follow_up` are machinery-only (ADR 0059): only the `oban`
+  `record` and `mark_followed_up` are machinery-only (ADR 0059): only the `oban`
   system actor runs them, the ingress as it records the delivery and the `:follow_up` trigger as
   it settles it.
   Tenantless and unowned (`tenant?: false`, `ownership: :none`), like the other bookkeeping of
   the integration domain; audited, so a delivery is a recorded fact.
   """
+
+  alias AshEnterprise.Integration.Operations.Changes.FollowUp
+  alias AshEnterprise.Platform.SystemActor
 
   use AshEnterprise.Platform.Resource,
     domain: AshEnterprise.Integration,
@@ -30,15 +33,12 @@ defmodule AshEnterprise.Integration.Operations.Delivery do
     tenant?: false,
     lifecycle?: false,
     archival?: false,
-    machinery_only: [:record, :mark_followed_up, :follow_up],
+    machinery_only: [:record, :mark_followed_up],
     extra_extensions: [AshOban]
 
-  use AshOperations.Resources.Delivery
-
-  alias AshEnterprise.Integration.Operations.Changes.FollowUp
-  alias AshEnterprise.Platform.SystemActor
-
-  require Ash.Query
+  use AshOperations.Resources.Delivery,
+    subject_required?: true,
+    settle_changes: [FollowUp]
 
   postgres do
     table "integration_provider_webhook_deliveries"
@@ -54,7 +54,7 @@ defmodule AshEnterprise.Integration.Operations.Delivery do
       # A delivery nobody has followed up. The ingress enqueues nothing itself, so the
       # scheduler is the path; it runs every minute.
       trigger :follow_up do
-        action :follow_up
+        action :mark_followed_up
         where expr(state == :received)
         read_action :read
         queue :ingestion
@@ -71,32 +71,5 @@ defmodule AshEnterprise.Integration.Operations.Delivery do
   attributes do
     create_timestamp :inserted_at
     update_timestamp :updated_at
-  end
-
-  validations do
-    # The shared resource leaves the subject optional; a webhook delivery here always names one.
-    validate present(:subject_id), on: :create
-  end
-
-  actions do
-    update :follow_up do
-      description """
-      Read the provider about the delivery's subject, and enqueue the reconcile of the
-      activations that wait on it. It decides nothing: the reconcile asks the provider again.
-      """
-
-      accept []
-      require_atomic? false
-      change set_attribute(:followed_up_at, &DateTime.utc_now/0)
-      change FollowUp
-    end
-  end
-
-  @doc "Whether a delivery with this provider and key is already recorded."
-  @spec recorded?(String.t(), String.t()) :: boolean()
-  def recorded?(provider, dedup_key) do
-    __MODULE__
-    |> Ash.Query.filter(provider == ^provider and dedup_key == ^dedup_key)
-    |> Ash.exists?(authorize?: false)
   end
 end

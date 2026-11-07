@@ -169,7 +169,7 @@
       "type": "text"
     },
     {
-      "allow_nil?": true,
+      "allow_nil?": false,
       "default": "nil",
       "generated?": false,
       "precision": null,
@@ -259,7 +259,7 @@
   "custom_indexes": [],
   "custom_statements": [],
   "has_create_action": false,
-  "hash": "58E573D73CE8530D6C7CC2D07264A296CC16A0B2CE06D4D16560D8ED37F02E20",
+  "hash": "87E11A99798CBE679CEBC658BC9F1ADA88DC8495B4B8760CEBCC099C74F918D9",
   "identities": [
     {
       "all_tenants?": false,
