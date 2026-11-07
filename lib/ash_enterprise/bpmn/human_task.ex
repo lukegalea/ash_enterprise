@@ -247,6 +247,14 @@ defmodule AshEnterprise.Bpmn.HumanTask do
       prepare build(sort: [inserted_at: :asc, id: :asc])
     end
 
+    # Stalled reviews: what the stalled-reviews surface and the assistant's
+    # `stalled_reviews` tool both read, so the chat and the page show one set.
+    read :stalled do
+      description "Open and claimed tasks the reader may read that opened more than two days ago, oldest first."
+      filter expr(status in [:open, :claimed] and inserted_at < ago(2, :day))
+      prepare build(sort: [inserted_at: :asc, id: :asc])
+    end
+
     action :claim_task, :string do
       description """
       Claim an open task the actor (or one of their teams) is a candidate

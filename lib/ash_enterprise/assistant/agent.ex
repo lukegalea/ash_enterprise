@@ -6,7 +6,7 @@ defmodule AshEnterprise.Assistant.Agent do
 
     * **Instructions** — `AshEnterprise.Assistant.Prompt.instructions/0`, the same for
       every run; the time, the conversation so far and the question are the run's input.
-    * **Tools** — eleven reads a run takes in its loop (ten lookups and the composer,
+    * **Tools** — fourteen reads a run takes in its loop (thirteen lookups and the composer,
       `AshEnterprise.Assistant`), and nine changes it may only ask for: actions of
       their own resources whose effects say `approval: :confirm`. A call to one of those
       is a governed invocation (ADR 0055) requested as the person; the answer ends
@@ -44,6 +44,9 @@ defmodule AshEnterprise.Assistant.Agent do
       {AshEnterprise.Assistant.Lookup.Duplicate, :steward_queue},
       {AshEnterprise.Assistant.Lookup.ActivityCount, :count_activity},
       {AshEnterprise.Assistant.Lookup.Account, :my_accounts},
+      {AshEnterprise.Assistant.Lookup.StalledReview, :stalled_reviews},
+      {AshEnterprise.Assistant.Lookup.WorkEntry, :trace},
+      {AshEnterprise.Assistant.Lookup.WorkEntry, :explain},
       {AshEnterprise.Assistant.Compose, :compose_surface},
       {AshEnterprise.Canonical.Task, :capture},
       {AshEnterprise.Canonical.Task, :complete_mine},

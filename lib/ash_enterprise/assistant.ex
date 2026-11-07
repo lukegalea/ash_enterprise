@@ -23,8 +23,11 @@ defmodule AshEnterprise.Assistant do
 
   ## Reads, a composer, and requests — never a write in the loop
 
-  Ten tools read (`AshEnterprise.Assistant.Lookup`), and a run takes each in its
-  loop. One composes (`AshEnterprise.Assistant.Compose`, E10.3): it asks for a
+  Thirteen tools read (`AshEnterprise.Assistant.Lookup`), and a run takes each in its
+  loop: ten over the person's own records, `stalled_reviews`, and `trace` and
+  `explain`, which answer "what happened" and "why" from the execution record
+  (`AshEnterprise.Execution.Entry`) as the person may read it, citing only what it
+  returned. One composes (`AshEnterprise.Assistant.Compose`, E10.3): it asks for a
   table, calendar or board of the person's own records, which the server writes as
   an `AshA2ui.Dynamic` spec from a curated catalogue, resolves against the host
   allowlist and renders in the chat as the person
@@ -168,6 +171,40 @@ defmodule AshEnterprise.Assistant do
       action_parameters []
     end
 
+    tool :stalled_reviews, AshEnterprise.Assistant.Lookup.StalledReview, :stalled_reviews do
+      description """
+      Reviews and other tasks that have waited on people for more than two days,
+      as the person may read them: how many, the oldest with a ref to cite, and
+      the same list put on their screen in your answer (it is also a page of its
+      own). Use it for "stalled", "overdue" or "waiting too long" reviews.
+      """
+
+      action_parameters []
+    end
+
+    tool :trace, AshEnterprise.Assistant.Lookup.WorkEntry, :trace do
+      description """
+      What happened in one piece of work, in order: from a ref another tool
+      returned (run:, invocation:, process_instance:, human_task:) or a
+      correlation id. Each entry has its status and what that means. Rows with
+      role missing are records that could not be read, were cut short or were
+      never recorded: say so, never that nothing happened.
+      """
+
+      action_parameters []
+    end
+
+    tool :explain, AshEnterprise.Assistant.Lookup.WorkEntry, :explain do
+      description """
+      Why one record stands as it does: the record (role subject), what its
+      status means and waits on, and what was recorded under it. Pass a ref or
+      an entry's under. Answer only from these rows; rows with role missing
+      say what is not known, and you must say it too.
+      """
+
+      action_parameters []
+    end
+
     tool :draft_reply, AshEnterprise.Assistant.ReplyDraft, :draft do
       description """
       Ask to save a reply draft to one of the person's conversations, by its id
@@ -190,6 +227,8 @@ defmodule AshEnterprise.Assistant do
     resource AshEnterprise.Assistant.Lookup.Duplicate
     resource AshEnterprise.Assistant.Lookup.ActivityCount
     resource AshEnterprise.Assistant.Lookup.Account
+    resource AshEnterprise.Assistant.Lookup.StalledReview
+    resource AshEnterprise.Assistant.Lookup.WorkEntry
     resource AshEnterprise.Assistant.Compose
     resource AshEnterprise.Assistant.PinnedApp
     resource AshEnterprise.Assistant.ReplyDraft

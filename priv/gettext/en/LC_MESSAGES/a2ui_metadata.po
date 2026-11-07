@@ -12,6 +12,7 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/stalled_reviews_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
 msgid "About"
 msgstr ""
@@ -454,6 +455,7 @@ msgstr ""
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/stalled_reviews_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
 msgctxt "one_of:status"
 msgid "Cancelled"
@@ -548,12 +550,14 @@ msgid "Claimed"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/stalled_reviews_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
 msgctxt "one_of:status"
 msgid "Claimed"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/stalled_reviews_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
 msgid "Claimed by"
 msgstr ""
@@ -606,6 +610,7 @@ msgid "Complete — the outcome, and a note for the record (optional)"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/stalled_reviews_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
 msgctxt "one_of:status"
 msgid "Completed"
@@ -933,6 +938,7 @@ msgstr ""
 #: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/stalled_reviews_ui.ex:1
 msgid "Due"
 msgstr ""
 
@@ -1772,6 +1778,7 @@ msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
 #: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/stalled_reviews_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
 msgctxt "one_of:status"
 msgid "Open"
@@ -2641,6 +2648,14 @@ msgctxt "one_of:freshness"
 msgid "Stale"
 msgstr ""
 
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Stalled"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/stalled_reviews_ui.ex:1
+msgid "Stalled reviews"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/flight_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/flight_ui.ex:121
 #: lib/ash_enterprise_web/a2ui/flight_ui.ex:72
@@ -2668,12 +2683,14 @@ msgstr ""
 #: lib/ash_enterprise_web/a2ui/policy_bundle_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/projected_user_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/rule_set_revision_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/stalled_reviews_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
 msgid "Status"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/stalled_reviews_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
 msgid "Step"
 msgstr ""
@@ -3016,6 +3033,7 @@ msgstr ""
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
 #: lib/ash_enterprise_web/a2ui/judgments/verdicts_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/mdm_steward_ui.ex:1
+#: lib/ash_enterprise_web/a2ui/stalled_reviews_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
 msgid "Waiting since"
 msgstr ""
@@ -3186,6 +3204,7 @@ msgstr ""
 msgid "steward review"
 msgstr ""
 
+#: lib/ash_enterprise_web/a2ui/stalled_reviews_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
 msgid "task"
 msgstr ""

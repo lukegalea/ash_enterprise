@@ -540,6 +540,26 @@ defmodule AshEnterprise.Surfaces do
       context: :task,
       acp: %{command: "my tasks"}
     },
+    # Stalled reviews (AGT-61): the view the assistant's `stalled_reviews` tool puts
+    # in an answer, reached without chat. No `context`: tasks open in detail on
+    # Approvals and My tasks, never here.
+    %Surface{
+      key: :stalled_reviews,
+      audience: [:reviewer, :operator],
+      label: dgettext_noop("default", "Stalled reviews"),
+      blurb:
+        dgettext_noop(
+          "default",
+          "Reviews and other process tasks you can see that have waited more than two days."
+        ),
+      group: :processes,
+      order: 2,
+      icon: "hero-clock",
+      path: "/app/reviews/stalled",
+      ui: A2ui.StalledReviewsUI,
+      resource: HumanTask,
+      acp: %{command: "stalled reviews"}
+    },
     # The flight views (PROD-10): a process drawn with a marker on every step a
     # run is standing on. `:flight` is the first surface over Instance with a
     # detail, so every link to a run (`link :instance`, `link :process_run`)

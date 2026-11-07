@@ -147,6 +147,24 @@ defmodule AshEnterprise.Assistant.Composer do
       sort: nil,
       sortable: []
     },
+    # Not offered by compose_surface (its `show` list is its own): what the
+    # `stalled_reviews` tool puts on screen, the stalled-reviews surface's read.
+    "stalled_reviews" => %{
+      resource: HumanTask,
+      label: "Stalled reviews",
+      columns: ~w(name subject_label waiting_since status assignee_label due_at),
+      default: ~w(name subject_label waiting_since assignee_label),
+      read: "stalled",
+      dates: {"due_at", nil},
+      labels: %{
+        "due_at" => "Due",
+        "subject_label" => "Subject",
+        "assignee_label" => "Claimed by"
+      },
+      lanes: ~w(status),
+      sort: nil,
+      sortable: []
+    },
     "drafts" => %{
       resource: ReplyDraft,
       label: "Reply drafts",
