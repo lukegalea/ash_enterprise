@@ -18,6 +18,7 @@ documentation references function "Ecto.Changeset.validate_number/2" but it is u
 # companion module and other @moduledoc false tasks, which ex_doc cannot link.
 documentation references module "mix ash_a2ui.install.docs" but it is hidden	.claude/skills/ash-framework/SKILL.md
 documentation references module "mix ash_admin.install.docs" but it is hidden	.claude/skills/ash-framework/SKILL.md
+documentation references module "mix ash_operations.install.docs" but it is hidden	.claude/skills/ash-framework/SKILL.md
 documentation references module "mix ash_ai.gen.chat.docs" but it is hidden	.claude/skills/ash-framework/SKILL.md
 documentation references module "mix ash_ai.gen.mcp.docs" but it is hidden	.claude/skills/ash-framework/SKILL.md
 documentation references module "mix ash_ai.gen.mcp_oauth.docs" but it is hidden	.claude/skills/ash-framework/SKILL.md
