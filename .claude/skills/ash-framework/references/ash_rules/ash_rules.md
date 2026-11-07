@@ -108,12 +108,42 @@ should have supplied the fact.
     across declaration order and changes whenever a rule or a schema entry
     changes. Rules are stored sorted by id; Spark metadata is stripped before
     hashing. Never "fix" a hash mismatch by re-hashing — the content changed.
-12. **One evaluator behaviour, two engines.** `AshRules.Evaluator.Direct` is
-    the default and has zero runtime dependencies; `AshRules.Evaluator.Wongi`
-    exists only when the host ships the optional `wongi_engine` dep, and is a
-    stub returning `{:error, :wongi_not_available}` otherwise. Never call an
+12. **Three evaluators: one behaviour with two engines, and the set
+    evaluator beside it.** The `AshRules.Evaluator` behaviour has two
+    per-subject engines. `AshRules.Evaluator.Direct` is the default and has
+    zero runtime dependencies; `AshRules.Evaluator.Wongi` exists only when the
+    host ships the optional `wongi_engine` dep, and is a stub returning
+    `{:error, :wongi_not_available}` otherwise. Never call a per-subject
     engine module directly; go through `AshRules.evaluate/3`'s `:evaluator`
-    option.
+    option. `AshRules.Evaluator.Set` does not implement the behaviour — it
+    answers set membership, not a per-subject result (rule 13).
+13. **Sets read the same vocabulary, three-valued.** `AshRules.membership/4`
+    (or `AshRules.Evaluator.Set`) compiles IR predicates into Ash queries over
+    facts and partitions subjects `in` / `out` / `unknown` — ADR 0048. It
+    reads admitted facts only, never observations: scores order, facts decide.
+    `unknown` is its own partition and must never be folded into `in` or
+    `out`. Set equivalence with the per-subject evaluator is a property of the
+    suite — if you change matching semantics, both change together and the
+    property (`AshRules.SetMembershipPropertyTest`) is the arbiter.
+14. **Standing-query events are partition diffs, never verdicts.**
+    `AshRules.Standings.diff/2` yields one event per subject whose
+    three-valued verdict changed, and the transition table is the contract:
+    `:left` is `in → out` only (`in → unknown` is `:became_unknown`),
+    `:entered` is anything-to-`in`, and `unknown → out` is `:resolved_out` —
+    never silence, never a `:left` (the subject was never in). Events derive
+    from admitted facts only; dispatch is the host's job through
+    `Standings.Dispatcher`, one stream per diff with the expression's hash.
+    A dispatcher implements the single callback
+    `handle_events(Standings.Query.t(), [Standings.Event.t()], keyword()) ::
+    :ok`; `Standings.dispatch/4` refuses a module that does not export
+    `handle_events/3` and forwards `opts` (tenant, actor hints) untouched.
+    Build the query with `Standings.query/3` (pass `hash:
+    bundle.content_hash` when the events should name an activated bundle
+    rather than the predicates' own hash), and use `Standings.run/5` for the
+    round trip — it re-derives both partitions through the set evaluator,
+    diffs, and dispatches; an empty diff calls no callback but still returns
+    `{:ok, []}`. If you change the table, `AshRules.StandingsPropertyTest`
+    and its deterministic table tests change in the same commit.
 
 ## Guarding a host action (the reference pattern)
 

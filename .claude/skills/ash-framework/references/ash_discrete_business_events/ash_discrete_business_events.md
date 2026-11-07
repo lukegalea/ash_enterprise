@@ -49,7 +49,7 @@ platform through.
 - **Never treat external ids as identities.** Subject/actor rows carry
   descriptors (`type`, `external_id`, `stream`/`display`) — linking to
   internal entities is projection/entity-resolution work, never done at
-  land (VendorPM Law 1, ADR 0017). The SourceRecord's `external_id` is
+  land (ADR 0017). The SourceRecord's `external_id` is
   an idempotency key inside the identity tuple, not a join key.
 - **Never ship a concrete resource module for hosts to adopt.** The
   resources are resource macros (`use AshDiscreteBusinessEvents.Resources,

@@ -2779,9 +2779,12 @@ own platform base and keeps its own policies._
 <!-- ash_mdm-end -->
 <!-- ash_rules-start -->
 ## ash_rules usage
-_Compliance rules as data: a Spark DSL compiling to a serializable rule IR with a
-content-hashed bundle, an outcome lattice with XACML-derived combining, a pure
-direct evaluator, and an optional Wongi.Engine adapter behind one behaviour._
+_Predicates over sets (ADR 0048): a Spark DSL compiling declared questions to a
+serializable, content-hashed rule IR, evaluated per subject (directly or
+through an optional Rete engine) and over a set (compiled to Ash queries over
+facts: in / out / unknown, which also backs standing queries) — one
+vocabulary, proven-equivalent evaluators, and an outcome lattice where
+missing data is never a pass._
 
 [ash_rules usage rules](deps/ash_rules/usage-rules.md)
 <!-- ash_rules-end -->
@@ -3376,6 +3379,7 @@ mix ash_agent.laws FILE [FILE...]             # judge files
 mix ash_agent.laws --code 'SNIPPET'           # judge a snippet
 git diff main | mix ash_agent.laws - --diff   # judge only added lines
 mix ash_agent.laws FILE --min-tier review     # definite|likely|review floor
+mix ash_agent.laws FILE --ignore-comments     # comments and @doc are not code
 ```
 
 Default floor is `likely`: review-tier hits stay out of `violations` but are
@@ -3383,6 +3387,55 @@ always visible in `counts`. Seven laws are behavioral (see
 `laws_without_detectors`) — apply them as a review checklist; the judge is
 grep-tier, not a parser, so read a hit's `hint` and judge context (a
 compile-time-constant `String.to_atom` is the documented exception).
+
+The judge reads text, so a comment or a `@doc` that mentions a pattern
+trips the law about it. `--ignore-comments` (`ignore_comments: true`) blanks
+`#` comments, `@doc`/`@moduledoc`/`@typedoc` values and HEEx/HTML comments
+first, line for line, so line numbers hold; in `--diff` mode only the
+one-line forms are applied. Off by default.
+
+## Project laws
+
+A project can add its own rules (its UI conventions, say) to the same judge
+instead of keeping a parallel lint task. They are judged, tiered, selected
+with `--law`, filtered by `--min-tier`, checked in `--diff` mode and reported
+exactly like the core laws:
+
+```elixir
+# config/config.exs
+config :ash_agent_tools, extra_laws: [MyAppWeb.Laws.UI]
+
+# a module implementing AshAgentTools.Laws.Source
+def laws do
+  [%{id: "ui-01", name: "design-system-buttons", category: :ui,
+     title: "Buttons come from the design system",
+     summary: "A raw <button> drifts from the design system; use <ds-button>.",
+     detectors: [%{kind: :line, tier: :likely, pattern: ~r/<button[\s>]/,
+                   hint: "use <ds-button> instead of a raw <button>"}]}]
+end
+```
+
+- The core numbering stays `01`–`26`. Project ids must not be all digits
+  and must be unique; use a prefix (`ui-01`). Invalid laws raise
+  `ArgumentError` naming the problem.
+- Detectors use the core kinds (`:line`, `:mount`, `:window`, `:file`) and
+  match Elixir/HEEx source text. A rule a regex cannot express (a tag that
+  spans lines, a whole-file check, another language) is a `:custom`
+  detector: `check: &MyApp.Laws.f/2`, called as `check.(source, meta)` with
+  `meta` = `%{file:, lines:, diff?:}`, returning the lines it objects to as
+  line numbers or `%{line:, text:, hint:}` maps. It runs in `--diff` mode
+  too, receiving the diff text with `diff?: true`.
+- A law that belongs to some files only carries `paths` and/or `exclude`,
+  lists of globs (`**` crosses directories, `*` and `?` stay within one,
+  `{a,b}` is alternatives) matched against the judged file's path. In
+  `--diff` mode each added line is judged under its hunk's `+++` path.
+  `--code` and non-diff stdin have no path: scoped laws are skipped there.
+- Every violation names its `file` (the path given, or the hunk's path in
+  `--diff` mode; `null` for a snippet).
+- `mix ash_agent.laws` compiles the project only when project laws are
+  configured (they are project modules); otherwise it stays compile-free.
+- `AshAgentTools.Laws.core_laws/0` is the core registry alone;
+  `AshAgentTools.Laws.laws/0` includes project laws.
 
 ## The laws
 
