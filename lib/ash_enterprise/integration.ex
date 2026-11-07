@@ -85,7 +85,7 @@ defmodule AshEnterprise.Integration do
     resource AshEnterprise.Integration.ProjectionCursor
 
     resource AshEnterprise.Integration.Operations.Delivery do
-      define :receive_provider_delivery, action: :receive
+      define :receive_provider_delivery, action: :record
       define :list_provider_deliveries, action: :read
     end
   end

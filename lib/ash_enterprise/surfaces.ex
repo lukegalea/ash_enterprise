@@ -461,6 +461,29 @@ defmodule AshEnterprise.Surfaces do
       }
     },
     %Surface{
+      key: :deliveries,
+      audience: [:operator],
+      searchable: [:dedup_key, :subject_id],
+      label: dgettext_noop("default", "Webhook deliveries"),
+      blurb:
+        dgettext_noop(
+          "default",
+          "What providers have sent, with the signature verdict and whether anyone followed up."
+        ),
+      description:
+        "Provider webhook deliveries, newest first: the provider, the event, the subject it " <>
+          "names, the signature verdict and the follow-up state, with counts per provider and " <>
+          "verdict. A delivery holds no body and no header. Ask for this when the request is " <>
+          "about a webhook that did not arrive or was not followed up.",
+      group: :operator,
+      order: 27,
+      icon: "hero-inbox-arrow-down",
+      path: "/app/deliveries",
+      ui: A2ui.DeliveriesUI,
+      resource: AshEnterprise.Integration.Operations.Delivery,
+      door: :operator
+    },
+    %Surface{
       key: :recovery,
       audience: [:operator],
       label: dgettext_noop("default", "Recovery"),

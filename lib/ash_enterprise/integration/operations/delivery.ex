@@ -1,6 +1,9 @@
 defmodule AshEnterprise.Integration.Operations.Delivery do
   @moduledoc """
-  A provider webhook delivery, recorded once (`AshOperations.Webhook.Ingress`, ADR 0063).
+  A provider webhook delivery, recorded once (`AshOperations.Webhook.Ingress`, ADR 0063). The
+  attributes, the identity and the `record`, `awaiting_follow_up` and `volume_report` actions come
+  from `AshOperations.Resources.Delivery`, instantiated on this application's base resource; the
+  `follow_up` action, the trigger and the policies are this application's.
 
   A webhook is a nudge, so a delivery holds only what the follow-up needs: the `provider`, the
   provider's redelivery-stable `dedup_key`, and `subject_id`, the id the provider says to look
@@ -14,8 +17,9 @@ defmodule AshEnterprise.Integration.Operations.Delivery do
   | `followed_up` | the follow-up found activations waiting on a reconcile and enqueued it |
   | `ignored` | the follow-up found nothing waiting, or the provider's answer named no one |
 
-  `receive` and `follow_up` are machinery-only (ADR 0059): only the `oban` system actor runs
-  them, the ingress as it records the delivery and the `:follow_up` trigger as it settles it.
+  `record`, `mark_followed_up` and `follow_up` are machinery-only (ADR 0059): only the `oban`
+  system actor runs them, the ingress as it records the delivery and the `:follow_up` trigger as
+  it settles it.
   Tenantless and unowned (`tenant?: false`, `ownership: :none`), like the other bookkeeping of
   the integration domain; audited, so a delivery is a recorded fact.
   """
@@ -26,8 +30,10 @@ defmodule AshEnterprise.Integration.Operations.Delivery do
     tenant?: false,
     lifecycle?: false,
     archival?: false,
-    machinery_only: [:receive, :follow_up],
+    machinery_only: [:record, :mark_followed_up, :follow_up],
     extra_extensions: [AshOban]
+
+  use AshOperations.Resources.Delivery
 
   alias AshEnterprise.Integration.Operations.Changes.FollowUp
   alias AshEnterprise.Platform.SystemActor
@@ -37,6 +43,10 @@ defmodule AshEnterprise.Integration.Operations.Delivery do
   postgres do
     table "integration_provider_webhook_deliveries"
     repo AshEnterprise.Repo
+
+    # The columns the shared resource added to rows that already exist.
+    migration_defaults received_at: ~S|fragment("(now() AT TIME ZONE 'utc')")|,
+                       signature_verdict: ~S|"valid"|
   end
 
   oban do
@@ -59,50 +69,16 @@ defmodule AshEnterprise.Integration.Operations.Delivery do
   end
 
   attributes do
-    uuid_primary_key :id
-
-    attribute :provider, :string do
-      allow_nil? false
-      public? true
-      constraints max_length: 64
-    end
-
-    attribute :dedup_key, :string do
-      allow_nil? false
-      public? true
-      constraints max_length: 128
-    end
-
-    attribute :subject_id, :string do
-      allow_nil? false
-      public? true
-      constraints max_length: 128
-      description "The id the provider says to look at (an activation id). Untrusted until read."
-    end
-
-    attribute :state, :atom do
-      allow_nil? false
-      public? true
-      default :received
-      constraints one_of: [:received, :followed_up, :ignored]
-    end
-
     create_timestamp :inserted_at
     update_timestamp :updated_at
   end
 
-  identities do
-    identity :delivery, [:provider, :dedup_key]
+  validations do
+    # The shared resource leaves the subject optional; a webhook delivery here always names one.
+    validate present(:subject_id), on: :create
   end
 
   actions do
-    defaults [:read]
-
-    create :receive do
-      description "Record a delivery once, by the provider's own redelivery-stable key."
-      accept [:provider, :dedup_key, :subject_id]
-    end
-
     update :follow_up do
       description """
       Read the provider about the delivery's subject, and enqueue the reconcile of the
@@ -111,6 +87,7 @@ defmodule AshEnterprise.Integration.Operations.Delivery do
 
       accept []
       require_atomic? false
+      change set_attribute(:followed_up_at, &DateTime.utc_now/0)
       change FollowUp
     end
   end
