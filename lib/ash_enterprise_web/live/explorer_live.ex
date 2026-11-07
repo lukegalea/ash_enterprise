@@ -550,9 +550,11 @@ defmodule AshEnterpriseWeb.ExplorerLive do
 
   defp record(%{detail: :failed} = assigns) do
     ~H"""
-    <p id="detail-record" data-record="failed" role="alert" class="text-sm">
-      {gettext("The record behind this entry could not be read. Try again.")}
-    </p>
+    <div id="detail-record" data-record="failed" class="text-sm">
+      <.status_message id="detail-record-failed" role="alert" kind={:error}>
+        {gettext("The record behind this entry could not be read. Try again.")}
+      </.status_message>
+    </div>
     """
   end
 
