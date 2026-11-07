@@ -62,6 +62,7 @@ defmodule AshEnterprise.Assistant.Ask do
 
   alias AshAi.Transcript
   alias AshEnterprise.AI.Models
+  alias AshEnterprise.AI.SecretShape
   alias AshEnterprise.Assistant.{Agent, History, Prompt, Requests, Turn, ZoneGate}
   alias AshEnterprise.Canonical.{CalendarEvent, Conversation}
   alias AshEnterprise.Execution
@@ -75,6 +76,7 @@ defmodule AshEnterprise.Assistant.Ask do
   @typedoc "Why an answer failed: what the page explains."
   @type reason ::
           :not_configured
+          | :secret_shaped
           | :outside_zone
           | :zone_mismatch
           | :not_published
@@ -118,14 +120,40 @@ defmodule AshEnterprise.Assistant.Ask do
   `opts`. `{:ok, %{question: turn, run: run}}`, or `{:error, reason, %{question: turn,
   answer: turn}}` when it could not start, with the failed answer recorded (`question`
   is nil only when the question itself could not be recorded).
+
+  A question holding text shaped like a secret (`AshEnterprise.AI.SecretShape`) is
+  `{:error, :secret_shaped, %{question: nil, answer: nil}}`: nothing is stored, no run
+  starts and no model is called.
   """
   @spec ask(Ash.Resource.record(), String.t(), keyword()) ::
           {:ok, %{question: Turn.t(), run: Ash.Resource.record()}}
           | {:error, reason(), %{question: Turn.t() | nil, answer: Turn.t() | nil}}
   def ask(thread, question, opts) do
-    case Turn.append(%{thread_id: thread.id, role: :user, content: question}, opts) do
-      {:ok, turn} -> start(thread, turn, opts)
+    with :ok <- pasted(question),
+         {:ok, turn} <- Turn.append(%{thread_id: thread.id, role: :user, content: question}, opts) do
+      start(thread, turn, opts)
+    else
+      {:error, :secret_shaped} -> {:error, :secret_shaped, %{question: nil, answer: nil}}
       {:error, _error} -> {:error, :internal, %{question: nil, answer: nil}}
+    end
+  end
+
+  @doc """
+  The paste guard at intake (`AshEnterprise.AI.SecretShape`): `:ok`, or
+  `{:error, :secret_shaped}` for a question holding text shaped like a secret. A page
+  checks it before it stores anything the question names (a new thread's title);
+  `ask/3` checks it again before the question is stored. Only the refusal is logged,
+  never the text.
+  """
+  @spec pasted(String.t()) :: :ok | {:error, :secret_shaped}
+  def pasted(question) do
+    case SecretShape.check(question) do
+      :ok ->
+        :ok
+
+      {:refused, kind} ->
+        Logger.warning("assistant question refused by the paste guard: #{kind}")
+        {:error, :secret_shaped}
     end
   end
 

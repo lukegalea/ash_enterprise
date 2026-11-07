@@ -1513,6 +1513,7 @@ msgstr ""
 msgid "Linked account"
 msgstr ""
 
+#: lib/ash_enterprise/canvas/registry.ex:2
 #: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
 msgid "List"
 msgstr ""
@@ -1658,6 +1659,10 @@ msgstr ""
 #: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
 msgctxt "one_of:outcome_reason"
 msgid "Model missing"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Model profile"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:1

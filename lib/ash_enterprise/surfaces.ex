@@ -480,6 +480,24 @@ defmodule AshEnterprise.Surfaces do
       live: AshEnterpriseWeb.RecoveryLive,
       resource: AshEnterprise.Execution.Invocation
     },
+    # The model-profile surface (AGT-64): what each model profile may be used for,
+    # whether it is known to answer, and what it is restricted from.
+    %Surface{
+      key: :model_profiles,
+      audience: [:operator],
+      label: dgettext_noop("default", "Model profiles"),
+      blurb:
+        dgettext_noop(
+          "default",
+          "Which model each profile runs, what it may be used for, whether it is known to answer, and what it is restricted from."
+        ),
+      group: :operator,
+      order: 27,
+      icon: "hero-cpu-chip",
+      path: "/app/models",
+      live: AshEnterpriseWeb.ModelProfilesLive,
+      resource: AshEnterprise.AI.ModelProfile
+    },
     %Surface{
       key: :audit,
       audience: [:operator, :reviewer],

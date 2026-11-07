@@ -108,6 +108,28 @@ defmodule AshEnterpriseWeb.AssistantLiveTest do
     assert html =~ "thread-#{thread.id}" or has_element?(reopened, "#thread-#{thread.id}")
   end
 
+  # The paste guard (AGT-64): built from parts, so no string here is a secret.
+  test "a pasted secret is refused before a thread, a turn or a model call", %{
+    conn: conn,
+    ctx: ctx
+  } do
+    ScriptedModel.script!([{:text, "SYNTHETIC: must not be asked"}])
+    secret = "gh" <> "p_" <> String.duplicate("SYNTHETIC0", 4)
+    {:ok, view, _html} = live(conn, "/app/agent")
+
+    html =
+      view
+      |> form("#ask-form", ask: %{question: "SYNTHETIC: use #{secret}"})
+      |> render_submit()
+
+    assert has_element?(view, "#assistant-notice", "Accounts & syncs (/app/accounts)")
+    refute html =~ secret
+    refute has_element?(view, "#live-turn")
+    refute_received {:model_request, _messages, _tools, _opts}
+    assert Ash.read!(Thread, authorize?: false, tenant: ctx.tenant) == []
+    assert Ash.read!(AshEnterprise.AI.ModelCall, authorize?: false) == []
+  end
+
   test "a reopened thread picks up the run still answering it", %{conn: conn, ctx: ctx} do
     ScriptedModel.script!([{:text, "SYNTHETIC: answered after the page was gone."}])
 

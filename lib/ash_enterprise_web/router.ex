@@ -356,6 +356,18 @@ defmodule AshEnterpriseWeb.Router do
       live "/app/artifacts/:type/:id", ArtifactLive, :show
     end
 
+    # Model profiles (AshEnterpriseWeb.ModelProfilesLive): permitted use, readiness and
+    # restrictions of each model profile. Behind the registry's `:model_profiles` entry.
+    # Removable with the LiveView, this live_session and the entry.
+    ash_authentication_live_session :model_profiles,
+      on_mount: [
+        {AshEnterpriseWeb.LiveUserAuth, :live_user_required},
+        AshEnterpriseWeb.LiveLocale,
+        AshEnterpriseWeb.SurfaceDoor
+      ] do
+      live "/app/models", ModelProfilesLive, :index
+    end
+
     # The process flight views (PROD-10): A2UI surfaces whose diagram is a BPMN
     # process with a marker per live token, moved over the engine's PubSub
     # broadcasts. See AshEnterpriseWeb.FlightLive and
