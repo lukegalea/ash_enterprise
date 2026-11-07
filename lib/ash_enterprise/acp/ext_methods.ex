@@ -253,14 +253,20 @@ defmodule AshEnterprise.Acp.ExtMethods do
         [actor: actor, tenant: ActorContext.tenant(actor)] ++ l10n(actor)
       )
 
-    result = Channels.result(handled, target)
+    {result, blocked} = Channels.outcome(handled, target)
 
     case handled do
       {:ok, messages} ->
-        {:ok, answer(%{"outcome" => "applied", "a2ui" => messages}, result)}
+        {:ok,
+         Channels.annotate_answer(%{"outcome" => "applied", "a2ui" => messages}, result, blocked)}
 
       {:error, messages} ->
-        {:ok, answer(AshAcp.ExtMethods.action_failed(failure_kind(messages), messages), result)}
+        {:ok,
+         Channels.annotate_answer(
+           AshAcp.ExtMethods.action_failed(failure_kind(messages), messages),
+           result,
+           blocked
+         )}
     end
   end
 

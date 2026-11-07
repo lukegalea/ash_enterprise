@@ -21,7 +21,7 @@ defmodule AshEnterprise.Execution.Actions.RequestInvocation do
 
   It returns what a caller needs to follow the request, never what it will change:
 
-    * `invocation_id`, `target`, `status` and `error_code` (set when the request was
+    * `invocation_id`, `target`, `status`, `failure_class` and `error_code` (set when the request was
       rejected);
     * `approval_url`, when the row waits for an approval: the approval task's address
       (`/app/r/approvals/<task id>`, see `AshEnterpriseWeb.RecordController`), for a
@@ -62,6 +62,7 @@ defmodule AshEnterprise.Execution.Actions.RequestInvocation do
          "invocation_id" => row.id,
          "target" => row.target,
          "status" => Atom.to_string(row.status),
+         "failure_class" => row.failure_class && Atom.to_string(row.failure_class),
          "error_code" => row.error_code,
          "approval_url" => approval_url(row)
        }}

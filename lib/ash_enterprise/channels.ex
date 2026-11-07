@@ -32,12 +32,14 @@ defmodule AshEnterprise.Channels do
 
   ## Where each channel reads them
 
-    * Web: `AshEnterpriseWeb.A2ui.Host.handle_action/4` adds `"result"` (and, when there
-      is one, `"blockedReason"`) to the `/ui/feedback` value the action handler wrote.
+    * Web: `AshEnterpriseWeb.A2ui.Host.act/3`, the action function of every surface
+      page, adds `"result"` (and, when there is one, `"blockedReason"`) to the
+      `/ui/feedback` value the action handler wrote.
     * ACP: `AshEnterprise.Acp.ExtMethods` answers `_a2ui/action` with `"result"`
       beside its `outcome` (`applied`, `denied`, `failed`), and `"blockedReason"`.
 
-  Both compute them here, from the same handler outcome, so the two cannot drift.
+  Both compute them here (`outcome/2`), from the same handler outcome, so the two cannot
+  drift.
   """
 
   alias AshEnterprise.Execution.Actions.{
@@ -109,16 +111,54 @@ defmodule AshEnterprise.Channels do
   # --- results -----------------------------------------------------------------------
 
   @doc """
-  The result of an action handler's outcome (`{:ok | :error, messages}`) for the Ash
-  action it ran (`target/3`). A run of a request door (an action that asks for a
-  governed invocation) is `pending`: what it asks for has not happened yet.
+  What an action handler's outcome (`{:ok | :error, messages}`) came to, for the Ash
+  action it ran (`target/3`): `{result, blocked_reason}`, the pair both channels write.
+
+  A request door (an action that asks for a governed invocation) answers with the
+  invocation its request became, and that row's status is the answer: `applied` once it
+  succeeded (a door that confirms and runs at once, or a keyed door handing back a row
+  that already ran), `pending` while it waits or runs, `failed` once it was refused or
+  failed, with the row's blocked reason (`policy_failed` for a rejection,
+  `integration_unavailable` for an unknown outcome or an unreachable system). A door
+  answer with no status this module knows is `failed`, never `pending`.
   """
-  @spec result({:ok | :error, [map()]} | term(), {module(), atom() | nil}) :: atom()
-  def result({:ok, _messages}, {resource, action}) when not is_nil(action) do
-    if request_door?(resource, action), do: :pending, else: :applied
+  @spec outcome({:ok | :error, [map()]} | term(), {module(), atom() | nil}) ::
+          {atom(), atom()}
+  def outcome({:ok, messages} = handled, {resource, action} = target)
+      when is_list(messages) and not is_nil(action) do
+    if request_door?(resource, action) do
+      case door_row(messages) do
+        %{status: status} = row when not is_nil(status) ->
+          {door_result(status), blocked_reason(row)}
+
+        _unknown ->
+          {:failed, :unclassified}
+      end
+    else
+      plain(handled, target)
+    end
   end
 
-  def result({:ok, _messages}, {_resource, nil}), do: :applied
+  def outcome(handled, target), do: plain(handled, target)
+
+  defp plain(handled, target) do
+    result = result(handled, target)
+    {result, blocked_reason(result)}
+  end
+
+  @doc """
+  The result alone of an action handler's outcome for the Ash action it ran: see
+  `outcome/2`.
+  """
+  @spec result({:ok | :error, [map()]} | term(), {module(), atom() | nil}) :: atom()
+  def result({:ok, messages} = handled, {resource, action} = target)
+      when is_list(messages) and not is_nil(action) do
+    if request_door?(resource, action),
+      do: handled |> outcome(target) |> elem(0),
+      else: :applied
+  end
+
+  def result({:ok, messages}, {_resource, nil}) when is_list(messages), do: :applied
 
   def result({:error, messages}, _target) when is_list(messages) do
     case failure_kind(messages) do
@@ -177,6 +217,64 @@ defmodule AshEnterprise.Channels do
       _other -> nil
     end
   end
+
+  @pending_statuses [
+    :requested,
+    :awaiting_approval,
+    :request_info,
+    :ready,
+    :executing,
+    :dispatched,
+    :outcome_unknown
+  ]
+
+  defp door_result(:succeeded), do: :applied
+  defp door_result(status) when status in @pending_statuses, do: :pending
+  defp door_result(_refused_failed_stale_cancelled_or_unknown), do: :failed
+
+  # The row a door answered with, as `AshA2ui.ActionHandler` wrote the generic action's
+  # result: `/ui/action_result` on an A2UI 0.9.1 surface, the `/ui/response` result on a
+  # 1.0 one. Its status and failure class are read against the invocation's own
+  # vocabularies; anything else is nil.
+  defp door_row(messages) do
+    answer =
+      Enum.find_value(messages, fn
+        %{"updateDataModel" => %{"path" => "/ui/action_result", "value" => %{} = value}}
+        when map_size(value) > 0 ->
+          value
+
+        %{"updateDataModel" => %{"path" => "/ui/response", "value" => %{"result" => %{} = value}}}
+        when map_size(value) > 0 ->
+          value
+
+        _other ->
+          nil
+      end)
+
+    case answer do
+      %{"status" => status} = answer ->
+        %{
+          status: known_atom(status, invocation_statuses()),
+          failure_class:
+            known_atom(answer["failure_class"], AshAgent.Invocation.failure_classes()),
+          error_code: answer["error_code"]
+        }
+
+      _no_row ->
+        nil
+    end
+  end
+
+  defp invocation_statuses,
+    do:
+      Ash.Resource.Info.attribute(AshEnterprise.Execution.Invocation, :status).constraints[
+        :one_of
+      ]
+
+  defp known_atom(value, known) when is_binary(value),
+    do: Enum.find(known, &(Atom.to_string(&1) == value))
+
+  defp known_atom(_value, _known), do: nil
 
   # `AshA2ui.ActionHandler` answers a failure with data-model messages only, so the kind
   # is read back from them. A field error is under `/errors/<field>`. A policy refusal

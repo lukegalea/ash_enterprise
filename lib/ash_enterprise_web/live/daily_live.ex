@@ -41,6 +41,7 @@ defmodule AshEnterpriseWeb.DailyLive do
 
       quote do
         use AshA2ui.LiveRenderer,
+          action_fn: &AshEnterpriseWeb.A2ui.Host.act/3,
           locale_fn: &AshEnterpriseWeb.Locale.live_locale/1,
           gettext_backend: {AshEnterpriseWeb.Gettext, "ash_a2ui"},
           ui: unquote(ui),

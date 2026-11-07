@@ -175,14 +175,15 @@ defmodule AshEnterpriseWeb.A2ui.Host do
   @doc """
   Runs a client action envelope on a declared surface through the action handler, and
   adds the channels' result and blocked reason to the `/ui/feedback` it writes
-  (`AshEnterprise.Channels`): the same answer ACP gives for the same act.
+  (`AshEnterprise.Channels`): the same answer ACP gives for the same act. It is the
+  `action_fn` of every surface page (`AshA2ui.LiveRenderer`), generated or hand-written,
+  so no page writes feedback without them.
   """
   @spec act(module(), map(), keyword()) :: {:ok | :error, [map()]}
   def act(ui, envelope, opts) do
     {status, messages} = handled = AshA2ui.ActionHandler.handle(ui, envelope, opts)
-    target = Channels.envelope_target(ui, envelope)
-    result = Channels.result(handled, target)
-    {status, Channels.annotate_feedback(messages, result, Channels.blocked_reason(result))}
+    {result, blocked} = Channels.outcome(handled, Channels.envelope_target(ui, envelope))
+    {status, Channels.annotate_feedback(messages, result, blocked)}
   end
 
   @doc """

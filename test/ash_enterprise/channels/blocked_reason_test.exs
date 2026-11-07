@@ -286,10 +286,54 @@ defmodule AshEnterprise.Channels.BlockedReasonTest do
     assert Channels.result({:error, :not_a_list}, {HumanTask, :approve}) == :failed
     assert Channels.result({:ok, []}, {HumanTask, :approve}) == :applied
 
-    assert Channels.result(
-             {:ok, []},
-             {AshEnterprise.Credentialing.Credential, :request_activation}
-           ) ==
-             :pending
+    # A request door that answers with no request it recognises is not pending.
+    door = {AshEnterprise.Credentialing.Credential, :request_activation}
+
+    for messages <- [[], [answer(%{})], [answer(%{"status" => "sideways"})], [answer(nil)]] do
+      assert Channels.outcome({:ok, messages}, door) == {:failed, :unclassified},
+             inspect(messages)
+    end
+  end
+
+  defp answer(row),
+    do: %{"updateDataModel" => %{"path" => "/ui/action_result", "value" => row}}
+
+  defp response(row),
+    do: %{"updateDataModel" => %{"path" => "/ui/response", "value" => %{"result" => row}}}
+
+  test "a request door answers with what its request came to, not that it waits" do
+    confirm = {AshEnterprise.SystemOne.CalibrationRun, :certify_now}
+    request = {AshEnterprise.Credentialing.Credential, :request_activation}
+
+    for door <- [confirm, request], wrap <- [&answer/1, &response/1] do
+      outcome = &Channels.outcome({:ok, [wrap.(&1)]}, door)
+
+      # Confirmed and run at once, or a keyed door's row that already ran: done.
+      assert outcome.(%{"status" => "succeeded"}) == {:applied, :none}
+      assert outcome.(%{"status" => "awaiting_approval"}) == {:pending, :approval_required}
+      assert outcome.(%{"status" => "request_info"}) == {:pending, :approval_required}
+      assert outcome.(%{"status" => "ready"}) == {:pending, :none}
+      assert outcome.(%{"status" => "rejected"}) == {:failed, :policy_failed}
+      assert outcome.(%{"status" => "outcome_unknown"}) == {:pending, :integration_unavailable}
+
+      assert outcome.(%{"status" => "ready", "failure_class" => "transient"}) ==
+               {:pending, :integration_unavailable}
+
+      assert outcome.(%{"status" => "failed", "failure_class" => "timeout"}) ==
+               {:failed, :integration_unavailable}
+
+      assert outcome.(%{"status" => "failed", "failure_class" => "business"}) ==
+               {:failed, :policy_failed}
+
+      assert outcome.(%{"status" => "failed", "failure_class" => "denied"}) ==
+               {:failed, :forbidden}
+
+      assert outcome.(%{"status" => "stale"}) == {:failed, :approval_required}
+
+      assert outcome.(%{"status" => "failed", "failure_class" => "nonsense"}) ==
+               {:failed, :unclassified}
+    end
+
+    assert Channels.result({:ok, [answer(%{"status" => "succeeded"})]}, confirm) == :applied
   end
 end

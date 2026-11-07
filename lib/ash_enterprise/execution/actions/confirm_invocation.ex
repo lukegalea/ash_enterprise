@@ -35,7 +35,7 @@ defmodule AshEnterprise.Execution.Actions.ConfirmInvocation do
   built afresh, so a task opened since their request began is one they may decide.
 
   It returns the request as `AshEnterprise.Execution.Actions.RequestInvocation` does:
-  `invocation_id`, `target`, `status`, `error_code`, `approval_url`.
+  `invocation_id`, `target`, `status`, `failure_class`, `error_code`, `approval_url`.
   """
 
   use Ash.Resource.Actions.Implementation
@@ -154,6 +154,7 @@ defmodule AshEnterprise.Execution.Actions.ConfirmInvocation do
        "invocation_id" => row.id,
        "target" => row.target,
        "status" => Atom.to_string(row.status),
+       "failure_class" => row.failure_class && Atom.to_string(row.failure_class),
        "error_code" => row.error_code,
        "approval_url" => approval_url(row)
      }}

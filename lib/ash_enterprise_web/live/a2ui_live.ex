@@ -206,6 +206,7 @@ defmodule AshEnterpriseWeb.A2uiLive do
     `## Visual cue` in docs/plans/ash-strangler-in-reference-app.md.
     """
     use AshA2ui.LiveRenderer,
+      action_fn: &AshEnterpriseWeb.A2ui.Host.act/3,
       locale_fn: &AshEnterpriseWeb.Locale.live_locale/1,
       gettext_backend: {AshEnterpriseWeb.Gettext, "ash_a2ui"},
       ui: AshEnterpriseWeb.A2ui.LegacyUserUI,
@@ -306,6 +307,7 @@ defmodule AshEnterpriseWeb.A2uiLive do
     of what this design gives you, and hiding it would be claiming a guarantee it does not make.
     """
     use AshA2ui.LiveRenderer,
+      action_fn: &AshEnterpriseWeb.A2ui.Host.act/3,
       locale_fn: &AshEnterpriseWeb.Locale.live_locale/1,
       gettext_backend: {AshEnterpriseWeb.Gettext, "ash_a2ui"},
       ui: AshEnterpriseWeb.A2ui.ProjectedUserUI,
@@ -377,6 +379,7 @@ defmodule AshEnterpriseWeb.A2uiLive do
     here at the instant its scrubber is on.
     """
     use AshA2ui.LiveRenderer,
+      action_fn: &AshEnterpriseWeb.A2ui.Host.act/3,
       locale_fn: &AshEnterpriseWeb.Locale.live_locale/1,
       gettext_backend: {AshEnterpriseWeb.Gettext, "ash_a2ui"},
       ui: AshEnterpriseWeb.A2ui.MdmGoldenUI,

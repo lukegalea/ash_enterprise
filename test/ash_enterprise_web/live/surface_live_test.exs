@@ -79,6 +79,16 @@ defmodule AshEnterpriseWeb.SurfaceLiveTest do
       assert Enum.sort(Enum.map(specialists, & &1.key)) == Enum.sort(@specialists)
     end
 
+    test "every renderer acts through the channels' action path, so its feedback says what the act came to" do
+      renderers = for module <- app_modules(), renderer?(module), do: module
+      assert length(renderers) > 30
+
+      for module <- renderers do
+        assert module.__ash_a2ui_config__().action_fn == (&AshEnterpriseWeb.A2ui.Host.act/3),
+               "#{inspect(module)} writes /ui/feedback without the channels' result"
+      end
+    end
+
     test "a page that is not a renderer is neither generated nor a specialist" do
       for %Surface{renderer: nil} = surface <- Surfaces.all() do
         refute renderer?(surface.live), inspect(surface.key)
