@@ -21,6 +21,15 @@ defmodule AshEnterprise.Integration do
       land a fetched record, sealed under the linked account's erasure scope
       (ADR 0024; `AshEnterprise.Integration.Landing.Scoped`).
 
+  ## Beside it: `ash_operations`
+
+  Providers reached directly, with a deployment credential and HMAC webhooks rather than an
+  OAuth connection, are declared with the `ash_operations` package instead (ADR 0063): the
+  credential registry (`AshEnterprise.Credentialing.RegistryApi`) is the reference, and
+  `AshEnterprise.Integration.Operations.Delivery` records its webhook deliveries. Both
+  satisfy the same invariants as the edge above: one transport per provider, no credential or
+  connection argument, the generated action is the call path, and there is no integration log.
+
   ## The verticals
 
     * Google Calendar — `Calendar.Sync` (entry points), `Calendar.SyncCursor`
@@ -74,5 +83,10 @@ defmodule AshEnterprise.Integration do
     resource AshEnterprise.Integration.Slack.KnownMember
 
     resource AshEnterprise.Integration.ProjectionCursor
+
+    resource AshEnterprise.Integration.Operations.Delivery do
+      define :receive_provider_delivery, action: :receive
+      define :list_provider_deliveries, action: :read
+    end
   end
 end

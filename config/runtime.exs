@@ -336,6 +336,41 @@ config :ash_enterprise, AshEnterprise.SystemOne.QuestionProposal.Transport,
     ]
   }
 
+# The credential registry's connector (ADR 0063): the one HTTP client for the registry
+# (`AshEnterprise.Credentialing.RegistryApi.Transport`) reads this at call time.
+#
+#   * CREDENTIAL_REGISTRY_URL         the registry's base URL. Unset: the in-process fake
+#                                     answers (dev, demo), so the template runs offline.
+#   * CREDENTIAL_REGISTRY_API_KEY     the bearer key. A URL with no key is "not configured":
+#                                     calls fail before anything is sent. A secret of the same
+#                                     class as the database password.
+#   * CREDENTIAL_REGISTRY_RESIDENCY   `in_cluster` or `sub_processor` (the default). A
+#                                     sub-processor needs the tenant's recorded opt-in before a
+#                                     licence number is sent (`RegistryDisclosureGate`).
+#   * CREDENTIAL_REGISTRY_WEBHOOK_SECRETS
+#                                     comma-separated HMAC secrets for the provider webhook
+#                                     ingress (`POST /webhooks/credential-registry`); several at
+#                                     once is how a secret is rotated. None: the route answers 503.
+if config_env() != :test do
+  registry_residency =
+    case System.get_env("CREDENTIAL_REGISTRY_RESIDENCY") do
+      "in_cluster" -> :in_cluster
+      _ -> :sub_processor
+    end
+
+  config :ash_enterprise, AshEnterprise.Credentialing.RegistryApi.Transport,
+    base_url: System.get_env("CREDENTIAL_REGISTRY_URL"),
+    api_key: System.get_env("CREDENTIAL_REGISTRY_API_KEY"),
+    residency: registry_residency
+
+  config :ash_enterprise, AshEnterprise.Credentialing.RegistryWebhook,
+    secrets:
+      "CREDENTIAL_REGISTRY_WEBHOOK_SECRETS"
+      |> System.get_env("")
+      |> String.split(",", trim: true)
+      |> Enum.map(&String.trim/1)
+end
+
 if config_env() == :dev do
   # Reload browser tabs when matching files change.
   config :ash_enterprise, AshEnterpriseWeb.Endpoint,

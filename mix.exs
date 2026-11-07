@@ -136,6 +136,9 @@ defmodule AshEnterprise.MixProject do
         # somebody is touching the legacy mapping, and AGENTS.md is read into
         # every session whether or not anyone is.
         {:ash_strangler, link: :markdown},
+        # Specialised: matters only when declaring or changing a provider's operations
+        # or its webhook ingress.
+        {:ash_operations, link: :markdown},
         {:ash_open_lineage, link: :markdown},
         # The rest of the first-party extensions, linked for the same reason.
         # ash_events_projections is absent on purpose: it reaches this app only
@@ -298,6 +301,9 @@ defmodule AshEnterprise.MixProject do
       # `legacy.*` plus the notification bridge that makes a legacy write
       # visible to LiveView. See docs/plans/ash-strangler-in-reference-app.md.
       {:ash_strangler, github: "lukegalea/ash_strangler"},
+      # Declared provider operations over Req (ADR 0063): the credential registry's
+      # connector and the provider webhook ingress. mix.lock pins the SHA.
+      {:ash_operations, github: "lukegalea/ash_operations"},
       # Wave 2 (ADR 0062): the Solverl adapter for the planning kernel's
       # MiniZinc backend. Governance is prlimit + Solverl timeouts (ADR 0062 §6).
       {:solverl, "~> 1.1"},

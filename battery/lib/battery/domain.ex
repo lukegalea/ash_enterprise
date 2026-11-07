@@ -52,6 +52,14 @@ defmodule Battery.Domain do
     resource Battery.Execution.Referral
     resource Battery.Execution.Invocation
 
+    # Declared provider operations (ash_operations): the registry's operations, the
+    # submission a governed call acts on, the webhook deliveries it receives and the
+    # envelope a follow-up read emits.
+    resource Battery.Operations.Registry
+    resource Battery.Operations.Submission
+    resource Battery.Operations.Delivery
+    resource Battery.Operations.ActivationSettled
+
     # Agent runs (the ash_agent run fragments), and the question an agent asks a person.
     resource Battery.Execution.AgentVersion
     resource Battery.Execution.Run

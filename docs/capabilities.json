@@ -25,9 +25,9 @@
     "that rest on it are about what this application does with the dependency,",
     "and were re-read at every version the range admits so far (`read_at`).",
     "",
-    "Last reviewed against the tree: 2026-10-27."
+    "Last reviewed against the tree: 2026-11-06."
   ],
-  "reviewed": "2026-10-27",
+  "reviewed": "2026-11-06",
   "pins": [
     {
       "dep": "ash_bpmn",
@@ -197,12 +197,13 @@
       "area": "workflow",
       "capability": "HTTP and messaging tasks",
       "status": "partial",
-      "summary": "Each declared operation on an external service is a generic action with a code interface, sent through one proxy facade using the caller's own connection.",
+      "summary": "Each declared operation on an external service is a generic action with a code interface, sent through one proxy facade using the caller's own connection. A provider reached with a deployment credential, the credential registry, is declared the same way through the ash_operations package, with a pinned spec and a signed webhook ingress (ADR 0063).",
       "gap": "These actions are not offered to the process designer as tasks.",
       "deps": [],
       "tests": [
         {"file": "test/ash_enterprise/integration/nango_edge_test.exs", "test": "every declared operation is a generic action with a code interface"},
-        {"file": "test/ash_enterprise/integration/nango_edge_test.exs", "test": "the same action spends each actor's own connection"}
+        {"file": "test/ash_enterprise/integration/nango_edge_test.exs", "test": "the same action spends each actor's own connection"},
+        {"file": "test/ash_enterprise/credentialing/registry_api_test.exs", "test": "every registry operation is a generic action with a code interface"}
       ]
     },
     {
@@ -210,14 +211,15 @@
       "area": "workflow",
       "capability": "Retry and timeout",
       "status": "partial",
-      "summary": "A failed service task is retried by the engine within a global attempt budget and then fails the instance; a business error is caught by an error boundary instead of retried; a failed instance can be resumed; external calls fail with typed reasons.",
+      "summary": "A failed service task is retried by the engine within a global attempt budget and then fails the instance; a business error is caught by an error boundary instead of retried; a failed instance can be resumed; external calls fail with typed reasons, and a provider call whose answer was lost is reconciled through a read, never re-sent.",
       "gap": "No per-node retry policy, and no timeout on a service task: a timer boundary attaches to user tasks, receive tasks and call activities.",
       "deps": ["ash_bpmn"],
       "tests": [
         {"dep": "ash_bpmn", "file": "test/ash_bpmn/service_task_failure_test.exs", "test": "exhausting the engine's attempts fails the instance and kills the token"},
         {"dep": "ash_bpmn", "file": "test/ash_bpmn/service_task_failure_test.exs", "test": "a retry after the cause is fixed advances the instance"},
         {"file": "test/ash_enterprise/integration/nango_edge_test.exs", "test": "410 from Calendar surfaces as :gone (sync token invalid)"},
-        {"dep": "ash_bpmn", "file": "test/ash_bpmn/error_boundary_test.exs", "test": "an uncaught code fails the instance at the task at once, without retrying"}
+        {"dep": "ash_bpmn", "file": "test/ash_bpmn/error_boundary_test.exs", "test": "an uncaught code fails the instance at the task at once, without retrying"},
+        {"file": "test/ash_enterprise/credentialing/registry_activation_test.exs", "test": "a lost answer leaves the activation outcome_unknown and reconciling it sends nothing"}
       ]
     },
     {
@@ -513,12 +515,14 @@
       "area": "enterprise",
       "capability": "Secrets and connections",
       "status": "partial",
-      "summary": "External connections are held by an integration proxy and derived from the actor; no action accepts a connection or provider credential as input.",
+      "summary": "External connections are held by an integration proxy and derived from the actor; no action accepts a connection or provider credential as input. A deployment provider's key (the credential registry's) is read at call time by its one transport.",
       "gap": "Platform secrets are deployment configuration; nothing stops a secret pasted into ordinary input.",
       "deps": [],
       "tests": [
         {"file": "test/ash_enterprise/integration/nango_edge_test.exs", "test": "no generated action has a connection or provider-config argument"},
-        {"file": "test/ash_enterprise/integration/nango_edge_test.exs", "test": "a caller-supplied connection id is rejected as an unknown input"}
+        {"file": "test/ash_enterprise/integration/nango_edge_test.exs", "test": "a caller-supplied connection id is rejected as an unknown input"},
+        {"file": "test/ash_enterprise/credentialing/registry_api_test.exs", "test": "no registry operation takes a credential, connection or tenant argument"},
+        {"file": "test/ash_enterprise/credentialing/registry_api_test.exs", "test": "the transport reads its key at call time and is not configured without a URL and key"}
       ]
     },
     {

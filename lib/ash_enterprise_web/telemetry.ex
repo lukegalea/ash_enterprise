@@ -21,6 +21,7 @@ defmodule AshEnterpriseWeb.Telemetry do
 
   def metrics do
     ash_metrics() ++
+      operations_metrics() ++
       [
         # Phoenix Metrics
         summary("phoenix.endpoint.start.system_time",
@@ -96,7 +97,7 @@ defmodule AshEnterpriseWeb.Telemetry do
   # Adding a resource to an existing domain needs no change here. Adding a
   # DOMAIN does, which is the one place this is not automatic.
   defp ash_metrics do
-    for domain_name <- [:accounts, :security, :audit],
+    for domain_name <- [:accounts, :security, :audit, :credentialing],
         action_type <- [:create, :read, :update, :destroy, :action],
         do:
           summary("ash.#{domain_name}.#{action_type}.stop.duration",
@@ -104,6 +105,39 @@ defmodule AshEnterpriseWeb.Telemetry do
             description: "#{action_type} actions in the #{domain_name} domain",
             tags: [:resource_short_name, :action]
           )
+  end
+
+  # `ash_operations` events (ADR 0063): one per provider call, one per webhook delivery.
+  # Tags are structural only, never a path, id, header or body.
+  @doc "The metrics `ash_operations` events feed."
+  def operations_metrics do
+    [
+      summary("operations.request.stop.duration",
+        unit: {:native, :millisecond},
+        tags: [:provider, :operation, :effect, :reason],
+        description: "Provider calls, by operation and outcome"
+      ),
+      counter("operations.request.stop.count",
+        event_name: [:operations, :request, :stop],
+        tags: [:provider, :operation, :reason],
+        description: "Provider calls"
+      ),
+      summary("operations.request.stop.attempts",
+        event_name: [:operations, :request, :stop],
+        measurement: fn _measurements, metadata -> Map.get(metadata, :attempts) end,
+        tags: [:provider, :operation],
+        description: "Attempts a provider call took, retries included"
+      ),
+      counter("operations.webhook.received.count",
+        event_name: [:operations, :webhook, :received],
+        tags: [:provider, :outcome, :status],
+        description: "Provider webhook deliveries"
+      ),
+      summary("operations.webhook.received.bytes",
+        tags: [:provider],
+        description: "Provider webhook body sizes"
+      )
+    ]
   end
 
   defp periodic_measurements do

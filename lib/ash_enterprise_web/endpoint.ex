@@ -74,6 +74,11 @@ defmodule AshEnterpriseWeb.Endpoint do
   plug Plug.RequestId
   plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint]
 
+  # Provider webhooks (ADR 0063): POST /webhooks/:provider only, ahead of Plug.Parsers
+  # because a signature covers the exact bytes and the ingress reads them itself. Every
+  # other request passes through untouched.
+  plug AshEnterpriseWeb.Plugs.ProviderWebhooks
+
   plug Plug.Parsers,
     parsers: [:urlencoded, :multipart, :json, AshJsonApi.Plug.Parser, Absinthe.Plug.Parser],
     pass: ["*/*"],

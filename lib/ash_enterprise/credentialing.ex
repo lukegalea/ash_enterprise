@@ -11,12 +11,14 @@ defmodule AshEnterprise.Credentialing do
   | `Credential` | invented (see its moduledoc) | A licence or certification awaiting activation |
   | `LicenceDocument` | invented | A document a credential rests on, its text in the evidence store |
   | `DocumentEvent` | invented | A request for a document, or its arrival: a CloudEvents envelope |
+  | `RegistryApi` | `AshOperations` | The registry's declared operations: generic actions, no rows |
 
   The committee's review of an activation is a `AshEnterprise.Bpmn.HumanTask`, which
   already adopts the CDM `Task`; this domain adds no task resource of its own.
 
   `Credential.activate_credential` is the governed act. It reaches an outside registry
-  (`AshEnterprise.Credentialing.Registry`, a stub), asks a committee member other than
+  through declared operations (`AshEnterprise.Credentialing.RegistryApi`, ADR 0063; offline
+  it is served by an in-process fake over `AshEnterprise.Credentialing.Registry`), asks a committee member other than
   the requester to approve, and is reached only through `AshEnterprise.Execution.invoke/4`,
   which `request_activation` calls: there is no code interface for the act itself.
 
@@ -60,6 +62,8 @@ defmodule AshEnterprise.Credentialing do
       define :receive_document, action: :receive
       define :list_document_events, action: :read
     end
+
+    resource AshEnterprise.Credentialing.RegistryApi
 
     resource AshEnterprise.Credentialing.LicenceDocument do
       define :file_licence_document, action: :file

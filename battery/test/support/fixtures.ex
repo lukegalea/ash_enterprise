@@ -256,6 +256,165 @@ defmodule Battery.Fixtures do
   </bpmn2:definitions>
   """
 
+  # The disclosure decision the battery registry's gate asks before a call may send
+  # (`Battery.Operations.Gate`): three inputs, one output, the CODE of the answer.
+  # FIRST hit policy, so the order of the rules is the policy. Version 1 refuses
+  # `restricted` data everywhere and `personal` data to a sub-processor without consent on
+  # file; version 2 also refuses `personal` data to a sub-processor even WITH consent
+  # (`residency`): a change of policy that is data, not code. Anything else is `permitted`.
+  @disclosure_head """
+  <?xml version="1.0" encoding="UTF-8"?>
+  <definitions xmlns="https://www.omg.org/spec/DMN/20230324/MODEL/"
+               xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+               id="battery_disclosure_permitted_definitions"
+               name="battery_disclosure_permitted"
+               namespace="https://battery.test/battery_disclosure_permitted"
+               expressionLanguage="https://www.omg.org/spec/DMN/20230324/FEEL/"
+               typeLanguage="https://www.omg.org/spec/DMN/20230324/FEEL/">
+    <inputData id="input_data_class" name="data_class">
+      <variable id="var_data_class" name="data_class" typeRef="string"/>
+    </inputData>
+    <inputData id="input_destination_residency" name="destination_residency">
+      <variable id="var_destination_residency" name="destination_residency" typeRef="string"/>
+    </inputData>
+    <inputData id="input_consent_on_file" name="consent_on_file">
+      <variable id="var_consent_on_file" name="consent_on_file" typeRef="boolean"/>
+    </inputData>
+    <decision id="decision_battery_disclosure_permitted" name="battery_disclosure_permitted">
+      <variable id="var_battery_disclosure_permitted" name="battery_disclosure_permitted" typeRef="string"/>
+      <informationRequirement id="req_data_class"><requiredInput href="#input_data_class"/></informationRequirement>
+      <informationRequirement id="req_destination_residency"><requiredInput href="#input_destination_residency"/></informationRequirement>
+      <informationRequirement id="req_consent_on_file"><requiredInput href="#input_consent_on_file"/></informationRequirement>
+      <decisionTable id="table_battery_disclosure_permitted" hitPolicy="FIRST" outputLabel="code">
+        <input id="clause_data_class" label="Data class">
+          <inputExpression id="expr_data_class" typeRef="string"><text>data_class</text></inputExpression>
+        </input>
+        <input id="clause_destination_residency" label="Destination residency">
+          <inputExpression id="expr_destination_residency" typeRef="string"><text>destination_residency</text></inputExpression>
+        </input>
+        <input id="clause_consent_on_file" label="Consent on file">
+          <inputExpression id="expr_consent_on_file" typeRef="boolean"><text>consent_on_file</text></inputExpression>
+        </input>
+        <output id="clause_code" name="code" label="code" typeRef="string"/>
+  """
+
+  @disclosure_tail """
+      </decisionTable>
+    </decision>
+  </definitions>
+  """
+
+  defp disclosure_rule(id, {class, residency, consent}, code) do
+    """
+        <rule id="#{id}">
+          <inputEntry id="#{id}_0"><text>#{class}</text></inputEntry>
+          <inputEntry id="#{id}_1"><text>#{residency}</text></inputEntry>
+          <inputEntry id="#{id}_2"><text>#{consent}</text></inputEntry>
+          <outputEntry id="#{id}_3"><text>"#{code}"</text></outputEntry>
+        </rule>
+    """
+  end
+
+  @doc """
+  The `battery_disclosure_permitted` DMN document, version 1 or 2 of the policy (see above).
+  The rule ids are `rule_restricted`, `rule_consent_required`, `rule_residency` (2 only) and
+  `rule_permit`.
+  """
+  def disclosure_permitted_dmn(policy_version) when policy_version in [1, 2] do
+    rules =
+      [
+        disclosure_rule("rule_restricted", {~s("restricted"), "-", "-"}, "restricted"),
+        disclosure_rule(
+          "rule_consent_required",
+          {~s("personal"), ~s("sub_processor"), "false"},
+          "consent_required"
+        ),
+        if(policy_version == 2,
+          do:
+            disclosure_rule(
+              "rule_residency",
+              {~s("personal"), ~s("sub_processor"), "-"},
+              "residency"
+            )
+        ),
+        disclosure_rule("rule_permit", {"-", "-", "-"}, "permitted")
+      ]
+      |> Enum.reject(&is_nil/1)
+
+    @disclosure_head <> Enum.join(rules) <> @disclosure_tail
+  end
+
+  # The process that waits for a provider's webhook: read the activation id off the
+  # subject, park on the envelope the follow-up writes for it, read what the provider
+  # said when read, and route on it.
+  @activation_wait_process """
+  <?xml version="1.0" encoding="UTF-8"?>
+  <bpmn2:definitions xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                     xmlns:ash="https://github.com/lukegalea/ash_bpmn/ns"
+                     id="Definitions_activation_wait"
+                     targetNamespace="https://github.com/lukegalea/ash_bpmn/ns">
+    <bpmn2:process id="Process_activation_wait" name="Wait for the provider" isExecutable="true">
+      <bpmn2:startEvent id="Start"><bpmn2:outgoing>F1</bpmn2:outgoing></bpmn2:startEvent>
+
+      <bpmn2:serviceTask id="ReadSubmission" name="Read the activation id">
+        <bpmn2:extensionElements>
+          <ash:taskConfig action="submission_activation"/>
+          <ash:promote><ash:signal name="activation_id" required="true"/></ash:promote>
+        </bpmn2:extensionElements>
+        <bpmn2:incoming>F1</bpmn2:incoming>
+        <bpmn2:outgoing>F2</bpmn2:outgoing>
+      </bpmn2:serviceTask>
+
+      <bpmn2:receiveTask id="AwaitActivation" name="Wait for the provider">
+        <bpmn2:extensionElements>
+          <ash:subscribe resource="Battery.Operations.ActivationSettled" action="emit"
+                         correlate="routing.activation_id" match="data.subject"/>
+        </bpmn2:extensionElements>
+        <bpmn2:incoming>F2</bpmn2:incoming>
+        <bpmn2:outgoing>F3</bpmn2:outgoing>
+      </bpmn2:receiveTask>
+
+      <bpmn2:serviceTask id="ReadStatus" name="Read what the provider said">
+        <bpmn2:extensionElements>
+          <ash:taskConfig action="activation_status"/>
+          <ash:inputs><ash:input name="activation_id" from="routing.activation_id"/></ash:inputs>
+          <ash:promote><ash:signal name="status" required="true"/></ash:promote>
+        </bpmn2:extensionElements>
+        <bpmn2:incoming>F3</bpmn2:incoming>
+        <bpmn2:outgoing>F4</bpmn2:outgoing>
+      </bpmn2:serviceTask>
+
+      <bpmn2:exclusiveGateway id="Route" default="F_other">
+        <bpmn2:incoming>F4</bpmn2:incoming>
+        <bpmn2:outgoing>F_active</bpmn2:outgoing>
+        <bpmn2:outgoing>F_other</bpmn2:outgoing>
+      </bpmn2:exclusiveGateway>
+
+      <bpmn2:endEvent id="Activated">
+        <bpmn2:extensionElements><ash:taskConfig outcome="activated"/></bpmn2:extensionElements>
+        <bpmn2:incoming>F_active</bpmn2:incoming>
+      </bpmn2:endEvent>
+      <bpmn2:endEvent id="NotActivated">
+        <bpmn2:extensionElements><ash:taskConfig outcome="not_activated"/></bpmn2:extensionElements>
+        <bpmn2:incoming>F_other</bpmn2:incoming>
+      </bpmn2:endEvent>
+
+      <bpmn2:sequenceFlow id="F1" sourceRef="Start" targetRef="ReadSubmission"/>
+      <bpmn2:sequenceFlow id="F2" sourceRef="ReadSubmission" targetRef="AwaitActivation"/>
+      <bpmn2:sequenceFlow id="F3" sourceRef="AwaitActivation" targetRef="ReadStatus"/>
+      <bpmn2:sequenceFlow id="F4" sourceRef="ReadStatus" targetRef="Route"/>
+      <bpmn2:sequenceFlow id="F_active" sourceRef="Route" targetRef="Activated">
+        <bpmn2:conditionExpression xsi:type="bpmn2:tFormalExpression"
+          language="feel">routing.status = "active"</bpmn2:conditionExpression>
+      </bpmn2:sequenceFlow>
+      <bpmn2:sequenceFlow id="F_other" sourceRef="Route" targetRef="NotActivated"/>
+    </bpmn2:process>
+  </bpmn2:definitions>
+  """
+
+  def activation_wait_process, do: @activation_wait_process
+
   def band_table_dmn, do: @band_table_dmn
   def amount_tier_dmn, do: @amount_tier_dmn
   def amount_tier_process, do: @amount_tier_process

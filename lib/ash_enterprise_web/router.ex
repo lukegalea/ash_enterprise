@@ -5,6 +5,10 @@ defmodule AshEnterpriseWeb.Router do
 
   import AshAuthentication.Plug.Helpers
 
+  # `POST /webhooks/:provider` is not here, and `mix phx.routes` does not list it: it is
+  # mounted in the endpoint, ahead of `Plug.Parsers`, so a signature can cover the raw
+  # bytes. See `AshEnterpriseWeb.Plugs.ProviderWebhooks` (ADR 0063).
+
   # Mirrors :api. Without these the endpoint has no way to authenticate anybody:
   # every request arrives with a nil actor, the policy union grants nothing, and
   # the API answers `{"count": 0, "results": []}` to every query -- a successful

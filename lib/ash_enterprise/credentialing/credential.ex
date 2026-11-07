@@ -11,7 +11,8 @@ defmodule AshEnterprise.Credentialing.Credential do
 
   ## Activation is governed
 
-  `activate_credential` reaches the registry (`AshEnterprise.Credentialing.Registry`),
+  `activate_credential` reaches the registry (`AshEnterprise.Credentialing.RegistryApi`, declared
+  operations over HTTP),
   so its effects declaration says so:
 
     * `kind: :edit`, not destructive, and not idempotent: the registry takes no

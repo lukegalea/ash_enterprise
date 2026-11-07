@@ -1,0 +1,81 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Battery registry (synthetic)",
+    "version": "2026-11-01",
+    "description": "SYNTHETIC. Invented for the battery: no real provider publishes this document. It is the vendored spec the battery's declared operations are pinned against."
+  },
+  "paths": {
+    "/activations": {
+      "post": {
+        "operationId": "createActivation",
+        "summary": "Create an activation. Not idempotent: every accepted call is a new activation.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["clientReference"],
+                "properties": {"clientReference": {"type": "string"}}
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {"description": "The activation.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Activation"}}}},
+          "default": {"$ref": "#/components/responses/Error"}
+        }
+      },
+      "get": {
+        "operationId": "listActivations",
+        "summary": "Activations, filtered by the caller's own reference.",
+        "parameters": [{"name": "clientReference", "in": "query", "schema": {"type": "string"}}],
+        "responses": {
+          "200": {
+            "description": "A page of activations.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {"data": {"type": "array", "items": {"$ref": "#/components/schemas/Activation"}}}
+                }
+              }
+            }
+          },
+          "default": {"$ref": "#/components/responses/Error"}
+        }
+      }
+    },
+    "/activations/{activationId}": {
+      "get": {
+        "operationId": "getActivation",
+        "summary": "One activation.",
+        "parameters": [{"name": "activationId", "in": "path", "required": true, "schema": {"type": "string"}}],
+        "responses": {
+          "200": {"description": "The activation.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Activation"}}}},
+          "default": {"$ref": "#/components/responses/Error"}
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Activation": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "string"},
+          "clientReference": {"type": "string"},
+          "status": {"type": "string", "enum": ["active", "revoked"]}
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {"code": {"type": "string"}, "requestId": {"type": "string"}}
+      }
+    },
+    "responses": {
+      "Error": {"description": "The error envelope.", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}}
+    }
+  }
+}
