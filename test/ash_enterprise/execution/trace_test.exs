@@ -488,6 +488,48 @@ defmodule AshEnterprise.Execution.TraceTest do
       assert S.CaseResult.status(:errored) == :failed
       assert S.CaseResult.status(nil) == :uncertain
     end
+
+    test "an invocation's approval or resolution task reads by its answer, never a bare success" do
+      approval = %{status: :completed, node_id: Approval.key(), outcome: nil}
+
+      resolution = %{
+        status: :completed,
+        node_id: AshEnterprise.Execution.Resolution.key(),
+        outcome: nil
+      }
+
+      assert S.HumanTask.status(%{approval | outcome: "approved"}) == {:succeeded, nil}
+      assert S.HumanTask.status(%{approval | outcome: "request_info"}) == {:waiting, :requester}
+      assert S.HumanTask.status(%{approval | outcome: "rejected"}) == {:cancelled, nil}
+      assert S.HumanTask.status(%{resolution | outcome: "failed"}) == {:failed, nil}
+      assert S.HumanTask.status(%{resolution | outcome: "retry"}) == {:waiting, :queue}
+      assert S.HumanTask.status(%{resolution | outcome: "succeeded"}) == {:succeeded, nil}
+
+      for task <- [approval, resolution], outcome <- [nil, "answered", "sideways"] do
+        assert S.HumanTask.status(Map.put(task, :outcome, outcome)) == {:uncertain, nil},
+               inspect({task.node_id, outcome})
+      end
+    end
+  end
+
+  describe "the tenant it is read in" do
+    test "is required: a trace without one is refused, not read across every tenant", ctx do
+      %{activation: row} = work!(ctx)
+      other = tenant!()
+
+      # The tenant's own Administrator reads it in their tenant ...
+      assert %{entries: [_ | _]} =
+               trace!(%{root_ref: "invocation:#{row.id}"}, ctx.admin.actor, ctx.tenant)
+
+      # ... another tenant's Administrator reads nothing of it, with their tenant or none.
+      assert %{entries: []} =
+               trace!(%{root_ref: "invocation:#{row.id}"}, other.actor, other.tenant)
+
+      for viewer <- [other.actor, ctx.admin.actor] do
+        assert {:error, %Ash.Error.Invalid{}} =
+                 Execution.trace(%{root_ref: "invocation:#{row.id}"}, actor: viewer)
+      end
+    end
   end
 
   test "a tenant's Administrator role reaches the trace through the privilege catalogue", ctx do

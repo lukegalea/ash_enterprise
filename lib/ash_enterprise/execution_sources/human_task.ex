@@ -5,9 +5,13 @@ defmodule AshEnterprise.ExecutionSources.HumanTask do
   instance. Reads the tasks named by the trace, opened for one of its invocations, or
   in one of its process instances.
 
-  An open task waits on a person; a claimed one is running; a completed one succeeded,
-  unless it was rejected (cancelled) or expired (failed); a cancelled one is cancelled.
-  Its comment is never in its entry.
+  An open task waits on a person; a claimed one is running; a cancelled one is
+  cancelled. A completed invocation task reads by what it was answered with: an approval
+  `approved` succeeded, `rejected` is cancelled, `expired` failed, and `request_info`
+  waits on the requester; a resolution settled `succeeded`, `failed`, or `retry` (waiting
+  to run again). Any other answer on those is uncertain, never a success. Any other
+  completed task succeeded, unless it was rejected (cancelled) or expired (failed). Its
+  comment is never in its entry.
   """
 
   @behaviour AshAgent.Execution.Source
@@ -48,7 +52,16 @@ defmodule AshEnterprise.ExecutionSources.HumanTask do
     )
   end
 
+  @approval AshEnterprise.Execution.Approval.key()
+  @resolution AshEnterprise.Execution.Resolution.key()
+
   @doc false
+  def status(%{status: :completed, node_id: @approval, outcome: outcome}),
+    do: approval(outcome)
+
+  def status(%{status: :completed, node_id: @resolution, outcome: outcome}),
+    do: resolution(outcome)
+
   def status(%{status: :open}), do: {:waiting, :human}
   def status(%{status: :claimed}), do: {:running, nil}
   def status(%{status: :completed, outcome: "rejected"}), do: {:cancelled, nil}
@@ -59,6 +72,17 @@ defmodule AshEnterprise.ExecutionSources.HumanTask do
 
   def status(%{status: :cancelled}), do: {:cancelled, nil}
   def status(_unknown), do: {:uncertain, nil}
+
+  defp approval("approved"), do: {:succeeded, nil}
+  defp approval("rejected"), do: {:cancelled, nil}
+  defp approval("expired"), do: {:failed, nil}
+  defp approval("request_info"), do: {:waiting, :requester}
+  defp approval(_unknown), do: {:uncertain, nil}
+
+  defp resolution("succeeded"), do: {:succeeded, nil}
+  defp resolution("failed"), do: {:failed, nil}
+  defp resolution("retry"), do: {:waiting, :queue}
+  defp resolution(_unknown), do: {:uncertain, nil}
 
   defp parent(%{subject_type: @invocation, subject_id: id}) when is_binary(id),
     do: Source.ref(:invocation, id)
