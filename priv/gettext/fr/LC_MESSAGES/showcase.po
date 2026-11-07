@@ -1019,67 +1019,67 @@ msgstr ""
 #: lib/ash_enterprise_web/live/showcase_live/tour_index.ex:271
 #, elixir-autogen, elixir-format
 msgid "A candidate fails its injection case"
-msgstr ""
+msgstr "Un candidat échoue son cas d'injection"
 
 #: lib/ash_enterprise_web/live/showcase_live/tour_index.ex:265
 #, elixir-autogen, elixir-format
 msgid "A deploy changes the approved tool"
-msgstr ""
+msgstr "Un déploiement modifie l'outil approuvé"
 
 #: lib/ash_enterprise_web/live/showcase_live/tour_index.ex:273
 #, elixir-autogen, elixir-format
 msgid "A person asks to be erased"
-msgstr ""
+msgstr "Une personne demande à être effacée"
 
 #: lib/ash_enterprise_web/live/showcase_live/tour_index.ex:272
 #, elixir-autogen, elixir-format
 msgid "A routing table changes under a case"
-msgstr ""
+msgstr "Une table de routage change sous un cas"
 
 #: lib/ash_enterprise_web/live/showcase_live/tour_index.ex:274
 #, elixir-autogen, elixir-format
 msgid "A shadow rerun must touch nothing"
-msgstr ""
+msgstr "Une relance fantôme ne doit rien toucher"
 
 #: lib/ash_enterprise_web/live/showcase_live/tour_index.ex:268
 #, elixir-autogen, elixir-format
 msgid "A webhook arrives twice, or early"
-msgstr ""
+msgstr "Un webhook arrive deux fois, ou en avance"
 
 #: lib/ash_enterprise_web/live/showcase_live/tour_index.ex:170
 #, elixir-autogen, elixir-format
 msgid "Beat"
-msgstr ""
+msgstr "Étape"
 
 #: lib/ash_enterprise_web/live/showcase_live/tour_index.ex:186
 #, elixir-autogen, elixir-format
 msgid "Beat %{number}"
-msgstr ""
+msgstr "Étape %{number}"
 
 #: lib/ash_enterprise_web/live/showcase_live/tour_index.ex:160
 #, elixir-autogen, elixir-format
 msgid "Each failure the tour shows, the beat that shows it, and its record in the execution explorer."
-msgstr ""
+msgstr "Chaque échec affiché par la visite, l'étape qui l'affiche et son enregistrement dans l'explorateur d'exécution."
 
 #: lib/ash_enterprise_web/live/showcase_live/tour_index.ex:168
 #, elixir-autogen, elixir-format
 msgid "Failure"
-msgstr ""
+msgstr "Échec"
 
 #: lib/ash_enterprise_web/live/showcase_live/tour_index.ex:203
 #, elixir-autogen, elixir-format
 msgid "No record yet"
-msgstr ""
+msgstr "Aucun enregistrement pour le moment"
 
 #: lib/ash_enterprise_web/live/showcase_live/tour_index.ex:232
 #, elixir-autogen, elixir-format
 msgid "Nothing to open in the explorer yet."
-msgstr ""
+msgstr "Rien à ouvrir dans l'explorateur pour le moment."
 
 #: lib/ash_enterprise_web/live/showcase_live/tour_index.ex:269
 #, elixir-autogen, elixir-format
 msgid "One parallel check is refused"
-msgstr ""
+msgstr "Une vérification parallèle est refusée"
 
 #: lib/ash_enterprise_web/live/showcase_live/case_beats.ex:285
 #: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:1048
@@ -1090,43 +1090,43 @@ msgstr ""
 #: lib/ash_enterprise_web/live/showcase_live/tour_index.ex:229
 #, elixir-autogen, elixir-format
 msgid "Open in explorer"
-msgstr ""
+msgstr "Ouvrir dans l'explorateur"
 
 #: lib/ash_enterprise_web/live/showcase_live/release_beats.ex:187
 #, elixir-autogen, elixir-format
 msgid "Open shadow case %{n}"
-msgstr ""
+msgstr "Ouvrir le dossier fantôme %{n}"
 
 #: lib/ash_enterprise_web/live/showcase_live/case_beats.ex:278
 #: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:1033
 #, elixir-autogen, elixir-format
 msgid "Open the review packet"
-msgstr ""
+msgstr "Ouvrir le paquet de revue"
 
 #: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:681
 #, elixir-autogen, elixir-format
 msgid "Open the review packet for %{number}"
-msgstr ""
+msgstr "Ouvrir le paquet de revue pour %{number}"
 
 #: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:733
 #, elixir-autogen, elixir-format
 msgid "Or lose the registry's answer from the fault panel: the registry accepted the activation, the answer never arrived, and when asked afterwards the registry cannot say. Then the request stays outcome unknown, and a person settles it on the recovery surface."
-msgstr ""
+msgstr "Ou perdre la réponse du registre depuis le panneau de pannes : le registre a accepté l'activation, la réponse n'est jamais arrivée, et lorsqu'on l'interroge par la suite, le registre ne peut pas répondre. Alors la demande reste avec un résultat inconnu, et une personne la règle sur la surface de récupération."
 
 #: lib/ash_enterprise_web/live/showcase_live/tour_index.ex:171
 #, elixir-autogen, elixir-format
 msgid "Record"
-msgstr ""
+msgstr "Enregistrement"
 
 #: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:1041
 #, elixir-autogen, elixir-format
 msgid "Settle it on the recovery surface"
-msgstr ""
+msgstr "Le régler sur la surface de récupération"
 
 #: lib/ash_enterprise_web/live/showcase_live/tour_index.ex:251
 #, elixir-autogen, elixir-format
 msgid "The fault panel is off here. The record below was made beforehand, by the demo's history (mix ash_enterprise.demo --history), through the same actions the panel uses."
-msgstr ""
+msgstr "Le panneau de pannes est désactivé ici. L'enregistrement ci-dessous a été créé au préalable, par l'historique de la démo (mix ash_enterprise.demo --history), via les mêmes actions qu'utilise le panneau."
 
 #: lib/ash_enterprise_web/live/showcase_live/tour_index.ex:263
 #, elixir-autogen, elixir-format, fuzzy
@@ -1136,44 +1136,44 @@ msgstr "7. Le modèle expire en cours d'exécution (F1)"
 #: lib/ash_enterprise_web/live/showcase_live/tour_index.ex:266
 #, elixir-autogen, elixir-format
 msgid "The record changes during approval"
-msgstr ""
+msgstr "L'enregistrement change pendant l'approbation"
 
 #: lib/ash_enterprise_web/live/showcase_live/tour_index.ex:264
 #, elixir-autogen, elixir-format
 msgid "The registry's answer is lost"
-msgstr ""
+msgstr "La réponse du registre est perdue"
 
 #: lib/ash_enterprise_web/live/showcase_live/tour_index.ex:267
 #, elixir-autogen, elixir-format
 msgid "The requester's grant is revoked"
-msgstr ""
+msgstr "Le droit du demandeur est révoqué"
 
 #: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:666
 #, elixir-autogen, elixir-format
 msgid "The review packet shows it before anyone approves: open it on a waiting request after the correction, and its currency says the credential changed since it was asked for. A decided request's packet is read by the clinic's administrator."
-msgstr ""
+msgstr "Le paquet de revue le montre avant toute approbation : ouvrez-le sur une demande en attente après la correction, et son actualité indique que le titre a changé depuis qu'il a été demandé. Le paquet d'une demande décidée est lu par l'administrateur de la clinique."
 
 #: lib/ash_enterprise_web/live/showcase_live/tour_index.ex:270
 #, elixir-autogen, elixir-format
 msgid "The token budget runs out"
-msgstr ""
+msgstr "Le budget de jetons est épuisé"
 
 #: lib/ash_enterprise_web/live/showcase_live/tour_index.ex:157
 #, elixir-autogen, elixir-format
 msgid "The twelve failures"
-msgstr ""
+msgstr "Les douze échecs"
 
 #: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:743
 #, elixir-autogen, elixir-format
 msgid "The worker-killed variant needs the fault panel on the instance that serves this page: the demo registry keeps its activations in the memory of the application node that took them, so a record made beforehand would be settled by whichever node reconciled it. The record here is the lost answer."
-msgstr ""
+msgstr "La variante worker-killed nécessite le panneau de pannes sur l'instance qui sert cette page : le registre de démo conserve ses activations dans la mémoire du nœud d'application qui les a prises, donc un enregistrement créé au préalable serait réglé par le nœud qui l'a réconcilié. L'enregistrement ici est la réponse perdue."
 
 #: lib/ash_enterprise_web/live/showcase_live/tour_index.ex:169
 #, elixir-autogen, elixir-format
 msgid "What goes wrong"
-msgstr ""
+msgstr "Ce qui ne fonctionne pas"
 
 #: lib/ash_enterprise_web/live/showcase_live/credentialing.ex:558
 #, elixir-autogen, elixir-format
 msgid "Sign in as rosa@example.com, the coordinator, to ask; as kenji@example.com or amaka@example.com, the committee, to approve. The password is the demo's: password1234 on a local database, or the one in the file the instance was seeded with."
-msgstr ""
+msgstr "Se connecter en tant que rosa@example.com, la coordinatrice, pour demander ; en tant que kenji@example.com ou amaka@example.com, le comité, pour approuver. Le mot de passe est celui de la démo : password1234 sur une base de données locale, ou celui du fichier avec lequel l'instance a été initialisée."
