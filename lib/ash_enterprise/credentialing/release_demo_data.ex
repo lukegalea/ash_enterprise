@@ -178,14 +178,17 @@ defmodule AshEnterprise.Credentialing.ReleaseDemoData do
     end
   end
 
-  # The recorded model answers each case from its transcript. The run's jobs are driven
-  # here, in this process, until its cases settle; a queue that is running meanwhile only
-  # shares the work.
-  defp settle!(run, tenant, rounds \\ 20)
+  @doc """
+  Drives the recorded suite run `run` to its finish in this process: the recorded model
+  answers each case from its transcript, and the run's jobs are drained here until its
+  cases settle; a queue that is running meanwhile only shares the work.
+  """
+  @spec settle!(map(), Ash.UUID.t(), non_neg_integer()) :: :ok | map()
+  def settle!(run, tenant, rounds \\ 20)
 
-  defp settle!(_run, _tenant, 0), do: raise("the licence reader's suite run did not settle")
+  def settle!(_run, _tenant, 0), do: raise("the licence reader's suite run did not settle")
 
-  defp settle!(run, tenant, rounds) do
+  def settle!(run, tenant, rounds) do
     %{success: steps} = Oban.drain_queue(queue: :agent_runs, with_recursion: true)
     %{success: calls} = Oban.drain_queue(queue: :execution, with_recursion: true)
     current = Quality.get_suite_run!(run.id, authorize?: false, tenant: tenant, load: [:settled])

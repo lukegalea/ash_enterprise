@@ -92,6 +92,17 @@ defmodule AshEnterprise.Surfaces do
           "What the judgment loop leaves for a person: verdicts, band tables to certify, and what calibration earned."
         )
     },
+    # Agent quality (AGT-60).
+    %{
+      key: :quality,
+      label: dgettext_noop("default", "Agent quality"),
+      menu: :work,
+      blurb:
+        dgettext_noop(
+          "default",
+          "How agent versions did on the same evaluation cases, with safety kept apart from quality."
+        )
+    },
     %{
       key: :compliance,
       label: dgettext_noop("default", "Compliance"),
@@ -894,6 +905,29 @@ defmodule AshEnterprise.Surfaces do
     # The judgment surfaces (ADR 0061): ash_judgments' surfaces bound to this
     # application's resources. The acts are person-gated by policy, not by a
     # door.
+    # --- Agent quality (AGT-60) -------------------------------------------------
+    %Surface{
+      key: :comparison,
+      audience: [:builder, :reviewer],
+      label: dgettext_noop("default", "Compare candidates"),
+      blurb:
+        dgettext_noop(
+          "default",
+          "Evaluation runs side by side, case by case, with safety in a lane of its own."
+        ),
+      description:
+        "Candidates compared on the same evaluation cases (ADR 0058): each suite run of " <>
+          "a suite as a column, each case improved, degraded, failed, skipped or not " <>
+          "measured against a baseline, and guardrail and policy outcomes kept apart " <>
+          "from the quality aggregate. A candidate whose safety failed or was not " <>
+          "measured is never recommended.",
+      group: :quality,
+      order: 10,
+      icon: "hero-view-columns",
+      path: "/app/quality/compare",
+      live: AshEnterpriseWeb.ComparisonLive,
+      resource: AshEnterprise.Quality.SuiteRun
+    },
     %Surface{
       key: :judgment_verdicts,
       audience: [:reviewer],

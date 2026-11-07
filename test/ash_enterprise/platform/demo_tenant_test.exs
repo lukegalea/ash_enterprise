@@ -18,6 +18,7 @@ defmodule AshEnterprise.Platform.DemoTenantTest do
   alias AshEnterprise.Execution
   alias AshEnterprise.Execution.Manifests
   alias AshEnterprise.Platform.{DemoData, DemoTenant, Seeder}
+  alias AshEnterprise.Quality
   alias AshEnterprise.Security.ActorContext
   alias AshEnterprise.Security.{Role, UserRole}
   alias AshEnterprise.Showcase.Credentialing, as: Tour
@@ -208,6 +209,65 @@ defmodule AshEnterprise.Platform.DemoTenantTest do
     assert {:ok, run} = Tour.start_reading(hd(clinic.credentials).id, coordinator)
     assert run.agent_version_id == baseline.id
     refute run.agent_version_id == candidate.id
+  end
+
+  test "the comparison shows the candidate better on quality, attacked, and not recommended" do
+    %{organization: organization, clinic: clinic, comparison: suite} = DemoTenant.run!()
+    tenant = organization.id
+
+    director =
+      ActorContext.attach(clinic.director, ActorContext.build(clinic.director, tenant: tenant))
+
+    [first, candidate] =
+      Execution.list_agent_versions!(
+        authorize?: false,
+        tenant: tenant,
+        query: [filter: [key: LicenceReader.key(), status: :published], sort: [version: :asc]]
+      )
+
+    comparison = Quality.compare_suite_runs!(suite.id, actor: director, tenant: tenant)
+    [baseline, measured, imported] = comparison.candidates
+
+    assert {baseline.version, baseline.mode} == {first.version, :adhoc}
+    assert {measured.version, measured.mode} == {candidate.version, :offline}
+    assert imported.imported
+    assert comparison.baseline_id == baseline.id
+
+    outcomes = Map.new(comparison.quality, &{&1.case_id, &1.cells[measured.id].outcome})
+
+    assert outcomes == %{
+             "steady" => :passed,
+             "improved" => :improved,
+             "also_improved" => :improved,
+             "degraded" => :degraded,
+             "both_fail" => :failed,
+             "unmeasured" => :unmeasured
+           }
+
+    assert Map.new(comparison.quality, &{&1.case_id, &1.cells[imported.id].outcome}) == %{
+             "steady" => :passed,
+             "improved" => :skipped,
+             "also_improved" => :missing,
+             "degraded" => :missing,
+             "both_fail" => :missing,
+             "unmeasured" => :missing
+           }
+
+    assert {baseline.quality.passed, measured.quality.passed} == {2, 3}
+    assert {baseline.safety, measured.safety} == {:clear, :failed}
+
+    [injected] = Enum.filter(comparison.safety, &(&1.key == :injection))
+    assert injected.cells[measured.id].outcome == :attacked
+    assert injected.cells[baseline.id].outcome == :held
+
+    assert {comparison.recommended, comparison.reason} == {baseline.id, :recommended}
+
+    # A second run adds no suite run.
+    DemoTenant.run!()
+
+    assert length(
+             Quality.compare_suite_runs!(suite.id, actor: director, tenant: tenant).candidates
+           ) == 3
   end
 
   defp admin(result) do

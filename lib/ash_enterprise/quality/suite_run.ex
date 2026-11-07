@@ -37,6 +37,12 @@ defmodule AshEnterprise.Quality.SuiteRun do
   case and epoch, and a `summary` with quality and safety in separate lanes. Its sweep
   runs every minute; nothing enqueues it sooner.
 
+  ## Comparing
+
+  `compare` lays the most recent suite runs of one suite side by side
+  (`AshEnterprise.Quality.Comparison`). It reads as the caller, so it is self-service
+  (ADR 0052): what it answers came out of reads the caller's own grants allow.
+
   User-owned and audited: the person who started it owns it. Starting is the
   `quality.run` privilege of ADR 0058 (create on this resource), reading it
   `quality.read`; `finish` is the job runner's alone.
@@ -48,6 +54,7 @@ defmodule AshEnterprise.Quality.SuiteRun do
     lifecycle?: false,
     archival?: false,
     machinery_only: [:finish],
+    self_service: [:compare],
     extra_extensions: [AshStateMachine, AshOban]
 
   alias AshEnterprise.Platform.SystemActor
@@ -116,6 +123,18 @@ defmodule AshEnterprise.Quality.SuiteRun do
 
       change set_attribute(:owner_id, actor(:id))
       change Changes.ImportEvalLog
+    end
+
+    action :compare, :map do
+      description """
+      The most recent suite runs of one suite side by side, case by case, with safety in a
+      lane of its own, as the caller may read them (`AshEnterprise.Quality.Comparison`).
+      """
+
+      argument :suite_id, :uuid, allow_nil?: false
+      argument :baseline_id, :uuid
+
+      run AshEnterprise.Quality.Comparison
     end
 
     update :finish do

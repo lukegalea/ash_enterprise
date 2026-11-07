@@ -97,6 +97,7 @@ defmodule Mix.Tasks.AshEnterprise.Demo do
       documents       #{length(clinic.documents)}, read by the licence reader (recorded model turns)
       workspace       /app/credentialing
       guided tour     /app/showcase/credentialing
+      compared        /app/quality/compare  (the reader's two versions on one suite)
     """)
 
     if mdm do

@@ -34,6 +34,8 @@ defmodule AshEnterprise.Quality do
       (`AshEnterprise.Quality.Provenance`); it can never satisfy a release gate.
     * `AshEnterprise.Quality.CaseResult`: what each case scored
       (`AshEnterprise.Quality.Assertions`, the deterministic scorer).
+    * `AshEnterprise.Quality.Comparison`: a suite's runs side by side, candidate by
+      candidate, with safety apart from quality (`compare_suite_runs`).
 
   Facts about a reply live in `AshEnterprise.SystemOne.Fact`, keyed by
   `subject_term/1` and carrying `digest/1`, as the facts about a code unit
@@ -69,6 +71,7 @@ defmodule AshEnterprise.Quality do
       define :finish_suite_run, action: :finish
       define :get_suite_run, action: :read, get_by: [:id]
       define :list_suite_runs, action: :read
+      define :compare_suite_runs, action: :compare, args: [:suite_id]
     end
 
     resource AshEnterprise.Quality.CaseResult do

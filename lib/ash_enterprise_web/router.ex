@@ -368,6 +368,18 @@ defmodule AshEnterpriseWeb.Router do
       live "/app/models", ModelProfilesLive, :index
     end
 
+    # Candidates compared (AshEnterpriseWeb.ComparisonLive, AGT-60): a suite's runs side
+    # by side with safety in a lane of its own. Read-only. Behind the registry's
+    # `:comparison` entry. Removable with the LiveView, this live_session and the entry.
+    ash_authentication_live_session :quality_comparison,
+      on_mount: [
+        {AshEnterpriseWeb.LiveUserAuth, :live_user_required},
+        AshEnterpriseWeb.LiveLocale,
+        AshEnterpriseWeb.SurfaceDoor
+      ] do
+      live "/app/quality/compare", ComparisonLive
+    end
+
     # The process flight views (PROD-10): A2UI surfaces whose diagram is a BPMN
     # process with a marker per live token, moved over the engine's PubSub
     # broadcasts. See AshEnterpriseWeb.FlightLive and
