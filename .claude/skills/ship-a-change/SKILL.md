@@ -70,8 +70,7 @@ gh run watch <run-id>                             # block until it finishes
 
 - **A job goes red.** Reproduce that file locally with `mix test <file>`, fix it, and push to the
   same `ci/` branch again. The Dialyzer job is advisory; add no new warnings. The browser
-  end-to-end job is advisory until it has been green three runs in a row; a red spec you touched
-  is still yours to fix.
+  end-to-end job gates like the others: a red spec is a red run.
 - **Everything is green.** Fetch again. If `main` moved and the rebase touches files you changed,
   push to `ci/` and wait again. Otherwise:
 

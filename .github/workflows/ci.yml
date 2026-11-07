@@ -401,12 +401,11 @@ jobs:
         run: mix test.durability
 
   e2e:
-    name: Browser end-to-end (advisory)
+    name: Browser end-to-end
     runs-on: ubuntu-latest
     # Every Playwright spec in assets/e2e, in chromium, against the dev server
-    # the specs drive locally. Advisory until it has been green three runs in a
-    # row; then this line goes and the job gates like the others.
-    continue-on-error: true
+    # the specs drive locally. It gates like the others: it was advisory until
+    # three runs in a row were green (42295888081, 42299104023, 42307413088).
 
     # pgvector on pg18, for the reasons given on the main job's service. The
     # dev config connects to `ash_enterprise_dev`, created below.
