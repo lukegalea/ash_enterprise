@@ -17,7 +17,10 @@ defmodule AshEnterprise.AI.PasteGuardTest do
   alias AshEnterprise.AI.{ModelCall, SecretShape}
   alias AshEnterprise.AI.Models.GuardedReqLLM
   alias AshEnterprise.Assistant.{Agent, Ask, Prompt, Thread, Turn}
+  alias AshEnterprise.Canonical.Commitments.ModelExtractor
   alias AshEnterprise.Execution
+  alias AshEnterprise.SystemOne.DecisionWire
+  alias AshEnterprise.SystemOne.QuestionProposal.Transport, as: ProposalTransport
   alias AshEnterprise.Test.AssistantFixtures, as: F
   alias AshEnterprise.Test.AssistantFixtures.ScriptedModel
 
@@ -158,6 +161,98 @@ defmodule AshEnterprise.AI.PasteGuardTest do
       refute_received {:model_request, _messages, _tools, _opts}
       assert length(calls()) == before
       refute run.status == :completed
+    end
+  end
+
+  describe "every model call path, not only the assistant's" do
+    test "commitment extraction never sends a sent message holding a secret" do
+      previous = Application.get_env(:ash_enterprise, ModelExtractor)
+      Application.put_env(:ash_enterprise, ModelExtractor, downstream: Transport)
+
+      on_exit(fn ->
+        if previous,
+          do: Application.put_env(:ash_enterprise, ModelExtractor, previous),
+          else: Application.delete_env(:ash_enterprise, ModelExtractor)
+      end)
+
+      before = length(calls())
+
+      body = "SYNTHETIC: I'll send the deck Friday.\nexport KEY=#{access_key()}"
+
+      assert {:error, %SecretShape.Refused{kind: :access_key, caller: "canonical.commitments"}} =
+               ModelExtractor.extract(%{text: body, sent_at: DateTime.utc_now()}, F.target())
+
+      refute_received :transport_called
+      assert length(calls()) == before
+    end
+
+    test "a proposal prompt holding a secret never reaches the wire" do
+      parent = self()
+
+      capture = fn conn ->
+        send(parent, :wire_reached)
+        Plug.Conn.send_resp(conn, 500, "{}")
+      end
+
+      System.put_env("S1_GEN_BASE_URL", "http://splash.invalid:8000/v1")
+      on_exit(fn -> System.delete_env("S1_GEN_BASE_URL") end)
+
+      {:ok, spec, opts} = ProposalTransport.ReqLLM.resolve(:splash_generative)
+      opts = Keyword.put(opts, :req_http_options, plug: capture, retry: false)
+      before = length(calls())
+
+      assert {:error, %SecretShape.Refused{kind: :token, caller: "system_one.proposal"}} =
+               ProposalTransport.ReqLLM.generate(
+                 spec,
+                 opts,
+                 %{"type" => "object"},
+                 "SYNTHETIC policy text: the service token is #{token()}"
+               )
+
+      refute_received :wire_reached
+      assert length(calls()) == before
+    end
+
+    test "a judgment whose state holds a secret is never evaluated" do
+      parent = self()
+
+      capture = fn conn ->
+        send(parent, :wire_reached)
+        Plug.Conn.send_resp(conn, 500, "{}")
+      end
+
+      previous = Application.get_env(:ash_judgments, :profiles)
+
+      Application.put_env(:ash_judgments, :profiles, [
+        [
+          name: :paste_guard_judge,
+          model: "synthetic-judge",
+          base_url: {:system, "PASTE_GUARD_JUDGE_URL", "http://judge.invalid:8000"},
+          api_key: {:system, "PASTE_GUARD_JUDGE_KEY", "in-zone-no-key"},
+          residency: :in_cluster,
+          region: :ca
+        ]
+      ])
+
+      on_exit(fn -> Application.put_env(:ash_judgments, :profiles, previous) end)
+
+      state = %{"subject" => %{"notes" => ["SYNTHETIC: see #{private_key()}"]}}
+
+      assert {:error, %SecretShape.Refused{kind: :private_key}} =
+               DecisionWire.evaluate(
+                 "typesafe:synthetic-judge",
+                 state,
+                 %{ok: %{type: :boolean, instructions: "SYNTHETIC?"}},
+                 req_http_options: [plug: capture, retry: false]
+               )
+
+      refute_received :wire_reached
+    end
+
+    test "a judgment state with nothing pasted is not refused by the guard" do
+      assert SecretShape.check_values(%{"a" => ["SYNTHETIC: plain", {:b, "words"}]}) == :ok
+      assert SecretShape.check_values(%{"a" => [%{"b" => jwt()}]}) == {:refused, :token}
+      assert SecretShape.check_values(nil) == :ok
     end
   end
 

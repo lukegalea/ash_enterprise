@@ -151,9 +151,14 @@ defmodule AshEnterprise.SystemOne.QuestionProposal.Transport do
       schema = wire_schema(schema, drop)
 
       with {:ok, response} <-
-             Models.call(target, "system_one.proposal", :generate_object, req_llm_opts, fn opts ->
-               ReqLLMDep.generate_object(spec, prompt, schema, opts)
-             end),
+             Models.call(
+               target,
+               "system_one.proposal",
+               :generate_object,
+               prompt,
+               req_llm_opts,
+               fn opts -> ReqLLMDep.generate_object(spec, prompt, schema, opts) end
+             ),
            %{} = object <- ReqLLMDep.Response.object(response) do
         {:ok, Jason.encode!(object)}
       end

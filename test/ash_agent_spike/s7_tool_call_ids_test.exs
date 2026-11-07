@@ -104,9 +104,14 @@ defmodule AshEnterprise.AgentSpike.S7ToolCallIdsTest do
       completions =
         for _ <- 1..3 do
           {:ok, response} =
-            Models.call(target, "spike:tool-call-ids", :generate_text, [tools: [tool]], fn opts ->
-              ReqLLM.generate_text(target.spec, context, opts)
-            end)
+            Models.call(
+              target,
+              "spike:tool-call-ids",
+              :generate_text,
+              context,
+              [tools: [tool]],
+              fn opts -> ReqLLM.generate_text(target.spec, context, opts) end
+            )
 
           response |> ReqLLM.Response.tool_calls() |> Enum.map(& &1.id)
         end

@@ -4,13 +4,21 @@ defmodule AshEnterprise.AI.SecretShape do
   provider's access key or token, a bearer token, a password or key assignment, a URL
   with a password in it) never reaches a model.
 
-  Two places check it, both before anything is recorded or sent:
+  It is checked before anything is recorded or sent:
 
-    * the assistant's message intake (`AshEnterprise.Assistant.Ask.ask/3`), which
+    * at the assistant's message intake (`AshEnterprise.Assistant.Ask.ask/3`), which
       refuses the question before it is stored, so the thread never holds it;
-    * every model call through `AshEnterprise.AI.Models.GuardedReqLLM`, over the
-      person-written (`user`) messages of the request: a refused request writes no
-      `AshEnterprise.AI.ModelCall` row and makes no transport call.
+    * in every model call (`AshEnterprise.AI.Models.call/6`, and the stream path of
+      `AshEnterprise.AI.Models.GuardedReqLLM`), over the person-written (`user`)
+      messages or the prompt of the request: a refused request writes no
+      `AshEnterprise.AI.ModelCall` row and makes no transport call. The callers that
+      build a prompt themselves (commitment extraction from a sent message, question
+      and mapping proposals) pass that prompt;
+    * in every judgment evaluation (`AshEnterprise.SystemOne.DecisionWire`), over
+      every string of the evaluated state (`check_values/1`).
+
+  The design-time catalogue translator (`AshEnterprise.L10n.Translator.ReqLLM`) is
+  the one call outside it: it sends only this repository's own catalogue text.
 
   A refusal names the *kind* of secret it saw and points to the connection screen
   (`connection_path/0`), where an account is linked without anyone pasting its key.
@@ -111,6 +119,31 @@ defmodule AshEnterprise.AI.SecretShape do
       end
     end)
   end
+
+  @doc """
+  `check/1` over every string anywhere in `term` (map values, list items, tuple
+  elements): for a request whose content is data rather than messages, such as a
+  judgment's evaluated state.
+  """
+  @spec check_values(term()) :: :ok | {:refused, kind()}
+  def check_values(text) when is_binary(text), do: check(text)
+
+  def check_values(%_{} = struct), do: struct |> Map.from_struct() |> check_values()
+
+  def check_values(map) when is_map(map), do: map |> Map.values() |> check_values()
+
+  def check_values(tuple) when is_tuple(tuple), do: tuple |> Tuple.to_list() |> check_values()
+
+  def check_values(list) when is_list(list) do
+    Enum.find_value(list, :ok, fn value ->
+      case check_values(value) do
+        :ok -> nil
+        refused -> refused
+      end
+    end)
+  end
+
+  def check_values(_other), do: :ok
 
   defp user_text(text) when is_binary(text), do: [text]
   defp user_text(%{messages: messages}) when is_list(messages), do: user_text(messages)

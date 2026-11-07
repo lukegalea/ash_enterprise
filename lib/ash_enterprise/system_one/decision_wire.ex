@@ -13,23 +13,42 @@ defmodule AshEnterprise.SystemOne.DecisionWire do
   `AshJudgments.Wire.ModelCapture`, so the runtime-reported model still
   lands on the recorded observation.
 
+  The evaluated state is checked by the paste guard first
+  (`AshEnterprise.AI.SecretShape.check_values/1`): a state holding text shaped
+  like a key, token or password is refused with
+  `{:error, %AshEnterprise.AI.SecretShape.Refused{}}` and nothing is sent.
+
   The profile is found by the model id the spec names. Routes are keyed by
   model (`:model_routes`), so every profile serving one model shares its
   transport. A model no configured profile serves is refused, never sent
   anywhere.
   """
 
+  alias AshEnterprise.AI.SecretShape
   alias AshJudgments.Profile
 
-  @doc "`ReqLLM.evaluate/4` with the serving profile's transport options."
+  @caller "system_one.judgment"
+
+  @doc """
+  `ReqLLM.evaluate/4` with the serving profile's transport options, after the paste
+  guard.
+  """
   def evaluate(model, state, questions, opts) do
-    with {:ok, transport} <- transport(model) do
+    with :ok <- pasted(state),
+         {:ok, transport} <- transport(model) do
       AshJudgments.Wire.ModelCapture.evaluate(
         model,
         state,
         questions,
         Keyword.merge(opts, transport)
       )
+    end
+  end
+
+  defp pasted(state) do
+    case SecretShape.check_values(state) do
+      :ok -> :ok
+      {:refused, kind} -> {:error, %SecretShape.Refused{kind: kind, caller: @caller}}
     end
   end
 

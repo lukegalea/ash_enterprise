@@ -3,7 +3,7 @@ defmodule AshEnterprise.AI.Models.GuardedReqLLM do
   The ReqLLM module AshAi calls through: `req_llm: #{inspect(__MODULE__)}` on
   a `prompt/2` action or an `AshAi.ToolLoop` run.
 
-  Each function first applies the paste guard (`AshEnterprise.AI.SecretShape`): a
+  Each function first applies the paste guard (`AshEnterprise.AI.Models.paste_guard/2`): a
   request whose person-written messages hold a secret-shaped string is refused as
   `{:error, %AshEnterprise.AI.SecretShape.Refused{}}`, with no call record and no
   transport call. It then classifies the model it is handed
@@ -22,7 +22,6 @@ defmodule AshEnterprise.AI.Models.GuardedReqLLM do
   """
 
   alias AshEnterprise.AI.Models
-  alias AshEnterprise.AI.SecretShape
   alias AshEnterprise.Faults
   alias ReqLLM.StreamResponse
   alias ReqLLM.StreamResponse.MetadataHandle
@@ -31,10 +30,8 @@ defmodule AshEnterprise.AI.Models.GuardedReqLLM do
   def generate_object(model, context, schema, opts \\ []) do
     {caller, downstream, opts} = split(opts)
 
-    pasted(context, caller, fn ->
-      Models.call(Models.resolve(model), caller, :generate_object, opts, fn call_opts ->
-        downstream.generate_object(model, context, schema, call_opts)
-      end)
+    Models.call(Models.resolve(model), caller, :generate_object, context, opts, fn call_opts ->
+      downstream.generate_object(model, context, schema, call_opts)
     end)
   end
 
@@ -42,10 +39,8 @@ defmodule AshEnterprise.AI.Models.GuardedReqLLM do
   def generate_text(model, context, opts \\ []) do
     {caller, downstream, opts} = split(opts)
 
-    pasted(context, caller, fn ->
-      Models.call(Models.resolve(model), caller, :generate_text, opts, fn call_opts ->
-        downstream.generate_text(model, context, call_opts)
-      end)
+    Models.call(Models.resolve(model), caller, :generate_text, context, opts, fn call_opts ->
+      downstream.generate_text(model, context, call_opts)
     end)
   end
 
@@ -57,16 +52,9 @@ defmodule AshEnterprise.AI.Models.GuardedReqLLM do
   """
   def stream_text(model, context, opts \\ []) do
     {caller, downstream, opts} = split(opts)
-    pasted(context, caller, fn -> open_stream(model, context, caller, downstream, opts) end)
-  end
 
-  # The paste guard (`AshEnterprise.AI.SecretShape`), before the flow guard: a request
-  # whose person-written text is shaped like a secret is refused with no call record
-  # and no transport call, as `{:error, %SecretShape.Refused{}}`.
-  defp pasted(context, caller, call) do
-    case SecretShape.check_request(context) do
-      :ok -> call.()
-      {:refused, kind} -> {:error, %SecretShape.Refused{kind: kind, caller: caller}}
+    with :ok <- Models.paste_guard(context, caller) do
+      open_stream(model, context, caller, downstream, opts)
     end
   end
 

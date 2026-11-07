@@ -34,7 +34,7 @@ defmodule AshEnterprise.AI.Models do
   ## The flow guard
 
   `REQUIRE_IN_ZONE_MODELS=true` (`config :ash_enterprise, :ai,
-  require_in_zone_models: true`) makes every call through `call/5` refuse a
+  require_in_zone_models: true`) makes every call through `call/6` refuse a
   target that is not in-zone: it raises `AshEnterprise.AI.Models.OutsideZone`
   before any request is built, so no byte leaves. The same flag makes
   `AshEnterprise.Zones.ResidencyPolicy` refuse every `:sub_processor`
@@ -51,12 +51,16 @@ defmodule AshEnterprise.AI.Models do
     and `req_llm_opts: [caller: "…"]` (see `AshEnterprise.AI.RequestClassifier`).
     The same two options work for `AshAi.ToolLoop.run/2` and `stream/2`.
   * Code calling ReqLLM itself: `resolve/1` for the spec and options, then
-    `call/5` around the request.
+    `call/6` around the request, naming what it sends so the paste guard
+    reads it.
+  * Judgment evaluations (`AshEnterprise.SystemOne.DecisionWire`): the paste
+    guard over the evaluated state, then the judgment library's own call.
   * Agent runs (`AshEnterprise.Execution.AgentRuntime`), the assistant's among
     them: `AshAi.ToolLoop.stream/2` through `GuardedReqLLM`, in-zone targets only.
   """
 
   alias AshEnterprise.AI.ModelCall
+  alias AshEnterprise.AI.SecretShape
   alias AshEnterprise.Platform.Correlation
   alias AshEnterprise.Platform.SystemActor
 
@@ -141,7 +145,7 @@ defmodule AshEnterprise.AI.Models do
   @doc """
   The target for `spec` (default: `interpreter_spec/0`), classified and with
   the profile's transport options attached. Pure: makes no call and enforces
-  nothing — `call/5` does that.
+  nothing — `call/6` does that.
   """
   @spec resolve(term()) :: Target.t()
   def resolve(spec \\ interpreter_spec())
@@ -199,7 +203,7 @@ defmodule AshEnterprise.AI.Models do
   @doc """
   The refusal for `target` under the current guard, or `:ok`. For callers
   that want to say why before they try (the helper console), not a
-  substitute for `call/5`.
+  substitute for `call/6`.
   """
   @spec check(Target.t(), String.t()) :: :ok | {:error, OutsideZone.t()}
   def check(%Target{residency: :in_zone}, _caller), do: :ok
@@ -211,7 +215,14 @@ defmodule AshEnterprise.AI.Models do
   end
 
   @doc """
-  Runs `fun` (the request) under the flow guard and records it.
+  Runs `fun` (the request) under the paste guard and the flow guard, and
+  records it.
+
+  `request` is what the call sends that a person may have written: a
+  `ReqLLM.Context`, a list of messages or a prompt string. The paste guard
+  (`paste_guard/2`) checks it first; a request holding secret-shaped text is
+  answered `{:error, %AshEnterprise.AI.SecretShape.Refused{}}` with no call
+  record and `fun` never runs.
 
   `fun` receives `transport_opts/2` of `opts`. Its `{:ok, response}` /
   `{:error, reason}` result is returned unchanged. `operation` names the
@@ -220,14 +231,31 @@ defmodule AshEnterprise.AI.Models do
   Raises `OutsideZone` (after recording the refusal) when the guard is on and
   the target is not in-zone.
   """
-  @spec call(Target.t(), String.t(), atom(), keyword(), (keyword() -> result)) :: result
+  @spec call(Target.t(), String.t(), atom(), term(), keyword(), (keyword() -> result)) ::
+          result | {:error, SecretShape.Refused.t()}
         when result: term()
-  def call(%Target{} = target, caller, operation, opts, fun) when is_function(fun, 1) do
-    guard!(target, caller, operation)
-    started = System.monotonic_time()
-    result = fun.(transport_opts(target, opts))
-    record_result(target, caller, operation, result, elapsed_ms(started))
-    result
+  def call(%Target{} = target, caller, operation, request, opts, fun) when is_function(fun, 1) do
+    with :ok <- paste_guard(request, caller) do
+      guard!(target, caller, operation)
+      started = System.monotonic_time()
+      result = fun.(transport_opts(target, opts))
+      record_result(target, caller, operation, result, elapsed_ms(started))
+      result
+    end
+  end
+
+  @doc """
+  The paste guard alone (`AshEnterprise.AI.SecretShape.check_request/1`): `:ok`,
+  or `{:error, %SecretShape.Refused{}}` naming the kind of secret and the caller.
+  Nothing is recorded. For a caller that makes its own call (a stream, a
+  judgment's evaluation); `call/6` applies it itself.
+  """
+  @spec paste_guard(term(), String.t() | nil) :: :ok | {:error, SecretShape.Refused.t()}
+  def paste_guard(request, caller) do
+    case SecretShape.check_request(request) do
+      :ok -> :ok
+      {:refused, kind} -> {:error, %SecretShape.Refused{kind: kind, caller: caller}}
+    end
   end
 
   @doc """
@@ -270,7 +298,7 @@ defmodule AshEnterprise.AI.Models do
     do: System.convert_time_unit(System.monotonic_time() - started, :native, :millisecond)
 
   @doc """
-  Records one call that `call/5` did not wrap — a stream, whose usage is only
+  Records one call that `call/6` did not wrap — a stream, whose usage is only
   known once it has been read. Never raises: a call record that cannot be
   written is logged (structurally) rather than failing the call it describes.
   """
