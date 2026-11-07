@@ -53,7 +53,7 @@ msgstr ""
 msgid "%{passed} of %{cases} passed"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/comparison_live.ex:489
+#: lib/ash_enterprise_web/live/comparison_live.ex:497
 #, elixir-autogen, elixir-format
 msgid "Attack succeeded"
 msgstr ""
@@ -73,7 +73,8 @@ msgstr ""
 msgid "Check"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/comparison_live.ex:496
+#. A safety verdict: no safety case failed. An adjective, not the verb.
+#: lib/ash_enterprise_web/live/comparison_live.ex:506
 #, elixir-autogen, elixir-format
 msgid "Clear"
 msgstr ""
@@ -110,7 +111,7 @@ msgid "Every candidate has a result for every case."
 msgstr ""
 
 #: lib/ash_enterprise_web/live/comparison_live.ex:483
-#: lib/ash_enterprise_web/live/comparison_live.ex:497
+#: lib/ash_enterprise_web/live/comparison_live.ex:509
 #, elixir-autogen, elixir-format
 msgid "Failed"
 msgstr ""
@@ -125,7 +126,8 @@ msgstr ""
 msgid "Hard assertions failed"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/comparison_live.ex:488
+#. A case outcome: the candidate resisted the injection case. A pass, not a wait.
+#: lib/ash_enterprise_web/live/comparison_live.ex:494
 #, elixir-autogen, elixir-format
 msgid "Held"
 msgstr ""
@@ -183,7 +185,7 @@ msgstr ""
 #: lib/ash_enterprise_web/live/comparison_live.ex:406
 #: lib/ash_enterprise_web/live/comparison_live.ex:439
 #: lib/ash_enterprise_web/live/comparison_live.ex:486
-#: lib/ash_enterprise_web/live/comparison_live.ex:498
+#: lib/ash_enterprise_web/live/comparison_live.ex:510
 #, elixir-autogen, elixir-format
 msgid "Not measured"
 msgstr ""
@@ -243,57 +245,57 @@ msgstr ""
 msgid "The runs of one evaluation suite side by side. Safety is its own lane: it is never averaged into quality, and a strong quality score never makes up for it."
 msgstr ""
 
-#: lib/ash_enterprise_web/live/comparison_live.ex:490
+#: lib/ash_enterprise_web/live/comparison_live.ex:498
 #, elixir-autogen, elixir-format
 msgid "Unknown result"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/comparison_live.ex:505
+#: lib/ash_enterprise_web/live/comparison_live.ex:517
 #, elixir-autogen, elixir-format
 msgid "a hard assertion failed"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/comparison_live.ex:517
+#: lib/ash_enterprise_web/live/comparison_live.ex:529
 #, elixir-autogen, elixir-format
 msgid "a hard assertion was not measured"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/comparison_live.ex:508
+#: lib/ash_enterprise_web/live/comparison_live.ex:520
 #, elixir-autogen, elixir-format
 msgid "a prohibited effect was asked for"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/comparison_live.ex:514
+#: lib/ash_enterprise_web/live/comparison_live.ex:526
 #, elixir-autogen, elixir-format
 msgid "an injection case did not pass"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/comparison_live.ex:510
+#: lib/ash_enterprise_web/live/comparison_live.ex:522
 #, elixir-autogen, elixir-format
 msgid "an injection case failed"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/comparison_live.ex:529
+#: lib/ash_enterprise_web/live/comparison_live.ex:541
 #, elixir-autogen, elixir-format
 msgid "its quality is not measured"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/comparison_live.ex:522
+#: lib/ash_enterprise_web/live/comparison_live.ex:534
 #, elixir-autogen, elixir-format
 msgid "its results were imported, so they name no candidate"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/comparison_live.ex:519
+#: lib/ash_enterprise_web/live/comparison_live.ex:531
 #, elixir-autogen, elixir-format
 msgid "its run has not finished"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/comparison_live.ex:524
+#: lib/ash_enterprise_web/live/comparison_live.ex:536
 #, elixir-autogen, elixir-format
 msgid "its safety failed"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/comparison_live.ex:525
+#: lib/ash_enterprise_web/live/comparison_live.ex:537
 #, elixir-autogen, elixir-format
 msgid "its safety is not measured"
 msgstr ""
@@ -308,13 +310,13 @@ msgstr ""
 msgid "qualifies: finished, every case measured, safety clear."
 msgstr ""
 
-#: lib/ash_enterprise_web/live/comparison_live.ex:511
-#: lib/ash_enterprise_web/live/comparison_live.ex:526
+#: lib/ash_enterprise_web/live/comparison_live.ex:523
+#: lib/ash_enterprise_web/live/comparison_live.ex:538
 #, elixir-autogen, elixir-format
 msgid "some cases have no result"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/comparison_live.ex:504
+#: lib/ash_enterprise_web/live/comparison_live.ex:516
 #, elixir-autogen, elixir-format
 msgid "the run has not finished"
 msgstr ""
