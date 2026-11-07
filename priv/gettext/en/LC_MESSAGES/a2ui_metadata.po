@@ -2534,6 +2534,7 @@ msgstr ""
 msgid "Set sole administrator approval"
 msgstr ""
 
+#: lib/ash_enterprise/canvas/registry.ex:2
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
 #, fuzzy
 msgid "Settle"
@@ -3025,7 +3026,7 @@ msgid "Waived"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
-msgid "What happened? Succeeded, failed, or try again"
+msgid "What happened, and why you know: succeeded (it happened), failed (it did not), or retry (it did not happen, you checked, and it runs again)"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/judgments/verdicts_ui.ex:1

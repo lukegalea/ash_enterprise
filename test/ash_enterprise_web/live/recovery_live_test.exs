@@ -22,6 +22,7 @@ defmodule AshEnterpriseWeb.RecoveryLiveTest do
   use Oban.Testing, repo: AshEnterprise.Repo
 
   import Phoenix.LiveViewTest
+  import Ecto.Query, only: [from: 2]
   import AshEnterprise.Test.DailyFixtures, only: [tenant!: 0]
 
   alias AshEnterprise.Credentialing.DemoData
@@ -225,4 +226,126 @@ defmodule AshEnterpriseWeb.RecoveryLiveTest do
     assert interventions(ctx) == []
     assert Execution.get_invocation!(row.id, oban(ctx)).status == :outcome_unknown
   end
+
+  # The `/ui/feedback` value an action's pushed messages carry, after `messages` ones
+  # already seen.
+  defp feedback!(view) do
+    assert_push_event(view, "a2ui:messages", %{messages: messages}, 5_000)
+
+    Enum.find_value(messages, fn
+      %{"updateDataModel" => %{"path" => "/ui/feedback", "value" => value}} -> value
+      _other -> nil
+    end) || feedback!(view)
+  end
+
+  defp invoke(view, surface, action, record_id, values \\ nil) do
+    context = %{"action" => action, "recordId" => record_id}
+
+    render_hook(view, "a2ui:action", %{
+      "version" => "v1.0",
+      "action" => %{
+        "name" => "invoke",
+        "surfaceId" => surface,
+        "sourceComponentId" => "data_grid",
+        "timestamp" => DateTime.to_iso8601(DateTime.utc_now()),
+        "context" => if(values, do: Map.put(context, "values", values), else: context)
+      }
+    })
+  end
+
+  test "the page an act is made on says what it came to, as ACP does", ctx do
+    asked = MapSet.new(ctx.clinic.requests, &subject_id/1)
+
+    [credential | _] =
+      Enum.filter(ctx.clinic.credentials, &(&1.status == :pending and &1.id not in asked))
+
+    {:ok, view, _html} = live(sign_in(ctx.clinic.coordinator), "/app/credentialing")
+    assert_push_event(view, "a2ui:messages", %{messages: _}, 5_000)
+
+    invoke(view, "credentials", "request_activation", credential.id)
+
+    assert %{"result" => "pending", "blockedReason" => "approval_required"} = feedback!(view)
+  end
+
+  test "a settlement made from the approvals task needs a reason and is recorded with it",
+       ctx do
+    row = uncertain!(ctx)
+    task = Ash.load!(row, :resolution_task, oban(ctx)).resolution_task
+
+    {:ok, approvals, _html} = live(sign_in(ctx.admin.user), "/app/approvals")
+    assert_push_event(approvals, "a2ui:messages", %{messages: _}, 5_000)
+
+    # A plain retry, with nothing said: refused, and nothing changes.
+    invoke(approvals, "approvals", "resolve", task.id, %{"outcome" => "retry"})
+    assert %{"result" => result} = feedback!(approvals)
+    assert result in ["invalid", "failed"]
+    assert interventions(ctx) == []
+    assert Execution.get_invocation!(row.id, oban(ctx)).status == :outcome_unknown
+
+    invoke(approvals, "approvals", "resolve", task.id, %{
+      "outcome" => "retry",
+      "comment" => "The registry has no record of it; I checked."
+    })
+
+    assert %{"result" => "applied"} = feedback!(approvals)
+
+    assert [%{act: :resolve, resolution: :retry, owner_id: owner_id}] = interventions(ctx)
+    assert owner_id == ctx.admin.user.id
+
+    {:ok, view, _html} = live(sign_in(ctx.admin.user), "/app/recovery/#{row.id}")
+    assert has_element?(view, "#interventions [data-act=resolve]", "I checked")
+  end
+
+  test "what people did is shown to the requester, the rerun statement is today's declaration, and test work says so",
+       ctx do
+    row = uncertain!(ctx)
+
+    Execution.resolve_invocation!(
+      row.id,
+      :failed,
+      "The registry has no record of it.",
+      actor: actor(ctx.admin.user, ctx.tenant),
+      tenant: ctx.tenant
+    )
+
+    drain()
+
+    # The coordinator follows their own request and sees the administrator's act.
+    {:ok, view, _html} = live(sign_in(ctx.clinic.coordinator), "/app/recovery/#{row.id}")
+    refute has_element?(view, "#interventions-none")
+    assert has_element?(view, "#interventions [data-act=resolve]", "no record of it")
+
+    # The snapshot the request was taken with says it stays inside and needs nobody; the
+    # target as declared now reaches the registry and waits for four eyes.
+    set_row!(row, effects: %{"open_world" => false, "approval" => "none", "idempotent" => false})
+
+    {:ok, view, _html} = live(sign_in(ctx.admin.user), "/app/recovery/#{row.id}")
+    assert has_element?(view, "#rerun-statement", "calls outside the application again")
+    assert has_element?(view, "#rerun-statement", "waits for approval again")
+    refute has_element?(view, "#rerun-statement", "changes only this application's records")
+
+    # A test run's call is marked as one wherever it is listed.
+    set_row!(row, mode: "shadow")
+
+    {:ok, index, _html} = live(sign_in(ctx.admin.user), "/app/recovery")
+    assert has_element?(index, "#recent-rows-#{row.id} [data-run-environment=test]")
+    refute has_element?(index, "#recent-rows-#{row.id} [data-run-environment=live]")
+
+    {:ok, explorer, _html} = live(sign_in(ctx.admin.user), "/app/explorer")
+    assert has_element?(explorer, "#recent-invocation\\:#{row.id} [data-run-environment=test]")
+  end
+
+  # The row's columns written past the actions, as an older snapshot or a test run left them.
+  defp set_row!(row, set) do
+    {1, _} =
+      AshEnterprise.Repo.update_all(
+        from(i in "exec_invocations", where: i.id == type(^row.id, Ecto.UUID)),
+        set: set
+      )
+
+    :ok
+  end
+
+  defp subject_id(%{preconditions: [%{"id" => id} | _]}), do: id
+  defp subject_id(_row), do: nil
 end

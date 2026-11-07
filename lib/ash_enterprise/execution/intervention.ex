@@ -8,11 +8,12 @@ defmodule AshEnterprise.Execution.Intervention do
   |---|---|---|
   | `rerun` | a new request for the same target and arguments, with a new key, linked to the row | `Invocation.rerun` (self-service) |
   | `cancel` | stops a request that has not run; marks one that is running | `Invocation.request_cancel` (the grant union) |
-  | `resolve` | settles an unknown outcome: it `succeeded`, it `failed`, or it did not and runs again (`retry`) under the same request | `HumanTask.resolve` on the row's resolution task (a candidate's grant) |
+  | `resolve` | settles an unknown outcome: it `succeeded`, it `failed`, or it did not and runs again (`retry`) under the same request | `HumanTask.settle` on the row's resolution task (a candidate's grant); `HumanTask.resolve`, the task's own door, runs this |
 
   Each is self-service here: the act it wraps is the one the person's authority is
   checked on, as them, and a refusal there refuses the whole act. The reason is
-  required. The trace shows each row under its invocation
+  required. A row is read by whoever acted, by grants on interventions, and by the
+  person who asked for the invocation (`AshEnterprise.Security.Checks.OwnInvocation`). The trace shows each row under its invocation
   (`AshEnterprise.ExecutionSources.Intervention`).
 
   `simulate` is not an intervention: it writes nothing. It says what a rerun would run
@@ -27,6 +28,8 @@ defmodule AshEnterprise.Execution.Intervention do
     lifecycle?: false,
     archival?: false,
     self_service: [:read, :rerun, :cancel, :resolve, :simulate],
+    # A requester reads every act on a request of theirs, not only their own acts.
+    extra_grants: [AshEnterprise.Security.Checks.OwnInvocation],
     extra_extensions: [AshAgent.Effects]
 
   alias AshEnterprise.Execution.Changes.Intervene

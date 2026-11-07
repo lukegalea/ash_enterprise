@@ -766,10 +766,14 @@ defmodule AshEnterpriseWeb.A2ui.ApprovalsUI do
       prompt_title "Answer the question"
     end
 
+    # An outcome nobody knows: settling it is recorded with who and why
+    # (`Intervention.resolve`), and `retry` runs the effect again, so it is chosen
+    # only by someone who checked it did not happen. The reason is required.
     action :resolve do
       label "Settle"
       prompt_fields [:outcome, :comment]
-      prompt_title "What happened? Succeeded, failed, or try again"
+
+      prompt_title "What happened, and why you know: succeeded (it happened), failed (it did not), or retry (it did not happen, you checked, and it runs again)"
     end
 
     # The subject is polymorphic: a typed reference (`<surface>:<id>`) the

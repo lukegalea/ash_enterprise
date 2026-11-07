@@ -19,7 +19,12 @@ defmodule AshEnterprise.Execution.InterventionTest do
 
   import AshEnterprise.Test.DailyFixtures, only: [tenant!: 0, member!: 3]
 
+  require Ash.Query
+
+  alias AshEnterprise.Erasure
+  alias AshEnterprise.Erasure.Shredded
   alias AshEnterprise.Execution
+  alias AshEnterprise.Execution.Changes.SealingScope
   alias AshEnterprise.Execution.{Intervention, Invocation, Recovery}
   alias AshEnterprise.Platform.SystemActor
   alias AshEnterprise.Test.Execution.FakeBoard
@@ -334,10 +339,61 @@ defmodule AshEnterprise.Execution.InterventionTest do
       assert Enum.all?(acts, &(&1.actor_label == "person:#{ctx.admin.user.id}"))
       summaries = Enum.map(acts, & &1.summary)
       assert "settled as failed: The board has no such referral." in summaries
-      assert "rerun as invocation:#{rerun_id}: Board is back." in summaries
+      assert "rerun as a new request: Board is back." in summaries
+      refute Enum.any?(summaries, &(&1 =~ rerun_id))
 
       rerun = Enum.find(entries, &(&1.source_ref == "invocation:#{rerun_id}"))
       assert rerun.parent_ref == "invocation:#{row.id}"
+    end
+  end
+
+  describe "another person's request" do
+    test "rerun by someone else is sealed where the original was: the requester's erasure erases both",
+         ctx do
+      row = failed!(ctx)
+      %{rerun_id: rerun_id} = Execution.rerun_invocation!(row.id, "Again.", as(ctx.admin, ctx))
+
+      scope =
+        Erasure.Scope
+        |> Ash.Query.filter(ref == ^SealingScope.scope_ref(ctx.nurse.user.id))
+        |> Ash.read_one!(authorize?: false)
+
+      assert get(row.id, ctx).erasure_scope_id == scope.id
+      assert get(rerun_id, ctx).erasure_scope_id == scope.id
+
+      Erasure.shred_scope!(scope, scope.ref, "the nurse asked", authorize?: false)
+
+      for id <- [row.id, rerun_id] do
+        erased = Ash.load!(get(id, ctx), [:args, :recorded?], oban(ctx))
+        assert erased.recorded? == false, "invocation #{id} still readable after the shred"
+        assert Shredded.shredded?(erased.args)
+      end
+
+      # A shredded original is no longer rerun: its arguments are gone.
+      assert {:error, error} = Execution.rerun_invocation(row.id, "Again.", as(ctx.admin, ctx))
+      assert Exception.message(error) =~ "erased"
+    end
+
+    test "its requester reads what others did on it, though they did not do it", ctx do
+      requester =
+        member!(ctx.admin, "Requester #{System.unique_integer([:positive])}", [
+          {Invocation, :read, :basic}
+        ])
+
+      row = failed!(Map.put(ctx, :nurse, requester))
+
+      assert [%{act: :resolve, owner_id: owner_id}] =
+               Execution.list_interventions!(
+                 Keyword.put(as(requester, ctx), :query, filter: [invocation_id: row.id])
+               )
+
+      assert owner_id == ctx.admin.user.id
+
+      # Not anyone else's: a member who cannot read the request reads none of its acts.
+      assert [] =
+               Execution.list_interventions!(
+                 Keyword.put(as(ctx.nurse, ctx), :query, filter: [invocation_id: row.id])
+               )
     end
   end
 
@@ -348,6 +404,13 @@ defmodule AshEnterprise.Execution.InterventionTest do
         assert {:error, :unknown_status} = Recovery.cancel(row)
         assert {:error, :unknown_status} = Recovery.settle(row)
       end
+    end
+
+    test "a request parked on its requester's answer may be cancelled, never rerun or settled" do
+      parked = %{status: :request_info, run_id: nil, process_instance_id: nil}
+      assert :ok = Recovery.cancel(parked)
+      assert {:error, :not_finished} = Recovery.rerun(parked)
+      assert {:error, :not_finished} = Recovery.settle(parked)
     end
 
     test "an uncertain outcome is offered only settling, once someone is asked" do

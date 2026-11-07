@@ -393,7 +393,7 @@ defmodule AshEnterprise.Execution.ApprovalBindingTest do
          ctx do
       task = approval_task(request!(ctx, "Recall the courier #{unique()}"), ctx.tenant)
 
-      for action <- [:approve, :reject, :resolve] do
+      for action <- [:approve, :reject, :resolve, :settle] do
         allowed =
           for {label, actor, context} <- non_human_callers(ctx.tenant),
               can_decide?(task, action, actor, context, ctx.tenant),

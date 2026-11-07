@@ -7,7 +7,7 @@ defmodule AshEnterprise.Execution.Changes.Intervene do
     * `:rerun`: `Invocation.rerun` on the invocation; the new row is the intervention's
       `rerun`.
     * `:cancel`: `Invocation.request_cancel` on the invocation.
-    * `:resolve`: `HumanTask.resolve` on the invocation's open resolution task, with the
+    * `:resolve`: `HumanTask.settle` on the invocation's open resolution task, with the
       reason as the task's comment, then the `:apply_resolution` job for the invocation,
       so the outcome is applied now rather than at the next sweep.
 
@@ -89,7 +89,7 @@ defmodule AshEnterprise.Execution.Changes.Intervene do
          {:ok, _outcome} <-
            HumanTask
            |> Ash.ActionInput.for_action(
-             :resolve,
+             :settle,
              %{
                record_id: task.id,
                outcome: Ash.Changeset.get_attribute(changeset, :resolution),

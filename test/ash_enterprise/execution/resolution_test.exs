@@ -72,6 +72,12 @@ defmodule AshEnterprise.Execution.ResolutionTest do
     |> Ash.run_action()
   end
 
+  defp interventions(row, ctx) do
+    AshEnterprise.Execution.Intervention
+    |> Ash.Query.filter(invocation_id == ^row.id)
+    |> Ash.read!(authorize?: false, tenant: ctx.tenant)
+  end
+
   defp apply_resolutions do
     AshOban.Test.schedule_and_run_triggers({Invocation, :apply_resolution},
       drain_queues?: true
@@ -91,7 +97,9 @@ defmodule AshEnterprise.Execution.ResolutionTest do
     assert get(row, ctx).status == :outcome_unknown
 
     # The requester holds no role and is not a candidate.
-    assert {:error, _} = act(:resolve, task, ctx.nurse, ctx, %{outcome: :succeeded})
+    assert {:error, _} =
+             act(:resolve, task, ctx.nurse, ctx, %{outcome: :succeeded, comment: "Checked."})
+
     assert get(row, ctx).status == :outcome_unknown
   end
 
@@ -101,7 +109,10 @@ defmodule AshEnterprise.Execution.ResolutionTest do
       task = resolution_task(row, ctx)
 
       assert {:ok, _message} =
-               act(:resolve, task, ctx.admin, ctx, %{outcome: unquote(outcome)})
+               act(:resolve, task, ctx.admin, ctx, %{
+                 outcome: unquote(outcome),
+                 comment: "Checked with the board."
+               })
 
       assert %{status: :completed, outcome: outcome} = resolution_task(row, ctx)
       assert outcome == to_string(unquote(outcome))
@@ -109,22 +120,22 @@ defmodule AshEnterprise.Execution.ResolutionTest do
       apply_resolutions()
 
       resolved = get(row, ctx)
-      assert resolved.status == unquote(status)
       assert resolved.resolved_by_id == ctx.admin.user.id
       assert resolved.reconciled_via == "operator"
 
       if unquote(outcome) == :retry do
-        # Ready again with its `:execute` job enqueued in the same transaction; run, it
-        # refers the patient a second time, on purpose: the operator said the first
-        # referral did not happen.
-        assert_enqueued(
-          worker: Invocation.ExecuteWorker,
-          args: %{"primary_key" => %{"id" => row.id}}
-        )
+        # Ready again with its `:execute` job enqueued in the same transaction (the
+        # settlement's own apply job may already have run it); run, it refers the patient
+        # a second time, on purpose: the operator said the first referral did not happen.
+        assert resolved.status in [unquote(status), :succeeded]
 
-        assert :succeeded = Execution.execute_invocation!(%{"id" => row.id}, oban(ctx))
+        if resolved.status == :ready,
+          do: assert(:succeeded = Execution.execute_invocation!(%{"id" => row.id}, oban(ctx)))
+
+        assert get(row, ctx).status == :succeeded
         assert FakeBoard.calls() == 2
       else
+        assert resolved.status == unquote(status)
         assert FakeBoard.calls() == 1
       end
     end
@@ -155,6 +166,40 @@ defmodule AshEnterprise.Execution.ResolutionTest do
     approval = %{task | node_id: "invocation.approval"}
     assert {:error, _} = Resolution.check(approval, :resolve)
     assert :ok = Resolution.check(approval, :decide)
+  end
+
+  test "settled from the task, it is recorded as the recovery surface's act, and needs a reason",
+       ctx do
+    row = unknown!(ctx)
+    task = resolution_task(row, ctx)
+
+    for comment <- [nil, ""] do
+      assert {:error, _} =
+               act(:resolve, task, ctx.admin, ctx, %{outcome: :retry, comment: comment})
+    end
+
+    assert resolution_task(row, ctx).status == :open
+    assert interventions(row, ctx) == []
+
+    assert {:ok, _} =
+             act(:resolve, task, ctx.admin, ctx, %{
+               outcome: :retry,
+               comment: "The board has no such referral."
+             })
+
+    assert [%{act: :resolve, resolution: :retry, reason: "The board has no such referral."} = i] =
+             interventions(row, ctx)
+
+    assert i.owner_id == ctx.admin.user.id
+  end
+
+  test "no surface offers the task's own decision, only the recorded settlement" do
+    # `settle` is what `Intervention.resolve` runs.
+    for surface <- AshEnterprise.Surfaces.all(), surface.ui do
+      view = AshA2ui.ResolvedView.resolve(surface.ui, [])
+      acts = Enum.flat_map([view | view.tables], &List.wrap(Map.get(&1, :row_actions)))
+      refute :settle in acts, inspect(surface.key)
+    end
   end
 
   test "the board offers exactly the three outcomes" do

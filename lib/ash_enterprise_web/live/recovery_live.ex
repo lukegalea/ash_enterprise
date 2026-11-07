@@ -31,6 +31,7 @@ defmodule AshEnterpriseWeb.RecoveryLive do
   use AshEnterpriseWeb, :live_view
 
   alias AshAgent.Execution.Status
+  alias AshAgent.Invocation.Target
   alias AshEnterprise.Accounts
   alias AshEnterprise.Execution
   alias AshEnterprise.Execution.Recovery
@@ -359,6 +360,7 @@ defmodule AshEnterpriseWeb.RecoveryLive do
       {status_label(shared(@invocation))}
     </.badge>
     <span class="ml-1 font-mono text-xs text-foreground/60">{@invocation.status}</span>
+    <.run_mode mode={@invocation.mode} class="ml-1" />
     """
   end
 
@@ -514,7 +516,7 @@ defmodule AshEnterpriseWeb.RecoveryLive do
             target: short_target(@invocation.target)
           )}
         </li>
-        <li :for={line <- rerun_lines(@invocation.effects)}>{line}</li>
+        <li :for={line <- rerun_lines(@invocation)}>{line}</li>
         <li>{dgettext("recovery", "This request stays as it is.")}</li>
       </ul>
       <div class="mt-3 flex flex-wrap gap-3">
@@ -644,16 +646,26 @@ defmodule AshEnterpriseWeb.RecoveryLive do
 
   defp act_label(_intervention), do: dgettext("recovery", "acted")
 
-  defp rerun_lines(effects) when is_map(effects) do
-    [
-      outside_line(effects["open_world"], effects["idempotent"]),
-      approval_line(effects["approval"])
-    ]
-    |> Enum.reject(&is_nil/1)
-  end
+  # What a rerun would do is read from the target as it is declared now, which is what
+  # the rerun runs under, not from the snapshot this request was taken with.
+  defp rerun_lines(invocation) do
+    case Target.resolve(invocation.target) do
+      {:ok, %{effect: effect} = target} ->
+        [
+          Target.digest(target) != invocation.target_digest &&
+            dgettext(
+              "recovery",
+              "Its declaration changed since this request: what follows is how it runs now."
+            ),
+          outside_line(effect.open_world?, effect.idempotent?),
+          approval_line(effect.approval)
+        ]
+        |> Enum.filter(&is_binary/1)
 
-  defp rerun_lines(_effects),
-    do: [dgettext("recovery", "Its effects declaration was not recorded: simulate it first.")]
+      {:error, _unresolvable} ->
+        [dgettext("recovery", "Its target no longer resolves: a rerun would be refused.")]
+    end
+  end
 
   defp outside_line(false, _idempotent),
     do: dgettext("recovery", "It changes only this application's records.")

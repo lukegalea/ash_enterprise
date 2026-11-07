@@ -12,6 +12,11 @@ defmodule AshEnterprise.Execution.Changes.SealingScope do
     * **For an agent run's tool call with no such subject, its run's scope.** The model
       wrote the arguments from what the run was given and read, so they belong where the
       run's own content is: under the run's subject's scope when it names one.
+    * **For a rerun, the scope its original was sealed under**
+      (`AshEnterprise.Execution.Changes.Rerun`): its arguments are a copy of the
+      original's, typed by whoever asked first, so they are erased with the original's.
+      A rerun by someone else is not their data, and must not outlive the first
+      requester's erasure under the rerunner's scope.
     * **Otherwise the requester's own scope** (`data_subject`, ref
       `invocation_requester:<user id>`, an opaque id): the person typed the content, so
       it is that person's data.
@@ -34,7 +39,7 @@ defmodule AshEnterprise.Execution.Changes.SealingScope do
   require Ash.Query
 
   alias AshEnterprise.Erasure
-  alias AshEnterprise.Execution.Run
+  alias AshEnterprise.Execution.{Invocation, Run}
   alias AshEnterprise.Platform.SystemActor
 
   @label "Requested actions"
@@ -57,9 +62,33 @@ defmodule AshEnterprise.Execution.Changes.SealingScope do
   defp scope(changeset, actor) do
     case get_in(changeset.context, [:ash_agent, :subject]) do
       %{erasure_scope_id: scope_id} when is_binary(scope_id) -> {:ok, scope_id}
-      _no_scope -> run_scope(changeset) || requester_scope(actor)
+      _no_scope -> rerun_scope(changeset) || run_scope(changeset) || requester_scope(actor)
     end
   end
+
+  # `rerun_of_id` is written only by the rerun change, which has read the original as
+  # the person; which key seals the copy is bookkeeping, so it is read without
+  # authorization. An original with no active scope has no arguments to copy, and the
+  # rerun change refuses it before this runs.
+  defp rerun_scope(%{resource: Invocation} = changeset) do
+    case Ash.Changeset.get_attribute(changeset, :rerun_of_id) do
+      nil ->
+        nil
+
+      original_id ->
+        Invocation
+        |> Ash.Query.filter(id == ^original_id)
+        |> Ash.Query.select([:erasure_scope_id])
+        |> Ash.read_one(tenant: changeset.tenant, authorize?: false)
+        |> case do
+          {:ok, %{erasure_scope_id: scope_id}} when is_binary(scope_id) -> {:ok, scope_id}
+          {:ok, _no_scope} -> {:error, "the request it reruns has no erasure scope"}
+          {:error, error} -> {:error, Exception.message(error)}
+        end
+    end
+  end
+
+  defp rerun_scope(_changeset), do: nil
 
   defp run_scope(changeset) do
     case Ash.Changeset.get_attribute(changeset, :run_id) do

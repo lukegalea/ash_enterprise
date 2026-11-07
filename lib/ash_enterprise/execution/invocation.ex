@@ -33,7 +33,8 @@ defmodule AshEnterprise.Execution.Invocation do
     * **Sealing.** `args` and `result` are sealed under an erasure scope (ADR 0024): the
       subject's when the target acts on a record that has one; for an agent run's tool
       call with no such subject, its run's (the run's subject's, when it names one);
-      otherwise the requester's own (`AshEnterprise.Execution.Changes.SealingScope`).
+      for a rerun with no such subject, its original's, whoever reruns it; otherwise
+      the requester's own (`AshEnterprise.Execution.Changes.SealingScope`).
       `args_digest` is an HMAC under a key derived from that scope's key
       (`AshEnterprise.Execution.DigestKey`), so a shred makes both unreadable and the
       digest unrecomputable; `recorded?` is then false. No plaintext copy is derived

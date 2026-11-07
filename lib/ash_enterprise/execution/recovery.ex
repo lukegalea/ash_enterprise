@@ -8,7 +8,7 @@ defmodule AshEnterprise.Execution.Recovery do
   |---|---|---|
   | settle | the outcome is unknown and a person has been asked (`resolution_requested_at`) | records what happened: it happened, it did not, or it did not and runs again under the same request |
   | rerun | the outcome is known (`succeeded`, `failed`, `cancelled`, `stale`, `rejected`) and the row belongs to no run or process | asks again as a new request, with a new key, linked to this one |
-  | cancel | the request has not finished (`requested`, `awaiting_approval`, `ready`, `executing`, `dispatched`) | stops a request that has not run; marks one that is running |
+  | cancel | the request has not finished (`requested`, `awaiting_approval`, `request_info`, `ready`, `executing`, `dispatched`) | stops a request that has not run; marks one that is running |
 
   An unknown outcome is never rerun and never retried as it stands: its effect may have
   happened, and running it again could do it twice. It is settled first, by asking the
@@ -19,7 +19,7 @@ defmodule AshEnterprise.Execution.Recovery do
   """
 
   @known [:succeeded, :failed, :cancelled, :stale, :rejected]
-  @unfinished [:requested, :awaiting_approval, :ready, :executing, :dispatched]
+  @unfinished [:requested, :awaiting_approval, :request_info, :ready, :executing, :dispatched]
 
   @typedoc "Why an act is not offered."
   @type refusal ::

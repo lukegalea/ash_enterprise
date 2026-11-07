@@ -60,12 +60,13 @@ defmodule AshEnterprise.Bpmn.HumanTask do
            :reject,
            :request_info,
            :resolve,
+           :settle,
            :answer
          ]}
       ],
       # Deciding is a person's act (ADR 0055, "Approval binding"): neither engine
       # bypass nor a system actor reaches these doors; a candidate's grant does.
-      human_only: [:approve, :reject, :request_info, :resolve, :answer],
+      human_only: [:approve, :reject, :request_info, :resolve, :settle, :answer],
       extra_extensions: [AshAgent.Effects, AshAi]
     ]
 
@@ -330,9 +331,12 @@ defmodule AshEnterprise.Bpmn.HumanTask do
 
     action :resolve, :string do
       description """
-      Settle an invocation whose outcome is unknown: it `succeeded`, it `failed`, or
-      `retry` it. Only a resolution task (`AshEnterprise.Execution.Resolution`) is
-      resolved, and a resolution task is decided only here.
+      Settle an invocation whose outcome is unknown, saying why: it `succeeded` (it
+      happened), it `failed` (it did not, and is not tried again), or `retry` (it did not
+      happen, you checked, and it runs again under the same request). Recorded as the
+      recovery surface's settlement, with who and why
+      (`AshEnterprise.Execution.Intervention`). Only a resolution task
+      (`AshEnterprise.Execution.Resolution`) is resolved.
       """
 
       argument :record_id, :uuid, allow_nil?: false
@@ -343,7 +347,32 @@ defmodule AshEnterprise.Bpmn.HumanTask do
         allow_nil?: false,
         constraints: [one_of: [:succeeded, :failed, :retry]]
 
-      argument :comment, :string, allow_nil?: true, constraints: [max_length: 2000]
+      argument :comment, :string,
+        allow_nil?: false,
+        constraints: [max_length: 2000],
+        description: "Why: what you checked, in your own words."
+
+      run AshEnterprise.Bpmn.Actions.SettleTask
+    end
+
+    # The decision on the task itself, made only inside `Intervention.resolve`, which
+    # records it: a resolution task is decided only here, and no surface offers it.
+    action :settle, :string do
+      description """
+      Decide a resolution task with `succeeded`, `failed` or `retry`, for
+      `AshEnterprise.Execution.Intervention`'s `resolve`, which records the act. People
+      settle through `resolve`.
+      """
+
+      public? false
+
+      argument :record_id, :uuid, allow_nil?: false
+
+      argument :outcome, :atom,
+        allow_nil?: false,
+        constraints: [one_of: [:succeeded, :failed, :retry]]
+
+      argument :comment, :string, allow_nil?: false, constraints: [max_length: 2000]
       run {AshEnterprise.Bpmn.Actions.DecideTask, outcome: :from_argument}
     end
 

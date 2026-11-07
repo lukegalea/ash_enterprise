@@ -17,7 +17,9 @@ defmodule AshEnterprise.Execution.Resolution do
   A standalone task stores no declared outcomes, and the board's Complete picker offers
   only the outcomes the checked-in process baselines declare, so neither door offered
   these. `HumanTask.resolve` does: its `outcome` argument is enumerated, so a board
-  shows a picker of exactly these three. It accepts only a resolution task, and
+  shows a picker of exactly these three, and it records the settlement with who and why
+  through `AshEnterprise.Execution.Intervention`'s `resolve`, which decides the task
+  through `HumanTask.settle`. It accepts only a resolution task, and
   `approve`, `reject` and `complete_task` refuse one, so a resolution can only ever be
   one of the three (`check/2`). The `:apply_resolution` trigger then applies the
   decision (`AshEnterprise.Execution.Changes.ReadResolution`).
@@ -40,8 +42,8 @@ defmodule AshEnterprise.Execution.Resolution do
   def task?(_task), do: false
 
   @doc """
-  Whether `task` may be decided through `door`: `:resolve` (the `HumanTask.resolve`
-  action) for a resolution task, any other door (approve, reject, complete, answer) for
+  Whether `task` may be decided through `door`: `:resolve` (the `HumanTask.resolve` and
+  `settle` actions) for a resolution task, any other door (approve, reject, complete, answer) for
   every other task.
   """
   @spec check(struct(), atom()) :: :ok | {:error, String.t()}
