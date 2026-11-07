@@ -219,7 +219,7 @@ msgid "Action items"
 msgstr ""
 
 #: lib/ash_enterprise/surfaces.ex:191
-#: lib/ash_enterprise_web/live/explorer_live.ex:686
+#: lib/ash_enterprise_web/live/explorer_live.ex:688
 #, elixir-autogen, elixir-format
 msgid "Agent"
 msgstr ""
@@ -882,12 +882,12 @@ msgstr ""
 msgid "Settle an uncertain outcome, simulate or rerun a request, or cancel one, saying why."
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:826
+#: lib/ash_enterprise_web/live/explorer_live.ex:828
 #, elixir-autogen, elixir-format
 msgid "%{n} ms"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:825
+#: lib/ash_enterprise_web/live/explorer_live.ex:827
 #, elixir-autogen, elixir-format
 msgid "%{n} tokens"
 msgstr ""
@@ -897,58 +897,58 @@ msgstr ""
 msgid "A record's reference or a correlation id"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:759
+#: lib/ash_enterprise_web/live/explorer_live.ex:761
 #, elixir-autogen, elixir-format
 msgid "Act"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:790
+#: lib/ash_enterprise_web/live/explorer_live.ex:792
 #, elixir-autogen, elixir-format
 msgid "Agent run"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:749
+#: lib/ash_enterprise_web/live/explorer_live.ex:751
 #, elixir-autogen, elixir-format
 msgid "Answer"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:798
+#: lib/ash_enterprise_web/live/explorer_live.ex:800
 #, elixir-autogen, elixir-format
 msgid "Approval"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:657
+#: lib/ash_enterprise_web/live/explorer_live.ex:659
 #, elixir-autogen, elixir-format
 msgid "Arguments: erased"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:677
+#: lib/ash_enterprise_web/live/explorer_live.ex:679
 #, elixir-autogen, elixir-format
 msgid "Arguments: none recorded"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:794
+#: lib/ash_enterprise_web/live/explorer_live.ex:796
 #, elixir-autogen, elixir-format
 msgid "Attempt"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:762
+#: lib/ash_enterprise_web/live/explorer_live.ex:764
 #, elixir-autogen, elixir-format
 msgid "By"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:808
+#: lib/ash_enterprise_web/live/explorer_live.ex:810
 #, elixir-autogen, elixir-format
 msgid "Cancelled"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:767
+#: lib/ash_enterprise_web/live/explorer_live.ex:769
 #, elixir-autogen, elixir-format
 msgid "Case"
 msgstr ""
 
 #: lib/ash_enterprise_web/live/explorer_live.ex:512
-#: lib/ash_enterprise_web/live/explorer_live.ex:710
+#: lib/ash_enterprise_web/live/explorer_live.ex:712
 #, elixir-autogen, elixir-format
 msgid "Content"
 msgstr ""
@@ -963,13 +963,13 @@ msgstr ""
 msgid "Could not read %{source}"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:720
+#: lib/ash_enterprise_web/live/explorer_live.ex:722
 #, elixir-autogen, elixir-format
 msgid "Decided by"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:733
-#: lib/ash_enterprise_web/live/explorer_live.ex:796
+#: lib/ash_enterprise_web/live/explorer_live.ex:735
+#: lib/ash_enterprise_web/live/explorer_live.ex:798
 #, elixir-autogen, elixir-format
 msgid "Decision"
 msgstr ""
@@ -989,43 +989,43 @@ msgstr ""
 msgid "Diagram"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:777
+#: lib/ash_enterprise_web/live/explorer_live.ex:779
 #, elixir-autogen, elixir-format
 msgid "Duration (ms)"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:799
+#: lib/ash_enterprise_web/live/explorer_live.ex:801
 #, elixir-autogen, elixir-format
 msgid "Effect"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:725
+#: lib/ash_enterprise_web/live/explorer_live.ex:727
 #, elixir-autogen, elixir-format
 msgid "Element"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:741
+#: lib/ash_enterprise_web/live/explorer_live.ex:743
 #, elixir-autogen, elixir-format
 msgid "Error"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:775
+#: lib/ash_enterprise_web/live/explorer_live.ex:777
 #, elixir-autogen, elixir-format
 msgid "Error class"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:689
-#: lib/ash_enterprise_web/live/explorer_live.ex:700
+#: lib/ash_enterprise_web/live/explorer_live.ex:691
+#: lib/ash_enterprise_web/live/explorer_live.ex:702
 #, elixir-autogen, elixir-format
 msgid "Error code"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:725
+#: lib/ash_enterprise_web/live/explorer_live.ex:727
 #, elixir-autogen, elixir-format
 msgid "Event"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:598
+#: lib/ash_enterprise_web/live/explorer_live.ex:600
 #, elixir-autogen, elixir-format
 msgid "Evidence cited"
 msgstr ""
@@ -1035,33 +1035,33 @@ msgstr ""
 msgid "Execution explorer"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:807
+#: lib/ash_enterprise_web/live/explorer_live.ex:809
 #, elixir-autogen, elixir-format
 msgid "Failed"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:688
-#: lib/ash_enterprise_web/live/explorer_live.ex:699
+#: lib/ash_enterprise_web/live/explorer_live.ex:690
+#: lib/ash_enterprise_web/live/explorer_live.ex:701
 #, elixir-autogen, elixir-format
 msgid "Failure"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:735
+#: lib/ash_enterprise_web/live/explorer_live.ex:737
 #, elixir-autogen, elixir-format
 msgid "Hit policy"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:789
+#: lib/ash_enterprise_web/live/explorer_live.ex:791
 #, elixir-autogen, elixir-format
 msgid "Invocation"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:751
+#: lib/ash_enterprise_web/live/explorer_live.ex:753
 #, elixir-autogen, elixir-format
 msgid "Judged text"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:697
+#: lib/ash_enterprise_web/live/explorer_live.ex:699
 #, elixir-autogen, elixir-format
 msgid "Lifecycle status"
 msgstr ""
@@ -1071,17 +1071,17 @@ msgstr ""
 msgid "Load more"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:736
+#: lib/ash_enterprise_web/live/explorer_live.ex:738
 #, elixir-autogen, elixir-format
 msgid "Matched rules"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:773
+#: lib/ash_enterprise_web/live/explorer_live.ex:775
 #, elixir-autogen, elixir-format
 msgid "Model"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:800
+#: lib/ash_enterprise_web/live/explorer_live.ex:802
 #, elixir-autogen, elixir-format
 msgid "Model call"
 msgstr ""
@@ -1106,7 +1106,7 @@ msgstr ""
 msgid "Nothing yet."
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:795
+#: lib/ash_enterprise_web/live/explorer_live.ex:797
 #, elixir-autogen, elixir-format
 msgid "Observation"
 msgstr ""
@@ -1116,29 +1116,29 @@ msgstr ""
 msgid "One piece of work, followed through its process, runs, decisions, approvals and calls, on one timeline."
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:638
+#: lib/ash_enterprise_web/live/explorer_live.ex:640
 #, elixir-autogen, elixir-format
 msgid "Open the request it asked for"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:628
+#: lib/ash_enterprise_web/live/explorer_live.ex:630
 #, elixir-autogen, elixir-format
 msgid "Open the request this reruns"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:618
+#: lib/ash_enterprise_web/live/explorer_live.ex:620
 #, elixir-autogen, elixir-format
 msgid "Open the run it graded or belongs to"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:793
+#: lib/ash_enterprise_web/live/explorer_live.ex:795
 #, elixir-autogen, elixir-format
 msgid "Operation"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:719
-#: lib/ash_enterprise_web/live/explorer_live.ex:728
-#: lib/ash_enterprise_web/live/explorer_live.ex:774
+#: lib/ash_enterprise_web/live/explorer_live.ex:721
+#: lib/ash_enterprise_web/live/explorer_live.ex:730
+#: lib/ash_enterprise_web/live/explorer_live.ex:776
 #, elixir-autogen, elixir-format
 msgid "Outcome"
 msgstr ""
@@ -1148,32 +1148,32 @@ msgstr ""
 msgid "Process %{definition}"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:801
+#: lib/ash_enterprise_web/live/explorer_live.ex:803
 #, elixir-autogen, elixir-format
 msgid "Process event"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:791
+#: lib/ash_enterprise_web/live/explorer_live.ex:793
 #, elixir-autogen, elixir-format
 msgid "Process run"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:728
+#: lib/ash_enterprise_web/live/explorer_live.ex:730
 #, elixir-autogen, elixir-format
 msgid "Process status"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:772
+#: lib/ash_enterprise_web/live/explorer_live.ex:774
 #, elixir-autogen, elixir-format
 msgid "Profile"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:797
+#: lib/ash_enterprise_web/live/explorer_live.ex:799
 #, elixir-autogen, elixir-format
 msgid "Proposal"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:748
+#: lib/ash_enterprise_web/live/explorer_live.ex:750
 #, elixir-autogen, elixir-format
 msgid "Question"
 msgstr ""
@@ -1183,7 +1183,7 @@ msgstr ""
 msgid "Ran as"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:761
+#: lib/ash_enterprise_web/live/explorer_live.ex:763
 #, elixir-autogen, elixir-format
 msgid "Reason given"
 msgstr ""
@@ -1198,22 +1198,22 @@ msgstr ""
 msgid "Record"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:767
+#: lib/ash_enterprise_web/live/explorer_live.ex:769
 #, elixir-autogen, elixir-format
 msgid "Result"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:708
+#: lib/ash_enterprise_web/live/explorer_live.ex:710
 #, elixir-autogen, elixir-format
 msgid "Role"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:687
+#: lib/ash_enterprise_web/live/explorer_live.ex:689
 #, elixir-autogen, elixir-format
 msgid "Run status"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:805
+#: lib/ash_enterprise_web/live/explorer_live.ex:807
 #, elixir-autogen, elixir-format
 msgid "Running"
 msgstr ""
@@ -1228,12 +1228,12 @@ msgstr ""
 msgid "Selected on the diagram: %{name}"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:760
+#: lib/ash_enterprise_web/live/explorer_live.ex:762
 #, elixir-autogen, elixir-format
 msgid "Settled as"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:698
+#: lib/ash_enterprise_web/live/explorer_live.ex:700
 #, elixir-autogen, elixir-format
 msgid "Simulated"
 msgstr ""
@@ -1243,37 +1243,37 @@ msgstr ""
 msgid "Status"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:643
+#: lib/ash_enterprise_web/live/explorer_live.ex:645
 #, elixir-autogen, elixir-format
 msgid "Step in on this request (recovery)"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:750
+#: lib/ash_enterprise_web/live/explorer_live.ex:752
 #, elixir-autogen, elixir-format
 msgid "Subject"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:806
+#: lib/ash_enterprise_web/live/explorer_live.ex:808
 #, elixir-autogen, elixir-format
 msgid "Succeeded"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:734
+#: lib/ash_enterprise_web/live/explorer_live.ex:736
 #, elixir-autogen, elixir-format
 msgid "Table version"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:696
+#: lib/ash_enterprise_web/live/explorer_live.ex:698
 #, elixir-autogen, elixir-format
 msgid "Target"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:717
+#: lib/ash_enterprise_web/live/explorer_live.ex:719
 #, elixir-autogen, elixir-format
 msgid "Task"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:718
+#: lib/ash_enterprise_web/live/explorer_live.ex:720
 #, elixir-autogen, elixir-format
 msgid "Task status"
 msgstr ""
@@ -1298,17 +1298,17 @@ msgstr ""
 msgid "Timeline"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:776
+#: lib/ash_enterprise_web/live/explorer_live.ex:778
 #, elixir-autogen, elixir-format
 msgid "Tokens"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:581
+#: lib/ash_enterprise_web/live/explorer_live.ex:583
 #, elixir-autogen, elixir-format
 msgid "Tool calls"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:709
+#: lib/ash_enterprise_web/live/explorer_live.ex:711
 #, elixir-autogen, elixir-format
 msgid "Tools called"
 msgstr ""
@@ -1318,17 +1318,17 @@ msgstr ""
 msgid "Trace"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:608
+#: lib/ash_enterprise_web/live/explorer_live.ex:610
 #, elixir-autogen, elixir-format
 msgid "Trace everything recorded with it"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:707
+#: lib/ash_enterprise_web/live/explorer_live.ex:709
 #, elixir-autogen, elixir-format
 msgid "Turn"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:809
+#: lib/ash_enterprise_web/live/explorer_live.ex:811
 #, elixir-autogen, elixir-format
 msgid "Uncertain"
 msgstr ""
@@ -1343,7 +1343,7 @@ msgstr ""
 msgid "Under it"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:804
+#: lib/ash_enterprise_web/live/explorer_live.ex:806
 #, elixir-autogen, elixir-format
 msgid "Waiting"
 msgstr ""
@@ -1353,36 +1353,36 @@ msgstr ""
 msgid "When"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:562
+#: lib/ash_enterprise_web/live/explorer_live.ex:564
 #, elixir-autogen, elixir-format
 msgid "You may not read the record behind this entry."
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:787
+#: lib/ash_enterprise_web/live/explorer_live.ex:789
 #, elixir-autogen, elixir-format
 msgid "correlation %{id}"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:710
-#: lib/ash_enterprise_web/live/explorer_live.ex:752
-#: lib/ash_enterprise_web/live/explorer_live.ex:821
+#: lib/ash_enterprise_web/live/explorer_live.ex:712
+#: lib/ash_enterprise_web/live/explorer_live.ex:754
+#: lib/ash_enterprise_web/live/explorer_live.ex:823
 #, elixir-autogen, elixir-format
 msgid "erased"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:786
+#: lib/ash_enterprise_web/live/explorer_live.ex:788
 #, elixir-autogen, elixir-format
 msgid "from %{ref}"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:738
+#: lib/ash_enterprise_web/live/explorer_live.ex:740
 #, elixir-autogen, elixir-format
 msgid "no rule matched"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:776
-#: lib/ash_enterprise_web/live/explorer_live.ex:777
-#: lib/ash_enterprise_web/live/explorer_live.ex:820
+#: lib/ash_enterprise_web/live/explorer_live.ex:778
+#: lib/ash_enterprise_web/live/explorer_live.ex:779
+#: lib/ash_enterprise_web/live/explorer_live.ex:822
 #, elixir-autogen, elixir-format
 msgid "not recorded"
 msgstr ""
@@ -1393,22 +1393,22 @@ msgstr ""
 msgid "on %{what}"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:710
+#: lib/ash_enterprise_web/live/explorer_live.ex:712
 #, elixir-autogen, elixir-format
 msgid "recorded"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:752
+#: lib/ash_enterprise_web/live/explorer_live.ex:754
 #, elixir-autogen, elixir-format
 msgid "sealed in the ledger"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:741
+#: lib/ash_enterprise_web/live/explorer_live.ex:743
 #, elixir-autogen, elixir-format
 msgid "the evaluation recorded an error"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:698
+#: lib/ash_enterprise_web/live/explorer_live.ex:700
 #, elixir-autogen, elixir-format
 msgid "yes"
 msgstr ""
@@ -1418,17 +1418,17 @@ msgstr ""
 msgid "Some recent work could not be read: %{kinds}. What is listed is not all of it."
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:554
+#: lib/ash_enterprise_web/live/explorer_live.ex:555
 #, elixir-autogen, elixir-format
 msgid "The record behind this entry could not be read. Try again."
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:583
+#: lib/ash_enterprise_web/live/explorer_live.ex:585
 #, elixir-autogen, elixir-format
 msgid "This turn's tool calls could not be read."
 msgstr ""
 
-#: lib/ash_enterprise_web/live/explorer_live.ex:667
+#: lib/ash_enterprise_web/live/explorer_live.ex:669
 #, elixir-autogen, elixir-format
 msgid "sensitive, not shown"
 msgstr ""
