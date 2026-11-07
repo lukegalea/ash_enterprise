@@ -61,8 +61,22 @@ defmodule AshEnterpriseWeb.ComparisonLive do
   defp compare(socket, nil, _params, _opts), do: assign(socket, comparison: nil)
 
   defp compare(socket, suite_id, params, opts) do
+    case baseline(params) do
+      {:ok, baseline} ->
+        compare_with(socket, suite_id, baseline, opts)
+
+      :error ->
+        socket
+        |> compare_with(suite_id, nil, opts)
+        |> put_flash(
+          :error,
+          dgettext("quality", "The baseline is not a run id, so the default baseline is used.")
+        )
+    end
+  end
+
+  defp compare_with(socket, suite_id, baseline, opts) do
     with {:ok, suite_id} <- Ecto.UUID.cast(suite_id),
-         {:ok, baseline} <- baseline(params),
          {:ok, comparison} <-
            Quality.compare_suite_runs(suite_id, %{baseline_id: baseline}, opts) do
       assign(socket, comparison: comparison)

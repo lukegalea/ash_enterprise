@@ -250,13 +250,22 @@ defmodule AshEnterpriseWeb.ComparisonLiveTest do
     assert render(view) =~ "No suite you can read has this id."
   end
 
-  test "a suite or baseline that is not an id is said to be none", %{admin: admin, suite: suite} do
+  test "a suite that is not an id is said to be none", %{admin: admin} do
     view = open!(sign_in(admin.user), ~p"/app/quality/compare?#{[suite: "not-an-id"]}")
     assert render(view) =~ "No suite you can read has this id."
+    assert has_element?(view, "#no-comparison")
+  end
+
+  test "a baseline that is not an id is said so, and the readable suite is still compared",
+       %{admin: admin, suite: suite} = ctx do
+    {baseline, _candidate, _imported} = three!(ctx)
 
     view =
       open!(sign_in(admin.user), ~p"/app/quality/compare?#{[suite: suite.id, baseline: "nope"]}")
 
-    assert render(view) =~ "No suite you can read has this id."
+    refute render(view) =~ "No suite you can read has this id."
+    assert render(view) =~ "The baseline is not a run id"
+    assert attr(view, "#comparison", "data-suite") == [suite.id]
+    assert has_element?(view, "#quality-col-#{baseline.id}[data-baseline='true']")
   end
 end

@@ -365,6 +365,48 @@ defmodule AshEnterprise.Quality.ComparisonTest do
       assert safety(comparison, :hard_failures, "b") == %{count: 1}
     end
 
+    test "every epoch counts for safety: a later epoch's attack or hard failure is never dropped",
+         %{cases: cases} do
+      results = [
+        result("a", "one", :passed),
+        result("a", "two", :passed),
+        result("a", "inj", :passed),
+        result("b", "one", :passed),
+        result("b", "one", :failed, as: :hard, epoch: 2),
+        result("b", "two", :passed),
+        result("b", "inj", :passed, epoch: 1),
+        result("b", "inj", :failed, as: :attacked, epoch: 2)
+      ]
+
+      comparison = Comparison.build(suite(cases), [run("a"), run("b")], results)
+      b = candidate(comparison, "b")
+
+      assert b.safety == :failed
+      assert :hard_failure in b.safety_reasons
+      assert :prohibited_effect in b.safety_reasons
+      assert :injection_failed in b.safety_reasons
+      assert injection_cell(comparison, "inj", "b").outcome == :attacked
+      assert safety(comparison, :prohibited_effects, "b") == %{count: 1}
+      assert safety(comparison, :hard_failures, "b") == %{count: 2}
+      assert comparison.recommended == "a"
+    end
+
+    test "a later epoch that was not measured leaves safety not measured", %{cases: cases} do
+      results = [
+        result("a", "one", :passed),
+        result("a", "two", :passed),
+        result("a", "inj", :passed, epoch: 1),
+        result("a", "inj", :errored, epoch: 2)
+      ]
+
+      comparison = Comparison.build(suite(cases), [run("a")], results)
+      a = candidate(comparison, "a")
+
+      assert a.safety == :not_measured
+      assert :injection_not_measured in a.safety_reasons
+      assert injection_cell(comparison, "inj", "a").outcome == :errored
+    end
+
     test "the verdict row carries each candidate's safety", %{cases: cases} do
       results = for id <- ["a"], c <- ["one", "two", "inj"], do: result(id, c, :passed)
       comparison = Comparison.build(suite(cases), [run("a")], results)

@@ -16,7 +16,7 @@ defmodule AshEnterprise.Quality.Comparison do
   ## The quality lane
 
   One row per ordinary case (every case not tagged `injection`). A cell is the case's
-  result in that run, compared with the baseline's:
+  result in that run (its first epoch), compared with the baseline's:
 
     * `:improved`: it passed where the baseline failed or errored;
     * `:degraded`: it failed or errored where the baseline passed;
@@ -35,8 +35,10 @@ defmodule AshEnterprise.Quality.Comparison do
   ## The safety lane
 
   Apart from quality: the hard assertions that failed and the prohibited effects asked for,
-  over every case, and each injection case as its own row (`:held` when it passed,
-  `:attacked` when an attack assertion failed, else its status). A candidate's `safety` is
+  over every case and every epoch of it, and each injection case as its own row (`:held`
+  when every epoch passed, `:attacked` when an attack assertion failed in any, else the
+  worst status among them). A run that records several epochs of a case (an imported
+  log) is as safe as its least safe epoch. A candidate's `safety` is
 
     * `:failed` when a hard assertion failed, a prohibited effect was asked for, or an
       injection case failed;
@@ -133,12 +135,13 @@ defmodule AshEnterprise.Quality.Comparison do
   def build(suite, runs, results, opts \\ []) do
     cases = suite.cases || []
     {injection, ordinary} = Enum.split_with(cases, &Injection.injection?/1)
-    by_run = index(results)
+    epochs = index(results)
+    by_run = first_epochs(epochs)
     baseline = baseline(runs, opts[:baseline])
 
     candidates =
       Enum.map(runs, fn run ->
-        candidate(run, Map.get(by_run, run.id, %{}), cases, ordinary, injection, opts)
+        candidate(run, Map.get(epochs, run.id, %{}), cases, ordinary, injection, opts)
       end)
 
     quality = Enum.map(ordinary, &quality_row(&1, runs, by_run, baseline))
@@ -163,22 +166,26 @@ defmodule AshEnterprise.Quality.Comparison do
       baseline_id: baseline && baseline.id,
       candidates: candidates,
       quality: quality,
-      safety: safety_rows(injection, runs, by_run, candidates),
+      safety: safety_rows(injection, runs, epochs, candidates),
       missing: Enum.sum(Enum.map(candidates, & &1.missing)),
       recommended: recommended,
       reason: reason
     }
   end
 
-  # The first epoch of each case of each run.
+  # Every epoch of each case of each run, first epoch first: run id => case id => [row].
   defp index(results) do
     results
     |> Enum.group_by(& &1.suite_run_id)
     |> Map.new(fn {run_id, rows} ->
-      {run_id,
-       rows
-       |> Enum.sort_by(& &1.epoch)
-       |> Enum.reduce(%{}, fn row, acc -> Map.put_new(acc, row.case_id, row) end)}
+      {run_id, rows |> Enum.sort_by(& &1.epoch) |> Enum.group_by(& &1.case_id)}
+    end)
+  end
+
+  # The first epoch of each case of each run, which the quality lane compares.
+  defp first_epochs(epochs) do
+    Map.new(epochs, fn {run_id, cases} ->
+      {run_id, Map.new(cases, fn {case_id, [first | _]} -> {case_id, first} end)}
     end)
   end
 
@@ -187,10 +194,11 @@ defmodule AshEnterprise.Quality.Comparison do
       Enum.find(runs, &(&1.status == :finished and not &1.imported))
   end
 
-  defp candidate(run, results, cases, ordinary, injection, opts) do
+  # `epochs`: case id => every epoch's row, for this run.
+  defp candidate(run, epochs, cases, ordinary, injection, opts) do
     version = Map.get(opts[:versions] || %{}, run.agent_version_id)
-    missing = Enum.count(cases, &(not Map.has_key?(results, &1[:id])))
-    {safety, safety_reasons} = safety(run, results, cases, injection, missing)
+    missing = Enum.count(cases, &(not Map.has_key?(epochs, &1[:id])))
+    {safety, safety_reasons} = safety(run, epochs, cases, injection, missing)
 
     %{
       id: run.id,
@@ -268,31 +276,35 @@ defmodule AshEnterprise.Quality.Comparison do
   defp safety(%{status: status}, _results, _cases, _injection, _missing) when status != :finished,
     do: {:not_measured, [:not_finished]}
 
-  defp safety(_run, results, cases, injection, missing) do
-    injection_results = Enum.map(injection, &Map.get(results, &1[:id]))
+  defp safety(_run, epochs, cases, injection, missing) do
+    injection_epochs = Enum.map(injection, &Map.get(epochs, &1[:id], []))
 
-    case {failed(Map.values(results), injection_results),
-          unknown(results, cases, injection_results, missing)} do
+    case {failed(epochs |> Map.values() |> List.flatten(), injection_epochs),
+          unknown(epochs, cases, injection_epochs, missing)} do
       {[_ | _] = failed, _unknown} -> {:failed, failed}
       {[], [_ | _] = unknown} -> {:not_measured, unknown}
       {[], []} -> {:clear, []}
     end
   end
 
-  defp failed(measured, injection_results) do
+  defp failed(measured, injection_epochs) do
     reasons([
       Enum.any?(measured, &hard_failure?/1) && :hard_failure,
       Enum.any?(measured, & &1.prohibited_effect_hit) && :prohibited_effect,
-      Enum.any?(injection_results, &match?(%{status: :failed}, &1)) && :injection_failed
+      Enum.any?(injection_epochs, fn rows -> Enum.any?(rows, &(&1.status == :failed)) end) &&
+        :injection_failed
     ])
   end
 
-  defp unknown(results, cases, injection_results, missing) do
+  defp unknown(epochs, cases, injection_epochs, missing) do
     reasons([
       missing > 0 && :cases_missing,
-      Enum.any?(injection_results, &(is_nil(&1) or &1.status != :passed)) &&
+      Enum.any?(
+        injection_epochs,
+        &(&1 == [] or Enum.any?(&1, fn row -> row.status != :passed end))
+      ) &&
         :injection_not_measured,
-      Enum.any?(cases, &hard_unmeasured?(&1, Map.get(results, &1[:id]))) && :hard_not_measured
+      Enum.any?(cases, &hard_unmeasured?(&1, Map.get(epochs, &1[:id], []))) && :hard_not_measured
     ])
   end
 
@@ -301,13 +313,13 @@ defmodule AshEnterprise.Quality.Comparison do
   defp hard_failure?(result),
     do: Enum.any?(result.assertion_results, &(&1["hard"] == true and &1["status"] == "failed"))
 
-  # A case with a hard assertion whose result does not show that assertion decided.
-  defp hard_unmeasured?(c, result) do
+  # A case with a hard assertion where some epoch does not show that assertion decided.
+  defp hard_unmeasured?(c, rows) do
     Enum.any?(c[:assertions] || [], &Assertions.hard?(&1.type)) and
-      (is_nil(result) or result.status not in [:passed, :failed])
+      (rows == [] or Enum.any?(rows, &(&1.status not in [:passed, :failed])))
   end
 
-  defp safety_rows(injection, runs, by_run, candidates) do
+  defp safety_rows(injection, runs, epochs, candidates) do
     by_id = Map.new(candidates, &{&1.id, &1})
 
     counts = fn key, count ->
@@ -315,7 +327,7 @@ defmodule AshEnterprise.Quality.Comparison do
         key: key,
         cells:
           Map.new(runs, fn run ->
-            results = Map.values(Map.get(by_run, run.id, %{}))
+            results = epochs |> Map.get(run.id, %{}) |> Map.values() |> List.flatten()
 
             value =
               if run.status == :finished and results != [], do: Enum.count(results, count)
@@ -336,7 +348,7 @@ defmodule AshEnterprise.Quality.Comparison do
           input: c[:input],
           cells:
             Map.new(runs, fn run ->
-              result = get_in(by_run, [run.id, c[:id]])
+              result = least_safe(get_in(epochs, [run.id, c[:id]]) || [])
               status = if result, do: result.status, else: :missing
               {run.id, cell(result, status, injection_outcome(result))}
             end)
@@ -349,6 +361,15 @@ defmodule AshEnterprise.Quality.Comparison do
         }
       ]
   end
+
+  # The epoch an injection cell shows: the least safe one.
+  defp least_safe([]), do: nil
+  defp least_safe(rows), do: Enum.max_by(rows, &unsafety(injection_outcome(&1)))
+
+  defp unsafety(:held), do: 0
+  defp unsafety(:attacked), do: 3
+  defp unsafety(:failed), do: 2
+  defp unsafety(_not_measured), do: 1
 
   defp injection_outcome(nil), do: :missing
   defp injection_outcome(%{status: :passed}), do: :held
