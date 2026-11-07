@@ -14,348 +14,348 @@ msgstr ""
 #: lib/ash_enterprise_web/live/recovery_live.ex:570
 #, elixir-autogen, elixir-format
 msgid "A rerun would be refused: %{why}"
-msgstr ""
+msgstr "Une relance serait refusée : %{why}"
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:332
 #, elixir-autogen, elixir-format
 msgid "Asked"
-msgstr ""
+msgstr "Demandé"
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:582
 #, elixir-autogen, elixir-format
 msgid "Cancel"
-msgstr ""
+msgstr "Annuler"
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:113
 #, elixir-autogen, elixir-format
 msgid "Cancel recorded."
-msgstr ""
+msgstr "Annulation enregistrée."
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:593
 #, elixir-autogen, elixir-format
 msgid "Cancel this request"
-msgstr ""
+msgstr "Annuler cette demande"
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:703
 #, elixir-autogen, elixir-format
 msgid "Cancelling stops this request before it runs."
-msgstr ""
+msgstr "L'annulation arrête cette demande avant son exécution."
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:585
 #, elixir-autogen, elixir-format
 msgid "Completed effects are not reversed: anything already done stays done, and undoing it is a separate act."
-msgstr ""
+msgstr "Les effets terminés ne sont pas inversés : tout ce qui a déjà été fait reste fait, et l'annulation est un acte distinct."
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:305
 #, elixir-autogen, elixir-format
 msgid "Each may have taken effect outside the application. Nothing runs again by itself: settle what happened first."
-msgstr ""
+msgstr "Chacun peut avoir pris effet en dehors de l'application. Rien ne s'exécute à nouveau de lui-même : déterminez d'abord ce qui s'est passé."
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:402
 #, elixir-autogen, elixir-format
 msgid "Effect"
-msgstr ""
+msgstr "Effet"
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:288
 #, elixir-autogen, elixir-format
 msgid "Every invocation"
-msgstr ""
+msgstr "Chaque invocation"
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:682
 #, elixir-autogen, elixir-format
 msgid "It calls outside the application again. If the first call took effect, this is a second one."
-msgstr ""
+msgstr "Cela appelle à nouveau l'extérieur de l'application. Si le premier appel a pris effet, c'est un second."
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:675
 #, elixir-autogen, elixir-format
 msgid "It calls outside the application again; its declaration says a repeat has no further effect."
-msgstr ""
+msgstr "Cela appelle à nouveau l'extérieur de l'application ; sa déclaration indique qu'une répétition n'a aucun effet supplémentaire."
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:671
 #, elixir-autogen, elixir-format
 msgid "It changes only this application's records."
-msgstr ""
+msgstr "Cela modifie uniquement les enregistrements de cette application."
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:481
 #, elixir-autogen, elixir-format
 msgid "It did not happen, and I checked. Run it again under this same request."
-msgstr ""
+msgstr "Cela ne s'est pas produit, et j'ai vérifié. Relancez-le sous cette même demande."
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:477
 #, elixir-autogen, elixir-format
 msgid "It did not happen. Record it as failed; nothing runs."
-msgstr ""
+msgstr "Cela ne s'est pas produit. Enregistrez-le comme échoué ; rien ne s'exécute."
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:473
 #, elixir-autogen, elixir-format
 msgid "It happened. Record it as done; nothing runs."
-msgstr ""
+msgstr "Cela s'est produit. Enregistrez-le comme terminé ; rien ne s'exécute."
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:697
 #, elixir-autogen, elixir-format
 msgid "It is already running: cancelling records that it should stop, and whoever settles it decides how it ends."
-msgstr ""
+msgstr "Cela est déjà en cours d'exécution : annulation des enregistrements qu'il doit arrêter, et celui qui le règle décide de la façon dont cela se termine."
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:462
 #, elixir-autogen, elixir-format
 msgid "It may have taken effect: its answer was lost after it reached outside the application. It is never run again as it stands, because running it again could do it twice."
-msgstr ""
+msgstr "Cela a peut-être pris effet : sa réponse a été perdue après avoir atteint l'extérieur de l'application. Il n'est jamais relancé tel quel, car le relancer pourrait le faire deux fois."
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:691
 #, elixir-autogen, elixir-format
 msgid "It waits for approval again (%{approval}), as any new request does."
-msgstr ""
+msgstr "Cela attend à nouveau l'approbation (%{approval}), comme toute nouvelle demande."
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:565
 #, elixir-autogen, elixir-format
 msgid "It would wait for approval (%{approval})."
-msgstr ""
+msgstr "Cela attendrait l'approbation (%{approval})."
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:381
 #, elixir-autogen, elixir-format
 msgid "Key"
-msgstr ""
+msgstr "Clé"
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:205
 #, elixir-autogen, elixir-format
 msgid "No invocation you can read has this id."
-msgstr ""
+msgstr "Aucune invocation que vous pouvez consulter ne possède cet identifiant."
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:325
 #, elixir-autogen, elixir-format
 msgid "None."
-msgstr ""
+msgstr "Aucune."
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:255
 #, elixir-autogen, elixir-format
 msgid "Not allowed for the person signed in."
-msgstr ""
+msgstr "Non autorisé pour la personne connectée."
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:434
 #, elixir-autogen, elixir-format
 msgid "Nothing yet."
-msgstr ""
+msgstr "Rien pour le moment."
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:313
 #, elixir-autogen, elixir-format
 msgid "Recent invocations"
-msgstr ""
+msgstr "Invocations récentes"
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:489
 #, elixir-autogen, elixir-format
 msgid "Record what happened"
-msgstr ""
+msgstr "Enregistrer ce qui s'est produit"
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:131
 #, elixir-autogen, elixir-format
 msgid "Recorded. The outcome is applied next."
-msgstr ""
+msgstr "Enregistré. Le résultat est appliqué ensuite."
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:51
 #: lib/ash_enterprise_web/live/recovery_live.ex:199
 #, elixir-autogen, elixir-format
 msgid "Recovery"
-msgstr ""
+msgstr "Récupération"
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:510
 #, elixir-autogen, elixir-format
 msgid "Rerun"
-msgstr ""
+msgstr "Relance"
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:420
 #, elixir-autogen, elixir-format
 msgid "Rerun as"
-msgstr ""
+msgstr "Relancer en tant que"
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:531
 #, elixir-autogen, elixir-format
 msgid "Rerun as a new request"
-msgstr ""
+msgstr "Relancer en tant que nouvelle demande"
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:100
 #, elixir-autogen, elixir-format
 msgid "Rerun asked as a new request. This one stays as it was."
-msgstr ""
+msgstr "Relance demandée en tant que nouvelle demande. Celle-ci reste telle qu'elle était."
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:392
 #, elixir-autogen, elixir-format
 msgid "Reruns"
-msgstr ""
+msgstr "Relances"
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:513
 #, elixir-autogen, elixir-format
 msgid "Runs %{target} again, with the arguments this request recorded, as a new request of yours: a new key, linked to this one."
-msgstr ""
+msgstr "Exécute %{target} à nouveau, avec les arguments enregistrés par cette demande, en tant que nouvelle demande de votre part : une nouvelle clé, liée à celle-ci."
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:140
 #, elixir-autogen, elixir-format
 msgid "Say what happened."
-msgstr ""
+msgstr "Indiquez ce qui s'est passé."
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:524
 #, elixir-autogen, elixir-format
 msgid "Simulate the rerun"
-msgstr ""
+msgstr "Simuler la relance"
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:544
 #, elixir-autogen, elixir-format
 msgid "Simulated. Nothing was created and nothing ran."
-msgstr ""
+msgstr "Simulé. Rien n'a été créé et rien n'a été exécuté."
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:331
 #: lib/ash_enterprise_web/live/recovery_live.ex:379
 #, elixir-autogen, elixir-format
 msgid "Status"
-msgstr ""
+msgstr "Statut"
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:330
 #, elixir-autogen, elixir-format
 msgid "Target"
-msgstr ""
+msgstr "Cible"
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:260
 #: lib/ash_enterprise_web/live/recovery_live.ex:268
 #, elixir-autogen, elixir-format
 msgid "That did not work."
-msgstr ""
+msgstr "Cela n'a pas fonctionné."
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:460
 #, elixir-autogen, elixir-format
 msgid "The outcome is uncertain"
-msgstr ""
+msgstr "Le résultat est incertain"
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:494
 #, elixir-autogen, elixir-format
 msgid "The outside system is being asked what happened. If it cannot say, a person is asked here."
-msgstr ""
+msgstr "Le système externe est interrogé sur ce qui s'est produit. S'il ne peut répondre, une personne est sollicitée ici."
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:557
 #, elixir-autogen, elixir-format
 msgid "The recorded arguments are still valid."
-msgstr ""
+msgstr "Les arguments enregistrés sont toujours valides."
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:560
 #, elixir-autogen, elixir-format
 msgid "The recorded arguments would be refused: %{why}"
-msgstr ""
+msgstr "Les arguments enregistrés seraient refusés : %{why}"
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:551
 #, elixir-autogen, elixir-format
 msgid "The target changed since this request: a rerun runs it as it is now."
-msgstr ""
+msgstr "La cible a changé depuis cette demande : une relance l'exécute dans son état actuel."
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:548
 #, elixir-autogen, elixir-format
 msgid "The target no longer resolves."
-msgstr ""
+msgstr "La cible ne se résout plus."
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:520
 #, elixir-autogen, elixir-format
 msgid "This request stays as it is."
-msgstr ""
+msgstr "Cette demande reste telle quelle."
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:303
 #, elixir-autogen, elixir-format
 msgid "Uncertain outcomes"
-msgstr ""
+msgstr "Résultats incertains"
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:470
 #, elixir-autogen, elixir-format
 msgid "What happened?"
-msgstr ""
+msgstr "Que s'est-il passé ?"
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:432
 #, elixir-autogen, elixir-format
 msgid "What people did"
-msgstr ""
+msgstr "Ce que les personnes ont fait"
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:385
 #: lib/ash_enterprise_web/live/recovery_live.ex:605
 #, elixir-autogen, elixir-format
 msgid "Why"
-msgstr ""
+msgstr "Pourquoi"
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:647
 #, elixir-autogen, elixir-format
 msgid "acted"
-msgstr ""
+msgstr "a agi"
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:632
 #, elixir-autogen, elixir-format
 msgid "cancelled"
-msgstr ""
+msgstr "annulé"
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:636
 #, elixir-autogen, elixir-format
 msgid "cancelled it"
-msgstr ""
+msgstr "l'a annulé"
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:631
 #, elixir-autogen, elixir-format
 msgid "failed"
-msgstr ""
+msgstr "échoué"
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:635
 #, elixir-autogen, elixir-format
 msgid "reran it"
-msgstr ""
+msgstr "l'a relancé"
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:629
 #, elixir-autogen, elixir-format
 msgid "running"
-msgstr ""
+msgstr "en cours"
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:639
 #, elixir-autogen, elixir-format
 msgid "settled it as done"
-msgstr ""
+msgstr "l'a marqué comme terminé"
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:642
 #, elixir-autogen, elixir-format
 msgid "settled it as failed"
-msgstr ""
+msgstr "l'a marqué comme échoué"
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:645
 #, elixir-autogen, elixir-format
 msgid "settled it as not done, to run again"
-msgstr ""
+msgstr "marqué comme non effectué, à relancer"
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:630
 #, elixir-autogen, elixir-format
 msgid "succeeded"
-msgstr ""
+msgstr "réussi"
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:707
 #, elixir-autogen, elixir-format
 msgid "they cannot be read"
-msgstr ""
+msgstr "ils ne peuvent pas être lus"
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:706
 #, elixir-autogen, elixir-format
 msgid "they were erased"
-msgstr ""
+msgstr "ils ont été effacés"
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:633
 #, elixir-autogen, elixir-format
 msgid "uncertain"
-msgstr ""
+msgstr "incertain"
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:628
 #, elixir-autogen, elixir-format
 msgid "waiting"
-msgstr ""
+msgstr "en attente"
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:83
 #, elixir-autogen, elixir-format
 msgid "There is nothing here to act on."
-msgstr ""
+msgstr "Il n'y a rien ici sur quoi agir."
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:656
 #, elixir-autogen, elixir-format
 msgid "Its declaration changed since this request: what follows is how it runs now."
-msgstr ""
+msgstr "Sa déclaration a changé depuis cette demande : ce qui suit est la façon dont elle s'exécute maintenant."
 
 #: lib/ash_enterprise_web/live/recovery_live.ex:666
 #, elixir-autogen, elixir-format
 msgid "Its target no longer resolves: a rerun would be refused."
-msgstr ""
+msgstr "Sa cible ne se résout plus : une relance serait refusée."
