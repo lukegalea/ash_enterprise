@@ -203,6 +203,7 @@ defmodule AshEnterprise.L10n.CatalogsTest do
       "Or lose the registry's answer from the fault panel: the registry accepted the activation, the answer never arrived, and when asked afterwards the registry cannot say. Then the request stays outcome unknown, and a person settles it on the recovery surface.",
       "Record",
       "Settle it on the recovery surface",
+      "Sign in as rosa@example.com, the coordinator, to ask; as kenji@example.com or amaka@example.com, the committee, to approve. The password is the demo's: password1234 on a local database, or the one in the file the instance was seeded with.",
       "The fault panel is off here. The record below was made beforehand, by the demo's history (mix ash_enterprise.demo --history), through the same actions the panel uses.",
       "The record changes during approval",
       "The registry's answer is lost",

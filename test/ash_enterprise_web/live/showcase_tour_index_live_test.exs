@@ -171,12 +171,37 @@ defmodule AshEnterpriseWeb.ShowcaseTourIndexLiveTest do
              )
     end
 
+    test "every approval and packet link a viewer is shown opens for that viewer", ctx do
+      %{clinic: clinic, demo: demo} = ctx
+      [member | _] = clinic.committee
+      admin = AshEnterprise.Credentialing.LicenceDemoData.user!(DemoTenant.admin_email(), demo.id)
+
+      for user <- [clinic.coordinator, member, admin] do
+        {:ok, view, html} = live(sign_in(user), @tour)
+
+        for [id] <-
+              Regex.scan(~r/id="([a-z-]+-(?:approve|packet)-[0-9a-f-]{36})"/, html,
+                capture: :all_but_first
+              ) do
+          assert_lands!(sign_in(user), href(view, "##{id}"), "/app/approvals")
+        end
+      end
+    end
+
     test "beats 2, 3 and 13 open the review packet; beat 5 the recovery surface", ctx do
       %{clinic: clinic, demo: demo, report: report} = ctx
       [member | _] = clinic.committee
-      {:ok, view, _html} = live(sign_in(clinic.coordinator), @tour)
+      admin = AshEnterprise.Credentialing.LicenceDemoData.user!(DemoTenant.admin_email(), demo.id)
 
-      # 2: the seeded request that waits for the committee.
+      # The coordinator who asked cannot open a committee's approval, so is shown no link to it.
+      {:ok, coordinator, _html} = live(sign_in(clinic.coordinator), @tour)
+      refute has_element?(coordinator, "a[id^=awaiting-approve-]")
+      refute has_element?(coordinator, "a[id^=stale-waiting-packet-]")
+      refute has_element?(coordinator, "a[id^=reviews-packet-]")
+
+      # 2: the seeded request that waits for the committee, as a member of it sees it.
+      {:ok, view, _html} = live(sign_in(member), @tour)
+
       [awaiting | _] =
         Regex.run(~r/id="awaiting-approve-([0-9a-f-]{36})"/, render(view),
           capture: :all_but_first
@@ -198,9 +223,9 @@ defmodule AshEnterpriseWeb.ShowcaseTourIndexLiveTest do
       # ... and the request that went stale: its packet is the approval it was decided on,
       # which the clinic's administrator reads once nobody is asked to act on it.
       "invocation:" <> f4 = report[3]
-      assert href(view, "#stale-packet-#{f4}") =~ "/app/r/approvals/"
-      admin = AshEnterprise.Credentialing.LicenceDemoData.user!(DemoTenant.admin_email(), demo.id)
-      assert_lands!(sign_in(admin), href(view, "#stale-packet-#{f4}"), "/app/approvals")
+      {:ok, admin_view, _html} = live(sign_in(admin), @tour)
+      assert href(admin_view, "#stale-packet-#{f4}") =~ "/app/r/approvals/"
+      assert_lands!(sign_in(admin), href(admin_view, "#stale-packet-#{f4}"), "/app/approvals")
 
       # 13: the case that moved on to the committee after its document arrived.
       "process_instance:" <> case_id = report[12]
@@ -208,7 +233,7 @@ defmodule AshEnterpriseWeb.ShowcaseTourIndexLiveTest do
 
       # 5: the request whose outcome is unknown is settled on the recovery surface.
       "invocation:" <> f2 = report[5]
-      assert href(view, "#reconciled-recover-#{f2}") == "/app/recovery/#{f2}"
+      assert href(coordinator, "#reconciled-recover-#{f2}") == "/app/recovery/#{f2}"
 
       {:ok, recovery, _html} = live(sign_in(admin), "/app/recovery/#{f2}")
       assert has_element?(recovery, "#status[data-status=uncertain]")

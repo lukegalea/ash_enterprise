@@ -28,8 +28,10 @@ defmodule AshEnterprise.Showcase.History do
 
   Every beat is found before it is run (its request's or run's key, its case), so a second
   run changes nothing. Every beat's outcome is read back through the tour's own reads and
-  reported; one that did not end in its failure is `{:not_produced, observed}`, never
-  reported as produced. With fault points compiled out, F1 and F2 are skipped and the
+  reported, the one found as much as the one just run: a found record is `:already` only
+  when it shows its failure. One that did not end in its failure, or a found one that does
+  not show it (a case someone opened on the tour before the seed, a first run that was not
+  produced), is `{:not_produced, observed}`, never reported as produced or recorded. With fault points compiled out, F1 and F2 are skipped and the
   others run.
 
   Only for the demo tenant (`AshEnterprise.Platform.DemoTenant.ensure_demo!/2`), after it
@@ -171,7 +173,7 @@ defmodule AshEnterprise.Showcase.History do
 
     case request(ctx, key) do
       %{} = row ->
-        entry(beat, [failure], :already, ref(:invocation, row.id))
+        entry(beat, [failure], found(outcome(row, expected)), ref(:invocation, row.id))
 
       nil ->
         credential = credential!(ctx, number)
@@ -261,7 +263,7 @@ defmodule AshEnterprise.Showcase.History do
 
     case request(ctx, key) do
       %{} = row ->
-        entry(5, ["F2"], :already, ref(:invocation, row.id))
+        entry(5, ["F2"], found(lost_answer_status(row)), ref(:invocation, row.id))
 
       nil ->
         credential = credential!(ctx, "DEMO-OT-0003")
@@ -273,13 +275,14 @@ defmodule AshEnterprise.Showcase.History do
             approve_and_run!(ctx, row)
           end)
 
-        status =
-          if row.status == :outcome_unknown and not is_nil(row.resolution_requested_at),
-            do: :produced,
-            else: {:not_produced, {row.status, row.error_code}}
-
-        entry(5, ["F2"], status, ref(:invocation, row.id))
+        entry(5, ["F2"], lost_answer_status(row), ref(:invocation, row.id))
     end
+  end
+
+  defp lost_answer_status(row) do
+    if row.status == :outcome_unknown and not is_nil(row.resolution_requested_at),
+      do: :produced,
+      else: {:not_produced, {row.status, row.error_code}}
   end
 
   # F1: the reader's model answers the turn that asks for the lookups and fails in the next.
@@ -292,7 +295,7 @@ defmodule AshEnterprise.Showcase.History do
            not_found_error?: false
          ) do
       {:ok, %{} = run} ->
-        entry(7, ["F1"], :already, ref(:run, run.id))
+        entry(7, ["F1"], found(timeout_status(ctx, run)), ref(:run, run.id))
 
       _none ->
         credential = credential!(ctx, "DEMO-RN-0002")
@@ -305,22 +308,30 @@ defmodule AshEnterprise.Showcase.History do
             {:ok, run}
           end)
 
-        reading =
-          ctx.coordinator
-          |> as(ctx.tenant)
-          |> Tour.readings()
-          |> Enum.find(&(&1.run.id == run.id))
+        entry(7, ["F1"], timeout_status(ctx, run), ref(:run, run.id))
+    end
+  end
 
+  # The run's first model call answered and the next failed, and each lookup ran once.
+  defp timeout_status(ctx, run) do
+    reading =
+      ctx.coordinator
+      |> as(ctx.tenant)
+      |> Tour.readings()
+      |> Enum.find(&(&1.run.id == run.id))
+
+    case reading do
+      nil ->
+        {:not_produced, :run_not_read}
+
+      reading ->
         calls = Enum.map(reading.model_calls, &to_string(&1.outcome))
         attempts = Enum.map(reading.lookups, & &1.attempt_count)
 
-        status =
-          if Enum.take(calls, 2) == ["ok", "error"] and attempts != [] and
-               Enum.all?(attempts, &(&1 == 1)),
-             do: :produced,
-             else: {:not_produced, %{model_calls: calls, lookups: attempts}}
-
-        entry(7, ["F1"], status, ref(:run, run.id))
+        if Enum.take(calls, 2) == ["ok", "error"] and attempts != [] and
+             Enum.all?(attempts, &(&1 == 1)),
+           do: :produced,
+           else: {:not_produced, %{model_calls: calls, lookups: attempts}}
     end
   end
 
@@ -354,7 +365,12 @@ defmodule AshEnterprise.Showcase.History do
 
     case case_of(ctx, credential) do
       %{} = row ->
-        entry(12, ["F7", "F6"], :already, ref(:process_instance, row.instance.id))
+        entry(
+          12,
+          ["F7", "F6"],
+          found(webhook_status(row, nil)),
+          ref(:process_instance, row.instance.id)
+        )
 
       nil ->
         {:ok, _case} = CaseTour.open_case(credential.id, as(ctx.coordinator, ctx.tenant))
@@ -373,7 +389,8 @@ defmodule AshEnterprise.Showcase.History do
   end
 
   # One check refused for the missing document and another passed (F7); the webhook's two
-  # deliveries answered received then duplicate, and moved the case on once (F6).
+  # deliveries answered received then duplicate, and moved the case on once (F6). A case
+  # found from an earlier run has no answers to read (`nil`): its record alone must show it.
   defp webhook_status(row, answers) do
     refused? =
       Enum.any?(
@@ -383,7 +400,7 @@ defmodule AshEnterprise.Showcase.History do
         Enum.any?(row.checks, &(&1.status == :succeeded))
 
     once? =
-      answers == [:received, :duplicate] and length(row.deliveries) == 1 and
+      answers in [nil, [:received, :duplicate]] and length(row.deliveries) == 1 and
         row.continuations == 1
 
     if refused? and once?,
@@ -406,7 +423,8 @@ defmodule AshEnterprise.Showcase.History do
 
     case case_of(ctx, newer) do
       %{} = row ->
-        entry(17, ["F10"], :already, ref(:process_instance, row.instance.id))
+        status = found(routing_status(ctx, case_of(ctx, older), row))
+        entry(17, ["F10"], status, ref(:process_instance, row.instance.id))
 
       nil ->
         first = case_of(ctx, older) || open!(ctx, older, coordinator)
@@ -416,15 +434,25 @@ defmodule AshEnterprise.Showcase.History do
         end
 
         second = open!(ctx, newer, coordinator)
-        {before, now} = {version(ctx, first), version(ctx, second)}
 
-        status =
-          if is_integer(before) and is_integer(now) and before < now,
-            do: :produced,
-            else: {:not_produced, %{older: before, newer: now}}
-
-        entry(17, ["F10"], status, ref(:process_instance, second.instance.id))
+        entry(
+          17,
+          ["F10"],
+          routing_status(ctx, first, second),
+          ref(:process_instance, second.instance.id)
+        )
     end
+  end
+
+  # The older case is on an earlier table version than the newer one.
+  defp routing_status(_ctx, nil, _second), do: {:not_produced, %{older: nil}}
+
+  defp routing_status(ctx, first, second) do
+    {before, now} = {version(ctx, first), version(ctx, second)}
+
+    if is_integer(before) and is_integer(now) and before < now,
+      do: :produced,
+      else: {:not_produced, %{older: before, newer: now}}
   end
 
   # The process engine's sweep, which moves a waiting case on when its message has arrived,
@@ -454,6 +482,10 @@ defmodule AshEnterprise.Showcase.History do
 
   defp active_version(ctx),
     do: ReleaseTour.read(as(ctx.director, ctx.tenant), []).routing.table_version
+
+  # A beat found from an earlier run is on record only if its record shows the failure.
+  defp found(:produced), do: :already
+  defp found(not_produced), do: not_produced
 
   defp entry(beat, failures, status, ref),
     do: %{beat: beat, failures: failures, status: status, ref: ref}

@@ -68,6 +68,7 @@ defmodule AshEnterprise.Showcase.Credentialing do
   alias AshEnterprise.Security
   alias AshEnterprise.Security.ActorContext
   alias AshEnterprise.Showcase
+  alias AshEnterprise.Surfaces.Records
 
   @activate "AshEnterprise.Credentialing.Credential.activate_credential"
   @kill_point :credential_registry_accepted
@@ -98,7 +99,9 @@ defmodule AshEnterprise.Showcase.Credentialing do
 
   @doc """
   The activation requests `actor` may read, newest first, each as
-  `%{invocation:, credential_id:, bound?:, task_id:, registry_activations:}`.
+  `%{invocation:, credential_id:, bound?:, task_id:, packet?:, registry_activations:}`.
+  `task_id` is the approval task's address; `packet?` is whether `actor` may open it
+  (`openable_tasks/2`): the tour links only an approval its viewer can open.
   """
   @spec activations(term()) :: [map()]
   def activations(actor) do
@@ -112,6 +115,7 @@ defmodule AshEnterprise.Showcase.Credentialing do
       )
 
     tasks = approval_tasks(rows, tenant)
+    openable = openable_tasks(Map.values(tasks), actor)
 
     Enum.map(rows, fn row ->
       credential_id = credential_id(row)
@@ -121,6 +125,7 @@ defmodule AshEnterprise.Showcase.Credentialing do
         credential_id: credential_id,
         bound?: bound?(row),
         task_id: Map.get(tasks, row.id),
+        packet?: MapSet.member?(openable, Map.get(tasks, row.id)),
         registry_activations: if(credential_id, do: Registry.activations(credential_id), else: 0)
       }
     end)
@@ -150,6 +155,19 @@ defmodule AshEnterprise.Showcase.Credentialing do
       _other ->
         false
     end
+  end
+
+  @doc """
+  The ids among `task_ids` of the approval tasks `actor` may open: each opened as its link
+  opens it (`AshEnterprise.Surfaces.Records.open/3` on the approvals surface), so a link the
+  tour shows never lands on "not found, or not yours".
+  """
+  @spec openable_tasks([String.t()], term()) :: MapSet.t(String.t())
+  def openable_tasks(task_ids, actor) do
+    task_ids
+    |> Enum.uniq()
+    |> Enum.filter(&match?({:ok, _opened}, Records.open(:approvals, &1, actor)))
+    |> MapSet.new()
   end
 
   # The approval task's id per invocation. Read without authorization, as

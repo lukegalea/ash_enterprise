@@ -157,7 +157,8 @@ defmodule AshEnterpriseWeb.ShowcaseCredentialingLiveTest do
     asked = ask!(view, first, ctx)
     view = refreshed(view)
     assert has_element?(view, "#awaiting-#{asked.invocation.id} [data-bound=true]")
-    assert has_element?(view, "#awaiting-approve-#{asked.invocation.id}")
+    # The committee's approval is not the coordinator's to open, so it is not linked here.
+    refute has_element?(view, "#awaiting-approve-#{asked.invocation.id}")
     assert Registry.activations(first.id) == 0
 
     # 2. A committee member approves it; it runs, once, as the coordinator.

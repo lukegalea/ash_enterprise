@@ -18,12 +18,16 @@ Seed the demo tenant and its history on your own development database:
 devenv shell -- mix ash_enterprise.demo --history --password-file PATH
 ```
 
-- `PATH` is a file that holds the demo password. Without `--password-file` the task generates one and prints
-  it once.
+- `PATH` is a file that holds the demo password. When the file does not exist, a random password is
+  generated and written to it (mode 0600); it is never printed, so read it from the file. Without
+  `--password-file` every demo person signs in with the fixed `password1234`, which is for a local database
+  only.
 - `--history` records the beats that need a fault: it runs each of them once, through the same actions the
   fault panel uses, arming the fault points in the seed process only. It writes only to `clinic-demo` and
   refuses any other tenant. A second run finds every beat already recorded and changes nothing.
-- Sign in as `rosa@example.com`, the clinic's credentialing coordinator, with that password.
+- Sign in as `rosa@example.com`, the clinic's credentialing coordinator, with that password. The tour links
+  only what the person signed in may open: the coordinator who asks is shown no link to the committee's
+  approval or its review packet.
 
 On a development build the fault panel is on as well, and you can make each failure happen live. On a
 shared instance the panel is off, and the beats show the history's records instead.
@@ -61,9 +65,10 @@ the line "Nothing to open in the explorer yet."
 
 1. **Ask to activate a credential.** The coordinator asks; the request is a governed invocation that waits
    for approval.
-2. **A committee member approves it.** Each waiting request links to its approval ("Open the approval") on the approvals
-   surface, where a committee member (`kenji@example.com` or `amaka@example.com`) reads what is being
-   approved and approves it.
+2. **A committee member approves it.** Signed in as a committee member (`kenji@example.com` or
+   `amaka@example.com`), each waiting request links to its approval ("Open the approval") on the approvals
+   surface, where the member reads what is being approved and approves it. The coordinator sees the request
+   wait, with no link: the approval is not theirs to open.
 3. **The credential changes during approval (F4).** The credential is corrected after the request was made.
    The approval goes stale with `subject_changed` instead of activating a credential nobody looked at. A
    waiting request's review packet shows the change before anyone approves; a decided request's packet is
@@ -79,16 +84,19 @@ the line "Nothing to open in the explorer yet."
 5. **The worker dies after the registry accepted (F2).** The registry accepted the activation but its answer
    never came back. The request's outcome is unknown, and it is settled on the recovery surface
    (`/app/recovery/<id>`), never retried blind. The variant where the worker process is killed is not
-   recorded beforehand: the registry's memory of the activation lives in the application node, so it is
-   gone when the node restarts. The beat says so.
+   recorded beforehand: the demo registry keeps its activations in the memory of the application node that
+   took them, so a record made beforehand would be settled by whichever node reconciled it. It needs the fault
+   panel on the instance that serves the page. The beat says so.
 
    > Image slots: `tour-beat-reconciled.png`, `recovery-F2.png`, `explorer-F2.png`
 
 ## The licence reader (beats 6 to 9)
 
 6. **Read a credential's licence documents.** An agent run reads the documents and records findings.
-7. **The model times out mid-run (F1).** The first model call succeeds, the second times out. The run waits
-   on its lease; every tool lookup ran once, not twice.
+7. **The model times out mid-run (F1).** The first model call succeeds, the second times out, and every
+   tool lookup ran once, not twice. When the run's lease runs out, the platform's recover sweep picks it up
+   from the step it had reached, so on a seeded instance the run reads completed, with the later step's own
+   lookups after the failed call: it was not started again from the top.
 
    > Image slots: `tour-beat-timeout.png`, `explorer-F1.png`
 

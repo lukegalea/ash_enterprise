@@ -557,7 +557,7 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
           <p>
             {dgettext(
               "showcase",
-              "Sign in as rosa@example.com, the coordinator, to ask; as kenji@example.com or amaka@example.com, the committee, to approve. The password is password1234."
+              "Sign in as rosa@example.com, the coordinator, to ask; as kenji@example.com or amaka@example.com, the committee, to approve. The password is the demo's: password1234 on a local database, or the one in the file the instance was seeded with."
             )}
           </p>
           <p>
@@ -669,7 +669,10 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
                 )}
               </p>
               <ul class="space-y-1 text-sm">
-                <li :for={row <- with_status(@activations, [:awaiting_approval])} :if={row.task_id}>
+                <li
+                  :for={row <- with_status(@activations, [:awaiting_approval])}
+                  :if={row.task_id && row.packet?}
+                >
                   <.link
                     id={"stale-waiting-packet-#{row.invocation.id}"}
                     navigate={~p"/app/r/approvals/#{row.task_id}"}
@@ -1014,7 +1017,7 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
           <td class="py-1 pr-3">
             <.badge status={row.invocation.status}>{status_label(row.invocation.status)}</.badge>
             <.link
-              :if={row.task_id && row.invocation.status == :awaiting_approval}
+              :if={row.task_id && row.packet? && row.invocation.status == :awaiting_approval}
               id={"#{@id}-approve-#{row.invocation.id}"}
               navigate={~p"/app/r/approvals/#{row.task_id}"}
               class="ml-2 underline"
@@ -1022,7 +1025,7 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
               {dgettext("showcase", "Open the approval")}
             </.link>
             <.link
-              :if={row.task_id && row.invocation.status != :awaiting_approval}
+              :if={row.task_id && row.packet? && row.invocation.status != :awaiting_approval}
               id={"#{@id}-packet-#{row.invocation.id}"}
               navigate={~p"/app/r/approvals/#{row.task_id}"}
               class="ml-2 underline"

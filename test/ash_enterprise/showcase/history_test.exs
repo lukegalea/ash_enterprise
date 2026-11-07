@@ -22,11 +22,21 @@ defmodule AshEnterprise.Showcase.HistoryTest do
 
   alias AshEnterprise.Bpmn.{HumanTask, Instance}
   alias AshEnterprise.Credentialing
-  alias AshEnterprise.Credentialing.{Credential, ReleaseDemoData, RoutingTable}
+
+  alias AshEnterprise.Credentialing.{
+    Credential,
+    DemoData,
+    LicenceDemoData,
+    ReleaseDemoData,
+    RoutingTable
+  }
+
   alias AshEnterprise.Execution.{Invocation, Run}
   alias AshEnterprise.Faults
   alias AshEnterprise.Platform.{DemoTenant, Seeder}
   alias AshEnterprise.Repo
+  alias AshEnterprise.Security.ActorContext
+  alias AshEnterprise.Showcase.Case, as: CaseTour
   alias AshEnterprise.Showcase.History
 
   @demo_resources [Invocation, Run, Instance, HumanTask, Credential]
@@ -173,6 +183,33 @@ defmodule AshEnterprise.Showcase.HistoryTest do
     assert {:not_produced, %{older: 2, newer: 2}} = routing.status
     refute History.complete?(report)
     assert armed() == %{}
+
+    # Run again, the beat's case now exists: it is still not produced, not "already recorded".
+    again = History.run!(demo)
+    assert {:not_produced, %{older: 2, newer: 2}} = Enum.find(again, &(&1.beat == 17)).status
+    refute History.complete?(again)
+  end
+
+  test "a case someone opened before the seed is never reported as already recorded" do
+    %{organization: demo} = DemoTenant.run!()
+    coordinator = LicenceDemoData.user!(DemoData.coordinator_email(), demo.id)
+    actor = ActorContext.attach(coordinator, ActorContext.build(coordinator, tenant: demo.id))
+
+    [credential] =
+      Credentialing.list_credentials!(
+        actor: actor,
+        tenant: demo.id,
+        query: [filter: [number: "DEMO-PH-0006"]]
+      )
+
+    # A presenter opened DEMO-PH-0006's case on the tour: no webhook was ever delivered.
+    {:ok, _case} = CaseTour.open_case(credential.id, actor)
+
+    report = History.run!(demo)
+    webhook = Enum.find(report, &(&1.beat == 12))
+
+    assert {:not_produced, %{deliveries: 0, continuations: 0}} = webhook.status
+    refute History.complete?(report)
   end
 
   test "without fault points, the two beats that arm one are skipped and the others still run" do

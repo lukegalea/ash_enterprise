@@ -270,7 +270,7 @@ defmodule AshEnterpriseWeb.ShowcaseLive.CaseBeats do
           <.badge status={row.instance.status}>{status_label(row.instance.status)}</.badge>
           <span :if={row.instance.outcome} class="font-mono text-xs">{row.instance.outcome}</span>
           <.link
-            :if={@packet? && row.review}
+            :if={@packet? && row.review && row.review.packet?}
             id={"#{@id}-packet-#{row.instance.id}"}
             navigate={~p"/app/r/approvals/#{row.review.id}"}
             class="underline"

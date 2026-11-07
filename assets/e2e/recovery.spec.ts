@@ -57,16 +57,19 @@ test("an uncertain outcome is settled, simulated, rerun and cancelled, each act 
   await ask.click()
   await expect(rosa.locator("#flash-info")).toContainText("waits for approval")
 
-  // The newest request waiting for approval, and where it waits.
-  const approve = rosa.locator('[id^="all-approve-"]').first()
-  await expect(approve).toBeVisible({timeout: 15_000})
-  const invocationId = (await approve.getAttribute("id"))!.replace("all-approve-", "")
-  const approvalPath = (await approve.getAttribute("href"))!
+  // The newest request waiting for approval. Its approval is the committee's, so the
+  // coordinator's tour shows the request but no link to the approval.
+  const waitingRow = rosa.locator('#all-rows tr[data-status="awaiting_approval"]').first()
+  await expect(waitingRow).toBeVisible({timeout: 15_000})
+  const invocationId = (await waitingRow.getAttribute("id"))!.replace("all-", "")
+  await expect(rosa.locator(`#all-approve-${invocationId}`)).toHaveCount(0)
 
-  // A committee member approves it on the approvals surface. The list holds every
-  // approval waiting on them, oldest first, and the seeded clinic already has an
-  // activation waiting: this request is the newest row.
+  // A committee member opens it from the tour and approves it on the approvals surface.
+  // The list holds every approval waiting on them, oldest first, and the seeded clinic
+  // already has an activation waiting: this request is the newest row.
   const kenji = await signedIn(browser, COMMITTEE)
+  await connected(kenji, "/app/showcase/credentialing")
+  const approvalPath = (await kenji.locator(`#all-approve-${invocationId}`).getAttribute("href"))!
   await connected(kenji, approvalPath)
   const waiting = kenji
     .getByRole("table", {name: "approval"})
