@@ -55,6 +55,7 @@ defmodule AshEnterpriseWeb.ExplorerLive do
        nodes: %{},
        canvas_error: nil,
        recent: nil,
+       recent_failed: [],
        form: to_form(%{"q" => ""}, as: :trace)
      )}
   end
@@ -125,6 +126,8 @@ defmodule AshEnterpriseWeb.ExplorerLive do
   defp trace_args(_params), do: nil
 
   defp load(%{assigns: %{trace: nil}} = socket) do
+    {recent, failed} = Explorer.recent(opts(socket))
+
     assign(socket,
       entries: [],
       reports: [],
@@ -132,7 +135,8 @@ defmodule AshEnterpriseWeb.ExplorerLive do
       drawing: nil,
       nodes: %{},
       canvas_error: nil,
-      recent: Explorer.recent(opts(socket))
+      recent: recent,
+      recent_failed: failed
     )
   end
 
@@ -240,9 +244,23 @@ defmodule AshEnterpriseWeb.ExplorerLive do
 
       <section :if={@trace == nil} id="explorer-recent" class="mt-6 space-y-3">
         <h2 class="font-heading text-base">{gettext("Recent work you may read")}</h2>
-        <p :if={@recent == []} id="explorer-recent-none" class="text-sm text-foreground/70">
+        <p
+          :if={@recent == [] and @recent_failed == []}
+          id="explorer-recent-none"
+          class="text-sm text-foreground/70"
+        >
           {gettext("Nothing yet.")}
         </p>
+        <.status_message
+          id="explorer-recent-failed"
+          role="alert"
+          kind={:error}
+          show={@recent_failed != []}
+        >
+          {gettext("Some recent work could not be read: %{kinds}. What is listed is not all of it.",
+            kinds: Enum.map_join(@recent_failed, ", ", &type_label/1)
+          )}
+        </.status_message>
         <ul class="divide-y divide-border rounded-base border-2 border-border">
           <li :for={item <- @recent || []} id={"recent-" <> item.ref}>
             <.link
@@ -253,6 +271,7 @@ defmodule AshEnterpriseWeb.ExplorerLive do
               <span class="font-base">{type_label(item.type)}</span>
               <span class="font-mono text-sm">{item.label}</span>
               <.badge status={item.status}>{item.status}</.badge>
+              <.run_mode :if={item.type != "process_instance"} mode={item.mode} />
               <time class="text-xs text-foreground/70" datetime={DateTime.to_iso8601(item.at)}>
                 {Calendar.strftime(item.at, "%Y-%m-%d %H:%M:%S")}
               </time>
@@ -529,6 +548,14 @@ defmodule AshEnterpriseWeb.ExplorerLive do
   attr :detail, :any, required: true
   attr :trace, :map, required: true
 
+  defp record(%{detail: :failed} = assigns) do
+    ~H"""
+    <p id="detail-record" data-record="failed" role="alert" class="text-sm">
+      {gettext("The record behind this entry could not be read. Try again.")}
+    </p>
+    """
+  end
+
   defp record(%{detail: :unreadable} = assigns) do
     ~H"""
     <p id="detail-record" data-record="unreadable" class="text-sm">
@@ -552,8 +579,8 @@ defmodule AshEnterpriseWeb.ExplorerLive do
       <.arguments :if={Map.has_key?(@detail, :args)} id="detail-args" args={@detail.args} />
       <div :if={@detail[:calls] not in [nil, []]} id="detail-calls" class="space-y-2">
         <h3 class="font-base">{gettext("Tool calls")}</h3>
-        <p :if={@detail.calls == :unreadable}>
-          {gettext("You may not read this turn's tool calls.")}
+        <p :if={@detail.calls == :failed} id="detail-calls-failed">
+          {gettext("This turn's tool calls could not be read.")}
         </p>
         <div
           :for={call <- if(is_list(@detail.calls), do: @detail.calls, else: [])}
@@ -636,7 +663,10 @@ defmodule AshEnterpriseWeb.ExplorerLive do
     <dl id={@id} data-args="readable" class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
       <%= for {key, value} <- Enum.sort(@args) do %>
         <dt class="font-mono">{key}</dt>
-        <dd class="font-mono break-all">{inspect(value)}</dd>
+        <dd :if={value == :sensitive} class="italic" data-sensitive>
+          {gettext("sensitive, not shown")}
+        </dd>
+        <dd :if={value != :sensitive} class="font-mono break-all">{inspect(value)}</dd>
       <% end %>
     </dl>
     """

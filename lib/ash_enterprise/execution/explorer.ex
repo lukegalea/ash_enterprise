@@ -12,8 +12,10 @@ defmodule AshEnterprise.Execution.Explorer do
       the diagram and the detail;
     * `recent/1`: the latest work the viewer may read, to start from.
 
-  A record the viewer may not read answers `:unreadable`, and an erased one says it is
-  erased: neither reads as empty.
+  A record the viewer may not read answers `:unreadable`, a read that failed answers
+  `:failed`, and an erased one says it is erased: none reads as empty. An argument the
+  target marks sensitive is named and never shown, as on the approvals surface
+  (`AshEnterprise.Execution.ReviewPacket.sensitive_inputs/1`).
   """
 
   require Ash.Query
@@ -23,7 +25,7 @@ defmodule AshEnterprise.Execution.Explorer do
   alias AshEnterprise.Decisions.Evaluation
   alias AshEnterprise.Erasure.Shredded
   alias AshEnterprise.Execution
-  alias AshEnterprise.Execution.{Intervention, Invocation, Recovery, Run, Step}
+  alias AshEnterprise.Execution.{Intervention, Invocation, Recovery, ReviewPacket, Run, Step}
   alias AshEnterprise.Process.DefinitionLoader
   alias AshEnterprise.Quality.CaseResult
   alias AshEnterprise.SystemOne.Judgment
@@ -58,10 +60,10 @@ defmodule AshEnterprise.Execution.Explorer do
   @doc """
   The record behind `source_ref`, read as `opts[:actor]` in `opts[:tenant]`, as a map
   with its `type` and the facts the detail panel shows. `:unreadable` when the viewer
-  may not read it (or it is gone); `:none` for a reference with no record to read (a
+  may not read it (or it is gone); `:failed` when the read itself failed; `:none` for a reference with no record to read (a
   source the trace could not read, an audit transition).
   """
-  @spec detail(String.t(), keyword()) :: {:ok, map()} | :unreadable | :none
+  @spec detail(String.t(), keyword()) :: {:ok, map()} | :unreadable | :failed | :none
   def detail(source_ref, opts) do
     case String.split(source_ref, ":", parts: 2) do
       [type, id] -> detail(type, id, opts)
@@ -97,7 +99,7 @@ defmodule AshEnterprise.Execution.Explorer do
          simulated?: row.simulated == true,
          failure_class: row.failure_class,
          error_code: row.error_code,
-         args: sealed(row.args, row.recorded?),
+         args: row.args |> sealed(row.recorded?) |> masked(row.target),
          run_id: row.run_id,
          step_seq: row.step_seq,
          rerun_of_id: row.rerun_of_id,
@@ -119,7 +121,8 @@ defmodule AshEnterprise.Execution.Explorer do
          resolution: row.resolution,
          owner_id: row.owner_id,
          invocation_id: row.invocation_id,
-         rerun_id: row.rerun_id
+         # The new request is the rerunner's: named only to someone who may read it.
+         rerun_id: readable(Invocation, row.rerun_id, opts)
        }}
     end
   end
@@ -252,6 +255,8 @@ defmodule AshEnterprise.Execution.Explorer do
   defp recoverable?(row),
     do: Enum.any?([Recovery.rerun(row), Recovery.cancel(row)], &(&1 == :ok))
 
+  # Not found and forbidden read alike, so a record the viewer may not read is not
+  # confirmed to exist; any other failure is a failed read, never "may not read".
   defp get(resource, id, opts, extra \\ []) do
     with {:ok, id} <- Ecto.UUID.cast(id),
          {:ok, %{} = record} <-
@@ -262,9 +267,37 @@ defmodule AshEnterprise.Execution.Explorer do
            ) do
       {:ok, record}
     else
+      {:error, %Ash.Error.Forbidden{}} -> :unreadable
+      {:error, %Ash.Error.Invalid{}} -> :unreadable
+      {:error, _failed} -> :failed
       _unreadable -> :unreadable
     end
   end
+
+  defp readable(_resource, nil, _opts), do: nil
+
+  defp readable(resource, id, opts) do
+    case get(resource, id, opts) do
+      {:ok, _record} -> id
+      _unreadable -> nil
+    end
+  end
+
+  # Values of the inputs the target marks sensitive are replaced by `:sensitive`.
+  defp masked(args, target) when is_map(args) do
+    case ReviewPacket.sensitive_inputs(target) do
+      :all ->
+        Map.new(args, fn {key, _value} -> {key, :sensitive} end)
+
+      [] ->
+        args
+
+      names ->
+        Map.new(args, fn {k, v} -> {k, if(to_string(k) in names, do: :sensitive, else: v)} end)
+    end
+  end
+
+  defp masked(args, _target), do: args
 
   # Sealed content as the viewer reads it: erased once its scope is shredded, never an
   # empty value.
@@ -290,12 +323,12 @@ defmodule AshEnterprise.Execution.Explorer do
             id: row.id,
             target: row.target,
             status: row.status,
-            args: sealed(row.args, row.recorded?)
+            args: row.args |> sealed(row.recorded?) |> masked(row.target)
           }
         end)
 
       {:error, _error} ->
-        :unreadable
+        :failed
     end
   end
 
@@ -389,20 +422,14 @@ defmodule AshEnterprise.Execution.Explorer do
 
   @doc """
   The latest invocations, agent runs and process runs the viewer may read, newest first,
-  each as `%{ref, label, status, at}` to open in the explorer.
+  as `{items, failed}`: each item `%{ref, type, label, status, mode, at}` to open in the
+  explorer (`mode` nil for a process run, which has none), and `failed` the kinds whose
+  read failed, so a failed read is never shown as nothing to read.
   """
-  @spec recent(keyword()) :: [map()]
+  @spec recent(keyword()) :: {[map()], [String.t()]}
   def recent(opts) do
     query = [sort: [created_on: :desc], limit: @recent]
     read = [actor: opts[:actor], tenant: opts[:tenant], query: query]
-
-    invocations =
-      for row <- ok(Execution.list_invocations(read)),
-          do: item("invocation", row, row.target, row.status)
-
-    runs =
-      for run <- ok(Execution.list_agent_runs(read)),
-          do: item("run", run, run.agent_key, run.status)
 
     instances =
       Instance
@@ -410,15 +437,28 @@ defmodule AshEnterprise.Execution.Explorer do
       |> Ash.Query.sort(created_on: :desc)
       |> Ash.Query.limit(@recent)
       |> Ash.read()
-      |> ok()
-      |> Enum.map(&item("process_instance", &1, &1.subject_type, &1.status))
 
-    Enum.sort_by(invocations ++ runs ++ instances, & &1.at, {:desc, DateTime})
+    reads = [
+      {"invocation", Execution.list_invocations(read), &{&1.target, &1.mode}},
+      {"run", Execution.list_agent_runs(read), &{&1.agent_key, &1.mode}},
+      {"process_instance", instances, &{&1.subject_type, nil}}
+    ]
+
+    items =
+      for {type, {:ok, rows}, describe} <- reads, row <- rows do
+        {label, mode} = describe.(row)
+
+        %{
+          ref: "#{type}:#{row.id}",
+          type: type,
+          label: label,
+          status: row.status,
+          mode: mode,
+          at: row.created_on
+        }
+      end
+
+    failed = for {type, {:error, _error}, _describe} <- reads, do: type
+    {Enum.sort_by(items, & &1.at, {:desc, DateTime}), failed}
   end
-
-  defp ok({:ok, rows}), do: rows
-  defp ok({:error, _error}), do: []
-
-  defp item(type, row, label, status),
-    do: %{ref: "#{type}:#{row.id}", type: type, label: label, status: status, at: row.created_on}
 end

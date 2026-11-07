@@ -478,6 +478,32 @@ defmodule AshEnterpriseWeb.ExplorerLiveTest do
     assert has_element?(view, "#detail-run-mode[data-run-environment=live]")
   end
 
+  test "an argument its target marks sensitive is named, never shown", ctx do
+    [credential | _] = ctx.clinic.credentials
+    secret = "SYNTHETIC-#{System.unique_integer([:positive])}"
+
+    row =
+      Execution.invoke!(
+        "AshEnterprise.Credentialing.Credential.correct",
+        %{"id" => credential.id, "number" => secret},
+        %{key: "correct:#{System.unique_integer([:positive])}"},
+        actor: ctx.admin.actor,
+        tenant: ctx.tenant
+      )
+
+    ref = "invocation:#{row.id}"
+
+    {:ok, view, _html} =
+      live(sign_in(ctx.admin.user), ~p"/app/explorer?#{%{root: ref, selected: ref}}")
+
+    assert has_element?(view, "#detail-args [data-sensitive]", "sensitive, not shown")
+    assert has_element?(view, "#detail-args", credential.id)
+    refute render(view) =~ secret
+
+    # A target that no longer resolves shows none of its values as safe.
+    assert AshEnterprise.Execution.ReviewPacket.sensitive_inputs("Nowhere.Gone.act") == :all
+  end
+
   describe "what is not there is not read as there" do
     test "a viewer who may read none of it sees nothing of it", ctx do
       %{correlation_id: correlation_id, activation: activation} = work!(ctx)
