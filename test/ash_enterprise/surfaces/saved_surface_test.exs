@@ -338,6 +338,58 @@ defmodule AshEnterprise.Surfaces.SavedSurfaceTest do
       table(people_spec(), &Map.put(&1, "read_action", "goldens")) |> refused?(member)
     end
 
+    test "a query preset that switches to a read the catalogue does not offer is refused",
+         %{member: member} do
+      people_spec()
+      |> edit_spec(fn spec ->
+        update_in(spec, ["queries"], fn [query | rest] ->
+          [Map.put(query, "presets", [%{"name" => "all", "read_action" => "goldens"}]) | rest]
+        end)
+      end)
+      |> refused?(member)
+    end
+
+    test "a related table is held to its own resource's catalogue reads", %{member: member} do
+      # People's catalogue read is :read; Tasks' is :mine, so Task :read is not offered.
+      people_spec()
+      |> edit_spec(fn spec ->
+        Map.update!(spec, "components", fn components ->
+          components ++
+            [
+              %{
+                "kind" => "table",
+                "name" => "tasks",
+                "resource" => "tasks",
+                "read_action" => "read",
+                "fields" => ["title"]
+              }
+            ]
+        end)
+      end)
+      |> refused?(member)
+    end
+
+    # Resource-sourced lanes (whose sections read another resource) are refused by the
+    # dynamic parser itself; this keeps that so if the parser ever admits them.
+    test "a sectioned table's sections read only through the catalogue", %{member: member} do
+      {:ok, composed} = Composer.compose(%{show: "messages"})
+
+      composed.surface
+      |> AshA2ui.Dynamic.serialize()
+      |> table(fn table ->
+        Map.merge(table, %{
+          "display" => "board",
+          "row_layout" => %{"title" => hd(table["fields"])},
+          "sections" => %{
+            "source" => "people",
+            "scope_by" => "sender_id",
+            "read_action" => "goldens"
+          }
+        })
+      end)
+      |> refused?(member)
+    end
+
     test "every view the composer writes is approved" do
       for source <- Composer.sources(),
           display <- Composer.displays(),

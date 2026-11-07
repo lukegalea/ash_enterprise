@@ -304,13 +304,33 @@ defmodule AshEnterprise.Assistant.Composer do
     |> Enum.flat_map(fn {refused?, reason} -> if refused?, do: [reason], else: [] end)
   end
 
+  # Every read a table can make: its own, each query preset's (a preset may switch
+  # the read), and a resource-sourced sections block's, each held to the catalogue
+  # reads of the resource it reads (a related table names its own).
   defp unapproved_reads(view) do
-    reads = approved_reads(view.resource)
-
-    for table <- view.tables, to_string(table.read_action) not in reads do
-      "it reads through #{table.read_action}, which composed views do not use"
-    end
+    view.tables
+    |> Enum.flat_map(&table_reads(&1, view.resource))
+    |> Enum.uniq()
+    |> Enum.flat_map(fn {resource, read} ->
+      if to_string(read) in approved_reads(resource),
+        do: [],
+        else: ["it reads through #{read || "the primary read"}, which composed views do not use"]
+    end)
   end
+
+  defp table_reads(table, view_resource) do
+    resource = table.resource || view_resource
+    presets = if table.query, do: table.query.presets, else: []
+
+    [{resource, table.read_action}] ++
+      for(%{read_action: read} <- presets, not is_nil(read), do: {resource, read}) ++
+      section_reads(table.sections)
+  end
+
+  defp section_reads(%{source: source, read_action: read}) when not is_nil(source),
+    do: [{source, read}]
+
+  defp section_reads(_sections), do: []
 
   # The read actions the catalogue reads a resource through.
   defp approved_reads(resource) do
