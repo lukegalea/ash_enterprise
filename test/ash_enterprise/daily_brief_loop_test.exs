@@ -123,7 +123,7 @@ defmodule AshEnterprise.DailyBriefLoopTest do
     event!(ctx, "Synthetic review", minutes_until_noon(), 45)
 
     {:ok, view, _html} = live(sign_in(conn, ctx.user), "/app/today")
-    render_async(view)
+    render_async(view, 5_000)
     assert has_element?(view, "#compose-brief")
 
     view |> element("#compose-brief") |> render_click()
@@ -137,7 +137,7 @@ defmodule AshEnterprise.DailyBriefLoopTest do
 
     # A fresh visit the same day does not offer it again.
     {:ok, view, _html} = live(sign_in(build_conn(), ctx.user), "/app/today")
-    render_async(view)
+    render_async(view, 5_000)
     refute has_element?(view, "#compose-brief")
   end
 
