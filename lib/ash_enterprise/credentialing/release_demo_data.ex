@@ -32,6 +32,7 @@ defmodule AshEnterprise.Credentialing.ReleaseDemoData do
   }
 
   alias AshEnterprise.Execution
+  alias AshEnterprise.Execution.Release.Entries
   alias AshEnterprise.Platform.SystemActor
   alias AshEnterprise.Process.Binding
   alias AshEnterprise.Quality
@@ -58,7 +59,7 @@ defmodule AshEnterprise.Credentialing.ReleaseDemoData do
     reader = release_reader!(tenant, director, deputy)
     candidate = candidate!(director, deputy, tenant)
 
-    RoutingTable.publish_next!(tenant)
+    RoutingTable.ensure_first!(tenant)
     bind_process!(tenant)
 
     routing =
@@ -104,16 +105,30 @@ defmodule AshEnterprise.Credentialing.ReleaseDemoData do
   @spec change_routing!(Ash.UUID.t()) :: map() | :unchanged
   def change_routing!(tenant) do
     case RoutingTable.publish_next!(tenant) do
-      :unchanged ->
-        :unchanged
+      {:published, _version} -> release_routing!(tenant)
+      :unchanged -> if routing_behind?(tenant), do: release_routing!(tenant), else: :unchanged
+    end
+  end
 
-      {:published, _version} ->
-        {director, deputy} = directors!(tenant)
+  defp release_routing!(tenant) do
+    {director, deputy} = directors!(tenant)
 
-        release!(tenant, director, deputy, @routing, [
-          %{kind: "process", key: CaseProcess.key()},
-          %{kind: "decision", key: RoutingTable.key()}
-        ])
+    release!(tenant, director, deputy, @routing, [
+      %{kind: "process", key: CaseProcess.key()},
+      %{kind: "decision", key: RoutingTable.key()}
+    ])
+  end
+
+  # A version published but not yet released (an earlier fill of the demo published the
+  # next version without releasing it): releasing it is the change still to make.
+  defp routing_behind?(tenant) do
+    with %{} = active <- released(tenant, @routing),
+         %{"annotations" => %{"version" => version}} <-
+           Entries.find(active.entries, :decision, RoutingTable.key()),
+         latest when is_integer(latest) <- RoutingTable.latest_version(tenant) do
+      version < latest
+    else
+      _none -> false
     end
   end
 

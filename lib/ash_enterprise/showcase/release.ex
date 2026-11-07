@@ -12,11 +12,13 @@ defmodule AshEnterprise.Showcase.Release do
     * `candidate`, the newest release manifest of the licence reader
       (`AshEnterprise.Credentialing.LicenceReaderCandidate`, measured on
       `AshEnterprise.Credentialing.ReaderSuite`) as `%{manifest:, run:, lanes:, results:,
-      problems:}`, or `nil` when none was drafted: `lanes` is the finished run's quality,
+      problems:, case_runs:}`, or `nil` when none was drafted: `case_runs` the agent runs
+      its cases made, `lanes` is the finished run's quality,
       injection and safety summaries, `results` its cases (`case_id`, `status`, `tainted`,
       `injection?`), `problems` the reasons the gate gave when it refused (F9);
-    * `shadow`, the suite runs made in shadow mode, newest first, each `%{run:, calls:}`,
-      `calls` the tool calls its cases made as `%{target:, status:, simulated?:}` (F12);
+    * `shadow`, the suite runs made in shadow mode, newest first, each `%{run:, case_runs:,
+      calls:}`, `case_runs` the agent runs its cases made, `calls` the tool calls they made
+      as `%{target:, status:, simulated?:}` (F12);
     * `routing`, `%{table_version:, cases:}`: the version of the routing table the active
       release pins, and for each case the version its own release pinned (F10);
     * `activation`, `%{release:}`, the active release that covers `activate_credential`, which
@@ -94,6 +96,7 @@ defmodule AshEnterprise.Showcase.Release do
         %{
           manifest: manifest,
           run: run,
+          case_runs: case_runs(run, tenant),
           lanes: lanes(run),
           results: results(run, tenant),
           problems: problems(manifest)
@@ -167,20 +170,27 @@ defmodule AshEnterprise.Showcase.Release do
         query: [filter: [mode: :shadow], sort: [created_on: :desc], limit: 3]
       )
 
-    for run <- runs, do: %{run: run, calls: calls(run, tenant)}
+    for run <- runs do
+      ids = case_runs(run, tenant)
+      %{run: run, case_runs: ids, calls: calls(ids, tenant)}
+    end
   end
 
-  defp calls(run, tenant) do
+  # The agent runs a suite run's cases made (their first attempts), oldest key first.
+  defp case_runs(nil, _tenant), do: []
+
+  defp case_runs(run, tenant) do
     keys = for %{id: id} <- ReaderSuite.cases(), do: SuiteRun.run_key(run.id, id, 1)
 
-    ids =
-      Execution.list_agent_runs!(
-        authorize?: false,
-        tenant: tenant,
-        query: [filter: [run_key: [in: keys]]]
-      )
-      |> Enum.map(& &1.id)
+    Execution.list_agent_runs!(
+      authorize?: false,
+      tenant: tenant,
+      query: [filter: [run_key: [in: keys]], sort: [run_key: :asc]]
+    )
+    |> Enum.map(& &1.id)
+  end
 
+  defp calls(ids, tenant) do
     Execution.list_invocations!(
       authorize?: false,
       tenant: tenant,

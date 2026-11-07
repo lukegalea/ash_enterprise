@@ -105,12 +105,7 @@ defmodule AshEnterprise.Platform.DemoTenant do
   """
   @spec populate!(Organization.t(), keyword()) :: map()
   def populate!(organization, opts \\ []) do
-    unless demo?(organization) do
-      raise ArgumentError,
-            "refusing to populate #{inspect(organization.unique_name)}: the demo writes only to " <>
-              "the #{inspect(@slug)} tenant"
-    end
-
+    ensure_demo!(organization, "populate")
     tenant = organization.id
     refuse_foreign_people!(tenant)
     counts = DemoData.populate(tenant, opts)
@@ -122,6 +117,22 @@ defmodule AshEnterprise.Platform.DemoTenant do
       |> Ash.read_one!(tenant: tenant, authorize?: false)
 
     %{counts: counts, clinic: clinic, mdm: admin && MdmData.populate(tenant, admin)}
+  end
+
+  @doc """
+  Raises `ArgumentError` unless `organization` is the demo tenant: the guard every demo
+  writer takes before it writes (`populate!/2`, `AshEnterprise.Showcase.History.run!/1`).
+  `what` names the refused act in the message.
+  """
+  @spec ensure_demo!(Organization.t(), String.t()) :: :ok
+  def ensure_demo!(organization, what) do
+    if demo?(organization) do
+      :ok
+    else
+      raise ArgumentError,
+            "refusing to #{what} #{inspect(organization.unique_name)}: the demo writes only to " <>
+              "the #{inspect(@slug)} tenant"
+    end
   end
 
   # An email is unique across the database, and the demo's `ensure_user!` takes a person it

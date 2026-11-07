@@ -11,6 +11,7 @@ defmodule AshEnterpriseWeb.ShowcaseLive.CaseBeats do
   use AshEnterpriseWeb, :html
 
   alias AshEnterprise.Credentialing.CaseProcess
+  alias AshEnterpriseWeb.ShowcaseLive.TourIndex
 
   @doc """
   Says, in place, that a beat's control runs in the demo build, when the fault panel is off.
@@ -28,6 +29,7 @@ defmodule AshEnterpriseWeb.ShowcaseLive.CaseBeats do
     """
   end
 
+  attr :records, :map, required: true
   attr :cases, :list, required: true
   attr :credentials, :list, required: true
   attr :activations, :list, required: true
@@ -77,6 +79,7 @@ defmodule AshEnterpriseWeb.ShowcaseLive.CaseBeats do
           </li>
         </ul>
         <.case_rows id="cases" rows={@cases} />
+        <TourIndex.explore beat={10} records={@records} />
       </.card>
     </li>
 
@@ -98,6 +101,7 @@ defmodule AshEnterpriseWeb.ShowcaseLive.CaseBeats do
           )}
         </p>
         <.case_rows id="refused" rows={Enum.filter(@cases, &refused?/1)} />
+        <TourIndex.explore beat={11} records={@records} />
       </.card>
     </li>
 
@@ -118,7 +122,7 @@ defmodule AshEnterpriseWeb.ShowcaseLive.CaseBeats do
             "Look for: however many deliveries and in whatever order, one continuation. The repeated delivery is recorded once, and the early one is found when the case starts to wait."
           )}
         </p>
-        <.demo_build_note fault_controls?={@fault_controls?} />
+        <TourIndex.fault_note fault_controls?={@fault_controls?} recorded?={@records[12] != nil} />
         <ul :if={@fault_controls?} class="space-y-2">
           <li
             :for={row <- Enum.filter(@cases, &(@await in &1.waiting_for))}
@@ -154,6 +158,7 @@ defmodule AshEnterpriseWeb.ShowcaseLive.CaseBeats do
           </li>
         </ul>
         <.case_rows id="webhooks" rows={Enum.filter(@cases, &(&1.deliveries != []))} />
+        <TourIndex.explore beat={12} records={@records} />
       </.card>
     </li>
 
@@ -179,7 +184,8 @@ defmodule AshEnterpriseWeb.ShowcaseLive.CaseBeats do
             {dgettext("showcase", "Open the task board")}
           </.link>
         </p>
-        <.case_rows id="reviews" rows={Enum.filter(@cases, &(&1.review != nil))} />
+        <.case_rows id="reviews" rows={Enum.filter(@cases, &(&1.review != nil))} packet?={true} />
+        <TourIndex.explore beat={13} records={@records} />
       </.card>
     </li>
 
@@ -201,6 +207,7 @@ defmodule AshEnterpriseWeb.ShowcaseLive.CaseBeats do
           )}
         </p>
         <.case_rows id="timers" rows={Enum.filter(@cases, &(&1.timer != nil))} />
+        <TourIndex.explore beat={14} records={@records} />
       </.card>
     </li>
 
@@ -232,6 +239,7 @@ defmodule AshEnterpriseWeb.ShowcaseLive.CaseBeats do
             {dgettext("showcase", "Open the approvals")}
           </.link>
         </p>
+        <TourIndex.explore beat={15} records={@records} />
       </.card>
     </li>
     """
@@ -239,6 +247,7 @@ defmodule AshEnterpriseWeb.ShowcaseLive.CaseBeats do
 
   attr :id, :string, required: true
   attr :rows, :list, required: true
+  attr :packet?, :boolean, default: false
 
   defp case_rows(assigns) do
     ~H"""
@@ -260,6 +269,21 @@ defmodule AshEnterpriseWeb.ShowcaseLive.CaseBeats do
           </.link>
           <.badge status={row.instance.status}>{status_label(row.instance.status)}</.badge>
           <span :if={row.instance.outcome} class="font-mono text-xs">{row.instance.outcome}</span>
+          <.link
+            :if={@packet? && row.review}
+            id={"#{@id}-packet-#{row.instance.id}"}
+            navigate={~p"/app/r/approvals/#{row.review.id}"}
+            class="underline"
+          >
+            {dgettext("showcase", "Open the review packet")}
+          </.link>
+          <.link
+            id={"#{@id}-explore-#{row.instance.id}"}
+            navigate={TourIndex.explorer_path({:process_instance, row.instance.id})}
+            class="underline"
+          >
+            {dgettext("showcase", "Open in explorer")}
+          </.link>
         </div>
         <ul class="ml-4 list-disc">
           <li :for={check <- row.checks} data-check-status={check.status}>

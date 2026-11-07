@@ -26,6 +26,20 @@ defmodule Mix.Tasks.AshEnterprise.Demo do
   printed. A re-run does not reset the password of a person who already exists, whatever
   the file now holds; to change it, change it in the application.
 
+  ## History
+
+      mix ash_enterprise.demo --history [--password-file PATH]
+
+  After filling the tenant, runs the tour's fault-driven beats once
+  (`AshEnterprise.Showcase.History`), so an instance whose fault panel is off still shows
+  a real record of each failure: F4, F5, F2, F3, F1, F7, F6 and F10. They run in this
+  process, through the application's own actions; the two that arm a fault point arm it in
+  this node only and disarm it afterwards. This node's Oban fetches nothing on its own and runs no sweep, and
+  holds the jobs it inserts so that no other node runs them
+  (`AshEnterprise.Showcase.History.HeldJobs`). It writes to the demo tenant only, and a
+  second run changes nothing. It prints a line per beat and fails when a beat did not end
+  in its failure.
+
   A tenant with one business unit and one Administrator demonstrates no hierarchy and no
   scoping, so this adds a three-division tree (one of them two deep), nine people spread
   unevenly across it, three teams, and three roles that differ in grant *depth*
@@ -40,12 +54,22 @@ defmodule Mix.Tasks.AshEnterprise.Demo do
   use Mix.Task
 
   alias AshEnterprise.Platform.DemoTenant
+  alias AshEnterprise.Showcase.History
+  alias AshEnterprise.Showcase.History.HeldJobs
 
   @requirements ["app.config"]
 
   @impl Mix.Task
   def run(args) do
-    {opts, _rest, _invalid} = OptionParser.parse(args, strict: [password_file: :string])
+    {opts, _rest, _invalid} =
+      OptionParser.parse(args, strict: [password_file: :string, history: :boolean])
+
+    # The history seed's node must not fetch, sweep or lead on a database a server polls,
+    # and must hold the jobs it inserts: set before the application starts its Oban.
+    if opts[:history] do
+      config = Application.fetch_env!(:ash_enterprise, Oban)
+      Application.put_env(:ash_enterprise, Oban, HeldJobs.oban_config(config))
+    end
 
     # DemoData opens an import batch through Oban and the confirmation
     # add-on renders URLs from the endpoint — the full app, once, is the
@@ -84,7 +108,30 @@ defmodule Mix.Tasks.AshEnterprise.Demo do
         process model    /app/processes  (mdm.steward_review BPMN; banding is a DMN table)
       """)
     end
+
+    if opts[:history], do: history!(organization)
   end
+
+  defp history!(organization) do
+    report = History.run!(organization)
+
+    lines =
+      Enum.map_join(report, "\n", fn entry ->
+        "  beat #{entry.beat} (#{Enum.join(entry.failures, ", ")})  " <>
+          "#{status(entry.status)}  #{entry.ref}"
+      end)
+
+    Mix.shell().info("History, in the tour at /app/showcase/credentialing:\n" <> lines)
+
+    unless History.complete?(report) do
+      Mix.raise("a history beat did not end in its failure; see the lines above")
+    end
+  end
+
+  defp status(:produced), do: "recorded"
+  defp status(:already), do: "already recorded"
+  defp status({:skipped, why}), do: "skipped (#{why})"
+  defp status({:not_produced, observed}), do: "NOT PRODUCED, observed #{inspect(observed)}"
 
   defp password_opts(opts) do
     case opts[:password_file] do

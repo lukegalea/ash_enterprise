@@ -74,13 +74,15 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
   alias AshEnterprise.Showcase.Credentialing, as: Tour
   alias AshEnterprise.Showcase.Release, as: ReleaseTour
   alias AshEnterpriseWeb.Layouts
-  alias AshEnterpriseWeb.ShowcaseLive.{CaseBeats, ReleaseBeats}
+  alias AshEnterpriseWeb.ShowcaseLive.{CaseBeats, ReleaseBeats, TourIndex}
 
   @locales ~w(en fr)
   @refresh_ms 3_000
   @extension 4_000
   # The licence reader's own budget (`AshEnterprise.Credentialing.LicenceReader`).
   @budget 6_000
+  # What the index reads its records from (`TourIndex.records/1`).
+  @read [:activations, :readings, :cases, :release]
 
   @impl true
   def mount(_params, _session, socket) do
@@ -412,6 +414,11 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
       release: ReleaseTour.read(actor, cases),
       recorded: MapSet.new(Showcase.RecordedModel.cases(Tour.reader()))
     )
+    |> then(fn socket ->
+      assign(socket,
+        records: TourIndex.records(Map.put(Map.take(socket.assigns, @read), :budget, @budget))
+      )
+    end)
   end
 
   # The page header is the registry's label and blurb, in English; the tour's own.
@@ -567,6 +574,8 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
           </p>
         </section>
 
+        <TourIndex.index records={@records} />
+
         <ol id="beats" class="space-y-6">
           <li id="beat-raise">
             <.card>
@@ -605,6 +614,7 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
                   </.button>
                 </li>
               </ul>
+              <TourIndex.explore beat={1} records={@records} />
             </.card>
           </li>
 
@@ -630,6 +640,7 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
                 rows={with_status(@activations, [:awaiting_approval])}
                 numbers={@numbers}
               />
+              <TourIndex.explore beat={2} records={@records} />
             </.card>
           </li>
 
@@ -650,8 +661,28 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
                   "Look for: the request goes stale with subject_changed. The approval was for the credential as it was, so it does not run."
                 )}
               </p>
-              <CaseBeats.demo_build_note fault_controls?={@fault_controls?} />
+              <TourIndex.fault_note fault_controls?={@fault_controls?} recorded?={@records[3] != nil} />
+              <p class="text-sm text-foreground/70">
+                {dgettext(
+                  "showcase",
+                  "The review packet shows it before anyone approves: open it on a waiting request after the correction, and its currency says the credential changed since it was asked for. A decided request's packet is read by the clinic's administrator."
+                )}
+              </p>
+              <ul class="space-y-1 text-sm">
+                <li :for={row <- with_status(@activations, [:awaiting_approval])} :if={row.task_id}>
+                  <.link
+                    id={"stale-waiting-packet-#{row.invocation.id}"}
+                    navigate={~p"/app/r/approvals/#{row.task_id}"}
+                    class="underline"
+                  >
+                    {dgettext("showcase", "Open the review packet for %{number}",
+                      number: Map.get(@numbers, row.credential_id, "")
+                    )}
+                  </.link>
+                </li>
+              </ul>
               <.beat_rows id="stale" rows={with_status(@activations, [:stale])} numbers={@numbers} />
+              <TourIndex.explore beat={3} records={@records} />
             </.card>
           </li>
 
@@ -672,8 +703,9 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
                   "Look for: it runs as the coordinator rebuilt from their grants now, so it fails as denied, and the registry is never asked."
                 )}
               </p>
-              <CaseBeats.demo_build_note fault_controls?={@fault_controls?} />
+              <TourIndex.fault_note fault_controls?={@fault_controls?} recorded?={@records[4] != nil} />
               <.beat_rows id="denied" rows={with_status(@activations, [:failed])} numbers={@numbers} />
+              <TourIndex.explore beat={4} records={@records} />
             </.card>
           </li>
 
@@ -694,7 +726,23 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
                   "Look for: when the lease runs out the request is outcome unknown, never run again. The reconcile sweep asks the registry, which holds the activation, and settles it succeeded via reconcile_with, with the registry's reference. The registry took it once. The credential's own row still says pending: reconciliation records the outcome on the request, it does not write the credential."
                 )}
               </p>
-              <CaseBeats.demo_build_note fault_controls?={@fault_controls?} />
+              <p id="lost-answer" class="text-sm">
+                {dgettext(
+                  "showcase",
+                  "Or lose the registry's answer from the fault panel: the registry accepted the activation, the answer never arrived, and when asked afterwards the registry cannot say. Then the request stays outcome unknown, and a person settles it on the recovery surface."
+                )}
+              </p>
+              <p
+                :if={not @fault_controls?}
+                id="kill-variant-note"
+                class="text-sm italic text-foreground/70"
+              >
+                {dgettext(
+                  "showcase",
+                  "The worker-killed variant needs the fault panel on the instance that serves this page: the demo registry keeps its activations in the memory of the application node that took them, so a record made beforehand would be settled by whichever node reconciled it. The record here is the lost answer."
+                )}
+              </p>
+              <TourIndex.fault_note fault_controls?={@fault_controls?} recorded?={@records[5] != nil} />
               <.beat_rows
                 id="reconciled"
                 rows={
@@ -705,7 +753,9 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
                   )
                 }
                 numbers={@numbers}
+                recovery?={true}
               />
+              <TourIndex.explore beat={5} records={@records} />
             </.card>
           </li>
 
@@ -747,6 +797,7 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
                 </li>
               </ul>
               <.reading_rows id="read" rows={read_through(@readings)} />
+              <TourIndex.explore beat={6} records={@records} />
             </.card>
           </li>
 
@@ -767,8 +818,9 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
                   "Look for: the failed model call is recorded and the run keeps its five-minute lease; when it runs out, the recover sweep queues the run again and the same turn is asked again. The lookups ran once each: the repeated turn reads their recorded results."
                 )}
               </p>
-              <CaseBeats.demo_build_note fault_controls?={@fault_controls?} />
+              <TourIndex.fault_note fault_controls?={@fault_controls?} recorded?={@records[7] != nil} />
               <.reading_rows id="timed-out" rows={timed_out(@readings)} />
+              <TourIndex.explore beat={7} records={@records} />
             </.card>
           </li>
 
@@ -791,6 +843,7 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
                 )}
               </p>
               <.reading_rows id="budget" rows={over_budget(@readings)} extend?={true} />
+              <TourIndex.explore beat={8} records={@records} />
             </.card>
           </li>
 
@@ -836,10 +889,12 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
                 {dgettext("showcase", "The audit hash chain does not verify.")}
               </p>
               <.reading_rows id="erased" rows={erased(@readings)} />
+              <TourIndex.explore beat={9} records={@records} />
             </.card>
           </li>
 
           <CaseBeats.beats
+            records={@records}
             cases={@cases}
             credentials={@credentials}
             activations={@activations}
@@ -847,6 +902,7 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
           />
 
           <ReleaseBeats.beats
+            records={@records}
             release={@release}
             cases={@cases}
             credentials={@credentials}
@@ -922,6 +978,7 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
   attr :id, :string, required: true
   attr :rows, :list, required: true
   attr :numbers, :map, required: true
+  attr :recovery?, :boolean, default: false
 
   defp beat_rows(assigns) do
     ~H"""
@@ -963,6 +1020,29 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
               class="ml-2 underline"
             >
               {dgettext("showcase", "Open the approval")}
+            </.link>
+            <.link
+              :if={row.task_id && row.invocation.status != :awaiting_approval}
+              id={"#{@id}-packet-#{row.invocation.id}"}
+              navigate={~p"/app/r/approvals/#{row.task_id}"}
+              class="ml-2 underline"
+            >
+              {dgettext("showcase", "Open the review packet")}
+            </.link>
+            <.link
+              :if={@recovery? && row.invocation.status == :outcome_unknown}
+              id={"#{@id}-recover-#{row.invocation.id}"}
+              navigate={~p"/app/recovery/#{row.invocation.id}"}
+              class="ml-2 underline"
+            >
+              {dgettext("showcase", "Settle it on the recovery surface")}
+            </.link>
+            <.link
+              id={"#{@id}-explore-#{row.invocation.id}"}
+              navigate={TourIndex.explorer_path({:invocation, row.invocation.id})}
+              class="ml-2 underline"
+            >
+              {dgettext("showcase", "Open in explorer")}
             </.link>
           </td>
           <td class="py-1 pr-3 font-mono text-xs">
@@ -1044,6 +1124,13 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
           </td>
           <td class="py-1 pr-3">
             <.badge status={row.run.status}>{run_status_label(row.run.status)}</.badge>
+            <.link
+              id={"#{@id}-explore-#{row.run.id}"}
+              navigate={TourIndex.explorer_path({:run, row.run.id})}
+              class="ml-2 underline"
+            >
+              {dgettext("showcase", "Open in explorer")}
+            </.link>
             <div
               :if={row.run.blocked_on}
               class="font-mono text-xs"

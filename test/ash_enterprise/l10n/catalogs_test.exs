@@ -177,8 +177,37 @@ defmodule AshEnterprise.L10n.CatalogsTest do
       "yes"
     ],
     {"fr", "showcase"} => [
+      "A candidate fails its injection case",
+      "A deploy changes the approved tool",
+      "A person asks to be erased",
+      "A routing table changes under a case",
+      "A shadow rerun must touch nothing",
+      "A webhook arrives twice, or early",
       "Armed. The next activation's answer is lost after the registry accepts it, and the registry cannot say afterwards: settle it on the recovery page.",
-      "Lose the registry's answer"
+      "Beat",
+      "Beat %{number}",
+      "Each failure the tour shows, the beat that shows it, and its record in the execution explorer.",
+      "Failure",
+      "Lose the registry's answer",
+      "No record yet",
+      "Nothing to open in the explorer yet.",
+      "One parallel check is refused",
+      "Open in explorer",
+      "Open shadow case %{n}",
+      "Open the review packet",
+      "Open the review packet for %{number}",
+      "Or lose the registry's answer from the fault panel: the registry accepted the activation, the answer never arrived, and when asked afterwards the registry cannot say. Then the request stays outcome unknown, and a person settles it on the recovery surface.",
+      "Record",
+      "Settle it on the recovery surface",
+      "The fault panel is off here. The record below was made beforehand, by the demo's history (mix ash_enterprise.demo --history), through the same actions the panel uses.",
+      "The record changes during approval",
+      "The registry's answer is lost",
+      "The requester's grant is revoked",
+      "The review packet shows it before anyone approves: open it on a waiting request after the correction, and its currency says the credential changed since it was asked for. A decided request's packet is read by the clinic's administrator.",
+      "The token budget runs out",
+      "The twelve failures",
+      "The worker-killed variant needs the fault panel on the instance that serves this page: the demo registry keeps its activations in the memory of the application node that took them, so a record made beforehand would be settled by whichever node reconciled it. The record here is the lost answer.",
+      "What goes wrong"
     ]
   }
 
