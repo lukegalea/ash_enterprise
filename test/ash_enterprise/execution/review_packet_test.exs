@@ -177,6 +177,23 @@ defmodule AshEnterprise.Execution.ReviewPacketTest do
       assert ReviewPacket.currency(%{row | status: :ready}) == {:decided, :ready}
     end
 
+    test "a request with no correlation id never says no decision was evaluated", ctx do
+      row = request!(ctx)
+
+      {1, _} =
+        Repo.update_all(
+          from(i in "exec_invocations", where: i.id == type(^row.id, Ecto.UUID)),
+          set: [correlation_id: nil]
+        )
+
+      packet = packet!(approval_task(row, ctx.tenant), ctx.lead, ctx)
+
+      assert packet.review_decision =~ "Unknown: the request carries no correlation id"
+      refute packet.review_decision =~ "No decision was evaluated"
+      assert packet.review_evidence =~ "Unknown:"
+      refute packet.review_evidence == "None recorded."
+    end
+
     test "a reader who may see the task but not the request learns nothing about it", ctx do
       row = request!(ctx)
       task = approval_task(row, ctx.tenant)

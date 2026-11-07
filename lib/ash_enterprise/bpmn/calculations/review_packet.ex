@@ -8,8 +8,11 @@ defmodule AshEnterprise.Bpmn.Calculations.ReviewPacket do
     * `:arguments` — one line per input, named and typed by the target's schema;
     * `:digest` — the approval digest the decision binds;
     * `:currency` — `Current`, `Stale: subject_changed`, `Unknown: …`, `Decided: ready`;
-    * `:evidence` — references (`Credential:<id>@3`, `run:<id>`), not contents;
-    * `:decision` — each decision entry with its matched rules;
+    * `:evidence` — references (`Credential:<id>@3`, `run:<id>`), not contents, and
+      `Unknown: …` when the trace could not be read whole;
+    * `:decision` — each decision entry with its matched rules, `No decision was
+      evaluated.` only when the decision records were read and hold none, `Unknown: …`
+      otherwise;
     * `:due` — when the task is due and when the approval window closes;
     * `:escalation` — what the engine recorded about escalating the task;
     * `:questions` — an approver's questions and the requester's answers.
@@ -92,16 +95,21 @@ defmodule AshEnterprise.Bpmn.Calculations.ReviewPacket do
   def render(:currency, {:decided, status}), do: "Decided: #{status}"
   def render(:currency, {:unknown, why}), do: "Unknown: #{unknown(why)}"
 
-  def render(:evidence, []), do: "None recorded."
-  def render(:evidence, refs), do: Enum.join(refs, "\n")
+  def render(:evidence, {:ok, []}), do: "None recorded."
+  def render(:evidence, {:ok, refs}), do: Enum.join(refs, "\n")
 
-  def render(:decisions, []), do: "No decision was evaluated."
+  def render(:evidence, {:incomplete, refs, why}),
+    do: Enum.join(refs ++ ["Unknown: #{incomplete(why)}"], "\n")
 
-  def render(:decisions, decisions) do
-    Enum.map_join(decisions, "\n", fn decision ->
-      Enum.join(Enum.reject([decision.summary, decision.definition_ref], &is_nil/1), " · ")
-    end)
-  end
+  def render(:decisions, {:ok, []}), do: "No decision was evaluated."
+  def render(:decisions, {:ok, decisions}), do: decision_lines(decisions)
+
+  def render(:decisions, {:incomplete, decisions, why}),
+    do:
+      Enum.join(
+        Enum.reject([decision_lines(decisions), "Unknown: #{incomplete(why)}"], &(&1 == "")),
+        "\n"
+      )
 
   def render(:due, %{due_at: due_at, expires_at: expires_at}) do
     Enum.join(
@@ -186,4 +194,20 @@ defmodule AshEnterprise.Bpmn.Calculations.ReviewPacket do
   defp escalation(:escalated), do: "Escalated"
   defp escalation(:no_handler), do: "Due for escalation, with nobody to escalate to,"
   defp escalation(:failed), do: "Escalation failed"
+
+  defp decision_lines(decisions) do
+    Enum.map_join(decisions, "\n", fn decision ->
+      Enum.join(Enum.reject([decision.summary, decision.definition_ref], &is_nil/1), " · ")
+    end)
+  end
+
+  defp incomplete(:no_correlation),
+    do: "the request carries no correlation id, so what it rests on cannot be found."
+
+  defp incomplete(:unread), do: "the request's history could not be read."
+
+  defp incomplete({:unread, sources}),
+    do: "#{Enum.map_join(sources, ", ", &to_string/1)} could not be read in full."
+
+  defp incomplete(other), do: inspect(other)
 end

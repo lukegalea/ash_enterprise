@@ -19,7 +19,11 @@ defmodule AshEnterprise.Execution.ReviewPacket do
     * **Evidence** and **decisions**: what the request's trace holds, read as the
       viewer (`AshEnterprise.Execution.Entry`): the decision entries with their matched
       rules, and references to the observations, the subject's version and the work
-      the request belongs to. Contents stay sealed in their records.
+      the request belongs to. Contents stay sealed in their records. A trace that could
+      not be read whole (a source that failed, timed out, did not answer or has more),
+      or a request with no correlation id to find its decisions by, makes the section
+      incomplete, never empty: "no decision was evaluated" is said only when the
+      decision records were read and hold none.
     * **Due** and **escalation**: the task's `due_at`, the approval window's end, and
       what the engine recorded about escalating the task.
     * **Questions**: an approver's request for more information and the requester's
@@ -183,10 +187,23 @@ defmodule AshEnterprise.Execution.ReviewPacket do
   defp stringify(map) when is_map(map), do: Map.new(map, fn {k, v} -> {to_string(k), v} end)
   defp stringify(_none), do: %{}
 
-  # Inputs the target marks sensitive are named, never shown.
+  @doc """
+  The inputs of the target named `target` that it marks sensitive (an argument, or an
+  accepted attribute), as strings: they are named, never shown. `:all` when the target
+  no longer resolves, so nothing about it can be shown as safe.
+  """
+  @spec sensitive_inputs(String.t()) :: [String.t()] | :all
+  def sensitive_inputs(target) do
+    case Target.resolve(target) do
+      {:ok, %{resource: resource, action: action}} -> sensitive_inputs(resource, action)
+      {:error, _unresolvable} -> :all
+    end
+  end
+
   defp sensitive_inputs(resource, action) do
+    # A generic action accepts no attributes: only its arguments can be sensitive.
     accepted =
-      (action.accept || [])
+      (Map.get(action, :accept) || [])
       |> Enum.map(&Ash.Resource.Info.attribute(resource, &1))
       |> Enum.reject(&is_nil/1)
 
@@ -230,46 +247,109 @@ defmodule AshEnterprise.Execution.ReviewPacket do
 
   # --- evidence and decisions, from the trace as the viewer ------------------------
 
+  # The decisions behind a request are found by its correlation id: a request with none
+  # cannot say whether a decision was evaluated, so it is unknown, never "none".
   defp trace(%{correlation_id: id}, opts) when is_binary(id) and id != "" do
     case Execution.trace(%{correlation_id: id}, opts) do
-      {:ok, %{entries: entries}} -> {:ok, entries}
-      {:error, _error} -> :unreadable
+      {:ok, %{entries: entries, sources: reports}} -> {:ok, entries, reports}
+      {:error, _error} -> {:unknown, :unread}
     end
   end
 
-  defp trace(_invocation, _opts), do: {:ok, []}
+  defp trace(_invocation, _opts), do: {:unknown, :no_correlation}
 
-  defp evidence(invocation, trace) do
+  @observations [:judgment, :case_result]
+
+  @doc """
+  The evidence references behind `invocation` from its `trace` (`{:ok, entries,
+  reports}`, or `{:unknown, why}`): `{:ok, refs}` when every source was read whole, or
+  `{:incomplete, refs, why}` when the trace could not establish all of it. A source that
+  could not be read leaves a gap, never an absence: its gap entry is not evidence. The
+  work the request belongs to is cited only where the trace, read as the viewer, holds
+  it.
+  """
+  @spec evidence(map(), {:ok, [map()], [map()]} | {:unknown, atom()}) ::
+          {:ok, [String.t()]} | {:incomplete, [String.t()], term()}
+  def evidence(invocation, trace) do
     subject =
       for %{"resource" => resource, "id" => id} = precondition <- invocation.preconditions || [],
           do: "#{short(resource)}:#{id}@#{precondition["version_number"]}"
 
-    parent =
-      Enum.reject(
-        [
-          invocation.run_id && "run:#{invocation.run_id}",
-          invocation.process_instance_id && "process_instance:#{invocation.process_instance_id}",
-          invocation.parent_invocation_id && "invocation:#{invocation.parent_invocation_id}"
-        ],
-        &is_nil/1
-      )
+    case trace do
+      {:ok, entries, reports} ->
+        observed =
+          for %{kind: :observation, source: source, source_ref: ref} <- entries,
+              source in @observations,
+              do: ref
 
-    observed =
-      case trace do
-        {:ok, entries} -> for %{kind: :observation, source_ref: ref} <- entries, do: ref
-        :unreadable -> []
-      end
+        read_whole(subject ++ held_parents(invocation, entries) ++ observed, reports)
 
-    subject ++ parent ++ observed
-  end
-
-  defp decisions({:ok, entries}) do
-    for %{kind: :decision} = entry <- entries do
-      %{definition_ref: entry.definition_ref, summary: entry.summary, status: entry.status}
+      {:unknown, why} ->
+        {:incomplete, subject, why}
     end
   end
 
-  defp decisions(:unreadable), do: :unreadable
+  # Every source bears on evidence: any one not read whole leaves it incomplete.
+  defp read_whole(refs, reports) do
+    case unread(reports, fn _source -> true end) do
+      [] -> {:ok, refs}
+      unread -> {:incomplete, refs, {:unread, unread}}
+    end
+  end
+
+  # The work the request belongs to, cited only where the viewer's trace holds it.
+  defp held_parents(invocation, entries) do
+    read = MapSet.new(entries, & &1.source_ref)
+
+    [
+      invocation.run_id && "run:#{invocation.run_id}",
+      invocation.process_instance_id && "process_instance:#{invocation.process_instance_id}",
+      invocation.parent_invocation_id && "invocation:#{invocation.parent_invocation_id}"
+    ]
+    |> Enum.filter(&(is_binary(&1) and MapSet.member?(read, &1)))
+  end
+
+  @doc """
+  The decisions evaluated for `invocation`'s request, from its `trace`: `{:ok,
+  decisions}` when the decision records were read whole (an empty list then means none
+  was evaluated), `{:incomplete, decisions, why}` when they were not, so the reviewer is
+  never told no decision exists when it could not be read.
+  """
+  @spec decisions({:ok, [map()], [map()]} | {:unknown, atom()}) ::
+          {:ok, [map()]} | {:incomplete, [map()], term()}
+  def decisions({:ok, entries, reports}) do
+    decisions =
+      for %{kind: :decision, source: :evaluation} = entry <- entries do
+        %{definition_ref: entry.definition_ref, summary: entry.summary, status: entry.status}
+      end
+
+    case unread(reports, &(&1 == :evaluation)) do
+      [] -> {:ok, decisions}
+      unread -> {:incomplete, decisions, {:unread, unread}}
+    end
+  end
+
+  def decisions({:unknown, why}), do: {:incomplete, [], why}
+
+  # The sources a trace did not read whole (`:more` included: the rest is unread too),
+  # among those `relevant?` says matter, plus any source missing from the reports.
+  defp unread(reports, relevant?) do
+    reported = MapSet.new(reports, & &1.source)
+
+    missing =
+      for name <- AshEnterprise.ExecutionSources.names(),
+          relevant?.(name),
+          not MapSet.member?(reported, name),
+          do: name
+
+    failed =
+      for %{source: source, status: status} <- reports,
+          relevant?.(source),
+          status != :complete,
+          do: source
+
+    failed ++ missing
+  end
 
   # --- due and escalation ----------------------------------------------------------
 
