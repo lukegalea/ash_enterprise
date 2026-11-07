@@ -200,6 +200,14 @@ defmodule AshEnterprise.Assistant.ExplainTest do
                F.tool!(ctx.rosa, :explain, %{ref: ref})
     end
 
+    test "a ref that differs only in letter case explains the same record", ctx do
+      row = uncertain!(ctx)
+      ref = "invocation:#{row.id}"
+
+      assert [%{"role" => :subject, "ref" => ^ref, "status" => :uncertain} | _] =
+               F.tool!(ctx.rosa, :explain, %{ref: "invocation:" <> String.upcase(row.id)})
+    end
+
     test "an activation whose content was erased is said to be not recorded", ctx do
       row = uncertain!(ctx)
       ref = "invocation:#{row.id}"

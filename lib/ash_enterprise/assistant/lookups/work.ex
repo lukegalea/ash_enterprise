@@ -64,7 +64,9 @@ defmodule AshEnterprise.Assistant.Lookups.Work do
 
   # -- the arguments ----------------------------------------------------------------
 
-  defp args(:explain, %{ref: ref}), do: {:ok, %{root_ref: ref}}
+  # Refs are written lowercase (`explorer_path/1`); ids cast either way, so a ref that
+  # differs only in case names the same record and is matched as its subject.
+  defp args(:explain, %{ref: ref}), do: {:ok, %{root_ref: String.downcase(ref)}}
 
   defp args(:trace, arguments) do
     case {blank(arguments[:ref]), blank(arguments[:correlation_id])} do
