@@ -1667,7 +1667,7 @@ msgstr ""
 
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Model profile"
-msgstr ""
+msgstr "Profil de modèle"
 
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/flight_ui.ex:72
@@ -2655,11 +2655,11 @@ msgstr ""
 
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Stalled"
-msgstr ""
+msgstr "Bloqué"
 
 #: lib/ash_enterprise_web/a2ui/stalled_reviews_ui.ex:1
 msgid "Stalled reviews"
-msgstr ""
+msgstr "Revues bloquées"
 
 #: lib/ash_enterprise_web/a2ui/flight_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/flight_ui.ex:121

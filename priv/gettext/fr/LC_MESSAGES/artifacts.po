@@ -14,505 +14,505 @@ msgstr ""
 #: lib/ash_enterprise_web/components/artifact_components.ex:74
 #, elixir-autogen, elixir-format
 msgid "A draft: no run uses it, and none will until it is published."
-msgstr ""
+msgstr "Un brouillon : aucune exécution ne l'utilise, et aucune ne le fera tant qu'il ne sera pas publié."
 
 #: lib/ash_enterprise/artifacts/differs/surface_spec.ex:26
 #, elixir-autogen, elixir-format
 msgid "Actions"
-msgstr ""
+msgstr "Actions"
 
 #: lib/ash_enterprise_web/components/artifact_components.ex:252
 #, elixir-autogen, elixir-format
 msgid "Added"
-msgstr ""
+msgstr "Ajouté"
 
 #: lib/ash_enterprise/artifacts.ex:53
 #, elixir-autogen, elixir-format
 msgid "Agent version"
-msgstr ""
+msgstr "Version de l'agent"
 
 #: lib/ash_enterprise/artifacts/differs/release_manifest.ex:42
 #, elixir-autogen, elixir-format
 msgid "Agents"
-msgstr ""
+msgstr "Agents"
 
 #: lib/ash_enterprise_web/live/artifact_live.ex:24
 #: lib/ash_enterprise_web/live/artifact_live.ex:153
 #, elixir-autogen, elixir-format
 msgid "Artifacts"
-msgstr ""
+msgstr "Artefacts"
 
 #: lib/ash_enterprise/artifacts/differs/agent_version.ex:25
 #: lib/ash_enterprise/artifacts/differs/release_manifest.ex:43
 #, elixir-autogen, elixir-format
 msgid "Authority"
-msgstr ""
+msgstr "Autorité"
 
 #: lib/ash_enterprise/artifacts/differs/suite.ex:24
 #, elixir-autogen, elixir-format
 msgid "Cases"
-msgstr ""
+msgstr "Cas"
 
 #: lib/ash_enterprise_web/components/artifact_components.ex:268
 #, elixir-autogen, elixir-format
 msgid "Changed"
-msgstr ""
+msgstr "Modifié"
 
 #: lib/ash_enterprise_web/components/artifact_components.ex:203
 #, elixir-autogen, elixir-format
 msgid "Changes"
-msgstr ""
+msgstr "Modifications"
 
 #: lib/ash_enterprise_web/components/artifact_components.ex:202
 #, elixir-autogen, elixir-format
 msgid "Changes since %{version}"
-msgstr ""
+msgstr "Modifications depuis %{version}"
 
 #: lib/ash_enterprise_web/components/artifact_components.ex:311
 #, elixir-autogen, elixir-format
 msgid "Checked: %{count} problem."
 msgid_plural "Checked: %{count} problems."
-msgstr[0] ""
-msgstr[1] ""
+msgstr[0] "Vérifié : %{count} problème."
+msgstr[1] "Vérifié : %{count} problèmes."
 
 #: lib/ash_enterprise_web/components/artifact_components.ex:301
 #, elixir-autogen, elixir-format
 msgid "Checked: no problems found."
-msgstr ""
+msgstr "Vérifié : aucun problème détecté."
 
 #: lib/ash_enterprise/artifacts/differs/surface_spec.ex:28
 #, elixir-autogen, elixir-format
 msgid "Columns"
-msgstr ""
+msgstr "Colonnes"
 
 #: lib/ash_enterprise_web/live/artifact_live.ex:251
 #, elixir-autogen, elixir-format
 msgid "Compare with another version"
-msgstr ""
+msgstr "Comparer avec une autre version"
 
 #: lib/ash_enterprise_web/components/artifact_components.ex:206
 #, elixir-autogen, elixir-format
 msgid "Compares: %{aspects}."
-msgstr ""
+msgstr "Compare : %{aspects}."
 
 #: lib/ash_enterprise/artifacts/differs/surface_spec.ex:22
 #, elixir-autogen, elixir-format
 msgid "Components"
-msgstr ""
+msgstr "Composants"
 
 #: lib/ash_enterprise_web/components/artifact_components.ex:88
 #, elixir-autogen, elixir-format
 msgid "Content hash"
-msgstr ""
+msgstr "Empreinte du contenu"
 
 #: lib/ash_enterprise/artifacts/differs/surface_spec.ex:27
 #, elixir-autogen, elixir-format
 msgid "Contexts"
-msgstr ""
+msgstr "Contextes"
 
 #: lib/ash_enterprise_web/components/artifact_components.ex:92
 #, elixir-autogen, elixir-format
 msgid "Copied from"
-msgstr ""
+msgstr "Copié depuis"
 
 #: lib/ash_enterprise/artifacts.ex:85
 #, elixir-autogen, elixir-format
 msgid "Decision definition"
-msgstr ""
+msgstr "Définition de décision"
 
 #: lib/ash_enterprise/artifacts/differs/decision.ex:27
 #, elixir-autogen, elixir-format
 msgid "Decisions"
-msgstr ""
+msgstr "Décisions"
 
 #: lib/ash_enterprise_web/components/artifact_components.ex:423
 #, elixir-autogen, elixir-format
 msgid "Draft"
-msgstr ""
+msgstr "Brouillon"
 
 #: lib/ash_enterprise/artifacts/differs/release_manifest.ex:48
 #, elixir-autogen, elixir-format
 msgid "Evaluation"
-msgstr ""
+msgstr "Évaluation"
 
 #: lib/ash_enterprise/artifacts.ex:116
 #, elixir-autogen, elixir-format
 msgid "Evaluation suite"
-msgstr ""
+msgstr "Suite d'évaluation"
 
 #: lib/ash_enterprise_web/live/artifact_live.ex:140
 #, elixir-autogen, elixir-format
 msgid "Every artifact"
-msgstr ""
+msgstr "Tous les artefacts"
 
 #: lib/ash_enterprise/artifacts/differs/rule_set.ex:26
 #, elixir-autogen, elixir-format
 msgid "Facts"
-msgstr ""
+msgstr "Faits"
 
 #: lib/ash_enterprise/artifacts/differs/mapping.ex:23
 #: lib/ash_enterprise/artifacts/differs/surface_spec.ex:25
 #, elixir-autogen, elixir-format
 msgid "Fields"
-msgstr ""
+msgstr "Champs"
 
 #: lib/ash_enterprise/artifacts/differs/surface_spec.ex:29
 #, elixir-autogen, elixir-format
 msgid "Groups"
-msgstr ""
+msgstr "Groupes"
 
 #: lib/ash_enterprise_web/components/artifact_components.ex:424
 #, elixir-autogen, elixir-format
 msgid "In use"
-msgstr ""
+msgstr "En cours d'utilisation"
 
 #: lib/ash_enterprise/artifacts/differs/decision.ex:31
 #, elixir-autogen, elixir-format
 msgid "Input data"
-msgstr ""
+msgstr "Données d'entrée"
 
 #: lib/ash_enterprise/artifacts/differs/decision.ex:28
 #, elixir-autogen, elixir-format
 msgid "Inputs"
-msgstr ""
+msgstr "Entrées"
 
 #: lib/ash_enterprise/artifacts/differs/agent_version.ex:30
 #, elixir-autogen, elixir-format
 msgid "Instructions"
-msgstr ""
+msgstr "Instructions"
 
 #: lib/ash_enterprise/artifacts/differs/release_manifest.ex:47
 #, elixir-autogen, elixir-format
 msgid "Judgments"
-msgstr ""
+msgstr "Jugements"
 
 #: lib/ash_enterprise/artifacts/differs/rule_set.ex:24
 #, elixir-autogen, elixir-format
 msgid "Layer"
-msgstr ""
+msgstr "Couche"
 
 #: lib/ash_enterprise_web/live/artifact_live.ex:199
 #, elixir-autogen, elixir-format
 msgid "Lifecycle"
-msgstr ""
+msgstr "Cycle de vie"
 
 #: lib/ash_enterprise_web/components/artifact_components.ex:426
 #, elixir-autogen, elixir-format
 msgid "Lifecycle unknown"
-msgstr ""
+msgstr "Cycle de vie inconnu"
 
 #: lib/ash_enterprise/artifacts/differs/agent_version.ex:28
 #, elixir-autogen, elixir-format
 msgid "Limits"
-msgstr ""
+msgstr "Limites"
 
 #: lib/ash_enterprise/artifacts/differs/agent_version.ex:27
 #, elixir-autogen, elixir-format
 msgid "Model"
-msgstr ""
+msgstr "Modèle"
 
 #: lib/ash_enterprise/artifacts/differs/release_manifest.ex:45
 #, elixir-autogen, elixir-format
 msgid "Models"
-msgstr ""
+msgstr "Modèles"
 
 #: lib/ash_enterprise_web/live/artifact_live.ex:197
 #, elixir-autogen, elixir-format
 msgid "Name"
-msgstr ""
+msgstr "Nom"
 
 #: lib/ash_enterprise/artifacts/differs/surface_spec.ex:30
 #, elixir-autogen, elixir-format
 msgid "Nested forms"
-msgstr ""
+msgstr "Formulaires imbriqués"
 
 #: lib/ash_enterprise_web/components/artifact_components.ex:370
 #, elixir-autogen, elixir-format
 msgid "No changes in anything this comparison covers."
-msgstr ""
+msgstr "Aucune modification dans les éléments couverts par cette comparaison."
 
 #: lib/ash_enterprise_web/components/artifact_components.ex:367
 #, elixir-autogen, elixir-format
 msgid "No changes: the content is the same."
-msgstr ""
+msgstr "Aucune modification : le contenu est identique."
 
 #: lib/ash_enterprise_web/components/artifact_components.ex:425
 #, elixir-autogen, elixir-format
 msgid "No longer used"
-msgstr ""
+msgstr "N'est plus utilisé"
 
 #: lib/ash_enterprise_web/components/artifact_components.ex:438
 #, elixir-autogen, elixir-format
 msgid "No publish recorded"
-msgstr ""
+msgstr "Aucune publication enregistrée"
 
 #: lib/ash_enterprise_web/components/artifact_components.ex:380
 #, elixir-autogen, elixir-format
 msgid "No semantic diff for this type. Changes cannot be shown here."
-msgstr ""
+msgstr "Aucune différence sémantique pour ce type. Les modifications ne peuvent pas être affichées ici."
 
 #: lib/ash_enterprise_web/live/artifact_live.ex:65
 #, elixir-autogen, elixir-format
 msgid "No version you can read has this address."
-msgstr ""
+msgstr "Aucune version que vous pouvez consulter ne possède cette adresse."
 
 #: lib/ash_enterprise_web/live/artifact_live.ex:185
 #, elixir-autogen, elixir-format
 msgid "None you can read."
-msgstr ""
+msgstr "Aucune que vous pouvez consulter."
 
 #: lib/ash_enterprise_web/components/artifact_components.ex:421
 #, elixir-autogen, elixir-format
 msgid "Not checked: the check could not run."
-msgstr ""
+msgstr "Non vérifié : la vérification n'a pas pu s'exécuter."
 
 #: lib/ash_enterprise_web/components/artifact_components.ex:418
 #, elixir-autogen, elixir-format
 msgid "Not checked: the release gate has not run on it."
-msgstr ""
+msgstr "Non vérifié : la porte de publication n'a pas été exécutée dessus."
 
 #: lib/ash_enterprise_web/components/artifact_components.ex:327
 #, elixir-autogen, elixir-format
 msgid "Not checked: this type declares no check."
-msgstr ""
+msgstr "Non vérifié : ce type ne déclare aucune vérification."
 
 #: lib/ash_enterprise_web/components/artifact_components.ex:412
 #, elixir-autogen, elixir-format
 msgid "Not checked: this version has not been compiled."
-msgstr ""
+msgstr "Non vérifié : cette version n'a pas été compilée."
 
 #: lib/ash_enterprise_web/components/artifact_components.ex:415
 #, elixir-autogen, elixir-format
 msgid "Not checked: this version has not been validated yet."
-msgstr ""
+msgstr "Non vérifié : cette version n'a pas encore été validée."
 
 #: lib/ash_enterprise_web/components/artifact_components.ex:441
 #, elixir-autogen, elixir-format
 msgid "Not shown: you may not read the audit trail"
-msgstr ""
+msgstr "Non affiché : vous ne pouvez pas consulter la piste d'audit"
 
 #: lib/ash_enterprise_web/components/artifact_components.ex:167
 #, elixir-autogen, elixir-format
 msgid "Not the version run %{run} used."
-msgstr ""
+msgstr "Pas la version utilisée par l'exécution %{run}."
 
 #: lib/ash_enterprise_web/components/artifact_components.ex:175
 #, elixir-autogen, elixir-format
 msgid "Open the version it used"
-msgstr ""
+msgstr "Ouvrir la version utilisée"
 
 #: lib/ash_enterprise/artifacts/differs/agent_version.ex:29
 #, elixir-autogen, elixir-format
 msgid "Output"
-msgstr ""
+msgstr "Sortie"
 
 #: lib/ash_enterprise/artifacts/differs/decision.ex:29
 #, elixir-autogen, elixir-format
 msgid "Outputs"
-msgstr ""
+msgstr "Sorties"
 
 #: lib/ash_enterprise/artifacts/differs/surface_spec.ex:24
 #, elixir-autogen, elixir-format
 msgid "Presets"
-msgstr ""
+msgstr "Préréglages"
 
 #: lib/ash_enterprise/artifacts/differs/suite.ex:26
 #, elixir-autogen, elixir-format
 msgid "Primary metric"
-msgstr ""
+msgstr "Métrique principale"
 
 #: lib/ash_enterprise/artifacts.ex:70
 #, elixir-autogen, elixir-format
 msgid "Process definition"
-msgstr ""
+msgstr "Définition de processus"
 
 #: lib/ash_enterprise_web/components/artifact_components.ex:96
 #, elixir-autogen, elixir-format
 msgid "Published by"
-msgstr ""
+msgstr "Publié par"
 
 #: lib/ash_enterprise/artifacts/differs/surface_spec.ex:23
 #, elixir-autogen, elixir-format
 msgid "Queries"
-msgstr ""
+msgstr "Requêtes"
 
 #: lib/ash_enterprise_web/components/artifact_components.ex:100
 #, elixir-autogen, elixir-format
 msgid "References"
-msgstr ""
+msgstr "Références"
 
 #: lib/ash_enterprise/artifacts.ex:130
 #, elixir-autogen, elixir-format
 msgid "Release manifest"
-msgstr ""
+msgstr "Manifeste de version"
 
 #: lib/ash_enterprise_web/components/artifact_components.ex:260
 #, elixir-autogen, elixir-format
 msgid "Removed"
-msgstr ""
+msgstr "Supprimé"
 
 #: lib/ash_enterprise/artifacts/differs/process.ex:28
 #: lib/ash_enterprise/artifacts/differs/release_manifest.ex:41
 #, elixir-autogen, elixir-format
 msgid "Routing"
-msgstr ""
+msgstr "Routage"
 
 #: lib/ash_enterprise/artifacts.ex:154
 #, elixir-autogen, elixir-format
 msgid "Rule set"
-msgstr ""
+msgstr "Ensemble de règles"
 
 #: lib/ash_enterprise/artifacts/differs/decision.ex:30
 #: lib/ash_enterprise/artifacts/differs/release_manifest.ex:46
 #: lib/ash_enterprise/artifacts/differs/rule_set.ex:25
 #, elixir-autogen, elixir-format
 msgid "Rules"
-msgstr ""
+msgstr "Règles"
 
 #: lib/ash_enterprise/artifacts.ex:178
 #, elixir-autogen, elixir-format
 msgid "Saved surface"
-msgstr ""
+msgstr "Surface enregistrée"
 
 #: lib/ash_enterprise/artifacts.ex:100
 #, elixir-autogen, elixir-format
 msgid "Schema mapping"
-msgstr ""
+msgstr "Mappage de schéma"
 
 #: lib/ash_enterprise/artifacts/differs/suite.ex:27
 #, elixir-autogen, elixir-format
 msgid "Scorers"
-msgstr ""
+msgstr "Évaluateurs"
 
 #: lib/ash_enterprise/artifacts/differs/process.ex:29
 #, elixir-autogen, elixir-format
 msgid "Start"
-msgstr ""
+msgstr "Début"
 
 #: lib/ash_enterprise/artifacts/differs/process.ex:27
 #, elixir-autogen, elixir-format
 msgid "Steps"
-msgstr ""
+msgstr "Étapes"
 
 #: lib/ash_enterprise/artifacts/differs/surface_spec.ex:21
 #, elixir-autogen, elixir-format
 msgid "Surface"
-msgstr ""
+msgstr "Surface"
 
 #: lib/ash_enterprise/artifacts/differs/mapping.ex:22
 #, elixir-autogen, elixir-format
 msgid "Target"
-msgstr ""
+msgstr "Cible"
 
 #: lib/ash_enterprise_web/components/artifact_components.ex:400
 #, elixir-autogen, elixir-format
 msgid "The comparison failed, so no changes are shown. That is not the same as no changes."
-msgstr ""
+msgstr "La comparaison a échoué, aucune modification n'est donc affichée. Cela ne signifie pas qu'il n'y a aucune modification."
 
 #: lib/ash_enterprise_web/components/artifact_components.ex:373
 #, elixir-autogen, elixir-format
 msgid "The content differs, but not in anything this comparison covers (an order or formatting change, say). Treat it as changed."
-msgstr ""
+msgstr "Le contenu diffère, mais pas dans ce que couvre cette comparaison (un changement d'ordre ou de formatage, par exemple). Considérez-le comme modifié."
 
 #: lib/ash_enterprise_web/components/artifact_components.ex:383
 #, elixir-autogen, elixir-format
 msgid "The first version: there is nothing earlier to compare with."
-msgstr ""
+msgstr "La première version : il n'y a rien d'antérieur pour comparer."
 
 #: lib/ash_enterprise_web/components/artifact_components.ex:140
 #, elixir-autogen, elixir-format
 msgid "The run this page was opened from could not be read, so it is not known whether it used this version."
-msgstr ""
+msgstr "L'exécution depuis laquelle cette page a été ouverte n'a pas pu être lue, il n'est donc pas possible de savoir si elle utilisait cette version."
 
 #: lib/ash_enterprise_web/components/artifact_components.ex:154
 #, elixir-autogen, elixir-format
 msgid "The version run %{run} used."
-msgstr ""
+msgstr "La version utilisée par l'exécution %{run}."
 
 #: lib/ash_enterprise_web/components/artifact_components.ex:393
 #, elixir-autogen, elixir-format
 msgid "The version to compare with could not be read, so no changes are shown. That is not the same as no changes."
-msgstr ""
+msgstr "La version à comparer n'a pas pu être lue, aucune modification n'est donc affichée. Cela ne signifie pas qu'il n'y a aucune modification."
 
 #: lib/ash_enterprise_web/live/artifact_live.ex:155
 #, elixir-autogen, elixir-format
 msgid "The versions of what is authored here: agents, processes, decisions, mappings, suites, releases, rule sets and saved surfaces. Open one to see what it is, whether it checks out and what changed."
-msgstr ""
+msgstr "Les versions de ce qui est créé ici : agents, processus, décisions, mappages, suites, versions publiées, ensembles de règles et surfaces enregistrées. Ouvrez-en une pour voir ce qu'elle contient, si elle est valide et ce qui a changé."
 
 #: lib/ash_enterprise_web/live/artifact_live.ex:177
 #, elixir-autogen, elixir-format
 msgid "These could not be read."
-msgstr ""
+msgstr "Ceux-ci n'ont pas pu être lus."
 
 #: lib/ash_enterprise_web/components/artifact_components.ex:386
 #, elixir-autogen, elixir-format
 msgid "This type keeps no earlier versions. Choose another one to compare with."
-msgstr ""
+msgstr "Ce type ne conserve aucune version antérieure. Choisissez-en un autre pour comparer."
 
 #: lib/ash_enterprise/artifacts/differs/suite.ex:25
 #, elixir-autogen, elixir-format
 msgid "Thresholds"
-msgstr ""
+msgstr "Seuils"
 
 #: lib/ash_enterprise/artifacts/differs/agent_version.ex:26
 #: lib/ash_enterprise/artifacts/differs/release_manifest.ex:44
 #, elixir-autogen, elixir-format
 msgid "Tools"
-msgstr ""
+msgstr "Outils"
 
 #: lib/ash_enterprise_web/components/artifact_components.ex:65
 #, elixir-autogen, elixir-format
 msgid "Unnamed"
-msgstr ""
+msgstr "Sans nom"
 
 #: lib/ash_enterprise_web/components/artifact_components.ex:289
 #, elixir-autogen, elixir-format
 msgid "Validation"
-msgstr ""
+msgstr "Validation"
 
 #: lib/ash_enterprise_web/live/artifact_live.ex:198
 #, elixir-autogen, elixir-format
 msgid "Version"
-msgstr ""
+msgstr "Version"
 
 #: lib/ash_enterprise_web/components/artifact_components.ex:460
 #, elixir-autogen, elixir-format
 msgid "could not be read"
-msgstr ""
+msgstr "n'a pas pu être lu"
 
 #: lib/ash_enterprise_web/components/artifact_components.ex:463
 #, elixir-autogen, elixir-format
 msgid "no"
-msgstr ""
+msgstr "non"
 
 #: lib/ash_enterprise_web/components/artifact_components.ex:461
 #, elixir-autogen, elixir-format
 msgid "none"
-msgstr ""
+msgstr "aucun"
 
 #: lib/ash_enterprise_web/components/artifact_components.ex:90
 #, elixir-autogen, elixir-format
 msgid "none recorded"
-msgstr ""
+msgstr "aucun enregistré"
 
 #: lib/ash_enterprise/artifacts.ex:458
 #, elixir-autogen, elixir-format
 msgid "the system"
-msgstr ""
+msgstr "le système"
 
 #: lib/ash_enterprise_web/components/artifact_components.ex:273
 #, elixir-autogen, elixir-format
 msgid "to"
-msgstr ""
+msgstr "à"
 
 #: lib/ash_enterprise_web/components/artifact_components.ex:68
 #: lib/ash_enterprise_web/live/artifact_live.ex:86
 #: lib/ash_enterprise_web/live/artifact_live.ex:261
 #, elixir-autogen, elixir-format
 msgid "version %{version}"
-msgstr ""
+msgstr "version %{version}"
 
 #: lib/ash_enterprise_web/components/artifact_components.ex:462
 #, elixir-autogen, elixir-format
 msgid "yes"
-msgstr ""
+msgstr "oui"

@@ -9,5 +9,17 @@
   "Sign in": "Se connecter",
   "Sign out": "Se déconnecter",
   "tenant": "organisation",
-  "lineage": "lignage"
+  "lineage": "lignage",
+  "credential": "titre",
+  "fault panel": "panneau de pannes",
+  "registry": "registre",
+  "shadow": "fantôme",
+  "rerun": "relance",
+  "request": "demande",
+  "digest": "empreinte",
+  "review": "revue",
+  "grant": "droit",
+  "status": "statut",
+  "beat": "étape",
+  "ledger": "grand livre"
 }

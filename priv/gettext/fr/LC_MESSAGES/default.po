@@ -1436,84 +1436,84 @@ msgstr ""
 #: lib/ash_enterprise/surfaces.ex:709
 #, elixir-autogen, elixir-format
 msgid "Artifacts"
-msgstr ""
+msgstr "Artefacts"
 
 #: lib/ash_enterprise/surfaces.ex:711
 #, elixir-autogen, elixir-format
 msgid "Every version of what is authored here, what it references, whether it checks out and what changed."
-msgstr ""
+msgstr "Chaque version de ce qui est créé ici, ce qu'elle référence, si elle est valide et ce qui a changé."
 
 #: lib/ash_enterprise/surfaces.ex:580
 #, elixir-autogen, elixir-format
 msgid "Reviews and other process tasks you can see that have waited more than two days."
-msgstr ""
+msgstr "Revues et autres tâches de processus visibles qui attendent depuis plus de deux jours."
 
 #: lib/ash_enterprise/surfaces.ex:578
 #, elixir-autogen, elixir-format
 msgid "Stalled reviews"
-msgstr ""
+msgstr "Revues bloquées"
 
 #: lib/ash_enterprise/surfaces.ex:499
 #, elixir-autogen, elixir-format
 msgid "Model profiles"
-msgstr ""
+msgstr "Profils de modèles"
 
 #: lib/ash_enterprise/surfaces.ex:501
 #, elixir-autogen, elixir-format
 msgid "Which model each profile runs, what it may be used for, whether it is known to answer, and what it is restricted from."
-msgstr ""
+msgstr "Quel modèle chaque profil exécute, à quoi il peut servir, s'il est connu pour répondre et ce qui lui est interdit."
 
 #: lib/ash_enterprise_web/live/pinned_app_live.ex:292
 #, elixir-autogen, elixir-format
 msgid "Data freshness unknown"
-msgstr ""
+msgstr "Fraîcheur des données inconnue"
 
 #: lib/ash_enterprise_web/live/pinned_app_live.ex:283
 #, elixir-autogen, elixir-format
 msgid "Data read at %{time}"
-msgstr ""
+msgstr "Données lues à %{time}"
 
 #: lib/ash_enterprise_web/live/pinned_app_live.ex:287
 #, elixir-autogen, elixir-format
 msgid "Data read at %{time}, over %{minutes} minutes ago"
-msgstr ""
+msgstr "Données lues à %{time}, il y a plus de %{minutes} minutes"
 
 #: lib/ash_enterprise_web/live/pinned_app_live.ex:271
 #, elixir-autogen, elixir-format, fuzzy
 msgid "Definition invalid"
-msgstr ""
+msgstr "Définition invalide"
 
 #: lib/ash_enterprise_web/live/pinned_app_live.ex:272
 #, elixir-autogen, elixir-format
 msgid "Definition not checked yet"
-msgstr ""
+msgstr "Définition non encore vérifiée"
 
 #: lib/ash_enterprise_web/live/pinned_app_live.ex:270
 #, elixir-autogen, elixir-format, fuzzy
 msgid "Definition valid"
-msgstr ""
+msgstr "Définition valide"
 
 #: lib/ash_enterprise_web/live/pinned_app_live.ex:220
 #, elixir-autogen, elixir-format
 msgid "Read again"
-msgstr ""
+msgstr "Relire"
 
 #: lib/ash_enterprise/surfaces.ex:98
 #, elixir-autogen, elixir-format
 msgid "Agent quality"
-msgstr ""
+msgstr "Qualité de l'agent"
 
 #: lib/ash_enterprise/surfaces.ex:912
 #, elixir-autogen, elixir-format
 msgid "Compare candidates"
-msgstr ""
+msgstr "Comparer les candidats"
 
 #: lib/ash_enterprise/surfaces.ex:914
 #, elixir-autogen, elixir-format
 msgid "Evaluation runs side by side, case by case, with safety in a lane of its own."
-msgstr ""
+msgstr "Les exécutions d'évaluation côte à côte, cas par cas, avec la sécurité dans sa propre voie."
 
 #: lib/ash_enterprise/surfaces.ex:101
 #, elixir-autogen, elixir-format
 msgid "How agent versions did on the same evaluation cases, with safety kept apart from quality."
-msgstr ""
+msgstr "Résultats des versions d'agent sur les mêmes cas d'évaluation, avec la sécurité séparée de la qualité."
