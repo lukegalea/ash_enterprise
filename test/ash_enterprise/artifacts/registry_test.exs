@@ -583,6 +583,29 @@ defmodule AshEnterprise.Artifacts.RegistryTest do
 
       assert Artifacts.previous(entry(:suite), seed.("clinic.lone", 1), admin.actor) == :first
     end
+
+    test "a first rule-set revision labelled other than 1 is first, not hidden" do
+      admin = AssistantFixtures.tenant!()
+
+      seed = fn name, revision ->
+        Ash.Seed.seed!(AshCompliance.Resources.RuleSetRevision, %{
+          organization_id: admin.tenant,
+          name: name,
+          revision: revision,
+          layer: :tenant_supplement,
+          rules_json: ~s({"combining":"deny_overrides","fact_schema":{},"rules":[]}),
+          content_hash: "sha256:synthetic-#{revision}"
+        })
+      end
+
+      rule_set = entry(:rule_set)
+      first = seed.("clinic.labelled", "v1")
+      assert Artifacts.previous(rule_set, first, admin.actor) == :first
+
+      # A later revision has an earlier one, read or hidden: never first.
+      later = seed.("clinic.labelled", "2026.2")
+      refute Artifacts.previous(rule_set, later, admin.actor) == :first
+    end
   end
 
   describe "what is never read as valid" do

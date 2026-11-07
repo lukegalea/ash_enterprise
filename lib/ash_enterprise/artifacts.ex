@@ -298,14 +298,35 @@ defmodule AshEnterprise.Artifacts do
   end
 
   # No predecessor the viewer can read: either there is none, or the viewer is not
-  # allowed one. Only a version numbered 1 is known to be first; any other is a
-  # predecessor the viewer cannot see, never "first".
-  defp first_or_hidden(%Artifact{version: version}, record, _actor)
+  # allowed one. A version numbered 1 is first; one numbered after 1 has a predecessor the
+  # viewer cannot see, never "first". A version labelled freely (a rule set's revision)
+  # says nothing by its label, so whether an earlier row exists at all is asked, as the
+  # system: only that it exists is used, never what it holds.
+  defp first_or_hidden(%Artifact{version: version} = entry, record, actor)
        when not is_nil(version) do
-    if Map.get(record, version) in [1, "1"], do: :first, else: {:unreadable, :from}
+    case Map.get(record, version) do
+      label when label in [1, "1"] -> :first
+      number when is_integer(number) -> {:unreadable, :from}
+      _label -> if earlier?(entry, record, actor), do: {:unreadable, :from}, else: :first
+    end
   end
 
   defp first_or_hidden(_entry, _record, _actor), do: :first
+
+  defp earlier?(%Artifact{resource: resource, scope: scope, lineage: lineage}, record, actor) do
+    tenant = ActorContext.tenant(actor)
+    key = Keyword.fetch!(lineage, :key)
+    order = Keyword.fetch!(lineage, :order)
+    {key_value, order_value} = {Map.fetch!(record, key), Map.fetch!(record, order)}
+
+    resource
+    |> Ash.Query.for_read(:read, %{}, authorize?: false, tenant: tenant)
+    |> scoped(scope, tenant)
+    |> Ash.Query.do_filter(
+      expr(^ref(key) == ^key_value and ^ref(order) < ^order_value and id != ^record.id)
+    )
+    |> Ash.exists?(authorize?: false)
+  end
 
   @doc """
   What changed between two versions of `entry`. `from` is a record, or the result of
