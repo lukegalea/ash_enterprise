@@ -12,8 +12,10 @@ defmodule AshEnterprise.Credentialing.Registry.FakeProvider do
     * `POST /v1/activations` records an activation (201). Every call is a new activation.
     * `GET /v1/activations?subjectReference=` lists a credential's activations (200).
     * `GET /v1/activations/{id}` answers one (200), or 404.
-    * When the registry's table is down every route answers 503 with the error envelope
-      `{"code": "unavailable", "requestId": ...}`.
+    * When the registry's table is down every route refuses the connection
+      (`:econnrefused`), as a stopped registry would. Nothing was sent, so the retry table
+      tries again and then fails as `:transport`, which classifies as transient. A 5xx
+      would instead read as `:ambiguous` on the non-idempotent `activate`.
 
   A credential reference is `"<organization_id>:<credential_id>"`
   (`AshEnterprise.Credentialing.RegistryApi.reference/2`); the fake keys its memory by the
@@ -36,7 +38,7 @@ defmodule AshEnterprise.Credentialing.Registry.FakeProvider do
       conn = fetch_query_params(conn)
       route(conn, conn.method, conn.path_info)
     else
-      json(conn, 503, %{"code" => "unavailable", "requestId" => request_id()})
+      Req.Test.transport_error(conn, :econnrefused)
     end
   end
 
