@@ -11,24 +11,26 @@ defmodule AshEnterprise.Quality.Validations.Cases do
 
   @impl true
   def validate(changeset, _opts, _context) do
-    cases = Ash.Changeset.get_attribute(changeset, :cases) || []
-    ids = Enum.map(cases, & &1[:id])
-
-    problems =
-      (ids -- Enum.uniq(ids))
-      |> Enum.uniq()
-      |> Enum.map(&"case id #{&1} is used twice")
-      |> Kernel.++(
-        for c <- cases,
-            assertion <- c[:assertions] || [],
-            problem <- Assertions.problems(assertion),
-            do: "case #{c[:id]}: #{problem}"
-      )
-      |> Kernel.++(Injection.problems(cases))
-
-    case problems do
+    case problems(Ash.Changeset.get_attribute(changeset, :cases) || []) do
       [] -> :ok
       problems -> {:error, field: :cases, message: Enum.join(problems, "; ")}
     end
+  end
+
+  @doc "What is wrong with `cases`, as messages; `[]` when nothing is."
+  @spec problems([map()]) :: [String.t()]
+  def problems(cases) do
+    ids = Enum.map(cases, & &1[:id])
+
+    (ids -- Enum.uniq(ids))
+    |> Enum.uniq()
+    |> Enum.map(&"case id #{&1} is used twice")
+    |> Kernel.++(
+      for c <- cases,
+          assertion <- c[:assertions] || [],
+          problem <- Assertions.problems(assertion),
+          do: "case #{c[:id]}: #{problem}"
+    )
+    |> Kernel.++(Injection.problems(cases))
   end
 end

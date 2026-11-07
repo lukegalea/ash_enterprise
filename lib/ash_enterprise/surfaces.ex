@@ -651,6 +651,25 @@ defmodule AshEnterprise.Surfaces do
       acp: %{command: "triggers"}
     },
 
+    # The artifact registry's pages (AshEnterprise.Artifacts): every versioned thing,
+    # its header, validation and semantic diff. Removable with AshEnterpriseWeb.ArtifactLive,
+    # its live_session and this entry.
+    %Surface{
+      key: :artifacts,
+      audience: [:builder, :reviewer],
+      label: dgettext_noop("default", "Artifacts"),
+      blurb:
+        dgettext_noop(
+          "default",
+          "Every version of what is authored here, what it references, whether it checks out and what changed."
+        ),
+      group: :processes,
+      order: 40,
+      icon: "hero-document-duplicate",
+      path: "/app/artifacts",
+      live: AshEnterpriseWeb.ArtifactLive
+    },
+
     # --- Compliance (ADR 0035) -----------------------------------------------
     %Surface{
       key: :findings,
