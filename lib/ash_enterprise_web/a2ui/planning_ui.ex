@@ -18,6 +18,12 @@ defmodule AshEnterpriseWeb.A2ui.PlanningUI do
   around it. Reads are the self-service reads, bounded to the signed-in
   person's own runs and candidates in their tenant.
 
+  Known Atlas gap: the per-CheckResult breakdown (checker verdict vs
+  independent-validator verdict, with outputs) has no detail component — only
+  the aggregate `check_status` renders on the candidate. The breakdown needs a
+  nested detail surface on the CheckResult resource; until that part exists in
+  the Atlas kit, the aggregate status is the review surface.
+
   Served at `/app/planning`.
   """
 
