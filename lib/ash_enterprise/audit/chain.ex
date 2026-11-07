@@ -51,6 +51,43 @@ defmodule AshEnterprise.Audit.Chain do
           findings: [finding()]
         }
 
+  # One query per branch, not `IS NOT DISTINCT FROM`, so each can use the tenant's chain
+  # index.
+  @verify_sql """
+  WITH chained AS (
+    SELECT
+      sequence,
+      id,
+      occurred_at,
+      hash,
+      previous_hash,
+      lag(hash) OVER (ORDER BY sequence) AS actual_previous,
+      encode(sha256(convert_to(concat_ws('|',
+        coalesce(lag(hash) OVER (ORDER BY sequence), ''),
+        sequence::text,
+        id::text,
+        record_id::text,
+        version::text,
+        occurred_at::text,
+        resource,
+        action,
+        action_type,
+        coalesce(user_id::text, ''),
+        coalesce(organization_id::text, ''),
+        data::text,
+        changed_attributes::text,
+        metadata::text
+      ), 'UTF8')), 'hex') AS recomputed
+    FROM audit_events
+    WHERE :tenant_filter
+  )
+  SELECT sequence, id, occurred_at, hash, previous_hash, actual_previous, recomputed
+  FROM chained
+  ORDER BY sequence
+  """
+  @verify_tenant String.replace(@verify_sql, ":tenant_filter", "organization_id = $1::uuid")
+  @verify_untenanted String.replace(@verify_sql, ":tenant_filter", "organization_id IS NULL")
+
   @doc """
   Verifies one tenant's chain. `nil` verifies the chain of events with no tenant.
 
@@ -59,41 +96,10 @@ defmodule AshEnterprise.Audit.Chain do
   @spec verify(Ash.UUID.t() | nil) :: result()
   def verify(organization_id) do
     %{rows: rows} =
-      Repo.query!(
-        """
-        WITH chained AS (
-          SELECT
-            sequence,
-            id,
-            occurred_at,
-            hash,
-            previous_hash,
-            lag(hash) OVER (ORDER BY sequence) AS actual_previous,
-            encode(sha256(convert_to(concat_ws('|',
-              coalesce(lag(hash) OVER (ORDER BY sequence), ''),
-              sequence::text,
-              id::text,
-              record_id::text,
-              version::text,
-              occurred_at::text,
-              resource,
-              action,
-              action_type,
-              coalesce(user_id::text, ''),
-              coalesce(organization_id::text, ''),
-              data::text,
-              changed_attributes::text,
-              metadata::text
-            ), 'UTF8')), 'hex') AS recomputed
-          FROM audit_events
-          WHERE organization_id IS NOT DISTINCT FROM $1::uuid
-        )
-        SELECT sequence, id, occurred_at, hash, previous_hash, actual_previous, recomputed
-        FROM chained
-        ORDER BY sequence
-        """,
-        [organization_id && Ecto.UUID.dump!(organization_id)]
-      )
+      case organization_id do
+        nil -> Repo.query!(@verify_untenanted, [])
+        id -> Repo.query!(@verify_tenant, [Ecto.UUID.dump!(id)])
+      end
 
     {unchained_prefix, chained} = split_prefix(rows)
 

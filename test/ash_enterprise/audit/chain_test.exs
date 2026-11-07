@@ -121,6 +121,10 @@ defmodule AshEnterprise.Audit.ChainTest do
                  "SELECT previous_hash, organization_id FROM audit_events WHERE id = $1",
                  [second]
                ).rows
+
+      # And it is verified on its own: only the untenanted rows, both of them.
+      assert %{organization_id: nil, findings: [], checked: checked} = Chain.verify(nil)
+      assert checked >= 2
     end
 
     # The trigger runs on every audited write, so a lookup that scans the table makes
