@@ -33,7 +33,7 @@ The concrete exit: which files change, and how much work it is.
 | ADR | Title | Status |
 |---|---|---|
 | [0001](0001-cdm-as-frozen-hybrid-corpus.md) | The CDM is a frozen, hybrid, vendored corpus | accepted |
-| [0002](0002-ash-events-over-paper-trail.md) | AshEvents as the default audit layer, AshPaperTrail opt-in | accepted |
+| [0002](0002-ash-events-over-paper-trail.md) | AshEvents as the audit layer over AshPaperTrail | accepted |
 | [0003](0003-attribute-multitenancy.md) | Attribute-based multitenancy plus business-unit hierarchy | accepted |
 | [0004](0004-reactor-over-oban-pro.md) | Reactor for transactional orchestration, Oban for durability | accepted |
 | [0005](0005-admin-and-a2ui-division-of-labour.md) | ash_admin and ash_a2ui: division of labour | accepted |

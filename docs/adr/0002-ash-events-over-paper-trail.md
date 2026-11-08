@@ -1,4 +1,4 @@
-# ADR 0002 — AshEvents as the default audit layer, AshPaperTrail opt-in
+# ADR 0002 — AshEvents as the audit layer over AshPaperTrail
 
 - **Status:** accepted
 - **Date:** 2026-08-13
@@ -30,7 +30,8 @@ where `transactionid` carries *the same GUID for every audit row written in one 
 
 **`AshEvents` is the default**, applied by `AshEnterprise.Platform.Resource` to every resource.
 
-**`AshPaperTrail` is opt-in per resource**, via `use AshEnterprise.Platform.Resource, paper_trail: true`.
+**`AshPaperTrail` was kept as an opt-in escape hatch** (`paper_trail: true`) when this was written. No resource used it,
+so the option and the `ash_paper_trail` dependency were removed on 2026-11-08. Adding it back is the reversal below.
 
 Three reasons, in order of weight:
 
@@ -49,7 +50,7 @@ Three reasons, in order of weight:
 
 **Running both by default is rejected** because it doubles the write volume of every action in the system to serve a
 per-record-history use case that most resources never have. Where that use case is real — a contract, a price list, a
-regulatory filing — `paper_trail: true` is one word on that resource.
+regulatory filing — that case would need the dependency and the option restored for that resource.
 
 `ash_events` is **tier 2** ([thesis 6](../manifesto/06-reversibility.md)): 0.7.0 and less widely deployed than
 `ash_paper_trail`. That is a real risk and is accepted knowingly, mitigated by the reversal path below.

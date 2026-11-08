@@ -100,8 +100,8 @@ query and per-resource tables answer with a union across every table in the syst
 that ties every write in a single transaction together, which is what makes an audit trail reconstructible rather than
 merely present.
 
-`AshPaperTrail` is available per-resource (`paper_trail: true`) for the entities that genuinely need queryable version
-history. **Running both by default would double every write for a benefit most resources never use**, so we do not.
+`AshPaperTrail` was removed unused (ADR 0002). **Running both would double every write for a benefit most resources
+never use**, so we do not.
 
 ## Telemetry: the same argument, one level down
 
