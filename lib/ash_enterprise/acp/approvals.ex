@@ -65,6 +65,9 @@ defmodule AshEnterprise.Acp.Approvals do
   # How many of a person's waiting requests for one target `key/4` compares.
   @waiting_scan 20
 
+  # Every key `key/4` makes starts with it: an invocation asked for over ACP says so.
+  @key_prefix "acp:"
+
   @impl true
   def request(session, %{click: _surface} = _action_spec, _inputs),
     do: {:pending, {:confirmation, session.session_id}}
@@ -155,6 +158,14 @@ defmodule AshEnterprise.Acp.Approvals do
         {:ok, %{id: id}} when id == row.id -> row.invocation_key
         _different_request -> nil
       end
-    end) || "acp:" <> Ash.UUIDv7.generate()
+    end) || @key_prefix <> Ash.UUIDv7.generate()
   end
+
+  @doc """
+  What the key of every request first asked for over ACP starts with (`key/4`): the
+  mark by which an invocation says it came from an ACP client. A request asked for
+  again over ACP that already waited, made on the web, keeps the key it was made with.
+  """
+  @spec key_prefix() :: String.t()
+  def key_prefix, do: @key_prefix
 end

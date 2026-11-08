@@ -82,7 +82,7 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
   # The licence reader's own budget (`AshEnterprise.Credentialing.LicenceReader`).
   @budget 6_000
   # What the index reads its records from (`TourIndex.records/1`).
-  @read [:activations, :readings, :cases, :release]
+  @read [:activations, :acp_requests, :readings, :cases, :release]
 
   @impl true
   def mount(_params, _session, socket) do
@@ -93,6 +93,7 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
        locale: "en",
        credentials: [],
        activations: [],
+       acp_requests: [],
        readings: [],
        cases: [],
        release: ReleaseTour.empty(),
@@ -409,6 +410,7 @@ defmodule AshEnterpriseWeb.ShowcaseLive.Credentialing do
       credentials: credentials,
       numbers: Map.new(credentials, &{&1.id, &1.number}),
       activations: Tour.activations(actor),
+      acp_requests: Tour.acp_requests(actor),
       readings: Tour.readings(actor),
       cases: cases,
       release: ReleaseTour.read(actor, cases),

@@ -6,7 +6,8 @@ defmodule AshEnterpriseWeb.ShowcaseLive.TourIndex do
     * `records/1` finds, from what the tour has already read, the record each beat shows:
       the newest request, run or case that is that beat's outcome, as an explorer root
       (`invocation:<id>`, `run:<id>`, `process_instance:<id>`). A beat with nothing to
-      show has none, and says so: it never links to an empty page.
+      show has none, and says so: it never links to an empty page, nor to a record
+      another beat is about.
     * `index/1` is the F1–F12 table at the top of the tour: each failure, the beat that
       shows it, and its record in the explorer.
     * `explore/1` is a beat's own "open in explorer" link.
@@ -17,6 +18,8 @@ defmodule AshEnterpriseWeb.ShowcaseLive.TourIndex do
   """
 
   use AshEnterpriseWeb, :html
+
+  alias AshEnterprise.Showcase.History
 
   @typedoc "An explorer root: `{type, id}`."
   @type root :: {:invocation | :run | :process_instance, String.t()}
@@ -66,7 +69,9 @@ defmodule AshEnterpriseWeb.ShowcaseLive.TourIndex do
     budget = Map.get(data, :budget, 0)
 
     %{
-      1 => first_invocation(activations, fn _row -> true end),
+      # The coordinator's request, waiting for its approval with the digest of what it
+      # will do; a request the history made shows its own failure, not this.
+      1 => first_invocation(activations, &raised?/1),
       2 =>
         first_invocation(activations, &(&1.invocation.status in [:awaiting_approval, :succeeded])),
       3 => first_invocation(activations, &stale?(&1, "subject_changed")),
@@ -90,7 +95,9 @@ defmodule AshEnterpriseWeb.ShowcaseLive.TourIndex do
       12 => first_case(cases, &(&1.deliveries != [])),
       13 => first_case(cases, &(&1.review != nil)),
       14 => first_case(cases, &(&1.timer != nil)),
-      15 => first_invocation(activations, &(&1.invocation.status == :awaiting_approval)),
+      # A request asked for over ACP, the only kind this beat is about; none, until a
+      # client has asked for one.
+      15 => acp_request(Map.get(data, :acp_requests, [])),
       16 => candidate_run(release),
       17 => routed_case(release),
       18 => shadow_run(release),
@@ -104,6 +111,14 @@ defmodule AshEnterpriseWeb.ShowcaseLive.TourIndex do
 
   defp stale?(row, code),
     do: row.invocation.status == :stale and row.invocation.error_code == code
+
+  defp raised?(%{invocation: %{status: :awaiting_approval, invocation_key: key}}),
+    do: not String.starts_with?(key, History.key_prefix())
+
+  defp raised?(_row), do: false
+
+  defp acp_request([%{id: id} | _newer_first]), do: {:invocation, id}
+  defp acp_request([]), do: nil
 
   defp first_invocation(rows, keep?) do
     case Enum.find(rows, keep?) do

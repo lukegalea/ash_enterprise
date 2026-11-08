@@ -132,6 +132,24 @@ defmodule AshEnterprise.Showcase.Credentialing do
   end
 
   @doc """
+  The requests `actor` may read that were asked for over ACP, newest first: invocations
+  whose key `AshEnterprise.Acp.Approvals.key/4` made, whatever their target (a committee
+  member's ACP client asks to approve a task, a coordinator's to activate a credential).
+  """
+  @spec acp_requests(term()) :: [Ash.Resource.record()]
+  def acp_requests(actor) do
+    prefix = AshEnterprise.Acp.Approvals.key_prefix()
+
+    query =
+      Execution.Invocation
+      |> Ash.Query.filter(string_starts_with(invocation_key, ^prefix))
+      |> Ash.Query.sort(created_on: :desc)
+      |> Ash.Query.limit(20)
+
+    Execution.list_invocations!(actor: actor, tenant: ActorContext.tenant(actor), query: query)
+  end
+
+  @doc """
   Whether `row`'s approval binds exactly this request: its `approval_digest` is the
   digest of its `authorization_details` (RFC 9396), and those name the row's own target,
   target digest and argument digest (ADR 0055, "Approval binding"). `nil` for a row that

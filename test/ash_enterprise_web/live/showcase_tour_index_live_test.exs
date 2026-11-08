@@ -22,11 +22,18 @@ defmodule AshEnterpriseWeb.ShowcaseTourIndexLiveTest do
   import Phoenix.LiveViewTest
   import AshEnterprise.Test.DailyFixtures, only: [tenant!: 0]
 
+  require Ash.Query
+
   alias AshBpmn.Runtime.Oban.TestJobs
+  alias AshEnterprise.Acp.{Approvals, SessionStore}
+  alias AshEnterprise.Bpmn.HumanTask
   alias AshEnterprise.Credentialing.DemoData
+  alias AshEnterprise.Execution
+  alias AshEnterprise.Execution.Approval
   alias AshEnterprise.Faults
-  alias AshEnterprise.Platform.DemoTenant
+  alias AshEnterprise.Platform.{DemoTenant, SystemActor}
   alias AshEnterprise.Quality
+  alias AshEnterprise.Security.ActorContext
   alias AshEnterprise.Showcase
   alias AshEnterprise.Showcase.History
   alias AshEnterpriseWeb.ShowcaseLive.TourIndex
@@ -61,6 +68,12 @@ defmodule AshEnterpriseWeb.ShowcaseTourIndexLiveTest do
       |> LazyHTML.attribute("href")
 
     href
+  end
+
+  # The invocation an explorer link opens.
+  defp root!("/app/explorer?" <> query) do
+    %{"root" => "invocation:" <> id} = URI.decode_query(query)
+    id
   end
 
   # An explorer link opens a trace with something on it: never an empty page.
@@ -240,6 +253,46 @@ defmodule AshEnterpriseWeb.ShowcaseTourIndexLiveTest do
       assert has_element?(recovery, "#settle-form")
     end
 
+    test "beat 1 opens the request that waits, and beat 15 only a request asked for over ACP",
+         %{clinic: clinic, demo: demo} do
+      [member | _] = clinic.committee
+      {:ok, view, _html} = live(sign_in(clinic.coordinator), @tour)
+
+      # 1: the coordinator's request, waiting for the committee; not one the history made.
+      waiting = root!(href(view, "#explore-1"))
+      row = Execution.get_invocation!(waiting, actor: SystemActor.oban(), tenant: demo.id)
+      assert row.status == :awaiting_approval
+      assert row.invocation_key == DemoData.request_key("DEMO-SLT-0004")
+
+      # 15: nothing has been asked for over ACP, so the beat has no record to open.
+      assert has_element?(view, "#beat-acp #explore-15-none")
+      {:ok, view, _html} = live(sign_in(member), @tour)
+      assert has_element?(view, "#beat-acp #explore-15-none")
+
+      # A committee member's ACP client asks to approve the waiting request.
+      actor = ActorContext.attach(member, ActorContext.build(member, tenant: demo.id))
+
+      task =
+        HumanTask
+        |> Ash.Query.filter(subject_id == ^row.id and node_id == ^Approval.key())
+        |> Ash.read_one!(authorize?: false, tenant: demo.id)
+
+      target = "AshEnterprise.Bpmn.HumanTask.approve"
+      args = %{"record_id" => task.id}
+      {:ok, session} = SessionStore.create(%{"actor" => actor})
+
+      {:pending, ref} =
+        Approvals.request(
+          session,
+          %{resource: Execution.Invocation, action: :confirm, title: "Approve", tenant: demo.id},
+          %{target: target, args: args, key: Approvals.key(actor, target, args, demo.id)}
+        )
+
+      {:ok, view, _html} = live(sign_in(member), @tour)
+      assert root!(href(view, "#beat-acp #explore-15")) == ref
+      assert_trace!(sign_in(member), href(view, "#explore-15"))
+    end
+
     test "beat 18 opens the shadow run", %{clinic: clinic} do
       conn = sign_in(clinic.director)
       {:ok, view, _html} = live(conn, @tour)
@@ -317,9 +370,37 @@ defmodule AshEnterpriseWeb.ShowcaseTourIndexLiveTest do
             release: %{candidate: %{run: nil}, shadow: nil, routing: nil}
         })
 
-      # A request in an unknown state is the record of no failure (it is still a request).
-      for beat <- [2, 3, 4, 5, 15, 16, 17, 18, 19], do: assert(records[beat] == nil)
-      assert records[1] == {:invocation, "i"}
+      # A request in an unknown state is the record of no beat: beat 1 shows one that waits.
+      for beat <- [1, 2, 3, 4, 5, 15, 16, 17, 18, 19], do: assert(records[beat] == nil)
+    end
+
+    test "beat 1 is a request that waits, never one the history made; beat 15 one asked over ACP" do
+      waiting = fn id, key ->
+        %{
+          invocation: %{
+            id: id,
+            status: :awaiting_approval,
+            invocation_key: key,
+            error_code: nil,
+            reconciled_via: nil
+          }
+        }
+      end
+
+      records =
+        TourIndex.records(%{
+          @empty
+          | activations: [
+              waiting.("history", History.key("f4")),
+              waiting.("raised", "clinic-demo:activate:DEMO-SLT-0004")
+            ]
+        })
+
+      assert records[1] == {:invocation, "raised"}
+      assert records[15] == nil
+
+      records = TourIndex.records(Map.put(@empty, :acp_requests, [%{id: "acp"}, %{id: "older"}]))
+      assert records[15] == {:invocation, "acp"}
     end
 
     test "a stale request is the record of the failure its reason names, and no other" do
