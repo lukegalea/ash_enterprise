@@ -80,6 +80,21 @@ layer (`AshEvidence.EvalSet`, `AshEvidence.EvalItem`,
   vector).
 - Distribution values are DECIMAL STRINGS (`"0.97"`, §4.3) — the DMN bridge
   reads decimals; probabilities never cross a record boundary as floats.
+- **Tenants.** `DocumentVersion` is multitenant by attribute with
+  `global? true`: once you tenant, pass the tenant on every version read and
+  write, because an untenanted read sees every tenant. Content addressing is
+  per tenant (identical bytes in two tenants are two rows). Runs, atoms,
+  representations, candidate sets, evaluations and eval items carry no tenant
+  column but are scoped through their version when you pass `tenant:` (writes
+  check the version is in that tenant; reads filter by it; `retrieve/3` takes
+  `tenant:`). Without `tenant:` nothing is scoped. Packets and eval sets are
+  not scoped themselves. Host repos also need `"ash-functions"` in
+  `installed_extensions/0`.
+- **Erase a document with `AshEvidence.Domain.destroy_document_version/1-2`**
+  (pass `tenant:`). The database cascade removes its runs, atoms,
+  representations, candidate sets, evaluations, packets and eval items; do not
+  delete atoms and runs by hand first. Erase host documents only, never corpus
+  versions: eval items that cite a version go with it.
 - Erasure: the assertion survives (envelope-class, no FKs into the evidence
   tables); packet/evaluation/candidate-set references may dangle — read them
   through `AshEvidence.explanation/1`, which degrades honestly
@@ -91,6 +106,18 @@ layer (`AshEvidence.EvalSet`, `AshEvidence.EvalItem`,
   Eval-set membership lives on the eval set, never on `AddressedAtom`/
   `ParseRun`. The shipped corpus is synthetic and CC0-dedicated — real
   labelled material stays in-region and private (DEC-MOAT).
+- To write versions in your own transaction, set
+  `config :ash_evidence, :repo, MyApp.Repo`. Your repo must provide the
+  `vector` extension, Postgrex `types:` that include
+  `AshPostgres.Extensions.Vector`, PostgreSQL 18, and a `default_prefix/0`
+  naming the schema the evidence migrations ran into. Keep `AshEvidence.Repo`
+  configured (and in `ecto_repos`) against the same database so the migrations
+  run; it need not start at runtime. Never add `AshEvidence.Domain` to your
+  own app's `ash_domains`: your codegen would generate the evidence tables into
+  your migrations.
 - Point `AshEvidence.Repo` at the host's own database (residency is the
   host's concern); PostgreSQL 18 is the declared floor, with the `vector`
-  extension installed.
+  extension installed. A host with its own schema sets `default_prefix:` and
+  `migration_default_prefix:` (same repo config) to it and puts it first on
+  the repo's `search_path`; a migration resolves a foreign key with
+  `prefix()`, never a literal `"public"`.

@@ -12,6 +12,11 @@ defmodule AshEnterprise.Canonical.Commitments.ModelExtractor do
   and everything after an `On … wrote:` line) are cut first, so the model
   reads only what the sender said, and at most #{6_000} characters of it.
 
+  The message is the writer's own text, so it meets the paste guard
+  (`AshEnterprise.AI.Models.call/6`): a message holding a key, token or password
+  is refused with `{:error, %AshEnterprise.AI.SecretShape.Refused{}}` and never
+  sent.
+
   The answer is checked, not trusted: an action is kept only if it is a
   non-empty string (clipped to 200 characters), the quote is clipped to 500,
   and a due date only when it parses as an ISO date.
@@ -69,7 +74,7 @@ defmodule AshEnterprise.Canonical.Commitments.ModelExtractor do
       prompt = prompt(text, input[:sent_at], input[:system])
 
       target
-      |> Models.call(@caller, :generate_object, [], fn opts ->
+      |> Models.call(@caller, :generate_object, prompt, [], fn opts ->
         downstream().generate_object(target.spec, prompt, @schema, structured(opts))
       end)
       |> decode()

@@ -3,9 +3,13 @@ defmodule AshEnterprise.AI.Models.GuardedReqLLM do
   The ReqLLM module AshAi calls through: `req_llm: #{inspect(__MODULE__)}` on
   a `prompt/2` action or an `AshAi.ToolLoop` run.
 
-  Each function classifies the model it is handed (`AshEnterprise.AI.Models.resolve/1`),
-  applies the ADR 0042 flow guard, adds the in-zone profile's transport options
-  (host, key, reasoning effort), calls the real ReqLLM and records the call.
+  Each function first applies the paste guard (`AshEnterprise.AI.Models.paste_guard/2`): a
+  request whose person-written messages hold a secret-shaped string is refused as
+  `{:error, %AshEnterprise.AI.SecretShape.Refused{}}`, with no call record and no
+  transport call. It then classifies the model it is handed
+  (`AshEnterprise.AI.Models.resolve/1`), applies the ADR 0042 flow guard, adds the
+  in-zone profile's transport options (host, key, reasoning effort), calls the real
+  ReqLLM and records the call.
 
   The caller's name rides in the options as `caller: "…"` and is removed
   before ReqLLM sees them (ReqLLM rejects options it does not know). A call
@@ -26,7 +30,7 @@ defmodule AshEnterprise.AI.Models.GuardedReqLLM do
   def generate_object(model, context, schema, opts \\ []) do
     {caller, downstream, opts} = split(opts)
 
-    Models.call(Models.resolve(model), caller, :generate_object, opts, fn call_opts ->
+    Models.call(Models.resolve(model), caller, :generate_object, context, opts, fn call_opts ->
       downstream.generate_object(model, context, schema, call_opts)
     end)
   end
@@ -35,7 +39,7 @@ defmodule AshEnterprise.AI.Models.GuardedReqLLM do
   def generate_text(model, context, opts \\ []) do
     {caller, downstream, opts} = split(opts)
 
-    Models.call(Models.resolve(model), caller, :generate_text, opts, fn call_opts ->
+    Models.call(Models.resolve(model), caller, :generate_text, context, opts, fn call_opts ->
       downstream.generate_text(model, context, call_opts)
     end)
   end
@@ -48,6 +52,13 @@ defmodule AshEnterprise.AI.Models.GuardedReqLLM do
   """
   def stream_text(model, context, opts \\ []) do
     {caller, downstream, opts} = split(opts)
+
+    with :ok <- Models.paste_guard(context, caller) do
+      open_stream(model, context, caller, downstream, opts)
+    end
+  end
+
+  defp open_stream(model, context, caller, downstream, opts) do
     target = Models.resolve(model)
     :ok = Models.guard!(target, caller, :stream_text)
     started = System.monotonic_time()

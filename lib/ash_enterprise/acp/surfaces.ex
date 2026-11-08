@@ -66,6 +66,7 @@ defmodule AshEnterprise.Acp.Surfaces do
       ([actor: actor, tenant: AshEnterprise.Acp.tenant_of(actor)] ++ l10n(actor))
       |> put_present(:query_state, opts[:query_state])
       |> put_present(:context_state, opts[:context_state])
+      |> put_present(:catalog, opts[:catalog])
 
     AshA2ui.Info.build_surface(ui, opts)
   end

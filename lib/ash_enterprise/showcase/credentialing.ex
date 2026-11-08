@@ -68,6 +68,7 @@ defmodule AshEnterprise.Showcase.Credentialing do
   alias AshEnterprise.Security
   alias AshEnterprise.Security.ActorContext
   alias AshEnterprise.Showcase
+  alias AshEnterprise.Surfaces.Records
 
   @activate "AshEnterprise.Credentialing.Credential.activate_credential"
   @kill_point :credential_registry_accepted
@@ -98,7 +99,9 @@ defmodule AshEnterprise.Showcase.Credentialing do
 
   @doc """
   The activation requests `actor` may read, newest first, each as
-  `%{invocation:, credential_id:, bound?:, task_id:, registry_activations:}`.
+  `%{invocation:, credential_id:, bound?:, task_id:, packet?:, registry_activations:}`.
+  `task_id` is the approval task's address; `packet?` is whether `actor` may open it
+  (`openable_tasks/2`): the tour links only an approval its viewer can open.
   """
   @spec activations(term()) :: [map()]
   def activations(actor) do
@@ -112,6 +115,7 @@ defmodule AshEnterprise.Showcase.Credentialing do
       )
 
     tasks = approval_tasks(rows, tenant)
+    openable = openable_tasks(Map.values(tasks), actor)
 
     Enum.map(rows, fn row ->
       credential_id = credential_id(row)
@@ -121,6 +125,7 @@ defmodule AshEnterprise.Showcase.Credentialing do
         credential_id: credential_id,
         bound?: bound?(row),
         task_id: Map.get(tasks, row.id),
+        packet?: MapSet.member?(openable, Map.get(tasks, row.id)),
         registry_activations: if(credential_id, do: Registry.activations(credential_id), else: 0)
       }
     end)
@@ -150,6 +155,19 @@ defmodule AshEnterprise.Showcase.Credentialing do
       _other ->
         false
     end
+  end
+
+  @doc """
+  The ids among `task_ids` of the approval tasks `actor` may open: each opened as its link
+  opens it (`AshEnterprise.Surfaces.Records.open/3` on the approvals surface), so a link the
+  tour shows never lands on "not found, or not yours".
+  """
+  @spec openable_tasks([String.t()], term()) :: MapSet.t(String.t())
+  def openable_tasks(task_ids, actor) do
+    task_ids
+    |> Enum.uniq()
+    |> Enum.filter(&match?({:ok, _opened}, Records.open(:approvals, &1, actor)))
+    |> MapSet.new()
   end
 
   # The approval task's id per invocation. Read without authorization, as
@@ -190,17 +208,27 @@ defmodule AshEnterprise.Showcase.Credentialing do
 
   @doc """
   `actor` starts the licence reader on the credential `credential_id`: a run about its
-  clinician, so its content is sealed under the clinician's erasure scope.
+  clinician, so its content is sealed under the clinician's erasure scope. `run_key` names
+  the run so that asking again finds it (the history seed's); by default every reading is
+  a run of its own.
   """
-  @spec start_reading(Ash.UUID.t(), term()) :: {:ok, struct()} | {:error, term()}
-  def start_reading(credential_id, actor) do
+  @spec start_reading(Ash.UUID.t(), term(), String.t() | nil) ::
+          {:ok, struct()} | {:error, term()}
+  def start_reading(credential_id, actor, run_key \\ nil) do
     opts = [actor: actor, tenant: ActorContext.tenant(actor)]
 
     with {:ok, credential} <- Credentialing.get_credential(credential_id, opts) do
       Execution.start_agent_run(
         @reader,
         reading_input(credential.number),
-        %{subject_type: inspect(Clinician), subject_id: credential.clinician_id},
+        Map.reject(
+          %{
+            subject_type: inspect(Clinician),
+            subject_id: credential.clinician_id,
+            run_key: run_key
+          },
+          fn {_key, value} -> is_nil(value) end
+        ),
         opts
       )
     end
@@ -366,8 +394,15 @@ defmodule AshEnterprise.Showcase.Credentialing do
   """
   @spec time_out_model_after_lookups() :: :ok | {:error, :fault_controls_off}
   def time_out_model_after_lookups do
-    with :ok <- on(), do: Faults.arm(@timeout_point, :raise, skip: 1)
+    with :ok <- on(), do: arm_model_timeout()
   end
+
+  @doc """
+  What `time_out_model_after_lookups/0` arms, without the demo flag: for the history seed
+  (`AshEnterprise.Showcase.History`), which runs in its own node.
+  """
+  @spec arm_model_timeout() :: :ok
+  def arm_model_timeout, do: Faults.arm(@timeout_point, :raise, skip: 1)
 
   @doc """
   F2, settled by a person: the next activation's answer is lost after the registry
@@ -376,10 +411,19 @@ defmodule AshEnterprise.Showcase.Credentialing do
   """
   @spec lose_registry_answer() :: :ok | {:error, :fault_controls_off}
   def lose_registry_answer do
-    with :ok <- on(),
-         :ok <- Faults.arm(@kill_point, :raise),
-         do: Faults.arm(@lookup_point, :raise)
+    with :ok <- on(), do: arm_lost_answer()
   end
+
+  @doc "What `lose_registry_answer/0` arms, without the demo flag (see `arm_model_timeout/0`)."
+  @spec arm_lost_answer() :: :ok
+  def arm_lost_answer do
+    :ok = Faults.arm(@kill_point, :raise)
+    Faults.arm(@lookup_point, :raise)
+  end
+
+  @doc "The fault points `arm_lost_answer/0` arms."
+  @spec lost_answer_points() :: [atom()]
+  def lost_answer_points, do: [@kill_point, @lookup_point]
 
   @doc "F2: the next activation's worker is killed after the registry accepted it."
   @spec kill_after_registry_accepts() :: :ok | {:error, :fault_controls_off}
@@ -391,10 +435,18 @@ defmodule AshEnterprise.Showcase.Credentialing do
   @spec correct_during_approval(Ash.UUID.t(), Ash.UUID.t()) ::
           {:ok, Credential.t()} | {:error, term()}
   def correct_during_approval(credential_id, tenant) do
+    with :ok <- on(), do: correct_expiry(credential_id, tenant)
+  end
+
+  @doc """
+  The act behind `correct_during_approval/2`, without the demo flag: the seed actor moves
+  the credential's expiry date a day on through `Credential.correct`.
+  """
+  @spec correct_expiry(Ash.UUID.t(), Ash.UUID.t()) :: {:ok, Credential.t()} | {:error, term()}
+  def correct_expiry(credential_id, tenant) do
     opts = [actor: SystemActor.seed(), tenant: tenant]
 
-    with :ok <- on(),
-         {:ok, credential} <- Credentialing.get_credential(credential_id, opts) do
+    with {:ok, credential} <- Credentialing.get_credential(credential_id, opts) do
       expires_on = Date.add(credential.expires_on || Date.utc_today(), 1)
       Credentialing.correct_credential(credential, %{expires_on: expires_on}, opts)
     end
@@ -406,12 +458,17 @@ defmodule AshEnterprise.Showcase.Credentialing do
   """
   @spec revoke_requester_grant(Ash.UUID.t()) :: {:ok, non_neg_integer()} | {:error, term()}
   def revoke_requester_grant(tenant) do
+    with :ok <- on(), do: remove_coordinator_role(tenant)
+  end
+
+  @doc "The act behind `revoke_requester_grant/1`, without the demo flag."
+  @spec remove_coordinator_role(Ash.UUID.t()) :: {:ok, non_neg_integer()} | {:error, term()}
+  def remove_coordinator_role(tenant) do
     opts = [actor: SystemActor.seed(), tenant: tenant]
     email = DemoData.coordinator_email()
     role = DemoData.coordinator_role()
 
-    with :ok <- on(),
-         {:ok, assignments} <-
+    with {:ok, assignments} <-
            Security.UserRole
            |> Ash.Query.filter(user.email == ^email and role.name == ^role)
            |> Ash.read(opts) do
@@ -437,12 +494,18 @@ defmodule AshEnterprise.Showcase.Credentialing do
   @spec restore(Ash.UUID.t()) ::
           {:ok, struct()} | {:error, :fault_controls_off | :not_this_clinic | term()}
   def restore(tenant) do
+    with :ok <- on(), do: restore_coordinator_role(tenant)
+  end
+
+  @doc "The act behind `restore/1`, without the demo flag."
+  @spec restore_coordinator_role(Ash.UUID.t()) ::
+          {:ok, struct()} | {:error, :not_this_clinic | term()}
+  def restore_coordinator_role(tenant) do
     opts = [actor: SystemActor.seed(), tenant: tenant]
     email = DemoData.coordinator_email()
     role_name = DemoData.coordinator_role()
 
-    with :ok <- on(),
-         {:ok, %{} = coordinator} <-
+    with {:ok, %{} = coordinator} <-
            Accounts.User
            |> Ash.Query.filter(email == ^email)
            |> Ash.read_one(authorize?: false),

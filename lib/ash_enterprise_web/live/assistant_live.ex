@@ -248,10 +248,20 @@ defmodule AshEnterpriseWeb.AssistantLive do
   defp ask(%{assigns: %{run: %{}}} = socket, _question), do: socket
 
   defp ask(socket, question) do
-    if may_ask?(socket),
-      do: ask_as_member(socket, question),
-      else:
+    cond do
+      not may_ask?(socket) ->
         assign(socket, :notice, {:error, "The assistant is for active members of this tenant."})
+
+      # Refused before a thread is started (its title is the question) or anything is
+      # stored; the form is cleared so the text is not kept on the page either.
+      Ask.pasted(question) != :ok ->
+        socket
+        |> assign(:form, to_form(%{"question" => ""}, as: :ask))
+        |> assign(:notice, {:error, reason_message(:secret_shaped)})
+
+      true ->
+        ask_as_member(socket, question)
+    end
   end
 
   defp ask_as_member(%{assigns: %{thread: nil}} = socket, question) do
@@ -1641,6 +1651,11 @@ defmodule AshEnterpriseWeb.AssistantLive do
     do:
       "The in-zone model is not configured, so nothing was asked. The assistant never " <>
         "falls back to a hosted model."
+
+  def reason_message("secret_shaped"),
+    do:
+      "That question holds text shaped like a key, token or password, so it was not " <>
+        "kept and nothing was asked. " <> AshEnterprise.AI.SecretShape.advice()
 
   def reason_message("outside_zone"),
     do:

@@ -75,6 +75,22 @@ defmodule AshEnterprise.Credentialing.RoutingTable do
     end
   end
 
+  @doc """
+  Publishes the table's first version into `tenant` when it has none yet, as the demo's
+  setup does; a tenant that already has one keeps what it has, so filling the demo again
+  never moves its table on. `{:published, 1}` or `:unchanged`.
+  """
+  @spec ensure_first!(Ash.UUID.t()) :: {:published, pos_integer()} | :unchanged
+  def ensure_first!(tenant) do
+    if published(tenant) == [], do: publish_next!(tenant), else: :unchanged
+  end
+
+  @doc "The newest version of the table published in `tenant`, or `nil`."
+  @spec latest_version(Ash.UUID.t()) :: pos_integer() | nil
+  def latest_version(tenant) do
+    tenant |> published() |> Enum.map(& &1.version) |> Enum.max(fn -> nil end)
+  end
+
   defp published(tenant) do
     Definition
     |> Ash.Query.filter(key == ^@key and status == :published)

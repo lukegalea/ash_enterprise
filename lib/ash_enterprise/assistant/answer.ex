@@ -13,9 +13,12 @@ defmodule AshEnterprise.Assistant.Answer do
   (`Turn.refs`); anything else the model wrote between double brackets is
   dropped rather than linked, so an invented id never looks like a source.
   A link goes to `/app/r/<surface>/<id>`, which re-authorizes the record as
-  the reader (`AshEnterprise.Surfaces.Records`).
+  the reader (`AshEnterprise.Surfaces.Records`); a run, invocation, process run or
+  task from `trace` or `explain` goes to the explorer rooted there, which reads it
+  again as the reader.
   """
 
+  alias AshEnterprise.Assistant.Lookups.Work
   alias AshEnterprise.Surfaces
 
   @typedoc "One inline piece of a line."
@@ -47,12 +50,18 @@ defmodule AshEnterprise.Assistant.Answer do
 
   def parse(_text, _refs), do: %{blocks: [], sources: []}
 
-  @doc "The deep link for a ref, or nil when it is not a registry record ref."
+  @doc """
+  The deep link for a ref: a registry record ref opens its record, a run, invocation,
+  process run or task the `trace` and `explain` tools returned opens the explorer there
+  (`AshEnterprise.Assistant.Lookups.Work.explorer_path/1`). nil for anything else.
+  """
   @spec path(String.t()) :: String.t() | nil
   def path(ref) do
     case Regex.run(@ref, ref) do
       [_, surface, id] ->
-        if Surfaces.fetch(surface), do: "/app/r/#{surface}/#{String.downcase(id)}"
+        if Surfaces.fetch(surface),
+          do: "/app/r/#{surface}/#{String.downcase(id)}",
+          else: Work.explorer_path(ref)
 
       _ ->
         nil
@@ -126,9 +135,9 @@ defmodule AshEnterprise.Assistant.Answer do
     [surface | _] = String.split(ref, ":", parts: 2)
 
     label =
-      case Surfaces.fetch(surface) do
+      case Surfaces.fetch(surface) || (Work.citable?(ref) && Surfaces.fetch(:explorer)) do
         %{label: label} -> label
-        nil -> surface
+        _none -> surface
       end
 
     %{n: n, ref: ref, label: label, path: path}

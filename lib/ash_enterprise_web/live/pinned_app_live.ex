@@ -5,9 +5,20 @@ defmodule AshEnterpriseWeb.PinnedAppLive do
 
   The stored spec is never trusted: on every load it is resolved again
   against the composer's allowlist (`AshEnterprise.Assistant.Composer.reload/2`,
-  which runs every verifier), and the rows are read as the person. A spec that
+  which runs every verifier and `Composer.approved/1`), and the rows are read
+  as the person, with the grants they hold now. A background refresh rebuilds
+  the person's actor context first, so a grant revoked while the page is open
+  hides its rows at the next refresh, not only at the next visit. A spec that
   no longer resolves shows its reasons and an Unpin button, not a stale table.
   Somebody else's id is "not found": pins are owner-only.
+
+  ## Two states, shown apart
+
+  The header says whether the definition is valid and how fresh its rows
+  are, as two badges (`AshEnterprise.Surfaces.SavedStatus`): a valid
+  definition can show old rows, and an invalid one shows none, whose
+  freshness is unknown rather than "fresh". Freshness is judged again every
+  half minute, and Read again re-reads the rows as the person.
 
   Hosted through `AshEnterpriseWeb.A2ui.Host` like the helper's composed
   surfaces: client actions go to the surface held here, never one rebuilt from
@@ -17,9 +28,14 @@ defmodule AshEnterpriseWeb.PinnedAppLive do
   use AshEnterpriseWeb, :live_view
 
   alias AshEnterprise.Assistant.{Composer, PinnedApp}
+  alias AshEnterprise.Platform.LocalTime
   alias AshEnterprise.Security.ActorContext
+  alias AshEnterprise.Surfaces.SavedStatus
   alias AshEnterpriseWeb.A2ui.Host
   alias AshEnterpriseWeb.Layouts
+  alias AshEnterpriseWeb.LiveUserAuth
+
+  @tick_ms 30_000
 
   @impl true
   def mount(_params, _session, socket) do
@@ -28,6 +44,9 @@ defmodule AshEnterpriseWeb.PinnedAppLive do
        app: nil,
        presentation: nil,
        refused: nil,
+       validity: :unknown,
+       read_at: nil,
+       now: DateTime.utc_now(),
        refresh_scheduled?: false,
        page_title: "My app"
      )}
@@ -57,11 +76,24 @@ defmodule AshEnterpriseWeb.PinnedAppLive do
     {socket, presentation} =
       Host.present(socket, Host.dynamic(surface, app.title), actor_opts(socket))
 
-    {:noreply, assign(socket, app: app, page_title: app.title, presentation: presentation)}
+    Process.send_after(self(), :freshness_tick, @tick_ms)
+
+    {:noreply,
+     socket
+     |> assign(app: app, page_title: app.title, presentation: presentation)
+     |> assign(validity: SavedStatus.validity({:ok, surface}))
+     |> read_now()}
   end
 
-  def handle_async(:app, {:ok, {:ok, app, {:error, reasons}}}, socket),
-    do: {:noreply, assign(socket, app: app, page_title: app.title, refused: reasons)}
+  def handle_async(:app, {:ok, {:ok, app, {:error, reasons} = refused}}, socket) do
+    {:noreply,
+     assign(socket,
+       app: app,
+       page_title: app.title,
+       refused: reasons,
+       validity: SavedStatus.validity(refused)
+     )}
+  end
 
   def handle_async(:app, _not_found, socket) do
     {:noreply,
@@ -87,6 +119,15 @@ defmodule AshEnterpriseWeb.PinnedAppLive do
 
   def handle_event("unpin", _params, socket), do: {:noreply, socket}
 
+  # Reads the rows again as the person (the actor context was rebuilt before
+  # this event, so with the grants they hold now); nothing shown, nothing read.
+  def handle_event("reread", _params, %{assigns: %{presentation: %{} = presentation}} = socket) do
+    {socket, presentation} = Host.refresh(socket, presentation, actor_opts(socket))
+    {:noreply, socket |> assign(:presentation, presentation) |> read_now()}
+  end
+
+  def handle_event("reread", _params, socket), do: {:noreply, socket}
+
   # Routed to the surface held here, through the handler (authorized as the
   # person); with nothing shown there is nothing an envelope can refer to.
   def handle_event(
@@ -105,13 +146,23 @@ defmodule AshEnterpriseWeb.PinnedAppLive do
   def handle_event("a2ui:open_surface", args, socket), do: Host.open_surface(args, socket)
 
   @impl true
+  # A refresh is not an event, so the context is rebuilt here: rows a revoked
+  # grant showed are not read again under it.
   def handle_info({:ash_a2ui_host, :refresh}, %{assigns: %{presentation: %{} = p}} = socket) do
+    socket = LiveUserAuth.refresh_actor_context(socket)
     {socket, presentation} = Host.refresh(socket, p, actor_opts(socket))
-    {:noreply, assign(socket, presentation: presentation, refresh_scheduled?: false)}
+
+    {:noreply,
+     socket |> assign(presentation: presentation, refresh_scheduled?: false) |> read_now()}
   end
 
   def handle_info({:ash_a2ui_host, :refresh}, socket),
     do: {:noreply, assign(socket, :refresh_scheduled?, false)}
+
+  def handle_info(:freshness_tick, socket) do
+    Process.send_after(self(), :freshness_tick, @tick_ms)
+    {:noreply, assign(socket, :now, DateTime.utc_now())}
+  end
 
   # Anything else is a notification on the surface's topics: coalesce it.
   def handle_info(_notification, %{assigns: %{presentation: %{}}} = socket) do
@@ -122,6 +173,11 @@ defmodule AshEnterpriseWeb.PinnedAppLive do
   end
 
   def handle_info(_message, socket), do: {:noreply, socket}
+
+  defp read_now(socket) do
+    now = DateTime.utc_now()
+    assign(socket, read_at: now, now: now)
+  end
 
   defp actor_opts(socket) do
     actor = socket.assigns.current_user
@@ -143,10 +199,25 @@ defmodule AshEnterpriseWeb.PinnedAppLive do
               Composed in the agent chat and pinned by you. Checked against the schema each time it
               opens, and read as you.
             </p>
+            <.saved_status
+              validity={@validity}
+              freshness={SavedStatus.freshness(@read_at, @now)}
+              read_at={@read_at}
+            />
           </div>
           <div class="flex items-center gap-2">
             <.button navigate={~p"/app/agent"} size="sm" variant="ghost">
               <.icon name="hero-sparkles" class="size-4" /> Agent
+            </.button>
+            <.button
+              :if={@presentation}
+              id="reread"
+              type="button"
+              size="sm"
+              variant="ghost"
+              phx-click="reread"
+            >
+              <.icon name="hero-arrow-path" class="size-4" /> {gettext("Read again")}
             </.button>
             <.button :if={@app} id="unpin" type="button" size="sm" phx-click="unpin">
               <.icon name="hero-bookmark-slash" class="size-4" /> Unpin
@@ -166,4 +237,57 @@ defmodule AshEnterpriseWeb.PinnedAppLive do
     </Layouts.app>
     """
   end
+
+  attr :validity, :atom, required: true
+  attr :freshness, :atom, required: true
+  attr :read_at, :any, required: true
+
+  # Two badges, never one: whether the definition still resolves, and how old
+  # the rows are (`AshEnterprise.Surfaces.SavedStatus`).
+  defp saved_status(assigns) do
+    ~H"""
+    <div id="pinned-status" class="flex flex-wrap items-center gap-2 pt-1">
+      <.badge id="pinned-validity" tone={validity_tone(@validity)} data-validity={@validity}>
+        <.icon name={validity_icon(@validity)} class="size-3.5" />
+        {validity_label(@validity)}
+      </.badge>
+      <.badge id="pinned-freshness" tone={freshness_tone(@freshness)} data-freshness={@freshness}>
+        <.icon name={freshness_icon(@freshness)} class="size-3.5" />
+        {freshness_label(@freshness, @read_at)}
+      </.badge>
+    </div>
+    """
+  end
+
+  defp validity_tone(:valid), do: "green"
+  defp validity_tone(:invalid), do: "red"
+  defp validity_tone(_unknown), do: "neutral"
+
+  defp validity_icon(:valid), do: "hero-check-circle-micro"
+  defp validity_icon(:invalid), do: "hero-x-circle-micro"
+  defp validity_icon(_unknown), do: "hero-question-mark-circle-micro"
+
+  defp validity_label(:valid), do: gettext("Definition valid")
+  defp validity_label(:invalid), do: gettext("Definition invalid")
+  defp validity_label(_unknown), do: gettext("Definition not checked yet")
+
+  defp freshness_tone(:fresh), do: "green"
+  defp freshness_tone(:stale), do: "yellow"
+  defp freshness_tone(_unknown), do: "neutral"
+
+  defp freshness_icon(:fresh), do: "hero-clock-micro"
+  defp freshness_icon(:stale), do: "hero-exclamation-triangle-micro"
+  defp freshness_icon(_unknown), do: "hero-question-mark-circle-micro"
+
+  defp freshness_label(:fresh, read_at),
+    do: gettext("Data read at %{time}", time: LocalTime.time(read_at))
+
+  defp freshness_label(:stale, read_at),
+    do:
+      gettext("Data read at %{time}, over %{minutes} minutes ago",
+        time: LocalTime.time(read_at),
+        minutes: div(SavedStatus.fresh_seconds(), 60)
+      )
+
+  defp freshness_label(_unknown, _read_at), do: gettext("Data freshness unknown")
 end

@@ -19,7 +19,8 @@ defmodule AshEnterprise.Showcase.Case do
       credential, and `continuations`, how many times the case was woken by one: however
       many deliveries and in whatever order, one (F6);
     * `waiting_for`, the node ids the case's live tokens are parked at;
-    * `review`, the committee's task (`id`, `status`);
+    * `review`, the committee's task (`id`, `status`, and `packet?`, whether the viewer may
+      open its review packet, `AshEnterprise.Showcase.Credentialing.openable_tasks/2`);
     * `timer`, `%{node:, due_at:}` once the case waits for its re-credentialing date: the
       parked token's time plus the timer's duration, read from the event that recorded the
       wait.
@@ -65,16 +66,17 @@ defmodule AshEnterprise.Showcase.Case do
   @doc "The cases of the credentials `actor` may read, newest first. See the moduledoc."
   @spec cases(term()) :: [map()]
   def cases(actor) do
-    tenant = ActorContext.tenant(actor)
     credentials = Map.new(Tour.credentials(actor), &{&1.id, &1})
 
     case Map.keys(credentials) do
       [] -> []
-      ids -> read(ids, credentials, tenant)
+      ids -> read(ids, credentials, actor)
     end
   end
 
-  defp read(credential_ids, credentials, tenant) do
+  defp read(credential_ids, credentials, actor) do
+    tenant = ActorContext.tenant(actor)
+
     instances =
       Instance
       |> Ash.Query.filter(subject_type == ^@subject_type and subject_id in ^credential_ids)
@@ -106,7 +108,7 @@ defmodule AshEnterprise.Showcase.Case do
       |> Enum.group_by(& &1.instance_id)
 
     envelopes = envelopes(credential_ids, tenant)
-    reviews = reviews(ids, tenant)
+    reviews = reviews(ids, actor)
 
     for instance <- instances do
       credential_id = instance.subject_id
@@ -152,14 +154,21 @@ defmodule AshEnterprise.Showcase.Case do
     |> Enum.group_by(& &1.subject)
   end
 
-  defp reviews(instance_ids, tenant) do
+  defp reviews(instance_ids, actor) do
     node = CaseProcess.committee_node()
 
-    HumanTask
-    |> Ash.Query.filter(instance_id in ^instance_ids and node_id == ^node)
-    |> Ash.Query.select([:id, :instance_id, :status])
-    |> Ash.read!(authorize?: false, tenant: tenant)
-    |> Map.new(&{&1.instance_id, %{id: &1.id, status: &1.status}})
+    tasks =
+      HumanTask
+      |> Ash.Query.filter(instance_id in ^instance_ids and node_id == ^node)
+      |> Ash.Query.select([:id, :instance_id, :status])
+      |> Ash.read!(authorize?: false, tenant: ActorContext.tenant(actor))
+
+    openable = Tour.openable_tasks(Enum.map(tasks, & &1.id), actor)
+
+    Map.new(tasks, fn task ->
+      {task.instance_id,
+       %{id: task.id, status: task.status, packet?: MapSet.member?(openable, task.id)}}
+    end)
   end
 
   defp waiting_for(tokens) do

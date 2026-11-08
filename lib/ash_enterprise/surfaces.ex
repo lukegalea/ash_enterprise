@@ -92,6 +92,17 @@ defmodule AshEnterprise.Surfaces do
           "What the judgment loop leaves for a person: verdicts, band tables to certify, and what calibration earned."
         )
     },
+    # Agent quality (AGT-60).
+    %{
+      key: :quality,
+      label: dgettext_noop("default", "Agent quality"),
+      menu: :work,
+      blurb:
+        dgettext_noop(
+          "default",
+          "How agent versions did on the same evaluation cases, with safety kept apart from quality."
+        )
+    },
     %{
       key: :compliance,
       label: dgettext_noop("default", "Compliance"),
@@ -503,6 +514,24 @@ defmodule AshEnterprise.Surfaces do
       live: AshEnterpriseWeb.RecoveryLive,
       resource: AshEnterprise.Execution.Invocation
     },
+    # The model-profile surface (AGT-64): what each model profile may be used for,
+    # whether it is known to answer, and what it is restricted from.
+    %Surface{
+      key: :model_profiles,
+      audience: [:operator],
+      label: dgettext_noop("default", "Model profiles"),
+      blurb:
+        dgettext_noop(
+          "default",
+          "Which model each profile runs, what it may be used for, whether it is known to answer, and what it is restricted from."
+        ),
+      group: :operator,
+      order: 27,
+      icon: "hero-cpu-chip",
+      path: "/app/models",
+      live: AshEnterpriseWeb.ModelProfilesLive,
+      resource: AshEnterprise.AI.ModelProfile
+    },
     %Surface{
       key: :audit,
       audience: [:operator, :reviewer],
@@ -562,6 +591,26 @@ defmodule AshEnterprise.Surfaces do
       resource: HumanTask,
       context: :task,
       acp: %{command: "my tasks"}
+    },
+    # Stalled reviews (AGT-61): the view the assistant's `stalled_reviews` tool puts
+    # in an answer, reached without chat. No `context`: tasks open in detail on
+    # Approvals and My tasks, never here.
+    %Surface{
+      key: :stalled_reviews,
+      audience: [:reviewer, :operator],
+      label: dgettext_noop("default", "Stalled reviews"),
+      blurb:
+        dgettext_noop(
+          "default",
+          "Reviews and other process tasks you can see that have waited more than two days."
+        ),
+      group: :processes,
+      order: 2,
+      icon: "hero-clock",
+      path: "/app/reviews/stalled",
+      ui: A2ui.StalledReviewsUI,
+      resource: HumanTask,
+      acp: %{command: "stalled reviews"}
     },
     # The flight views (PROD-10): a process drawn with a marker on every step a
     # run is standing on. `:flight` is the first surface over Instance with a
@@ -672,6 +721,25 @@ defmodule AshEnterprise.Surfaces do
       live_action: :triggers,
       resource: AshEnterprise.Bpmn.Subscription,
       acp: %{command: "triggers"}
+    },
+
+    # The artifact registry's pages (AshEnterprise.Artifacts): every versioned thing,
+    # its header, validation and semantic diff. Removable with AshEnterpriseWeb.ArtifactLive,
+    # its live_session and this entry.
+    %Surface{
+      key: :artifacts,
+      audience: [:builder, :reviewer],
+      label: dgettext_noop("default", "Artifacts"),
+      blurb:
+        dgettext_noop(
+          "default",
+          "Every version of what is authored here, what it references, whether it checks out and what changed."
+        ),
+      group: :processes,
+      order: 40,
+      icon: "hero-document-duplicate",
+      path: "/app/artifacts",
+      live: AshEnterpriseWeb.ArtifactLive
     },
 
     # --- Compliance (ADR 0035) -----------------------------------------------
@@ -860,6 +928,29 @@ defmodule AshEnterprise.Surfaces do
     # The judgment surfaces (ADR 0061): ash_judgments' surfaces bound to this
     # application's resources. The acts are person-gated by policy, not by a
     # door.
+    # --- Agent quality (AGT-60) -------------------------------------------------
+    %Surface{
+      key: :comparison,
+      audience: [:builder, :reviewer],
+      label: dgettext_noop("default", "Compare candidates"),
+      blurb:
+        dgettext_noop(
+          "default",
+          "Evaluation runs side by side, case by case, with safety in a lane of its own."
+        ),
+      description:
+        "Candidates compared on the same evaluation cases (ADR 0058): each suite run of " <>
+          "a suite as a column, each case improved, degraded, failed, skipped or not " <>
+          "measured against a baseline, and guardrail and policy outcomes kept apart " <>
+          "from the quality aggregate. A candidate whose safety failed or was not " <>
+          "measured is never recommended.",
+      group: :quality,
+      order: 10,
+      icon: "hero-view-columns",
+      path: "/app/quality/compare",
+      live: AshEnterpriseWeb.ComparisonLive,
+      resource: AshEnterprise.Quality.SuiteRun
+    },
     %Surface{
       key: :judgment_verdicts,
       audience: [:reviewer],

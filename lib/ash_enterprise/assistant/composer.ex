@@ -41,7 +41,8 @@ defmodule AshEnterprise.Assistant.Composer do
   ## Read-only, as the person
 
   No spec written here has a form, a row action or a bulk action, so a
-  composed surface can only show rows. It is built with the person as actor
+  composed surface can only show rows; `approved/1` holds every resolved
+  spec, written here or read back from a pin, to that. It is built with the person as actor
   (`authorize?: true`): the rows are the ones their policies allow, decided
   when the surface is built and again on every refresh.
 
@@ -147,6 +148,24 @@ defmodule AshEnterprise.Assistant.Composer do
       sort: nil,
       sortable: []
     },
+    # Not offered by compose_surface (its `show` list is its own): what the
+    # `stalled_reviews` tool puts on screen, the stalled-reviews surface's read.
+    "stalled_reviews" => %{
+      resource: HumanTask,
+      label: "Stalled reviews",
+      columns: ~w(name subject_label waiting_since status assignee_label due_at),
+      default: ~w(name subject_label waiting_since assignee_label),
+      read: "stalled",
+      dates: {"due_at", nil},
+      labels: %{
+        "due_at" => "Due",
+        "subject_label" => "Subject",
+        "assignee_label" => "Claimed by"
+      },
+      lanes: ~w(status),
+      sort: nil,
+      sortable: []
+    },
     "drafts" => %{
       resource: ReplyDraft,
       label: "Reply drafts",
@@ -243,9 +262,86 @@ defmodule AshEnterprise.Assistant.Composer do
     resolve_opts = Keyword.put(Keyword.take(opts, [:surface_id]), :allowlist, allowlist())
 
     case AshA2ui.Dynamic.deserialize(serialized, resolve_opts) do
-      {:ok, surface} -> {:ok, surface}
+      {:ok, surface} -> approved(surface)
       {:error, errors} -> {:error, AshA2ui.Dynamic.Error.messages(errors)}
     end
+  end
+
+  @doc """
+  A resolved surface, if it is one this module could have written: it shows
+  rows and does nothing else, and it reads them through the catalogue's own
+  read actions. `{:ok, surface}` or `{:error, [reason]}`.
+
+  A stored spec is text that may have been written by anything able to call
+  the pin action, so resolving is not enough: a spec with a form, a row or
+  bulk action, an inline edit, a report or a prompt would put an operation
+  on the page that nobody declared for a composed view, and one reading
+  through another read action would show rows the catalogue never offered.
+  """
+  @spec approved(AshA2ui.Dynamic.Surface.t()) ::
+          {:ok, AshA2ui.Dynamic.Surface.t()} | {:error, [String.t()]}
+  def approved(%AshA2ui.Dynamic.Surface{} = surface) do
+    view = AshA2ui.ResolvedView.resolve(surface.dsl_state)
+
+    case acting_parts(view) ++ unapproved_reads(view) do
+      [] -> {:ok, surface}
+      reasons -> {:error, Enum.map(reasons, &("This view cannot be shown: " <> &1 <> "."))}
+    end
+  end
+
+  # Whatever on the view could run an operation.
+  defp acting_parts(view) do
+    [
+      {Enum.any?(view.components, &(&1.name == :form)), "it has a form"},
+      {view.row_actions != [], "it has row actions"},
+      {view.bulk_actions != [], "it has bulk actions"},
+      {Enum.any?(view.tables, & &1.editable), "it edits cells"},
+      {view.reports != [] or Enum.any?(view.components, &(&1.name == :report)),
+       "it runs a report"},
+      {view.prompts != %{}, "it prompts for input"},
+      {view.actions != %{}, "it declares actions"}
+    ]
+    |> Enum.flat_map(fn {refused?, reason} -> if refused?, do: [reason], else: [] end)
+  end
+
+  # Every read a table can make: its own, each query preset's (a preset may switch
+  # the read), and a resource-sourced sections block's, each held to the catalogue
+  # reads of the resource it reads (a related table names its own).
+  defp unapproved_reads(view) do
+    view.tables
+    |> Enum.flat_map(&table_reads(&1, view.resource))
+    |> Enum.uniq()
+    |> Enum.flat_map(fn {resource, read} ->
+      if to_string(read) in approved_reads(resource),
+        do: [],
+        else: ["it reads through #{read || "the primary read"}, which composed views do not use"]
+    end)
+  end
+
+  defp table_reads(table, view_resource) do
+    resource = table.resource || view_resource
+    presets = if table.query, do: table.query.presets, else: []
+
+    [{resource, table.read_action}] ++
+      for(%{read_action: read} <- presets, not is_nil(read), do: {resource, read}) ++
+      section_reads(table.sections)
+  end
+
+  defp section_reads(%{source: source, read_action: read}) when not is_nil(source),
+    do: [{source, read}]
+
+  defp section_reads(_sections), do: []
+
+  # The read actions the catalogue reads a resource through.
+  defp approved_reads(resource) do
+    Enum.flat_map(@catalogue, fn
+      {_name, %{resource: ^resource} = entry} ->
+        [entry.read] ++
+          Map.values(Map.get(entry, :windows, %{})) ++ Map.values(Map.get(entry, :sources, %{}))
+
+      _other ->
+        []
+    end)
   end
 
   @doc "A title for a spec, from its structure only (for a pinned app)."
@@ -563,14 +659,13 @@ defmodule AshEnterprise.Assistant.Composer do
   defp resolve(spec, opts) do
     resolve_opts = Keyword.put(Keyword.take(opts, [:surface_id]), :allowlist, allowlist())
 
-    case AshA2ui.Dynamic.resolve(spec, resolve_opts) do
-      {:ok, surface} ->
-        {:ok, surface}
-
+    with {:ok, surface} <- AshA2ui.Dynamic.resolve(spec, resolve_opts),
+         {:ok, surface} <- approved(surface) do
+      {:ok, surface}
+    else
       {:error, errors} ->
         Logger.warning(
-          "assistant composer: a written spec was refused: " <>
-            Enum.join(AshA2ui.Dynamic.Error.messages(errors), "; ")
+          "assistant composer: a written spec was refused: " <> Enum.join(messages(errors), "; ")
         )
 
         {:error,
@@ -580,6 +675,11 @@ defmodule AshEnterprise.Assistant.Composer do
          ]}
     end
   end
+
+  defp messages([%AshA2ui.Dynamic.Error{} | _] = errors),
+    do: AshA2ui.Dynamic.Error.messages(errors)
+
+  defp messages(reasons), do: reasons
 
   # -- labels ------------------------------------------------------------------------
 

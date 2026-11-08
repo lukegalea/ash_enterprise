@@ -15,8 +15,9 @@ defmodule AshEnterpriseWeb.ShowcaseLive.ReleaseBeats do
 
   use AshEnterpriseWeb, :html
 
-  alias AshEnterpriseWeb.ShowcaseLive.CaseBeats
+  alias AshEnterpriseWeb.ShowcaseLive.TourIndex
 
+  attr :records, :map, required: true
   attr :release, :map, required: true
   attr :credentials, :list, required: true
   attr :activations, :list, required: true
@@ -56,6 +57,7 @@ defmodule AshEnterpriseWeb.ShowcaseLive.ReleaseBeats do
           </.button>
         </div>
         <.candidate candidate={@release.candidate} />
+        <TourIndex.explore beat={16} records={@records} />
       </.card>
     </li>
 
@@ -76,7 +78,7 @@ defmodule AshEnterpriseWeb.ShowcaseLive.ReleaseBeats do
             "Look for: the older case keeps version 1 and the committee as its route, the newer one is on version 2 and the director. Rolling a release back writes the earlier versions again."
           )}
         </p>
-        <CaseBeats.demo_build_note fault_controls?={@fault_controls?} />
+        <TourIndex.fault_note fault_controls?={@fault_controls?} recorded?={@records[17] != nil} />
         <div :if={@fault_controls?}>
           <.button id="fault-routing" phx-click="fault" phx-value-control="routing" size="sm">
             {dgettext("showcase", "Change the routing table")}
@@ -110,11 +112,19 @@ defmodule AshEnterpriseWeb.ShowcaseLive.ReleaseBeats do
             <span :if={is_nil(row.table_version)}>
               {dgettext("showcase", "started under no release")}
             </span>
+            <.link
+              id={"routed-#{row.id}-explore"}
+              navigate={TourIndex.explorer_path({:process_instance, row.id})}
+              class="underline"
+            >
+              {dgettext("showcase", "Open in explorer")}
+            </.link>
             <.button id={"route-#{row.id}"} phx-click="route" phx-value-id={row.id} size="sm">
               {dgettext("showcase", "Route it")}
             </.button>
           </li>
         </ul>
+        <TourIndex.explore beat={17} records={@records} />
       </.card>
     </li>
 
@@ -168,8 +178,17 @@ defmodule AshEnterpriseWeb.ShowcaseLive.ReleaseBeats do
                 calls: length(row.calls)
               )}
             </span>
+            <.link
+              :for={{case_run, n} <- Enum.with_index(row.case_runs, 1)}
+              id={"shadow-#{row.run.id}-open-#{n}"}
+              navigate={TourIndex.explorer_path({:run, case_run})}
+              class="underline"
+            >
+              {dgettext("showcase", "Open shadow case %{n}", n: n)}
+            </.link>
           </li>
         </ul>
+        <TourIndex.explore beat={18} records={@records} />
       </.card>
     </li>
 
@@ -190,7 +209,7 @@ defmodule AshEnterpriseWeb.ShowcaseLive.ReleaseBeats do
             "Look for: the approval no longer holds. The request goes stale, the reason is manifest_changed, and it never runs. The approval was bound to the release that covered the activation when it was asked for."
           )}
         </p>
-        <CaseBeats.demo_build_note fault_controls?={@fault_controls?} />
+        <TourIndex.fault_note fault_controls?={@fault_controls?} recorded?={@records[19] != nil} />
         <div :if={@fault_controls?}>
           <.button id="fault-deploy" phx-click="fault" phx-value-control="deploy" size="sm">
             {dgettext("showcase", "Deploy a change to activate_credential")}
@@ -220,6 +239,13 @@ defmodule AshEnterpriseWeb.ShowcaseLive.ReleaseBeats do
             <span :if={row.invocation.error_code} class="font-mono text-xs">
               {row.invocation.error_code}
             </span>
+            <.link
+              id={"bound-#{row.invocation.id}-explore"}
+              navigate={TourIndex.explorer_path({:invocation, row.invocation.id})}
+              class="underline"
+            >
+              {dgettext("showcase", "Open in explorer")}
+            </.link>
             <span :if={row.current?}>
               {dgettext("showcase", "bound to the active release")}
             </span>
@@ -234,6 +260,7 @@ defmodule AshEnterpriseWeb.ShowcaseLive.ReleaseBeats do
         >
           {dgettext("showcase", "No activation request is bound to a release yet.")}
         </p>
+        <TourIndex.explore beat={19} records={@records} />
       </.card>
     </li>
     """

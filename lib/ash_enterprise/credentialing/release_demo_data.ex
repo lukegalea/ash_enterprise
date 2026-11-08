@@ -32,6 +32,7 @@ defmodule AshEnterprise.Credentialing.ReleaseDemoData do
   }
 
   alias AshEnterprise.Execution
+  alias AshEnterprise.Execution.Release.Entries
   alias AshEnterprise.Platform.SystemActor
   alias AshEnterprise.Process.Binding
   alias AshEnterprise.Quality
@@ -58,7 +59,7 @@ defmodule AshEnterprise.Credentialing.ReleaseDemoData do
     reader = release_reader!(tenant, director, deputy)
     candidate = candidate!(director, deputy, tenant)
 
-    RoutingTable.publish_next!(tenant)
+    RoutingTable.ensure_first!(tenant)
     bind_process!(tenant)
 
     routing =
@@ -104,16 +105,30 @@ defmodule AshEnterprise.Credentialing.ReleaseDemoData do
   @spec change_routing!(Ash.UUID.t()) :: map() | :unchanged
   def change_routing!(tenant) do
     case RoutingTable.publish_next!(tenant) do
-      :unchanged ->
-        :unchanged
+      {:published, _version} -> release_routing!(tenant)
+      :unchanged -> if routing_behind?(tenant), do: release_routing!(tenant), else: :unchanged
+    end
+  end
 
-      {:published, _version} ->
-        {director, deputy} = directors!(tenant)
+  defp release_routing!(tenant) do
+    {director, deputy} = directors!(tenant)
 
-        release!(tenant, director, deputy, @routing, [
-          %{kind: "process", key: CaseProcess.key()},
-          %{kind: "decision", key: RoutingTable.key()}
-        ])
+    release!(tenant, director, deputy, @routing, [
+      %{kind: "process", key: CaseProcess.key()},
+      %{kind: "decision", key: RoutingTable.key()}
+    ])
+  end
+
+  # A version published but not yet released (an earlier fill of the demo published the
+  # next version without releasing it): releasing it is the change still to make.
+  defp routing_behind?(tenant) do
+    with %{} = active <- released(tenant, @routing),
+         %{"annotations" => %{"version" => version}} <-
+           Entries.find(active.entries, :decision, RoutingTable.key()),
+         latest when is_integer(latest) <- RoutingTable.latest_version(tenant) do
+      version < latest
+    else
+      _none -> false
     end
   end
 
@@ -163,14 +178,17 @@ defmodule AshEnterprise.Credentialing.ReleaseDemoData do
     end
   end
 
-  # The recorded model answers each case from its transcript. The run's jobs are driven
-  # here, in this process, until its cases settle; a queue that is running meanwhile only
-  # shares the work.
-  defp settle!(run, tenant, rounds \\ 20)
+  @doc """
+  Drives the recorded suite run `run` to its finish in this process: the recorded model
+  answers each case from its transcript, and the run's jobs are drained here until its
+  cases settle; a queue that is running meanwhile only shares the work.
+  """
+  @spec settle!(map(), Ash.UUID.t(), non_neg_integer()) :: :ok | map()
+  def settle!(run, tenant, rounds \\ 20)
 
-  defp settle!(_run, _tenant, 0), do: raise("the licence reader's suite run did not settle")
+  def settle!(_run, _tenant, 0), do: raise("the licence reader's suite run did not settle")
 
-  defp settle!(run, tenant, rounds) do
+  def settle!(run, tenant, rounds) do
     %{success: steps} = Oban.drain_queue(queue: :agent_runs, with_recursion: true)
     %{success: calls} = Oban.drain_queue(queue: :execution, with_recursion: true)
     current = Quality.get_suite_run!(run.id, authorize?: false, tenant: tenant, load: [:settled])

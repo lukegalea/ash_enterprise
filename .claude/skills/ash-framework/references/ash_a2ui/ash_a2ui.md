@@ -295,6 +295,13 @@ end
   web_core 0.10.6).
   The Lit renderer registration ships in `priv/js/ash_admin_catalog.js`
   (`createAshAdminCatalog(deps)`).
+- A transport whose client sends A2UI client capabilities negotiates the
+  catalog per client: `AshA2ui.Experience.catalog_for(capabilities)` gives
+  `{:ok, catalog}` to pass as `catalog:` to `build_surface/2` and to
+  `ActionHandler.handle/3` for that surface, or
+  `{:error, :no_common_catalog}` when the client lists no catalog the
+  library emits; then send no surface (text or a link instead), never the
+  basic one regardless. `nil` capabilities mean the configured catalog.
 
 ## Actors (hosts without authentication)
 

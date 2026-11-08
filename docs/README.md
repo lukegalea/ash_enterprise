@@ -14,6 +14,7 @@ Four kinds of document live here.
 | [**HOUSE-STYLE.md**](HOUSE-STYLE.md) | How this repository writes: nine rules with stable ids, from "say the thing first" to English and French product copy. | You are writing a doc, an ADR, a commit message or product copy. |
 | [**HANDOFF.md**](HANDOFF.md) | The state of play, plus findings that were expensive to discover. | You are picking this up in a new session. Start here. |
 | [**capstone/storyline.md**](https://github.com/lukegalea/ash_enterprise/blob/main/docs/capstone/storyline.md) | The capstone: the published [`clinic-demo`](https://github.com/lukegalea/clinic-demo) — agents reading an Ash codebase — with the evidence set indexed. | You want the story this tree earned, in one sitting. |
+| [**showcase/credentialing-walkthrough.md**](https://github.com/lukegalea/ash_enterprise/blob/main/docs/showcase/credentialing-walkthrough.md) | The credentialing tour beat by beat, the twelve failures it shows, and the [five-minute presenter script](https://github.com/lukegalea/ash_enterprise/blob/main/docs/showcase/presenter-script.md). | You are showing the tour, or capturing its images. |
 
 `roadmap.json` is the machine-readable source every status table in this repository renders from —
 including the ones in the root `README.md`. It is rewritten by `mix ash_enterprise.roadmap` and checked

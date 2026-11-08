@@ -2,8 +2,9 @@ defmodule AshEnterprise.Platform.DemoTenant do
   @moduledoc """
   The one tenant `mix ash_enterprise.demo` is allowed to write to.
 
-  The demo fills a tenant with a business-unit tree, people, a synthetic clinic and an MDM
-  walk-through. Run against a database that already holds real tenants, that must change
+  The demo fills a tenant with a business-unit tree, people, a synthetic clinic, the licence
+  reader's versions compared on the same cases (`AshEnterprise.Credentialing.ComparisonDemoData`)
+  and an MDM walk-through. Run against a database that already holds real tenants, that must change
   nothing of theirs. So the demo never picks a tenant: it owns a dedicated one, named by
   a fixed slug (`slug/0`, the organization's `unique_name`).
 
@@ -15,7 +16,7 @@ defmodule AshEnterprise.Platform.DemoTenant do
 
   Running it twice is a no-op the second time: every step it calls finds its own rows
   first (`AshEnterprise.Platform.DemoData`, `AshEnterprise.Credentialing.DemoData`,
-  `AshEnterprise.Mdm.DemoData`).
+  `AshEnterprise.Credentialing.ComparisonDemoData`, `AshEnterprise.Mdm.DemoData`).
 
   Two things are shared with the rest of the database and are handled so they stay safe:
 
@@ -31,6 +32,7 @@ defmodule AshEnterprise.Platform.DemoTenant do
   require Ash.Query
 
   alias AshEnterprise.Accounts.{BusinessUnit, Organization, User}
+  alias AshEnterprise.Credentialing.ComparisonDemoData
   alias AshEnterprise.Credentialing.DemoData, as: ClinicData
   alias AshEnterprise.Mdm.DemoData, as: MdmData
   alias AshEnterprise.Platform.{DemoData, Seeder}
@@ -105,12 +107,7 @@ defmodule AshEnterprise.Platform.DemoTenant do
   """
   @spec populate!(Organization.t(), keyword()) :: map()
   def populate!(organization, opts \\ []) do
-    unless demo?(organization) do
-      raise ArgumentError,
-            "refusing to populate #{inspect(organization.unique_name)}: the demo writes only to " <>
-              "the #{inspect(@slug)} tenant"
-    end
-
+    ensure_demo!(organization, "populate")
     tenant = organization.id
     refuse_foreign_people!(tenant)
     counts = DemoData.populate(tenant, opts)
@@ -121,7 +118,28 @@ defmodule AshEnterprise.Platform.DemoTenant do
       |> Ash.Query.filter(email == ^@admin_email)
       |> Ash.read_one!(tenant: tenant, authorize?: false)
 
-    %{counts: counts, clinic: clinic, mdm: admin && MdmData.populate(tenant, admin)}
+    %{
+      counts: counts,
+      clinic: clinic,
+      comparison: ComparisonDemoData.populate(tenant, clinic.director),
+      mdm: admin && MdmData.populate(tenant, admin)
+    }
+  end
+
+  @doc """
+  Raises `ArgumentError` unless `organization` is the demo tenant: the guard every demo
+  writer takes before it writes (`populate!/2`, `AshEnterprise.Showcase.History.run!/1`).
+  `what` names the refused act in the message.
+  """
+  @spec ensure_demo!(Organization.t(), String.t()) :: :ok
+  def ensure_demo!(organization, what) do
+    if demo?(organization) do
+      :ok
+    else
+      raise ArgumentError,
+            "refusing to #{what} #{inspect(organization.unique_name)}: the demo writes only to " <>
+              "the #{inspect(@slug)} tenant"
+    end
   end
 
   # An email is unique across the database, and the demo's `ensure_user!` takes a person it
@@ -159,6 +177,7 @@ defmodule AshEnterprise.Platform.DemoTenant do
           organization: Organization.t(),
           counts: map(),
           clinic: map(),
+          comparison: map(),
           mdm: map() | nil
         }
   def run!(opts \\ []) do

@@ -248,6 +248,8 @@ defmodule AshEnterprise.Test.AssistantFixtures do
       * `{:tools, calls, text}` — the model says `text` and calls those tools in the
         same turn (as it does when it asks for a change);
       * `{:text, text}` — the model answers;
+      * `{:think, reasoning, step}` — the model sends `reasoning` as thinking (provider
+        reasoning text), then answers as `step` would;
       * `{:error, reason}` — the call fails to open;
       * `{:raise, exception}` — the stream opens, then fails while read;
       * `{:exit, reason}` — the stream opens, then the process reading it exits
@@ -319,6 +321,11 @@ defmodule AshEnterprise.Test.AssistantFixtures do
 
     defp respond({:text, text}, model, context),
       do: response([ReqLLM.StreamChunk.text(text)], :stop, model, context)
+
+    defp respond({:think, reasoning, step}, model, context) do
+      {:ok, response} = respond(step, model, context)
+      {:ok, %{response | stream: [ReqLLM.StreamChunk.thinking(reasoning) | response.stream]}}
+    end
 
     defp respond({:raise, exception}, model, context) do
       {:ok, response} = response([], :stop, model, context)

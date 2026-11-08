@@ -14,13 +14,17 @@ defmodule AshEnterprise.Assistant.PinnedApp do
   `title` is derived from the spec, not written by the model, so nothing here
   quotes mail, Slack or a name and nothing needs sealing.
 
-  ## Verified on every load
+  ## Verified when pinned and on every load
 
   A stored spec is a claim about resources that may have changed since it was
-  pinned. Opening one deserializes it through `AshA2ui.Dynamic.deserialize/2`
-  against the composer's allowlist, which re-runs every verifier; a spec that
-  no longer resolves is shown as its errors, never rendered from the stored
-  text. The rows are read as the person, under their policies, each time.
+  pinned. Pinning one and opening one both deserialize it through
+  `AshA2ui.Dynamic.deserialize/2` against the composer's allowlist, which
+  re-runs every verifier, and hold it to `Composer.approved/1`: rows only,
+  read through the catalogue's read actions, nothing that could act. A spec
+  that no longer resolves is shown as invalid, with its reasons, never
+  rendered from the stored text. The rows are read as the person, under the
+  grants they hold when it opens (not the ones they held when they pinned
+  it), each time.
 
   ## Owner-only
 
@@ -96,6 +100,8 @@ defmodule AshEnterprise.Assistant.PinnedApp do
       description "Pin a composed surface for the actor."
 
       accept [:title, :display, :source, :spec]
+
+      validate AshEnterprise.Assistant.Validations.ComposedSpec
 
       change set_attribute(:owner_id, actor(:id))
       change set_attribute(:owner_type, :user)

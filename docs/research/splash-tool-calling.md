@@ -85,7 +85,7 @@ engine has recovered.
 - **Calls:** for a `prompt/2` action, pass `req_llm: AshEnterprise.AI.Models.GuardedReqLLM, req_llm_opts: [caller:
   "helper.<what>"]`. For a tool loop, call `AshAi.ToolLoop.run/2` or `stream/2` with `model: AshEnterprise.AI.model(),
   req_llm: AshEnterprise.AI.Models.GuardedReqLLM, req_llm_opts: [caller: "helper.<what>"]`. Code that calls ReqLLM
-  itself uses `Models.resolve/1` and then `Models.call/5`, or the `GuardedReqLLM` functions directly. Do not call
+  itself uses `Models.resolve/1` and then `Models.call/6`, or the `GuardedReqLLM` functions directly. Do not call
   `ReqLLM` bare: that path is neither guarded nor recorded.
 - **Tools:** keep them few and strict (`strict: true` is AshAi's default and splash accepts it). Write tools as
   *proposals*, never executions. Use `tool_choice: "auto"`; forcing a tool costs latency and gains nothing here.

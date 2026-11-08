@@ -1,5 +1,10 @@
 import Config
-config :ash_enterprise, Oban, testing: :manual
+# The history seed's engine (`AshEnterprise.Showcase.History.HeldJobs`) is Oban's Basic
+# engine until a process holds its jobs, so the suite runs on it and the seed's tests test
+# the engine the seed runs on.
+config :ash_enterprise, Oban,
+  testing: :manual,
+  engine: AshEnterprise.Showcase.History.HeldJobs
 
 # Epic E1: the tap worker test drives the real parsing/landing path with an
 # injected runner; only the pipeline registration is config. Epic E4 adds the

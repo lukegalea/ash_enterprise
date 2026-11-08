@@ -10,6 +10,8 @@ defmodule AshEnterprise.AI do
 
   One table: `AshEnterprise.AI.ModelCall`, the append-only record of every
   model call (ADR 0042's flow record, written by `AshEnterprise.AI.Models`).
+  `AshEnterprise.AI.ModelProfile` is the model-profile surface's computed read
+  over it and the configuration.
   Otherwise this domain exists so that a prompt-backed action can live
   somewhere sensible, not because "AI" is a part of the domain model.
   """
@@ -21,6 +23,11 @@ defmodule AshEnterprise.AI do
     # a home, because Ash puts generic actions on resources rather than domains.
     resource AshEnterprise.AI.RequestClassifier
     resource AshEnterprise.AI.ModelCall
+
+    # No table: the model-profile surface's rows (`/app/models`).
+    resource AshEnterprise.AI.ModelProfile do
+      define :model_profiles, action: :list
+    end
   end
 
   @doc """

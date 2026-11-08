@@ -1,0 +1,325 @@
+## This file is a PO Template file.
+##
+## "msgid"s here are often extracted from source code.
+## Add new messages manually only if they're dynamic
+## messages that can't be statically extracted.
+##
+## Run "mix gettext.extract" to bring this file up to
+## date. Leave "msgstr"s empty as changing them here has no
+## effect: edit them in PO (.po) files instead.
+#
+msgid ""
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:465
+#, elixir-autogen, elixir-format
+msgid "%{agent} at %{digest}"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:461
+#, elixir-autogen, elixir-format
+msgid "%{agent} v%{version}"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:471
+#, elixir-autogen, elixir-format
+msgid "%{agent}, version not readable"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:343
+#, elixir-autogen, elixir-format
+msgid "%{candidate} is recommended: the best quality on these cases among candidates whose safety is clear."
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:147
+#, elixir-autogen, elixir-format
+msgid "%{cases} cases: %{ordinary} for quality and %{injection} injection cases for safety. Every figure is a count over these cases, not a significance test."
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:159
+#, elixir-autogen, elixir-format
+msgid "%{count} case result is missing across these candidates; a missing result is never read as a pass."
+msgid_plural "%{count} case results are missing across these candidates; a missing result is never read as a pass."
+msgstr[0] ""
+msgstr[1] ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:448
+#, elixir-autogen, elixir-format
+msgid "%{improved} improved, %{degraded} degraded, %{failed} failed, %{errored} errored, %{skipped} skipped, %{unmeasured} not measured, %{missing} with no result"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:441
+#, elixir-autogen, elixir-format
+msgid "%{passed} of %{cases} passed"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:489
+#, elixir-autogen, elixir-format
+msgid "Attack succeeded"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:287
+#, elixir-autogen, elixir-format
+msgid "Baseline"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:215
+#, elixir-autogen, elixir-format
+msgid "Case"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:181
+#, elixir-autogen, elixir-format
+msgid "Check"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:496
+#, elixir-autogen, elixir-format
+msgid "Clear"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:34
+#: lib/ash_enterprise_web/live/comparison_live.ex:104
+#, elixir-autogen, elixir-format
+msgid "Compare candidates"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:297
+#, elixir-autogen, elixir-format
+msgid "Compare with this"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:481
+#, elixir-autogen, elixir-format
+msgid "Degraded"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:209
+#, elixir-autogen, elixir-format
+msgid "Each ordinary case, compared with the baseline. Injection cases are in the safety lane, not here."
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:484
+#, elixir-autogen, elixir-format
+msgid "Errored"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:157
+#, elixir-autogen, elixir-format
+msgid "Every candidate has a result for every case."
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:483
+#: lib/ash_enterprise_web/live/comparison_live.ex:497
+#, elixir-autogen, elixir-format
+msgid "Failed"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:175
+#, elixir-autogen, elixir-format
+msgid "Guardrail and policy outcomes, kept apart from quality and never averaged into it."
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:367
+#, elixir-autogen, elixir-format
+msgid "Hard assertions failed"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:488
+#, elixir-autogen, elixir-format
+msgid "Held"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:458
+#, elixir-autogen, elixir-format
+msgid "Imported results"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:480
+#, elixir-autogen, elixir-format
+msgid "Improved"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:376
+#, elixir-autogen, elixir-format
+msgid "Injection case"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:428
+#, elixir-autogen, elixir-format
+msgid "Its run"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:355
+#, elixir-autogen, elixir-format
+msgid "No candidate is recommended: none finished here with every case measured and its safety clear."
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:351
+#, elixir-autogen, elixir-format
+msgid "No candidate is recommended: the best quality is shared."
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:361
+#, elixir-autogen, elixir-format
+msgid "No candidate is recommended: there is only one run to look at."
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:487
+#, elixir-autogen, elixir-format
+msgid "No result"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:129
+#, elixir-autogen, elixir-format
+msgid "No suite run you can read to compare yet."
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:87
+#, elixir-autogen, elixir-format
+msgid "No suite you can read has this id."
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:406
+#: lib/ash_enterprise_web/live/comparison_live.ex:439
+#: lib/ash_enterprise_web/live/comparison_live.ex:486
+#: lib/ash_enterprise_web/live/comparison_live.ex:498
+#, elixir-autogen, elixir-format
+msgid "Not measured"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:482
+#, elixir-autogen, elixir-format
+msgid "Passed"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:370
+#, elixir-autogen, elixir-format
+msgid "Prohibited effects asked for"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:207
+#, elixir-autogen, elixir-format
+msgid "Quality"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:240
+#, elixir-autogen, elixir-format
+msgid "Quality aggregate"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:316
+#, elixir-autogen, elixir-format
+msgid "Recommendation"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:173
+#, elixir-autogen, elixir-format
+msgid "Safety"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:373
+#, elixir-autogen, elixir-format
+msgid "Safety verdict"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:485
+#, elixir-autogen, elixir-format
+msgid "Skipped"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:284
+#, elixir-autogen, elixir-format
+msgid "Still running"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:113
+#, elixir-autogen, elixir-format
+msgid "Suites"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:106
+#, elixir-autogen, elixir-format
+msgid "The runs of one evaluation suite side by side. Safety is its own lane: it is never averaged into quality, and a strong quality score never makes up for it."
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:490
+#, elixir-autogen, elixir-format
+msgid "Unknown result"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:505
+#, elixir-autogen, elixir-format
+msgid "a hard assertion failed"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:517
+#, elixir-autogen, elixir-format
+msgid "a hard assertion was not measured"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:508
+#, elixir-autogen, elixir-format
+msgid "a prohibited effect was asked for"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:514
+#, elixir-autogen, elixir-format
+msgid "an injection case did not pass"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:510
+#, elixir-autogen, elixir-format
+msgid "an injection case failed"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:529
+#, elixir-autogen, elixir-format
+msgid "its quality is not measured"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:522
+#, elixir-autogen, elixir-format
+msgid "its results were imported, so they name no candidate"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:519
+#, elixir-autogen, elixir-format
+msgid "its run has not finished"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:524
+#, elixir-autogen, elixir-format
+msgid "its safety failed"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:525
+#, elixir-autogen, elixir-format
+msgid "its safety is not measured"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:330
+#, elixir-autogen, elixir-format
+msgid "not recommended: %{why}."
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:328
+#, elixir-autogen, elixir-format
+msgid "qualifies: finished, every case measured, safety clear."
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:511
+#: lib/ash_enterprise_web/live/comparison_live.ex:526
+#, elixir-autogen, elixir-format
+msgid "some cases have no result"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:504
+#, elixir-autogen, elixir-format
+msgid "the run has not finished"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/comparison_live.ex:73
+#, elixir-autogen, elixir-format
+msgid "The baseline is not a run id, so the default baseline is used."
+msgstr ""

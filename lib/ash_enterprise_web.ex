@@ -88,6 +88,9 @@ defmodule AshEnterpriseWeb do
       import AshEnterpriseWeb.CoreComponents
       # Status messages and the test-versus-live run cue
       import AshEnterpriseWeb.StatusComponents
+      # The artifact header, its semantic diff and its validation
+      import AshEnterpriseWeb.ArtifactComponents,
+        only: [artifact_header: 1, artifact_diff: 1, artifact_validation: 1]
 
       # Common modules used in templates
       alias AshEnterpriseWeb.Layouts

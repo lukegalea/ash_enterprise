@@ -8,7 +8,7 @@ defmodule AshEnterprise.Acp.ExtMethods do
   | Method | What it does |
   |---|---|
   | `_ash/surfaces/list` | The registry's A2UI surfaces whose door is open for the actor and whose resource they may read (`Ash.can?`) |
-  | `_ash/surface/open` | Builds the surface (`AshA2ui.Info.build_surface/2`); with a `recordId`, the record selected through `AshEnterprise.Surfaces.Records` (door, authorized read, context selection — "not found" for anything else). Recorded in the session store, so `session/load` re-emits it, with a one-line `opened <surface>` transcript entry |
+  | `_ash/surface/open` | Builds the surface (`AshA2ui.Info.build_surface/2`); with a `recordId`, the record selected through `AshEnterprise.Surfaces.Records` (door, authorized read, context selection — "not found" for anything else). Recorded in the session store, so `session/load` re-emits it, with a one-line `opened <surface>` transcript entry. Built in the catalog the client renders (`_meta.a2uiClientCapabilities`, `AshEnterprise.Surfaces.ClientCatalog`): basic for a client without the admin catalog; for one that renders neither, no surface and a `fallback` saying where the view is on the web |
   | `_a2ui/action` | Runs the A2UI action through `AshA2ui.ActionHandler` as the session actor. An action that runs an Ash action (`submit_form`, `invoke`, `bulk_invoke`, `edit_cell`) asks first (`{:request_permission, spec}` → `AshEnterprise.Acp.Approvals`) when that action's effects declaration says so (`AshEnterprise.Acp.asks_first?/2`); everything else (query, select, search, prompt, report, export) runs at once. Answers `applied` only when the action succeeded, `denied` when an approval was declined, and `failed` (with a `{kind, message}` error) when policy refused it, its input was invalid or it errored; and, beside it, the channels' `result` (`applied`, `pending`, `declined`, `forbidden`, `invalid`, `failed`) and, for a blocked act, its `blockedReason` (`AshEnterprise.Channels`) |
 
   Nothing here bypasses policy: every build and action runs with the actor
@@ -26,6 +26,7 @@ defmodule AshEnterprise.Acp.ExtMethods do
   alias AshEnterprise.Channels
   alias AshEnterprise.Security.ActorContext
   alias AshEnterprise.Surfaces
+  alias AshEnterprise.Surfaces.ClientCatalog
   alias AshEnterprise.Surfaces.Records
 
   @list "_ash/surfaces/list"
@@ -54,15 +55,25 @@ defmodule AshEnterprise.Acp.ExtMethods do
       when is_binary(surface) and not is_nil(session) do
     actor = actor(ctx)
 
-    case open(surface, params["recordId"], params["query"], actor) do
-      {:ok, entry, ui, opts} ->
-        messages = build(ui, opts, actor)
-        SessionStore.put_surface(ctx.session_id, {ui, opts})
-        SessionStore.append_message(session, :agent, "opened #{entry.label}")
-        {:ok, %{"surfaceId" => surface_id(messages, ui), "a2ui" => messages}}
+    with {:ok, entry, ui, opts} <- open(surface, params["recordId"], params["query"], actor) do
+      case params |> ClientCatalog.capabilities() |> ClientCatalog.build_opts() do
+        {:ok, catalog} ->
+          opts = opts ++ catalog
+          messages = build(ui, opts, actor)
+          SessionStore.put_surface(ctx.session_id, {ui, opts})
+          SessionStore.append_message(session, :agent, "opened #{entry.label}")
+          {:ok, %{"surfaceId" => surface_id(messages, ui), "a2ui" => messages}}
 
-      {:error, code, message} ->
-        {:error, code, message}
+        # A client that renders none of the catalogs gets no surface and is
+        # told where the view is instead (`ClientCatalog.fallback/2`).
+        :fallback ->
+          {:ok,
+           %{
+             "surfaceId" => Atom.to_string(entry.key),
+             "a2ui" => [],
+             "fallback" => ClientCatalog.fallback(entry.label, entry.path)
+           }}
+      end
     end
   end
 
@@ -75,7 +86,8 @@ defmodule AshEnterprise.Acp.ExtMethods do
 
     with {:ok, entry, ui} <- acting_surface(surface_id, actor),
          {:ok, name, context} <- parse_action(action) do
-      act(entry, ui, action, name, context, actor, ctx.permission, ctx[:denied_by])
+      built = built_with(ctx.session_id, ui)
+      act(entry, {ui, built}, action, name, context, actor, ctx.permission, ctx[:denied_by])
     end
   end
 
@@ -197,6 +209,15 @@ defmodule AshEnterprise.Acp.ExtMethods do
     end
   end
 
+  # The catalog the session's surface was built with, when the action is on
+  # that surface (`_ash/surface/open` records it), so its updates match.
+  defp built_with(session_id, ui) do
+    case SessionStore.surface_for(session_id) do
+      {^ui, opts} -> Keyword.take(opts, [:catalog])
+      _other -> []
+    end
+  end
+
   defp parse_action(%{"action" => %{"name" => name} = inner}) when is_binary(name),
     do: {:ok, name, inner["context"] || %{}}
 
@@ -211,7 +232,7 @@ defmodule AshEnterprise.Acp.ExtMethods do
   # and, for an update or destroy, the record as the actor reads it — so
   # ash_acp checks it with `Ash.can/3` before anyone is asked, and a write
   # policy refuses never reaches the person.
-  defp act(entry, ui, action, name, context, actor, nil, _by) do
+  defp act(entry, {ui, _built} = held, action, name, context, actor, nil, _by) do
     with {resource, action_name} when not is_nil(action_name) <- target(ui, name, context),
          true <- Acp.asks_first?(resource, action_name) do
       {:request_permission,
@@ -227,7 +248,7 @@ defmodule AshEnterprise.Acp.ExtMethods do
          click: entry.label
        }}
     else
-      _runs_at_once -> run(ui, action, target(ui, name, context), actor)
+      _runs_at_once -> run(held, action, target(ui, name, context), actor)
     end
   end
 
@@ -238,18 +259,18 @@ defmodule AshEnterprise.Acp.ExtMethods do
   defp act(_entry, _ui, _action, _name, _context, _actor, :denied, _by),
     do: {:ok, answer(%{"outcome" => "denied", "a2ui" => []}, Channels.declined())}
 
-  defp act(_entry, ui, action, name, context, actor, _approved, _by),
-    do: run(ui, action, target(ui, name, context), actor)
+  defp act(_entry, {ui, _built} = held, action, name, context, actor, _approved, _by),
+    do: run(held, action, target(ui, name, context), actor)
 
   # The answer carries the channels' result and blocked reason beside the wire's own
   # `outcome` (`AshEnterprise.Channels`), computed from the same handler outcome the
   # web's `/ui/feedback` is.
-  defp run(ui, action, target, actor) do
+  defp run({ui, built}, action, target, actor) do
     handled =
       AshA2ui.ActionHandler.handle(
         ui,
         action,
-        [actor: actor, tenant: ActorContext.tenant(actor)] ++ l10n(actor)
+        [actor: actor, tenant: ActorContext.tenant(actor)] ++ built ++ l10n(actor)
       )
 
     {result, blocked} = Channels.outcome(handled, target)

@@ -145,6 +145,79 @@ defmodule AshEnterprise.AcpExtMethodsTest do
     assert resp["error"]["code"] == -32_602
   end
 
+  describe "_ash/surface/open in the catalog the client renders" do
+    defp open_with(capabilities) do
+      ctx = tenant!()
+      person!(ctx, "ada@example.test", "Ada Park")
+      {_init, sid, state} = session(ctx)
+
+      {resp, [], state} =
+        rpc(state, "_ash/surface/open", %{
+          "sessionId" => sid,
+          "surface" => "people",
+          "_meta" => %{"a2uiClientCapabilities" => capabilities}
+        })
+
+      {resp["result"], sid, state}
+    end
+
+    defp catalog_id(a2ui),
+      do: Enum.find_value(a2ui, &get_in(&1, ["createSurface", "catalogId"]))
+
+    test "a client with only the basic catalog gets it, and so do its actions' updates" do
+      basic = "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json"
+      {result, sid, state} = open_with(%{"v1.0" => %{"supportedCatalogIds" => [basic]}})
+
+      assert catalog_id(result["a2ui"]) =~ "/catalogs/basic/"
+      refute Map.has_key?(result, "fallback")
+
+      {resp, [], _state} =
+        rpc(state, "_a2ui/action", %{
+          "sessionId" => sid,
+          "surfaceId" => result["surfaceId"],
+          "action" => %{
+            "name" => "query",
+            "context" => %{"component" => "table", "query" => %{}, "page" => 1}
+          }
+        })
+
+      assert %{"outcome" => "applied", "a2ui" => updates} = resp["result"]
+
+      refute Enum.any?(updates, fn
+               %{"updateDataModel" => %{"path" => "/query", "value" => value}} ->
+                 Map.has_key?(value, "paginationVisible")
+
+               _other ->
+                 false
+             end)
+    end
+
+    test "a client listing the admin catalog gets it" do
+      {result, _sid, _state} =
+        open_with(%{
+          "v1.0" => %{"supportedCatalogIds" => ["https://ash-a2ui.dev/catalogs/admin/v1"]}
+        })
+
+      assert catalog_id(result["a2ui"]) == "https://ash-a2ui.dev/catalogs/admin/v1"
+    end
+
+    test "a client that renders none of them gets the fallback and no surface" do
+      for capabilities <- [
+            %{"v1.0" => %{"supportedCatalogIds" => []}},
+            %{"v1.0" => %{"supportedCatalogIds" => ["https://example.com/kiosk.json"]}},
+            %{"v1.0" => %{}},
+            "basic"
+          ] do
+        {result, sid, _state} = open_with(capabilities)
+
+        assert result["a2ui"] == [], "#{inspect(capabilities)} was sent a surface"
+        assert result["surfaceId"] == "people"
+        assert %{"reason" => "unsupported_catalog", "path" => "/app/people"} = result["fallback"]
+        assert Acp.SessionStore.surface_for(sid) == nil
+      end
+    end
+  end
+
   test "_a2ui/action runs a read at once" do
     ctx = tenant!()
     ada = person!(ctx, "ada@example.test", "Ada Park")
