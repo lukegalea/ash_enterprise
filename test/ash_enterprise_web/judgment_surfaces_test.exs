@@ -20,6 +20,7 @@ defmodule AshEnterpriseWeb.JudgmentSurfacesTest do
 
   alias AshAgent.Invocation.{Executor, IdempotencyConflict, Ungoverned}
   alias AshEnterprise.Bpmn.HumanTask
+  alias AshEnterprise.Channels
   alias AshEnterprise.Decisions.Definition
   alias AshEnterprise.Execution
   alias AshEnterprise.Platform.AutomationPrincipal
@@ -263,9 +264,43 @@ defmodule AshEnterpriseWeb.JudgmentSurfacesTest do
         tenant: platform.id
       )
 
-      assert {:error, error} = click(CalibrationRun, :certify_now, run, ctx)
+      assert {:ok, %{"status" => "failed", "error_code" => "unpublished_draft_exists"}} =
+               click(CalibrationRun, :certify_now, run, ctx)
 
-      assert Exception.message(error) =~ "unpublished_draft_exists"
+      # Through the surface, the refusal reads as what it is on both channels: the click
+      # failed because a rule refused it, not for a reason no one can place.
+      handled = invoke(Judgments.BandTablesUI, "certify_now", run, ctx)
+
+      assert Channels.outcome(handled, {CalibrationRun, :certify_now}) ==
+               {:failed, :policy_failed}
+
+      # And the person reads it as a refusal, with its code, not as a click that completed.
+      {_status, messages} =
+        AshEnterpriseWeb.A2ui.Host.act(
+          Judgments.BandTablesUI,
+          %{
+            "name" => "invoke",
+            "context" => %{
+              "action" => "certify_now",
+              "recordId" => run.id,
+              "component" => "table"
+            }
+          },
+          actor: ctx.actor,
+          tenant: ctx.org
+        )
+
+      assert [feedback] =
+               for(
+                 %{"updateDataModel" => %{"path" => "/ui/feedback", "value" => value}} <- messages,
+                 do: value
+               )
+
+      assert %{"kind" => "error", "result" => "failed", "blockedReason" => "policy_failed"} =
+               feedback
+
+      assert feedback["message"] =~ "unpublished_draft_exists"
+
       assert [] = BandTableCertification |> Ash.read!(tenant: ctx.org, authorize?: false)
       assert [run.id] == awaiting_certification(ctx)
     end
