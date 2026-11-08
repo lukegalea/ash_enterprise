@@ -20,7 +20,7 @@ defmodule AshEnterprise.Test.Execution.Runs do
   alias AshEnterprise.AI.ModelCall
   alias AshEnterprise.Bpmn.HumanTask
   alias AshEnterprise.Execution
-  alias AshEnterprise.Execution.Invocation
+  alias AshEnterprise.Execution.{AgentVersion, Invocation}
   alias AshEnterprise.Platform.SystemActor
   alias AshEnterprise.Test.AssistantFixtures
   alias AshEnterprise.Test.AssistantFixtures.ScriptedModel
@@ -201,5 +201,60 @@ defmodule AshEnterprise.Test.Execution.Runs do
       Oban.cancel_all_jobs(from(j in Oban.Job, where: j.queue in ["agent_runs", "execution"]))
       for queue <- [:agent_runs, :execution], do: Oban.resume_queue(queue: queue)
     end)
+  end
+
+  @doc """
+  A completed run of `admin`'s in their tenant, recorded under `correlation_id` without
+  running it: a run a trace reaches, for the model calls made under it.
+  """
+  def recorded!(admin, correlation_id) do
+    version =
+      Ash.Seed.seed!(AgentVersion, %{
+        organization_id: admin.tenant,
+        key: "trace.synthetic",
+        version: System.unique_integer([:positive]),
+        source: :code,
+        instructions: "SYNTHETIC: nothing to do.",
+        model_profile: "in_zone",
+        toolset: [],
+        limits: %{max_steps: 1},
+        output_type: "string",
+        content_hash: "h",
+        status: :published
+      })
+
+    Ash.Seed.seed!(Execution.Run, %{
+      organization_id: admin.tenant,
+      owner_type: :user,
+      owner_id: admin.user.id,
+      agent_key: version.key,
+      agent_version_id: version.id,
+      run_key: "trace-#{System.unique_integer([:positive])}",
+      correlation_id: correlation_id,
+      mode: :live,
+      status: :completed
+    })
+  end
+
+  @doc """
+  A model call named `caller` (`"run:<run id>:<step seq>"` for a run's step), under
+  `correlation_id`, as `AshEnterprise.AI.Models` records one; `extra` overrides the rest.
+  """
+  def model_call!(caller, correlation_id, extra \\ %{}) do
+    ModelCall.record!(
+      Map.merge(
+        %{
+          caller: caller,
+          profile: "recorded",
+          model: "synthetic",
+          residency: :in_zone,
+          operation: :generate_text,
+          outcome: :ok,
+          correlation_id: correlation_id
+        },
+        extra
+      ),
+      actor: SystemActor.system()
+    )
   end
 end

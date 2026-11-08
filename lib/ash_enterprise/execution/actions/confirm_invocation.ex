@@ -26,7 +26,11 @@ defmodule AshEnterprise.Execution.Actions.ConfirmInvocation do
        the person is rebuilt from their grants, and the target runs as them.
 
   A target that refuses (`AshAgent.BusinessError`, a verifier, a policy) fails the
-  invocation, and the click returns its error code.
+  invocation, and the click answers with that row, its status and error code, as it
+  answers with a row that ran. A click that went through is not an error: what its
+  request came to is the row's status, which is how both channels classify it
+  (`AshEnterprise.Channels.outcome/2`), so a refusal reads as `policy_failed` and a stale
+  approval as `approval_required` rather than as a failure no one can place.
 
   Steps 2 to 4 are `confirm/3`, for a caller that already holds the row (an ACP
   permission request the person allowed, `AshEnterprise.Acp.Approvals`), and
@@ -142,13 +146,12 @@ defmodule AshEnterprise.Execution.Actions.ConfirmInvocation do
 
   defp candidate_refusal?(_other), do: false
 
-  defp report(%{status: status} = row) when status in [:failed, :rejected, :stale] do
-    {:error,
-     "The request #{status}#{if row.error_code, do: ": " <> row.error_code, else: ""}. " <>
-       "Nothing was changed."}
-  end
-
-  defp report(row) do
+  @doc """
+  What a click answers with: the request its click became, whatever its status, as
+  `AshEnterprise.Execution.Actions.RequestInvocation` answers.
+  """
+  @spec report(Ash.Resource.record()) :: {:ok, map()}
+  def report(row) do
     {:ok,
      %{
        "invocation_id" => row.id,

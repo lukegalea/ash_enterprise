@@ -32,6 +32,7 @@ defmodule AshEnterprise.Channels.BlockedReasonTest do
   alias AshEnterprise.Channels
   alias AshEnterprise.Credentialing.{DemoData, Registry}
   alias AshEnterprise.Execution
+  alias AshEnterprise.Execution.Actions.ConfirmInvocation
   alias AshEnterprise.Execution.Approval
   alias AshEnterprise.Platform.SystemActor
   alias AshEnterprise.Security.ActorContext
@@ -335,5 +336,34 @@ defmodule AshEnterprise.Channels.BlockedReasonTest do
     end
 
     assert Channels.result({:ok, [answer(%{"status" => "succeeded"})]}, confirm) == :applied
+  end
+
+  # A click that ran and did not succeed answers with its row, as one that did, so the
+  # channels read why from the row's status rather than from an error they cannot place.
+  for {status, failure_class, code, expected} <- [
+        {:failed, :business, "unpublished_draft_exists", {:failed, :policy_failed}},
+        {:failed, :denied, nil, {:failed, :forbidden}},
+        {:rejected, nil, nil, {:failed, :policy_failed}},
+        {:stale, nil, "manifest_changed", {:failed, :approval_required}}
+      ] do
+    test "a confirmed click whose request is #{status} #{failure_class} is classified by it" do
+      row = %Execution.Invocation{
+        id: Ash.UUID.generate(),
+        target: "AshEnterprise.SystemOne.CalibrationRun.certify_and_publish",
+        status: unquote(status),
+        failure_class: unquote(failure_class),
+        error_code: unquote(code)
+      }
+
+      assert {:ok, %{"status" => status} = reported} = ConfirmInvocation.report(row)
+      assert status == unquote(Atom.to_string(status))
+
+      for wrap <- [&answer/1, &response/1] do
+        assert Channels.outcome(
+                 {:ok, [wrap.(reported)]},
+                 {AshEnterprise.SystemOne.CalibrationRun, :certify_now}
+               ) == unquote(expected)
+      end
+    end
   end
 end

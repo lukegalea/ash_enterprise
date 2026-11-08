@@ -26,6 +26,7 @@ defmodule AshEnterprise.Execution.Explorer do
   alias AshEnterprise.Erasure.Shredded
   alias AshEnterprise.Execution
   alias AshEnterprise.Execution.{Intervention, Invocation, Recovery, ReviewPacket, Run, Step}
+  alias AshEnterprise.ExecutionSources
   alias AshEnterprise.Process.DefinitionLoader
   alias AshEnterprise.Quality.CaseResult
   alias AshEnterprise.SystemOne.Judgment
@@ -227,8 +228,12 @@ defmodule AshEnterprise.Execution.Explorer do
     end
   end
 
+  # A model call has no tenant of its own: it is read only through the run that made it,
+  # as the trace reads it (`AshEnterprise.ExecutionSources.ModelCall`).
   defp detail("model_call", id, opts) do
-    with {:ok, call} <- get(ModelCall, id, opts) do
+    with {:ok, call} <- get(ModelCall, id, opts),
+         run_id when is_binary(run_id) <- ExecutionSources.ModelCall.run_id(call.caller),
+         {:ok, _run} <- get(Run, run_id, opts) do
       {:ok,
        %{
          type: :model_call,
@@ -243,6 +248,9 @@ defmodule AshEnterprise.Execution.Explorer do
            ),
          duration_ms: call.duration_ms
        }}
+    else
+      nil -> :unreadable
+      other -> other
     end
   end
 

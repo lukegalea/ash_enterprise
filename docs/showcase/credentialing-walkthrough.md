@@ -64,7 +64,8 @@ the line "Nothing to open in the explorer yet."
 ## Activation requests (beats 1 to 5)
 
 1. **Ask to activate a credential.** The coordinator asks; the request is a governed invocation that waits
-   for approval.
+   for approval. The beat's explorer link opens the newest request that waits, never one the history made
+   for a failure.
 2. **A committee member approves it.** Signed in as a committee member (`kenji@example.com` or
    `amaka@example.com`), each waiting request links to its approval ("Open the approval") on the approvals
    surface, where the member reads what is being approved and approves it. The coordinator sees the request
@@ -119,7 +120,10 @@ the line "Nothing to open in the explorer yet."
 
 13. **The committee decides.** The case's review links to its packet on the approvals surface.
 14. **The re-credentialing timer.** The timer that brings the credential back for review.
-15. **An approval over ACP survives a restart.** A request approved over the Agent Client Protocol.
+15. **An approval over ACP survives a restart.** A request approved over the Agent Client Protocol. A
+    request an ACP client asked for keeps the mark of its origin in its key (`acp:`), and the beat's explorer
+    link opens the newest such request the viewer may read. Until a client has asked for one, the beat has
+    nothing to open.
 
 ## Releases (beats 16 to 19)
 

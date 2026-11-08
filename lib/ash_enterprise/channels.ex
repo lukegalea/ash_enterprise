@@ -348,18 +348,41 @@ defmodule AshEnterprise.Channels do
   The handler's messages with `result` (and `blocked`, unless it is `:none` or
   `:unclassified`) added to the `/ui/feedback` value they write. Messages that write no
   feedback are left as they are: a query or a search answers nothing about an act.
+
+  A request door answers with its row even when the request failed, was rejected or went
+  stale, and the handler, which ran the door without error, writes a success. When the
+  result is `failed`, that success becomes an error naming what the request came to, so
+  the person reads the same answer the result carries.
   """
   @spec annotate_feedback([map()], atom(), atom()) :: [map()]
   def annotate_feedback(messages, result, blocked) do
     Enum.map(messages, fn
       %{"updateDataModel" => %{"path" => "/ui/feedback", "value" => value} = update} = message
       when is_map(value) ->
-        %{message | "updateDataModel" => %{update | "value" => wire(value, result, blocked)}}
+        value = value |> refused(result, messages) |> wire(result, blocked)
+        %{message | "updateDataModel" => %{update | "value" => value}}
 
       message ->
         message
     end)
   end
+
+  defp refused(%{"kind" => "success"} = value, :failed, messages) do
+    case door_row(messages) do
+      %{status: status, error_code: code} when not is_nil(status) ->
+        %{
+          value
+          | "kind" => "error",
+            "message" =>
+              "The request #{status}#{if code, do: ": " <> code, else: ""}. Nothing was changed."
+        }
+
+      _no_row ->
+        value
+    end
+  end
+
+  defp refused(value, _result, _messages), do: value
 
   @doc "`answer` (an ACP `_a2ui/action` answer) with `result` and `blocked` added."
   @spec annotate_answer(map(), atom(), atom()) :: map()

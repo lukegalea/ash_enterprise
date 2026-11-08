@@ -184,18 +184,24 @@ defmodule AshEnterprise.ExecutionSources do
   Reads `resource`'s rows that match one of `matches` through its primary read action,
   as `opts[:actor]` in `opts[:tenant]`, oldest first by `:time` (default `:created_on`)
   and then id, at most `opts[:limit]` after `opts[:after]`, loading `:load`. `matches` is
-  a list of `{field, values}`; a field with no values matches nothing, and with no values
-  at all nothing is read. `{:ok, rows, next_cursor}` or `{:error, error}`.
+  a list of `{field, values}`, or `{field, {:prefix, prefixes}}` for a string field that
+  starts with one of `prefixes`; a field with no values matches nothing, and with no
+  values at all nothing is read. `{:ok, rows, next_cursor}` or `{:error, error}`.
   """
-  @spec read(Ash.Resource.t(), [{atom(), [term()]}], keyword(), keyword()) ::
+  @spec read(
+          Ash.Resource.t(),
+          [{atom(), [term()] | {:prefix, [String.t()]}}],
+          keyword(),
+          keyword()
+        ) ::
           {:ok, [Ash.Resource.record()], String.t() | nil} | {:error, term()}
   def read(resource, matches, opts, read_opts \\ []) do
     time = Keyword.get(read_opts, :time, :created_on)
 
     matches =
       for {field, values} <- matches,
-          values = Enum.uniq(values),
-          values != [],
+          values = uniq(values),
+          values not in [[], {:prefix, []}],
           do: {field, values}
 
     with [_ | _] <- matches,
@@ -209,17 +215,26 @@ defmodule AshEnterprise.ExecutionSources do
     end
   end
 
-  defp base(resource, [{field, values} | rest], time, opts) do
+  defp uniq({:prefix, prefixes}), do: {:prefix, Enum.uniq(prefixes)}
+  defp uniq(values), do: Enum.uniq(values)
+
+  defp base(resource, [first | rest], time, opts) do
     condition =
-      Enum.reduce(rest, expr(^ref(field) in ^values), fn {field, values}, acc ->
-        expr(^acc or ^ref(field) in ^values)
-      end)
+      Enum.reduce(rest, condition(first), fn match, acc -> expr(^acc or ^condition(match)) end)
 
     resource
     |> Ash.Query.for_read(:read, %{}, actor: opts[:actor], tenant: opts[:tenant])
     |> Ash.Query.do_filter(condition)
     |> Ash.Query.sort([{time, :asc}, {:id, :asc}])
   end
+
+  defp condition({field, {:prefix, [prefix | rest]}}) do
+    Enum.reduce(rest, expr(string_starts_with(^ref(field), ^prefix)), fn prefix, acc ->
+      expr(^acc or string_starts_with(^ref(field), ^prefix))
+    end)
+  end
+
+  defp condition({field, values}), do: expr(^ref(field) in ^values)
 
   defp after_cursor(query, _time, nil), do: {:ok, query}
 

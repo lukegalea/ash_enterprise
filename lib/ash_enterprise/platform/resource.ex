@@ -64,8 +64,6 @@ defmodule AshEnterprise.Platform.Resource do
       write. Default `true`. Off only for the lineage store's own resources
       (`AshEnterprise.Lineage`): recording a run must not emit a run, or every
       write would feed itself.
-    * `:paper_trail?` — additionally keep a per-resource version table. Default
-      `false`; see ADR 0002 for why running both is not the default.
     * `:api_type` — expose the resource over JSON:API and GraphQL under this
       type name, e.g. `:business_unit`. Omitting it (the default) means the
       resource has no public API surface at all. Exposure is opt-in per resource
@@ -109,7 +107,6 @@ defmodule AshEnterprise.Platform.Resource do
     {audit?, opts} = Keyword.pop(opts, :audit?, true)
     {archival?, opts} = Keyword.pop(opts, :archival?, true)
     {lineage?, opts} = Keyword.pop(opts, :lineage?, true)
-    {paper_trail?, opts} = Keyword.pop(opts, :paper_trail?, false)
     {policies?, opts} = Keyword.pop(opts, :policies?, true)
     {extra_grants, opts} = Keyword.pop(opts, :extra_grants, [])
     {api_type, opts} = Keyword.pop(opts, :api_type)
@@ -128,7 +125,6 @@ defmodule AshEnterprise.Platform.Resource do
       ]
       |> maybe_add(audit?, AshEvents.Events)
       |> maybe_add(archival?, AshArchival.Resource)
-      |> maybe_add(paper_trail?, AshPaperTrail.Resource)
       |> maybe_add(not is_nil(api_type), AshJsonApi.Resource)
       |> maybe_add(not is_nil(api_type), AshGraphql.Resource)
       |> maybe_add(lifecycle?, AshStateMachine)

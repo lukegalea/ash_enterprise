@@ -433,7 +433,6 @@ defmodule AshEnterprise.MixProject do
       {:ash_diagram, "~> 0.2"},
       {:clarity, "~> 0.6"},
       {:cinder, "~> 0.17"},
-      {:ash_rate_limiter, "~> 1.0"},
       {:ash_money, "~> 0.2"},
       {:usage_rules, "~> 1.0", only: [:dev]},
       # ash_ai 0.8 pulled req_llm in as a hard dependency; 1.0 makes it optional.
@@ -460,7 +459,6 @@ defmodule AshEnterprise.MixProject do
       # cannot resolve from both hex and git.
       {:ash_events,
        github: "lukegalea/ash_events", branch: "temporal-as-of-support-0.7", override: true},
-      {:ash_paper_trail, "~> 0.6"},
       {:ash_archival, "~> 2.0"},
       {:ash_oban, "~> 0.8"},
       {:ash_graphql, "~> 1.0"},

@@ -84,6 +84,10 @@ defmodule AshEnterprise.Showcase.History do
   @spec key(String.t()) :: String.t()
   def key(failure), do: @prefix <> String.downcase(failure)
 
+  @doc "What every key the history makes starts with (`key/1`)."
+  @spec key_prefix() :: String.t()
+  def key_prefix, do: @prefix
+
   @doc """
   Runs the beats in `organization`, the populated demo tenant, and returns the report, one
   entry per beat, in the order they ran. Raises for any other organization before writing.

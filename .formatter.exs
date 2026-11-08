@@ -7,7 +7,6 @@
     :ash_operations,
     :clarity,
     :cinder,
-    :ash_rate_limiter,
     :ash_ai,
     :ash_state_machine,
     :ash_events,

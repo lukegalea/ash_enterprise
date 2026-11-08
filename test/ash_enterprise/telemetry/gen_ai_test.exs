@@ -73,11 +73,14 @@ defmodule AshEnterprise.Telemetry.GenAITest do
   end
 
   defp content_free!(spans, plaintext) do
-    assert for(span <- spans, key <- Map.keys(span.attributes), key in @content, do: key) == []
+    keyed = fn attributes -> Map.new(attributes, fn {k, v} -> {to_string(k), v} end) end
+
+    assert for(span <- spans, key <- Map.keys(keyed.(span.attributes)), key in @content, do: key) ==
+             []
 
     leaks =
       for span <- spans,
-          {key, value} <- span.attributes,
+          {key, value} <- keyed.(span.attributes),
           is_binary(value),
           text <- plaintext,
           String.contains?(value, text),
@@ -286,6 +289,55 @@ defmodule AshEnterprise.Telemetry.GenAITest do
       assert TraceSink.trace(trace_id).root.span_id == chat.parent_span_id
 
       content_free!([chat], ["SYNTHETIC prompt text", "SYNTHETIC answer text"])
+    end
+
+    test "that fails carries its error class, never the provider's error text" do
+      # A provider's error can quote the request back: the prompt, or what a person wrote.
+      echo = "SYNTHETIC prompt text"
+
+      Req.Test.stub(__MODULE__, fn conn ->
+        conn
+        |> Plug.Conn.put_status(400)
+        |> Req.Test.json(%{
+          "error" => %{
+            "type" => "invalid_request_error",
+            "message" => "Could not process the message: #{echo}"
+          }
+        })
+      end)
+
+      {result, trace_id} =
+        in_request(fn ->
+          GuardedReqLLM.generate_text(
+            AshEnterprise.AI.Models.default_spec(),
+            echo,
+            caller: "test.gen_ai",
+            req_http_options: [plug: {Req.Test, __MODULE__}]
+          )
+        end)
+
+      assert {:error, _error} = result
+      assert [chat] = spans(trace_id, "chat")
+      assert chat.status_code == :error
+      assert is_binary(chat.attributes["error.type"])
+
+      # The status says which error, by class or HTTP status, and no more.
+      refute is_binary(chat.status_message) and chat.status_message =~ echo
+
+      assert chat.status_message in [nil, "", chat.attributes["error.type"]] or
+               chat.status_message =~ ~r/^HTTP \d{3}$/
+
+      # The exception event names its type, never its message.
+      assert [_ | _] = exceptions = Enum.filter(chat.events, &(&1.name == "exception"))
+
+      for event <- exceptions do
+        keys = Enum.map(Map.keys(event.attributes), &to_string/1)
+        assert "exception.type" in keys
+        refute "exception.message" in keys
+        refute "exception.stacktrace" in keys
+      end
+
+      content_free!([chat | Enum.map(chat.events, &Map.put(&1, :name, "event"))], [echo])
     end
   end
 

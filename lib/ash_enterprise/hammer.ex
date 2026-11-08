@@ -1,6 +1,6 @@
 defmodule AshEnterprise.Hammer do
   @moduledoc """
-  Rate-limiter backend for `ash_rate_limiter`, over ETS.
+  Rate-limiter backend over ETS, used by the provider webhook plug.
 
   ETS means the limit is per node. That is the right default for a template and
   the wrong one for a horizontally scaled deployment, where two nodes each grant

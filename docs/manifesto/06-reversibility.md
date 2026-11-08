@@ -21,13 +21,13 @@ to know about it.
 with no abstraction layer. Wrapping these would be pure cost.
 
 `ash` · `ash_postgres` · `ash_phoenix` · `ash_json_api` · `ash_graphql` · `ash_authentication` ·
-`ash_authentication_phoenix` · `ash_admin` · `ash_oban` · `ash_archival` · `ash_paper_trail` · `reactor` · `igniter` ·
+`ash_authentication_phoenix` · `ash_admin` · `ash_oban` · `ash_archival` · `reactor` · `igniter` ·
 `spark` · `usage_rules` · `phoenix` · `oban`
 
 **Tier 2 — production-viable, watch the version.** Real and useful, but younger or thinner than tier 1. Used directly,
 but the version is pinned tightly and the ADRs name what we would do without them.
 
-`ash_ai` · `ash_events` · `ash_state_machine` · `ash_money` · `ash_rate_limiter` · `ash_cloak` · `cinder` ·
+`ash_ai` · `ash_events` · `ash_state_machine` · `ash_money` · `ash_cloak` · `cinder` ·
 `opentelemetry_ash` · `ash_credo` · `ash_ops`
 
 **Tier 3 — isolated behind a seam.** Alpha, unpublished, unmaintained, or commercial. Confined to one directory or one
