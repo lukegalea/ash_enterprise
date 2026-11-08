@@ -98,7 +98,7 @@ defmodule AshEnterprise.Execution.TraceTest do
   alias AshEnterprise.Credentialing.{DemoData, RoutingTable}
   alias AshEnterprise.Decisions
   alias AshEnterprise.Execution
-  alias AshEnterprise.Execution.{Approval, Entry, Invocation}
+  alias AshEnterprise.Execution.{Approval, Entry, Explorer, Invocation}
   alias AshEnterprise.Execution.TraceTest, as: Fake
   alias AshEnterprise.ExecutionSources
   alias AshEnterprise.ExecutionSources, as: S
@@ -106,6 +106,7 @@ defmodule AshEnterprise.Execution.TraceTest do
   alias AshEnterprise.Security
   alias AshEnterprise.Security.ActorContext
   alias AshEnterprise.Showcase.Credentialing, as: Tour
+  alias AshEnterprise.Test.Execution.Runs
 
   @activate "AshEnterprise.Credentialing.Credential.activate_credential"
   @number "DEMO-PT-0001"
@@ -294,23 +295,14 @@ defmodule AshEnterprise.Execution.TraceTest do
     test "a model call whose telemetry never arrived is not recorded, and costs nothing known",
          ctx do
       id = Ash.UUID.generate()
+      run = Runs.recorded!(ctx.admin, id)
 
       call = fn tokens ->
-        ModelCall.record!(
-          %{
-            caller: "trace.test",
-            profile: "recorded",
-            model: "synthetic",
-            residency: :in_zone,
-            operation: :generate_text,
-            outcome: :ok,
-            correlation_id: id,
-            input_tokens: tokens,
-            output_tokens: tokens,
-            duration_ms: tokens && 40
-          },
-          actor: SystemActor.system()
-        )
+        Runs.model_call!("run:#{run.id}:1", id, %{
+          input_tokens: tokens,
+          output_tokens: tokens,
+          duration_ms: tokens && 40
+        })
       end
 
       measured = call.(12)
@@ -353,28 +345,78 @@ defmodule AshEnterprise.Execution.TraceTest do
     end
   end
 
+  describe "model calls, inside the viewer's tenant and runs" do
+    # A run of the administrator's under `correlation_id`, with one model call of its own
+    # and one the correlation carries from no run at all.
+    setup ctx do
+      correlation_id = Ash.UUID.generate()
+      run = Runs.recorded!(ctx.admin, correlation_id)
+
+      %{
+        correlation_id: correlation_id,
+        run: run,
+        call: Runs.model_call!("run:#{run.id}:1", correlation_id),
+        loose: Runs.model_call!("trace.loose", correlation_id)
+      }
+    end
+
+    test "another tenant's model calls are not in a trace, by correlation or by its run", ctx do
+      other = tenant!()
+      refs = ["model_call:#{ctx.call.id}", "model_call:#{ctx.loose.id}"]
+
+      for args <- [%{correlation_id: ctx.correlation_id}, %{root_ref: "run:#{ctx.run.id}"}] do
+        %{entries: entries} = trace!(args, other.actor, other.tenant)
+        assert Enum.filter(entries, &(&1.source_ref in refs)) == []
+      end
+
+      for ref <- refs do
+        assert Explorer.detail(ref, actor: other.actor, tenant: other.tenant) == :unreadable
+      end
+    end
+
+    test "a model call is read only through a run the viewer may read", ctx do
+      # May read every model call, and none of the runs that made them.
+      usage =
+        member!(ctx.admin, "Usage #{System.unique_integer([:positive])}", [
+          {ModelCall, :read, :global}
+        ])
+
+      %{entries: entries} = trace!(%{correlation_id: ctx.correlation_id}, usage.actor, ctx.tenant)
+      refute Enum.any?(entries, &(&1.source == :model_call))
+
+      assert Explorer.detail("model_call:#{ctx.call.id}", actor: usage.actor, tenant: ctx.tenant) ==
+               :unreadable
+
+      # The run's owner reads its call, under the run; a call from no run is in no
+      # tenant's trace, since nothing on it says whose it is.
+      %{entries: entries} =
+        trace!(%{correlation_id: ctx.correlation_id}, ctx.admin.actor, ctx.tenant)
+
+      by_ref = Map.new(entries, &{&1.source_ref, &1})
+      assert %{parent_ref: "run:" <> _} = by_ref["model_call:#{ctx.call.id}"]
+      refute Map.has_key?(by_ref, "model_call:#{ctx.loose.id}")
+
+      assert {:ok, %{type: :model_call}} =
+               Explorer.detail("model_call:#{ctx.call.id}",
+                 actor: ctx.admin.actor,
+                 tenant: ctx.tenant
+               )
+
+      assert Explorer.detail("model_call:#{ctx.loose.id}",
+               actor: ctx.admin.actor,
+               tenant: ctx.tenant
+             ) == :unreadable
+    end
+  end
+
   describe "limits and cursors" do
     test "a source reads at most its limit, and its cursor reads the rest", ctx do
       id = Ash.UUID.generate()
-
-      calls =
-        for n <- 1..5 do
-          ModelCall.record!(
-            %{
-              caller: "trace.test.#{n}",
-              profile: "recorded",
-              model: "synthetic",
-              residency: :in_zone,
-              operation: :generate_text,
-              outcome: :ok,
-              correlation_id: id
-            },
-            actor: SystemActor.system()
-          )
-        end
+      run = Runs.recorded!(ctx.admin, id)
+      calls = for n <- 1..5, do: Runs.model_call!("run:#{run.id}:#{n}", id)
 
       sources = [{:model_call, S.ModelCall, limit: 2}]
-      scope = %{correlation_id: id, refs: MapSet.new()}
+      scope = %{correlation_id: id, refs: MapSet.new(["run:#{run.id}"])}
       opts = [actor: ctx.admin.actor, tenant: ctx.tenant]
 
       pages =

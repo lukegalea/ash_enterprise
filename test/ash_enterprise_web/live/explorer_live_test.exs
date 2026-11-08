@@ -43,7 +43,6 @@ defmodule AshEnterpriseWeb.ExplorerLiveTest do
   require Ash.Query
 
   alias AshBpmn.Runtime.Oban.TestJobs
-  alias AshEnterprise.AI.ModelCall
   alias AshEnterprise.Bpmn.HumanTask
   alias AshEnterprise.Credentialing
   alias AshEnterprise.Credentialing.{DemoData, RoutingTable}
@@ -56,7 +55,7 @@ defmodule AshEnterpriseWeb.ExplorerLiveTest do
   alias AshEnterprise.Security.ActorContext
   alias AshEnterprise.Showcase.Credentialing, as: Tour
   alias AshEnterprise.Showcase.Release
-  alias AshEnterprise.Test.Execution.FakeBoard
+  alias AshEnterprise.Test.Execution.{FakeBoard, Runs}
   alias AshEnterpriseWeb.ExplorerLive
 
   @activate "AshEnterprise.Credentialing.Credential.activate_credential"
@@ -361,19 +360,8 @@ defmodule AshEnterpriseWeb.ExplorerLiveTest do
            )
 
     id = Ash.UUID.generate()
-
-    ModelCall.record!(
-      %{
-        caller: "explorer.test",
-        profile: "recorded",
-        model: "synthetic",
-        residency: :in_zone,
-        operation: :generate_text,
-        outcome: :refused,
-        correlation_id: id
-      },
-      actor: SystemActor.system()
-    )
+    run = Runs.recorded!(ctx.admin, id)
+    Runs.model_call!("run:#{run.id}:1", id, %{outcome: :refused})
 
     {:ok, view, _html} =
       live(sign_in(ctx.admin.user), ~p"/app/explorer?#{%{correlation_id: id}}")
@@ -387,25 +375,16 @@ defmodule AshEnterpriseWeb.ExplorerLiveTest do
 
   test "a long trace pages by cursor, and every entry is read once (QX-06)", ctx do
     id = Ash.UUID.generate()
+    run = Runs.recorded!(ctx.admin, id)
     {_name, _module, source_opts} = List.keyfind(ExecutionSources.all(), :model_call, 0)
     total = source_opts[:limit] + 5
 
     for n <- 1..total do
-      ModelCall.record!(
-        %{
-          caller: "explorer.test.#{n}",
-          profile: "recorded",
-          model: "synthetic",
-          residency: :in_zone,
-          operation: :generate_text,
-          outcome: :ok,
-          correlation_id: id,
-          input_tokens: 1,
-          output_tokens: 1,
-          duration_ms: 1
-        },
-        actor: SystemActor.system()
-      )
+      Runs.model_call!("run:#{run.id}:#{n}", id, %{
+        input_tokens: 1,
+        output_tokens: 1,
+        duration_ms: 1
+      })
     end
 
     {:ok, view, _html} =
