@@ -27,7 +27,7 @@ Facts below were checked on **2026-11-06**. Upstream status goes stale quickly, 
 | Package | Upstream | Our fork (pinned by) | What the fork adds |
 |---|---|---|---|
 | `ash_events` | [ash-project/ash_events](https://github.com/ash-project/ash_events), Hex 0.8.2 | [lukegalea/ash_events](https://github.com/lukegalea/ash_events), branch `temporal-as-of-support-0.7` (this app, with `override: true`) | Records a write's `as_of` on its event and restores it on replay; marks the replay wrappers `temporal_safe?`; replays in chronological order. Needed for audited temporal resources (the System One facts table). |
-| `boxic_dmn` | `boxic_dmn` in [koenusz/boxic](https://github.com/koenusz/boxic), Hex 0.3.0 | [lukegalea/boxic_dmn](https://github.com/lukegalea/boxic_dmn) at `7cb79cd` (`ash_decisions`; arrives here transitively) | `Boxic.DMN.evaluate_with_trace/3,4`, which returns the matched rule ids and hit policy with the value. This is the provenance a decision's audit trail is built on. It also relaxes the Elixir requirement to `~> 1.18`. Versioned `0.4.0`. |
+| `boxic_dmn` | `boxic_dmn` in [koenusz/boxic](https://github.com/koenusz/boxic), Hex 0.3.0 | [lukegalea/boxic_dmn](https://github.com/lukegalea/boxic_dmn) at `92c2a2a` (`ash_decisions`; arrives here transitively) | `Boxic.DMN.evaluate_with_trace/3,4`, which returns the matched rule ids and hit policy with the value. This is the provenance a decision's audit trail is built on. It also relaxes the Elixir requirement to `~> 1.18`. Versioned `0.4.0`. |
 
 ### `ash_events`: path back
 

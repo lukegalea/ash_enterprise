@@ -167,11 +167,17 @@ enforcement mechanism. And formal anonymity guarantees: what this produces is
 salt) — and an ADR that claimed the stronger word would be claiming something no transform pipeline
 delivers.
 
+A hash-chained ledger table cannot be value-transformed without breaking its chain, so ledger tables stay out
+of a dump until a policy for them is decided.
+
 ## Reversal
 
 Cheap now, because nothing depends on it: no `ash_greenmask` line in `mix.exs`, no `greenmask` block
 in any resource, no generated config in the tree. Abandoning the decision before adoption is a matter
 of not adding any of the three.
+
+*Note, 2026-11-08:* the package now exists and is public at `lukegalea/ash_greenmask`. This app has not adopted
+it, so the sentence above is still true of this app.
 
 **To abandon after adoption:** delete the `greenmask do … end` blocks and the generated config with
 the generator that produced it — both sides of the pair are deletable because neither is a
