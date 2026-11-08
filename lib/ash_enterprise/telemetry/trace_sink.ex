@@ -480,20 +480,7 @@ defmodule AshEnterprise.Telemetry.TraceSink do
   # --- SDK records → plain maps ---------------------------------------------------
 
   defp span_to_map(span) do
-    attributes =
-      case elem(span, pos(:attributes)) do
-        # #attributes{count_limit, value_length_limit, dropped, map} — the map
-        # is the last field. Unknown shapes fail closed to an empty map.
-        attrs when is_tuple(attrs) and tuple_size(attrs) == 5 ->
-          try do
-            :otel_attributes.map(attrs)
-          rescue
-            _ -> %{}
-          end
-
-        _ ->
-          %{}
-      end
+    attributes = attribute_map(elem(span, pos(:attributes)))
 
     # #status{code, message} — positionally, with a size guard.
     status = elem(span, pos(:status))
@@ -514,10 +501,35 @@ defmodule AshEnterprise.Telemetry.TraceSink do
       start_time: elem(span, pos(:start_time)),
       end_time: elem(span, pos(:end_time)),
       attributes: attributes,
+      events: events(elem(span, pos(:events))),
       status_code: status_code,
       status_message: status_message,
       seq: nil
     }
+  end
+
+  # #attributes{count_limit, value_length_limit, dropped, map} — the map is the last
+  # field. Unknown shapes fail closed to an empty map.
+  defp attribute_map(attrs) when is_tuple(attrs) and tuple_size(attrs) == 5 do
+    :otel_attributes.map(attrs)
+  rescue
+    _ -> %{}
+  end
+
+  defp attribute_map(_attrs), do: %{}
+
+  # #events{} holds #event{system_time_native, name, attributes}, newest first. Unknown
+  # shapes fail closed to no events.
+  defp events(events) do
+    events
+    |> :otel_events.list()
+    |> Enum.flat_map(fn
+      {:event, _time, name, attrs} -> [%{name: name(name), attributes: attribute_map(attrs)}]
+      _other -> []
+    end)
+    |> Enum.reverse()
+  rescue
+    _ -> []
   end
 
   defp name(name) when is_atom(name), do: Atom.to_string(name)

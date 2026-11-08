@@ -30,6 +30,11 @@ defmodule AshEnterprise.Telemetry.GenAI do
   span even when the call asks for raw telemetry payloads. There is no switch to turn
   content on.
 
+  A failed model call's error text stays out too. The bridge writes its spans through
+  `AshEnterprise.Telemetry.GenAI.ContentFreeAdapter`, which gives an error status the
+  error's class rather than the provider's message, keeps an exception event's type and
+  drops its message, and drops the conventions' content attributes from every span.
+
   ## Status
 
   A span ends `ok` only for an outcome that finished its work
@@ -41,6 +46,7 @@ defmodule AshEnterprise.Telemetry.GenAI do
 
   alias AshAgent.OpenTelemetry, as: Mapping
   alias AshEnterprise.Execution.AgentRuntime
+  alias AshEnterprise.Telemetry.GenAI.ContentFreeAdapter
 
   @handler "ash_enterprise-gen-ai"
   @req_llm_handler "ash_enterprise-req-llm"
@@ -48,7 +54,10 @@ defmodule AshEnterprise.Telemetry.GenAI do
   @doc "Attaches the agent span handler and req_llm's bridge. Called once, at boot."
   @spec attach() :: :ok
   def attach do
-    :ok = attached(ReqLLM.OpenTelemetry.attach(@req_llm_handler, content: :none))
+    :ok =
+      attached(
+        ReqLLM.OpenTelemetry.attach(@req_llm_handler, content: :none, adapter: ContentFreeAdapter)
+      )
 
     events =
       for prefix <- Mapping.events(),
