@@ -64,7 +64,7 @@ defmodule AshEnterpriseBattery.MixProject do
       # to resolve the commit the platform runs.
       {:ash_open_lineage,
        github: "lukegalea/ash_open_lineage",
-       ref: "205d072f00d0308e0e950bcab43b2fda1cb461d7",
+       ref: "c35de0bccf39cc2c64db89729736344f1d51462b",
        override: true},
       # --- Master data management (builds on the BIZEV raw layer) -------------
       {:ash_mdm, github: "lukegalea/ash_mdm"},
