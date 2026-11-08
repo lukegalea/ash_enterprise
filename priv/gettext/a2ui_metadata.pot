@@ -835,6 +835,26 @@ msgstr ""
 msgid "Delegate — the person taking it over"
 msgstr ""
 
+#: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
+msgid "Deliveries"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
+msgid "Deliveries the providers send appear here."
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
+msgid "Delivery"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
+msgid "Delivery detail"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
+msgid "Delivery id"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/rule_set_revision_ui.ex:1
 msgctxt "one_of:combining"
 msgid "Deny overrides"
@@ -987,6 +1007,10 @@ msgstr ""
 msgid "Ended"
 msgstr ""
 
+#: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
+msgid "Endpoint"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/audit_ui.ex:1
 msgid "Entry"
 msgstr ""
@@ -1046,6 +1070,10 @@ msgstr ""
 
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Event log"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
+msgid "Event type"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
@@ -1144,6 +1172,19 @@ msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/flight_ui.ex:1
 msgid "Flight view"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
+msgid "Follow-up"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
+msgid "Followed up"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
+msgctxt "one_of:state"
+msgid "Followed up"
 msgstr ""
 
 #: lib/ash_enterprise/canvas/registry.ex:2
@@ -1246,6 +1287,11 @@ msgstr ""
 msgid "Identities"
 msgstr ""
 
+#: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
+msgctxt "one_of:state"
+msgid "Ignored"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
 msgid "Import batches"
 msgstr ""
@@ -1316,6 +1362,11 @@ msgstr ""
 
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Interpret request"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
+msgctxt "one_of:signature_verdict"
+msgid "Invalid"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
@@ -1711,6 +1762,10 @@ msgctxt "one_of:answer"
 msgid "No"
 msgstr ""
 
+#: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
+msgid "No deliveries"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/judgments/calibration_ui.ex:1
 msgctxt "one_of:result"
 msgid "No table"
@@ -1922,6 +1977,10 @@ msgstr ""
 msgid "People"
 msgstr ""
 
+#: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
+msgid "Per provider"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/rule_set_revision_ui.ex:1
 msgctxt "one_of:combining"
 msgid "Permit overrides"
@@ -2034,6 +2093,7 @@ msgctxt "one_of:result"
 msgid "Proposed table"
 msgstr ""
 
+#: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/operator_ui.ex:1
 msgid "Provider"
 msgstr ""
@@ -2095,6 +2155,19 @@ msgstr ""
 #: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
 #: lib/ash_enterprise_web/a2ui/operator_ui.ex:284
 msgid "Reason"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
+msgid "Received"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
+msgctxt "one_of:state"
+msgid "Received"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
+msgid "Received at"
 msgstr ""
 
 #: lib/ash_enterprise/canvas/registry.ex:2
@@ -2465,6 +2538,11 @@ msgctxt "select_context"
 msgid "Select credential"
 msgstr ""
 
+#: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
+msgctxt "select_context"
+msgid "Select delivery"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/audit_ui.ex:1
 msgctxt "select_context"
 msgid "Select entry"
@@ -2587,6 +2665,10 @@ msgstr ""
 msgid "Signal"
 msgstr ""
 
+#: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
+msgid "Signature"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:559
 msgid "Slack"
 msgstr ""
@@ -2642,6 +2724,11 @@ msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
 msgctxt "one_of:freshness"
+msgid "Stale"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
+msgctxt "one_of:signature_verdict"
 msgid "Stale"
 msgstr ""
 
@@ -2719,6 +2806,7 @@ msgid "Stream"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:455
+#: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/judgments/facts_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/judgments/verdicts_ui.ex:1
 msgid "Subject"
@@ -2949,6 +3037,11 @@ msgctxt "one_of:status"
 msgid "Unknown"
 msgstr ""
 
+#: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
+msgctxt "one_of:signature_verdict"
+msgid "Unknown secret"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
 msgid "Unresolved"
 msgstr ""
@@ -2986,6 +3079,11 @@ msgstr ""
 #: lib/ash_enterprise/canvas/registry.ex:2
 #: lib/ash_enterprise_web/a2ui/user_ui.ex:1
 msgid "Users"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
+msgctxt "one_of:signature_verdict"
+msgid "Valid"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/mdm_mapping_ui.ex:1
@@ -3037,6 +3135,10 @@ msgstr ""
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
 msgctxt "one_of:outcome"
 msgid "Waived"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
+msgid "Webhook deliveries"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
@@ -3141,6 +3243,10 @@ msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/credential_ui.ex:1
 msgid "credential"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
+msgid "delivery"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/projected_user_ui.ex:1

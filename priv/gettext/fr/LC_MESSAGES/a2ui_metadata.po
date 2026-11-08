@@ -837,6 +837,26 @@ msgstr "Déléguer à"
 msgid "Delegate — the person taking it over"
 msgstr "Déléguer : la personne qui prend le relais"
 
+#: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
+msgid "Deliveries"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
+msgid "Deliveries the providers send appear here."
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
+msgid "Delivery"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
+msgid "Delivery detail"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
+msgid "Delivery id"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/rule_set_revision_ui.ex:1
 msgctxt "one_of:combining"
 msgid "Deny overrides"
@@ -989,6 +1009,10 @@ msgstr "Activer"
 msgid "Ended"
 msgstr "Terminé"
 
+#: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
+msgid "Endpoint"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/audit_ui.ex:1
 msgid "Entry"
 msgstr "Entrée"
@@ -1050,6 +1074,11 @@ msgstr "Détail de l’événement"
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Event log"
 msgstr "Journal des événements"
+
+#: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
+#, fuzzy
+msgid "Event type"
+msgstr "Événement"
 
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
@@ -1149,6 +1178,19 @@ msgstr "Première applicable"
 #: lib/ash_enterprise_web/a2ui/flight_ui.ex:1
 msgid "Flight view"
 msgstr "Vue de suivi"
+
+#: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
+msgid "Follow-up"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
+msgid "Followed up"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
+msgctxt "one_of:state"
+msgid "Followed up"
+msgstr ""
 
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "For export"
@@ -1250,6 +1292,11 @@ msgstr "Tâche humaine"
 msgid "Identities"
 msgstr "Identités"
 
+#: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
+msgctxt "one_of:state"
+msgid "Ignored"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
 msgid "Import batches"
 msgstr "Lots d’importation"
@@ -1321,6 +1368,12 @@ msgstr "Interne"
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Interpret request"
 msgstr "Interpréter la demande"
+
+#: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
+#, fuzzy
+msgctxt "one_of:signature_verdict"
+msgid "Invalid"
+msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
 msgctxt "one_of:solve_status"
@@ -1715,6 +1768,10 @@ msgctxt "one_of:answer"
 msgid "No"
 msgstr "Non"
 
+#: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
+msgid "No deliveries"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/judgments/calibration_ui.ex:1
 msgctxt "one_of:result"
 msgid "No table"
@@ -1927,6 +1984,10 @@ msgstr "En attente d’approbation"
 msgid "People"
 msgstr "Personnes"
 
+#: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
+msgid "Per provider"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/rule_set_revision_ui.ex:1
 msgctxt "one_of:combining"
 msgid "Permit overrides"
@@ -2039,6 +2100,7 @@ msgctxt "one_of:result"
 msgid "Proposed table"
 msgstr "Table proposée"
 
+#: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/operator_ui.ex:1
 msgid "Provider"
 msgstr "Fournisseur"
@@ -2102,6 +2164,19 @@ msgstr "Lectures"
 #: lib/ash_enterprise_web/a2ui/operator_ui.ex:284
 msgid "Reason"
 msgstr "Motif"
+
+#: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
+msgid "Received"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
+msgctxt "one_of:state"
+msgid "Received"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
+msgid "Received at"
+msgstr ""
 
 #: lib/ash_enterprise/canvas/registry.ex:2
 #: lib/ash_enterprise_web/a2ui/audit_ui.ex:1
@@ -2472,6 +2547,12 @@ msgctxt "select_context"
 msgid "Select credential"
 msgstr "Sélectionner un justificatif"
 
+#: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
+#, fuzzy
+msgctxt "select_context"
+msgid "Select delivery"
+msgstr "Sélectionner une entrée"
+
 #: lib/ash_enterprise_web/a2ui/audit_ui.ex:1
 msgctxt "select_context"
 msgid "Select entry"
@@ -2595,6 +2676,10 @@ msgstr "Se connecter avec un jeton"
 msgid "Signal"
 msgstr "Signal"
 
+#: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
+msgid "Signature"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:559
 msgid "Slack"
 msgstr "Slack"
@@ -2650,6 +2735,12 @@ msgstr "En préparation"
 
 #: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
 msgctxt "one_of:freshness"
+msgid "Stale"
+msgstr ""
+
+#: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
+#, fuzzy
+msgctxt "one_of:signature_verdict"
 msgid "Stale"
 msgstr ""
 
@@ -2727,6 +2818,7 @@ msgid "Stream"
 msgstr "Flux"
 
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:455
+#: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/judgments/facts_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/judgments/verdicts_ui.ex:1
 msgid "Subject"
@@ -2958,6 +3050,12 @@ msgctxt "one_of:status"
 msgid "Unknown"
 msgstr "Inconnu"
 
+#: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
+#, fuzzy
+msgctxt "one_of:signature_verdict"
+msgid "Unknown secret"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
 msgid "Unresolved"
 msgstr ""
@@ -2996,6 +3094,12 @@ msgstr "Rôle de l’utilisateur"
 #: lib/ash_enterprise_web/a2ui/user_ui.ex:1
 msgid "Users"
 msgstr "Utilisateurs"
+
+#: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
+#, fuzzy
+msgctxt "one_of:signature_verdict"
+msgid "Valid"
+msgstr "Validé"
 
 #: lib/ash_enterprise_web/a2ui/mdm_mapping_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/rule_set_revision_ui.ex:1
@@ -3047,6 +3151,10 @@ msgstr "En attente depuis"
 msgctxt "one_of:outcome"
 msgid "Waived"
 msgstr "Dispensé"
+
+#: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
+msgid "Webhook deliveries"
+msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
 msgid "What happened, and why you know: succeeded (it happened), failed (it did not), or retry (it did not happen, you checked, and it runs again)"
@@ -3151,6 +3259,10 @@ msgstr "certification"
 #: lib/ash_enterprise_web/a2ui/credential_ui.ex:1
 msgid "credential"
 msgstr "justificatif"
+
+#: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
+msgid "delivery"
+msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/projected_user_ui.ex:1
 msgid "directory entry"
