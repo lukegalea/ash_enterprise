@@ -1,6 +1,6 @@
 defmodule AshEnterprise.Integration.Operations.Changes.FollowUp do
   @moduledoc """
-  `Delivery.follow_up`: act on a registry webhook delivery, which is only a nudge.
+  `Delivery.mark_followed_up`: act on a registry webhook delivery, which is only a nudge.
 
   The delivery names an activation id and nothing else, and none of it is trusted. The
   follow-up reads that activation from the registry through a declared operation

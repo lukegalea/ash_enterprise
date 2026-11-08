@@ -48,3 +48,13 @@ declaring anything.
 
 - A webhook is a nudge. Implement `AshOperations.Webhook.Provider`: verify the exact signed bytes,
   return a redelivery-stable dedup key, enqueue ids only. Never act on payload values.
+
+## Operator surfaces
+
+- Instantiate the delivery record with `use AshOperations.Resources.Delivery` on the host's own
+  resource, then `mix ash.codegen`. Never store a webhook body or headers on it; no action accepts
+  them.
+- Record deliveries with the `record` action; it is idempotent on `(provider, dedup_key)`.
+- Bind the surface in the web layer with `use AshOperations.A2ui.Deliveries, resource: ...`, never
+  inside a resource. ash_a2ui is optional; `reconcile_action:` names the host's own action, which
+  must take a `:reason` argument and reads the provider rather than replaying anything.
