@@ -492,6 +492,7 @@ defmodule AshEnterprise.Surfaces do
       path: "/app/deliveries",
       ui: A2ui.DeliveriesUI,
       resource: AshEnterprise.Integration.Operations.Delivery,
+      context: :delivery,
       door: :operator
     },
     %Surface{
