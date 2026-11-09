@@ -16,49 +16,68 @@ defmodule AshEnterprise.Accounts.Changes.AdvanceLockout do
 
   @impl true
   def change(changeset, _opts, _context) do
-    now = Ash.Changeset.get_argument(changeset, :now)
-    cutoff = Ash.Changeset.get_argument(changeset, :window_cutoff)
-    lock_until = Ash.Changeset.get_argument(changeset, :lock_until)
-    max = Ash.Changeset.get_argument(changeset, :max_attempts)
-
-    locked = expr(not is_nil(locked_until) and locked_until > ^now)
-    lapsed = expr(not is_nil(locked_until) and locked_until <= ^now)
-    out_of_window = expr(window_started_at <= ^cutoff)
+    args = %{
+      now: Ash.Changeset.get_argument(changeset, :now),
+      cutoff: Ash.Changeset.get_argument(changeset, :window_cutoff),
+      lock_until: Ash.Changeset.get_argument(changeset, :lock_until),
+      max: Ash.Changeset.get_argument(changeset, :max_attempts)
+    }
 
     changeset
     |> Ash.Changeset.force_change_attribute(:failed_count, 1)
-    |> Ash.Changeset.force_change_attribute(:window_started_at, now)
-    |> Ash.Changeset.force_change_attribute(:locked_until, if(max <= 1, do: lock_until))
-    |> Ash.Changeset.atomic_update(
-      :failed_count,
-      expr(
-        cond do
-          ^locked -> failed_count
-          ^lapsed or ^out_of_window -> 1
-          true -> failed_count + 1
-        end
-      )
-    )
-    |> Ash.Changeset.atomic_update(
-      :window_started_at,
-      expr(
-        cond do
-          ^locked -> window_started_at
-          ^lapsed or ^out_of_window -> ^now
-          true -> window_started_at
-        end
-      )
-    )
-    |> Ash.Changeset.atomic_update(
+    |> Ash.Changeset.force_change_attribute(:window_started_at, args.now)
+    |> Ash.Changeset.force_change_attribute(
       :locked_until,
-      expr(
-        cond do
-          ^locked -> locked_until
-          ^lapsed or ^out_of_window -> if(^max <= 1, do: ^lock_until, else: nil)
-          failed_count + 1 >= ^max -> ^lock_until
-          true -> nil
-        end
-      )
+      if(args.max <= 1, do: args.lock_until)
+    )
+    |> Ash.Changeset.atomic_update(:failed_count, failed_count(args))
+    |> Ash.Changeset.atomic_update(:window_started_at, window_started_at(args))
+    |> Ash.Changeset.atomic_update(:locked_until, locked_until(args))
+  end
+
+  defp locked(%{now: now}), do: expr(not is_nil(locked_until) and locked_until > ^now)
+
+  defp restarts(%{now: now, cutoff: cutoff}) do
+    expr((not is_nil(locked_until) and locked_until <= ^now) or window_started_at <= ^cutoff)
+  end
+
+  defp failed_count(args) do
+    locked = locked(args)
+    restarts = restarts(args)
+
+    expr(
+      cond do
+        ^locked -> failed_count
+        ^restarts -> 1
+        true -> failed_count + 1
+      end
+    )
+  end
+
+  defp window_started_at(%{now: now} = args) do
+    locked = locked(args)
+    restarts = restarts(args)
+
+    expr(
+      cond do
+        ^locked -> window_started_at
+        ^restarts -> ^now
+        true -> window_started_at
+      end
+    )
+  end
+
+  defp locked_until(%{lock_until: lock_until, max: max} = args) do
+    locked = locked(args)
+    restarts = restarts(args)
+
+    expr(
+      cond do
+        ^locked -> locked_until
+        ^restarts -> if(^max <= 1, do: ^lock_until, else: nil)
+        failed_count + 1 >= ^max -> ^lock_until
+        true -> nil
+      end
     )
   end
 end
