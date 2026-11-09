@@ -14,6 +14,7 @@ defmodule AshEnterprise.ExecutionSources do
   | `:intervention` | `ExecutionSources.Intervention` | what people did about them, and why |
   | `:human_task` | `ExecutionSources.HumanTask` | approval and process tasks |
   | `:process_event` | `ExecutionSources.ProcessEvent` | process history |
+  | `:document_delivery` | `ExecutionSources.DocumentDelivery` | document webhook deliveries |
   | `:evaluation` | `ExecutionSources.Evaluation` | decision evaluations |
   | `:judgment` | `ExecutionSources.Judgment` | the judgment ledger |
   | `:case_result` | `ExecutionSources.CaseResult` | evaluation case results |
@@ -55,6 +56,7 @@ defmodule AshEnterprise.ExecutionSources do
     {:intervention, S.Intervention, limit: 50},
     {:human_task, S.HumanTask, limit: 50},
     {:process_event, S.ProcessEvent, limit: 200},
+    {:document_delivery, S.DocumentDelivery, limit: 100},
     {:evaluation, S.Evaluation, limit: 50},
     {:judgment, S.Judgment, limit: 100},
     {:case_result, S.CaseResult, limit: 50}
@@ -186,7 +188,7 @@ defmodule AshEnterprise.ExecutionSources do
   and then id, at most `opts[:limit]` after `opts[:after]`, loading `:load`. `matches` is
   a list of `{field, values}`, or `{field, {:prefix, prefixes}}` for a string field that
   starts with one of `prefixes`; a field with no values matches nothing, and with no
-  values at all nothing is read. `{:ok, rows, next_cursor}` or `{:error, error}`.
+  values at all nothing is read. `:where` is an expression every row must also satisfy. `{:ok, rows, next_cursor}` or `{:error, error}`.
   """
   @spec read(
           Ash.Resource.t(),
@@ -206,6 +208,7 @@ defmodule AshEnterprise.ExecutionSources do
 
     with [_ | _] <- matches,
          query = Ash.Query.load(base(resource, matches, time, opts), read_opts[:load] || []),
+         query = where(query, read_opts[:where]),
          {:ok, query} <- after_cursor(query, time, opts[:after]),
          {:ok, rows} <- Ash.read(Ash.Query.limit(query, opts[:limit] + 1)) do
       page(rows, opts[:limit], time)
@@ -214,6 +217,9 @@ defmodule AshEnterprise.ExecutionSources do
       {:error, error} -> {:error, error}
     end
   end
+
+  defp where(query, nil), do: query
+  defp where(query, condition), do: Ash.Query.do_filter(query, condition)
 
   defp uniq({:prefix, prefixes}), do: {:prefix, Enum.uniq(prefixes)}
   defp uniq(values), do: Enum.uniq(values)

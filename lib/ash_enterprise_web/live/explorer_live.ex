@@ -781,6 +781,16 @@ defmodule AshEnterpriseWeb.ExplorerLive do
       ]
       |> present()
 
+  defp facts(%{type: :document_delivery} = d),
+    do:
+      [
+        {gettext("Document"), d.document_kind},
+        {gettext("Sender"), d.sender},
+        {gettext("Delivery id"), d.delivery_id},
+        {gettext("Received at"), d.received_at && DateTime.to_iso8601(d.received_at)}
+      ]
+      |> present()
+
   defp facts(_detail), do: []
 
   defp present(facts),
