@@ -182,6 +182,45 @@ defmodule AshEnterpriseWeb.ExplorerLiveTest do
     |> LazyHTML.attribute(name)
   end
 
+  describe "one time zone" do
+    test "timeline rows and the detail panel read in the display zone", ctx do
+      previous = Application.get_env(:ash_enterprise, :display_time_zone)
+      Application.put_env(:ash_enterprise, :display_time_zone, "Pacific/Auckland")
+      on_exit(fn -> Application.put_env(:ash_enterprise, :display_time_zone, previous) end)
+
+      %{correlation_id: correlation_id} = work!(ctx)
+
+      {:ok, view, _html} =
+        live(sign_in(ctx.admin.user), ~p"/app/explorer?#{%{correlation_id: correlation_id}}")
+
+      rows =
+        view
+        |> render()
+        |> LazyHTML.from_fragment()
+        |> LazyHTML.query("#timeline [data-row=entry] time")
+
+      assert Enum.count(rows) > 0
+
+      for row <- rows do
+        [iso] = LazyHTML.attribute(row, "datetime")
+        {:ok, at, _} = DateTime.from_iso8601(iso)
+        assert LazyHTML.text(row) |> String.trim() == AshEnterprise.Platform.LocalTime.clock(at)
+        refute AshEnterprise.Platform.LocalTime.clock(at) == Calendar.strftime(at, "%H:%M:%S")
+      end
+
+      [ref | _] = refs(view, "#timeline [data-row=entry]")
+      select!(view, ref)
+      [iso] = view |> render() |> LazyHTML.from_fragment() |> LazyHTML.query("#timeline [data-ref='#{ref}'] time") |> LazyHTML.attribute("datetime")
+      {:ok, at, _} = DateTime.from_iso8601(iso)
+
+      assert has_element?(
+               view,
+               "#explorer-detail dd",
+               AshEnterprise.Platform.LocalTime.stamp_seconds(at)
+             )
+    end
+  end
+
   describe "the navigation path" do
     test "from the activation's effect to its approval, the matched rule, the judgment and the evidence",
          ctx do

@@ -71,6 +71,14 @@ defmodule AshEnterprise.Platform.LocalTime do
   def time(nil), do: ""
   def time(%DateTime{} = datetime), do: datetime |> to_local() |> Calendar.strftime("%H:%M")
 
+  @doc "`09:30:06`, in the display zone, for rows ordered within a minute."
+  @spec clock(DateTime.t()) :: String.t()
+  def clock(%DateTime{} = datetime), do: datetime |> to_local() |> Calendar.strftime("%H:%M:%S")
+
+  @doc "`Mon 12 Oct 09:30:06`, in the display zone."
+  @spec stamp_seconds(DateTime.t()) :: String.t()
+  def stamp_seconds(%DateTime{} = datetime), do: "#{day(datetime)} #{clock(datetime)}"
+
   @doc "`Mon 12 Oct`, in the display zone."
   @spec day(DateTime.t() | Date.t() | nil) :: String.t()
   def day(nil), do: ""
