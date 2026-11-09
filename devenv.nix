@@ -74,6 +74,11 @@ in
     # The binary lives in libxml2's `.bin` output, hence `.bin` rather than the bare
     # attribute. Verify with `xmllint --version` in the shell rather than trusting this line.
     libxml2.bin
+  ] ++ lib.optionals pkgs.stdenv.isLinux [
+    # The browser for the ash_browser_tests suite (passed to Playwright as
+    # `executable_path`), so nobody needs a Playwright browser download. Linux
+    # only: nixpkgs does not build Chromium on macOS.
+    chromium
   ];
 
   # ---------------------------------------------------------------------------
