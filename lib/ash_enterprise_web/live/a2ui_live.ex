@@ -310,8 +310,8 @@ defmodule AshEnterpriseWeb.A2uiLive do
 
     ## The lag is on screen
 
-    A projection is not synchronous with the legacy write — the trigger fires on commit, the
-    listener wakes the drain, the drain writes — so `projected_at` is a column rather than an
+    A projection is not synchronous with the legacy write — the wake is sent when the
+    legacy transaction commits, the listener nudges the drain, the drain writes — so `projected_at` is a column rather than an
     implementation detail. Watching the two surfaces update a beat apart is the honest picture
     of what this design gives you, and hiding it would be claiming a guarantee it does not make.
     """
