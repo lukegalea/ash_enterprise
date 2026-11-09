@@ -63,6 +63,10 @@ defmodule AshEnterprise.Legacy.User do
     # Ash could install. Claiming an audit trail over a view we cannot see the
     # writes to would be worse than not claiming one. See plan §4.8.
     audit?: false,
+    # `lifecycle_status` is the legacy application's `state`, read through the view. No action
+    # here changes it, so the platform's machine and its `:activate`/`:deactivate` writes would
+    # claim a lifecycle this resource does not have.
+    state_machine?: false,
     # `version_number` is projected as a constant below: the view has no row
     # version to lock against or increment (ADR 0059).
     optimistic_lock?: false,

@@ -300,12 +300,7 @@ defmodule AshEnterprise.MixProject do
       # First-party (ADR 0009), and used here for the read model over
       # `legacy.*` plus the notification bridge that makes a legacy write
       # visible to LiveView. See docs/plans/ash-strangler-in-reference-app.md.
-      # Pinned at a47f515: later mains make AshStrangler.VerifyStateMachineBacked
-      # require a collapse for a state-machine attribute, and Legacy.User maps
-      # lifecycle_status as a read-only map. Moving to a collapse is a design
-      # decision (which legacy state a write of :inactive produces).
-      {:ash_strangler,
-       github: "lukegalea/ash_strangler", ref: "a47f5158272a227669d4f591d0671b8a912a3930"},
+      {:ash_strangler, github: "lukegalea/ash_strangler"},
       # Declared provider operations over Req (ADR 0063): the credential registry's
       # connector and the provider webhook ingress. mix.lock pins the SHA.
       {:ash_operations, github: "lukegalea/ash_operations"},

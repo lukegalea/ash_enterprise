@@ -172,6 +172,20 @@ defmodule AshEnterprise.Platform.SystemAttributes do
         `self_service` (`AshEnterprise.Platform.Verifiers.NarrowedActions`).
         """
       ],
+      state_machine?: [
+        type: :boolean,
+        default: true,
+        doc: """
+        Whether `AshStateMachine` drives `lifecycle_status`. Set by
+        `AshEnterprise.Platform.Resource`, which adds the machine and its
+        transition actions.
+
+        Off only where this application does not own the lifecycle: a strangled
+        read model whose status is a read-only projection of a legacy value
+        (`AshEnterprise.Platform.Verifiers.ProjectedLifecycle` refuses anything
+        else).
+        """
+      ],
       optimistic_lock?: [
         type: :boolean,
         default: true,
@@ -204,6 +218,7 @@ defmodule AshEnterprise.Platform.SystemAttributes do
     verifiers: [
       AshEnterprise.Platform.Verifiers.SelfServiceActions,
       AshEnterprise.Platform.Verifiers.NarrowedActions,
-      AshEnterprise.Platform.Verifiers.OptimisticLock
+      AshEnterprise.Platform.Verifiers.OptimisticLock,
+      AshEnterprise.Platform.Verifiers.ProjectedLifecycle
     ]
 end

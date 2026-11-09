@@ -128,8 +128,7 @@ defmodule AshEnterprise.Platform.Transformers.AddSystemAttributes do
         default: lifecycle.default_status(),
         public?: true,
         constraints: [one_of: lifecycle.statuses()],
-        description:
-          "The record's lifecycle status. Managed by AshStateMachine: only declared transitions may change it."
+        description: lifecycle_description(dsl)
       )
     end)
     |> add_derived_code(:status_code, lifecycle.status_code_pairs(),
@@ -139,6 +138,14 @@ defmodule AshEnterprise.Platform.Transformers.AddSystemAttributes do
       description:
         "Dataverse statecode, derived from the status's owning state. Read-only -- this is why the pair cannot drift."
     )
+  end
+
+  defp lifecycle_description(dsl) do
+    if Transformer.get_option(dsl, [:platform], :state_machine?, true) do
+      "The record's lifecycle status. Managed by AshStateMachine: only declared transitions may change it."
+    else
+      "The record's lifecycle status, projected read-only from a legacy value. The legacy application owns it."
+    end
   end
 
   # Builds `state_code`/`status_code` as a derived value over the status atom.
