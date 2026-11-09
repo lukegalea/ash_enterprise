@@ -366,3 +366,48 @@ retained would have to invent a value for `:inactive`, which stands for passive,
 alike. `ProjectedUser` keeps its machine. When a phase genuinely writes this lifecycle, turn the machine back on
 with a real collapse; that needs a product decision on what `:inactive` writes. `Platform.Verifiers.ProjectedLifecycle`
 refuses `state_machine?: false` unless `lifecycle_status` is a read-only strangler mapping.
+
+## Addendum: the live path is the change ledger's drain, not a notification
+
+This ADR describes the projector as a second `Ash.Notifier` on `Legacy.User`, fed by the notification
+`AshStrangler.Listener` dispatches. That chain stopped being true when `Legacy.User` gained `ledger?(true)`
+([ADR 0035](0035-compliance-is-projected-from-events.md)), and nothing noticed, because a notifier that never
+fires raises nothing. The sections above are left as written; this is what is true now.
+
+**What changed underneath.** The ledger trigger replaced the payload-carrying `strangler_users_notify` trigger
+(the migration that adds the ledger drops it), and it sends only `wake:<id>`. For a wake the listener nudges the
+drain and does nothing else: it names no resource, re-reads no row and builds no `Ash.Notifier.Notification`.
+So for a legacy write, the `Ash.Notifier.PubSub` on `Legacy.User` never fired, `/app/legacy-users` stopped being
+live, and `AshEnterprise.Legacy.Projection` never ran as a notifier. `projected_users` had meanwhile been kept
+current by `UserDrainWorker` and `UserIngestion`, which is the only writer of it for a live change. Found by
+draining a real ledger event and finding no `legacy_users:*` broadcast, and by finding no `strangler_users_notify`
+function or trigger in the current schema.
+
+**Decision: one path, the durable one.**
+
+- After a drain batch **commits**, `AshEnterprise.Ledger.UserAnnouncer` dispatches one notification per drained
+  event with `AshStrangler.Listener.notify/2`, so `Legacy.User`'s PubSub notifier fires and the surface is live
+  again. It is after the commit and never inside the transaction: a batch that rolls back on a poison event must
+  not have announced rows that did not change.
+- `notify/2` re-reads an insert or an update through Ash; if the row has gone since, it dispatches nothing, and the
+  delete's own event is announced instead. A delete has nothing to re-read, so its notification carries a record
+  holding only the derived key. A replayed event is announced again, which is harmless because every consumer
+  re-reads under its own actor.
+- A failure to announce is logged with the ledger event id and nothing else. The batch has committed; failing or
+  retrying it would re-ingest rows that are already ingested. The drain's guarantees (at-least-once, one
+  transaction per batch, a poison event rolls the batch back) are unchanged.
+- `AshEnterprise.Legacy.Projection` is no longer a notifier of `Legacy.User`; with it there the announcement would
+  have projected every row a second time and raced the drain. `Legacy.User` declares `[Ash.Notifier.PubSub]`. The
+  one thing the module still did that nothing else does, `project_row/1` (which `mix ash_enterprise.legacy.project`
+  uses and which aligns `lifecycle_status` through the state machine), is now
+  `AshEnterprise.Legacy.UserBackfill`, a plain module. Its `notify/1`, the `origin: :legacy` guard and the
+  log-and-contain wrapper went with the notifier. The containment argument above moved to the announcer: it is
+  still true that one bad row must not stop reactivity, now because a raised error would otherwise fail a committed
+  batch.
+
+No migration: a notifier is not part of the resource snapshot, and `mix ash.codegen --check` is clean.
+
+`test/ash_enterprise/ledger/user_drain_notification_test.exs` drains real ledger events and asserts the broadcast,
+the delete, a notification that fails leaving the batch committed, and a rolled-back batch announcing nothing.
+`test/ash_enterprise/legacy/projection_test.exs` is now `user_backfill_test.exs`, without the three `notify/1`
+tests.

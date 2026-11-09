@@ -71,11 +71,12 @@ defmodule AshEnterprise.Legacy.User do
     # version to lock against or increment (ADR 0059).
     optimistic_lock?: false,
     extra_extensions: [AshStrangler.Resource, AshAgent.Effects],
-    # Two notifiers, and both matter. `PubSub` makes /app/legacy-users live over the view;
-    # `Projection` copies the same change into a table this application owns, so
-    # /app/directory is live over real columns. Declared together so a legacy write drives
-    # both surfaces and the pair can be compared -- see AshEnterprise.Legacy.Projection.
-    notifiers: [Ash.Notifier.PubSub, AshEnterprise.Legacy.Projection]
+    # `PubSub` makes /app/legacy-users live over the view. It is the only notifier declared
+    # here: /app/directory is kept current by the change ledger's drain, which writes
+    # `projected_users` itself and then announces each drained event -- see
+    # AshEnterprise.Ledger.UserAnnouncer. A second notifier that also projected would write
+    # every row twice and race the drain.
+    notifiers: [Ash.Notifier.PubSub]
 
   postgres do
     # The VIEW, in schema `strangler`. Not `legacy.users`.
@@ -107,13 +108,23 @@ defmodule AshEnterprise.Legacy.User do
   # surface at /app/legacy-users live. The chain is worth stating end to end
   # because every link is opt-in and a break anywhere is silent:
   #
-  #   legacy INSERT -> AFTER trigger (notify? true, above)
-  #                 -> pg_notify, on commit only
-  #                 -> AshStrangler.Listener re-reads through Ash
-  #                 -> Ash.Notifier.Notification
+  #   legacy INSERT -> ledger AFTER trigger (ledger? true, below)
+  #                 -> a durable legacy_change_events row, in the legacy transaction
+  #                 -> pg_notify 'wake:<id>', on commit only
+  #                 -> AshStrangler.Listener nudges the drain (and does nothing else:
+  #                    a wake names no resource and carries no row)
+  #                 -> AshEnterprise.Ledger.UserDrainWorker claims, ingests and marks a
+  #                    batch in one transaction
+  #                 -> COMMIT
+  #                 -> AshEnterprise.Ledger.UserAnnouncer, one
+  #                    AshStrangler.Listener.notify/2 per drained event: re-read through
+  #                    Ash, synthesize an Ash.Notifier.Notification
   #                 -> here
   #                 -> "legacy_users:created" on AshEnterprise.PubSub
   #                 -> AshEnterpriseWeb.A2uiLive.LegacyUsers refreshes
+  #
+  # The listener never builds that notification for a ledger source, which is why
+  # the announcer exists: without it this block would never fire.
   #
   # `publish_all` and not `publish`: a legacy write is not an Ash action, so the
   # notification the listener synthesizes carries an action named `:legacy_write`
@@ -170,11 +181,15 @@ defmodule AshEnterprise.Legacy.User do
 
       # The durable change ledger (ADR 0035). `notify?` alone makes a legacy
       # write visible only if the listener is up when the wake fires; with
-      # `ledger?` the trigger also writes a durable row in the legacy
+      # `ledger?` the trigger writes a durable row in the legacy
       # application's own transaction, and the wake points at that row. The
-      # drain (`AshEnterprise.Ledger.UserDrainWorker`) is at-least-once: the
-      # periodic Oban sweep is the recovery net for a missed wake. One ledger
-      # table per relation, shared by every resource mapping this twin.
+      # ledger trigger REPLACES the payload-carrying notify trigger, so the
+      # listener sees only `wake:<id>`. The drain
+      # (`AshEnterprise.Ledger.UserDrainWorker`) is at-least-once: the
+      # periodic Oban sweep is the recovery net for a missed wake, and after
+      # each committed batch it announces the drained events so the PubSub
+      # notifier above fires. One ledger table per relation, shared by every
+      # resource mapping this twin.
       ledger?(true)
 
       key(:id, from: :id, strategy: {:uuid_v5, namespace: "ce41843a-c056-4c3e-9c79-50e7e5f4887c"})

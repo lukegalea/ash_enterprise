@@ -4,10 +4,10 @@ defmodule Mix.Tasks.AshEnterprise.Legacy.Project do
   @moduledoc """
   Backfills `projected_users` from the legacy estate.
 
-  `AshEnterprise.Legacy.Projection` keeps the table current from that point on: it runs on every
-  legacy write, through the notification `AshStrangler.Listener` already dispatches. This task
-  is the one-off that establishes the starting state, and the repair for anything the projector
-  missed while it was not running.
+  The change ledger's drain (`AshEnterprise.Ledger.UserDrainWorker`) keeps the table current from
+  that point on: it ingests every legacy write the ledger trigger recorded. This task is the
+  one-off that establishes the starting state, and the repair for anything the drain has no event
+  for.
 
       mix ash_enterprise.legacy.project
 
@@ -15,12 +15,12 @@ defmodule Mix.Tasks.AshEnterprise.Legacy.Project do
   produces the same table and no duplicate rows, which is what makes it safe to put at the end
   of `mix ash_enterprise.legacy.setup` and safe to re-run by hand after an incident.
 
-  ## Why a backfill exists at all, when the projector is live
+  ## Why a backfill exists at all, when the drain is live
 
-  The projector reacts to *changes*. A row that has not changed since the projector started has
-  never produced a notification, so it has never been projected — and the rows in a legacy
+  The drain reacts to *changes*. A row that has not changed since the ledger trigger was installed
+  has no ledger event, so it has never been projected — and the rows in a legacy
   database that has been running for fifteen years are overwhelmingly of that kind. A live
-  projector with no backfill shows you an empty table that fills up one edit at a time, which
+  drain with no backfill shows you an empty table that fills up one edit at a time, which
   looks like the feature is broken.
 
   `AshStrangler.Backfill` is the batched, resumable, keyset-paginated machinery for doing this
@@ -35,7 +35,7 @@ defmodule Mix.Tasks.AshEnterprise.Legacy.Project do
 
   alias AshEnterprise.Legacy
   alias AshEnterprise.Legacy.Estate
-  alias AshEnterprise.Legacy.Projection
+  alias AshEnterprise.Legacy.UserBackfill
   alias AshEnterprise.Platform.SystemActor
 
   # app.start stays, reviewed (S1-44 follow-up): every row it projects is a
@@ -62,12 +62,12 @@ defmodule Mix.Tasks.AshEnterprise.Legacy.Project do
       |> Ash.Query.for_read(:read, %{}, opts)
       |> Ash.read!(opts)
 
-    # Through `Projection.project_row/1`, not a second spelling of it. Rebuilding the attribute
-    # map here is what made the backfill and the live projector disagree about `lifecycle_status`
-    # -- the upsert was duplicated and the state-machine transition was not.
+    # Through `UserBackfill.project_row/1`, not a second spelling of it. Rebuilding the attribute
+    # map here is what once made the backfill and the live projector disagree about
+    # `lifecycle_status` -- the upsert was duplicated and the state-machine transition was not.
     {projected, refused} =
       Enum.reduce(rows, {0, []}, fn row, {ok, bad} ->
-        case Projection.project_row(row) do
+        case UserBackfill.project_row(row) do
           :ok -> {ok + 1, bad}
           {:error, reason} -> {ok, [{row.legacy_id, inspect(reason)} | bad]}
         end

@@ -84,16 +84,23 @@ defmodule AshEnterprise.Application do
 
   # The bridge that makes a write by the *legacy* application visible here.
   #
-  # It listens on a `pg_notify` channel that the trigger on `legacy.users`
-  # announces on, re-reads the affected row through Ash, and dispatches a real
-  # `Ash.Notifier.Notification` -- which the `pub_sub` block on
-  # `AshEnterprise.Legacy.User` then broadcasts, and the A2UI surface refreshes
-  # from. See docs/plans/ash-strangler-in-reference-app.md §5, step 3.
+  # `Legacy.User` has `ledger?(true)`, so the trigger on `legacy.users` is the
+  # ledger trigger: it writes a durable `legacy_change_events` row and sends
+  # only `wake:<id>` on the `pg_notify` channel. For a wake this listener does
+  # one thing -- it nudges `AshEnterprise.Ledger.UserDrainWorker` -- and builds
+  # no `Ash.Notifier.Notification`. The drain ingests the event, and once its
+  # batch has committed `AshEnterprise.Ledger.UserAnnouncer` dispatches the
+  # notification (via `AshStrangler.Listener.notify/2`, which re-reads the row
+  # through Ash) that the `pub_sub` block on `AshEnterprise.Legacy.User`
+  # broadcasts and the A2UI surface refreshes from. A payload-carrying notify
+  # trigger would be handled by this listener directly, but the ledger replaced
+  # it. See ADR 0031's addendum and docs/plans/ash-strangler-in-reference-app.md §5.
   #
   # After the endpoint, because a notification arriving before the endpoint is up
   # has nowhere to broadcast to.
   #
-  # `authorize?: false` on the re-read, and it is worth being precise about what
+  # `authorize?: false` on the re-read (the announcer passes the same option to
+  # `AshStrangler.Listener.notify/2`), and it is worth being precise about what
   # that does and does not permit. The listener is not acting for anybody: a
   # legacy `UPDATE` has no Ash actor behind it, so with policies enforced the
   # re-read is simply forbidden and no notification is ever dispatched -- silently,
@@ -111,11 +118,13 @@ defmodule AshEnterprise.Application do
         {
           AshStrangler.Listener,
           # Every resource whose strangler source declares `notify?(true)` and
-          # whose legacy table carries the generated AFTER trigger. The payload
-          # names the resource; anything absent from this list is silently
-          # dropped by the listener, which is exactly how a surface that used
-          # to update stops updating. The trigger (strangler_users_notify)
-          # exists on legacy.users.
+          # whose legacy table carries the generated payload-carrying AFTER trigger.
+          # That payload names the resource; anything absent from this list is
+          # silently dropped by the listener, which is exactly how a surface
+          # that used to update stops updating. `legacy.users` carries the
+          # ledger trigger (strangler_ledger_legacy_users) instead -- the old
+          # strangler_users_notify trigger is dropped -- so today the list
+          # only matters to a resource without `ledger?`.
           repo: AshEnterprise.Repo,
           authorize?: false,
           resources: [

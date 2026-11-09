@@ -149,7 +149,7 @@ defmodule AshEnterprise.Accounts.ProjectedUser do
     default_accept []
 
     create :project do
-      description "Upsert one legacy row into this table. Called only by AshEnterprise.Legacy.Projection."
+      description "Upsert one legacy row into this table. Called by the ledger drain (AshEnterprise.Ledger.UserIngestion) and by the backfill (AshEnterprise.Legacy.UserBackfill)."
       primary? true
       upsert? true
       upsert_identity :from_legacy
