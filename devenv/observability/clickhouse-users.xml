@@ -1,0 +1,15 @@
+<clickhouse>
+  <profiles><default>
+    <max_threads>2</max_threads>
+    <max_block_size>8192</max_block_size>
+    <max_memory_usage>800000000</max_memory_usage>
+    <load_balancing>random</load_balancing>
+  </default></profiles>
+  <users><default>
+    <password></password>
+    <networks><ip>127.0.0.1</ip><ip>::1</ip></networks>
+    <profile>default</profile><quota>default</quota>
+    <access_management>1</access_management>
+  </default></users>
+  <quotas><default/></quotas>
+</clickhouse>
