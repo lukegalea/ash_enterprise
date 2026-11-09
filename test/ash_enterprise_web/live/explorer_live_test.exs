@@ -210,7 +210,14 @@ defmodule AshEnterpriseWeb.ExplorerLiveTest do
 
       [ref | _] = refs(view, "#timeline [data-row=entry]")
       select!(view, ref)
-      [iso] = view |> render() |> LazyHTML.from_fragment() |> LazyHTML.query("#timeline [data-ref='#{ref}'] time") |> LazyHTML.attribute("datetime")
+
+      [iso] =
+        view
+        |> render()
+        |> LazyHTML.from_fragment()
+        |> LazyHTML.query("#timeline [data-ref='#{ref}'] time")
+        |> LazyHTML.attribute("datetime")
+
       {:ok, at, _} = DateTime.from_iso8601(iso)
 
       assert has_element?(
