@@ -258,6 +258,7 @@ mix usage_rules.search_docs "search term" -p ash -p ash_a2ui -p ash_acp -p ash_a
 - `mix ash_authentication_phoenix.install` - Installs AshAuthenticationPhoenix. Invoke with `mix igniter.install ash_authentication_phoenix`
 - `mix ash_authentication_phoenix.upgrade`
 - `mix ash_bpmn.install` - Installs AshBpmn. Invoked by `mix igniter.install ash_bpmn`
+- `mix ash_compliance.controls.check` - Checks the control file against the SOC 2 criteria catalogue
 - `mix ash_compliance.export_oscal` - Exports a catalog or profile as an OSCAL JSON document
 - `mix ash_compliance.import_oscal` - Imports an OSCAL catalog or profile JSON document
 - `mix ash_credo.install` - Installs AshCredo and configures .credo.exs
