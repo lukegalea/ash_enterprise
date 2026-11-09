@@ -73,6 +73,14 @@ defmodule AshEnterprise.Mdm.MatchCandidate do
     table "mdm_match_candidates"
     repo AshEnterprise.Repo
 
+    identity_wheres_to_sql one_golden_pair: "other_golden_id IS NOT NULL"
+
+    check_constraints do
+      check_constraint :staged_record_id, "mdm_match_candidates_exactly_one_pairing",
+        check: "(staged_record_id IS NULL) <> (other_golden_id IS NULL)",
+        message: "a candidate pairs a golden with a staged record or another golden, not both"
+    end
+
     references do
       # Display relationships over the package's own id attributes: no
       # foreign key. `golden_id` is polymorphic by `golden_resource`, and the

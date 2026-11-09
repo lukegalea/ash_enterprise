@@ -24,6 +24,43 @@ defmodule AshEnterprise.Repo.AdvisoryLock do
   @default_timeout :timer.minutes(30)
 
   @doc """
+  Waits for the `{namespace, key}` lock and holds it until the enclosing
+  transaction ends. Raises outside a transaction, where Postgres would release
+  the lock at once and protect nothing.
+  """
+  @spec xact_lock!(String.t(), String.t()) :: :ok
+  def xact_lock!(namespace, key) when is_binary(namespace) and is_binary(key) do
+    ensure_transaction!()
+    Repo.query!("SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))", [namespace, key])
+    :ok
+  end
+
+  @doc """
+  Waits for the per-tenant lock `AshEvents` takes on an audited write to
+  `resource`, using its own key. Code that holds another lock across an audited
+  write takes this one first, so every path orders them the same way.
+  """
+  @spec xact_lock_audit_log!(module(), term()) :: :ok
+  def xact_lock_audit_log!(resource, tenant) do
+    ensure_transaction!()
+
+    [key1, key2] =
+      AshEvents.AdvisoryLockKeyGenerator.Default.generate_key!(
+        %{resource: resource, tenant: tenant},
+        0
+      )
+
+    Repo.query!("SELECT pg_advisory_xact_lock($1, $2)", [key1, key2])
+    :ok
+  end
+
+  defp ensure_transaction! do
+    if not Repo.in_transaction?() do
+      raise ArgumentError, "a transaction-scoped advisory lock needs a transaction"
+    end
+  end
+
+  @doc """
   Runs `fun` while holding the `{namespace, key}` lock: `{:ok, fun_result}`,
   or `:busy` without running it when another session holds the lock.
 

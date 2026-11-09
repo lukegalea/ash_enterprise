@@ -269,6 +269,16 @@ defmodule AshEnterprise.Canonical.Person do
         :owning_business_unit_id
       ]
 
+      argument :statement_source, :string do
+        description "The projector's source name, for the attribute statements this write makes."
+      end
+
+      argument :statement_observed_at, :utc_datetime_usec do
+        description "The source object's own modified time. Never the read time: a replay must be the same statement."
+      end
+
+      change AshEnterprise.Mdm.Changes.AssertFromSource
+
       upsert? true
       upsert_identity :unique_email
 
@@ -280,7 +290,7 @@ defmodule AshEnterprise.Canonical.Person do
     end
 
     update :mdm_survivor_update do
-      description "The merge's survivor write: fill the survivor's gaps from the loser (ADR 0054 survivorship)."
+      description "Writes a person's folded values (`AshEnterprise.Mdm.Refold`), and nothing else does."
       accept [:name, :email]
     end
 

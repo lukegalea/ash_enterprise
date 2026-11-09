@@ -21,6 +21,7 @@ defmodule AshEnterprise.Mdm do
     resource AshEnterprise.Mdm.MatchRuleSet
     resource AshEnterprise.Mdm.MatchCandidate
     resource AshEnterprise.Mdm.SourceIdentity
+    resource AshEnterprise.Mdm.AttributeAssertion
     resource AshEnterprise.Mdm.MappingProposal
     resource AshEnterprise.Mdm.Egress
   end

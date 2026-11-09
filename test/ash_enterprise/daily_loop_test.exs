@@ -48,8 +48,8 @@ defmodule AshEnterprise.DailyLoopTest do
 
     test "the digest is the window's rows as text, cancellations marked" do
       ctx = tenant!()
-      event!(ctx, "Standup", 1, 15, location: "Zoom")
-      event!(ctx, "Retro", 2, 30, status: :cancelled)
+      event!(ctx, "Standup", 0, 15, location: "Zoom", starts_at: today_at(~T[11:00:00]))
+      event!(ctx, "Retro", 0, 30, status: :cancelled, starts_at: today_at(~T[12:00:00]))
 
       assert {:ok, text} = Console.agenda(:today, opts(ctx))
       assert text =~ "Today ·"
@@ -180,7 +180,7 @@ defmodule AshEnterprise.DailyLoopTest do
   describe "approvals" do
     test "the brief's approval task is waiting on its owner and decides through the engine" do
       ctx = tenant!()
-      event!(ctx, "Design review", 5, 30)
+      event!(ctx, "Design review", 0, 30, starts_at: today_at(~T[12:00:00]))
       brief = brief!(ctx)
 
       [task] = HumanTask |> Ash.Query.for_read(:awaiting_me, %{}, opts(ctx)) |> Ash.read!()
@@ -264,7 +264,7 @@ defmodule AshEnterprise.DailyLoopTest do
   describe "today" do
     test "the digest leads with the agenda, then the brief, then the pulse" do
       ctx = tenant!()
-      event!(ctx, "Focus block", 3, 60)
+      event!(ctx, "Focus block", 0, 60, starts_at: today_at(~T[12:00:00]))
       brief!(ctx)
       linked_account!(ctx, "google-calendar")
 

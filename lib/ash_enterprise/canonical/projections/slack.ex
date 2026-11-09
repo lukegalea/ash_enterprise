@@ -419,7 +419,13 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
       user = record.raw_payload
 
       with email when is_binary(email) <- email(user),
-           {:ok, %Person{} = person} <- live_person(email, display_name(user), scope_id, context) do
+           {:ok, %Person{} = person} <-
+             live_person(
+               email,
+               display_name(user),
+               scope_id,
+               Map.put(context, :statement_observed_at, profile_updated(user))
+             ) do
         # Linked to the golden record when MDM merged this member's row.
         {Map.put(people, user["id"], Golden.resolve(person, context.tenant_id)), failed}
       else
@@ -470,6 +476,14 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
     end
   end
 
+  # Slack's own "profile last changed", in seconds. Nil means no statement:
+  # the read time would make every replay a new one.
+  defp profile_updated(%{"updated" => seconds}) when is_integer(seconds) do
+    DateTime.from_unix!(seconds, :second) |> DateTime.add(0, :microsecond)
+  end
+
+  defp profile_updated(_user), do: nil
+
   defp write_person(email, name, context) do
     Person
     |> Ash.Changeset.for_create(
@@ -477,6 +491,8 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
       %{
         email: email,
         name: name,
+        statement_source: "slack",
+        statement_observed_at: context.statement_observed_at,
         owner_id: context.owner_id,
         owner_type: :user,
         owning_user_id: context.owner_id,
@@ -491,7 +507,8 @@ defmodule AshEnterprise.Canonical.Projections.Slack do
     |> Write.create(
       upsert?: true,
       upsert_identity: :unique_email,
-      upsert_fields: if(name in [nil, ""], do: [], else: [:name])
+      # A stated name is the fold's to write; it is not the answer on its own.
+      upsert_fields: if(name in [nil, ""] or context.statement_observed_at, do: [], else: [:name])
     )
   end
 

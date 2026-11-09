@@ -10,6 +10,8 @@ defmodule AshEnterprise.Canonical.Projections.CalendarTest do
   alias AshEnterprise.Canonical.Projections.Calendar, as: Projector
   alias AshEnterprise.Test.CalendarFixtures, as: F
 
+  require Ash.Query
+
   describe "event_attributes/1 (pure)" do
     test "timed events convert their offset to UTC; the room is not a person" do
       assert {:ok, attrs} = Projector.event_attributes(F.planning_event())
@@ -175,6 +177,44 @@ defmodule AshEnterprise.Canonical.Projections.CalendarTest do
       assert strip_ids(rows(ctx.org)) == strip_ids(first)
     end
 
+    test "a refresh keeps the name another source gave a person, and states its own", ctx do
+      existing =
+        Person
+        |> Ash.Changeset.for_create(:upsert_from_source, %{
+          name: "Ada From The CRM",
+          email: "ada@example.test",
+          owner_id: ctx.owner.id,
+          owner_type: :user,
+          owning_user_id: ctx.owner.id
+        })
+        |> Ash.create!(tenant: ctx.org.id, authorize?: false)
+
+      source = %{
+        external_system: Projector.external_system(),
+        external_id: Projector.external_id("cal-key-synthetic", "synthev0001"),
+        raw_payload: Map.put(F.planning_event(), "updated", "2030-01-01T12:00:00.000Z")
+      }
+
+      assert {:ok, %{projected: 1}} = Projector.replay([source], ctx.context)
+
+      assert Ash.reload!(existing, tenant: ctx.org.id, authorize?: false).name ==
+               "Ada From The CRM"
+
+      statements = statements(ctx.org, existing)
+
+      assert [statement] =
+               Enum.filter(
+                 statements,
+                 &(&1.source == Projector.external_system() and &1.attribute == "name")
+               )
+
+      assert DateTime.compare(statement.observed_at, ~U[2030-01-01 12:00:00Z]) == :eq
+
+      # The same source object again is the same statement.
+      assert {:ok, %{projected: 1}} = Projector.replay([source], ctx.context)
+      assert length(statements(ctx.org, existing)) == length(statements)
+    end
+
     test "a bare cancellation of an unseen event is skipped, not invented", ctx do
       source = %{
         external_system: Projector.external_system(),
@@ -185,6 +225,12 @@ defmodule AshEnterprise.Canonical.Projections.CalendarTest do
       assert {:ok, %{skipped: 1, projected: 0}} = Projector.replay([source], ctx.context)
       assert CalendarEvent |> Ash.read!(tenant: ctx.org.id, authorize?: false) == []
     end
+  end
+
+  defp statements(org, person) do
+    AshEnterprise.Mdm.AttributeAssertion
+    |> Ash.Query.filter(golden_id == ^person.id)
+    |> Ash.read!(tenant: org.id, authorize?: false)
   end
 
   defp rows(org) do

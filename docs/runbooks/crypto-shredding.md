@@ -206,6 +206,10 @@ Be honest with whoever asked for the erasure about these. Each is a real copy of
   migration also refuses to run while `ingestion_source_objects` or the sealed canonical
   tables hold rows, because `erasure_scope_id` is `NOT NULL`. Those rows are reconstructible (re-run the tap, then
   `Projection.replay`), so empty them first. Their old audit events are the plaintext caveat above.
+- **`Mdm.AttributeAssertion` rows.** One row per statement of a person's name or address, in plaintext, in
+  `mdm_attribute_assertions`. There is no foreign key to the person and a shred does not reach them: remove a person's
+  rows there (`golden_id`) before removing the person: a read goes through the Person row, so afterwards they are
+  reachable only by SQL.
 - **`Canonical.Person` rows.** Every organizer's, attendee's, sender's, recipient's and Slack member's name and email
   address stays readable in `canonical_people` — since 2026-10-12 including every Gmail correspondent and Slack member
   (with a profile email) projected through zone admission. The rows are owner-only (`Privilege.owner_only?/1`), so only
