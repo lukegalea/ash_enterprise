@@ -83,7 +83,7 @@ defmodule AshBrowserTests.BackendsTest do
     end
 
     test "a test key filters on the attribute" do
-      assert SigNoz.expression("key-1") == "ash.test_key = 'key-1'"
+      assert SigNoz.expression("some-key") == "ash.test_key = 'some-key'"
 
       assert SigNoz.expression({:trace_id, "ab"}, only_errors: true) ==
                "trace_id = 'ab' AND hasError = true"
