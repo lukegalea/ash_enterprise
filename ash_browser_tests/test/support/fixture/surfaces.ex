@@ -71,6 +71,34 @@ defmodule AshBrowserTests.Fixture.Surfaces do
 
     %{text: name}
   end
+
+  # The fixture has no audit table: the row the action changed stands in for one.
+  @impl true
+  def assert_audit(correlation_id, %{row: %{text: name}}) do
+    true = is_binary(correlation_id) and correlation_id != ""
+    [%{active: true}] = Enum.filter(Ash.read!(Widget, authorize?: false), &(&1.name == name))
+  end
+end
+
+defmodule AshBrowserTests.Fixture.FailingAuditSurfaces do
+  @moduledoc false
+  @behaviour AshBrowserTests.Surfaces.Host
+
+  alias AshBrowserTests.Fixture.Surfaces
+
+  @impl true
+  defdelegate surfaces, to: Surfaces
+  @impl true
+  defdelegate waivers, to: Surfaces
+  @impl true
+  defdelegate sign_in(conn, actor, context), to: Surfaces
+  @impl true
+  defdelegate a2ui_manifest, to: Surfaces
+  @impl true
+  defdelegate row_for(surface, row_action, context), to: Surfaces
+
+  @impl true
+  def assert_audit(_correlation_id, _context), do: raise("fixture audit row missing")
 end
 
 defmodule AshBrowserTests.Fixture.BadSurfaces do

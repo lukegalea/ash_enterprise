@@ -79,8 +79,21 @@ config :ash_enterprise_telemetry, :trace_sink, ring_size: 5_000, max_spans: 200_
 config :ash_enterprise_telemetry, :trace_sink?, true
 ```
 
-Include `AshEnterprise.Telemetry.TraceSink.Processor` in the
-`processors` list (see `AshEnterprise.Telemetry`).
+Trace assertions also need the telemetry package set up in the `test` environment:
+
+```elixir
+config :opentelemetry,
+  processors: [
+    {AshEnterprise.Telemetry.SpanProcessor, %{}},
+    {AshEnterprise.Telemetry.TraceSink.Processor, %{}}
+  ]
+
+config :ash, :tracer, [AshEnterprise.Telemetry.AshTracer]
+config :ash_enterprise_telemetry, :browser_ingest, enabled: true, rate_limit: 100_000
+```
+
+Order matters if the host adds an OTLP exporter: a processor that does not return `true`
+from `on_end` starves the ones after it, so a batch exporter goes before the sink.
 
 `config/runtime.exs` often reads `PORT` in every environment and silently overrides
 the port above, so either skip it for `:test` or run through
@@ -93,9 +106,14 @@ ExUnit.configure(exclude: [:e2e])   # keep browser tests out of plain `mix test`
 ExUnit.start()
 
 if System.get_env("E2E") == "1" do
+  AshEnterprise.Telemetry.setup(otp_app: :my_app, browser_context: true, db_statement: :enabled)
   AshBrowserTests.start!(endpoint: MyAppWeb.Endpoint)
 end
 ```
+
+Skip the `setup/1` call if the application already makes it at start. It needs
+`browser_context: true` in the test environment, or the server never adopts the browser's
+span as a parent and every chain from `browser_event/1` or `browser_connect/1` fails.
 
 `AshBrowserTests.start!/1` starts the Playwright supervisor, points PhoenixTest at the
 endpoint, and attaches the sandbox hook.
@@ -112,10 +130,24 @@ if Application.compile_env(:my_app, :sql_sandbox, false) do
 end
 ```
 
-`:user_agent` connect info and the sandbox plug are all a host's web layer needs.
 There is no `on_mount` and no router change: `AshBrowserTests.SandboxHook` covers every
 `live_session` through telemetry. Add `:user_agent` to any other socket a browser test
 reaches too.
+
+Browser spans need two more things, and a suite with neither can still assert server
+chains:
+
+```elixir
+# Endpoint, before Plug.Parsers: where the browser posts its spans.
+plug AshEnterprise.Telemetry.OtlpIngest
+```
+
+- The telemetry package's browser tracer loaded by the page, and
+  `<meta name="otel-browser" content="on">` in the root layout. See "Browser" in
+  `telemetry/README.md`.
+- `window.__otelFlush` and `window.__otelEndConnect` defined by the page.
+  `flush_browser_spans/1` calls them when present, and without them spans arrive only on
+  the tracer's own schedule.
 
 ## Writing a test
 
