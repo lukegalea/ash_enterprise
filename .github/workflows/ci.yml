@@ -178,6 +178,17 @@ jobs:
       - name: Check the roadmap tables are rendered
         run: mix ash_enterprise.roadmap --check
 
+      # docs/controls.json names an owner, an evidence producer, an operating
+      # process and a test for each of the 61 SOC 2 criteria. Many are not
+      # there yet, so this runs in report mode: it lists every missing piece
+      # and exits 0. A clean listing would mean the file is complete, not that
+      # any control operates. test/ash_enterprise/compliance/control_file_test.exs
+      # is what fails the build: it refuses an unresolvable reference, a stored
+      # status, a missing criterion, or a larger gap count than the last one.
+      # Drop --report to enforce once the listing is empty.
+      - name: Report the control ownership gaps
+        run: mix ash_compliance.controls.check --report --categories security,availability,processing_integrity,confidentiality,privacy
+
       # `--skip` honours the `@sobelow_skip` attributes in the source. There is
       # exactly one, on `AshEnterprise.Audit.Export`, and it says why next to
       # itself -- which is the point of the attribute over a config file.

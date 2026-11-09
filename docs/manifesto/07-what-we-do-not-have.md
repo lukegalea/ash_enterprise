@@ -286,8 +286,9 @@ the strategy evaluator reads only `strategy["constraints"]` — so a flag the Un
 ## 12. Column-level security
 
 [Question 6 on the checklist](../QUESTIONS.md) — "are some columns more sensitive than the rows that contain them?" —
-is answered "not yet", and this is the entry behind it. `grep -rn "field_polic" lib/` returns nothing: there is not one
-field policy declared anywhere in this repository. [Thesis 4](04-batteries-are-inherited.md) listed field policies among
+was answered "not yet", and this is the entry behind it. It is now partly answered: `grep -rn "field_polic" lib/` finds
+one declaration, on `AshEnterprise.Integration.LinkedAccount`, which hides `connection_id` from every read grant. No
+other resource has a field policy and the base resource supplies none. [Thesis 4](04-batteries-are-inherited.md) listed field policies among
 what the base resource supplies until 2026-08-18, which made it the one place where a claim ran ahead of the code; that
 line has been corrected rather than implemented.
 
