@@ -161,6 +161,10 @@ msgstr ""
 msgid "Answer the question"
 msgstr ""
 
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Api key"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
 msgctxt "one_of:disposition"
 msgid "Applied"
@@ -376,6 +380,10 @@ msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/finding_ui.ex:1
 msgid "Breach count"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Break glass session"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
@@ -1229,6 +1237,10 @@ msgid "Fzn timeout"
 msgstr ""
 
 #: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Get active by email"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Get by email"
 msgstr ""
 
@@ -1393,6 +1405,10 @@ msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/role_ui.ex:1
 msgid "Is inherited"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Issue"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
@@ -1567,6 +1583,10 @@ msgstr ""
 #: lib/ash_enterprise/canvas/registry.ex:2
 #: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
 msgid "List"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Live for"
 msgstr ""
 
 #: lib/ash_enterprise/canvas/registry.ex:2
@@ -1827,6 +1847,7 @@ msgctxt "one_of:combining"
 msgid "Only one applicable"
 msgstr ""
 
+#: lib/ash_enterprise/canvas/registry.ex:2
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
 msgid "Open"
@@ -2174,6 +2195,10 @@ msgstr ""
 #: lib/ash_enterprise_web/a2ui/audit_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
 msgid "Record"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Record failure"
 msgstr ""
 
 #: lib/ash_enterprise/canvas/registry.ex:2
@@ -2618,6 +2643,10 @@ msgid "Set sole administrator approval"
 msgstr ""
 
 #: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Set valid until"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
 msgid "Settle"
 msgstr ""
@@ -2647,6 +2676,14 @@ msgstr ""
 #: lib/ash_enterprise_web/a2ui/operator_ui.ex:284
 msgctxt "one_of:status"
 msgid "Shredded"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Sign in lockout"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Sign in with api key"
 msgstr ""
 
 #: lib/ash_enterprise/canvas/registry.ex:2
