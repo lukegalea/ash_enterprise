@@ -82,6 +82,13 @@ defmodule AshEnterprise.Security do
     resource AshEnterprise.Security.Role
     resource AshEnterprise.Security.RolePrivilege
     resource AshEnterprise.Security.UserRole
+
+    resource AshEnterprise.Security.BreakGlassSession do
+      define :live_break_glass_sessions,
+        action: :live_for,
+        args: [:operator_id, :subject_id, :now]
+    end
+
     resource AshEnterprise.Security.TeamRole
 
     # Automation principals (ADR 0043): their roles, and who may start an agent

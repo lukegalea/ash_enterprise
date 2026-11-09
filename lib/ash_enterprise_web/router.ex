@@ -18,7 +18,7 @@ defmodule AshEnterpriseWeb.Router do
   #
   # `AshGraphql.Plug` must run last; it reads the actor these plugs installed.
   pipeline :graphql do
-    plug :load_from_bearer
+    plug AshEnterpriseWeb.Plugs.LoadFromBearer
     plug :set_actor, :user
     plug AshEnterpriseWeb.Plugs.LoadActorContext
     plug AshEnterpriseWeb.Plugs.PutLocale
@@ -83,7 +83,7 @@ defmodule AshEnterpriseWeb.Router do
 
   pipeline :api do
     plug :accepts, ["json"]
-    plug :load_from_bearer
+    plug AshEnterpriseWeb.Plugs.LoadFromBearer
     plug :set_actor, :user
     plug AshEnterpriseWeb.Plugs.LoadActorContext
     plug AshEnterpriseWeb.Plugs.PutLocale
@@ -492,7 +492,7 @@ defmodule AshEnterpriseWeb.Router do
   # authorization bug.
   pipeline :mcp do
     plug :accepts, ["json"]
-    plug :load_from_bearer
+    plug AshEnterpriseWeb.Plugs.LoadFromBearer
     plug :set_actor, :user
     plug AshEnterpriseWeb.Plugs.LoadActorContext
     plug AshEnterpriseWeb.Plugs.PutLocale

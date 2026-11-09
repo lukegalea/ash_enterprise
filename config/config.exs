@@ -557,8 +557,7 @@ config :ash_enterprise, AshEnterpriseWeb.Endpoint,
     formats: [html: AshEnterpriseWeb.ErrorHTML, json: AshEnterpriseWeb.ErrorJSON],
     layout: false
   ],
-  pubsub_server: AshEnterprise.PubSub,
-  live_view: [signing_salt: "B+Adr/Rm"]
+  pubsub_server: AshEnterprise.PubSub
 
 # Configure LiveView
 config :phoenix_live_view,

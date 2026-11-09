@@ -23,17 +23,19 @@ defmodule AshEnterprise.Security.Impersonation do
   a privilege-escalation path rather than a support tool. What the operator adds
   is attribution, never reach.
 
-  ## What this does not do yet
+  ## Break-glass sessions
 
-  It does not decide **who may impersonate whom**, and it does not record a
-  session — a start, an end, and a stated reason — as a first-class row. Both are
-  needed before this is a complete break-glass story, and both are named as open
-  on the roadmap rather than implied by the presence of this module. What exists
-  here is the attribution half: if impersonation happens, it is recorded
-  everywhere an ordinary action is recorded, with the second name attached.
+  Whether it is *allowed* is a row: `AshEnterprise.Security.BreakGlassSession`
+  records the operator, the subject, the reason, the approver and the expiry,
+  and `break_glass/3` returns an impersonating actor only while one is live.
+  `acting_as/2` remains the attribution half and does not check for a session;
+  a caller that is not itself the check should use `break_glass/3`.
   """
 
+  alias AshEnterprise.Security
+
   @metadata_key :impersonator_id
+  @session_key :break_glass_session_id
 
   @doc """
   Returns `subject` as an actor whose actions are attributed to `operator` as
@@ -58,4 +60,38 @@ defmodule AshEnterprise.Security.Impersonation do
   @doc "Whether this actor is acting on someone else's behalf."
   @spec impersonating?(term()) :: boolean()
   def impersonating?(actor), do: not is_nil(impersonator_id(actor))
+
+  @doc """
+  `subject` as an actor attributed to `operator`, if a break-glass session is
+  live for exactly that pair.
+
+  Live means active, not past `expires_at` (a session is gone at the instant it
+  expires) and with both people still active. Anything else -- no session, one
+  for another pair, an ended or expired one, arguments that are not people -- is
+  `{:error, :no_live_session}`. Options: `:now`.
+  """
+  @spec break_glass(term(), term(), keyword()) :: {:ok, struct()} | {:error, :no_live_session}
+  def break_glass(subject, operator, opts \\ [])
+
+  def break_glass(%{id: subject_id} = subject, %{id: operator_id}, opts)
+      when is_binary(subject_id) and is_binary(operator_id) do
+    now = Keyword.get_lazy(opts, :now, &DateTime.utc_now/0)
+
+    # Authorization is off: this answers "is there a live row", for the code that
+    # decides whether to build an impersonating actor. It returns no row data.
+    case Security.live_break_glass_sessions(operator_id, subject_id, now, authorize?: false) do
+      {:ok, [session | _]} ->
+        actor =
+          subject
+          |> acting_as(operator_id)
+          |> Ash.Resource.put_metadata(@session_key, session.id)
+
+        {:ok, actor}
+
+      _ ->
+        {:error, :no_live_session}
+    end
+  end
+
+  def break_glass(_subject, _operator, _opts), do: {:error, :no_live_session}
 end

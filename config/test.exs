@@ -113,6 +113,14 @@ end
 
 # We don't run a server during test. If one is required,
 # you can enable the server option below.
+# Salts for test only. Production reads both from the environment and refuses to
+# boot without them (`AshEnterprise.Security.SigningSalts`, config/runtime.exs).
+config :ash_enterprise,
+  session_signing_salt: "test-session-salt-not-for-production-use"
+
+config :ash_enterprise, AshEnterpriseWeb.Endpoint,
+  live_view: [signing_salt: "test-live-view-salt-not-for-production"]
+
 config :ash_enterprise, AshEnterpriseWeb.Endpoint,
   http: [ip: {127, 0, 0, 1}, port: 4002],
   secret_key_base: "n4HgSJ7vmCW06IRSD6hjs4qCWeiiG8tRpmubymXCcI+b5ytnOVjnk3ZNndtaJYJK",

@@ -5,16 +5,22 @@ defmodule AshEnterpriseWeb.Endpoint do
   # The session will be stored in the cookie and signed,
   # this means its contents can be read but not tampered with.
   # Set :encryption_salt if you would also like to encrypt it.
-  @session_options [
-    store: :cookie,
-    key: "_ash_enterprise_key",
-    signing_salt: "2pS9rQOy",
-    same_site: "Lax"
-  ]
+  #
+  # The signing salt is runtime configuration (`:session_signing_salt`, from the
+  # environment in production), so the options are built per use, not at compile time.
+  @doc "The session cookie options, with the signing salt read from configuration now."
+  def session_options do
+    [
+      store: :cookie,
+      key: "_ash_enterprise_key",
+      signing_salt: Application.fetch_env!(:ash_enterprise, :session_signing_salt),
+      same_site: "Lax"
+    ]
+  end
 
   socket "/live", Phoenix.LiveView.Socket,
-    websocket: [connect_info: [session: @session_options]],
-    longpoll: [connect_info: [session: @session_options]]
+    websocket: [connect_info: [session: {__MODULE__, :session_options, []}]],
+    longpoll: [connect_info: [session: {__MODULE__, :session_options, []}]]
 
   socket "/ws/gql", AshEnterpriseWeb.GraphqlSocket, websocket: true, longpoll: true
 
@@ -86,6 +92,10 @@ defmodule AshEnterpriseWeb.Endpoint do
 
   plug Plug.MethodOverride
   plug Plug.Head
-  plug Plug.Session, @session_options
+  plug :session
   plug AshEnterpriseWeb.Router
+
+  defp session(conn, _opts) do
+    Plug.Session.call(conn, Plug.Session.init(session_options()))
+  end
 end

@@ -22,7 +22,7 @@ defmodule AshEnterprise.Security.TeamRole do
     domain: AshEnterprise.Security,
     ownership: :none,
     lifecycle?: false,
-    changes_authority: [:assign, :destroy]
+    changes_authority: [:assign, :set_valid_until, :destroy]
 
   postgres do
     table "team_roles"
@@ -37,6 +37,15 @@ defmodule AshEnterprise.Security.TeamRole do
 
   attributes do
     uuid_primary_key :id
+
+    attribute :valid_until, :utc_datetime_usec do
+      public? true
+
+      description """
+      When the grant ends. At this instant it is already gone: the actor context
+      counts a grant only while `valid_until` is unset or later than now.
+      """
+    end
   end
 
   relationships do
@@ -72,7 +81,13 @@ defmodule AshEnterprise.Security.TeamRole do
 
   actions do
     defaults [:read, :destroy]
-    default_accept [:team_id, :role_id, :scoping_business_unit_id]
+    default_accept [:team_id, :role_id, :scoping_business_unit_id, :valid_until]
+
+    update :set_valid_until do
+      description "Sets or clears the end of a grant. Clearing it makes the grant open-ended."
+      accept [:valid_until]
+      require_atomic? false
+    end
 
     read :history do
       description "Every team's assignment, in force or revoked (archived): which teams have ever held a role."

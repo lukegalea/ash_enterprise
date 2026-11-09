@@ -201,7 +201,8 @@ defmodule AshEnterprise.Security.ActorContext do
     team_ids = load_team_ids(user_id, tenant)
     principal_ids = [user_id | team_ids] |> Enum.reject(&is_nil/1)
 
-    role_assignments = load_role_assignments(user_id, team_ids, tenant)
+    now = Keyword.get_lazy(opts, :now, &DateTime.utc_now/0)
+    role_assignments = load_role_assignments(user_id, team_ids, tenant, now)
     grants = build_grants(role_assignments, tenant)
     shared = load_shared(principal_ids, tenant)
 
@@ -406,12 +407,14 @@ defmodule AshEnterprise.Security.ActorContext do
 
   # Direct roles plus roles held through teams, each with the business unit the
   # grant is scoped to. One query per source rather than per role.
-  defp load_role_assignments(nil, _team_ids, _tenant), do: []
+  defp load_role_assignments(nil, _team_ids, _tenant, _now), do: []
 
-  defp load_role_assignments(user_id, team_ids, tenant) do
+  # A grant counts while `valid_until` is unset or later than `now`: at the
+  # instant itself it is already gone.
+  defp load_role_assignments(user_id, team_ids, tenant, now) do
     direct =
       AshEnterprise.Security.UserRole
-      |> Ash.Query.filter(user_id == ^user_id)
+      |> Ash.Query.filter(user_id == ^user_id and (is_nil(valid_until) or valid_until > ^now))
       |> Ash.Query.select([:role_id, :scoping_business_unit_id])
       |> read_all(tenant)
 
@@ -420,7 +423,7 @@ defmodule AshEnterprise.Security.ActorContext do
         []
       else
         AshEnterprise.Security.TeamRole
-        |> Ash.Query.filter(team_id in ^team_ids)
+        |> Ash.Query.filter(team_id in ^team_ids and (is_nil(valid_until) or valid_until > ^now))
         |> Ash.Query.select([:role_id, :scoping_business_unit_id])
         |> read_all(tenant)
       end
