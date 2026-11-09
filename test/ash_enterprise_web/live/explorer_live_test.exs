@@ -199,7 +199,7 @@ defmodule AshEnterpriseWeb.ExplorerLiveTest do
         |> LazyHTML.from_fragment()
         |> LazyHTML.query("#timeline [data-row=entry] time")
 
-      assert Enum.count(rows) > 0
+      refute Enum.empty?(rows)
 
       for row <- rows do
         [iso] = LazyHTML.attribute(row, "datetime")
