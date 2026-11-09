@@ -23,7 +23,6 @@ defmodule AshEnterprise.Accounts.SignInLockout do
     tenant?: false,
     archival?: false,
     lifecycle?: false,
-    optimistic_lock?: false,
     audit?: false,
     lineage?: false,
     authentication_plumbing?: true

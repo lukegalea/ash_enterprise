@@ -127,13 +127,13 @@ defmodule AshEnterprise.Accounts.DeactivationTest do
   end
 
   describe "other doors" do
-    test "looking a deactivated user up by email finds nobody, so no reset is sent" do
+    test "the lookup behind a password reset finds nobody deactivated, so no reset is sent" do
       user = register!()
-      assert {:ok, %{id: id}} = Accounts.get_user_by_email(user.email, authorize?: false)
+      assert {:ok, %{id: id}} = Accounts.get_active_user_by_email(user.email, authorize?: false)
       assert id == user.id
 
       deactivate!(user)
-      assert {:error, _} = Accounts.get_user_by_email(user.email, authorize?: false)
+      assert {:error, _} = Accounts.get_active_user_by_email(user.email, authorize?: false)
     end
 
     test "a password reset token for a deactivated user does not reset" do
