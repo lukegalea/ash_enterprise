@@ -82,6 +82,11 @@ defmodule AshEnterprise.Platform.Resource do
     * `:extra_grants` — grant paths this resource adds to the inherited union
       (filter checks, each one more `authorize_if`). Additive only; see
       `AshEnterprise.Security.Policies`. Ignored with `policies?: false`.
+    * `:authentication_plumbing?` — prepend the `ash_authentication` bypass on a
+      resource that carries no `AshAuthentication` extension but is read or
+      written by the sign-in machinery itself (API keys, the sign-in lockout
+      counter). Those calls carry the private `ash_authentication?` context
+      flag. Default `false`.
     * `:extra_extensions` — extensions to add on top (e.g. `AshStateMachine`).
 
   Anything else is passed through to `use Ash.Resource`.
@@ -118,6 +123,7 @@ defmodule AshEnterprise.Platform.Resource do
     {api_type, opts} = Keyword.pop(opts, :api_type)
     {extra_extensions, opts} = Keyword.pop(opts, :extra_extensions, [])
     {declared_extensions, opts} = Keyword.pop(opts, :extensions, [])
+    {authentication_plumbing?, opts} = Keyword.pop(opts, :authentication_plumbing?, false)
 
     extensions =
       [
@@ -143,10 +149,11 @@ defmodule AshEnterprise.Platform.Resource do
     # silently false. Expanding against the caller's environment is what turns it
     # back into a module to compare against.
     authentication? =
-      Enum.any?(
-        List.wrap(extra_extensions) ++ List.wrap(declared_extensions),
-        &(Macro.expand(&1, __CALLER__) == AshAuthentication)
-      )
+      authentication_plumbing? or
+        Enum.any?(
+          List.wrap(extra_extensions) ++ List.wrap(declared_extensions),
+          &(Macro.expand(&1, __CALLER__) == AshAuthentication)
+        )
 
     resource_opts =
       opts
