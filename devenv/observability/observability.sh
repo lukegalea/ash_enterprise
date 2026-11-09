@@ -245,6 +245,11 @@ ensure_postgres() {
   # Needs a superuser on some servers; created here, where we hold one.
   PGOPTIONS='-c client_min_messages=warning' psql -h "${PGHOST:-127.0.0.1}" -p "$(pg_port)" -U "${PGUSER:-$(id -un)}" -d observability_glitchtip \
     -v ON_ERROR_STOP=1 -qAt -c 'create extension if not exists pg_trgm'
+  # A reset of the cluster (rm -rf .devenv/state/postgres) leaves our markers
+  # behind, so the database decides whether GlitchTip still needs initialising.
+  if [ -z "$(psql -h "${PGHOST:-127.0.0.1}" -p "$(pg_port)" -U "${PGUSER:-$(id -un)}" -d observability_glitchtip -qAt -c "select to_regclass('public.django_migrations')")" ]; then
+    rm -f "$MARKERS/glitchtip-initialized"
+  fi
 }
 
 # ---------------------------------------------------------------------------
