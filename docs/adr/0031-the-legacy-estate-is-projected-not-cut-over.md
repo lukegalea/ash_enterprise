@@ -356,3 +356,13 @@ removed when the code that used them is, and historical rows reference the strin
 `AshEnterpriseWeb.A2uiLive.Cue` is shared with the legacy surface and stays. It was extracted when the
 second live surface arrived, for the ordinary reason: two copies of a component whose interesting
 properties are all non-obvious would drift.
+
+## Addendum: the read-only lifecycle has no state machine
+
+`Legacy.User.lifecycle_status` is a one-way computed reading of `legacy.users.state`, changed only by the old
+application, so `Legacy.User` declares `state_machine?: false`. The attribute keeps its position (view column
+order follows attribute order) and the `status_code`/`state_code` calculations stay. A collapse with the machine
+retained would have to invent a value for `:inactive`, which stands for passive, pending, suspended and deleted
+alike. `ProjectedUser` keeps its machine. When a phase genuinely writes this lifecycle, turn the machine back on
+with a real collapse; that needs a product decision on what `:inactive` writes. `Platform.Verifiers.ProjectedLifecycle`
+refuses `state_machine?: false` unless `lifecycle_status` is a read-only strangler mapping.

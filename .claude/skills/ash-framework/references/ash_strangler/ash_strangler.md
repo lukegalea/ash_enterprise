@@ -129,7 +129,28 @@ incomplete backfill produces missing rows, not an error.
    `one_of` makes the compiler refuse correct mappings. Fix the constraint or let
    `check` measure it.
 
-4. **`source` takes the twin module.** `source "legacy.users"` is refused with
+4. **Pin twins to a snapshot, and keep secrets out of them.** For a schema
+   someone else migrates, capture it once (`mix ash_strangler.snapshot capture`)
+   and generate twins with `--from-snapshot`. The twin then carries
+   `twin do snapshot "…/catalog.json" end`, and V-SNAPSHOT fails compilation,
+   naming the column, when the twin and the catalog disagree. Do not hand-edit
+   the twin to silence it: regenerate it, or capture a new snapshot if the legacy
+   schema really moved. Gate CI on `snapshot verify` (the files match their lock)
+   and on `snapshot drift` (the live database matches the catalog). A column that
+   must never leave the legacy database is declared `secrets [:col]` (or
+   `--secret schema.table.col`): the twin has no attribute for it, a mapping that
+   names it does not compile, and ledger images are built from the twin's
+   columns, so it is never written. A twin that matters without being mapped,
+   for example a membership table, can be `watch "channel"`ed for key-only
+   notifications. See the "Snapshots" guide.
+
+5. **Restrict twins to the system actor.** `twin do system_actor Check end`
+   with `authorizers: [Ash.Policy.Authorizer]` (or `gen.twin --system-actor
+   Check`) makes legacy rows readable by that actor only. Do not add a
+   `bypass` to a twin; it is refused. Write seed and test rows with
+   `AshStrangler.Twin.Fixture`, not through the canonical resource.
+
+5. **`source` takes the twin module.** `source "legacy.users"` is refused with
    `expected module in :twin option`. The relation name, the schema, and the
    column names all come off the twin; there is nowhere to write them twice.
 
@@ -200,16 +221,17 @@ incomplete backfill produces missing rows, not an error.
    strangler-backed resource is therefore a schema change: regenerate.
 
 10. **Do not put a `zone:` on an already-aware column**, and **do state `zone:`
-    whenever a naive legacy `timestamp` feeds an aware attribute.** The first is
-    refused: `AT TIME ZONE` on a `timestamptz` converts it *back* to naive, which
-    is the opposite of the intent. The second is not yet refused and needs
-    discipline — a bare `map :archived_at, from: :deleted_at` between a
-    `:naive_datetime` twin column and a `:utc_datetime_usec` attribute derives
-    `(deleted_at)::timestamptz`, which reads the value as wall-clock time in the
-    **session's** `TimeZone`. Measured at 10.5 hours of drift between two
-    connections reading the same row, with no error anywhere. Which zone a naive
-    column is recorded in is a fact about the *old application*; there is nothing
-    in the database to read it from, so state it.
+    whenever a naive legacy `timestamp` feeds an aware attribute.** Both are
+    refused. `AT TIME ZONE` on a `timestamptz` converts it *back* to naive, which
+    is the opposite of the intent. A bare `map :archived_at, from: :deleted_at`
+    between a `:naive_datetime` twin column and a `:utc_datetime_usec` attribute
+    would derive `(deleted_at)::timestamptz`, which reads the value as wall-clock
+    time in the **session's** `TimeZone`, so `VerifyTimestampZones` refuses it
+    (and the mirror case, an aware column feeding a naive attribute). Measured
+    at 10.5 hours of drift between two connections reading the same row, with
+    no error anywhere. Which zone a naive column is recorded in is a fact about
+    the *old application*; there is nothing in the database to read it from, so
+    state it.
 
 11. **Never restate what the twin already says.** `cast:` is gone — the cast is
     derived by comparing the twin's column type to the attribute's type. An
@@ -261,6 +283,17 @@ incomplete backfill produces missing rows, not an error.
     anywhere — both sides go through `name_prefix/1` precisely so they cannot
     drift, and a drift produces `Ash.get/2` returning nothing for rows that exist.
 
+15a. **Key integer tables with a packed key, and map foreign keys as
+    `reference`s.** Declare a key-kind registry (`use AshStrangler.KeyKinds`)
+    pinned to the snapshot, then `key :id, from: :id, strategy: {:uuid_v8,
+    Registry, :kind}` and `reference :x_id, kind: {Registry, :x}, from: :x_id`.
+    A reference equals the id of the row it names, so no lookup table is
+    needed, and `KeyKinds.encode/3` and `decode/2` are the Elixir side. Never
+    edit a kind's tag or widths: that re-keys every row. If V-REF asks for
+    `soft:`, give the real reason the snapshot cannot prove the row exists; do
+    not add a foreign key to the stand-in schema that production lacks. See the
+    "Keys and references" guide.
+
 16. **The mapped primary key must not be declared with a default, and does not
     need `generated? true` written by hand** — the extension sets it, because the
     view computes the id and Ash would otherwise reject every create with
@@ -282,6 +315,16 @@ incomplete backfill produces missing rows, not an error.
     `:base_trigger` but is *emitted* as `:instead_of`, because the cheaper mechanism
     needs `ALTER TABLE` against the legacy table. `AshStrangler.Mechanism.report/1`
     prints both columns, so the gap is visible rather than assumed.
+
+    What an `INSTEAD OF UPDATE` trigger writes back is the `source` option
+    `on_update`, and it is a choice because PostgreSQL makes the difference
+    undetectable: `NEW` arrives fully populated, so "not in the `SET` clause"
+    and "set to its current value" look the same. `:full_row` (the default)
+    assigns every writable column every time, which bumps a legacy `updated_at`
+    and fires legacy column triggers nobody asked for. `:changed_columns`
+    assigns only columns whose value differs, and so misses the one write that
+    sets a column back to the value it already held. Pick it per resource
+    knowing which legacy triggers care.
 
 18. **`oauth2` and `oidc` cannot be strangled with triggers.** Their
     `ash_authentication` transformer requires `upsert? true`; it is not
@@ -325,6 +368,12 @@ incomplete backfill produces missing rows, not an error.
     not an error: every pass does real work and reports real progress, and the job
     simply never finishes.
 
+    With `backfill_interlock? true` on the `source`, the `INSTEAD OF` triggers
+    clear `AshStrangler.Backfill.flag_column/0` on every row they write, so the
+    backfill does not re-derive a row a trigger already handled. It assigns to
+    the flag column, so add the column before turning it on and turn it off
+    before dropping the column.
+
 24. **There is no `{:sql, template}` normalizer.** The reconciler derives its
     normalizers from the attribute's own Ash type (`:ci_string`, `:downcase`,
     `:trim`), and a time zone is part of the forward expression rather than a
@@ -350,7 +399,9 @@ incomplete backfill produces missing rows, not an error.
 
 27. **Never hand-draw a diagram of a mapping.** `mix ash_strangler.gen.diagram`
     renders it from the declaration — per resource, or `--type overview` for the
-    whole application, `--format json` for OpenLineage. A drawing made by hand is a
+    whole application. For OpenLineage, call
+    `AshStrangler.Lineage.OpenLineage.datasets/2` or `encode!/2`; the task's
+    formats are `plain`, `md`, `svg`, `pdf` and `png`. A drawing made by hand is a
     second description of the mapping with nothing keeping it honest, which is the
     exact failure the `strangler` block exists to prevent. If a diagram in a README
     or a document is wrong, regenerate it; do not edit the picture.
@@ -360,6 +411,16 @@ incomplete backfill produces missing rows, not an error.
     aborts the *legacy application's* transaction. Never use them to count writes —
     PostgreSQL collapses duplicates within a transaction. `LISTEN` does not work
     under pgbouncer transaction pooling.
+
+    `notify_channel` names the `pg_notify` channel (default `"ash_strangler"`,
+    one channel for every resource, the resource named in the payload). It is a
+    compile-time literal on purpose; never derive it from runtime input. A
+    non-default channel must also be passed to `AshStrangler.Listener` as
+    `channel:`, or the listener hears nothing. **One relation, one channel:**
+    two resources sharing a twin must share a `notify_channel`. With `ledger?`
+    on, the ledger trigger and function names come from the relation, so with
+    two channels both migrations are emitted, the names collide, and the later
+    migration silently wins. No verifier catches this.
 
 29. **Give `AshStrangler.Listener` read options if the resource has policies.**
     The listener re-reads the affected row through `Ash.get/3`, and it is not
@@ -375,23 +436,78 @@ incomplete backfill produces missing rows, not an error.
     *type*, fires; `publish :some_action, [...]`, which matches on its *name*,
     does not. Write publications for a strangled read model with `publish_all`.
 
-31. **`ledger?: true` is the durable half, and it needs the ingester to be
-    real.** It turns every legacy write into a row in `legacy_change_events`,
-    committed *with* the legacy transaction, plus a `wake:<event id>` notify
-    that replaces the JSON envelope — so a ledger source's listeners hear
-    wakes, not changes; downstream consumers hear about the write when the
-    generated ingestion performs ordinary Ash actions, which fire Ash's own
-    notifiers. Requires `notify? true` (the wake is what makes ingestion prompt
-    instead of merely eventual) and is refused past cutover, where the relation
-    is a view no row trigger can attach to. Generate the drain with `mix
-    ash_strangler.gen.ingester`, wire `config :ash_strangler, ledger_drain:
-    {Worker, :nudge}`, and keep the cron sweep — a missed wake costs delay, not
-    delivery, *only* while the sweep exists. `mix ash_strangler.check` reports
-    the backlog per relation; watch it. And before turning this on, say the
-    trade out loud: the legacy application's writes now fail if the ledger
-    table cannot accept an insert.
+31. **`ledger?: true` is the durable half, and it needs the ingester or observer to be real.** It turns every legacy write into a row in `legacy_change_events`, committed *with* the legacy transaction, plus a `wake:<event id>` notify that replaces the JSON envelope. Requires `notify? true` (the wake is what makes capture prompt instead of merely eventual). Generate the materialisation drain with `mix ash_strangler.gen.ingester`, or the observation worker with `mix ash_strangler.gen.observer`; keep the cron sweep either way. The backlog is reported by `mix ash_strangler.check`. The table, its index and the trigger function are created unqualified in the migrating session's `current_schema()`, and the function pins that `search_path`; run the migration with the schema you want first on it. Before turning it on, say the trade out loud: every legacy write now also writes the ledger. The trigger runs its row image, insert and wake in a savepoint, so a ledger that cannot be written (or a column the twin names that a legacy migration renamed) skips the event with a `WARNING` rather than failing the legacy write; the sweep and reconciliation, not the ledger, are the completeness guarantee while that lasts.
+
+    **In `:read_from_new`, `ledger?` remains valid (v0.4.0 correction).** The ledger trigger targets the **owned table**, not the reverse view: legacy writers through that reverse view fire no Ash notifier, so the ledger still has to capture them while any compatibility writer exists. The claim "Ash events cover writes after cutover" is true only if every writer goes through Ash. `notify?`'s compatibility trigger is still refused in this phase, because Postgres rejects row-level triggers on a view.
+
+32. **A fragment is the same mapping, elsewhere — one source total.** `use AshStrangler.Mapping, resource: MyApp.Resource` declares the resource a fragment is written for; attach it with `fragments: [...]`. Spark merges its `strangler` section before verifiers run, so `VerifySingleSource` refuses two sources whether inline, fragmented, or both. `mix ash_strangler.check` verifies the fragment's target; do not leave a wrong-target declaration for runtime.
+
+33. **`extension [...]` is owned storage, not a mapping.** It creates one `<view>_extension` table keyed by the canonical id; the view LEFT JOINs it and INSTEAD OF triggers write it in the same transaction as the legacy row. A static literal default reads through COALESCE for pre-existing rows. A function default, an already-accounted attribute, a missing attribute, and use past `:dual_write` are refused. Any extension forces triggers (and loses upserts); see `extension-stores.md`.
+
+34. **A tenant is derived from the legacy row, never accepted from the host.** Declare `tenant :organization_id, derive: expr(client_party.organization_id)` on the source. The structural lens is read-only and joins are discovered from the expression. It configures no Ash multitenancy; the host declares its own. A cross-tenant relationship whose destination tenant is not proven must be named in `allow_unproven: [...]`, and `mix ash_strangler.check` prints every exemption.
+
+35. **Every collapse state declares the answer for its legacy encoding.** Ordinary states have `when:` + `set:`. Unrepresentable states choose `{:extension, column}`, `{:refuse, reason: ...}`, `{:lossy, to: ..., loss: ...}`, or `derived: true`; the verifier rejects mixed shapes. Loss text is printed under "Declared losses". Omitted legacy columns in a partial `set:` are held -- preserved on update, fallback on insert -- never silently set to NULL.
+
+36. **Observers are outbox consumers, not action replay.** `observers: [Mod]` implements `AshStrangler.Observer`; effects in the same database go through `ctx.repo` and commit with the receipt. Delivery is at-least-once, never exactly-once, and ledger id order is not commit order. Idempotence is by `source_event_id`. `:error` retries to the configured max; `:quarantine` stops immediately; only replaying receipts re-opens delivery.
+
+37. **Baseline before stream consumption, with the ledger already installed.** `mix ash_strangler.baseline Resource --repo Repo` takes a REPEATABLE READ snapshot and keyset-scans the forward mapping. The ledger trigger captures commits outside the snapshot. A baseline means "seen as executed", never "happened now"; no MAX(id) fence, because id order is not commit order. Reconciliation is the consumer's job via source event and transaction ids.
+
+38. **Account for the whole legacy schema in one estate.** `use AshStrangler.Estate` with `estate do snapshot "…/catalog.json"; resources [...] end`, and enable the `:ash_strangler_estate` compiler (`compilers: Mix.compilers() ++ [:ash_strangler_estate]`, `config :my_app, ash_strangler_estates: [MyApp.Legacy.Estate]`). Every catalog column then has exactly one disposition: `mapped` and `secret` are computed from the resources' mappings and their twins, plug-in kinds come from a plug-in's `claims/2`, and everything else is declared `carried`, `deferred` (`wave:`, `target:`), `legacy_only` or `dead`, each with `because:`. Never declare a column a mapping reads; never declare a whole relation that anything reads. A mapped foreign key must be validated and reference mapped or claimed columns, or be an `open_reference`. Relations a live database has and the catalog does not are `residue`; `AshStrangler.Estate.drift_allow/1` feeds them to drift. Host rules (vocabulary, hazard columns, surface reach) belong in a plug-in's `check/1`, which must not touch a database. Export the manifest with `mix ash_strangler.estate Estate --manifest FILE`. See the "Estates" guide.
 
 ---
+
+## Union sources
+
+One canonical relation over several legacy tables plus rows the new system owns
+is an `AshStrangler.Union`, not a resource with a `strangler` block: `use
+AshStrangler.Union`, a `union do ... end` with `column`s, one `legacy` branch
+per twin (`twin`, `phase`, `refused_because`, one `key`, and a `map`,
+`constant` or `unmapped` for every column) and one `owned` branch. List it in
+`config :ash_strangler, unions: [...]` and the usual `gen.migration` generates
+the owned table, key indexes, view and `INSTEAD OF` triggers.
+
+- Inserts always land in the owned branch. Do not try to insert into a legacy
+  branch.
+- A legacy row's update or delete is refused in `:read_from_legacy` (as
+  `AshStrangler.Error.BranchWriteRefused`, with the declared reason) and carried
+  to the legacy table in `:dual_write`. Give every branch its own key namespace.
+- Each branch answers every column; `unmapped` reads NULL.
+- A branch shows every row of its twin unless it has a `filter expr(...)` over the twin's columns;
+  rows the filter excludes belong to no branch.
+- Host checks read `AshStrangler.Union.Info` (`lens_kinds/2`, `phase/2`), not the
+  generated SQL.
+- Put a union in an estate's `resources` and check E8 holds its phases to the
+  carry rule: nothing at `:read_from_new` with a `deferred` or `legacy_only`
+  column, or a column only another module maps. Two union columns never map from
+  one legacy column on a `:dual_write` branch. See `documentation/topics/unions.md`.
+
+## Derived rows, tenants and obligations
+
+- A row derived from another row of one legacy relation (a slot, a jsonb array
+  element, a synthesized event) is an `AshStrangler.Derived`, a read-only view:
+  `use AshStrangler.Derived`, a `derived do ... end` with a `twin`, a `registry`
+  and `logical` `kind`, the `from` columns that identify the legacy row, `column`s,
+  and `slot`, `synthesized` and `element` sources that each answer every column.
+  Writes go to the parent. List it in `config :ash_strangler, deriveds: [...]`.
+- Never cast a jsonb element yourself. `element type: :integer` accepts only a
+  JSON number with an integer value in the 32-bit range and drops the rest;
+  `type: :text` only strings. The refused count is an estate obligation.
+- A row with no legacy home is keyed by `logical :name, 0x...` in the registry
+  and `KeyKinds.logical/3` (UUID v5, estate tag and kind tag in the namespace). It
+  can't be decoded. Never reuse a tag.
+- A union or derived view with a `tenant` column derives it on every branch with
+  `tenant_of :col, kind: {Registry, :kind}, from: ...` over a kind declared
+  `tenant?: true`, `from` is the kind's own columns or has a validated foreign key
+  onto them, and the column is `null?: false`. Estate check E5 refuses anything
+  else.
+- Filter a union by tenant with `AshStrangler.Inversion.filter/3` (or `where_sql/2`),
+  not `tenant == ^id`: it decodes the key once and compares the legacy integers
+  (the view's `__tenant_p<i>` columns), so the legacy table's own index serves it.
+  The resource needs `__branch` and `__tenant_p<i>` attributes.
+- Measure what a schema can't prove with `mix ash_strangler.check --estate Estate
+  --report FILE`. Bring your own obligations from a plug-in's `obligations/1`
+  (an `AshStrangler.Estate.Obligation`: a query, its denominator and a severity).
+  An obligation that cannot run is not green. See the estates guide for the JSON.
 
 ## What the verifiers cannot check
 
@@ -442,7 +558,8 @@ The laws with the most teeth *for this codebase*:
   call site is where the pgbouncer caveat gets forgotten.
 - **#23 — mix tasks start only what they need.** `ash_strangler.check` runs
   through `Ecto.Migrator.with_repo/2` rather than `app.start` on purpose.
-  The `gen.*` tasks read catalogs and print artifacts; none should boot a
-  repo, a listener, or a job queue on the way.
+  `gen.twin` reads catalogs, and so opens its repo the same way; the other
+  `gen.*` tasks print artifacts from compiled code and open none. None should
+  boot a listener or a job queue on the way.
 - **#22 — verify before claiming done.** Compile, run the suite, and run
   `mix ash_strangler.check` against a real database. Show the output.

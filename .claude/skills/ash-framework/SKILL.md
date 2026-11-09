@@ -297,10 +297,17 @@ mix usage_rules.search_docs "search term" -p ash -p ash_a2ui -p ash_acp -p ash_a
 - `mix ash_state_machine.generate_flow_charts` - Generates Mermaid Flow Charts for each resource using `AshStateMachine`
 - `mix ash_state_machine.install` - Installs AshStateMachine
 - `mix ash_state_machine.install.docs`
+- `mix ash_strangler.baseline` - Snapshots a resource through the forward mapping at watch start
 - `mix ash_strangler.check` - Runs the new model's assertions against the legacy data
+- `mix ash_strangler.estate` - Evaluates estates and exports the estate manifest
 - `mix ash_strangler.gen.diagram` - Generates Mermaid diagrams of the legacy-to-new mapping
+- `mix ash_strangler.gen.events_bridge` - Generates the companion read-only resource over strangler_observations
 - `mix ash_strangler.gen.ingester` - Generates the ingestion module and Oban drain worker for a ledger
 - `mix ash_strangler.gen.migration` - Generate the migration that builds the strangler compatibility layer
-- `mix ash_strangler.gen.twin` - Generates a twin resource by introspecting a live legacy relation
+- `mix ash_strangler.gen.observer` - Generates the Oban worker that drains observations for a resource
+- `mix ash_strangler.gen.twin` - Generates a twin resource from a live legacy relation or a pinned snapshot
 - `mix ash_strangler.install` - Installs AshStrangler. Invoked by `mix igniter.install ash_strangler`
+- `mix ash_strangler.observations` - Inspects and replays the observation store
+- `mix ash_strangler.snapshot` - Captures, derives, verifies and drift-checks a pinned legacy schema snapshot
+- `mix compile.ash_strangler_estate` - Fails compilation when an estate leaves a legacy column unaccounted for
 <!-- usage-rules-skill-end -->

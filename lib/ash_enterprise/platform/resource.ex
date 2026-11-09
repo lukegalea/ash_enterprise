@@ -36,7 +36,12 @@ defmodule AshEnterprise.Platform.Resource do
       decides which authorization depths apply. See
       `AshEnterprise.Platform.SystemAttributes` for what each adds.
     * `:tenant?` — add `organization_id` and attribute multitenancy. Default `true`.
-    * `:lifecycle?` — add `state_code`/`status_code`. Default `true`.
+    * `:lifecycle?` — add `lifecycle_status` and the derived `state_code`/
+      `status_code`. Default `true`.
+    * `:state_machine?` — drive `lifecycle_status` with `AshStateMachine` and add
+      its transition actions. Default `true`; off only for a strangled read model
+      whose status is a read-only projection of a legacy value
+      (`AshEnterprise.Platform.Verifiers.ProjectedLifecycle`).
     * `:cdm_entity` — provenance string, e.g. `"Team"`.
     * `:self_service` — actions any active tenant member may run on their own
       behalf with no role grant; see `AshEnterprise.Security.Checks.SelfService`
@@ -98,6 +103,7 @@ defmodule AshEnterprise.Platform.Resource do
     {ownership, opts} = Keyword.pop(opts, :ownership, :user_owned)
     {tenant?, opts} = Keyword.pop(opts, :tenant?, true)
     {lifecycle?, opts} = Keyword.pop(opts, :lifecycle?, true)
+    {state_machine?, opts} = Keyword.pop(opts, :state_machine?, true)
     {cdm_entity, opts} = Keyword.pop(opts, :cdm_entity)
     {self_service, opts} = Keyword.pop(opts, :self_service, [])
     {human_only, opts} = Keyword.pop(opts, :human_only, [])
@@ -127,7 +133,7 @@ defmodule AshEnterprise.Platform.Resource do
       |> maybe_add(archival?, AshArchival.Resource)
       |> maybe_add(not is_nil(api_type), AshJsonApi.Resource)
       |> maybe_add(not is_nil(api_type), AshGraphql.Resource)
-      |> maybe_add(lifecycle?, AshStateMachine)
+      |> maybe_add(lifecycle? and state_machine?, AshStateMachine)
       |> Kernel.++(List.wrap(extra_extensions))
       |> Kernel.++(List.wrap(declared_extensions))
       |> Enum.uniq()
@@ -184,6 +190,7 @@ defmodule AshEnterprise.Platform.Resource do
         machinery_only(unquote(machinery_only))
         changes_authority(unquote(changes_authority))
         optimistic_lock?(unquote(optimistic_lock?))
+        state_machine?(unquote(state_machine?))
 
         unquote(
           if cdm_entity do
@@ -245,7 +252,7 @@ defmodule AshEnterprise.Platform.Resource do
       )
 
       unquote(
-        if lifecycle? do
+        if lifecycle? and state_machine? do
           lifecycle = AshEnterprise.Platform.Lifecycle
 
           transitions =
