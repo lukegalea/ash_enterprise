@@ -1,36 +1,30 @@
-defmodule AshEnterprise.Legacy.ProjectionTest do
+defmodule AshEnterprise.Legacy.UserBackfillTest do
   @moduledoc """
-  The projection from the legacy estate into a table this application owns.
+  The backfill from the legacy estate into a table this application owns.
 
   `AshEnterprise.Legacy.ReadModelTest` covers the *view*: does a legacy row arrive as the
   platform resource it is declared to be, and does a legacy write reach the topic the surface
-  listens on. This covers what happens next — the same row, written into `projected_users`
-  through an ordinary Ash action, so that `/app/directory` reads real columns rather than a view.
+  listens on. This covers `UserBackfill.project_row/1`, the entry point of
+  `mix ash_enterprise.legacy.project` -- the same row, written into `projected_users` through an
+  ordinary Ash action, so that `/app/directory` reads real columns rather than a view.
 
-  Three of these tests exist because of specific mistakes made while building it, and each is
+  The live path is not here. A legacy write reaches `projected_users` through the change
+  ledger's drain (`AshEnterprise.Ledger.UserIngestion`), and `AshEnterprise.Compliance.KycComplianceTest` and
+  `Ledger.UserDrainNotificationTest` drive that. `Legacy.User` has no notifier that projects.
+
+  Two of these tests exist because of specific mistakes made while building it, and each is
   the kind that passes review:
 
-    * the backfill and the live projector disagreed about `lifecycle_status`, because the upsert
+    * the backfill and the live path disagreed about `lifecycle_status`, because the upsert
       was duplicated and the state-machine transition was not;
-    * asserting a unique email on the projected table would have silently dropped a person;
-    * and the notification's `origin` has to be checked, or a projector at `:dual_write` would
-      feed its own writes back to itself.
-
-  The `pg_notify` half of the chain is deliberately **not** exercised here. It needs a committed
-  transaction and a running listener, and the sandbox gives neither — `ReadModelTest` asserts the
-  trigger and the topic wiring instead. What is tested here is everything downstream of the
-  notification, entered exactly where the listener enters it.
+    * and asserting a unique email on the projected table would have silently dropped a person.
   """
 
   use AshEnterprise.DataCase, async: false
 
-  import ExUnit.CaptureLog
-
-  require Ash.Query
-
   alias AshEnterprise.Accounts.ProjectedUser
   alias AshEnterprise.Legacy.Estate
-  alias AshEnterprise.Legacy.Projection
+  alias AshEnterprise.Legacy.UserBackfill
   alias AshEnterprise.Platform.SystemActor
 
   setup do
@@ -59,7 +53,7 @@ defmodule AshEnterprise.Legacy.ProjectionTest do
   end
 
   defp backfill do
-    for row <- legacy_users(), do: Projection.project_row(row)
+    for row <- legacy_users(), do: UserBackfill.project_row(row)
   end
 
   describe "project_row/1" do
@@ -152,75 +146,13 @@ defmodule AshEnterprise.Legacy.ProjectionTest do
       legacy_id = insert_legacy_user!(first_name: "Ngozi", last_name: "Okafor")
       row = Enum.find(legacy_users(), &(&1.legacy_id == legacy_id))
 
-      assert :ok = Projection.project_row(row)
+      assert :ok = UserBackfill.project_row(row)
 
       assert length(projected()) == counted + 1
 
       new_row = Enum.find(projected(), &(&1.legacy_id == legacy_id))
       assert new_row.full_name == "Ngozi Okafor"
       assert new_row.legacy_state == "active"
-    end
-  end
-
-  describe "notify/1" do
-    test "projects a notification the listener would dispatch" do
-      # Entered exactly where AshStrangler.Listener enters it, including the metadata, because
-      # that metadata is load-bearing -- see the next test.
-      row = Enum.find(legacy_users(), &(&1.login == "awhitfield"))
-
-      assert :ok =
-               Projection.notify(%Ash.Notifier.Notification{
-                 resource: AshEnterprise.Legacy.User,
-                 domain: AshEnterprise.Legacy,
-                 action: %Ash.Resource.Actions.Create{name: :legacy_write, primary?: false},
-                 data: row,
-                 metadata: %{ash_strangler: %{origin: :legacy, legacy_id: row.legacy_id}}
-               })
-
-      assert Enum.find(projected(), &(&1.legacy_id == row.legacy_id))
-    end
-
-    test "ignores a notification that did not originate in the legacy application" do
-      # At `:dual_write` this resource gains write actions, and its own writes produce
-      # notifications too. A projector that acted on those would project its own output back into
-      # the table it just wrote -- so the guard is checked here, while the phase makes it
-      # untestable-by-accident rather than after it starts mattering.
-      row = Enum.find(legacy_users(), &(&1.login == "awhitfield"))
-
-      assert :ok =
-               Projection.notify(%Ash.Notifier.Notification{
-                 resource: AshEnterprise.Legacy.User,
-                 domain: AshEnterprise.Legacy,
-                 action: %Ash.Resource.Actions.Create{name: :create, primary?: true},
-                 data: row,
-                 metadata: %{}
-               })
-
-      assert projected() == []
-    end
-
-    test "a failing projection does not raise, because it would take the listener with it" do
-      # The listener holds the only LISTEN connection, so an exception escaping a notifier stops
-      # reactivity on every surface, not just this one. `data` here is missing everything the
-      # projection needs.
-      #
-      # The log is captured and asserted rather than merely silenced: "did not raise" alone would
-      # also pass if the failure were swallowed without a trace, and a silently-absent row is the
-      # failure mode this design most needs to be noisy about.
-      log =
-        capture_log(fn ->
-          assert :ok =
-                   Projection.notify(%Ash.Notifier.Notification{
-                     resource: AshEnterprise.Legacy.User,
-                     domain: AshEnterprise.Legacy,
-                     action: %Ash.Resource.Actions.Create{name: :legacy_write, primary?: false},
-                     data: %{legacy_id: nil},
-                     metadata: %{ash_strangler: %{origin: :legacy, legacy_id: nil}}
-                   })
-        end)
-
-      assert log =~ "legacy projection failed"
-      assert log =~ "no retry"
     end
   end
 

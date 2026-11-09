@@ -116,8 +116,9 @@ incomplete backfill produces missing rows, not an error.
 
 2. **A twin is a snapshot, so run `mix ash_strangler.check`.** A column the legacy
    application's next migration adds is invisible to every mapping until the twin
-   is regenerated. `check` diffs each twin against `information_schema.columns` and
-   its unique sets against `pg_index`, and exits non-zero on a mismatch so it can
+   is regenerated. `check` diffs each twin against `information_schema.columns`, its unique sets
+   against `pg_index`, and each declared column against what `gen.twin` would write
+   today (a widened `one_of` or a changed coarse type fails), and exits non-zero on a mismatch so it can
    gate CI. Without that, the typed layer inherits exactly the staleness problem it
    was built to remove.
 
@@ -472,6 +473,14 @@ the owned table, key indexes, view and `INSTEAD OF` triggers.
   `AshStrangler.Error.BranchWriteRefused`, with the declared reason) and carried
   to the legacy table in `:dual_write`. Give every branch its own key namespace.
 - Each branch answers every column; `unmapped` reads NULL.
+- Write-through on a `:dual_write` branch: `not_written_back [:col], because: ...` drops a column
+  from the update (it keeps the legacy value, and is not a writer of a shared legacy column);
+  `extension [:col]` stores it in `<view>_extension` instead of the legacy table;
+  `refuse_delete because: ...` makes a delete raise `BranchWriteRefused`. On the union,
+  `security_definer true` renders the trigger functions `SECURITY DEFINER SET search_path =
+  pg_catalog` (twins need a schema). `AshStrangler.Migration.render_move/2` moves an installed union
+  (extension tables, replaced view and functions, no owned table, no trigger) and refuses a changed
+  view column list.
 - A branch shows every row of its twin unless it has a `filter expr(...)` over the twin's columns;
   rows the filter excludes belong to no branch.
 - Host checks read `AshStrangler.Union.Info` (`lens_kinds/2`, `phase/2`), not the
