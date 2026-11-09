@@ -23,7 +23,16 @@ natively; the package never assumes an actor model.
 - Survivorship is data on the match rule set, with a closed strategy set:
   `most_recent`, `source_rank`, `most_complete`, `non_null` (the default) and
   `steward_override` (`AshMdm.Survivorship.strategies/0`). `:activate` refuses
-  a rule set whose survivorship names any other strategy.
+  a rule set whose survivorship names any other strategy. `source_rank` needs
+  a real source per candidate: a host folding golden records with no per-field
+  source lineage cannot supply one and should refuse the merge, not pass
+  placeholder source names (they tie, and the first record wins silently).
+- Every create action on a versioned resource stamps `content_hash` with
+  `AshMdm.Changes.SetContentHash`, whose `fields:` option names what the hash
+  covers: `field_rules` on a mapping, `rules` and `survivorship` on a rule set.
+- `AshMdm.Survivorship.resolve/2` returns `%{merged:, provenance:}`.
+  `provenance` is the per-attribute winner and strategy: record it with the
+  merge rather than discarding it.
 - Thresholds (match bands) are never literals in package code — they are host
   band-table decisions. The package carries scores and explanations only.
 - Match candidates: the machine `:update` writes `:band` and the machine

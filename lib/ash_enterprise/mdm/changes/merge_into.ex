@@ -9,11 +9,23 @@ defmodule AshEnterprise.Mdm.Changes.MergeInto do
 
   The survivorship policy is data: the active MatchRuleSet's
   `survivorship` map for the golden resource, or the `non_null` default
-  when the tenant configured none.
+  when the tenant configured none. A policy that uses `source_rank` is
+  refused here (`AshEnterprise.Mdm.SourceRankUnavailable`): the two sides of
+  this merge are golden records, which have no per-field source to rank.
+
+  `merge_provenance` records, beside what the unmerge restores, who won
+  each field (`"winners"`: attribute to `"winner"` — `"survivor"`,
+  `"loser"` or nil when neither had a value — and `"strategy"`) and the
+  rule set that decided it (`"rule_set_id"`, `"rule_set_content_hash"`,
+  both nil under the default policy).
   """
 
   use Ash.Resource.Change
   require Ash.Query
+
+  alias AshEnterprise.Mdm.SourceRankUnavailable
+
+  @default_policy %{"default" => "non_null"}
 
   @impl true
   def change(changeset, _opts, _context) do
@@ -62,9 +74,23 @@ defmodule AshEnterprise.Mdm.Changes.MergeInto do
   end
 
   defp stage_merge(changeset, tenant, loser, survivor) do
-    policy = survivorship_policy(tenant, loser)
+    rule_set = active_rule_set(tenant, loser)
+    policy = (rule_set && Map.get(rule_set, :survivorship)) || @default_policy
 
-    %{merged: merged} =
+    case source_rank_uses(policy) do
+      [] ->
+        write_merge(changeset, tenant, loser, survivor, rule_set, policy)
+
+      used_by ->
+        Ash.Changeset.add_error(
+          changeset,
+          SourceRankUnavailable.exception(rule_set_id: rule_set.id, used_by: used_by)
+        )
+    end
+  end
+
+  defp write_merge(changeset, tenant, loser, survivor, rule_set, policy) do
+    %{merged: merged, provenance: provenance} =
       AshMdm.Survivorship.resolve(policy, [
         %{
           record: :survivor,
@@ -121,7 +147,10 @@ defmodule AshEnterprise.Mdm.Changes.MergeInto do
       "merged_attrs" => merged_attrs,
       "moved_identity_ids" => moved_identity_ids,
       "prior_email" => prior_email,
-      "joins" => joins
+      "joins" => joins,
+      "winners" => winners(provenance),
+      "rule_set_id" => rule_set && rule_set.id,
+      "rule_set_content_hash" => rule_set && rule_set.content_hash
     })
     |> Ash.Changeset.force_change_attribute(:merged, true)
     |> Ash.Changeset.force_change_attribute(:master_id, survivor.id)
@@ -176,16 +205,30 @@ defmodule AshEnterprise.Mdm.Changes.MergeInto do
     {:ok, result}
   end
 
-  defp survivorship_policy(tenant, loser) do
+  defp active_rule_set(tenant, loser) do
     # Survivorship is data on the pinned-for-resource active MatchRuleSet.
     # NB: rule sets store resource names WITHOUT the "Elixir." prefix, and
     # to_string/1 on a struct adds it — inspect/1 does not.
-    rule_set =
-      AshEnterprise.Mdm.MatchRuleSet
-      |> Ash.Query.filter(golden_resource == ^inspect(loser.__struct__) and status == :active)
-      |> Ash.read_one!(tenant: tenant, authorize?: false)
+    AshEnterprise.Mdm.MatchRuleSet
+    |> Ash.Query.filter(golden_resource == ^inspect(loser.__struct__) and status == :active)
+    |> Ash.read_one!(tenant: tenant, authorize?: false)
+  end
 
-    (rule_set && Map.get(rule_set, :survivorship)) || %{"default" => "non_null"}
+  # Where the policy ranks by source: "default", then the attribute names.
+  defp source_rank_uses(policy) do
+    attributes =
+      for {attribute, %{"strategy" => "source_rank"}} <- policy["attributes"] || %{},
+          do: attribute
+
+    if(policy["default"] == "source_rank", do: ["default"], else: []) ++ Enum.sort(attributes)
+  end
+
+  # The fold's "source" here is the role this merge passed it, not a source
+  # system: the record is named by what it was to this merge.
+  defp winners(provenance) do
+    Map.new(provenance, fn {attribute, %{"source" => role, "strategy" => strategy}} ->
+      {attribute, %{"winner" => role, "strategy" => strategy}}
+    end)
   end
 
   defp repoint_identities(tenant, loser_id, survivor_id) do

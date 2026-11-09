@@ -95,7 +95,8 @@ defmodule AshEnterprise.Canonical.Person do
     end
 
     # What the merge took from this record, so the unmerge correction can
-    # restore exactly that (prior email, moved identity ids).
+    # restore exactly that (prior email, moved identity ids), and who won
+    # each field under which rule set (AshEnterprise.Mdm.Changes.MergeInto).
     attribute :merge_provenance, :map do
       public? false
     end

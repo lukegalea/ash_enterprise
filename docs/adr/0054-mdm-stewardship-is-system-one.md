@@ -257,6 +257,9 @@ differs from a CSV row, and why:
   that name the absorbed person — attendee and participant joins, `Message.sender`, `CalendarEvent.organizer`, and
   records it absorbed earlier — and records their ids on `merge_provenance` so the unmerge moves exactly those back
   (`AshEnterprise.Mdm.PersonJoins`). A survivor that is itself merged is refused, so a master is always a golden.
+- **The merge records who won.** `merge_provenance` carries each field's winner and strategy and the rule set's id and
+  content hash. A policy using `source_rank` is refused at the merge (`AshEnterprise.Mdm.SourceRankUnavailable`), not
+  at activation: a golden record has no per-field source to rank, and the rule set's match rules still work.
 - **The absorbed row keeps its address** unless the survivor takes it, and the projectors link a merged row's address
   to its golden (`AshEnterprise.Canonical.Projections.Golden`, same owner only). Otherwise the next projection would
   mint the duplicate again. Rows projected after a merge name the golden; after an unmerge, the next projection of
