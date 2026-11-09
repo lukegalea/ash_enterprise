@@ -347,7 +347,7 @@ msgstr "Évaluations"
 #: lib/ash_enterprise/surfaces.ex:677
 #, elixir-autogen, elixir-format
 msgid "Every BPMN process this tenant can run: baselines and its own customizations."
-msgstr "Chaque processus BPMN que ce locataire peut exécuter : les modèles de base et ses propres personnalisations."
+msgstr "Chaque processus BPMN que cette organisation peut exécuter : les modèles de base et ses propres personnalisations."
 
 #: lib/ash_enterprise/surfaces.ex:1007
 #, elixir-autogen, elixir-format
@@ -655,7 +655,7 @@ msgstr "L’ancien système, lu en direct par des vues de compatibilité."
 #: lib/ash_enterprise/surfaces.ex:80
 #, elixir-autogen, elixir-format
 msgid "The processes this tenant runs, the decisions they consult, and what starts them."
-msgstr "Les processus que ce locataire exécute, les décisions qu’ils consultent et ce qui les déclenche."
+msgstr "Les processus que cette organisation exécute, les décisions qu’ils consultent et ce qui les déclenche."
 
 #: lib/ash_enterprise/surfaces.ex:351
 #, elixir-autogen, elixir-format
@@ -755,7 +755,7 @@ msgstr "Impossible de rechercher dans %{surfaces}. Réessayez ou ouvrez-le pour 
 #: lib/ash_enterprise_web/live/launcher_live.ex:273
 #, elixir-autogen, elixir-format
 msgid "Enter on a licence number or a run id opens that record."
-msgstr "Appuyer sur Entrée sur un numéro de licence ou un identifiant d'exécution ouvre cet enregistrement."
+msgstr "Appuyer sur Entrée sur un numéro de licence ou un identifiant d’exécution ouvre cet enregistrement."
 
 #: lib/ash_enterprise_web/live/launcher_live.ex:284
 #, elixir-autogen, elixir-format
@@ -820,7 +820,7 @@ msgstr "Exécution réelle"
 #: lib/ash_enterprise_web/components/status_components.ex:157
 #, elixir-autogen, elixir-format
 msgid "Run mode unknown"
-msgstr "Mode d'exécution inconnu"
+msgstr "Mode d’exécution inconnu"
 
 #: lib/ash_enterprise_web/components/layouts.ex:232
 #, elixir-autogen, elixir-format
@@ -845,7 +845,7 @@ msgstr "un acteur sans adresse courriel"
 #: lib/ash_enterprise_web/components/layouts.ex:264
 #, elixir-autogen, elixir-format
 msgid "an operator who could not be named"
-msgstr "un opérateur qui n'a pas pu être nommé"
+msgstr "un opérateur qui n’a pas pu être nommé"
 
 #: lib/ash_enterprise_web/components/status_components.ex:162
 #, elixir-autogen, elixir-format
@@ -895,7 +895,7 @@ msgstr "%{n} jetons"
 #: lib/ash_enterprise_web/live/explorer_live.ex:234
 #, elixir-autogen, elixir-format
 msgid "A record's reference or a correlation id"
-msgstr "Référence d'un enregistrement ou identifiant de corrélation"
+msgstr "Référence d’un enregistrement ou identifiant de corrélation"
 
 #: lib/ash_enterprise_web/live/explorer_live.ex:761
 #, elixir-autogen, elixir-format
@@ -905,7 +905,7 @@ msgstr "Action"
 #: lib/ash_enterprise_web/live/explorer_live.ex:792
 #, elixir-autogen, elixir-format
 msgid "Agent run"
-msgstr "Exécution d'agent"
+msgstr "Exécution d’agent"
 
 #: lib/ash_enterprise_web/live/explorer_live.ex:751
 #, elixir-autogen, elixir-format
@@ -1012,13 +1012,13 @@ msgstr "Erreur"
 #: lib/ash_enterprise_web/live/explorer_live.ex:777
 #, elixir-autogen, elixir-format
 msgid "Error class"
-msgstr "Classe d'erreur"
+msgstr "Classe d’erreur"
 
 #: lib/ash_enterprise_web/live/explorer_live.ex:691
 #: lib/ash_enterprise_web/live/explorer_live.ex:702
 #, elixir-autogen, elixir-format
 msgid "Error code"
-msgstr "Code d'erreur"
+msgstr "Code d’erreur"
 
 #: lib/ash_enterprise_web/live/explorer_live.ex:727
 #, elixir-autogen, elixir-format
@@ -1033,7 +1033,7 @@ msgstr "Preuve citée"
 #: lib/ash_enterprise/surfaces.ex:563
 #, elixir-autogen, elixir-format
 msgid "Execution explorer"
-msgstr "Explorateur d'exécution"
+msgstr "Explorateur d’exécution"
 
 #: lib/ash_enterprise_web/live/explorer_live.ex:809
 #, elixir-autogen, elixir-format
@@ -1104,7 +1104,7 @@ msgstr "Aucun élément lisible dans cette trace."
 #: lib/ash_enterprise_web/live/explorer_live.ex:252
 #, elixir-autogen, elixir-format
 msgid "Nothing yet."
-msgstr "Rien pour l'instant."
+msgstr "Rien pour l’instant."
 
 #: lib/ash_enterprise_web/live/explorer_live.ex:797
 #, elixir-autogen, elixir-format
@@ -1119,7 +1119,7 @@ msgstr "Un élément de travail, suivi à travers son processus, exécutions, d�
 #: lib/ash_enterprise_web/live/explorer_live.ex:640
 #, elixir-autogen, elixir-format
 msgid "Open the request it asked for"
-msgstr "Ouvrir la demande qu'il a sollicitée"
+msgstr "Ouvrir la demande qu’il a sollicitée"
 
 #: lib/ash_enterprise_web/live/explorer_live.ex:630
 #, elixir-autogen, elixir-format
@@ -1129,7 +1129,7 @@ msgstr "Ouvrir la demande que cette relance reprend"
 #: lib/ash_enterprise_web/live/explorer_live.ex:620
 #, elixir-autogen, elixir-format
 msgid "Open the run it graded or belongs to"
-msgstr "Ouvrir l'exécution qu'il a évaluée ou à laquelle il appartient"
+msgstr "Ouvrir l’exécution qu’il a évaluée ou à laquelle il appartient"
 
 #: lib/ash_enterprise_web/live/explorer_live.ex:795
 #, elixir-autogen, elixir-format
@@ -1211,7 +1211,7 @@ msgstr "Rôle"
 #: lib/ash_enterprise_web/live/explorer_live.ex:689
 #, elixir-autogen, elixir-format
 msgid "Run status"
-msgstr "Statut d'exécution"
+msgstr "Statut d’exécution"
 
 #: lib/ash_enterprise_web/live/explorer_live.ex:807
 #, elixir-autogen, elixir-format
@@ -1286,12 +1286,12 @@ msgstr "Le diagramme ne peut pas être affiché ici. La chronologie contient la 
 #: lib/ash_enterprise_web/live/explorer_live.ex:454
 #, elixir-autogen, elixir-format
 msgid "The selected entry is not on the diagram."
-msgstr "L'entrée sélectionnée ne figure pas sur le diagramme."
+msgstr "L’entrée sélectionnée ne figure pas sur le diagramme."
 
 #: lib/ash_enterprise_web/live/explorer_live.ex:242
 #, elixir-autogen, elixir-format
 msgid "The trace could not be read: %{reason}"
-msgstr "La trace n'a pas pu être lue : %{reason}"
+msgstr "La trace n’a pas pu être lue : %{reason}"
 
 #: lib/ash_enterprise_web/live/explorer_live.ex:286
 #, elixir-autogen, elixir-format
@@ -1306,7 +1306,7 @@ msgstr "Jetons"
 #: lib/ash_enterprise_web/live/explorer_live.ex:583
 #, elixir-autogen, elixir-format
 msgid "Tool calls"
-msgstr "Appels d'outils"
+msgstr "Appels d’outils"
 
 #: lib/ash_enterprise_web/live/explorer_live.ex:711
 #, elixir-autogen, elixir-format
@@ -1356,7 +1356,7 @@ msgstr "Quand"
 #: lib/ash_enterprise_web/live/explorer_live.ex:564
 #, elixir-autogen, elixir-format
 msgid "You may not read the record behind this entry."
-msgstr "Vous ne pouvez pas lire l'enregistrement derrière cette entrée."
+msgstr "Vous ne pouvez pas lire l’enregistrement derrière cette entrée."
 
 #: lib/ash_enterprise_web/live/explorer_live.ex:789
 #, elixir-autogen, elixir-format
@@ -1406,7 +1406,7 @@ msgstr "scellé dans le grand livre"
 #: lib/ash_enterprise_web/live/explorer_live.ex:743
 #, elixir-autogen, elixir-format
 msgid "the evaluation recorded an error"
-msgstr "l'évaluation a enregistré une erreur"
+msgstr "l’évaluation a enregistré une erreur"
 
 #: lib/ash_enterprise_web/live/explorer_live.ex:700
 #, elixir-autogen, elixir-format
@@ -1416,17 +1416,17 @@ msgstr "oui"
 #: lib/ash_enterprise_web/live/explorer_live.ex:260
 #, elixir-autogen, elixir-format
 msgid "Some recent work could not be read: %{kinds}. What is listed is not all of it."
-msgstr "Certains travaux récents n'ont pas pu être lus : %{kinds}. Ce qui est affiché n'est pas exhaustif."
+msgstr "Certains travaux récents n’ont pas pu être lus : %{kinds}. Ce qui est affiché n’est pas exhaustif."
 
 #: lib/ash_enterprise_web/live/explorer_live.ex:555
 #, elixir-autogen, elixir-format
 msgid "The record behind this entry could not be read. Try again."
-msgstr "L'enregistrement associé à cette entrée n'a pas pu être lu. Réessayez."
+msgstr "L’enregistrement associé à cette entrée n’a pas pu être lu. Réessayez."
 
 #: lib/ash_enterprise_web/live/explorer_live.ex:585
 #, elixir-autogen, elixir-format
 msgid "This turn's tool calls could not be read."
-msgstr "Les appels d'outils de ce tour n'ont pas pu être lus."
+msgstr "Les appels d’outils de ce tour n’ont pas pu être lus."
 
 #: lib/ash_enterprise_web/live/explorer_live.ex:669
 #, elixir-autogen, elixir-format
@@ -1441,7 +1441,7 @@ msgstr "Artefacts"
 #: lib/ash_enterprise/surfaces.ex:735
 #, elixir-autogen, elixir-format
 msgid "Every version of what is authored here, what it references, whether it checks out and what changed."
-msgstr "Chaque version de ce qui est créé ici, ce qu'elle référence, si elle est valide et ce qui a changé."
+msgstr "Chaque version de ce qui est créé ici, ce qu’elle référence, si elle est valide et ce qui a changé."
 
 #: lib/ash_enterprise/surfaces.ex:604
 #, elixir-autogen, elixir-format
@@ -1461,7 +1461,7 @@ msgstr "Profils de modèles"
 #: lib/ash_enterprise/surfaces.ex:525
 #, elixir-autogen, elixir-format
 msgid "Which model each profile runs, what it may be used for, whether it is known to answer, and what it is restricted from."
-msgstr "Quel modèle chaque profil exécute, à quoi il peut servir, s'il est connu pour répondre et ce qui lui est interdit."
+msgstr "Quel modèle chaque profil exécute, à quoi il peut servir, s’il est connu pour répondre et ce qui lui est interdit."
 
 #: lib/ash_enterprise_web/live/pinned_app_live.ex:292
 #, elixir-autogen, elixir-format
@@ -1501,7 +1501,7 @@ msgstr "Relire"
 #: lib/ash_enterprise/surfaces.ex:98
 #, elixir-autogen, elixir-format
 msgid "Agent quality"
-msgstr "Qualité de l'agent"
+msgstr "Qualité de l’agent"
 
 #: lib/ash_enterprise/surfaces.ex:936
 #, elixir-autogen, elixir-format
@@ -1511,12 +1511,12 @@ msgstr "Comparer les candidats"
 #: lib/ash_enterprise/surfaces.ex:938
 #, elixir-autogen, elixir-format
 msgid "Evaluation runs side by side, case by case, with safety in a lane of its own."
-msgstr "Les exécutions d'évaluation côte à côte, cas par cas, avec la sécurité dans sa propre voie."
+msgstr "Les exécutions d’évaluation côte à côte, cas par cas, avec la sécurité dans sa propre voie."
 
 #: lib/ash_enterprise/surfaces.ex:101
 #, elixir-autogen, elixir-format
 msgid "How agent versions did on the same evaluation cases, with safety kept apart from quality."
-msgstr "Résultats des versions d'agent sur les mêmes cas d'évaluation, avec la sécurité séparée de la qualité."
+msgstr "Résultats des versions d’agent sur les mêmes cas d’évaluation, avec la sécurité séparée de la qualité."
 
 #: lib/ash_enterprise/surfaces.ex:478
 #, elixir-autogen, elixir-format
