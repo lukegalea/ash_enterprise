@@ -231,7 +231,7 @@ defmodule AshEnterprise.Process.ActionInvoker do
   # process orchestrates; it does not get a privileged path to the data.
 
   @doc """
-  Writes back the risk tier the decision produced, so the request shows why it routed.
+  Writes back the risk level the decision produced, so the request shows why it routed.
 
   The tier arrives as a declared input on the service task (`ash:inputs` in the diagram),
   evaluated by the engine from the same FEEL context a decision sees — not scraped off the
@@ -342,7 +342,7 @@ defmodule AshEnterprise.Process.ActionInvoker do
 
   defdelegate engine_opts(ctx), to: AshEnterprise.Process.EngineContext
 
-  # The risk tiers are a closed set declared on the resource, so the atom always exists. Using
+  # The risk levels are a closed set declared on the resource, so the atom always exists. Using
   # `to_existing_atom` rather than `to_atom` because the value came from a decision table a
   # tenant authored, and an atom created from tenant input is never collected.
   defp risk_atom(tier) when is_binary(tier), do: String.to_existing_atom(tier)

@@ -82,7 +82,7 @@ defmodule AshEnterprise.Test.AssistantEval do
         location: "SYNTHETIC room 4"
       )
 
-    onboarding = D.event!(ctx, "SYNTHETIC vendor onboarding", minutes_to_tomorrow(14), 45)
+    onboarding = D.event!(ctx, "SYNTHETIC partner onboarding", minutes_to_tomorrow(14), 45)
 
     one_on_one =
       D.event!(ctx, "SYNTHETIC one-on-one", 120, 30,
@@ -459,7 +459,7 @@ defmodule AshEnterprise.Test.AssistantEval do
         question: "What's on my calendar tomorrow?",
         tools: ["calendar_events"],
         args: %{"calendar_events" => %{"window" => "tomorrow"}},
-        facts: ["roadmap sync", "vendor onboarding"],
+        facts: ["roadmap sync", "partner onboarding"],
         cites: [f.roadmap, f.onboarding],
         oracle: [{:tools, [{"calendar_events", %{"window" => "tomorrow"}}]}],
         answer:

@@ -373,7 +373,7 @@ The full report includes the detailed problem taxonomy, current efforts, compara
 
 [^1_146]: https://dl.acm.org/doi/pdf/10.1145/3622860
 
-[^1_147]: https://pmc.ncbi.nlm.nih.gov/articles/PMC5070591/
+[^1_147]: https://europepmc.org/articles/PMC5070591/
 
 [^1_148]: https://hexdocs.pm/elixir/1.17.0/gradual-set-theoretic-types.html
 
@@ -1309,7 +1309,7 @@ That vertical slice proves the architecture before the team invests in complete 
 
 [^2_23]: https://arxiv.org/html/2312.11729v1
 
-[^2_24]: https://pmc.ncbi.nlm.nih.gov/articles/PMC6480938/
+[^2_24]: https://europepmc.org/articles/PMC6480938/
 
 [^2_25]: https://github.com/tidewave-ai/tidewave_phoenix/blob/main/README.md
 

@@ -38,7 +38,7 @@ defmodule AshEnterprise.Zones.ResidencyPolicyTest do
   describe "in-cluster instruments" do
     test "are allowed with a tenant" do
       organization = create_organization!()
-      assert ResidencyPolicy.allow?(organization.id, :in_cluster, :coi)
+      assert ResidencyPolicy.allow?(organization.id, :in_cluster, :insurance_doc)
     end
 
     test "are allowed with no tenant at all" do
@@ -50,30 +50,30 @@ defmodule AshEnterprise.Zones.ResidencyPolicyTest do
 
   describe "sub-processor instruments" do
     test "are refused with no tenant" do
-      refute ResidencyPolicy.allow?(nil, :sub_processor, :coi)
+      refute ResidencyPolicy.allow?(nil, :sub_processor, :insurance_doc)
     end
 
     test "are refused when the tenant has not opted in" do
       organization = create_organization!()
-      refute ResidencyPolicy.allow?(organization.id, :sub_processor, :coi)
+      refute ResidencyPolicy.allow?(organization.id, :sub_processor, :insurance_doc)
     end
 
     test "are allowed only once the tenant's opt-in is recorded" do
       organization = create_organization!()
-      refute ResidencyPolicy.allow?(organization.id, :sub_processor, :coi)
+      refute ResidencyPolicy.allow?(organization.id, :sub_processor, :insurance_doc)
 
       opt_in!(organization)
-      assert ResidencyPolicy.allow?(organization.id, :sub_processor, :coi)
+      assert ResidencyPolicy.allow?(organization.id, :sub_processor, :insurance_doc)
     end
 
     test "accept the organization struct itself" do
       organization = opt_in!(create_organization!())
-      assert ResidencyPolicy.allow?(organization, :sub_processor, :coi)
+      assert ResidencyPolicy.allow?(organization, :sub_processor, :insurance_doc)
     end
 
     test "are refused for an unresolvable tenant id" do
       # A read failure is a refusal, never an open door.
-      refute ResidencyPolicy.allow?(Ash.UUID.generate(), :sub_processor, :coi)
+      refute ResidencyPolicy.allow?(Ash.UUID.generate(), :sub_processor, :insurance_doc)
     end
 
     test "do not depend on the question family" do
@@ -85,6 +85,6 @@ defmodule AshEnterprise.Zones.ResidencyPolicyTest do
   test "a residency class the host has not ruled on is refused" do
     # If the package ever grows a third class, the host must rule on it
     # before any tenant's data flows to it.
-    refute ResidencyPolicy.allow?(nil, :some_future_class, :coi)
+    refute ResidencyPolicy.allow?(nil, :some_future_class, :insurance_doc)
   end
 end

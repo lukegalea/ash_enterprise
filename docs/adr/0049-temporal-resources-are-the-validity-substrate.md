@@ -27,7 +27,7 @@ repriced as an opportunity — we expect to hit sharp edges early and contribute
    normatives survive verbatim and the behavioral equivalence tests
    (`Set.membership ↔ Query.tri_state`, materialiser replay-equivalence) pass unchanged.
    The contract is behavioral, not structural — that is what makes a mechanism swap a v2.
-3. **The zone record stays config-not-DB** (VPM-25, attested 2026-10-05). A shadow temporal
+3. **The zone record stays config-not-DB** (attested 2026-10-05). A shadow temporal
    mirror is the only compatible enhancement; the attestation model is not traded for queries.
 4. **Temporal-safety is an audited property**, not an assumption: every custom
    change/validation/preparation on a temporal resource is module-refactored and
@@ -46,9 +46,9 @@ repriced as an opportunity — we expect to hit sharp edges early and contribute
 - Date↔period boundary convention is pinned once (inclusive legacy `DATE` → half-open datetime:
   `activeFrom` → `T00:00:00Z`, `expiry` → exclusive `+1 day`) and reused by every migration.
 - The five pilot demonstrations (as-of reads, future-dated writes, WriteConflict behavior,
-  temporal-safety audit cost, ash_events replay) run as the opener of VPM-49 — engineering
+  temporal-safety audit cost, ash_events replay) run as the opener of the audit — engineering
   verification, not a go/no-go gate.
-- Emergent capabilities become roadmap items: expiry-as-a-queryable-dimension (VPM-50) leads;
+- Emergent capabilities become roadmap items: expiry-as-a-queryable-dimension leads;
   as-of joins retire pre-computed digest plumbing where they genuinely can (see strategy
   correction #1 — `subject_state_digest` is NOT among them).
 - Exit cost stays small per resource (~4 DSL lines + one migration to revert) but the platform

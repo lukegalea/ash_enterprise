@@ -2,14 +2,14 @@
 
 - **Status:** accepted
 - **Date:** 2026-09-09
-- **Note 2026-10-17:** the canonical and legacy contracting surfaces from vpm-14 named below were removed
+- **Note 2026-10-17:** the canonical and legacy contracting surfaces from the earlier base named below were removed
   from this repository; `/app/legacy-users` is the legacy surface that remains. The decision is unchanged.
 
 ## Context
 
 The A2UI surfaces in this application render from a payload the `ash_a2ui`
 library encodes, and a client-side catalog renders that payload. Through the
-vpm-14 base the wire payload described *widgets*, not *intent*: rows offered a
+earlier base the wire payload described *widgets*, not *intent*: rows offered a
 single "Select" button (whose only effect was populating a permanently visible
 form), pagination chrome rendered whether or not there was anything to page,
 a successful action produced an untyped status string, and an empty table
@@ -63,7 +63,7 @@ config :ash_a2ui, experience_version: 2, catalog: :admin_v1
 
 No per-surface opt-in exists or is needed: every A2UI surface in this
 application — the original screens, the canonical and legacy surfaces from
-vpm-14, and anything the agent composes — is `AshA2ui.Standalone`-based, so
+the earlier base, and anything the agent composes — is `AshA2ui.Standalone`-based, so
 one config tuple moves all of them together. The assets side registers the
 admin catalog as a *sibling* catalog alongside the merged basic one, passing
 the merged catalog as the admin catalog's base so admin surfaces inherit the

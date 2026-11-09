@@ -23,7 +23,7 @@ defmodule AshEnterprise.Integration.Slack do
   (`invalid_auth` → `:unauthorized`, `channel_not_found` → `:not_found`,
   `ratelimited` → `:rate_limited`, `invalid_cursor` → `:gone`).
 
-  VendorPM workspace content lands only sealed under the linked account's
+  Private workspace content lands only sealed under the linked account's
   erasure scope (ADR 0024, `AshEnterprise.Integration.Landing`), so one shred
   forgets it.
   """

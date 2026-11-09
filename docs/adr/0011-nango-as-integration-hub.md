@@ -182,7 +182,7 @@ once, then promote (or stay in-repo with a recorded justification).
 
 ## Implementation note (2026-10-12)
 
-Built in the Productivity OS Dogfood program (E4), and running against live Google Calendar, Gmail and VendorPM Slack
+Built in the Productivity OS Dogfood program (E4), and running against live Google Calendar, Gmail and company Slack
 connections in the dogfood instance.
 
 - **Provider operations are declared, and the generated action is the call path.** The

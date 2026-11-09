@@ -14,7 +14,7 @@ defmodule AshEnterprise.Repo.Migrations.AddPlatformSystemAttributesExtensions1 d
     #
     # `IF NOT EXISTS` guards against the extension already being installed; it
     # does not guard against the server not having it available, which raises
-    # `could not open extension control file`. VendorPM's database runs
+    # `could not open extension control file`. A hosted database runs
     # postgis/postgis:16-3.5-alpine, which carries postgis, citext, cube,
     # earthdistance and uuid-ossp but NOT pgvector -- so an unconditional
     # `CREATE EXTENSION "vector"` makes `mix setup` unrunnable against it.

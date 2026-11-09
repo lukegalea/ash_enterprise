@@ -190,7 +190,7 @@ jobs:
       # The suite itself runs in the `test-shards` jobs below, and the durability
       # tier in the `durability` job, both alongside this one.
 
-      # The suite migrates into `public`. The VendorPM workspace hosts this app
+      # The suite migrates into `public`. The private workspace hosts this app
       # in a schema of its own (ASH_SCHEMA), and a regenerated migration that
       # bakes in `prefix: "public"` only fails there. Replay into `canonical`
       # here so it fails in this repository first.

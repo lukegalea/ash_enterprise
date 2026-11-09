@@ -16,7 +16,7 @@ defmodule AshEnterprise.Repo.Migrations.AddHierarchySecurity do
   # makes every reference cross into a schema this application does not own, and
   # migrating fails with `relation "public.users" does not exist`.
   #
-  # Regenerating migrations will reintroduce the literal. VPM-12 removes the need
+  # Regenerating migrations will reintroduce the literal. A later change removes the need
   # by declaring `schema` on the resources.
 
   def up do
