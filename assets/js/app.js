@@ -70,8 +70,8 @@ import {z} from "zod"
 // (canvas:graph) and forwards its selections as canvas:select. The element
 // module registers the custom element as an import side effect, exactly
 // like the A2UI renderer imports above.
-import {AshCanvas} from "./canvas/ash_canvas_hook.js"
-import "./canvas/ash_canvas_graph.js"
+import {AshCanvas} from "../../deps/ash_a2ui/priv/js/ash_canvas_hook.js"
+import "../../deps/ash_a2ui/priv/js/ash_canvas_graph.js"
 
 // The ash_a2ui catalog is a FACTORY, not a ready-made object, and it takes the
 // lit runtime as a dependency deliberately: its custom elements must register
