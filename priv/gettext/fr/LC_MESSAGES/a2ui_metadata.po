@@ -839,23 +839,23 @@ msgstr "Déléguer : la personne qui prend le relais"
 
 #: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
 msgid "Deliveries"
-msgstr ""
+msgstr "Livraisons"
 
 #: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
 msgid "Deliveries the providers send appear here."
-msgstr ""
+msgstr "Les livraisons envoyées par les fournisseurs s’affichent ici."
 
 #: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
 msgid "Delivery"
-msgstr ""
+msgstr "Livraison"
 
 #: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
 msgid "Delivery detail"
-msgstr ""
+msgstr "Détail de la livraison"
 
 #: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
 msgid "Delivery id"
-msgstr ""
+msgstr "Identifiant de la livraison"
 
 #: lib/ash_enterprise_web/a2ui/rule_set_revision_ui.ex:1
 msgctxt "one_of:combining"
@@ -1011,7 +1011,7 @@ msgstr "Terminé"
 
 #: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
 msgid "Endpoint"
-msgstr ""
+msgstr "Point de terminaison"
 
 #: lib/ash_enterprise_web/a2ui/audit_ui.ex:1
 msgid "Entry"
@@ -1181,16 +1181,16 @@ msgstr "Vue de suivi"
 
 #: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
 msgid "Follow-up"
-msgstr ""
+msgstr "Suivi"
 
 #: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
 msgid "Followed up"
-msgstr ""
+msgstr "Suivie"
 
 #: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
 msgctxt "one_of:state"
 msgid "Followed up"
-msgstr ""
+msgstr "Suivie"
 
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "For export"
@@ -1295,7 +1295,7 @@ msgstr "Identités"
 #: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
 msgctxt "one_of:state"
 msgid "Ignored"
-msgstr ""
+msgstr "Ignorée"
 
 #: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
 msgid "Import batches"
@@ -1373,7 +1373,7 @@ msgstr "Interpréter la demande"
 #, fuzzy
 msgctxt "one_of:signature_verdict"
 msgid "Invalid"
-msgstr ""
+msgstr "Invalide"
 
 #: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
 msgctxt "one_of:solve_status"
@@ -1770,7 +1770,7 @@ msgstr "Non"
 
 #: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
 msgid "No deliveries"
-msgstr ""
+msgstr "Aucune livraison"
 
 #: lib/ash_enterprise_web/a2ui/judgments/calibration_ui.ex:1
 msgctxt "one_of:result"
@@ -1986,7 +1986,7 @@ msgstr "Personnes"
 
 #: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
 msgid "Per provider"
-msgstr ""
+msgstr "Par fournisseur"
 
 #: lib/ash_enterprise_web/a2ui/rule_set_revision_ui.ex:1
 msgctxt "one_of:combining"
@@ -2167,16 +2167,16 @@ msgstr "Motif"
 
 #: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
 msgid "Received"
-msgstr ""
+msgstr "Reçue"
 
 #: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
 msgctxt "one_of:state"
 msgid "Received"
-msgstr ""
+msgstr "Reçue"
 
 #: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
 msgid "Received at"
-msgstr ""
+msgstr "Reçue le"
 
 #: lib/ash_enterprise/canvas/registry.ex:2
 #: lib/ash_enterprise_web/a2ui/audit_ui.ex:1
@@ -2678,7 +2678,7 @@ msgstr "Signal"
 
 #: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
 msgid "Signature"
-msgstr ""
+msgstr "Signature"
 
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:559
 msgid "Slack"
@@ -2742,7 +2742,7 @@ msgstr "Périmé"
 #, fuzzy
 msgctxt "one_of:signature_verdict"
 msgid "Stale"
-msgstr ""
+msgstr "Périmée"
 
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Stalled"
@@ -3054,7 +3054,7 @@ msgstr "Inconnu"
 #, fuzzy
 msgctxt "one_of:signature_verdict"
 msgid "Unknown secret"
-msgstr ""
+msgstr "Secret inconnu"
 
 #: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
 msgid "Unresolved"
@@ -3154,7 +3154,7 @@ msgstr "Dispensé"
 
 #: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
 msgid "Webhook deliveries"
-msgstr ""
+msgstr "Livraisons de webhooks"
 
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
 msgid "What happened, and why you know: succeeded (it happened), failed (it did not), or retry (it did not happen, you checked, and it runs again)"
@@ -3262,7 +3262,7 @@ msgstr "justificatif"
 
 #: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
 msgid "delivery"
-msgstr ""
+msgstr "livraison"
 
 #: lib/ash_enterprise_web/a2ui/projected_user_ui.ex:1
 msgid "directory entry"
