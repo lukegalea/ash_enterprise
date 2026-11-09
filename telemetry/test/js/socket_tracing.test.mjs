@@ -8,6 +8,7 @@ import {
   controlFromEvent,
   controlLabel,
   createInteractionTracker,
+  connectSpanName,
   createSocketTracing,
   normalizePath
 } from "../../priv/js/socket_tracing.js"
@@ -26,6 +27,9 @@ const fakeTracer = () => {
           spanId: "b7ad6b7169203331",
           traceFlags: 1
         }),
+        setStatus(status) {
+          this.status = status
+        },
         end() {
           this.ended = true
         }
@@ -150,7 +154,8 @@ test("normalizePath replaces uuids and numeric segments", () => {
 const element = attributes => ({
   getAttribute: name => attributes[name] ?? null,
   textContent: attributes.text ?? "",
-  matches: selector => attributes.matches === selector || attributes.matches === true
+  matches: selector => attributes.matches === selector || attributes.matches === true,
+  tagName: attributes.tagName ?? "BUTTON"
 })
 
 test("a control's label is its aria-label or text, whitespace-collapsed and truncated", () => {
@@ -179,4 +184,77 @@ test("an interaction expires after the window", () => {
   assert.equal(tracker.recent(), "Go")
   now += 5000
   assert.equal(tracker.recent(), undefined)
+})
+
+const push = (socket, {ref = "1", topic = "lv:1", event = "save", value = {}} = {}) =>
+  socket.encode({event: "event", ref, topic, payload: {type: "click", event, value}}, () => {})
+
+test("phx_error ends the pending spans of that topic and marks them failed", () => {
+  const {tracer, socket} = setup({label: "Save"})
+  push(socket, {ref: "1", topic: "lv:1"})
+  push(socket, {ref: "2", topic: "lv:2"})
+
+  socket.decode({event: "phx_error", ref: "99", topic: "lv:1", payload: {}}, () => {})
+
+  assert.equal(tracer.spans[0].ended, true)
+  assert.equal(tracer.spans[0].status.code, 2)
+  assert.equal(tracer.spans[1].ended, false)
+  assert.equal(socket.pendingCount(), 1)
+})
+
+test("phx_close ends the pending spans of that topic", () => {
+  const {tracer, socket} = setup()
+  push(socket, {ref: "1", topic: "lv:1"})
+
+  socket.decode({event: "phx_close", ref: "99", topic: "lv:1", payload: {}}, () => {})
+
+  assert.equal(tracer.spans[0].ended, true)
+  assert.equal(socket.pendingCount(), 0)
+})
+
+test("an ordinary reply does not mark the span failed", () => {
+  const {tracer, socket} = setup()
+  push(socket, {ref: "1"})
+  socket.decode({event: "phx_reply", ref: "1", topic: "lv:1", payload: {status: "ok"}}, () => {})
+  assert.equal(tracer.spans[0].status, undefined)
+})
+
+test("an array hook payload is left as an array", () => {
+  const {serializer, socket} = setup()
+  push(socket, {value: [1, 2, 3]})
+  assert.deepEqual(serializer.encoded[0].payload.value, [1, 2, 3])
+})
+
+test("a client-chosen event name is capped in the span name and the attribute", () => {
+  const {tracer, socket} = setup()
+  push(socket, {event: "e".repeat(5000)})
+
+  assert.ok(tracer.spans[0].name.length <= 200, `name was ${tracer.spans[0].name.length}`)
+  assert.ok(tracer.spans[0].attributes["ui.event.name"].length <= 128)
+})
+
+test("the connect span groups by page, so its name has no record id", () => {
+  assert.equal(connectSpanName("/app/widgets/123"), "/app/widgets/:id lv.connect")
+})
+
+test("a row with phx-click never gives its text to the label", () => {
+  const row = element({tagName: "TR", text: "Acme Corp  jane@acme.test  $1,200"})
+  assert.equal(controlLabel(row), undefined)
+})
+
+test("a row's explicit accessible name is used", () => {
+  const row = element({tagName: "TR", "aria-label": "Open vendor", text: "Acme Corp"})
+  assert.equal(controlLabel(row), "Open vendor")
+})
+
+test("a generic element with phx-click does not give its text to the label", () => {
+  assert.equal(controlLabel(element({tagName: "DIV", text: "Acme Corp"})), undefined)
+  assert.equal(controlLabel(element({tagName: "TD", text: "Acme Corp"})), undefined)
+  assert.equal(controlLabel(element({tagName: "LI", text: "Acme Corp"})), undefined)
+})
+
+test("a button's own text is used, capped", () => {
+  assert.equal(controlLabel(element({tagName: "BUTTON", text: "Save"})), "Save")
+  assert.equal(controlLabel(element({tagName: "ATLAS-BUTTON", text: "Save"})), "Save")
+  assert.equal(controlLabel(element({tagName: "BUTTON", text: "x".repeat(500)})).length, 80)
 })

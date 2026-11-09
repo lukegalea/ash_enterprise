@@ -52,6 +52,19 @@ defmodule AshEnterprise.Telemetry.AshTracerTest do
     assert attributes[:"exception.message"] == "db down"
   end
 
+  test "a fault records frame arity and no arguments" do
+    stacktrace = [{Mod, :run, ["tracer-secret-value"], []}]
+
+    span =
+      with_ash_span(fn ->
+        AshTracer.set_handled_error(RuntimeError.exception("db down"), stacktrace: stacktrace)
+      end)
+
+    assert [%{attributes: attributes}] = span.events
+    refute attributes[:"exception.stacktrace"] =~ "tracer-secret-value"
+    assert attributes[:"exception.stacktrace"] =~ "Mod.run/1"
+  end
+
   test "a non-exception error does not raise" do
     span = with_ash_span(fn -> assert AshTracer.set_error(:not_an_exception) == :ok end)
     assert span.events == []

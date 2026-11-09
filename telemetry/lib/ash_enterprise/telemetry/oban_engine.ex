@@ -51,7 +51,8 @@ defmodule AshEnterprise.Telemetry.ObanEngine do
 
   @impl Oban.Engine
   def insert_all_jobs(conf, changesets, opts) do
-    Basic.insert_all_jobs(conf, stamp_batch(changesets), opts)
+    # A caller can pass a stream, and stamping walks the batch more than once.
+    Basic.insert_all_jobs(conf, changesets |> Enum.to_list() |> stamp_batch(), opts)
   end
 
   for {fun, arity} <- Oban.Engine.behaviour_info(:callbacks),

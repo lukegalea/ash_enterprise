@@ -21,7 +21,12 @@ import {BatchSpanProcessor} from "@opentelemetry/sdk-trace-base"
 import {WebTracerProvider} from "@opentelemetry/sdk-trace-web"
 import {Serializer} from "phoenix"
 
-import {createInteractionTracker, createSocketTracing, toTraceparent} from "./socket_tracing.js"
+import {
+  connectSpanName,
+  createInteractionTracker,
+  createSocketTracing,
+  toTraceparent
+} from "./socket_tracing.js"
 
 const enabled = () => document.querySelector('meta[name="otel-browser"]')?.content === "on"
 
@@ -64,8 +69,7 @@ export function startBrowserTracing({
 
   const connectTraceparent = () => {
     connectSpan =
-      connectSpan ||
-      tracer.startSpan(`${getPagePath()} lv.connect`, {}, context.active())
+      connectSpan || tracer.startSpan(connectSpanName(getPagePath()), {}, context.active())
     return toTraceparent(connectSpan)
   }
 

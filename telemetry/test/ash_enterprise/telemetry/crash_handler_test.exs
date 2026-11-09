@@ -34,6 +34,32 @@ defmodule AshEnterprise.Telemetry.CrashHandlerTest do
     assert attributes[:"exception.type"] =~ "RuntimeError"
   end
 
+  test "a crash records frame arity and no arguments" do
+    key = test_key!()
+    stacktrace = [{Mod, :handle_call, [{:login, "crash-secret-value"}, self(), %{}], []}]
+
+    CrashHandler.log(crash_event(%{crash_reason: {RuntimeError.exception("x"), stacktrace}}), %{})
+
+    span = eventually(fn -> span_named(key, "process.crash") end)
+    assert [%{attributes: attributes}] = span.events
+    refute attributes[:"exception.stacktrace"] =~ "crash-secret-value"
+    assert attributes[:"exception.stacktrace"] =~ "Mod.handle_call/3"
+  end
+
+  test "a non-exception reason does not print its payload" do
+    key = test_key!()
+
+    CrashHandler.log(
+      crash_event(%{crash_reason: {{:bad_return_value, %{token: "crash-reason-secret"}}, []}}),
+      %{}
+    )
+
+    span = eventually(fn -> span_named(key, "process.crash") end)
+    assert [%{attributes: attributes}] = span.events
+    refute attributes[:"exception.message"] =~ "crash-reason-secret"
+    assert attributes[:"exception.message"] =~ "bad_return_value"
+  end
+
   test "a non-exception exit is still recorded" do
     key = test_key!()
     CrashHandler.log(crash_event(%{crash_reason: {:killed, []}}), %{config: %{}})

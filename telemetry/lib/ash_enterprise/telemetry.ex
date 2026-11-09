@@ -57,6 +57,24 @@ defmodule AshEnterprise.Telemetry do
   application, not `:opentelemetry_exporter`. Setting `OTEL_EXPORTER_OTLP_ENDPOINT` in
   the environment covers all three signals.
 
+  ## Sampling
+
+  The SDK's default is `always_on`. To sample less, configure it through `sampler/1`, so
+  a parent the browser supplied cannot override the root sampler:
+
+      # config/runtime.exs
+      config :opentelemetry, sampler: AshEnterprise.Telemetry.sampler({:trace_id_ratio_based, 0.1})
+
+  ## Trace headers from clients
+
+  An incoming `traceparent` and `baggage` are attacker-controlled on a public endpoint.
+  With the default `public_endpoint: true` a request starts a new root trace and the
+  client's `traceparent` becomes a link, so a client cannot join a trace of its
+  choosing, silence its requests with `-00`, or put `baggage` into job meta and outbound
+  calls. An internal service whose calls should continue the caller's trace sets
+  `public_endpoint: false`, or `{module, function, args}` to decide per request.
+  LiveView parenting is separate: see `browser_context`.
+
   ## The Ash tracer
 
       config :ash, :tracer, [AshEnterprise.Telemetry.AshTracer]
@@ -77,6 +95,7 @@ defmodule AshEnterprise.Telemetry do
   alias AshEnterprise.Telemetry.CrashHandler
   alias AshEnterprise.Telemetry.Logging
   alias AshEnterprise.Telemetry.ObanContext
+  alias AshEnterprise.Telemetry.PhoenixSpans
   alias AshEnterprise.Telemetry.Settings
   alias AshEnterprise.Telemetry.SpanProcessor
   alias AshEnterprise.Telemetry.TraceSink
@@ -115,6 +134,16 @@ defmodule AshEnterprise.Telemetry do
               type: :boolean,
               default: false,
               doc: "Adopt the browser's `traceparent`. See `BrowserContext` for the trust model."
+            ],
+            public_endpoint: [
+              type: {:or, [:boolean, :mfa]},
+              default: true,
+              doc: """
+              Treat HTTP callers as untrusted: a client's `traceparent` becomes a link and its
+              `baggage` is ignored. `false` continues the caller's trace, for a service only
+              reached by internal callers. `{module, function, args}` is called with `(conn, args)`
+              and returns whether that request is public.
+              """
             ],
             db_statement: [
               type: {:in, [:enabled, :disabled]},
@@ -217,6 +246,27 @@ defmodule AshEnterprise.Telemetry do
   defp put_headers(config, headers), do: Map.put(config, :headers, headers)
 
   @doc """
+  The sampler for `config :opentelemetry, sampler:`.
+
+  Parent-based, with a sampled remote parent sent to `root` as well. The SDK's
+  default for that case is `always_on`, and `BrowserContext` presents every browser
+  `traceparent` as sampled, so without this any client sending a valid one is traced at
+  100% whatever `root` is. Local children still follow their parent, so a trace is
+  never cut in half.
+  """
+  @spec sampler(:otel_sampler.sampler_spec()) :: {:parent_based, map()}
+  def sampler(root), do: {:parent_based, %{root: root, remote_parent_sampled: root}}
+
+  @doc false
+  @spec bandit_options(keyword()) :: keyword()
+  def bandit_options(opts) do
+    case opts[:public_endpoint] do
+      {_module, _function, _args} = mfa -> [public_endpoint_fn: mfa]
+      public? -> [public_endpoint: public?]
+    end
+  end
+
+  @doc """
   Attaches everything, in the required order. Call it once, from `Application.start/2`.
 
   A second call does nothing, so a test helper and the application can both call it.
@@ -252,9 +302,10 @@ defmodule AshEnterprise.Telemetry do
     if opts[:oban], do: :ok = ObanContext.attach_before()
 
     # Bandit first: Phoenix adds the route to the span Bandit opens.
-    :ok = OpentelemetryBandit.setup()
+    :ok = OpentelemetryBandit.setup(bandit_options(opts))
     :ok = BanditSpans.attach()
     :ok = OpentelemetryPhoenix.setup(adapter: :bandit, liveview: true)
+    :ok = PhoenixSpans.attach()
 
     if opts[:oban] do
       :ok = OpentelemetryOban.setup(job: [span_relationship: :link], plugin: :disabled)

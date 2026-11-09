@@ -23,12 +23,16 @@ defmodule AshEnterprise.Telemetry.OtlpIngest do
       with no `Origin` is rejected. `:allowed_origins` adds origins for a proxy
       that rewrites the host.
     * The body is capped at 256 KB (`413`), and at `:max_spans` spans (`413`).
-    * A fixed-window rate limit per client address and one across all clients
-      (`429`).
+    * A fixed-window rate limit per client and one across all clients (`429`). The
+      client is the socket address, so behind a proxy every browser shares one bucket:
+      set `:client_key` there.
     * `ash.*`, `audit.*` and correlation attributes are removed from spans, events,
       links, instrumentation scopes and resources, because those are server-asserted
-      facts. Spans with malformed ids are dropped. Names, status messages and
-      attribute values are truncated, and attribute, event and link counts are capped.
+      facts. Attribute values must be scalars, so a reserved key cannot arrive nested
+      in a `kvlistValue`. Spans and links with malformed ids are dropped, as is a malformed
+      parent id. Only the listed fields survive. Names, status messages and attribute
+      values are truncated on a character boundary, oversized attribute keys are dropped,
+      and attribute, event and link counts are capped.
 
   `service.name` stays client-supplied, so it cannot tell a server span from a
   forged one. The server-asserted `ash.*` attributes can.
@@ -47,6 +51,12 @@ defmodule AshEnterprise.Telemetry.OtlpIngest do
     * `:max_spans` — spans per batch, default 512
     * `:rate_limit` — requests per client per minute, default 600
     * `:global_rate_limit` — requests per minute across clients, default 6000
+    * `:client_key` — `{module, function, args}` given the conn, returning the term that
+      identifies a client for `:rate_limit`; default the socket address. Behind a proxy,
+      derive it from the address the proxy reports, taking only the hop your proxy
+      appended: a client sets `X-Forwarded-For` to anything, and a value it controls gives
+      it a fresh bucket per request. Returning `nil`, or raising, falls back to the
+      socket address.
     * `:allowed_origins` — extra allowed origins, as `"https://host"` strings
     * `:trusted_attributes` — `{module, function, args}` given the conn, returning a
       map of server-asserted attributes to add to each span (a test key, for instance)
@@ -60,6 +70,7 @@ defmodule AshEnterprise.Telemetry.OtlpIngest do
   alias AshEnterprise.Telemetry.Attributes
   alias AshEnterprise.Telemetry.OtlpIngest.Limiter
   alias AshEnterprise.Telemetry.OtlpIngest.Tasks
+  alias AshEnterprise.Telemetry.Sanitize
   alias AshEnterprise.Telemetry.TraceSink
 
   require Logger
@@ -74,14 +85,7 @@ defmodule AshEnterprise.Telemetry.OtlpIngest do
   @max_events 32
   @max_links 8
   @max_string_bytes 1_024
-
-  @doc "Whether the ingest is enabled by configuration."
-  @spec configured?() :: boolean()
-  def configured? do
-    :ash_enterprise_telemetry
-    |> Application.get_env(:browser_ingest, [])
-    |> Keyword.get(:enabled, false)
-  end
+  @max_key_bytes 128
 
   @impl Plug
   def init(opts), do: opts
@@ -184,11 +188,21 @@ defmodule AshEnterprise.Telemetry.OtlpIngest do
     per_client = Keyword.get(config, :rate_limit, @default_rate_limit)
     global = Keyword.get(config, :global_rate_limit, @default_global_rate_limit)
 
-    if Limiter.allow?({:client, conn.remote_ip}, per_client) and Limiter.allow?(:global, global) do
+    if Limiter.allow?({:client, client_key(conn, config)}, per_client) and
+         Limiter.allow?(:global, global) do
       :ok
     else
       {:reject, 429}
     end
+  end
+
+  defp client_key(conn, config) do
+    case config[:client_key] do
+      {module, function, args} -> apply(module, function, [conn | args]) || conn.remote_ip
+      nil -> conn.remote_ip
+    end
+  catch
+    _kind, _reason -> conn.remote_ip
   end
 
   defp read_capped(conn) do
@@ -260,7 +274,7 @@ defmodule AshEnterprise.Telemetry.OtlpIngest do
 
   defp maps(value), do: value |> list() |> Enum.filter(&is_map/1)
 
-  defp sanitize_resource(%{} = resource), do: Map.update(resource, "attributes", [], &clean/1)
+  defp sanitize_resource(%{} = resource), do: %{"attributes" => clean(resource["attributes"])}
   defp sanitize_resource(_other), do: %{"attributes" => []}
 
   defp sanitize_span(span, trusted) do
@@ -269,20 +283,45 @@ defmodule AshEnterprise.Telemetry.OtlpIngest do
       status))
     |> Map.update("name", "", &truncate/1)
     |> sanitize_status()
+    |> keep_if("kind", &kind?/1)
+    |> keep_if("startTimeUnixNano", &timestamp?/1)
+    |> keep_if("endTimeUnixNano", &timestamp?/1)
+    |> keep_if("parentSpanId", &span_id?/1)
     |> Map.put("attributes", clean(span["attributes"]) ++ otlp_attributes(trusted))
     |> Map.put(
       "events",
-      span["events"] |> list() |> Enum.take(@max_events) |> Enum.map(&sanitize_event/1)
+      span["events"] |> maps() |> Enum.take(@max_events) |> Enum.map(&sanitize_event/1)
     )
     |> Map.put(
       "links",
-      span["links"] |> list() |> Enum.take(@max_links) |> Enum.map(&sanitize_link/1)
+      span["links"]
+      |> maps()
+      |> Enum.filter(&valid_ids?/1)
+      |> Enum.take(@max_links)
+      |> Enum.map(&sanitize_link/1)
     )
-    |> sanitize_parent()
   end
 
+  defp keep_if(map, key, valid?) do
+    case map do
+      %{^key => value} -> if valid?.(value), do: map, else: Map.delete(map, key)
+      _absent -> map
+    end
+  end
+
+  defp kind?(kind), do: is_integer(kind) or match?("SPAN_KIND_" <> _, kind)
+
+  defp timestamp?(value) when is_integer(value), do: value >= 0
+  defp timestamp?(value) when is_binary(value), do: Regex.match?(~r/\A\d{1,20}\z/, value)
+  defp timestamp?(_value), do: false
+
   defp sanitize_status(%{"status" => %{} = status} = span) do
-    status = status |> Map.take(~w(code message)) |> truncate_status_message()
+    status =
+      status
+      |> Map.take(~w(code message))
+      |> keep_if("code", &(is_integer(&1) or match?("STATUS_CODE_" <> _, &1)))
+      |> truncate_status_message()
+
     Map.put(span, "status", status)
   end
 
@@ -293,62 +332,78 @@ defmodule AshEnterprise.Telemetry.OtlpIngest do
 
   defp truncate_status_message(status), do: status
 
-  defp sanitize_parent(%{"parentSpanId" => parent} = span) when not is_binary(parent) do
-    Map.delete(span, "parentSpanId")
-  end
-
-  defp sanitize_parent(span), do: span
-
-  defp sanitize_event(%{} = event) do
+  defp sanitize_event(event) do
     event
     |> Map.take(~w(name timeUnixNano))
     |> Map.update("name", "", &truncate/1)
+    |> keep_if("timeUnixNano", &timestamp?/1)
     |> Map.put("attributes", clean(event["attributes"]))
   end
 
-  defp sanitize_event(_other), do: %{"name" => "", "attributes" => []}
-
-  defp sanitize_link(%{} = link) do
+  defp sanitize_link(link) do
     link
     |> Map.take(~w(traceId spanId))
     |> Map.put("attributes", clean(link["attributes"]))
   end
 
-  defp sanitize_link(_other), do: %{"attributes" => []}
-
   defp clean(attributes) do
     attributes
-    |> list()
-    |> Enum.flat_map(fn
-      %{"key" => key, "value" => value} = attribute when is_binary(key) ->
-        if Attributes.reserved?(key),
-          do: [],
-          else: [Map.put(attribute, "value", truncate_value(value))]
-
-      _malformed ->
-        []
-    end)
+    |> maps()
+    |> Enum.flat_map(&clean_attribute/1)
     |> Enum.take(@max_attributes)
   end
 
-  defp truncate_value(%{"stringValue" => value}) when is_binary(value),
-    do: %{"stringValue" => truncate(value)}
-
-  defp truncate_value(value), do: value
-
-  defp truncate(value) when is_binary(value) do
-    binary_part(value, 0, min(byte_size(value), @max_string_bytes))
+  defp clean_attribute(%{"key" => key, "value" => value})
+       when is_binary(key) and byte_size(key) <= @max_key_bytes do
+    with false <- Attributes.reserved?(key),
+         {:ok, scalar} <- scalar(value) do
+      [%{"key" => key, "value" => scalar}]
+    else
+      _rejected -> []
+    end
   end
 
+  defp clean_attribute(_malformed), do: []
+
+  # Exactly one scalar. An array or kvlist could carry a reserved key the check above
+  # never sees.
+  defp scalar(%{"stringValue" => value} = wrapper)
+       when map_size(wrapper) == 1 and is_binary(value),
+       do: {:ok, %{"stringValue" => truncate(value)}}
+
+  defp scalar(%{"boolValue" => value} = wrapper)
+       when map_size(wrapper) == 1 and is_boolean(value),
+       do: {:ok, wrapper}
+
+  defp scalar(%{"doubleValue" => value} = wrapper)
+       when map_size(wrapper) == 1 and is_number(value),
+       do: {:ok, wrapper}
+
+  defp scalar(%{"intValue" => value} = wrapper)
+       when map_size(wrapper) == 1 and is_integer(value),
+       do: {:ok, wrapper}
+
+  defp scalar(%{"intValue" => value} = wrapper)
+       when map_size(wrapper) == 1 and is_binary(value) do
+    if Regex.match?(~r/\A-?\d{1,20}\z/, value), do: {:ok, wrapper}, else: :error
+  end
+
+  defp scalar(_other), do: :error
+
+  defp truncate(value) when is_binary(value), do: Sanitize.truncate(value, @max_string_bytes)
   defp truncate(_other), do: ""
 
-  defp valid_ids?(%{"traceId" => trace_id, "spanId" => span_id})
-       when is_binary(trace_id) and is_binary(span_id) do
-    Regex.match?(~r/\A(?!0{32})[0-9a-f]{32}\z/, trace_id) and
-      Regex.match?(~r/\A(?!0{16})[0-9a-f]{16}\z/, span_id)
+  defp valid_ids?(%{"traceId" => trace_id, "spanId" => span_id}) do
+    trace_id?(trace_id) and span_id?(span_id)
   end
 
   defp valid_ids?(_span), do: false
+
+  defp trace_id?(id) when is_binary(id), do: Regex.match?(~r/\A(?!0{32})[0-9a-f]{32}\z/, id)
+  defp trace_id?(_id), do: false
+
+  defp span_id?(id) when is_binary(id), do: Regex.match?(~r/\A(?!0{16})[0-9a-f]{16}\z/, id)
+  defp span_id?(_id), do: false
 
   defp list(value) when is_list(value), do: value
   defp list(_other), do: []

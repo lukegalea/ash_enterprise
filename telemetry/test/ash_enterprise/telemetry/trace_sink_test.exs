@@ -293,6 +293,24 @@ defmodule AshEnterprise.Telemetry.TraceSinkTest do
       assert TraceSink.stats().spans == before.spans
     end
 
+    test "a false boolean attribute is kept" do
+      trace_hex = :crypto.strong_rand_bytes(16) |> Base.encode16(case: :lower)
+      span_hex = :crypto.strong_rand_bytes(8) |> Base.encode16(case: :lower)
+
+      span =
+        otlp_span(span_hex, name: "bool.span")
+        |> Map.put("attributes", [
+          %{"key" => "flag.off", "value" => %{"boolValue" => false}},
+          %{"key" => "flag.on", "value" => %{"boolValue" => true}}
+        ])
+
+      :ok = TraceSink.ingest_otlp(otlp_payload(trace_hex, [span]))
+
+      attributes = TraceSink.trace(trace_hex).root.attributes
+      assert Map.fetch(attributes, "flag.off") == {:ok, false}
+      assert Map.fetch(attributes, "flag.on") == {:ok, true}
+    end
+
     test "malformed input is ignored" do
       assert TraceSink.ingest_otlp(%{"resourceSpans" => "nope"}) == :ok
       assert TraceSink.ingest_otlp(%{}) == :ok

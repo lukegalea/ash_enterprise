@@ -15,12 +15,17 @@ defmodule AshEnterprise.Telemetry.ObanContext do
   The library's handler calls `DateTime.to_iso8601/1` on `inserted_at` and
   `scheduled_at`, which are `nil` on a job run by `Oban.Engines.Inline`. The raise would
   make `:telemetry` detach the handler for the whole node, ending job spans everywhere.
+  It replaces the exception handler too, which would otherwise record the job, args
+  included, in a stack frame.
   """
 
+  alias AshEnterprise.Telemetry.Sanitize
   alias AshEnterprise.Telemetry.Settings
   alias OpentelemetryOban.JobHandler
 
   @library_start_handler "Elixir.OpentelemetryOban.JobHandler.job_start"
+  @library_exception_handler "Elixir.OpentelemetryOban.JobHandler.job_exception"
+  @previous {__MODULE__, :previous}
 
   @doc "Attaches the start handler. Must run before `OpentelemetryOban.setup/1`."
   @spec attach_before() :: :ok | {:error, :already_exists}
@@ -44,10 +49,19 @@ defmodule AshEnterprise.Telemetry.ObanContext do
     )
   end
 
-  @doc "Replaces the library's start handler. Must run after `OpentelemetryOban.setup/1`."
+  @doc "Replaces the library's start and exception handlers. Must run after `OpentelemetryOban.setup/1`."
   @spec attach_job_span(atom()) :: :ok | {:error, :already_exists}
   def attach_job_span(span_relationship \\ :link) do
     _ = :telemetry.detach(@library_start_handler)
+    _ = :telemetry.detach(@library_exception_handler)
+
+    :ok =
+      :telemetry.attach(
+        {__MODULE__, :job_exception},
+        [:oban, :job, :exception],
+        &__MODULE__.handle_job_exception/4,
+        %{}
+      )
 
     :telemetry.attach(
       {__MODULE__, :job_span},
@@ -76,16 +90,39 @@ defmodule AshEnterprise.Telemetry.ObanContext do
   def handle_job_span(_event, _measurements, _meta, _config), do: :ok
 
   @doc false
-  def handle_start(_event, _measurements, %{job: %{id: id, meta: meta}}, _config) do
+  def handle_job_exception(
+        event,
+        measurements,
+        %{error: error, stacktrace: stacktrace} = metadata,
+        config
+      ) do
+    metadata = %{
+      metadata
+      | error: Sanitize.exception(error),
+        stacktrace: Sanitize.stacktrace(stacktrace)
+    }
+
+    JobHandler.handle_job_exception(event, measurements, metadata, config)
+    :ok
+  catch
+    _kind, _reason -> :ok
+  end
+
+  def handle_job_exception(_event, _measurements, _meta, _config), do: :ok
+
+  # A stack, not a key per job id: a job run inline has no id, so nested inline jobs
+  # would share one key.
+  @doc false
+  def handle_start(_event, _measurements, %{job: %{meta: meta}}, _config) do
     correlation = Settings.correlation()
     previous = correlation.current()
+    Process.put(@previous, [previous | Process.get(@previous, [])])
 
     case meta do
       %{"correlation_id" => stamped} when is_binary(stamped) -> correlation.put(stamped)
       _unstamped -> if is_nil(previous), do: correlation.start_new()
     end
 
-    Process.put({__MODULE__, id}, previous)
     :ok
   catch
     _kind, _reason -> :ok
@@ -94,10 +131,10 @@ defmodule AshEnterprise.Telemetry.ObanContext do
   def handle_start(_event, _measurements, _meta, _config), do: :ok
 
   @doc false
-  def handle_stop(_event, _measurements, %{job: %{id: id}}, _config) do
+  def handle_stop(_event, _measurements, %{job: _job}, _config) do
     correlation = Settings.correlation()
 
-    case Process.delete({__MODULE__, id}) do
+    case pop_previous() do
       nil -> if function_exported?(correlation, :clear, 0), do: correlation.clear()
       previous -> correlation.put(previous)
     end
@@ -108,4 +145,15 @@ defmodule AshEnterprise.Telemetry.ObanContext do
   end
 
   def handle_stop(_event, _measurements, _meta, _config), do: :ok
+
+  defp pop_previous do
+    case Process.get(@previous, []) do
+      [previous | rest] ->
+        Process.put(@previous, rest)
+        previous
+
+      [] ->
+        nil
+    end
+  end
 end

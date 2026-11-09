@@ -3,9 +3,10 @@ defmodule AshEnterprise.Telemetry.Application do
 
   # The supervision tree is what makes the ingest and the sink safe to call from
   # request processes: every ETS table here is owned by one of these long-lived
-  # children, never by the process that happened to touch it first. Each child
-  # starts only when its feature is configured, so a host that configures
-  # nothing pays for nothing.
+  # children, never by the process that happened to touch it first. The ingest's
+  # supervisor always starts: the plug can be enabled by its own options, with no
+  # application config to read here, and it costs one idle table and an empty
+  # task supervisor. The sink and the probe start only when configured.
 
   use Application
 
@@ -21,8 +22,9 @@ defmodule AshEnterprise.Telemetry.Application do
     )
   end
 
-  defp children do
-    sink() ++ ingest() ++ probe()
+  @doc false
+  def children do
+    sink() ++ [OtlpIngest.Supervisor] ++ probe()
   end
 
   defp sink do
@@ -31,10 +33,6 @@ defmodule AshEnterprise.Telemetry.Application do
     else
       []
     end
-  end
-
-  defp ingest do
-    if OtlpIngest.configured?(), do: [OtlpIngest.Supervisor], else: []
   end
 
   defp probe do

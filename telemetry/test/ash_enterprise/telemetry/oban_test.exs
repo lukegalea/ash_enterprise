@@ -225,6 +225,73 @@ defmodule AshEnterprise.Telemetry.ObanTest do
     end
   end
 
+  describe "a stream of changesets" do
+    test "is enumerated once" do
+      {one, _ref} = new_job()
+      {two, _ref} = new_job()
+
+      stream =
+        Stream.map([one, two], fn changeset ->
+          Process.put(:enumerated, Process.get(:enumerated, 0) + 1)
+          changeset
+        end)
+
+      jobs = AshEnterprise.Telemetry.ObanEngine.insert_all_jobs(Oban.config(), stream, [])
+
+      assert length(jobs) == 2
+      assert Process.get(:enumerated) == 2
+    end
+  end
+
+  describe "nested inline jobs" do
+    @start [:oban, :job, :start]
+    @stop [:oban, :job, :stop]
+
+    defp inline_job(correlation), do: %{job: %{id: nil, meta: %{"correlation_id" => correlation}}}
+
+    test "restore the caller's correlation at each level" do
+      Correlation.put("caller")
+
+      ObanContext.handle_start(@start, %{}, inline_job("outer"), nil)
+      assert Correlation.current() == "outer"
+
+      ObanContext.handle_start(@start, %{}, inline_job("inner"), nil)
+      assert Correlation.current() == "inner"
+
+      ObanContext.handle_stop(@stop, %{}, inline_job("inner"), nil)
+      assert Correlation.current() == "outer"
+
+      ObanContext.handle_stop(@stop, %{}, inline_job("outer"), nil)
+      assert Correlation.current() == "caller"
+    end
+
+    test "a job with no caller correlation clears at the end" do
+      ObanContext.handle_start(@start, %{}, inline_job("outer"), nil)
+      ObanContext.handle_stop(@stop, %{}, inline_job("outer"), nil)
+      assert Correlation.current() == nil
+    end
+  end
+
+  describe "a failing job's exception" do
+    test "records the arity of a frame, not the job" do
+      key = test_key!()
+
+      {:ok, _} =
+        Oban.insert(
+          AshEnterprise.Telemetry.ClauseFailingWorker.new(%{"password" => "job-secret-value"},
+            max_attempts: 1
+          )
+        )
+
+      Oban.drain_queue(queue: :default)
+
+      span = eventually(fn -> span_named_ending(key, "process default") end)
+      assert [%{attributes: attributes}] = span.events
+      refute attributes[:"exception.stacktrace"] =~ "job-secret-value"
+      assert attributes[:"exception.stacktrace"] =~ "only_never/1"
+    end
+  end
+
   describe "correlation restore" do
     test "a drained job leaves the caller's correlation alone" do
       test_key!()

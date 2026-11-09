@@ -719,7 +719,7 @@ defmodule AshEnterprise.Telemetry.TraceSink do
   defp otlp_attributes(attributes) when is_list(attributes) do
     for %{"key" => key, "value" => value} <- attributes,
         is_binary(key),
-        decoded = otlp_value(value),
+        decoded <- [otlp_value(value)],
         not is_nil(decoded),
         into: %{} do
       {key, decoded}

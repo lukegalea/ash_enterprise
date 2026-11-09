@@ -19,7 +19,7 @@ defmodule AshEnterprise.Telemetry.SetupOrderTest do
     ids = handler_ids([:phoenix, :live_view, :handle_event, :start])
 
     before = index_of(ids, {@browser, :before})
-    span = index_of(ids, {OpentelemetryPhoenix, :live_view})
+    span = index_of(ids, {AshEnterprise.Telemetry.PhoenixSpans, :span})
     after_span = index_of(ids, {@browser, :after})
 
     assert before < span
@@ -33,7 +33,9 @@ defmodule AshEnterprise.Telemetry.SetupOrderTest do
           [:phoenix, :live_component, :handle_event, suffix]
         ] do
       ids = handler_ids(event)
-      assert index_of(ids, {OpentelemetryPhoenix, :live_view}) < index_of(ids, {@browser, :after})
+
+      assert index_of(ids, {AshEnterprise.Telemetry.PhoenixSpans, :span}) <
+               index_of(ids, {@browser, :after})
     end
   end
 
@@ -47,12 +49,19 @@ defmodule AshEnterprise.Telemetry.SetupOrderTest do
   end
 
   test "the Oban restore handler runs after the job span closes" do
-    for {suffix, handler} <- [{:stop, "job_stop"}, {:exception, "job_exception"}] do
+    for {suffix, handler} <- [
+          {:stop, "Elixir.OpentelemetryOban.JobHandler.job_stop"},
+          {:exception, {@oban_context, :job_exception}}
+        ] do
       ids = handler_ids([:oban, :job, suffix])
-
-      assert index_of(ids, "Elixir.OpentelemetryOban.JobHandler.#{handler}") <
-               index_of(ids, {@oban_context, :stop})
+      assert index_of(ids, handler) < index_of(ids, {@oban_context, :stop})
     end
+
+    refute "Elixir.OpentelemetryOban.JobHandler.job_exception" in handler_ids([
+             :oban,
+             :job,
+             :exception
+           ])
   end
 
   test "both HTTP layers are attached" do

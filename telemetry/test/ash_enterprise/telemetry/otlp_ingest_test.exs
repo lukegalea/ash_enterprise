@@ -319,6 +319,143 @@ defmodule AshEnterprise.Telemetry.OtlpIngestTest do
       assert length(result["links"]) == 8
     end
 
+    test "truncation keeps multi-byte text valid, so the forward can encode it" do
+      long = String.duplicate("日本語", 1_000)
+
+      result =
+        span(name: long, attributes: [attribute("long", long)])
+        |> Map.put("status", %{"code" => 2, "message" => long})
+        |> Map.put("events", [%{"name" => long}])
+        |> sanitized_span()
+
+      assert String.valid?(result["name"])
+      assert byte_size(result["name"]) <= 1_024
+      assert String.valid?(hd(result["attributes"])["value"]["stringValue"])
+      assert String.valid?(result["status"]["message"])
+      assert String.valid?(hd(result["events"])["name"])
+      assert {:ok, _json} = Jason.encode(result)
+    end
+
+    test "only scalar attribute values survive" do
+      nested = %{
+        "kvlistValue" => %{"values" => [attribute("ash.correlation_id", "forged")]}
+      }
+
+      result =
+        span(
+          attributes: [
+            %{"key" => "nested", "value" => nested},
+            %{
+              "key" => "array",
+              "value" => %{"arrayValue" => %{"values" => [%{"stringValue" => "x"}]}}
+            },
+            %{"key" => "bytes", "value" => %{"bytesValue" => "AAAA"}},
+            %{"key" => "bad_int", "value" => %{"intValue" => %{"a" => 1}}},
+            %{"key" => "bad_bool", "value" => %{"boolValue" => "yes"}},
+            %{"key" => "bad_double", "value" => %{"doubleValue" => "1.0"}},
+            %{"key" => "bad_string", "value" => %{"stringValue" => %{"a" => 1}}},
+            %{"key" => "mixed", "value" => %{"stringValue" => "x", "arrayValue" => %{}}},
+            %{"key" => "s", "value" => %{"stringValue" => "kept"}},
+            %{"key" => "b", "value" => %{"boolValue" => false}},
+            %{"key" => "i", "value" => %{"intValue" => "42"}},
+            %{"key" => "n", "value" => %{"intValue" => 42}},
+            %{"key" => "d", "value" => %{"doubleValue" => 1.5}}
+          ]
+        )
+        |> sanitized_span()
+
+      assert keys(result["attributes"]) == ["s", "b", "i", "n", "d"]
+      refute inspect(result) =~ "forged"
+    end
+
+    test "a scalar rule applies to events, links, scopes and resources too" do
+      nested = %{"key" => "n", "value" => %{"kvlistValue" => %{"values" => []}}}
+      kept = attribute("kept", "y")
+
+      body = %{
+        "resourceSpans" => [
+          %{
+            "resource" => %{"attributes" => [nested, kept], "smuggled" => "x"},
+            "scopeSpans" => [
+              %{
+                "scope" => %{"name" => "s", "attributes" => [nested, kept]},
+                "spans" => [
+                  span()
+                  |> Map.put("events", [%{"name" => "e", "attributes" => [nested, kept]}])
+                  |> Map.put("links", [
+                    %{"traceId" => id(16), "spanId" => id(8), "attributes" => [nested, kept]}
+                  ])
+                ]
+              }
+            ]
+          }
+        ]
+      }
+
+      assert %{"resourceSpans" => [%{"resource" => resource, "scopeSpans" => [scope_spans]}]} =
+               OtlpIngest.sanitize(body, %{})
+
+      assert Map.keys(resource) == ["attributes"]
+      assert keys(resource["attributes"]) == ["kept"]
+      assert keys(scope_spans["scope"]["attributes"]) == ["kept"]
+      [out] = scope_spans["spans"]
+      assert keys(hd(out["events"])["attributes"]) == ["kept"]
+      assert keys(hd(out["links"])["attributes"]) == ["kept"]
+    end
+
+    test "attribute keys are capped" do
+      result =
+        span(attributes: [attribute(String.duplicate("k", 300), "v"), attribute("ok", "v")])
+        |> sanitized_span()
+
+      assert keys(result["attributes"]) == ["ok"]
+    end
+
+    test "a malformed parent span id is removed" do
+      for bad <- ["short", String.duplicate("0", 16), String.duplicate("G", 16), 7] do
+        result = span() |> Map.put("parentSpanId", bad) |> sanitized_span()
+        refute Map.has_key?(result, "parentSpanId"), "kept #{inspect(bad)}"
+      end
+
+      parent = id(8)
+
+      assert (span() |> Map.put("parentSpanId", parent) |> sanitized_span())["parentSpanId"] ==
+               parent
+    end
+
+    test "a link with malformed ids is dropped" do
+      good = %{"traceId" => id(16), "spanId" => id(8)}
+
+      result =
+        span()
+        |> Map.put("links", [
+          %{"traceId" => "short", "spanId" => id(8)},
+          %{"traceId" => id(16), "spanId" => "zz"},
+          %{"spanId" => id(8)},
+          "not-a-map",
+          good
+        ])
+        |> sanitized_span()
+
+      assert [%{"traceId" => trace_id}] = result["links"]
+      assert trace_id == good["traceId"]
+    end
+
+    test "kind and timestamps must be scalar" do
+      result =
+        span()
+        |> Map.merge(%{
+          "kind" => %{"a" => 1},
+          "startTimeUnixNano" => %{"a" => 1},
+          "endTimeUnixNano" => ["1"]
+        })
+        |> sanitized_span()
+
+      refute Map.has_key?(result, "kind")
+      refute Map.has_key?(result, "startTimeUnixNano")
+      refute Map.has_key?(result, "endTimeUnixNano")
+    end
+
     test "only the listed span fields survive" do
       result =
         span()
@@ -377,13 +514,78 @@ defmodule AshEnterprise.Telemetry.OtlpIngestTest do
       refute inspect(body) =~ "forged"
     end
 
-    test "a failing collector does not fail the request" do
-      plug = fn _conn -> raise "collector down" end
+    test "a failing collector does not fail the request or stop later forwards" do
+      test_pid = self()
+
+      failing = fn _conn ->
+        send(test_pid, :collector_called)
+        raise "collector down"
+      end
 
       conn =
         payload([span()])
         |> request()
+        |> call(collector_url: "http://collector.test/v1/traces", req_options: [plug: failing])
+
+      assert conn.status == 200
+      assert_receive :collector_called, 2_000
+
+      working = fn conn ->
+        send(test_pid, :collector_recovered)
+        send_resp(conn, 200, "{}")
+      end
+
+      conn =
+        payload([span()])
+        |> request()
+        |> call(collector_url: "http://collector.test/v1/traces", req_options: [plug: working])
+
+      assert conn.status == 200
+      assert_receive :collector_recovered, 2_000
+    end
+
+    test "multi-byte text at the cap reaches the collector" do
+      test_pid = self()
+
+      plug = fn conn ->
+        {:ok, body, conn} = read_body(conn)
+        send(test_pid, {:forwarded, Jason.decode!(body)})
+        send_resp(conn, 200, "{}")
+      end
+
+      conn =
+        payload([span(name: String.duplicate("日本語", 1_000))])
+        |> request()
         |> call(collector_url: "http://collector.test/v1/traces", req_options: [plug: plug])
+
+      assert conn.status == 200
+      assert_receive {:forwarded, %{"resourceSpans" => [_ | _]}}, 2_000
+    end
+  end
+
+  describe "the client key" do
+    defp limited(conn, key) do
+      call(conn, rate_limit: 1, client_key: {__MODULE__, :client_key, [key]})
+    end
+
+    def client_key(_conn, key), do: key
+
+    def raising_client_key(_conn), do: raise("no key")
+
+    test "two clients behind one proxy get separate buckets" do
+      one = "client-#{System.unique_integer([:positive])}"
+      two = "client-#{System.unique_integer([:positive])}"
+
+      assert (payload([span()]) |> request() |> limited(one)).status == 200
+      assert (payload([span()]) |> request() |> limited(one)).status == 429
+      assert (payload([span()]) |> request() |> limited(two)).status == 200
+    end
+
+    test "a raising client key falls back to the remote address rather than failing" do
+      conn =
+        payload([span()])
+        |> request()
+        |> call(rate_limit: 100_000, client_key: {__MODULE__, :raising_client_key, []})
 
       assert conn.status == 200
     end

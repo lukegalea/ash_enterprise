@@ -27,3 +27,13 @@ defmodule AshEnterprise.Telemetry.FailingWorker do
   @impl Oban.Worker
   def perform(_job), do: raise("job failure")
 end
+
+defmodule AshEnterprise.Telemetry.ClauseFailingWorker do
+  @moduledoc false
+  use Oban.Worker, queue: :default
+
+  @impl Oban.Worker
+  def perform(job), do: only_never(job)
+
+  defp only_never(%{id: :never}), do: :ok
+end

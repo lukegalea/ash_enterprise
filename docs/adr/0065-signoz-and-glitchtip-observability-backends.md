@@ -60,12 +60,18 @@ Non-production telemetry is treated as sensitive but not secret, and browser tel
 
 - SQL text on database spans is parameterized and is a per-environment switch, off by default. Bound values are not sent.
 - The browser may contribute a parent trace context only when a deployment turns that on, and it is strictly validated. A
-  client's sampled flag is ignored, and correlation ids are server-minted and never accepted from the client.
+  client's sampled flag is replaced so it cannot suppress sampling, and `AshEnterprise.Telemetry.sampler/1` sends those
+  spans to the root sampler so it cannot force it either. Correlation ids are server-minted and never accepted from the
+  client.
+- HTTP callers are untrusted by default: an incoming `traceparent` becomes a link rather than a parent and `baggage` is
+  ignored. Query strings reach spans as parameter names only, and recorded stack frames carry arity, never arguments.
 - Browser spans arrive through a same-origin endpoint that checks method, content type and `Origin`, caps size and rate, and
   strips `ash.*`, `audit.*` and correlation attributes, because those are server-asserted facts. A forged browser span can
   add noise to a trace; it cannot claim to be server evidence or change an audit record. Spans are diagnostics, and the audit
   log remains the record.
-- Error events have LiveView parameters reduced to their keys, and request bodies and user PII scrubbed, before they leave.
+- Error events have LiveView parameters and request bodies reduced to their keys, query strings, stack-frame arguments, a
+  crashed process's state and user PII removed before they leave; if scrubbing fails the event is dropped.
+- Browser attribute values are limited to scalars, so a reserved key cannot arrive nested inside a list or map value.
 - The stack is bound to loopback or a private network. Two listeners ignore that today (SigNoz's OpAMP port and Keeper's raft
   port) and must be firewalled.
 
