@@ -143,7 +143,7 @@ jobs:
         run: mix deps.unlock --check-unused
 
       # --warnings-as-errors is the real static-analysis gate in this project.
-      # Elixir 1.18's type checker catches more than Dialyzer manages against
+      # Elixir's type checker catches more than Dialyzer manages against
       # Spark-generated code -- see docs/manifesto/07-what-we-do-not-have.md.
       - name: Compile with warnings as errors
         run: mix compile --warnings-as-errors
@@ -491,11 +491,16 @@ jobs:
           mix ash_enterprise.bpmn.publish
           mix ash_enterprise.demo --password-file "$E2E_DEMO_PASSWORD_FILE"
 
-      # Gates the legacy twins against priv/legacy/schema.sql and the strangler
-      # mappings against the seeded rows. No CI job reaches a real legacy
-      # database, so this cannot see drift in one.
+      # Measures the strangler mappings against the legacy fixture this job just
+      # built (priv/legacy/schema.sql and seed.sql): the twins against the
+      # fixture's columns and unique indexes, each mapping's column type against
+      # its attribute, and every mapping's casts evaluated over every seeded row.
+      # --strict makes a check that could not be measured fail the step instead
+      # of passing silently. It proves the mappings against the fixture only: no
+      # CI job reaches a real legacy database, so it cannot see drift in one, nor
+      # a stored value the fixture does not contain.
       - name: Check the strangler mappings against the legacy fixture
-        run: mix ash_strangler.check
+        run: mix ash_strangler.check --strict
 
       # Playwright's webServer starts the app (E2E_SERVER_COMMAND) and stops
       # it when the run ends.
