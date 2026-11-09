@@ -485,7 +485,15 @@ defmodule AshEnterpriseWeb.ComparisonLive do
   defp outcome_label(:skipped), do: dgettext("quality", "Skipped")
   defp outcome_label(:unmeasured), do: dgettext("quality", "Not measured")
   defp outcome_label(:missing), do: dgettext("quality", "No result")
-  defp outcome_label(:held), do: dgettext("quality", "Held")
+
+  defp outcome_label(:held) do
+    gettext_comment(
+      "A case outcome: the candidate resisted the injection case. A pass, not a wait."
+    )
+
+    dgettext("quality", "Held")
+  end
+
   defp outcome_label(:attacked), do: dgettext("quality", "Attack succeeded")
   defp outcome_label(_unknown), do: dgettext("quality", "Unknown result")
 
@@ -493,7 +501,11 @@ defmodule AshEnterpriseWeb.ComparisonLive do
   defp outcome_tone(outcome) when outcome in [:degraded, :failed, :errored, :attacked], do: "red"
   defp outcome_tone(_not_measured), do: "neutral"
 
-  defp verdict_label(:clear), do: dgettext("quality", "Clear")
+  defp verdict_label(:clear) do
+    gettext_comment("A safety verdict: no safety case failed. An adjective, not the verb.")
+    dgettext("quality", "Clear")
+  end
+
   defp verdict_label(:failed), do: dgettext("quality", "Failed")
   defp verdict_label(:not_measured), do: dgettext("quality", "Not measured")
 

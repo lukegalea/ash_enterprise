@@ -491,6 +491,12 @@ jobs:
           mix ash_enterprise.bpmn.publish
           mix ash_enterprise.demo --password-file "$E2E_DEMO_PASSWORD_FILE"
 
+      # Gates the legacy twins against priv/legacy/schema.sql and the strangler
+      # mappings against the seeded rows. No CI job reaches a real legacy
+      # database, so this cannot see drift in one.
+      - name: Check the strangler mappings against the legacy fixture
+        run: mix ash_strangler.check
+
       # Playwright's webServer starts the app (E2E_SERVER_COMMAND) and stops
       # it when the run ends.
       - name: Playwright
