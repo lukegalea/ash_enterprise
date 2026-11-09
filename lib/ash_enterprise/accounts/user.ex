@@ -307,7 +307,7 @@ defmodule AshEnterprise.Accounts.User do
       end
 
       # creates a reset token and invokes the relevant senders
-      run {AshAuthentication.Strategy.Password.RequestPasswordReset, action: :get_by_email}
+      run {AshAuthentication.Strategy.Password.RequestPasswordReset, action: :get_active_by_email}
     end
 
     read :sign_in_with_api_key do
@@ -318,7 +318,12 @@ defmodule AshEnterprise.Accounts.User do
     end
 
     read :get_by_email do
-      description "Looks up an active user by their email"
+      description "Looks up a user by their email"
+      get_by :email
+    end
+
+    read :get_active_by_email do
+      description "Looks up an active user by their email: the lookup behind a password reset."
       get_by :email
       prepare AshEnterprise.Accounts.Preparations.ActiveOnly
     end
