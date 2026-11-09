@@ -7,6 +7,9 @@ defmodule AshEnterprise.Repo.Migrations.IdentityHardening do
 
   use Ecto.Migration
 
+  # `prefix: prefix()` rather than the generated `prefix: "public"`, so foreign keys
+  # resolve in whatever schema the host migrates into (scripts/schema-portable-migrations.sh).
+
   def up do
     create table(:api_keys, primary_key: false) do
       add :version_number, :bigint, null: false, default: 1
@@ -35,7 +38,7 @@ defmodule AshEnterprise.Repo.Migrations.IdentityHardening do
             column: :id,
             name: "api_keys_user_id_fkey",
             type: :uuid,
-            prefix: "public",
+            prefix: prefix(),
             on_delete: :delete_all
           ),
           null: false
@@ -75,7 +78,7 @@ defmodule AshEnterprise.Repo.Migrations.IdentityHardening do
             column: :id,
             name: "break_glass_sessions_operator_id_fkey",
             type: :uuid,
-            prefix: "public",
+            prefix: prefix(),
             on_delete: :restrict
           ),
           null: false
@@ -85,7 +88,7 @@ defmodule AshEnterprise.Repo.Migrations.IdentityHardening do
             column: :id,
             name: "break_glass_sessions_subject_id_fkey",
             type: :uuid,
-            prefix: "public",
+            prefix: prefix(),
             on_delete: :restrict
           ),
           null: false
@@ -95,7 +98,7 @@ defmodule AshEnterprise.Repo.Migrations.IdentityHardening do
             column: :id,
             name: "break_glass_sessions_approver_id_fkey",
             type: :uuid,
-            prefix: "public",
+            prefix: prefix(),
             on_delete: :restrict
           ),
           null: false
