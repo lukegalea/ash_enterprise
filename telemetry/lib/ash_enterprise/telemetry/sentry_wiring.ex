@@ -17,6 +17,8 @@ defmodule AshEnterprise.Telemetry.SentryWiring do
       # Endpoint, after Plug.Parsers. No Sentry.PlugCapture on Bandit: the logger
       # handler catches crashes.
       plug Sentry.PlugContext, body_scrubber: {#{inspect(__MODULE__)}, :scrub_body}
+      # Browser reports, when `priv/js/sentry_browser.js` is in use: before Plug.Parsers.
+      plug AshEnterprise.Telemetry.SentryTunnel
 
       # live_session
       on_mount: [{Sentry.LiveViewHook, scrubber: {#{inspect(__MODULE__)}, :scrub_live_view_params, []}}]
@@ -54,7 +56,7 @@ defmodule AshEnterprise.Telemetry.SentryWiring do
   alias AshEnterprise.Telemetry.Settings
 
   @filtered "[Filtered]"
-  @sensitive_key ~r/pass|secret|token|auth|cookie|session|csrf|email|phone|ssn|credit|card|api[_-]?key|bearer|referr?er|_traceparent/i
+  @sensitive_key ~r/pass|secret|token|auth|cookie|session|csrf|email|phone|ssn|credit|card|api[_-]?key|bearer|referr?er|forwarded|real[_-]?ip|remote[_-]?(?:addr|port)|_traceparent/i
   @crash_tail ~r/\n(?:Last message|State:|Function:|\s+Args:)/
   @tuple_reason ~r/(\*\* \(stop\) \{:?[\w.]+).*/s
   @process_data [:genserver_state, "genserver_state", :last_message, "last_message"]

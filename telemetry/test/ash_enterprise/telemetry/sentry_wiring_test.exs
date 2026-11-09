@@ -140,6 +140,22 @@ defmodule AshEnterprise.Telemetry.SentryWiringTest do
       refute result.request.cookies == %{"s" => "1"}
     end
 
+    test "the client address does not leave in env or forwarding headers" do
+      request = %Sentry.Interfaces.Request{
+        env: %{"REMOTE_ADDR" => "203.0.113.9", "REMOTE_PORT" => 4000, "SERVER_NAME" => "app"},
+        headers: %{
+          "x-forwarded-for" => "203.0.113.9",
+          "forwarded" => "for=203.0.113.9",
+          "x-real-ip" => "203.0.113.9"
+        }
+      }
+
+      result = SentryWiring.before_send(event(request: request))
+
+      refute inspect(result.request) =~ "203.0.113.9"
+      assert result.request.env["SERVER_NAME"] == "app"
+    end
+
     test "a failure in scrubbing drops the event instead of sending it unscrubbed" do
       broken = %{event() | breadcrumbs: :not_a_list}
       assert SentryWiring.before_send(broken) == nil

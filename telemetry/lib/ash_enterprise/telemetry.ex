@@ -101,6 +101,7 @@ defmodule AshEnterprise.Telemetry do
   alias AshEnterprise.Telemetry.TraceSink
 
   @attached_key {__MODULE__, :attached?}
+  @default_dropped_paths ["/otel/v1/traces", "/sentry/tunnel"]
 
   @schema NimbleOptions.new!(
             otp_app: [
@@ -162,7 +163,7 @@ defmodule AshEnterprise.Telemetry do
             ],
             dropped_paths: [
               type: {:list, :string},
-              default: ["/otel/v1/traces"],
+              default: @default_dropped_paths,
               doc: "HTTP paths that get no server span, so a browser flush does not trace itself."
             ],
             crash_spans: [
@@ -256,6 +257,10 @@ defmodule AshEnterprise.Telemetry do
   """
   @spec sampler(:otel_sampler.sampler_spec()) :: {:parent_based, map()}
   def sampler(root), do: {:parent_based, %{root: root, remote_parent_sampled: root}}
+
+  @doc false
+  @spec default_dropped_paths() :: [String.t()]
+  def default_dropped_paths, do: @default_dropped_paths
 
   @doc false
   @spec bandit_options(keyword()) :: keyword()

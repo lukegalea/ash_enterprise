@@ -68,7 +68,7 @@ defmodule AshEnterprise.Telemetry.OtlpIngest do
   import Plug.Conn
 
   alias AshEnterprise.Telemetry.Attributes
-  alias AshEnterprise.Telemetry.OtlpIngest.Limiter
+  alias AshEnterprise.Telemetry.BrowserGuard
   alias AshEnterprise.Telemetry.OtlpIngest.Tasks
   alias AshEnterprise.Telemetry.Sanitize
   alias AshEnterprise.Telemetry.TraceSink
@@ -107,33 +107,30 @@ defmodule AshEnterprise.Telemetry.OtlpIngest do
   end
 
   defp handle(conn, config) do
-    with :ok <- check_method(conn),
+    with :ok <- BrowserGuard.check_method(conn),
          :ok <- check_content_type(conn),
-         :ok <- check_origin(conn, config),
-         :ok <- check_rate(conn, config),
-         {:ok, body, conn} <- read_capped(conn),
+         :ok <- BrowserGuard.check_origin(conn, config),
+         :ok <-
+           BrowserGuard.check_rate(
+             conn,
+             config,
+             :otlp,
+             @default_rate_limit,
+             @default_global_rate_limit
+           ),
+         {:ok, body, conn} <- BrowserGuard.read_capped(conn, @max_body_bytes),
          {:ok, payload} <- decode(body),
          :ok <- check_span_count(payload, config) do
       sanitized = sanitize(payload, trusted_attributes(conn, config))
       deliver(sanitized, config)
-      respond(conn, 200, "{}")
+      BrowserGuard.respond(conn, 200, "{}")
     else
-      {:reject, status} -> respond(conn, status, ~s({"error":"rejected"}))
-      {:reject, status, conn} -> respond(conn, status, ~s({"error":"rejected"}))
+      {:reject, status} -> BrowserGuard.respond(conn, status, ~s({"error":"rejected"}))
+      {:reject, status, conn} -> BrowserGuard.respond(conn, status, ~s({"error":"rejected"}))
     end
   end
 
-  defp respond(conn, status, body) do
-    conn
-    |> put_resp_content_type("application/json")
-    |> send_resp(status, body)
-    |> halt()
-  end
-
   # --- Checks --------------------------------------------------------------------
-
-  defp check_method(%{method: "POST"}), do: :ok
-  defp check_method(_conn), do: {:reject, 405}
 
   defp check_content_type(conn) do
     with ["application/json" <> _] <- get_req_header(conn, "content-type"),
@@ -141,75 +138,6 @@ defmodule AshEnterprise.Telemetry.OtlpIngest do
       :ok
     else
       _other -> {:reject, 415}
-    end
-  end
-
-  defp check_origin(conn, config) do
-    case get_req_header(conn, "origin") do
-      [origin] ->
-        if origin_allowed?(origin, conn, config), do: :ok, else: {:reject, 403}
-
-      _missing ->
-        {:reject, 403}
-    end
-  end
-
-  defp origin_allowed?(origin, conn, config) do
-    origin in Keyword.get(config, :allowed_origins, []) or
-      authority(origin) == host_authority(conn)
-  end
-
-  # Host plus any non-default port. The scheme is ignored because a TLS-terminating
-  # proxy puts http: on the conn while the browser sends https: in Origin.
-  defp authority(origin) do
-    case URI.parse(origin) do
-      %URI{host: host, port: port} when is_binary(host) -> normalize_authority(host, port)
-      _other -> nil
-    end
-  end
-
-  defp host_authority(conn) do
-    case get_req_header(conn, "host") do
-      [host_header] ->
-        case URI.parse("//" <> host_header) do
-          %URI{host: host, port: port} when is_binary(host) -> normalize_authority(host, port)
-          _other -> nil
-        end
-
-      _missing ->
-        normalize_authority(conn.host, conn.port)
-    end
-  end
-
-  defp normalize_authority(host, port) when port in [80, 443, nil], do: String.downcase(host)
-  defp normalize_authority(host, port), do: "#{String.downcase(host)}:#{port}"
-
-  defp check_rate(conn, config) do
-    per_client = Keyword.get(config, :rate_limit, @default_rate_limit)
-    global = Keyword.get(config, :global_rate_limit, @default_global_rate_limit)
-
-    if Limiter.allow?({:client, client_key(conn, config)}, per_client) and
-         Limiter.allow?(:global, global) do
-      :ok
-    else
-      {:reject, 429}
-    end
-  end
-
-  defp client_key(conn, config) do
-    case config[:client_key] do
-      {module, function, args} -> apply(module, function, [conn | args]) || conn.remote_ip
-      nil -> conn.remote_ip
-    end
-  catch
-    _kind, _reason -> conn.remote_ip
-  end
-
-  defp read_capped(conn) do
-    case read_body(conn, length: @max_body_bytes, read_length: @max_body_bytes) do
-      {:ok, body, conn} -> {:ok, body, conn}
-      {:more, _partial, conn} -> {:reject, 413, conn}
-      {:error, _reason} -> {:reject, 400}
     end
   end
 

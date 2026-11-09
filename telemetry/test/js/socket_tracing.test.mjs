@@ -2,7 +2,10 @@
 // tracer and serializer, so it needs no OpenTelemetry or Phoenix packages.
 
 import assert from "node:assert/strict"
+import {readFileSync} from "node:fs"
 import {test} from "node:test"
+
+import {addTraceTags, setActiveSpanSource, traceTagsBeforeSend} from "../../priv/js/browser_error_tags.js"
 
 import {
   controlFromEvent,
@@ -155,7 +158,12 @@ const element = attributes => ({
   getAttribute: name => attributes[name] ?? null,
   textContent: attributes.text ?? "",
   matches: selector => attributes.matches === selector || attributes.matches === true,
-  tagName: attributes.tagName ?? "BUTTON"
+  tagName: attributes.tagName ?? "BUTTON",
+  querySelectorAll: selector =>
+    selector === "slot"
+      ? (attributes.slots ?? []).map(nodes => ({assignedNodes: () => nodes}))
+      : [],
+  getRootNode: () => (attributes.host ? {host: attributes.host} : {})
 })
 
 test("a control's label is its aria-label or text, whitespace-collapsed and truncated", () => {
@@ -257,4 +265,118 @@ test("a button's own text is used, capped", () => {
   assert.equal(controlLabel(element({tagName: "BUTTON", text: "Save"})), "Save")
   assert.equal(controlLabel(element({tagName: "ATLAS-BUTTON", text: "Save"})), "Save")
   assert.equal(controlLabel(element({tagName: "BUTTON", text: "x".repeat(500)})).length, 80)
+})
+
+test("a shadow button takes its name from the slotted content", () => {
+  const button = element({matches: true, slots: [[{textContent: "  Save \n changes "}]]})
+  assert.equal(controlFromEvent({composedPath: () => [button], target: button}), "Save changes")
+})
+
+test("a button in any web component is named by its slot, whatever the host's tag", () => {
+  const host = element({tagName: "MY-BUTTON", text: "ignored host text"})
+  const button = element({matches: true, slots: [[{textContent: "Go"}]], host})
+  assert.equal(controlLabel(button), "Go")
+})
+
+test("an icon-only shadow button takes the host's accessible name", () => {
+  const host = element({tagName: "ATLAS-BUTTON", "aria-label": "Close"})
+  const button = element({matches: true, slots: [[], []], host})
+  assert.equal(controlLabel(button), "Close")
+})
+
+test("a shadow link takes the name of its button-like host", () => {
+  const host = element({tagName: "ATLAS-BUTTON", text: "Award"})
+  const link = element({tagName: "A", matches: true, slots: [[{textContent: "Award"}]], host})
+  assert.equal(controlLabel(link), "Award")
+})
+
+test("a host that is a row gives nothing, even through a slot", () => {
+  const host = element({tagName: "VENDOR-ROW", role: "row", text: "Acme Corp"})
+  const button = element({matches: true, slots: [[{textContent: "Acme Corp"}]], host})
+  assert.equal(controlLabel(button), undefined)
+})
+
+test("slotted row content never names a control", () => {
+  const row = element({tagName: "TR", text: "Acme Corp"})
+  const button = element({matches: true, slots: [[row]]})
+  assert.equal(controlLabel(button), undefined)
+})
+
+test("a host's text is not used unless the host is itself a named control", () => {
+  const host = element({tagName: "VENDOR-CARD", text: "Acme Corp"})
+  const button = element({matches: true, slots: [[]], host})
+  assert.equal(controlLabel(button), undefined)
+})
+
+const liveSpan = (traceId = "0af7651916cd43dd8448eb211c80319c", spanId = "b7ad6b7169203331") => ({
+  spanContext: () => ({traceId, spanId, traceFlags: 1})
+})
+
+test("an error event gets the trace and span of the active span", () => {
+  const event = addTraceTags({message: "x"}, liveSpan())
+  assert.deepEqual(event.tags, {
+    trace_id: "0af7651916cd43dd8448eb211c80319c",
+    span_id: "b7ad6b7169203331"
+  })
+})
+
+test("tags already on the event are kept", () => {
+  const event = addTraceTags({tags: {page: "/a", trace_id: "mine"}}, liveSpan())
+  assert.equal(event.tags.page, "/a")
+  assert.equal(event.tags.trace_id, "mine")
+})
+
+test("with no span, or an invalid one, the event is unchanged", () => {
+  assert.deepEqual(addTraceTags({message: "x"}, undefined), {message: "x"})
+  const zeros = liveSpan("0".repeat(32), "0".repeat(16))
+  assert.deepEqual(addTraceTags({message: "x"}, zeros), {message: "x"})
+})
+
+test("beforeSend reads the registered source, and survives one that throws", () => {
+  setActiveSpanSource(() => liveSpan())
+  assert.ok(traceTagsBeforeSend({}).tags.trace_id)
+
+  setActiveSpanSource(() => {
+    throw new Error("no")
+  })
+  assert.deepEqual(traceTagsBeforeSend({message: "x"}), {message: "x"})
+  setActiveSpanSource(() => undefined)
+})
+
+test("the current span is the latest pending push, and the reply's during its callback", () => {
+  const {tracer, socket} = setup()
+  assert.equal(socket.currentSpan(), undefined)
+
+  push(socket, {ref: "1"})
+  push(socket, {ref: "2"})
+  assert.equal(socket.currentSpan(), tracer.spans[1])
+
+  let during
+  socket.decode({event: "phx_reply", ref: "2", topic: "lv:1", payload: {}}, () => {
+    during = socket.currentSpan()
+  })
+
+  assert.equal(during, tracer.spans[1])
+  assert.equal(tracer.spans[1].ended, true)
+  assert.equal(socket.currentSpan(), tracer.spans[0])
+})
+
+test("a throwing reply callback still ends the span", () => {
+  const {tracer, socket} = setup()
+  push(socket, {ref: "1"})
+
+  assert.throws(() =>
+    socket.decode({event: "phx_reply", ref: "1", topic: "lv:1", payload: {}}, () => {
+      throw new Error("patch failed")
+    })
+  )
+  assert.equal(tracer.spans[0].ended, true)
+  assert.equal(socket.currentSpan(), undefined)
+})
+
+test("the usage comments give the path a sparse git dependency lands at", () => {
+  for (const file of ["otel_browser.js", "sentry_browser.js"]) {
+    const source = readFileSync(new URL(`../../priv/js/${file}`, import.meta.url), "utf8")
+    assert.match(source, /deps\/ash_enterprise_telemetry\/telemetry\/priv\/js\//, file)
+  }
 })

@@ -130,6 +130,17 @@ defmodule AshEnterprise.Telemetry.ObanTest do
       refute Map.has_key?(job.meta, "correlation_id")
     end
 
+    test "a string-keyed correlation id and traceparent are kept once, unchanged" do
+      test_key!()
+      meta = %{"correlation_id" => "existing", "traceparent" => "kept"}
+      {changeset, _ref} = new_job(meta)
+
+      Correlation.put("current")
+      job = Oban.insert!(changeset)
+
+      assert job.meta == meta
+    end
+
     test "an existing traceparent still gets the correlation id" do
       test_key!()
       id = Correlation.start_new()

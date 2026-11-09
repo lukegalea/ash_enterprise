@@ -70,6 +70,7 @@ or passes `{module, function, args}` to decide per request.
 |---|---|---|
 | Browser span ingest | Endpoint, before `Plug.Parsers` | `OtlpIngest` |
 | Error reporting | `config :sentry`, Endpoint, `live_session` | `SentryWiring` |
+| Browser error reports | Endpoint, before `Plug.Parsers` | `SentryTunnel` |
 | Background metrics | `config :ash_enterprise_telemetry, :background_probe` | `BackgroundProbe` |
 | Work in a `Task` | around the spawn | `TaskContext` |
 | Trace on a Postgres session | `Repo.on_transaction_begin/1` | `Postgres` |

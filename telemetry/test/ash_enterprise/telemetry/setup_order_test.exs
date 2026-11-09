@@ -76,6 +76,11 @@ defmodule AshEnterprise.Telemetry.SetupOrderTest do
            ])
   end
 
+  test "by default neither browser delivery path traces itself" do
+    assert "/otel/v1/traces" in AshEnterprise.Telemetry.default_dropped_paths()
+    assert "/sentry/tunnel" in AshEnterprise.Telemetry.default_dropped_paths()
+  end
+
   test "setup is idempotent" do
     assert :ok =
              AshEnterprise.Telemetry.setup(
