@@ -3,8 +3,7 @@ defmodule Mix.Tasks.AshEnterprise.Trace do
 
   @moduledoc """
   Query the dev-loop trace ring (`AshEnterprise.Telemetry.TraceSink`) — the
-  bounded in-BEAM store fed by the ordinary OpenTelemetry pipeline
-  (docs/research/trace-storage-dev-to-prod.md §5).
+  bounded in-BEAM store fed by the ordinary OpenTelemetry pipeline.
 
       mix ash_enterprise.trace                       # last 5 traces, compact JSON
       mix ash_enterprise.trace --last 20 --pretty
@@ -60,8 +59,7 @@ defmodule Mix.Tasks.AshEnterprise.Trace do
     end
 
     # The sink is pure ETS with no dependency on the Repo or the endpoint, so
-    # the task starts only that child rather than the whole tree (iron law #23;
-    # docs/reviews/iron-law-audit.md, fix item 6). One honest consequence: no
+    # the task starts only that child rather than the whole tree. One honest consequence: no
     # OpenTelemetry pipeline is attached here, so this VM's ring collects no
     # boot spans of its own -- the task reads whatever the VM it boots into has
     # recorded, which for a fresh `mix` VM is nothing. Traces from a *running*
@@ -71,8 +69,7 @@ defmodule Mix.Tasks.AshEnterprise.Trace do
     unless TraceSink.running?() do
       Mix.raise("""
       The trace sink is not running. It starts only where
-      `config :ash_enterprise, :trace_sink?` is true (config/dev.exs, config/test.exs).
-      See docs/research/trace-storage-dev-to-prod.md §5.
+      `config :ash_enterprise_telemetry, :trace_sink?` is true.
       """)
     end
 
@@ -92,7 +89,7 @@ defmodule Mix.Tasks.AshEnterprise.Trace do
   # Honours the same config gate the application supervisor uses, so the sink
   # never runs where the app itself would not have started it.
   defp start_sink do
-    if Application.get_env(:ash_enterprise, :trace_sink?, false) do
+    if Application.get_env(:ash_enterprise_telemetry, :trace_sink?, false) do
       case TraceSink.start_link() do
         {:ok, _pid} -> :ok
         {:error, {:already_started, _pid}} -> :ok

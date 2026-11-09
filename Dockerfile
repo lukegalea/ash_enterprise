@@ -30,6 +30,7 @@ ENV MIX_ENV="prod"
 # Dependencies are copied and fetched before the application source, so an
 # application-only change reuses the cached dependency layer.
 COPY mix.exs mix.lock ./
+COPY telemetry telemetry
 RUN mix deps.get --only $MIX_ENV
 RUN mkdir config
 

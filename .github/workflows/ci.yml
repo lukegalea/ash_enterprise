@@ -512,6 +512,73 @@ jobs:
           path: assets/test-results
           retention-days: 7
 
+  telemetry:
+    name: Telemetry package
+    runs-on: ubuntu-latest
+    # telemetry/ is a package with its own mix project and lock, consumed by the
+    # application by path and published through a sparse git dep. Its suite needs
+    # no platform and the main job never runs it.
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg18
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      PGHOST: localhost
+      PGPORT: "5432"
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      MIX_ENV: test
+
+    defaults:
+      run:
+        working-directory: telemetry
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: beam
+        uses: ./.github/actions/setup-beam
+
+      - name: Restore telemetry dependency and build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            telemetry/deps
+            telemetry/_build
+          key: ${{ runner.os }}-telemetry-${{ steps.beam.outputs.elixir-version }}-${{ hashFiles('telemetry/mix.lock') }}
+          restore-keys: ${{ runner.os }}-telemetry-${{ steps.beam.outputs.elixir-version }}-
+
+      - run: mix deps.get
+
+      # Dependencies first, so a dependency's warning never fails the gate below.
+      - run: mix deps.compile
+
+      - name: Check formatting
+        run: mix format --check-formatted
+
+      - name: Compile with warnings as errors
+        run: mix compile --warnings-as-errors
+
+      - name: Test
+        run: mix test
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Browser tracing tests
+        run: node --test test/js/*.mjs
+
   battery:
     name: Cross-substrate integration battery
     runs-on: ubuntu-latest

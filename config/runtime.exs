@@ -552,11 +552,13 @@ end
 # flowing; leave it unset and nothing changes. OTEL_EXPORTER_OTLP_HEADERS carries
 # credentials for a hosted collector, in the W3C `key=value,key=value` form.
 #
-# See docs/adr/0018-grafana-lgtm-observability-backend.md for where these land.
+# See docs/adr/0065-signoz-and-glitchtip-observability-backends.md for where these land.
 if otlp_endpoint = System.get_env("OTEL_EXPORTER_OTLP_ENDPOINT") do
   config :opentelemetry,
-    span_processor: :batch,
-    traces_exporter: :otlp
+    processors:
+      AshEnterprise.Telemetry.processors(
+        trace_sink: Application.get_env(:ash_enterprise_telemetry, :trace_sink?, false)
+      )
 
   config :opentelemetry_exporter,
     otlp_protocol: :http_protobuf,

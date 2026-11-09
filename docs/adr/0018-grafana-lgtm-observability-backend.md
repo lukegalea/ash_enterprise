@@ -1,6 +1,6 @@
 # ADR 0018 — Grafana LGTM as the observability backend
 
-- **Status:** proposed
+- **Status:** superseded by [ADR 0065](0065-signoz-and-glitchtip-observability-backends.md) (2026-11-09)
 - **Date:** 2026-08-18
 
 ## Context

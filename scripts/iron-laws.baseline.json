@@ -1,7 +1,7 @@
 [
  {
   "law": "10",
-  "file": "lib/mix/tasks/ash_enterprise.trace.ex",
+  "file": "telemetry/lib/mix/tasks/ash_enterprise.trace.ex",
   "text": "module = String.to_atom(@trace_explain_module)",
   "reason": "Compile-time constant (a module attribute naming an optional dev-only module), the exception the law names. It stays a string so the WAE compile under MIX_ENV=test never references the absent module."
  },
@@ -130,5 +130,29 @@
   "file": "lib/ash_enterprise_web/live/explorer_live.ex",
   "text": "def handle_event(\"trace\", %{\"trace\" => %{\"q\" => q}}, socket) do",
   "reason": "Inspect only: no handler writes. trace and select only patch the URL; handle_params then reads the trace (Execution.trace, the Entry trace action, each source read as the signed-in user, so each row is checked by its own resource's policy) and the selected record (Explorer.detail/2, Ash.get as the user). more re-reads the same trace as the user with the next cursors, and import_error only notes that the canvas could not draw. The detector only looks for Ash.can? in the file."
+ },
+ {
+  "law": "07",
+  "file": "telemetry/test/support/test_worker.ex",
+  "text": "use Oban.Worker, queue: :default",
+  "reason": "A test fixture whose whole job is to fail, raise or succeed on demand. Re-running it is the behaviour under test, so uniqueness would hide the retries the suite asserts on."
+ },
+ {
+  "law": "11",
+  "file": "telemetry/lib/ash_enterprise/telemetry/background_probe.ex",
+  "text": "def handle_event(",
+  "reason": "A :telemetry handler, not a LiveView event. It receives Oban telemetry inside the BEAM; no client reaches it."
+ },
+ {
+  "law": "11",
+  "file": "telemetry/lib/ash_enterprise/telemetry/bandit_spans.ex",
+  "text": "def handle_event([:bandit, :request, suffix] = event, measurements, meta, config) do",
+  "reason": "A :telemetry handler, not a LiveView event. It receives Bandit telemetry inside the BEAM; no client reaches it."
+ },
+ {
+  "law": "11",
+  "file": "telemetry/test/support/test_endpoint.ex",
+  "text": "def handle_event(\"raise\", _params, _socket), do: raise(\"boom in handle_event\")",
+  "reason": "A test fixture LiveView that exists to crash, so the suite can assert the exception path detaches trace context. It is only compiled in the package's test environment."
  }
 ]

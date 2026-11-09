@@ -49,7 +49,7 @@ The concrete exit: which files change, and how much work it is.
 | [0015](0015-approvals-stay-in-ash.md) | Approvals and process modelling stay inside Ash | proposed |
 | [0016](0016-unleash-for-feature-flags.md) | Feature flags: FunWithFlags, not Unleash | proposed |
 | [0017](0017-entity-resolution-in-ash.md) | Entity resolution as Ash calculations over CDM resources | proposed |
-| [0018](0018-grafana-lgtm-observability-backend.md) | Grafana LGTM as the observability backend | proposed |
+| [0018](0018-grafana-lgtm-observability-backend.md) | Grafana LGTM as the observability backend | superseded by 0065 |
 | [0019](0019-api-versioning-as-presentation-contract.md) | API versioning is a presentation contract, not a schema fork | proposed |
 | [0020](0020-tamper-evident-audit-log.md) | The audit log is tamper-evident, by two mechanisms | accepted |
 | [0021](0021-control-mapping-is-generated.md) | The compliance control map is generated from the ledger | accepted |
@@ -96,6 +96,7 @@ The concrete exit: which files change, and how much work it is.
 | [0062](0062-planning-proposes-declarations-and-people-commit.md) | Planning proposes; declarations and people commit | accepted, not built (2026-11-05) |
 | [0063](0063-declared-operations-are-a-package.md) | Declared provider operations are a package (`ash_operations`); the credential registry is the reference | proposed (2026-11-06; registry connector and webhook ingress built) |
 | [0064](0064-production-environments-are-a-separate-domain-from-compliance.md) | Production environments are a separate domain from compliance | accepted, not built (2026-11-09; declaration built in `ash_compliance`, not yet split) |
+| [0065](0065-signoz-and-glitchtip-observability-backends.md) | SigNoz for traces, logs and metrics; GlitchTip for error triage | proposed (2026-11-09; instrumentation package built) |
 
 Records 0001–0005, 0007–0009, 0020–0023, 0027–0031, 0033–0037, 0050–0054, 0059 and 0061 are `accepted` and describe code that exists. 0006 is superseded by 0050. 0049 is accepted and in progress: Phase 0 (PostgreSQL 18) and the System One fact cut-over have landed. 0060 is accepted and in progress: its phases 1 (ash_a2ui) and 2 (this repository) have landed; the downstream host's phases and CLDR formatting are not built.
 **0038–0047 are `accepted, not built (2026-09-28)`:** the decision is taken and none of it is built. A record with that
