@@ -17,8 +17,16 @@ defmodule AshEnterprise.Telemetry.OtlpIngest.Tasks do
 
   @spec forward(String.t(), map(), keyword()) :: :ok | {:error, term()}
   def forward(url, payload, req_options) do
-    fun = fn -> post(url, payload, req_options) end
+    start(fn -> post([url: url, json: payload], req_options) end)
+  end
 
+  @spec forward_raw(String.t(), iodata(), String.t(), keyword()) :: :ok | {:error, term()}
+  def forward_raw(url, body, content_type, req_options) do
+    request = [url: url, body: body, headers: [{"content-type", content_type}]]
+    start(fn -> post(request, req_options) end)
+  end
+
+  defp start(fun) do
     case Task.Supervisor.start_child(@supervisor, fun) do
       {:ok, _pid} -> :ok
       {:ok, _pid, _info} -> :ok
@@ -29,8 +37,9 @@ defmodule AshEnterprise.Telemetry.OtlpIngest.Tasks do
     :exit, reason -> {:error, reason}
   end
 
-  defp post(url, payload, req_options) do
-    [url: url, json: payload, retry: false, receive_timeout: @timeout_ms]
+  defp post(request, req_options) do
+    request
+    |> Keyword.merge(retry: false, receive_timeout: @timeout_ms)
     |> Keyword.merge(req_options)
     |> Req.post()
   end

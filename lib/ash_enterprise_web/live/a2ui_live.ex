@@ -151,13 +151,21 @@ defmodule AshEnterpriseWeb.A2uiLive do
     ## The chain, and why every link is declared rather than inferred
 
         legacy INSERT
-          -> AFTER trigger on legacy.users        (`notify? true` on the mapping)
-          -> pg_notify, on commit only
-          -> AshStrangler.Listener                (started in AshEnterprise.Application)
-          -> Ash.Notifier.Notification
+          -> ledger AFTER trigger on legacy.users (`ledger? true` on the mapping): a durable
+                                                  ledger row, then pg_notify 'wake:<id>'
+          -> AshStrangler.Listener                (started in AshEnterprise.Application;
+                                                   nudges the drain, builds no notification)
+          -> AshEnterprise.Ledger.UserDrainWorker (claim, ingest, mark: one transaction)
+          -> COMMIT
+          -> AshEnterprise.Ledger.UserAnnouncer   (one notification per drained event, via
+                                                   AshStrangler.Listener.notify/2)
           -> `pub_sub` block on AshEnterprise.Legacy.User
           -> "legacy_users:created" on AshEnterprise.PubSub
           -> here
+
+    The announcer is the link that is easy to lose. A `ledger?` source never reaches the
+    resource's notifiers on its own, so without it this surface would stop updating and
+    nothing would say so.
 
     `AshA2ui.LiveRenderer` does not introspect topics -- it cannot know which
     publications a resource declares -- so they have to come from somewhere.
@@ -291,8 +299,9 @@ defmodule AshEnterpriseWeb.A2uiLive do
     module. This one subscribes to `projected_users:*` because
     `AshEnterprise.Accounts.ProjectedUser` declares those publications, not because anything
     knows a legacy database exists. The write that triggers the broadcast came from
-    `AshEnterprise.Legacy.Projection`, and this surface cannot tell it apart from a create made
-    by a person in the admin UI — which is the property that makes the projection worth having.
+    `AshEnterprise.Ledger.UserIngestion`, run by the change ledger's drain, and this surface
+    cannot tell it apart from a create made by a person in the admin UI — which is the property
+    that makes the projection worth having.
 
     The consequence worth stating: on the legacy surface the notification has to be
     *synthesized*, because no Ash action ran and `Ash.Notifier` dereferences
@@ -301,8 +310,8 @@ defmodule AshEnterpriseWeb.A2uiLive do
 
     ## The lag is on screen
 
-    A projection is not synchronous with the legacy write — the trigger fires on commit, the
-    listener re-reads, the projector writes — so `projected_at` is a column rather than an
+    A projection is not synchronous with the legacy write — the wake is sent when the
+    legacy transaction commits, the listener nudges the drain, the drain writes — so `projected_at` is a column rather than an
     implementation detail. Watching the two surfaces update a beat apart is the honest picture
     of what this design gives you, and hiding it would be claiming a guarantee it does not make.
     """

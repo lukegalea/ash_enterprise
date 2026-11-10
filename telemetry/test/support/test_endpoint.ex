@@ -22,7 +22,7 @@ defmodule AshEnterprise.Telemetry.TestLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    {:ok, assign(socket, :value, "none")}
+    {:ok, assign(socket, value: "none", api_secret: "assign-secret-value")}
   end
 
   @impl true
@@ -35,6 +35,13 @@ defmodule AshEnterprise.Telemetry.TestLive do
   @impl true
   def handle_event("raise", _params, _socket), do: raise("boom in handle_event")
 
+  def handle_event("clause", params, socket), do: only_never(params, socket)
+
+  def handle_event("match", %{"password" => password}, socket) do
+    :ok = apply(__MODULE__, :echo, [{:error, password}])
+    {:noreply, socket}
+  end
+
   def handle_event("trace", _params, socket) do
     OpenTelemetry.Tracer.with_span "inside.event" do
       {:noreply, assign(socket, :value, "traced")}
@@ -42,6 +49,10 @@ defmodule AshEnterprise.Telemetry.TestLive do
   end
 
   def handle_event(_event, _params, socket), do: {:noreply, socket}
+
+  def echo(value), do: value
+
+  defp only_never(%{"never" => true}, socket), do: {:noreply, socket}
 end
 
 defmodule AshEnterprise.Telemetry.TestRouter do
@@ -68,4 +79,45 @@ defmodule AshEnterprise.Telemetry.TestEndpoint do
 
   plug(Plug.Session, @session_options)
   plug(AshEnterprise.Telemetry.TestRouter)
+end
+
+defmodule AshEnterprise.Telemetry.BanditProbePlug do
+  @moduledoc false
+  @behaviour Plug
+
+  import Plug.Conn
+
+  @impl true
+  def init(opts), do: opts
+
+  @impl true
+  def call(%{request_path: "/clause" <> _} = conn, _opts) do
+    only_never(apply(__MODULE__, :echo, ["plug-arg-secret"]))
+    send_resp(conn, 200, "")
+  end
+
+  def call(%{request_path: "/match" <> _} = conn, _opts) do
+    :ok = apply(__MODULE__, :echo, [{:error, "plug-match-secret"}])
+    send_resp(conn, 200, "")
+  end
+
+  def call(conn, _opts) do
+    span = OpenTelemetry.Tracer.current_span_ctx()
+
+    body =
+      Jason.encode!(%{
+        trace_id: span |> OpenTelemetry.Span.trace_id() |> hex(),
+        recording: OpenTelemetry.Span.is_recording(span),
+        baggage: OpenTelemetry.Baggage.get_all() |> Map.keys() |> Enum.map(&to_string/1)
+      })
+
+    send_resp(conn, 200, body)
+  end
+
+  def echo(value), do: value
+
+  defp only_never(:never), do: :ok
+
+  defp hex(trace_id),
+    do: trace_id |> Integer.to_string(16) |> String.downcase() |> String.pad_leading(32, "0")
 end

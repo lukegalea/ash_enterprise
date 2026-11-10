@@ -175,8 +175,10 @@ defmodule AshEnterpriseWeb.Router do
       live "/app/mdm/golden", A2uiLive.MdmGolden
 
       # The same people, over a table this application owns rather than a view over the legacy
-      # one. Both are live, and the pair is the demonstration -- see
-      # AshEnterprise.Legacy.Projection.
+      # one. Both are live, and the pair is the demonstration. The table is written by the
+      # change ledger's drain (AshEnterprise.Ledger.UserIngestion); the view's surface is made
+      # live by the announcement the drain dispatches after each committed batch
+      # (AshEnterprise.Ledger.UserAnnouncer).
       live "/app/directory", A2uiLive.ProjectedUsers
     end
 

@@ -7,9 +7,14 @@ defmodule AshEnterprise.Telemetry.BanditSpans do
   #     span flush does not trace itself. The span is never created, because a
   #     processor cannot drop one without also skipping the processors after it;
   #   * remembers the failing span before the library closes it;
+  #   * replaces the query string on the span with its parameter names, because a
+  #     reset token or LiveView's `_csrf_token` is a value, and the library puts the
+  #     raw string on every request;
+  #   * records a failure without its arguments or the values its message prints;
   #   * cannot be detached by a failure.
 
   alias AshEnterprise.Telemetry.FailedSpan
+  alias AshEnterprise.Telemetry.Sanitize
   alias AshEnterprise.Telemetry.Settings
 
   @skip {__MODULE__, :skip}
@@ -48,13 +53,37 @@ defmodule AshEnterprise.Telemetry.BanditSpans do
 
       true ->
         if suffix == :exception, do: FailedSpan.remember()
-        OpentelemetryBandit.handle_request(event, measurements, meta, config)
+
+        OpentelemetryBandit.handle_request(
+          event,
+          measurements,
+          safe_failure(meta, suffix),
+          config
+        )
+
+        if suffix == :start, do: scrub_query(meta)
     end
 
     :ok
   catch
     _kind, _reason -> :ok
   end
+
+  defp safe_failure(%{exception: exception, stacktrace: stacktrace} = meta, :exception) do
+    %{
+      meta
+      | exception: Sanitize.exception(exception),
+        stacktrace: Sanitize.stacktrace(stacktrace)
+    }
+  end
+
+  defp safe_failure(meta, _suffix), do: meta
+
+  defp scrub_query(%{conn: %{query_string: query}}) when query != "" do
+    OpenTelemetry.Tracer.set_attribute(:"url.query", Sanitize.query(query))
+  end
+
+  defp scrub_query(_meta), do: :ok
 
   defp dropped?(%{conn: %{request_path: path}}), do: path in Settings.dropped_paths()
   defp dropped?(_meta), do: false

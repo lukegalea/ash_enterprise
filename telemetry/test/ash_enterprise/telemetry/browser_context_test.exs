@@ -107,7 +107,7 @@ defmodule AshEnterprise.Telemetry.BrowserContextTest do
       assert handle_event_span(key, event).parent_span_id == :undefined
     end
 
-    test "the client's sampled flag is ignored" do
+    test "a client's flags do not change whether the parent is adopted" do
       key = test_key!()
 
       for flags <- ["00", "01", "ff"] do
@@ -389,12 +389,30 @@ defmodule AshEnterprise.Telemetry.BrowserContextTest do
              )
     end
 
-    test "a raising correlation module does not crash the event or detach the handler" do
+    test "a raising correlation module does not crash the event, detach the handler or leak context" do
       original = Settings.correlation()
       Settings.put(%{correlation: RaisingCorrelation, browser_context?: true})
 
       try do
-        assert run_event(event_meta(unique_event("corr-fail"), %{})) == :ok
+        tp = traceparent()
+
+        assert BrowserContext.handle_before(
+                 [:phoenix, :live_view, :handle_event, :start],
+                 %{},
+                 Map.put(
+                   event_meta(unique_event("corr-fail"), %{"_traceparent" => tp.header}),
+                   :telemetry_span_context,
+                   make_ref()
+                 ),
+                 nil
+               ) == :ok
+
+        assert_no_active_context()
+
+        assert run_event(event_meta(unique_event("corr-fail"), %{"_traceparent" => tp.header})) ==
+                 :ok
+
+        assert_no_active_context()
 
         assert Enum.any?(
                  :telemetry.list_handlers([:phoenix, :live_view, :handle_event, :start]),
@@ -432,6 +450,30 @@ defmodule AshEnterprise.Telemetry.BrowserContextTest do
     end
   end
 
+  test "an oversized multi-byte attribute is cut on a character boundary" do
+    key = test_key!()
+    value = String.duplicate("日本語", 200)
+
+    Settings.put(%{
+      browser_context?: true,
+      event_attributes: fn _event, _params, _socket -> %{"ui.action.name" => value} end
+    })
+
+    try do
+      event = unique_event("utf8b")
+      run_event(event_meta(event, %{}))
+      span = handle_event_span(key, event)
+      name = attr(span, "ui.action.name")
+      assert String.valid?(name)
+      assert byte_size(name) <= 256
+    after
+      Settings.put(%{
+        browser_context?: true,
+        event_attributes: {AshEnterprise.Telemetry.TestEventAttributes, :resolve, []}
+      })
+    end
+  end
+
   describe "a real LiveView" do
     setup do
       {:ok, conn: build_conn()}
@@ -451,7 +493,7 @@ defmodule AshEnterprise.Telemetry.BrowserContextTest do
       assert Enum.all?(trace.spans, &is_binary(attr(&1, "ash.correlation_id")))
     end
 
-    test "after a raising event, the crashed view's next mount starts clean", %{conn: conn} do
+    test "after a raising event, the next mount starts clean", %{conn: conn} do
       {:ok, view, _html} = live(conn, "/live")
       tp = traceparent()
 
@@ -460,6 +502,96 @@ defmodule AshEnterprise.Telemetry.BrowserContextTest do
 
       trace = eventually(fn -> AshEnterprise.Telemetry.TraceSink.trace(tp.trace_id) end)
       assert Enum.any?(trace.spans, &match?([%{name: "exception"} | _], &1.events))
+
+      {:ok, next_view, _html} = live(conn, "/live")
+      event = unique_event("after-crash")
+      render_click(next_view, event, %{})
+
+      span =
+        eventually(fn ->
+          Enum.find(AshEnterprise.Telemetry.TraceSink.last(500), fn candidate ->
+            Enum.any?(candidate.spans, &String.ends_with?(&1.name, "handle_event##{event}"))
+          end)
+        end)
+
+      refute span.trace_id == tp.trace_id
+      refute Enum.any?(span.spans, &(&1.parent_span_id == tp.span_id))
+    end
+
+    test "a handle_event crash exports neither form values nor assigns", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/live")
+      tp = traceparent()
+
+      Process.flag(:trap_exit, true)
+
+      catch_exit(
+        render_click(view, "clause", %{
+          "_traceparent" => tp.header,
+          "password" => "form-secret-value"
+        })
+      )
+
+      trace = eventually(fn -> AshEnterprise.Telemetry.TraceSink.trace(tp.trace_id) end)
+      [%{attributes: attributes}] = Enum.flat_map(trace.spans, & &1.events)
+
+      refute attributes[:"exception.stacktrace"] =~ "form-secret-value"
+      refute attributes[:"exception.stacktrace"] =~ "assign-secret-value"
+      assert attributes[:"exception.stacktrace"] =~ "only_never/2"
+    end
+
+    test "a MatchError over a form value does not print the value", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/live")
+      tp = traceparent()
+
+      Process.flag(:trap_exit, true)
+
+      catch_exit(
+        render_click(view, "match", %{
+          "_traceparent" => tp.header,
+          "password" => "match-secret-value"
+        })
+      )
+
+      trace = eventually(fn -> AshEnterprise.Telemetry.TraceSink.trace(tp.trace_id) end)
+      [%{attributes: attributes}] = Enum.flat_map(trace.spans, & &1.events)
+
+      refute attributes[:"exception.message"] =~ "match-secret-value"
+    end
+  end
+
+  describe "sampling a forged parent" do
+    defp sampled_decision(spec, tp) do
+      ctx =
+        :otel_propagator_text_map.extract_to(OpenTelemetry.Ctx.new(), [{"traceparent", tp.header}])
+
+      sampler = :otel_sampler.new(spec)
+
+      {decision, _attributes, _tracestate} =
+        :otel_sampler.should_sample(sampler, ctx, tp.trace_id, [], "span", :server, %{})
+
+      decision
+    end
+
+    test "the SDK's default sampler would obey the forced flag, which is why sampler/1 exists" do
+      assert sampled_decision({:parent_based, %{root: :always_off}}, traceparent("01")) ==
+               :record_and_sample
+    end
+
+    test "the shipped sampler sends a forced parent to the root sampler" do
+      spec = AshEnterprise.Telemetry.sampler(:always_off)
+      assert sampled_decision(spec, traceparent("01")) == :drop
+    end
+
+    test "the shipped sampler records a forced parent when the root sampler says to" do
+      spec = AshEnterprise.Telemetry.sampler(:always_on)
+      assert sampled_decision(spec, traceparent("01")) == :record_and_sample
+    end
+
+    test "a local child still follows its local parent" do
+      assert {:parent_based, %{root: :always_off, remote_parent_sampled: :always_off} = config} =
+               AshEnterprise.Telemetry.sampler(:always_off)
+
+      refute Map.has_key?(config, :local_parent_sampled)
     end
   end
 

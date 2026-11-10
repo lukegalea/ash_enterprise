@@ -94,20 +94,177 @@ defmodule AshEnterprise.Telemetry.SentryWiringTest do
       assert [%{"api_key" => "[Filtered]"}] = result.extra.nested.list
     end
 
-    test "request bodies are scrubbed" do
-      request = %Sentry.Interfaces.Request{data: %{"email" => "a@b.c", "plan" => "pro"}}
+    test "request bodies keep their shape and lose every value" do
+      request = %Sentry.Interfaces.Request{
+        data: %{"email" => "a@b.c", "plan" => "pro", "nested" => %{"name" => "Acme"}}
+      }
+
       result = SentryWiring.before_send(event(request: request))
-      assert result.request.data == %{"email" => "[Filtered]", "plan" => "pro"}
+
+      assert result.request.data == %{
+               "email" => "[Filtered]",
+               "plan" => "[Filtered]",
+               "nested" => %{"name" => "[Filtered]"}
+             }
     end
 
-    test "a body scrubber copes with an unparsed body" do
+    test "a body scrubber copes with an unparsed body and filters every value" do
       assert SentryWiring.scrub_body(%{params: %Plug.Conn.Unfetched{aspect: :params}}) == %{}
-      assert SentryWiring.scrub_body(%{params: %{"secret" => "x"}}) == %{"secret" => "[Filtered]"}
+
+      assert SentryWiring.scrub_body(%{params: %{"secret" => "x", "name" => "Acme"}}) == %{
+               "secret" => "[Filtered]",
+               "name" => "[Filtered]"
+             }
     end
 
-    test "a callback failure returns the event rather than losing it" do
+    test "the query string goes, and a url keeps only its path" do
+      request = %Sentry.Interfaces.Request{
+        url: "https://app.test/reset?token=abc123",
+        query_string: "token=abc123&q=acme",
+        data: %{}
+      }
+
+      result = SentryWiring.before_send(event(request: request))
+
+      assert result.request.query_string == nil
+      assert result.request.url == "https://app.test/reset"
+    end
+
+    test "a request with no body is still scrubbed" do
+      request = %Sentry.Interfaces.Request{query_string: "token=abc123", cookies: %{"s" => "1"}}
+
+      result = SentryWiring.before_send(event(request: request))
+
+      assert result.request.query_string == nil
+      refute inspect(result.request) =~ "abc123"
+      refute result.request.cookies == %{"s" => "1"}
+    end
+
+    test "the client address does not leave in env or forwarding headers" do
+      request = %Sentry.Interfaces.Request{
+        env: %{"REMOTE_ADDR" => "203.0.113.9", "REMOTE_PORT" => 4000, "SERVER_NAME" => "app"},
+        headers: %{
+          "x-forwarded-for" => "203.0.113.9",
+          "forwarded" => "for=203.0.113.9",
+          "x-real-ip" => "203.0.113.9"
+        }
+      }
+
+      result = SentryWiring.before_send(event(request: request))
+
+      refute inspect(result.request) =~ "203.0.113.9"
+      assert result.request.env["SERVER_NAME"] == "app"
+    end
+
+    test "a failure in scrubbing drops the event instead of sending it unscrubbed" do
       broken = %{event() | breadcrumbs: :not_a_list}
-      assert %Sentry.Event{} = SentryWiring.before_send(broken)
+      assert SentryWiring.before_send(broken) == nil
+    end
+
+    test "stack frame variables are blanked on exceptions and threads" do
+      frame = %Sentry.Interfaces.Stacktrace.Frame{
+        function: "f",
+        vars: %{"arg0" => ~s(%{"password" => "hunter2"})}
+      }
+
+      stacktrace = %Sentry.Interfaces.Stacktrace{frames: [frame]}
+
+      result =
+        SentryWiring.before_send(
+          event(
+            exception: [
+              %Sentry.Interfaces.Exception{type: "E", value: "v", stacktrace: stacktrace}
+            ],
+            threads: [%Sentry.Interfaces.Thread{id: 1, stacktrace: stacktrace}]
+          )
+        )
+
+      refute inspect(result) =~ "hunter2"
+      assert hd(hd(result.exception).stacktrace.frames).function == "f"
+      assert hd(hd(result.exception).stacktrace.frames).vars == %{}
+      assert hd(hd(result.threads).stacktrace.frames).vars == %{}
+    end
+
+    test "an exception value that prints a runtime term loses the term" do
+      original = %MatchError{term: %{"password" => "hunter2"}}
+
+      result =
+        SentryWiring.before_send(
+          event(
+            original_exception: original,
+            exception: [
+              %Sentry.Interfaces.Exception{type: "MatchError", value: Exception.message(original)}
+            ]
+          )
+        )
+
+      refute inspect(result.exception) =~ "hunter2"
+    end
+
+    test "Last message, State and task arguments are dropped from a crash message" do
+      for tail <- [
+            "\nLast message: %{password: \"hunter2\"}\nState: %{token: \"hunter2\"}",
+            "\nState: %{token: \"hunter2\"}",
+            "\nFunction: &Mod.fun/1\n    Args: [\"hunter2\"]"
+          ] do
+        text = "GenServer #PID<0.1.0> terminating\n** (stop) :bad" <> tail
+        message = %Sentry.Interfaces.Message{formatted: text, message: text, params: ["hunter2"]}
+
+        result = SentryWiring.before_send(event(message: message))
+
+        refute inspect(result.message) =~ "hunter2", "leaked with tail: #{tail}"
+        assert result.message.formatted =~ "terminating"
+      end
+    end
+
+    test "a crash's process state does not stay in extra" do
+      result =
+        SentryWiring.before_send(
+          event(extra: %{genserver_state: "hunter2", last_message: "hunter2", kept: "yes"})
+        )
+
+      refute inspect(result.extra) =~ "hunter2"
+      assert result.extra.kept == "yes"
+    end
+  end
+
+  describe "LiveView scrubbing" do
+    test "only a top-level event name is kept" do
+      assert SentryWiring.scrub_live_view_params(%{
+               "event" => "save",
+               "form" => %{"event" => "customer text", "name" => "Acme"}
+             }) == %{
+               "event" => "save",
+               "form" => %{"event" => "[Filtered]", "name" => "[Filtered]"}
+             }
+    end
+
+    test "a non-string event is filtered" do
+      assert SentryWiring.scrub_live_view_params(%{"event" => %{"a" => "x"}}) == %{
+               "event" => %{"a" => "[Filtered]"}
+             }
+    end
+
+    test "a live_view.info breadcrumb loses its message" do
+      crumb = %Sentry.Interfaces.Breadcrumb{
+        category: "web.live_view.info",
+        message: ~s({:updated, %{password: "hunter2"}})
+      }
+
+      [result] = SentryWiring.before_send(event(breadcrumbs: [crumb])).breadcrumbs
+      refute inspect(result) =~ "hunter2"
+    end
+
+    test "a live_view.params breadcrumb loses the query in its message" do
+      crumb = %Sentry.Interfaces.Breadcrumb{
+        category: "web.live_view.params",
+        message: "https://app.test/page?token=hunter2",
+        data: %{params: %{"token" => "hunter2"}, uri: "https://app.test/page?token=hunter2"}
+      }
+
+      [result] = SentryWiring.before_send(event(breadcrumbs: [crumb])).breadcrumbs
+      refute inspect(result) =~ "hunter2"
+      assert result.message == "https://app.test/page"
     end
   end
 

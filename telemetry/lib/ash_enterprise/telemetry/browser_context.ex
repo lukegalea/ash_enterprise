@@ -23,9 +23,15 @@ defmodule AshEnterprise.Telemetry.BrowserContext do
     * The `traceparent` is **strictly validated** against W3C version `00`: lower-case
       hex, exact lengths, non-zero ids. Anything else is ignored and the server span
       is a new root.
-    * Its **sampled flag is ignored**. A client must not be able to force or suppress
-      sampling, so the flag is replaced before the context is extracted and the
-      server's own sampler decides.
+    * Its **sampled flag is replaced with `01`** before the context is extracted, so a
+      client cannot suppress sampling with `-00`. On its own that would let it force
+      sampling instead: a sampled remote parent selects the SDK's
+      `remote_parent_sampled` sampler, which defaults to `always_on` however low the
+      root sampler is set. A host sampling below 100% must configure
+      `AshEnterprise.Telemetry.sampler/1`, which sends these spans to the root sampler.
+      A ratio sampler reads the trace id, which the client also chose, so a client
+      trying to be sampled can still pick an id that is; it gains its own events
+      sampled and nothing more.
     * A forged valid `traceparent` can at worst attach server spans to a trace the
       client chose. That misleads a trace view; it cannot read data, change an audit
       row or affect authorization, because a span's parent is not used for anything
@@ -47,6 +53,7 @@ defmodule AshEnterprise.Telemetry.BrowserContext do
 
   alias AshEnterprise.Telemetry.Attributes
   alias AshEnterprise.Telemetry.FailedSpan
+  alias AshEnterprise.Telemetry.Sanitize
   alias AshEnterprise.Telemetry.Settings
   alias OpenTelemetry.Ctx
 
@@ -120,8 +127,10 @@ defmodule AshEnterprise.Telemetry.BrowserContext do
 
   def handle_before(event, _measurements, meta, _config) do
     guard(fn ->
-      entry = %{token: adopt(event, meta), correlation: begin_correlation(event, meta)}
-      put_entry(meta, entry)
+      # Correlation first: it can raise, and a context already attached would stay
+      # attached with nothing holding its token.
+      correlation = begin_correlation(event, meta)
+      put_entry(meta, %{token: adopt(event, meta), correlation: correlation})
     end)
   end
 
@@ -199,8 +208,8 @@ defmodule AshEnterprise.Telemetry.BrowserContext do
     end
   end
 
-  # Replacing the flags is what makes the client's sampled bit meaningless: the
-  # extracted parent always reads as sampled, and the server's sampler decides.
+  # The extracted parent always reads as sampled, so `-00` cannot silence a request.
+  # `AshEnterprise.Telemetry.sampler/1` is what stops this forcing sampling.
   defp extract(traceparent) do
     server_decided = binary_part(traceparent, 0, 53) <> "01"
     :otel_propagator_text_map.extract_to(Ctx.new(), [{"traceparent", server_decided}])
@@ -281,7 +290,7 @@ defmodule AshEnterprise.Telemetry.BrowserContext do
   defp attribute_value(value) when is_boolean(value) or is_number(value), do: value
 
   defp attribute_value(value) when is_binary(value),
-    do: binary_part(value, 0, min(byte_size(value), @max_attribute_bytes))
+    do: Sanitize.truncate(value, @max_attribute_bytes)
 
   defp attribute_value(value) when is_atom(value), do: attribute_value(Atom.to_string(value))
   defp attribute_value(_value), do: :skip

@@ -17,6 +17,8 @@ defmodule AshEnterprise.Telemetry.SentryWiring do
       # Endpoint, after Plug.Parsers. No Sentry.PlugCapture on Bandit: the logger
       # handler catches crashes.
       plug Sentry.PlugContext, body_scrubber: {#{inspect(__MODULE__)}, :scrub_body}
+      # Browser reports, when `priv/js/sentry_browser.js` is in use: before Plug.Parsers.
+      plug AshEnterprise.Telemetry.SentryTunnel
 
       # live_session
       on_mount: [{Sentry.LiveViewHook, scrubber: {#{inspect(__MODULE__)}, :scrub_live_view_params, []}}]
@@ -27,6 +29,14 @@ defmodule AshEnterprise.Telemetry.SentryWiring do
   default excludes the `:bandit` domain because it assumes `Sentry.PlugCapture`;
   `setup/1` keeps Bandit in, since without `PlugCapture` that log line is the only
   report of a request crash.
+
+  ## Scrubbing
+
+  `before_send/1` runs on every event and fails closed: if it raises, the event is
+  dropped rather than sent unscrubbed. Request bodies and LiveView params keep their
+  shape and lose every value, query strings go, stack frames keep their location and
+  lose their arguments, and a crash report keeps its reason's tag and loses the last
+  message and process state.
 
   ## Decisions
 
@@ -42,20 +52,23 @@ defmodule AshEnterprise.Telemetry.SentryWiring do
   """
 
   alias AshEnterprise.Telemetry.FailedSpan
+  alias AshEnterprise.Telemetry.Sanitize
   alias AshEnterprise.Telemetry.Settings
 
   @filtered "[Filtered]"
-  @sensitive_key ~r/pass|secret|token|auth|cookie|session|csrf|email|phone|ssn|credit|card|api[_-]?key|bearer|_traceparent/i
-  @live_view_breadcrumbs ~w(web.live_view.mount web.live_view.event web.live_view.params)
+  @sensitive_key ~r/pass|secret|token|auth|cookie|session|csrf|email|phone|ssn|credit|card|api[_-]?key|bearer|referr?er|forwarded|real[_-]?ip|remote[_-]?(?:addr|port)|_traceparent/i
+  @crash_tail ~r/\n(?:Last message|State:|Function:|\s+Args:)/
+  @tuple_reason ~r/(\*\* \(stop\) \{:?[\w.]+).*/s
+  @process_data [:genserver_state, "genserver_state", :last_message, "last_message"]
 
-  @doc "`:before_send` callback: adds join tags and scrubs."
-  @spec before_send(struct()) :: struct()
+  @doc "`:before_send` callback: adds join tags and scrubs. Returns `nil`, dropping the event, on failure."
+  @spec before_send(struct()) :: struct() | nil
   def before_send(%{__struct__: Sentry.Event} = event) do
     event
     |> add_tags()
     |> scrub_event()
-  rescue
-    _exception -> event
+  catch
+    _kind, _reason -> nil
   end
 
   @doc """
@@ -68,22 +81,24 @@ defmodule AshEnterprise.Telemetry.SentryWiring do
   end
 
   @doc """
-  `Sentry.LiveViewHook` scrubber: keeps a params map's shape and event names, and drops
-  the values, because LiveView params are unmodified user input.
+  `Sentry.LiveViewHook` scrubber: keeps a params map's shape and a top-level event name,
+  and drops the values, because LiveView params are unmodified user input.
   """
-  @spec scrub_live_view_params(map()) :: map()
-  def scrub_live_view_params(params) when is_map(params) do
+  @spec scrub_live_view_params(term()) :: map()
+  def scrub_live_view_params(params) when is_map(params) and not is_struct(params) do
     Map.new(params, fn
-      {key, value} when key in [:event, "event"] -> {key, value}
-      {key, value} when is_map(value) -> {key, scrub_live_view_params(value)}
-      {key, _value} -> {key, @filtered}
+      {key, value} when key in [:event, "event"] and is_binary(value) -> {key, value}
+      {key, value} -> {key, filter_values(value)}
     end)
   end
+
+  # `:not_mounted_at_router` reaches here on a nested LiveView.
+  def scrub_live_view_params(_params), do: %{}
 
   @doc "`Sentry.PlugContext` body scrubber."
   @spec scrub_body(Plug.Conn.t()) :: map()
   def scrub_body(%{params: params}) when is_map(params) and not is_struct(params),
-    do: scrub(params)
+    do: filter_values(params)
 
   def scrub_body(_conn), do: %{}
 
@@ -135,16 +150,82 @@ defmodule AshEnterprise.Telemetry.SentryWiring do
     event
     |> Map.update!(:breadcrumbs, fn crumbs -> Enum.map(crumbs || [], &scrub_breadcrumb/1) end)
     |> Map.update!(:user, &scrub_user/1)
-    |> Map.update!(:extra, &scrub/1)
+    |> Map.update!(:extra, &scrub_extra/1)
     |> Map.update!(:request, &scrub_request/1)
+    |> Map.update!(:message, &scrub_message/1)
+    |> Map.update!(:exception, &scrub_exceptions(&1, event.original_exception))
+    |> Map.update!(:threads, &blank_all_frames/1)
   end
 
-  defp scrub_breadcrumb(%{category: category, data: data} = crumb)
-       when category in @live_view_breadcrumbs and is_map(data) do
-    %{crumb | data: scrub_live_view_params(data)}
+  defp scrub_breadcrumb(%{category: "web.live_view.info"} = crumb) do
+    crumb |> Map.put(:message, @filtered) |> Map.put(:data, nil)
+  end
+
+  defp scrub_breadcrumb(%{category: "web.live_view.params"} = crumb) do
+    crumb
+    |> Map.update(:message, nil, &strip_query/1)
+    |> Map.update(:data, nil, &scrub_crumb_data/1)
+  end
+
+  defp scrub_breadcrumb(%{category: category} = crumb)
+       when category in ["web.live_view.mount", "web.live_view.event"] do
+    Map.update(crumb, :data, nil, &scrub_crumb_data/1)
   end
 
   defp scrub_breadcrumb(crumb), do: crumb
+
+  defp scrub_crumb_data(%{} = data), do: scrub_live_view_params(data)
+  defp scrub_crumb_data(other), do: other
+
+  defp scrub_extra(%{} = extra), do: extra |> Map.drop(@process_data) |> scrub()
+  defp scrub_extra(extra), do: extra
+
+  # A logger-reported crash formats the GenServer's last message and state into the
+  # text. Only the leading description is kept.
+  defp scrub_message(%{formatted: formatted} = message) do
+    case crash_text(formatted) do
+      ^formatted -> message
+      text -> %{message | formatted: text, message: crash_text(message.message), params: nil}
+    end
+  end
+
+  defp scrub_message(message), do: message
+
+  defp crash_text(text) when is_binary(text) do
+    [head | _tail] = String.split(text, @crash_tail, parts: 2)
+    Regex.replace(@tuple_reason, head, "\\1, ...}")
+  end
+
+  defp crash_text(text), do: text
+
+  defp scrub_exceptions(exceptions, original) when is_list(exceptions) do
+    Enum.map(exceptions, fn exception ->
+      exception |> blank_frames() |> scrub_value(original)
+    end)
+  end
+
+  defp scrub_exceptions(exceptions, _original), do: exceptions
+
+  defp scrub_value(exception, %{__exception__: true} = original) do
+    case Sanitize.exception(original) do
+      ^original -> exception
+      scrubbed -> %{exception | value: Exception.message(scrubbed)}
+    end
+  end
+
+  defp scrub_value(exception, _original), do: exception
+
+  defp blank_all_frames(threads) when is_list(threads), do: Enum.map(threads, &blank_frames/1)
+  defp blank_all_frames(threads), do: threads
+
+  # Sentry fills a frame's vars from the arguments in the raw stacktrace.
+  defp blank_frames(%{stacktrace: %{frames: frames} = stacktrace} = holder)
+       when is_list(frames) do
+    frames = Enum.map(frames, &Map.put(&1, :vars, %{}))
+    %{holder | stacktrace: %{stacktrace | frames: frames}}
+  end
+
+  defp blank_frames(holder), do: holder
 
   defp scrub_user(%{} = user) do
     user
@@ -154,14 +235,40 @@ defmodule AshEnterprise.Telemetry.SentryWiring do
 
   defp scrub_user(user), do: user
 
-  defp scrub_request(%{data: data} = request) when is_map(data) do
-    %{request | data: scrub(data), env: scrub_env(request)}
+  defp scrub_request(%{} = request) do
+    request
+    |> update_present(:query_string, fn _query -> nil end)
+    |> update_present(:url, &strip_query/1)
+    |> update_present(:data, &filter_values/1)
+    |> update_present(:cookies, fn _cookies -> %{} end)
+    |> update_present(:headers, &scrub/1)
+    |> update_present(:env, &scrub/1)
   end
 
   defp scrub_request(request), do: request
 
-  defp scrub_env(%{env: env}) when is_map(env), do: scrub(env)
-  defp scrub_env(request), do: Map.get(request, :env)
+  defp update_present(map, key, fun) do
+    case map do
+      %{^key => value} -> Map.put(map, key, fun.(value))
+      _absent -> map
+    end
+  end
+
+  defp strip_query(url) when is_binary(url) do
+    url |> String.split(["?", "#"], parts: 2) |> hd()
+  end
+
+  defp strip_query(url), do: url
+
+  # Every value goes, not just the deny-listed ones: a field's name does not say
+  # whether its value is customer data.
+  defp filter_values(nil), do: nil
+
+  defp filter_values(%{} = map) when not is_struct(map) do
+    Map.new(map, fn {key, value} -> {key, filter_values(value)} end)
+  end
+
+  defp filter_values(_value), do: @filtered
 
   defp scrub(%{} = map) do
     Map.new(map, fn {key, value} ->

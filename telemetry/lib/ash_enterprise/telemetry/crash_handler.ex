@@ -17,6 +17,7 @@ defmodule AshEnterprise.Telemetry.CrashHandler do
   """
 
   alias AshEnterprise.Telemetry.FailedSpan
+  alias AshEnterprise.Telemetry.Sanitize
 
   require OpenTelemetry.Tracer
 
@@ -72,7 +73,7 @@ defmodule AshEnterprise.Telemetry.CrashHandler do
         attributes: attributes()
       })
 
-    OpenTelemetry.Span.record_exception(span_ctx, exception, stacktrace, [])
+    OpenTelemetry.Span.record_exception(span_ctx, exception, Sanitize.stacktrace(stacktrace), [])
 
     OpenTelemetry.Span.set_status(
       span_ctx,
@@ -92,10 +93,22 @@ defmodule AshEnterprise.Telemetry.CrashHandler do
     end
   end
 
-  defp normalize(%{__exception__: true} = exception, _stacktrace), do: exception
-  defp normalize({%{__exception__: true} = exception, _nested}, _stacktrace), do: exception
+  defp normalize(%{__exception__: true} = exception, _stacktrace),
+    do: Sanitize.exception(exception)
+
+  defp normalize({%{__exception__: true} = exception, _nested}, _stacktrace),
+    do: Sanitize.exception(exception)
 
   defp normalize(reason, _stacktrace) do
-    %RuntimeError{message: "process crashed: #{inspect(reason, limit: 20)}"}
+    %RuntimeError{message: "process crashed: #{reason_label(reason)}"}
   end
+
+  # Only the reason's tag. The rest of a reason such as `{:bad_return_value, state}`
+  # is the process's data.
+  defp reason_label(reason) when is_atom(reason), do: inspect(reason)
+
+  defp reason_label(reason) when is_tuple(reason) and is_atom(elem(reason, 0)),
+    do: inspect(elem(reason, 0))
+
+  defp reason_label(_reason), do: "unknown reason"
 end

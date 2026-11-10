@@ -15,7 +15,7 @@ defmodule AshEnterpriseBattery.MixProject do
     [
       app: :ash_enterprise_battery,
       version: "0.1.0",
-      elixir: "~> 1.18",
+      elixir: "~> 1.20",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       deps: deps(),

@@ -555,6 +555,7 @@ end
 # See docs/adr/0065-signoz-and-glitchtip-observability-backends.md for where these land.
 if otlp_endpoint = System.get_env("OTEL_EXPORTER_OTLP_ENDPOINT") do
   config :opentelemetry,
+    sampler: AshEnterprise.Telemetry.sampler(:always_on),
     processors:
       AshEnterprise.Telemetry.processors(
         trace_sink: Application.get_env(:ash_enterprise_telemetry, :trace_sink?, false)

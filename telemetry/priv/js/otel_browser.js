@@ -1,7 +1,9 @@
 // Browser tracing for a LiveView application. See socket_tracing.js for the wrapper
 // itself and package.json here for the exact package versions to install.
 //
-//   import {startBrowserTracing} from "../../deps/ash_enterprise_telemetry/priv/js/otel_browser.js"
+//   // A git dependency with `sparse: "telemetry"` keeps the directory name; a path
+//   // dependency or a Hex package does not.
+//   import {startBrowserTracing} from "../../deps/ash_enterprise_telemetry/telemetry/priv/js/otel_browser.js"
 //
 //   const tracing = startBrowserTracing({serviceName: "my-app-browser"})
 //   const liveSocket = new LiveSocket("/live", Socket, {
@@ -21,7 +23,13 @@ import {BatchSpanProcessor} from "@opentelemetry/sdk-trace-base"
 import {WebTracerProvider} from "@opentelemetry/sdk-trace-web"
 import {Serializer} from "phoenix"
 
-import {createInteractionTracker, createSocketTracing, toTraceparent} from "./socket_tracing.js"
+import {setActiveSpanSource} from "./browser_error_tags.js"
+import {
+  connectSpanName,
+  createInteractionTracker,
+  createSocketTracing,
+  toTraceparent
+} from "./socket_tracing.js"
 
 const enabled = () => document.querySelector('meta[name="otel-browser"]')?.content === "on"
 
@@ -62,10 +70,18 @@ export function startBrowserTracing({
 
   let connectSpan = null
 
+  // LiveView work runs outside any OpenTelemetry context, so the span for it is the
+  // push in flight, or the connect until it ends.
+  setActiveSpanSource(
+    () =>
+      trace.getActiveSpan() ||
+      socketTracing.currentSpan() ||
+      (connectSpan && connectSpan.isRecording() ? connectSpan : undefined)
+  )
+
   const connectTraceparent = () => {
     connectSpan =
-      connectSpan ||
-      tracer.startSpan(`${getPagePath()} lv.connect`, {}, context.active())
+      connectSpan || tracer.startSpan(connectSpanName(getPagePath()), {}, context.active())
     return toTraceparent(connectSpan)
   }
 

@@ -1,0 +1,59 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 127.0.0.1:@OTLP_GRPC@
+        max_recv_msg_size_mib: 16
+      http:
+        endpoint: 127.0.0.1:@OTLP_HTTP@
+processors:
+  memory_limiter:
+    check_interval: 2s
+    limit_mib: 192
+    spike_limit_mib: 48
+  batch:
+    send_batch_size: 1000
+    send_batch_max_size: 1000
+    timeout: 1s
+@SPANMETRICS_PROCESSOR@
+exporters:
+  clickhousetraces:
+    datasource: tcp://127.0.0.1:@CLICKHOUSE_TCP@/signoz_traces
+    use_new_schema: true
+    sending_queue: {queue_size: 20}
+  signozclickhousemetrics:
+    dsn: tcp://127.0.0.1:@CLICKHOUSE_TCP@/signoz_metrics
+  clickhouselogsexporter:
+    dsn: tcp://127.0.0.1:@CLICKHOUSE_TCP@/signoz_logs
+    timeout: 10s
+    use_new_schema: true
+    sending_queue: {queue_size: 20}
+  metadataexporter:
+    cache:
+      provider: in_memory
+    dsn: tcp://127.0.0.1:@CLICKHOUSE_TCP@/signoz_metadata
+    enabled: true
+    timeout: 45s
+extensions:
+  health_check:
+    endpoint: 127.0.0.1:@COLLECTOR_HEALTH@
+service:
+  telemetry:
+    logs:
+      level: warn
+    metrics:
+      level: none
+  extensions: [health_check]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, @SPANMETRICS_REF@batch]
+      exporters: [clickhousetraces, metadataexporter]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [signozclickhousemetrics, metadataexporter]
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [clickhouselogsexporter, metadataexporter]

@@ -24,6 +24,7 @@ defmodule AshEnterprise.Telemetry.AshTracer do
 
   use Ash.Tracer
 
+  alias AshEnterprise.Telemetry.Sanitize
   alias AshEnterprise.Telemetry.Attributes
 
   @ordinary_classes [:invalid, :forbidden]
@@ -72,7 +73,13 @@ defmodule AshEnterprise.Telemetry.AshTracer do
 
   defp record_fault(span_ctx, error, opts) do
     OpentelemetryAsh.set_error(error)
-    OpenTelemetry.Span.record_exception(span_ctx, error, stacktrace(opts), [])
+
+    OpenTelemetry.Span.record_exception(
+      span_ctx,
+      error,
+      Sanitize.stacktrace(stacktrace(opts)),
+      []
+    )
   end
 
   defp stacktrace(opts) do

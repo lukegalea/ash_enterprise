@@ -53,7 +53,7 @@ checks out the new ref on start.
 ## First start
 
 Slow — by design, once. The first start installs Nix, builds the devenv
-environment (OTP 27 + Elixir 1.18 + Postgres 17), fetches deps, compiles and
+environment (OTP 27 + Elixir 1.20 + Postgres 18), fetches deps, compiles and
 seeds: expect tens of minutes. Later starts only sync deps and bounce the
 server: minutes, not tens of them. Watch the start-script logs (Clone →
 Install Nix + devenv → Setup + seed → Start Phoenix) and the dashboard

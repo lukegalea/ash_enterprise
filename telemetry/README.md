@@ -53,12 +53,24 @@ config :opentelemetry_experimental,
 
 `AshEnterprise.Telemetry.setup/1` documents every option.
 
+To sample below 100%, go through `AshEnterprise.Telemetry.sampler/1`, or a browser that sends a valid traceparent is traced
+at 100% whatever the root sampler says:
+
+```elixir
+config :opentelemetry, sampler: AshEnterprise.Telemetry.sampler({:trace_id_ratio_based, 0.1})
+```
+
+`setup/1` treats HTTP callers as untrusted by default (`public_endpoint: true`): a client's `traceparent` becomes a link and
+its `baggage` is ignored. A service reached only by internal callers sets `public_endpoint: false` to continue their traces,
+or passes `{module, function, args}` to decide per request.
+
 ## What needs wiring beyond `setup/1`
 
 | Piece | Where | Module |
 |---|---|---|
 | Browser span ingest | Endpoint, before `Plug.Parsers` | `OtlpIngest` |
 | Error reporting | `config :sentry`, Endpoint, `live_session` | `SentryWiring` |
+| Browser error reports | Endpoint, before `Plug.Parsers` | `SentryTunnel` |
 | Background metrics | `config :ash_enterprise_telemetry, :background_probe` | `BackgroundProbe` |
 | Work in a `Task` | around the spawn | `TaskContext` |
 | Trace on a Postgres session | `Repo.on_transaction_begin/1` | `Postgres` |

@@ -17,7 +17,7 @@
   "test/ash_enterprise/execution/run_test.exs": 96.2,
   "test/ash_enterprise/integration/tenant_isolation_test.exs": 95.9,
   "test/ash_enterprise/execution/agent_version_test.exs": 88.5,
-  "test/ash_enterprise/legacy/projection_test.exs": 88.3,
+  "test/ash_enterprise/legacy/user_backfill_test.exs": 88.3,
   "test/ash_enterprise/assistant/runner_test.exs": 87.4,
   "test/ash_enterprise/integration/erasure_e2e_test.exs": 87.3,
   "test/ash_enterprise/integration/auto_projection_test.exs": 86.5,
