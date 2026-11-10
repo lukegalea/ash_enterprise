@@ -20,7 +20,7 @@ impersonation recorded who acted but not whether it was allowed.
 2. **A session token lives 8 hours**, set explicitly in `Accounts.TokenPolicy`; a host overrides it with
    `config :ash_enterprise, :token_lifetime`. The DSL is compiled, so the value is read when `User` compiles.
 3. **Both signing salts come from the environment in production** (`SESSION_SIGNING_SALT`, `LIVE_VIEW_SIGNING_SALT`),
-   and `config/runtime.exs` stops the boot when either is missing, short or equal to the other.
+   and `config/runtime.exs` stops the boot when either is missing, short, equal to the other, or one of the built-in dev/test salts. Dev and test boot with those built-ins and need no setup.
 4. **Lockout is a Postgres row**, advanced by one atomic upsert (`SignInLockout.record_failure`), so the count holds
    across processes and nodes. It is keyed by a digest of the normalized email and counts unregistered addresses the
    same way. A store that cannot be read refuses the sign-in.
@@ -30,7 +30,11 @@ impersonation recorded who acted but not whether it was allowed.
 6. **Role grants may carry `valid_until`** (`UserRole`, `TeamRole`). `ActorContext.build/2` counts a grant while
    `valid_until` is unset or later than now: at the instant itself it is gone.
 7. **Break-glass impersonation is a row.** `Security.BreakGlassSession` records operator, subject, reason, approver and
-   expiry; `Impersonation.break_glass/3` returns an impersonating actor only while one is live.
+   expiry. `open` is only a request. The named approver must run `approve` themselves, as a separate act by a different,
+   active person, and only that stamps `approved_at`; `Impersonation.break_glass/3` returns an impersonating actor only
+   while a session is approved, active and unexpired. This is a state on the session (requested, then approved) rather
+   than a governed invocation (ADR 0055): the approval is one fact about one row, the audit trail already records both
+   writes, and nothing else needs the invocation machinery.
 
 ## Consequences
 

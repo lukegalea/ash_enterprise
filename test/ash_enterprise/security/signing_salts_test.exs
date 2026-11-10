@@ -56,4 +56,20 @@ defmodule AshEnterprise.Security.SigningSaltsTest do
     runtime = File.read!("config/runtime.exs")
     assert runtime =~ "SigningSalts.fetch_from_env!"
   end
+
+  test "the dev and test built-in salts are the ones the boot check refuses" do
+    for file <- ["config/dev.exs", "config/test.exs"],
+        [_, value] <- Regex.scan(~r/(?:session_signing_salt:|signing_salt:)\s*"([^"]+)"/, File.read!(file)) do
+      assert value in SigningSalts.built_in(), "#{file} salt #{inspect(value)} is not registered"
+    end
+  end
+
+  for name <- ["SESSION_SIGNING_SALT", "LIVE_VIEW_SIGNING_SALT"],
+      salt <- SigningSalts.built_in() do
+    test "boot fails when #{name} is the built-in salt #{salt}" do
+      assert_raise RuntimeError, ~r/built-in/, fn ->
+        SigningSalts.fetch_from_env!(Map.put(@good, unquote(name), unquote(salt)))
+      end
+    end
+  end
 end
