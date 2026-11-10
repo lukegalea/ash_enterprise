@@ -463,7 +463,7 @@ defmodule AshEnterprise.Test.AssistantEval do
         cites: [f.roadmap, f.onboarding],
         oracle: [{:tools, [{"calendar_events", %{"window" => "tomorrow"}}]}],
         answer:
-          "Tomorrow: the SYNTHETIC roadmap sync [[#{f.roadmap}]] and the SYNTHETIC vendor " <>
+          "Tomorrow: the SYNTHETIC roadmap sync [[#{f.roadmap}]] and the SYNTHETIC partner " <>
             "onboarding [[#{f.onboarding}]]."
       },
       %{
