@@ -13,7 +13,15 @@
     "(2017, revised 2022 points of focus); ISO/IEC 27001:2022 Annex A; GDPR",
     "(Regulation (EU) 2016/679). Control identifiers move between revisions -- ISO",
     "renumbered substantially in 2022 -- so going stale is a normal reason to",
-    "update this rather than a defect in it."
+    "update this rather than a defect in it.",
+    "",
+    "`criteria` is the ownership contract read by `mix ash_compliance.controls.check`:",
+    "one row per SOC 2 criterion saying who owns it, how it is evidenced and what",
+    "proves it. A row never carries a status either. Whether a criterion is",
+    "evidenced is derived from dated artifacts when it is asked, and the answers",
+    "are owned, evidenced or unknown. A reference that does not exist yet is left",
+    "out, so the checker reports it; nothing is pointed at a producer or test that",
+    "is not there."
   ],
   "frameworks": [
     {
@@ -39,7 +47,7 @@
       "name": "Logical access — authorization",
       "asks": "Access to data and systems is restricted to authorized users, and the basis of that authorization is defined.",
       "questions": ["q1", "q2", "q3", "q4", "q5", "q6"],
-      "note": "The strongest area. Authorization is `(role, privilege, depth)` data evaluated as a pure union with no deny rules, and a conformance suite asserts the resulting truth table rather than a sample of it. The gap is column-level: q6 is open, so 'restricted' is currently a row-level claim only."
+      "note": "The strongest area. Authorization is `(role, privilege, depth)` data evaluated as a pure union with no deny rules, and a conformance suite asserts the resulting truth table rather than a sample of it. The gap is column-level: q6 is partial, with one field policy on one resource, so 'restricted' is still mostly a row-level claim."
     },
     {
       "id": "CC6.2",
@@ -47,7 +55,7 @@
       "name": "Registration and authorization of new users",
       "asks": "Users are registered and authorized before being issued credentials, and access is removed when no longer required.",
       "questions": ["q1", "q29", "q30", "q37"],
-      "note": "Registration and deactivation exist as audited, named actions. Deprovisioning driven by the customer's directory does not — q30 is open, so removal depends on someone here being told."
+      "note": "Registration and deactivation exist as audited, named actions. A deactivated user loses authorization on the next request, but nothing asserts that sign-in or an issued token is refused, and deprovisioning driven by the customer's directory does not exist — q30 is partial, so removal depends on someone here being told."
     },
     {
       "id": "CC6.3",
@@ -152,6 +160,528 @@
       "asks": "Appropriate technical measures ensure ongoing confidentiality, integrity, availability and resilience.",
       "questions": ["q12", "q13", "q33", "q48", "q50"],
       "note": "Confidentiality and integrity are the strong half — tenant isolation is tested to hold even when authorization is wrong, and the log is verifiably intact. Availability and resilience are untested: q48 is open, and an untested restore is a belief rather than a measure."
+    }
+  ],
+  "criteria": [
+    {
+      "id": "CC1.1",
+      "class": "ORG",
+      "applicability": "applicable",
+      "frequency": "annual",
+      "owner_role": "Executive Sponsor",
+      "rationale": "The adopting organization's code of conduct and its acknowledgement. Software here holds neither."
+    },
+    {
+      "id": "CC1.2",
+      "class": "ORG",
+      "applicability": "applicable",
+      "frequency": "annual",
+      "owner_role": "Executive Sponsor",
+      "rationale": "Board or committee oversight is the adopting organization's. No process is defined here."
+    },
+    {
+      "id": "CC1.3",
+      "class": "ORG",
+      "applicability": "applicable",
+      "frequency": "annual",
+      "owner_role": "Executive Sponsor",
+      "rationale": "Reporting lines are the adopting organization's. The platform models business units, positions and managers as data used for authorization, not as the organization's chart of record."
+    },
+    {
+      "id": "CC1.4",
+      "class": "ORG",
+      "applicability": "applicable",
+      "frequency": "annual",
+      "owner_role": "People Lead",
+      "rationale": "Hiring, training and retention are people processes outside the platform."
+    },
+    {
+      "id": "CC1.5",
+      "class": "ORG",
+      "applicability": "applicable",
+      "frequency": "annual",
+      "owner_role": "People Lead",
+      "rationale": "Accountability for control duties is assigned by the adopting organization."
+    },
+    {
+      "id": "CC2.1",
+      "class": "PLATFORM-EVIDENCED",
+      "applicability": "applicable",
+      "frequency": "monthly",
+      "owner_role": "Security Lead",
+      "evidence_producer": "module:AshEnterprise.Audit.Export",
+      "test_ref": "file:test/ash_enterprise/audit/export_test.exs",
+      "rationale": "The audit export hands a reviewer a window of the log with the chain hashes. Nothing schedules it or records the result as an artifact."
+    },
+    {
+      "id": "CC2.2",
+      "class": "ORG",
+      "applicability": "applicable",
+      "frequency": "annual",
+      "owner_role": "Security Lead",
+      "rationale": "Internal communication of control duties is a policy and training process. None is defined here."
+    },
+    {
+      "id": "CC2.3",
+      "class": "ORG",
+      "applicability": "applicable",
+      "frequency": "annual",
+      "owner_role": "Executive Sponsor",
+      "rationale": "Communication with customers and outside parties is the adopting organization's."
+    },
+    {
+      "id": "CC3.1",
+      "class": "ORG",
+      "applicability": "applicable",
+      "frequency": "annual",
+      "owner_role": "Executive Sponsor",
+      "rationale": "Objective setting is the adopting organization's."
+    },
+    {
+      "id": "CC3.2",
+      "class": "ORG",
+      "applicability": "applicable",
+      "frequency": "quarterly",
+      "owner_role": "Security Lead",
+      "rationale": "The risk register and its review are the adopting organization's. No register or review process exists in this repository."
+    },
+    {
+      "id": "CC3.3",
+      "class": "ORG",
+      "applicability": "applicable",
+      "frequency": "annual",
+      "owner_role": "Security Lead",
+      "rationale": "Fraud risk assessment is a review process. None is defined here."
+    },
+    {
+      "id": "CC3.4",
+      "class": "ORG",
+      "applicability": "applicable",
+      "frequency": "annual",
+      "owner_role": "Security Lead",
+      "rationale": "Assessing significant changes for control impact is a review process. None is defined here."
+    },
+    {
+      "id": "CC4.1",
+      "class": "PLATFORM-EVIDENCED",
+      "applicability": "applicable",
+      "frequency": "daily",
+      "owner_role": "Security Lead",
+      "evidence_producer": "mix:ash_enterprise.audit.verify",
+      "operating_process": "file:.github/workflows/ci.yml",
+      "test_ref": "file:test/ash_enterprise/audit/chain_test.exs",
+      "rationale": "Separate evaluation of the audit log: the verify task walks every chain and the suite tampers on purpose. CI evaluates the rest on each push. Nothing schedules the verify task or stores its result."
+    },
+    {
+      "id": "CC4.2",
+      "class": "PLATFORM-EVIDENCED",
+      "applicability": "applicable",
+      "frequency": "quarterly",
+      "owner_role": "Security Lead",
+      "rationale": "Deficiency tracking is meant to be the findings the ownership sweep raises. This host does not schedule the sweep, so no producer is named."
+    },
+    {
+      "id": "CC5.1",
+      "class": "ORG",
+      "applicability": "applicable",
+      "frequency": "annual",
+      "owner_role": "Security Lead",
+      "rationale": "Selecting control activities against risk is a review process. None is defined here."
+    },
+    {
+      "id": "CC5.2",
+      "class": "PLATFORM-ENFORCED",
+      "applicability": "applicable",
+      "frequency": "continuous",
+      "owner_role": "Engineering Lead",
+      "test_ref": "file:test/ash_enterprise/security/conformance_test.exs",
+      "rationale": "Every resource inherits tenancy, ownership, audit and the policy union from the platform base resource, and the conformance suite asserts the truth table of the grants."
+    },
+    {
+      "id": "CC5.3",
+      "class": "ORG",
+      "applicability": "applicable",
+      "frequency": "annual",
+      "owner_role": "Security Lead",
+      "rationale": "Policies and procedures, and the record that people read them, are outside the platform. The platform has nothing that publishes or acknowledges a policy."
+    },
+    {
+      "id": "CC6.1",
+      "class": "PLATFORM-ENFORCED",
+      "applicability": "applicable",
+      "frequency": "continuous",
+      "owner_role": "Security Lead",
+      "test_ref": "file:test/ash_enterprise/security/conformance_test.exs",
+      "rationale": "Authorization is (role, privilege, depth) data evaluated as a pure union of grants. Column-level restriction is open (q6)."
+    },
+    {
+      "id": "CC6.2",
+      "class": "PLATFORM-EVIDENCED",
+      "applicability": "applicable",
+      "frequency": "quarterly",
+      "owner_role": "Security Lead",
+      "evidence_producer": "module:AshEnterprise.Security.AccessRequest",
+      "test_ref": "file:test/ash_enterprise/process/access_request_demo_test.exs",
+      "rationale": "Access requests are recorded and decided by a process. A deactivated user loses authorization on the next request (conformance suite), but no test asserts that sign-in or an issued token is refused (q30), and no quarterly review of who holds access is defined here."
+    },
+    {
+      "id": "CC6.3",
+      "class": "PLATFORM-EVIDENCED",
+      "applicability": "applicable",
+      "frequency": "quarterly",
+      "owner_role": "Security Lead",
+      "evidence_producer": "module:AshEnterprise.Audit.EventLog",
+      "test_ref": "file:test/ash_enterprise/audit/impersonation_test.exs",
+      "rationale": "Role assignments are audited resources that name the grantor and the grantee. Impersonation is attributed but not gated (q32)."
+    },
+    {
+      "id": "CC6.4",
+      "class": "VENDOR",
+      "applicability": "applicable",
+      "frequency": "annual",
+      "owner_role": "Operations Lead",
+      "complementary_controls": [
+        "CC9.2"
+      ],
+      "rationale": "Physical access to the hosting facility belongs to the hosting provider. This repository names no provider and holds no provider report."
+    },
+    {
+      "id": "CC6.5",
+      "class": "PLATFORM-EVIDENCED",
+      "applicability": "applicable",
+      "frequency": "annual",
+      "owner_role": "Security Lead",
+      "evidence_producer": "mix:ash_enterprise.erasure.shred",
+      "test_ref": "file:test/ash_enterprise/erasure/crypto_test.exs",
+      "rationale": "Data disposal is crypto-shredding: destroying a key makes sealed content unreadable. Per-person erasure is partial (q14), retention-driven disposal of the audit log is not built (q36), and media disposal belongs to the hosting provider."
+    },
+    {
+      "id": "CC6.6",
+      "class": "INFRA",
+      "applicability": "applicable",
+      "frequency": "continuous",
+      "owner_role": "Operations Lead",
+      "rationale": "Network boundary, firewall and edge protection are the deployment's. This repository has no infrastructure code."
+    },
+    {
+      "id": "CC6.7",
+      "class": "HOST-APP",
+      "applicability": "applicable",
+      "frequency": "annual",
+      "owner_role": "Engineering Lead",
+      "rationale": "force_ssl is set for production in config/prod.exs. No test asserts it and transit protection beyond the application is the deployment's."
+    },
+    {
+      "id": "CC6.8",
+      "class": "HOST-APP",
+      "applicability": "applicable",
+      "frequency": "weekly",
+      "owner_role": "Security Lead",
+      "evidence_producer": "file:.github/workflows/ci.yml",
+      "operating_process": "file:.github/workflows/ci.yml",
+      "rationale": "CI runs a security scan of the web code and an audit of dependencies. Neither detects malware on hosts, which is the deployment's."
+    },
+    {
+      "id": "CC7.1",
+      "class": "HOST-APP",
+      "applicability": "applicable",
+      "frequency": "weekly",
+      "owner_role": "Security Lead",
+      "evidence_producer": "file:.github/workflows/ci.yml",
+      "operating_process": "file:.github/workflows/ci.yml",
+      "rationale": "CI scans code and audits dependencies on each push. CI has no schedule and the repository configures no dependency update service, so a vulnerability published after the last push is not seen."
+    },
+    {
+      "id": "CC7.2",
+      "class": "PLATFORM-EVIDENCED",
+      "applicability": "applicable",
+      "frequency": "daily",
+      "owner_role": "Security Lead",
+      "evidence_producer": "mix:ash_enterprise.audit.verify",
+      "test_ref": "file:test/ash_enterprise/audit/chain_test.exs",
+      "rationale": "Log completeness and tamper evidence are carried: the log is hash-chained and a trigger refuses UPDATE and DELETE. Review of the logs and alerting are not (q38)."
+    },
+    {
+      "id": "CC7.3",
+      "class": "ORG",
+      "applicability": "applicable",
+      "frequency": "quarterly",
+      "owner_role": "Security Lead",
+      "rationale": "Evaluating events to decide whether they are incidents needs people and a rota. Neither exists here (q49)."
+    },
+    {
+      "id": "CC7.4",
+      "class": "ORG",
+      "applicability": "applicable",
+      "frequency": "annual",
+      "owner_role": "Security Lead",
+      "rationale": "Incident response needs a plan, a rota and customer communication. None is defined here (q49)."
+    },
+    {
+      "id": "CC7.5",
+      "class": "ORG",
+      "applicability": "applicable",
+      "frequency": "annual",
+      "owner_role": "Operations Lead",
+      "rationale": "Recovery from incidents needs a plan and a tested restore. Neither is defined here (q48)."
+    },
+    {
+      "id": "CC8.1",
+      "class": "HOST-APP",
+      "applicability": "applicable",
+      "frequency": "continuous",
+      "owner_role": "Engineering Lead",
+      "evidence_producer": "file:.github/workflows/ci.yml",
+      "rationale": "CI gates every change: format, compile with warnings as errors, credo, schema drift, tests. Whether review and approval are required before merge is a repository setting, not code here."
+    },
+    {
+      "id": "CC9.1",
+      "class": "ORG",
+      "applicability": "applicable",
+      "frequency": "annual",
+      "owner_role": "Executive Sponsor",
+      "rationale": "Business disruption risk mitigation is the adopting organization's."
+    },
+    {
+      "id": "CC9.2",
+      "class": "ORG",
+      "applicability": "applicable",
+      "frequency": "quarterly",
+      "owner_role": "Security Lead",
+      "rationale": "Vendor risk review is a process over the adopting organization's vendor register. None is defined here."
+    },
+    {
+      "id": "A1.1",
+      "class": "INFRA",
+      "applicability": "applicable",
+      "frequency": "continuous",
+      "owner_role": "Operations Lead",
+      "rationale": "Capacity monitoring is the deployment's. Telemetry exports to a collector when configured and no target or alert exists (q28, q47)."
+    },
+    {
+      "id": "A1.2",
+      "class": "INFRA",
+      "applicability": "applicable",
+      "frequency": "continuous",
+      "owner_role": "Operations Lead",
+      "rationale": "Backup and recovery infrastructure is the deployment's. This repository configures none (q48)."
+    },
+    {
+      "id": "A1.3",
+      "class": "ORG",
+      "applicability": "applicable",
+      "frequency": "annual",
+      "owner_role": "Operations Lead",
+      "rationale": "Testing recovery plans needs a plan and a restore drill. Neither exists here (q48)."
+    },
+    {
+      "id": "PI1.1",
+      "class": "PLATFORM-ENFORCED",
+      "applicability": "applicable",
+      "frequency": "continuous",
+      "owner_role": "Engineering Lead",
+      "test_ref": "file:test/ash_enterprise/platform/lifecycle_test.exs",
+      "rationale": "Processing specifications are declared on resources: actions, state machines and policies, and schema drift fails CI."
+    },
+    {
+      "id": "PI1.2",
+      "class": "HOST-APP",
+      "applicability": "applicable",
+      "frequency": "annual",
+      "owner_role": "Engineering Lead",
+      "rationale": "Input checks are the validations and constraints each host declares on its own actions. The platform supplies the mechanism."
+    },
+    {
+      "id": "PI1.3",
+      "class": "PLATFORM-ENFORCED",
+      "applicability": "applicable",
+      "frequency": "continuous",
+      "owner_role": "Engineering Lead",
+      "test_ref": "file:test/ash_enterprise/platform/lifecycle_test.exs",
+      "rationale": "An illegal state transition is rejected: each transition is a named action and there is no generic update that sets a state."
+    },
+    {
+      "id": "PI1.4",
+      "class": "HOST-APP",
+      "applicability": "applicable",
+      "frequency": "annual",
+      "owner_role": "Engineering Lead",
+      "rationale": "Output checks are specific to each host's reports and exports."
+    },
+    {
+      "id": "PI1.5",
+      "class": "PLATFORM-ENFORCED",
+      "applicability": "applicable",
+      "frequency": "continuous",
+      "owner_role": "Security Lead",
+      "test_ref": "file:test/ash_enterprise/audit/chain_test.exs",
+      "rationale": "Stored audit items are tamper-evident. Other stored items are protected by soft delete and tenant isolation, not by integrity checks."
+    },
+    {
+      "id": "C1.1",
+      "class": "PLATFORM-ENFORCED",
+      "applicability": "applicable",
+      "frequency": "continuous",
+      "owner_role": "Security Lead",
+      "test_ref": "file:test/ash_enterprise/audit/sensitive_redaction_test.exs",
+      "rationale": "Protection is carried: tenant isolation and redaction of sensitive values from the log. Identifying what is confidential needs a data inventory, which is open (q39)."
+    },
+    {
+      "id": "C1.2",
+      "class": "PLATFORM-EVIDENCED",
+      "applicability": "applicable",
+      "frequency": "annual",
+      "owner_role": "Security Lead",
+      "evidence_producer": "mix:ash_enterprise.erasure.shred",
+      "test_ref": "file:test/ash_enterprise/erasure/crypto_test.exs",
+      "rationale": "Same mechanism as CC6.5: crypto-shredding. Retention-driven disposal is not built (q36)."
+    },
+    {
+      "id": "P1.1",
+      "class": "ORG",
+      "applicability": "applicable",
+      "frequency": "annual",
+      "owner_role": "Privacy Lead",
+      "rationale": "The privacy notice is the adopting organization's."
+    },
+    {
+      "id": "P2.1",
+      "class": "HOST-APP",
+      "applicability": "applicable",
+      "frequency": "annual",
+      "owner_role": "Privacy Lead",
+      "rationale": "Choice and consent capture is a product behaviour of each host. The platform records a tenant's sub-processor opt-in and has no end-user consent model."
+    },
+    {
+      "id": "P3.1",
+      "class": "ORG",
+      "applicability": "applicable",
+      "frequency": "annual",
+      "owner_role": "Privacy Lead",
+      "rationale": "Stating purposes of collection is the adopting organization's. The data inventory is open (q39)."
+    },
+    {
+      "id": "P3.2",
+      "class": "HOST-APP",
+      "applicability": "applicable",
+      "frequency": "annual",
+      "owner_role": "Privacy Lead",
+      "rationale": "Explicit consent for sensitive personal information is a product behaviour of each host."
+    },
+    {
+      "id": "P4.1",
+      "class": "HOST-APP",
+      "applicability": "applicable",
+      "frequency": "annual",
+      "owner_role": "Privacy Lead",
+      "rationale": "Use limited to stated purposes is a policy each host enforces. The platform limits disclosure to model sub-processors (see P6.1) and nothing wider."
+    },
+    {
+      "id": "P4.2",
+      "class": "HOST-APP",
+      "applicability": "applicable",
+      "frequency": "annual",
+      "owner_role": "Privacy Lead",
+      "rationale": "Retention of personal information has no policy or job for the audit log (q36). Lineage records are pruned after 14 days, which is a different record."
+    },
+    {
+      "id": "P4.3",
+      "class": "PLATFORM-EVIDENCED",
+      "applicability": "applicable",
+      "frequency": "annual",
+      "owner_role": "Privacy Lead",
+      "evidence_producer": "mix:ash_enterprise.erasure.shred",
+      "test_ref": "file:test/ash_enterprise/erasure_test.exs",
+      "rationale": "Crypto-shredding covers content that arrives through a connection. People and core platform resources are not sealed, so per-person erasure is partial (q14)."
+    },
+    {
+      "id": "P5.1",
+      "class": "HOST-APP",
+      "applicability": "applicable",
+      "frequency": "annual",
+      "owner_role": "Privacy Lead",
+      "rationale": "A subject's own records have no assembled export (q19). The audit export covers audit data per tenant only."
+    },
+    {
+      "id": "P5.2",
+      "class": "HOST-APP",
+      "applicability": "applicable",
+      "frequency": "annual",
+      "owner_role": "Privacy Lead",
+      "rationale": "Correction of personal information is an ordinary update action in each host. No request process is defined here."
+    },
+    {
+      "id": "P6.1",
+      "class": "PLATFORM-ENFORCED",
+      "applicability": "applicable",
+      "frequency": "continuous",
+      "owner_role": "Privacy Lead",
+      "test_ref": "file:test/ash_enterprise/zones/residency_policy_test.exs",
+      "rationale": "Disclosure to a model sub-processor is refused unless the tenant has recorded an opt-in, and every unknown case is a refusal. Other disclosures are not covered."
+    },
+    {
+      "id": "P6.2",
+      "class": "HOST-APP",
+      "applicability": "applicable",
+      "frequency": "annual",
+      "owner_role": "Privacy Lead",
+      "rationale": "Authorized disclosures to model sub-processors are recorded in the judgment ledger when the instrument is in-zone. A register of other disclosures does not exist (q39)."
+    },
+    {
+      "id": "P6.3",
+      "class": "ORG",
+      "applicability": "applicable",
+      "frequency": "annual",
+      "owner_role": "Privacy Lead",
+      "rationale": "Recording unauthorized disclosures is an incident process. None is defined here (q49)."
+    },
+    {
+      "id": "P6.4",
+      "class": "ORG",
+      "applicability": "applicable",
+      "frequency": "annual",
+      "owner_role": "Privacy Lead",
+      "rationale": "Holding third parties to privacy commitments needs signed agreements. This repository holds none."
+    },
+    {
+      "id": "P6.5",
+      "class": "ORG",
+      "applicability": "applicable",
+      "frequency": "annual",
+      "owner_role": "Privacy Lead",
+      "rationale": "Third-party incident reporting is a contractual term. This repository holds none."
+    },
+    {
+      "id": "P6.6",
+      "class": "ORG",
+      "applicability": "applicable",
+      "frequency": "annual",
+      "owner_role": "Privacy Lead",
+      "rationale": "Breach notification is an incident process. None is defined here (q49)."
+    },
+    {
+      "id": "P6.7",
+      "class": "HOST-APP",
+      "applicability": "applicable",
+      "frequency": "annual",
+      "owner_role": "Privacy Lead",
+      "rationale": "Accounting of disclosures needs a register of sub-processors and disclosures (q39), which does not exist."
+    },
+    {
+      "id": "P7.1",
+      "class": "HOST-APP",
+      "applicability": "applicable",
+      "frequency": "annual",
+      "owner_role": "Privacy Lead",
+      "rationale": "Accuracy and completeness are data-quality rules each host declares. The platform ships master data quality rules as an example, not as a control."
+    },
+    {
+      "id": "P8.1",
+      "class": "ORG",
+      "applicability": "applicable",
+      "frequency": "annual",
+      "owner_role": "Privacy Lead",
+      "rationale": "Complaint handling and monitoring of privacy compliance are the adopting organization's."
     }
   ]
 }
