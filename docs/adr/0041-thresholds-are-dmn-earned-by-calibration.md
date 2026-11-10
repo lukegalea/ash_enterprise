@@ -44,11 +44,11 @@ The facts, verified on 2026-09-27:
 ## Decision
 
 **Thresholds are band tables in `ash_decisions`: versioned, content-hashed DMN definitions, per question family, and
-where needed per tenant risk tier and per jurisdiction. A band table may not publish for a family without a calibration
+where needed per tenant risk level and per jurisdiction. A band table may not publish for a family without a calibration
 run that supports it. Probabilities stop at the band table.**
 
 **The band table.** Its inputs are the flattened answer (`p_supports`, `p_contradicts`, the confidence, the family, the
-tenant's risk tier, the zone's jurisdiction); its output is an admission — `admit`, `review`, or `omit` — and, for
+tenant's risk level, the zone's jurisdiction); its output is an admission — `admit`, `review`, or `omit` — and, for
 `admit`, the fact value. Its matched row is the recorded reason. The judgments package provides the bridge that flattens
 an answer struct into DMN inputs; it provides nothing that evaluates them.
 
@@ -83,7 +83,7 @@ it, a person, a calibration run or a distillation ([ADR 0047](0047-learning-prod
 a new calibration run and a new band-table version, evaluated in shadow mode ([ADR 0040](0040-record-dont-recompute.md))
 before it activates.
 
-**Tenants tailor within bounds.** A tenant's risk tier may *raise* a threshold or remove an automatic band; it may not
+**Tenants tailor within bounds.** A tenant's risk level may *raise* a threshold or remove an automatic band; it may not
 lower one below the platform baseline. The baseline-and-fork mechanics are ADR 0029's.
 
 **Audit sampling is mandatory.** A declared fraction of automatically admitted facts is routed to human review at

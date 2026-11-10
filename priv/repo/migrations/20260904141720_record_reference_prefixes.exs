@@ -20,7 +20,7 @@ defmodule AshEnterprise.Repo.Migrations.RecordReferencePrefixes do
   # (the previous snapshots were generated with ASH_SCHEMA=canonical).
   #
   # Either literal breaks the other deployment. With ASH_SCHEMA=canonical, as the
-  # VendorPM workspace runs, the up dies on
+  # private workspace runs, the up dies on
   # `relation "public.bpmn_definitions" does not exist`. `Ecto.Migration.prefix/0`
   # is the schema this run is creating tables in, which is where every one of
   # these tables is. Same fix, same generator behaviour, as

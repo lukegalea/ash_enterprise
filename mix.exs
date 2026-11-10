@@ -448,7 +448,7 @@ defmodule AshEnterprise.MixProject do
       # pending): a write's as_of is recorded on its event and restored on
       # replay, and the replay wrappers declare temporal_safe? — required
       # for audited TEMPORAL resources, which this host now has (the
-      # SystemOne facts table; AST-149). Same pin as vpm_poc (VPM-49);
+      # SystemOne facts table; AST-149). Same pin as the hosted POC;
       # drop for the first ash_events release carrying it. `override: true`
       # because ash_judgments also depends on ash_events and one package
       # cannot resolve from both hex and git.

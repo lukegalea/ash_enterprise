@@ -3,7 +3,7 @@
 A fixture policy for the System One proposal mechanism (S1-61 /
 CAP2-POLICY). The clauses are an original, synthetic excerpt written for
 this repository's test suite in the style of its own house standards; no
-real standard text is quoted and no VendorPM wording appears (DEC-MOAT:
+real standard text is quoted and no private wording appears (DEC-MOAT:
 the mechanism is domain-free — a domain contributes only policy text like
 this, and a subject resource at declaration time).
 

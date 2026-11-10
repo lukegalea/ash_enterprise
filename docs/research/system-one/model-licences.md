@@ -6,13 +6,13 @@
 
 ## 0. Blocked or unclear — read this first
 
-| # | Item | Status | Use (a) dev/CI | Use (b) clinic-demo | Use (c) VendorPM prod |
+| # | Item | Status | Use (a) dev/CI | Use (b) clinic-demo | Use (c) production |
 |---|---|---|---|---|---|
 | B1 | **`winnow:e4b`** (EldanRing/Winnow-E4B, a Gemma 4 derivative) | **Unclear for (b)/(c)** — weights are Apache-2.0-tagged, but the Gemma base brings Google's *Gemma Prohibited Use Policy*, whose §3.4 prohibits *"Making automated decisions in domains that affect material or individual rights or well-being (e.g., finance, legal, employment, healthcare, housing, insurance, and social welfare)"* — the plain text reaches a clinic triage demo. Training data is **not released**. | OK (synthetic data only) | **Do not use as demo default until resolved** (Ollaya currently recommends it as default — pick `laya`/`decider`/`von` instead) | **Blocked pending resolution** |
 | B2 | **`ollaya-dev/nli` licence-tag conflict** | HF export tagged `license:mit`; its declared upstream `MoritzLaurer/ModernBERT-large-zeroshot-v2.0` is tagged `license:apache-2.0`. Both permissive, but the registry metadata is demonstrably unreliable — audit every Ollaya registry tag against upstream before pinning. | OK | OK | OK with upstream-verified tag |
 | B3 | **ADR 0042's "mix of Apache-2.0, MIT **and proprietary**"** for Ollaya registry models | No proprietary-licensed model was found in the audited set (every model in scope is Apache-2.0 or MIT). Either the "proprietary" member is outside this list or the claim is stale. ADR wording should be corrected after O-3 is answered. | n/a | n/a | n/a |
 | B4 | **`laya:typed-decisions` calibration provenance** (not a licence defect) | Card states the shipped temperature was fitted *"on a slice of the same items it had just trained on … treat its confidence as uncalibrated"* until refit. Relevant to (b)/(c) because ADR 0041 makes bands depend on calibration honesty. | OK | Usable, but do not auto-admit its confidences until recalibrated on our data | Same |
-| B5 | **Splash stack platform fit** (operational, not licence) | `incoai/splash` is an *Apple-silicon/Metal* runtime; the Splash-format weights (`incoai/Qwen3.8-27B-Splash`, `.bin` layout) are not the GGUF/ONNX artefacts our other runtimes consume. Licence is clean; the operational question is whether VendorPM production runs Linux. | OK | OK | OK, if the zone's host is Apple silicon or a converter is validated |
+| B5 | **Splash stack platform fit** (operational, not licence) | `incoai/splash` is an *Apple-silicon/Metal* runtime; the Splash-format weights (`incoai/Qwen3.8-27B-Splash`, `.bin` layout) are not the GGUF/ONNX artefacts our other runtimes consume. Licence is clean; the operational question is whether production runs Linux. | OK | OK | OK, if the zone's host is Apple silicon or a converter is validated |
 
 **DRAFT questions (drafts only — never sent):**
 
@@ -189,9 +189,9 @@ Ollaya's registry serves **two** NLI variants; the ticket's description matches 
 
 ## 5. Verdict table — per use
 
-**(a) developer/CI use** (local, pinned, synthetic data only — the ADR 0042 contract test) · **(b) public clinic-demo** (models pulled at runtime, never vendored; public visitors' text may reach the models) · **(c) VendorPM production** (customer-confidential data in the zone; ADR 0041 auto-admit bands).
+**(a) developer/CI use** (local, pinned, synthetic data only — the ADR 0042 contract test) · **(b) public clinic-demo** (models pulled at runtime, never vendored; public visitors' text may reach the models) · **(c) productionuction** (customer-confidential data in the zone; ADR 0041 auto-admit bands).
 
-| Item | (a) dev/CI | (b) clinic-demo | (c) VendorPM prod |
+| Item | (a) dev/CI | (b) clinic-demo | (c) production |
 |---|---|---|---|
 | Ollaya runtime | ✅ | ✅ | ✅ pin binary |
 | llama.cpp | ✅ | ✅ | ✅ |
@@ -213,7 +213,7 @@ Ollaya's registry serves **two** NLI variants; the ticket's description matches 
 | `incoai/Qwen3.8-27B-Splash` | ✅ | ✅ (macOS host) | ✅ pin + D5 |
 | `lainsoykaf/…-GGUF` Q4_K_M | ✅ | ✅ | ✅ pin |
 
-**Cross-cutting conditions for every ✅ above:** pin the exact revision/digest (Ollaya's commit+sha256 pinning covers registry pulls; HF revisions recorded above or obtainable via the HF API); keep Apache §4 NOTICE/LICENCE propagation for anything we redistribute (the demo redistributes nothing; VendorPM redistributes nothing — serving is use); record licence + publisher + digest on every judgment-ledger row per ADR 0040/0042 ("a pinned digest"); treat publisher-reported accuracy (ADR 0041) and shipped calibrations (B4) as unverified inputs to calibration, never as facts.
+**Cross-cutting conditions for every ✅ above:** pin the exact revision/digest (Ollaya's commit+sha256 pinning covers registry pulls; HF revisions recorded above or obtainable via the HF API); keep Apache §4 NOTICE/LICENCE propagation for anything we redistribute (the demo redistributes nothing; the operator redistributes nothing — serving is use); record licence + publisher + digest on every judgment-ledger row per ADR 0040/0042 ("a pinned digest"); treat publisher-reported accuracy (ADR 0041) and shipped calibrations (B4) as unverified inputs to calibration, never as facts.
 
 ## 6. Summary of the biggest risks
 

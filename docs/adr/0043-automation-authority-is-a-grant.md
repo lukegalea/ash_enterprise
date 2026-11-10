@@ -35,7 +35,7 @@ would be a write without a human *and* without a grant — the one combination t
 ## Decision
 
 **Automatic admission is performed by a named automation principal that is subject to grants. What it may admit is
-`(role, privilege)` data — scoped by question family, tenant risk tier and tenant — that an administrator can inspect
+`(role, privilege)` data — scoped by question family, tenant risk level and tenant — that an administrator can inspect
 and revoke.**
 
 **The principal.** Automation principals are named in a closed, compile-time list, for the same reason system actors
@@ -46,7 +46,7 @@ struct beside `SystemActor`, or a flag on it that removes the bypass — is the 
 **an automation principal with no grant rows can admit nothing.**
 
 **The grant.** A role carries the privilege to invoke the admission action on judgment rows, and the policy on that
-action is a filter check over the set of `(family, risk tier)` pairs precomputed into the principal's `ActorContext`
+action is a filter check over the set of `(family, risk level)` pairs precomputed into the principal's `ActorContext`
 once per request. No query in the check, no deny rule, no ordering: adding a family is inserting a row, removing one
 is deleting it, and the union of grants is preserved ([thesis 3](../manifesto/03-authorization-is-data.md)).
 Revoking automation for a family — because a calibration run regressed, a model changed, or an auditor asked — is a
@@ -73,7 +73,7 @@ holding grants; `ai` survives, if at all, only as an attribution label with no a
 actor of an admission.
 
 **The human decision moves to the grant.** Thesis 5's "writes need a human" is kept, and its moment changes for this one
-case: the human decision is the act of issuing the grant — per question family, risk tier and tenant, by an
+case: the human decision is the act of issuing the grant — per question family, risk level and tenant, by an
 administrator holding that privilege, recorded and revocable — not a confirmation at the moment of each write.
 
 **Pending, and marked so:** whether any family is ever granted to an automation principal at all. The mechanism is the

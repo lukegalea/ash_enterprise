@@ -27,7 +27,7 @@ snippet — and commits `priv/judgments/lock.json`. From that moment the
 registry's own governance applies by construction: any wording drift is a
 compile error, a change is a new question, and the question is judged,
 recorded and admitted through the ordinary ledger lifecycle. That is the
-same mechanism VendorPM's custom requirements will use: a domain
+same mechanism a customer's custom requirements will use: a domain
 contributes policy TEXT and a subject resource — nothing else.
 
 ## The pipeline
@@ -109,7 +109,7 @@ for proposal calls is an upstream follow-up. `policy_text` and
 `raw_output` are payload class (byte-faithful, `trim?: false`, erasable);
 everything else is envelope class.
 
-## Extension point (VendorPM later, no names in core)
+## Extension point (customer domains later, no names in core)
 
 The mechanism contains no domain vocabulary. A new domain contributes:
 
@@ -122,7 +122,7 @@ The mechanism contains no domain vocabulary. A new domain contributes:
 3. Optionally a **profile per family** — the profile is a `propose`
    argument, so different domains can use different in-zone instruments.
 
-Nothing else. VendorPM's "a PMC's own requirement becomes questions our
+Nothing else. The customer case, "a customer's own requirement becomes questions our
 team confirms" is this exact flow with private text: in-zone, in shadow,
 per CAP2-VPM-MIRROR's constraints (no customer-confidential content in
 commits, transcripts or public repos; residency tagged before entry).

@@ -62,25 +62,25 @@ config :ash_evidence, AshEvidence.Repo,
 #
 # Upstream, `mix setup` owns its whole database: it creates `ash_enterprise_dev`,
 # puts the simulated legacy estate in `legacy.*` and everything of its own in
-# `public`. That is right for the reference app and wrong for the VendorPM POC
-# (VPM-10), where the point is to run against the EXISTING `vendorpm` database --
-# the one vendorpm-apolloserver's knex migrations own -- so ash_strangler has a
+# `public`. That is right for the reference app and wrong for the hosted POC,
+# where the point is to run against the EXISTING legacy database --
+# the one the legacy service's knex migrations own -- so ash_strangler has a
 # real legacy schema to strangle rather than a simulated one.
 #
 # Sharing a database with another migration system is only safe if the two can
 # never contend for a table, so this application takes a Postgres schema of its
 # own and stays inside it. Three knobs, each defaulting to the upstream
-# behaviour, so `mix setup` outside the VendorPM workspace is unchanged:
+# behaviour, so `mix setup` outside the private workspace is unchanged:
 #
 #   DB_NAME              which database to connect to.
 #   ASH_SCHEMA           the schema this application OWNS. Every Ash migration
 #                        runs in it and `schema_migrations` lives in it, so Ash's
-#                        migration history and knex's `vendorpm.knex_migrations`
+#                        migration history and knex's `legacy.knex_migrations`
 #                        are separate objects in separate schemas. Unset, tables
 #                        land in `public` exactly as before.
 #   PG_EXTENSION_SCHEMA  where the host database installed its extensions, if not
-#                        `public`. VendorPM's has citext and uuid-ossp in the
-#                        `vendorpm` schema, and Ash's `:ci_string` attributes
+#                        `public`. The host's has citext and uuid-ossp in the
+#                        legacy schema, and Ash's `:ci_string` attributes
 #                        compile to an unqualified `citext` column type -- so
 #                        without this on the search path, migrating fails with
 #                        `type "citext" does not exist`.
@@ -90,7 +90,7 @@ config :ash_evidence, AshEvidence.Repo,
 # real and deliberate -- a table this application expects but has not created
 # could resolve to a same-named legacy one (`users` exists on both sides) rather
 # than erroring. Ash creates every table it reads, so that requires a migration
-# to have been skipped; VPM-12 removes the trade entirely by declaring `schema`
+# to have been skipped; a later change removes the trade entirely by declaring `schema`
 # on the resources instead of relying on a search path.
 ash_schema = System.get_env("ASH_SCHEMA")
 
@@ -143,7 +143,7 @@ end
 config :ash_enterprise, AshEnterpriseWeb.Endpoint,
   # Binding to loopback ipv4 address prevents access from other machines.
   #
-  # PHX_IP=0.0.0.0 is how the VendorPM POC opts out: the app runs inside a dev
+  # PHX_IP=0.0.0.0 is how the hosted POC opts out: the app runs inside a dev
   # container and the port is published from the workspace node, so a loopback
   # bind is unreachable from the thing doing the publishing and the declared
   # port in .sdlc/app.yaml would answer nothing. The default is unchanged.

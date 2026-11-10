@@ -19,7 +19,7 @@ defmodule AshEnterprise.Compliance.KycRules do
   | 2 | `kyc.contact_reachable` | simple attribute check |
   | 3 | `kyc.jurisdiction_supported` | simple attribute check |
   | 4 | `kyc.sanctions_cleared` | missing evidence → `:unknown` (`:unknown` absence semantics) |
-  | 5 | `kyc.enhanced_review` | multi-fact conjunction (jurisdiction + risk tier) |
+  | 5 | `kyc.enhanced_review` | multi-fact conjunction (jurisdiction + risk level) |
   | 6 | `acct.welcome_review` | `no_fact` absence semantics (fires when nothing recorded) |
   | 7 | `acct.remediations_closed` | counter fact supplied by the host (the aggregate) |
   | 8 | `kyc.review_required` | global mandatory layer; waivable with approval |

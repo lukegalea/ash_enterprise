@@ -29,7 +29,7 @@ What the end state looks like:
 5. **Forgettable by construction.** Any source's content can be shredded (ADR 0024) and the instance keeps
    working.
 6. **Mechanism public, content private.** What the instance needs is in public packages as mechanism;
-   VendorPM-specific content stays in the private repository.
+   Organization-specific content stays in the private repository.
 
 ## Exit gate
 

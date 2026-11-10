@@ -634,7 +634,7 @@ The key product decision is therefore: **make AshA2ui deterministic and excellen
 
 [^1_110]: https://arxiv.org/html/2503.04084v1
 
-[^1_111]: https://pmc.ncbi.nlm.nih.gov/articles/PMC11623163/
+[^1_111]: https://europepmc.org/articles/PMC11623163/
 
 [^1_112]: https://peerj.com/articles/cs-2421
 
@@ -1894,13 +1894,13 @@ The spatial canvas is therefore not a replacement for chat or A2UI. It is the du
 
 [^2_32]: https://f1000research.com/articles/4-482/v1/pdf
 
-[^2_33]: https://pmc.ncbi.nlm.nih.gov/articles/PMC4752027/
+[^2_33]: https://europepmc.org/articles/PMC4752027/
 
 [^2_34]: https://academic.oup.com/bioinformatics/article-pdf/32/2/309/6689178/btv557.pdf
 
-[^2_35]: https://pmc.ncbi.nlm.nih.gov/articles/PMC9889963/
+[^2_35]: https://europepmc.org/articles/PMC9889963/
 
-[^2_36]: https://pmc.ncbi.nlm.nih.gov/articles/PMC4708103/
+[^2_36]: https://europepmc.org/articles/PMC4708103/
 
 [^2_37]: https://js.cytoscape.org/
 
@@ -2556,7 +2556,7 @@ The process layer is where this stops being an admin UI and becomes an environme
 
 [^3_6]: https://hexdocs.pm/ash/multi-step-actions.html
 
-[^3_7]: https://pmc.ncbi.nlm.nih.gov/articles/PMC10445457/
+[^3_7]: https://europepmc.org/articles/PMC10445457/
 
 [^3_8]: https://hexdocs.pm/ash/3.26.0/multi-step-actions.html
 
@@ -2595,7 +2595,7 @@ The expanded TRD (v0.2) is ready as the attached Markdown document. The key arch
 
 **Clarity/AshDiagram stay put.** One derivation, two renderers: AshDiagram remains the engine (ideally growing a `Data.Canvas` AST module), Clarity remains the dev-time host, the canvas is the authorized runtime audience. The existing `diagrams_test.exs` pattern extends to: every published definition renderable, every reactor graphable (asserted against Reactor's own planner output), every token element resolvable to the compiled snapshot.
 
-**Acceptance coverage.** Four new oracle files in the ai-sdlc style — A2UI-108 (process objects + authorization), A2UI-109 (live token overlay without camera theft), A2UI-110 (Reactor DAG parity + compensation trace + ephemeral honesty), A2UI-111 (start-from-diagram, snapshot-based version diffing), A2UI-112 (event-log-derived replay plans that terminate honestly on external state change) — each with immutable IDs, risk tiers, and exact test paths.
+**Acceptance coverage.** Four new oracle files in the ai-sdlc style — A2UI-108 (process objects + authorization), A2UI-109 (live token overlay without camera theft), A2UI-110 (Reactor DAG parity + compensation trace + ephemeral honesty), A2UI-111 (start-from-diagram, snapshot-based version diffing), A2UI-112 (event-log-derived replay plans that terminate honestly on external state change) — each with immutable IDs, risk levels, and exact test paths.
 
 One sequencing note: I put **process objects third**, ahead of the shared scene, because "start a process from its diagram and watch the token wait at the approval task your candidate join says is yours" is the highest-signal demo the stack can produce — it exercises authorization, live data, the agent's explain-by-reading model, and the honesty constraints in a single flow.
 
