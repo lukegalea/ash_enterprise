@@ -59,7 +59,8 @@ defmodule AshEnterprise.Security.SigningSaltsTest do
 
   test "the dev and test built-in salts are the ones the boot check refuses" do
     for file <- ["config/dev.exs", "config/test.exs"],
-        [_, value] <- Regex.scan(~r/(?:session_signing_salt:|signing_salt:)\s*"([^"]+)"/, File.read!(file)) do
+        [_, value] <-
+          Regex.scan(~r/(?:session_signing_salt:|signing_salt:)\s*"([^"]+)"/, File.read!(file)) do
       assert value in SigningSalts.built_in(), "#{file} salt #{inspect(value)} is not registered"
     end
   end

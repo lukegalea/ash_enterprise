@@ -39,10 +39,17 @@ defmodule AshEnterprise.Security.Validations.BreakGlassApproval do
 
   defp pending(session, _) do
     cond do
-      session.lifecycle_status != :active -> error("the session has ended")
-      not is_nil(session.approved_at) -> error("the session is already approved")
-      DateTime.compare(DateTime.utc_now(), session.expires_at) != :lt -> error("the session has expired")
-      true -> nil
+      session.lifecycle_status != :active ->
+        error("the session has ended")
+
+      not is_nil(session.approved_at) ->
+        error("the session is already approved")
+
+      DateTime.compare(DateTime.utc_now(), session.expires_at) != :lt ->
+        error("the session has expired")
+
+      true ->
+        nil
     end
   end
 
