@@ -154,5 +154,29 @@
   "file": "telemetry/test/support/test_endpoint.ex",
   "text": "def handle_event(\"raise\", _params, _socket), do: raise(\"boom in handle_event\")",
   "reason": "A test fixture LiveView that exists to crash, so the suite can assert the exception path detaches trace context. It is only compiled in the package's test environment."
+ },
+ {
+  "law": "07",
+  "file": "ash_browser_tests/test/support/fixture/app.ex",
+  "text": "use Oban.Worker, queue: :default",
+  "reason": "A test fixture whose perform/1 is a bare :ok, so a replay has no effect. It exists so the suite can assert the producer and job spans; it is only compiled in the package's test environment."
+ },
+ {
+  "law": "11",
+  "file": "ash_browser_tests/lib/ash_browser_tests/sandbox_hook.ex",
+  "text": "def handle_event(event, _measurements, metadata, config) do",
+  "reason": "A :telemetry handler, not a LiveView event. It receives LiveView and endpoint telemetry inside the BEAM in a test-only package; no client reaches it."
+ },
+ {
+  "law": "11",
+  "file": "ash_browser_tests/lib/ash_browser_tests/trace.ex",
+  "text": "def handle_event(filters \\\\ []), do: [name: ~r/handle_event/] ++ filters",
+  "reason": "A span matcher that builds a keyword list for trace assertions. It is not a LiveView callback and takes no client input."
+ },
+ {
+  "law": "11",
+  "file": "ash_browser_tests/test/support/fixture/app.ex",
+  "text": "def handle_event(\"create\", _params, socket) do",
+  "reason": "A test fixture LiveView with no actors or policies to authorize against, only compiled in the package's test environment. Its span tree is what the suite asserts on."
  }
 ]
