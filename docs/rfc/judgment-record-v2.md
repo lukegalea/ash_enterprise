@@ -505,7 +505,7 @@ the host banding pipeline (`d582f88`) runs flatten → resolver → evaluate →
 | `observation_ids` | [uuid] | yes | Usually one. More than one when a band table reads several answers — e.g. an extraction plus its verification (§5.5) |
 | `band_table` | object | yes | `{definition_key, definition_version, content_hash, definition_id, tenant_fork}`, copied from `ash_decisions` `Definition` at evaluation time |
 | `decision_evaluation_id` | uuid | yes | The `ash_decisions` `Evaluation` row |
-| `inputs` | object | yes | The flattened DMN inputs (probabilities as decimal strings, family, risk level, jurisdiction). Envelope-class |
+| `inputs` | object | yes | The flattened DMN inputs (probabilities as decimal strings, family, risk tier, jurisdiction). Envelope-class |
 | `matched_rule_ids` | [string] | yes | From `Evaluation.matched_rule_ids`, **populated from the row** (in the pin; A1). **An empty list is a refusal, not a result** — enforced at the fragment boundary |
 | `band` | enum `admit` \| `review` \| `omit` | yes | The band table's output (ADR 0041). The frozen enum |
 | `fact_value` | JSON \| null | admit only | The fact value the table proposes |
