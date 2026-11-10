@@ -39,6 +39,11 @@ exporters are per processor. The `AshEnterprise.Telemetry` moduledoc explains th
 Logs and metrics read their endpoint from the `:opentelemetry_experimental` application, not `:opentelemetry_exporter`, and
 take their resource from the same detector as traces. `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_SERVICE_NAME` cover all three.
 
+Exported log records carry no crash data: the OTLP log handler (and the Sentry handler) filter each record, rebuilding a
+crash or error report without its arguments, last message, state or exit-reason data, with stack frames by arity, and
+keeping scalar metadata only. The console handler is untouched. With Sentry's structured logs on (`config :sentry, logs:`),
+also set `before_send_log: {AshEnterprise.Telemetry.SentryWiring, :before_send_log}`.
+
 Metrics need a reader, which `setup/1` does not create:
 
 ```elixir
@@ -75,7 +80,7 @@ or passes `{module, function, args}` to decide per request.
 | Work in a `Task` | around the spawn | `TaskContext` |
 | Trace on a Postgres session | `Repo.on_transaction_begin/1` | `Postgres` |
 | Trace on outbound HTTP | around `Req.new/1` | `AshEnterprise.Telemetry.Req` |
-| Naming the action on a span | `setup(event_attributes: ...)` | `A2uiEventAttributes` |
+| Naming the action on a span | `setup(event_attributes: ...)`; `declared:` for actions not in the UI module | `A2uiEventAttributes` |
 
 Attribute names are a documented contract: `AshEnterprise.Telemetry.Attributes`.
 

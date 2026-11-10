@@ -71,6 +71,12 @@ Non-production telemetry is treated as sensitive but not secret, and browser tel
   log remains the record.
 - Error events have LiveView parameters and request bodies reduced to their keys, query strings, stack-frame arguments, a
   crashed process's state and user PII removed before they leave; if scrubbing fails the event is dropped.
+- Exported log records follow the same rule. A crash or error report (GenServer, `gen_statem`, `proc_lib`, supervisor,
+  Task, Bandit, LiveView) is rebuilt from its sanitized parts, without arguments, last message, state or exit-reason data,
+  with frames by arity, and log metadata keeps scalars only. The filter that does this applies to the exporting handlers
+  (OTLP, and Sentry's), not the console; if it fails the record is dropped.
+- A client-chosen name reaches a span attribute only when the server declared it: an A2UI row action is named on the span
+  only if the surface declares it, otherwise the span carries the envelope's verb.
 - Browser attribute values are limited to scalars, so a reserved key cannot arrive nested inside a list or map value.
 - The stack is bound to loopback or a private network. Two listeners ignore that today (SigNoz's OpAMP port and Keeper's raft
   port) and must be firewalled.

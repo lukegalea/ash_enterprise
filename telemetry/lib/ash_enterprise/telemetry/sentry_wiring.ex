@@ -7,6 +7,8 @@ defmodule AshEnterprise.Telemetry.SentryWiring do
       config :sentry,
         dsn: System.get_env("SENTRY_DSN"),
         before_send: {#{inspect(__MODULE__)}, :before_send},
+        # Only when Sentry's structured logs are on (`logs:`).
+        before_send_log: {#{inspect(__MODULE__)}, :before_send_log},
         integrations: [
           oban: [
             capture_errors: true,
@@ -38,6 +40,12 @@ defmodule AshEnterprise.Telemetry.SentryWiring do
   lose their arguments, and a crash report keeps its reason's tag and loses the last
   message and process state.
 
+  The logger handler `setup/1` adds (or Sentry's own, when `config :sentry, logs:`
+  attached it) gets the OTLP log handler's filter, so a crash report's message and
+  Sentry's structured logs are built from the scrubbed event; only `crash_reason` is
+  kept, because the handler reports the exception from it. `before_send_log/1` is the
+  second line for structured logs: it scrubs the body and keeps scalar attributes.
+
   ## Decisions
 
     * **Sentry's OpenTelemetry span processor and sampler stay off.** Traces belong to
@@ -52,6 +60,7 @@ defmodule AshEnterprise.Telemetry.SentryWiring do
   """
 
   alias AshEnterprise.Telemetry.FailedSpan
+  alias AshEnterprise.Telemetry.LogScrub
   alias AshEnterprise.Telemetry.Sanitize
   alias AshEnterprise.Telemetry.Settings
 
@@ -59,7 +68,16 @@ defmodule AshEnterprise.Telemetry.SentryWiring do
   @sensitive_key ~r/pass|secret|token|auth|cookie|session|csrf|email|phone|ssn|credit|card|api[_-]?key|bearer|referr?er|forwarded|real[_-]?ip|remote[_-]?(?:addr|port)|_traceparent/i
   @crash_tail ~r/\n(?:Last message|State:|Function:|\s+Args:)/
   @tuple_reason ~r/(\*\* \(stop\) \{:?[\w.]+).*/s
-  @process_data [:genserver_state, "genserver_state", :last_message, "last_message"]
+  @process_data [
+    :genserver_state,
+    "genserver_state",
+    :last_message,
+    "last_message",
+    :crash_reason,
+    "crash_reason"
+  ]
+  @scrub_filter :ash_enterprise_telemetry_export_scrub
+  @max_attribute_bytes 1_024
 
   @doc "`:before_send` callback: adds join tags and scrubs. Returns `nil`, dropping the event, on failure."
   @spec before_send(struct()) :: struct() | nil
@@ -70,6 +88,77 @@ defmodule AshEnterprise.Telemetry.SentryWiring do
   catch
     _kind, _reason -> nil
   end
+
+  @doc """
+  `:before_send_log` callback for Sentry's structured logs: the body is scrubbed as a
+  crash message is, the template and parameters go, and attributes keep scalars only.
+  Returns `nil`, dropping the log, on failure.
+  """
+  @spec before_send_log(struct()) :: struct() | nil
+  def before_send_log(%{__struct__: Sentry.LogEvent, body: body} = log) when is_binary(body) do
+    %{
+      log
+      | body: LogScrub.text(body),
+        template: nil,
+        parameters: nil,
+        attributes: scalar_attributes(log.attributes)
+    }
+  catch
+    _kind, _reason -> nil
+  end
+
+  def before_send_log(_log), do: nil
+
+  defp scalar_attributes(attributes) when is_map(attributes) do
+    for {key, value} <- attributes,
+        key not in @process_data,
+        value = scalar_attribute(value),
+        not is_nil(value),
+        into: %{},
+        do: {key, value}
+  end
+
+  defp scalar_attributes(_attributes), do: %{}
+
+  defp scalar_attribute(value) when is_binary(value),
+    do: Sanitize.truncate(value, @max_attribute_bytes)
+
+  defp scalar_attribute(value) when is_number(value) or is_boolean(value), do: value
+
+  defp scalar_attribute(value) when is_atom(value) and not is_nil(value),
+    do: Atom.to_string(value)
+
+  defp scalar_attribute(_value), do: nil
+
+  @doc false
+  # Adds `Sentry.LoggerHandler`, or, when Sentry attached its own for `logs:`, gives
+  # that one the scrub filter. A second handler would report every crash twice.
+  @spec add_logger_handler() :: :ok
+  def add_logger_handler do
+    {id, filter} = logger_filter()
+
+    case :logger.get_handler_config(:sentry_log_handler) do
+      {:ok, _config} ->
+        case :logger.add_handler_filter(:sentry_log_handler, id, filter) do
+          :ok -> :ok
+          {:error, {:already_exist, _id}} -> :ok
+        end
+
+      {:error, _not_found} ->
+        config = %{
+          config: %{capture_metadata: [:correlation_id], capture_excluded_domains: [:cowboy]},
+          filter_default: :log,
+          filters: [{id, filter}]
+        }
+
+        _ = :logger.add_handler(:sentry_handler, Sentry.LoggerHandler, config)
+        :ok
+    end
+  end
+
+  @doc false
+  # The OTLP log handler's filter, keeping the `crash_reason` Sentry reports from.
+  def logger_filter, do: {@scrub_filter, {&LogScrub.filter/2, %{keep: [:crash_reason]}}}
 
   @doc """
   Sentry Oban callback (`should_report_error_callback`): report only the attempt
@@ -153,6 +242,7 @@ defmodule AshEnterprise.Telemetry.SentryWiring do
     |> Map.update!(:extra, &scrub_extra/1)
     |> Map.update!(:request, &scrub_request/1)
     |> Map.update!(:message, &scrub_message/1)
+    |> Map.update!(:fingerprint, &scrub_fingerprint/1)
     |> Map.update!(:exception, &scrub_exceptions(&1, event.original_exception))
     |> Map.update!(:threads, &blank_all_frames/1)
   end
@@ -191,12 +281,20 @@ defmodule AshEnterprise.Telemetry.SentryWiring do
 
   defp scrub_message(message), do: message
 
+  # Then the line-by-line scrub logs get: frame arguments, an exit's call, values.
   defp crash_text(text) when is_binary(text) do
     [head | _tail] = String.split(text, @crash_tail, parts: 2)
-    Regex.replace(@tuple_reason, head, "\\1, ...}")
+
+    @tuple_reason
+    |> Regex.replace(head, "\\1, ...}")
+    |> LogScrub.text()
   end
 
   defp crash_text(text), do: text
+
+  # Sentry fingerprints a timed-out or dead call by the call's message.
+  defp scrub_fingerprint([type, "genserver_call" | _call]), do: [type, "genserver_call"]
+  defp scrub_fingerprint(fingerprint), do: fingerprint
 
   defp scrub_exceptions(exceptions, original) when is_list(exceptions) do
     Enum.map(exceptions, fn exception ->

@@ -96,6 +96,7 @@ defmodule AshEnterprise.Telemetry do
   alias AshEnterprise.Telemetry.Logging
   alias AshEnterprise.Telemetry.ObanContext
   alias AshEnterprise.Telemetry.PhoenixSpans
+  alias AshEnterprise.Telemetry.SentryWiring
   alias AshEnterprise.Telemetry.Settings
   alias AshEnterprise.Telemetry.SpanProcessor
   alias AshEnterprise.Telemetry.TraceSink
@@ -335,26 +336,9 @@ defmodule AshEnterprise.Telemetry do
       logs_opts -> :ok = Logging.add_otlp_handler(logs_opts)
     end
 
-    if opts[:sentry], do: add_sentry_handler()
+    if opts[:sentry], do: SentryWiring.add_logger_handler()
 
     :ok
-  end
-
-  # Sentry's own handler is attached when `config :sentry, logs:` is set. A second
-  # one would report every crash twice.
-  defp add_sentry_handler do
-    case :logger.get_handler_config(:sentry_log_handler) do
-      {:ok, _config} ->
-        :ok
-
-      {:error, _not_found} ->
-        config = %{
-          config: %{capture_metadata: [:correlation_id], capture_excluded_domains: [:cowboy]}
-        }
-
-        _ = :logger.add_handler(:sentry_handler, Sentry.LoggerHandler, config)
-        :ok
-    end
   end
 
   defp repo_prefixes(opts) do
