@@ -96,6 +96,8 @@ The concrete exit: which files change, and how much work it is.
 | [0062](0062-planning-proposes-declarations-and-people-commit.md) | Planning proposes; declarations and people commit | accepted, not built (2026-11-05) |
 | [0063](0063-declared-operations-are-a-package.md) | Declared provider operations are a package (`ash_operations`); the credential registry is the reference | proposed (2026-11-06; registry connector and webhook ingress built) |
 | [0064](0064-production-environments-are-a-separate-domain-from-compliance.md) | Production environments are a separate domain from compliance | accepted (2026-11-09; seam built in `ash_compliance`) |
+| [0065](0065-a-document-is-a-pure-function-of-recorded-inputs.md) | A document is a pure function of recorded inputs | accepted (2026-11-10) |
+| [0066](0066-paper-separates-schema-layout-theme-and-wording.md) | Paper separates schema, layout, theme and wording | accepted (2026-11-10) |
 
 Records 0001–0005, 0007–0009, 0020–0023, 0027–0031, 0033–0037, 0050–0054, 0059 and 0061 are `accepted` and describe code that exists. 0006 is superseded by 0050. 0049 is accepted and in progress: Phase 0 (PostgreSQL 18) and the System One fact cut-over have landed. 0060 is accepted and in progress: its phases 1 (ash_a2ui) and 2 (this repository) have landed; the downstream host's phases and CLDR formatting are not built.
 **0038–0047 are `accepted, not built (2026-09-28)`:** the decision is taken and none of it is built. A record with that
