@@ -154,5 +154,11 @@
   "file": "telemetry/test/support/test_endpoint.ex",
   "text": "def handle_event(\"raise\", _params, _socket), do: raise(\"boom in handle_event\")",
   "reason": "A test fixture LiveView that exists to crash, so the suite can assert the exception path detaches trace context. It is only compiled in the package's test environment."
+ },
+ {
+  "law": "11",
+  "file": "telemetry/test/support/crash_fixtures.ex",
+  "text": "def handle_event(\"known\", _params, socket), do: {:noreply, socket}",
+  "reason": "Test-support LiveView fixture used to provoke LiveView crash reports. The handler reads no data, touches no resource and returns the socket unchanged, so there is nothing to authorize; it is compiled only in the telemetry package test environment."
  }
 ]
