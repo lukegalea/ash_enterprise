@@ -126,4 +126,40 @@ defmodule AshEnterprise.ExecutionSources.DocumentDeliveryTest do
     rows = Ash.read!(DocumentEvent, authorize?: false, tenant: ctx.tenant)
     assert Enum.count(rows, &(&1.event_id == ctx.delivery_id)) == 1
   end
+
+  test "a document.requested event is not a delivery: its ref is unreadable", ctx do
+    {:ok, requested} =
+      Credentialing.request_document(
+        %{
+          event_id: "request-#{System.unique_integer([:positive])}",
+          source: "test",
+          subject: ctx.instance.subject_id,
+          time: DateTime.utc_now(),
+          data: %{"kind" => "certificate"}
+        },
+        authorize?: false,
+        tenant: ctx.tenant
+      )
+
+    assert Explorer.detail("document_delivery:#{requested.id}",
+             actor: ctx.admin.actor,
+             tenant: ctx.tenant
+           ) == :unreadable
+  end
+
+  test "a sender-supplied kind is cut to 80 characters in the summary", ctx do
+    kind = String.duplicate("k", 200)
+
+    assert DocumentWebhook.deliver(
+             ctx.tenant,
+             ctx.instance.subject_id,
+             "long-#{System.unique_integer([:positive])}",
+             kind
+           ) == :received
+
+    trace = trace!("process_instance:#{ctx.instance.id}", ctx.admin.actor, ctx.tenant)
+    summary = "document received: " <> String.duplicate("k", 79) <> "…"
+    assert summary in Enum.map(deliveries(trace), & &1.summary)
+    refute Enum.any?(deliveries(trace), &(&1.summary =~ kind))
+  end
 end

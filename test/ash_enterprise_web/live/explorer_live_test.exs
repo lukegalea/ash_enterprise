@@ -228,6 +228,54 @@ defmodule AshEnterpriseWeb.ExplorerLiveTest do
     end
   end
 
+  describe "a webhook delivery's detail" do
+    test "reads its arrival in the display zone", ctx do
+      previous = Application.get_env(:ash_enterprise, :display_time_zone)
+      Application.put_env(:ash_enterprise, :display_time_zone, "Pacific/Auckland")
+      on_exit(fn -> Application.put_env(:ash_enterprise, :display_time_zone, previous) end)
+
+      credential = ctx.clinic.case_credential
+      coordinator = actor(ctx.clinic.coordinator, ctx.tenant)
+      Credentialing.open_case!(credential.id, actor: coordinator, tenant: ctx.tenant)
+
+      instance =
+        AshEnterprise.Bpmn.Instance
+        |> Ash.read!(authorize?: false, tenant: ctx.tenant)
+        |> Enum.find(&(to_string(&1.subject_id) == credential.id))
+
+      :received =
+        AshEnterprise.Credentialing.DocumentWebhook.deliver(
+          ctx.tenant,
+          credential.id,
+          "tz-#{System.unique_integer([:positive])}"
+        )
+
+      {:ok, view, _html} =
+        live(
+          sign_in(ctx.admin.user),
+          ~p"/app/explorer?#{%{root: "process_instance:#{instance.id}"}}"
+        )
+
+      [ref] = refs(view, "#timeline [data-row=entry][data-ref^='document_delivery:']")
+      select!(view, ref)
+
+      [iso] =
+        view
+        |> render()
+        |> LazyHTML.from_fragment()
+        |> LazyHTML.query("#timeline [data-ref='#{ref}'] time")
+        |> LazyHTML.attribute("datetime")
+
+      {:ok, at, _} = DateTime.from_iso8601(iso)
+
+      assert has_element?(
+               view,
+               "#explorer-detail dd",
+               AshEnterprise.Platform.LocalTime.stamp_seconds(at)
+             )
+    end
+  end
+
   describe "the navigation path" do
     test "from the activation's effect to its approval, the matched rule, the judgment and the evidence",
          ctx do

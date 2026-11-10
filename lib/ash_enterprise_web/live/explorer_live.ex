@@ -787,7 +787,7 @@ defmodule AshEnterpriseWeb.ExplorerLive do
         {gettext("Document"), d.document_kind},
         {gettext("Sender"), d.sender},
         {gettext("Delivery id"), d.delivery_id},
-        {gettext("Received at"), d.received_at && DateTime.to_iso8601(d.received_at)}
+        {gettext("Received at"), d.received_at && LocalTime.stamp_seconds(d.received_at)}
       ]
       |> present()
 

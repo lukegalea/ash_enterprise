@@ -35,6 +35,7 @@ defmodule AshEnterprise.ExecutionSources.DocumentDelivery do
   require Ash.Query
 
   @credential to_string(Credential)
+  @kind_limit 80
 
   @impl true
   def read(scope, opts) do
@@ -58,8 +59,8 @@ defmodule AshEnterprise.ExecutionSources.DocumentDelivery do
   so a delivery is opened only where the trace would show it.
   """
   @spec readable?(DocumentEvent.t(), keyword()) :: boolean()
-  def readable?(delivery, opts) do
-    case Ecto.UUID.cast(delivery.subject) do
+  def readable?(%{type: type} = delivery, opts) do
+    case type == DocumentEvent.received() && Ecto.UUID.cast(delivery.subject) do
       {:ok, credential_id} ->
         Instance
         |> Ash.Query.for_read(:read, %{}, actor: opts[:actor], tenant: opts[:tenant])
@@ -67,7 +68,7 @@ defmodule AshEnterprise.ExecutionSources.DocumentDelivery do
         |> Ash.Query.limit(1)
         |> Ash.exists?()
 
-      :error ->
+      _not_a_received_delivery ->
         false
     end
   end
@@ -117,5 +118,12 @@ defmodule AshEnterprise.ExecutionSources.DocumentDelivery do
   defp parent(_none_or_several), do: nil
 
   defp summary(nil), do: "document received"
-  defp summary(kind), do: "document received: #{kind}"
+  defp summary(kind), do: "document received: #{truncate(kind)}"
+
+  # The kind is the sender's string; the summary shows at most @kind_limit characters of it.
+  defp truncate(kind) do
+    if String.length(kind) > @kind_limit,
+      do: String.slice(kind, 0, @kind_limit - 1) <> "…",
+      else: kind
+  end
 end

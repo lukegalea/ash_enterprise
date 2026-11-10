@@ -188,7 +188,8 @@ defmodule AshEnterprise.ExecutionSources do
   and then id, at most `opts[:limit]` after `opts[:after]`, loading `:load`. `matches` is
   a list of `{field, values}`, or `{field, {:prefix, prefixes}}` for a string field that
   starts with one of `prefixes`; a field with no values matches nothing, and with no
-  values at all nothing is read. `:where` is an expression every row must also satisfy. `{:ok, rows, next_cursor}` or `{:error, error}`.
+  values at all nothing is read. `:where` is an expression every row must also satisfy.
+  `{:ok, rows, next_cursor}` or `{:error, error}`.
   """
   @spec read(
           Ash.Resource.t(),
