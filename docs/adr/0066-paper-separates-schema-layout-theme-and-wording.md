@@ -21,8 +21,8 @@ Four independent axes, plus requirements.
 2. **Layout** is Typst source owned by the host, reviewed as code, locked by hash. A linter rejects `eval`, `read`,
    `sys`, `datetime.today`, plugins, file access and any import other than the kernel's. Layouts reach data only
    through the kernel's library.
-3. **Theme** is tenant data: typed tokens (colour, font choice from the vendored set, logo reference, spacing scale),
-   validated on write. A tenant never supplies Typst. Tokens are values passed to the layout, not source.
+3. **Theme** is tenant data: typed tokens (body and heading fonts from the vendored set, sizes, margins, paper size,
+   accent colour), validated on write. A tenant never supplies Typst. Tokens are values passed to the layout, not source.
 4. **Wording** is clauses: literal runs and typed holes, per locale. A hole is filled only from the payload. A clause
    with no variant for the document's locale blocks the issue; it is never dropped and never falls back silently.
 5. **Requirements** (what a document must contain for a given context) are selected by decision, not by layout, and
@@ -32,8 +32,9 @@ Four independent axes, plus requirements.
 7. **Format before the payload, structure in Typst.** Values are formatted before they enter the payload: money always
    carries its ISO currency code, is never rounded, and has a strict inverse that parses the string back to the typed
    value. Typst generates structure (tables, lists, page breaks) and never formats data.
-8. **Read-back compares per labelled block.** A second compile collects each labelled block's position and must produce
-   identical page content for each block. Page furniture (headers, footers, page numbers) is excluded. Whole-page text
+8. **Read-back compares per labelled block.** A second compile records each labelled block's position, and its page
+   content must be identical to the issued render's, so the positions describe the issued pages. Each block's text is
+   then compared with the payload. Page furniture (headers, footers, page numbers) is excluded. Whole-page text
    comparison is wrong: a theme swap can move a page break, and in the spike one table row moved to the next page
    while every block's content was unchanged.
 9. **Three outcomes: passed, failed, unmeasured.** A block that cannot be measured is `unmeasured`, and `unmeasured` is
