@@ -1,8 +1,8 @@
-# ADR 0065 — A document is a pure function of recorded inputs
+# ADR 0067 — A document is a pure function of recorded inputs
 
 - **Status:** accepted (2026-11-10); the rendering package is public at `lukegalea/ash_paper`
 - **Date:** 2026-11-10
-- **Related:** ADR 0040 (record, don't recompute), ADR 0024 (erasure by crypto-shredding), ADR 0038 (models observe, declarations decide), ADR 0066 (the four axes)
+- **Related:** ADR 0040 (record, don't recompute), ADR 0024 (erasure by crypto-shredding), ADR 0038 (models observe, declarations decide), ADR 0068 (the four axes)
 
 ## Context
 

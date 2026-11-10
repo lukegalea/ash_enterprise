@@ -1,8 +1,8 @@
-# ADR 0066 — Paper separates schema, layout, theme and wording
+# ADR 0068 — Paper separates schema, layout, theme and wording
 
 - **Status:** accepted (2026-11-10); the implementation is public at `lukegalea/ash_paper` (MIT)
 - **Date:** 2026-11-10
-- **Related:** ADR 0065 (a document is a pure function of recorded inputs), ADR 0029 (configuration is tenant data), ADR 0028 (decisions are DMN)
+- **Related:** ADR 0067 (a document is a pure function of recorded inputs), ADR 0029 (configuration is tenant data), ADR 0028 (decisions are DMN)
 
 ## Context
 
@@ -60,6 +60,6 @@ that actor can read; the kernel adds no authorization model of its own.
 
 Collapsing the axes into one template per document type means merging layout, theme and clauses back into host-owned
 files: the lock files and linter go, theme becomes code, and tenants lose self-service wording. The kernel's library
-and `ash_paper` can be replaced behind the render function in ADR 0065 without touching issued documents, whose bytes
+and `ash_paper` can be replaced behind the render function in ADR 0067 without touching issued documents, whose bytes
 and snapshots are independent of how they were authored. Allowing tenant-supplied markup is a separate reversal of
 decision 3 and would need a sandbox first; the linter's rules are the starting list of what such a sandbox must deny.
