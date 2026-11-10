@@ -21,11 +21,12 @@ defmodule AshEnterprise.Security.BreakGlassTest do
   alias AshEnterprise.Security.{BreakGlassSession, Impersonation}
 
   @grants [{BreakGlassSession, :create, :global}, {BreakGlassSession, :write, :global}]
+  @approver_grants [{BreakGlassSession, :write, :global}]
 
   setup do
     admin = tenant!()
     operator = member!(admin, "Operator #{System.unique_integer([:positive])}", @grants)
-    approver = member!(admin, "Approver #{System.unique_integer([:positive])}", [])
+    approver = member!(admin, "Approver #{System.unique_integer([:positive])}", @approver_grants)
     subject = member!(admin, "Subject #{System.unique_integer([:positive])}", [])
     %{admin: admin, operator: operator, approver: approver, subject: subject}
   end
@@ -50,6 +51,19 @@ defmodule AshEnterprise.Security.BreakGlassTest do
 
   defp open!(ctx, attrs \\ %{}) do
     {:ok, session} = open(ctx, attrs)
+    session
+  end
+
+  defp approve(session, actor) do
+    session
+    |> Ash.Changeset.for_update(:approve, %{}, actor: actor)
+    |> Ash.update()
+  end
+
+  # An opened session is not live until the named approver approves it.
+  defp live!(ctx, attrs \\ %{}) do
+    session = open!(ctx, attrs)
+    {:ok, session} = approve(session, ctx.approver.actor)
     session
   end
 
@@ -151,9 +165,81 @@ defmodule AshEnterprise.Security.BreakGlassTest do
     end
   end
 
+  describe "approval" do
+    test "an opened session is not live: the operator naming an approver is not approval", ctx do
+      session = open!(ctx)
+      assert is_nil(session.approved_at)
+
+      assert {:error, :no_live_session} =
+               Impersonation.break_glass(ctx.subject.user, ctx.operator.user)
+    end
+
+    test "the named approver approving makes it live and is audited", ctx do
+      session = open!(ctx)
+      assert {:ok, approved} = approve(session, ctx.approver.actor)
+      assert %DateTime{} = approved.approved_at
+      assert {:ok, _} = Impersonation.break_glass(ctx.subject.user, ctx.operator.user)
+
+      events =
+        EventLog |> Ash.Query.filter(record_id == ^session.id) |> Ash.read!(authorize?: false)
+
+      assert Enum.any?(events, &(to_string(&1.action) == "approve"))
+    end
+
+    test "the operator cannot approve their own session", ctx do
+      assert {:error, _} = approve(open!(ctx), ctx.operator.actor)
+
+      assert {:error, :no_live_session} =
+               Impersonation.break_glass(ctx.subject.user, ctx.operator.user)
+    end
+
+    test "the subject cannot approve, nor an active colleague who was not named", ctx do
+      other = member!(ctx.admin, "Other #{System.unique_integer([:positive])}", @approver_grants)
+      session = open!(ctx)
+
+      assert {:error, _} = approve(session, ctx.subject.actor)
+      assert {:error, _} = approve(session, other.actor)
+
+      assert {:error, :no_live_session} =
+               Impersonation.break_glass(ctx.subject.user, ctx.operator.user)
+    end
+
+    test "a system actor cannot approve", ctx do
+      assert {:error, _} = approve(open!(ctx), SystemActor.seed())
+    end
+
+    test "an approver without a grant cannot approve", ctx do
+      bare = member!(ctx.admin, "Bare #{System.unique_integer([:positive])}", [])
+      session = open!(ctx, %{approver_id: bare.user.id})
+      assert {:error, %Ash.Error.Forbidden{}} = approve(session, bare.actor)
+    end
+
+    test "approval is refused after expiry, once approved, and when the approver is deactivated",
+         ctx do
+      expired = open!(ctx)
+      past = DateTime.add(DateTime.utc_now(), -1, :second)
+
+      AshEnterprise.Repo.query!(
+        "update break_glass_sessions set expires_at = $1 where id = $2",
+        [past, Ecto.UUID.dump!(expired.id)]
+      )
+
+      expired = Ash.get!(BreakGlassSession, expired.id, authorize?: false)
+      assert {:error, _} = approve(expired, ctx.approver.actor)
+
+      session = open!(ctx)
+      assert {:ok, approved} = approve(session, ctx.approver.actor)
+      assert {:error, _} = approve(approved, ctx.approver.actor)
+
+      pending = open!(ctx)
+      deactivate!(ctx.approver)
+      assert {:error, _} = approve(pending, ctx.approver.actor)
+    end
+  end
+
   describe "acting as the subject" do
     test "a live session yields an actor attributed to the operator", ctx do
-      session = open!(ctx)
+      session = live!(ctx)
 
       assert {:ok, actor} = Impersonation.break_glass(ctx.subject.user, ctx.operator.user)
       assert actor.id == ctx.subject.user.id
@@ -167,7 +253,7 @@ defmodule AshEnterprise.Security.BreakGlassTest do
     end
 
     test "a session for someone else, or for another operator, does not count", ctx do
-      open!(ctx)
+      live!(ctx)
       other = member!(ctx.admin, "Other #{System.unique_integer([:positive])}", [])
 
       assert {:error, :no_live_session} = Impersonation.break_glass(other.user, ctx.operator.user)
@@ -175,7 +261,7 @@ defmodule AshEnterprise.Security.BreakGlassTest do
     end
 
     test "a session is gone at its expiry instant", ctx do
-      session = open!(ctx)
+      session = live!(ctx)
 
       before = DateTime.add(session.expires_at, -1, :microsecond)
 
@@ -189,7 +275,7 @@ defmodule AshEnterprise.Security.BreakGlassTest do
     end
 
     test "an ended session is gone", ctx do
-      session = open!(ctx)
+      session = live!(ctx)
 
       session
       |> Ash.Changeset.for_update(:deactivate, %{}, actor: ctx.operator.actor)
@@ -200,7 +286,7 @@ defmodule AshEnterprise.Security.BreakGlassTest do
     end
 
     test "a session does not survive its operator or its subject being deactivated", ctx do
-      open!(ctx)
+      live!(ctx)
       deactivate!(ctx.operator)
 
       assert {:error, :no_live_session} =
@@ -208,7 +294,7 @@ defmodule AshEnterprise.Security.BreakGlassTest do
     end
 
     test "the subject deactivated while the session is open", ctx do
-      open!(ctx)
+      live!(ctx)
       deactivate!(ctx.subject)
 
       assert {:error, :no_live_session} =
@@ -216,7 +302,7 @@ defmodule AshEnterprise.Security.BreakGlassTest do
     end
 
     test "malformed arguments are never a session", ctx do
-      open!(ctx)
+      live!(ctx)
       assert {:error, :no_live_session} = Impersonation.break_glass(nil, ctx.operator.user)
       assert {:error, :no_live_session} = Impersonation.break_glass(ctx.subject.user, nil)
       assert {:error, :no_live_session} = Impersonation.break_glass(%{}, %{})
