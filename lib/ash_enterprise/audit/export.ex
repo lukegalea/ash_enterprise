@@ -49,6 +49,14 @@ defmodule AshEnterprise.Audit.Export do
               record_id user_id system_actor correlation_id changed_attributes
               previous_hash hash)a
 
+  @doc """
+  The SOC 2 criteria this module records evidence for (the audit export).
+
+  Read by `AshCompliance.Ownership.Resolver.proves_producer/2`; `docs/controls.json`
+  rows that name this module as their evidence producer must appear here.
+  """
+  def evidence_controls, do: ["CC2.1"]
+
   @doc "The header row, as a list. Public so a test can assert the contract."
   @spec columns() :: [atom()]
   def columns, do: @columns

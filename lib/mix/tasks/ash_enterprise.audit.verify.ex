@@ -21,6 +21,14 @@ defmodule Mix.Tasks.AshEnterprise.Audit.Verify do
 
   @requirements ["app.config"]
 
+  @doc """
+  The SOC 2 criteria this module records evidence for (the chain verification).
+
+  Read by `AshCompliance.Ownership.Resolver.proves_producer/2`; `docs/controls.json`
+  rows that name this module as their evidence producer must appear here.
+  """
+  def evidence_controls, do: ["CC4.1", "CC7.2"]
+
   @impl Mix.Task
   def run(argv) do
     {opts, _, _} = OptionParser.parse(argv, strict: [tenant: :string])

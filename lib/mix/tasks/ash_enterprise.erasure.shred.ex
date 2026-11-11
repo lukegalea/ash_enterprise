@@ -36,6 +36,14 @@ defmodule Mix.Tasks.AshEnterprise.Erasure.Shred do
   # An allow-list, not String.to_atom/1 on argv (iron law #10).
   @kinds %{"connection" => :connection, "data_subject" => :data_subject}
 
+  @doc """
+  The SOC 2 criteria this module records evidence for (crypto-shredding).
+
+  Read by `AshCompliance.Ownership.Resolver.proves_producer/2`; `docs/controls.json`
+  rows that name this module as their evidence producer must appear here.
+  """
+  def evidence_controls, do: ["CC6.5", "C1.2", "P4.3"]
+
   @impl Mix.Task
   def run(argv) do
     {opts, args, _invalid} =
