@@ -26,11 +26,13 @@ defmodule AshEnterprise.Legacy.UserProjection do
   rescue: the caller decides what a refused row means.
 
   `:context` (a map) is set on the upsert and on the transition, so a caller that carries
-  provenance for the audit log (the drain's ledger envelope) has it on both writes.
+  provenance for the audit log (the drain's ledger envelope) has it on both writes. `:actor`
+  attributes both writes and defaults to `SystemActor.projection/0`, which is what the backfill
+  uses.
   """
   @spec project(map(), keyword()) :: {:ok, struct()} | {:error, term()}
   def project(attrs, options \\ []) do
-    opts = opts(Keyword.take(options, [:context]))
+    opts = opts(Keyword.take(options, [:context, :actor]))
 
     with {:ok, projected} <- ProjectedUser.project(attrs, opts) do
       align_lifecycle(projected, attrs.legacy_state, opts)
@@ -56,7 +58,7 @@ defmodule AshEnterprise.Legacy.UserProjection do
   # estate's organization. See `ProjectedUser`'s moduledoc for why borrowing a human name here
   # would be a lie.
   defp opts(extra) do
-    [actor: SystemActor.projection(), tenant: Estate.organization_id(), authorize?: false] ++
-      extra
+    [actor: SystemActor.projection(), tenant: Estate.organization_id(), authorize?: false]
+    |> Keyword.merge(extra)
   end
 end

@@ -93,7 +93,10 @@ defmodule AshEnterprise.Ledger.UserIngestion do
     # (`ledger_*`) so they cannot collide with the platform's correlation id.
     # `UserProjection` puts it on the lifecycle transition as well as the upsert.
     result =
-      UserProjection.project(attrs, context: %{ash_events_metadata: audit_metadata(envelope)})
+      UserProjection.project(attrs,
+        actor: actor_opts[:actor],
+        context: %{ash_events_metadata: audit_metadata(envelope)}
+      )
 
     with {:ok, projected} <- result do
       # The compliance events ride the same transaction as the canonical
