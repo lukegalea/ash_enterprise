@@ -379,6 +379,12 @@ defmodule AshEnterprise.Accounts.User do
     change AshEnterprise.Accounts.Changes.RevokeTokensOnDeactivation,
       on: :update,
       where: action_is(:deactivate)
+
+    # `User` is `tenant?: false`, so its audit row is in the chain no sweep reads:
+    # the occurrences put the fact in each organization's chain.
+    change AshEnterprise.Accounts.Changes.RecordDeactivation,
+      on: :update,
+      where: action_is(:deactivate)
   end
 
   # Exposed as an ash_ai tool (`list_users`); ADR 0057.

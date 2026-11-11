@@ -479,6 +479,7 @@ config :ash_enterprise,
     AshEnterprise.Lineage,
     AshEnterprise.Licences,
     AshEnterprise.Credentialing,
+    AshEnterprise.Automation,
     AshEnterprise.Quality,
     AshEnterprise.Planning
   ],
