@@ -36,6 +36,21 @@ defmodule AshEnterprise.Platform.Correlation do
   @key :ash_enterprise_correlation
 
   @doc """
+  The current correlation id, or nil. Unlike `id/0` this never generates one: the
+  span processor reads it for every span, and minting there would give each
+  background sweep a unique id that joins nothing.
+  """
+  def current do
+    case Process.get(@key) do
+      %{id: id} -> id
+      _ -> nil
+    end
+  end
+
+  @doc "Sets the current id, for restoring one carried across a process boundary."
+  def put(id) when is_binary(id), do: Process.put(@key, %{id: id, depth: 0})
+
+  @doc """
   The current correlation id, generating and storing one if absent.
 
   Generating on demand means code paths with no HTTP request — an Oban job, a

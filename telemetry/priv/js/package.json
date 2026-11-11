@@ -1,0 +1,16 @@
+{
+  "name": "ash-enterprise-telemetry-browser",
+  "private": true,
+  "description": "The exact browser packages the tracer in this directory is built and tested against. Pin these in the host's assets/package.json: the OpenTelemetry JS packages are mid-split between 2.x and 3.x and a mixed set fails at runtime.",
+  "type": "module",
+  "dependencies": {
+    "@opentelemetry/api": "1.9.1",
+    "@opentelemetry/exporter-trace-otlp-http": "0.223.1",
+    "@opentelemetry/instrumentation": "0.223.1",
+    "@opentelemetry/instrumentation-document-load": "0.68.0",
+    "@opentelemetry/resources": "2.12.1",
+    "@opentelemetry/sdk-trace-base": "2.12.1",
+    "@opentelemetry/sdk-trace-web": "2.12.1",
+    "@sentry/browser": "11.11.0"
+  }
+}

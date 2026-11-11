@@ -74,7 +74,7 @@ defmodule AshEnterprise.Application do
       ] ++
         orphans_sweep() ++
         planning_orphans_sweep() ++
-        trace_sink() ++ trigger_index() ++ legacy_listener() ++ privilege_sync()
+        trigger_index() ++ legacy_listener() ++ privilege_sync()
 
     # See https://elixir.hexdocs.pm/Supervisor.html
     # for other strategies and supported options
@@ -198,24 +198,6 @@ defmodule AshEnterprise.Application do
     end
   end
 
-  # The bounded in-BEAM trace ring behind `mix ash_enterprise.trace` — the dev
-  # loop's source of truth for recent traces (design:
-  # docs/research/trace-storage-dev-to-prod.md §5). Off everywhere but :dev and
-  # :test, via `config :ash_enterprise, :trace_sink?` in config/dev.exs and
-  # config/test.exs — a config-gated child rather than a runtime flag, so a
-  # prod release never even contains the question. The sink consumes the span
-  # pipeline through `otel_simple_processor`; it competes with no backend and
-  # backfills nothing. See `AshEnterprise.Telemetry.TraceSink`.
-  defp trace_sink do
-    if Application.get_env(:ash_enterprise, :trace_sink?, false) do
-      # Early in the tree, so boot spans land in the ring too. Pure ETS: no
-      # dependencies on the Repo or the endpoint.
-      [AshEnterprise.Telemetry.TraceSink]
-    else
-      []
-    end
-  end
-
   # Tell Phoenix to update the endpoint configuration
   # whenever the application is updated.
 
@@ -264,8 +246,13 @@ defmodule AshEnterprise.Application do
   end
 
   defp setup_opentelemetry do
-    OpentelemetryPhoenix.setup(adapter: :bandit, liveview: true)
-    OpentelemetryEcto.setup([:ash_enterprise, :repo], db_statement: :disabled)
+    AshEnterprise.Telemetry.setup(
+      otp_app: :ash_enterprise,
+      repo_prefixes: [[:ash_enterprise, :repo]],
+      correlation: AshEnterprise.Platform.TelemetryCorrelation,
+      db_statement: :disabled
+    )
+
     # Agent steps, tool executions and model calls, as GenAI spans.
     AshEnterprise.Telemetry.GenAI.attach()
   end

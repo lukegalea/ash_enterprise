@@ -49,7 +49,7 @@ The concrete exit: which files change, and how much work it is.
 | [0015](0015-approvals-stay-in-ash.md) | Approvals and process modelling stay inside Ash | proposed |
 | [0016](0016-unleash-for-feature-flags.md) | Feature flags: FunWithFlags, not Unleash | proposed |
 | [0017](0017-entity-resolution-in-ash.md) | Entity resolution as Ash calculations over CDM resources | proposed |
-| [0018](0018-grafana-lgtm-observability-backend.md) | Grafana LGTM as the observability backend | proposed |
+| [0018](0018-grafana-lgtm-observability-backend.md) | Grafana LGTM as the observability backend | superseded by 0065 |
 | [0019](0019-api-versioning-as-presentation-contract.md) | API versioning is a presentation contract, not a schema fork | proposed |
 | [0020](0020-tamper-evident-audit-log.md) | The audit log is tamper-evident, by two mechanisms | accepted |
 | [0021](0021-control-mapping-is-generated.md) | The compliance control map is generated from the ledger | accepted |
@@ -96,6 +96,7 @@ The concrete exit: which files change, and how much work it is.
 | [0062](0062-planning-proposes-declarations-and-people-commit.md) | Planning proposes; declarations and people commit | accepted, not built (2026-11-05) |
 | [0063](0063-declared-operations-are-a-package.md) | Declared provider operations are a package (`ash_operations`); the credential registry is the reference | proposed (2026-11-06; registry connector and webhook ingress built) |
 | [0064](0064-production-environments-are-a-separate-domain-from-compliance.md) | Production environments are a separate domain from compliance | accepted (2026-11-09; seam built in `ash_compliance`) |
+| [0065](0065-signoz-and-glitchtip-observability-backends.md) | SigNoz for traces, logs and metrics; GlitchTip for error triage | proposed (2026-11-09; instrumentation package built) |
 | [0067](0067-a-document-is-a-pure-function-of-recorded-inputs.md) | A document is a pure function of recorded inputs | accepted (2026-11-10) |
 | [0068](0068-paper-separates-schema-layout-theme-and-wording.md) | Paper separates schema, layout, theme and wording | accepted (2026-11-10) |
 

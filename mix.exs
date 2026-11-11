@@ -415,6 +415,8 @@ defmodule AshEnterprise.MixProject do
       {:opentelemetry_ash, "~> 0.1"},
       {:opentelemetry_phoenix, "~> 2.0"},
       {:opentelemetry_ecto, "~> 1.2"},
+      # The runtime observability package this repository publishes (telemetry/).
+      {:ash_enterprise_telemetry, path: "telemetry"},
 
       # --- Static analysis -----------------------------------------------------
       # Dialyzer runs NON-BLOCKING in CI: there is no official guidance for

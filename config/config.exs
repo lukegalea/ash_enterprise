@@ -383,14 +383,15 @@ config :spark,
 # Note the honest limitation recorded in
 # docs/manifesto/07-what-we-do-not-have.md: opentelemetry_ash is 0.1.x and thin
 # relative to what enterprise APM expects. Expect to extend it.
-config :ash, :tracer, [OpentelemetryAsh]
+config :ash, :tracer, [AshEnterprise.Telemetry.AshTracer]
 
 # Traces go nowhere unless an OTLP endpoint is configured, which is the right
 # default for a template: exporting by accident is worse than not exporting.
 # Set OTEL_EXPORTER_OTLP_ENDPOINT to turn it on (see config/runtime.exs).
+# Exporters are named per processor: never set the global `span_processor` or
+# `traces_exporter` keys (see AshEnterprise.Telemetry).
 config :opentelemetry,
-  span_processor: :batch,
-  traces_exporter: :none
+  processors: [{AshEnterprise.Telemetry.SpanProcessor, %{}}]
 
 # Teach Postgrex about the pgvector wire type. See lib/ash_enterprise/postgrex_types.ex.
 config :ash_enterprise, AshEnterprise.Repo, types: AshEnterprise.PostgrexTypes

@@ -21,10 +21,10 @@ defmodule AshEnterprise.Telemetry.TraceSinkTest do
   setup do
     TraceSink.clear()
 
-    original = Application.get_env(:ash_enterprise, :trace_sink, [])
+    original = Application.get_env(:ash_enterprise_telemetry, :trace_sink, [])
 
     on_exit(fn ->
-      Application.put_env(:ash_enterprise, :trace_sink, original)
+      Application.put_env(:ash_enterprise_telemetry, :trace_sink, original)
       TraceSink.clear()
     end)
 
@@ -32,7 +32,7 @@ defmodule AshEnterprise.Telemetry.TraceSinkTest do
   end
 
   defp with_bounds(ring_size: rs, max_spans: ms) do
-    Application.put_env(:ash_enterprise, :trace_sink, ring_size: rs, max_spans: ms)
+    Application.put_env(:ash_enterprise_telemetry, :trace_sink, ring_size: rs, max_spans: ms)
   end
 
   # --- Span fabrication ---------------------------------------------------------
