@@ -275,7 +275,12 @@ incomplete backfill produces missing rows, not an error.
     view DDL then fails against it. But `migrate? false` also stops the resource
     producing a snapshot, and `custom_statements` are only read from snapshots — so
     there is no configuration in which codegen can carry this. Never hand-edit a
-    generated migration; edit the mapping and regenerate.
+    generated migration; edit the mapping and regenerate. Regenerating is
+    additive: a column declared later is added to each owned table with `ADD
+    COLUMN IF NOT EXISTS` (a `null?: false` column with no default is refused
+    while the table holds rows), and a view whose column list changed shape is
+    dropped without `CASCADE` and re-created with its triggers. Use `--only
+    Mod.A,Mod.B` to render one mapping's migration.
 
 15. **Never compute a modern id by querying for it.** Use
     `AshStrangler.KeyDerivation.derive/3` (or `uuid_v5/2` + `name/2`), which is a
@@ -476,6 +481,8 @@ the owned table, key indexes, view and `INSTEAD OF` triggers.
 - Write-through on a `:dual_write` branch: `not_written_back [:col], because: ...` drops a column
   from the update (it keeps the legacy value, and is not a writer of a shared legacy column);
   `extension [:col]` stores it in `<view>_extension` instead of the legacy table;
+  an update assigns only the columns whose value differs from the scanned row (a concurrent legacy
+  commit to the others survives; the same holds for extension columns);
   `refuse_delete because: ...` makes a delete raise `BranchWriteRefused`. On the union,
   `security_definer true` renders the trigger functions `SECURITY DEFINER SET search_path =
   pg_catalog` (twins need a schema). `AshStrangler.Migration.render_move/2` moves an installed union
