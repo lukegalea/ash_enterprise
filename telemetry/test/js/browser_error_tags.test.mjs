@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import {test} from "node:test"
 
 import {
+  capBreadcrumb,
   errorOf,
   setActiveSpanSource,
   setErrorRecorder,
@@ -68,4 +69,30 @@ test("errorOf prefers the thrown value, then Sentry's exception", () => {
     message: "v"
   })
   assert.equal(errorOf({}, {}), undefined)
+})
+
+test("a breadcrumb's data: URL is cut to its media type and long text is capped", () => {
+  const huge = `data:application/json;base64,${"A".repeat(3_000_000)}`
+  const crumb = capBreadcrumb({
+    category: "fetch",
+    message: "x".repeat(5000),
+    data: {method: "GET", url: huge, status_code: 0}
+  })
+
+  assert.equal(crumb.data.url, "data:application/json;…")
+  assert.equal(crumb.data.method, "GET")
+  assert.equal(crumb.data.status_code, 0)
+  assert.equal(crumb.message.length, 1025)
+  assert.ok(JSON.stringify(crumb).length < 2_000)
+})
+
+test("an ordinary breadcrumb is unchanged", () => {
+  const crumb = {category: "navigation", data: {from: "/a", to: "/b"}}
+  assert.deepEqual(capBreadcrumb(crumb), crumb)
+  assert.equal(capBreadcrumb(null), null)
+})
+
+test("a console breadcrumb is dropped", () => {
+  const crumb = {category: "console", level: "log", message: "mount", data: {arguments: ["x"], logger: "console"}}
+  assert.equal(capBreadcrumb(crumb), null)
 })

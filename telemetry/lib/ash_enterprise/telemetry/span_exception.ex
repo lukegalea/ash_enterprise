@@ -62,10 +62,14 @@ defmodule AshEnterprise.Telemetry.SpanException do
   defp short_span(event, attributes) do
     name = if event.source == :logger, do: "process.crash", else: "error.report"
 
+    # A crash the logger reported is handled in the logger's process, not the one that
+    # crashed, so its initial call would name the logger; it is left off.
+    span_attributes = if event.source == :logger, do: %{}, else: initial_call()
+
     span =
       OpenTelemetry.Tracer.start_span(parent(event), name, %{
         kind: :internal,
-        attributes: initial_call()
+        attributes: span_attributes
       })
 
     OpenTelemetry.Span.add_event(span, :exception, attributes)

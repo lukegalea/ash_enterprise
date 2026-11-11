@@ -70,8 +70,13 @@ defmodule AshEnterprise.Telemetry.SpanExceptionTest do
 
   test "a crash the logger reported is a process.crash span" do
     key = test_key!()
+    # As if this were the logger's process, which is where a crash report is handled.
+    Process.put(:"$initial_call", {:logger_olp, :init, 1})
     SentryWiring.before_send(exception_event(source: :logger))
-    assert span_named(key, "process.crash")
+    span = span_named(key, "process.crash")
+
+    # Handled in the logger's process, not the crashed one: no initial call to name.
+    refute Map.has_key?(span.attributes, :"process.crash.initial_call")
   end
 
   test "an event that names a trace gets its span in that trace" do

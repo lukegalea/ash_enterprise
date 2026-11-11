@@ -61,3 +61,35 @@ export const traceTagsBeforeSend = (event, hint) => {
     return event
   }
 }
+
+// A console breadcrumb is dropped: application logging is not meant for a third party.
+// A breadcrumb's text is capped, and a data: URL is cut to its media type. A development
+// bundle with an inline source map fetches it as a multi-megabyte data: URL; its fetch
+// breadcrumb then rode on the next error event and pushed it past the tunnel's body
+// limit, so the error was refused instead of reported.
+const MAX_BREADCRUMB_TEXT = 1024
+
+const capText = value => {
+  if (typeof value !== "string") return value
+  if (value.startsWith("data:")) return `${value.slice(0, value.search(/[;,]/) + 1 || 32)}…`
+  return value.length > MAX_BREADCRUMB_TEXT ? `${value.slice(0, MAX_BREADCRUMB_TEXT)}…` : value
+}
+
+export const capBreadcrumb = breadcrumb => {
+  try {
+    if (!breadcrumb || typeof breadcrumb !== "object") return breadcrumb
+    if (breadcrumb.category === "console") return null
+    const capped = {...breadcrumb, message: capText(breadcrumb.message)}
+    if (capped.message === undefined) delete capped.message
+
+    if (breadcrumb.data && typeof breadcrumb.data === "object") {
+      capped.data = Object.fromEntries(
+        Object.entries(breadcrumb.data).map(([key, value]) => [key, capText(value)])
+      )
+    }
+
+    return capped
+  } catch {
+    return breadcrumb
+  }
+}

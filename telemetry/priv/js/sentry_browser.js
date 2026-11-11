@@ -13,11 +13,17 @@
 //
 // GlitchTip does not implement sessions, so the session integration is removed.
 // Console breadcrumbs are off, because application logging is not meant for a third
-// party. Tracing is not initialised: traces belong to the OTLP pipeline.
+// party, and every breadcrumb's text is capped (capBreadcrumb), so one huge URL cannot
+// push an event past the tunnel's body limit. Tracing is not initialised: traces belong
+// to the OTLP pipeline.
 
 import * as Sentry from "@sentry/browser"
 
-import {traceTagsBeforeSend} from "./browser_error_tags.js"
+import {capBreadcrumb, traceTagsBeforeSend} from "./browser_error_tags.js"
+
+// In the pinned SDK, console breadcrumbs come from their own Console integration, not
+// from Breadcrumbs, so both are handled; capBreadcrumb drops any that still arrive.
+const DROPPED_INTEGRATIONS = new Set(["BrowserSession", "Console"])
 
 export const startBrowserErrors = ({dsn, tunnel = "/sentry/tunnel", environment, release} = {}) => {
   if (!dsn) return
@@ -29,9 +35,10 @@ export const startBrowserErrors = ({dsn, tunnel = "/sentry/tunnel", environment,
     release,
     tracesSampleRate: undefined,
     beforeSend: traceTagsBeforeSend,
+    beforeBreadcrumb: capBreadcrumb,
     integrations: integrations =>
       integrations
-        .filter(integration => integration.name !== "BrowserSession")
+        .filter(integration => !DROPPED_INTEGRATIONS.has(integration.name))
         .map(integration =>
           integration.name === "Breadcrumbs"
             ? Sentry.breadcrumbsIntegration({console: false})
