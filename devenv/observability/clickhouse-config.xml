@@ -26,7 +26,7 @@
   <memory_worker_use_cgroup>false</memory_worker_use_cgroup>
   <!--
     1 GiB. The cap counts RSS, about 200 MB of which is the server's own code. At
-    640 MiB, a burst of about 13,000 spans (one Keystone browser-test run) pushed
+    640 MiB, a burst of about 13,000 spans (one browser-test run of a host app) pushed
     RSS to 660-690 MiB, and the server rejected inserts and queries with
     MEMORY_LIMIT_EXCEEDED, so spans were lost. Steady RSS stays near 330 MB.
   -->
