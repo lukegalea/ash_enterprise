@@ -461,7 +461,7 @@
       "id": "q45",
       "section": "change",
       "question": "Can a customer change how it behaves without a deploy?",
-      "answer": "Partial, and less partial than it was. A tenant can fork a process or a decision, edit it in the browser and publish it as its own version, with no binding row meaning 'follow the platform baseline' -- so changing behaviour is data, and reverting is deleting a row. Drift from a newer baseline is reported, never merged. What is still a deploy: adding an attribute is a resource change and a migration, and a decision cannot be tried against sample inputs before it is published.",
+      "answer": "Partial, and less partial than it was. A tenant can fork a process or a decision, edit it in the browser and publish it as its own version, with no binding row meaning 'follow the platform baseline' -- so changing behaviour is data, and reverting is deleting a row. Drift from a newer baseline is reported, never merged. What is still a deploy: adding an attribute is a resource change and a migration, and a tenant can try a draft or published decision against sample inputs before publishing it (the Try it panel at `/app/decisions/:key/try`, which records nothing and is covered in `test/ash_enterprise_web/live/decisions/try_live_test.exs`).",
       "status": "partial",
       "adr": "0029",
       "item": "first-party"
@@ -522,11 +522,12 @@
       "id": "q53",
       "section": "change",
       "question": "How are business rules expressed, versioned and changed without a deploy?",
-      "answer": "As DMN, in `ash_decisions`. A decision is a DMN document -- the single artifact, with no second copy of the rules in a table to drift from it -- versioned and immutable on publish, edited in dmn-js, and evaluated either by a business rule task inside a process or by trigger routing deciding which process to start. The engine is adopted rather than written and measured at 97.68% of the official DMN TCK. `OUTPUT ORDER` and `RULE ORDER` are refused at compile time because both make document order semantically significant, which is the same order-dependence the authorization model rejects. Publishing runs a verifier over every decision table: overlapping rules under `UNIQUE` or `ANY`, gaps in the input space and rules that can never fire are proved, an error-severity finding blocks the publish, and whatever the verifier cannot decide is recorded as an open obligation rather than reported clean. Every evaluation records which version decided, what it saw and which rules fired. What is missing is a way to run a decision against sample inputs from the editor, so an author can still publish without having watched the table fire.",
+      "answer": "As DMN, in `ash_decisions`. A decision is a DMN document -- the single artifact, with no second copy of the rules in a table to drift from it -- versioned and immutable on publish, edited in dmn-js, and evaluated either by a business rule task inside a process or by trigger routing deciding which process to start. The engine is adopted rather than written and measured at 97.68% of the official DMN TCK. `OUTPUT ORDER` and `RULE ORDER` are refused at compile time because both make document order semantically significant, which is the same order-dependence the authorization model rejects. Publishing runs a verifier over every decision table: overlapping rules under `UNIQUE` or `ANY`, gaps in the input space and rules that can never fire are proved, an error-severity finding blocks the publish, and whatever the verifier cannot decide is recorded as an open obligation rather than reported clean. Every evaluation records which version decided, what it saw and which rules fired. An author can run any readable version against sample inputs before publishing, on the Try it panel at `/app/decisions/:key/try`: typed inputs, the answer, the rules that matched and the hit policy, with invalid input refused and no `Evaluation` written (`test/ash_enterprise_web/live/decisions/try_live_test.exs`; the version resolver is covered in `test/ash_enterprise/process/decision_resolver_test.exs`). What is missing is the panel inside the dmn-js editor itself, a way to try a platform baseline without customising it, and sample inputs saved with the draft.",
       "status": "partial",
       "adr": "0028",
       "item": "decisions",
-      "proof": "test/ash_enterprise/process/decision_resolver_test.exs"
+      "proof": "test/ash_enterprise_web/live/decisions/try_live_test.exs",
+      "test": "trying writes no Evaluation"
     },
     {
       "id": "q54",

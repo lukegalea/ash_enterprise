@@ -75,6 +75,8 @@ defmodule AshEnterpriseWeb.Bpmn.CatalogLive do
     baselines = read_platform(resource)
     bindings = Map.new(read(Binding, socket), &{{&1.kind, &1.key}, &1})
 
+    own_keys = MapSet.new(own, & &1.key)
+
     rows =
       (own ++ baselines)
       |> Enum.group_by(& &1.key)
@@ -87,7 +89,8 @@ defmodule AshEnterpriseWeb.Bpmn.CatalogLive do
           version: active && active.version,
           source: if(binding, do: binding.source, else: :platform),
           forked_from: binding && binding.forked_from_version,
-          status: active && active.status
+          status: active && active.status,
+          own?: MapSet.member?(own_keys, key)
         }
       end)
       |> Enum.sort_by(& &1.key)
@@ -274,6 +277,15 @@ defmodule AshEnterpriseWeb.Bpmn.CatalogLive do
                       size="xs"
                     >
                       Open designer
+                    </.button>
+                    <.button
+                      :if={@kind == :decision and row.own?}
+                      id={"try-decision-#{row.key}"}
+                      navigate={~p"/app/decisions/#{row.key}/try"}
+                      variant="ghost"
+                      size="xs"
+                    >
+                      {dgettext("default", "Try it")}
                     </.button>
                     <.button
                       :if={@kind == :decision and row.source == :tenant}
