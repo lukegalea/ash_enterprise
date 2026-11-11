@@ -18,12 +18,14 @@ import {context, trace} from "@opentelemetry/api"
 import {OTLPTraceExporter} from "@opentelemetry/exporter-trace-otlp-http"
 import {registerInstrumentations} from "@opentelemetry/instrumentation"
 import {DocumentLoadInstrumentation} from "@opentelemetry/instrumentation-document-load"
+import {JsonTraceSerializer} from "@opentelemetry/otlp-transformer"
 import {resourceFromAttributes} from "@opentelemetry/resources"
 import {BatchSpanProcessor} from "@opentelemetry/sdk-trace-base"
 import {WebTracerProvider} from "@opentelemetry/sdk-trace-web"
 import {Serializer} from "phoenix"
 
 import {setActiveSpanSource} from "./browser_error_tags.js"
+import {createBeaconExporter, installPageHideFlush} from "./page_hide.js"
 import {
   connectSpanName,
   createInteractionTracker,
@@ -47,11 +49,15 @@ export function startBrowserTracing({
 } = {}) {
   if (!enabled()) return inert
 
+  const exporter = createBeaconExporter({
+    inner: new OTLPTraceExporter({url: endpoint}),
+    serialize: spans => JsonTraceSerializer.serializeRequest(spans),
+    url: endpoint
+  })
+
   const provider = new WebTracerProvider({
     resource: resourceFromAttributes({"service.name": serviceName}),
-    spanProcessors: [
-      new BatchSpanProcessor(new OTLPTraceExporter({url: endpoint}), {scheduledDelayMillis: 200})
-    ]
+    spanProcessors: [new BatchSpanProcessor(exporter, {scheduledDelayMillis: 200})]
   })
   provider.register()
 
@@ -66,6 +72,14 @@ export function startBrowserTracing({
     tracer,
     getPagePath,
     interactions
+  })
+
+  // A reload (a LiveView crash causes one) must not lose the span of the event that
+  // caused it: end what is open and hand the batch to sendBeacon.
+  installPageHideFlush({
+    exporter,
+    endOpenSpans: () => socketTracing.endPending(),
+    flush: () => provider.forceFlush()
   })
 
   let connectSpan = null

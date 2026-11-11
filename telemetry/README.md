@@ -93,6 +93,11 @@ The OpenTelemetry JS packages must be pinned as a set.
 Browser tracing is off until the root layout renders `<meta name="otel-browser" content="on">`. Adopting the browser's trace
 context on the server is a separate switch, `browser_context: true`; its trust model is in the `BrowserContext` moduledoc.
 
+When the page goes away (`pagehide`, or the tab turning hidden) the tracer ends the interaction spans still waiting for a reply
+(a crashing LiveView never replies, and the crash reloads the page) and hands what is pending to `navigator.sendBeacon`, a
+same-origin `application/json` POST to the ingest path. That is what keeps the server's crash span from having a remote
+parent that was never exported. `priv/js/page_hide.js` holds the logic and `test/js/page_hide.test.mjs` tests it.
+
 ## Tests
 
 ```sh

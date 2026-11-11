@@ -146,6 +146,20 @@ defmodule AshEnterprise.Telemetry.OtlpIngestTest do
       assert TraceSink.trace(trace_id).root.name == "/page Save"
     end
 
+    test "a page-unload beacon is accepted: a cookie, no CSRF token, a bare JSON content type" do
+      trace_id = id(16)
+
+      conn =
+        payload([span(trace_id: trace_id, name: "/page Crash")])
+        |> request(content_type: "application/json")
+        |> put_req_header("cookie", "_session=abc")
+        |> call()
+
+      assert get_req_header(conn, "x-csrf-token") == []
+      assert conn.status == 200
+      assert TraceSink.trace(trace_id).root.name == "/page Crash"
+    end
+
     test "with no Host header, the conn's host and port are the authority" do
       conn =
         :post
