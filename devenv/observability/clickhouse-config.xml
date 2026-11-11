@@ -18,13 +18,19 @@
   <default_database>default</default_database>
   <mlock_executable>false</mlock_executable>
   <!--
-    Off, so the 640 MiB cap below is measured against this server alone. On, the
+    Off, so the 1 GiB cap below is measured against this server alone. On, the
     memory worker reads the cgroup's usage as the server's own RSS, and inside a
     cgroup shared with other processes (a dev container, a terminal multiplexer's
     service) every query fails with MEMORY_LIMIT_EXCEEDED.
   -->
   <memory_worker_use_cgroup>false</memory_worker_use_cgroup>
-  <max_server_memory_usage>671088640</max_server_memory_usage>
+  <!--
+    1 GiB. The cap counts RSS, about 200 MB of which is the server's own code. At
+    640 MiB, a burst of about 13,000 spans (one browser-test run of a host app) pushed
+    RSS to 660-690 MiB, and the server rejected inserts and queries with
+    MEMORY_LIMIT_EXCEEDED, so spans were lost. Steady RSS stays near 330 MB.
+  -->
+  <max_server_memory_usage>1073741824</max_server_memory_usage>
   <!-- 48, not lower: the traces exporter writes many tables in parallel, and code 202
        makes it retry, which duplicates span rows. -->
   <max_concurrent_queries>48</max_concurrent_queries>
@@ -43,11 +49,25 @@
   <background_move_pool_size>1</background_move_pool_size>
   <background_fetches_pool_size>1</background_fetches_pool_size>
   <max_thread_pool_size>500</max_thread_pool_size>
-  <!-- A background_pool_size of 2 aborts startup unless these drop with it. -->
   <merge_tree>
+    <!-- A background_pool_size of 2 aborts startup unless these drop with it. -->
     <number_of_free_entries_in_pool_to_execute_mutation>2</number_of_free_entries_in_pool_to_execute_mutation>
     <number_of_free_entries_in_pool_to_lower_max_size_of_merge>2</number_of_free_entries_in_pool_to_lower_max_size_of_merge>
     <number_of_free_entries_in_pool_to_execute_optimize_entire_partition>2</number_of_free_entries_in_pool_to_execute_optimize_entire_partition>
+    <!--
+      Vertical merges for every part, not only parts over 131,072 rows. A
+      horizontal merge reads every column of every source part at once; for
+      signoz_index_v3 (81 columns, JSON among them) over the 100 small parts a
+      stack accumulates in a day, that is more than the cap allows, the merge
+      fails, retries, and starves inserts, so the collector's writes fail too. A
+      vertical merge reads one column at a time. Measured on such a data set: the
+      backlog cleared in 15s at a peak RSS of 487 MB, where the horizontal merge
+      never finished. The cap counts RSS, including about 200 MB of the server's
+      own code, so fewer parts per merge (max_parts_to_merge_at_once 10) and
+      smaller blocks (merge_max_block_size 1024) were not enough on their own.
+    -->
+    <vertical_merge_algorithm_min_rows_to_activate>1</vertical_merge_algorithm_min_rows_to_activate>
+    <vertical_merge_algorithm_min_columns_to_activate>1</vertical_merge_algorithm_min_columns_to_activate>
   </merge_tree>
   <macros><shard>00</shard><replica>00</replica></macros>
   <remote_servers>

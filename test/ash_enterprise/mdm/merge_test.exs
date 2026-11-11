@@ -10,7 +10,7 @@ defmodule AshEnterprise.Mdm.MergeTest do
 
   import AshEnterprise.Mdm.TestSupport
 
-  alias AshEnterprise.Mdm.{MatchRuleSet, SourceIdentity, SourceRankUnavailable}
+  alias AshEnterprise.Mdm.{MatchRuleSet, SourceIdentity}
   alias AshEnterprise.Platform.Seeder
 
   setup do
@@ -123,6 +123,30 @@ defmodule AshEnterprise.Mdm.MergeTest do
     assert reloaded.name == "Ann Duplicate"
   end
 
+  test "unmerge: an address the survivor took goes back to the loser", %{org: org, admin: admin} do
+    survivor = golden!(org, admin, "Ann Existing", nil)
+    loser = golden!(org, admin, nil, "ann@x.io")
+
+    loser =
+      loser
+      |> Ash.Changeset.for_update(:mdm_merge_into, %{survivor_id: survivor.id},
+        tenant: org,
+        authorize?: false
+      )
+      |> Ash.update!(tenant: org, authorize?: false)
+
+    assert to_string(Ash.reload!(survivor, tenant: org, authorize?: false).email) == "ann@x.io"
+
+    unmerged =
+      loser
+      |> Ash.Changeset.for_update(:mdm_unmerge, %{}, tenant: org, authorize?: false)
+      |> Ash.update!(tenant: org, authorize?: false)
+
+    assert to_string(unmerged.email) == "ann@x.io"
+    assert is_nil(Ash.reload!(survivor, tenant: org, authorize?: false).email)
+    assert Ash.reload!(survivor, tenant: org, authorize?: false).name == "Ann Existing"
+  end
+
   describe "the merge records who won" do
     @rules [%{"name" => "email_exact", "kind" => "exact", "fields" => ["email"], "weight" => 1.0}]
     @survivorship %{
@@ -140,10 +164,13 @@ defmodule AshEnterprise.Mdm.MergeTest do
 
       provenance = provenance.merge_provenance
 
-      assert provenance["winners"] == %{
-               "name" => %{"winner" => "survivor", "strategy" => "non_null"},
-               "email" => %{"winner" => "loser", "strategy" => "most_complete"}
-             }
+      assert %{"winner" => "survivor", "strategy" => "non_null", "source" => "pre_assertion"} =
+               provenance["winners"]["name"]
+
+      assert %{"winner" => "loser", "strategy" => "most_complete", "assertion_id" => id} =
+               provenance["winners"]["email"]
+
+      assert is_binary(id)
 
       assert provenance["rule_set_id"] == rule_set.id
 
@@ -165,8 +192,8 @@ defmodule AshEnterprise.Mdm.MergeTest do
 
       merged = survivor.id |> merge!(loser, org) |> Ash.reload!(tenant: org, authorize?: false)
 
-      assert merged.merge_provenance["winners"]["email"] ==
-               %{"winner" => "survivor", "strategy" => "non_null"}
+      assert %{"winner" => "survivor", "strategy" => "non_null"} =
+               merged.merge_provenance["winners"]["email"]
 
       assert merged.merge_provenance["rule_set_id"] == nil
       assert merged.merge_provenance["rule_set_content_hash"] == nil
@@ -178,51 +205,12 @@ defmodule AshEnterprise.Mdm.MergeTest do
 
       merged = survivor.id |> merge!(loser, org) |> Ash.reload!(tenant: org, authorize?: false)
 
-      assert merged.merge_provenance["winners"]["name"] ==
-               %{"winner" => nil, "strategy" => "non_null"}
-    end
-
-    test "source_rank as the default is refused by name, and nothing is written", %{
-      org: org,
-      admin: admin
-    } do
-      rule_set =
-        active_rule_set!(org, %{"default" => "source_rank", "source_rank" => ["salesforce"]})
-
-      survivor = golden!(org, admin, "Ann Existing", "ann@x.io")
-      loser = golden!(org, admin, "Ann Other", "ann2@x.io")
-
-      assert {:error, %Ash.Error.Invalid{errors: errors}} = merge(survivor.id, loser, org)
-
-      assert [%SourceRankUnavailable{rule_set_id: id, used_by: ["default"]} = error] =
-               Enum.filter(errors, &match?(%SourceRankUnavailable{}, &1))
-
-      assert id == rule_set.id
-      assert Exception.message(error) =~ "source_rank"
-
-      reloaded = Ash.reload!(loser, tenant: org, authorize?: false)
-      refute reloaded.merged
-      assert is_nil(reloaded.merge_provenance)
-    end
-
-    test "source_rank on one attribute is refused, naming the attribute", %{
-      org: org,
-      admin: admin
-    } do
-      active_rule_set!(org, %{
-        "default" => "non_null",
-        "attributes" => %{
-          "name" => %{"strategy" => "non_null"},
-          "email" => %{"strategy" => "source_rank"}
-        },
-        "source_rank" => ["salesforce", "manual_csv"]
-      })
-
-      survivor = golden!(org, admin, "Ann Existing", "ann@x.io")
-      loser = golden!(org, admin, "Ann Other", "ann2@x.io")
-
-      assert {:error, %Ash.Error.Invalid{errors: errors}} = merge(survivor.id, loser, org)
-      assert Enum.any?(errors, &match?(%SourceRankUnavailable{used_by: ["email"]}, &1))
+      assert merged.merge_provenance["winners"]["name"] == %{
+               "winner" => nil,
+               "strategy" => "non_null",
+               "source" => nil,
+               "assertion_id" => nil
+             }
     end
 
     defp active_rule_set!(org, survivorship) do

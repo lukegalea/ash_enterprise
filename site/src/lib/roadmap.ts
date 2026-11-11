@@ -29,6 +29,10 @@ export interface Question {
   status: Status;
   /** Repo-relative path to the test or module that proves the claim, if any. */
   proof?: string;
+  /** The proving test's name, found in `proof`. A shipped row always has one. */
+  test?: string;
+  /** The commit that built what the test proves. */
+  built?: string;
   /** Four-digit ADR number, e.g. `"0009"`. */
   adr?: string;
   /** Id of the roadmap item that would close this question. */

@@ -38,19 +38,19 @@ defmodule AshEnterprise.Legacy.UserBackfill do
 
   ## One entry point, and why that is not a style preference
 
-  `project_row/1` is the only way the backfill projects a row. It aligns `lifecycle_status`
-  through the platform's own state machine: a legacy user in `suspended` or `passive` must not
-  land in `projected_users` carrying `lifecycle_status: :active`. An earlier version of the task
-  rebuilt the attribute map itself and called the upsert directly, which skipped the transition,
-  so the value a row ended up with depended on which path had written it last.
+  `project_row/1` is the only way the backfill projects a row, and it hands the row to
+  `AshEnterprise.Legacy.UserProjection.project/1`, which the drain's ingestion calls too. That one
+  function aligns `lifecycle_status` through the platform's own state machine: a legacy user in
+  `suspended` or `passive` must not land in `projected_users` carrying `lifecycle_status: :active`.
+  An earlier version of the task rebuilt the attribute map itself and called the upsert directly,
+  which skipped the transition, and the drain did the same, so the value a row ended up with
+  depended on which path had written it last.
 
   `project_row/1` **returns** `{:error, reason}` rather than swallowing it, because the backfill
   wants to report a refused row and a swallowed error gives it nothing to report.
   """
 
-  alias AshEnterprise.Accounts.ProjectedUser
-  alias AshEnterprise.Legacy.Estate
-  alias AshEnterprise.Platform.SystemActor
+  alias AshEnterprise.Legacy.UserProjection
 
   @doc """
   Projects one legacy row and aligns the projected row's lifecycle.
@@ -68,34 +68,6 @@ defmodule AshEnterprise.Legacy.UserBackfill do
       legacy_state: row.legacy_state
     }
 
-    with {:ok, projected} <- ProjectedUser.project(attrs, opts()) do
-      align_lifecycle(projected, row.legacy_state)
-    end
-  end
-
-  defp align_lifecycle(%{lifecycle_status: :active} = record, legacy_state)
-       when legacy_state not in ["active", nil],
-       do: transition(record, :deactivate)
-
-  defp align_lifecycle(%{lifecycle_status: :inactive} = record, "active"),
-    do: transition(record, :activate)
-
-  defp align_lifecycle(_record, _legacy_state), do: :ok
-
-  defp transition(record, action) do
-    record
-    |> Ash.Changeset.for_update(action, %{}, opts())
-    |> Ash.update()
-    |> case do
-      {:ok, _} -> :ok
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
-  # The actor is `SystemActor.projection/0` rather than a person, and the tenant is the legacy
-  # estate's organization. See `ProjectedUser`'s moduledoc for why borrowing a human name here
-  # would be a lie.
-  defp opts do
-    [actor: SystemActor.projection(), tenant: Estate.organization_id(), authorize?: false]
+    with {:ok, _projected} <- UserProjection.project(attrs), do: :ok
   end
 end

@@ -180,7 +180,7 @@ metadata:
 ## Searching Documentation
 
 ```sh
-mix usage_rules.search_docs "search term" -p ash -p ash_a2ui -p ash_acp -p ash_admin -p ash_agent -p ash_agent_tools -p ash_ai -p ash_archival -p ash_authentication -p ash_authentication_phoenix -p ash_bpmn -p ash_cloak -p ash_compliance -p ash_credo -p ash_decisions -p ash_diagram -p ash_discrete_business_events -p ash_events -p ash_evidence -p ash_graphql -p ash_json_api -p ash_judgments -p ash_mdm -p ash_money -p ash_oban -p ash_open_lineage -p ash_operations -p ash_phoenix -p ash_planning -p ash_postgres -p ash_rules -p ash_state_machine -p ash_strangler
+mix usage_rules.search_docs "search term" -p ash -p ash_a2ui -p ash_acp -p ash_admin -p ash_agent -p ash_agent_tools -p ash_ai -p ash_archival -p ash_authentication -p ash_authentication_phoenix -p ash_bpmn -p ash_cloak -p ash_compliance -p ash_credo -p ash_decisions -p ash_diagram -p ash_discrete_business_events -p ash_enterprise_telemetry -p ash_events -p ash_evidence -p ash_graphql -p ash_json_api -p ash_judgments -p ash_mdm -p ash_money -p ash_oban -p ash_open_lineage -p ash_operations -p ash_phoenix -p ash_planning -p ash_postgres -p ash_rules -p ash_state_machine -p ash_strangler
 ```
 
 ## Available Mix Tasks
@@ -265,6 +265,7 @@ mix usage_rules.search_docs "search term" -p ash -p ash_a2ui -p ash_acp -p ash_a
 - `mix ash_decisions.tck` - Run the vendored DMN TCK corpus and report conformance
 - `mix ash_decisions.tck.verify` - Check that the vendored DMN TCK corpus is unmodified
 - `mix bizev.verify_chains` - Verify the ledger's per-region hash chains
+- `mix ash_enterprise.trace` - Read recent OpenTelemetry traces from the in-BEAM dev sink
 - `mix ash_events.install` - Installs AshEvents into a project. Should be called with `mix igniter.install ash_events`
 - `mix ash_graphql.install` - Installs AshGraphql. Should be run with `mix igniter.install ash_graphql`
 - `mix ash_json_api.install` - Installs AshJsonApi. Should be run with `mix igniter.install ash_json_api`

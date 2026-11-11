@@ -31,9 +31,9 @@ it and can you prove it; whose tenant is it; where did the data come from; how d
 without breaking the callers you cannot see. Most systems answer them one feature at a time, and find
 out in month nine which answers disagree.
 
-This is the ledger. ✅ means working code plus a test that would fail if it regressed; 🟡 means it
-works with a limitation stated in the answer; 🔵 means a decision is written down and no code exists;
-⚪ means a gap with no decision taken.
+This is the ledger. ✅ means built, covered by a named test, and running in a deployment we operate;
+🟡 means it works with a limitation stated in the answer; 🔵 means a decision is written down and no
+code exists; ⚪ means a gap with no decision taken.
 
 <!-- roadmap:scoreboard:start -->
 **15 of 54** enterprise questions have a shipped answer.
@@ -58,7 +58,7 @@ works with a limitation stated in the answer; 🔵 means a decision is written d
 <!-- roadmap:questions-summary:start -->
 | # | Question | Our answer | Status |
 |---|---|---|---|
-| 1 | How do people prove who they are? | Password and remember-me through `ash_authentication`: the user resource declares those two strategies and no others (read from the running resource, 2026-11-09). Sign-in issues a token that is stored server-side and expires after 14 days, the library default, and changing a password logs the user out everywhere. Magic-link has a route and a confirmation hook but no strategy behind them. OAuth2/OIDC, SAML, WebAuthn and API-key strategies are not declared; the API and MCP pipelines load an ordinary user token from the bearer header. The design intent stands: federate to the identity provider your enterprise already runs and let it own MFA and session policy, with the in-app stack as the lightweight version for standalone use. That wiring is q29. | 🟡 Partial |
+| 1 | How do people prove who they are? | Password sign-in through `ash_authentication`, with remember-me, email confirmation and password reset: the user resource declares the password and remember-me strategies and no others. Sign-in issues a token that is stored server-side and expires after 14 days, the library default, and changing a password logs the user out everywhere. The API and MCP pipelines read an ordinary user token from the bearer header. Not built: magic link (a route and a confirmation hook exist with no strategy behind them), OAuth2/OIDC, SAML, WebAuthn and API keys. Bringing an enterprise identity provider is q29. | 🟡 Partial |
 | 2 | How is "may this actor do this?" decided? | `(role, privilege, depth)` rows evaluated as a pure union of grants — authorization is data, not code. No deny rules, so order cannot matter. | ✅ Shipped |
 | 29 | How do enterprise customers bring their own identity provider? | Not built. `ash_authentication` can federate through its OAuth2 and OIDC strategies, but this host declares none: the user resource has password and remember-me strategies only, no provider is configured and no test signs in through one (checked 2026-11-09). Once wired, Okta, Entra ID or Keycloak would own MFA, password policy and directory truth. SAML is the one protocol that needs a first-party strategy, and it has not been started. | ⚪ Open |
 | 3 | Who owns a record? | Polymorphic user-or-team ownership inherited from the base resource. The Dataverse ownership type per entity is scraped from the corpus, never guessed. | ✅ Shipped |

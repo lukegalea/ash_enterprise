@@ -21,9 +21,10 @@ devenv shell -- observability up      # first run about 5 minutes, then seconds
 devenv shell -- observability status  # RSS and PSS per process against the budget
 devenv shell -- observability urls    # UIs, sign-in, OTLP endpoint, DSN
 devenv shell -- observability down    # stops what `up` started; data is kept
+devenv shell -- observability restart-check 5   # cold restarts with traffic, each checked
 ```
 
-`up` is idempotent. A first run downloads the stack (about 1.5 GB of store paths, realised only then, so a shell that never runs `up` pays nothing), applies the SigNoz schema migrations, and creates a sign-in shared by both tools, a SigNoz API key, the GlitchTip project, DSN and API token, and 3-day retention.
+`up` is idempotent, and it reports ready only when every service it started is still running a few seconds after the last one came up. A service that exits while starting (the collector does when ClickHouse refuses its first writes) is started again, up to four times with a growing pause, and `up` fails with the end of that service's log if it never stays up. A first run downloads the stack (about 1.5 GB of store paths, realised only then, so a shell that never runs `up` pays nothing), applies the SigNoz schema migrations, and creates a sign-in shared by both tools, a SigNoz API key, the GlitchTip project, DSN and API token, and 3-day retention.
 
 Every shell sources `.devenv/state/observability/env`, which holds `OTEL_EXPORTER_OTLP_ENDPOINT`, `SENTRY_DSN`, the UI URLs and the API credentials. `down` removes it. Restart a running app after `up` so it picks them up.
 
@@ -48,6 +49,7 @@ Free ports are chosen by default and recorded in `.devenv/state/observability/po
 - **ClickHouse runs with `memory_worker_use_cgroup=false`.** By default its memory worker takes the cgroup's usage as its own RSS. In a cgroup shared with other processes (every dev container, any terminal multiplexer's service) it believed it was tens of GiB over its cap and refused every query. With the setting off, the cap applies to the server alone.
 - **Keeper Raft binds loopback through `interserver_listen_host`.** Without it, Raft listens on the wildcard address.
 - **SigNoz's OpAMP listener.** It is a hard-coded `0.0.0.0:4320`, and a bind failure kills the server. OpAMP is not used here, so `up` runs a private copy of the verified binary with that string patched in place: `[::1]:00NNNN` on a host with IPv6 loopback, otherwise `0.0.0.0:NNNN`, four digits, this environment's own port. `up` stops with a clear message if the string ever moves.
+- **Every ClickHouse merge is vertical.** A horizontal merge reads all columns of all source parts at once. `signoz_index_v3` has 81 columns, JSON among them, and a stack that ran for a day holds about 100 small parts of it; merging those took more than the 640 MiB cap of the time, so the merge failed and retried forever, and inserts failed beside it. Vertical merges read one column at a time and clear the same backlog in seconds. The cap, now 1 GiB, counts RSS, which includes about 200 MB of the server's own code, so a smaller `max_parts_to_merge_at_once` or `merge_max_block_size` alone did not help.
 - **No system logs in ClickHouse.** The `<query_log>` and related elements are absent rather than marked `remove="1"`: in a standalone config file that attribute merges nothing and the logs are created with defaults.
 - **`max_concurrent_queries` stays at 48.** Lower, and the traces exporter's parallel inserts hit the limit, retry, and duplicate every span.
 - **Processes.** `down` signals only PIDs from its own records, each checked against its start time and boot id first, so a reused PID is left alone. Memory caps (systemd scopes) are used only where a user systemd exists; nothing requires one.

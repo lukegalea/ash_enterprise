@@ -1,4 +1,4 @@
-# ADR 0065 — Every way in shares one standard
+# ADR 0066 — Every way in shares one standard
 
 - **Status:** accepted (2026-11-09)
 - **Date:** 2026-11-09

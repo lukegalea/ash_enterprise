@@ -150,6 +150,7 @@ defmodule AshEnterprise.Canonical.Projection do
   # the organizer and every attendee with an email (the v1 linkage key).
   defp project_calendar_event(source, context, people_seen) do
     payload = source.raw_payload
+    context = Map.put(context, :statement, statement(source))
 
     organizer =
       payload
@@ -218,6 +219,8 @@ defmodule AshEnterprise.Canonical.Projection do
       %{
         email: String.trim(email),
         name: name,
+        statement_source: context.statement.source,
+        statement_observed_at: context.statement.observed_at,
         owner_id: context.owner_id,
         owner_type: :user,
         owning_user_id: context.owner_id,
@@ -233,12 +236,28 @@ defmodule AshEnterprise.Canonical.Projection do
     |> Ash.create!(
       upsert?: true,
       upsert_identity: :unique_email,
-      upsert_fields: if(name in [nil, ""], do: [], else: [:name])
+      # The fold writes the name: this source's is a statement, not the answer.
+      upsert_fields: []
     )
   end
 
   # v1 has no fuzzy resolution: a contact without an email is not linked.
   defp upsert_person(_contact, _context), do: nil
+
+  # The event's own modified time, not when it was fetched: a replay of the
+  # same source object must be the same statement.
+  defp statement(source) do
+    %{source: source.external_system, observed_at: modified_at(source)}
+  end
+
+  defp modified_at(source) do
+    with iso when is_binary(iso) <- source.raw_payload["updated"],
+         {:ok, datetime, _offset} <- DateTime.from_iso8601(iso) do
+      datetime
+    else
+      _ -> source.inserted_at
+    end
+  end
 
   # --- payload readers -----------------------------------------------------------
 

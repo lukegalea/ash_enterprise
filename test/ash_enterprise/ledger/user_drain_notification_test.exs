@@ -15,7 +15,10 @@ defmodule AshEnterprise.Ledger.UserDrainNotificationTest do
 
   The sandbox wraps each test in a transaction, so "after commit" cannot be observed as a commit.
   It is pinned by its consequence instead: a batch whose later event fails rolls back, and the
-  earlier events of that batch must not have been announced.
+  earlier events of that batch must not have been announced. That consequence holds with the
+  announcement inside the transaction too, since ingestion fails before anything is announced, so
+  the order itself is proven with real commits in
+  `AshEnterprise.Durability.LedgerAnnouncementTest` (docs/DURABILITY-TESTS.md).
   """
 
   use AshEnterprise.DataCase, async: false

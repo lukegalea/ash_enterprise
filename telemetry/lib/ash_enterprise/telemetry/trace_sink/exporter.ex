@@ -13,15 +13,14 @@ defmodule AshEnterprise.Telemetry.TraceSink.Exporter do
   queryable. Exceptions are swallowed and reported as `:failed_not_retryable`
   — a dev-loop sink must never take the traced operation down with it.
 
-  Wired in `config/dev.exs` / `config/test.exs`:
+  Prefer `AshEnterprise.Telemetry.TraceSink.Processor`, which
+  `AshEnterprise.Telemetry.processors/1` generates: `otel_simple_processor` does not return
+  `true` from `on_end`, so anything listed after it never runs. With this exporter, its
+  simple processor must be last in the list.
 
-      config :opentelemetry,
-        span_processor: :simple,
-        traces_exporter: {AshEnterprise.Telemetry.TraceSink.Exporter, []}
-
-  (The SDK merges `traces_exporter` into the processor's `exporter` option —
-  and a user-set `traces_exporter` wins over processor opts, so this is the
-  spelling the merge rules in `otel_configuration.erl` actually honour.)
+  Never set the global `span_processor` or `traces_exporter` keys: the first
+  discards `processors` and the second overrides every processor's exporter
+  (`otel_configuration.erl`), so spans silently stop reaching this sink.
   """
 
   @behaviour :otel_exporter_traces

@@ -304,6 +304,9 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
   end
 
   defp write_thread(thread_id, messages, scope_id, context) do
+    # The thread's first message: stable when the thread is replayed or grows.
+    context = Map.put(context, :statement_observed_at, hd(messages).sent_at)
+
     with {:ok, people} <- upsert_people(messages, context),
          {:ok, conversation} <- write_conversation(thread_id, messages, people, scope_id, context),
          :ok <- upsert_messages(messages, conversation, people, context) do
@@ -447,7 +450,12 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
     Person
     |> Ash.Changeset.for_create(
       :upsert_from_source,
-      Map.merge(owner_attributes(context), %{email: email, name: name}),
+      Map.merge(owner_attributes(context), %{
+        email: email,
+        name: name,
+        statement_source: "gmail",
+        statement_observed_at: context.statement_observed_at
+      }),
       tenant: context.tenant_id,
       authorize?: false
     )
@@ -456,7 +464,8 @@ defmodule AshEnterprise.Canonical.Projections.Gmail do
     |> Write.create(
       upsert?: true,
       upsert_identity: :unique_email,
-      upsert_fields: if(name in [nil, ""], do: [], else: [:name])
+      # The fold writes the name: this source's is a statement, not the answer.
+      upsert_fields: []
     )
   end
 
