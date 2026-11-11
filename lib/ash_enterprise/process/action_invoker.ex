@@ -52,6 +52,14 @@ defmodule AshEnterprise.Process.ActionInvoker do
   For a legacy entry the human is not lost: they are on the instance's `started_by_id`, on
   the request's `created_by_id`, and on `decided_by_id` for whatever approval led here.
 
+  ## A recipe's process runs only what its recipe may
+
+  Before any entry runs, `AshEnterprise.Process.RecipeAuthority` asks whether the process
+  was started by a recipe and, if so, whether that recipe's authority lets a service task
+  run at all. A human-tasks-only recipe's process that reaches one anyway (its diagram was
+  republished with one) answers `{:error, {:no_authority, :human_tasks_only}}` and nothing
+  runs.
+
   ## Idempotency is the caller's problem, and it is real
 
   Oban redelivers. A node may execute twice, and the token claim gate makes a *double advance*
@@ -65,7 +73,7 @@ defmodule AshEnterprise.Process.ActionInvoker do
 
   require Logger
 
-  alias AshEnterprise.Process.ServiceInvocation
+  alias AshEnterprise.Process.{RecipeAuthority, ServiceInvocation}
 
   # The allowlist itself: `"ref" => entry`. Deliberately explicit: see the moduledoc. Each
   # entry is reviewed like code because a diagram is what names it.
@@ -155,6 +163,15 @@ defmodule AshEnterprise.Process.ActionInvoker do
 
   @impl true
   def invoke(action, ctx) do
+    # A process a recipe started runs a step only under the authority the recipe was
+    # published with; an event grants nothing. Checked before anything runs.
+    case RecipeAuthority.check(ctx) do
+      :ok -> dispatch(action, ctx)
+      {:error, _no_authority} = refused -> refused
+    end
+  end
+
+  defp dispatch(action, ctx) do
     case Map.fetch(@registry, action) do
       {:ok, %{invoke: target}} ->
         run(&ServiceInvocation.run(target, &1), action, ctx)

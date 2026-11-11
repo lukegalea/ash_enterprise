@@ -62,7 +62,12 @@ defmodule AshEnterprise.Process.AccessRequestDemoTest do
         opts
       )
 
-    subscription = Subscription.publish!(subscription, opts)
+    # The seeded recipe runs as the person who caused it, the one key the allowlist names;
+    # a draft defaults to human tasks only, and this process grants a role.
+    subscription =
+      subscription
+      |> Subscription.set_authority!(:causing_person, opts)
+      |> Subscription.publish!(opts)
 
     # The publish lane stamped the cursor at the mark as of publish, so the
     # events the rest of the test writes sit ahead of it.
@@ -402,12 +407,18 @@ defmodule AshEnterprise.Process.AccessRequestDemoTest do
       # the coarse nudge can see: resource-level match, no action narrowing.
       Subscription.disable!(ctx.subscription, actor: SystemActor.process(), tenant: ctx.tenant)
 
+      # A new version of the seeded key, because only that key may run as the causing
+      # person.
       Subscription.create!(
         %{
-          key: "access_request.submitted.coarse",
+          key: "access_request.submitted",
           match_resource: "AshEnterprise.Security.AccessRequest",
           process_key: "access_request.grant"
         },
+        actor: SystemActor.process(),
+        tenant: ctx.tenant
+      )
+      |> Subscription.set_authority!(:causing_person,
         actor: SystemActor.process(),
         tenant: ctx.tenant
       )

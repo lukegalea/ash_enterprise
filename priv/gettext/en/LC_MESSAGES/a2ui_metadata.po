@@ -2649,6 +2649,10 @@ msgid "Sent"
 msgstr ""
 
 #: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Set authority"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Set sole administrator approval"
 msgstr ""
 

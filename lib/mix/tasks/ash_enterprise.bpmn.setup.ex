@@ -96,35 +96,42 @@ defmodule Mix.Tasks.AshEnterprise.Bpmn.Setup do
     |> Enum.reject(&(&1.id == platform))
   end
 
+  # The one recipe that runs as the person who caused it: the writer of an access request
+  # is the person asking (`AshEnterprise.Bpmn.Subscription.Authority`). Set explicitly,
+  # because a draft defaults to human tasks only and this process grants a role.
+  #
+  # A row published before subscriptions carried an authority reads as human tasks only,
+  # so its process would stop at its first service task. It is retired and replaced by a
+  # new version that says who it runs as.
   defp ensure_subscription(tenant) do
     opts = [actor: SystemActor.process(), tenant: tenant]
 
-    existing =
+    published =
       Subscription
       |> Ash.Query.for_read(:read)
       |> Ash.Query.filter(key == "access_request.submitted" and status == :published)
       |> Ash.read!(opts)
 
-    if existing == [] do
-      Subscription
-      |> then(fn _ ->
-        Subscription.create!(
-          %{
-            key: "access_request.submitted",
-            match_resource: "AshEnterprise.Security.AccessRequest",
-            match_action: :submit,
-            match_action_type: :create,
-            guard_feel: "string length(data.justification) > 30",
-            process_key: "access_request.grant"
-          },
-          opts
-        )
-      end)
+    if published != [] and Enum.all?(published, &(&1.authority == :causing_person)) do
+      Mix.shell().info("  subscription access_request.submitted already published")
+    else
+      Enum.each(published, &Subscription.retire!(&1, opts))
+
+      %{
+        key: "access_request.submitted",
+        match_resource: "AshEnterprise.Security.AccessRequest",
+        match_action: :submit,
+        match_action_type: :create,
+        guard_feel: "string length(data.justification) > 30",
+        process_key: "access_request.grant"
+      }
+      |> Subscription.create!(opts)
+      |> Subscription.set_authority!(:causing_person, opts)
       |> Subscription.publish!(opts)
 
-      Mix.shell().info("  subscription access_request.submitted published")
-    else
-      Mix.shell().info("  subscription access_request.submitted already published")
+      Mix.shell().info(
+        "  subscription access_request.submitted published, running as the causing person"
+      )
     end
   end
 

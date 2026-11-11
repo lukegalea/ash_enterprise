@@ -43,19 +43,67 @@ defmodule AshEnterprise.Bpmn.Subscription do
       audit?: true,
       # Publish is one-way and retire keeps the row, because dispatches and
       # instances that reference it outlive it.
-      archival?: false
+      archival?: false,
+      # Choosing who a recipe's steps run as moves what it can do, so an automation
+      # principal never reaches it (ADR 0043).
+      changes_authority: [:set_authority]
     ]
 
   require Ash.Query
+
+  alias AshEnterprise.Bpmn.Subscription.Validations
+
+  # Who the steps of a process this subscription starts may run as. An event grants
+  # nothing: authority comes from this value, chosen while the row is a draft and
+  # fixed by publishing it. See `AshEnterprise.Bpmn.Subscription.Authority`.
+  attributes do
+    attribute :authority, :atom do
+      constraints one_of: AshEnterprise.Bpmn.Subscription.Authority.values()
+      default :human_tasks_only
+      allow_nil? false
+      public? true
+
+      description "Who the started process's service and send tasks run as: nobody " <>
+                    "(:human_tasks_only), the person whose write caused the event " <>
+                    "(:causing_person), or a person's standing grant (:standing_grant)."
+    end
+  end
+
+  actions do
+    # The macro's `create` does not accept `authority`, so a draft takes it here. Only a
+    # draft: publishing fixes it, and a new authority is a new version.
+    update :set_authority do
+      description "Choose who a draft's started processes run their service tasks as."
+      accept [:authority]
+      require_atomic? false
+
+      validate attribute_equals(:status, :draft),
+        message: "authority is chosen on a draft; publish a new version to change it"
+
+      validate {Validations.AuthoritySelectable, []}
+    end
+  end
+
+  code_interface do
+    define :set_authority, action: :set_authority, args: [:authority]
+  end
 
   # The prompt-invalidation wiring: every lifecycle act — publish, retire,
   # enable, disable — rebuilds the engine's ETS interest index as soon as the
   # write has committed, so the nudge path is honest within a transaction
   # rather than within a minute. The index's own TTL remains the backstop for
   # a lost refresh. See `Changes.RefreshTriggerIndex` below.
+  #
+  # Choosing a draft's authority is none of those: it makes no tenant interested in
+  # anything, so it neither stamps the cursor nor rebuilds the index.
   changes do
-    change {AshEnterprise.Bpmn.Changes.EnsureCursor, []}, on: [:update]
-    change {AshEnterprise.Bpmn.Subscription.Changes.RefreshTriggerIndex, []}, on: [:update]
+    change {AshEnterprise.Bpmn.Changes.EnsureCursor, []},
+      on: [:update],
+      where: [negate(action_is(:set_authority))]
+
+    change {AshEnterprise.Bpmn.Subscription.Changes.RefreshTriggerIndex, []},
+      on: [:update],
+      where: [negate(action_is(:set_authority))]
   end
 
   # The cycle invariant the library cannot know about: this application's own
@@ -65,6 +113,35 @@ defmodule AshEnterprise.Bpmn.Subscription do
   # (`AshBpmn.`/`AshDecisions.`); these are ours to refuse.
   validations do
     validate {AshEnterprise.Bpmn.Subscription.Validations.NotSelfTriggering, []}, on: [:update]
+
+    # Authority, checked where the macro's `publish` cannot see it: narrowed from here
+    # without touching the action the library wrote.
+    #
+    # A recipe on a resource with no tenant is refused whatever its authority: those
+    # writes land in no tenant's chain, so nothing would ever sweep them.
+    validate {Validations.TenantScopedMatch, []} do
+      on [:update]
+      where action_is(:publish)
+    end
+
+    validate {Validations.HumanTasksOnly, []} do
+      on [:update]
+      where action_is(:publish)
+    end
+
+    validate {Validations.CausingPersonAllowlisted, []} do
+      on [:update]
+      where action_is(:publish)
+    end
+
+    # A standing grant is a person's act: the path the setup task and system actors use
+    # cannot publish one.
+    validate attribute_does_not_equal(:authority, :standing_grant) do
+      on [:update]
+      where action_is(:publish)
+
+      message "a standing grant is published by the person accountable for it, not by publish"
+    end
   end
 
   @doc """

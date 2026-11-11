@@ -176,6 +176,12 @@ config :ash_bpmn,
   # by reading again as the viewer. A broadcast carries ids and statuses only.
   pubsub_server: AshEnterprise.PubSub
 
+# The one recipe that may run as the person whose write caused its event: an access
+# request's writer is the person asking. Exactly one key; a list of any other length refuses
+# every key (`AshEnterprise.Bpmn.Subscription.Authority`).
+config :ash_enterprise, AshEnterprise.Bpmn.Subscription,
+  causing_person_keys: ["access_request.submitted"]
+
 config :ash_decisions, ash_domains: [AshEnterprise.Decisions]
 
 # --- The compliance plane (ADR 0035) -------------------------------------------
