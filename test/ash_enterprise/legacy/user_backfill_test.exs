@@ -182,6 +182,48 @@ defmodule AshEnterprise.Legacy.UserBackfillTest do
     end
   end
 
+  describe "provenance" do
+    test "the upsert's audit row names the backfill as its source" do
+      backfill()
+
+      legacy = Enum.find(legacy_users(), &(&1.login == "awhitfield"))
+      events = audit_events(legacy.id)
+
+      assert events != []
+
+      assert Enum.all?(events, fn event ->
+               event.metadata["legacy_path"] == "backfill" and
+                 event.metadata["legacy_source_table"] == "legacy.users" and
+                 event.metadata["legacy_id"] == legacy.legacy_id and
+                 event.metadata["system_actor"] == "projection"
+             end)
+    end
+
+    test "the lifecycle transition of a non-active row carries it too" do
+      backfill()
+
+      legacy = Enum.find(legacy_users(), &(&1.login == "lfeng"))
+      assert legacy.legacy_state == "suspended"
+
+      events = audit_events(legacy.id)
+      transition = Enum.find(events, &(&1.action == :deactivate))
+
+      assert transition,
+             "expected a deactivate audit row, got #{inspect(Enum.map(events, & &1.action))}"
+
+      assert transition.metadata["legacy_path"] == "backfill"
+      assert transition.metadata["legacy_id"] == legacy.legacy_id
+      assert Enum.all?(events, &(&1.metadata["legacy_path"] == "backfill"))
+    end
+  end
+
+  defp audit_events(record_id) do
+    AshEnterprise.Audit.EventLog
+    |> Ash.Query.for_read(:read, %{}, opts())
+    |> Ash.Query.do_filter(resource: AshEnterprise.Accounts.ProjectedUser, record_id: record_id)
+    |> Ash.read!(opts())
+  end
+
   defp insert_legacy_user!(opts) do
     login = "test-#{System.unique_integer([:positive])}"
 

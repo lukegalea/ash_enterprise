@@ -14,7 +14,8 @@ defmodule AshEnterprise.Ledger.UserIngestion do
   action carries `actor:` from `resolve_actor/1`, and the changeset context
   carries the source envelope under `ash_events_metadata`, so the central
   audit log can answer "who wrote this, and out of which legacy
-  transaction".
+  transaction". It also carries `"legacy_path" => "ledger"`, the key the
+  backfill sets to `"backfill"`, so one key tells the two paths apart.
 
   ## Idempotence
 
@@ -144,6 +145,7 @@ defmodule AshEnterprise.Ledger.UserIngestion do
 
   defp audit_metadata(envelope) do
     %{
+      "legacy_path" => "ledger",
       "ledger_event_id" => envelope.source_event_id,
       "ledger_source_table" => envelope.source_table,
       "ledger_source_user" => envelope.source_user,

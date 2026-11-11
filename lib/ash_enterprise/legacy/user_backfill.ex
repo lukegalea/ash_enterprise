@@ -48,6 +48,9 @@ defmodule AshEnterprise.Legacy.UserBackfill do
 
   `project_row/1` **returns** `{:error, reason}` rather than swallowing it, because the backfill
   wants to report a refused row and a swallowed error gives it nothing to report.
+
+  Its audit rows say where they came from: `project_row/1` passes `legacy_path`, `legacy_source_table`
+  and `legacy_id` as `ash_events_metadata`, the backfill's counterpart of the drain's `ledger_*` keys.
   """
 
   alias AshEnterprise.Legacy.UserProjection
@@ -68,6 +71,17 @@ defmodule AshEnterprise.Legacy.UserBackfill do
       legacy_state: row.legacy_state
     }
 
-    with {:ok, _projected} <- UserProjection.project(attrs), do: :ok
+    context = %{ash_events_metadata: audit_metadata(row)}
+
+    with {:ok, _projected} <- UserProjection.project(attrs, context: context), do: :ok
+  end
+
+  # `legacy_*` cannot collide with the platform's own audit keys or the drain's `ledger_*` keys.
+  defp audit_metadata(row) do
+    %{
+      "legacy_path" => "backfill",
+      "legacy_source_table" => AshStrangler.Info.relation(AshEnterprise.Legacy.User),
+      "legacy_id" => row.legacy_id
+    }
   end
 end

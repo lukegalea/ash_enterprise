@@ -94,6 +94,34 @@ defmodule AshEnterprise.Ledger.UserLifecycleTest do
     end
   end
 
+  describe "provenance" do
+    test "a drained change's audit rows say they came through the ledger" do
+      legacy_id = insert_legacy_user!("suspended")
+      assert {:ok, 1} = UserDrainWorker.drain()
+
+      projected =
+        ProjectedUser
+        |> Ash.Query.for_read(:read, %{}, opts())
+        |> Ash.read!(opts())
+        |> Enum.find(&(&1.legacy_id == legacy_id))
+
+      events =
+        AshEnterprise.Audit.EventLog
+        |> Ash.Query.for_read(:read, %{}, opts())
+        |> Ash.Query.do_filter(resource: ProjectedUser, record_id: projected.id)
+        |> Ash.read!(opts())
+
+      assert Enum.any?(events, &(&1.action == :deactivate))
+
+      assert Enum.all?(events, fn event ->
+               event.metadata["legacy_path"] == "ledger" and
+                 is_binary(event.metadata["ledger_event_id"] |> to_string())
+             end)
+
+      assert Enum.all?(events, &Map.has_key?(&1.metadata, "ledger_event_id"))
+    end
+  end
+
   # What `project_row/1` leaves for this legacy row projected from nothing: the projected row is
   # removed first, so the answer does not depend on what the drain wrote.
   defp backfilled_lifecycle!(legacy_id) do
