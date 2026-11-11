@@ -1,6 +1,6 @@
 defmodule AshEnterprise.Ingestion.TapRunner do
   @moduledoc """
-  Behaviour that executes one ingestion pipeline's tap (epic E1).
+  Behaviour that executes one ingestion pipeline's tap (ADR 0010).
 
   The worker (`AshEnterprise.Ingestion.TapWorker`) owns parsing and landing; the
   runner owns only *how the tap process is invoked*. The default implementation

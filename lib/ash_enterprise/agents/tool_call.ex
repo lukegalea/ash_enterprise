@@ -1,6 +1,6 @@
 defmodule AshEnterprise.Agents.ToolCall do
   @moduledoc """
-  A coding agent's tool call, asked of the person its run belongs to (dogfood §6, ADR
+  A coding agent's tool call, asked of the person its run belongs to (ADR
   0055 "the coding-agent bridge").
 
   `AshEnterprise.Agents.OmpSession` turns each bridge-dialect `tool_request` frame into

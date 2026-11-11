@@ -118,4 +118,4 @@ most rewiring; Task is cheap once the upsert path is proven on CalendarEvent.
   to give `as_of`.
 - **Merges in the ledger.** Merges are marks from the identity history, not business events. Recording
   them in the ledger would need a decision on what a merge is as a business fact.
-- **Finance (E7.7)** is out of scope.
+- **Finance** is out of scope.

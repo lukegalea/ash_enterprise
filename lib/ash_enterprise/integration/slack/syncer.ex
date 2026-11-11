@@ -1,7 +1,7 @@
 defmodule AshEnterprise.Integration.Slack.Syncer do
   @moduledoc """
   One incremental Slack sync step for one linked account, run **as the human
-  who owns it** (epic E4, Slack vertical; poll-only per ADR 0011's v1
+  who owns it** (poll-only per ADR 0011's v1
   deviation — no Events API, no inbound endpoint).
 
   A step:

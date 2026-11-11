@@ -4,7 +4,7 @@ defmodule AshEnterprise.Repo.AdvisoryLock do
   once but is too long to hold one transaction for — the MDM people sweep,
   which a mix task and the cron's job can both start for one tenant.
 
-  The lock is database-wide, so it holds across nodes: the dogfood
+  The lock is database-wide, so it holds across nodes: the running
   application's Oban job and a `mix` VM on the same database exclude each
   other. It lives on one connection, so `with_try_lock/4` checks a
   connection out for the whole of `fun` (every Repo call `fun` makes from

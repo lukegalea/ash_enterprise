@@ -2,7 +2,7 @@ defmodule AshEnterpriseWeb.Bpmn.BaselineEditorsTest do
   @moduledoc """
   Opening an editor on a key the tenant has not customized.
 
-  The regression: in the dogfood instance, opening `/app/processes/morning.brief/designer` for a
+  The regression: in a running deployment, opening `/app/processes/morning.brief/designer` for a
   tenant running the platform baseline created a tenant draft from `ash_bpmn`'s starter template
   -- three nodes, no diagram section -- so bpmn-js showed "no diagram to display" and the
   catalogue showed a customization nobody had made. Opening must show the baseline, read-only,

@@ -1,8 +1,8 @@
 defmodule AshEnterprise.Canonical.Projections.Calendar do
   @moduledoc """
   Google Calendar event → `AshEnterprise.Canonical.CalendarEvent` (+ `Person`
-  for the organizer and attendees), the real-calendar projector of epic E4
-  (ADR 0037's host-declared pattern, dogfood §11).
+  for the organizer and attendees), the real-calendar projector
+  (ADR 0037's host-declared pattern).
 
   Input is anything carrying `external_system`, `external_id` and
   `raw_payload` — an `AshEnterprise.Integration.SourceRecord` the sync step has
@@ -98,8 +98,8 @@ defmodule AshEnterprise.Canonical.Projections.Calendar do
 
   These are real people's events. The sync step projects only records that
   `AshEnterprise.Integration.Landing.land/2` accepted under the linked
-  account's scope. Calendar is the one vertical projected without a zone gate:
-  the dogfood decision is that the operator's own calendar is admitted.
+  account's scope. Calendar is the one vertical projected without a zone gate,
+  by decision: the operator's own calendar is admitted.
   """
 
   alias AshEnterprise.Canonical.{CalendarEvent, Person}

@@ -1,6 +1,6 @@
 defmodule AshEnterprise.CanonicalTest do
   @moduledoc """
-  Epic E4 acceptance: the deterministic core.
+  The canonical model's deterministic core.
 
   * the fixture calendar tap lands SourceObjects end-to-end (TapWorker →
     FixtureTap → land),

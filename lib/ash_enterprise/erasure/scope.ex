@@ -9,7 +9,7 @@ defmodule AshEnterprise.Erasure.Scope do
 
     * `kind: :connection` — **everything that came in through one external
       connection**: one linked account, one Nango connection, one tap pipeline.
-      This is the dogfood case ("forget my company Slack"), and it is the right
+      This is the common case ("forget my company Slack"), and it is the right
       unit for ingested content because provenance is the one thing every
       landed row knows for certain about itself. `ref` is the connection's own
       stable identifier — the linked-account id once that resource exists, or

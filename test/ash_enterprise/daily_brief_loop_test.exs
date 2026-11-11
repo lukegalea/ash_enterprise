@@ -1,7 +1,7 @@
 defmodule AshEnterprise.DailyBriefLoopTest do
   @moduledoc """
   The morning brief's whole loop, against the platform baseline only (no
-  tenant copy of `morning.brief`, as on the dogfood instance):
+  tenant copy of `morning.brief`, the way a fresh deployment runs it):
 
     * the scheduler, at the compose hour, enqueues one compose per calendar
       owner; draining it creates the owner's brief and starts the process as

@@ -1,6 +1,6 @@
 defmodule AshEnterprise.Assistant.ComposeProposeTest do
   @moduledoc """
-  The assistant's composer and the changes it may ask for (E10.3, E10.4) on
+  The assistant's composer and the changes it may ask for on
   synthetic data: what a composed spec may name, that its rows are read as the
   person, that a change it asks for is a governed invocation (ADR 0055) that changes
   nothing until the person confirms it and then runs as them, and that pinned apps

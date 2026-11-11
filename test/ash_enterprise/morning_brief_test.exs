@@ -1,6 +1,6 @@
 defmodule AshEnterprise.MorningBriefTest do
   @moduledoc """
-  Epic E5 acceptance, morning-brief slice: the BPMN process runs a
+  The morning brief: the BPMN process runs a
   deterministic compose (no LLM), parks on a real human-approval row, and the
   decision lands on the brief.
 

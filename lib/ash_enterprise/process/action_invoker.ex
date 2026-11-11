@@ -293,7 +293,7 @@ defmodule AshEnterprise.Process.ActionInvoker do
     e -> {:error, Exception.message(e)}
   end
 
-  # ── the morning brief (epic E5) ──────────────────────────────────────────
+  # ── the morning brief ────────────────────────────────────────────────────
   #
   # The subject is the `AshEnterprise.Agents.MorningBrief` row, so every one of
   # these is "make this true" on that row and idempotent by construction: a

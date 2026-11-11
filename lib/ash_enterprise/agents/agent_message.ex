@@ -1,6 +1,6 @@
 defmodule AshEnterprise.Agents.AgentMessage do
   @moduledoc """
-  One transcript line of a run (dogfood §6): the user's prompt, agent output
+  One transcript line of a run: the user's prompt, agent output
   streamed off the port, and tool traffic.
 
   `role :tool` carries tool requests the bridge asks as tool-call invocations

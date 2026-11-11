@@ -2,7 +2,7 @@ defmodule AshEnterprise.Acp.Surfaces do
   require Logger
 
   @moduledoc """
-  `AshAcp.SurfaceProvider` for the dogfood ACP server.
+  `AshAcp.SurfaceProvider` for this application's ACP server.
 
   Closes each turn with the A2UI surface its prompt routed to
   (`AshEnterprise.Acp.Commands`): the same declared UI module the web page

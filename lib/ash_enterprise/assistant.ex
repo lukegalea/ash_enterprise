@@ -1,7 +1,6 @@
 defmodule AshEnterprise.Assistant do
   @moduledoc """
-  The assistant: a person's own chat with the in-zone model at `/app/agent`
-  (Productivity OS dogfood E10.1 and E10.2).
+  The assistant: a person's own chat with the in-zone model at `/app/agent`.
 
   Three things live here, and nothing else:
 
@@ -27,13 +26,13 @@ defmodule AshEnterprise.Assistant do
   loop: ten over the person's own records, `stalled_reviews`, and `trace` and
   `explain`, which answer "what happened" and "why" from the execution record
   (`AshEnterprise.Execution.Entry`) as the person may read it, citing only what it
-  returned. One composes (`AshEnterprise.Assistant.Compose`, E10.3): it asks for a
+  returned. One composes (`AshEnterprise.Assistant.Compose`): it asks for a
   table, calendar or board of the person's own records, which the server writes as
   an `AshA2ui.Dynamic` spec from a curated catalogue, resolves against the host
   allowlist and renders in the chat as the person
   (`AshEnterprise.Assistant.Composer`).
 
-  The rest are the changes the assistant may ask for (E10.4), each an action of its
+  The rest are the changes the assistant may ask for, each an action of its
   own resource with an effects declaration that says `approval: :confirm`: add or
   finish an action item (`Canonical.Task`), draft a reply (`ReplyDraft`, below), sync
   a linked account (`Integration.LinkedAccount`), approve or reject a task waiting on

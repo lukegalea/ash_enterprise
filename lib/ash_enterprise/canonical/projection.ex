@@ -1,7 +1,6 @@
 defmodule AshEnterprise.Canonical.Projection do
   @moduledoc """
-  Raw → canonical projections (epic E4, ADR 0037's host-declared pattern,
-  dogfood §11).
+  Raw → canonical projections (ADR 0037's host-declared pattern).
 
   The host declares the mapping; there is no library convention to fork. This
   module reads `AshEnterprise.Ingestion.SourceObject` rows and deterministically
@@ -62,7 +61,7 @@ defmodule AshEnterprise.Canonical.Projection do
   @systems_with_projectors [:calendar]
 
   # The stream this projector consumes. SourceObject identity does not include
-  # the stream (E1 review; fix owned by a dedicated E1 follow-up), so the
+  # the stream (a known gap, not yet fixed), so the
   # projector filters on it here: two streams sharing an external id cannot
   # both feed this projection.
   @calendar_stream "events"

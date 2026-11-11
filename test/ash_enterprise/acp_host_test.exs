@@ -1,6 +1,6 @@
 defmodule AshEnterprise.AcpHostTest do
   @moduledoc """
-  The E3 wire gate as a regression: the full ACP server flow (initialize →
+  The ACP wire gate as a regression: the full ACP server flow (initialize →
   session/new → "list business units") against the real host seams and a real
   seeded tenant must stream an authorized read as `tool_call_update` rows plus
   an `available_commands_update` whose `_meta.a2ui` surface carries non-empty

@@ -1,6 +1,6 @@
 defmodule AshEnterprise.IngestionTest do
   @moduledoc """
-  Epic E1 acceptance: the tap worker lands Singer output immutably and
+  The tap worker lands Singer output immutably and
   idempotently, and a failing tap fails loudly rather than landing nothing
   silently. The runner is injected, so no external tap is needed to make these
   deterministic.

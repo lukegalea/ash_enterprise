@@ -1,6 +1,6 @@
 defmodule AshEnterprise.AgentsTest do
   @moduledoc """
-  Epic E5 acceptance: the OMP bridge lifecycle, a tool call's exact binding
+  The coding-agent bridge: the OMP bridge lifecycle, a tool call's exact binding
   to its invocation (ADR 0055), the clean failure when the omp binary is absent, and the ash_ai
   tool declarations.
 

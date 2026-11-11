@@ -1,6 +1,6 @@
 defmodule AshEnterprise.Integration.SyncScheduler do
   @moduledoc """
-  The cron driver for the provider syncs (epic E4): one job per vertical per
+  The cron driver for the provider syncs: one job per vertical per
   tick, which enqueues one sync step for every *active* linked account of that
   integration.
 

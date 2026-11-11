@@ -1,11 +1,11 @@
 defmodule AshEnterprise.Agents do
   @moduledoc """
-  Agent workflows (Productivity OS Dogfood epic E5; dogfood §6).
+  Agent workflows: the coding-agent bridge (ADR 0055, amendment of 2026-10-29).
 
   The Ash side of the mainframe's coding-coprocessor bridge: sessions, runs,
   transcripts and tool approvals are resources, and the OMP process is
   machinery behind `AshEnterprise.Agents.OmpSession` — never the other way
-  round. The division of labor dogfood §6 fixes: Ash owns identity, state,
+  round. The division of labor: Ash owns identity, state,
   policy and audit; OMP owns the coding conversation.
 
   ## ash_ai exposure
@@ -40,8 +40,8 @@ defmodule AshEnterprise.Agents do
 
     # Deliberately NO start_agent_run tool: prompting an agent is the
     # operator's act (amber_console / ACP). Exposing it as a tool would let an
-    # OMP session start another coding-agent run — the agent-to-agent nesting
-    # dogfood §6 forbids.
+    # OMP session start another coding-agent run — agent-to-agent nesting,
+    # which the bridge does not allow.
   end
 
   resources do

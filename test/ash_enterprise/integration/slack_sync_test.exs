@@ -1,6 +1,6 @@
 defmodule AshEnterprise.Integration.SlackSyncTest do
   @moduledoc """
-  The Slack vertical (epic E4): the sync step, its worker and entry points,
+  The Slack vertical: the sync step, its worker and entry points,
   and the canonical projection.
 
   No network and no real data: every Slack response comes from an in-test fake
@@ -1382,7 +1382,7 @@ defmodule AshEnterprise.Integration.SlackSyncTest do
     )
   end
 
-  # The grants a dogfood operator holds: Basic on their own linked accounts,
+  # The grants an operator holds: Basic on their own linked accounts,
   # Global read (= may call) on the Slack operations and the sync entry points.
   # Built directly, the way `LoadActorContext` would precompute them.
   defp grants do

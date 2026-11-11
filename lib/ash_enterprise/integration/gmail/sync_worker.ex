@@ -1,6 +1,6 @@
 defmodule AshEnterprise.Integration.Gmail.SyncWorker do
   @moduledoc """
-  One Gmail sync step for one linked account, as an Oban job (epic E4).
+  One Gmail sync step for one linked account, as an Oban job.
 
   Args are ids only and string-keyed (Iron Laws #08, #09):
 

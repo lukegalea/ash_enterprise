@@ -129,7 +129,7 @@ defmodule AshEnterprise.Platform.Resource do
       [
         AshEnterprise.Platform.SystemAttributes,
         AshAdmin.Resource,
-        # ADR 0012 / epic E2: every platform resource emits OpenLineage
+        # ADR 0012: every platform resource emits OpenLineage
         # RunEvents on successful writes, through the host transport (which is
         # a silent no-op until `:http_base_url` is configured). Table-level
         # names only — the leak rule forbids actor/tenant/value facets.

@@ -1,7 +1,7 @@
 defmodule AshEnterprise.Integration.LinkedAccount do
   @moduledoc """
   One of an actor's own provider accounts, mapped to the Nango connection that
-  holds its credentials (ADR 0011, dogfood deviation 1: the unit of credential
+  holds its credentials (ADR 0011, deviation 1: the unit of credential
   ownership is the *user account*, so a person with a work and a personal Gmail
   has two rows).
 

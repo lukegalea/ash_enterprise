@@ -6,7 +6,7 @@ defmodule AshEnterprise.Brand do
   the browser tab, the sign-in screen, outgoing mail and the ACP agent's
   handshake is configuration rather than copy:
 
-      config :ash_enterprise, :product_name, "Dogfood"
+      config :ash_enterprise, :product_name, "Acme Ops"
 
   `config/runtime.exs` sets it from `PRODUCT_NAME` when that is present, so a
   deployment renames itself without a code change. Unset, it is

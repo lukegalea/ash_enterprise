@@ -1,7 +1,7 @@
 defmodule AshEnterprise.Ingestion.FixtureTap do
   @moduledoc """
   A Singer-style *deterministic* source: the calendar vertical's tap stand-in
-  until the operator's real calendar OAuth lands (epic E4, ADR 0011).
+  until the operator's real calendar OAuth lands (ADR 0011).
 
   Emits the same RECORD/STATE byte stream on every invocation — three events,
   the same three every run. Landing upserts on `(external_system, external_id)`,

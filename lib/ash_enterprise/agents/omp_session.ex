@@ -1,12 +1,12 @@
 defmodule AshEnterprise.Agents.OmpSession do
   @moduledoc """
-  One `omp --mode rpc` child process per run (dogfood §6), supervised through
+  One `omp --mode rpc` child process per run, supervised through
   `AshEnterprise.Agents.OmpSupervisor` and registered by run id in
   `AshEnterprise.Agents.Registry`.
 
   ## Wire contract
 
-  Newline-delimited JSON over the port's stdio (E3's stdio seam, one process
+  Newline-delimited JSON over the port's stdio (the stdio seam ACP uses too, one process
   per run). Frames OMP speaks are authoritative in
   `@oh-my-pi/pi-coding-agent` `src/modes/rpc/rpc-types.ts` (`--mode rpc`
   accepts `{id?, type, ...}` commands and streams responses/events); frames
@@ -38,7 +38,7 @@ defmodule AshEnterprise.Agents.OmpSession do
   OMP's `--mode rpc` has **no tool-approval request frame** — its own
   permission gate (`session/acp-permission-gate.ts`, bash/edit/delete/move,
   allow_once/allow_always/reject_*) activates only when an **ACP client** is
-  connected, which is exactly where epic E3's `AshEnterprise.Acp.Approvals`
+  connected, which is exactly where `AshEnterprise.Acp.Approvals`
   already maps permission requests (ADR 0015). So approvals on this transport
   govern the bridge-dialect `tool_request` frames (spoken by the fake
   executable and available to future adapters); an OMP session's live tool
@@ -46,7 +46,7 @@ defmodule AshEnterprise.Agents.OmpSession do
 
   Every other frame (`ready`, `response` success acks, `extension_ui_request`,
   `advisor_cost_changed`, command updates, ...) is the runtime's *state*, not
-  the conversation: dogfood §6's division of labor keeps it out of the
+  the conversation: the bridge's division of labor keeps it out of the
   transcript — debug-logged, never an AgentMessage. Non-JSON lines (the
   process speaking for itself, stderr merged into the channel) are kept
   verbatim as :agent messages so agent output is never dropped.
@@ -388,7 +388,7 @@ defmodule AshEnterprise.Agents.OmpSession do
   end
 
   # Each frame has one home. Conversational text becomes transcript; the
-  # runtime's control/state frames stay state (debug-logged, per dogfood §6's
+  # runtime's control/state frames stay state (debug-logged, per the bridge's
   # division of labor); non-JSON output is kept verbatim so the process is
   # never silenced.
   defp apply_line(%{tenant: tenant} = state, line) do

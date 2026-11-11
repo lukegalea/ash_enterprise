@@ -112,7 +112,7 @@ defmodule AshEnterprise.Test.DailyFixtures do
   end
 
   @doc """
-  Publishes `morning.brief` as the platform baseline, as the dogfood instance
+  Publishes `morning.brief` as the platform baseline, as a fresh deployment
   runs it: every tenant resolves it with nothing of its own provisioned.
   Call `AshEnterprise.Process.Resolver.forget_platform_tenant/0` on exit.
   """

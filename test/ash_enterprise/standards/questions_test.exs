@@ -7,13 +7,13 @@ defmodule AshEnterprise.Standards.QuestionsTest do
   rendered by `QuestionProposal.to_dsl/2` from the entries Luke Galea
   confirms, each with its projection and that projection's shape:
 
-    * the seventeen confirmed on 2026-10-21 (three dogfood records,
+    * the seventeen confirmed on 2026-10-21 (three confirmation records,
       `test/fixtures/standards/confirmed.json`), re-declared at version 2
       with a `state_shape` (`confirmed-v2.json`);
     * the six ADR 0038 questions at version 1 (`adr-0038-confirmed.json`).
 
   `confirmed-v2.json` and `adr-0038-confirmed.json` are the exports of
-  the two records Luke confirmed in dogfood on 2026-10-29. No model is
+  the two records Luke confirmed on 2026-10-29. No model is
   called here.
   """
 

@@ -1,7 +1,7 @@
 defmodule AshEnterprise.Agents.MorningBrief do
   @moduledoc """
-  The subject of the morning-brief BPMN process (Productivity OS Dogfood epic
-  E5; dogfood §6/§11): one row per `(owner, brief_date)`, carried through the
+  The subject of the morning-brief BPMN process: one row per
+  `(owner, brief_date)`, carried through the
   `morning.brief` process as its subject.
 
   The draft is a **deterministic template** over the day's

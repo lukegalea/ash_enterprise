@@ -1,10 +1,10 @@
 defmodule AshEnterprise.Ingestion.SourceObject do
   @moduledoc """
-  The immutable raw-landing record for one external object (epic E1, ADR 0010).
+  The immutable raw-landing record for one external object (ADR 0010).
 
   One row per `(external_system, external_id)`. The `raw_payload` is exactly what
   the tap emitted — no interpretation, no normalization. Canonical projections
-  (epic E4, ADR 0037) are derived from these rows and must remain replayable from
+  (ADR 0037) are derived from these rows and must remain replayable from
   them; that replayability is why this table is append/upsert-only and why the
   sync `cursor` lives here rather than in job args.
 
@@ -12,7 +12,7 @@ defmodule AshEnterprise.Ingestion.SourceObject do
   (machine-generated, high volume, fully reconstructable from the tap), no
   lifecycle/archival (raw rows are never state-tracked or soft-deleted),
   `tenant?: false` and `ownership: :none` (ingestion is infrastructure —
-  canonical, actor-facing rows in E4 carry the ownership instead).
+  canonical, actor-facing rows carry the ownership instead).
 
   Untenanted, yet the provider syncs land every tenant's users' mail,
   calendars and Slack here, decrypted on read. A `:global` read grant on an
@@ -154,11 +154,11 @@ defmodule AshEnterprise.Ingestion.SourceObject do
       The identity lookup canonical projections link back through: one raw row
       by `(external_system, external_id)`.
 
-      KNOWN GAP (E1 review, fix owned by a dedicated E1 follow-up): this
+      KNOWN GAP (not yet fixed): this
       identity does not include the stream, so two streams landing the same
       external id collide into one row. Consumers mitigate by also matching
       `source_metadata["stream"]` when they select rows for projection; this
-      lookup cannot, and that is the gap the E1 follow-up closes.
+      lookup cannot, and that is the gap still to close.
       """
 
       get? true

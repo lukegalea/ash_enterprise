@@ -3,8 +3,12 @@
 # ACP over stdio into an already-running ash_enterprise node. Point an ACP
 # client at this instead of `mix ash_acp.stdio` when a server is up: it does
 # not boot a second copy of the application (no second endpoint, no second
-# Oban running the cron syncs, no wait on the _build lock). See
-# docs/runbooks/amber-console.md.
+# Oban running the cron syncs, no wait on the _build lock).
+#
+# The server must run with --sname on the same machine, as the same user (the
+# same ~/.erlang.cookie). The bridge runs in this checkout's devenv shell, so
+# it uses the server's Erlang/OTP. A terminal ACP client such as amber_console
+# runs this script as its agent command.
 #
 # Usage: scripts/acp-attach [NODE_SNAME]
 #

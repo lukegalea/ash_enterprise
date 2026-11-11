@@ -1,6 +1,6 @@
 defmodule AshEnterprise.Canonical.CalendarEvent do
   @moduledoc """
-  One calendar event (dogfood §11's first vertical), projected from
+  One calendar event (the first canonical vertical), projected from
   SourceObjects with `external_system: "calendar"` — today the deterministic
   fixture tap (`AshEnterprise.Ingestion.FixtureTap`), later the operator's real
   calendar via Nango (ADR 0011).
@@ -252,7 +252,7 @@ defmodule AshEnterprise.Canonical.CalendarEvent do
       description """
       Look up the canonical row projected from one raw SourceObject.
 
-      KNOWN GAP (E1 review, fix owned by a dedicated E1 follow-up):
+      KNOWN GAP (not yet fixed):
       SourceObject identity is `[external_system, external_id]` *without* the
       stream, and this lookup inherits that shape — two streams sharing an
       external id would land on one row here. The calendar projector

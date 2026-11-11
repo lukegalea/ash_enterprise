@@ -1,6 +1,6 @@
 defmodule AshEnterprise.Acp.Store do
   @moduledoc """
-  Supervised owner of the ACP session ETS table (epic E3). Table
+  Supervised owner of the ACP session ETS table. Table
   ownership must not follow a transient handler process, or the table dies
   with the first session that created it.
   """

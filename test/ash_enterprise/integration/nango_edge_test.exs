@@ -739,7 +739,7 @@ defmodule AshEnterprise.Integration.NangoEdgeTest do
     }
   end
 
-  # The grants a dogfood operator holds: Basic on their own linked accounts,
+  # The grants an operator holds: Basic on their own linked accounts,
   # Global read (= may call) on each operation resource. Built directly, the
   # way `LoadActorContext` would precompute them — policy checks never query.
   defp grants do

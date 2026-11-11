@@ -1,6 +1,6 @@
 defmodule AshEnterprise.Canonical do
   @moduledoc """
-  The canonical model (epic E4, dogfood §11): the interpreted rows the external
+  The canonical model: the interpreted rows the external
   systems only observe. Gmail, Google Calendar and Slack stay systems of
   engagement; this domain holds what they *mean* — people, conversations,
   messages, events, commitments, projects — normalized once, in one place.

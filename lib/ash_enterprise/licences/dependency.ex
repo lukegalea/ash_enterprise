@@ -17,7 +17,7 @@ defmodule AshEnterprise.Licences.Dependency do
   ## The questions
 
   The nine `third_party_licence` questions below are Luke Galea's
-  confirmation of 2026-10-21 (dogfood record
+  confirmation of 2026-10-21 (record
   `73da9055-7d92-4b2d-9930-acda885f4d48`), rendered by
   `AshEnterprise.SystemOne.QuestionProposal.to_dsl/2` and landed verbatim
   at version 1 with the `:winnow_gpu` decision instrument. Their hashes are

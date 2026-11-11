@@ -1,6 +1,6 @@
 defmodule AshEnterprise.Acp.SessionStore do
   @moduledoc """
-  `AshAcp.SessionStore` + `AshAcp.PromptTarget` for the dogfood ACP server.
+  `AshAcp.SessionStore` + `AshAcp.PromptTarget` for this application's ACP server.
 
   Sessions are ETS-backed (see `AshEnterprise.Acp`); the prompt target maps
   operator prompts onto declared Ash actions through the daily-loop grammar in
@@ -88,8 +88,8 @@ defmodule AshEnterprise.Acp.SessionStore do
   @doc """
   `session/list`: the sessions in this node's store, newest first, as the
   shape `AshAcp.Server` reads (`session_id`, `title`, `updated_at`). With an
-  authenticated actor, only theirs. Sessions live in memory until epic E5's
-  durable store, so a restart empties the list.
+  authenticated actor, only theirs. Sessions live in memory, so a restart
+  empties the list.
   """
   @impl true
   def list(filter) do

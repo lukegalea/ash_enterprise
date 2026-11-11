@@ -84,7 +84,7 @@ defmodule AshEnterprise.Integration.CalendarSyncTest do
     end
   end
 
-  # The grants a dogfood operator holds: Basic on their own linked accounts,
+  # The grants an operator holds: Basic on their own linked accounts,
   # Global read (= may call) on the Calendar operations and on the sync entry
   # points.
   def grants do

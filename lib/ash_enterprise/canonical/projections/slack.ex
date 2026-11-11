@@ -1,7 +1,7 @@
 defmodule AshEnterprise.Canonical.Projections.Slack do
   @moduledoc """
   Raw Slack landings → canonical `Conversation`, `Message` and `Person` rows
-  (epic E4, Slack vertical; ADR 0037's host-declared projection pattern).
+  (ADR 0037's host-declared projection pattern).
 
   Input is what the Slack sync landed for **one linked account**
   (`AshEnterprise.Integration.Slack.Records`): the `slack.conversations`,

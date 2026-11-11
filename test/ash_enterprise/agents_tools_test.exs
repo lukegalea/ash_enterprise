@@ -2,8 +2,8 @@ defmodule AshEnterprise.Agents.ToolsTest do
   @moduledoc """
   The no-nesting rule as a regression: ash_ai's tool surface for the Agents
   domain is reads only. `start_agent_run` must never be a tool — an agent that
-  can start another coding-agent run is the agent-to-agent nesting dogfood §6
-  forbids. Runs start from the operator's surfaces (amber_console / ACP).
+  can start another coding-agent run is the agent-to-agent nesting
+  the coding-agent bridge forbids. Runs start from the operator's surfaces (amber_console / ACP).
   """
 
   use ExUnit.Case, async: true

@@ -1,8 +1,7 @@
 defmodule AshEnterprise.Acp.Session do
   @moduledoc false
 
-  # One ACP session. Lives in the supervised ETS store until epic E5's durable
-  # `AgentSession` resource replaces it (dogfood §6).
+  # One ACP session, held in the supervised ETS store (`AshEnterprise.Acp.Store`).
 
   defstruct [:session_id, :actor, :updated_at, transcript: []]
 end

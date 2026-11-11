@@ -1,6 +1,6 @@
 defmodule AshEnterprise.Integration.Gmail.SyncState do
   @moduledoc """
-  The Gmail sync cursor for one linked account (epic E4). One row per
+  The Gmail sync cursor for one linked account. One row per
   `AshEnterprise.Integration.LinkedAccount`; it holds ids and counters only —
   never a subject, an address, a snippet or a body.
 

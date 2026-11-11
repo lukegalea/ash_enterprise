@@ -1,6 +1,6 @@
 defmodule AshEnterprise.Integration.Gmail.Sync do
   @moduledoc """
-  One Gmail sync step for one linked account (epic E4): fetch through the
+  One Gmail sync step for one linked account: fetch through the
   edge's generated actions, land each message under the linked account's
   scope, and commit the cursor only after what it covers has landed.
 

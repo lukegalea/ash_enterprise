@@ -10,7 +10,7 @@ defmodule AshEnterprise.Lineage.Retention do
   questions this app answers — is something failing now, and what did last
   week's runs touch — and matches the Lineage app's widest window.
 
-  The volume it bounds: a dogfood instance syncs Gmail, Slack and Calendar
+  The volume it bounds: a single-user deployment syncs Gmail, Slack and Calendar
   per linked account every 5–15 minutes, and each sync step is one run of
   about five job runs (the sync, its landings, its projection and the
   canonical tables it wrote), however many rows it wrote — the store

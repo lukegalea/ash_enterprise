@@ -7,7 +7,7 @@ defmodule AshEnterprise.Integration.Slack.Records do
   ## External ids
 
   `SourceObject` identity is `[external_system, external_id]` *without* the
-  stream (the known E1 gap), and a Slack `ts` is only unique inside one
+  stream (a known gap), and a Slack `ts` is only unique inside one
   conversation, so every id is fully qualified — and qualified by the **linked
   account** it was fetched through:
 

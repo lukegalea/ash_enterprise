@@ -118,7 +118,7 @@ config :ash_enterprise, Oban,
          # collapses the overlap with wake-driven jobs.
          {"*/5 * * * *", AshEnterprise.Ledger.UserDrainWorker,
           queue: :ash_strangler_ledger, max_attempts: 1},
-         # Epic E4: one sync step per active linked account per vertical. The
+         # One sync step per active linked account per vertical. The
          # scheduler only enqueues; each vertical's worker is unique per linked
          # account, so a tick that lands while a step is still queued, running
          # or snoozed through a long backfill collapses into it.
@@ -214,7 +214,7 @@ config :ash_events_projections,
 # not delivery.
 config :ash_strangler, ledger_drain: {AshEnterprise.Ledger.UserDrainWorker, :nudge}
 
-# ADR 0012 / epic E2: the lineage runId IS the audit correlation id, so
+# ADR 0012: the lineage runId IS the audit correlation id, so
 # "lineage for this audit entry" is a lookup rather than a join across
 # vocabularies. The host transport (`AshEnterprise.Lineage.Transport`) keeps
 # every event in the lineage store (the Lineage app), and also posts it to an
@@ -235,8 +235,8 @@ config :ash_enterprise, AshEnterprise.Lineage.Store,
 
 config :ash_enterprise, AshEnterprise.Lineage.Retention, days: 14
 
-# Epic E3 (dogfood §7): the ACP wire adapter's host seams. The session store is
-# in-memory until epic E5 swaps in the durable AgentSession resources.
+# The ACP wire adapter's host seams (`AshEnterprise.Acp`): its session store is
+# in memory, so a restart empties it.
 # The operator's wall clock for the daily-loop surfaces (Today, Calendar,
 # People): which zone "today" is cut in and times are printed in. Stored data
 # stays UTC. `DISPLAY_TIME_ZONE` overrides it at boot (config/runtime.exs).
@@ -492,7 +492,7 @@ config :ash_enterprise, AshEnterprise.BusinessEvents,
   residency_tag: "local",
   emit?: true
 
-# Epic E4: every record a provider sync fetches lands sealed under the erasure
+# Every record a provider sync fetches lands sealed under the erasure
 # scope of the linked account it came through (ADR 0024). Leaving `:lander`
 # unset falls back to `Landing.NotWired`, which refuses every landing (and so
 # every sync) rather than land content outside a scope.

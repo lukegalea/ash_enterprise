@@ -1,6 +1,6 @@
 defmodule AshEnterpriseWeb.A2ui.TodayUI do
   @moduledoc """
-  Today — the operator's home for the day (Productivity OS dogfood, epic E6).
+  Today — the operator's home for the day.
 
   Anchored on the latest `MorningBrief`: its draft is rendered on read, its
   detail links the events it covers and its approval task, and its Approve /

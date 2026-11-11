@@ -1,6 +1,6 @@
 defmodule AshEnterprise.Acp.Commands do
   @moduledoc """
-  The ACP prompt grammar for the daily loop (Productivity OS dogfood, epic E6):
+  The ACP prompt grammar for the daily loop:
   which Ash action a prompt runs, and which A2UI surface the turn closes with.
 
   Every route is a declared action run by `ash_acp` as the session's actor with

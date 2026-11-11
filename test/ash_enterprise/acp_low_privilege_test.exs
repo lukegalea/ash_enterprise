@@ -1,6 +1,6 @@
 defmodule AshEnterprise.AcpLowPrivilegeTest do
   @moduledoc """
-  ACP as someone who is not an Administrator (epic E3/E5 acceptance): a tenant
+  ACP as someone who is not an Administrator: a tenant
   member holding a narrow role, and a user whose role grants nothing, driving
   the real `AshAcp.Server` through the host seams under real policies.
 

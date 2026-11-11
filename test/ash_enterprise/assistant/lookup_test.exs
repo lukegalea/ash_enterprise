@@ -1,6 +1,6 @@
 defmodule AshEnterprise.Assistant.LookupTest do
   @moduledoc """
-  The assistant's read tools (E10.2), each a computed read run as a person, as
+  The assistant's read tools, each a computed read run as a person, as
   a run's step runs it: what they return to their owner, that another person's mail, Slack, contacts and calendar
   are not in it (owner-only, ADR 0042), and that content reaches only an
   in-zone model in the canonical store's zone — and never content the zone

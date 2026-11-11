@@ -1,6 +1,6 @@
 defmodule AshEnterprise.Acp do
   @moduledoc """
-  Host seam for `ash_acp` (Productivity OS Dogfood epic E3; dogfood §7 mapping).
+  Host seam for `ash_acp`, the ACP server wire adapter.
 
   Split across this module (the session table and helpers),
   `AshEnterprise.Acp.SessionStore` (`AshAcp.SessionStore` + `AshAcp.PromptTarget`),
@@ -16,7 +16,7 @@ defmodule AshEnterprise.Acp do
   and a restart, and a client asking again finds it (`AshEnterprise.Acp.Approvals`).
   Nothing in `ash_acp` knows where either lives.
 
-  Mapping per §7: Prompt → a declared Ash action resolved from prompt text, or, when its
+  The mapping: Prompt → a declared Ash action resolved from prompt text, or, when its
   declaration asks for an approval, a request of it; permission request → that
   request's invocation; available actions pruned per actor with `Ash.can?/3` inside
   `ash_acp`.
@@ -46,7 +46,7 @@ defmodule AshEnterprise.Acp do
   see `config/runtime.exs`; default `admin@example.com`), read through the
   normal policies — a surface is client-visible data, so it must be produced
   under real authorization, never a bypass. Sessions are local-operator-only
-  until authentication lands with E5 (stdio from the operator's console —
+  while ACP has no authentication (stdio from the operator's console —
   `mix ash_acp.stdio`, or `scripts/acp-attach` into a running node — or
   loopback HTTP).
   """
@@ -61,8 +61,8 @@ defmodule AshEnterprise.Acp do
 
   @doc """
   Whether ACP asks the person (`session/request_permission`) before running
-  `action` on `resource`, even when policy allows it (dogfood §5: every
-  consequential action is an approval).
+  `action` on `resource`, even when policy allows it (every
+  consequential action is an approval: ADR 0055).
 
   Read from the action's `AshAgent.Effects` declaration (ADR 0057): it asks
   unless the declaration says `approval: :none`. An undeclared action asks,

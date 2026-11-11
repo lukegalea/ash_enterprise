@@ -1,6 +1,6 @@
 defmodule AshEnterprise.Agents.AgentRun do
   @moduledoc """
-  One requested unit of coding-agent work (dogfood §6): a prompt handed to the
+  One requested unit of coding-agent work: a prompt handed to the
   OMP process of a session, the messages it streamed back, and the tool
   invocations it asked for.
 

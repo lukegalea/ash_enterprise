@@ -1,6 +1,6 @@
 defmodule AshEnterpriseWeb.AssistantLiveTest do
   @moduledoc """
-  `/app/agent` through the real LiveView (E10.1): a question starts a run of
+  `/app/agent` through the real LiveView: a question starts a run of
   the assistant agent, which the test steps as its jobs would; the page follows
   it, shows its lookups inline and links its citations; the thread is kept and
   reopens, with a run still going picked up again; somebody else's thread is

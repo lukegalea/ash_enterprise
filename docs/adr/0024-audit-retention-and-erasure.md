@@ -144,7 +144,7 @@ a regression test in `erasure_test.exs` or `ingestion_test.exs`:
 
 **Known follow-ups** (low severity, not built):
 
-- ~~*Landing identity excludes the scope.*~~ **Resolved 2026-10-12 (E4).** `SourceObject.land` now carries
+- ~~*Landing identity excludes the scope.*~~ **Resolved 2026-10-12.** `SourceObject.land` now carries
   `Ingestion.Changes.KeepErasureScope`, which makes the upsert conditional on the existing row naming the same scope
   (inside the `INSERT … ON CONFLICT … DO UPDATE … WHERE`), so a landing under another scope fails and leaves the row,
   its scope and its ciphertext untouched. Every Integration vertical also namespaces `external_id` by the linked
@@ -160,7 +160,7 @@ a regression test in `erasure_test.exs` or `ingestion_test.exs`:
 `data_subject` scopes exist in the model, but nothing writes under one yet. Per-person erasure (q14) is therefore
 partial, not shipped.
 
-**Wired to the Nango adapters (E4, 2026-10-12).** Each `Integration.LinkedAccount` gets its own `connection` scope
+**Wired to the Nango adapters (2026-10-12).** Each `Integration.LinkedAccount` gets its own `connection` scope
 (`connection:<linked account id>`), and everything its sync brings in is sealed under it: raw provider records,
 processed calendar events, and their audit copies. A step opens its scope (`Integration.Landing.open/1`) before its
 first provider call, so a step for a shredded scope cancels without asking the provider anything, and

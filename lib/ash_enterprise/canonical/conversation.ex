@@ -1,7 +1,7 @@
 defmodule AshEnterprise.Canonical.Conversation do
   @moduledoc """
   A thread: a Gmail thread, a Slack channel, private channel, group DM or DM,
-  or a face-to-face the operator logged (dogfood §11). Messages
+  or a face-to-face the operator logged. Messages
   (`AshEnterprise.Canonical.Message`) belong to one. `kind` says which of the
   Slack sorts it is.
 
@@ -196,7 +196,7 @@ defmodule AshEnterprise.Canonical.Conversation do
       description """
       Look up the canonical row projected from one raw SourceObject.
 
-      KNOWN GAP (E1 review, fix owned by a dedicated E1 follow-up):
+      KNOWN GAP (not yet fixed):
       SourceObject identity is `[external_system, external_id]` *without* the
       stream, and this lookup inherits that shape — two streams sharing an
       external id would land on one row here. Projectors disambiguate by

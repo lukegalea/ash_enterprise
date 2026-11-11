@@ -21,7 +21,7 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Fragment) do
     rendered by `AshEnterprise.SystemOne.QuestionProposal.to_dsl/2` and
     landed verbatim with the `:winnow_gpu` decision instrument:
 
-      * Seventeen at version 2 (confirmed in dogfood on 2026-10-29,
+      * Seventeen at version 2 (confirmed on 2026-10-29 in a deployment we operate,
         record `43864d09-edbc-4ba1-b3f1-48e0017c5409`): the CLAUDE.md
         non-negotiables, the iron laws and the house style as confirmed
         on 2026-10-21 (records
@@ -30,7 +30,7 @@ if Code.ensure_loaded?(AshAgentTools.CodeSubjects.Fragment) do
         `dee2d586-d943-4c2f-8e01-bbb06866efe3`), with a `state_shape`
         added and nothing else changed. The shape is part of a question's
         hash, so declaring it is a new question identity: hence version 2.
-      * Six at version 1 (confirmed in dogfood on 2026-10-29, record
+      * Six at version 1 (confirmed on 2026-10-29 in a deployment we operate, record
         `9f91e62a-ce8c-4729-8e4b-0342fde5f26d`): the ADR 0038 rows, one
         yes/no per component.
 

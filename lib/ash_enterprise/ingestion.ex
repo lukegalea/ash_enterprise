@@ -1,15 +1,15 @@
 defmodule AshEnterprise.Ingestion do
   @moduledoc """
-  Ingestion foundation (ADR 0010 + ADR 0011, Productivity OS Dogfood epic E1).
+  Ingestion foundation (ADR 0010 + ADR 0011).
 
   Each ingestion pipeline is an Oban wrapper job (`AshEnterprise.Ingestion.TapWorker`)
   that runs a Meltano/Singer tap and lands its output **immutably** as
   `AshEnterprise.Ingestion.SourceObject` rows: external system, external id, raw
   payload, cursor, fetch time. Canonical projections are deliberately *not* built
-  here — they arrive with epic E4 — so this domain is the thin, shared foundation
-  for both lineage (E2) and the productivity verticals (E4).
+  here — they live in `AshEnterprise.Canonical` — so this domain is the thin, shared
+  foundation for both lineage (ADR 0012) and the provider verticals (ADR 0011).
 
-  Meltano is the adapter workbench, not the center (dogfood §11). Nango (ADR 0011)
+  Meltano is the adapter workbench, not the center (ADR 0010, as amended). Nango (ADR 0011)
   owns the provider OAuth edge; the Nango connection id is resolved from an actor's
   linked-account resource by the verticals, never passed as an action argument.
   """

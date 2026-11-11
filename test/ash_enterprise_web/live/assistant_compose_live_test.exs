@@ -1,6 +1,6 @@
 defmodule AshEnterpriseWeb.AssistantComposeLiveTest do
   @moduledoc """
-  `/app/agent` composing and proposing (E10.3, E10.4) through the real
+  `/app/agent` composing and proposing through the real
   LiveView: a composed board renders inline as the person and pins into "My
   apps" on the launcher, where it opens (re-verified) and unpins; a change the
   assistant asks for waits for the person's Confirm and then runs once, as them. Each answer is a run of the

@@ -1,6 +1,6 @@
 defmodule AshEnterprise.Canonical.Task do
   @moduledoc """
-  A commitment with a status (dogfood §11): captured by the operator or
+  A commitment with a status: captured by the operator or
   extracted from a message by a later epic. `source` records where it came
   from — provenance is mandatory, not decoration.
 
@@ -624,7 +624,7 @@ defmodule AshEnterprise.Canonical.Task do
       description """
       Look up the canonical row projected from one raw SourceObject.
 
-      KNOWN GAP (E1 review, fix owned by a dedicated E1 follow-up):
+      KNOWN GAP (not yet fixed):
       SourceObject identity is `[external_system, external_id]` *without* the
       stream, and this lookup inherits that shape — two streams sharing an
       external id would land on one row here. Projectors disambiguate by

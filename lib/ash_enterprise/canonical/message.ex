@@ -1,6 +1,6 @@
 defmodule AshEnterprise.Canonical.Message do
   @moduledoc """
-  The §11 email/Slack message row: one sent or received item in a conversation,
+  The canonical email/Slack message row: one sent or received item in a conversation,
   with its sender, timestamp and direction.
 
   PERSONAL DATA (ADR 0042). The Gmail and Slack projectors
@@ -160,7 +160,7 @@ defmodule AshEnterprise.Canonical.Message do
       description """
       Look up the canonical row projected from one raw SourceObject.
 
-      KNOWN GAP (E1 review, fix owned by a dedicated E1 follow-up):
+      KNOWN GAP (not yet fixed):
       SourceObject identity is `[external_system, external_id]` *without* the
       stream, and this lookup inherits that shape — two streams sharing an
       external id would land on one row here. Projectors disambiguate by

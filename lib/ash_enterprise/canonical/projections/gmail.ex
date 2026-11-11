@@ -1,6 +1,6 @@
 defmodule AshEnterprise.Canonical.Projections.Gmail do
   @moduledoc """
-  Raw → canonical projection for Gmail (epic E4, ADR 0037's host-declared
+  Raw → canonical projection for Gmail (ADR 0037's host-declared
   pattern): landed `gmail.messages` records become
   `AshEnterprise.Canonical.Conversation` (one per Gmail thread),
   `AshEnterprise.Canonical.Message` (one per message) and

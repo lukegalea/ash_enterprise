@@ -102,7 +102,7 @@ end
 
 # The user ACP sessions run as (`AshEnterprise.Acp.system_actor/0`), by email.
 # Unset, it is the legacy seed's admin@example.com; a deployment seeded with a
-# real operator (the dogfood instance) names that user here, typically from a
+# real operator names that user here, typically from a
 # gitignored devenv.local.nix. Read at boot, so changing it needs a restart.
 if operator_email = System.get_env("ACP_OPERATOR_EMAIL") do
   config :ash_enterprise, :acp_operator_email, operator_email
@@ -110,8 +110,8 @@ end
 
 # The product name on the header, the browser tab, the sign-in screen, mail and
 # the ACP agent's handshake (`AshEnterprise.Brand.product_name/0`). Set only
-# when present so the "Ash Enterprise" default stays in that module; the
-# dogfood instance sets PRODUCT_NAME in its gitignored devenv.local.nix. Read
+# when present so the "Ash Enterprise" default stays in that module; a
+# deployment can set PRODUCT_NAME in a gitignored devenv.local.nix. Read
 # at boot, so changing it needs a restart.
 case System.get_env("PRODUCT_NAME") do
   name when is_binary(name) and name != "" -> config :ash_enterprise, :product_name, name

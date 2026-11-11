@@ -1,13 +1,13 @@
 defmodule AshEnterprise.Agents.AgentSession do
   @moduledoc """
-  A persistent coding-agent session identity and lifecycle (dogfood §6).
+  A persistent coding-agent session identity and lifecycle.
 
   One row per (operator, workspace): the stable thing that outlives runs,
   terminal disconnects and process restarts. A run is a unit of work *inside*
   a session; approvals and messages hang off runs, never directly off the
   session.
 
-  Base-resource opt-outs are the same shape as the E4 canonical resources and
+  Base-resource opt-outs are the same shape as the canonical resources and
   deliberate: `lifecycle?: false` because `status` below is this resource's own
   lifecycle (a Dataverse Active/Inactive pair beside it would be two answers to
   one question), and `archival?: false` because closing a session is a status

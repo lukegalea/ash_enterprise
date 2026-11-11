@@ -1,6 +1,6 @@
 defmodule AshEnterprise.Integration.Gmail.SyncTest do
   @moduledoc """
-  The Gmail vertical's sync (epic E4): request → Oban step → edge actions →
+  The Gmail vertical's sync: request → Oban step → edge actions →
   landing under the linked account's scope, with the cursor committed only
   after what it covers has landed.
 
@@ -559,7 +559,7 @@ defmodule AshEnterprise.Integration.Gmail.SyncTest do
     |> Enum.map(fn {_path, query} -> query end)
   end
 
-  # The grants a dogfood operator holds, precomputed the way LoadActorContext
+  # The grants an operator holds, precomputed the way LoadActorContext
   # would: Basic on their own linked accounts and cursor, Global read (= may
   # call) on the operation resources.
   defp basic_actor(user, org) do

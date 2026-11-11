@@ -1,6 +1,6 @@
 defmodule AshEnterpriseWeb.DailyLive do
   @moduledoc """
-  The daily-loop and operator surfaces (Productivity OS dogfood, epic E6):
+  The daily-loop and operator surfaces:
   Today, Calendar, Inbox, Slack, People, Approvals, Accounts & syncs and
   Erasure scopes, at `/app/<name>`. (Calendar reads through time, so it is its
   own module: `AshEnterpriseWeb.DailyLive.Calendar`.)

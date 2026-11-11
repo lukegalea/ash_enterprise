@@ -274,7 +274,7 @@ DONE. Approved.").
 - **In use** in a deployment we operate: the helper's model is an in-zone OpenAI-compatible runtime that the zone
   declaration names, the guard is on, and no hosted-model key is in the deployment's environment.
 
-**Built: the assistant at `/app/agent` (2026-10-17, E10.1/E10.2; on agent runs since AGT-33).** Each answer is a
+**Built: the assistant at `/app/agent` (2026-10-17; on agent runs since AGT-33).** Each answer is a
 run of `AshEnterprise.Assistant.Agent` (ADR 0056), whose every step calls the in-zone profile only, through
 `GuardedReqLLM` (caller `run:<run id>:<step>`, every call in `ModelCall`). `AshEnterprise.Assistant.Ask` refuses — and
 records the refusal of, as caller `assistant` — a question whose target is not in-zone or not in the canonical store's

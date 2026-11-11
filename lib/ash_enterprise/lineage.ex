@@ -1,6 +1,6 @@
 defmodule AshEnterprise.Lineage do
   @moduledoc """
-  OpenLineage, kept (ADR 0012, epics E2 and E8): what every write and every
+  OpenLineage, kept (ADR 0012): what every write and every
   sync emits, stored here and drawn as a graph by the Lineage app
   (`/app/lineage`).
 

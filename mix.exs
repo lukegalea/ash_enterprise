@@ -309,7 +309,7 @@ defmodule AshEnterprise.MixProject do
       {:solverl, "~> 1.1"},
       # Extracted planning kernel (ADR 0062): fragments, backend behaviour, IR, validators.
       {:ash_planning, github: "lukegalea/ash_planning"},
-      # Epic E2 / ADR 0012: OpenLineage emission from action notifications.
+      # ADR 0012: OpenLineage emission from action notifications.
       # ash_planning Wave 1 (PLN-3): pinned to the snapshot value contract
       # (Snapshot + RFC 8785 CanonicalJSON + digest-only facet) reconciled to
       # the #147 extraction vocabulary as 205d072f; floating on main ends here.
@@ -326,7 +326,7 @@ defmodule AshEnterprise.MixProject do
       # `AshEnterprise.BusinessEvents.Ledger`; events are derived from the
       # canonical store's writes.
       {:ash_discrete_business_events, github: "lukegalea/ash_discrete_business_events"},
-      # Epic E3 (dogfood §7): ACP server wire adapter.
+      # ACP server wire adapter; `AshEnterprise.Acp` is the host seam.
       {:ash_acp, github: "lukegalea/ash_acp"},
 
       # --- Rules engine and the compliance plane it powers ---------------------

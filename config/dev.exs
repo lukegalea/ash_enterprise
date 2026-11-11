@@ -88,7 +88,7 @@ config :ash_evidence, AshEvidence.Repo,
 # on the resources instead of relying on a search path.
 ash_schema = System.get_env("ASH_SCHEMA")
 
-# Epic E1 (ADR 0010): the development ingestion pipeline. `tap-postgres` reads
+# ADR 0010: the development ingestion pipeline. `tap-postgres` reads
 # this app's own dev database (deterministic, no external account needed) and
 # lands `public.privileges` rows as immutable `Ingestion.SourceObject`s. The
 # command lives here, never in job args — a job only names the pipeline.
@@ -99,7 +99,7 @@ config :ash_enterprise, AshEnterprise.Ingestion,
         "cd #{File.cwd!()}/tmp/ingestion/dogfood_tap && #{System.user_home!()}/ash_enterprise/.devenv/state/venv/bin/meltano invoke tap-postgres",
       "external_system" => "postgres"
     },
-    # Epic E4: the deterministic calendar fixture — no OAuth, no external
+    # The deterministic calendar fixture — no OAuth, no external
     # account, byte-identical Singer output every run. TapWorker bypasses the
     # runner for fixture pipelines; Projection.replay(:calendar) turns the
     # landed rows into CalendarEvents.

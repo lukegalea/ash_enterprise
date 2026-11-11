@@ -485,8 +485,8 @@ defmodule AshEnterprise.Planning.SnapshotBuilder do
             # working window its weekday gets from the requirements decision.
             # Confirmed events on non-working days (weekends, per the DMN) or
             # wholly outside the window never bind the schedule — a hard
-            # mandatory there made every real-calendar week UNSAT (dogfood:
-            # all-day weekend double-bookings).
+            # mandatory there made every real-calendar week UNSAT (all-day
+            # weekend double-bookings).
             mandatory?: confirmed? and working_event?(event, requirements),
             priority: if(confirmed?, do: 3, else: 1)
           }

@@ -1,6 +1,6 @@
 defmodule AshEnterprise.Ingestion.TapWorker do
   @moduledoc """
-  Oban wrapper job for one ingestion pipeline (epic E1, ADR 0010).
+  Oban wrapper job for one ingestion pipeline (ADR 0010).
 
   Runs the configured tap for the named pipeline, parses its Singer output
   (RECORD / STATE lines) and lands each record immutably as an
@@ -21,7 +21,7 @@ defmodule AshEnterprise.Ingestion.TapWorker do
           }
         }
 
-  ## In-app fixture sources (epic E4)
+  ## In-app fixture sources
 
   A pipeline whose config declares `"fixture" => true` has no `"command"`:
   the runner is bypassed and `AshEnterprise.Ingestion.FixtureTap`'s Singer
@@ -70,7 +70,7 @@ defmodule AshEnterprise.Ingestion.TapWorker do
   defp run_pipeline(name, config) do
     external_system = Map.fetch!(config, "external_system")
 
-    # In-app fixture sources (epic E4) declare "fixture" and carry no command:
+    # In-app fixture sources declare "fixture" and carry no command:
     # the runner is bypassed and the fixture's Singer output is used verbatim.
     # See AshEnterprise.Ingestion.FixtureTap.
     tap_kind =

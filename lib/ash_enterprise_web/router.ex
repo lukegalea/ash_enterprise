@@ -182,7 +182,7 @@ defmodule AshEnterpriseWeb.Router do
       live "/app/directory", A2uiLive.ProjectedUsers
     end
 
-    # --- The daily loop (Productivity OS dogfood, epic E6) --------------------
+    # --- The daily loop -------------------------------------------------------
     #
     # The operator's day. Each page is an A2UI
     # surface that the ACP server also serves (AshEnterprise.Acp), read as the
@@ -248,7 +248,7 @@ defmodule AshEnterpriseWeb.Router do
       live "/app/time-travel/subjects/:id", TimeTravelLive, :facts
     end
 
-    # The assistant (E10): a person's own chat with the in-zone model, its
+    # The assistant: a person's own chat with the in-zone model, its
     # read tools run as them. Its own live_session so it can be removed with
     # lib/ash_enterprise/assistant/ and AshEnterpriseWeb.AssistantLive.
     ash_authentication_live_session :assistant,

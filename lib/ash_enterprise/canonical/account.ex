@@ -1,6 +1,6 @@
 defmodule AshEnterprise.Canonical.Account do
   @moduledoc """
-  An identity in an external system (dogfood §11): the operator's Google
+  An identity in an external system: the operator's Google
   account, a Slack workspace membership, a Meltano-tapped database. One row per
   `(provider, external_id)` — the anchor that says *which* upstream identity a
   stream of raw objects belongs to.
@@ -80,7 +80,7 @@ defmodule AshEnterprise.Canonical.Account do
       provider identity is the source identity (see the moduledoc), so this is
       the provider lookup under that equivalence.
 
-      KNOWN GAP (E1 review, fix owned by a dedicated E1 follow-up):
+      KNOWN GAP (not yet fixed):
       SourceObject identity is `[external_system, external_id]` *without* the
       stream, and this lookup inherits that shape — two streams sharing an
       external id would land on one row here. Projectors disambiguate by

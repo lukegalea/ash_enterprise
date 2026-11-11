@@ -1,6 +1,6 @@
 defmodule AshEnterprise.Integration do
   @moduledoc """
-  The provider edge (ADR 0011, AST-155 exercised in epic E4) and the three
+  The provider edge (ADR 0011, AST-155) and the three
   verticals built on it: outbound calls to third-party APIs through Nango's
   proxy, each one an ordinary Ash action, and the syncs that land what they
   fetch.
@@ -53,7 +53,7 @@ defmodule AshEnterprise.Integration do
   ## The rule that does not bend
 
   **The connection id is never an action argument.** It is resolved inside the
-  action from the actor's own linked accounts (ADR 0011, dogfood deviation 1:
+  action from the actor's own linked accounts (ADR 0011, deviation 1:
   per-user, not per-tenant). An adapter that holds several linked accounts for
   one provider names *which* by `linked_account_id` — a row the actor must own,
   read under the actor's policies — never by connection.

@@ -1,6 +1,6 @@
 defmodule AshEnterprise.Canonical.Project do
   @moduledoc """
-  A named container for work (dogfood §11): the thing tasks and events are
+  A named container for work: the thing tasks and events are
   *about*. Minimal by contract — a name and, for projected rows, the source
   pair.
 
@@ -60,7 +60,7 @@ defmodule AshEnterprise.Canonical.Project do
       description """
       Look up the canonical row projected from one raw SourceObject.
 
-      KNOWN GAP (E1 review, fix owned by a dedicated E1 follow-up):
+      KNOWN GAP (not yet fixed):
       SourceObject identity is `[external_system, external_id]` *without* the
       stream, and this lookup inherits that shape — two streams sharing an
       external id would land on one row here. Projectors disambiguate by

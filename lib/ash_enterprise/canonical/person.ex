@@ -1,6 +1,6 @@
 defmodule AshEnterprise.Canonical.Person do
   @moduledoc """
-  A person in the operator's world (dogfood §11): the organizer of a meeting,
+  A person in the operator's world: the organizer of a meeting,
   a message correspondent, a task's assignee.
 
   The projectors key a person on the email address and nothing else. A person
@@ -219,7 +219,7 @@ defmodule AshEnterprise.Canonical.Person do
       Look up the person a source-system contact projected to, by the external
       identity stamped at projection time.
 
-      KNOWN GAP (E1 review, fix owned by a dedicated E1 follow-up):
+      KNOWN GAP (not yet fixed):
       SourceObject identity is `[external_system, external_id]` *without* the
       stream, and this lookup inherits that shape — two streams sharing an
       external id would land on one row here. Projectors disambiguate by

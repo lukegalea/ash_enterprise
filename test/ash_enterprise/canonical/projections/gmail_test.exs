@@ -1,6 +1,6 @@
 defmodule AshEnterprise.Canonical.Projections.GmailTest do
   @moduledoc """
-  The Gmail raw → canonical projection (epic E4): only the replay owner's own
+  The Gmail raw → canonical projection: only the replay owner's own
   linked accounts, deny-by-default zone admission (ADR 0042), then
   Conversation/Message/Person derived from landed `gmail.messages` records,
   deterministically, with nothing mailbox-derived on organization-owned rows.

@@ -19,8 +19,8 @@ defmodule AshEnterprise.Agents.MorningBriefScheduler do
       `config/runtime.exs`) while the crontab and an Oban `:timezone` are
       compile-time config;
     * a fixed UTC hour drifts by an hour across daylight saving;
-    * a node that was down at 06:30 still briefs the day when it comes back
-      (the dogfood instance restarts often), instead of skipping it.
+    * a node that was down at 06:30 still briefs the day when it comes back,
+      instead of skipping it.
 
   Toronto's offset is a whole number of hours, so the 06:30 tick lands on the
   minute; a zone with a :15/:45 offset would run within fifteen minutes.

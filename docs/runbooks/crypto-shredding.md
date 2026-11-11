@@ -1,7 +1,7 @@
 # Runbook: crypto-shredding an erasure scope
 
 Written 2026-10-12, against the erasure half of [ADR 0024](../adr/0024-audit-retention-and-erasure.md).
-Updated 2026-10-12 when the provider syncs (Google Calendar, Gmail, Slack via Nango, epic E4) were wired to it, and
+Updated 2026-10-12 when the provider syncs (Google Calendar, Gmail, Slack via Nango) were wired to it, and
 again the same day when Gmail and Slack projection went live behind zone admission (ADR 0042).
 Code: `AshEnterprise.Erasure` (`lib/ash_enterprise/erasure.ex` and `lib/ash_enterprise/erasure/`), and
 `AshEnterprise.Integration.Landing` / `Landing.Scoped` for the provider syncs. Tests:

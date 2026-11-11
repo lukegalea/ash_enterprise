@@ -1,6 +1,6 @@
 defmodule AshEnterprise.Acp.ExtMethods do
   @moduledoc """
-  `AshAcp.ExtMethods` for the dogfood ACP server: the three `ash` extension
+  `AshAcp.ExtMethods` for this application's ACP server: the three `ash` extension
   methods (`priv/acp_schema/ash_ext.json` in ash_acp), so a client such as
   amber can list surfaces, open one directly — a record selected, no model
   turn — and act on it, all as the session's actor.
