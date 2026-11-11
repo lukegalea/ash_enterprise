@@ -37,8 +37,29 @@ Every shell sources `.devenv/state/observability/env`, which holds `OTEL_EXPORTE
 | `observability.rootEmail` | `admin@example.com` | Sign-in for both tools; the password is generated per environment |
 | `observability.organization` | `dev` | Organization name in both tools |
 | `observability.appEnv` | `{}` | Extra variables for the application, written to the env file |
+| `observability.provision` | `[]` | The host's own dashboards, alerts and saved views (below) |
 | `observability.budgetMb` | see the file | What `status` reports against |
 | `observability.memoryMaxMb` | see the file | Hard caps, applied only where systemd user scopes exist |
+
+## What `up` collects and provisions
+
+- **Host metrics.** The collector's `hostmetrics` receiver reports CPU, load, memory, paging, processes, network, disks and filesystems every 30 seconds, with `host.name` and `os.type`, so the machine appears under Infrastructure > Hosts.
+- **Application metrics** arrive over OTLP from `AshEnterprise.Telemetry.Metrics` (`beam.*`, `phoenix.*`, `ecto.*`, `ash.*`, `oban.*`; see the telemetry package README).
+- **Dashboards, alerts and saved views.** Every `up` makes SigNoz match the JSON files under `provision/`, then SigNoz's own templates, then each directory in `observability.provision`. Each directory may hold `dashboards/`, `alerts/` and `views/`, one JSON file per item in the shape SigNoz's v2 API takes (`POST /api/v2/dashboards`, `/api/v2/rules`, `/api/v2/saved_views`). Items are matched by name (a dashboard's `name`, an alert's `alert`, a view's `name`): a missing one is created, one whose file changed since it was last provisioned is replaced, and the rest are left alone, so `up` twice creates nothing twice and an edit made in the UI lasts until its file changes. A dashboard file without a `name` (SigNoz's templates use `generateName`) is named after the file.
+
+| Provisioned | |
+|---|---|
+| Dashboards | BEAM VM; Phoenix & LiveView (with a User variable and a by-user table over `enduser.*` and `app.tenant.*`); Ash & Ecto; Oban; Browser. From SigNoz's [dashboards](https://github.com/SigNoz/dashboards) repository (Apache-2.0, pinned): Host Metrics, HTTP API Monitoring, DB Calls Monitoring, and APM Metrics when `spanMetrics` is on |
+| Alerts | HTTP server error rate above 5%; HTTP p95 latency above 1 s; LiveView event p95 latency above 1 s; Oban jobs discarded; Oban cron worker not succeeded for 2 hours. They route through SigNoz's notification policies, so they show in SigNoz and notify nobody until a channel and a policy are set up |
+| Saved views (Traces) | Slow DB queries (over 100 ms, slowest first); Errors; Browser interactions; External calls; By user. Each lists `enduser.id`, `enduser.name` and `app.tenant.name` |
+
+A host adds its own beside them:
+
+```nix
+observability.provision = [ ./observability ];   # ./observability/dashboards/*.json, ...
+```
+
+A failed item is logged and the rest are still provisioned; `up` does not fail on it. `observability provision` does the same against a running stack, without a restart.
 
 ## Ports
 

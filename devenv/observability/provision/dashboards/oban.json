@@ -1,0 +1,570 @@
+{
+  "name": "ash-enterprise-oban",
+  "schemaVersion": "v6",
+  "tags": [
+    {
+      "key": "stack",
+      "value": "oban"
+    }
+  ],
+  "spec": {
+    "display": {
+      "name": "Oban",
+      "description": "Queues (depth and age by state), cron freshness, job duration, exceptions, discards and Lifeline rescues (AshEnterprise.Telemetry.BackgroundProbe and the standard metrics), and job throughput from the consumer spans."
+    },
+    "duration": "1h",
+    "links": [],
+    "variables": [
+      {
+        "kind": "ListVariable",
+        "spec": {
+          "name": "service",
+          "display": {
+            "name": "Service"
+          },
+          "allowAllValue": true,
+          "allowMultiple": true,
+          "sort": "alphabetical-asc",
+          "plugin": {
+            "kind": "signoz/DynamicVariable",
+            "spec": {
+              "name": "service.name",
+              "signal": "metrics"
+            }
+          }
+        }
+      }
+    ],
+    "panels": {
+      "depth": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Jobs by queue and state",
+            "description": "oban.queue.depth."
+          },
+          "links": [],
+          "plugin": {
+            "kind": "signoz/TimeSeriesPanel",
+            "spec": {
+              "legend": {
+                "position": "bottom"
+              },
+              "formatting": {
+                "unit": "short",
+                "decimalPrecision": "2"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "time_series",
+              "spec": {
+                "name": "A",
+                "plugin": {
+                  "kind": "signoz/BuilderQuery",
+                  "spec": {
+                    "name": "A",
+                    "signal": "metrics",
+                    "aggregations": [
+                      {
+                        "metricName": "oban.queue.depth",
+                        "spaceAggregation": "sum",
+                        "timeAggregation": "latest"
+                      }
+                    ],
+                    "filter": {
+                      "expression": "service.name IN $service"
+                    },
+                    "groupBy": [
+                      {
+                        "name": "queue",
+                        "fieldContext": "attribute",
+                        "fieldDataType": "string"
+                      },
+                      {
+                        "name": "state",
+                        "fieldContext": "attribute",
+                        "fieldDataType": "string"
+                      }
+                    ],
+                    "legend": "{{queue}} {{state}}"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "age": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Oldest job age by queue and state",
+            "description": "oban.queue.age: how long the oldest job has waited."
+          },
+          "links": [],
+          "plugin": {
+            "kind": "signoz/TimeSeriesPanel",
+            "spec": {
+              "legend": {
+                "position": "bottom"
+              },
+              "formatting": {
+                "unit": "s",
+                "decimalPrecision": "2"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "time_series",
+              "spec": {
+                "name": "A",
+                "plugin": {
+                  "kind": "signoz/BuilderQuery",
+                  "spec": {
+                    "name": "A",
+                    "signal": "metrics",
+                    "aggregations": [
+                      {
+                        "metricName": "oban.queue.age",
+                        "spaceAggregation": "max",
+                        "timeAggregation": "latest"
+                      }
+                    ],
+                    "filter": {
+                      "expression": "service.name IN $service"
+                    },
+                    "groupBy": [
+                      {
+                        "name": "queue",
+                        "fieldContext": "attribute",
+                        "fieldDataType": "string"
+                      },
+                      {
+                        "name": "state",
+                        "fieldContext": "attribute",
+                        "fieldDataType": "string"
+                      }
+                    ],
+                    "legend": "{{queue}} {{state}}"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "cron": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Seconds since each cron worker last succeeded",
+            "description": "oban.cron.last_success_age."
+          },
+          "links": [],
+          "plugin": {
+            "kind": "signoz/TimeSeriesPanel",
+            "spec": {
+              "legend": {
+                "position": "bottom"
+              },
+              "formatting": {
+                "unit": "s",
+                "decimalPrecision": "2"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "time_series",
+              "spec": {
+                "name": "A",
+                "plugin": {
+                  "kind": "signoz/BuilderQuery",
+                  "spec": {
+                    "name": "A",
+                    "signal": "metrics",
+                    "aggregations": [
+                      {
+                        "metricName": "oban.cron.last_success_age",
+                        "spaceAggregation": "max",
+                        "timeAggregation": "latest"
+                      }
+                    ],
+                    "filter": {
+                      "expression": "service.name IN $service"
+                    },
+                    "groupBy": [
+                      {
+                        "name": "worker",
+                        "fieldContext": "attribute",
+                        "fieldDataType": "string"
+                      }
+                    ],
+                    "legend": "{{worker}}"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "duration": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Job duration p95 by worker",
+            "description": "oban.job.duration (metric)."
+          },
+          "links": [],
+          "plugin": {
+            "kind": "signoz/TimeSeriesPanel",
+            "spec": {
+              "legend": {
+                "position": "bottom"
+              },
+              "formatting": {
+                "unit": "ms",
+                "decimalPrecision": "2"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "time_series",
+              "spec": {
+                "name": "A",
+                "plugin": {
+                  "kind": "signoz/BuilderQuery",
+                  "spec": {
+                    "name": "A",
+                    "signal": "metrics",
+                    "aggregations": [
+                      {
+                        "metricName": "oban.job.duration.bucket",
+                        "spaceAggregation": "p95",
+                        "timeAggregation": ""
+                      }
+                    ],
+                    "filter": {
+                      "expression": "service.name IN $service"
+                    },
+                    "groupBy": [
+                      {
+                        "name": "worker",
+                        "fieldContext": "attribute",
+                        "fieldDataType": "string"
+                      }
+                    ],
+                    "legend": "{{worker}}"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "exceptions": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Job exceptions by worker",
+            "description": "oban.job.exception.count."
+          },
+          "links": [],
+          "plugin": {
+            "kind": "signoz/TimeSeriesPanel",
+            "spec": {
+              "legend": {
+                "position": "bottom"
+              },
+              "formatting": {
+                "unit": "short",
+                "decimalPrecision": "2"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "time_series",
+              "spec": {
+                "name": "A",
+                "plugin": {
+                  "kind": "signoz/BuilderQuery",
+                  "spec": {
+                    "name": "A",
+                    "signal": "metrics",
+                    "aggregations": [
+                      {
+                        "metricName": "oban.job.exception.count",
+                        "spaceAggregation": "sum",
+                        "timeAggregation": "increase"
+                      }
+                    ],
+                    "filter": {
+                      "expression": "service.name IN $service"
+                    },
+                    "groupBy": [
+                      {
+                        "name": "worker",
+                        "fieldContext": "attribute",
+                        "fieldDataType": "string"
+                      }
+                    ],
+                    "legend": "{{worker}}"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "discards": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Discarded jobs by queue",
+            "description": "oban.job.discards: jobs out of attempts."
+          },
+          "links": [],
+          "plugin": {
+            "kind": "signoz/TimeSeriesPanel",
+            "spec": {
+              "legend": {
+                "position": "bottom"
+              },
+              "formatting": {
+                "unit": "short",
+                "decimalPrecision": "2"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "time_series",
+              "spec": {
+                "name": "A",
+                "plugin": {
+                  "kind": "signoz/BuilderQuery",
+                  "spec": {
+                    "name": "A",
+                    "signal": "metrics",
+                    "aggregations": [
+                      {
+                        "metricName": "oban.job.discards",
+                        "spaceAggregation": "sum",
+                        "timeAggregation": "increase"
+                      }
+                    ],
+                    "filter": {
+                      "expression": "service.name IN $service"
+                    },
+                    "groupBy": [
+                      {
+                        "name": "queue",
+                        "fieldContext": "attribute",
+                        "fieldDataType": "string"
+                      }
+                    ],
+                    "legend": "{{queue}}"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "rescues": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Lifeline rescues",
+            "description": "oban.lifeline.rescues, by outcome."
+          },
+          "links": [],
+          "plugin": {
+            "kind": "signoz/TimeSeriesPanel",
+            "spec": {
+              "legend": {
+                "position": "bottom"
+              },
+              "formatting": {
+                "unit": "short",
+                "decimalPrecision": "2"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "time_series",
+              "spec": {
+                "name": "A",
+                "plugin": {
+                  "kind": "signoz/BuilderQuery",
+                  "spec": {
+                    "name": "A",
+                    "signal": "metrics",
+                    "aggregations": [
+                      {
+                        "metricName": "oban.lifeline.rescues",
+                        "spaceAggregation": "sum",
+                        "timeAggregation": "increase"
+                      }
+                    ],
+                    "filter": {
+                      "expression": "service.name IN $service"
+                    },
+                    "groupBy": [
+                      {
+                        "name": "outcome",
+                        "fieldContext": "attribute",
+                        "fieldDataType": "string"
+                      }
+                    ],
+                    "legend": "{{outcome}}"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "job-spans": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Jobs per second by worker",
+            "description": "Consumer spans, by oban.job.worker."
+          },
+          "links": [],
+          "plugin": {
+            "kind": "signoz/TimeSeriesPanel",
+            "spec": {
+              "legend": {
+                "position": "bottom"
+              },
+              "formatting": {
+                "unit": "reqps",
+                "decimalPrecision": "2"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "time_series",
+              "spec": {
+                "name": "A",
+                "plugin": {
+                  "kind": "signoz/BuilderQuery",
+                  "spec": {
+                    "name": "A",
+                    "signal": "traces",
+                    "aggregations": [
+                      {
+                        "expression": "rate()"
+                      }
+                    ],
+                    "filter": {
+                      "expression": "service.name IN $service AND kind_string = 'Consumer'"
+                    },
+                    "groupBy": [
+                      {
+                        "name": "oban.job.worker",
+                        "fieldContext": "attribute",
+                        "fieldDataType": "string"
+                      }
+                    ],
+                    "legend": "{{oban.job.worker}}"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "layouts": [
+      {
+        "kind": "Grid",
+        "spec": {
+          "items": [
+            {
+              "x": 0,
+              "y": 0,
+              "width": 6,
+              "height": 6,
+              "content": {
+                "$ref": "#/spec/panels/depth"
+              }
+            },
+            {
+              "x": 6,
+              "y": 0,
+              "width": 6,
+              "height": 6,
+              "content": {
+                "$ref": "#/spec/panels/age"
+              }
+            },
+            {
+              "x": 0,
+              "y": 6,
+              "width": 6,
+              "height": 6,
+              "content": {
+                "$ref": "#/spec/panels/cron"
+              }
+            },
+            {
+              "x": 6,
+              "y": 6,
+              "width": 6,
+              "height": 6,
+              "content": {
+                "$ref": "#/spec/panels/duration"
+              }
+            },
+            {
+              "x": 0,
+              "y": 12,
+              "width": 6,
+              "height": 6,
+              "content": {
+                "$ref": "#/spec/panels/exceptions"
+              }
+            },
+            {
+              "x": 6,
+              "y": 12,
+              "width": 6,
+              "height": 6,
+              "content": {
+                "$ref": "#/spec/panels/discards"
+              }
+            },
+            {
+              "x": 0,
+              "y": 18,
+              "width": 6,
+              "height": 6,
+              "content": {
+                "$ref": "#/spec/panels/rescues"
+              }
+            },
+            {
+              "x": 6,
+              "y": 18,
+              "width": 6,
+              "height": 6,
+              "content": {
+                "$ref": "#/spec/panels/job-spans"
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

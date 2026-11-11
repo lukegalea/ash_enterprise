@@ -1,0 +1,429 @@
+{
+  "name": "ash-enterprise-browser",
+  "schemaVersion": "v6",
+  "tags": [
+    {
+      "key": "stack",
+      "value": "browser"
+    }
+  ],
+  "spec": {
+    "display": {
+      "name": "Browser",
+      "description": "The browser tracer's spans (service names ending in -browser): interactions, their latency by page, document loads, errors, the most used controls and activity by user."
+    },
+    "duration": "1h",
+    "links": [],
+    "variables": [],
+    "panels": {
+      "interactions": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Interactions per second",
+            "description": "Browser interaction spans, by ui.event.type."
+          },
+          "links": [],
+          "plugin": {
+            "kind": "signoz/TimeSeriesPanel",
+            "spec": {
+              "legend": {
+                "position": "bottom"
+              },
+              "formatting": {
+                "unit": "reqps",
+                "decimalPrecision": "2"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "time_series",
+              "spec": {
+                "name": "A",
+                "plugin": {
+                  "kind": "signoz/BuilderQuery",
+                  "spec": {
+                    "name": "A",
+                    "signal": "traces",
+                    "aggregations": [
+                      {
+                        "expression": "rate()"
+                      }
+                    ],
+                    "filter": {
+                      "expression": "service.name CONTAINS '-browser' AND ui.event.type EXISTS"
+                    },
+                    "groupBy": [
+                      {
+                        "name": "ui.event.type",
+                        "fieldContext": "attribute",
+                        "fieldDataType": "string"
+                      }
+                    ],
+                    "legend": "{{ui.event.type}}"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "interaction-p95": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Interaction p95 by page",
+            "description": "Click or submit to the server's reply, by ui.page.path."
+          },
+          "links": [],
+          "plugin": {
+            "kind": "signoz/TimeSeriesPanel",
+            "spec": {
+              "legend": {
+                "position": "bottom"
+              },
+              "formatting": {
+                "unit": "ns",
+                "decimalPrecision": "2"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "time_series",
+              "spec": {
+                "name": "A",
+                "plugin": {
+                  "kind": "signoz/BuilderQuery",
+                  "spec": {
+                    "name": "A",
+                    "signal": "traces",
+                    "aggregations": [
+                      {
+                        "expression": "p95(duration_nano)"
+                      }
+                    ],
+                    "filter": {
+                      "expression": "service.name CONTAINS '-browser' AND ui.event.type EXISTS"
+                    },
+                    "groupBy": [
+                      {
+                        "name": "ui.page.path",
+                        "fieldContext": "attribute",
+                        "fieldDataType": "string"
+                      }
+                    ],
+                    "legend": "{{ui.page.path}}"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "page-load": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Document load p95",
+            "description": "documentLoad spans, by page."
+          },
+          "links": [],
+          "plugin": {
+            "kind": "signoz/TimeSeriesPanel",
+            "spec": {
+              "legend": {
+                "position": "bottom"
+              },
+              "formatting": {
+                "unit": "ns",
+                "decimalPrecision": "2"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "time_series",
+              "spec": {
+                "name": "A",
+                "plugin": {
+                  "kind": "signoz/BuilderQuery",
+                  "spec": {
+                    "name": "A",
+                    "signal": "traces",
+                    "aggregations": [
+                      {
+                        "expression": "p95(duration_nano)"
+                      }
+                    ],
+                    "filter": {
+                      "expression": "service.name CONTAINS '-browser' AND name = 'documentLoad'"
+                    },
+                    "groupBy": [
+                      {
+                        "name": "ui.page.path",
+                        "fieldContext": "attribute",
+                        "fieldDataType": "string"
+                      }
+                    ],
+                    "legend": "{{ui.page.path}}"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "errors": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Browser errors per second",
+            "description": "Browser spans with an error: browser.error and failed interactions."
+          },
+          "links": [],
+          "plugin": {
+            "kind": "signoz/TimeSeriesPanel",
+            "spec": {
+              "legend": {
+                "position": "bottom"
+              },
+              "formatting": {
+                "unit": "reqps",
+                "decimalPrecision": "2"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "time_series",
+              "spec": {
+                "name": "A",
+                "plugin": {
+                  "kind": "signoz/BuilderQuery",
+                  "spec": {
+                    "name": "A",
+                    "signal": "traces",
+                    "aggregations": [
+                      {
+                        "expression": "rate()"
+                      }
+                    ],
+                    "filter": {
+                      "expression": "service.name CONTAINS '-browser' AND has_error = true"
+                    },
+                    "groupBy": [
+                      {
+                        "name": "name",
+                        "fieldContext": "span",
+                        "fieldDataType": "string"
+                      }
+                    ],
+                    "legend": "{{name}}"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "top-controls": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Most used controls",
+            "description": "Interactions by control label and page."
+          },
+          "links": [],
+          "plugin": {
+            "kind": "signoz/TablePanel",
+            "spec": {}
+          },
+          "queries": [
+            {
+              "kind": "scalar",
+              "spec": {
+                "name": "A",
+                "plugin": {
+                  "kind": "signoz/BuilderQuery",
+                  "spec": {
+                    "name": "A",
+                    "signal": "traces",
+                    "aggregations": [
+                      {
+                        "expression": "count()",
+                        "alias": "clicks"
+                      },
+                      {
+                        "expression": "p95(duration_nano)",
+                        "alias": "p95"
+                      }
+                    ],
+                    "filter": {
+                      "expression": "service.name CONTAINS '-browser' AND ui.control.label EXISTS"
+                    },
+                    "groupBy": [
+                      {
+                        "name": "ui.page.path",
+                        "fieldContext": "attribute",
+                        "fieldDataType": "string"
+                      },
+                      {
+                        "name": "ui.control.label",
+                        "fieldContext": "attribute",
+                        "fieldDataType": "string"
+                      }
+                    ],
+                    "legend": "",
+                    "order": [
+                      {
+                        "key": {
+                          "name": "clicks"
+                        },
+                        "direction": "desc"
+                      }
+                    ],
+                    "limit": 25
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "by-user": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Browser activity by user",
+            "description": "Interactions per signed-in user, from the page's otel-enduser tag."
+          },
+          "links": [],
+          "plugin": {
+            "kind": "signoz/TablePanel",
+            "spec": {}
+          },
+          "queries": [
+            {
+              "kind": "scalar",
+              "spec": {
+                "name": "A",
+                "plugin": {
+                  "kind": "signoz/BuilderQuery",
+                  "spec": {
+                    "name": "A",
+                    "signal": "traces",
+                    "aggregations": [
+                      {
+                        "expression": "count()",
+                        "alias": "interactions"
+                      },
+                      {
+                        "expression": "countIf(has_error = true)",
+                        "alias": "errors"
+                      }
+                    ],
+                    "filter": {
+                      "expression": "service.name CONTAINS '-browser' AND enduser.id EXISTS"
+                    },
+                    "groupBy": [
+                      {
+                        "name": "enduser.id",
+                        "fieldContext": "attribute",
+                        "fieldDataType": "string"
+                      },
+                      {
+                        "name": "enduser.name",
+                        "fieldContext": "attribute",
+                        "fieldDataType": "string"
+                      },
+                      {
+                        "name": "app.tenant.name",
+                        "fieldContext": "attribute",
+                        "fieldDataType": "string"
+                      }
+                    ],
+                    "legend": "",
+                    "order": [
+                      {
+                        "key": {
+                          "name": "interactions"
+                        },
+                        "direction": "desc"
+                      }
+                    ],
+                    "limit": 25
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "layouts": [
+      {
+        "kind": "Grid",
+        "spec": {
+          "items": [
+            {
+              "x": 0,
+              "y": 0,
+              "width": 6,
+              "height": 6,
+              "content": {
+                "$ref": "#/spec/panels/interactions"
+              }
+            },
+            {
+              "x": 6,
+              "y": 0,
+              "width": 6,
+              "height": 6,
+              "content": {
+                "$ref": "#/spec/panels/interaction-p95"
+              }
+            },
+            {
+              "x": 0,
+              "y": 6,
+              "width": 6,
+              "height": 6,
+              "content": {
+                "$ref": "#/spec/panels/page-load"
+              }
+            },
+            {
+              "x": 6,
+              "y": 6,
+              "width": 6,
+              "height": 6,
+              "content": {
+                "$ref": "#/spec/panels/errors"
+              }
+            },
+            {
+              "x": 0,
+              "y": 12,
+              "width": 12,
+              "height": 6,
+              "content": {
+                "$ref": "#/spec/panels/top-controls"
+              }
+            },
+            {
+              "x": 0,
+              "y": 18,
+              "width": 12,
+              "height": 6,
+              "content": {
+                "$ref": "#/spec/panels/by-user"
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

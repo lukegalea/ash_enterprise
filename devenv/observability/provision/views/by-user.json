@@ -1,0 +1,69 @@
+{
+  "name": "by-user",
+  "schemaVersion": "v2",
+  "source": "traces",
+  "spec": {
+    "displayName": "By user",
+    "panelType": "list",
+    "requestType": "raw",
+    "queries": [
+      {
+        "type": "builder_query",
+        "spec": {
+          "name": "A",
+          "signal": "traces",
+          "filter": {
+            "expression": "enduser.id EXISTS"
+          },
+          "limit": 100,
+          "order": [
+            {
+              "key": {
+                "name": "timestamp"
+              },
+              "direction": "desc"
+            }
+          ]
+        }
+      }
+    ],
+    "selectedFields": [
+      {
+        "name": "enduser.id",
+        "fieldContext": "attribute",
+        "fieldDataType": "string",
+        "signal": "traces"
+      },
+      {
+        "name": "enduser.name",
+        "fieldContext": "attribute",
+        "fieldDataType": "string",
+        "signal": "traces"
+      },
+      {
+        "name": "app.tenant.name",
+        "fieldContext": "attribute",
+        "fieldDataType": "string",
+        "signal": "traces"
+      },
+      {
+        "name": "service.name",
+        "fieldContext": "resource",
+        "fieldDataType": "string",
+        "signal": "traces"
+      },
+      {
+        "name": "name",
+        "fieldContext": "span",
+        "fieldDataType": "string",
+        "signal": "traces"
+      },
+      {
+        "name": "duration_nano",
+        "fieldContext": "span",
+        "fieldDataType": "float64",
+        "signal": "traces"
+      }
+    ]
+  }
+}

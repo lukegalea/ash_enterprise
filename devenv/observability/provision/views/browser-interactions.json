@@ -1,0 +1,81 @@
+{
+  "name": "browser-interactions",
+  "schemaVersion": "v2",
+  "source": "traces",
+  "spec": {
+    "displayName": "Browser interactions",
+    "panelType": "list",
+    "requestType": "raw",
+    "queries": [
+      {
+        "type": "builder_query",
+        "spec": {
+          "name": "A",
+          "signal": "traces",
+          "filter": {
+            "expression": "service.name CONTAINS '-browser' AND ui.event.type EXISTS"
+          },
+          "limit": 100,
+          "order": [
+            {
+              "key": {
+                "name": "timestamp"
+              },
+              "direction": "desc"
+            }
+          ]
+        }
+      }
+    ],
+    "selectedFields": [
+      {
+        "name": "name",
+        "fieldContext": "span",
+        "fieldDataType": "string",
+        "signal": "traces"
+      },
+      {
+        "name": "ui.page.path",
+        "fieldContext": "attribute",
+        "fieldDataType": "string",
+        "signal": "traces"
+      },
+      {
+        "name": "ui.control.label",
+        "fieldContext": "attribute",
+        "fieldDataType": "string",
+        "signal": "traces"
+      },
+      {
+        "name": "ui.event.name",
+        "fieldContext": "attribute",
+        "fieldDataType": "string",
+        "signal": "traces"
+      },
+      {
+        "name": "duration_nano",
+        "fieldContext": "span",
+        "fieldDataType": "float64",
+        "signal": "traces"
+      },
+      {
+        "name": "enduser.id",
+        "fieldContext": "attribute",
+        "fieldDataType": "string",
+        "signal": "traces"
+      },
+      {
+        "name": "enduser.name",
+        "fieldContext": "attribute",
+        "fieldDataType": "string",
+        "signal": "traces"
+      },
+      {
+        "name": "app.tenant.name",
+        "fieldContext": "attribute",
+        "fieldDataType": "string",
+        "signal": "traces"
+      }
+    ]
+  }
+}

@@ -430,6 +430,9 @@ glitchtip_env() {
   export SKIP_INIT=true
   # A project's Python toolchain (a devenv venv) must not leak into GlitchTip's imports.
   unset PYTHONPATH PYTHONHOME VIRTUAL_ENV
+  # Nor the app's DSN, which a shell that already ran `up` exports: GlitchTip reads
+  # SENTRY_DSN for its own error reporting and would report itself into the app's project.
+  unset SENTRY_DSN SENTRY_FRONTEND_DSN
   # shellcheck disable=SC1090
   . "$OBS_GLITCHTIP_PYTHONPATH"
   export PYTHONPATH="$OBS_CONFIG_DIR:$PYTHONPATH"
@@ -521,6 +524,117 @@ provision_signoz() {
 }
 
 # ---------------------------------------------------------------------------
+# Dashboards, alerts and saved views (OBS_PROVISION_DIRS)
+# ---------------------------------------------------------------------------
+# Each directory may hold dashboards/, alerts/ and views/ of JSON files in the shapes
+# SigNoz's v2 API takes. Every `up` makes SigNoz match them, by name: a missing item is
+# created, one whose file changed since it was last provisioned is replaced, and the
+# rest are left alone, so `up` twice creates nothing twice and edits made in the UI
+# survive until the file itself changes.
+
+# signoz_key_api METHOD PATH [BODY]: through the stack's API key. Prints the body;
+# fails on a non-2xx status.
+signoz_key_api() {
+  local method="$1" path="$2" body="${3:-}" out status
+  local args=(-s -X "$method" -H "SIGNOZ-API-KEY: $SIGNOZ_API_KEY" -H 'content-type: application/json' -w '\n%{http_code}')
+  [ -n "$body" ] && args+=(--data-binary "$body")
+  out="$(curl "${args[@]}" "http://127.0.0.1:$SIGNOZ$path")" || return 1
+  status="${out##*$'\n'}"
+  printf '%s' "${out%$'\n'*}"
+  [ "${status:0:1}" = 2 ]
+}
+
+urlencode() { jq -rn --arg v "$1" '$v|@uri'; }
+
+# A dashboard file without a name (SigNoz's own templates use generateName) is named
+# after the file, which keeps it stable across runs.
+provision_body() {
+  local kind="$1" file="$2" base
+  base="$(basename "$file" .json)"
+  case "$kind" in
+    dashboards) jq -c --arg n "$base" 'del(.generateName) | .name //= $n' "$file" ;;
+    *) jq -c . "$file" ;;
+  esac
+}
+
+provision_name() {
+  case "$1" in
+    dashboards | views) jq -r .name <<< "$2" ;;
+    alerts) jq -r .alert <<< "$2" ;;
+  esac
+}
+
+provision_lookup() {
+  local kind="$1" name="$2" source
+  case "$kind" in
+    dashboards)
+      # The list's `name` filter matches the display name, so match the machine name here.
+      signoz_key_api GET "/api/v2/dashboards?limit=200" |
+        jq -r --arg n "$name" '[.data.dashboards[]? | select(.name == $n) | .id][0] // empty' ;;
+    alerts)
+      signoz_key_api GET /api/v2/rules | jq -r --arg n "$name" '[.data[]? | select(.alert == $n) | .id][0] // empty' ;;
+    views)
+      source="${3:-traces}"
+      signoz_key_api GET "/api/v2/saved_views?source=$source&name=$(urlencode "$name")" | jq -r '.data[0].id // empty' ;;
+  esac
+}
+
+provision_path() {
+  case "$1" in
+    dashboards) echo /api/v2/dashboards ;;
+    alerts) echo /api/v2/rules ;;
+    views) echo /api/v2/saved_views ;;
+  esac
+}
+
+provision_item() {
+  local kind="$1" file="$2" body name id hash marker
+  body="$(provision_body "$kind" "$file")" || { log "skipping $file: not JSON"; return 0; }
+  name="$(provision_name "$kind" "$body")"
+  [ -n "$name" ] && [ "$name" != null ] || { log "skipping $file: no name"; return 0; }
+  hash="$(printf '%s' "$body" | sha256sum | cut -c1-16)"
+  marker="$MARKERS/provisioned/$kind-$(printf '%s' "$name" | sha256sum | cut -c1-16)"
+  id="$(provision_lookup "$kind" "$name" "$(jq -r '.source // empty' <<< "$body")")" || {
+    log "could not look up $kind '$name'"
+    return 1
+  }
+  if [ -z "$id" ]; then
+    signoz_key_api POST "$(provision_path "$kind")" "$body" > /dev/null || {
+      log "could not create $kind '$name' from $(basename "$file")"
+      return 1
+    }
+    log "created $kind: $name"
+  elif [ "$(cat "$marker" 2>/dev/null)" != "$hash" ]; then
+    # A saved view's machine name is fixed at creation and not part of its update.
+    local update="$body"
+    [ "$kind" = views ] && update="$(jq -c 'del(.name)' <<< "$body")"
+    signoz_key_api PUT "$(provision_path "$kind")/$id" "$update" > /dev/null || {
+      log "could not update $kind '$name' from $(basename "$file")"
+      return 1
+    }
+    log "updated $kind: $name"
+  fi
+  echo "$hash" > "$marker"
+}
+
+provision_content() {
+  [ -n "${OBS_PROVISION_DIRS:-}" ] && [ -n "$SIGNOZ_API_KEY" ] || return 0
+  mkdir -p "$MARKERS/provisioned"
+  local dir kind file failed=0 dirs
+  IFS=: read -r -a dirs <<< "$OBS_PROVISION_DIRS"
+  for kind in dashboards alerts views; do
+    for dir in "${dirs[@]}"; do
+      [ -d "$dir/$kind" ] || continue
+      for file in "$dir/$kind"/*.json; do
+        [ -f "$file" ] || continue
+        provision_item "$kind" "$file" || failed=1
+      done
+    done
+  done
+  [ "$failed" = 0 ] || log "some SigNoz content was not provisioned; the stack is up regardless"
+}
+
+# ---------------------------------------------------------------------------
 # Commands
 # ---------------------------------------------------------------------------
 
@@ -547,6 +661,7 @@ cmd_up() {
   migrate_clickhouse
   start_rest
   provision_signoz
+  provision_content
   init_glitchtip
   bring_up glitchtip GlitchTip 120 curl -sf "http://127.0.0.1:$GLITCHTIP/_health/"
   # Give a dependent a moment to fail on its first writes, then check them all; a
@@ -689,6 +804,14 @@ cmd_urls() {
   echo "Env file     $ENV_FILE"
 }
 
+cmd_provision() {
+  load_ports
+  ensure_secrets
+  [ -n "$SIGNOZ_API_KEY" ] || die "no SigNoz API key yet; run \`observability up\` first"
+  curl -sf "http://127.0.0.1:$SIGNOZ/api/v1/health" > /dev/null || die "SigNoz is not answering on $SIGNOZ; run \`observability up\`"
+  provision_content
+}
+
 load_config
 
 case "${1:-}" in
@@ -697,16 +820,18 @@ case "${1:-}" in
   status) cmd_status ;;
   urls) cmd_urls ;;
   prepare) cmd_prepare ;;
+  provision) cmd_provision ;;
   restart-check) exec bash "$OBS_CONFIG_DIR/restart-check.sh" "${2:-5}" ;;
   *)
     cat <<'USAGE' >&2
-usage: observability up|down|status|urls|prepare|restart-check [ROUNDS]
+usage: observability up|down|status|urls|prepare|provision|restart-check [ROUNDS]
 
   up       start the stack (idempotent; first run takes about 5 minutes)
   down     stop the processes this script recorded; data is kept
   status   RSS and PSS per process against the budget (exit 2 over budget, 3 stopped)
   urls     where the UIs and endpoints are, and the sign-in
   prepare  allocate ports and write the env file without starting anything
+  provision  make SigNoz's dashboards, alerts and saved views match the files again (`up` does it too)
   restart-check [ROUNDS]
            cold restarts with traffic, each checked (default 5); leaves the stack stopped
 USAGE

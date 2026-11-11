@@ -1,0 +1,87 @@
+{
+  "name": "external-calls",
+  "schemaVersion": "v2",
+  "source": "traces",
+  "spec": {
+    "displayName": "External calls",
+    "panelType": "list",
+    "requestType": "raw",
+    "queries": [
+      {
+        "type": "builder_query",
+        "spec": {
+          "name": "A",
+          "signal": "traces",
+          "filter": {
+            "expression": "kind_string = 'Client' AND server.address EXISTS AND db.system NOT EXISTS"
+          },
+          "limit": 100,
+          "order": [
+            {
+              "key": {
+                "name": "timestamp"
+              },
+              "direction": "desc"
+            }
+          ]
+        }
+      }
+    ],
+    "selectedFields": [
+      {
+        "name": "service.name",
+        "fieldContext": "resource",
+        "fieldDataType": "string",
+        "signal": "traces"
+      },
+      {
+        "name": "name",
+        "fieldContext": "span",
+        "fieldDataType": "string",
+        "signal": "traces"
+      },
+      {
+        "name": "server.address",
+        "fieldContext": "attribute",
+        "fieldDataType": "string",
+        "signal": "traces"
+      },
+      {
+        "name": "url.full",
+        "fieldContext": "attribute",
+        "fieldDataType": "string",
+        "signal": "traces"
+      },
+      {
+        "name": "http.response.status_code",
+        "fieldContext": "attribute",
+        "fieldDataType": "float64",
+        "signal": "traces"
+      },
+      {
+        "name": "duration_nano",
+        "fieldContext": "span",
+        "fieldDataType": "float64",
+        "signal": "traces"
+      },
+      {
+        "name": "enduser.id",
+        "fieldContext": "attribute",
+        "fieldDataType": "string",
+        "signal": "traces"
+      },
+      {
+        "name": "enduser.name",
+        "fieldContext": "attribute",
+        "fieldDataType": "string",
+        "signal": "traces"
+      },
+      {
+        "name": "app.tenant.name",
+        "fieldContext": "attribute",
+        "fieldDataType": "string",
+        "signal": "traces"
+      }
+    ]
+  }
+}

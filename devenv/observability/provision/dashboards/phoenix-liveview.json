@@ -1,0 +1,725 @@
+{
+  "name": "ash-enterprise-phoenix-liveview",
+  "schemaVersion": "v6",
+  "tags": [
+    {
+      "key": "stack",
+      "value": "phoenix"
+    }
+  ],
+  "spec": {
+    "display": {
+      "name": "Phoenix & LiveView",
+      "description": "Requests and LiveView events from their spans (rate, p95, errors), the Phoenix and LiveView metrics, and activity by signed-in user (enduser.*, app.tenant.*)."
+    },
+    "duration": "1h",
+    "links": [],
+    "variables": [
+      {
+        "kind": "ListVariable",
+        "spec": {
+          "name": "service",
+          "display": {
+            "name": "Service"
+          },
+          "allowAllValue": true,
+          "allowMultiple": true,
+          "sort": "alphabetical-asc",
+          "plugin": {
+            "kind": "signoz/DynamicVariable",
+            "spec": {
+              "name": "service.name",
+              "signal": "traces"
+            }
+          }
+        }
+      },
+      {
+        "kind": "ListVariable",
+        "spec": {
+          "name": "user",
+          "display": {
+            "name": "User (enduser.id)"
+          },
+          "allowAllValue": true,
+          "allowMultiple": true,
+          "sort": "alphabetical-asc",
+          "plugin": {
+            "kind": "signoz/DynamicVariable",
+            "spec": {
+              "name": "enduser.id",
+              "signal": "traces"
+            }
+          }
+        }
+      }
+    ],
+    "panels": {
+      "req-rate": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Requests per second by route",
+            "description": "Server spans, by http.route."
+          },
+          "links": [],
+          "plugin": {
+            "kind": "signoz/TimeSeriesPanel",
+            "spec": {
+              "legend": {
+                "position": "bottom"
+              },
+              "formatting": {
+                "unit": "reqps",
+                "decimalPrecision": "2"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "time_series",
+              "spec": {
+                "name": "A",
+                "plugin": {
+                  "kind": "signoz/BuilderQuery",
+                  "spec": {
+                    "name": "A",
+                    "signal": "traces",
+                    "aggregations": [
+                      {
+                        "expression": "rate()"
+                      }
+                    ],
+                    "filter": {
+                      "expression": "service.name IN $service AND kind_string = 'Server'"
+                    },
+                    "groupBy": [
+                      {
+                        "name": "http.route",
+                        "fieldContext": "attribute",
+                        "fieldDataType": "string"
+                      }
+                    ],
+                    "legend": "{{http.route}}"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "req-p95": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "p95 latency by route",
+            "description": "Server spans, by http.route."
+          },
+          "links": [],
+          "plugin": {
+            "kind": "signoz/TimeSeriesPanel",
+            "spec": {
+              "legend": {
+                "position": "bottom"
+              },
+              "formatting": {
+                "unit": "ns",
+                "decimalPrecision": "2"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "time_series",
+              "spec": {
+                "name": "A",
+                "plugin": {
+                  "kind": "signoz/BuilderQuery",
+                  "spec": {
+                    "name": "A",
+                    "signal": "traces",
+                    "aggregations": [
+                      {
+                        "expression": "p95(duration_nano)"
+                      }
+                    ],
+                    "filter": {
+                      "expression": "service.name IN $service AND kind_string = 'Server'"
+                    },
+                    "groupBy": [
+                      {
+                        "name": "http.route",
+                        "fieldContext": "attribute",
+                        "fieldDataType": "string"
+                      }
+                    ],
+                    "legend": "{{http.route}}"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "req-errors": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Server errors per second",
+            "description": "Server spans with a 5xx response."
+          },
+          "links": [],
+          "plugin": {
+            "kind": "signoz/TimeSeriesPanel",
+            "spec": {
+              "legend": {
+                "position": "bottom"
+              },
+              "formatting": {
+                "unit": "reqps",
+                "decimalPrecision": "2"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "time_series",
+              "spec": {
+                "name": "A",
+                "plugin": {
+                  "kind": "signoz/BuilderQuery",
+                  "spec": {
+                    "name": "A",
+                    "signal": "traces",
+                    "aggregations": [
+                      {
+                        "expression": "rate()"
+                      }
+                    ],
+                    "filter": {
+                      "expression": "service.name IN $service AND kind_string = 'Server' AND http.response.status_code >= 500"
+                    },
+                    "groupBy": [
+                      {
+                        "name": "http.route",
+                        "fieldContext": "attribute",
+                        "fieldDataType": "string"
+                      }
+                    ],
+                    "legend": "{{http.route}}"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "router-p95": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Router dispatch p95 (metric)",
+            "description": "phoenix.router_dispatch.stop.duration, by route."
+          },
+          "links": [],
+          "plugin": {
+            "kind": "signoz/TimeSeriesPanel",
+            "spec": {
+              "legend": {
+                "position": "bottom"
+              },
+              "formatting": {
+                "unit": "ms",
+                "decimalPrecision": "2"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "time_series",
+              "spec": {
+                "name": "A",
+                "plugin": {
+                  "kind": "signoz/BuilderQuery",
+                  "spec": {
+                    "name": "A",
+                    "signal": "metrics",
+                    "aggregations": [
+                      {
+                        "metricName": "phoenix.router_dispatch.stop.duration.bucket",
+                        "spaceAggregation": "p95",
+                        "timeAggregation": ""
+                      }
+                    ],
+                    "filter": {
+                      "expression": "service.name IN $service"
+                    },
+                    "groupBy": [
+                      {
+                        "name": "route",
+                        "fieldContext": "attribute",
+                        "fieldDataType": "string"
+                      }
+                    ],
+                    "legend": "{{route}}"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "lv-events": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "LiveView events per second",
+            "description": "handle_event spans, by span name (view and event)."
+          },
+          "links": [],
+          "plugin": {
+            "kind": "signoz/TimeSeriesPanel",
+            "spec": {
+              "legend": {
+                "position": "bottom"
+              },
+              "formatting": {
+                "unit": "reqps",
+                "decimalPrecision": "2"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "time_series",
+              "spec": {
+                "name": "A",
+                "plugin": {
+                  "kind": "signoz/BuilderQuery",
+                  "spec": {
+                    "name": "A",
+                    "signal": "traces",
+                    "aggregations": [
+                      {
+                        "expression": "rate()"
+                      }
+                    ],
+                    "filter": {
+                      "expression": "service.name IN $service AND name CONTAINS '.handle_event#'"
+                    },
+                    "groupBy": [
+                      {
+                        "name": "name",
+                        "fieldContext": "span",
+                        "fieldDataType": "string"
+                      }
+                    ],
+                    "legend": "{{name}}"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "lv-p95": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "LiveView event p95",
+            "description": "handle_event spans, by span name."
+          },
+          "links": [],
+          "plugin": {
+            "kind": "signoz/TimeSeriesPanel",
+            "spec": {
+              "legend": {
+                "position": "bottom"
+              },
+              "formatting": {
+                "unit": "ns",
+                "decimalPrecision": "2"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "time_series",
+              "spec": {
+                "name": "A",
+                "plugin": {
+                  "kind": "signoz/BuilderQuery",
+                  "spec": {
+                    "name": "A",
+                    "signal": "traces",
+                    "aggregations": [
+                      {
+                        "expression": "p95(duration_nano)"
+                      }
+                    ],
+                    "filter": {
+                      "expression": "service.name IN $service AND name CONTAINS '.handle_event#'"
+                    },
+                    "groupBy": [
+                      {
+                        "name": "name",
+                        "fieldContext": "span",
+                        "fieldDataType": "string"
+                      }
+                    ],
+                    "legend": "{{name}}"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "lv-mount-p95": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "LiveView mount p95 (metric)",
+            "description": "phoenix.live_view.mount.stop.duration, by view."
+          },
+          "links": [],
+          "plugin": {
+            "kind": "signoz/TimeSeriesPanel",
+            "spec": {
+              "legend": {
+                "position": "bottom"
+              },
+              "formatting": {
+                "unit": "ms",
+                "decimalPrecision": "2"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "time_series",
+              "spec": {
+                "name": "A",
+                "plugin": {
+                  "kind": "signoz/BuilderQuery",
+                  "spec": {
+                    "name": "A",
+                    "signal": "metrics",
+                    "aggregations": [
+                      {
+                        "metricName": "phoenix.live_view.mount.stop.duration.bucket",
+                        "spaceAggregation": "p95",
+                        "timeAggregation": ""
+                      }
+                    ],
+                    "filter": {
+                      "expression": "service.name IN $service"
+                    },
+                    "groupBy": [
+                      {
+                        "name": "view",
+                        "fieldContext": "attribute",
+                        "fieldDataType": "string"
+                      }
+                    ],
+                    "legend": "{{view}}"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "lv-exceptions": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "LiveView event exceptions (metric)",
+            "description": "phoenix.live_view.handle_event.exception.count, by view and event."
+          },
+          "links": [],
+          "plugin": {
+            "kind": "signoz/TimeSeriesPanel",
+            "spec": {
+              "legend": {
+                "position": "bottom"
+              },
+              "formatting": {
+                "unit": "short",
+                "decimalPrecision": "2"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "time_series",
+              "spec": {
+                "name": "A",
+                "plugin": {
+                  "kind": "signoz/BuilderQuery",
+                  "spec": {
+                    "name": "A",
+                    "signal": "metrics",
+                    "aggregations": [
+                      {
+                        "metricName": "phoenix.live_view.handle_event.exception.count",
+                        "spaceAggregation": "sum",
+                        "timeAggregation": "increase"
+                      }
+                    ],
+                    "filter": {
+                      "expression": "service.name IN $service"
+                    },
+                    "groupBy": [
+                      {
+                        "name": "view",
+                        "fieldContext": "attribute",
+                        "fieldDataType": "string"
+                      },
+                      {
+                        "name": "event",
+                        "fieldContext": "attribute",
+                        "fieldDataType": "string"
+                      }
+                    ],
+                    "legend": "{{view}} {{event}}"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "by-user": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "By user",
+            "description": "Server and LiveView event spans per signed-in user (enduser.id, enduser.name, tenant). Narrow with the User variable."
+          },
+          "links": [],
+          "plugin": {
+            "kind": "signoz/TablePanel",
+            "spec": {}
+          },
+          "queries": [
+            {
+              "kind": "scalar",
+              "spec": {
+                "name": "A",
+                "plugin": {
+                  "kind": "signoz/BuilderQuery",
+                  "spec": {
+                    "name": "A",
+                    "signal": "traces",
+                    "aggregations": [
+                      {
+                        "expression": "count()",
+                        "alias": "spans"
+                      },
+                      {
+                        "expression": "p95(duration_nano)",
+                        "alias": "p95"
+                      },
+                      {
+                        "expression": "countIf(has_error = true)",
+                        "alias": "errors"
+                      }
+                    ],
+                    "filter": {
+                      "expression": "service.name IN $service AND enduser.id EXISTS AND enduser.id IN $user AND (kind_string = 'Server' OR name CONTAINS '.handle_event#')"
+                    },
+                    "groupBy": [
+                      {
+                        "name": "enduser.id",
+                        "fieldContext": "attribute",
+                        "fieldDataType": "string"
+                      },
+                      {
+                        "name": "enduser.name",
+                        "fieldContext": "attribute",
+                        "fieldDataType": "string"
+                      },
+                      {
+                        "name": "app.tenant.name",
+                        "fieldContext": "attribute",
+                        "fieldDataType": "string"
+                      }
+                    ],
+                    "legend": "",
+                    "order": [
+                      {
+                        "key": {
+                          "name": "spans"
+                        },
+                        "direction": "desc"
+                      }
+                    ],
+                    "limit": 50
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "by-user-ts": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Activity by user",
+            "description": "Spans per second, per enduser.name (or enduser.id where names are off)."
+          },
+          "links": [],
+          "plugin": {
+            "kind": "signoz/TimeSeriesPanel",
+            "spec": {
+              "legend": {
+                "position": "bottom"
+              },
+              "formatting": {
+                "unit": "reqps",
+                "decimalPrecision": "2"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "time_series",
+              "spec": {
+                "name": "A",
+                "plugin": {
+                  "kind": "signoz/BuilderQuery",
+                  "spec": {
+                    "name": "A",
+                    "signal": "traces",
+                    "aggregations": [
+                      {
+                        "expression": "rate()"
+                      }
+                    ],
+                    "filter": {
+                      "expression": "service.name IN $service AND enduser.id EXISTS AND enduser.id IN $user"
+                    },
+                    "groupBy": [
+                      {
+                        "name": "enduser.id",
+                        "fieldContext": "attribute",
+                        "fieldDataType": "string"
+                      },
+                      {
+                        "name": "enduser.name",
+                        "fieldContext": "attribute",
+                        "fieldDataType": "string"
+                      }
+                    ],
+                    "legend": "{{enduser.name}} {{enduser.id}}"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "layouts": [
+      {
+        "kind": "Grid",
+        "spec": {
+          "items": [
+            {
+              "x": 0,
+              "y": 0,
+              "width": 6,
+              "height": 6,
+              "content": {
+                "$ref": "#/spec/panels/req-rate"
+              }
+            },
+            {
+              "x": 6,
+              "y": 0,
+              "width": 6,
+              "height": 6,
+              "content": {
+                "$ref": "#/spec/panels/req-p95"
+              }
+            },
+            {
+              "x": 0,
+              "y": 6,
+              "width": 6,
+              "height": 6,
+              "content": {
+                "$ref": "#/spec/panels/req-errors"
+              }
+            },
+            {
+              "x": 6,
+              "y": 6,
+              "width": 6,
+              "height": 6,
+              "content": {
+                "$ref": "#/spec/panels/router-p95"
+              }
+            },
+            {
+              "x": 0,
+              "y": 12,
+              "width": 6,
+              "height": 6,
+              "content": {
+                "$ref": "#/spec/panels/lv-events"
+              }
+            },
+            {
+              "x": 6,
+              "y": 12,
+              "width": 6,
+              "height": 6,
+              "content": {
+                "$ref": "#/spec/panels/lv-p95"
+              }
+            },
+            {
+              "x": 0,
+              "y": 18,
+              "width": 6,
+              "height": 6,
+              "content": {
+                "$ref": "#/spec/panels/lv-mount-p95"
+              }
+            },
+            {
+              "x": 6,
+              "y": 18,
+              "width": 6,
+              "height": 6,
+              "content": {
+                "$ref": "#/spec/panels/lv-exceptions"
+              }
+            },
+            {
+              "x": 0,
+              "y": 24,
+              "width": 12,
+              "height": 6,
+              "content": {
+                "$ref": "#/spec/panels/by-user"
+              }
+            },
+            {
+              "x": 0,
+              "y": 30,
+              "width": 6,
+              "height": 6,
+              "content": {
+                "$ref": "#/spec/panels/by-user-ts"
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

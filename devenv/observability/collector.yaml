@@ -6,7 +6,38 @@ receivers:
         max_recv_msg_size_mib: 16
       http:
         endpoint: 127.0.0.1:@OTLP_HTTP@
+  # The machine the stack runs on, for SigNoz's Infrastructure > Hosts page (it lists a
+  # host once system.cpu.time, system.memory.usage, system.cpu.load_average.15m and
+  # system.filesystem.usage arrive with host.name and os.type, which the resourcedetection
+  # processor adds). 30s is SigNoz's own default; every scraper here reports a few dozen
+  # series. `processes` is the counts scraper, not the per-process one.
+  hostmetrics:
+    collection_interval: 30s
+    scrapers:
+      cpu: {}
+      load: {}
+      memory: {}
+      paging: {}
+      processes: {}
+      network: {}
+      disk:
+        exclude:
+          devices: ["^loop.*", "^ram.*"]
+          match_type: regexp
+      filesystem:
+        exclude_fs_types:
+          fs_types: [autofs, binfmt_misc, bpf, cgroup, cgroup2, configfs, debugfs, devpts, devtmpfs, fusectl, hugetlbfs, mqueue, nsfs, proc, procfs, pstore, rpc_pipefs, securityfs, selinuxfs, squashfs, sysfs, tracefs]
+          match_type: strict
+        exclude_mount_points:
+          mount_points: ["/proc/.*", "/sys/.*", "/dev/.*", "/run/.*", "/var/lib/docker/.*", "/nix/store"]
+          match_type: regexp
 processors:
+  resourcedetection:
+    detectors: [env, system]
+    system:
+      hostname_sources: [os]
+    timeout: 2s
+    override: false
   memory_limiter:
     check_interval: 2s
     # The Go heap is collected toward 128 MiB (GOMEMLIMIT in observability.sh). RSS
@@ -59,6 +90,12 @@ service:
     metrics:
       receivers: [otlp]
       processors: [memory_limiter, batch]
+      exporters: [signozclickhousemetrics, metadataexporter]
+    # Its own pipeline, so the host's resource attributes never land on the application's
+    # metrics.
+    metrics/host:
+      receivers: [hostmetrics]
+      processors: [memory_limiter, resourcedetection, batch]
       exporters: [signozclickhousemetrics, metadataexporter]
     logs:
       receivers: [otlp]

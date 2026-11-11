@@ -1,0 +1,80 @@
+{
+  "alert": "Oban jobs discarded",
+  "alertType": "METRIC_BASED_ALERT",
+  "description": "A job ran out of attempts and was discarded.",
+  "annotations": {
+    "summary": "{{$queue}}: {{$value}} job(s) discarded",
+    "description": "A job ran out of attempts and was discarded."
+  },
+  "condition": {
+    "compositeQuery": {
+      "queryType": "builder",
+      "panelType": "graph",
+      "queries": [
+        {
+          "type": "builder_query",
+          "spec": {
+            "name": "A",
+            "signal": "metrics",
+            "aggregations": [
+              {
+                "metricName": "oban.job.discards",
+                "spaceAggregation": "sum",
+                "timeAggregation": "increase"
+              }
+            ],
+            "filter": {
+              "expression": ""
+            },
+            "groupBy": [
+              {
+                "name": "queue",
+                "fieldContext": "attribute",
+                "fieldDataType": "string"
+              }
+            ],
+            "legend": "",
+            "stepInterval": 60
+          }
+        }
+      ]
+    },
+    "selectedQueryName": "A",
+    "thresholds": {
+      "kind": "basic",
+      "spec": [
+        {
+          "name": "warning",
+          "op": "above",
+          "target": 0,
+          "matchType": "at_least_once",
+          "channels": []
+        }
+      ]
+    }
+  },
+  "evaluation": {
+    "kind": "rolling",
+    "spec": {
+      "evalWindow": "10m",
+      "frequency": "1m"
+    }
+  },
+  "labels": {
+    "severity": "warning",
+    "provisioned": "observability"
+  },
+  "notificationSettings": {
+    "usePolicy": true,
+    "renotify": {
+      "enabled": false,
+      "interval": "30m",
+      "alertStates": [
+        "firing"
+      ]
+    }
+  },
+  "ruleType": "threshold_rule",
+  "schemaVersion": "v2alpha1",
+  "version": "v5"
+}
