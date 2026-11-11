@@ -1,0 +1,8 @@
+{
+  "name": "ash-browser-tests-playwright",
+  "private": true,
+  "description": "The Playwright driver only. Browsers are never downloaded: Chromium comes from devenv through executable_path.",
+  "dependencies": {
+    "playwright": "1.65.0"
+  }
+}

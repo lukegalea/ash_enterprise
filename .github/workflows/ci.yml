@@ -595,6 +595,88 @@ jobs:
       - name: Browser tracing tests
         run: node --test test/js/*.mjs
 
+  browser-tests:
+    name: Browser tests package
+    runs-on: ubuntu-latest
+    # ash_browser_tests/ is a test-only package with its own mix project and lock,
+    # consumed through a sparse git dep or by path. Its suite drives a real Chromium
+    # against a tiny fixture application, so nothing else in this workflow exercises
+    # it. The browser comes from the runner image (locally it comes from devenv),
+    # never from Playwright's own download.
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg18
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      PGHOST: localhost
+      PGPORT: "5432"
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      MIX_ENV: test
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+
+    defaults:
+      run:
+        working-directory: ash_browser_tests
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: beam
+        uses: ./.github/actions/setup-beam
+
+      - name: Restore browser tests dependency and build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ash_browser_tests/deps
+            ash_browser_tests/_build
+            ash_browser_tests/test/playwright/node_modules
+          key: ${{ runner.os }}-browser-tests-${{ steps.beam.outputs.elixir-version }}-${{ hashFiles('ash_browser_tests/mix.lock', 'ash_browser_tests/test/playwright/package-lock.json') }}
+          restore-keys: ${{ runner.os }}-browser-tests-${{ steps.beam.outputs.elixir-version }}-
+
+      - run: mix deps.get
+
+      # Dependencies first, so a dependency's warning never fails the gate below.
+      - run: mix deps.compile
+
+      - name: Check formatting
+        run: mix format --check-formatted
+
+      - name: Compile with warnings as errors
+        run: mix compile --warnings-as-errors
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install the Playwright driver
+        run: npm ci --prefix test/playwright
+
+      - name: Locate Chromium
+        run: echo "E2E_CHROMIUM=$(command -v chromium || command -v chromium-browser || command -v google-chrome)" >> "$GITHUB_ENV"
+
+      - name: Test
+        run: mix test
+
+      - name: Upload screenshots from a failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-tests-screenshots
+          path: ash_browser_tests/screenshots/
+          retention-days: 7
+
   battery:
     name: Cross-substrate integration battery
     runs-on: ubuntu-latest
