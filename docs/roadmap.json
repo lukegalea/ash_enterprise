@@ -264,10 +264,12 @@
       "id": "q24",
       "section": "change",
       "question": "How does an action get a second person's approval before it takes effect?",
-      "answer": "A change dropped on any action: work item, materialized candidate list, maker-checker exclusion applied by subtraction at candidate resolution rather than as a `forbid_if`, delegation, and escalation timers that get cancelled. **A work item is a platform resource here** -- owned, tenant-scoped and audited -- so who may approve is the same union of grants as who may read, and both the manager and executive approval branches are reachable in the demo. Still partial for one reason: nothing asserts that a user *without* the privilege cannot decide a task, and the positive case passing is not the same evidence.",
+      "answer": "A change dropped on any action: work item, materialized candidate list, maker-checker exclusion applied by subtraction at candidate resolution rather than as a `forbid_if`, delegation, and escalation timers that get cancelled. **A work item is a platform resource here** -- owned, tenant-scoped and audited -- so who may approve is the same union of grants as who may read, and both the manager and executive approval branches are reachable in the demo. The refusals are now asserted, not only the positive case: a member who is not a candidate, a member whose role reads every task, a candidate for another task and another tenant's candidate are each refused and the task stays open.",
       "status": "partial",
       "adr": "0015",
-      "item": "approvals"
+      "item": "approvals",
+      "proof": "test/ash_enterprise/bpmn/human_task_candidacy_test.exs",
+      "test": "a member of the same tenant who is not a candidate cannot decide the task"
     },
     {
       "id": "q25",
