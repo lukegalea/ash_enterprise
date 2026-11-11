@@ -49,7 +49,8 @@ defmodule AshEnterpriseWeb.DailyLiveTest do
   end
 
   test "Today pushes the brief, then its agenda and pulse reports", %{conn: conn, ctx: ctx} do
-    event!(ctx, "Synthetic standup", 2, 15)
+    # At noon today, not relative to now: two minutes from now is tomorrow just before midnight.
+    event!(ctx, "Synthetic standup", 0, 15, starts_at: today_at(~T[12:00:00]))
     brief!(ctx)
 
     {:ok, view, _html} = live(conn, "/app/today")
