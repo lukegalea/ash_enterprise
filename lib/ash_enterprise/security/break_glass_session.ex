@@ -109,7 +109,8 @@ defmodule AshEnterprise.Security.BreakGlassSession do
       argument :now, :utc_datetime_usec, allow_nil?: false
 
       filter expr(
-               lifecycle_status == :active and not is_nil(approved_at) and operator_id == ^arg(:operator_id) and
+               lifecycle_status == :active and not is_nil(approved_at) and
+                 operator_id == ^arg(:operator_id) and
                  subject_id == ^arg(:subject_id) and expires_at > ^arg(:now) and
                  operator.lifecycle_status == :active and subject.lifecycle_status == :active
              )
