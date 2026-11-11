@@ -35,7 +35,7 @@
        makes it retry, which duplicates span rows. -->
   <max_concurrent_queries>48</max_concurrent_queries>
   <max_connections>64</max_connections>
-  <mark_cache_size>67108864</mark_cache_size>
+  <mark_cache_size>33554432</mark_cache_size>
   <index_mark_cache_size>16777216</index_mark_cache_size>
   <uncompressed_cache_size>0</uncompressed_cache_size>
   <primary_index_cache_size>33554432</primary_index_cache_size>
@@ -44,7 +44,7 @@
   <page_cache_max_size>0</page_cache_max_size>
   <query_cache><max_size_in_bytes>0</max_size_in_bytes></query_cache>
   <background_pool_size>2</background_pool_size>
-  <background_schedule_pool_size>8</background_schedule_pool_size>
+  <background_schedule_pool_size>4</background_schedule_pool_size>
   <background_common_pool_size>2</background_common_pool_size>
   <background_move_pool_size>1</background_move_pool_size>
   <background_fetches_pool_size>1</background_fetches_pool_size>

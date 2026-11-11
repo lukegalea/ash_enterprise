@@ -9,11 +9,18 @@ receivers:
 processors:
   memory_limiter:
     check_interval: 2s
-    limit_mib: 192
-    spike_limit_mib: 48
+    # The Go heap is collected toward 128 MiB (GOMEMLIMIT in observability.sh). RSS
+    # runs 50-90 MB above the heap, and reached 218 MB after three browser-suite runs,
+    # which is why the collector's budget is 250 MB. The limiter refuses -- dropping
+    # spans -- only when a burst outpaces the collector for a whole check interval,
+    # which the ClickHouse exporters' 1s batch timeout makes rare.
+    limit_mib: 160
+    spike_limit_mib: 32
   batch:
-    send_batch_size: 1000
-    send_batch_max_size: 1000
+    # 500: half the batch halves the sending queues' worst case. ClickHouse ingests
+    # a 500-row part as fast as a 1000-row one.
+    send_batch_size: 500
+    send_batch_max_size: 500
     timeout: 1s
 @SPANMETRICS_PROCESSOR@
 exporters:

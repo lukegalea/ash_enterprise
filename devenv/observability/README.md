@@ -57,6 +57,25 @@ Free ports are chosen by default and recorded in `.devenv/state/observability/po
 
 ## Memory
 
-Measured on this configuration, RSS in MB: a fresh stack idle about 340 for ClickHouse, 165 for the collector, 120 for SigNoz and 240 for GlitchTip, 870 together (PSS about 790); after a five-minute load, ClickHouse 640, collector 71, SigNoz 64, GlitchTip 216, about 1 GB together and 0.75 GB private. `observability status` is the live figure; the budget defaults to 1,500 MB total.
+`observability status` is the live figure against the budget (1,500 MB total by default: ClickHouse 800, collector 250, SigNoz 150, GlitchTip 300).
+
+How ClickHouse is sized, and why:
+
+- **The server cap is 1 GiB and counts RSS.** About 200 MB of RSS is the server's own code (shared, file-backed pages) and about 300 MB is what it holds after browser-suite load even though the tables are tens of MB. At the old 640 MiB cap that left no room: SigNoz's attribute-key queries (and, over a long window, the top-operations and trace-list queries) failed with `MEMORY_LIMIT_EXCEEDED`, and so did inserts.
+- **A query may use 400 MB (`max_memory_usage`).** Steady RSS plus one query at its limit stays under the cap, so one heavy query fails by itself instead of failing every query and insert beside it. Aggregations and sorts spill to disk past 100 MB, and the uncompressed cache is off.
+- **Smaller caches and pools.** The mark cache is 32 MiB, the background schedule pool 4 threads, merges 2 threads (vertical merges, see above). `max_thread_pool_size` must stay at 500: at 128 the server accepts connections but never answers, because its start-up and background pools together want more threads than the global pool holds.
+- **Collector.** The Go heap is collected toward 128 MiB (`GOMEMLIMIT`), the `memory_limiter` refuses new data at 160 MiB, and batches are 500 spans. RSS runs 50-90 MB above the heap, so its budget is 250 MB (SigNoz's was lowered to 150 MB, which it stays under, to keep the total at 1,500 MB).
+
+Measured with the browser suite run three times against the stack, then SigNoz-shaped trace queries (time series, top operations, trace list, attribute-key and value listings, the exceptions page) over 10 minutes, 90 minutes and 6 hours:
+
+| After three suite runs | Before (640 MiB cap, 800 MB query limit) | After |
+|---|---|---|
+| ClickHouse tracked memory, peak | 451 MB | 313 MB |
+| ClickHouse RSS | 443 MB | 521 MB (more data held, cap is 1 GiB) |
+| Collector RSS | 132 MB | 224 MB (budget 250 MB) |
+| SigNoz-shaped queries failing with `MEMORY_LIMIT_EXCEEDED` | 3 on the first pass (attribute keys over 10 minutes and 6 hours, exceptions count over 6 hours), 5 on a second pass (top operations, trace list and numeric attribute keys over 90 minutes, attribute keys over 6 hours) | 0 (one deliberate over-limit query aside) |
+
+A query deliberately far above the 400 MB limit fails alone (`MEMORY_LIMIT_EXCEEDED`, 1.1 s) and the next ordinary query succeeds. The host these figures come from was heavily shared (load average 20-50 on 12 cores) and made the suite itself flaky, so they are indicative, not a benchmark.
+
 
 Requirements: Linux on amd64 or arm64 (SigNoz publishes no other builds; the module is a no-op stub elsewhere) and a project Postgres listening on `127.0.0.1` (`services.postgres.listen_addresses`), with a superuser the shell can connect as.

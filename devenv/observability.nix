@@ -228,8 +228,8 @@ in
       type = lib.types.submodule {
         options = {
           clickhouse = lib.mkOption { type = lib.types.ints.positive; default = 800; };
-          collector = lib.mkOption { type = lib.types.ints.positive; default = 200; };
-          signoz = lib.mkOption { type = lib.types.ints.positive; default = 200; };
+          collector = lib.mkOption { type = lib.types.ints.positive; default = 250; };
+          signoz = lib.mkOption { type = lib.types.ints.positive; default = 150; };
           glitchtip = lib.mkOption { type = lib.types.ints.positive; default = 300; };
           total = lib.mkOption { type = lib.types.ints.positive; default = 1500; };
         };

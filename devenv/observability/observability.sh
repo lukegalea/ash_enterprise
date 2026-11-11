@@ -337,7 +337,9 @@ start_collector() {
   alive collector && return 0
   log "starting the OTLP collector"
   render "$OBS_CONFIG_COLLECTOR" "$RUN/collector.yaml"
-  GOMEMLIMIT=160MiB launch collector "${OBS_MEMMAX_COLLECTOR}M" \
+  # 128 MiB: the Go runtime collects toward it; 160 MiB left RSS near 205 MB when idle. The memory_limiter in
+  # collector.yaml sits above this, so a burst is refused before the heap grows.
+  GOMEMLIMIT=128MiB launch collector "${OBS_MEMMAX_COLLECTOR}M" \
     "$OBS_COLLECTOR/bin/signoz-otel-collector" --config="$RUN/collector.yaml" --copy-path="$RUN/collector-copy.yaml"
 }
 
