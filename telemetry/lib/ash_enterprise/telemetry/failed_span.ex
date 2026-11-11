@@ -14,6 +14,19 @@ defmodule AshEnterprise.Telemetry.FailedSpan do
   @key {__MODULE__, :last}
   @ttl_ms 5_000
 
+  @doc "Records the given span (`put/1`) as the one this process's failure was reported on. Never raises."
+  @spec put(term()) :: :ok
+  def put(span_ctx) do
+    case OpenTelemetry.Span.hex_span_ctx(span_ctx) do
+      %{otel_trace_id: _} = ids -> Process.put(@key, {now(), ids})
+      _none -> nil
+    end
+
+    :ok
+  catch
+    _kind, _reason -> :ok
+  end
+
   @doc "Records the current span, if there is one. Never raises."
   @spec remember() :: :ok
   def remember do

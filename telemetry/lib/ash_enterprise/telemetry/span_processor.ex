@@ -1,7 +1,7 @@
 defmodule AshEnterprise.Telemetry.SpanProcessor do
   @moduledoc """
-  Stamps every span at start with the correlation id and, in tests, the per-test
-  key. List it first in `processors` (`AshEnterprise.Telemetry` shows the config).
+  Stamps every span at start with the correlation id, the acting user and tenant
+  (`AshEnterprise.Telemetry.Actor`) and, in tests, the per-test key. List it first in `processors` (`AshEnterprise.Telemetry` shows the config).
 
   ## Rules
 
@@ -24,6 +24,7 @@ defmodule AshEnterprise.Telemetry.SpanProcessor do
 
   @behaviour :otel_span_processor
 
+  alias AshEnterprise.Telemetry.Actor
   alias AshEnterprise.Telemetry.Attributes
   alias AshEnterprise.Telemetry.Settings
   alias AshEnterprise.Telemetry.TestKey
@@ -43,6 +44,7 @@ defmodule AshEnterprise.Telemetry.SpanProcessor do
       {Attributes.correlation_id(), correlation()},
       {Attributes.test_key(), TestKey.current()},
       {Attributes.parent_remote(), parent_remote(ctx)}
+      | actor()
     ]
     |> Enum.reject(fn {_key, value} -> is_nil(value) end)
     |> Enum.reduce(span_record, fn {key, value}, acc ->
@@ -63,6 +65,12 @@ defmodule AshEnterprise.Telemetry.SpanProcessor do
 
   @impl :otel_span_processor
   def force_flush(_config), do: :ok
+
+  defp actor do
+    Enum.map(Actor.current(), fn {key, value} -> {Atom.to_string(key), value} end)
+  catch
+    _kind, _reason -> []
+  end
 
   defp set_by_caller?(attributes, key) do
     attributes |> :otel_attributes.map() |> Map.keys() |> Enum.any?(&(to_string(&1) == key))

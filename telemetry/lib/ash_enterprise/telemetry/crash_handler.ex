@@ -81,6 +81,7 @@ defmodule AshEnterprise.Telemetry.CrashHandler do
     )
 
     OpenTelemetry.Span.end_span(span_ctx)
+    FailedSpan.put(span_ctx)
   end
 
   defp attributes do

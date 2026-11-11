@@ -59,10 +59,12 @@ defmodule AshEnterprise.Telemetry.SentryWiring do
       triage queue. Alert on one of them.
   """
 
+  alias AshEnterprise.Telemetry.Actor
   alias AshEnterprise.Telemetry.FailedSpan
   alias AshEnterprise.Telemetry.LogScrub
   alias AshEnterprise.Telemetry.Sanitize
   alias AshEnterprise.Telemetry.Settings
+  alias AshEnterprise.Telemetry.SpanException
 
   @filtered "[Filtered]"
   @sensitive_key ~r/pass|secret|token|auth|cookie|session|csrf|email|phone|ssn|credit|card|api[_-]?key|(?:^|[_-])key|signature|bearer|referr?er|forwarded|real[_-]?ip|remote[_-]?(?:addr|port)|_traceparent/i
@@ -79,11 +81,17 @@ defmodule AshEnterprise.Telemetry.SentryWiring do
   @scrub_filter :ash_enterprise_telemetry_export_scrub
   @max_attribute_bytes 1_024
 
-  @doc "`:before_send` callback: adds join tags and scrubs. Returns `nil`, dropping the event, on failure."
+  @doc """
+  `:before_send` callback: makes sure the error is an `exception` event on a span (see
+  "Every report is a span exception"), adds the join tags and the trace link, and scrubs.
+  Returns `nil`, dropping the event, on failure.
+  """
   @spec before_send(struct()) :: struct() | nil
   def before_send(%{__struct__: Sentry.Event} = event) do
     event
+    |> SpanException.ensure()
     |> add_tags()
+    |> add_trace_link()
     |> scrub_event()
   catch
     _kind, _reason -> nil
@@ -199,6 +207,50 @@ defmodule AshEnterprise.Telemetry.SentryWiring do
       |> put_tag("correlation_id", correlation())
 
     %{event | tags: Map.merge(tags, event.tags || %{})}
+  end
+
+  # A link from the error tracker to the trace: `config :ash_enterprise_telemetry, :trace_url,
+  # "https://signoz.example/trace/{trace_id}"`. Off when unset.
+  defp add_trace_link(%{tags: %{"trace_id" => trace_id}} = event) when is_binary(trace_id) do
+    case trace_url(trace_id) do
+      nil -> event
+      url -> %{event | tags: Map.put_new(event.tags, "trace_url", url)}
+    end
+  end
+
+  defp add_trace_link(event), do: event
+
+  @doc """
+  The trace's URL in the trace viewer, from `config :ash_enterprise_telemetry, :trace_url`
+  (a template with `{trace_id}`), or `nil` when that is not set.
+  """
+  @spec trace_url(String.t()) :: String.t() | nil
+  def trace_url(trace_id) when is_binary(trace_id) do
+    case Application.get_env(:ash_enterprise_telemetry, :trace_url) do
+      template when is_binary(template) and template != "" ->
+        String.replace(template, "{trace_id}", trace_id)
+
+      _unset ->
+        nil
+    end
+  end
+
+  @doc """
+  Moves Sentry's Oban error handler after this package's job span handlers, so a job
+  failure is recorded on the job's span before Sentry reports it and the report joins
+  that span instead of opening another. `AshEnterprise.Telemetry.setup/1` calls it.
+  """
+  @spec order_handlers() :: :ok
+  def order_handlers do
+    for %{id: Sentry.Integrations.Oban.ErrorReporter = id} = handler <-
+          :telemetry.list_handlers([:oban, :job, :exception]) do
+      :ok = :telemetry.detach(id)
+      :telemetry.attach(id, handler.event_name, handler.function, handler.config)
+    end
+
+    :ok
+  catch
+    _kind, _reason -> :ok
   end
 
   defp put_tag(tags, _key, nil), do: tags
@@ -325,9 +377,16 @@ defmodule AshEnterprise.Telemetry.SentryWiring do
 
   defp blank_frames(holder), do: holder
 
+  # `username` is `enduser.name`: kept only where `AshEnterprise.Telemetry.Actor` records
+  # names (synthetic data), dropped everywhere else.
   defp scrub_user(%{} = user) do
+    dropped =
+      if Actor.name_enabled?(),
+        do: [:email, "email", :ip_address, "ip_address"],
+        else: [:email, "email", :ip_address, "ip_address", :username, "username"]
+
     user
-    |> Map.drop([:email, "email", :ip_address, "ip_address", :username, "username"])
+    |> Map.drop(dropped)
     |> scrub()
   end
 

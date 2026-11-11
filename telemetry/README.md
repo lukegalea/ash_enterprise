@@ -77,9 +77,12 @@ or passes `{module, function, args}` to decide per request.
 | Error reporting | `config :sentry`, Endpoint, `live_session` | `SentryWiring` |
 | Browser error reports | Endpoint, before `Plug.Parsers` | `SentryTunnel` |
 | Background metrics | `config :ash_enterprise_telemetry, :background_probe` | `BackgroundProbe` |
+| `Telemetry.Metrics` and BEAM metrics as OTLP | the `Telemetry` supervisor's children | `Metrics`, `VmMetrics` |
+| Who acted, on every span | a plug after authentication and a LiveView `on_mount` | `Actor` |
+| A link from an error to its trace | `config :ash_enterprise_telemetry, :trace_url, "https://.../trace/{trace_id}"` | `SentryWiring` |
 | Work in a `Task` | around the spawn | `TaskContext` |
 | Trace on a Postgres session | `Repo.on_transaction_begin/1` | `Postgres` |
-| Trace on outbound HTTP | around `Req.new/1` | `AshEnterprise.Telemetry.Req` |
+| Trace on outbound HTTP | nothing: `setup/1` adds it to Req's default plugins (`req: false` to opt out) | `AshEnterprise.Telemetry.Req` |
 | Naming the action on a span | `setup(event_attributes: ...)`; `declared:` for actions not in the UI module | `A2uiEventAttributes` |
 
 Attribute names are a documented contract: `AshEnterprise.Telemetry.Attributes`.
@@ -90,7 +93,10 @@ Attribute names are a documented contract: `AshEnterprise.Telemetry.Attributes`.
 (`sentry_browser.js`). `priv/js/package.json` lists the exact package versions to install in the host's `assets/package.json`.
 The OpenTelemetry JS packages must be pinned as a set.
 
-Browser tracing is off until the root layout renders `<meta name="otel-browser" content="on">`. Adopting the browser's trace
+Browser tracing is off until the root layout renders `<meta name="otel-browser" content="on">`. Two more tags are read when
+present: `<meta name="otel-enduser" content="...">` (`Actor.meta_content/0`) stamps every browser span with who is signed in,
+and `<meta name="otel-trace-url" content="https://.../trace/{trace_id}">` adds the trace link to browser error reports. A
+browser error is also an `exception` event on the span it happened in, or on a short `browser.error` span. Adopting the browser's trace
 context on the server is a separate switch, `browser_context: true`; its trust model is in the `BrowserContext` moduledoc.
 
 When the page goes away (`pagehide`, or the tab turning hidden) the tracer ends the interaction spans still waiting for a reply

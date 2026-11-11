@@ -1,7 +1,8 @@
 defmodule AshEnterprise.Telemetry.ObanEngine do
   @moduledoc """
   A delegating `Oban.Engine` that gives every enqueue a `send <queue>` PRODUCER span
-  and stamps the job's meta with the trace context and correlation id.
+  and stamps the job's meta with the trace context, the correlation id and the acting user
+  (`AshEnterprise.Telemetry.Actor`, under `"enduser"`).
 
       config :my_app, Oban, engine: #{inspect(__MODULE__)}
 
@@ -39,6 +40,7 @@ defmodule AshEnterprise.Telemetry.ObanEngine do
   alias Ecto.Changeset
   alias Oban.Engines.Basic
 
+  alias AshEnterprise.Telemetry.Actor
   alias AshEnterprise.Telemetry.Settings
 
   require OpenTelemetry.Tracer
@@ -111,9 +113,15 @@ defmodule AshEnterprise.Telemetry.ObanEngine do
   end
 
   defp correlation_entry do
-    case Settings.correlation().current() do
-      id when is_binary(id) -> %{"correlation_id" => id}
-      _none -> %{}
+    correlation =
+      case Settings.correlation().current() do
+        id when is_binary(id) -> %{"correlation_id" => id}
+        _none -> %{}
+      end
+
+    case Actor.current() do
+      empty when map_size(empty) == 0 -> correlation
+      actor -> Map.put(correlation, "enduser", Map.new(actor, fn {k, v} -> {to_string(k), v} end))
     end
   catch
     _kind, _reason -> %{}
@@ -125,7 +133,11 @@ defmodule AshEnterprise.Telemetry.ObanEngine do
     else
       existing = Changeset.get_field(changeset, :meta) || %{}
       trace = if traceable?(changeset), do: carrier, else: %{}
-      correlation = if Map.has_key?(existing, :correlation_id), do: %{}, else: correlation
+
+      correlation =
+        if Map.has_key?(existing, :correlation_id) or Map.has_key?(existing, "correlation_id"),
+          do: Map.delete(correlation, "correlation_id"),
+          else: correlation
 
       # Caller-set keys win: `Map.merge(generated, existing)`.
       Changeset.put_change(

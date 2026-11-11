@@ -24,7 +24,7 @@ defmodule AshEnterpriseTelemetry.MixProject do
 
   def application do
     [
-      extra_applications: [:logger, :crypto],
+      extra_applications: [:logger, :crypto, :runtime_tools],
       mod: {AshEnterprise.Telemetry.Application, []}
     ]
   end
@@ -55,6 +55,7 @@ defmodule AshEnterpriseTelemetry.MixProject do
       # --- Error reporting and background metrics --------------------------------
       {:sentry, "~> 14.0"},
       {:telemetry_poller, "~> 1.0"},
+      {:telemetry_metrics, "~> 1.0"},
 
       # --- Platform -------------------------------------------------------------
       {:oban, "~> 2.19"},

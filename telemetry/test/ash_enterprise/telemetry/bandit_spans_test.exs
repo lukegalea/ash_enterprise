@@ -20,7 +20,8 @@ defmodule AshEnterprise.Telemetry.BanditSpansTest do
   end
 
   defp get(url, headers \\ []) do
-    Req.get!(url, headers: headers, retry: false, decode_json: [])
+    # These requests stand in for an outside client: exactly the headers given.
+    Req.get!(url, headers: headers, retry: false, decode_json: [], trace_propagation: false)
   end
 
   defp request_span(trace_id) do
