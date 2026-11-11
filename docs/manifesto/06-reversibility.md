@@ -192,9 +192,11 @@ that is the honest way to state it rather than as a feature of the package.
 Two costs it imposes on the deployment, neither reversible by deleting code. **`libxml2` is now a runtime dependency**:
 the engine validates DMN documents against the normative XSD by shelling out to `xmllint`, so `devenv.nix`, CI and the
 `Dockerfile`'s runtime stage all carry it, and without the binary every model fails to load. And **both packages declare
-`elixir: "~> 1.20.0"`** while this repository pins Elixir 1.18.4 on OTP 27 to match what the Ash ecosystem is tested
-against — they compile and pass here, and depending on a package whose stated constraint we violate is still not a thing
-to do silently.
+`elixir: "~> 1.20.0"`**, which pins the toolchain: this repository now runs Elixir 1.20 on OTP 27 (1.20.4 in CI and the
+`Dockerfile`, the nixpkgs 1.20.3 in `devenv.nix`), so the constraint is met, but it excludes 1.21, and the next minor
+Elixir release waits on those packages relaxing it. Until the toolchain moved this repository ran 1.18.4 and
+violated it; the packages compiled and passed there, but depending on a package whose stated constraint we violate was
+not a thing to do silently.
 
 The limits of the decision layer itself — the overlap analysis that was designed and not built, and what an
 `Evaluation` row cannot say — are [thesis 7 §3](07-what-we-do-not-have.md#3-approval-workflows--maker-checker), not

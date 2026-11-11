@@ -153,10 +153,12 @@ order of how much they cost:
      graph. It is in `devenv.nix`, in CI, and in the `Dockerfile`'s runtime stage, and `AshEnterprise.Application`
      warns at boot when it is absent — but **without the binary every model fails to load**, and a rules engine that
      silently has no rules is a bad failure mode to have acquired from a dependency.
-   - **We depend on a package whose stated Elixir constraint we violate.** Both boxic packages declare
-     `elixir: "~> 1.20.0"`. This repository pins Elixir 1.18.4 on OTP 27, to match what the Ash ecosystem is tested
-     against. They compile and pass here — the conformance run is the evidence — but *compiles and passes* is not
-     *supported*. Either upstream relaxes it, or we pin `boxic_* 0.1.x`, or the toolchain moves.
+   - **We depend on a package whose stated Elixir constraint is narrow.** Both boxic packages declare
+     `elixir: "~> 1.20.0"`. This repository used to run Elixir 1.18.4 and so violated it, with the conformance run as
+     the evidence that they compiled and passed anyway — but *compiles and passes* is not *supported*. The toolchain has
+     since moved: CI and the `Dockerfile` run Elixir 1.20.4 and `devenv.nix` 1.20.3, on OTP 27, so the constraint is met
+     today. It still excludes 1.21, so the next minor Elixir release needs upstream to relax it, or us to pin
+     `boxic_* 0.1.x`, or the toolchain to wait.
 
    What makes the dependency defensible rather than reckless is narrow and should be stated as narrowly as it is true:
    the engine is called from **one module per package**, and **the conformance suite is ours**. A replacement is
@@ -180,7 +182,7 @@ known to produce spurious warnings on generated code.
 
 **What we do:** `dialyxir` is included with PLT caching and runs in CI **non-blocking**, with `.dialyzer_ignore.exs`
 seeded empirically rather than aspirationally. The real gates are `mix compile --warnings-as-errors`, Credo with
-`ash_credo`, and Elixir 1.18's built-in type checker.
+`ash_credo`, and Elixir 1.20's built-in type checker.
 
 This is the weakest-documented area of the entire ecosystem, and we would rather say so than ship a config that implies
 a rigour we have not verified.

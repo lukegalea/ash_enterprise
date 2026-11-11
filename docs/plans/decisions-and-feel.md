@@ -470,12 +470,13 @@ termination clause. Worth two precise notes. Neither boxic package ships a `NOTI
 forward. And `ash_decisions` itself is **MIT**; the Apache-2.0 terms attach to the engine underneath it,
 not to the wrapper.
 
-**A declared Elixir constraint we violate.** Both boxic packages declare `elixir: "~> 1.20.0"` in their
-`mix.exs` and in their published hex metadata. This repository pins Elixir 1.18.4 on OTP 27 in
-`devenv.nix` and in CI, to match what the Ash ecosystem is tested against. They compile and pass here
-anyway — the conformance run is the evidence — but *compiles and passes* is not the same as *supported*,
-and depending on a package whose stated constraint we violate is not a thing to do silently. Three ways
-out: upstream relaxes the constraint, we pin `boxic_* 0.1.x`, or the toolchain moves.
+**A declared Elixir constraint we once violated.** Both boxic packages declare `elixir: "~> 1.20.0"` in their
+`mix.exs` and in their published hex metadata. This repository used to pin Elixir 1.18.4 on OTP 27, to match
+what the Ash ecosystem is tested against, and they compiled and passed anyway — the conformance run is the
+evidence — but *compiles and passes* is not the same as *supported*, and depending on a package whose stated
+constraint we violate is not a thing to do silently. The toolchain was the way out and it has moved: CI and
+the `Dockerfile` run Elixir 1.20.4 and `devenv.nix` 1.20.3, on OTP 27, so the constraint is met. It still
+excludes 1.21, so the next minor release needs upstream to relax it (or us to pin `boxic_* 0.1.x`).
 
 **`xmllint` is a runtime dependency of loading a DMN document.** `boxic_dmn` validates against the
 normative XSD by shelling out — `System.find_executable("xmllint")`, a temp file, then
