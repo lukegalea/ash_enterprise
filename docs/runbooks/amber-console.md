@@ -75,7 +75,7 @@ from `ACP_OPERATOR_EMAIL`, and the default is the legacy seed's
 ```nix
 { ... }:
 {
-  env.ACP_OPERATOR_EMAIL = "lgalea@vendorpm.com";
+  env.ACP_OPERATOR_EMAIL = "operator@example.com";
 }
 ```
 

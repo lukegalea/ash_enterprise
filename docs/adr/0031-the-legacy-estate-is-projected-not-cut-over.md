@@ -67,7 +67,7 @@ Four pieces, all small:
 ordinary platform resource over `projected_users`, a table created by `mix ash.codegen` like any other.
 `ownership: :business_owned`, `audit?: true`, `api_type: :both`. Nothing in it is strangler-aware.
 
-**[`AshEnterprise.Legacy.Projection`](../../lib/ash_enterprise/legacy/projection.ex)** — a second
+**`AshEnterprise.Legacy.Projection`** (since renamed `AshEnterprise.Legacy.UserBackfill`, see the addendum) — a second
 `Ash.Notifier` on `Legacy.User`, which now declares
 `notifiers: [Ash.Notifier.PubSub, AshEnterprise.Legacy.Projection]`. `AshStrangler.Listener` already
 holds the `LISTEN` connection and already re-reads the changed row *through Ash*, so the notification it

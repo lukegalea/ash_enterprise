@@ -143,7 +143,7 @@ source first.
    `provider_config_key`) against the Nango API. This also deletes the OAuth tokens Nango holds for it.
 4. **Revoke the provider's grant:**
    - Slack: revoke the app's tokens in the workspace (workspace settings → Manage apps → the app → Remove app, or
-     `auth.revoke` with the token). Removing the app from the VendorPM workspace stops any token that survived Nango.
+     `auth.revoke` with the token). Removing the app from the private workspace stops any token that survived Nango.
    - Google: <https://myaccount.google.com/permissions> → the app → Remove access.
 5. **Shred** the scope (next section). This is the step that destroys content.
 6. **Unlink** the account (`LinkedAccount.unlink`), optional but tidy: it forgets the connection mapping and deletes
@@ -158,7 +158,7 @@ For a tap pipeline, step 1 is removing or disabling the pipeline config.
 
 ```bash
 devenv shell -- mix ash_enterprise.erasure.scopes
-devenv shell -- mix ash_enterprise.erasure.shred connection:<ref> --as you@example.com --reason "left VendorPM"
+devenv shell -- mix ash_enterprise.erasure.shred connection:<ref> --as you@example.com --reason "left the organization"
 ```
 
 The task asks for a final `y` (or pass `--yes`). Typing the full `kind:ref` is also the confirmation the action
@@ -170,7 +170,7 @@ Or from IEx (`devenv shell -- iex-server`):
 user = AshEnterprise.Accounts.get_user_by_email!("you@example.com", authorize?: false)
 actor = AshEnterprise.Security.ActorContext.attach(user, AshEnterprise.Security.ActorContext.build(user))
 scope = AshEnterprise.Erasure.scope_by_ref!(:connection, "<ref>", authorize?: false)
-AshEnterprise.Erasure.shred_scope!(scope, scope.ref, "left VendorPM", actor: actor)
+AshEnterprise.Erasure.shred_scope!(scope, scope.ref, "left the organization", actor: actor)
 ```
 
 **Who can shred:** a human holding `write` on `AshEnterprise.Erasure.Scope` at `global` depth, which only the
@@ -269,7 +269,7 @@ Be honest with whoever asked for the erasure about these. Each is a real copy of
   had a DM, though not with whom — the messages' `sender_id` says that (see "Correspondence metadata").
 - **Nango.** Its own database holds the connection, its tokens, and any records cached by its syncs, until the
   connection is deleted (step 1 above).
-- **The provider.** The Slack and Google originals are untouched. This erases VendorPM's copy, not Slack's.
+- **The provider.** The Slack and Google originals are untouched. This erases our copy, not Slack's.
 - **Logs, error reports, traces.** Anything that logged a payload, such as an exception report with a changeset or
   a debug log line, is outside the key's reach. OpenTelemetry spans carry action names and, as span status, the
   error message. Sealed attributes have no length constraint for that reason (Ash renders a failed constraint's value

@@ -336,7 +336,7 @@ defmodule AshEnterprise.Integration.ErasureE2ETest do
 
       assert Enum.all?(messages(ctx), &(&1.erasure_scope_id == scope.id))
       assert Enum.any?(messages(ctx), &(&1.body == "E2E-SYNTHETIC-SLACK-DM-1 salary figures"))
-      assert Enum.any?(messages(ctx), &(&1.body == "E2E-SYNTHETIC-SLACK-1 VendorPM pricing"))
+      assert Enum.any?(messages(ctx), &(&1.body == "E2E-SYNTHETIC-SLACK-1 Acme pricing"))
       assert_no_plaintext(slack_content())
 
       shred_via_task!(ctx, account)
@@ -740,7 +740,7 @@ defmodule AshEnterprise.Integration.ErasureE2ETest do
 
   defp slack_content do
     [
-      "E2E-SYNTHETIC-SLACK-1 VendorPM pricing",
+      "E2E-SYNTHETIC-SLACK-1 Acme pricing",
       "E2E-SYNTHETIC-SLACK-2 contract terms",
       "E2E-SYNTHETIC-SLACK-DM-1 salary figures",
       "E2E-SYNTHETIC-SLACK-DM-2 offer letter",
@@ -782,7 +782,7 @@ defmodule AshEnterprise.Integration.ErasureE2ETest do
     messages = %{
       @channel => [
         message.(@other_user, "E2E-SYNTHETIC-SLACK-2 contract terms", 1),
-        message.(@self_user, "E2E-SYNTHETIC-SLACK-1 VendorPM pricing", 2)
+        message.(@self_user, "E2E-SYNTHETIC-SLACK-1 Acme pricing", 2)
       ],
       @dm => [
         message.(@self_user, "E2E-SYNTHETIC-SLACK-DM-2 offer letter", 3),

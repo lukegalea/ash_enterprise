@@ -9,7 +9,7 @@ window each open entry is triaged into a PROD ticket or closed.
 **Rules for entries:**
 - One line of what happened, then the fix or the ticket.
 - Never the content of a message, event or conversation, and never a person's name. The instance holds
-  real mail and VendorPM Slack; counts, ids and timestamps are fine.
+  real mail and company Slack; counts, ids and timestamps are fine.
 
 | Date | Area | What happened | Status |
 |---|---|---|---|

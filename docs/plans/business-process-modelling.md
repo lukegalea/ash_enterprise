@@ -814,7 +814,7 @@ dismiss:
 Temporal's position is the same argument stated for workflows specifically, and their co-founder's framing is the one
 to quote: **"The picture is a lie… It doesn't show the real control flow, which is hidden in data-dependent
 expressions."** Their documentation is explicit that Temporal *"isn't a no-code Workflow engine — it is
-Workflows-as-Code."* Airflow's PMC reached the same place from the other direction: *"Airflow UI is for monitoring, not
+Workflows-as-Code."* Airflow's project committee reached the same place from the other direction: *"Airflow UI is for monitoring, not
 for DAG writing."*
 
 **The position:** one-way, DSL → diagram, always. If BPMN XML export is ever required — for an auditor who wants to open

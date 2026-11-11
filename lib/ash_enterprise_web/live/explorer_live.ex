@@ -36,6 +36,7 @@ defmodule AshEnterpriseWeb.ExplorerLive do
 
   alias AshEnterprise.Execution
   alias AshEnterprise.Execution.Explorer
+  alias AshEnterprise.Platform.LocalTime
   alias AshEnterprise.Security.ActorContext
   alias AshEnterpriseWeb.Layouts
 
@@ -273,7 +274,7 @@ defmodule AshEnterpriseWeb.ExplorerLive do
               <.badge status={item.status}>{item.status}</.badge>
               <.run_mode :if={item.type != "process_instance"} mode={item.mode} />
               <time class="text-xs text-foreground/70" datetime={DateTime.to_iso8601(item.at)}>
-                {Calendar.strftime(item.at, "%Y-%m-%d %H:%M:%S")}
+                {LocalTime.stamp_seconds(item.at)}
               </time>
             </.link>
           </li>
@@ -398,7 +399,7 @@ defmodule AshEnterpriseWeb.ExplorerLive do
       ]}
     >
       <time class="font-mono text-xs text-foreground/70" datetime={DateTime.to_iso8601(@entry.at)}>
-        {Calendar.strftime(@entry.at, "%H:%M:%S")}
+        {LocalTime.clock(@entry.at)}
       </time>
       <.badge tone={entry_tone(@entry.status)}>{status_label(@entry.status)}</.badge>
       <span class="text-xs uppercase tracking-wide text-foreground/70">
@@ -500,7 +501,7 @@ defmodule AshEnterpriseWeb.ExplorerLive do
           <span :if={@entry.blocked_on}>({gettext("on %{what}", what: @entry.blocked_on)})</span>
         </dd>
         <dt>{gettext("When")}</dt>
-        <dd>{DateTime.to_iso8601(@entry.at)}</dd>
+        <dd>{LocalTime.stamp_seconds(@entry.at)}</dd>
         <dt>{gettext("Record")}</dt>
         <dd class="font-mono break-all">{@entry.source_ref}</dd>
         <dt :if={@entry.definition_ref}>{gettext("Definition")}</dt>
@@ -777,6 +778,16 @@ defmodule AshEnterpriseWeb.ExplorerLive do
         {gettext("Error class"), d.error_class},
         {gettext("Tokens"), d.tokens || gettext("not recorded")},
         {gettext("Duration (ms)"), d.duration_ms || gettext("not recorded")}
+      ]
+      |> present()
+
+  defp facts(%{type: :document_delivery} = d),
+    do:
+      [
+        {gettext("Document"), d.document_kind},
+        {gettext("Sender"), d.sender},
+        {gettext("Delivery id"), d.delivery_id},
+        {gettext("Received at"), d.received_at && LocalTime.stamp_seconds(d.received_at)}
       ]
       |> present()
 

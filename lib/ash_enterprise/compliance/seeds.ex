@@ -113,7 +113,7 @@ defmodule AshEnterprise.Compliance.Seeds do
     {"kyc.review", "Periodic review"},
     {"kyc.remediations", "Remediation closure"},
     {"kyc.accounts", "Account balance freeze"},
-    {"kyc.tier", "Risk-tier review"},
+    {"kyc.tier", "Risk-level review"},
     {"kyc.migration", "E-mail domain migration"},
     {"kyc.mfa", "MFA enrolment"}
   ]

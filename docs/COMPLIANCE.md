@@ -28,8 +28,8 @@ misrepresent it.
 
 | Control | What it asks | Where it stands | Bearing on it |
 |---|---|---|---|
-| **CC6.1** Logical access — authorization | Access to data and systems is restricted to authorized users, and the basis of that authorization is defined. | ⚪ Open — 4/6 shipped<br />The strongest area. Authorization is `(role, privilege, depth)` data evaluated as a pure union with no deny rules, and a conformance suite asserts the resulting truth table rather than a sample of it. The gap is column-level: q6 is open, so 'restricted' is currently a row-level claim only. | `q1` `q2` `q3` `q4` `q5` `q6` |
-| **CC6.2** Registration and authorization of new users | Users are registered and authorized before being issued credentials, and access is removed when no longer required. | ⚪ Open — 1/4 shipped<br />Registration and deactivation exist as audited, named actions. Deprovisioning driven by the customer's directory does not — q30 is open, so removal depends on someone here being told. | `q1` `q29` `q30` `q37` |
+| **CC6.1** Logical access — authorization | Access to data and systems is restricted to authorized users, and the basis of that authorization is defined. | 🟡 Partial — 4/6 shipped<br />The strongest area. Authorization is `(role, privilege, depth)` data evaluated as a pure union with no deny rules, and a conformance suite asserts the resulting truth table rather than a sample of it. The gap is column-level: q6 is partial, with one field policy on one resource, so 'restricted' is still mostly a row-level claim. | `q1` `q2` `q3` `q4` `q5` `q6` |
+| **CC6.2** Registration and authorization of new users | Users are registered and authorized before being issued credentials, and access is removed when no longer required. | ⚪ Open — 1/4 shipped<br />Registration and deactivation exist as audited, named actions. A deactivated user loses authorization on the next request, but nothing asserts that sign-in or an issued token is refused, and deprovisioning driven by the customer's directory does not exist — q30 is partial, so removal depends on someone here being told. | `q1` `q29` `q30` `q37` |
 | **CC6.3** Access is modified and removed on a role change | Access rights are added, modified and removed based on roles, and changes are authorized. | 🟡 Partial — 3/4 shipped<br />A role assignment is an ordinary audited resource, so a grant produces an event naming grantor, grantee and request. Impersonation is attributed but not yet gated (q32). | `q2` `q4` `q37` `q32` |
 | **CC7.2** Monitoring — logs are complete and protected | The system is monitored, and log data is protected against alteration. | ⚪ Open — 4/5 shipped<br />Completeness and protection are answered: audit is inherited rather than wired per resource, and the log is hash-chained with a trigger refusing UPDATE and DELETE. Monitoring is not — q38 is open, and 'logs nobody reads' is the classic finding here. | `q7` `q8` `q33` `q34` `q38` |
 | **CC7.3** Evaluation of security events | Security events are evaluated to determine whether they represent a failure, and the evaluation is evidenced. | ⚪ Open — 0/3 shipped<br />The weakest area on the board, and it is a process gap rather than a code one: alerts go nowhere, no rota exists, and nothing records that a human looked. | `q38` `q49` `q51` |
@@ -54,7 +54,7 @@ misrepresent it.
 | Control | What it asks | Where it stands | Bearing on it |
 |---|---|---|---|
 | **Art.15** Right of access | A data subject can obtain confirmation of processing and a copy of their data. | 🔵 Planned — 2/3 shipped<br />For audit data, yes and per tenant. For the subject's own records there is no assembled export — q19 is planned, and a data inventory is the prerequisite. | `q34` `q35` `q19` |
-| **Art.17** Right to erasure | A data subject can obtain erasure of their personal data without undue delay. | ⚪ Open — 1/3 shipped<br />The sharpest conflict in the repository, and it got sharper deliberately: soft delete means a destroy is reversible by design, and the audit log now actively refuses DELETE. ADR 0024 resolves it by crypto-shredding rather than by weakening either. Its erasure half is built (2026-10-12): content from an external connection is sealed under that connection's key, and destroying the key reaches the audit log without breaking the chain. Per-person erasure is partial (q14: names and emails in canonical_people survive a shred) and partitioning is not built (q36), so the control stays open and says so. | `q10` `q14` `q36` |
+| **Art.17** Right to erasure | A data subject can obtain erasure of their personal data without undue delay. | ⚪ Open — 0/3 shipped<br />The sharpest conflict in the repository, and it got sharper deliberately: soft delete means a destroy is reversible by design, and the audit log now actively refuses DELETE. ADR 0024 resolves it by crypto-shredding rather than by weakening either. Its erasure half is built (2026-10-12): content from an external connection is sealed under that connection's key, and destroying the key reaches the audit log without breaking the chain. Per-person erasure is partial (q14: names and emails in canonical_people survive a shred) and partitioning is not built (q36), so the control stays open and says so. | `q10` `q14` `q36` |
 | **Art.30** Records of processing activities | A controller maintains a record of processing activities, including categories of data and recipients. | ⚪ Open — 1/4 shipped<br />Every processing *event* is recorded in detail; the *register* of activities, categories and recipients is not. q39 is open, and a sub-processor list is the first thing a customer's privacy team asks for. | `q7` `q39` `q40` `q19` |
 | **Art.32** Security of processing | Appropriate technical measures ensure ongoing confidentiality, integrity, availability and resilience. | ⚪ Open — 3/5 shipped<br />Confidentiality and integrity are the strong half — tenant isolation is tested to hold even when authorization is wrong, and the log is verifiably intact. Availability and resilience are untested: q48 is open, and an untested restore is a belief rather than a measure. | `q12` `q13` `q33` `q48` `q50` |
 <!-- roadmap:controls:end -->
@@ -77,6 +77,21 @@ One conflict is structural and deliberate: **erasure** (GDPR Art. 17). Soft dele
 reversible by design, and the audit log now actively refuses `DELETE`.
 [ADR 0024](adr/0024-audit-retention-and-erasure.md) resolves it by destroying keys rather than rows,
 which is a genuine trade-off with a legal reading attached.
+
+## Who owns each of the 61 criteria
+
+The table above maps the questions in the ledger to named controls. A second, separate list lives in the
+same file: `docs/controls.json` has a `criteria` row for each of the 61 SOC 2 Trust Services Criteria (security,
+availability, processing integrity, confidentiality and privacy). A row names the class of owner, the role
+accountable, and the evidence producer, operating process and test where one exists. It never carries a status.
+
+`mix ash_compliance.controls.check --report` lists every piece a row is still missing, and CI prints that list on
+every push. At the last review (2026-11-09) 15 rows had nothing missing and 46 did not: most organizational
+rows have no operating process, and most rows have no test. A row with nothing missing says the criterion is
+owned and wired to things that exist. It does not say the control operates: no evidence is recorded
+against any row yet, so none can be called evidenced. `test/ash_enterprise/compliance/control_file_test.exs` fails
+the build if a row points at something that does not exist, a status appears, a criterion goes missing, or the
+number of missing pieces grows.
 
 ## Gaps this map found
 

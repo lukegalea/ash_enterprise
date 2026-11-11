@@ -146,7 +146,7 @@ Stated as rules; the private half records the concrete instances (which store, w
 4. **PDFs stay unmasked and in-region.** Row-level masking tools mask database rows only, not source documents. PDF-derived eval items therefore remain unmasked and in-region under the privacy decision; masked derivatives would require a separate, explicit decision before they exist.
 5. **No copy in any public repo, no hosted-model exposure.** The eval sets are private and in-region. No labelled item, document, or extract is sent to any hosted model. Public package docs (including the document you are reading) carry the generic programme only: schema, protocol, statistics, taxonomy — no families' real wording, no owners' names, no storage locations.
 6. **Access list and retention.** Each set names an access list (who can read the store) and a retention rule; both are recorded in the private half. Retention aligns with the erasure-vs-replay posture: label rows reference documents by hash, so a document erasure can tombstone without destroying hash-only replay proofs.
-7. **Where the private half lives.** The VendorPM-specific programme document — family names and wording, owners and adjudicators per family, in-region storage for CA and US separately, access lists, labelling schedule and hours — lives in the private repo, is never pushed to any public repository, and confirms in its acceptance that no public copy exists.
+7. **Where the private half lives.** The Organization-specific programme document — family names and wording, owners and adjudicators per family, in-region storage for CA and US separately, access lists, labelling schedule and hours — lives in the private repo, is never pushed to any public repository, and confirms in its acceptance that no public copy exists.
 
 ---
 
@@ -154,7 +154,7 @@ Stated as rules; the private half records the concrete instances (which store, w
 
 1. **Labelling capacity at the private side:** who labels, and how many hours per week — is labelling paid time needing approval? (Blocks the schedule; not the design.)
 2. **Owners:** each initial family needs a named owner and a named adjudicator (they may not be the same person for a given disagreement). This doc's AC is satisfied by "owner needed" blockers in the private half if names are missing.
-3. **Per-tier sets vs per-tier thresholds:** do per-customer risk tiers need separate eval sets, or only separate band tables calibrated on the same set? Working assumption: same set, separate thresholds, revisited once tier-stratified error rates exist.
+3. **Per-tier sets vs per-tier thresholds:** do per-customer risk levels need separate eval sets, or only separate band tables calibrated on the same set? Working assumption: same set, separate thresholds, revisited once tier-stratified error rates exist.
 4. **κ gate on PABAK/AC1:** is the §2 allowance (reading the gate on a prevalence-adjusted statistic when prevalence is extreme) acceptable to the owner, or should κ ≥ 0.7 be literal in all cases?
 5. **Optimise split as enum value:** the ticket's schema listed three splits; this design adds `optimise` as a fourth value on the cited split-discipline grounds. Confirm, or else split it out as a separate flag.
 6. **Audit window sizing:** m = 200 per family × region per month assumes admission volume supports it. For low-volume families, the window lengthens (all admissions audited until m accumulates) — confirm that trade-off is acceptable.

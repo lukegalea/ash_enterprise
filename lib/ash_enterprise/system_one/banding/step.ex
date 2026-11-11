@@ -8,7 +8,7 @@ defmodule AshEnterprise.SystemOne.Banding.Step do
 
   1. **Flatten** the recorded answers into the FEEL-ready input map
      (`AshJudgments.Bridge.Dmn.inputs/2` — decimal strings, explicit
-     present markers, family/risk tier/jurisdiction envelope inputs).
+     present markers, family/risk level/jurisdiction envelope inputs).
   2. **Evaluate** through the host resolver seam — an arity-3
      `(family, tenant, inputs)` MFA or function following the
      `Process.DecisionResolver` pattern: the host resolves WHICH versioned
