@@ -136,13 +136,6 @@ to the top-left corner, which looks deliberate enough to pass, and moved the bac
 dismissal stopped working in the corner people aim for. And the close button was initially laid out
 *below* the image, which covered it.
 
-## The two raw transcripts
-
-`AshStrangler.md` and `Strangler Fig Migrations for Postgres Schemas…md` at this level are
-**unedited research transcripts**, kept for their citations. Each is explicitly superseded by a
-document in `plans/`, and each is wrong in specifics that the plan corrects. Do not treat them as
-guidance.
-
 ## Suggested reading order
 
 If you are evaluating: [QUESTIONS.md](QUESTIONS.md) → [COMPLIANCE.md](COMPLIANCE.md) →

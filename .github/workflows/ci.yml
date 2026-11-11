@@ -792,6 +792,39 @@ jobs:
       - run: mkdir -p priv/plts
       - run: mix dialyzer --format github
 
+  site:
+    name: Site builds and carries no private terms
+    runs-on: ubuntu-latest
+    # The public site deploys from main without a human reading it. This job
+    # builds it the way the deploy does (docs sync, link check, Astro build)
+    # and scans what it would publish for private-domain terms. It needs only
+    # Node, not the Elixir toolchain.
+    #
+    # The terms are never in this repository: set the MOAT_TERMS Actions secret
+    # (one case-insensitive regular expression per line). Without it (forks,
+    # pull requests) the scan says so and passes; the build still runs.
+    defaults:
+      run:
+        working-directory: site
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+
+      - run: npm ci
+
+      - name: Build (docs sync, link check, Astro)
+        run: npm run build
+
+      - name: Scan the published output for private terms
+        env:
+          MOAT_TERMS: ${{ secrets.MOAT_TERMS }}
+        run: node scripts/moat-gate.mjs
+
   cold-clone:
     name: Cold clone fetches every dependency
     runs-on: ubuntu-latest

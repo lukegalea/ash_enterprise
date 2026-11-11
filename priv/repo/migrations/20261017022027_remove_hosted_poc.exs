@@ -1,4 +1,4 @@
-defmodule AshEnterprise.Repo.Migrations.RemoveVendorpmPoc do
+defmodule AshEnterprise.Repo.Migrations.RemoveHostedPoc do
   @moduledoc """
   Updates resources based on their most recent snapshots.
 

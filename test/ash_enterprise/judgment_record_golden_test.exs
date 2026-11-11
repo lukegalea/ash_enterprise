@@ -25,14 +25,16 @@ defmodule AshEnterprise.JudgmentRecordGoldenTest do
 
   @repo_root Path.expand(Path.join(["..", ".."]), __DIR__)
 
-  # Relative path => sha256 over the file's exact bytes.
+  # Relative path => sha256 over the file's exact bytes. The three RFC pins were
+  # re-taken once for a one-word wording change in a table cell of the DMN
+  # inputs row; no field, rule or example changed.
   @golden %{
     "docs/rfc/judgment-record-v0.md" =>
-      "70eb819295e7f05f92d036b09dd2989f521dbbc3fc2e30dd72fa7e7d1051f160",
+      "d0865b66ca229fcb7b4235e6d2a3b6b3c906546b591267e550396858007329bb",
     "docs/rfc/judgment-record-v1.md" =>
-      "69f0f3337a466b41cc6f96e299bed613f12cd983c4b59b8ad5788552238fd03a",
+      "9b8a18e2874e233185cc08dca13c84e1e76a2e7b297e6fb9ba1f7c7fe606680a",
     "docs/rfc/judgment-record-v2.md" =>
-      "06496522c42fdee8b45b10e2de2d012ed31d9522fb213603c1918c63d25fd337",
+      "264d8efa0d58858acbe22489219fb0d566e00c30ee8149b78dfbfe32b71ed364",
     "priv/judgment_record/schema.json" =>
       "79d4a08a08320e7895d508dd377063acb0087ed2dab2f6f08364ccec5c1b881b",
     "test/fixtures/judgment_record/README.md" =>

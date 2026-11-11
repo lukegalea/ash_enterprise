@@ -187,12 +187,14 @@ const btn =
               class="font-semibold text-ae-ink">Evidence of review</strong
             > had no question at all — logs existed, were complete, were protected, and nobody was
             reading them, which is the single most common finding in a real engagement. And <strong
-              class="font-semibold text-ae-ink">cryptography appears in exactly one place</strong
-            >: the SHA-256 over the audit chain. Encryption at rest, in transit and key management
-            belong to the deployment, and this repository says nothing about them.
+              class="font-semibold text-ae-ink">cryptography appears in three places</strong
+            >: a SHA-256 hash chain over the audit log, AES-256-GCM sealing under per-scope keys for
+            crypto-shredding (ADR 0024), and bcrypt password hashes. Disk and database encryption,
+            transport security and custody of the master key belong to the deployment, and this
+            repository says nothing about them.
           </p>
           <p>
-            Both are now rows on the ledger rather than absences nobody had named, which is the only
+            Both are rows on the ledger rather than absences nobody had named, which is the only
             useful thing a document like this does.
           </p>
         </div>

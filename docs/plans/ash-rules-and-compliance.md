@@ -2,7 +2,6 @@
 
 Status: **executing — Lanes A/B/C shipped; Lane D (this repository's
 integration) landed on the `rules-compliance-integration` branch.** Related:
-`docs/Consider elixir's wongi-engine rules engine agains.md`,
 `docs/Layered Enterprise Compliance Rules Updated Architecture and Authoritative
 Design Sources.md`, `docs/plans/ash-strangler.md`, ADR 0009, ADR 0031,
 ADR 0035.

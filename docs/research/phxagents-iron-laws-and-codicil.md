@@ -39,5 +39,4 @@ ash_ai already has `AshAi.DevTools` (list_ash_resources/get_usage_rules/list_gen
 ash_agent_tools now ships an optional adapter domain, `AshAgentTools.AshAi` (lukegalea/ash_agent_tools#12),
 mounted here at `/ash_agent/mcp`. A small ash_ai change adding `dev_tool_domains:` sits on the fork branch
 `lukegalea/ash_ai:feat/dev-tool-domains`, and a live run there served ash_ai's three dev tools plus the
-adapter's six on `/ash_ai/mcp`. The upstream post and PR bodies are drafts in `docs/community-drafts/`
-(`ash-ai-dev-tool-domains.md`, `ash-ai-pr-*.md`) for Luke to send.
+adapter's six on `/ash_ai/mcp`. The upstream post and PR bodies are kept outside the repository.

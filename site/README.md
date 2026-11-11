@@ -88,8 +88,7 @@ repo-root `docs/` tree into `src/content/docs/docs/` and, on the way:
 - copies the root-level ledger documents (`QUESTIONS.md`, `COMPLIANCE.md`, `ROADMAP.md`,
   `HANDOFF.md`) to their own routes — add to `ROOT_FILES` when another one appears, or it will be
   silently absent and any hand-written link to it in `src/pages/` will 404;
-- skips the two raw research transcripts at the root of `docs/` (`AshStrangler.md` and the Strangler
-  Fig one). They are superseded;
+- publishes only an allow-list of directories and root files (`DIRS`, `PUBLISH_PLANS` and `ROOT_FILES` in the script). Anything not listed stays on GitHub;
 - **exits non-zero if it rewrote a link to a page that does not exist.** A dead link in generated docs
   is worse than a missing page, so this fails the build rather than shipping it.
 

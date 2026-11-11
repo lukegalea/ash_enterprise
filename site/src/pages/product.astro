@@ -60,7 +60,8 @@ Wrote 3 event(s) to tmp/audit-54773a98-2026-08-01-to-2026-09-01.csv
 `;
 
 const requireApproval = `
-# Your resource. The change is the entire integration.create :submit do
+# Your resource. The change is the entire integration.
+create :submit do
   accept [:role_id, :justification]
   change AshBpmn.Changes.RequireApproval,
     key: "access_request.grant",
@@ -401,9 +402,11 @@ const btn =
       </div>
 
       <div class={cardRule + ' mt-8 p-5 text-sm leading-relaxed text-muted'}>
-        <strong class="font-semibold text-ae-ink">Where it actually is:</strong> the package ships with
-        345 tests including round-trip properties. The demonstration inside this reference application
-        does not exist yet.
+        <strong class="font-semibold text-ae-ink">Where it actually is:</strong> the reference application
+        runs one resource, <code class="font-mono text-[0.9em]">AshEnterprise.Legacy.User</code>, in the
+        <code class="font-mono text-[0.9em]">:read_from_legacy</code> phase over a simulated legacy
+        schema, and a legacy write shows up in a LiveView. The later phases (dual write, read from new,
+        decommissioned) are not exercised here yet.
       </div>
     </section>
 
@@ -514,22 +517,10 @@ const btn =
           There is no agent-specific authorization path — which is precisely why there is no
           agent-specific authorization bug. And the model never holds the mutation: it returns a
           struct, and a change is held for your approval. That is a structural guarantee rather than a
-          prompt instruction, which is what makes prompt injection uninteresting here — there is no
-          tool to trick it into calling.
+          prompt instruction. Prompt injection can still change what the model proposes or reads, but
+          only within what the requesting user could already do, and a mutation still waits for a
+          person to approve it.
         </p>
-      </div>
-
-      <div class="mt-10 grid gap-8 lg:grid-cols-2">
-        <ScreenshotFigure
-          name="agent-proposal.png"
-          alt="The helper console showing a proposed administrative change, with the resolved record names and the concrete mutation it would perform."
-          caption="The model resolves the request to a concrete mutation, with real record names rather than UUIDs. Authorization is checked before this is rendered — a proposal you could never perform is refused at the point of display."
-        />
-        <ScreenshotFigure
-          name="agent-approved.png"
-          alt="The helper console after the human approved the proposal, showing the executed change."
-          caption="On approval the action runs — through the policies, into the audit log, with you as the actor. The audit row names the human who approved, not the model that suggested."
-        />
       </div>
 
       <div class="mt-10">

@@ -235,14 +235,10 @@ resolved **as you**, against records you are allowed to see — so a user you
 cannot read comes back as "not found" rather than as a proposal referencing a
 record you have no business knowing exists. Authorization is checked before this
 card is rendered, so you are never asked to confirm something that will then
-fail:
-
-![The helper console, showing a proposed role assignment awaiting approval](docs/screenshots/agent-proposal.png)
+fail.
 
 Approving executes it *as you*, through the same policies as the admin UI. The
-audit row names the human who approved, not the model that suggested:
-
-![The helper console after approval, showing the change was applied](docs/screenshots/agent-approved.png)
+audit row names the human who approved, not the model that suggested.
 
 Interpreting a request needs a provider key. Everything after it — resolution,
 authorization, execution, audit — is ordinary Ash code and does not, which is why
@@ -492,7 +488,7 @@ contain.** The claim is being corrected rather than quietly implemented.
 ## Licence
 
 MIT — see [`LICENSE`](LICENSE). Two vendored corpora are excluded and carry their
-own terms: `priv/cdm/schemaDocuments/` is Microsoft's Common Data Model under
+own terms (see [`NOTICE.md`](NOTICE.md)): `priv/cdm/schemaDocuments/` is Microsoft's Common Data Model under
 CC-BY-4.0, and `priv/cdm/resolved/dataverse_*.json` derives from Microsoft's
 Dataverse table reference. Attribution is required for both; see
 [`priv/cdm/ATTRIBUTION.md`](priv/cdm/ATTRIBUTION.md).

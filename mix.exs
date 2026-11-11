@@ -446,8 +446,8 @@ defmodule AshEnterprise.MixProject do
       {:open_api_spex, "~> 3.0"},
       {:ash_state_machine, "~> 0.2"},
       # FORK -- see docs/BLEEDING-EDGE.md for its path back to Hex.
-      # The as_of capture/replay fork (ash_events#103, upstream PR #104
-      # pending): a write's as_of is recorded on its event and restored on
+      # The as_of capture/replay fork (ash_events#103; upstream PR #104 was closed unmerged and #113 took its place, unreleased
+      # as of 2026-11-10): a write's as_of is recorded on its event and restored on
       # replay, and the replay wrappers declare temporal_safe? — required
       # for audited TEMPORAL resources, which this host now has (the
       # SystemOne facts table; AST-149). Same pin as the hosted POC;

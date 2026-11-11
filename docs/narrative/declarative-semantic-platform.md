@@ -39,7 +39,7 @@ each role is a real artifact you can read, run and argue with.
 ## 2. The argument this rests on
 
 The underlying claim — set out at length in
-[*Has anyone made the argument for declarative programming…*](../Has%20anyone%20made%20the%20argument%20for%20declarative%20progr.md)
+*Has anyone made the argument for declarative programming…* (a research transcript, no longer in the repository)
 — is about **cardinality**, not about model quality.
 
 Give a language model the same product specification twice against an imperative stack and you get

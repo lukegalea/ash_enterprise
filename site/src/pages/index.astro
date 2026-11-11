@@ -44,7 +44,7 @@ const teamColumns: { label: string; title: string; body: string }[] = [
   {
     label: '03 — the framework',
     title: 'The framework enforces coherence',
-    body: 'Every request — human or agent — resolves through the same actions, the same policy union, the same audit trail, under the actor who initiated it. There is no privileged path to remember to secure, because there is no privileged path at all.',
+    body: 'Every request — human or agent — resolves through the same actions, the same policy union, the same audit trail, under the actor who initiated it. There is no side door to remember to secure. The platform’s own machinery — the process and decision engines and the deterministic system actors, the job runner among them — takes a declared bypass that an action can narrow, and the model-driven ai actor has none.',
   },
 ];
 
@@ -111,7 +111,7 @@ const seams: { concern: string; providers: string; seam: string; included: strin
     concern: 'Data ingestion',
     providers: 'Meltano',
     seam: 'Pipelines land normalized data in the warehouse; OpenLineage carries the lineage alongside it.',
-    included: 'Contract and party projections from the legacy estate, running locally.',
+    included: 'An append-only landing resource for raw external rows, and a user projection from a simulated legacy estate, running locally.',
   },
   {
     concern: 'Notification channels',
@@ -162,7 +162,7 @@ const doctrines: { title: string; body: string; href: string }[] = [
           </div>
           <p class={`${lead} lg:pt-14`}>
             Every layer below is someone else’s solved problem. Ash Enterprise is
-            the top stratum: a chosen subset of the Ash ecosystem, five
+            the top stratum: a chosen subset of the Ash ecosystem, fifteen
             first-party packages for the parts Ash leaves to the application, and
             the conventions that hold them together.
           </p>

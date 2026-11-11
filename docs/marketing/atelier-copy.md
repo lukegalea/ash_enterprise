@@ -8,7 +8,7 @@ Atelier site.*
 | **Status** | Copy source — adapt into `site/`, do not paste verbatim without checking the surrounding layout |
 | **Audience** | Whoever is writing or editing the site, a deck, a README lede, or a conference abstract |
 | **Primary source** | [`docs/narrative/declarative-semantic-platform.md`](../narrative/declarative-semantic-platform.md) |
-| **Also grounded in** | [`docs/verification/`](../verification/), [`docs/rfc/semantic-manifest-v0.md`](../rfc/semantic-manifest-v0.md), [`docs/Has anyone made the argument for declarative progr.md`](../Has%20anyone%20made%20the%20argument%20for%20declarative%20progr.md) |
+| **Also grounded in** | [`docs/verification/`](../verification/), [`docs/rfc/semantic-manifest-v0.md`](../rfc/semantic-manifest-v0.md) |
 | **Rule** | Shipped things are present tense. Designs under review are labelled as such, in the same breath. §7 of the narrative travels with any excerpt — that is what the honest-limits sidebar is for. |
 
 **Voice notes.** Short declarative sentences. Em-dashes over semicolons. Mono eyebrows in the

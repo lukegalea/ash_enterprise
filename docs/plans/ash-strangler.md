@@ -7,9 +7,8 @@
 - **Date:** 2026-08-13
 - **Scope:** a *standalone open-source package*, living outside this repository. There is nothing to add to `mix.exs`
   here.
-- **Replaces the guidance in:** `docs/AshStrangler.md` and
-  `docs/Strangler Fig Migrations for Postgres Schemas…md`, both raw research transcripts. They are useful for their
-  citations and wrong in several specifics — see [§10](#10-what-is-genuinely-hard), where six of their assumptions are
+- **Replaces the guidance in:** two raw research transcripts that are no longer in the repository. They were useful
+  for their citations and wrong in several specifics — see [§10](#10-what-is-genuinely-hard), where six of their assumptions are
   corrected against an executed test.
 - **Companion:** [`ash-strangler-in-reference-app.md`](ash-strangler-in-reference-app.md) — how this repository would
   demonstrate it, and the platform conflicts that surfaces.
@@ -150,7 +149,7 @@ A new package is justified, on a **narrower scope than the source documents prop
   > module — **zero new dependencies**. The README tells anyone already running `ecto_watch` to prefer it for the
   > transport and hand the key to `AshStrangler.Listener.notify/2`, which keeps §2.1's finding useful without paying
   > for it.
-- **Not justified:** the `legacy_api` HTTP layer from `docs/AshStrangler.md`. Different package, and
+- **Not justified:** the `legacy_api` HTTP layer from the original research transcript. Different package, and
   `reverse_proxy_plug` plus hand-written controllers already covers it.
 
 The uncomfortable version of the verdict: **the two most valuable pieces (§6.3 verifiers, §6.4 pre-flight check) are
@@ -180,7 +179,7 @@ also the two that need no SQL generation at all.** §11 is built around finding 
   it would be the most visible part of the package and the least defensible.
 - **CDC / logical replication.** Different problem, different guarantees. Named as the alternative in the README, with
   `walex` and `ash_replicant` as the Elixir-side pointers.
-- **Serving the legacy HTTP API.** The `legacy_api` idea in `docs/AshStrangler.md` — generating Phoenix controllers
+- **Serving the legacy HTTP API.** The `legacy_api` idea in the original research transcript — generating Phoenix controllers
   that emit the old JSON shape — is a genuinely good idea and a *different package*. Mixing an HTTP concern into a
   schema-mapping extension makes both harder to reason about. `reverse_proxy_plug` plus hand-written controllers
   already covers it adequately; the derivation win there is much smaller than at the data layer.
@@ -845,7 +844,7 @@ notifications — is racy.
 
 Neither option is good. The plan is to default to **not suppressing** (duplicates are visible and harmless to a
 LiveView that re-reads) and make suppression opt-in with the transaction cost documented. Recording this here because
-the source material in `docs/AshStrangler.md` presents GUC suppression as a clean optimization, and it is not.
+the source material in the original research transcript presents GUC suppression as a clean optimization, and it is not.
 
 ## 7. The phases
 

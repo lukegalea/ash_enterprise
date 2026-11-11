@@ -16,7 +16,11 @@ interface Chip {
   href: string;
 }
 
+/** Upstream Ash packages are published on Hex; their docs live on hexdocs. */
 const hex = (pkg: string): string => `https://hexdocs.pm/${pkg}/`;
+
+/** First-party packages are git dependencies (mix.exs); nothing of ours is on Hex. */
+const gh = (pkg: string): string => `https://github.com/lukegalea/${pkg}`;
 
 /** Stratum 05 — the first-party layer. One filled, the rest outlined. */
 const filledChip: Chip = {
@@ -25,12 +29,12 @@ const filledChip: Chip = {
 };
 
 const outlinedChips: Chip[] = [
-  { label: 'ash_strangler', href: hex('ash_strangler') },
-  { label: 'ash_bpmn', href: hex('ash_bpmn') },
-  { label: 'ash_decisions', href: hex('ash_decisions') },
-  { label: 'ash_rules', href: hex('ash_rules') },
-  { label: 'ash_compliance', href: hex('ash_compliance') },
-  { label: 'ash_a2ui', href: hex('ash_a2ui') },
+  { label: 'ash_strangler', href: gh('ash_strangler') },
+  { label: 'ash_bpmn', href: gh('ash_bpmn') },
+  { label: 'ash_decisions', href: gh('ash_decisions') },
+  { label: 'ash_rules', href: gh('ash_rules') },
+  { label: 'ash_compliance', href: gh('ash_compliance') },
+  { label: 'ash_a2ui', href: gh('ash_a2ui') },
   { label: 'CDM generators', href: `${REPO}/tree/main/priv/cdm` },
   {
     label: 'Security.ActorContext',
@@ -45,22 +49,20 @@ const wiredChips: Chip[] = [
   { label: 'AshJsonApi', href: hex('ash_json_api') },
   { label: 'AshGraphQL', href: hex('ash_graphql') },
   { label: 'AshAdmin', href: hex('ash_admin') },
-  { label: 'AshEvents', href: hex('ash_events') },
+  { label: 'AshEvents (fork)', href: gh('ash_events') },
   { label: 'AshArchival', href: hex('ash_archival') },
   { label: 'AshOban', href: hex('ash_oban') },
   { label: 'AshAi', href: hex('ash_ai') },
   { label: 'AshStateMachine', href: hex('ash_state_machine') },
   { label: 'OpentelemetryAsh', href: hex('opentelemetry_ash') },
+  { label: 'Reactor', href: hex('reactor') },
+  { label: 'AshAuthentication', href: hex('ash_authentication') },
+  { label: 'AshCloak', href: hex('ash_cloak') },
+  { label: 'AshMoney', href: hex('ash_money') },
 ];
 
-/** Stratum 04 — available on Hex, not wired into the reference app. */
+/** Stratum 04 — published upstream, not wired into the reference app (not in mix.exs). */
 const availableChips: Chip[] = [
-  { label: 'AshMoney', href: hex('ash_money') },
-  { label: 'AshCloak', href: hex('ash_cloak') },
-  { label: 'AshPaperTrail', href: hex('ash_paper_trail') },
-  { label: 'AshRateLimiter', href: hex('ash_rate_limiter') },
-  { label: 'AshAuthentication', href: hex('ash_authentication') },
-  { label: 'Reactor', href: hex('reactor') },
   { label: 'AshTypescript', href: hex('ash_typescript') },
   { label: 'AshDoubleEntry', href: hex('ash_double_entry') },
   { label: 'AshGeo', href: hex('ash_geo') },
