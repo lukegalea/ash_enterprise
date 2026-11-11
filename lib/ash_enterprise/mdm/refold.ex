@@ -177,7 +177,8 @@ defmodule AshEnterprise.Mdm.Refold do
         do: existing ++ materialize_held!(tenant, golden, existing),
         else: existing
 
-    standing = Assertions.standing(governing(tenant).policy, all,
+    standing =
+      Assertions.standing(governing(tenant).policy, all,
         depths: depths,
         incumbent: &held?/1
       )

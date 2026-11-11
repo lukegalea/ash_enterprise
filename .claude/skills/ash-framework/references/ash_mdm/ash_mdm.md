@@ -65,6 +65,15 @@ natively; the package never assumes an actor model.
   Give all stewards one `source` and record who said it in `origin_ref`: among
   people the oldest order still holds, so a user id as the `source` makes the
   first steward's value outrank every later correction.
+  Late history is the catch: an import dated before the value a golden holds
+  would replace it. Pass `incumbent: fn assertion -> ... end` to fold/3,
+  standing/3 and `Completeness.assess/3` and the held value ranks after
+  `:human` and before the oldest-first order: a person still beats it, depth
+  still comes first. Mark only the materialized held value (say by
+  `origin_ref`), never a whole source. A host reading values off a legacy row
+  can use the same option. `most_recent` and `most_complete` still decide on
+  `observed_at` and completeness; the incumbent only breaks their ties. A
+  non-function raises `ArgumentError`; absent, nothing changes.
   Pass `depths:` from `chain_depths/2` so a survivor outranks what it absorbed.
   Don't rewrite an absorbed golden's assertions on merge: leave them and fold
   through the chain, so an unmerge is correct by construction.
