@@ -817,6 +817,9 @@ jobs:
 
       - run: npm ci
 
+      - name: Site script tests (moat gate, package count)
+        run: node --test scripts/*.test.mjs
+
       - name: Build (docs sync, link check, Astro)
         run: npm run build
 

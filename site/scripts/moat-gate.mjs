@@ -38,12 +38,31 @@ const PUBLIC_TERMS = ['\\bdogfood\\b'];
 
 const ALNUM_BOUNDARY = '(?:(?<![A-Za-z0-9])(?=[A-Za-z0-9])|(?<=[A-Za-z0-9])(?![A-Za-z0-9]))';
 
+/** A MOAT_TERMS line that does not compile. Carries the line number and nothing of the line. */
+export class BadTermError extends Error {
+  constructor(lineNumber) {
+    super(`MOAT_TERMS line ${lineNumber} is not a valid pattern`);
+    this.name = 'BadTermError';
+  }
+}
+
+/**
+ * A pattern that fails to compile is reported by line number only: the engine's
+ * own message embeds the transformed pattern, which GitHub's secret masking does
+ * not catch, and the log of a public repository is public.
+ */
 export function compileTerms(raw) {
-  return raw
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line && !line.startsWith('#'))
-    .map((line) => new RegExp(line.replace(/(?<!\\)\\b/g, () => ALNUM_BOUNDARY), 'i'));
+  const terms = [];
+  raw.split(/\r?\n/).forEach((text, index) => {
+    const line = text.trim();
+    if (!line || line.startsWith('#')) return;
+    try {
+      terms.push(new RegExp(line.replace(/(?<!\\)\\b/g, () => ALNUM_BOUNDARY), 'i'));
+    } catch {
+      throw new BadTermError(index + 1);
+    }
+  });
+  return terms;
 }
 
 async function* walk(dir) {
@@ -94,4 +113,10 @@ async function main() {
   return 0;
 }
 
-process.exit(await main());
+try {
+  process.exit(await main());
+} catch (error) {
+  if (!(error instanceof BadTermError)) throw error;
+  console.error(`moat-gate: ${error.message}`);
+  process.exit(1);
+}

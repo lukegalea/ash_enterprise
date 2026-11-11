@@ -84,6 +84,22 @@ defmodule AshEnterprise.Audit.EveryWriteTest do
     end
   end
 
+  describe "the opt-out is read from the compiled option" do
+    test "a moduledoc that mentions audit?: false is not an opt-out" do
+      assert File.read!(
+               AshEnterprise.Accounts.ProjectedUser.module_info(:compile)[:source]
+               |> List.to_string()
+             ) =~
+               "audit?: false"
+
+      refute declares_opt_out?(AshEnterprise.Accounts.ProjectedUser)
+    end
+
+    test "a resource compiled with audit?: false is an opt-out" do
+      assert declares_opt_out?(AshEnterprise.Legacy.User)
+    end
+  end
+
   describe "role assignments are attributable" do
     test "assigning a role records the grantor, the grantee and the request's correlation id",
          ctx do
@@ -150,9 +166,9 @@ defmodule AshEnterprise.Audit.EveryWriteTest do
   end
 
   # Opting out is local and greppable by design (see the base resource's
-  # moduledoc), so the declaration is where to look for it.
+  # moduledoc), but what counts is the option the resource was compiled with,
+  # not any text in its file: a moduledoc may talk about `audit?: false`.
   defp declares_opt_out?(resource) do
-    source = resource.module_info(:compile)[:source]
-    is_list(source) and source |> List.to_string() |> File.read!() =~ "audit?: false"
+    Spark.Dsl.Extension.get_opt(resource, [:platform], :audit?, true) == false
   end
 end

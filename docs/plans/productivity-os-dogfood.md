@@ -5,8 +5,7 @@ Plane board **PROD** (Productivity OS Dogfood); the earlier "durable copy" of th
 (`local://productivity-os-dogfood-plan.md`) no longer exists, and this doc replaces it. Design sources:
 [ADR 0010](../adr/0010-meltano-for-ingestion.md) (Meltano ingestion), [ADR 0011](../adr/0011-nango-as-integration-hub.md)
 (Nango provider edge), [ADR 0012](../adr/0012-openlineage-and-marquez.md) (OpenLineage + Marquez), ADR 0015 (approvals in
-Ash), ADR 0035/0037 (event projections). `docs/dogfood_enterprise.md` is the research transcript the programme
-started from; it has no numbered sections.
+Ash), ADR 0035/0037 (event projections).
 
 ## Vision
 

@@ -199,6 +199,17 @@ defmodule AshEnterprise.Platform.SystemAttributes do
         combination with the lock on).
         """
       ],
+      audit?: [
+        type: :boolean,
+        default: true,
+        doc: """
+        Whether this resource writes to the central event log. Set by
+        `AshEnterprise.Platform.Resource` from its `audit?` option, which is the
+        one that adds `AshEvents.Events`; recorded here so a test or a tool can
+        read the declaration the resource was compiled with instead of searching
+        its source text.
+        """
+      ],
       cdm_entity: [
         type: :string,
         required: false,

@@ -198,6 +198,7 @@ defmodule AshEnterprise.Platform.Resource do
         changes_authority(unquote(changes_authority))
         optimistic_lock?(unquote(optimistic_lock?))
         state_machine?(unquote(state_machine?))
+        audit?(unquote(audit?))
 
         unquote(
           if cdm_entity do
