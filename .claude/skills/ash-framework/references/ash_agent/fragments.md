@@ -54,9 +54,14 @@ MyClinic.Execution.invoke(
    Declare every action you mean to govern.
 2. `args` is the action's inputs as JSON would carry them; for an update or a destroy it also carries the subject's
    primary key. The request checks them against the action without running it or its changes, and records a row that
-   does not fit as `rejected`. The subject is read as the caller, with the caller's authorization: a record they cannot
-   read is rejected with the same message as one that does not exist, so `invoke` reveals nothing outside what they
-   may read. Give the people who ask read access to the records they ask to act on.
+   does not fit as `rejected`. A live request is then prechecked as its executing principal
+   (`c:AshAgent.ExecutionIdentity.precheck_actor/1`, when you implement it): the action's own changes and validations
+   — a state machine's transition check included — and the principal's authority over exactly that change, with no
+   hooks run. What either refuses is rejected at request time (`invalid_request`, `not_permitted`), with the per-field
+   errors as `rejection_details`, before anyone is asked to approve it; execution checks everything again. The subject
+   is read as the caller, with the caller's authorization: a record they cannot read is rejected with the same message
+   as one that does not exist, so `invoke` reveals nothing outside what they may read, and a refusal of permission
+   never says why or whether a record exists. Give the people who ask read access to the records they ask to act on.
 3. Use one key per request. The same key with the same target, arguments, principal and parent returns the existing
    row; the same key with anything different is `AshAgent.Invocation.IdempotencyConflict`. Nothing is upserted.
 4. Do not call `invoke` inside a transaction you opened: a concurrent request with the same key is detected by the
@@ -151,7 +156,7 @@ Which path a claimed row takes depends on the target's effects declaration:
 |---|---|
 | Tenancy and an owner column | The fragment has neither; stamp the owner on `request` from the actor |
 | Policies | `invoke` and `request` for the people who may ask; `retry` and `request_cancel` for the people who may; every other action for your job runner alone |
-| Encryption of `args` and `result` | Both are marked `sensitive?`; seal them if you encrypt content at rest |
+| Encryption of `args`, `result` and `rejection_details` | All three are marked `sensitive?`; seal them if you encrypt content at rest |
 | A check of `parent` | The fragment records the parent; whether the requester may name it is yours to decide |
 | The `:execute` trigger | `request` and `apply_decision` enqueue it for every ready row |
 | The `:reconcile` trigger | It settles rows whose lease expired, whose dispatch deadline passed or whose outcome is unknown |
