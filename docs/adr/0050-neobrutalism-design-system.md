@@ -19,7 +19,7 @@ changed.
    and reaches A2UI through the `--a2ui-*` custom-property seam ADR 0006 already relied on. Adopting it gives both
    applications one visual language.
 
-2. **clinic-demo's palette is light only.** The dogfood instance is used mostly in a dark room, and dark was asked
+2. **clinic-demo's palette is light only.** The application is used mostly in a dark room, and dark was asked
    for as the default. neobrutalism.dev's own dark scheme keeps black borders and shadows. Measured against a dark
    navy surface, a black edge is about 1.2:1, so the hard edges, which are the point of the style, mostly disappear.
 

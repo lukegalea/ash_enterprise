@@ -75,8 +75,8 @@ incident.**
 
 ## Implementation note — the erasure half (2026-10-12)
 
-Built because the dogfood deployment was about to receive real third-party content: the operator's company
-Slack and his personal Gmail and Calendar, through Nango (ADR 0011's dogfood deviations). The requirement was to be able
+Built because a deployment we operate was about to receive real third-party content (mail, calendar and chat,
+through Nango, ADR 0011). The requirement was to be able
 to "forget the key" for everything one connection brought in, including its audit trail, without breaking the chain.
 **Partitioning is not built.** Nothing here changes how long `audit_events` keeps rows, so q36 stays open.
 
@@ -166,9 +166,9 @@ processed calendar events, and their audit copies. A step opens its scope (`Inte
 first provider call, so a step for a shredded scope cancels without asking the provider anything, and
 `Integration.SyncBlock` then stops scheduling the account. `Erasure.LiveScope` serializes the unsealed derived writes
 (`Canonical.Person`) against a shred. One end-to-end test per adapter (Calendar,
-Gmail, Slack) syncs, shreds, then sweeps the raw tables, `audit_events` included, for fixture content. The dogfood
-instance runs this against live Google Calendar, Gmail and company Slack, with company Slack under its own scope so
-it can be forgotten on its own (`mix ash_enterprise.erasure.scopes`, `mix ash_enterprise.erasure.shred`).
+Gmail, Slack) syncs, shreds, then sweeps the raw tables, `audit_events` included, for fixture content. Each linked
+account is its own scope, so one connection can be forgotten on its own (`mix ash_enterprise.erasure.scopes`,
+`mix ash_enterprise.erasure.shred`).
 
 **Status: accepted, 2026-10-12.** The erasure mechanism is the one the deployment now depends on to hold third-party
 content it must be able to forget, so the decision is no longer a proposal. The partitioning half is accepted with

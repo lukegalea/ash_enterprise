@@ -13,7 +13,7 @@ generic action; ADR 0051's 2026-10-14 note). `RoleGrant` authorizes a generic ac
 brief owned by the actor (`start_for_date` sets `owner_id` from the actor) and starts the `morning.brief` process with
 the actor as `started_by`. A member without a `:global` MorningBrief grant could not run it, so the scheduled brief
 (`MorningBriefWorker`), Today's Compose button and the ACP `compose brief` command all refused them, while Today told
-them to "say `compose brief`" (dogfood log, 2026-10-14, Policy).
+them to "say `compose brief`" (found in use, 2026-10-14).
 
 The role model cannot express the fix:
 

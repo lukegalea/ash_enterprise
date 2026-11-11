@@ -1,6 +1,6 @@
 # ADR 0062 — Planning proposes; declarations and people commit
 
-- **Status:** accepted — built. Phase 2 (the kernel and the personal-week dogfood) landed 2026-11-06: needs_input honesty, proven-optimal governed solve, dual-checked candidates, approve/apply writing schedules as the person.
+- **Status:** accepted — built. Phase 2 (the kernel and the personal-week planner) landed 2026-11-06: needs_input honesty, proven-optimal governed solve, dual-checked candidates, approve/apply writing schedules as the person.
 - **Date:** 2026-11-04
 - **Related:** ADR 0038 (models observe), 0040 (record, don’t recompute),
   0046 (declarations are output contracts), 0047 (learning proposes),

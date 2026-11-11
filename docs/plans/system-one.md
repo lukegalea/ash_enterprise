@@ -213,19 +213,18 @@ through the approval lifecycle; the emulated profile. Every output is a proposal
 
 ## The development zone's runtimes
 
-*Recorded 2026-09-28.* The first zone is the maintainer's development homelab, jurisdiction Ontario, Canada. Its
-runtimes sit on three machines. Each is registered as a zone endpoint on the lab's private network:
+*Recorded 2026-09-28.* The first zone is a single-operator development lab in one jurisdiction. Its runtimes sit on
+three machines, each registered as a zone endpoint on the lab's private network:
 
-| Role | Machine | Runtime |
-|---|---|---|
-| Decision models (System One answers) | the maintainer's laptop | Ollaya |
-| Embeddings, for retrieval | a desktop with a 16 GB Radeon RX 7700 XT | Lemonade Server |
-| Generative model, for extraction and proposals | an Apple M5 Pro with 48 GB | Qwen3.8-27B at a 256k-token context |
+| Role | Runtime |
+|---|---|
+| Decision models (System One answers) | Ollaya |
+| Embeddings, for retrieval | Lemonade Server |
+| Generative model, for extraction and proposals | an OpenAI-compatible runtime with a long context |
 
-- **The laptop is a zone endpoint only while it is physically in Ontario.** Anywhere else it is outside the zone. It
-  must not receive zone data, and nothing it answers while away is admissible as an in-zone observation (ADR 0042).
-- **This replaces an earlier two-machine placement**, recorded only in the programme's tracker, which left the 7700 XT
-  unused. The 7700 XT now serves embeddings.
+- **A portable machine is a zone endpoint only while it is physically in the zone's jurisdiction.** Anywhere else it
+  is outside the zone. It must not receive zone data, and nothing it answers while away is admissible as an in-zone
+  observation (ADR 0042).
 - **Connection details stay out of this repository.** They live in the operator's local environment. The same goes
   for which models each runtime has loaded: those are recorded with the zone, not here.
 - **Still to do before the zone serves a first call:**

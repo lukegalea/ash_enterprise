@@ -10,6 +10,12 @@ name: Deploy site
 # The build runs `npm run build`, whose `prebuild` step is `scripts/sync-docs.mjs`.
 # That script exits non-zero on a dead link, so a broken cross-reference in
 # `docs/` fails the deploy rather than shipping a 404.
+#
+# This workflow publishes on its own, without waiting for CI, so it carries its
+# own scan: `scripts/moat-gate.mjs` runs over the built output before the Pages
+# artifact is uploaded, and a hit fails the build job, so nothing is deployed.
+# The private terms come from the MOAT_TERMS Actions secret (see ci.yml's
+# `site` job); the gate's public terms are checked whether or not it is set.
 
 on:
   push:
@@ -38,14 +44,31 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      # withastro/action installs Node, restores the package-manager cache,
-      # builds, and uploads the Pages artifact. Hand-rolling
-      # `upload-pages-artifact` around it only duplicates that.
-      - name: Build with Astro
-        uses: withastro/action@v6
+      - uses: actions/setup-node@v4
         with:
-          path: ./site
           node-version: 22
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+
+      - name: Install
+        working-directory: site
+        run: npm ci
+
+      - name: Build (docs sync, link check, Astro)
+        working-directory: site
+        run: npm run build
+
+      # Before the upload, so a hit leaves nothing for the deploy job to publish.
+      - name: Scan the output for private terms
+        working-directory: site
+        env:
+          MOAT_TERMS: ${{ secrets.MOAT_TERMS }}
+        run: node scripts/moat-gate.mjs
+
+      - name: Upload the Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/dist
 
   deploy:
     needs: build

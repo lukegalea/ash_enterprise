@@ -5,14 +5,14 @@
 
 ## Context
 
-The dogfood deployment lands Gmail, Slack and Google Calendar into `AshEnterprise.Ingestion.SourceObject` (sealed,
+A deployment we operate lands Gmail, Slack and Google Calendar into `AshEnterprise.Ingestion.SourceObject` (sealed,
 operator-only) and projects them into the canonical store (`AshEnterprise.Canonical`: `CalendarEvent`,
 `Conversation`, `Message`, `Person`). That store holds the independent data: what each system says, normalized. Nothing
 held what *happened*: that a meeting was moved, that a message arrived, that a conversation started. Every consumer
 that wanted a timeline would have to diff rows itself.
 
-Luke's direction (2026-10-12): adopt `ash_discrete_business_events` (BIZEV) so dogfood has an event stream, and "start
-deriving info on top of the independent data and emitting new facts". Not bpsim yet.
+Direction (2026-10-12): adopt `ash_discrete_business_events` (BIZEV) so that deployment has an event stream, and
+"start deriving info on top of the independent data and emitting new facts". Not bpsim yet.
 
 What existed, verified 2026-10-12:
 
@@ -22,7 +22,7 @@ What existed, verified 2026-10-12:
   immutability trigger, delivery idempotency, region-scoped reads, a commit-order `feed`, and a simulation twin. The
   mapping engine (BIZEV-5) is on an unmerged branch; adapters (BIZEV-7) and corrections (BIZEV-9) are not started.
 - **The BIZEV design** (`system-one-program/research/bizev-design.md`, §8) names ash_enterprise the integrator, with the
-  dogfood's `SourceObject` and projectors left in place and migrated one vertical at a time, later.
+  existing `SourceObject` and projectors left in place and migrated one vertical at a time, later.
 - **`AshEnterprise.Ledger`** already exists and is something else: the strangler's change-data ledger over the legacy
   schema (`UserIngestion`, `UserDrainWorker`). Rows changed in a database, not facts about a business.
 - **ADR 0024's erasure**: canonical content (`title`, `location`, `body`, `subject`, `participants`) is sealed under the
@@ -125,10 +125,10 @@ platform resource for a non-`:global` grant, and worth a platform fix of its own
 
 ## Consequences
 
-- Dogfood has an event stream: the owner's commit-ordered feed (`Ledger.feed(region, after_sequence: n)`) of what
+- A deployment has an event stream: the owner's commit-ordered feed (`Ledger.feed(region, after_sequence: n)`) of what
   happened across mail, Slack and calendar, the substrate the next wave's UI and derived facts build on.
 - A projection now takes the region's advisory lock for the length of its write transaction. Writes in one region
-  serialize on it, as the design intends; at dogfood scale this is invisible. A sandboxed test holds the lock for the
+  serialize on it, as the design intends; at single-user scale this is invisible. A sandboxed test holds the lock for the
   whole test, so tests default `emit?` to false and the ledger's own tests (and the erasure end-to-end test) are
   `async: false` and switch it on.
 - A ledger failure fails the canonical write with it. The projectors already reduce a failed write to field names
@@ -183,7 +183,7 @@ tables. No other resource references the ledger.
   `.../ledger_test.exs` (one fact per change, as the owner; a failed record fails the write; backfill and its no-op;
   owner-only; a shred leaves the facts, a clean chain and no content), and the erasure end-to-end test now sweeps
   `business_events` for every synthetic content string before and after each vertical's shred, and verifies the chain.
-- Dogfood: migrate, restart, then once inside the node `AshEnterprise.BusinessEvents.backfill()`; run
+- Upgrading a deployment: migrate, restart, then once inside the node `AshEnterprise.BusinessEvents.backfill()`; run
   `AshEnterprise.Platform.Seeder.seed_privileges()` and `regrant_administrator_privileges(org_id)` so the owner holds
   `:basic` read on the ledger. Set `BUSINESS_EVENTS_REGION` before the first fact if `local` is not the region.
 
@@ -232,7 +232,7 @@ BIZEV-10 (simulation isolation, `542c513`) and BIZEV-12 (retention and erasure-a
   "the simulation twin stands on the platform base", owner-only privileges for both ledgers). The erasure end-to-end
   test sweeps `business_simulation_events` too, and asserts one tombstone per vertical's shred, counting that
   vertical's facts, after them in the chain. Upstream: `test/simulation_host_base_test.exs` and `retention_test.exs`.
-- Dogfood: migrate and restart, then run `AshEnterprise.Platform.Seeder.seed_privileges()` and
+- Upgrading a deployment: migrate and restart, then run `AshEnterprise.Platform.Seeder.seed_privileges()` and
   `regrant_administrator_privileges(org_id)` (the twin is a new platform resource), and once
   `AshEnterprise.BusinessEvents.backfill()`. The backfill records a correcting start for any conversation whose start
   was recorded from a later message by live emission; it adds nothing else. Scopes shredded before this deploy have

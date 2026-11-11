@@ -58,7 +58,7 @@ translate PO files through LangChain. Neither uses ReqLLM, which this platform s
 
 **State when this was written (2026-11-04, before phases 1 and 2 landed; see the implementation note):**
 - This repository's main branch has `priv/gettext/errors.po` only. The French credentialing showcase
-  (`?locale=fr`, a `showcase` domain with `fr` plurals) is on `dogfood`.
+  (`?locale=fr`, a `showcase` domain with `fr` plurals) is on another branch.
 - A downstream host already calls `gettext/1` about 170 times, but has no default-domain catalog, no `fr`, no
   `put_locale`, and a hard-coded `<html lang="en">`.
 - `ash_a2ui` has no locale hook. Its `humanize/1` is copied into ten modules, and many ActionHandler messages
@@ -194,7 +194,7 @@ carries the catalog entry id. Email templates and message composition are not pi
 | Phase | Repo | Work | State (2026-11-05) |
 |---|---|---|---|
 | 1 | ash_a2ui | Single label resolver, templated ActionHandler messages, marker, `extract`/`gen` tasks, `gettext_fn`/`locale:` option, goldens for both protocols | built |
-| 2 | ash_enterprise | Locale resolution and `<html lang>`, `gettext_backend` on auth routes, generation task, `fr` catalogs, run `extract_metadata`, dogfood the ash_a2ui option | built (#66, #67) |
+| 2 | ash_enterprise | Locale resolution and `<html lang>`, `gettext_backend` on auth routes, generation task, `fr` catalogs, run `extract_metadata`, use the ash_a2ui option here | built (#66, #67) |
 | 3 | Downstream host | The same locale plumbing; `fr_CA` catalogs for existing `gettext` calls; run `extract_metadata`; design-system strings map; process-view plurals; one pilot screen; user preference from the users twin; per-recipient locale in notification jobs | not built |
 | 3b | Downstream host | Organization wording overlay, once the web app's keys are mapped to msgids | not built |
 | 4 | Both hosts | CLDR formatting | not built |

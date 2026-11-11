@@ -1,6 +1,6 @@
-# Time travel (PROD-47, E8.4)
+# Time travel
 
-The dogfood app can show what it knew at any instant for the two resources that were already temporal:
+The application can show what it knew at any instant for the two resources that were already temporal:
 who a golden person resolved to (`AshEnterprise.Mdm.SourceIdentity`) and what System One knew about a
 subject (`AshEnterprise.SystemOne.Fact`), and, since the second slice, the calendar
 (`AshEnterprise.Canonical.CalendarEvent`). This page records what each slice built, how the read path

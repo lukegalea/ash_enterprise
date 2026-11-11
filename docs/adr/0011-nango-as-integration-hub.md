@@ -2,7 +2,7 @@
 
 - **Status:** accepted (2026-10-12; built for Google Calendar, Gmail and Slack, see the implementation note)
 - **Date:** 2026-08-18
-- **Amended (deviations recorded):** 2026-10-09 — see [Dogfood deviations](#dogfood-deviations-2026-10-09) at the end of this document.
+- **Amended (deviations recorded):** 2026-10-09 — see [Deviations](#deviations-2026-10-09) at the end of this document.
 - **Implementation note:** 2026-10-12, at the end of this record
 - **Amended:** 2026-11-06. Declared operations are now also the `ash_operations` package; see [ADR 0063](0063-declared-operations-are-a-package.md). Nango stays the OAuth transport, and the in-repo operations DSL stays until the package hands call context to its transport.
 
@@ -159,15 +159,15 @@ imported by tier 1 or tier 2 code, so this is a deletion rather than a refactor.
 about three — at which point per-provider `Req` clients are less machinery for the same result, and this ADR
 should be superseded rather than defended.
 
-## Dogfood deviations (2026-10-09)
+## Deviations (2026-10-09)
 
-Recorded during the Productivity OS Dogfood program (PROD-4/E4; extraction ticket AST-155). Two deliberate
+Recorded while building the extension for a single-user deployment. Two deliberate
 deviations from the decision above; neither weakens the confused-deputy rule.
 
 1. **Per-user connection derivation.** This ADR derives the connection id from `ActorContext.tenant(actor)`
-   — a per-tenant connection model for multi-tenant enterprise hosts. The dogfood program derives it from the
-   actor's **linked-account resource** instead: a personal productivity OS has one human actor with several
-   of their own accounts (work Gmail, personal Gmail), so the unit of credential ownership is the *user
+   — a per-tenant connection model for multi-tenant enterprise hosts. That deployment derives it from the
+   actor's **linked-account resource** instead: one human actor can link several accounts of the same
+   provider, so the unit of credential ownership is the *user
    account*, not the tenant. The invariant is unchanged and remains absolute: **the connection id is never an
    action argument**; it is resolved inside the action from the actor. Enterprise hosts adopting the extension
    keep the tenant derivation as the default.
@@ -182,8 +182,7 @@ once, then promote (or stay in-repo with a recorded justification).
 
 ## Implementation note (2026-10-12)
 
-Built in the Productivity OS Dogfood program (E4), and running against live Google Calendar, Gmail and company Slack
-connections in the dogfood instance.
+Built for Google Calendar, Gmail and Slack, and running against live connections in a deployment we operate.
 
 - **Provider operations are declared, and the generated action is the call path.** The
   `AshEnterprise.Integration.Nango` extension (`lib/ash_enterprise/integration/nango/`) turns each `operation` into an
@@ -211,4 +210,4 @@ connections in the dogfood instance.
   content).
 
 Not built: webhooks (everything polls), Nango-side syncs (deliberately: sync logic stays in Ash), and promoting the
-extension out of this app into its own package (AST-155).
+extension out of this app into its own package.

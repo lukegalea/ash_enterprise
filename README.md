@@ -36,16 +36,16 @@ This is the ledger. ✅ means built, covered by a named test, and running in a d
 code exists; ⚪ means a gap with no decision taken.
 
 <!-- roadmap:scoreboard:start -->
-**15 of 54** enterprise questions have a shipped answer.
+**14 of 54** enterprise questions have a shipped answer.
 
-✅ Shipped 15 · 🟡 Partial 23 · 🔵 Planned 5 · ⚪ Open 11
+✅ Shipped 14 · 🟡 Partial 24 · 🔵 Planned 5 · ⚪ Open 11
 <!-- roadmap:scoreboard:end -->
 
 <!-- roadmap:sections:start -->
 | Section | Shipped | Partial | Planned | Open |
 |---|---|---|---|---|
 | Who are you, and what may you do? | 4 | 4 | 0 | 2 |
-| What happened, and can you prove it? | 7 | 2 | 0 | 2 |
+| What happened, and can you prove it? | 6 | 3 | 0 | 2 |
 | Whose data is it? | 2 | 3 | 0 | 1 |
 | Where does data come from, and where does it go? | 0 | 4 | 3 | 2 |
 | How does it change, and keep running? | 2 | 7 | 2 | 1 |
@@ -76,7 +76,7 @@ code exists; ⚪ means a gap with no decision taken.
 | 36 | How long is evidence kept, and where does it live after ninety days? | Open. Nothing expires from `audit_events`, nothing is partitioned and nothing moves to cold storage: no migration creates a partition, and the one retention job in the codebase (`AshEnterprise.Lineage.Retention`, 14 days) prunes lineage rows, which are not the evidence. ADR 0024 accepts the design, monthly partitions with ninety days hot and detached partitions that still verify, and its erasure half is built; the partitioning half is not. A twelve-month SOC 2 window is retained because nothing deletes it, not because anything promises to keep it, and the immutability trigger now refuses the `DELETE` that a retention job would need. | ⚪ Open |
 | 37 | Are role and permission changes attributable to a person? | Shipped. Role assignments are ordinary audited resources, so granting one produces an event naming the grantor, the grantee and the correlation id of the request — and the record itself now carries `created_by_id`, which nothing populated before. | ✅ Shipped |
 | 38 | Where do logs go to be reviewed, and what raises an alarm? | Open. Everything is queryable in Postgres and nothing streams anywhere. Traces can leave through the OTLP exporter when an endpoint is set; the audit log cannot, and there is no collector, alert rule or anomaly rule. ADRs 0018 and 0025 are both still proposed. An auditor asks for evidence that logs are reviewed, not merely kept, and there is none: no review schedule, no rota, no ticket, no record of a human having looked. `ash_compliance` can raise a finding when a control's evidence goes stale, but this host does not schedule that sweep. | ⚪ Open |
-| 7 | Is every change recorded, including who and from where? | `AshEvents` writes a central append-only log on every create, update and destroy — inherited from the base resource, not wired per resource, so a new table cannot quietly have no history. | ✅ Shipped |
+| 7 | Is every change recorded, including who and from where? | `AshEvents` writes a central append-only log on every create, update and destroy — inherited from the base resource, not wired per resource, so a new table cannot quietly have no history. Who is recorded: the event names the acting user, and its metadata names a system actor, an automation principal and the person it acted for, or an impersonator, under a correlation id shared by every write of one request. Not recorded: where the change came from. No network address, user agent or client is captured, so a change can be tied to the request that made it but not to the place it was made from. | 🟡 Partial |
 | 8 | Can you follow one request across the whole system at 3am? | One correlation id per request, stamped into audit metadata and OTel spans, and carried across process boundaries explicitly. | ✅ Shipped |
 | 9 | Are illegal state transitions impossible, or merely discouraged? | `ash_state_machine` generates one named action per legal transition from the canonical Dataverse lifecycle. There is no generic `:update` that can set a state. | ✅ Shipped |
 | 12 | How are tenants separated? | Attribute multitenancy on `organization_id`, inherited by every resource — never schema-per-tenant, and never per-department. | ✅ Shipped |

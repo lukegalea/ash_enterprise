@@ -1,7 +1,7 @@
 # ADR 0042 — In-zone inference; leaving the zone is a disclosure
 
-- **Status:** accepted (2026-09-28); admission half built and in use for Gmail and Slack projection in the dogfood
-  deployment (2026-10-12); the flow rule — leaving the zone is a disclosure — not built
+- **Status:** accepted (2026-09-28); admission half built and in use for Gmail and Slack projection in a deployment
+  we operate (2026-10-12); the flow rule — leaving the zone is a disclosure — not built
 - **Date:** 2026-09-27
 - **Amended:** 2026-09-28 — rewritten zone-first. The residency binary becomes a declared zone with a jurisdiction and
   a classification ceiling; per-jurisdiction stacks, masking and hosted use are deferred, each with a named trigger;
@@ -237,13 +237,11 @@ DONE. Approved.").
   `Person` — is owner-only (`AshEnterprise.Security.Privilege.owner_only?/1`): grantable at `:basic` and no wider, so
   no Administrator and no manager through hierarchy security reads another user's mail or Slack. Existing wider
   grants are narrowed by `Seeder.seed_privileges/0`.
-- **Every Slack conversation kind.** Slack projection covers public and private channels, group DMs and DMs (operator
-  request, 2026-10-12: "include DMs and private channels too"), through the same gate, sealed under the same scope and
+- **Every Slack conversation kind.** Slack projection covers public and private channels, group DMs and DMs, through
+  the same gate, sealed under the same scope and
   owner-only. `Conversation.kind` records which; a DM is titled with the other participants' names, sealed.
-- **In use** in the operator's dogfood deployment: a declared single-operator zone (jurisdiction `CA-ON`, ceiling
-  `customer_confidential`, `US` inadmissible) whose controls are recorded as *operator to confirm* until verified; a
-  personal Gmail and Google Calendar tagged `internal` / `CA`, and a company Slack tagged `customer_confidential` /
-  `CA` (residency confirmed by the operator, 2026-10-12).
+- **In use** in a deployment we operate: one declared zone whose controls are recorded as *operator to confirm*
+  until verified, with each linked account tagged by the operator before anything it syncs is projected.
 
 **Deviations from the decision as written.**
 
@@ -254,8 +252,7 @@ DONE. Approved.").
 - Tags live on the linked account and are derived for each record, rather than stored on every row. A re-tag changes
   what the next projection admits; it does not withdraw rows already projected (shred the scope for that).
 
-**Built: the flow guard, a minimal slice (2026-10-12).** Operator direction the same day: remove OpenRouter from
-dogfood; "splash is in zone".
+**Built: the flow guard, a minimal slice (2026-10-12).**
 
 - **One resolver for the application's own model calls** (`AshEnterprise.AI.Models`). A target is in-zone only if it is
   the operator's **in-zone generative profile** — an OpenAI-compatible runtime named by `S1_GEN_BASE_URL` +
@@ -274,10 +271,8 @@ dogfood; "splash is in zone".
   duration, token counts, and for a failure its error class. Never a prompt, an output or an error message.
   Append-only (no update, no destroy), not mirrored into the event log; the audited action that made the call carries
   the same correlation id.
-- **In use** in dogfood: the helper's model is the in-zone runtime "splash" (Qwen3.8-27B, OpenAI-compatible, a member
-  of the dogfood zone declaration by operator statement 2026-10-12), the guard is on, and the OpenRouter key is
-  removed from the deployment's environment. Tool calling against it is measured in
-  [docs/research/splash-tool-calling.md](../research/splash-tool-calling.md).
+- **In use** in a deployment we operate: the helper's model is an in-zone OpenAI-compatible runtime that the zone
+  declaration names, the guard is on, and no hosted-model key is in the deployment's environment.
 
 **Built: the assistant at `/app/agent` (2026-10-17, E10.1/E10.2; on agent runs since AGT-33).** Each answer is a
 run of `AshEnterprise.Assistant.Agent` (ADR 0056), whose every step calls the in-zone profile only, through

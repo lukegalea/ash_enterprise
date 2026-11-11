@@ -25,16 +25,16 @@ every ⚪ row below.
 README. Edit the JSON, never the table.
 
 <!-- roadmap:scoreboard:start -->
-**15 of 54** enterprise questions have a shipped answer.
+**14 of 54** enterprise questions have a shipped answer.
 
-✅ Shipped 15 · 🟡 Partial 23 · 🔵 Planned 5 · ⚪ Open 11
+✅ Shipped 14 · 🟡 Partial 24 · 🔵 Planned 5 · ⚪ Open 11
 <!-- roadmap:scoreboard:end -->
 
 <!-- roadmap:sections:start -->
 | Section | Shipped | Partial | Planned | Open |
 |---|---|---|---|---|
 | Who are you, and what may you do? | 4 | 4 | 0 | 2 |
-| What happened, and can you prove it? | 7 | 2 | 0 | 2 |
+| What happened, and can you prove it? | 6 | 3 | 0 | 2 |
 | Whose data is it? | 2 | 3 | 0 | 1 |
 | Where does data come from, and where does it go? | 0 | 4 | 3 | 2 |
 | How does it change, and keep running? | 2 | 7 | 2 | 1 |
@@ -63,7 +63,7 @@ README. Edit the JSON, never the table.
 
 | # | Question | Our answer | Status | Proven by |
 |---|---|---|---|---|
-| 7 | Is every change recorded, including who and from where? | `AshEvents` writes a central append-only log on every create, update and destroy — inherited from the base resource, not wired per resource, so a new table cannot quietly have no history. | ✅ Shipped | `test/ash_enterprise/audit/every_write_test.exs`<br />“a create, an update and a destroy each write one event, on a resource that wires nothing for it” |
+| 7 | Is every change recorded, including who and from where? | `AshEvents` writes a central append-only log on every create, update and destroy — inherited from the base resource, not wired per resource, so a new table cannot quietly have no history. Who is recorded: the event names the acting user, and its metadata names a system actor, an automation principal and the person it acted for, or an impersonator, under a correlation id shared by every write of one request. Not recorded: where the change came from. No network address, user agent or client is captured, so a change can be tied to the request that made it but not to the place it was made from. | 🟡 Partial | `test/ash_enterprise/audit/every_write_test.exs`<br />“assigning a role records the grantor, the grantee and the request's correlation id” |
 | 8 | Can you follow one request across the whole system at 3am? | One correlation id per request, stamped into audit metadata and OTel spans, and carried across process boundaries explicitly. | ✅ Shipped | `test/ash_enterprise/platform/correlation_test.exs`<br />“with_correlation/2 joins work done in another scope” |
 | 9 | Are illegal state transitions impossible, or merely discouraged? | `ash_state_machine` generates one named action per legal transition from the canonical Dataverse lifecycle. There is no generic `:update` that can set a state. | ✅ Shipped | `test/ash_enterprise/platform/lifecycle_test.exs`<br />“an illegal transition is rejected” |
 | 10 | Can a deletion be undone? | A destroy archives the row instead of deleting it: `ash_archival` soft delete, inherited from the base resource, with an explicit `archival?: false` that a reviewer can grep for. Partial because reversal is not a feature: there is no restore action anywhere in `lib/`, so undoing a deletion is an operator's database operation, and I found no test that asserts an archived row is retained and can be brought back. | 🟡 Partial | `lib/ash_enterprise/platform/resource.ex` |

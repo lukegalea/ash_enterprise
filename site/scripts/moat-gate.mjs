@@ -3,15 +3,22 @@
  * moat-gate.mjs — fail when private-domain terms appear in what the site
  * publishes: the synced docs, the hand-written pages and the built output.
  *
- * The terms are NOT in this repository. They arrive in the MOAT_TERMS
+ * The private terms are NOT in this repository. They arrive in the MOAT_TERMS
  * environment variable (a repository Actions secret), one case-insensitive
  * regular expression per line; blank lines and lines starting with `#` are
  * ignored. A `\b` matches at a letter/digit edge only, so `_`, `-` and `.`
  * separate words (`acme_widget` contains the word `acme`).
  *
- * With MOAT_TERMS unset or empty (forks, pull requests) the gate says so and
- * passes. A hit is reported by file and line only: the matched text and the
- * pattern are never printed, because the log of a public repository is public.
+ * PUBLIC_TERMS below are checked always, secret or not. They are not private
+ * words, so they can live here: they are the names of a deployment we operate,
+ * which the site describes only as "a deployment we operate". A page that names
+ * it tells a reader which one it is.
+ *
+ * With MOAT_TERMS unset or empty (forks, pull requests) the private half says so
+ * and is skipped; inside GitHub Actions that is a warning annotation, so a deploy
+ * that ran without the secret is visible on the run. A hit is reported by file
+ * and line only: the matched text and the pattern are never printed, because the
+ * log of a public repository is public.
  *
  * Usage: node scripts/moat-gate.mjs   (run from site/, after `npm run build`)
  */
@@ -25,6 +32,9 @@ const ROOTS = ['src/content/docs', 'src/pages', 'src/components', 'dist'];
 /** Vendored or bundled code under dist/ is not our text: the search index runtime matches on its minified source. */
 const SKIP_UNDER_DIST = ['dist/pagefind', 'dist/_astro'];
 const TEXT_EXT = new Set(['.md', '.mdx', '.astro', '.html', '.xml', '.txt', '.json', '.js', '.mjs', '.css', '.svg', '.ts']);
+
+/** Always checked; see the header. `\bdogfood\b` leaves "dogfooding", the practice, alone. */
+const PUBLIC_TERMS = ['\\bdogfood\\b'];
 
 const ALNUM_BOUNDARY = '(?:(?<![A-Za-z0-9])(?=[A-Za-z0-9])|(?<=[A-Za-z0-9])(?![A-Za-z0-9]))';
 
@@ -52,11 +62,12 @@ async function* walk(dir) {
 
 async function main() {
   const raw = process.env.MOAT_TERMS ?? '';
-  const terms = compileTerms(raw);
-  if (terms.length === 0) {
-    console.log('moat-gate: MOAT_TERMS is not set (fork or pull request); skipped.');
-    return 0;
+  const privateTerms = compileTerms(raw);
+  if (privateTerms.length === 0) {
+    const note = 'moat-gate: MOAT_TERMS is not set (fork or pull request); private terms skipped.';
+    console.log(process.env.GITHUB_ACTIONS ? `::warning::${note}` : note);
   }
+  const terms = [...compileTerms(PUBLIC_TERMS.join('\n')), ...privateTerms];
 
   let files = 0;
   const hits = [];
@@ -77,7 +88,9 @@ async function main() {
     for (const hit of hits.slice(0, 200)) console.error(`  ${hit}`);
     return 1;
   }
-  console.log(`moat-gate: ${terms.length} term(s), ${files} file(s) scanned, no hits.`);
+  console.log(
+    `moat-gate: ${PUBLIC_TERMS.length} public and ${privateTerms.length} private term(s), ${files} file(s) scanned, no hits.`,
+  );
   return 0;
 }
 

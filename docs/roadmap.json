@@ -101,11 +101,10 @@
       "id": "q7",
       "section": "evidence",
       "question": "Is every change recorded, including who and from where?",
-      "answer": "`AshEvents` writes a central append-only log on every create, update and destroy — inherited from the base resource, not wired per resource, so a new table cannot quietly have no history.",
-      "status": "shipped",
+      "answer": "`AshEvents` writes a central append-only log on every create, update and destroy — inherited from the base resource, not wired per resource, so a new table cannot quietly have no history. Who is recorded: the event names the acting user, and its metadata names a system actor, an automation principal and the person it acted for, or an impersonator, under a correlation id shared by every write of one request. Not recorded: where the change came from. No network address, user agent or client is captured, so a change can be tied to the request that made it but not to the place it was made from.",
+      "status": "partial",
       "proof": "test/ash_enterprise/audit/every_write_test.exs",
-      "test": "a create, an update and a destroy each write one event, on a resource that wires nothing for it",
-      "built": "b9c0cec3"
+      "test": "assigning a role records the grantor, the grantee and the request's correlation id"
     },
     {
       "id": "q8",
@@ -565,7 +564,7 @@
       "choice": "Nango for the provider edge only",
       "adr": "0011",
       "status": "partial",
-      "effort": "Built for Google Calendar, Gmail and Slack (E4, 2026-10-12) and running against live connections in the dogfood instance: provider operations are declared and generated as Ash actions that call Nango's proxy (`AshEnterprise.Integration.Nango`), an Oban cron scheduler runs one sync step per linked account, and everything a sync lands is sealed under that account's erasure scope (ADR 0024). Not built: webhooks (everything polls), a production Nango deployment (deploy/nango.yml is loopback-only), and promoting the extension into its own package.",
+      "effort": "Built for Google Calendar, Gmail and Slack (2026-10-12) and running against live connections in a deployment we operate: provider operations are declared and generated as Ash actions that call Nango's proxy (`AshEnterprise.Integration.Nango`), an Oban cron scheduler runs one sync step per linked account, and everything a sync lands is sealed under that account's erasure scope (ADR 0024). Not built: webhooks (everything polls), a production Nango deployment (deploy/nango.yml is loopback-only), and promoting the extension into its own package.",
       "bar": "Yes, with one load-bearing rule: the Nango connection id is never an action argument — it is resolved inside the action from the actor's own linked account (ADR 0011, deviation 1). Otherwise the policy engine authorizes the operation while the caller picks whose credentials to spend. The residual is stated, not wrapped away: anyone holding the Nango secret key bypasses every policy."
     },
     {

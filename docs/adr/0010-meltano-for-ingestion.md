@@ -156,7 +156,7 @@ their producer and should be reconsidered rather than left in place describing m
 
 ## Implementation note (2026-10-12)
 
-Built in the Productivity OS Dogfood program (epic E1, then E4). The tool choice held; the boundary was built
+Built for a deployment we operate. The tool choice held; the boundary was built
 differently from the Decision above, and this note records how, rather than rewriting the Decision.
 
 **What was built** (`lib/ash_enterprise/ingestion/`, `test/ash_enterprise/ingestion_test.exs`):

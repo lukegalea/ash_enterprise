@@ -187,11 +187,16 @@ const btn =
               class="font-semibold text-ae-ink">Evidence of review</strong
             > had no question at all — logs existed, were complete, were protected, and nobody was
             reading them, which is the single most common finding in a real engagement. And <strong
-              class="font-semibold text-ae-ink">cryptography appears in three places</strong
-            >: a SHA-256 hash chain over the audit log, AES-256-GCM sealing under per-scope keys for
-            crypto-shredding (ADR 0024), and bcrypt password hashes. Disk and database encryption,
-            transport security and custody of the master key belong to the deployment, and this
-            repository says nothing about them.
+              class="font-semibold text-ae-ink">cryptography is standard primitives for a few named
+              jobs</strong
+            >: a SHA-256 hash chain over the audit log; AES-256-GCM sealing under per-scope keys for
+            crypto-shredding (ADR 0024); HMAC-SHA256, both for keyed digests that cannot be reversed
+            by guessing the input (sub-keys of an erasure scope's key, invocation argument digests,
+            master-data assertion digests) and for checking signed provider webhooks; bcrypt password
+            hashes; and the signed session tokens and cookies that ash_authentication and Phoenix
+            provide. Everywhere else SHA-256 is a content fingerprint, not a secret. Disk and
+            database encryption, transport security and custody of the master key belong to the
+            deployment, and this repository says nothing about them.
           </p>
           <p>
             Both are rows on the ledger rather than absences nobody had named, which is the only
