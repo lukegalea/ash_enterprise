@@ -2,7 +2,8 @@ defmodule AshEnterprise.Security.Validations.BreakGlassTerms do
   @moduledoc """
   The terms a break-glass session must meet before a row exists:
 
-    * the operator is a person (the actor) and is not the subject;
+    * the operator is a person (the actor) acting as themselves, not an impersonating
+      actor, and is not the subject;
     * the approver exists, is active, and is neither the operator nor the subject;
     * the subject exists and is active;
     * the duration is between 1 and `BreakGlassSession.max_minutes/0` minutes.
@@ -12,12 +13,13 @@ defmodule AshEnterprise.Security.Validations.BreakGlassTerms do
   use Ash.Resource.Validation
 
   alias AshEnterprise.Accounts.User
+  alias AshEnterprise.Security.Impersonation
   alias AshEnterprise.Security.BreakGlassSession
 
   @impl true
   def validate(changeset, _opts, context) do
     terms = %{
-      operator_id: actor_id(context.actor),
+      operator_id: operator_id(context.actor),
       subject_id: Ash.Changeset.get_attribute(changeset, :subject_id),
       approver_id: Ash.Changeset.get_attribute(changeset, :approver_id),
       minutes: Ash.Changeset.get_argument(changeset, :duration_minutes)
@@ -59,6 +61,12 @@ defmodule AshEnterprise.Security.Validations.BreakGlassTerms do
   end
 
   defp error(field, message), do: {:error, field: field, message: message}
+
+  # An impersonating actor carries the subject's struct; the person at the keyboard is the
+  # operator behind it, so it is no one who can open a session here.
+  defp operator_id(actor) do
+    if Impersonation.impersonating?(actor), do: nil, else: actor_id(actor)
+  end
 
   defp actor_id(%User{id: id}), do: id
   defp actor_id(_), do: nil

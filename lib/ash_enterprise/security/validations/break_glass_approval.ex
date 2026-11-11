@@ -2,7 +2,8 @@ defmodule AshEnterprise.Security.Validations.BreakGlassApproval do
   @moduledoc """
   The terms on which a break-glass session is approved:
 
-    * the actor is a person, and is the approver the session names;
+    * the actor is a person acting as themselves, not an impersonating actor, and is the
+      approver the session names (an operator acting as the approver is the operator);
     * the approver is neither the operator nor the subject;
     * the session is active, not yet approved, and not past `expires_at`;
     * the approver is still an active user.
@@ -13,12 +14,19 @@ defmodule AshEnterprise.Security.Validations.BreakGlassApproval do
   use Ash.Resource.Validation
 
   alias AshEnterprise.Accounts.User
+  alias AshEnterprise.Security.Impersonation
 
   @impl true
   def validate(changeset, _opts, context) do
     session = changeset.data
     actor_id = actor_id(context.actor)
 
+    if Impersonation.impersonating?(context.actor),
+      do: error("an impersonating actor cannot approve; the approver must act as themselves"),
+      else: check(session, actor_id)
+  end
+
+  defp check(session, actor_id) do
     [
       &named_approver/2,
       &distinct_parties/2,

@@ -34,7 +34,8 @@ impersonation recorded who acted but not whether it was allowed.
    active person, and only that stamps `approved_at`; `Impersonation.break_glass/3` returns an impersonating actor only
    while a session is approved, active and unexpired. This is a state on the session (requested, then approved) rather
    than a governed invocation (ADR 0055): the approval is one fact about one row, the audit trail already records both
-   writes, and nothing else needs the invocation machinery.
+   writes, and nothing else needs the invocation machinery. An impersonating actor can neither open nor approve a
+   session: the person at the keyboard is the operator behind it, so acting as the named approver is not approval.
 
 ## Consequences
 

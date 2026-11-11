@@ -204,6 +204,41 @@ defmodule AshEnterprise.Security.BreakGlassTest do
                Impersonation.break_glass(ctx.subject.user, ctx.operator.user)
     end
 
+    test "an operator acting as the named approver cannot approve their own session", ctx do
+      session = open!(ctx)
+      # The operator already holds a live session acting as the approver, so the actor is the
+      # approver's struct with the operator in metadata.
+      as_approver = Impersonation.acting_as(ctx.approver.actor, ctx.operator.user)
+      assert Impersonation.impersonating?(as_approver)
+
+      assert {:error, _} = approve(session, as_approver)
+
+      assert {:error, :no_live_session} =
+               Impersonation.break_glass(ctx.subject.user, ctx.operator.user)
+
+      # Control: the approver themselves, not impersonated, still approves.
+      assert {:ok, _} = approve(session, ctx.approver.actor)
+    end
+
+    test "an impersonating actor cannot open a session either", ctx do
+      colleague = member!(ctx.admin, "Colleague #{System.unique_integer([:positive])}", @grants)
+      as_colleague = Impersonation.acting_as(colleague.actor, ctx.operator.user)
+
+      assert {:error, _} =
+               BreakGlassSession
+               |> Ash.Changeset.for_create(
+                 :open,
+                 %{
+                   subject_id: ctx.subject.user.id,
+                   approver_id: ctx.approver.user.id,
+                   reason: "Customer reported a failed import; ticket 4521",
+                   duration_minutes: 30
+                 },
+                 actor: as_colleague
+               )
+               |> Ash.create()
+    end
+
     test "a system actor cannot approve", ctx do
       assert {:error, _} = approve(open!(ctx), SystemActor.seed())
     end
