@@ -13,8 +13,7 @@ defmodule AshEnterprise.Security.Validations.BreakGlassTerms do
   use Ash.Resource.Validation
 
   alias AshEnterprise.Accounts.User
-  alias AshEnterprise.Security.Impersonation
-  alias AshEnterprise.Security.BreakGlassSession
+  alias AshEnterprise.Security.{BreakGlassSession, Impersonation}
 
   @impl true
   def validate(changeset, _opts, context) do
