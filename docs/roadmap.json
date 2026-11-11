@@ -231,11 +231,13 @@
       "id": "q21",
       "section": "flow",
       "question": "The same customer arrived from three systems — which one is real?",
-      "answer": "In-Ash resolution is built. Source records land with temporal history; deterministic and fuzzy matching are banded by a DMN table; a steward queue takes person-gated verdicts; and a merge picks a winner per attribute, records the provenance of each choice, repoints the source identities and can be unmerged, all under one correlation id. The golden record is an ordinary platform resource, so it inherits ownership, tenancy, audit and policy. Not built: a survivorship rule that ranks sources, which a merge refuses as unavailable (`source_rank`).",
-      "status": "partial",
+      "answer": "In-Ash resolution is built. Source records land with temporal history; deterministic and fuzzy matching are banded by a DMN table; a steward queue takes person-gated verdicts; and a merge picks a winner per attribute under the tenant's survivorship policy, which can rank sources (`source_rank`), records the provenance of each choice with the source and statement it came from, repoints the source identities and can be unmerged, all under one correlation id. The golden record is an ordinary platform resource, so it inherits ownership, tenancy, audit and policy.",
+      "status": "shipped",
       "adr": "0017",
       "item": "mdm",
-      "proof": "test/ash_enterprise/mdm/merge_test.exs"
+      "proof": "test/ash_enterprise/mdm/refold_test.exs",
+      "test": "source_rank works on a merge, and names the winning source",
+      "built": "ed8582bd"
     },
     {
       "id": "q22",
@@ -338,11 +340,11 @@
       "id": "q32",
       "section": "identity",
       "question": "Who may act as someone else, and is that recorded differently from acting as yourself?",
-      "answer": "Acting as someone else is gated, recorded and expiring. The record's `created_on_behalf_by_id` names the operator while `created_by_id` names the customer, and every audit event carries `impersonator_id`. A break-glass session names the operator, the person acted as, a written reason of at least 10 characters, a named approver and an expiry (240 minutes at most, host-configurable). Opening one is a request; it is live only after the named approver approves it, a separate audited act by an active person who is neither the operator nor the subject. Opening and approving need a grant and a human actor, never a system actor or an impersonating one. The session ends at its expiry instant, when ended, or when the operator or subject is deactivated.",
-      "status": "partial",
+      "answer": "Acting as someone else is gated, recorded and expiring. The record's `created_on_behalf_by_id` names the operator while `created_by_id` names the customer, and every audit event carries `impersonator_id`. A break-glass session names the operator, the person acted as, a written reason of at least 10 characters, a named approver and an expiry (240 minutes at most, host-configurable). Opening one is a request; it is live only after the named approver approves it, a separate audited act by an active person who is neither the operator nor the subject. Opening and approving need a grant and a human actor, never a system actor or an impersonating one. The session ends at its expiry instant, when ended, or when the operator or subject is deactivated. Not built: telling the account owner when a session opens.",
+      "status": "shipped",
       "proof": "test/ash_enterprise/security/break_glass_test.exs",
       "item": "break-glass",
-      "test": "the named approver approving makes it live and is audited",
+      "test": "a live session yields an actor attributed to the operator",
       "built": "88bde1cd"
     },
     {
@@ -712,7 +714,7 @@
       "priority": 2,
       "choice": "In-Ash: a session resource with a stated reason",
       "status": "partial",
-      "effort": "Attribution shipped — records and events name both the customer and the operator. Remaining: a session resource carrying who, whom, when, why and for how long; a privilege gating it; and a notification to the account owner, which is the control customers actually ask for.",
+      "effort": "Built: attribution on records and events, and a session resource carrying who, whom, why, the approver and the expiry, gated by a privilege and by a second person's approval. Remaining: a notification to the account owner, which is the control customers actually ask for.",
       "bar": "No external tool. Who may act as whom is an authorization question, and this platform already has exactly one place authorization is expressed."
     },
     {

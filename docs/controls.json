@@ -63,7 +63,7 @@
       "name": "Access is modified and removed on a role change",
       "asks": "Access rights are added, modified and removed based on roles, and changes are authorized.",
       "questions": ["q2", "q4", "q37", "q32"],
-      "note": "A role assignment is an ordinary audited resource, so a grant produces an event naming grantor, grantee and request. Impersonation is attributed but not yet gated (q32)."
+      "note": "A role assignment is an ordinary audited resource, so a grant produces an event naming grantor, grantee and request. Impersonation is attributed, and a break-glass session gates it behind a reason, a second person's approval and an expiry (q32)."
     },
     {
       "id": "CC7.2",
