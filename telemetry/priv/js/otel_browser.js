@@ -30,6 +30,7 @@ import {
   connectSpanName,
   createInteractionTracker,
   createSocketTracing,
+  RedactPathAttributes,
   toTraceparent
 } from "./socket_tracing.js"
 
@@ -57,7 +58,11 @@ export function startBrowserTracing({
 
   const provider = new WebTracerProvider({
     resource: resourceFromAttributes({"service.name": serviceName}),
-    spanProcessors: [new BatchSpanProcessor(exporter, {scheduledDelayMillis: 200})]
+    // Redaction first: span processors run in order, and the batch exports what it is given.
+    spanProcessors: [
+      new RedactPathAttributes(),
+      new BatchSpanProcessor(exporter, {scheduledDelayMillis: 200})
+    ]
   })
   provider.register()
 

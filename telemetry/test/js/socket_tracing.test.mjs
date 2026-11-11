@@ -13,7 +13,9 @@ import {
   createInteractionTracker,
   connectSpanName,
   createSocketTracing,
-  normalizePath
+  normalizePath,
+  RedactPathAttributes,
+  redactPathTokens
 } from "../../priv/js/socket_tracing.js"
 
 const fakeTracer = () => {
@@ -379,4 +381,56 @@ test("the usage comments give the path a sparse git dependency lands at", () => 
     const source = readFileSync(new URL(`../../priv/js/${file}`, import.meta.url), "utf8")
     assert.match(source, /deps\/ash_enterprise_telemetry\/telemetry\/priv\/js\//, file)
   }
+})
+
+const TOKEN = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOjF9.c2lnbmF0dXJlMTIz"
+const RESET = "Xq3v9TzK1mNp7RwB2yLc"
+
+test("normalizePath replaces token-like segments, leaving words and ids their shape", () => {
+  assert.equal(normalizePath(`/password-reset/${RESET}`), "/password-reset/:token")
+  assert.equal(normalizePath(`/auth/magic/${TOKEN}/sign-in`), "/auth/magic/:token/sign-in")
+  assert.equal(normalizePath("/admin/business-units/new"), "/admin/business-units/new")
+  assert.equal(normalizePath("/pages/a-very-long-readable-page-slug"), "/pages/a-very-long-readable-page-slug")
+  assert.equal(normalizePath("/items/42"), "/items/:id")
+})
+
+test("the connect span's name carries no path token", () => {
+  assert.equal(connectSpanName(`/confirm/${RESET}`), "/confirm/:token lv.connect")
+})
+
+test("redactPathTokens removes a token from a full URL and keeps host, ids and query", () => {
+  assert.equal(
+    redactPathTokens(`https://app.example.com/reset/${RESET}?next=/home`),
+    "https://app.example.com/reset/:token?next=/home"
+  )
+  assert.equal(redactPathTokens("http://127.0.0.1:4000/items/42"), "http://127.0.0.1:4000/items/42")
+})
+
+test("RedactPathAttributes rewrites url.full, url.path and http.target before export", () => {
+  const span = {
+    name: "documentLoad",
+    attributes: {
+      "url.full": `https://app.example.com/reset/${RESET}`,
+      "url.path": `/reset/${RESET}`,
+      "http.target": `/magic/${TOKEN}`,
+      "http.response.status_code": 200
+    }
+  }
+
+  new RedactPathAttributes().onEnd(span)
+
+  assert.deepEqual(span.attributes, {
+    "url.full": "https://app.example.com/reset/:token",
+    "url.path": "/reset/:token",
+    "http.target": "/magic/:token",
+    "http.response.status_code": 200
+  })
+  assert.equal(JSON.stringify(span).includes(RESET), false)
+})
+
+test("the browser provider runs the redaction before the exporting processor", () => {
+  const source = readFileSync(new URL("../../priv/js/otel_browser.js", import.meta.url), "utf8")
+  const processors = source.slice(source.indexOf("spanProcessors:"))
+  assert.ok(processors.indexOf("new RedactPathAttributes()") >= 0)
+  assert.ok(processors.indexOf("new RedactPathAttributes()") < processors.indexOf("new BatchSpanProcessor("))
 })

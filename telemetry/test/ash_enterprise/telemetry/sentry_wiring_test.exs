@@ -130,6 +130,33 @@ defmodule AshEnterprise.Telemetry.SentryWiringTest do
       assert result.request.url == "https://app.test/reset"
     end
 
+    test "a token in the url's path is redacted" do
+      request = %Sentry.Interfaces.Request{
+        url: "https://app.test/password-reset/Xq3v9TzK1mNp7RwB2yLc?next=/app",
+        data: %{}
+      }
+
+      result = SentryWiring.before_send(event(request: request))
+
+      assert result.request.url == "https://app.test/password-reset/:token"
+    end
+
+    test "key and signature headers are filtered" do
+      request = %Sentry.Interfaces.Request{
+        headers: %{
+          "x-webhook-key" => "whk-secret",
+          "x-hub-signature-256" => "sha256=sig-secret",
+          "accept" => "application/json"
+        }
+      }
+
+      result = SentryWiring.before_send(event(request: request))
+
+      assert result.request.headers["x-webhook-key"] == "[Filtered]"
+      assert result.request.headers["x-hub-signature-256"] == "[Filtered]"
+      assert result.request.headers["accept"] == "application/json"
+    end
+
     test "a request with no body is still scrubbed" do
       request = %Sentry.Interfaces.Request{query_string: "token=abc123", cookies: %{"s" => "1"}}
 

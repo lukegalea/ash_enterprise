@@ -65,7 +65,7 @@ defmodule AshEnterprise.Telemetry.SentryWiring do
   alias AshEnterprise.Telemetry.Settings
 
   @filtered "[Filtered]"
-  @sensitive_key ~r/pass|secret|token|auth|cookie|session|csrf|email|phone|ssn|credit|card|api[_-]?key|bearer|referr?er|forwarded|real[_-]?ip|remote[_-]?(?:addr|port)|_traceparent/i
+  @sensitive_key ~r/pass|secret|token|auth|cookie|session|csrf|email|phone|ssn|credit|card|api[_-]?key|(?:^|[_-])key|signature|bearer|referr?er|forwarded|real[_-]?ip|remote[_-]?(?:addr|port)|_traceparent/i
   @crash_tail ~r/\n(?:Last message|State:|Function:|\s+Args:)/
   @tuple_reason ~r/(\*\* \(stop\) \{:?[\w.]+).*/s
   @process_data [
@@ -352,8 +352,9 @@ defmodule AshEnterprise.Telemetry.SentryWiring do
     end
   end
 
+  # The query and fragment go, and token-like path segments with them.
   defp strip_query(url) when is_binary(url) do
-    url |> String.split(["?", "#"], parts: 2) |> hd()
+    url |> String.split(["?", "#"], parts: 2) |> hd() |> Sanitize.path()
   end
 
   defp strip_query(url), do: url

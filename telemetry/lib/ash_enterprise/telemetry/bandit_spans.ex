@@ -61,7 +61,10 @@ defmodule AshEnterprise.Telemetry.BanditSpans do
           config
         )
 
-        if suffix == :start, do: scrub_query(meta)
+        if suffix == :start do
+          scrub_query(meta)
+          scrub_path(meta)
+        end
     end
 
     :ok
@@ -84,6 +87,16 @@ defmodule AshEnterprise.Telemetry.BanditSpans do
   end
 
   defp scrub_query(_meta), do: :ok
+
+  # The span opens before the router has matched a route, so `url.path` starts as the
+  # raw request path and a token in it would leave with the span. Redact it here; a
+  # host that knows the route can replace it with the template later in the request
+  # (the span is open until the stop event).
+  defp scrub_path(%{conn: %{request_path: path}}) when is_binary(path) do
+    OpenTelemetry.Tracer.set_attribute(:"url.path", Sanitize.truncate(Sanitize.path(path), 2_048))
+  end
+
+  defp scrub_path(_meta), do: :ok
 
   defp dropped?(%{conn: %{request_path: path}}), do: path in Settings.dropped_paths()
   defp dropped?(_meta), do: false

@@ -95,6 +95,33 @@ defmodule AshEnterprise.Telemetry.Sanitize do
   end
 
   @doc """
+  A path with token-like segments removed.
+
+  The auth routes carry live reset, confirm and magic-link tokens in the path. A
+  segment of the base64url/hex/JWT alphabet, long enough that it cannot be a word
+  and carrying both a letter and a digit, is machine-generated: it goes, and
+  readable slugs and numeric record ids keep their shape.
+  """
+  @spec path(binary()) :: binary()
+  def path(path) when is_binary(path) do
+    path
+    |> String.split("/")
+    |> Enum.map(&path_segment/1)
+    |> Enum.join("/")
+  end
+
+  @token_like ~r/\A[A-Za-z0-9_.\-]{20,}\z/
+  @letter ~r/[A-Za-z]/
+  @digit ~r/\d/
+
+  defp path_segment(segment) do
+    if Regex.match?(@token_like, segment) and Regex.match?(@letter, segment) and
+         Regex.match?(@digit, segment),
+       do: ":token",
+       else: segment
+  end
+
+  @doc """
   A query string with its parameter names and none of its values.
 
   A bare segment could be the secret itself, so only `name=value` keeps its name.
