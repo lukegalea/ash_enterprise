@@ -1,0 +1,23 @@
+// A dev container for ash_enterprise: a plain Ubuntu image that installs Nix
+// and devenv, then builds the project's own devenv.nix. Everything the project
+// needs (Erlang, Elixir, Node, PostgreSQL 18) still comes from devenv.nix; this
+// directory only gets a container to the point where `devenv shell` works.
+//
+// postCreate installs the toolchain, starts PostgreSQL and runs `mix setup`.
+// postStart brings PostgreSQL back on later starts. Neither starts Phoenix:
+// `mix phx.server` holds the _build lock, which blocks every other mix
+// command (see CLAUDE.md). Start it by hand with `devenv shell -- iex-server`.
+{
+  "name": "ash_enterprise",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+  "postStartCommand": "bash .devcontainer/post-start.sh",
+  "remoteEnv": {
+    "NIX_CONFIG": "extra-experimental-features = nix-command flakes",
+    "NIX_REMOTE": "daemon"
+  },
+  "forwardPorts": [4000],
+  "portsAttributes": {
+    "4000": { "label": "Phoenix (started by hand)", "onAutoForward": "silent" }
+  }
+}
