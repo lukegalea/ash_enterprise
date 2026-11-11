@@ -68,7 +68,9 @@ MFA. The hash on a finding must be traceable to an active `PolicyBundle` row
    (`documentation/topics/layering-and-combining.md`) first and the scheme
    second — a new scheme module for a new program, never an edit to
    `Layering.Default` that moves existing bundles.
-3. **Waivers are bounded, approved and offset.** `expires_at`, `approver` and
+3. **Waivers are bounded, approved and offset.** `expires_at`, `approver`,
+   `requested_by` (a different person from the approver, decided by
+   `Processes.SeparationOfDuties`) and
    `compensating_controls` (at least one) are validation-enforced. Expiry is
    evaluated against the *compile clock*: an expired waiver is excluded from
    resolution entirely, so a waiver lapsing returns its rule to the effective
@@ -201,6 +203,18 @@ the `ash_rules` tool to dry-evaluate a bundle before proposing a revision.
 data — propose changes as new revisions through the domain interfaces, never
 by rewriting `rules_json` in place.)
 
+## Declaring environments and controls
+
+Two Spark extensions, one direction of dependency. `AshCompliance.Boundary`
+declares `:production` and `:non_production` environments and their resources
+and knows nothing about audits; use it alone with
+`use AshCompliance.Boundary.Production`.
+`AshCompliance.Boundary.Controls` adds `audited_environments` and `control`
+links and reads those facts. `use AshCompliance.Boundary.Declaration` includes
+both. Never reference the controls from the production modules. Run
+`mix ash.codegen` after any change and commit the JSON; `--check` gates CI.
+See `documentation/topics/boundary.md`.
+
 ## Pin note
 
 Not on Hex. GitHub dependency, and the repository is private:
@@ -212,3 +226,14 @@ Not on Hex. GitHub dependency, and the repository is private:
 `ash_rules` (itself a private GitHub dep) arrives transitively — one PAT
 covers both, but CI needs the git rewrite configured before `mix deps.get`
 (see this repo's workflow's "Give mix access to private git deps" step).
+
+## Evidence producers and the control-file check
+
+`mix ash_compliance.controls.check` passes a producer that merely exists.
+Turn on the real test with `--require-producer-proof` (or
+`require_producer_proof: true` to `Ownership.Check.run/2`): each `module:` or
+`mix:` producer must export `evidence_controls/0` returning the criterion ids
+it records evidence for. Add the function in the same change that makes the
+producer call the evidence writer, then keep the flag on in CI. A `file:`
+producer is never proven. A freshness waiver silences only with a requester
+different from its approver and a window of at most 90 days.
