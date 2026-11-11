@@ -140,8 +140,14 @@ defmodule AshEnterprise.Security.Policies do
         # contributes a disjunct covering the policies declared *after* it -- so a bypass
         # skips only what follows. This policy set is injected by `use`, ahead of anything a
         # resource adds for itself, which means an engine bypass declared by `ash_bpmn` on its
-        # own resources lands second and never fires. A work item sitting on this base
-        # resource would refuse the engine that has to write it.
+        # own resources lands second. A work item sitting on this base resource would refuse
+        # the engine that has to write it.
+        #
+        # The host's process and decision resources pass `policies?: false` to the packages'
+        # macros, so these narrowed bypasses are the engines' only ones. The macros' own
+        # bypass authorizes `always()`: landing last, it was the one policy left for a call no
+        # earlier policy applies to, such as an automation principal on a `human_only` action,
+        # and it let an engine-marked call carrying one decide a person's task.
         #
         # ADR 0009 gives two ways out and this is the one it prefers. The alternative --
         # `config :ash_bpmn, engine_actor: {AshEnterprise.Platform.SystemActor, :system, []}`

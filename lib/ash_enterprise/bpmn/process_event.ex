@@ -16,6 +16,9 @@ defmodule AshEnterprise.Bpmn.ProcessEvent do
     domain: AshEnterprise.Bpmn,
     repo: AshEnterprise.Repo,
     table: "bpmn_process_events",
+    # Without its own engine bypass: the platform's, narrowed by `EngineReach`, is the
+    # engines' only one, so nothing they mark reaches a human_only action (ADR 0059).
+    policies?: false,
     instance: AshEnterprise.Bpmn.Instance,
     base: AshEnterprise.Platform.Resource,
     base_opts: [

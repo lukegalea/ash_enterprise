@@ -16,6 +16,9 @@ defmodule AshEnterprise.Decisions.Evaluation do
     domain: AshEnterprise.Decisions,
     repo: AshEnterprise.Repo,
     table: "dmn_evaluations",
+    # Without its own engine bypass: the platform's, narrowed by `EngineReach`, is the
+    # engines' only one, so nothing they mark reaches a human_only action (ADR 0059).
+    policies?: false,
     definition: AshEnterprise.Decisions.Definition,
     base: AshEnterprise.Platform.Resource,
     base_opts: [
