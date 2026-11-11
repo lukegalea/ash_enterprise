@@ -461,6 +461,12 @@ if config_env() == :prod do
       You can generate one by calling: mix phx.gen.secret
       """
 
+  # Both signing salts come from the environment. A missing, blank, short or
+  # repeated value stops the boot; there is no default to fall back to.
+  signing_salts = AshEnterprise.Security.SigningSalts.fetch_from_env!(System.get_env())
+
+  config :ash_enterprise, session_signing_salt: signing_salts.session
+
   host = System.get_env("PHX_HOST") || "example.com"
 
   config :ash_enterprise, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
@@ -474,7 +480,8 @@ if config_env() == :prod do
       # for details about using IPv6 vs IPv4 and loopback vs public addresses.
       ip: {0, 0, 0, 0, 0, 0, 0, 0}
     ],
-    secret_key_base: secret_key_base
+    secret_key_base: secret_key_base,
+    live_view: [signing_salt: signing_salts.live_view]
 
   config :ash_enterprise,
     token_signing_secret:

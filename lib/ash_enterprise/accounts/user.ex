@@ -62,6 +62,7 @@ defmodule AshEnterprise.Accounts.User do
       enabled? true
       token_resource AshEnterprise.Accounts.Token
       signing_secret AshEnterprise.Secrets
+      token_lifetime AshEnterprise.Accounts.TokenPolicy.lifetime()
       store_all_tokens? true
       require_token_presence_for_authentication? true
     end
@@ -80,6 +81,10 @@ defmodule AshEnterprise.Accounts.User do
       end
 
       remember_me :remember_me
+
+      api_key :api_key do
+        api_key_relationship :valid_api_keys
+      end
     end
   end
 
@@ -137,6 +142,7 @@ defmodule AshEnterprise.Accounts.User do
       argument :subject, :string, allow_nil?: false
       get? true
       prepare AshAuthentication.Preparations.FilterBySubject
+      prepare AshEnterprise.Accounts.Preparations.ActiveOnly
     end
 
     update :change_password do
@@ -177,6 +183,9 @@ defmodule AshEnterprise.Accounts.User do
         sensitive? true
       end
 
+      prepare AshEnterprise.Accounts.Preparations.SignInLockout
+      prepare AshEnterprise.Accounts.Preparations.ActiveOnly
+
       # validates the provided email and password and generates a token
       prepare AshAuthentication.Strategy.Password.SignInPreparation
 
@@ -203,6 +212,8 @@ defmodule AshEnterprise.Accounts.User do
         allow_nil? false
         sensitive? true
       end
+
+      prepare AshEnterprise.Accounts.Preparations.ActiveOnly
 
       # validates the provided sign in token and generates a token
       prepare AshAuthentication.Strategy.Password.SignInWithTokenPreparation
@@ -296,12 +307,25 @@ defmodule AshEnterprise.Accounts.User do
       end
 
       # creates a reset token and invokes the relevant senders
-      run {AshAuthentication.Strategy.Password.RequestPasswordReset, action: :get_by_email}
+      run {AshAuthentication.Strategy.Password.RequestPasswordReset, action: :get_active_by_email}
+    end
+
+    read :sign_in_with_api_key do
+      description "Signs in the owner of a live bearer key. A deactivated owner is not found."
+      argument :api_key, :string, allow_nil?: false, sensitive?: true
+      prepare AshEnterprise.Accounts.Preparations.ActiveOnly
+      prepare AshAuthentication.Strategy.ApiKey.SignInPreparation
     end
 
     read :get_by_email do
       description "Looks up a user by their email"
       get_by :email
+    end
+
+    read :get_active_by_email do
+      description "Looks up an active user by their email: the lookup behind a password reset."
+      get_by :email
+      prepare AshEnterprise.Accounts.Preparations.ActiveOnly
     end
 
     read :delegate_candidates do
@@ -335,6 +359,8 @@ defmodule AshEnterprise.Accounts.User do
         sensitive? true
       end
 
+      validate AshEnterprise.Accounts.Validations.ActiveUser
+
       # validates the provided reset token
       validate AshAuthentication.Strategy.Password.ResetTokenValidation
 
@@ -347,6 +373,12 @@ defmodule AshEnterprise.Accounts.User do
       # Generates an authentication token for the user
       change AshAuthentication.GenerateTokenChange
     end
+  end
+
+  changes do
+    change AshEnterprise.Accounts.Changes.RevokeTokensOnDeactivation,
+      on: :update,
+      where: action_is(:deactivate)
   end
 
   # Exposed as an ash_ai tool (`list_users`); ADR 0057.
@@ -396,6 +428,15 @@ defmodule AshEnterprise.Accounts.User do
       Drives hierarchy security in `:manager` mode: a manager reaches records
       owned by their reports without holding any role that names those records.
       """
+    end
+
+    has_many :api_keys, AshEnterprise.Accounts.ApiKey do
+      destination_attribute :user_id
+    end
+
+    has_many :valid_api_keys, AshEnterprise.Accounts.ApiKey do
+      destination_attribute :user_id
+      filter expr(expires_at > now() and user.lifecycle_status == :active)
     end
 
     has_many :direct_reports, __MODULE__ do

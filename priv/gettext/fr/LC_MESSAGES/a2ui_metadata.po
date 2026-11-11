@@ -161,6 +161,10 @@ msgstr "Réponse"
 msgid "Answer the question"
 msgstr "Répondre à la question"
 
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Api key"
+msgstr "Clé d'API"
+
 #: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
 msgctxt "one_of:disposition"
 msgid "Applied"
@@ -379,6 +383,10 @@ msgstr "BPMN"
 #: lib/ash_enterprise_web/a2ui/finding_ui.ex:1
 msgid "Breach count"
 msgstr "Nombre de manquements"
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Break glass session"
+msgstr "Session d'accès d'urgence"
 
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/flight_ui.ex:72
@@ -1234,6 +1242,10 @@ msgid "Fzn timeout"
 msgstr "Délai Fzn dépassé"
 
 #: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Get active by email"
+msgstr "Obtenir un utilisateur actif par courriel"
+
+#: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Get by email"
 msgstr "Obtenir par courriel"
 
@@ -1400,6 +1412,10 @@ msgstr "Désactivé"
 #: lib/ash_enterprise_web/a2ui/role_ui.ex:1
 msgid "Is inherited"
 msgstr "Hérité"
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Issue"
+msgstr "Émettre"
 
 #: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
 msgid "Item"
@@ -1574,6 +1590,10 @@ msgstr "Compte lié"
 #: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
 msgid "List"
 msgstr "Liste"
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Live for"
+msgstr "En cours pour"
 
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Log out everywhere"
@@ -1833,6 +1853,7 @@ msgctxt "one_of:combining"
 msgid "Only one applicable"
 msgstr "Une seule applicable"
 
+#: lib/ash_enterprise/canvas/registry.ex:2
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
 msgid "Open"
@@ -2183,6 +2204,10 @@ msgstr "Reçue le"
 #: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
 msgid "Record"
 msgstr "Enregistrement"
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Record failure"
+msgstr "Enregistrer un échec"
 
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Record risk"
@@ -2628,6 +2653,10 @@ msgid "Set sole administrator approval"
 msgstr "Définir l’approbation de l’administrateur unique"
 
 #: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Set valid until"
+msgstr "Définir la fin de validité"
+
+#: lib/ash_enterprise/canvas/registry.ex:2
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
 #, fuzzy
 msgid "Settle"
@@ -2659,6 +2688,14 @@ msgstr "Déchiqueté"
 msgctxt "one_of:status"
 msgid "Shredded"
 msgstr "Détruit"
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Sign in lockout"
+msgstr "Verrouillage de connexion"
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Sign in with api key"
+msgstr "Se connecter avec une clé d'API"
 
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Sign in with password"

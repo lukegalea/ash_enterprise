@@ -134,6 +134,14 @@ end
 # The watchers configuration can be used to run external
 # watchers to your application. For example, we can use it
 # to bundle .js and .css sources.
+# Salts for dev only. Production reads both from the environment and refuses to
+# boot without them (`AshEnterprise.Security.SigningSalts`, config/runtime.exs).
+config :ash_enterprise,
+  session_signing_salt: "dev-session-salt-not-for-production-use"
+
+config :ash_enterprise, AshEnterpriseWeb.Endpoint,
+  live_view: [signing_salt: "dev-live-view-salt-not-for-production"]
+
 config :ash_enterprise, AshEnterpriseWeb.Endpoint,
   # Binding to loopback ipv4 address prevents access from other machines.
   #

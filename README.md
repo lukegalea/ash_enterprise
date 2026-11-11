@@ -129,6 +129,16 @@ devenv shell -- mix ash_enterprise.demo # the demo tenant: a business-unit tree,
 devenv shell -- iex-server              # the app
 ```
 
+**Nothing to configure for dev or test.** Both boot with built-in session and LiveView
+signing salts (`config/dev.exs`, `config/test.exs`), so the commands above are the
+whole first run. Those values are public. **Every other environment** (a production
+release, or anything that runs `config/runtime.exs` in `:prod`) must set its own
+`SESSION_SIGNING_SALT` and `LIVE_VIEW_SIGNING_SALT`, at least 32 characters each and
+different from each other. The release refuses to boot, with a message naming the
+variable, when one is missing, short, repeated or one of the built-in dev/test
+values. Generate each with `mix phx.gen.secret 32`. Names only are listed in
+[`.env.example`](.env.example).
+
 **Starting a new application from this template?** Read
 [`docs/BLEEDING-EDGE.md`](docs/BLEEDING-EDGE.md) first. Two dependencies are forks of
 upstream packages, and 13 of our own packages are not on Hex yet. That page

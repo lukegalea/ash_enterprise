@@ -83,9 +83,12 @@ defmodule AshEnterprise.Accounts do
 
   resources do
     resource AshEnterprise.Accounts.Token
+    resource AshEnterprise.Accounts.ApiKey
+    resource AshEnterprise.Accounts.SignInLockout
 
     resource AshEnterprise.Accounts.User do
       define :get_user_by_email, action: :get_by_email, args: [:email]
+      define :get_active_user_by_email, action: :get_active_by_email, args: [:email]
       define :get_user, action: :read, get_by: [:id]
     end
 
