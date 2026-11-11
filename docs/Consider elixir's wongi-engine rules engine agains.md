@@ -503,11 +503,11 @@ The report also covers DSL design, global-versus-tenant precedence, immutable ve
 
 [^3_26]: https://arxiv.org/abs/1603.07466
 
-[^3_27]: https://pmc.ncbi.nlm.nih.gov/articles/PMC5601943/
+[^3_27]: https://europepmc.org/articles/PMC5601943/
 
-[^3_28]: https://pmc.ncbi.nlm.nih.gov/articles/PMC10406295/
+[^3_28]: https://europepmc.org/articles/PMC10406295/
 
-[^3_29]: https://pmc.ncbi.nlm.nih.gov/articles/PMC12025022/
+[^3_29]: https://europepmc.org/articles/PMC12025022/
 
 [^3_30]: https://www.omg.org/spec/DMN/1.5/About-DMN
 
@@ -547,7 +547,7 @@ The report also covers DSL design, global-versus-tenant precedence, immutable ve
 
 [^3_48]: https://acta.imeko.org/index.php/acta-imeko/article/download/1403/2790
 
-[^3_49]: https://pmc.ncbi.nlm.nih.gov/articles/PMC8594275/
+[^3_49]: https://europepmc.org/articles/PMC8594275/
 
 [^3_50]: https://pages.nist.gov/OSCAL/learn/concepts/layer/
 
@@ -579,7 +579,7 @@ The report also covers DSL design, global-versus-tenant precedence, immutable ve
 
 [^3_64]: https://www.mdpi.com/1424-8220/22/8/2984/pdf
 
-[^3_65]: https://pmc.ncbi.nlm.nih.gov/articles/PMC9026700/
+[^3_65]: https://europepmc.org/articles/PMC9026700/
 
 [^3_66]: https://arxiv.org/pdf/2403.10092.pdf
 
@@ -591,7 +591,7 @@ The report also covers DSL design, global-versus-tenant precedence, immutable ve
 
 [^3_70]: http://downloads.hindawi.com/journals/mpe/2016/7608408.pdf
 
-[^3_71]: https://pmc.ncbi.nlm.nih.gov/articles/PMC9959851/
+[^3_71]: https://europepmc.org/articles/PMC9959851/
 
 [^3_72]: https://docs.oasis-open.org/xacml/3.0/xacml-3.0-core-spec-csd06-en.html
 
@@ -647,7 +647,7 @@ The report also covers DSL design, global-versus-tenant precedence, immutable ve
 
 [^3_98]: https://arxiv.org/pdf/1703.08219.pdf
 
-[^3_99]: https://pmc.ncbi.nlm.nih.gov/articles/PMC8122984/
+[^3_99]: https://europepmc.org/articles/PMC8122984/
 
 [^3_100]: https://github.com/ash-project/spark/blob/main/lib/spark/dsl/extension.ex
 
@@ -677,11 +677,11 @@ The report also covers DSL design, global-versus-tenant precedence, immutable ve
 
 [^3_113]: https://arxiv.org/pdf/1710.01441.pdf
 
-[^3_114]: https://pmc.ncbi.nlm.nih.gov/articles/PMC4865286/
+[^3_114]: https://europepmc.org/articles/PMC4865286/
 
-[^3_115]: https://pmc.ncbi.nlm.nih.gov/articles/PMC4865287/
+[^3_115]: https://europepmc.org/articles/PMC4865287/
 
-[^3_116]: https://pmc.ncbi.nlm.nih.gov/articles/PMC5082750/
+[^3_116]: https://europepmc.org/articles/PMC5082750/
 
 [^3_117]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-53ar4.pdf
 

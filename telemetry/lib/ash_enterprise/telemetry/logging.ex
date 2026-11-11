@@ -12,16 +12,27 @@ defmodule AshEnterprise.Telemetry.Logging do
   protobuf as the exporter default (the upstream default of gRPC needs a gRPC
   client this package does not carry).
 
+  The handler exports through a filter that holds log records to the rule spans and
+  Sentry events follow: a crash or error report (GenServer, `:gen_statem`,
+  `:gen_event`, `proc_lib`, supervisor, Task, Bandit, and anything else carrying
+  `crash_reason`) is rebuilt from its sanitized parts, without arguments, last
+  message, state or exit-reason data, and with stack frames by arity. Metadata keeps
+  scalars only. A host's own structured report (`Logger.info(%{...})` with no
+  `:label`) is exported as it is. The filter applies to this handler only, so the
+  console keeps the full report.
+
   Logs and metrics take their resource attributes from the `opentelemetry_experimental`
   application's config, not from `opentelemetry`'s, so a host that sets `service.name`
   for traces sets it there as well.
   """
 
   alias AshEnterprise.Telemetry.FailedSpan
+  alias AshEnterprise.Telemetry.LogScrub
   alias AshEnterprise.Telemetry.Settings
 
   @filter_id :ash_enterprise_telemetry_trace_context
   @handler_id :ash_enterprise_telemetry_otlp_logs
+  @scrub_id :ash_enterprise_telemetry_export_scrub
 
   @doc "Adds the primary trace-context filter. Idempotent."
   @spec add_trace_filter() :: :ok
@@ -86,7 +97,9 @@ defmodule AshEnterprise.Telemetry.Logging do
     config = %{
       level: Keyword.get(opts, :level, :info),
       exporter: exporter,
-      scheduled_delay_ms: Keyword.get(opts, :scheduled_delay_ms, 1_000)
+      scheduled_delay_ms: Keyword.get(opts, :scheduled_delay_ms, 1_000),
+      filter_default: :log,
+      filters: [{@scrub_id, {&LogScrub.filter/2, []}}]
     }
 
     case :logger.add_handler(@handler_id, :otel_log_handler, config) do

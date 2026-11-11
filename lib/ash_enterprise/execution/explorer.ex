@@ -22,6 +22,7 @@ defmodule AshEnterprise.Execution.Explorer do
 
   alias AshEnterprise.AI.ModelCall
   alias AshEnterprise.Bpmn.{Definition, HumanTask, Instance, ProcessEvent}
+  alias AshEnterprise.Credentialing.DocumentEvent
   alias AshEnterprise.Decisions.Evaluation
   alias AshEnterprise.Erasure.Shredded
   alias AshEnterprise.Execution
@@ -167,6 +168,27 @@ defmodule AshEnterprise.Execution.Explorer do
   defp detail("process_event", id, opts) do
     with {:ok, event} <- get(ProcessEvent, id, opts) do
       {:ok, %{type: :process_event, id: event.id, kind: event.kind, node_id: event.node_id}}
+    end
+  end
+
+  # A delivery is read only for a credential whose process run the viewer may read, as the
+  # trace reads it (`AshEnterprise.ExecutionSources.DocumentDelivery`). Neither the body
+  # nor any header is in it.
+  defp detail("document_delivery", id, opts) do
+    with {:ok, delivery} <- get(DocumentEvent, id, opts),
+         true <- ExecutionSources.DocumentDelivery.readable?(delivery, opts) do
+      {:ok,
+       %{
+         type: :document_delivery,
+         id: delivery.id,
+         delivery_id: delivery.event_id,
+         sender: delivery.source,
+         document_kind: ExecutionSources.DocumentDelivery.document_kind(delivery),
+         received_at: delivery.time
+       }}
+    else
+      false -> :unreadable
+      other -> other
     end
   end
 

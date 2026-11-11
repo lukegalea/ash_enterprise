@@ -33,7 +33,7 @@ defmodule AshEnterprise.SystemOne.QuestionProposal do
      construction, ADR 0039 property 6.
 
   The mechanism is generic by construction: it knows nothing about any
-  policy domain. A domain (our own code standards today, a VendorPM custom
+  policy domain. A domain (our own code standards today, a customer custom
   requirement later) contributes only the policy TEXT and, at declaration
   time, the subject resource the questions are judged over.
 

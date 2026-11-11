@@ -147,7 +147,7 @@ defmodule AshEnterprise.ErasureTest do
 
   describe "SourceObject: sealed at rest, readable live, shredded after" do
     test "encrypt -> read -> shred -> unreadable, structure intact", ctx do
-      scope = scope!("slack:T-VENDORPM")
+      scope = scope!("slack:T-EXAMPLEORG")
       payload = %{"ts" => "1728700000.000100", "text" => @secret, "user" => "U123"}
 
       landed =
@@ -357,7 +357,7 @@ defmodule AshEnterprise.ErasureTest do
             owning_user_id: ctx.operator_user.id,
             owning_business_unit_id: ctx.bu.id,
             subject: "#leadership-private",
-            participants: %{"emails" => ["ceo@vendorpm.example"]},
+            participants: %{"emails" => ["ceo@example.test"]},
             external_system: "slack",
             external_id: "C-LEAD",
             erasure_scope_id: scope.id
@@ -420,7 +420,7 @@ defmodule AshEnterprise.ErasureTest do
                event |> sealed_in_event("encrypted_body") |> Keyring.open!()
 
       assert_audit_unreadable(message.id, ["churn", "confidential"])
-      assert_audit_unreadable(conversation.id, ["leadership", "ceo@vendorpm"])
+      assert_audit_unreadable(conversation.id, ["leadership", "ceo@example"])
 
       assert_chains_verify(ctx.org.id)
     end
@@ -440,11 +440,11 @@ defmodule AshEnterprise.ErasureTest do
       scope = scope!("slack:T-AUDITED")
       key = Key.for_scope!(scope.id, @opts)
 
-      shredded = shred!(scope, ctx, "left VendorPM")
+      shredded = shred!(scope, ctx, "left the organization")
 
       assert shredded.status == :shredded
       assert %DateTime{} = shredded.shredded_at
-      assert shredded.shred_reason == "left VendorPM"
+      assert shredded.shred_reason == "left the organization"
 
       events = audit_events(scope.id)
       assert Enum.map(events, & &1.action) |> Enum.sort() == [:open, :shred]
@@ -452,7 +452,7 @@ defmodule AshEnterprise.ErasureTest do
       shred_event = Enum.find(events, &(&1.action == :shred))
       assert shred_event.user_id == ctx.operator_user.id
       assert shred_event.changed_attributes["status"] == "shredded"
-      assert shred_event.data["reason"] == "left VendorPM"
+      assert shred_event.data["reason"] == "left the organization"
 
       # The key is not audited, so the log never holds what the shred destroyed.
       all =
@@ -544,11 +544,11 @@ defmodule AshEnterprise.ErasureTest do
         "--as",
         to_string(ctx.operator_user.email),
         "--reason",
-        "left VendorPM",
+        "left the organization",
         "--yes"
       ])
 
-      assert %Scope{status: :shredded, shred_reason: "left VendorPM"} =
+      assert %Scope{status: :shredded, shred_reason: "left the organization"} =
                Erasure.get_scope!(scope.id, @opts)
 
       assert [shred_event] = scope.id |> audit_events() |> Enum.filter(&(&1.action == :shred))

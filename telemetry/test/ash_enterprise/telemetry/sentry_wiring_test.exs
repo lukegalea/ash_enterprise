@@ -226,6 +226,91 @@ defmodule AshEnterprise.Telemetry.SentryWiringTest do
       refute inspect(result.extra) =~ "hunter2"
       assert result.extra.kept == "yes"
     end
+
+    test "an exit reason in extra, a call in the fingerprint and a call's message are not sent" do
+      text =
+        "exited in: GenServer.call(#PID<0.1.0>, {:get, \"call-secret\"}, 5000)\n    ** (EXIT) time out"
+
+      result =
+        SentryWiring.before_send(
+          event(
+            extra: %{crash_reason: inspect({:bad_state, "reason-secret"})},
+            fingerprint: ["timeout", "genserver_call", inspect({:get, "fingerprint-secret"})],
+            message: %Sentry.Interfaces.Message{formatted: text, message: text, params: nil}
+          )
+        )
+
+      sent = inspect(result, limit: :infinity, printable_limit: :infinity)
+      refute sent =~ "reason-secret"
+      refute sent =~ "fingerprint-secret"
+      refute sent =~ "call-secret"
+      assert result.fingerprint == ["timeout", "genserver_call"]
+      assert result.message.formatted =~ "GenServer.call/?"
+    end
+
+    test "a crash's frame arguments are not sent in its message" do
+      text = """
+      GenServer #PID<0.1.0> terminating
+      ** (FunctionClauseError) no function clause matching in MyApp.Live.handle_event/3
+          (my_app 0.1.0) lib/my_app/live.ex:12: MyApp.Live.handle_event("crash-form", %{"secret" => "frame-secret"}, socket)
+      """
+
+      result =
+        SentryWiring.before_send(
+          event(message: %Sentry.Interfaces.Message{formatted: text, message: text, params: nil})
+        )
+
+      refute inspect(result.message) =~ "frame-secret"
+      assert result.message.formatted =~ "MyApp.Live.handle_event/?"
+    end
+  end
+
+  describe "Sentry structured logs" do
+    defp log_event(attrs) do
+      struct!(%Sentry.LogEvent{level: :error, body: "", timestamp: 0.0}, attrs)
+    end
+
+    test "before_send_log scrubs a crash body and keeps scalar attributes only" do
+      body = """
+      GenServer #PID<0.1.0> terminating
+      ** (MatchError) no match of right hand side value:
+
+          {:error, "value-secret"}
+
+          (my_app 0.1.0) lib/my_app/server.ex:9: MyApp.Server.handle_cast/2
+      Last message: {:"$gen_cast", {:crash, "message-secret"}}
+      State: %{token: "state-secret"}
+      """
+
+      result =
+        SentryWiring.before_send_log(
+          log_event(
+            body: body,
+            template: body,
+            parameters: [%{token: "parameter-secret"}, "kept-parameter"],
+            attributes: %{
+              crash_reason: {%MatchError{term: "attribute-secret"}, []},
+              request_id: "r-1",
+              form: %{"secret" => "map-secret"}
+            }
+          )
+        )
+
+      sent = inspect(result, limit: :infinity, printable_limit: :infinity)
+
+      for secret <-
+            ~w(value-secret message-secret state-secret parameter-secret attribute-secret map-secret) do
+        refute sent =~ secret
+      end
+
+      assert result.body =~ "GenServer #PID<0.1.0> terminating"
+      assert result.body =~ "MyApp.Server.handle_cast/2"
+      assert result.attributes == %{request_id: "r-1"}
+    end
+
+    test "before_send_log drops what it cannot read" do
+      assert SentryWiring.before_send_log(:garbage) == nil
+    end
   end
 
   describe "LiveView scrubbing" do

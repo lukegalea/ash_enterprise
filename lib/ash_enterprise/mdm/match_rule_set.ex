@@ -14,7 +14,8 @@ defmodule AshEnterprise.Mdm.MatchRuleSet do
     archival?: false,
     policies?: false
 
-  use AshMdm.Resources, {:match_rule_set, repo: AshEnterprise.Repo, table: "mdm_match_rule_sets"}
+  use AshMdm.Resources,
+      {:match_rule_set, repo: AshEnterprise.Repo, table: "mdm_match_rule_sets", tenant?: true}
 
   policies do
     # `policies?: false` + explicit set (the HumanVerdict drill): the

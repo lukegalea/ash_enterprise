@@ -14,7 +14,7 @@ defmodule AshEnterprise.Erasure do
 
       scope =
         AshEnterprise.Erasure.ensure_scope!(:connection, linked_account_ref,
-          %{label: "VendorPM company Slack"},
+          %{label: "company Slack"},
           actor: AshEnterprise.Platform.SystemActor.oban()
         )
 
@@ -49,12 +49,12 @@ defmodule AshEnterprise.Erasure do
 
       mix ash_enterprise.erasure.scopes
       mix ash_enterprise.erasure.shred connection:<ref> --as you@example.com \\
-        --reason "left VendorPM"
+        --reason "left the organization"
 
   or, from IEx, as a human actor holding a write grant on erasure scopes:
 
       scope = AshEnterprise.Erasure.scope_by_ref!(:connection, ref, authorize?: false)
-      AshEnterprise.Erasure.shred_scope!(scope, ref, "left VendorPM", actor: user)
+      AshEnterprise.Erasure.shred_scope!(scope, ref, "left the organization", actor: user)
 
   Shredding stops nothing from arriving. Delete or revoke the provider
   connection (the Nango connection and the linked account) as well; a shredded

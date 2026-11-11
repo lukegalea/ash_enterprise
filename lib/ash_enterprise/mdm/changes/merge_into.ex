@@ -7,25 +7,23 @@ defmodule AshEnterprise.Mdm.Changes.MergeInto do
   transaction, under the CALLER's correlation id (0017's grant-revocation
   requirement: "why did this disappear" stays answerable).
 
-  The survivorship policy is data: the active MatchRuleSet's
-  `survivorship` map for the golden resource, or the `non_null` default
-  when the tenant configured none. A policy that uses `source_rank` is
-  refused here (`AshEnterprise.Mdm.SourceRankUnavailable`): the two sides of
-  this merge are golden records, which have no per-field source to rank.
+  Both sides refold first, so every value either holds is a statement. An
+  absorbed person's statements stay where they are and the survivor folds
+  through `master_id` (`AshEnterprise.Mdm.Refold`), under the one policy that
+  governs the person.
 
-  `merge_provenance` records, beside what the unmerge restores, who won
-  each field (`"winners"`: attribute to `"winner"` — `"survivor"`,
-  `"loser"` or nil when neither had a value — and `"strategy"`) and the
-  rule set that decided it (`"rule_set_id"`, `"rule_set_content_hash"`,
-  both nil under the default policy).
+  `merge_provenance` records, beside what the unmerge restores, who won each
+  field: `"winners"` maps an attribute to `"winner"` (`"survivor"`, `"loser"`
+  or nil when neither had a value), `"strategy"`, and the winning statement's
+  `"source"` and `"assertion_id"`. With them, the deciding rule set
+  (`"rule_set_id"`, `"rule_set_content_hash"`, both nil under the default) and
+  `"assertions_folded"`, which tells the unmerge this merge's statements exist.
   """
 
   use Ash.Resource.Change
   require Ash.Query
 
-  alias AshEnterprise.Mdm.SourceRankUnavailable
-
-  @default_policy %{"default" => "non_null"}
+  alias AshEnterprise.Mdm.Refold
 
   @impl true
   def change(changeset, _opts, _context) do
@@ -39,13 +37,14 @@ defmodule AshEnterprise.Mdm.Changes.MergeInto do
 
   defp stage_loser(changeset) do
     tenant = changeset.tenant
-    loser = changeset.data
     survivor_id = Ash.Changeset.get_argument(changeset, :survivor_id)
 
-    survivor =
-      AshEnterprise.Canonical.Person
-      |> Ash.Query.filter(id == ^survivor_id)
-      |> Ash.read_one!(tenant: tenant, authorize?: false)
+    # Everything is read under the lock. The changeset's record was read
+    # before it, so two merges in opposite directions would each still see
+    # the other side as a golden, and leave a cycle.
+    Refold.lock!(tenant, [changeset.data.id, survivor_id])
+    loser = read_person(tenant, changeset.data.id)
+    survivor = read_person(tenant, survivor_id)
 
     cond do
       is_nil(survivor) ->
@@ -58,6 +57,12 @@ defmodule AshEnterprise.Mdm.Changes.MergeInto do
         Ash.Changeset.add_error(changeset,
           field: :survivor_id,
           message: "a record cannot merge into itself"
+        )
+
+      loser.merged ->
+        Ash.Changeset.add_error(changeset,
+          field: :merged,
+          message: "was already merged into another record"
         )
 
       # A master is always a golden record: merging into an absorbed row
@@ -73,47 +78,21 @@ defmodule AshEnterprise.Mdm.Changes.MergeInto do
     end
   end
 
-  defp stage_merge(changeset, tenant, loser, survivor) do
-    rule_set = active_rule_set(tenant, loser)
-    policy = (rule_set && Map.get(rule_set, :survivorship)) || @default_policy
-
-    case source_rank_uses(policy) do
-      [] ->
-        write_merge(changeset, tenant, loser, survivor, rule_set, policy)
-
-      used_by ->
-        Ash.Changeset.add_error(
-          changeset,
-          SourceRankUnavailable.exception(rule_set_id: rule_set.id, used_by: used_by)
-        )
-    end
+  defp read_person(tenant, id) do
+    AshEnterprise.Canonical.Person
+    |> Ash.Query.filter(id == ^id)
+    |> Ash.read_one!(tenant: tenant, authorize?: false)
   end
 
-  defp write_merge(changeset, tenant, loser, survivor, rule_set, policy) do
-    %{merged: merged, provenance: provenance} =
-      AshMdm.Survivorship.resolve(policy, [
-        %{
-          record: :survivor,
-          source: "survivor",
-          observed_at: survivor.updated_at,
-          attributes: %{
-            "name" => survivor.name,
-            "email" => survivor.email && to_string(survivor.email)
-          }
-        },
-        %{
-          record: :loser,
-          source: "loser",
-          observed_at: loser.updated_at,
-          attributes: %{
-            "name" => loser.name,
-            "email" => loser.email && to_string(loser.email)
-          }
-        }
-      ])
+  defp stage_merge(changeset, tenant, loser, survivor) do
+    # Every value either side holds becomes a statement before anything moves.
+    %{golden: loser} = Refold.refold!(tenant, loser.id, write?: false)
+    %{golden: survivor} = Refold.refold!(tenant, survivor.id)
 
-    # Survivorship: the survivor's row is what the operator keeps.
-    merged_attrs = Map.take(merged, ["name", "email"])
+    %{rule_set: rule_set, policy: policy} = Refold.governing(tenant)
+    standing = Refold.preview_merge(tenant, survivor, loser, policy)
+
+    merged_attrs = Map.take(standing.merged, Refold.attributes())
 
     moved_identity_ids =
       AshEnterprise.Mdm.SourceIdentity
@@ -148,7 +127,8 @@ defmodule AshEnterprise.Mdm.Changes.MergeInto do
       "moved_identity_ids" => moved_identity_ids,
       "prior_email" => prior_email,
       "joins" => joins,
-      "winners" => winners(provenance),
+      "winners" => winners(standing, policy),
+      "assertions_folded" => true,
       "rule_set_id" => rule_set && rule_set.id,
       "rule_set_content_hash" => rule_set && rule_set.content_hash
     })
@@ -176,20 +156,9 @@ defmodule AshEnterprise.Mdm.Changes.MergeInto do
   defp inherit(changeset, result) do
     tenant = changeset.tenant
     survivor_id = changeset.context[:mdm_merge][:survivor_id]
-    merged_attrs = changeset.context[:mdm_merge][:merged_attrs]
 
-    survivor =
-      AshEnterprise.Canonical.Person
-      |> Ash.Query.filter(id == ^survivor_id)
-      |> Ash.read_one!(tenant: tenant, authorize?: false)
-
-    if survivor && merged_attrs do
-      survivor
-      |> Ash.Changeset.for_update(:mdm_survivor_update, merged_attrs,
-        tenant: tenant,
-        authorize?: false
-      )
-      |> Ash.update!(tenant: tenant, authorize?: false)
+    if survivor_id do
+      Refold.refold!(tenant, survivor_id)
 
       repoint_identities(tenant, changeset.data.id, survivor_id)
 
@@ -205,30 +174,33 @@ defmodule AshEnterprise.Mdm.Changes.MergeInto do
     {:ok, result}
   end
 
-  defp active_rule_set(tenant, loser) do
-    # Survivorship is data on the pinned-for-resource active MatchRuleSet.
-    # NB: rule sets store resource names WITHOUT the "Elixir." prefix, and
-    # to_string/1 on a struct adds it — inspect/1 does not.
-    AshEnterprise.Mdm.MatchRuleSet
-    |> Ash.Query.filter(golden_resource == ^inspect(loser.__struct__) and status == :active)
-    |> Ash.read_one!(tenant: tenant, authorize?: false)
-  end
-
-  # Where the policy ranks by source: "default", then the attribute names.
-  defp source_rank_uses(policy) do
-    attributes =
-      for {attribute, %{"strategy" => "source_rank"}} <- policy["attributes"] || %{},
-          do: attribute
-
-    if(policy["default"] == "source_rank", do: ["default"], else: []) ++ Enum.sort(attributes)
-  end
-
-  # The fold's "source" here is the role this merge passed it, not a source
-  # system: the record is named by what it was to this merge.
-  defp winners(provenance) do
-    Map.new(provenance, fn {attribute, %{"source" => role, "strategy" => strategy}} ->
-      {attribute, %{"winner" => role, "strategy" => strategy}}
+  # The role each side played, beside the statement that won.
+  defp winners(standing, policy) do
+    Map.new(Refold.attributes(), fn attribute ->
+      {attribute, winner(Map.get(standing.statements, attribute), standing, policy, attribute)}
     end)
+  end
+
+  defp winner(nil, _standing, policy, attribute) do
+    %{
+      "winner" => nil,
+      "strategy" => strategy(policy, attribute),
+      "source" => nil,
+      "assertion_id" => nil
+    }
+  end
+
+  defp winner(statement, standing, policy, attribute) do
+    %{
+      "winner" => if(statement.golden_id in standing.loser_ids, do: "loser", else: "survivor"),
+      "strategy" => strategy(policy, attribute),
+      "source" => statement.source,
+      "assertion_id" => statement.id
+    }
+  end
+
+  defp strategy(policy, attribute) do
+    get_in(policy, ["attributes", attribute, "strategy"]) || policy["default"] || "non_null"
   end
 
   defp repoint_identities(tenant, loser_id, survivor_id) do

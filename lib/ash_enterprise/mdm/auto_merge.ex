@@ -4,9 +4,9 @@ defmodule AshEnterprise.Mdm.AutoMerge do
   record and its candidate when the band table has already decided.
 
   * `:admit` — the candidate pairs the staged row with an existing golden at
-    a score the tenant has pre-authorised: survivorship folds the staged
-    values into the golden (gaps only — the golden's own values win), the
-    source identity opens at the golden, the staged row is `:merged` and the
+    a score the tenant has pre-authorised: the staged values become statements
+    and the golden refolds under the governing survivorship policy
+    (`AshEnterprise.Mdm.Refold`), the source identity opens at the golden, the staged row is `:merged` and the
     candidate `:auto_merged`. No verdict rows: nobody decided anything; the
     published band table did, and its certification is the provenance.
   * `:omit` — no golden fits: the staged row becomes a golden of its own
@@ -17,7 +17,7 @@ defmodule AshEnterprise.Mdm.AutoMerge do
   `StewardVerdict`; nothing here ever sets a person state.
   """
 
-  alias AshEnterprise.Mdm.{SourceIdentity, SourceRecord}
+  alias AshEnterprise.Mdm.{Refold, SourceIdentity, SourceRecord}
 
   @doc "Runs the admit band: fold into the golden, open the identity, spend the row."
   def admit!(candidate, staged, golden, tenant) do
@@ -100,34 +100,31 @@ defmodule AshEnterprise.Mdm.AutoMerge do
       |> Ash.create!(tenant: tenant, authorize?: false)
 
     open_identity!(staged, "AshEnterprise.Canonical.Person", golden.id, tenant)
+    Refold.assert!(tenant, golden.id, staged_values(staged), staged_origin(staged))
 
     golden
   end
 
-  @doc "Survivorship: the golden's own values win; the staged values fill gaps."
+  @doc "The staged values become statements about the golden, and it refolds."
   def fold!(staged, golden, tenant) do
-    mapped = staged.mapped || %{}
-
-    fills =
-      %{
-        "name" => golden.name && to_string(golden.name),
-        "email" => golden.email && to_string(golden.email)
-      }
-      |> Enum.flat_map(fn {field, current} ->
-        case {current, mapped[field]} do
-          {nil, value} when is_binary(value) and value != "" -> [{field, value}]
-          _ -> []
-        end
-      end)
-      |> Map.new()
-
-    unless map_size(fills) == 0 do
-      golden
-      |> Ash.Changeset.for_update(:mdm_survivor_update, fills, tenant: tenant, authorize?: false)
-      |> Ash.update!(tenant: tenant, authorize?: false)
-    end
+    Refold.assert!(tenant, golden.id, staged_values(staged), staged_origin(staged))
+    Refold.refold!(tenant, golden.id)
 
     :ok
+  end
+
+  defp staged_values(staged), do: Map.take(staged.mapped || %{}, Refold.attributes())
+
+  # The landing's own observation time, so a retried job is the same statement.
+  defp staged_origin(staged) do
+    source_record = Ash.get!(SourceRecord, staged.source_record_id, authorize?: false)
+
+    %{
+      origin_kind: :import,
+      source: to_string(source_record.source),
+      origin_ref: %{"source_record_id" => source_record.id, "staged_record_id" => staged.id},
+      observed_at: source_record.fetched_at
+    }
   end
 
   @doc "Opens the staged row's source identity at the candidate's golden."

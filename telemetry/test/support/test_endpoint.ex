@@ -67,6 +67,7 @@ defmodule AshEnterprise.Telemetry.TestRouter do
   scope "/" do
     pipe_through(:browser)
     live("/live", AshEnterprise.Telemetry.TestLive)
+    live("/strict", AshEnterprise.Telemetry.TestStrictLive)
   end
 end
 
@@ -98,6 +99,12 @@ defmodule AshEnterprise.Telemetry.BanditProbePlug do
 
   def call(%{request_path: "/match" <> _} = conn, _opts) do
     :ok = apply(__MODULE__, :echo, [{:error, "plug-match-secret"}])
+    send_resp(conn, 200, "")
+  end
+
+  def call(%{request_path: "/form-clause" <> _} = conn, _opts) do
+    conn = fetch_query_params(conn)
+    only_never(apply(__MODULE__, :echo, [conn.query_params["secret"]]))
     send_resp(conn, 200, "")
   end
 

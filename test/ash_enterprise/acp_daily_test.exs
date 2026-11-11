@@ -92,7 +92,7 @@ defmodule AshEnterprise.AcpDailyTest do
 
   test "each daily prompt answers in text and closes with its A2UI surface" do
     ctx = tenant!(operator?: true)
-    event!(ctx, "Synthetic planning", 5, 30)
+    event!(ctx, "Synthetic planning", 0, 30, starts_at: today_at(~T[12:00:00]))
     s = session(ctx)
 
     for {text, surface_id, grid?} <- [

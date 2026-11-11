@@ -135,13 +135,13 @@ condition asks for. The condition exists to prevent accretion — a structural f
 because BPMN has one is how an executable subset stops being a subset.
 
 - **FR-7.1** Call activity: start a child instance and wait for its completion.
-  **Earned by:** vendor onboarding. The compliance track an awarded vendor goes through is
+  **Earned by:** partner onboarding. The compliance track an awarded vendor goes through is
   the same track whichever award produced it, and today it can only be drawn by copying it
   into every parent diagram — so a change to onboarding means editing each copy, and the
   copies drift. A call activity lets it be drawn once and invoked.
 - **FR-7.2** Multi-instance: a FEEL list expression fans out tokens, sequential or
   parallel, joining on completion.
-  **Earned by:** an RFQ awarded per property. One request covers several properties and each
+  **Earned by:** a tender awarded per property. One request covers several properties and each
   award needs its own onboarding and compliance track. The count is not known when the
   diagram is drawn, so without fan-out the shape can only be approximated by hand-copying
   branches for a number nobody has — or by moving the loop out of the diagram entirely, which

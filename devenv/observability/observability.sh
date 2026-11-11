@@ -96,15 +96,57 @@ launch() {
   rm -f "$tmp"
 }
 
-wait_for() {
-  local what="$1" seconds="$2"
+# wait_ready NAME SECONDS CMD...  0 when CMD succeeds, 1 when the service's own
+# process has exited, 2 on timeout. It never waits out the clock on a dead process.
+wait_ready() {
+  local name="$1" seconds="$2"
   shift 2
   local i
   for i in $(seq 1 $((seconds * 4))); do
     "$@" >/dev/null 2>&1 && return 0
+    alive "$name" || return 1
     sleep 0.25
   done
-  die "$what was not ready after ${seconds}s; see $LOGS"
+  return 2
+}
+
+log_tail() { tail -n "${2:-15}" "$LOGS/$1.log" 2>/dev/null | sed 's/^/    /' >&2 || true; }
+
+# bring_up NAME LABEL SECONDS CMD...  Starts NAME with start_NAME and waits for CMD.
+# A service that exits while starting (the collector does when ClickHouse refuses
+# its first writes) is started again, a few times, before up gives up loudly.
+bring_up() {
+  local name="$1" label="$2" seconds="$3"
+  shift 3
+  local attempt rc=0 tries="${OBSERVABILITY_START_ATTEMPTS:-4}"
+  for attempt in $(seq 1 "$tries"); do
+    "start_$name"
+    rc=0
+    wait_ready "$name" "$seconds" "$@" || rc=$?
+    [ "$rc" -eq 0 ] && return 0
+    if [ "$rc" -eq 1 ]; then
+      log "$label exited while starting (attempt $attempt of $tries); the end of its log:"
+    else
+      log "$label was not ready after ${seconds}s (attempt $attempt of $tries); the end of its log:"
+      stop_service "$name"
+    fi
+    log_tail "$name"
+    rm -f "$(record_file "$name")"
+    [ "$attempt" -lt "$tries" ] && sleep $((attempt * 5))
+  done
+  die "$label did not start after $tries attempts; see $LOGS/$name.log"
+}
+
+# The last word before "ready": every service is still the process we started and
+# ClickHouse answers. A stack that reports ready with a dead collector is a
+# workspace whose links show nothing.
+verify_running() {
+  local name dead=""
+  for name in "${SERVICES[@]}"; do
+    alive "$name" || dead="$dead $name"
+  done
+  [ -z "$dead" ] || return 1
+  ch -q "select 1" >/dev/null 2>&1
 }
 
 # ---------------------------------------------------------------------------
@@ -275,7 +317,6 @@ start_clickhouse() {
   render "$OBS_CONFIG_DIR/clickhouse-config.xml" "$RUN/clickhouse.xml"
   CLICKHOUSE_WATCHDOG_ENABLE=0 launch clickhouse "${OBS_MEMMAX_CLICKHOUSE}M" \
     "$OBS_CLICKHOUSE/bin/clickhouse-server" --config-file="$RUN/clickhouse.xml"
-  wait_for ClickHouse 60 ch -q 'select 1'
 }
 
 migrate_clickhouse() {
@@ -496,19 +537,31 @@ cmd_up() {
   ensure_secrets
   write_env                 # first, so an app that starts while this runs picks it up
   ensure_postgres           # before anything slow, so a missing database fails fast
-  start_clickhouse
+  bring_up clickhouse ClickHouse 60 ch -q 'select 1'
   migrate_clickhouse
-  start_collector
-  wait_for "the collector" 60 curl -sf "http://127.0.0.1:$COLLECTOR_HEALTH/"
-  start_signoz
-  wait_for SigNoz 60 curl -sf "http://127.0.0.1:$SIGNOZ/api/v1/health"
+  start_rest
   provision_signoz
   init_glitchtip
-  start_glitchtip
-  wait_for GlitchTip 120 curl -sf "http://127.0.0.1:$GLITCHTIP/_health/"
+  bring_up glitchtip GlitchTip 120 curl -sf "http://127.0.0.1:$GLITCHTIP/_health/"
+  # Give a dependent a moment to fail on its first writes, then check them all; a
+  # service that died is started again once before up fails.
+  sleep "${OBSERVABILITY_SETTLE_SECONDS:-5}"
+  if ! verify_running; then
+    log "a service exited after starting; starting it again"
+    bring_up clickhouse ClickHouse 60 ch -q 'select 1'
+    start_rest
+    bring_up glitchtip GlitchTip 120 curl -sf "http://127.0.0.1:$GLITCHTIP/_health/"
+    sleep "${OBSERVABILITY_SETTLE_SECONDS:-5}"
+    verify_running || die "the stack did not stay up; see $LOGS ($(for n in "${SERVICES[@]}"; do alive "$n" || printf '%s ' "$n"; done)exited)"
+  fi
   write_env
   log "ready in $((SECONDS - t0))s"
   cmd_urls
+}
+
+start_rest() {
+  bring_up collector "the collector" 60 curl -sf "http://127.0.0.1:$COLLECTOR_HEALTH/"
+  bring_up signoz SigNoz 60 curl -sf "http://127.0.0.1:$SIGNOZ/api/v1/health"
 }
 
 stop_service() {
@@ -638,15 +691,18 @@ case "${1:-}" in
   status) cmd_status ;;
   urls) cmd_urls ;;
   prepare) cmd_prepare ;;
+  restart-check) exec bash "$OBS_CONFIG_DIR/restart-check.sh" "${2:-5}" ;;
   *)
     cat <<'USAGE' >&2
-usage: observability up|down|status|urls|prepare
+usage: observability up|down|status|urls|prepare|restart-check [ROUNDS]
 
   up       start the stack (idempotent; first run takes about 5 minutes)
   down     stop the processes this script recorded; data is kept
   status   RSS and PSS per process against the budget (exit 2 over budget, 3 stopped)
   urls     where the UIs and endpoints are, and the sign-in
   prepare  allocate ports and write the env file without starting anything
+  restart-check [ROUNDS]
+           cold restarts with traffic, each checked (default 5); leaves the stack stopped
 USAGE
     exit 64
     ;;

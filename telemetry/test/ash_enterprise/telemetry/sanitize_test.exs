@@ -113,4 +113,21 @@ defmodule AshEnterprise.Telemetry.SanitizeTest do
       assert String.valid?(result)
     end
   end
+
+  test "a clause error loses the arguments Exception.format/3 would blame" do
+    exception =
+      Exception.normalize(:error, :function_clause, [
+        {Kernel, :not_a_function, [%{"secret" => "blamed-secret"}], []}
+      ])
+
+    sanitized = Sanitize.exception(exception)
+    refute Exception.format(:error, sanitized, []) =~ "blamed-secret"
+  end
+
+  test "an exit reason keeps its tag only" do
+    assert Sanitize.reason_label({:bad_state, "secret"}) == ":bad_state"
+    assert Sanitize.reason_label(:normal) == ":normal"
+    assert Sanitize.reason_label({}) == "unknown reason"
+    assert Sanitize.reason_label("secret") == "unknown reason"
+  end
 end

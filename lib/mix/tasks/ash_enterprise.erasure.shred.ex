@@ -8,7 +8,7 @@ defmodule Mix.Tasks.AshEnterprise.Erasure.Shred do
   chain are untouched.
 
       mix ash_enterprise.erasure.shred connection:<ref> --as you@example.com \\
-        --reason "left VendorPM"
+        --reason "left the organization"
 
   * The scope is named `kind:ref` exactly as `mix ash_enterprise.erasure.scopes`
     prints it. Typing the ref is the confirmation the action requires.

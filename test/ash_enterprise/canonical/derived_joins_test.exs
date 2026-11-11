@@ -231,7 +231,7 @@ defmodule AshEnterprise.Canonical.DerivedJoinsTest do
 
     test "a morning brief reaches its events and its approval task" do
       ctx = tenant!()
-      event = event!(ctx, "Design review", 5, 30)
+      event = event!(ctx, "Design review", 0, 30, starts_at: today_at(~T[12:00:00]))
       brief = brief!(ctx)
 
       [brief] =

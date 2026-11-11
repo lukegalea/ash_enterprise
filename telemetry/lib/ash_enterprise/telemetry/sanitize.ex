@@ -49,6 +49,9 @@ defmodule AshEnterprise.Telemetry.Sanitize do
     %{exception | args: Enum.map(args, fn _arg -> @filtered end)}
   end
 
+  # `Exception.format/3` blames a clause error, printing every argument it was given.
+  def exception(%FunctionClauseError{} = exception), do: %{exception | args: nil, clauses: nil}
+
   def exception(%Plug.Conn.WrapperError{} = exception) do
     %{
       exception
@@ -65,6 +68,20 @@ defmodule AshEnterprise.Telemetry.Sanitize do
   end
 
   def exception(other), do: other
+
+  @doc """
+  An exit reason's tag, without its data.
+
+  The rest of a reason such as `{:bad_return_value, state}` is the process's data.
+  """
+  @spec reason_label(term()) :: String.t()
+  def reason_label(reason) when is_atom(reason), do: inspect(reason)
+
+  def reason_label(reason)
+      when is_tuple(reason) and tuple_size(reason) > 0 and is_atom(elem(reason, 0)),
+      do: inspect(elem(reason, 0))
+
+  def reason_label(_reason), do: "unknown reason"
 
   @doc "At most `max` bytes of `value`, always valid UTF-8."
   @spec truncate(binary(), non_neg_integer()) :: binary()

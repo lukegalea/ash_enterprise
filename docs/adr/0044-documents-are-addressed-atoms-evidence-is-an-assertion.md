@@ -9,7 +9,7 @@
 
 ## Context
 
-The motivating use for System One judgments is evidence work: does this document — a certificate of insurance, a
+The motivating use for System One judgments is evidence work: does this document — an insurance certificate, a
 contract, a licence — satisfy this obligation? The tempting shape is to hand a model the document and the rule and ask
 "does this comply?". That question has no typed answer, no calibrated probability, no citation and no replay. It is the
 shape [ADR 0038](0038-models-observe-declarations-decide.md) exists to refuse.

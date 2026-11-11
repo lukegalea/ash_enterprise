@@ -100,15 +100,6 @@ defmodule AshEnterprise.Telemetry.CrashHandler do
     do: Sanitize.exception(exception)
 
   defp normalize(reason, _stacktrace) do
-    %RuntimeError{message: "process crashed: #{reason_label(reason)}"}
+    %RuntimeError{message: "process crashed: #{Sanitize.reason_label(reason)}"}
   end
-
-  # Only the reason's tag. The rest of a reason such as `{:bad_return_value, state}`
-  # is the process's data.
-  defp reason_label(reason) when is_atom(reason), do: inspect(reason)
-
-  defp reason_label(reason) when is_tuple(reason) and is_atom(elem(reason, 0)),
-    do: inspect(elem(reason, 0))
-
-  defp reason_label(_reason), do: "unknown reason"
 end

@@ -31,9 +31,9 @@
 // `github` external auth provider (data.coder_external_auth, optional = true)
 // and adds that private remote on every start. See coder/README.md.
 //
-// Host section mirrors the vendorpm-workspace template's working patterns
+// Host section mirrors the host workspace template's working patterns
 // (docker provider, enterprise-node image, docker socket + group_add, host-path
-// homes under var.homes_root with the VPM-19 isolated-checkout mount, CA
+// homes under var.homes_root with the isolated-checkout mount, CA
 // bundle, chown entrypoint, host-gateway) minus everything this template
 // doesn't need: there is no devcontainer leg, no submodules/refs machinery,
 // no shared checkout mode, and no agent-mode token plumbing. This template is
@@ -57,7 +57,7 @@ data "coder_workspace_owner" "me" {}
 // ── Host variables ───────────────────────────────────────────────────────────
 //
 // The deployment's two host constants. Both are passed at push time the way
-// the vendorpm-workspace template's are; the defaults match this lab.
+// the host workspace template's are; the defaults match this lab.
 
 variable "docker_gid" {
   type        = number
@@ -80,8 +80,7 @@ variable "homes_root" {
     REAL host path, so it outlives stops/restarts; the daemon auto-creates the
     dir root-owned and the container entrypoint chowns it before anything
     writes. The isolated checkout lives at <homes_root>/<owner>-<workspace>/
-    ash_enterprise, mounted back at its identical absolute path (VPM-19
-    pattern), so every workspace is workspace-unique by construction.
+    ash_enterprise, mounted back at its identical absolute path (same pattern), so every workspace is workspace-unique by construction.
     Cleanup of stale homes after workspace deletion is an operator sweep.
   EOT
 }
@@ -636,7 +635,7 @@ resource "coder_app" "app" {
 
 // ── Workspace host ───────────────────────────────────────────────────────────
 //
-// Mirrors the vendorpm-workspace template's host section faithfully (it is
+// Mirrors the host workspace template's host section faithfully (it is
 // the pattern this deployment runs on), simplified to isolated-only.
 
 resource "docker_image" "host" {
@@ -664,7 +663,7 @@ resource "docker_container" "workspace" {
   }
   group_add = [var.docker_gid]
 
-  # /home/coder = the host-path home (VPM-18 pattern). Bind, not volume: the
+  # /home/coder = the host-path home (same pattern). Bind, not volume: the
   # path must exist identically on the daemon host. The daemon auto-creates
   # it root-owned; the entrypoint chown below fixes ownership before the
   # agent or any script writes.
@@ -674,7 +673,7 @@ resource "docker_container" "workspace" {
     read_only      = false
   }
 
-  # Isolated checkout mount (VPM-19): mount the home's own host dir at its
+  # Isolated checkout mount: mount the home's own host dir at its
   # identical real path, NEXT to /home/coder rather than inside it. The
   # checkout (<isolated_root>/ash_enterprise) is then a REAL directory at the
   # SAME absolute path on the daemon host and inside this node — workspace-

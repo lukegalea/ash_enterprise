@@ -29,7 +29,14 @@ defmodule AshEnterprise.Mdm.PeopleTest do
     Person
   }
 
-  alias AshEnterprise.Mdm.{MatchCandidate, People, SourceIdentity, StagedRecord}
+  alias AshEnterprise.Mdm.{
+    MatchCandidate,
+    People,
+    Refold,
+    SourceIdentity,
+    StagedRecord
+  }
+
   alias AshEnterprise.Mdm.People.{Pipeline, Seed, SweepWorker}
   alias AshEnterprise.Platform.Seeder
 
@@ -48,6 +55,18 @@ defmodule AshEnterprise.Mdm.PeopleTest do
   end
 
   defp system(ctx), do: [tenant: ctx.tenant, authorize?: false]
+
+  # Straight from the table: a read goes through the person, and the replay
+  # deletes the people.
+  defp statement_ids(ctx) do
+    %{rows: rows} =
+      AshEnterprise.Repo.query!(
+        "SELECT id::text FROM mdm_attribute_assertions WHERE organization_id = $1::uuid",
+        [Ecto.UUID.dump!(ctx.tenant)]
+      )
+
+    rows |> List.flatten() |> Enum.sort()
+  end
 
   defp owner(ctx) do
     %{
@@ -306,6 +325,48 @@ defmodule AshEnterprise.Mdm.PeopleTest do
     refute reload(ctx, jane.home).merged
   end
 
+  test "a people confirm merges through the pipeline under a ranked policy, and says why", ctx do
+    # A plain-key rule set governs every person, the people flow's pairing included.
+    AshEnterprise.Mdm.MatchRuleSet
+    |> Ash.Changeset.for_create(
+      :draft,
+      %{
+        golden_resource: People.golden_resource(),
+        rules: [
+          %{"name" => "email_exact", "kind" => "exact", "fields" => ["email"], "weight" => 1.0}
+        ],
+        survivorship: %{"default" => "source_rank", "source_rank" => ["gmail"]}
+      },
+      system(ctx)
+    )
+    |> Ash.create!(system(ctx))
+    |> Ash.Changeset.for_update(:activate, %{}, system(ctx))
+    |> Ash.update!(system(ctx))
+
+    jane = jane!(ctx)
+    assert {:ok, _} = Pipeline.run(ctx.tenant)
+    assert [candidate] = queue(ctx)
+
+    Refold.assert!(ctx.tenant, jane.home.id, %{"name" => "Jane From Gmail"}, %{
+      origin_kind: :import,
+      source: "gmail",
+      origin_ref: %{"test" => true},
+      observed_at: ~U[2026-02-01 00:00:00.000000Z]
+    })
+
+    candidate
+    |> Ash.Changeset.for_update(:confirm, %{}, tenant: ctx.tenant, actor: ctx.actor)
+    |> Ash.update!(tenant: ctx.tenant, actor: ctx.actor)
+
+    home = reload(ctx, jane.home)
+    assert home.merged
+    assert home.master_id == jane.work.id
+    assert reload(ctx, jane.work).name == "Jane From Gmail"
+
+    assert %{"winner" => "loser", "strategy" => "source_rank", "source" => "gmail"} =
+             home.merge_provenance["winners"]["name"]
+  end
+
   test "namesakes with nothing in common are not merged; same name and domain is a question",
        ctx do
     north = person!(ctx, "alex@north.test", "Alex Kim")
@@ -434,9 +495,13 @@ defmodule AshEnterprise.Mdm.PeopleTest do
     assert {work.id, "Jane Doe", "jane@acme.test", false, nil} in before
     assert length(before) == 2
 
+    statements = statement_ids(ctx)
+
     AshEnterprise.Repo.query!("DELETE FROM canonical_people", [])
     assert {:ok, 2} = AshEnterprise.Mdm.Projection.replay(tenant: ctx.tenant)
     assert goldens.() == before
+    # The identity history is the record; a replay states nothing new.
+    assert statement_ids(ctx) == statements
 
     AshEnterprise.Repo.query!("DELETE FROM canonical_people", [])
     assert {:ok, 2} = AshEnterprise.Mdm.Projection.replay(tenant: ctx.tenant)

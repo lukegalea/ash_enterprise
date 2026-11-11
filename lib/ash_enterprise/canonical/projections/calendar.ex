@@ -258,6 +258,12 @@ defmodule AshEnterprise.Canonical.Projections.Calendar do
   end
 
   defp project_payload(system, external_id, payload, context) do
+    context =
+      Map.merge(context, %{
+        statement_source: to_string(system),
+        statement_observed_at: updated(payload)
+      })
+
     case event_attributes(payload) do
       {:ok, attrs} ->
         write_complete(system, external_id, attrs, context)
@@ -454,6 +460,15 @@ defmodule AshEnterprise.Canonical.Projections.Calendar do
     end
   end
 
+  defp updated(%{"updated" => iso}) when is_binary(iso) do
+    case DateTime.from_iso8601(iso) do
+      {:ok, datetime, _offset} -> datetime
+      _ -> nil
+    end
+  end
+
+  defp updated(_payload), do: nil
+
   defp present_string(value) when is_binary(value) and value != "", do: value
   defp present_string(_value), do: nil
 
@@ -541,7 +556,9 @@ defmodule AshEnterprise.Canonical.Projections.Calendar do
     Person
     |> Ash.Changeset.for_create(
       :upsert_from_source,
-      Map.merge(%{email: email, name: name}, owner_attrs(context)),
+      %{email: email, name: name}
+      |> Map.merge(owner_attrs(context))
+      |> Map.merge(statement(context)),
       tenant: context.tenant_id,
       actor: Map.get(context, :actor),
       authorize?: false
@@ -549,9 +566,18 @@ defmodule AshEnterprise.Canonical.Projections.Calendar do
     |> Ash.create(
       upsert?: true,
       upsert_identity: :unique_email,
-      upsert_fields: if(is_nil(name), do: [], else: [:name])
+      # A stated name is the fold's to write; it is not the answer on its own.
+      upsert_fields: if(is_nil(name) or context.statement_observed_at, do: [], else: [:name])
     )
   end
+
+  # No modified time on the payload, no statement: the read time would make
+  # every replay a new one.
+  defp statement(%{statement_observed_at: %DateTime{} = observed_at, statement_source: source}) do
+    %{statement_source: source, statement_observed_at: observed_at}
+  end
+
+  defp statement(_context), do: %{}
 
   defp owner_attrs(context) do
     %{

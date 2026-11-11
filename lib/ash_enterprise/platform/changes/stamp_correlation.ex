@@ -57,7 +57,7 @@ defmodule AshEnterprise.Platform.Changes.StampCorrelation do
 
   defp put_invocation(metadata, _context), do: metadata
 
-  # Temporal safety (AST-149, the VPM-49 audit's judgment carried to the
+  # Temporal safety (AST-149, the earlier audit's judgment carried to the
   # SystemOne facts host): pure changeset-context plumbing — the
   # correlation id and tenant move into audit metadata; nothing reads the
   # clock, and the stamped context touches no row column.

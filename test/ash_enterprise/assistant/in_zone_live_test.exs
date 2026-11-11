@@ -116,7 +116,7 @@ defmodule AshEnterprise.Assistant.InZoneLiveTest do
       organizer: {"quinn@example.test", "Quinn Synthetic"}
     )
 
-    D.event!(ctx, "SYNTHETIC vendor onboarding", 60 * 24 + 180, 45)
+    D.event!(ctx, "SYNTHETIC partner onboarding", 60 * 24 + 180, 45)
     D.event!(ctx, "SYNTHETIC one-on-one", 120, 30)
 
     D.conversation!(
