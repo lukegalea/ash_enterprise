@@ -34,6 +34,8 @@ defmodule AshEnterprise.Security.ConformanceTest do
   use AshEnterprise.DataCase, async: false
 
   alias AshEnterprise.Accounts.BusinessUnit
+  alias AshEnterprise.Accounts.Team
+  alias AshEnterprise.Accounts.TeamMembership
   alias AshEnterprise.Conformance.Widget
   alias AshEnterprise.Platform.SystemActor
   alias AshEnterprise.Security.ActorContext
@@ -153,6 +155,34 @@ defmodule AshEnterprise.Security.ConformanceTest do
       assert after_widening == [:alice, :bob, :carol]
       # The defining property of a union: nothing that was visible became hidden.
       assert Enum.all?(before, &(&1 in after_widening))
+    end
+  end
+
+  describe "ownership is a user or a team" do
+    test "basic reaches a record owned by a team the actor is on, and not one owned by another team",
+         ctx do
+      ours = team(ctx, "EMEA desk", ctx.bus.emea)
+      theirs = team(ctx, "APAC desk", ctx.bus.apac)
+      join_team(ctx, :alice, ours)
+
+      ours_widget = team_widget("the EMEA desk's widget", ours, ctx.bus.emea, ctx.org)
+      theirs_widget = team_widget("the APAC desk's widget", theirs, ctx.bus.apac, ctx.org)
+
+      actor = with_role(ctx, :alice, :read, :basic, ctx.bus.emea)
+
+      {:ok, widgets} =
+        Widget
+        |> Ash.Query.for_read(:read, %{}, actor: actor, tenant: ctx.org)
+        |> Ash.read()
+
+      ids = MapSet.new(widgets, & &1.id)
+
+      # The same :basic grant reaches alice's own widget and her team's, and
+      # nothing owned by a team she is not on.
+      assert ctx.widgets.alice.id in ids
+      assert ours_widget.id in ids
+      refute theirs_widget.id in ids
+      refute ctx.widgets.bob.id in ids
     end
   end
 
@@ -474,6 +504,42 @@ defmodule AshEnterprise.Security.ConformanceTest do
         owner_id: owner.id,
         owner_type: :user,
         owning_user_id: owner.id,
+        owning_business_unit_id: business_unit.id
+      },
+      authorize?: false,
+      tenant: org
+    )
+    |> Ash.create!()
+  end
+
+  defp team(ctx, name, business_unit) do
+    Team
+    |> Ash.Changeset.for_create(
+      :create,
+      %{name: name, team_type: :owner, owning_business_unit_id: business_unit.id},
+      authorize?: false,
+      tenant: ctx.org
+    )
+    |> Ash.create!()
+  end
+
+  defp join_team(ctx, user_key, team) do
+    TeamMembership
+    |> Ash.Changeset.for_create(:create, %{team_id: team.id, user_id: ctx.users[user_key].id},
+      authorize?: false,
+      tenant: ctx.org
+    )
+    |> Ash.create!()
+  end
+
+  defp team_widget(name, team, business_unit, org) do
+    Widget
+    |> Ash.Changeset.for_create(
+      :create,
+      %{
+        name: name,
+        owner_id: team.id,
+        owner_type: :team,
         owning_business_unit_id: business_unit.id
       },
       authorize?: false,

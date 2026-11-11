@@ -5,11 +5,13 @@
     "render from this file via `mix ash_enterprise.roadmap`, which CI checks.",
     "A status can therefore be wrong in one place only by being wrong in all of",
     "them -- which is the point. Legal statuses: shipped | partial | planned | open.",
-    "  shipped -- working code plus a test that would fail if it regressed.",
+    "  shipped -- built, covered by a named test, and running in a deployment we operate.",
+    "             `proof` is the test's file and `test` its name, which CI finds in that",
+    "             file; `built` is the commit that built what the test proves.",
     "  partial -- works, with a named limitation stated in the answer.",
     "  planned -- an ADR and a plan exist, no code.",
     "  open    -- named as a gap, no decision taken.",
-    "Last reviewed against the tree: 2026-11-09."
+    "Last reviewed against the tree: 2026-11-11."
   ],
   "sections": [
     {
@@ -42,9 +44,10 @@
       "id": "q1",
       "section": "identity",
       "question": "How do people prove who they are?",
-      "answer": "Password and remember-me through `ash_authentication`: the user resource declares those two strategies and no others (read from the running resource, 2026-11-09). Sign-in issues a token that is stored server-side and expires after 14 days, the library default, and changing a password logs the user out everywhere. Magic-link has a route and a confirmation hook but no strategy behind them. OAuth2/OIDC, SAML, WebAuthn and API-key strategies are not declared; the API and MCP pipelines load an ordinary user token from the bearer header. The design intent stands: federate to the identity provider your enterprise already runs and let it own MFA and session policy, with the in-app stack as the lightweight version for standalone use. That wiring is q29.",
+      "answer": "Password sign-in through `ash_authentication`, with remember-me, email confirmation and password reset: the user resource declares the password and remember-me strategies and no others. Sign-in issues a token that is stored server-side and expires after 14 days, the library default, and changing a password logs the user out everywhere. The API and MCP pipelines read an ordinary user token from the bearer header. Not built: magic link (a route and a confirmation hook exist with no strategy behind them), OAuth2/OIDC, SAML, WebAuthn and API keys. Bringing an enterprise identity provider is q29.",
       "status": "partial",
-      "proof": "test/ash_enterprise/accounts/sign_in_test.exs"
+      "proof": "test/ash_enterprise/accounts/sign_in_test.exs",
+      "test": "a correct password signs the user in and issues a token"
     },
     {
       "id": "q2",
@@ -52,7 +55,9 @@
       "question": "How is \"may this actor do this?\" decided?",
       "answer": "`(role, privilege, depth)` rows evaluated as a pure union of grants — authorization is data, not code. No deny rules, so order cannot matter.",
       "status": "shipped",
-      "proof": "test/ash_enterprise/security/conformance_test.exs"
+      "proof": "test/ash_enterprise/security/conformance_test.exs",
+      "test": "two narrow grants union rather than conflict",
+      "built": "c12c25e9"
     },
     {
       "id": "q3",
@@ -60,7 +65,9 @@
       "question": "Who owns a record?",
       "answer": "Polymorphic user-or-team ownership inherited from the base resource. The Dataverse ownership type per entity is scraped from the corpus, never guessed.",
       "status": "shipped",
-      "proof": "test/ash_enterprise/security/conformance_test.exs"
+      "proof": "test/ash_enterprise/security/conformance_test.exs",
+      "test": "basic reaches a record owned by a team the actor is on, and not one owned by another team",
+      "built": "c12c25e9"
     },
     {
       "id": "q4",
@@ -68,7 +75,9 @@
       "question": "How does where you sit in the org chart change what you can see?",
       "answer": "A business-unit tree with a materialized path, plus an optional manager/position hierarchy. Grant depth expands to a subtree once per request, never inside a policy check.",
       "status": "shipped",
-      "proof": "test/ash_enterprise/security/hierarchy_test.exs"
+      "proof": "test/ash_enterprise/security/conformance_test.exs",
+      "test": "deep reaches the business unit and everything beneath it",
+      "built": "c12c25e9"
     },
     {
       "id": "q5",
@@ -76,7 +85,9 @@
       "question": "Can one record be shared with someone the rules would not otherwise reach?",
       "answer": "An `AccessGrant` row — Dataverse's `PrincipalObjectAccess` — adds rights to one record without widening any role.",
       "status": "shipped",
-      "proof": "test/ash_enterprise/surfaces/saved_surface_test.exs"
+      "proof": "test/ash_enterprise/surfaces/saved_surface_test.exs",
+      "test": "the pinned app shows less: the revoked rows are not sent, not just flagged",
+      "built": "c12c25e9"
     },
     {
       "id": "q6",
@@ -92,7 +103,9 @@
       "question": "Is every change recorded, including who and from where?",
       "answer": "`AshEvents` writes a central append-only log on every create, update and destroy — inherited from the base resource, not wired per resource, so a new table cannot quietly have no history.",
       "status": "shipped",
-      "proof": "lib/ash_enterprise/audit/event_log.ex"
+      "proof": "test/ash_enterprise/audit/every_write_test.exs",
+      "test": "a create, an update and a destroy each write one event, on a resource that wires nothing for it",
+      "built": "b9c0cec3"
     },
     {
       "id": "q8",
@@ -100,7 +113,9 @@
       "question": "Can you follow one request across the whole system at 3am?",
       "answer": "One correlation id per request, stamped into audit metadata and OTel spans, and carried across process boundaries explicitly.",
       "status": "shipped",
-      "proof": "test/ash_enterprise/platform/correlation_test.exs"
+      "proof": "test/ash_enterprise/platform/correlation_test.exs",
+      "test": "with_correlation/2 joins work done in another scope",
+      "built": "115d5fd8"
     },
     {
       "id": "q9",
@@ -108,7 +123,9 @@
       "question": "Are illegal state transitions impossible, or merely discouraged?",
       "answer": "`ash_state_machine` generates one named action per legal transition from the canonical Dataverse lifecycle. There is no generic `:update` that can set a state.",
       "status": "shipped",
-      "proof": "test/ash_enterprise/platform/lifecycle_test.exs"
+      "proof": "test/ash_enterprise/platform/lifecycle_test.exs",
+      "test": "an illegal transition is rejected",
+      "built": "ea98e050"
     },
     {
       "id": "q10",
@@ -132,7 +149,9 @@
       "question": "How are tenants separated?",
       "answer": "Attribute multitenancy on `organization_id`, inherited by every resource — never schema-per-tenant, and never per-department.",
       "status": "shipped",
-      "proof": "test/ash_enterprise/security/tenant_resolution_test.exs"
+      "proof": "test/ash_enterprise/security/tenant_resolution_test.exs",
+      "test": "creating with the resolved tenant sets the discriminator",
+      "built": "b9c0cec3"
     },
     {
       "id": "q13",
@@ -140,7 +159,9 @@
       "question": "Does tenant isolation hold even when authorization is wrong?",
       "answer": "Yes, and it is asserted as a separate property: the conformance suite checks isolation independently of every grant path.",
       "status": "shipped",
-      "proof": "test/ash_enterprise/security/conformance_test.exs"
+      "proof": "test/ash_enterprise/security/conformance_test.exs",
+      "test": "a global grant does not cross tenants",
+      "built": "c12c25e9"
     },
     {
       "id": "q14",
@@ -231,6 +252,9 @@
       "question": "How do the processes people actually follow get modelled?",
       "answer": "`ash_bpmn` compiles a BPMN document into an immutable versioned graph and executes it with a token interpreter over Postgres and Oban, with an embedded designer. Gateway conditions are FEEL, the DMN expression language -- the hand-written expression evaluator it replaced is deleted. **Running here**: the six resources sit on the platform base resource, so a process instance is an ordinary owned, tenant-scoped record and the engine's bypass is the first policy in the base's own set. A published baseline, four seeded requests covering every branch of the gateway, and two tenants on different versions of the same key.",
       "status": "shipped",
+      "proof": "test/ash_enterprise/process/access_request_demo_test.exs",
+      "test": "a low-risk request is granted without a human",
+      "built": "ff7a3c97",
       "adr": "0009",
       "item": "first-party"
     },
@@ -267,7 +291,9 @@
       "question": "How does the schema itself evolve without drifting from the model?",
       "answer": "Migrations are derived as a diff against committed resource snapshots, and the diff is a CI gate — so a resource change without a migration fails the build rather than surfacing at deploy time.",
       "status": "shipped",
-      "proof": "priv/resource_snapshots/"
+      "proof": ".github/workflows/ci.yml",
+      "test": "Check Ash-generated code is committed",
+      "built": "10408cb5"
     },
     {
       "id": "q28",
@@ -318,7 +344,9 @@
       "question": "Can the audit log be altered after the fact?",
       "answer": "Shipped. Two mechanisms with different jobs: a trigger refuses `UPDATE` and `DELETE` outright, and every event carries a SHA-256 chained to the previous one, so an operator privileged enough to drop the trigger still cannot make an edit look untouched. `mix ash_enterprise.audit.verify` walks the chains; the suite proves it by tampering.",
       "status": "shipped",
-      "proof": "test/ash_enterprise/audit/chain_test.exs"
+      "proof": "test/ash_enterprise/audit/chain_test.exs",
+      "test": "an altered row is found",
+      "built": "ff4d8bf6"
     },
     {
       "id": "q34",
@@ -326,7 +354,9 @@
       "question": "Can a customer see their own audit trail, and only theirs?",
       "answer": "Shipped. The log is attribute-multitenant on an `organization_id` the chain trigger derives from stamped metadata, so a tenant-scoped read is filtered by the data layer rather than by a policy written specially for the audit log. Depth answers how much of a tenant you see; tenancy answers which tenant.",
       "status": "shipped",
-      "proof": "test/ash_enterprise/audit/tenant_isolation_test.exs"
+      "proof": "test/ash_enterprise/audit/tenant_isolation_test.exs",
+      "test": "a tenant does not see another tenant's events",
+      "built": "ff4d8bf6"
     },
     {
       "id": "q35",
@@ -334,7 +364,9 @@
       "question": "Can an auditor be handed a window of evidence without engineering help?",
       "answer": "Shipped. `mix ash_enterprise.audit.export --from --to [--tenant]` writes CSV in chain order, including `sequence`, `previous_hash` and `hash` so the recipient can re-verify it rather than take it on trust. It reads through the ordinary action layer, so an export is exactly as wide as its requester's authorization.",
       "status": "shipped",
-      "proof": "lib/ash_enterprise/audit/export.ex"
+      "proof": "test/ash_enterprise/audit/export_test.exs",
+      "test": "the export is scoped exactly as the reader is",
+      "built": "ff4d8bf6"
     },
     {
       "id": "q36",
@@ -351,7 +383,9 @@
       "question": "Are role and permission changes attributable to a person?",
       "answer": "Shipped. Role assignments are ordinary audited resources, so granting one produces an event naming the grantor, the grantee and the correlation id of the request — and the record itself now carries `created_by_id`, which nothing populated before.",
       "status": "shipped",
-      "proof": "test/ash_enterprise/audit/impersonation_test.exs"
+      "proof": "test/ash_enterprise/audit/every_write_test.exs",
+      "test": "assigning a role records the grantor, the grantee and the request's correlation id",
+      "built": "ff4d8bf6"
     },
     {
       "id": "q38",

@@ -148,7 +148,55 @@ defmodule Mix.Tasks.AshEnterprise.Roadmap do
       end
     end
 
+    Enum.each(questions, &refuse_uncited!/1)
+
     :ok
+  end
+
+  # "Shipped" means built, covered by a named test, and running in a deployment
+  # we operate. The last part is checked when a row is graded; the first two are
+  # checked here, on every build: a shipped row names a file in `proof` and a
+  # test in `test`, and the name must still be in that file. A renamed or
+  # deleted test then fails CI instead of leaving a citation that points nowhere.
+  defp refuse_uncited!(question) do
+    proof = question["proof"]
+    test = question["test"]
+
+    cond do
+      question["status"] == "shipped" and not (is_binary(proof) and is_binary(test)) ->
+        Mix.raise(
+          "Question #{inspect(question["id"])} is shipped but does not name its test. " <>
+            ~s|A shipped row needs "proof" (the file) and "test" (the test's name in it).|
+        )
+
+      is_binary(test) and not is_binary(proof) ->
+        Mix.raise("Question #{inspect(question["id"])} names a test but not the file it is in.")
+
+      is_binary(test) ->
+        refuse_missing_test!(question, proof, test)
+
+      true ->
+        :ok
+    end
+  end
+
+  defp refuse_missing_test!(question, proof, test) do
+    cond do
+      not File.regular?(proof) ->
+        Mix.raise(
+          "Question #{inspect(question["id"])} cites #{proof}, which is not a file. " <>
+            "A row naming a test names the file it is in."
+        )
+
+      not String.contains?(File.read!(proof), test) ->
+        Mix.raise(
+          "Question #{inspect(question["id"])} cites the test #{inspect(test)}, " <>
+            "which is not in #{proof}. Was it renamed?"
+        )
+
+      true ->
+        :ok
+    end
   end
 
   defp refuse_duplicates!(entries, what, key_fun) do
@@ -395,16 +443,30 @@ defmodule Mix.Tasks.AshEnterprise.Roadmap do
 
   defp status(%{"status" => status}), do: @status_label[status]
 
-  # A shipped claim points at code or a test; a planned one points at the ADR or
-  # plan that reasons about it. Nothing points at nothing without saying so.
+  # A shipped claim points at its test, by file and by name; a planned one points
+  # at the ADR or plan that reasons about it. Nothing points at nothing without
+  # saying so.
   defp proof(entry, base) do
     cond do
-      is_binary(entry["proof"]) -> "`#{entry["proof"]}`"
-      is_binary(entry["adr"]) -> adr_link(entry["adr"], base)
-      is_binary(entry["plan"]) -> "[plan](#{relative(base, entry["plan"])})"
-      true -> "—"
+      is_binary(entry["proof"]) and is_binary(entry["test"]) ->
+        "`#{entry["proof"]}`<br />“#{escape_cell(entry["test"])}”"
+
+      is_binary(entry["proof"]) ->
+        "`#{entry["proof"]}`"
+
+      is_binary(entry["adr"]) ->
+        adr_link(entry["adr"], base)
+
+      is_binary(entry["plan"]) ->
+        "[plan](#{relative(base, entry["plan"])})"
+
+      true ->
+        "—"
     end
   end
+
+  # A test name is free text inside a table cell, where a bare pipe ends the cell.
+  defp escape_cell(text), do: String.replace(text, "|", "\\|")
 
   defp adr_link(nil, _base), do: "—"
 
