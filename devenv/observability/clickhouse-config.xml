@@ -18,13 +18,19 @@
   <default_database>default</default_database>
   <mlock_executable>false</mlock_executable>
   <!--
-    Off, so the 640 MiB cap below is measured against this server alone. On, the
+    Off, so the 1 GiB cap below is measured against this server alone. On, the
     memory worker reads the cgroup's usage as the server's own RSS, and inside a
     cgroup shared with other processes (a dev container, a terminal multiplexer's
     service) every query fails with MEMORY_LIMIT_EXCEEDED.
   -->
   <memory_worker_use_cgroup>false</memory_worker_use_cgroup>
-  <max_server_memory_usage>671088640</max_server_memory_usage>
+  <!--
+    1 GiB. The cap counts RSS, about 200 MB of which is the server's own code. At
+    640 MiB, a burst of about 13,000 spans (one browser-test run of a host app) pushed
+    RSS to 660-690 MiB, and the server rejected inserts and queries with
+    MEMORY_LIMIT_EXCEEDED, so spans were lost. Steady RSS stays near 330 MB.
+  -->
+  <max_server_memory_usage>1073741824</max_server_memory_usage>
   <!-- 48, not lower: the traces exporter writes many tables in parallel, and code 202
        makes it retry, which duplicates span rows. -->
   <max_concurrent_queries>48</max_concurrent_queries>
