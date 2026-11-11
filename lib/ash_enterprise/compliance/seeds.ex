@@ -349,6 +349,7 @@ defmodule AshEnterprise.Compliance.Seeds do
           reason:
             "Legacy estate onboarding window: periodic review waived while the " <>
               "e-mail domain migration completes",
+          requested_by: "kyc-onboarding",
           approver: "compliance-office",
           approved_at: now(),
           starts_at: now(),

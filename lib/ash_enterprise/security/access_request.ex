@@ -94,6 +94,14 @@ defmodule AshEnterprise.Security.AccessRequest do
     end
   end
 
+  @doc """
+  The SOC 2 criteria this module records evidence for (access requests).
+
+  Read by `AshCompliance.Ownership.Resolver.proves_producer/2`; `docs/controls.json`
+  rows that name this module as their evidence producer must appear here.
+  """
+  def evidence_controls, do: ["CC6.2"]
+
   actions do
     defaults [:read]
 

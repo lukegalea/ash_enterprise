@@ -187,7 +187,7 @@ jobs:
       # status, a missing criterion, or a larger gap count than the last one.
       # Drop --report to enforce once the listing is empty.
       - name: Report the control ownership gaps
-        run: mix ash_compliance.controls.check --report --categories security,availability,processing_integrity,confidentiality,privacy
+        run: mix ash_compliance.controls.check --report --require-producer-proof --categories security,availability,processing_integrity,confidentiality,privacy
 
       # `--skip` honours the `@sobelow_skip` attributes in the source. There is
       # exactly one, on `AshEnterprise.Audit.Export`, and it says why next to
