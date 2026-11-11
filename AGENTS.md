@@ -23,6 +23,33 @@ you need, fall back to grep AND append a one-line note to `.agents/logs/tool-gap
 
 ## Project guidelines
 
+### Placement: before you write a new module or component
+
+Run this before any new module, LiveView, hook, JS file or Lit element. Take the first line that fits.
+Canonical rule: [ADR 0070](docs/adr/0070-upstream-first-placement.md). Tutorial: `tutorial/00_philosophy.livemd`.
+
+1. Does the platform already say it (an `ash_*` package, AE base resource, a tier-1 library)?
+   Use it. That is 0.
+2. General (no product noun) but missing? That is a package concern. STOP. Add it to the right
+   `ash_*` package with a package-side test, pin the ref, then adopt it here. AE is consumer one.
+3. Cross-package, and AE is the right home (base resource, battery, reference wiring)? Put it in AE.
+4. First gap? One inelegant local version is allowed. Add `# GAP: <missing concept> (<issue>)` and
+   open the upstream issue in the same change. That is 1.
+5. About to write the second copy? STOP. Do not copy. Move the first one down a layer. That is N.
+   Check the other host first (`vendorpm-keystone` shares 379 same-path files; do not add to them).
+6. Early phase: if a second use is anticipated inside our known domain (vendor, contract, compliance,
+   procurement management and the platform around it), lean toward extracting. Build only the API the
+   known use needs. No guessed options.
+
+UI, same order: (a) an A2UI surface -> (b) a missing widget: STOP, add a Lit component to `ash_a2ui`
+-> (c) host-specific UI only with a written reason and a row in `docs/UPSTREAM-EXCEPTIONS.md`.
+
+STOP also means: no `Application.get_env/put_env` on a dependency's app name; no patch for a
+dependency bug without a row in `docs/BLEEDING-EDGE.md` section 3. If you cannot make the upstream
+change, write the issue text, leave the `# GAP:` note, and tell the human. You may open a draft PR
+in a `lukegalea/ash_*` repo only when the ticket names that repo. Never merge, never publish to Hex.
+If unsure which step applies, raise a tension. Say which step you took in the PR.
+
 - Use `mix precommit` alias when you are done with all changes and fix any pending issues
 - Use the already included and available `:req` (`Req`) library for HTTP requests, **avoid** `:httpoison`, `:tesla`, and `:httpc`. Req is included by default and is the preferred HTTP client for Phoenix apps
 
@@ -51,7 +78,7 @@ custom classes must fully style the input
 
 - **Always use and maintain this import syntax** in the app.css file for projects generated with `phx.new`
 - **Never** use `@apply` when writing raw css
-- **Always** manually write your own tailwind-based components instead of using daisyUI for a unique, world-class design
+- For UI, follow the UI ladder in Placement above: prefer an A2UI surface (`AshA2ui.Standalone`) over hand-written components. Hand-written Tailwind components are for host-specific UI that has a row in `docs/UPSTREAM-EXCEPTIONS.md`
 - Out of the box **only the app.js and app.css bundles are supported**
   - You cannot reference an external vendor'd script `src` or link `href` in the layouts
   - You must import the vendor deps into app.js and app.css to use them
@@ -59,7 +86,7 @@ custom classes must fully style the input
 
 ### UI/UX & design guidelines
 
-- **Produce world-class UI designs** with a focus on usability, aesthetics, and modern design principles
+- Aim for good usability, clean design and modern principles. Get there through the A2UI catalog and design system first (see Placement); add a missing widget upstream in `ash_a2ui` instead of writing it by hand here
 - Implement **subtle micro-interactions** (e.g., button hover effects, and smooth transitions)
 - Ensure **clean typography, spacing, and layout balance** for a refined, premium look
 - Focus on **delightful details** like hover effects, loading states, and smooth page transitions
