@@ -28,6 +28,21 @@ devenv shell -- observability restart-check 5   # cold restarts with traffic, ea
 
 Every shell sources `.devenv/state/observability/env`, which holds `OTEL_EXPORTER_OTLP_ENDPOINT`, `SENTRY_DSN`, the UI URLs and the API credentials. `down` removes it. Restart a running app after `up` so it picks them up.
 
+## Diagnose a slow page from its trace
+
+Three read-only subcommands answer "why is this page slow" from the traces SigNoz already holds. They find ClickHouse and its port themselves, print plain text, and take `--json` for the same data as JSON. They read span names, durations, SQL text and the `ui.*` and `enduser.name` attributes only.
+
+```bash
+devenv shell -- observability slow --since 3h              # worst root and LiveView spans, by name
+devenv shell -- observability slow --by page --since 20m   # per page: count, p50, p95, max, worst trace
+devenv shell -- observability trace <trace_id>             # span tree + by-name rollup
+devenv shell -- observability queries --since 3h           # slowest SQL with the user action behind it
+```
+
+- **`slow [--since 3h] [--limit N] [--by name|page]`** lists the slowest root spans and the slowest LiveView spans (`mount`, `handle_params`, `handle_event`, `lv.connect`) in the window, with count, p50, max and the trace id of the worst one. `--by page` groups instead by route or surface: an HTTP root and an `lv.connect` span by route, a LiveView event by its `ui.surface.id` (the LiveView module when it has none), `mount` and `handle_params` by module. Each page gets one row per kind with count, p50, p95, max and the worst trace. `--since` takes a number and `s`, `m`, `h` or `d`, so `--since 20m` limits a report to a test run.
+- **`trace <trace_id> [--threshold 20] [--full]`** prints the indented span tree and then the spans grouped by name with count, total and max time, heaviest first. A name that occurs at least `--threshold` times (default 20) in the one trace is flagged `likely N+1`. The tree folds siblings that share a name into one line (`x260  total ... ms`) and expands the first; `--full` prints every span. The header shows the root span and, for a LiveView event, its `ui.surface.id`, `ui.action.*` and `enduser.name`.
+- **`queries [--since 3h] [--limit N]`** lists the slowest SQL spans with their trace id, the root span of that trace and its `ui.*` attributes, so a slow statement leads back to the user action that ran it. The statement text shows when the application records it (`OTEL_ECTO_DB_STATEMENT`); otherwise the line says so.
+
 ## Options
 
 | Option | Default | |
