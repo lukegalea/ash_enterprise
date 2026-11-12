@@ -817,13 +817,31 @@ cmd_provision() {
 #
 # Read-only. They query SigNoz's span table through the same ClickHouse client and port
 # `up` uses, so the caller needs to know neither. Output is plain text; --json prints the
-# same data as JSON. Only span names, durations, SQL text and the ui.* / enduser.name
-# attributes are read: never the environment, never a secret.
+# same data as JSON. Only span names, durations, SQL text and the ui.* / enduser.* /
+# server.port attributes are read: never the environment, never a secret.
+#
+# Large values never travel as command-line arguments (`jq --argjson` on a 177 KB SQL
+# statement fails with "Argument list too long"): JSON goes to jq on stdin, and SQL text is
+# truncated in ClickHouse before it leaves it.
 # ---------------------------------------------------------------------------
 
 SPANS="signoz_traces.distributed_signoz_index_v3"
 # LiveView lifecycle spans: Module.mount, Module.handle_params, Module.handle_event[#name], and lv.connect.
 LV_RE='(\\.(mount|handle_params)|\\.handle_event(#.*)?| lv\\.connect)$'
+
+# Spans the browser exports (the OpenTelemetry web SDK). They are shown apart from the
+# server tree and never counted in its rollup or flags. The page timings drop the three
+# page-load names but keep lv.connect, which is the connect time a page reports on purpose.
+BROWSER_NAMES_SQL="name in ('documentLoad', 'documentFetch', 'resourceFetch')"
+BROWSER_SQL="($BROWSER_NAMES_SQL or serviceName like '%-browser')"
+QUERY_SQL="name like '%repo.query%'"
+# An Ash action span is named domain:resource.action.
+ASH_RE='^[a-z0-9_]+:[a-z0-9_]+\\.[a-z0-9_?!]+$'
+ASH_SQL="match(name, '$ASH_RE')"
+# Probe routes, hidden unless --all. A bare verb as a span name ("GET") is a static asset
+# request that matched no route; it is hidden too.
+PROBE_RE='^/(health|healthz|ready|readyz|livez|ping|up|metrics)(/|$)'
+BARE_RE='^[A-Z]+$'
 
 # The topmost span of a trace has no parent, or a parent that is not in the trace (a
 # LiveView event continues a browser-side parent that is never exported).
@@ -835,29 +853,41 @@ trace_ch() {
   ch --output_format_json_quote_64bit_integers 0 "$@"
 }
 
+# A string as a ClickHouse literal body (no surrounding quotes).
+sq() {
+  local s="${1//\\/\\\\}"
+  printf '%s' "${s//\'/\\\'}"
+}
+
 set_trace_opt() {
   case "$1" in
     --since) SINCE="$2" ;;
     --limit) LIMIT="$2" ;;
     --threshold) THRESHOLD="$2" ;;
     --by) BY="$2" ;;
+    --sort) SORT="$2" ;;
+    --service) SERVICE="$2" ;;
+    --port) PORT="$2" ;;
+    --user) USER_FILTER="$2" ;;
   esac
 }
 
-# Sets SINCE, LIMIT, THRESHOLD, FULL, AS_JSON and POSITIONAL from the arguments.
+# Sets SINCE, LIMIT, THRESHOLD, BY, SORT, SERVICE, PORT, USER_FILTER, ALL, FULL, AS_JSON and
+# POSITIONAL from the arguments.
 parse_trace_opts() {
-  SINCE=3h BY=name LIMIT="" THRESHOLD=20 FULL="" AS_JSON="" POSITIONAL=()
+  SINCE=3h BY=name SORT=time LIMIT="" THRESHOLD=20 SERVICE="" PORT="" USER_FILTER="" ALL="" FULL="" AS_JSON="" POSITIONAL=()
   while [ $# -gt 0 ]; do
     case "$1" in
-      --since|--limit|--threshold|--by)
+      --since|--limit|--threshold|--by|--sort|--service|--port|--user)
         [ $# -ge 2 ] || die "$1 needs a value"
         set_trace_opt "$1" "$2"
         shift 2
         ;;
-      --since=*|--limit=*|--threshold=*|--by=*)
+      --since=*|--limit=*|--threshold=*|--by=*|--sort=*|--service=*|--port=*|--user=*)
         set_trace_opt "${1%%=*}" "${1#*=}"
         shift
         ;;
+      --all) ALL=1; shift ;;
       --full) FULL=1; shift ;;
       --json) AS_JSON=1; shift ;;
       -*) die "unknown option '$1'" ;;
@@ -873,7 +903,23 @@ parse_trace_opts() {
   esac
   [[ "${LIMIT:-1}" =~ ^[0-9]+$ ]] && [ "${LIMIT:-1}" -gt 0 ] || die "--limit takes a positive number; got '$LIMIT'"
   case "$BY" in name|page) ;; *) die "--by takes name or page; got '$BY'" ;; esac
+  case "$SORT" in time|queries|spans) ;; *) die "--sort takes time, queries or spans; got '$SORT'" ;; esac
   [[ "$THRESHOLD" =~ ^[0-9]+$ ]] && [ "$THRESHOLD" -gt 0 ] || die "--threshold takes a positive number; got '$THRESHOLD'"
+  [ -z "$PORT" ] || [[ "$PORT" =~ ^[0-9]+$ ]] || die "--port takes a port number; got '$PORT'"
+}
+
+# Extra "and ..." conditions for a span query from --service, --port and --user. The port
+# and the user sit on different spans of a trace, so they select whole traces.
+trace_scope() {
+  local c=""
+  if [ -n "$SERVICE" ]; then c+=" and serviceName = '$(sq "$SERVICE")'"; fi
+  if [ -n "$PORT" ]; then
+    c+=" and trace_id in (select trace_id from $SPANS where timestamp > now() - interval $SINCE_SECONDS second and (attributes_number['server.port'] = toFloat64($PORT) or attributes_number['http.server.port'] = toFloat64($PORT)))"
+  fi
+  if [ -n "$USER_FILTER" ]; then
+    c+=" and trace_id in (select trace_id from $SPANS where timestamp > now() - interval $SINCE_SECONDS second and attributes_string['enduser.name'] = '$(sq "$USER_FILTER")')"
+  fi
+  printf '%s' "$c"
 }
 
 # A table from tab-separated lines on stdin; the first line is the header.
@@ -881,19 +927,24 @@ text_table() { column -t -s $'\t' | sed 's/^/  /'; }
 
 # Per span name: count, p50 and max duration, and the trace of the slowest one.
 slow_by_name() {
+  local scope hide=""
+  scope="$(trace_scope)"
+  if [ -z "$ALL" ]; then
+    hide=" and not $BROWSER_SQL and not match(name, '$BARE_RE') and not match(replaceRegexpOne(name, '^[A-Z]+ ', ''), '$PROBE_RE')"
+  fi
   trace_ch -q "
     select name, count() as spans,
       round(quantile(0.5)(duration_nano) / 1e6, 1) as p50_ms,
       round(max(duration_nano) / 1e6, 1) as max_ms,
-      argMax(trace_id, duration_nano) as trace_id,
+      argMax(trace_id, duration_nano) as worst_trace,
       argMax(attributes_string['ui.surface.id'], duration_nano) as surface,
       argMax(concat(attributes_string['ui.action.resource'], ' ', attributes_string['ui.action.name']), duration_nano) as action
     from $SPANS
-    where timestamp > now() - interval $SINCE_SECONDS second and $1
+    where timestamp > now() - interval $SINCE_SECONDS second and $1 $scope $hide
     group by name
     order by max(duration_nano) desc
     limit $LIMIT
-    format JSONEachRow" | jq -s '.'
+    format JSONEachRow" | jq -s 'map(. + {trace_id: .worst_trace} | del(.worst_trace))'
 }
 
 print_slow() {
@@ -907,35 +958,64 @@ print_slow() {
 
 # Page keys. An HTTP root is "GET /route", a connect span "/route lv.connect"; LiveView
 # lifecycle spans carry the module, and an event the surface id of its ui.* attributes.
-HTTP_RE='^[A-Z]+ /'
 read -r -d '' PAGE_SQL <<'SQL' || true
 multiIf(
-    parent_span_id = '' and match(name, '^[A-Z]+ /'), replaceRegexpOne(name, '^[A-Z]+ ', ''),
+    parent_span_id = '' and match(name, '^[A-Z]+( /|$)'), replaceRegexpOne(name, '^[A-Z]+ ', ''),
     match(name, ' lv\\.connect$'), replaceRegexpOne(name, ' lv\\.connect$', ''),
     attributes_string['ui.surface.id'] != '', attributes_string['ui.surface.id'],
     replaceRegexpOne(name, '\\.(mount|handle_params|handle_event.*)$', ''))
 SQL
 read -r -d '' KIND_SQL <<'SQL' || true
 multiIf(
-    parent_span_id = '' and match(name, '^[A-Z]+ /'), 'http',
+    parent_span_id = '' and match(name, '^[A-Z]+( /|$)'), 'http',
     match(name, ' lv\\.connect$'), 'connect',
     match(name, '\\.mount$'), 'mount',
     match(name, '\\.handle_params$'), 'params',
     'event')
 SQL
 
+# Per page and kind: duration, and the queries / Ash actions / server spans of the traces
+# those requests belong to (browser spans are not counted). The worst trace is the one
+# worst on the --sort key.
 slow_by_page() {
+  local scope http_re key hide=""
+  scope="$(trace_scope)"
+  http_re='^[A-Z]+ /'
+  if [ -n "$ALL" ]; then
+    http_re='^[A-Z]+( /|$)'
+  else
+    hide="and not match(page, '$PROBE_RE')"
+  fi
+  case "$SORT" in time) key=d ;; queries) key=q ;; spans) key=n ;; esac
   trace_ch -q "
-    select $PAGE_SQL as page, $KIND_SQL as kind, count() as spans,
-      round(quantile(0.5)(duration_nano) / 1e6, 1) as p50_ms,
-      round(quantile(0.95)(duration_nano) / 1e6, 1) as p95_ms,
-      round(max(duration_nano) / 1e6, 1) as max_ms,
-      argMax(trace_id, duration_nano) as trace_id
-    from $SPANS
-    where timestamp > now() - interval $SINCE_SECONDS second
-      and ((parent_span_id = '' and match(name, '$HTTP_RE')) or match(name, '$LV_RE'))
+    select page, kind, count() as spans,
+      round(quantile(0.5)(d) / 1e6, 1) as p50_ms,
+      round(quantile(0.95)(d) / 1e6, 1) as p95_ms,
+      round(max(d) / 1e6, 1) as max_ms,
+      max(q) as max_queries, round(avg(q), 1) as avg_queries,
+      max(a) as max_ash, round(avg(a), 1) as avg_ash,
+      max(n) as max_spans, round(avg(n), 1) as avg_spans,
+      argMax(trace_id, $key) as trace_id
+    from (
+      select page, kind, trace_id, max(duration_nano) as d
+      from (
+        select trace_id, duration_nano, $PAGE_SQL as page, $KIND_SQL as kind
+        from $SPANS
+        where timestamp > now() - interval $SINCE_SECONDS second
+          and ((parent_span_id = '' and match(name, '$http_re')) or match(name, '$LV_RE'))
+          and not $BROWSER_NAMES_SQL $scope
+      )
+      where 1 $hide
+      group by page, kind, trace_id
+    ) as x
+    inner join (
+      select trace_id, countIf($QUERY_SQL) as q, countIf($ASH_SQL) as a, countIf(not $BROWSER_SQL) as n
+      from $SPANS
+      where timestamp > now() - interval $SINCE_SECONDS second $scope
+      group by trace_id
+    ) as t using trace_id
     group by page, kind
-    order by max(duration_nano) desc
+    order by max($key) desc, max(d) desc
     limit $LIMIT
     format JSONEachRow" | jq -s '.'
 }
@@ -943,22 +1023,25 @@ slow_by_page() {
 cmd_slow() {
   parse_trace_opts "$@"
   [ "${#POSITIONAL[@]}" -eq 0 ] || die "slow takes no arguments; got '${POSITIONAL[0]}'"
-  LIMIT="${LIMIT:-10}"
   local roots lv pages
   if [ "$BY" = page ]; then
+    LIMIT="${LIMIT:-50}"
     pages="$(slow_by_page)"
     if [ -n "$AS_JSON" ]; then
-      jq -n --arg since "$SINCE" --argjson pages "$pages" '{since: $since, by: "page", pages: $pages}'
+      jq --arg since "$SINCE" --arg sort "$SORT" '{since: $since, by: "page", sort: $sort, pages: .}' <<<"$pages"
       return 0
     fi
-    echo "Pages, last $SINCE (HTTP request, LiveView connect, mount, params and events per route or surface; worst case first):"
+    echo "Pages, last $SINCE, worst first by $SORT (HTTP request, LiveView connect, mount, params and events per route or surface; queries, Ash actions and spans are per trace, browser spans not counted):"
     if [ "$(jq length <<<"$pages")" -eq 0 ]; then echo "  (no spans in the window)"; return 0; fi
-    jq -r '["PAGE", "KIND", "COUNT", "P50_MS", "P95_MS", "MAX_MS", "WORST_TRACE"],
-      (.[] | [.page, .kind, .spans, .p50_ms, .p95_ms, .max_ms, .trace_id]) | @tsv' <<<"$pages" | text_table
+    jq -r '["PAGE", "KIND", "COUNT", "P50_MS", "P95_MS", "MAX_MS", "Q_MAX", "Q_AVG", "ASH_MAX", "ASH_AVG", "SPANS_MAX", "WORST_TRACE"],
+      (.[] | [.page, .kind, .spans, .p50_ms, .p95_ms, .max_ms, .max_queries, .avg_queries, .max_ash, .avg_ash, .max_spans, .trace_id]) | @tsv' <<<"$pages" | text_table
+    if [ -z "$ALL" ]; then echo; echo "  (probe routes such as /health hidden; --all shows them)"; fi
     echo
     echo "Next: observability trace <WORST_TRACE>"
     return 0
   fi
+  [ "$SORT" = time ] || die "--sort $SORT applies to --by page"
+  LIMIT="${LIMIT:-10}"
   roots="$(slow_by_name "parent_span_id = ''")"
   lv="$(slow_by_name "match(name, '$LV_RE')")"
   if [ -n "$AS_JSON" ]; then
@@ -972,10 +1055,16 @@ cmd_slow() {
   echo "Next: observability trace <TRACE_ID>"
 }
 
-# The spans of one trace as a JSON array.
+# The spans of one trace as a JSON array. start_us is the start in epoch microseconds
+# (small enough for jq's doubles); browser, is_query, is_ash and schema_migrations are 0/1.
 trace_spans() {
   trace_ch -q "
     select span_id, parent_span_id, name, round(duration_nano / 1e6, 2) as ms, has_error,
+      toUnixTimestamp64Micro(timestamp) as start_us,
+      if($BROWSER_SQL, 1, 0) as browser,
+      if($QUERY_SQL, 1, 0) as is_query,
+      if($ASH_SQL, 1, 0) as is_ash,
+      if(position(attributes_string['db.statement'], 'schema_migrations') > 0 or name like '%:schema_migrations', 1, 0) as schema_migrations,
       attributes_string['ui.surface.id'] as surface,
       attributes_string['ui.action.resource'] as action_resource,
       attributes_string['ui.action.name'] as action_name,
@@ -986,14 +1075,62 @@ trace_spans() {
     format JSONEachRow" | jq -s '.'
 }
 
-# Reads the span array on stdin; prints the by-name rollup (heaviest first).
+# Reads the server spans (browser spans removed) on stdin; prints the model of the trace:
+# counts, the root, its self time and biggest gap, dev overhead, and the by-name rollup.
+# A name is flagged as a likely N+1 when it repeats at least $threshold times, or at least
+# 10 times and for at least 15% of the trace's spans. The browser spans are summarised
+# separately.
 # shellcheck disable=SC2016
-ROLLUP_JQ='
-  group_by(.name)
-  | map({name: .[0].name, count: length,
-         total_ms: ((map(.ms) | add) * 10 | round / 10),
-         max_ms: (map(.ms) | max),
-         likely_n_plus_1: (length >= $threshold)})
+MODEL_JQ='
+  def r1: . * 10 | round / 10;
+  def sweep($rs; $re):
+    sort_by(.s)
+    | reduce .[] as $c ({cur: $rs, gaps: [], prev: null};
+        (if $c.s > .cur then .gaps += [{from: .cur, to: $c.s, after: .prev, before: $c.name}] else . end)
+        | (if $c.e > .cur then .cur = $c.e | .prev = $c.name else . end))
+    | (if $re > .cur then .gaps += [{from: .cur, to: $re, after: .prev, before: null}] else . end)
+    | .gaps;
+  . as $srv
+  | length as $n
+  | (reduce $srv[] as $s ({}; .[$s.span_id] = true)) as $present
+  | [$srv[] | select(.parent_span_id == "" or ($present[.parent_span_id] | not))] as $roots
+  | ($roots | max_by(.ms)) as $root
+  | ($root.start_us) as $rs
+  | ($rs + ($root.ms * 1000)) as $re
+  | ([$srv[] | select(.parent_span_id == $root.span_id)
+      | {name, s: ([.start_us, $rs] | max), e: ([(.start_us + .ms * 1000), $re] | min)}
+      | select(.e > .s)] | sweep($rs; $re)) as $gaps
+  | ($gaps | map(.to - .from) | add // 0) as $self_us
+  | ($gaps | max_by(.to - .from)) as $big
+  | ([$srv[] | select(.is_query == 1)] | sort_by(.start_us)) as $queries
+  | ([$srv[] | select(.schema_migrations == 1)]) as $sm
+  | (if ($queries | length) > 0 then (($queries[0].start_us - $rs) / 1000) else null end) as $first_q
+  | {
+      spans: $n,
+      queries: ($queries | length),
+      ash: ([$srv[] | select(.is_ash == 1)] | length),
+      root: $root,
+      self_ms: (($self_us / 1000) | r1),
+      biggest_gap: (if $big == null then null else
+        {ms: ((($big.to - $big.from) / 1000) | r1), at_ms: ((($big.from - $rs) / 1000) | r1), after: $big.after, before: $big.before} end),
+      first_query_ms: ($first_q | if . == null then null else r1 end),
+      dev: {
+        schema_migrations: {count: ($sm | length), ms: (([$sm[].ms] | add // 0) | r1)},
+        slow_start: ($first_q != null and $first_q >= 250 and $first_q >= ($root.ms * 0.25))
+      },
+      rollup: ($srv | group_by(.name)
+        | map({name: .[0].name, count: length,
+               total_ms: ((map(.ms) | add) | r1),
+               max_ms: (map(.ms) | max),
+               dev_overhead: (.[0].name | endswith(":schema_migrations")),
+               likely_n_plus_1: ((.[0].name | endswith(":schema_migrations") | not)
+                                 and (length >= $threshold or (length >= 10 and length >= 0.15 * $n)))})
+        | sort_by(-.total_ms))
+    }'
+
+# shellcheck disable=SC2016
+BROWSER_JQ='
+  group_by(.name) | map({name: .[0].name, count: length, total_ms: ((map(.ms) | add * 10 | round) / 10), max_ms: (map(.ms) | max)})
   | sort_by(-.total_ms)'
 
 # Reads the span array on stdin; prints the indented tree. Spans that share a parent and a
@@ -1019,50 +1156,75 @@ TREE_JQ='
   | [$all[] | select(.parent_span_id == "" or ($present[.parent_span_id] | not))] as $roots
   | $roots | (if $full then map([.]) else groups end) | .[] | node($kids; 0; $full)'
 
+# Reads the model on stdin.
+# shellcheck disable=SC2016
+HEADER_JQ='
+  .root as $r
+  | "Trace \($id)\n  \(.spans) spans, \(.queries) queries, \(.ash) Ash actions, \(.self_ms) ms not in any child span"
+  + (if $browser > 0 then "  (+ \($browser) browser spans, shown apart)" else "" end)
+  + "\n  root: \($r.name), \($r.ms) ms"
+  + (if $r.surface != "" then "\n  surface: \($r.surface)" else "" end)
+  + (if $r.action_name != "" then "\n  action: \($r.action_resource) \($r.action_name)" else "" end)
+  + (if $r.user != "" then "\n  user: \($r.user)" else "" end)
+  + (if .biggest_gap != null and .biggest_gap.ms >= 1 then
+      "\n  biggest gap: \(.biggest_gap.ms) ms, starting +\(.biggest_gap.at_ms) ms into the root ("
+      + (if .biggest_gap.after != null then "after \(.biggest_gap.after)" else "at the start" end)
+      + (if .biggest_gap.before != null then ", before \(.biggest_gap.before)" else ", to the end" end) + ")"
+    else "" end)
+  + (if .dev.schema_migrations.count > 0 then
+      "\n  dev overhead: \(.dev.schema_migrations.count) schema_migrations queries, \(.dev.schema_migrations.ms) ms (CheckRepoStatus; not present in a release)"
+    else "" end)
+  + (if .dev.slow_start then
+      "\n  dev overhead: \(.first_query_ms) ms before the first query (code reloader or first-hit compile)"
+    else "" end)'
+
 # shellcheck disable=SC2016
 ROLLUP_TEXT_JQ='
   (to_entries | map(select(.key < $limit or .value.likely_n_plus_1)) | map(.value)) as $shown
   | ["SPAN", "COUNT", "TOTAL_MS", "MAX_MS", "FLAG"],
-    ($shown[] | [.name, .count, .total_ms, .max_ms, (if .likely_n_plus_1 then "likely N+1" else "-" end)])
+    ($shown[] | [.name, .count, .total_ms, .max_ms,
+                 (if .likely_n_plus_1 then "likely N+1" elif .dev_overhead then "dev overhead" else "-" end)])
   | @tsv'
-
-# shellcheck disable=SC2016
-ROOT_JQ='
-  (reduce .[] as $s ({}; .[$s.span_id] = true)) as $present
-  | [.[] | select(.parent_span_id == "" or ($present[.parent_span_id] | not))]
-  | max_by(.ms)'
 
 cmd_trace() {
   parse_trace_opts "$@"
   [ "${#POSITIONAL[@]}" -eq 1 ] || die "usage: observability trace <trace_id> [--threshold N] [--full] [--json]"
-  local id="${POSITIONAL[0]}" spans root
+  local id="${POSITIONAL[0]}" spans server browser model
   [[ "$id" =~ ^[0-9a-fA-F]{32}$ ]] || die "a trace id is 32 hex digits; got '$id'"
   id="${id,,}"
   LIMIT="${LIMIT:-15}"
   spans="$(trace_spans "$id")"
   [ "$(jq length <<<"$spans")" -gt 0 ] || die "no spans for trace $id (wrong id, or older than the retention window)"
-  root="$(jq -c "$ROOT_JQ" <<<"$spans")"
+  # A trace of browser spans only is shown as if they were the server's.
+  server="$(jq 'if any(.[]; .browser != 1) then map(select(.browser != 1)) else . end' <<<"$spans")"
+  browser="$(jq --argjson n "$(jq length <<<"$server")" 'if length == $n then [] else map(select(.browser == 1)) end' <<<"$spans")"
+  model="$(jq --argjson threshold "$THRESHOLD" "$MODEL_JQ" <<<"$server")"
   if [ -n "$AS_JSON" ]; then
-    jq --arg id "$id" --argjson threshold "$THRESHOLD" --argjson root "$root" \
-      "{trace_id: \$id, span_count: length, root: \$root, rollup: ($ROLLUP_JQ), spans: .}" <<<"$spans"
+    {
+      printf '%s\n' "$model"
+      jq "$BROWSER_JQ" <<<"$browser"
+      printf '%s\n' "$server"
+    } | jq -s --arg id "$id" \
+      '(.[0] | del(.rollup, .spans)) + {trace_id: $id, rollup: .[0].rollup, browser: .[1], spans: .[2]}'
     return 0
   fi
-  jq -r --arg id "$id" --argjson n "$(jq length <<<"$spans")" '
-    "Trace \($id)\n  \($n) spans; root: \(.name), \(.ms) ms"
-    + (if .surface != "" then "\n  surface: \(.surface)" else "" end)
-    + (if .action_name != "" then "\n  action: \(.action_resource) \(.action_name)" else "" end)
-    + (if .user != "" then "\n  user: \(.user)" else "" end)' <<<"$root"
+  jq -r --arg id "$id" --argjson browser "$(jq length <<<"$browser")" "$HEADER_JQ" <<<"$model"
   echo
   echo "Span tree (ms are each span's own wall time, children included):"
-  jq -r --argjson full "${FULL:-false}" "$TREE_JQ" <<<"$spans" | sed 's/^/  /'
+  jq -r --argjson full "${FULL:-false}" "$TREE_JQ" <<<"$server" | sed 's/^/  /'
   echo
-  echo "By span name (heaviest first; names repeated at least $THRESHOLD times are flagged):"
-  jq -r --argjson threshold "$THRESHOLD" --argjson limit "$LIMIT" "($ROLLUP_JQ) | $ROLLUP_TEXT_JQ" <<<"$spans" | text_table
+  echo "By span name (heaviest first; a name is flagged when repeated at least $THRESHOLD times, or at least 10 times and 15% of the trace's spans):"
+  jq -r --argjson limit "$LIMIT" ".rollup | $ROLLUP_TEXT_JQ" <<<"$model" | text_table
   local flagged
-  flagged="$(jq --argjson threshold "$THRESHOLD" "$ROLLUP_JQ | map(select(.likely_n_plus_1)) | length" <<<"$spans")"
+  flagged="$(jq '.rollup | map(select(.likely_n_plus_1)) | length' <<<"$model")"
   if [ "$flagged" -gt 0 ]; then
     echo
-    echo "$flagged span name(s) repeat at least $THRESHOLD times in this one trace: batch them (one call over many ids) and re-measure."
+    echo "$flagged span name(s) look like an N+1 in this one trace: batch them (one call over many ids) and re-measure."
+  fi
+  if [ "$(jq length <<<"$browser")" -gt 0 ]; then
+    echo
+    echo "Browser spans (not in the tree, the rollup or the flags above):"
+    jq -r '["SPAN", "COUNT", "TOTAL_MS", "MAX_MS"], (.[] | [.name, .count, .total_ms, .max_ms]) | @tsv' < <(jq "$BROWSER_JQ" <<<"$browser") | text_table
   fi
 }
 
@@ -1070,19 +1232,28 @@ cmd_queries() {
   parse_trace_opts "$@"
   [ "${#POSITIONAL[@]}" -eq 0 ] || die "queries takes no arguments; got '${POSITIONAL[0]}'"
   LIMIT="${LIMIT:-10}"
-  local queries ids roots
+  local queries slowest roots scope merged
+  scope="$(trace_scope)"
+  # The slowest SQL spans of the window, as a subquery the root lookup reuses: a list of
+  # trace ids in the query text would outgrow ClickHouse's max_query_size at a large --limit.
+  slowest="select trace_id from $SPANS
+    where timestamp > now() - interval $SINCE_SECONDS second
+      and (name like '%repo.query%' or attributes_string['db.statement'] != '') $scope
+    order by duration_nano desc
+    limit $LIMIT"
+  # The statement is cut in ClickHouse: some statements are 177 KB.
   queries="$(trace_ch -q "
     select trace_id, name, round(duration_nano / 1e6, 1) as ms,
-      attributes_string['db.statement'] as statement
+      substring(attributes_string['db.statement'], 1, 400) as statement,
+      length(attributes_string['db.statement']) as statement_bytes
     from $SPANS
     where timestamp > now() - interval $SINCE_SECONDS second
-      and (name like '%repo.query%' or attributes_string['db.statement'] != '')
+      and (name like '%repo.query%' or attributes_string['db.statement'] != '') $scope
     order by duration_nano desc
     limit $LIMIT
     format JSONEachRow" | jq -s '.')"
-  ids="$(jq -r '[.[].trace_id] | unique | map("'"'"'" + . + "'"'"'") | join(",")' <<<"$queries")"
   roots='[]'
-  if [ -n "$ids" ]; then
+  if [ "$(jq length <<<"$queries")" -gt 0 ]; then
     # shellcheck disable=SC2059
     roots="$(trace_ch -q "
       select trace_id, argMax(name, duration_nano) as root_name,
@@ -1091,15 +1262,14 @@ cmd_queries() {
         argMax(attributes_string['ui.action.name'], duration_nano) as action_name,
         argMax(attributes_string['enduser.name'], duration_nano) as user
       from $SPANS
-      where trace_id in ($ids) and $(printf "$ROOTISH" "$ids")
+      where trace_id in ($slowest) and not $BROWSER_SQL and $(printf "$ROOTISH" "$slowest")
       group by trace_id
       format JSONEachRow" | jq -s '.')"
   fi
-  local merged
-  merged="$(jq -n --argjson q "$queries" --argjson r "$roots" \
-    '($r | INDEX(.trace_id)) as $rt | $q | map(. + {root: ($rt[.trace_id] // null)})')"
+  merged="$({ printf '%s\n' "$queries"; printf '%s\n' "$roots"; } \
+    | jq -n 'input as $q | input as $r | ($r | INDEX(.trace_id)) as $rt | $q | map(. + {root: ($rt[.trace_id] // null)})')"
   if [ -n "$AS_JSON" ]; then
-    jq -n --arg since "$SINCE" --argjson queries "$merged" '{since: $since, queries: $queries}'
+    jq --arg since "$SINCE" '{since: $since, queries: .}' <<<"$merged"
     return 0
   fi
   echo "Slowest SQL spans, last $SINCE:"
@@ -1110,8 +1280,9 @@ cmd_queries() {
         + (if .root.surface != "" then "\n    ui:    surface=\(.root.surface) action=\(.root.action_resource) \(.root.action_name)" else "" end)
         + (if .root.user != "" then "\n    user:  \(.root.user)" else "" end)
        else "" end)
-    + "\n    sql:   " + (if .statement == "" then "(not recorded; set OTEL_ECTO_DB_STATEMENT=true in the app)"
-                         else (.statement | gsub("\\s+"; " ") | if length > 240 then .[0:240] + " ..." else . end) end)' <<<"$merged"
+    + "\n    sql:   " + (if .statement == "" then "(not recorded; set OTEL_ECTO_DB_STATEMENT=enabled in the app)"
+                         else (.statement | gsub("\\s+"; " ") | if length > 240 then .[0:240] + " ..." else . end)
+                              + (if .statement_bytes > 400 then "  [\(.statement_bytes / 1024 * 10 | round / 10) KB statement, cut]" else "" end) end)' <<<"$merged"
   echo
   echo "Next: observability trace <trace>"
 }
@@ -1139,14 +1310,21 @@ usage: observability up|down|status|urls|prepare|provision|slow|trace|queries|re
   urls     where the UIs and endpoints are, and the sign-in
   prepare  allocate ports and write the env file without starting anything
   provision  make SigNoz's dashboards, alerts and saved views match the files again (`up` does it too)
-  slow [--since 3h] [--limit N] [--by page] [--json]
+  slow [--since 3h] [--limit N] [--by page] [--sort time|queries|spans] [filters] [--json]
            the slowest root and LiveView spans by name, or per page with --by page
-           (count, p50, p95, max, worst trace); read-only
+           (count, p50, p95, max, queries and Ash actions per trace, worst trace);
+           --by page lists 50 rows by default and --sort ranks by the worst trace on that
+           key; read-only
   trace TRACE_ID [--threshold 20] [--full] [--json]
-           the span tree and a by-name rollup; names repeated at least --threshold
-           times are flagged "likely N+1"; read-only
-  queries [--since 3h] [--limit N] [--json]
-           the slowest SQL spans with the root span and ui.* attributes of their trace; read-only
+           the span tree and a by-name rollup, a counts header (spans, queries, Ash actions,
+           time in no child span), dev overhead marked, browser spans apart; a name repeated
+           at least --threshold times, or 10 times and 15% of the spans, is flagged
+           "likely N+1"; read-only
+  queries [--since 3h] [--limit N] [filters] [--json]
+           the slowest SQL spans (statement cut at 400 characters) with the root span and
+           ui.* attributes of their trace; read-only
+  filters (slow, queries): --service NAME, --port N (server.port), --user NAME (enduser.name);
+           slow hides probe routes such as /health and a bare "GET" root; --all shows them
   restart-check [ROUNDS]
            cold restarts with traffic, each checked (default 5); leaves the stack stopped
 USAGE
