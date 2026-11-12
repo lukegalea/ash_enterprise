@@ -91,6 +91,16 @@ common wiring mistake — the hook throws on mount with an explanatory error.
 (`globalThis.__ASH_A2UI_DEPS__` is an equivalent fallback for separately
 bundled hooks.)
 
+`priv/js/hooks.js` lists every shipped LiveView hook under its registered
+name as `{events, load}`: `events` is every event the hook passes to
+`handleEvent`, `load` fetches the hook's code and resolves to the hook
+object. No top-level imports; `AshA2ui` and `AshA2uiShell` are not listed
+(hosts import them directly, after `configureAshA2ui`). An eager host
+resolves all of them at startup:
+`Object.fromEntries(await Promise.all(Object.entries(hooks).map(async ([n, h]) => [n, await h.load()])))`.
+A lazy host subscribes to `hook.events` before calling `hook.load()`, so no
+`push_event` is dropped while the code loads. Direct imports keep working.
+
 For production-quality surfaces, prefer the full wiring (see the Theming
 topic and the docs in the shipped JS files):
 

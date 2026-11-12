@@ -445,16 +445,13 @@ defmodule AshEnterprise.MixProject do
       {:open_api_spex, "~> 3.0"},
       {:ash_state_machine, "~> 0.2"},
       # FORK -- see docs/BLEEDING-EDGE.md for its path back to Hex.
-      # The as_of capture/replay fork (ash_events#103; upstream PR #104 was closed unmerged and #113 took its place, unreleased
-      # as of 2026-11-10): a write's as_of is recorded on its event and restored on
-      # replay, and the replay wrappers declare temporal_safe? — required
-      # for audited TEMPORAL resources, which this host now has (the
-      # SystemOne facts table; AST-149). Same pin as the hosted POC;
-      # drop for the first ash_events release carrying it. `override: true`
-      # because ash_judgments also depends on ash_events and one package
-      # cannot resolve from both hex and git.
-      {:ash_events,
-       github: "lukegalea/ash_events", branch: "temporal-as-of-support-0.7", override: true},
+      # Upstream main, which carries ash_events#113 (record_as_of?: a temporal
+      # write's as_of on its event, restored on replay) and is unreleased, plus
+      # one fix: a data layer's {:error, :no_rollback, error} surfaces as an
+      # error instead of crashing the wrapper. `override: true` because
+      # ash_judgments and ash_discrete_business_events declare it too, and one
+      # package cannot resolve from both Hex and git.
+      {:ash_events, github: "lukegalea/ash_events", branch: "main-no-rollback", override: true},
       {:ash_archival, "~> 2.0"},
       {:ash_oban, "~> 0.8"},
       {:ash_graphql, "~> 1.0"},

@@ -115,6 +115,9 @@ layer (`AshEvidence.EvalSet`, `AshEvidence.EvalItem`,
   run; it need not start at runtime. Never add `AshEvidence.Domain` to your
   own app's `ash_domains`: your codegen would generate the evidence tables into
   your migrations.
+- Set `config :ash_evidence, AshEvidence.Repo, priv: "priv/repo"`: that directory
+  holds exactly the package's migrations. `priv/test_repo` holds the package's
+  own test-host tables (`test_host_*`); never point a host at it.
 - Point `AshEvidence.Repo` at the host's own database (residency is the
   host's concern); PostgreSQL 18 is the declared floor, with the `vector`
   extension installed. A host with its own schema sets `default_prefix:` and

@@ -82,10 +82,10 @@ Both are translated only when the host passes a translator and a locale.
 
 - Translated: declared and derived display labels (fields, columns,
   actions, contexts, groups, steps, prompt fields), surface and record
-  titles, the other declared display text (column `help_title`, `help` and
-  `more_noun`, step and diagram `description`, `search_placeholder`,
+  titles, the other declared display text (column `help_title`, `help`,
+  `more_noun` and `caption_text`, step and diagram `description`, `search_placeholder`,
   `empty_state` and `no_results_state` text, `prompt_title`, `group_labels`, `filter_hints`,
-  `icon_labels`, `detail_text`, `badge_text`, primary action labels, board
+  `icon_labels`, `detail_text`, `badge_text`, `badge_help`, primary action labels, board
   lane and swimlane headings), the labels of enum and `one_of` choices,
   canvas registry labels, and the library's chrome and feedback templates
   (the presence bar's included). All of it is host text except the chrome,

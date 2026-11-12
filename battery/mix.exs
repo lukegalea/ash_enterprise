@@ -75,8 +75,7 @@ defmodule AshEnterpriseBattery.MixProject do
       # --- Declared provider operations (HTTP transport, signed webhook ingress) -
       {:ash_operations, github: "lukegalea/ash_operations"},
       # --- AshEvents (the audit log extension) ---------------------------------
-      {:ash_events,
-       github: "lukegalea/ash_events", branch: "temporal-as-of-support-0.7", override: true},
+      {:ash_events, github: "lukegalea/ash_events", branch: "main-no-rollback", override: true},
 
       # --- Platform base --------------------------------------------------------
       {:ash_postgres, "~> 2.0"},

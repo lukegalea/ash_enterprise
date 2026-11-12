@@ -100,10 +100,6 @@ defmodule AshEnterprise.SystemOne.Fact do
     end
   end
 
-  events do
-    create_timestamp :recorded_at
-  end
-
   policies do
     # The materialiser is the sole sanctioned caller of the fragment's
     # machinery actions, and it deliberately passes no actor. One named,

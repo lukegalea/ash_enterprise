@@ -152,6 +152,20 @@ defmodule AshEnterprise.Audit.ArchivedEvent do
     attribute :data, :map, allow_nil?: false, writable?: false, public?: false
     attribute :changed_attributes, :map, allow_nil?: false, writable?: false, public?: false
     attribute :metadata, :map, allow_nil?: false, writable?: false, public?: false
+
+    # The application time of a temporal write (`record_as_of?` on the event log). The
+    # chain hashes both, so an archived row verifies only if it keeps them.
+    attribute :as_of, :utc_datetime_usec, writable?: false, public?: false
+
+    attribute :as_of_range, Ash.Type.Range,
+      writable?: false,
+      public?: false,
+      constraints: [
+        inner_type: :utc_datetime_usec,
+        lower: [inclusive?: true],
+        upper: [inclusive?: false]
+      ]
+
     attribute :previous_hash, :string, writable?: false, public?: false
     attribute :hash, :string, writable?: false, public?: false
 

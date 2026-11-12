@@ -26,19 +26,29 @@ Facts below were checked on **2026-11-06**. Upstream status goes stale quickly, 
 
 | Package | Upstream | Our fork (pinned by) | What the fork adds |
 |---|---|---|---|
-| `ash_events` | [ash-project/ash_events](https://github.com/ash-project/ash_events), Hex 0.8.2 | [lukegalea/ash_events](https://github.com/lukegalea/ash_events), branch `temporal-as-of-support-0.7` (this app, with `override: true`) | Records a write's `as_of` on its event and restores it on replay; marks the replay wrappers `temporal_safe?`; replays in chronological order. Needed for audited temporal resources (the System One facts table). |
+| `ash_events` | [ash-project/ash_events](https://github.com/ash-project/ash_events), Hex 0.8.2 | [lukegalea/ash_events](https://github.com/lukegalea/ash_events), branch `main-no-rollback` (this app, with `override: true`) | Upstream `main`, unreleased, which carries [#113](https://github.com/ash-project/ash_events/pull/113): `record_as_of?` records a temporal write's `as_of` on its event and replay restores it. Needed for audited temporal resources. Plus one commit of ours: a data layer's `{:error, :no_rollback, error}` reaches the caller as an error instead of crashing the action wrapper. |
 | `boxic_dmn` | `boxic_dmn` in [koenusz/boxic](https://github.com/koenusz/boxic), Hex 0.3.0 | [lukegalea/boxic_dmn](https://github.com/lukegalea/boxic_dmn) at `6280f2f` (`ash_decisions`; arrives here transitively) | `Boxic.DMN.evaluate_with_trace/3,4`, which returns the matched rule ids and hit policy with the value. This is the provenance a decision's audit trail is built on. It also relaxes the Elixir requirement to `~> 1.18`. Versioned `0.4.0`. |
 
 ### `ash_events`: path back
 
-- **Upstream status:** issue [ash_events#103](https://github.com/ash-project/ash_events/issues/103) is closed.
-  [PR #104](https://github.com/ash-project/ash_events/pull/104), which carried these three commits, was closed
-  unmerged on 2026-11-02. [PR #113](https://github.com/ash-project/ash_events/pull/113) merged minutes earlier and
-  closes #103 a different way: an event-log option, `record_as_of? true`, adds `as_of` and `as_of_range` attributes
-  (off by default), and replay passes each event's captured `as_of` back to the action. As of 2026-11-10 the latest
-  release is v0.8.2 (2026-09-19), which does not carry it, so the fork stays until a release does.
-- **The gap:** the pinned branch is v0.7.0 plus those three commits. Upstream has since released 0.8.0–0.8.2, which
-  this app does not have.
+- **Upstream status:** [PR #113](https://github.com/ash-project/ash_events/pull/113) merged on 2026-11-02 and closed
+  issue #103: an event-log option, `record_as_of? true`, adds `as_of` and `as_of_range` attributes, and replay passes
+  each event's captured `as_of` back to the action. As of 2026-11-12 the latest release is v0.8.2 (2026-09-19), which
+  does not carry it. Upstream `main` needs `ash ~> 3.37`.
+- **The gap:** the pinned branch is upstream `main` (`e7679b3e`) plus one commit, the `no_rollback` fix. It has not
+  been proposed upstream yet. The fork's earlier 0.7 branch (`temporal-as-of-support-0.7`), with its own as_of
+  capture in event metadata, is retired.
+- **What moved with it.** The audit event log sets `record_as_of? true`, and the chain trigger and
+  `AshEnterprise.Audit.Chain` hash `as_of` and `as_of_range`. `concat_ws` skips NULLs, so rows written before the
+  columns existed hash exactly as they did. The archive (`AshEnterprise.Audit.ArchivedEvent`) carries both columns, so
+  an archived row still verifies. Events the 0.7 branch recorded keep their `as_of` in `metadata` (still hashed), and
+  upstream replay does not read it there. Nothing is backfilled: the table is append-only and hashed, and replay runs
+  only in dev and test (`AshEnterprise.Audit.ClearRecordsForReplay` refuses in production), where such an event
+  replays at the time it is replayed.
+- **The log's notifications now arrive.** Upstream hands the notification of each event row it writes back to the
+  action, and the 0.7 branch dropped it. So `AshBpmn.Triggers.Nudge`, the log's notifier, now runs on every audited
+  write, and a process whose subscription the nudge can see starts when its event is written, not at the next sweep.
+  The sweep is still what guarantees dispatch.
 - **Who declares it.** Every one of these has to move:
 
   | Declared by | Declaration | Blocks a Hex-only build? |
@@ -46,23 +56,16 @@ Facts below were checked on **2026-11-06**. Upstream status goes stale quickly, 
   | this app | fork branch, `override: true` | yes |
   | `ash_judgments` | fork branch, `optional: true, override: true` | yes |
   | `ash_discrete_business_events` | fork branch | yes |
-  | `ash_compliance` | `~> 0.7.0` | yes: it excludes 0.8 |
+  | `ash_compliance` | `~> 0.8` | no |
   | `ash_events_projections` | `~> 0.6` | no |
 
   `override: true` exists because one package cannot resolve from both Hex and git. Drop it when nothing declares
   the fork.
 - **Steps back to Hex:**
-  1. Wait for the first ash_events release that carries #113, then port the fork's remaining differences, if any, to
-     that API: turn `record_as_of? true` on for the event log, and migrate existing events (the fork's attribute
-     names and upstream's may differ; check before relying on either).
-  2. Widen `ash_compliance` to accept that release. Point `ash_judgments` and `ash_discrete_business_events` at Hex.
+  1. Propose the `no_rollback` fix upstream.
+  2. When a release carries #113 and that fix, point `ash_judgments` and `ash_discrete_business_events` at Hex.
   3. Here, replace the declaration with `{:ash_events, "~> <release>"}`. Run `mix deps.update ash_events`, the full
-     suite (the replay and temporal tests especially) and `mix ash.codegen --check`.
-- **Interim option:** pin ash_events `main` (which carries #113) instead of the 0.7 branch. That closes the 0.8 gap
-  before a release. It needs step 2's `ash_compliance` change first, and a check that the host's replay and temporal
-  tests still pass against the upstream API.
-- **The 0.7 branch is a dead end:** its own lock lists ash 3.14.1, which has no `temporal` DSL, so its test suite
-  does not compile without bumping ash locally. That is another reason to move off it.
+     suite (the audit chain and temporal tests especially) and `mix ash.codegen --check`.
 - **Sensitive values: upstream will not take this.** Since 0.8.0 upstream's README says the library does not
   filter `changed_attributes` on `sensitive?`, because replay needs derived secrets such as `hashed_password`
   (commits `ebc0d2b`, `2d7ccb0`, 2026-09-11). Their answer is to encrypt the event log with `cloak_vault`. The fork branch
@@ -123,7 +126,7 @@ confined so that removing one is a deletion, not a refactor.
 | `ash_agent` | agent runtime fragments, extension and host behaviours (ADR 0056); upstream [lukegalea/ash_agent](https://github.com/lukegalea/ash_agent); `Execution.Invocation` instantiates the invocation fragment | none | none planned: the Hex name `ash_agent` belongs to an unrelated project (ADR 0056) |
 | `ash_compliance` | compliance bundles and findings (ADR 0035) | `ash_rules`, `ash_events_projections` | after those two |
 | `ash_decisions` | DMN decisions | `boxic_dmn` fork | no: needs `boxic_dmn` upstream |
-| `ash_discrete_business_events` | business-event ledger (ADR 0051) | `ash_events` fork | no: needs `ash_events` upstream |
+| `ash_discrete_business_events` | business-event ledger (ADR 0051) | `ash_events` fork | no: needs an `ash_events` release |
 | `ash_mdm` | master data: mappings, matching, survivorship merge (ADR 0054) | `ash_discrete_business_events` | no: after `ash_discrete_business_events` |
 | `ash_judgments` | judgment substrate (System One); tracks the default branch, declared without `branch:` to match `ash_agent_tools` | `ash_rules`, `ash_compliance`, `ash_bpmn`, `ash_decisions`, `ash_events` fork | no: needs both forks gone |
 | `ash_agent_tools` | read-only Ash introspection for coding agents, and the code subjects the standards are judged over (dev and test only) | `ash_rules`, `ash_bpmn`, `ash_decisions`, `ash_judgments` (all optional) | after those four, so after `boxic_dmn` and both forks |

@@ -62,10 +62,10 @@ defmodule AshEnterprise.Audit.Chain do
   # remaining row links to it.
   @verify_sql """
   WITH events AS (
-    SELECT #{Enum.join(~w(sequence id record_id version occurred_at resource action action_type user_id organization_id data changed_attributes metadata previous_hash hash), ", ")}
+    SELECT #{Enum.join(~w(sequence id record_id version occurred_at resource action action_type user_id organization_id data changed_attributes metadata as_of as_of_range previous_hash hash), ", ")}
     FROM audit_events WHERE :tenant_filter
     UNION
-    SELECT #{Enum.join(~w(sequence id record_id version occurred_at resource action action_type user_id organization_id data changed_attributes metadata previous_hash hash), ", ")}
+    SELECT #{Enum.join(~w(sequence id record_id version occurred_at resource action action_type user_id organization_id data changed_attributes metadata as_of as_of_range previous_hash hash), ", ")}
     FROM audit_event_archive WHERE :tenant_filter
   ),
   chained AS (
@@ -90,7 +90,9 @@ defmodule AshEnterprise.Audit.Chain do
         coalesce(organization_id::text, ''),
         data::text,
         changed_attributes::text,
-        metadata::text
+        metadata::text,
+        as_of::text,
+        as_of_range::text
       ), 'UTF8')), 'hex') AS recomputed
     FROM events
     WHERE sequence > $after

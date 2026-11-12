@@ -233,7 +233,11 @@ defmodule AshEnterprise.Audit.EventLog do
             coalesce(NEW.organization_id::text, ''),
             NEW.data::text,
             NEW.changed_attributes::text,
-            NEW.metadata::text
+            NEW.metadata::text,
+            -- Application time (record_as_of?). concat_ws skips NULLs, so a row
+            -- without either hashes exactly as it did before they existed.
+            NEW.as_of::text,
+            NEW.as_of_range::text
           ), 'UTF8')), 'hex');
 
           RETURN NEW;
@@ -252,6 +256,7 @@ defmodule AshEnterprise.Audit.EventLog do
       # be dropped while this trigger exists. `OR REPLACE` makes rerunning it safe.
       statement :audit_events_chain_trigger do
         up """
+        -- Rebuilt with the chain function: it hashes as_of and as_of_range.
         CREATE OR REPLACE TRIGGER audit_events_chain
           BEFORE INSERT ON audit_events
           FOR EACH ROW EXECUTE FUNCTION ash_enterprise_audit_chain();
@@ -352,6 +357,11 @@ defmodule AshEnterprise.Audit.EventLog do
   event_log do
     clear_records_for_replay AshEnterprise.Audit.ClearRecordsForReplay
     primary_key_type Ash.Type.UUIDv7
+
+    # A temporal resource's events record the application time of each write
+    # (`as_of`, or `as_of_range` for a write over a period); ash_events refuses
+    # an audited temporal resource without it. The chain hashes both.
+    record_as_of? true
 
     # Human actors are persisted as a real foreign key.
     #

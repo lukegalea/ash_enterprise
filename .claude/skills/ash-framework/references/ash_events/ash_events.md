@@ -12,6 +12,7 @@ AshEvents is an extension for the Ash Framework that provides event capabilities
 - **Actor Attribution**: Stores who performed each action (users, system processes, etc)
 - **Changed Attributes Tracking**: Automatically captures attributes modified by business logic that weren't in the original input
 - **Metadata Tracking**: Attaches arbitrary metadata to events for audit purposes
+- **Temporal Resources**: Tracks Ash temporal resources when the event log sets `record_as_of? true` (see [Temporal Resources](#temporal-resources))
 
 ## Project Structure & Setup
 
@@ -78,9 +79,6 @@ defmodule MyApp.Accounts.User do
       legacy_action: :force_change
     ]
 
-    # Optional: Allow storing specific sensitive attributes (by default, sensitive attributes are excluded)
-    store_sensitive_attributes [:hashed_password, :api_key]
-
     # Optional: Ignore specific actions (usually legacy versions)
     ignore_actions [:old_create_v1]
   end
@@ -88,6 +86,13 @@ defmodule MyApp.Accounts.User do
   # Rest of your resource definition...
 end
 ```
+
+**Tracked actions cannot declare `manual`**. AshEvents installs its own manual
+implementation on every tracked create, update and destroy action so it can
+write the event around the data layer call. Declaring `manual` on a tracked
+action is a compile-time `Spark.Error.DslError`. To keep a manual action on a
+tracked resource, exclude it with `ignore_actions` or leave it out of
+`only_actions`; no event is recorded for it.
 
 ## Event Tracking Patterns
 
@@ -151,6 +156,10 @@ User
 **What doesn't get captured:**
 - Attributes that were explicitly provided in the original input
 - Attributes that remain unchanged from their current value
+
+An update that changes no attributes writes no event and does not touch the record or its update timestamp, matching Ash's behaviour for untracked resources. Updates that manage relationships or carry a filter still record an event.
+
+An upsert skipped because its `upsert_condition` is false for the existing row writes no event. As for untracked resources, it returns a `StaleRecord` error, or the existing record when `return_skipped_upsert?: true`. In `Ash.bulk_create`, a tracked resource reports each skipped row as a `StaleRecord` error, while an untracked resource drops skipped rows and still succeeds.
 
 #### Event Data Structure
 
@@ -545,6 +554,7 @@ end
 - `:resource`, `:action`, `:action_type`
 - `:metadata`, `:data`, `:changed_attributes`
 - `:encrypted_metadata`, `:encrypted_data`, `:encrypted_changed_attributes` (when using encryption)
+- `:as_of`, `:as_of_range` (the attributes only exist with `record_as_of? true`; without it, listing them has no effect)
 - Actor attribution fields from `persist_actor_primary_key` (e.g., `:user_id`, `:system_actor`)
 
 **Important**: Only AshEvents-managed fields can be made public. User-added custom fields are not affected by this configuration.
@@ -560,6 +570,94 @@ events do
   update_timestamp :updated_at
 end
 ```
+
+⚠️ Not on temporal resources: there, these options are a compile error (see [Temporal Resources](#temporal-resources)).
+
+## Temporal Resources
+
+AshEvents can track Ash temporal resources (a resource with a `temporal` section). Each event records the write's application time, and replay re-applies it, so the replayed table has the same versions as the original.
+
+**Prerequisites:** Ash 3.37+, AshPostgres 2.14+ (temporal support) and PostgreSQL 18+ (`WITHOUT OVERLAPS` keys).
+
+### Setup
+
+**Set `record_as_of? true` on the event log**, then generate a migration:
+
+```elixir
+defmodule MyApp.Events.Event do
+  use Ash.Resource,
+    extensions: [AshEvents.EventLog]
+
+  event_log do
+    clear_records_for_replay MyApp.Events.ClearAllRecords
+    record_as_of? true
+  end
+end
+```
+
+```bash
+mix ash.codegen add_event_as_of
+```
+
+- `record_as_of?` adds the nullable `as_of` and `as_of_range` attributes. Event logs without it get no new columns.
+- ❌ Tracking a temporal resource into an event log without `record_as_of?` fails to compile with a `Spark.Error.DslError` at `events -> event_log`: "... is a temporal resource, but its event log ... does not set `record_as_of?` ...".
+- ❌ `create_timestamp` / `update_timestamp` in the `events` section of a temporal resource fail to compile with a `Spark.Error.DslError` ("... is a temporal resource, so it can't set `create_timestamp`"). Leave them out: `occurred_at` is worked out differently (below).
+- ⚠️ Setting `record_as_of? true` without running the migration makes every event insert fail on the missing column.
+
+### What an Event Captures
+
+- **`as_of`** holds the write's instant (`DateTime`); **`as_of_range`** holds it when the write was given an `Ash.Range`. Exactly one is set on a temporal event, including when no `as_of` was passed and Ash pinned "now". Both are `nil` on events of non-temporal resources. They are plain attributes, never encrypted, even on an event log with `cloak_vault`, because replay reads them (like `occurred_at`).
+- **`occurred_at` is system time**: the written version's `recorded_at` when the resource has a `recorded_at` attribute, otherwise the wall clock. It is never the backdated `as_of`.
+- **`recorded_at` is optional** on tracked temporal resources. With it, `event.occurred_at == recorded_at` of the version the write produced.
+- **`inserted_at` / `updated_at` follow `as_of`**: that's Ash's design for temporal resources, and AshEvents leaves it alone. A backdated create sets both to `as_of`, and a backdated update sets `updated_at` to `as_of`.
+
+```elixir
+sub =
+  MyApp.Subscription
+  |> Ash.Changeset.for_create(:create, %{plan: "bronze"}, as_of: ~U[2025-01-01 00:00:00Z])
+  |> Ash.create!(actor: user)
+
+# event.as_of       == ~U[2025-01-01 00:00:00Z]
+# event.occurred_at == the version's recorded_at (when the write ran)
+# sub.inserted_at   == ~U[2025-01-01 00:00:00Z]
+```
+
+### Temporal Safety of Your Changes and Validations
+
+Ash raises `Ash.Error.Framework.NotTemporalSafe` before any write when a change or validation that hasn't declared itself temporal safe runs on a temporal resource. AshEvents' own changes and validations are temporal safe, and the wrappers AshEvents puts around your changes and validations pass the check through to your module, so it passes or fails exactly as without AshEvents.
+
+✅ Declare it on your module:
+
+```elixir
+defmodule MyApp.Changes.NormalizePlan do
+  use Ash.Resource.Change
+
+  @impl true
+  def temporal_safe?(_opts), do: true
+
+  @impl true
+  def change(changeset, _opts, _context), do: changeset
+end
+```
+
+Or list a module you don't own in `config :ash, :temporal_safe_modules, [...]`.
+
+⚠️ The error names `AshEvents.Events.ReplayChangeWrapper` (or `ReplayValidationWrapper`) as the module, not yours; look at the action it names to find the unsafe change.
+
+### Replay
+
+- Replay passes each event's captured `as_of` (or `as_of_range`) back to the action, reads the record as of that point before an update, destroy or upsert, and sets `recorded_at` to the event's `occurred_at`. That holds for both `replay_non_input_attribute_changes` strategies.
+- Replay still orders events by `id` and cuts by system time, never by application time.
+- **`last_event_id` is the exact cut**: the replayed state is the state right after that event's write.
+- **`point_in_time` is approximate under concurrent writes**: `occurred_at` is stamped when the action starts, before its event is written, so two writes in flight can commit in a different order than their stamps. This applies to every resource, not only temporal ones. Use `last_event_id` when you need an exact cut.
+- An event without a captured `as_of` (for example, recorded before the resource became temporal) replays as before: Ash pins the replay's own "now", and `recorded_at` isn't set from `occurred_at`.
+
+### Limitations
+
+- **No range bulk writes.** `Ash.bulk_update` / `Ash.bulk_destroy` with a range `as_of` over records or a stream return `NotAtomicOverRange`, and tracked actions can't run atomically. A bulk update given a query with a range `as_of` fails earlier, with an option validation error (`Spark.Options.ValidationError`, wrapped in `Ash.Error.Unknown`) from the stream's read options. Instants work for bulk create, update and destroy.
+- **Upserts with `touch_update_defaults?: false`, or with `upsert_fields` that leave out `recorded_at`,** keep the old `recorded_at` on the update branch, while replay sets it to `occurred_at`, so `recorded_at` differs after replay. Keep the defaults, or include `recorded_at` in `upsert_fields`. Temporal upserts are supported with an instant `as_of` only.
+- **Non-temporal tracked records written inside a temporal write inherit its `as_of`.** Ash passes `as_of` to related writes (for example through `manage_relationship`) in the shared context, so a non-temporal child's `inserted_at`/`updated_at` follow that `as_of`, and when its `events` section sets `create_timestamp`/`update_timestamp`, its event's `occurred_at` is that application time too. Passing `as_of:` to a non-temporal write directly does the same. Replay of the child is still exact; only a `point_in_time` cut can place its event differently. Use `last_event_id` for an exact cut.
+- **Streamed bulk updates and update defaults:** Ash's manual bulk update path doesn't apply update defaults such as `updated_at`. On temporal resources AshEvents applies them itself. On non-temporal tracked resources, a streamed bulk update currently leaves `updated_at` unchanged; that's Ash behaviour, to be fixed upstream.
 
 ## Testing Best Practices
 
@@ -658,106 +756,40 @@ events do
 end
 ```
 
-### Sensitive Attribute Configuration
+### Sensitive Data
 
-**By default, sensitive attributes are excluded from events** for security. The `store_sensitive_attributes` DSL option provides fine-grained control over which sensitive attributes to include in events.
+AshEvents does not filter event payloads based on `sensitive?`. `changed_attributes` stores every attribute the action set, verbatim, because replay needs it. Only action input in `data` has a convenience filter: sensitive attributes and arguments are stored as `nil` on non-encrypted event logs, so that plaintext passwords from AshAuthentication never reach the log. A sensitive attribute set by a change (for example `hashed_password`) is stored in `changed_attributes` in plaintext on a non-encrypted log.
 
-**IMPORTANT**: `store_sensitive_attributes` is **only valid for resources using non-encrypted event logs**. Resources using cloaked (encrypted) event logs automatically store all sensitive attributes and **must not** configure this option.
-
-#### For Non-Encrypted Event Logs
-
-Use `store_sensitive_attributes` to explicitly allow specific sensitive attributes:
+**Rule: if a tracked resource has sensitive attributes or arguments, use an encrypted event log.**
 
 ```elixir
-defmodule MyApp.Accounts.User do
-  use Ash.Resource,
-    extensions: [AshEvents.Events]
-
-  events do
-    event_log MyApp.Events.Event  # Non-encrypted event log
-    # Explicitly allow storing specific sensitive attributes
-    store_sensitive_attributes [:hashed_password, :api_key_hash]
-  end
-
-  attributes do
-    attribute :email, :string, public?: true
-    attribute :hashed_password, :string, sensitive?: true, public?: true
-    attribute :api_key_hash, :binary, sensitive?: true, public?: true
-    attribute :secret_token, :string, sensitive?: true, public?: true  # NOT stored in events
-  end
+defmodule MyApp.Vault do
+  use Cloak.Vault, otp_app: :my_app
 end
 
-# Result: Only hashed_password and api_key_hash will be included in events
-# secret_token will be excluded for security
-```
-
-#### For Encrypted (Cloaked) Event Logs
-
-**Do NOT use `store_sensitive_attributes` with cloaked event logs** - it will result in a compilation error:
-
-```elixir
-# ❌ INVALID - This will cause a compilation error
-defmodule MyApp.Accounts.User do
-  use Ash.Resource,
-    extensions: [AshEvents.Events]
-
-  events do
-    event_log MyApp.Events.CloakedEvent  # This is a cloaked event log
-    store_sensitive_attributes [:password]  # ❌ ERROR: Invalid with cloaked logs
-  end
-end
-```
-
-**Correct usage with cloaked event logs:**
-
-```elixir
-# ✅ CORRECT - No store_sensitive_attributes needed
-defmodule MyApp.Accounts.User do
-  use Ash.Resource,
-    extensions: [AshEvents.Events]
-
-  events do
-    event_log MyApp.Events.CloakedEvent  # Cloaked event log with encryption
-    # No store_sensitive_attributes - all sensitive data automatically stored
-  end
-
-  attributes do
-    attribute :email, :string, public?: true
-    attribute :hashed_password, :string, sensitive?: true, public?: true
-    attribute :api_key_hash, :binary, sensitive?: true, public?: true
-    attribute :secret_token, :string, sensitive?: true, public?: true
-  end
-end
-
-# Result: ALL sensitive attributes (hashed_password, api_key_hash, secret_token)
-# are automatically stored because they're encrypted by the cloaked event log
-```
-
-**Cloaked event log configuration:**
-
-```elixir
-defmodule MyApp.Events.CloakedEvent do
+defmodule MyApp.Events.Event do
   use Ash.Resource,
     extensions: [AshEvents.EventLog]
 
   event_log do
-    cloak_vault MyApp.Vault  # Enables encryption for all event data
+    clear_records_for_replay MyApp.Events.ClearAllRecords
+    cloak_vault MyApp.Vault  # Encrypts data, changed_attributes and metadata at rest
   end
 end
 ```
 
-#### Summary
+| Event Log Type | `data` | `changed_attributes` |
+|----------------|--------|----------------------|
+| **Non-encrypted** | Sensitive input stored as `nil` | Everything stored in plaintext |
+| **Encrypted (`cloak_vault`)** | Everything stored, encrypted | Everything stored, encrypted |
 
-| Event Log Type | Sensitive Attribute Behavior | `store_sensitive_attributes` Usage |
-|----------------|------------------------------|-------------------------------------|
-| **Non-encrypted** | Excluded by default | ✅ **Required** to store specific sensitive attributes |
-| **Cloaked (encrypted)** | All automatically stored | ❌ **Invalid** - will cause compilation error |
+- There is **no** `store_sensitive_attributes` DSL option. The v0.6.0 changelog entry refers to a feature that was reverted.
+- The payload fields (`data`, `changed_attributes`, `metadata`) are marked `sensitive?: true` on both log types and are omitted from `inspect` output.
+- Encrypted payloads cannot be filtered or indexed by content, and the application owns key management.
 
-**⚠️ Security considerations:**
-- **Non-encrypted event logs:** Only store sensitive attributes that are absolutely necessary for replay or audit purposes
-- **Encrypted event logs:** All sensitive attributes are safely stored because they're encrypted
-- Use encryption (`cloak_vault`) when you need comprehensive sensitive data storage in events
-- Never store sensitive attributes in non-encrypted logs unless specifically required for functionality
+### Auto-Generated Replay Actions
+
+Every create action with `upsert? true` gets a companion update action named `ash_events_replay_<action_name>_update`. Replay uses it to apply a recorded upsert onto an existing record. It skips the source action's changes and validations and writes no event, so it is marked `public?: false` (hidden from API extensions and `Ash.Resource.Info.public_actions/1`) and refuses to run unless the changeset context carries `ash_events_replay?: true`, which the replay runner sets. Do not call it, set that context flag yourself, or reference the action in policies. It may appear in tooling that lists every action on a resource; that is expected.
 
 ### Resource-Specific Event Handling
 

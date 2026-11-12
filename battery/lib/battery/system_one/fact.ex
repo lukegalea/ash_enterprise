@@ -18,6 +18,5 @@ defmodule Battery.SystemOne.Fact do
 
   events do
     event_log Battery.Events.EventLog
-    create_timestamp :recorded_at
   end
 end

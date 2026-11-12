@@ -1,0 +1,303 @@
+{
+  "attributes": [
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": true,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "sequence",
+      "type": "bigint"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": true,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "organization_id",
+      "type": "uuid"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": true,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "previous_hash",
+      "type": "text"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": true,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "hash",
+      "type": "text"
+    },
+    {
+      "allow_nil?": false,
+      "default": "fragment(\"uuidv7()\")",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": true,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "id",
+      "type": "uuid"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "record_id",
+      "type": "uuid"
+    },
+    {
+      "allow_nil?": false,
+      "default": "1",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "version",
+      "type": "bigint"
+    },
+    {
+      "allow_nil?": false,
+      "default": "%{}",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "metadata",
+      "type": "map"
+    },
+    {
+      "allow_nil?": false,
+      "default": "%{}",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "data",
+      "type": "map"
+    },
+    {
+      "allow_nil?": false,
+      "default": "%{}",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "changed_attributes",
+      "type": "map"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "occurred_at",
+      "type": "utc_datetime_usec"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "as_of",
+      "type": "utc_datetime_usec"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "as_of_range",
+      "type": "tstzrange"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "resource",
+      "type": "text"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "action",
+      "type": "text"
+    },
+    {
+      "allow_nil?": false,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "action_type",
+      "type": "text"
+    },
+    {
+      "allow_nil?": true,
+      "default": "nil",
+      "generated?": false,
+      "precision": null,
+      "primary_key?": false,
+      "references": null,
+      "scale": null,
+      "size": null,
+      "source": "user_id",
+      "type": "uuid"
+    }
+  ],
+  "base_filter": null,
+  "check_constraints": [],
+  "create_table_options": null,
+  "custom_indexes": [
+    {
+      "all_tenants?": false,
+      "concurrently": false,
+      "error_fields": [
+        "organization_id",
+        "sequence"
+      ],
+      "fields": [
+        {
+          "type": "atom",
+          "value": "organization_id"
+        },
+        {
+          "type": "atom",
+          "value": "sequence"
+        }
+      ],
+      "include": null,
+      "include_base_filter?": true,
+      "message": null,
+      "name": "audit_events_chain_index",
+      "nulls_distinct": true,
+      "prefix": null,
+      "table": null,
+      "unique": false,
+      "using": null,
+      "where": null
+    }
+  ],
+  "custom_statements": [
+    {
+      "after_tables": [],
+      "code?": false,
+      "down": "DROP FUNCTION IF EXISTS ash_enterprise_audit_chain();",
+      "global?": false,
+      "name": "audit_events_chain_function",
+      "up": "CREATE OR REPLACE FUNCTION ash_enterprise_audit_chain() RETURNS trigger AS $fn$\nDECLARE\n  prev text;\nBEGIN\n  -- The tenant is taken from the metadata the platform stamps rather than\n  -- accepted from the caller, so the column and the metadata cannot\n  -- disagree. See AshEnterprise.Platform.Changes.StampCorrelation.\n  NEW.organization_id := NULLIF(NEW.metadata->>'organization_id', '')::uuid;\n\n  -- The tail of the chain, read backwards off audit_events_chain_index.\n  -- `IS NOT DISTINCT FROM` cannot use the index, so the two cases are\n  -- written apart; and only with the index's own order does the planner\n  -- see that an `IS NULL` match is already ordered by sequence. Without\n  -- either, every audited insert reads and sorts the whole table.\n  IF NEW.organization_id IS NULL THEN\n    SELECT hash INTO prev\n    FROM audit_events\n    WHERE organization_id IS NULL\n    ORDER BY organization_id DESC, sequence DESC\n    LIMIT 1;\n  ELSE\n    SELECT hash INTO prev\n    FROM audit_events\n    WHERE organization_id = NEW.organization_id\n    ORDER BY organization_id DESC, sequence DESC\n    LIMIT 1;\n  END IF;\n\n  NEW.previous_hash := prev;\n  NEW.hash := encode(sha256(convert_to(concat_ws('|',\n    coalesce(prev, ''),\n    NEW.sequence::text,\n    NEW.id::text,\n    NEW.record_id::text,\n    NEW.version::text,\n    NEW.occurred_at::text,\n    NEW.resource,\n    NEW.action,\n    NEW.action_type,\n    coalesce(NEW.user_id::text, ''),\n    coalesce(NEW.organization_id::text, ''),\n    NEW.data::text,\n    NEW.changed_attributes::text,\n    NEW.metadata::text,\n    -- Application time (record_as_of?). concat_ws skips NULLs, so a row\n    -- without either hashes exactly as it did before they existed.\n    NEW.as_of::text,\n    NEW.as_of_range::text\n  ), 'UTF8')), 'hex');\n\n  RETURN NEW;\nEND;\n$fn$ LANGUAGE plpgsql;\n"
+    },
+    {
+      "after_tables": [],
+      "code?": false,
+      "down": "DROP TRIGGER IF EXISTS audit_events_chain ON audit_events;",
+      "global?": false,
+      "name": "audit_events_chain_trigger",
+      "up": "-- Rebuilt with the chain function: it hashes as_of and as_of_range.\nCREATE OR REPLACE TRIGGER audit_events_chain\n  BEFORE INSERT ON audit_events\n  FOR EACH ROW EXECUTE FUNCTION ash_enterprise_audit_chain();\n"
+    },
+    {
+      "after_tables": [],
+      "code?": false,
+      "down": "DROP FUNCTION IF EXISTS ash_enterprise_audit_immutable() CASCADE;",
+      "global?": false,
+      "name": "audit_events_immutable_function",
+      "up": "CREATE OR REPLACE FUNCTION ash_enterprise_audit_immutable() RETURNS trigger AS $fn$\nBEGIN\n  -- The one DELETE allowed: retention moving a row out of the hot log. The row\n  -- must be past the ninety-day hot window, and an identical copy of it must\n  -- already be in the archive (`AshEnterprise.Audit.ArchivedEvent`). So a row can\n  -- leave this table only by having arrived there first.\n  IF TG_OP = 'DELETE'\n     AND OLD.occurred_at < now() - interval '90 days'\n     AND EXISTS (\n       SELECT 1 FROM audit_event_archive a\n       WHERE a.id = OLD.id\n         AND (a.sequence, a.organization_id, a.record_id, a.version, a.occurred_at,\n              a.resource, a.action, a.action_type, a.user_id, a.data,\n              a.changed_attributes, a.metadata, a.previous_hash, a.hash)\n             IS NOT DISTINCT FROM\n             (OLD.sequence, OLD.organization_id, OLD.record_id, OLD.version,\n              OLD.occurred_at, OLD.resource, OLD.action, OLD.action_type, OLD.user_id,\n              OLD.data, OLD.changed_attributes, OLD.metadata, OLD.previous_hash,\n              OLD.hash)\n     ) THEN\n    RETURN OLD;\n  END IF;\n\n  RAISE EXCEPTION 'audit_events is append-only; % is not permitted', TG_OP\n    USING ERRCODE = 'restrict_violation',\n          HINT = 'Correct a wrong entry by recording a new one.';\nEND;\n$fn$ LANGUAGE plpgsql;\n"
+    },
+    {
+      "after_tables": [],
+      "code?": false,
+      "down": "DROP TRIGGER IF EXISTS audit_events_immutable ON audit_events;",
+      "global?": false,
+      "name": "audit_events_immutable_trigger",
+      "up": "CREATE OR REPLACE TRIGGER audit_events_immutable\n  BEFORE UPDATE OR DELETE ON audit_events\n  FOR EACH ROW EXECUTE FUNCTION ash_enterprise_audit_immutable();\n"
+    },
+    {
+      "after_tables": [],
+      "code?": false,
+      "down": "ALTER TABLE audit_events DROP COLUMN IF EXISTS correlation_id;",
+      "global?": false,
+      "name": "audit_events_correlation_id",
+      "up": "ALTER TABLE audit_events ADD COLUMN IF NOT EXISTS correlation_id uuid\n  GENERATED ALWAYS AS (\n    CASE WHEN (metadata->>'correlation_id') ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'\n    THEN (metadata->>'correlation_id')::uuid END\n  ) STORED;\n"
+    },
+    {
+      "after_tables": [],
+      "code?": false,
+      "down": "DROP INDEX IF EXISTS audit_events_correlation_id_index;",
+      "global?": false,
+      "name": "audit_events_correlation_id_index",
+      "up": "CREATE INDEX IF NOT EXISTS audit_events_correlation_id_index\n  ON audit_events (correlation_id);\n"
+    }
+  ],
+  "has_create_action": true,
+  "hash": "344291B9AA9FF3D3E27608C83B5080CA1E5D6457B0F135EEBDB19A873E08BBCF",
+  "identities": [],
+  "multitenancy": {
+    "attribute": "organization_id",
+    "global": true,
+    "strategy": "attribute"
+  },
+  "repo": "Elixir.AshEnterprise.Repo",
+  "schema": null,
+  "table": "audit_events",
+  "temporal": null
+}

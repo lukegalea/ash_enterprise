@@ -81,6 +81,11 @@ end
   tree; renderers that honour the `/query` state's `autoApply` hide it.
   A query with nothing to pick (sort and page size only) gets no controls
   card either way.
+- `sort_reset true` makes a sortable header cycle in three clicks: its
+  first direction (`sort_first` on the column, ascending by default), the
+  other, then back to the query's `default_sort` (the header sends a `nil`
+  sort). The grid's `sort` carries `"reset": true` (admin catalog 1.11);
+  without it headers toggle between the two directions.
 - **Filter bar options (admin catalog 1.10).** All opt-in; a query
   without them emits exactly what it did.
   - `multi_select_filters [:status]` — a picker of several values

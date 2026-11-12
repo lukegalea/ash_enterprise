@@ -63,7 +63,8 @@ defmodule AshEnterprise.Audit.Retention do
   @default_batch 10_000
 
   @event_columns ~w(id sequence organization_id record_id version occurred_at resource action
-                    action_type user_id data changed_attributes metadata previous_hash hash)
+                    action_type user_id data changed_attributes metadata as_of as_of_range
+                    previous_hash hash)
 
   @evidence_columns ~w(id organization_id control_id subject_type subject_id hash content
                        media_type collector method chain_of_custody retention_class

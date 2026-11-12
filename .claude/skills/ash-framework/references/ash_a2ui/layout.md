@@ -106,9 +106,67 @@ topics for the full contracts.
   unmatched values are `:neutral`. Rows carry the tone at
   `_badge_tone_<field>` and the admin dataGrid's badge column binds it as
   `tonePath`. Use tones for meaning (state), not decoration.
+- Explain each badge value in one line with `badge_help` (matched like
+  `badge_text`, e.g. `badge_help active: "Contract is currently active"`):
+  the admin grid draws it as the pill's tooltip. Translated as display
+  metadata; rows carry it at `_badge_help_<field>` (`""` unmatched) and the
+  badge column binds it as `helpPath` (catalog 1.11).
 - Without a `row_layout`, rows stay flat cell Rows — both layouts are
   byte-identical to the pre-layout encoder when undeclared, so adding one
   never breaks existing renderers.
+
+## List rows (`display :rows`)
+
+- A record page's related lines (a contract's services and prices, its
+  amendments) read as a stack of rows, not a grid: `display :rows` plus a
+  `row_layout`. The layout's `trailing` fields sit at the row's end,
+  right-aligned (an amount, a due date); its `expand` fields show only when
+  the row is opened, and declaring any makes every row a disclosure:
+
+  ```elixir
+  component :table, :lines do
+    label "Properties & pricing"
+    resource MyApp.ContractLine
+    display :rows
+    fields [:service_name, :period, :price, :scope_of_work]
+    context_filter contract_id: :contract
+
+    row_layout do
+      title :service_name
+      trailing [:price]
+      expand [:scope_of_work]
+    end
+  end
+  ```
+
+- `trailing`/`expand` must reference the table's fields (compile-verified)
+  and drop out of the default `meta`. `display :rows` without a
+  `row_layout` does not compile.
+- Admin catalog 1.12: the dataGrid carries `"layout": "rows"` and those
+  columns `"placement": "trailing" | "expand"`. A renderer that draws list
+  rows uses them; one that ignores them draws the grid with every column.
+  The basic card has no trailing slot or disclosure: both join its
+  metadata grid.
+- Lines that belong to something (a contract's lines per property) group
+  with `group_by`: each run of consecutive rows sharing its value is headed
+  once, with `group_subtitle` under the header and `group_icon` beside it.
+  Rows are grouped as they arrive, so sort the table's read (or its query)
+  by the group first:
+
+  ```elixir
+  row_layout do
+    group_by :property_name
+    group_subtitle :property_address
+    group_icon "home"
+    title :service_name
+    trailing [:price]
+  end
+  ```
+
+- `group_subtitle` and `group_icon` need a `group_by`; both fields must be
+  the table's and drop out of the default `meta`. Admin catalog 1.14: their
+  columns carry `"placement": "group" | "groupSubtitle"` and the dataGrid
+  `groupIcon`; the basic card shows them in its metadata grid.
 
 ## Table columns
 
@@ -169,6 +227,16 @@ topics for the full contracts.
     — every value behind "+N more", as strings at `_more_values_<column>`
     (`more.valuesPath`), and the noun for their caption (`"moreNoun"`).
     Needs `more`.
+- Catalog 1.11 adds, all optional and admin-only:
+  - `caption :field` + `caption_text "Created {date}"` — a third line under
+    the value and its subtitle (a contract's created date under its vendor).
+    `{date}` is the field's value formatted as a date in the reader's locale,
+    `{value}` the value as is; without `caption_text` the line is the value.
+    The field is folded like `subtitle`; the column carries
+    `"caption": {"path", "text"}`. `caption_text` needs `caption`.
+  - `sort_first :desc` — the header's first click sorts descending (a date
+    read newest first). The column carries `"sortFirst": "desc"`.
+  - On the badge column, `badge_help` (on the `row_layout`, see above).
 - `column_order :fields` on a table with a `row_layout` orders the admin
   grid's columns as the component's `fields` (default `:layout`: title,
   badge, meta). The badge column keeps its `badge_text`/`badge_tones`

@@ -137,6 +137,43 @@ end
   `deep_link: true` it `push_patch`es `ctx` params on context changes and
   re-applies them on back/forward.
 
+## Record pages
+
+A page about one record is a pickerless context (`picker false`, opened
+with `?ctx[<context>]=<id>`), its `:detail` cards and its related tables:
+
+- Head each section with `label` (`component :detail, :overview do label
+  "Overview" ... end`); the default is the humanized component name, which
+  cannot say "Properties & pricing". Labels translate as metadata.
+- Group cards under a page section with `section "Overview"`: consecutive
+  components naming the same section share one h2 heading inside a wrapper
+  `Column` (`section_<first component's key>`, an anchor a section nav can
+  target). A card in a section without a `label` draws no heading of its
+  own, so a one-card section ("Renewal terms") is not headed twice.
+- A section's summary line ("3 contract lines · 2 properties") is a
+  `section_note :field` on one of its components: a field of the context's
+  record (a calculation on the contract), drawn muted under the section's
+  heading and read with that record, so it changes when the context does.
+  It needs the component's `section` and one context: a `:detail`'s
+  `context`, or a related table's single `context_filter` context.
+- `component_order :declared` (a surface option) lays the admin catalog's
+  sections out in declaration order — Overview, the lines, then Renewal
+  terms — instead of every table before the cards. The basic catalog always
+  uses declaration order.
+- A detail value that is a state reads as a badge: declare `badge_text`,
+  `badge_tones` and `badge_help` on its `field`, the row layout's
+  vocabulary. The detail data carries `_badge_<field>`,
+  `_badge_tone_<field>` and `_badge_help_<field>`; the admin `fieldDisplay`
+  binds them as `badge`, `badgeTone` and `badgeHelp` (catalog 1.12).
+- A field's `note` ("Calculated") sits beside its label on detail cards
+  (admin catalog), saying how the value came to be.
+- A value the record does not state shows the field's `empty_text`
+  ("Not stated") instead of a blank; a row that only makes sense when set
+  ("Terminated by") is listed in the card's `hide_empty` and left out while
+  empty. Both are admin catalog only.
+- Values from related records are calculations on the context's resource:
+  a detail field cannot take a `source` path.
+
 ## Avoid list
 
 - ❌ Modeling a simple enum/status narrowing as a context — that's a query

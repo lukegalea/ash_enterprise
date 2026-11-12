@@ -281,7 +281,6 @@ mix usage_rules.search_docs "search term" -p ash -p ash_a2ui -p ash_acp -p ash_a
 - `mix ash_oban.set_default_module_names.docs`
 - `mix ash_oban.upgrade`
 - `mix ash_operations.install` - Installs AshOperations: formatter entry and a commented provider example
-- `mix ash_operations.install.docs`
 - `mix ash_phoenix.gen.html` - Generates a controller and HTML views for an existing Ash resource.
 - `mix ash_phoenix.gen.live` - Generates liveviews for a given domain and resource.
 - `mix ash_phoenix.install` - Installs AshPhoenix into a project. Should be called with `mix igniter.install ash_phoenix`

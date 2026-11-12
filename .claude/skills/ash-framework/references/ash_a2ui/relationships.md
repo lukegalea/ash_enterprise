@@ -189,6 +189,24 @@ end
   (`createAshA2uiCatalog`) draws these Buttons as links (inherited font,
   `--a2ui-link-color`, underline, focus ring); stock renderers show the
   upstream borderless Button.
+- **Plain links** (`link_url :field`, admin catalog 1.13): a value that
+  links to a page or address rather than to a surface's record — a request's
+  own page, a file. `link_url` names a public attribute or calculation of the
+  same resource holding the URL (a path or an absolute address); the field's
+  own value is the link text, and an empty URL means no link:
+
+  ```elixir
+  field :request_title do
+    link_url :request_page_url     # a calculation returning "/requests/42"
+  end
+  ```
+
+  Rows carry `"_links" => %{"request_title" => %{"href", "label"}}`, with no
+  `"surface"`: renderers follow the href as an ordinary link (no
+  `openSurface`, nothing for the `LinkResolver` to resolve or veto, so prune
+  in the calculation if the actor should not see it). The basic catalog shows
+  the plain value. Cannot be combined with `link`, `links` or `source`
+  (verified).
 - Verified at compile time: `link` → public to-one relationship, `links`
   → public to-many, single-attribute destination PK, `link_label` a
   public destination field, `{surface, id_path}` walks public

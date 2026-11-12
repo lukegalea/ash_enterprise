@@ -363,9 +363,10 @@ defmodule AshEnterprise.Process.AccessRequestDemoTest do
   describe "the nudge path" do
     # The notifier is attached to the log by this app, and under `oban_testing:
     # :inline` a nudge *is* a sweep. With the index started — it is not at boot
-    # in :test, see `AshEnterprise.Application.trigger_index/0` — a synthetic
-    # notification for a real event row drives the whole path: short-name
-    # normalization, ETS interest, debounced insert, inline sweep, dispatch.
+    # in :test, see `AshEnterprise.Application.trigger_index/0` — a notification
+    # for a real event row drives the whole path: short-name normalization, ETS
+    # interest, debounced insert, inline sweep, dispatch. The log's own writes
+    # send that notification; a test can also send one by hand.
     test "a type-narrowed subscription rides the cron, not the coarse nudge", ctx do
       start_supervised!(AshBpmn.Triggers.Index)
       assert :ok = AshBpmn.Triggers.Index.reload!()
@@ -398,7 +399,7 @@ defmodule AshEnterprise.Process.AccessRequestDemoTest do
       assert subject_id == request.id
     end
 
-    test "a subscription the coarse nudge can see dispatches inline on the nudge alone", ctx do
+    test "a subscription the coarse nudge can see dispatches inline from the write itself", ctx do
       start_supervised!(AshBpmn.Triggers.Index)
       assert :ok = AshBpmn.Triggers.Index.reload!()
 
@@ -427,19 +428,23 @@ defmodule AshEnterprise.Process.AccessRequestDemoTest do
       assert AshBpmn.Triggers.Index.interested?("AshEnterprise.Security.AccessRequest")
 
       request = submit!(%{}, ctx)
-      event = latest_event!(ctx.tenant, AshEnterprise.Security.AccessRequest, request.id)
+      event = first_event!(ctx.tenant, AshEnterprise.Security.AccessRequest, request.id)
 
-      # The nudge *is* the sweep here: under `oban_testing: :inline` the
-      # debounced insert executes the worker synchronously, so this one
-      # notifier call runs the funnel, starts the instance and writes the
-      # ledger row.
-      assert :ok = AshBpmn.Triggers.Nudge.notify(%Ash.Notifier.Notification{data: event})
+      # No synthetic notification: the event log hands its row's notification to
+      # its notifiers, so the submit's own write is the nudge, and under `oban_testing:
+      # :inline` it runs the funnel, starts the instance and writes the ledger row
+      # before `submit!` returns.
+      {direct, caused} = ctx.tenant |> dispatches() |> Enum.split_with(&(&1.depth == 1))
 
-      assert [dispatch] = dispatches(ctx.tenant)
+      assert [dispatch] = direct
       assert dispatch.status == :started
       assert dispatch.event_id == event.id
-      assert [%Instance{subject_id: subject_id}] = instances(ctx.tenant)
-      assert subject_id == request.id
+
+      # This subscription matches every write to the resource, so the grant process's
+      # own writes to the request match it too. They dispatch a level deeper, caused by
+      # the process, which is what the depth bound is for.
+      assert Enum.all?(caused, &(&1.depth > 1))
+      assert Enum.all?(instances(ctx.tenant), &(&1.subject_id == request.id))
     end
 
     # With no index running — the boot posture in :test — the nudge degrades to
@@ -472,11 +477,17 @@ defmodule AshEnterprise.Process.AccessRequestDemoTest do
     |> Ash.read!(actor: SystemActor.process(), tenant: tenant)
   end
 
-  defp latest_event!(tenant, resource, record_id) do
+  defp latest_event!(tenant, resource, record_id),
+    do: event_at!(tenant, resource, record_id, :desc)
+
+  defp first_event!(tenant, resource, record_id),
+    do: event_at!(tenant, resource, record_id, :asc)
+
+  defp event_at!(tenant, resource, record_id, order) do
     AshEnterprise.Audit.EventLog
     |> Ash.Query.for_read(:read)
     |> Ash.Query.filter(resource == ^resource and record_id == ^record_id)
-    |> Ash.Query.sort(sequence: :desc)
+    |> Ash.Query.sort(sequence: order)
     |> Ash.Query.limit(1)
     |> Ash.read_one!(actor: SystemActor.process(), tenant: tenant)
   end

@@ -46,6 +46,10 @@ contract and a worked `AshBpmn.FlightView` adapter.
 - Without `loadMermaid` (or when mermaid fails), and under the basic
   catalog, the diagram renders as a list of nodes with their markers.
 
+- Marker badges form a group beside their node, never on it, and edge labels
+  are moved clear of each other, of the nodes and of the badges after the
+  render (pure geometry in `priv/js/ash_a2ui_diagram_layout.js`).
+
 ## Live updates
 
 - Marker moves are data-model writes to `/diagram/<name>`. With

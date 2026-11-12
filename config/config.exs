@@ -335,6 +335,15 @@ config :ash, :missed_notifications, :ignore
 # truth cannot have its own validation disagree with it, so: codepoints.
 config :ash, default_string_length_count: :codepoints
 
+# Third-party changes verified temporal safe (Ash reads this at compile time).
+# On a temporal resource ash_events' replay wrapper is only as safe as the change
+# it wraps, and these declare nothing themselves:
+#
+#   * AshCloak.Changes.Encrypt encrypts an argument into its `encrypted_` column
+#     through the vault. It reads no clock and its result does not depend on
+#     when the write is "as of" (CalendarEvent's location).
+config :ash, :temporal_safe_modules, [AshCloak.Changes.Encrypt]
+
 config :ash_graphql, authorize_update_destroy_with_error?: true
 
 config :mime,
@@ -436,12 +445,14 @@ config :ash_enterprise, AshEnterprise.Repo, types: AshEnterprise.PostgrexTypes
 # credentials and database (residency is the host's concern — ADR 0042).
 # The migrations stay the package's: a host's config files are the only ones
 # evaluated, so this host pins the package's own versioned migration set
-# (`priv/test_repo` — ecto resolves it against the dep's app dir), and the
-# shared database tracks them under their own timestamps. The repo is in
+# (`priv/repo`: the package tables only, since ash_evidence#10; its test host's
+# tables stay in `priv/test_repo` and are not used here; ecto resolves the path
+# against the dep's app dir), and the shared database tracks them under their
+# own timestamps, which #10 kept. The repo is in
 # `:ecto_repos` above, so it migrates together with the host's own. The
 # pgvector encode/decode rides the package's PostgrexTypes — this host's own
 # types module is separate.
-config :ash_evidence, AshEvidence.Repo, priv: "priv/test_repo"
+config :ash_evidence, AshEvidence.Repo, priv: "priv/repo"
 
 # The MDM match family earns the band table the matcher already bands through
 # (`AshEnterprise.Mdm.Banding`), not a `judgments_band_<family>` one.

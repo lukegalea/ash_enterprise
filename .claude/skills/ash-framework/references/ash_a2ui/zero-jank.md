@@ -44,6 +44,14 @@ these mechanisms, in this order of preference:
    AshA2ui catalogs' prompt Modal settles the same way: a successful
    Confirm closes it, a failed one keeps it open over the field errors and
    the feedback message.
+3b. **Rows that arrive after the surface (`/ui/loading`)** — a host that
+   fetches a table's or report's rows after the first batch leaves the table
+   empty meanwhile, which reads as "no rows". Bracket the fetch with
+   `AshA2ui.Loading.messages(ui, true)` and `messages(ui, false)`; a renderer
+   draws its loading state while `/ui/loading` is `true` (a report's loading
+   row is templated over `/ui/loading_visible`). The shipped hook sets both
+   itself from a `query` or `report` click until the server answers. The
+   flag is absent from the initial data model: read a missing value as `false`.
 4. **The bootstrap skeleton** — between LiveView mount and the first
    component tree there is no server HTML to show, so the shipped hook
    renders an immediate skeleton (heading bar + row bars, themed entirely

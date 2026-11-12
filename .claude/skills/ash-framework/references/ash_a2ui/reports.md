@@ -27,6 +27,9 @@ actions) and `export` blocks (server-generated CSV via the v1.0
   the Run button dispatches the `"report"` client action. Blank params are
   unset; non-blank values are cast against the action's arguments;
   non-allowlisted keys are dropped before the cast.
+- `param_placeholders search: "Search vendors"` gives a param's input a
+  placeholder (admin catalog; the label stays as its accessible name). Keys
+  must be among `params`.
 - The action runs actor-scoped with the surface's `authorize?` — scope
   inside the action's `run` via `context.actor` where needed.
 - Results land wholesale at `/report/<name>/rows`. On v1.0 the

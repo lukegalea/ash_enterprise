@@ -18,6 +18,9 @@ defmodule Battery.Events.EventLog do
 
   event_log do
     primary_key_type Ash.Type.UUIDv7
+    # The facts table is temporal: its events record each write's as_of, as the
+    # host's audit log does.
+    record_as_of? true
   end
 
   actions do
