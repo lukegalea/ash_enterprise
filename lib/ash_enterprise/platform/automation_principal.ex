@@ -30,6 +30,15 @@ defmodule AshEnterprise.Platform.AutomationPrincipal do
   as requesterless, which does not exist yet; until it does, an automation principal
   never runs without a person.
 
+  ## A recipe's standing grant
+
+  `recipe_runner` runs the steps of a process a recipe published as a standing grant
+  started (ADR 0069). The person is the one who published that version
+  (`AshEnterprise.Bpmn.Subscription.publish_granted`), never whoever caused the event, and
+  the agent is the version's start grant, `recipe:<key>:<version>`. Its `recipe` field
+  names the dispatch, the event and the grant the step ran under, for the audit entry
+  (`AshEnterprise.Platform.Correlation`); it is provenance and carries no authority.
+
   ## The actor
 
   A person asks for automation work with `start/3`, which marks their own actor; they
@@ -47,12 +56,13 @@ defmodule AshEnterprise.Platform.AutomationPrincipal do
           description: String.t(),
           id: Ash.UUID.t() | nil,
           agent: String.t() | nil,
+          recipe: map() | nil,
           __ash_enterprise_context__: ActorContext.t() | nil
         }
 
   # `__ash_enterprise_context__` is where `ActorContext.attach/2` puts the authority:
   # declared so that a principal with none is a principal with none, not a missing key.
-  defstruct [:name, :description, :id, :agent, :__ash_enterprise_context__]
+  defstruct [:name, :description, :id, :agent, :recipe, :__ash_enterprise_context__]
 
   @principals %{
     evaluator:
@@ -62,7 +72,11 @@ defmodule AshEnterprise.Platform.AutomationPrincipal do
     evidence_admitter:
       "Admits a judgment's evidence when a calibrated band table says to (ADR 0041, ADR " <>
         "0043). What it may admit is the roles a tenant assigns it, per question family; " <>
-        "with none, every observation goes to a person."
+        "with none, every observation goes to a person.",
+    recipe_runner:
+      "Runs the steps of a process that a recipe published as a standing grant started, " <>
+        "acting for the person who published that version, on the intersection of their " <>
+        "authority and its own roles (ADR 0069). With no roles it can do nothing."
   }
 
   @start_key :automation_start

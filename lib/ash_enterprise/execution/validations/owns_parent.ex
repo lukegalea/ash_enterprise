@@ -10,6 +10,11 @@ defmodule AshEnterprise.Execution.Validations.OwnsParent do
   This is action logic, so it may read: it reads the parent without authorization and
   compares its owner with the actor. A parent that does not exist and one owned by
   someone else are refused alike.
+
+  A step of a process a standing-grant recipe started is requested by the person who
+  published that recipe version, not by whoever started the instance (ADR 0069), so such a
+  request may name the instance too, and only when it asks as that version's recipe runner
+  (`AshEnterprise.Process.RecipeAuthority.runs_for?/3`).
   """
 
   use Ash.Resource.Validation
@@ -18,6 +23,7 @@ defmodule AshEnterprise.Execution.Validations.OwnsParent do
 
   alias AshEnterprise.Bpmn.Instance
   alias AshEnterprise.Execution.Run
+  alias AshEnterprise.Process.RecipeAuthority
 
   @impl true
   def validate(changeset, _opts, context) do
@@ -25,7 +31,7 @@ defmodule AshEnterprise.Execution.Validations.OwnsParent do
 
     [
       parent_invocation(changeset, actor_id),
-      process_instance(changeset, actor_id),
+      process_instance(changeset, actor_id, context.actor),
       run(changeset, actor_id)
     ]
     |> Enum.find(:ok, &match?({:error, _}, &1))
@@ -47,16 +53,21 @@ defmodule AshEnterprise.Execution.Validations.OwnsParent do
     end
   end
 
-  defp process_instance(changeset, actor_id) do
+  defp process_instance(changeset, actor_id, actor) do
     case Ash.Changeset.get_attribute(changeset, :process_instance_id) do
       nil ->
         :ok
 
       id ->
-        Instance
-        |> Ash.Query.filter(id == ^id and started_by_id == ^actor_id)
-        |> Ash.exists?(tenant: changeset.tenant, authorize?: false)
-        |> refuse_unless(:process_instance_id)
+        started? =
+          Instance
+          |> Ash.Query.filter(id == ^id and started_by_id == ^actor_id)
+          |> Ash.exists?(tenant: changeset.tenant, authorize?: false)
+
+        refuse_unless(
+          started? or RecipeAuthority.runs_for?(id, changeset.tenant, actor),
+          :process_instance_id
+        )
     end
   end
 

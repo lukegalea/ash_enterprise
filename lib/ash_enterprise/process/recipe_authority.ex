@@ -1,6 +1,7 @@
 defmodule AshEnterprise.Process.RecipeAuthority do
   @moduledoc """
-  Whether a service or send task may run, given the recipe that started its process.
+  Whether a service or send task may run, and as whom, given the recipe that started its
+  process.
 
   A recipe (a published `AshEnterprise.Bpmn.Subscription`) starts a process because an
   event happened, and an event grants nothing. What the process's steps may do comes from
@@ -15,11 +16,23 @@ defmodule AshEnterprise.Process.RecipeAuthority do
   | a `:causing_person` recipe on the allowlisted key | runs as it always has |
   | a `:human_tasks_only` recipe | runs nothing: `{:no_authority, :human_tasks_only}` |
   | a `:causing_person` recipe on any other key | runs nothing: `{:no_authority, :causing_person_not_allowed}` |
-  | a `:standing_grant` recipe | runs nothing: `{:no_authority, :standing_grant}`, until standing grants are built |
+  | a `:standing_grant` recipe whose publisher is an active member holding the version's grant | runs as the `recipe_runner` acting for the publisher: `{:ok, %{authority: :standing_grant, ...}}` |
+  | a `:standing_grant` recipe whose publisher has left, is inactive or no longer holds the grant | runs nothing: `{:no_authority, reason}`, the reason `AshEnterprise.Execution.Identity` gives |
   | a recipe whose subscription cannot be read | runs nothing: `{:no_authority, :no_subscription}` |
 
   A call activity's child has no dispatch of its own, so the instance tree is walked up to
-  its root, the instance a dispatch names.
+  its root, the instance a dispatch names; a child of a standing-grant recipe's process runs
+  under the same grant.
+
+  ## A standing grant
+
+  The step runs as the `recipe_runner` automation principal acting for the person stamped
+  as the version's `accountable_person_id`, for the version's start grant
+  (`Authority.grant_key/1`), never for whoever caused the event (ADR 0069). That person is
+  rebuilt here, at every step, and again when the step's invocation is claimed, so a
+  deactivated or departed publisher, or a grant revoked or past its `valid_until`, stops the
+  step before it runs. The tenant is the instance's, never the job's arguments: a mismatch
+  runs nothing.
 
   ## Claim logic, not a policy check
 
@@ -34,7 +47,10 @@ defmodule AshEnterprise.Process.RecipeAuthority do
 
   alias AshEnterprise.Bpmn.{Dispatch, Instance, Subscription}
   alias AshEnterprise.Bpmn.Subscription.Authority
+  alias AshEnterprise.Execution.Identity
+  alias AshEnterprise.Platform.AutomationPrincipal
   alias AshEnterprise.Process.EngineContext
+  alias AshEnterprise.Security.AgentStartGrant
 
   # Call activities nest; a tree deeper than this is refused rather than walked forever.
   @max_depth 32
@@ -43,23 +59,36 @@ defmodule AshEnterprise.Process.RecipeAuthority do
   @type reason ::
           :human_tasks_only
           | :causing_person_not_allowed
-          | :standing_grant
           | :no_subscription
           | :tree_too_deep
+          | :no_tenant
+          | :other_tenant
+          | term()
+
+  @typedoc "What a step of a standing-grant recipe's process runs under."
+  @type standing_grant :: %{
+          authority: :standing_grant,
+          requester: struct(),
+          tenant: Ash.UUID.t(),
+          subscription_id: Ash.UUID.t(),
+          dispatch_id: Ash.UUID.t()
+        }
 
   @doc """
-  `:ok` when the step the engine context `ctx` describes may run, or
+  `:ok` when the step the engine context `ctx` describes runs as it always has,
+  `{:ok, standing_grant}` when it runs under a standing grant, or
   `{:error, {:no_authority, reason}}` when it must run nothing.
   """
-  @spec check(map()) :: :ok | {:error, {:no_authority, reason()}}
+  @spec check(map()) :: :ok | {:ok, standing_grant()} | {:error, {:no_authority, reason()}}
   def check(ctx) when is_map(ctx) do
     case ctx[:instance] do
       %{id: id} = instance when is_binary(id) ->
-        tenant = EngineContext.tenant(ctx) || instance_tenant(instance)
+        # The instance knows its tenant; the job's arguments only say where to look.
+        tenant = instance_tenant(instance) || EngineContext.tenant(ctx)
 
         with {:ok, root} <- root(instance, tenant, 0),
-             {:ok, subscription} <- recipe(root, tenant) do
-          decide(subscription, root)
+             {:ok, recipe} <- recipe(root, tenant) do
+          decide(recipe, root, ctx)
         end
 
       _no_instance ->
@@ -67,25 +96,107 @@ defmodule AshEnterprise.Process.RecipeAuthority do
     end
   end
 
-  defp decide(nil, _root), do: :ok
+  @doc """
+  What a recipe runner's claimed actor ran under, for the audit entry: the dispatch that
+  started the invocation's process tree, the event it answered and the start grant
+  `person_id` holds for `grant_key`. Provenance, never authority; a value that cannot be
+  read is nil.
+  """
+  @spec provenance(map(), Ash.UUID.t() | nil, String.t() | nil, Ash.UUID.t() | nil) :: %{
+          dispatch_id: Ash.UUID.t() | nil,
+          event_id: Ash.UUID.t() | nil,
+          grant_id: Ash.UUID.t() | nil
+        }
+  def provenance(row, person_id, grant_key, tenant) do
+    dispatch =
+      with %{process_instance_id: id} when is_binary(id) <- row,
+           {:ok, %Instance{} = instance} <- read_instance(id, tenant),
+           {:ok, root} <- root(instance, tenant, 0),
+           {:ok, {_subscription, dispatch}} <- recipe(root, tenant) do
+        dispatch
+      else
+        _none -> nil
+      end
 
-  defp decide(%Subscription{authority: :causing_person, key: key} = subscription, root) do
+    %{
+      dispatch_id: dispatch && dispatch.id,
+      event_id: dispatch && dispatch.event_id,
+      grant_id: grant_id(person_id, grant_key, tenant)
+    }
+  end
+
+  @doc """
+  Whether `actor` asks for work in the process instance `instance_id` as that tree's
+  standing grant: it is the person the root's recipe version names as accountable, marked
+  to run as the `recipe_runner` for that version's grant. Lets a recipe runner's request
+  name the instance as its parent although the person did not start it
+  (`AshEnterprise.Execution.Validations.OwnsParent`).
+  """
+  @spec runs_for?(Ash.UUID.t(), Ash.UUID.t() | nil, term()) :: boolean()
+  def runs_for?(instance_id, tenant, %{id: person_id} = actor) when is_binary(person_id) do
+    with %{name: :recipe_runner, agent: grant_key} <- AutomationPrincipal.requested(actor),
+         {:ok, %Instance{} = instance} <- read_instance(instance_id, tenant),
+         {:ok, root} <- root(instance, tenant, 0),
+         {:ok, {%Subscription{authority: :standing_grant} = subscription, _}} <-
+           recipe(root, tenant) do
+      subscription.accountable_person_id == person_id and
+        Authority.grant_key(subscription) == grant_key
+    else
+      _ -> false
+    end
+  end
+
+  def runs_for?(_instance_id, _tenant, _actor), do: false
+
+  defp decide(nil, _root, _ctx), do: :ok
+
+  defp decide({%Subscription{authority: :causing_person, key: key} = subscription, _}, root, _) do
     if Authority.causing_person?(key),
       do: :ok,
       else: refuse(:causing_person_not_allowed, subscription, root)
   end
 
-  defp decide(%Subscription{authority: authority} = subscription, root)
-       when authority in [:human_tasks_only, :standing_grant],
-       do: refuse(authority, subscription, root)
+  defp decide({%Subscription{authority: :standing_grant} = subscription, dispatch}, root, ctx),
+    do: standing_grant(subscription, dispatch, root, ctx)
 
-  defp decide(%Subscription{} = subscription, root),
+  defp decide({%Subscription{} = subscription, _dispatch}, root, _ctx),
     do: refuse(:human_tasks_only, subscription, root)
+
+  # The tenant is the instance's own. A job that names another runs nothing.
+  defp standing_grant(subscription, dispatch, root, ctx) do
+    tenant = instance_tenant(root)
+
+    cond do
+      is_nil(tenant) ->
+        refuse(:no_tenant, subscription, root)
+
+      ctx[:tenant] not in [nil, tenant] ->
+        refuse(:other_tenant, subscription, root)
+
+      true ->
+        subscription.accountable_person_id
+        |> Identity.recipe_requester(Authority.grant_key(subscription), tenant)
+        |> case do
+          {:ok, requester} ->
+            {:ok,
+             %{
+               authority: :standing_grant,
+               requester: requester,
+               tenant: tenant,
+               subscription_id: subscription.id,
+               dispatch_id: dispatch.id
+             }}
+
+          {:error, reason} ->
+            refuse(reason, subscription, root)
+        end
+    end
+  end
 
   defp refuse(reason, subscription, root) do
     Logger.warning(
       "recipe #{subscription && subscription.key} started instance #{root.id} with no " <>
-        "authority for a service task (#{reason}); it runs nothing"
+        "authority for a service task (#{inspect(reason)}); it runs nothing"
     )
 
     {:error, {:no_authority, reason}}
@@ -95,11 +206,7 @@ defmodule AshEnterprise.Process.RecipeAuthority do
     do: {:error, {:no_authority, :tree_too_deep}}
 
   defp root(%{parent_instance_id: parent_id}, tenant, depth) when is_binary(parent_id) do
-    Instance
-    |> Ash.Query.filter(id == ^parent_id)
-    |> Ash.Query.select([:id, :parent_instance_id, :organization_id])
-    |> Ash.read_one(authorize?: false, tenant: tenant)
-    |> case do
+    case read_instance(parent_id, tenant) do
       {:ok, %Instance{} = parent} -> root(parent, tenant, depth + 1)
       _missing -> {:error, {:no_authority, :no_subscription}}
     end
@@ -107,29 +214,51 @@ defmodule AshEnterprise.Process.RecipeAuthority do
 
   defp root(instance, _tenant, _depth), do: {:ok, instance}
 
-  # The subscription that started `root`, or nil when no recipe did.
+  defp read_instance(id, tenant) do
+    Instance
+    |> Ash.Query.filter(id == ^id)
+    |> Ash.Query.select([:id, :parent_instance_id, :organization_id])
+    |> Ash.read_one(authorize?: false, tenant: tenant)
+  end
+
+  # The subscription that started `root` and the dispatch that records it, or nil when no
+  # recipe did.
   defp recipe(root, tenant) do
     Dispatch
     |> Ash.Query.filter(
       instance_id == ^root.id and status == :started and not is_nil(subscription_id)
     )
-    |> Ash.Query.select([:id, :subscription_id])
+    |> Ash.Query.select([:id, :subscription_id, :event_id])
     |> Ash.Query.limit(1)
     |> Ash.read_one(authorize?: false, tenant: tenant)
     |> case do
       {:ok, nil} -> {:ok, nil}
       {:ok, %Dispatch{subscription_id: nil}} -> {:ok, nil}
-      {:ok, %Dispatch{subscription_id: id}} -> subscription(id, root, tenant)
+      {:ok, %Dispatch{subscription_id: id} = dispatch} -> subscription(id, dispatch, root, tenant)
       {:error, _error} -> refuse(:no_subscription, nil, root)
     end
   end
 
-  defp subscription(id, root, tenant) do
+  defp subscription(id, dispatch, root, tenant) do
     case Ash.get(Subscription, id, authorize?: false, tenant: tenant, not_found_error?: false) do
-      {:ok, %Subscription{} = subscription} -> {:ok, subscription}
+      {:ok, %Subscription{} = subscription} -> {:ok, {subscription, dispatch}}
       _missing -> refuse(:no_subscription, nil, root)
     end
   end
+
+  defp grant_id(person_id, grant_key, tenant)
+       when is_binary(person_id) and is_binary(grant_key) and is_binary(tenant) do
+    AgentStartGrant
+    |> Ash.Query.filter(agent_key == ^grant_key and principal_id == ^person_id)
+    |> Ash.Query.select([:id])
+    |> Ash.read_one(authorize?: false, tenant: tenant)
+    |> case do
+      {:ok, %AgentStartGrant{id: id}} -> id
+      _none -> nil
+    end
+  end
+
+  defp grant_id(_person_id, _grant_key, _tenant), do: nil
 
   defp instance_tenant(%{organization_id: id}), do: id
   defp instance_tenant(_instance), do: nil

@@ -371,7 +371,7 @@ defmodule AshEnterprise.Process.RecipeAuthorityTest do
       assert message(result) =~ "a standing grant is published by the person accountable"
     end
 
-    test "is refused at the step, should a row carry one", ctx do
+    test "is refused at the step, should a row carry one with nobody accountable", ctx do
       key = process!(ctx.tenant, @people_only)
 
       subscription =
@@ -383,13 +383,13 @@ defmodule AshEnterprise.Process.RecipeAuthorityTest do
       request = submit!(ctx)
       sweep!(ctx.tenant)
 
-      assert_raise RuntimeError, ~r/\{:no_authority, :standing_grant\}/, &advance!/0
+      assert_raise RuntimeError, ~r/\{:no_authority, :requesterless\}/, &advance!/0
 
       assert [%Dispatch{instance_id: instance_id}] = started(ctx.tenant)
       instance = instance!(instance_id, ctx.tenant)
 
       assert RecipeAuthority.check(%{instance: instance, tenant: ctx.tenant}) ==
-               {:error, {:no_authority, :standing_grant}}
+               {:error, {:no_authority, :requesterless}}
 
       assert reload(request, ctx.tenant).decision_outcome == nil
     end

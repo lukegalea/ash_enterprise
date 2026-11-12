@@ -2139,6 +2139,10 @@ msgstr "Public"
 msgid "Publish"
 msgstr "Publier"
 
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Publish granted"
+msgstr "Publier sous délégation permanente"
+
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
 msgid "Pulse"
 msgstr "Pouls"

@@ -25,6 +25,13 @@ defmodule AshEnterprise.Process.ServiceInvocation do
   account since starting the process stops it here. An instance with no starter has no
   one to run as, and the task fails.
 
+  A process a standing-grant recipe started is the exception (ADR 0069): its steps run as
+  the `recipe_runner` automation principal acting for the person who published that
+  version of the recipe, never for whoever caused the event or started the instance
+  (`AshEnterprise.Process.RecipeAuthority` decides, from the dispatch row, and hands this
+  the requester). The invocation records that principal, and every claim rebuilds it as the
+  intersection of the two (`AshEnterprise.Execution.Identity`), in the instance's tenant.
+
   ## What may be named, and how it runs
 
   Only a target that needs no approval and writes only to this application
@@ -57,16 +64,16 @@ defmodule AshEnterprise.Process.ServiceInvocation do
   Runs the target `{resource, action}` for the service task `ctx` describes, with the
   task's subject as its `"id"` and its declared inputs as the rest of its arguments.
   """
-  @spec run({Ash.Resource.t(), atom()}, map()) ::
+  @spec run({Ash.Resource.t(), atom()}, map(), :starter | map()) ::
           {:ok, map()} | {:error, {:bpmn_error, String.t(), map()}} | {:error, term()}
-  def run({resource, action}, ctx) do
+  def run({resource, action}, ctx, authority \\ :starter) do
     name = Target.name(resource, action)
-    tenant = EngineContext.tenant(ctx)
+    tenant = tenant(ctx, authority)
 
     with :ok <- runnable(name),
          {:ok, base, parent} <- position(ctx),
          key = round_key(base, ctx, tenant),
-         {:ok, starter} <- starter(ctx[:instance], tenant),
+         {:ok, starter} <- requester(ctx[:instance], tenant, authority),
          {:ok, row} <-
            Execution.invoke(name, args(ctx), %{key: key, parent: parent},
              actor: starter,
@@ -146,6 +153,16 @@ defmodule AshEnterprise.Process.ServiceInvocation do
       ":r" <> round -> String.to_integer(round)
     end
   end
+
+  # Under a standing grant the requester is the one `RecipeAuthority` rebuilt for this step,
+  # in the instance's tenant; otherwise it is the instance's starter.
+  defp tenant(_ctx, %{authority: :standing_grant, tenant: tenant}), do: tenant
+  defp tenant(ctx, _authority), do: EngineContext.tenant(ctx)
+
+  defp requester(_instance, _tenant, %{authority: :standing_grant, requester: requester}),
+    do: {:ok, requester}
+
+  defp requester(instance, tenant, :starter), do: starter(instance, tenant)
 
   @doc false
   def starter(%{started_by_id: id}, tenant) when is_binary(id) do

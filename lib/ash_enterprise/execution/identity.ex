@@ -39,6 +39,17 @@ defmodule AshEnterprise.Execution.Identity do
   which do not exist yet: a principal with no person is refused at the request and at
   the claim.
 
+  ## A recipe's standing grant
+
+  A step of a process that a `:standing_grant` recipe started (ADR 0069) runs as the
+  `recipe_runner` principal acting for the person who published that version, never for
+  whoever caused the event, and for the version's own start grant,
+  `recipe:<key>:<version>`, as its agent. `recipe_requester/3` builds the request; every
+  claim then rebuilds it as above, so a publisher who has left, been deactivated or lost the
+  grant (revoked, or past its `valid_until`) stops the step before it runs. The claimed
+  actor also names the dispatch, event and grant it ran under (`AutomationPrincipal`'s
+  `recipe`), which the audit entry records beside the person.
+
   ## An agent run
 
   A run (`AshEnterprise.Execution.Run`) is started by a person who holds the agent's
@@ -78,6 +89,7 @@ defmodule AshEnterprise.Execution.Identity do
   alias AshEnterprise.Accounts.{BusinessUnit, User}
   alias AshEnterprise.Execution.{Invocation, Run}
   alias AshEnterprise.Platform.AutomationPrincipal
+  alias AshEnterprise.Process.RecipeAuthority
   alias AshEnterprise.Security.{ActorContext, AgentStartGrant}
 
   @impl true
@@ -93,9 +105,15 @@ defmodule AshEnterprise.Execution.Identity do
   @impl true
   def actor_for(%{executing_principal: principal, organization_id: tenant} = row) do
     case AshAgent.ExecutionIdentity.identity(principal) do
-      {"person", id, _, _} -> with {:ok, agent} <- agent_of(row), do: person(id, tenant, agent)
-      {"automation", name, person_id, agent} -> automation_actor(name, person_id, agent, tenant)
-      _other -> {:error, :no_principal}
+      {"person", id, _, _} ->
+        with {:ok, agent} <- agent_of(row), do: person(id, tenant, agent)
+
+      {"automation", name, person_id, agent} ->
+        with {:ok, actor} <- automation_actor(name, person_id, agent, tenant),
+             do: {:ok, with_recipe(actor, row, tenant)}
+
+      _other ->
+        {:error, :no_principal}
     end
   end
 
@@ -204,6 +222,24 @@ defmodule AshEnterprise.Execution.Identity do
   @spec person_actor(Ash.UUID.t(), Ash.UUID.t()) :: {:ok, ActorContext.actor()} | {:error, term()}
   def person_actor(id, tenant), do: person(id, tenant)
 
+  @doc """
+  The actor a step of a standing-grant recipe's process requests its target as: the person
+  `person_id` who published the version, rebuilt from their grant rows now and marked to
+  run as the `recipe_runner` for `grant_key` (`AutomationPrincipal.start/3`). Refused, like
+  a claim, for no person (`:requesterless`), a person who no longer exists, is no longer
+  active or belongs to another tenant, and a person who does not hold `grant_key`
+  (`:no_start_grant`, including a grant past its `valid_until`).
+  """
+  @spec recipe_requester(Ash.UUID.t() | nil, String.t(), Ash.UUID.t() | nil) ::
+          {:ok, ActorContext.actor()} | {:error, term()}
+  def recipe_requester(nil, _grant_key, _tenant), do: {:error, :requesterless}
+
+  def recipe_requester(person_id, grant_key, tenant) do
+    with {:ok, actor} <- person(person_id, tenant, grant_key) do
+      {:ok, AutomationPrincipal.start(actor, :recipe_runner, grant_key)}
+    end
+  end
+
   # --- request --------------------------------------------------------------
 
   defp automation(_user, _name, _agent, nil), do: {:error, :no_tenant}
@@ -274,6 +310,14 @@ defmodule AshEnterprise.Execution.Identity do
     end
   end
 
+  # A recipe runner's actor names what it ran under: provenance for the audit entry, never
+  # authority. Anything else is returned as it was built.
+  defp with_recipe(%AutomationPrincipal{name: :recipe_runner} = actor, row, tenant) do
+    %{actor | recipe: RecipeAuthority.provenance(row, actor.id, actor.agent, tenant)}
+  end
+
+  defp with_recipe(actor, _row, _tenant), do: actor
+
   # Read without authorization: rebuilding an identity is claim logic, not a policy
   # check, and what the person may do is decided by the context built from it.
   defp member(id, tenant) do
@@ -318,7 +362,10 @@ defmodule AshEnterprise.Execution.Identity do
     principal_ids = [user.id | ActorContext.team_ids_for(user.id, tenant)]
 
     AgentStartGrant
-    |> Ash.Query.filter(agent_key == ^agent and principal_id in ^principal_ids)
+    |> Ash.Query.filter(
+      agent_key == ^agent and principal_id in ^principal_ids and
+        (is_nil(valid_until) or valid_until > now())
+    )
     |> Ash.exists(authorize?: false, tenant: tenant)
     |> case do
       {:ok, true} -> :ok

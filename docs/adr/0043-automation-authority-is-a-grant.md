@@ -8,6 +8,9 @@
   the existing doctrine are resolved here rather than left implied: system actors keep their bypass but the automation
   principal never has one; the `ai` system actor loses its bypass; thesis 5's human decision moves to the moment the
   grant is made
+- **Amended 2026-11-12 (approved 2026-11-09):** a recipe version published by a person as a standing grant is work
+  that person asked for; see [Amendment](#amendment-2026-11-12--a-recipes-standing-grant) and
+  [ADR 0069](0069-a-recipe-runs-on-an-authority-chosen-per-version.md)
 
 ## Context
 
@@ -153,5 +156,36 @@ The mechanism exists; what any principal may admit is still a per-family grant n
   `created_by_id` / `modified_by_id` name them. The audit entry adds `automation_principal`, `on_behalf_of_id` and the
   invocation's `invocation_key`.
 - **Not built.** Work with no requester (schedules, process starts) waits for agent versions published as
-  requesterless, so a principal with no person is refused at request and at claim. The admission action and its
+  requesterless, so a principal with no person is refused at request and at claim. Process starts are partly
+  answered by the amendment below: a recipe's standing grant has a requester, the person who published it. The admission action and its
   per-family filter check, the subject of this record, wait for the admission work itself.
+
+## Amendment 2026-11-12 — a recipe's standing grant
+
+Approved by the operator on 2026-11-09; built 2026-11-12. The mechanism is
+[ADR 0069](0069-a-recipe-runs-on-an-authority-chosen-per-version.md); what changes here is the meaning of "a person
+asked for it".
+
+**The request moves to the publish, as the human decision moved to the grant.** A recipe starts a process when an
+event happens, with no person at that moment. This record said such work waits for requesterless agent versions. A
+recipe published with `publish_granted` is not requesterless: the person who publishes the version is its requester,
+stamped as `accountable_person_id`, and the version's `AgentStartGrant` (`recipe:<key>:<version>`) is their `may_act`
+for exactly that version. Every step then runs as the `recipe_runner` principal acting for them, on the intersection,
+rebuilt at every claim, exactly as any principal's work does. What the person decided is recorded, scoped to one
+version, revocable, and ends (`valid_until`).
+
+**What does not change.**
+
+- The automation principal never has a bypass. `recipe_runner` has authority only from its `AutomationRole` rows, and
+  with none it can do nothing.
+- Requesterless work stays refused: a standing-grant version with nobody accountable runs nothing.
+- `human_only` and `changes_authority` actions stay closed to every principal, `publish_granted` among them, so a
+  principal cannot publish a recipe for anyone, and a recipe's step cannot assign a role.
+- The event's author is not the requester. Who caused the event is recorded on the dispatch (`caused_by_id`) and is
+  never authority.
+- System actors keep their bypass and never run a recipe's steps.
+
+**What it adds to "Built".** `recipe_runner` in `AutomationPrincipal`; `AgentStartGrant.valid_until`, counted at every
+claim like a role grant's (ADR 0066); `Execution.Identity.recipe_requester/3`; and the audit entry of a recipe runner's
+write names the dispatch, event and grant ids beside `automation_principal` and `on_behalf_of_id`
+(`standing_grant_test.exs`).

@@ -116,6 +116,10 @@ defmodule AshEnterprise.Platform.Correlation do
   its attribution actually lives. See `AshEnterprise.Platform.SystemActor`. The
   same holds for an automation principal: `automation_principal` names it and
   `on_behalf_of_id` the person it acted for.
+
+  A recipe runner (ADR 0069) also names the dispatch, the audit event and the start grant
+  the step ran under, as `recipe_dispatch_id`, `recipe_event_id` and `recipe_grant_id`:
+  why the work ran, recorded beside who it ran for, and never a source of authority.
   """
   def audit_metadata(actor) do
     %{
@@ -132,6 +136,7 @@ defmodule AshEnterprise.Platform.Correlation do
       "automation_principal" => automation_name(actor),
       "on_behalf_of_id" => automation_for(actor)
     }
+    |> Map.merge(recipe(actor))
     |> Enum.reject(fn {_k, v} -> is_nil(v) end)
     |> Map.new()
   end
@@ -148,4 +153,14 @@ defmodule AshEnterprise.Platform.Correlation do
 
   defp automation_for(%AshEnterprise.Platform.AutomationPrincipal{id: id}), do: id
   defp automation_for(_), do: nil
+
+  defp recipe(%AshEnterprise.Platform.AutomationPrincipal{recipe: %{} = recipe}) do
+    %{
+      "recipe_dispatch_id" => recipe[:dispatch_id],
+      "recipe_event_id" => recipe[:event_id],
+      "recipe_grant_id" => recipe[:grant_id]
+    }
+  end
+
+  defp recipe(_actor), do: %{}
 end

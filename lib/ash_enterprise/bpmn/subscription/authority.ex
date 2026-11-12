@@ -11,7 +11,7 @@ defmodule AshEnterprise.Bpmn.Subscription.Authority do
   |---|---|
   | `:human_tasks_only` (default) | Nobody. Publishing refuses a diagram with a service, send or script task or a call activity, and a process that reaches one anyway runs nothing (`AshEnterprise.Process.RecipeAuthority`) |
   | `:causing_person` | The person whose write caused the event, as the engine already runs it. Allowed only for the keys in `causing_person_keys/0`, which holds exactly one |
-  | `:standing_grant` | Not published by `publish`: a person's standing grant is published by that person, not by the setup task or a system actor |
+  | `:standing_grant` | The `recipe_runner` automation principal acting for the person who published the version (`accountable_person_id`), on the intersection of the two, rebuilt at every claim. Only `publish_granted`, a person's own act, publishes it; `publish` refuses it |
 
   ## The causing-person allowlist
 
@@ -25,6 +25,19 @@ defmodule AshEnterprise.Bpmn.Subscription.Authority do
   A list of any other length refuses every key, so widening it is a code review, not a
   config edit that quietly works. Forms and packs never select it: only a system actor,
   the setup path, may choose it on a draft (`Validations.AuthoritySelectable`).
+
+  ## The standing grant
+
+  `publish_granted` stamps the person publishing as the version's accountable person and
+  writes them an `AshEnterprise.Security.AgentStartGrant` keyed `grant_key/1`,
+  `recipe:<key>:<version>`, valid for `grant_review_days/0` days. A step of the process runs
+  only while that person is an active member of the tenant and holds that grant, and does
+  only what both they and the `recipe_runner`'s roles allow. A new version is a new key, so
+  it never inherits an earlier version's grant; a version whose publisher has left, or whose
+  grant has lapsed or been revoked, runs nothing until a person publishes it again.
+
+      config :ash_enterprise, AshEnterprise.Bpmn.Subscription,
+        standing_grant_review_days: 365
   """
 
   @values [:human_tasks_only, :causing_person, :standing_grant]
@@ -40,6 +53,21 @@ defmodule AshEnterprise.Bpmn.Subscription.Authority do
   @doc "The node types a `:human_tasks_only` process may not contain."
   @spec acting_node_types() :: [String.t()]
   def acting_node_types, do: @acting_node_types
+
+  @doc """
+  The start grant a `:standing_grant` version's steps run under, one per version:
+  `recipe:<key>:<version>`.
+  """
+  @spec grant_key(map()) :: String.t()
+  def grant_key(%{key: key, version: version}), do: "recipe:#{key}:#{version}"
+
+  @doc "How many days a standing grant lasts before its publisher must publish it again."
+  @spec grant_review_days() :: pos_integer()
+  def grant_review_days do
+    :ash_enterprise
+    |> Application.get_env(AshEnterprise.Bpmn.Subscription, [])
+    |> Keyword.get(:standing_grant_review_days, 365)
+  end
 
   @doc "The subscription keys that may run as the causing person, from config."
   @spec causing_person_keys() :: [String.t()]

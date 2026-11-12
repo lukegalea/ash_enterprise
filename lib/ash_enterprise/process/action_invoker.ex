@@ -60,6 +60,13 @@ defmodule AshEnterprise.Process.ActionInvoker do
   republished with one) answers `{:error, {:no_authority, :human_tasks_only}}` and nothing
   runs.
 
+  A process a standing-grant recipe started (ADR 0069) runs only `invoke:` entries, and runs
+  them as the `recipe_runner` acting for the person who published that version, through the
+  target's invocation. A legacy entry would run as the process actor or as whoever started
+  the instance, outside the grant, so it answers
+  `{:error, {:no_authority, :not_an_invocation_target}}` and runs nothing; publishing such a
+  recipe refuses a diagram that names one (`invocation_target?/1`).
+
   ## Idempotency is the caller's problem, and it is real
 
   Oban redelivers. A node may execute twice, and the token claim gate makes a *double advance*
@@ -167,7 +174,23 @@ defmodule AshEnterprise.Process.ActionInvoker do
     # published with; an event grants nothing. Checked before anything runs.
     case RecipeAuthority.check(ctx) do
       :ok -> dispatch(action, ctx)
+      {:ok, %{authority: :standing_grant} = grant} -> dispatch_granted(action, ctx, grant)
       {:error, _no_authority} = refused -> refused
+    end
+  end
+
+  # Under a standing grant only a declared target runs, through its invocation, as the
+  # recipe runner acting for the publisher.
+  defp dispatch_granted(action, ctx, grant) do
+    case Map.fetch(@registry, action) do
+      {:ok, %{invoke: target}} ->
+        run(&ServiceInvocation.run(target, &1, grant), action, ctx)
+
+      {:ok, _legacy} ->
+        {:error, {:no_authority, :not_an_invocation_target}}
+
+      :error ->
+        dispatch(action, ctx)
     end
   end
 
@@ -216,6 +239,16 @@ defmodule AshEnterprise.Process.ActionInvoker do
         false
     end
   end
+
+  @doc """
+  Whether the diagram's action ref names an entry that runs through a declared target's
+  invocation (`invoke:`), the only kind a standing-grant recipe's process may run.
+  """
+  @spec invocation_target?(String.t()) :: boolean()
+  def invocation_target?(action) when is_binary(action),
+    do: match?({:ok, %{invoke: _}}, Map.fetch(@registry, action))
+
+  def invocation_target?(_action), do: false
 
   @doc """
   The action catalogue the designer's service-task panel renders.

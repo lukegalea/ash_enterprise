@@ -46,7 +46,10 @@ defmodule AshEnterprise.Bpmn.Subscription do
       archival?: false,
       # Choosing who a recipe's steps run as moves what it can do, so an automation
       # principal never reaches it (ADR 0043).
-      changes_authority: [:set_authority]
+      changes_authority: [:set_authority],
+      # A standing grant is a person's own act: no system actor, no automation principal
+      # and nothing an engine marks may publish one (ADR 0043, ADR 0069).
+      human_only: [:publish_granted]
     ]
 
   require Ash.Query
@@ -67,6 +70,15 @@ defmodule AshEnterprise.Bpmn.Subscription do
                     "(:human_tasks_only), the person whose write caused the event " <>
                     "(:causing_person), or a person's standing grant (:standing_grant)."
     end
+
+    # Stamped by `publish_granted` from the actor, never from input: the person within
+    # whose authority a `:standing_grant` version's steps run.
+    attribute :accountable_person_id, :uuid do
+      public? true
+
+      description "The person who published this version with :standing_grant. Its steps " <>
+                    "run within what they may do, and stop when they no longer may."
+    end
   end
 
   actions do
@@ -82,10 +94,50 @@ defmodule AshEnterprise.Bpmn.Subscription do
 
       validate {Validations.AuthoritySelectable, []}
     end
+
+    # A person publishes a draft as a standing grant: its steps run as the `recipe_runner`
+    # automation principal acting for them, on the intersection of the two (ADR 0069).
+    #
+    # Everything the macro's `publish` does, restated by module name, because the macro has
+    # no option for extra actions; `standing_grant_test.exs` fails if a step
+    # `publish` carries is missing here. Then: the authority is `:standing_grant` and nothing
+    # else, the steps the diagram names must be ones that can run as the intersection, the
+    # actor is stamped as the accountable person, and their start grant for this version
+    # (`recipe:<key>:<version>`) is written in the same transaction, so a later version
+    # never inherits it.
+    update :publish_granted do
+      description "Publish a draft whose steps run within your own authority, as the " <>
+                    "recipe runner acting for you."
+
+      accept []
+      require_atomic? false
+
+      validate attribute_equals(:status, :draft), message: "only a draft can be published"
+
+      validate AshBpmn.Resources.Subscription.TargetPresent
+      validate AshBpmn.Resources.Subscription.SignalNamePresent
+      validate AshBpmn.Resources.Subscription.GuardFeel
+      validate AshBpmn.Resources.Subscription.ExpressionsParse
+      validate AshBpmn.Resources.Subscription.MatchAudited
+      validate AshBpmn.Resources.Subscription.NotCyclic
+      validate AshBpmn.Resources.Subscription.DecisionExists
+
+      change set_attribute(:authority, :standing_grant)
+      validate {Validations.StandingGrantSteps, []}
+
+      # Hooks, so they run after authorization: an actor the policy refuses is Forbidden,
+      # not an input error.
+      change {AshEnterprise.Bpmn.Subscription.Changes.StampAccountablePerson, []}
+      change {AshEnterprise.Bpmn.Subscription.Changes.WriteStartGrant, []}
+
+      change set_attribute(:status, :published)
+      change AshBpmn.Resources.Subscription.CompileExpressions
+    end
   end
 
   code_interface do
     define :set_authority, action: :set_authority, args: [:authority]
+    define :publish_granted, action: :publish_granted
   end
 
   # The prompt-invalidation wiring: every lifecycle act — publish, retire,
@@ -121,8 +173,11 @@ defmodule AshEnterprise.Bpmn.Subscription do
     # writes land in no tenant's chain, so nothing would ever sweep them.
     validate {Validations.TenantScopedMatch, []} do
       on [:update]
-      where action_is(:publish)
+      where action_is([:publish, :publish_granted])
     end
+
+    # These two read the authority a draft carries into `publish`. `publish_granted` sets
+    # its own (`:standing_grant`), which neither is about.
 
     validate {Validations.HumanTasksOnly, []} do
       on [:update]
@@ -140,7 +195,8 @@ defmodule AshEnterprise.Bpmn.Subscription do
       on [:update]
       where action_is(:publish)
 
-      message "a standing grant is published by the person accountable for it, not by publish"
+      message "a standing grant is published by the person accountable for it, with " <>
+                "publish_granted, not by publish"
     end
   end
 

@@ -26,6 +26,13 @@ defmodule AshEnterprise.Bpmn.Dispatch do
   time, which closes the direct path; `depth` bounds the indirect one through
   `AshBpmn.Resources.Signal`, so a cycle is *bounded* rather than merely
   improbable.
+
+  ## The cause, which is never authority
+
+  `caused_by_id` names the person whose write caused the event, copied from the started
+  instance (`AshEnterprise.Bpmn.Dispatch.RecordCause`). It answers "whose act set this
+  off", and nothing reads it to decide what the process may do: that comes from the
+  subscription's `authority` (ADR 0069).
   """
 
   use AshBpmn.Resources.Dispatch,
@@ -45,4 +52,17 @@ defmodule AshEnterprise.Bpmn.Dispatch do
       audit?: false,
       archival?: false
     ]
+
+  attributes do
+    attribute :caused_by_id, :uuid do
+      public? true
+
+      description "The person whose write caused the event, when one did. Provenance, " <>
+                    "never authority."
+    end
+  end
+
+  changes do
+    change {AshEnterprise.Bpmn.Dispatch.RecordCause, []}, on: [:create]
+  end
 end

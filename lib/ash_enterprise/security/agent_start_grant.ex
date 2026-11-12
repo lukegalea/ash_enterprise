@@ -16,6 +16,10 @@ defmodule AshEnterprise.Security.AgentStartGrant do
   before it runs.
 
   Making one is a person's decision: `grant` is `human_only`.
+
+  A grant may carry `valid_until`, like a role grant (ADR 0066): it counts while that is unset
+  or later than now, and at the instant itself it is gone. A recipe's standing grant always
+  carries one (`AshEnterprise.Bpmn.Subscription.Authority`, ADR 0069).
   """
 
   use AshEnterprise.Platform.Resource,
@@ -51,6 +55,11 @@ defmodule AshEnterprise.Security.AgentStartGrant do
       public? true
       description "Discriminates principal_id between a user and a team."
     end
+
+    attribute :valid_until, :utc_datetime_usec do
+      public? true
+      description "When the grant ends. Nil: until it is revoked."
+    end
   end
 
   identities do
@@ -62,7 +71,7 @@ defmodule AshEnterprise.Security.AgentStartGrant do
 
     create :grant do
       primary? true
-      accept [:agent_key, :principal_id, :principal_type]
+      accept [:agent_key, :principal_id, :principal_type, :valid_until]
       upsert? true
       upsert_identity :unique_grant
       description "Idempotent: granting what is already held is a no-op."
