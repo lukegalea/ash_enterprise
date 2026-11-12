@@ -127,7 +127,11 @@ defmodule AshEnterprise.Legacy.StranglerCodegen do
   """
   @spec rendered() :: %{
           optional(module()) => [
-            %{required(:name) => atom(), required(:up) => String.t(), required(:down) => String.t()}
+            %{
+              required(:name) => atom(),
+              required(:up) => String.t(),
+              required(:down) => String.t()
+            }
           ]
         }
   def rendered do
@@ -236,9 +240,7 @@ defmodule AshEnterprise.Legacy.StranglerCodegen do
   defp dev(opts) do
     case pending() do
       [] ->
-        Mix.shell().info(
-          "Strangler compatibility layer is up to date; --dev is a no-op for it."
-        )
+        Mix.shell().info("Strangler compatibility layer is up to date; --dev is a no-op for it.")
 
       pending ->
         Mix.shell().error(pending_report(pending))
@@ -397,7 +399,10 @@ defmodule AshEnterprise.Legacy.StranglerCodegen do
 
     summary =
       [
-        if(changed == [], do: nil, else: "changed: #{Enum.map_join(changed, ", ", &elem(&1, 0))}"),
+        if(changed == [],
+          do: nil,
+          else: "changed: #{Enum.map_join(changed, ", ", &elem(&1, 0))}"
+        ),
         if(added == [], do: nil, else: "added: #{Enum.map_join(added, ", ", &elem(&1, 0))}"),
         if(removed == 0, do: nil, else: "removed: #{removed}")
       ]
@@ -471,7 +476,9 @@ defmodule AshEnterprise.Legacy.StranglerCodegen do
     |> List.first()
     |> case do
       nil ->
-        Mix.raise("no ecto_repos configured for #{inspect(app)}; cannot place the strangler migration")
+        Mix.raise(
+          "no ecto_repos configured for #{inspect(app)}; cannot place the strangler migration"
+        )
 
       repo ->
         repo

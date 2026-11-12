@@ -61,7 +61,8 @@ defmodule AshEnterprise.Legacy.StranglerCodegenTest do
     end
 
     test "a missing snapshot reports every statement of the resource" do
-      root = Path.join(System.tmp_dir!(), "strangler-snapshots-missing-#{System.unique_integer()}")
+      root =
+        Path.join(System.tmp_dir!(), "strangler-snapshots-missing-#{System.unique_integer()}")
 
       [entry] = StranglerCodegen.pending(snapshot_root: root)
 
