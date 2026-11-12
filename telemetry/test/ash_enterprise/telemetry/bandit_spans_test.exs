@@ -100,6 +100,22 @@ defmodule AshEnterprise.Telemetry.BanditSpansTest do
     end
   end
 
+  describe "the path" do
+    test "never reaches the span with a token in it", %{base: base} do
+      token = "Xq3v9TzK1mNp7RwB2yLc"
+      body = Jason.decode!(get(base <> "/password-reset/#{token}").body)
+
+      span = request_span(body["trace_id"])
+      refute inspect(span) =~ token
+      assert attribute(span, :"url.path") == "/password-reset/:token"
+    end
+
+    test "an ordinary path is kept as it is", %{base: base} do
+      body = Jason.decode!(get(base <> "/probe/42").body)
+      assert attribute(request_span(body["trace_id"]), :"url.path") == "/probe/42"
+    end
+  end
+
   describe "a crash in the request" do
     defp exception_attributes(key_value) do
       span =

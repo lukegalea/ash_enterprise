@@ -14,13 +14,64 @@ const CONTROL_SELECTOR =
 
 const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi
 
-// A page path with record ids removed, so a span name groups by page.
+// A path segment that looks like a token: twenty or more characters of the
+// base64url/hex/JWT alphabet, carrying both a letter and a digit (readable slugs
+// and numeric ids keep their shape). The auth routes carry reset, confirm and
+// magic-link tokens in their path; a span name never should.
+const TOKEN_SEGMENT = /^[A-Za-z0-9_.-]{20,}$/
+const tokenLike = segment =>
+  TOKEN_SEGMENT.test(segment) && /\d/.test(segment) && /[a-zA-Z]/.test(segment)
+
+// A page path with record ids and tokens removed, so a span name groups by page
+// and carries no credential.
 export const normalizePath = path =>
   path
     .replace(UUID, ":id")
     .split("/")
-    .map(segment => (/^\d+$/.test(segment) ? ":id" : segment))
+    .map(segment => (tokenLike(segment) ? ":token" : /^\d+$/.test(segment) ? ":id" : segment))
     .join("/")
+
+// A URL or path with the token-like segments of its path removed; the query and
+// fragment are kept as they are, and record ids too, since `url.full` names the one
+// resource fetched.
+export const redactPathTokens = url => {
+  const end = url.search(/[?#]/)
+  const [path, rest] = end === -1 ? [url, ""] : [url.slice(0, end), url.slice(end)]
+
+  const redacted = path
+    .split("/")
+    .map(segment => (tokenLike(segment) ? ":token" : segment))
+    .join("/")
+
+  return redacted + rest
+}
+
+const REDACTED_ATTRIBUTES = ["url.full", "url.path", "http.target"]
+
+// A span processor for the provider: the document-load spans put the page's location
+// on `url.full`, and resource spans the resource URL there. `onEnd` is the one hook
+// that sees every span of every instrumentation before it is exported, and the
+// attributes are a plain record at that point, so rewriting them here keeps a token
+// in the path off the export without reaching into each instrumentation. Place it
+// before the exporting processor.
+export class RedactPathAttributes {
+  onStart() {}
+
+  onEnd(span) {
+    for (const key of REDACTED_ATTRIBUTES) {
+      const value = span.attributes[key]
+      if (typeof value === "string") span.attributes[key] = redactPathTokens(value)
+    }
+  }
+
+  forceFlush() {
+    return Promise.resolve()
+  }
+
+  shutdown() {
+    return Promise.resolve()
+  }
+}
 
 export const connectSpanName = path => `${normalizePath(path).slice(0, MAX_PAGE_LENGTH)} lv.connect`
 

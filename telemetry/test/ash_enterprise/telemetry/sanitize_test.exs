@@ -89,6 +89,29 @@ defmodule AshEnterprise.Telemetry.SanitizeTest do
     end
   end
 
+  describe "path/1" do
+    test "a token-like segment is replaced" do
+      assert Sanitize.path("/password-reset/Xq3v9TzK1mNp7RwB2yLc") == "/password-reset/:token"
+
+      assert Sanitize.path(
+               "/auth/magic/eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOjF9.c2lnbmF0dXJlMTIz/sign-in"
+             ) ==
+               "/auth/magic/:token/sign-in"
+    end
+
+    test "words, slugs and numeric ids keep their shape" do
+      assert Sanitize.path("/pages/a-very-long-readable-page-slug/42") ==
+               "/pages/a-very-long-readable-page-slug/42"
+
+      assert Sanitize.path("/") == "/"
+      assert Sanitize.path("") == ""
+    end
+
+    test "a short segment with letters and digits is not a token" do
+      assert Sanitize.path("/v2/items/abc123") == "/v2/items/abc123"
+    end
+  end
+
   describe "query/1" do
     test "keeps the keys and drops every value" do
       assert Sanitize.query("reset_token=abc&_csrf_token=zzz&q=acme") ==
