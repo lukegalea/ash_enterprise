@@ -42,7 +42,9 @@ defmodule AshEnterprise.Automation.OccurrenceTest do
 
     on_exit(fn -> Application.delete_env(:ash_enterprise, @config) end)
 
-    %{a: a, b: b}
+    tasks_before = MapSet.new(Task.Supervisor.children(AshEnterprise.TaskSupervisor))
+
+    %{a: a, b: b, tasks_before: tasks_before}
   end
 
   defp seed(label) do
@@ -89,9 +91,12 @@ defmodule AshEnterprise.Automation.OccurrenceTest do
     })
   end
 
-  # Waits for the refusal tasks to finish, by monitor and not by sleeping.
-  defp await_tasks do
-    for pid <- Task.Supervisor.children(AshEnterprise.TaskSupervisor) do
+  # Waits for the refusal tasks this test started to finish, by monitor and not by
+  # sleeping. A task another module left running under the shared supervisor is not
+  # one of them.
+  defp await_tasks(%{tasks_before: before}) do
+    for pid <- Task.Supervisor.children(AshEnterprise.TaskSupervisor),
+        not MapSet.member?(before, pid) do
       ref = Process.monitor(pid)
 
       receive do
@@ -197,24 +202,25 @@ defmodule AshEnterprise.Automation.OccurrenceTest do
   end
 
   describe "a refused sign-in" do
-    test "for an unknown identity writes nothing, anywhere", %{a: a, b: b} do
+    test "for an unknown identity writes nothing, anywhere", %{a: a, b: b} = ctx do
       assert {:error, _} =
                sign_in("nobody-#{System.unique_integer([:positive])}@example.test", "x")
 
-      await_tasks()
+      await_tasks(ctx)
 
       assert occurrences(a.tenant) == []
       assert occurrences(b.tenant) == []
     end
 
-    test "for a known user writes one occurrence in each organization they belong to", %{
-      a: a,
-      b: b
-    } do
+    test "for a known user writes one occurrence in each organization they belong to",
+         %{
+           a: a,
+           b: b
+         } = ctx do
       join_team_in!(a.user, b)
 
       assert {:error, _} = sign_in(a.user.email, "wrong-password")
-      await_tasks()
+      await_tasks(ctx)
 
       for tenant <- [a.tenant, b.tenant] do
         assert [row] = occurrences(tenant)
@@ -224,9 +230,9 @@ defmodule AshEnterprise.Automation.OccurrenceTest do
       end
     end
 
-    test "records no address, password or token", %{a: a} do
+    test "records no address, password or token", %{a: a} = ctx do
       assert {:error, _} = sign_in(a.user.email, "wrong-password-xyz")
-      await_tasks()
+      await_tasks(ctx)
 
       [row] = occurrences(a.tenant)
       dumped = inspect(Map.from_struct(row))
@@ -234,7 +240,7 @@ defmodule AshEnterprise.Automation.OccurrenceTest do
       refute dumped =~ to_string(a.user.email)
     end
 
-    test "is typed by reason: locked, then deactivated", %{a: a, b: b} do
+    test "is typed by reason: locked, then deactivated", %{a: a, b: b} = ctx do
       previous = Application.get_env(:ash_enterprise, Accounts.Lockout)
 
       Application.put_env(:ash_enterprise, Accounts.Lockout,
@@ -252,7 +258,7 @@ defmodule AshEnterprise.Automation.OccurrenceTest do
       for _ <- 1..2, do: assert({:error, _} = sign_in(a.user.email, "wrong"))
       # Locked now: even the right password is refused, and says so.
       assert {:error, _} = sign_in(a.user.email, @password)
-      await_tasks()
+      await_tasks(ctx)
 
       reasons = a.tenant |> occurrences() |> Enum.map(& &1.data["reason"]) |> Enum.sort()
       assert reasons == ["bad_password", "bad_password", "locked"]
@@ -260,12 +266,12 @@ defmodule AshEnterprise.Automation.OccurrenceTest do
       assert {:error, _} = sign_in(b.user.email, "wrong")
       deactivate!(b.user)
       assert {:error, _} = sign_in(b.user.email, @password)
-      await_tasks()
+      await_tasks(ctx)
 
       assert "deactivated" in Enum.map(occurrences(b.tenant), & &1.data["reason"])
     end
 
-    test "is answered without waiting for its occurrence to be written", %{a: a} do
+    test "is answered without waiting for its occurrence to be written", %{a: a} = ctx do
       test = self()
 
       Application.put_env(:ash_enterprise, @config,
@@ -284,14 +290,14 @@ defmodule AshEnterprise.Automation.OccurrenceTest do
       assert Process.alive?(writer)
 
       send(writer, :go)
-      await_tasks()
+      await_tasks(ctx)
     end
 
-    test "stays a refusal when the write raises", %{a: a} do
+    test "stays a refusal when the write raises", %{a: a} = ctx do
       Application.put_env(:ash_enterprise, @config, record: fn _write -> raise "boom" end)
 
       assert {:error, _} = sign_in(a.user.email, "wrong")
-      await_tasks()
+      await_tasks(ctx)
       assert {:ok, _} = sign_in(a.user.email, @password)
       assert occurrences(a.tenant) == []
     end
@@ -304,9 +310,9 @@ defmodule AshEnterprise.Automation.OccurrenceTest do
       assert occurrences(a.tenant) == []
     end
 
-    test "does not turn a success into a refusal, and a success writes nothing", %{a: a} do
+    test "does not turn a success into a refusal, and a success writes nothing", %{a: a} = ctx do
       assert {:ok, _} = sign_in(a.user.email, @password)
-      await_tasks()
+      await_tasks(ctx)
       assert occurrences(a.tenant) == []
     end
   end
@@ -397,11 +403,11 @@ defmodule AshEnterprise.Automation.OccurrenceTest do
 
     defp system_opts_process(tenant), do: [actor: SystemActor.process(), tenant: tenant]
 
-    test "a refused sign-in starts its process after one sweep", %{a: a} do
+    test "a refused sign-in starts its process after one sweep", %{a: a} = ctx do
       subscription = publish_probe!(a.tenant, "user.sign_in_refused")
 
       assert {:error, _} = sign_in(a.user.email, "wrong")
-      await_tasks()
+      await_tasks(ctx)
       assert instances(a.tenant) == []
 
       sweep!(a.tenant)
@@ -429,22 +435,23 @@ defmodule AshEnterprise.Automation.OccurrenceTest do
       assert [%{status: :started}] = dispatches(a.tenant)
     end
 
-    test "a guard on one type does not start on another", %{a: a} do
+    test "a guard on one type does not start on another", %{a: a} = ctx do
       publish_probe!(a.tenant, "user.deactivated")
 
       assert {:error, _} = sign_in(a.user.email, "wrong")
-      await_tasks()
+      await_tasks(ctx)
       sweep!(a.tenant)
 
       assert types(a.tenant) == ["user.sign_in_refused"]
       assert instances(a.tenant) == []
     end
 
-    test "another tenant's subscription does not see this tenant's occurrence", %{a: a, b: b} do
+    test "another tenant's subscription does not see this tenant's occurrence",
+         %{a: a, b: b} = ctx do
       publish_probe!(b.tenant, "user.sign_in_refused")
 
       assert {:error, _} = sign_in(a.user.email, "wrong")
-      await_tasks()
+      await_tasks(ctx)
       sweep!(b.tenant)
 
       assert instances(b.tenant) == []
