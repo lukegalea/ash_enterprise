@@ -19,8 +19,8 @@ defmodule AshEnterprise.Execution.Actions.EnableFromCode do
   (`AshEnterprise.Security.AgentStartGrant`): both stay people's own acts. The result
   says what remains: `outcome` (`"requested"`, `"already_requested"` or
   `"already_published"`), the version, and for a waiting request its `invocation_id`,
-  `approval_url` and `self_approval`, whether the caller may approve it themselves under
-  the sole-administrator rule (`AshEnterprise.Execution.Approval.sole_administrator?/3`).
+  `approval_url` and `self_approval`, whether the caller may approve it themselves
+  under the posture in force (`AshEnterprise.Execution.Approval.rule/1`).
 
   Called through `AshEnterprise.Execution.enable_agent_from_code/2`; from a shell,
   `mix ash_enterprise.assistant.enable`.
@@ -118,10 +118,19 @@ defmodule AshEnterprise.Execution.Actions.EnableFromCode do
       "status" => Atom.to_string(row.status),
       "error_code" => row.error_code,
       "approval_url" => approval_url(row),
-      "self_approval" =>
-        row.owner_id == requester_id and
-          Approval.sole_administrator?(row.organization_id, requester_id, row.effects)
+      "self_approval" => self_approval?(row, requester_id, opts)
     })
+  end
+
+  # The rule in force names the requester a candidate and does not exclude them:
+  # under `:small_team` (they hold the role, or nobody does and any administrator
+  # decides) or `:implementation`. Under `:standard`, or once an implementation
+  # window has ended, another administrator decides.
+  defp self_approval?(row, requester_id, _opts) do
+    rule = Approval.rule(row)
+
+    row.owner_id == requester_id and not is_nil(rule.candidates) and
+      not rule.exclude_requester?
   end
 
   defp version_fields(version),

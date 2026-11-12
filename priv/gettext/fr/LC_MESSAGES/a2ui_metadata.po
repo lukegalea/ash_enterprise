@@ -2673,12 +2673,12 @@ msgid "Sent"
 msgstr "Envoyé"
 
 #: lib/ash_enterprise/canvas/registry.ex:2
-msgid "Set authority"
-msgstr "Définir l’autorité"
+msgid "Set approval posture"
+msgstr "Définir la posture d’approbation"
 
 #: lib/ash_enterprise/canvas/registry.ex:2
-msgid "Set sole administrator approval"
-msgstr "Définir l’approbation de l’administrateur unique"
+msgid "Set authority"
+msgstr "Définir l’autorité"
 
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Set valid until"

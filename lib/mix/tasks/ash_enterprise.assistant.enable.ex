@@ -17,12 +17,14 @@ defmodule Mix.Tasks.AshEnterprise.Assistant.Enable do
   than the requester approves at the link. Each member who should use the assistant is
   then given its start grant (`AshEnterprise.Security.AgentStartGrant`).
 
-  `--sole-administrator-approval` first records, as the named person, their
-  organization's opt-in to the sole-administrator rule
-  (`AshEnterprise.Accounts.Organization.set_sole_administrator_approval/3`): while they
-  are its only administrator, they may then approve the request themselves, at the
-  same link, and the approval is recorded as a sole-administrator approval. Refused
-  unless the person may administer the organization.
+  `--posture small_team` first sets the organization's approval posture
+  (`AshEnterprise.Accounts.Organization.set_approval_posture/3`): under `:small_team`
+  the requester may approve the request themselves, at the same link, while they hold
+  the Administrator role — and any administrator may while nobody holds it — with the
+  approval recorded as `approval_basis` `:small_team`. Lowering the posture to it
+  needs the organization's sole administrator (the named person qualifies while they
+  are) or the platform operator, so the call may be refused
+  (`AshAgent.Approval.PostureChangeRefused`).
   """
 
   use Mix.Task
@@ -40,9 +42,7 @@ defmodule Mix.Tasks.AshEnterprise.Assistant.Enable do
   @impl Mix.Task
   def run(argv) do
     {opts, _args, _invalid} =
-      OptionParser.parse(argv,
-        strict: [org: :string, as: :string, sole_administrator_approval: :boolean]
-      )
+      OptionParser.parse(argv, strict: [org: :string, as: :string, posture: :string])
 
     org = opts[:org] || Mix.raise("--org <unique_name or id> is required")
     email = opts[:as] || Mix.raise("--as <user email> is required")
@@ -55,7 +55,7 @@ defmodule Mix.Tasks.AshEnterprise.Assistant.Enable do
     organization = organization!(org)
     actor = person!(email, organization)
 
-    if opts[:sole_administrator_approval], do: opt_in!(organization, actor)
+    if opts[:posture], do: set_posture!(organization, posture!(opts[:posture]), actor)
 
     case AshEnterprise.Execution.enable_agent_from_code(AshEnterprise.Assistant.Agent,
            actor: actor,
@@ -92,13 +92,25 @@ defmodule Mix.Tasks.AshEnterprise.Assistant.Enable do
     end
   end
 
-  defp opt_in!(organization, actor) do
-    case Organization.set_sole_administrator_approval(organization, true, actor: actor) do
+  defp posture!(value) do
+    postures = AshAgent.Approval.Posture.postures()
+
+    case Enum.find(postures, &(Atom.to_string(&1) == value)) do
+      nil -> Mix.raise("--posture must be one of: " <> Enum.join(postures, ", "))
+      posture -> posture
+    end
+  end
+
+  defp set_posture!(organization, posture, actor) do
+    case Organization.set_approval_posture(organization, posture,
+           actor: actor,
+           tenant: organization.id
+         ) do
       {:ok, _} ->
-        Mix.shell().info("#{organization.unique_name} allows its sole administrator to approve.")
+        Mix.shell().info("#{organization.unique_name} is now on the #{posture} posture.")
 
       {:error, error} ->
-        Mix.raise("could not record the sole-administrator opt-in: " <> Exception.message(error))
+        Mix.raise("could not set the #{posture} posture: " <> Exception.message(error))
     end
   end
 
@@ -126,8 +138,8 @@ defmodule Mix.Tasks.AshEnterprise.Assistant.Enable do
 
   defp approver(%{"self_approval" => true}),
     do:
-      "You are the organization's only administrator and it allows sole-administrator " <>
-        "approval: open the link and approve it yourself. The approval is recorded as such."
+      "Under this posture you may approve it yourself at the link. " <>
+        "The approval is recorded as such."
 
   defp approver(_result),
     do: "An administrator of the organization other than the requester approves it at the link."

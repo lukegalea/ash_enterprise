@@ -6,8 +6,10 @@
 - **Date:** 2026-10-23
 - **Amended:** 2026-10-29 — the coding-agent bridge; see
   [Amendment](#amendment-2026-10-29--the-coding-agent-bridge). 2026-11-01 — the sole-administrator rule; see
-  [Amendment](#amendment-2026-11-01--the-sole-administrator-rule). 2026-11-04 — the assistant asks, and its answer
-  ends at the request; see [Amendment](#amendment-2026-11-04--the-assistants-changes-are-requests)
+  [Amendment](#amendment-2026-11-01--the-sole-administrator-rule), superseded 2026-11-12. 2026-11-04 — the
+  assistant asks, and its answer ends at the request; see
+  [Amendment](#amendment-2026-11-04--the-assistants-changes-are-requests). 2026-11-12 — approval postures replace
+  the sole-administrator rule; see [Amendment](#amendment-2026-11-12--approval-postures)
 - **Related:** [ADR 0015](0015-approvals-stay-in-ash.md) (approvals stay in Ash),
   [ADR 0043](0043-automation-authority-is-a-grant.md) (automation authority is a grant),
   [ADR 0052](0052-self-service-actions.md) (self-service actions),
@@ -420,6 +422,9 @@ halves, and they go different ways.
 
 ## Amendment, 2026-11-01 — the sole-administrator rule
 
+> **Superseded** on 2026-11-12 by [approval postures](#amendment-2026-11-12--approval-postures). An organization that
+> had opted in is on the `:small_team` posture. Kept as the record of what ran until then.
+
 Publishing an agent (`AgentVersion.apply_publish`) is `:four_eyes` with `approver_role: :administrator`. An
 organization with one administrator could never publish one: four eyes excludes the requester and there is no second
 candidate. Adding a second administrator only to approve, or leaving agents unpublished, were the alternatives; the
@@ -513,7 +518,7 @@ The third of the five mechanisms under Context. Decided by Luke on 2026-11-04.
 - **Re-publish per tenant.** The assistant's declaration changed, so each tenant's published version has drifted
   from the code and its runs fail `definition_drift` until it is published again. `mix ash_enterprise.assistant.enable`
   registers the new baseline, forks it into a draft and requests the publish; rerun, it returns the waiting request.
-  The publish needs four eyes, or the sole-administrator rule where the organization opted in.
+  The publish needs four eyes, or what the organization's approval posture allows (amended 2026-11-12).
 - **The admin chat asks too.** `AgentLive`'s "assign the X role to Y" is a role request: the names are resolved as
   the person (`AI.Interpreter`), and sending it is `UserRole.request_assignment`, the same four-eyes request `/mcp`
   `assign_role` makes. Nothing in the chat assigns a role.
@@ -569,3 +574,52 @@ asking as its starter.
   (`Bpmn.Changes.PinReleaseManifest`); the approval binds that release's digest like any other.
 - **Tests.** `test/ash_enterprise/execution/start_process_test.exs`; the seam is in the battery
   (`battery/test/base_integration/agent_start_process_test.exs`).
+
+## Amendment, 2026-11-12 — approval postures
+
+The sole-administrator rule was one host's answer to one case: an organization too small for four eyes. `ash_agent`
+now owns the general answer, approval postures (`AshAgent.Approval.Posture`), and this host adopts them in place of
+its own rule. There is no compatibility path: the opt-in, its action and its basis value are gone.
+
+- **Three postures, per organization.** `:standard` (the default): another holder of the approver role approves, never
+  the requester. `:small_team`: the requester may approve their own request when they hold the approver role, and when
+  nobody holds it, any administrator may. `:implementation`: the requester confirms their own request, until an end
+  date at most 120 days out, after which the posture reads as `:standard`. `:none` and `:confirm` targets are the same
+  under every posture, and a posture never lets anyone but a person decide: an agent or an automation principal is
+  never a candidate, and the person an automation acts for does not approve its request.
+- **Where it lives.** `Organization` includes `AshAgent.Approval.PostureFragment` (`approval_posture`,
+  `approval_posture_ends_at`, `set_approval_posture`). `Execution.Authority` implements `AshAgent.Approval.Authority`
+  over what this host already knew: the posture from `Organization`; the holders of a role, including everyone who
+  ever held it (the `history` reads the old rule used, so an administrator removed by another still counts); the
+  Administrator role; and the platform operator, the person `mix ash_enterprise.platform.grant_operator` made. The
+  invocation section names it, and `Execution.Approval` asks the package's rule
+  (`AshAgent.Invocation.Approval.rule/2`) when the task opens, when the decision is applied and at every claim, as the
+  old rule was asked.
+- **Who sets it.** `set_approval_posture` is `human_only` and `changes_authority`, as the old action was. The policy
+  admits the organization's own people (`Security.Checks.OwnOrganization`) and the platform operator
+  (`Security.Checks.PostureOperator`, also a grant path on `Organization`). The fragment's validation then decides the
+  change: raising the posture is one administrator's act; lowering it needs the sole administrator (every holder the
+  history holds, as before), the operator, or a change approved under four eyes. A refusal is
+  `AshAgent.Approval.PostureChangeRefused`. The validation reads the tenant the caller passes, so every caller passes
+  the organization's own id.
+- **Floors.** `set_approval_posture` is declared `:four_eyes` with `approver_role: :administrator` and
+  `posture_floor?: true`, and `Organization`'s `approval_posture` section names the invocation resource. A posture
+  lowered through an invocation is therefore approved under four eyes whatever the posture in force. The action is not
+  behind `AshAgent.Validations.Governed`, because the sole administrator's and the operator's direct changes must
+  reach it; the fragment's validation verifies the invocation itself. The erasure shred is not a governed target here
+  (the web's typed confirmation is its only door), so there is no declaration to put a floor on.
+- **What changes from the old rule.** Under `:small_team`, a second administrator no longer restores four eyes:
+  either administrator may approve their own request. And the posture applies to every four-eyes target that does not
+  declare a floor, the credentialing committee's included, where the old rule touched only targets naming the
+  Administrator role. An organization that wants four eyes stays on `:standard`, which every organization is unless a
+  person changes it.
+- **Recorded.** `approval_basis` is the package's: `:confirm`, `:four_eyes`, `:small_team` or `:implementation`. The
+  requester approving their own four-eyes request rests on `:small_team`.
+- **Migration.** `organizations.sole_administrator_approval` is dropped; an organization that had opted in is on
+  `:small_team`, and every other is on `:standard` (a backfill in the generated migration, as
+  `20261022161918_temporal_calendar_events` carries one).
+- **Enabling an agent.** `mix ash_enterprise.assistant.enable --posture small_team` replaces
+  `--sole-administrator-approval`. It sets the posture as the named person, so it is refused unless they are the sole
+  administrator.
+- **Tests.** `test/ash_enterprise/execution/approval_posture_test.exs` and
+  `test/ash_enterprise/execution/enable_agent_test.exs`.

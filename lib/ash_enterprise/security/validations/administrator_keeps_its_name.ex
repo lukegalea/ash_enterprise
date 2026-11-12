@@ -1,14 +1,12 @@
 defmodule AshEnterprise.Security.Validations.AdministratorKeepsItsName do
   @moduledoc """
   Rejects renaming the tenant's Administrator role.
-
-  Four-eyes approvals that name the Administrator role, and the sole-administrator
-  rule (`AshEnterprise.Execution.Approval.sole_administrator?/3`), find the role by
-  its name. Renaming it would let one administrator set the other aside without
+  Four-eyes approvals that name the Administrator role, and the approval-posture
+  rules (`AshEnterprise.Execution.Authority`), find the role by its name.
+  Renaming it would let one administrator set the other aside without
   revoking anything: rename the role both hold, create a new "Administrator" and take
   it, and be its only holder.
   """
-
   use Ash.Resource.Validation
 
   @name "Administrator"

@@ -9,13 +9,14 @@ defmodule AshEnterprise.Execution.Changes.ReadApproval do
   policy check, so it may read.
 
     * **Approved** by a person who may still approve
-      (`AshEnterprise.Execution.Approval.approver_holds?/2`) and, under four eyes, is
-      not the requester, unless the sole-administrator rule holds now: `:approved`, with
-      the decider, and `approval_basis` recording what it rests on
-      (`AshEnterprise.Execution.Approval.basis/2`: `:confirm`, `:four_eyes` or
-      `:sole_administrator`). The fragment then checks that the approval still binds
-      the request (its digest, recomputed from the row, the target as declared now and
-      the subject as it stands now) and makes the row `ready`, or `stale`.
+      (`AshEnterprise.Execution.Approval.approver_holds?/2`, under the posture in
+      force) and, under four eyes, is not the requester where the rule excludes
+      them: `:approved`, with the decider, and `approval_basis` recording what it
+      rests on (`AshAgent.Invocation.Approval.basis/3`: `:confirm`, `:four_eyes`,
+      `:small_team` or `:implementation`). The fragment then checks that the
+      approval still binds the request (its digest, recomputed from the row, the
+      target as declared now and the subject as it stands now) and makes the row
+      `ready`, or `stale`.
     * Approved by anyone else: `stale`, `error_code` `"approved_by_requester"` or
       `"approver_unauthorized"`. The approval is not the one asked for, so the row asks
       no further; the requester may ask again.
@@ -62,7 +63,11 @@ defmodule AshEnterprise.Execution.Changes.ReadApproval do
             |> Ash.Changeset.force_set_argument(:decided_by_id, decider_id)
             |> Ash.Changeset.force_change_attributes(%{
               approval_task_id: task && task.id,
-              approval_basis: if(outcome == :approved, do: Approval.basis(row, decider_id)),
+              approval_basis:
+                if(outcome == :approved,
+                  do:
+                    AshAgent.Invocation.Approval.basis(row, decider_id, tenant: changeset.tenant)
+                ),
               error_code: error_code
             })
 

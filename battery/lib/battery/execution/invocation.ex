@@ -45,6 +45,7 @@ defmodule Battery.Execution.Invocation do
   end
 
   invocation do
+    authority(Battery.Execution.Authority)
     execution_identity(Battery.Execution.Identity)
     digest_key(Battery.Execution.DigestKey)
     release_manifest(Battery.Execution.ReleaseManifest)

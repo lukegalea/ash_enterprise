@@ -29,10 +29,11 @@ defmodule AshEnterprise.Execution.AgentVersion do
     * **Publishing is governed (ADR 0055).** `apply_publish` is a governed target
       (`AshAgent.Validations.Governed`): it runs only as its own invocation, and its
       effects declaration asks for four eyes, an administrator other than the person who
-      asked. An organization whose only administrator is the requester may opt in to
-      let them approve it themselves (`Organization.set_sole_administrator_approval`);
-      the rule holds only while they are the sole administrator, and the approval is
-      recorded as `approval_basis` `:sole_administrator`
+      asked. Under the tenant's `:small_team` posture the requester may approve it
+      themselves when they hold the Administrator role — or, when nobody holds it, any
+      administrator may — and under `:implementation` they confirm it themselves until
+      the posture's end date passes; the basis is recorded as `approval_basis`
+      (`:four_eyes`, `:small_team` or `:implementation`)
       (`AshEnterprise.Execution.Approval`). `request_publish` asks for it through `invoke`
       (`AshEnterprise.Execution.Actions.RequestPublish`): it checks the draft first, so
       a draft that cannot be published opens no approval, and returns the request with

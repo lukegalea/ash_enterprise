@@ -26,6 +26,7 @@ defmodule AshEnterprise.Channels.ParityTest do
 
   use ExUnit.Case, async: true
 
+  alias AshEnterprise.Accounts.Organization
   alias AshEnterprise.Acp.Commands
   alias AshEnterprise.Agents.{Console, MorningBrief, ToolCall}
   alias AshEnterprise.Assistant.ReplyDraft
@@ -79,7 +80,10 @@ defmodule AshEnterprise.Channels.ParityTest do
     {UserRole, :assign_governed} =>
       "web: only through the agent console, which needs its model to read the request",
     {AgentVersion, :apply_publish} =>
-      "web: no surface or page offers `request_publish` yet (ACP: `publish <id>`)"
+      "web: no surface or page offers `request_publish` yet (ACP: `publish <id>`)",
+    {Organization, :set_approval_posture} =>
+      "neither: no settings page or ACP command yet; the mix task " <>
+        "(`ash_enterprise.assistant.enable --posture`) and IEx reach it"
   }
 
   defp governed_acts do

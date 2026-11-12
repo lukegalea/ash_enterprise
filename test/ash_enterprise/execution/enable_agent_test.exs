@@ -157,21 +157,50 @@ defmodule AshEnterprise.Execution.EnableAgentTest do
       assert length(publish_requests(ctx)) == 1
     end
 
-    test "with the sole-administrator opt-in, the only administrator is told to approve", %{
-      ctx: ctx
-    } do
+    test "with --posture small_team, the only administrator is told to approve", %{ctx: ctx} do
       Enable.run([
         "--org",
         ctx.tenant,
         "--as",
         to_string(ctx.user.email),
-        "--sole-administrator-approval"
+        "--posture",
+        "small_team"
       ])
 
-      assert_received {:mix_shell, :info, [opted_in]}
-      assert opted_in =~ "allows its sole administrator to approve"
+      assert_received {:mix_shell, :info, [posture_set]}
+      assert posture_set =~ "is now on the small_team posture"
       assert_received {:mix_shell, :info, [message]}
       assert message =~ "approve it yourself"
+    end
+
+    test "refuses a posture that is not one", %{ctx: ctx} do
+      assert_raise Mix.Error,
+                   ~r/--posture must be one of: standard, small_team, implementation/,
+                   fn ->
+                     Enable.run([
+                       "--org",
+                       ctx.tenant,
+                       "--as",
+                       to_string(ctx.user.email),
+                       "--posture",
+                       "lenient"
+                     ])
+                   end
+    end
+
+    test "with a second administrator, lowering the posture is refused", %{ctx: ctx} do
+      colleague!(ctx, admin?: true)
+
+      assert_raise Mix.Error, ~r/could not set the small_team posture/, fn ->
+        Enable.run([
+          "--org",
+          ctx.tenant,
+          "--as",
+          to_string(ctx.user.email),
+          "--posture",
+          "small_team"
+        ])
+      end
     end
 
     test "refuses a person who is not a member of the organization", %{ctx: ctx} do

@@ -25,8 +25,8 @@ defmodule AshEnterprise.Assistant.Agent do
   `mix ash_enterprise.assistant.enable --org <org> --as <email>` does the first part and
   requests the publish (`AshEnterprise.Execution.enable_agent_from_code/2`); approving it
   and the start grants stay people's acts. An organization with one administrator may
-  opt in to let them approve it themselves (`--sole-administrator-approval`,
-  `AshEnterprise.Execution.Approval`).
+  set the `:small_team` approval posture to let them approve it themselves
+  (`--posture small_team`, `AshEnterprise.Execution.Approval`).
   """
 
   use AshAgent.Agent,

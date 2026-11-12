@@ -49,8 +49,10 @@ defmodule AshEnterprise.Execution.Invocation do
       from grant rows at every claim.
     * **Approvals.** A target whose declaration asks for one waits in
       `awaiting_approval` on a standalone task, `invocation.approval`, opened by
-      `request` (`AshEnterprise.Execution.Changes.RequestApproval`) for the holders of
-      the declaration's `approver_role` (under four eyes, not the requester) and decided
+      `request` (`AshEnterprise.Execution.Changes.RequestApproval`) for the pool the
+      approval posture in force names — under `:standard` the holders of the
+      declaration's `approver_role` (not the requester), under `:small_team` or
+      `:implementation` the requester themself where the posture allows — and decided
       through the existing `HumanTask.approve` and `reject` doors, which only a person
       may run. The `:apply_decision` trigger applies the decision
       (`AshEnterprise.Execution.Changes.ReadApproval`); never `on_complete`. The
@@ -58,8 +60,9 @@ defmodule AshEnterprise.Execution.Invocation do
       `approval_digest`, `approval_expires_at`) and finds the row `stale` when the
       subject, the target or the clock has moved on; every claim also re-checks that
       the approver still may approve (`AshEnterprise.Execution.Changes.RecheckApprover`).
-      What an approval rests on is recorded as `approval_basis`, including a
-      self-approval under the opt-in sole-administrator rule.
+      What an approval rests on is recorded as `approval_basis` (`:confirm`,
+      `:four_eyes`, `:small_team` or `:implementation`), under the approval posture
+      in force in the tenant (`AshEnterprise.Execution.Authority`).
       See `AshEnterprise.Execution.Approval`. Being asked to approve a row lets a person
       read it (`AshEnterprise.Security.Checks.InvocationApprovalCandidacy`).
     * **A request for more information.** An approver who cannot decide yet answers
@@ -153,6 +156,7 @@ defmodule AshEnterprise.Execution.Invocation do
   end
 
   invocation do
+    authority(AshEnterprise.Execution.Authority)
     execution_identity(AshEnterprise.Execution.Identity)
     digest_key(AshEnterprise.Execution.DigestKey)
     release_manifest(AshEnterprise.Execution.Manifests)
@@ -216,21 +220,6 @@ defmodule AshEnterprise.Execution.Invocation do
   end
 
   attributes do
-    # What an approval rests on (ADR 0055, amended 2026-11-01), recorded when the
-    # decision is applied (`AshEnterprise.Execution.Changes.ReadApproval`), so a reader
-    # can tell a self-approval under the sole-administrator rule from four eyes.
-    attribute :approval_basis, :atom do
-      public? true
-      constraints one_of: [:confirm, :four_eyes, :sole_administrator]
-
-      description """
-      What the approval rests on: `:confirm` (the requester confirmed), `:four_eyes`
-      (a second person approved) or `:sole_administrator` (the organization's only
-      administrator approved their own request, under the opt-in rule). Nil until
-      approved, and for rows that needed no approval.
-      """
-    end
-
     # `rejection_details` is written by the request change itself (a refusal the
     # pre-check found), never by a caller's input, so unlike `args` and `result` it
     # stays a plain attribute (`AshAgent.Invocation.Changes.Request` sets it with

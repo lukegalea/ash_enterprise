@@ -26,6 +26,19 @@ defmodule AshEnterprise.Accounts.Organization do
   Likewise `ownership: :organization_owned`: in Dataverse this table is
   OrganizationOwned, so only Organization/None access levels are meaningful.
   Nobody "owns" the tenant.
+
+  ## The approval posture
+
+  This row carries the tenant's approval posture through
+  `AshAgent.Approval.PostureFragment` — which person decides an approval
+  (`AshAgent.Approval.Posture`), and when an `:implementation` posture ends.
+  It is set through `set_approval_posture`, a person's own act
+  (`human_only`, `changes_authority`) by one of the organization's
+  administrators or the platform operator, and answered to the package through
+  `AshEnterprise.Execution.Authority`. Lowering it (away from `:standard`)
+  needs the sole administrator, the operator, or a change approved under four
+  eyes (`posture_floor?: true` below): the fragment's validation decides, and
+  refuses with `AshAgent.Approval.PostureChangeRefused`.
   """
 
   use AshEnterprise.Platform.Resource,
@@ -34,12 +47,26 @@ defmodule AshEnterprise.Accounts.Organization do
     ownership: :organization_owned,
     tenant?: false,
     cdm_entity: "Organization",
-    human_only: [:set_sole_administrator_approval],
-    changes_authority: [:set_sole_administrator_approval]
+    human_only: [:set_approval_posture],
+    changes_authority: [:set_approval_posture],
+    extra_grants: [AshEnterprise.Security.Checks.PostureOperator],
+    extra_extensions: [AshAgent.Effects],
+    fragments: [AshAgent.Approval.PostureFragment]
 
   postgres do
     table "organizations"
     repo AshEnterprise.Repo
+  end
+
+  # What the approval-posture rules ask this host: who answers for the posture
+  # (`AshEnterprise.Execution.Authority`), who maps an actor to the person
+  # deciding (`AshEnterprise.Execution.Identity`), and the resource whose
+  # invocations may carry an approved posture change (this host's, whose
+  # `set_approval_posture` declaration below is four eyes at the floor).
+  approval_posture do
+    authority(AshEnterprise.Execution.Authority)
+    execution_identity(AshEnterprise.Execution.Identity)
+    invocation(AshEnterprise.Execution.Invocation)
   end
 
   attributes do
@@ -99,27 +126,8 @@ defmodule AshEnterprise.Accounts.Organization do
       """
     end
 
-    # First-party (no CDM column), ADR 0055 amendment of 2026-11-01. Recorded
-    # as data for the same reason as `sub_processor_opt_in`: the update that
-    # flips it is an audited event. Read by `AshEnterprise.Execution.Approval`
-    # when it decides who may approve an administrator's four-eyes request.
-    attribute :sole_administrator_approval, :boolean do
-      allow_nil? false
-      default false
-      public? false
-
-      description """
-      Whether this tenant allows its only administrator to approve their own
-      four-eyes request that names the Administrator role (publishing an
-      agent, or a governed role assignment). Takes effect only while the
-      requester is the only person who holds the Administrator role or has
-      ever held it (a revoked or deactivated administrator still counts),
-      checked when the approval opens, when it is applied and at every claim;
-      with a second administrator, four eyes applies as usual. The approval is still an explicit act on the
-      task, and is recorded with `approval_basis` `:sole_administrator`.
-      Default false. Set through `set_sole_administrator_approval`.
-      """
-    end
+    # The approval posture and its end date come from the
+    # `AshAgent.Approval.PostureFragment` fragment.
   end
 
   identities do
@@ -150,29 +158,22 @@ defmodule AshEnterprise.Accounts.Organization do
       accept [:name, :languagelocale_id, :base_currency_id, :sub_processor_opt_in]
     end
 
-    # Changes who may approve, so a person's own act in their own
-    # organization: `human_only` (no system actor or engine reaches it),
-    # `changes_authority` (no automation principal), and the policy below
-    # (the actor's organization, not another tenant's).
-    update :set_sole_administrator_approval do
-      description """
-      Allow, or stop allowing, this organization's only administrator to
-      approve their own four-eyes request that names the Administrator role.
-      See the `sole_administrator_approval` attribute.
-      """
-
-      accept [:sole_administrator_approval]
-    end
+    # `set_approval_posture` comes from the `AshAgent.Approval.PostureFragment`
+    # fragment: the posture and its end date, and the fragment's validation of
+    # who may change them. What the host adds is who may reach it at all —
+    # the policy below — and that it is a person's own act.
   end
 
   policies do
     # Organization is not tenant-scoped, so a `:global` write grant reaches
     # every tenant's row. This action is an organization's decision about its
-    # own approvals: the row must be the actor's own organization. A tenancy
-    # boundary in place of the data layer's, in addition to the grant union
-    # that authorizes the write; it takes nothing from any other action.
-    policy action(:set_sole_administrator_approval) do
+    # own approvals: the row must be the actor's own organization, unless the
+    # actor is the platform operator, who may set any tenant's posture. A
+    # tenancy boundary in place of the data layer's, in addition to the grant
+    # union that authorizes the write; it takes nothing from any other action.
+    policy action(:set_approval_posture) do
       authorize_if AshEnterprise.Security.Checks.OwnOrganization
+      authorize_if AshEnterprise.Security.Checks.PostureOperator
     end
   end
 
@@ -181,8 +182,27 @@ defmodule AshEnterprise.Accounts.Organization do
     define :read
     define :by_unique_name, action: :read, get_by: [:unique_name]
 
-    define :set_sole_administrator_approval,
-      action: :set_sole_administrator_approval,
-      args: [:sole_administrator_approval]
+    define :set_approval_posture,
+      action: :set_approval_posture,
+      args: [:approval_posture]
+  end
+
+  # Lowering the posture through an invocation is four eyes under every
+  # posture (`posture_floor?: true`): the approval behind it can never be a
+  # self-approval the current posture would allow. Reached through `invoke`
+  # (`AshEnterprise.Execution`); the action is NOT behind
+  # `AshAgent.Validations.Governed`, because the sole administrator's and the
+  # operator's direct changes must reach it too — the fragment's validation
+  # verifies the invocation itself
+  # (`AshAgent.Approval.Validations.PostureChange`).
+  effects do
+    action :set_approval_posture,
+      kind: :edit,
+      destructive?: false,
+      open_world?: false,
+      approval: :four_eyes,
+      approver_role: :administrator,
+      posture_floor?: true,
+      intent: :approve
   end
 end

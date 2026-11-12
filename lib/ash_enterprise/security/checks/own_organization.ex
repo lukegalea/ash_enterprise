@@ -5,7 +5,7 @@ defmodule AshEnterprise.Security.Checks.OwnOrganization do
 
   `AshEnterprise.Accounts.Organization` is the tenant, so it is not tenant-scoped, and a
   `:global` grant on it reaches every tenant's row. An action that is an organization's
-  decision about itself (`set_sole_administrator_approval`) declares this as its own
+  decision about itself (`set_approval_posture`) declares this as its own
   policy beside the grant union: the union decides whether the actor may write an
   organization, and this decides which one. A person only; a system actor or a context
   with no organization reaches nothing here.

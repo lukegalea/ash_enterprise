@@ -11,7 +11,7 @@ defmodule AshEnterprise.AI.RoleRequestTest do
   Exercised without a model: interpretation is the only part that needs one, and it
   cannot change anything. That four eyes holds once the request exists, and that the
   assignment then runs as the requester, is `AshEnterprise.Execution.GovernedTest`'s
-  and the sole-administrator test's; here, that the chat's path reaches it and
+  and the approval-posture tests'; here, that the chat's path reaches it and
   changes nothing on its own.
   """
 

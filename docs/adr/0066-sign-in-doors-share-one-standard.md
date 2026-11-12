@@ -41,8 +41,8 @@ impersonation recorded who acted but not whether it was allowed.
 
 - Unknown, missing, expired, stale or malformed inputs are refused at each of these; none is treated as a pass.
 - `Platform.Resource` gains `authentication_plumbing?` for resources the sign-in machinery itself reads and writes.
-- Other readers of `UserRole` that decide who counts as an administrator (`Execution.Approval`, sole-administrator
-  checks) have not been taught `valid_until` yet.
+- Other readers of `UserRole` that decide who counts as an administrator (`Execution.Approval`, and
+  `Execution.Authority` for the approval postures) have not been taught `valid_until` yet.
 - The lockout is per identity, not per source address; a network-level limit stays with the edge.
 
 ## Reversal
