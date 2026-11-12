@@ -36,10 +36,9 @@ Canonical rule: [ADR 0070](docs/adr/0070-upstream-first-placement.md). Tutorial:
 4. First gap? One inelegant local version is allowed. Add `# GAP: <missing concept> (<issue>)` and
    open the upstream issue in the same change. That is 1.
 5. About to write the second copy? STOP. Do not copy. Move the first one down a layer. That is N.
-   Check the other host first (`vendorpm-keystone` shares 379 same-path files; do not add to them).
-6. Early phase: if a second use is anticipated inside our known domain (vendor, contract, compliance,
-   procurement management and the platform around it), lean toward extracting. Build only the API the
-   known use needs. No guessed options.
+   Check the other hosts first (a host we operate shares 379 same-path files; do not add to them).
+6. Early phase: if a named second use is anticipated inside the problem domain the platform already
+   serves, lean toward extracting. Build only the API the known use needs. No guessed options.
 
 UI, same order: (a) an A2UI surface -> (b) a missing widget: STOP, add a Lit component to `ash_a2ui`
 -> (c) host-specific UI only with a written reason and a row in `docs/UPSTREAM-EXCEPTIONS.md`.
@@ -47,7 +46,7 @@ UI, same order: (a) an A2UI surface -> (b) a missing widget: STOP, add a Lit com
 STOP also means: no `Application.get_env/put_env` on a dependency's app name; no patch for a
 dependency bug without a row in `docs/BLEEDING-EDGE.md` section 3. If you cannot make the upstream
 change, write the issue text, leave the `# GAP:` note, and tell the human. You may open a draft PR
-in a `lukegalea/ash_*` repo only when the ticket names that repo. Never merge, never publish to Hex.
+in an `ash_*` repo only when the ticket names that repo. Never merge, never publish to Hex.
 If unsure which step applies, raise a tension. Say which step you took in the PR.
 
 - Use `mix precommit` alias when you are done with all changes and fix any pending issues
