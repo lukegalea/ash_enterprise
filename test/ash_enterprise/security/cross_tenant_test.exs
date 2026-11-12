@@ -96,6 +96,65 @@ defmodule AshEnterprise.Security.CrossTenantTest do
     end
   end
 
+  describe "a person with no business unit" do
+    # Their roles are rows of some tenant. Built with no tenant, the role reads
+    # used to run with none, and `global? true` let them span every tenant: a role
+    # someone held in B became part of a context that belongs to no tenant.
+    setup ctx do
+      user = register()
+
+      # A role in B the person was given, though B never made them a member.
+      grant_global(%{ctx.b | user: user}, privilege(:read))
+
+      %{user: user}
+    end
+
+    test "never carries a role held in another tenant", ctx do
+      context = ActorContext.build(ctx.user)
+
+      assert context.organization_id == nil
+      assert context.grants == %{}
+      assert context.team_ids == []
+      assert context.shared == %{}
+      assert context.task_ids == []
+      assert visible(ActorContext.attach(ctx.user, context), ctx.b.org) == []
+    end
+
+    test "reads nothing to build it", ctx do
+      ref = make_ref()
+      test = self()
+
+      :telemetry.attach(
+        "xt-no-tenant-#{inspect(ref)}",
+        [:ash_enterprise, :repo, :query],
+        fn _event, _measurements, %{source: source}, _ -> send(test, {ref, source}) end,
+        nil
+      )
+
+      try do
+        ActorContext.build(ctx.user)
+      after
+        :telemetry.detach("xt-no-tenant-#{inspect(ref)}")
+      end
+
+      refute_received {^ref, _source}
+    end
+
+    test "is still who they are, with nothing they may do", ctx do
+      context = ActorContext.build(ctx.user)
+
+      assert context.user_id == ctx.user.id
+      assert context.principal_ids == [ctx.user.id]
+      refute context.system?
+    end
+
+    test "a caller that names the tenant vouches for it: the roles are read there", ctx do
+      context = ActorContext.build(ctx.user, tenant: ctx.b.org)
+
+      assert %ActorContext.Grant{global?: true} = ActorContext.grant(context, Widget, :read)
+    end
+  end
+
   describe "platform principals" do
     test "a system actor crosses tenants", ctx do
       for actor <- [SystemActor.oban(), ActorContext.system(), ActorContext.system(ctx.b.org)] do
@@ -159,17 +218,7 @@ defmodule AshEnterprise.Security.CrossTenantTest do
       |> Ash.create!()
 
     user =
-      AshEnterprise.Accounts.User
-      |> Ash.Changeset.for_create(
-        :register_with_password,
-        %{
-          email: "xt-#{System.unique_integer([:positive])}@example.com",
-          password: "password1234",
-          password_confirmation: "password1234"
-        },
-        authorize?: false
-      )
-      |> Ash.create!()
+      register()
       |> Ash.Changeset.for_update(
         :assign_to_business_unit,
         %{owning_business_unit_id: root.id},
@@ -178,6 +227,21 @@ defmodule AshEnterprise.Security.CrossTenantTest do
       |> Ash.update!()
 
     %{org: org, root: root, user: user}
+  end
+
+  # A user as registration leaves them: no business unit, so no tenant.
+  defp register do
+    AshEnterprise.Accounts.User
+    |> Ash.Changeset.for_create(
+      :register_with_password,
+      %{
+        email: "xt-#{System.unique_integer([:positive])}@example.com",
+        password: "password1234",
+        password_confirmation: "password1234"
+      },
+      authorize?: false
+    )
+    |> Ash.create!()
   end
 
   defp actor_for(%{user: user, org: org}),

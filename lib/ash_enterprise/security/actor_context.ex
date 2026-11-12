@@ -192,12 +192,35 @@ defmodule AshEnterprise.Security.ActorContext do
   @doc """
   Resolves an actor's full authorization context. Roughly five queries,
   independent of how many roles or business units are involved.
+
+  A person who resolves to no tenant (no business unit, and none passed in
+  `opts[:tenant]`) gets a context with no tenant and no grants, and nothing is
+  read for it. Their roles, teams, shares and tasks are rows of some tenant, and
+  a read with no tenant spans every tenant (`global? true` accepts it), so
+  reading them would hand this person whatever any tenant had granted them.
   """
   def build(user, opts \\ []) do
     user_id = Map.get(user, :id)
     business_unit_id = Map.get(user, :owning_business_unit_id)
-    tenant = opts[:tenant] || Map.get(user, :organization_id) || tenant_of(business_unit_id)
 
+    case opts[:tenant] || Map.get(user, :organization_id) || tenant_of(business_unit_id) do
+      nil -> no_tenant(user_id, business_unit_id)
+      tenant -> build_in(user, user_id, business_unit_id, tenant, opts)
+    end
+  end
+
+  # Who the person is, and nothing they may do: every grant path is a tenant's
+  # rows, and there is no tenant to read them in. `ForeignTenant` refuses this
+  # context on every tenant-scoped call that names a tenant.
+  defp no_tenant(user_id, business_unit_id) do
+    %__MODULE__{
+      user_id: user_id,
+      business_unit_id: business_unit_id,
+      principal_ids: Enum.reject([user_id], &is_nil/1)
+    }
+  end
+
+  defp build_in(user, user_id, business_unit_id, tenant, opts) do
     team_ids = load_team_ids(user_id, tenant)
     principal_ids = [user_id | team_ids] |> Enum.reject(&is_nil/1)
 
