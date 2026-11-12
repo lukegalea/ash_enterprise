@@ -43,7 +43,8 @@ defmodule AshEnterprise.SystemOne.FilterRunTest do
 
   setup do
     Correlation.start_new()
-    %{org: Ash.UUID.generate(), person: person()}
+    org = Ash.UUID.generate()
+    %{org: org, person: person(tenant: org)}
   end
 
   defp ast(doc), do: elem(Document.decode(doc, Queryables.all()), 1)

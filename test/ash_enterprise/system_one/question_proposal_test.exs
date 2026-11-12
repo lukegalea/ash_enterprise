@@ -46,7 +46,8 @@ defmodule AshEnterprise.SystemOne.QuestionProposalTest do
       System.delete_env("S1_GEN_API_KEY")
     end)
 
-    %{org: Ash.UUID.generate(), person: person()}
+    org = Ash.UUID.generate()
+    %{org: org, person: person(tenant: org)}
   end
 
   defp raw(name), do: File.read!(Path.join(@fixtures_dir, Path.join("recordings", name)))

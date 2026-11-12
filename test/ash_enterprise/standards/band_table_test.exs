@@ -31,7 +31,8 @@ defmodule AshEnterprise.Standards.BandTableTest do
     # The family's policy data, shrunk for tests (law 5: config, not code).
     put_family!(@family, %{min_n: 2, min_n_per_class: nil, alpha: 0.016, max_age_days: 90})
 
-    %{org: Ash.UUID.generate(), person: person()}
+    org = Ash.UUID.generate()
+    %{org: org, person: person(tenant: org)}
   end
 
   test "a family's score inputs are its yes/no questions' p_true" do

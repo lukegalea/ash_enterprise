@@ -91,17 +91,18 @@ defmodule AshEnterprise.Bpmn.AdoptionTest do
     end
 
     test "the same ordering holds on a hand-written platform resource, not just a generated one" do
-      policies = Ash.Policy.Info.policies(AshEnterprise.Accounts.Team)
+      # The one policy allowed ahead of the engine bypass is the tenant boundary
+      # (`AshEnterprise.Security.TenantBoundary`). It applies only to a call whose tenant is
+      # not the one its actor's context was built for, which the engine never makes for a
+      # tenant's own run, so it forbids nothing the bypass is there to admit.
+      [boundary, first | _] =
+        AshEnterprise.Accounts.Team
+        |> Ash.Policy.Info.policies()
+        |> Enum.map(&(&1 |> Map.get(:condition) |> List.wrap() |> List.first() |> check_module()))
 
-      first_check =
-        policies
-        |> List.first()
-        |> Map.get(:condition)
-        |> List.wrap()
-        |> List.first()
-        |> check_module()
+      assert boundary == AshEnterprise.Security.Checks.ForeignTenant
 
-      assert first_check == AshBpmn.Checks.AshBpmnInteraction,
+      assert first == AshBpmn.Checks.AshBpmnInteraction,
              "the engine bypass is injected by the base resource, so it must be first everywhere"
     end
   end

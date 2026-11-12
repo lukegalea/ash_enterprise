@@ -167,7 +167,7 @@ defmodule AshEnterprise.SystemOne.JudgmentTest do
   describe "policy enforcement (AC-5)" do
     test "a person cannot hand-write an observation; a system actor can" do
       org = Ash.UUID.generate()
-      person = person()
+      person = person(tenant: org)
 
       assert {:error, forbidden} =
                Judgment
@@ -217,7 +217,7 @@ defmodule AshEnterprise.SystemOne.JudgmentTest do
 
       assert forbidden |> Exception.message() =~ ~r/forbidden/i
 
-      person = person()
+      person = person(tenant: org)
 
       assert {:ok, %HumanVerdict{} = verdict} =
                HumanVerdict
@@ -242,7 +242,7 @@ defmodule AshEnterprise.SystemOne.JudgmentTest do
       # A changeset carrying the judge hand-off context (what the recorder
       # sets) gets the recorder bypass on a CREATE, but a tombstone update
       # from a person is still refused.
-      person = person()
+      person = person(tenant: org)
 
       assert {:error, forbidden} =
                judgment
@@ -312,7 +312,7 @@ defmodule AshEnterprise.SystemOne.JudgmentTest do
       # itself is the machinery's write (the recorder hand-off), and it is
       # attributed by tenant and correlation, not by who asked.
       assert {:ok, %AshAi.Evaluate.Noul{}} =
-               judge(tenant: org, observation_id: Ash.UUID.generate(), actor: person())
+               judge(tenant: org, observation_id: Ash.UUID.generate(), actor: person(tenant: org))
 
       assert [_] = ledger_rows()
     end

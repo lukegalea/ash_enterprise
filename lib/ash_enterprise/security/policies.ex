@@ -57,6 +57,14 @@ defmodule AshEnterprise.Security.Policies do
   unreachable rather than public, which is the correct default for a system whose
   whole point is access control.
 
+  ## The tenant boundary comes first, and is not in this set
+
+  Ahead of this set, every platform resource carries one more policy: a call naming
+  a tenant other than the one the actor's context was built for is refused
+  (`AshEnterprise.Security.TenantBoundary`). It is injected by
+  `AshEnterprise.Platform.Resource` on resources with `policies?: false` too,
+  because those copy this set by hand and would otherwise miss it.
+
   ## Self-service is declared per action
 
   The fourth path (`AshEnterprise.Security.Checks.SelfService`) contributes

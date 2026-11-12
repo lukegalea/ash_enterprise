@@ -608,4 +608,14 @@ defmodule AshEnterprise.Mdm.PeopleTest do
       Seed.seed!(other.tenant, AshEnterprise.Platform.SystemActor.system())
     end
   end
+
+  test "a person cannot seed a tenant that is not theirs (mdm.people --seed-as)", ctx do
+    # The mix task takes `--organization` and `--seed-as` separately and hands
+    # the user over bare, as here. That user's grants are their own tenant's
+    # administrator role; they must not activate another tenant's rule set.
+    other = tenant!()
+
+    assert_raise Ash.Error.Forbidden, fn -> Seed.seed!(other.tenant, ctx.user) end
+    assert People.rule_set(other.tenant) == nil
+  end
 end

@@ -82,7 +82,8 @@ defmodule AshEnterprise.Platform.Resource do
       `AshEnterprise.Security.Policies`. Default `true`. Setting this to `false`
       does **not** make a resource public — with an authorizer and no policies,
       Ash denies everything. It exists for resources that must declare their own
-      complete policy set, such as the security resources themselves.
+      complete policy set, such as the security resources themselves. Either way
+      the resource keeps the tenant boundary (`AshEnterprise.Security.TenantBoundary`).
     * `:extra_grants` — grant paths this resource adds to the inherited union
       (filter checks, each one more `authorize_if`). Additive only; see
       `AshEnterprise.Security.Policies`. Ignored with `policies?: false`.
@@ -240,6 +241,10 @@ defmodule AshEnterprise.Platform.Resource do
           end
         end
       )
+
+      # Before every other policy, and with `policies?: false` too: an actor's
+      # authority applies only in the tenant its context was built for.
+      use AshEnterprise.Security.TenantBoundary
 
       unquote(
         if policies? do

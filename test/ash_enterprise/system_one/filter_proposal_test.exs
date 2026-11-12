@@ -42,7 +42,8 @@ defmodule AshEnterprise.SystemOne.FilterProposalTest do
       System.delete_env("S1_OLLAYA_GPU_BASE_URL")
     end)
 
-    %{org: Ash.UUID.generate(), person: person()}
+    org = Ash.UUID.generate()
+    %{org: org, person: person(tenant: org)}
   end
 
   defp raw(name), do: File.read!(Path.join([@fixtures_dir, "recordings", name]))

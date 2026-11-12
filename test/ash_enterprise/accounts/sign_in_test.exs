@@ -73,8 +73,14 @@ defmodule AshEnterprise.Accounts.SignInTest do
     # The bug was one of ordering, so assert on the order rather than only on the
     # behaviour it produces. Any policy evaluated before the bypass can forbid the
     # nil actor that every sign-in necessarily has.
-    [first | _] = Ash.Policy.Info.policies(User)
+    #
+    # The tenant boundary (`AshEnterprise.Security.TenantBoundary`) sits ahead of it on
+    # every platform resource, and cannot forbid a sign-in: `User` is not tenant-scoped,
+    # and a nil actor is never in a foreign tenant.
+    [boundary, first | _] = Ash.Policy.Info.policies(User)
 
+    assert [{AshEnterprise.Security.Checks.ForeignTenant, _}] = boundary.condition
+    refute Ash.Resource.Info.multitenancy_strategy(User)
     assert first.bypass?
     assert [{AshAuthentication.Checks.AshAuthenticationInteraction, _}] = first.condition
   end
