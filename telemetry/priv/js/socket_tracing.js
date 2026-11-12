@@ -193,7 +193,17 @@ export const createSocketTracing = ({serializer, tracer, getPagePath, interactio
     }
   }
 
-  return {encode, decode, pendingCount: () => pending.size, currentSpan}
+  // The page is going away, so no reply, error or close will arrive for what is in
+  // flight. Ends those spans now, marked, so they are exported with the page.
+  const endPending = () => {
+    for (const [ref, entry] of pending) {
+      pending.delete(ref)
+      entry.span.setAttribute("ui.page.unloaded", true)
+      entry.span.end()
+    }
+  }
+
+  return {encode, decode, pendingCount: () => pending.size, currentSpan, endPending}
 }
 
 const isPlainPayload = payload =>

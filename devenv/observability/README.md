@@ -52,10 +52,30 @@ Free ports are chosen by default and recorded in `.devenv/state/observability/po
 - **Every ClickHouse merge is vertical.** A horizontal merge reads all columns of all source parts at once. `signoz_index_v3` has 81 columns, JSON among them, and a stack that ran for a day holds about 100 small parts of it; merging those took more than the 640 MiB cap of the time, so the merge failed and retried forever, and inserts failed beside it. Vertical merges read one column at a time and clear the same backlog in seconds. The cap, now 1 GiB, counts RSS, which includes about 200 MB of the server's own code, so a smaller `max_parts_to_merge_at_once` or `merge_max_block_size` alone did not help.
 - **No system logs in ClickHouse.** The `<query_log>` and related elements are absent rather than marked `remove="1"`: in a standalone config file that attribute merges nothing and the logs are created with defaults.
 - **`max_concurrent_queries` stays at 48.** Lower, and the traces exporter's parallel inserts hit the limit, retry, and duplicate every span.
+- **Two checkouts of one project do not share a GlitchTip database.** GlitchTip lives in the project's Postgres cluster, which every git worktree of the project shares. The database and its login role are named `observability_glitchtip_<hash>`, where `<hash>` is the first eight hex digits of the SHA-256 of the state directory path, so each checkout provisions its own and never resets the other's password or admin user. Each checkout still runs its own ClickHouse, collector, SigNoz and GlitchTip processes (and so spends the memory budget again); to run one stack for the project, run `up` from one checkout only. A stack created before this change used the unsuffixed name `observability_glitchtip`; its first `up` afterwards starts an empty GlitchTip database (the old one is left in place and can be dropped).
 - **Processes.** `down` signals only PIDs from its own records, each checked against its start time and boot id first, so a reused PID is left alone. Memory caps (systemd scopes) are used only where a user systemd exists; nothing requires one.
 
 ## Memory
 
-Measured on this configuration, RSS in MB: a fresh stack idle about 340 for ClickHouse, 165 for the collector, 120 for SigNoz and 240 for GlitchTip, 870 together (PSS about 790); after a five-minute load, ClickHouse 640, collector 71, SigNoz 64, GlitchTip 216, about 1 GB together and 0.75 GB private. `observability status` is the live figure; the budget defaults to 1,500 MB total.
+`observability status` is the live figure against the budget (1,500 MB total by default: ClickHouse 800, collector 250, SigNoz 150, GlitchTip 300).
+
+How ClickHouse is sized, and why:
+
+- **The server cap is 1 GiB and counts RSS.** About 200 MB of RSS is the server's own code (shared, file-backed pages) and about 300 MB is what it holds after browser-suite load even though the tables are tens of MB. At the old 640 MiB cap that left no room: SigNoz's attribute-key queries (and, over a long window, the top-operations and trace-list queries) failed with `MEMORY_LIMIT_EXCEEDED`, and so did inserts.
+- **A query may use 400 MB (`max_memory_usage`).** Steady RSS plus one query at its limit stays under the cap, so one heavy query fails by itself instead of failing every query and insert beside it. Aggregations and sorts spill to disk past 100 MB, and the uncompressed cache is off.
+- **Smaller caches and pools.** The mark cache is 32 MiB, the background schedule pool 4 threads, merges 2 threads (vertical merges, see above). `max_thread_pool_size` must stay at 500: at 128 the server accepts connections but never answers, because its start-up and background pools together want more threads than the global pool holds.
+- **Collector.** The Go heap is collected toward 128 MiB (`GOMEMLIMIT`), the `memory_limiter` refuses new data at 160 MiB, and batches are 500 spans. RSS runs 50-90 MB above the heap, so its budget is 250 MB (SigNoz's was lowered to 150 MB, which it stays under, to keep the total at 1,500 MB).
+
+Measured with the browser suite run three times against the stack, then SigNoz-shaped trace queries (time series, top operations, trace list, attribute-key and value listings, the exceptions page) over 10 minutes, 90 minutes and 6 hours:
+
+| After three suite runs | Before (640 MiB cap, 800 MB query limit) | After |
+|---|---|---|
+| ClickHouse tracked memory, peak | 451 MB | 313 MB |
+| ClickHouse RSS | 443 MB | 521 MB (more data held, cap is 1 GiB) |
+| Collector RSS | 132 MB | 224 MB (budget 250 MB) |
+| SigNoz-shaped queries failing with `MEMORY_LIMIT_EXCEEDED` | 3 on the first pass (attribute keys over 10 minutes and 6 hours, exceptions count over 6 hours), 5 on a second pass (top operations, trace list and numeric attribute keys over 90 minutes, attribute keys over 6 hours) | 0 (one deliberate over-limit query aside) |
+
+A query deliberately far above the 400 MB limit fails alone (`MEMORY_LIMIT_EXCEEDED`, 1.1 s) and the next ordinary query succeeds. The host these figures come from was heavily shared (load average 20-50 on 12 cores) and made the suite itself flaky, so they are indicative, not a benchmark.
+
 
 Requirements: Linux on amd64 or arm64 (SigNoz publishes no other builds; the module is a no-op stub elsewhere) and a project Postgres listening on `127.0.0.1` (`services.postgres.listen_addresses`), with a superuser the shell can connect as.

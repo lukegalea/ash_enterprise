@@ -14,6 +14,10 @@
 ROOT="${OBSERVABILITY_STATE_DIR:-$DEVENV_STATE/observability}"
 RUN="$ROOT/run" LOGS="$ROOT/logs" DATA="$ROOT/data" SECRETS="$ROOT/secrets" MARKERS="$ROOT/markers"
 ENV_FILE="$ROOT/env" PORTS_FILE="$ROOT/ports" CONFIG_FILE="$ROOT/config.env"
+# GlitchTip's database and role live in the project's shared Postgres cluster, so their
+# names carry a hash of this state directory: two checkouts of one project (git worktrees)
+# each get their own, and neither resets the other's password or admin user.
+GT_DB="observability_glitchtip_$(printf '%s' "$ROOT" | sha256sum | cut -c1-8)"
 SERVICES=(clickhouse collector signoz glitchtip)
 PORT_NAMES=(CLICKHOUSE_HTTP CLICKHOUSE_TCP CLICKHOUSE_INTERSERVER KEEPER RAFT OTLP_GRPC OTLP_HTTP COLLECTOR_HEALTH SIGNOZ GLITCHTIP OPAMP)
 
@@ -276,20 +280,20 @@ ensure_postgres() {
   pg_isready -q -h "${PGHOST:-127.0.0.1}" -p "$(pg_port)" ||
     die "the project's Postgres is not reachable on port $(pg_port); run 'devenv up -d' first"
   # Always (re)set the password: the state dir can be wiped while the cluster stays.
-  if [ -z "$(pg_admin -c "select 1 from pg_roles where rolname = 'observability_glitchtip'")" ]; then
-    pg_admin -c "create role observability_glitchtip login password '$GT_DB_PASSWORD'"
+  if [ -z "$(pg_admin -c "select 1 from pg_roles where rolname = '$GT_DB'")" ]; then
+    pg_admin -c "create role $GT_DB login password '$GT_DB_PASSWORD'"
   else
-    pg_admin -c "alter role observability_glitchtip login password '$GT_DB_PASSWORD'"
+    pg_admin -c "alter role $GT_DB login password '$GT_DB_PASSWORD'"
   fi
-  if [ -z "$(pg_admin -c "select 1 from pg_database where datname = 'observability_glitchtip'")" ]; then
-    pg_admin -c "create database observability_glitchtip owner observability_glitchtip"
+  if [ -z "$(pg_admin -c "select 1 from pg_database where datname = '$GT_DB'")" ]; then
+    pg_admin -c "create database $GT_DB owner $GT_DB"
   fi
   # Needs a superuser on some servers; created here, where we hold one.
-  PGOPTIONS='-c client_min_messages=warning' psql -h "${PGHOST:-127.0.0.1}" -p "$(pg_port)" -U "${PGUSER:-$(id -un)}" -d observability_glitchtip \
+  PGOPTIONS='-c client_min_messages=warning' psql -h "${PGHOST:-127.0.0.1}" -p "$(pg_port)" -U "${PGUSER:-$(id -un)}" -d "$GT_DB" \
     -v ON_ERROR_STOP=1 -qAt -c 'create extension if not exists pg_trgm'
   # A reset of the cluster (rm -rf .devenv/state/postgres) leaves our markers
   # behind, so the database decides whether GlitchTip still needs initialising.
-  if [ -z "$(psql -h "${PGHOST:-127.0.0.1}" -p "$(pg_port)" -U "${PGUSER:-$(id -un)}" -d observability_glitchtip -qAt -c "select to_regclass('public.django_migrations')")" ]; then
+  if [ -z "$(psql -h "${PGHOST:-127.0.0.1}" -p "$(pg_port)" -U "${PGUSER:-$(id -un)}" -d "$GT_DB" -qAt -c "select to_regclass('public.django_migrations')")" ]; then
     rm -f "$MARKERS/glitchtip-initialized"
   fi
 }
@@ -333,7 +337,9 @@ start_collector() {
   alive collector && return 0
   log "starting the OTLP collector"
   render "$OBS_CONFIG_COLLECTOR" "$RUN/collector.yaml"
-  GOMEMLIMIT=160MiB launch collector "${OBS_MEMMAX_COLLECTOR}M" \
+  # 128 MiB: the Go runtime collects toward it; 160 MiB left RSS near 205 MB when idle. The memory_limiter in
+  # collector.yaml sits above this, so a burst is refused before the heap grows.
+  GOMEMLIMIT=128MiB launch collector "${OBS_MEMMAX_COLLECTOR}M" \
     "$OBS_COLLECTOR/bin/signoz-otel-collector" --config="$RUN/collector.yaml" --copy-path="$RUN/collector-copy.yaml"
 }
 
@@ -400,7 +406,7 @@ start_signoz() {
 }
 
 glitchtip_env() {
-  DATABASE_URL="postgres://observability_glitchtip:$GT_DB_PASSWORD@127.0.0.1:$(pg_port)/observability_glitchtip"
+  DATABASE_URL="postgres://$GT_DB:$GT_DB_PASSWORD@127.0.0.1:$(pg_port)/$GT_DB"
   export DATABASE_URL
   export SECRET_KEY="$SECRET_KEY"
   GLITCHTIP_DOMAIN="$(glitchtip_public_url)"; export GLITCHTIP_DOMAIN
@@ -645,7 +651,7 @@ cmd_status() {
 
   local backends="" bpid
   if [ -z "$stopped" ] && [ -f "$PORTS_FILE" ]; then
-    backends="$(pg_admin -c "select pid from pg_stat_activity where datname = 'observability_glitchtip'" 2>/dev/null || true)"
+    backends="$(pg_admin -c "select pid from pg_stat_activity where datname = '$GT_DB'" 2>/dev/null || true)"
   fi
   if [ -n "$backends" ]; then
     local bpids=()

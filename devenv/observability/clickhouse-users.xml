@@ -2,7 +2,16 @@
   <profiles><default>
     <max_threads>2</max_threads>
     <max_block_size>8192</max_block_size>
-    <max_memory_usage>800000000</max_memory_usage>
+    <!--
+      A query may use 400 MB. Steady RSS is about 530 MB (200 MB of it the server's own code), so
+      a query at its limit still fits under the 1 GiB server cap. One heavy query (an attribute-key listing over a wide time range, for instance) then fails by itself
+      rather than pushing the server to its cap and failing every query and insert beside it.
+      Aggregations and sorts spill to disk past 100 MB instead of growing.
+    -->
+    <max_memory_usage>419430400</max_memory_usage>
+    <max_bytes_before_external_group_by>104857600</max_bytes_before_external_group_by>
+    <max_bytes_before_external_sort>104857600</max_bytes_before_external_sort>
+    <use_uncompressed_cache>0</use_uncompressed_cache>
     <load_balancing>random</load_balancing>
   </default></profiles>
   <users><default>
