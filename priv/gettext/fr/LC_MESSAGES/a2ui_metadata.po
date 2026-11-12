@@ -1143,6 +1143,10 @@ msgid "Expires"
 msgstr "Expire le"
 
 #: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Export"
+msgstr "Exporter"
+
+#: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Expunge expired"
 msgstr "Purger les éléments expirés"
 
@@ -2006,6 +2010,10 @@ msgstr "Propriétaire"
 msgctxt "enum:Elixir.AshEnterprise.Accounts.Types.TeamType"
 msgid "Owner"
 msgstr "Propriétaire"
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Package"
+msgstr "Dossier d’audit"
 
 #: lib/ash_enterprise_web/a2ui/business_unit_ui.ex:1
 msgid "Parent"
@@ -3115,6 +3123,10 @@ msgstr "Jeton"
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
 msgid "Tomorrow"
 msgstr "Demain"
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Touched between"
+msgstr "Modifiées entre"
 
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Twins"

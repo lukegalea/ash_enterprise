@@ -46,7 +46,11 @@ defmodule AshEnterprise.Bpmn do
     resource AshEnterprise.Bpmn.Definition
     resource AshEnterprise.Bpmn.Instance
     resource AshEnterprise.Bpmn.Token
-    resource AshEnterprise.Bpmn.HumanTask
+
+    resource AshEnterprise.Bpmn.HumanTask do
+      define :human_tasks_touched_between, action: :touched_between, args: [:from, :to]
+    end
+
     resource AshEnterprise.Bpmn.TaskCandidate
     resource AshEnterprise.Bpmn.ProcessEvent
 

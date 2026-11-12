@@ -36,6 +36,11 @@ defmodule AshEnterprise.Audit do
         args: [:organization_id, :control_id]
     end
 
+    # The audit package for one tenant and period, behind its own privilege.
+    resource AshEnterprise.Audit.Package do
+      define :export_audit_package, action: :export, args: [:from, :to]
+    end
+
     resource AshEnterprise.Audit.ArchiveRun do
       define :record_archive_run, action: :record
       define :list_archive_runs, action: :read

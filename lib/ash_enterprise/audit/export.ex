@@ -85,9 +85,10 @@ defmodule AshEnterprise.Audit.Export do
   @spec to_file(Path.t(), DateTime.t(), DateTime.t(), keyword()) :: non_neg_integer()
   # Sobelow flags `File.mkdir_p!` and `File.open!` on a path it cannot prove is
   # constant, which is correct as far as it goes: `to_file/4` writes wherever it
-  # is told. The caller is `mix ash_enterprise.audit.export --out`, run by an
-  # operator on their own machine against their own filesystem, so the path is
-  # the operator's own input in exactly the sense `cp` takes a destination.
+  # is told. Its callers are operator tools run on the operator's own machine
+  # against their own filesystem (`mix ash_enterprise.audit.export` writes the
+  # same stream into its package directory), so the path is the operator's own
+  # input in exactly the sense `cp` takes a destination.
   #
   # Skipped locally and by name rather than globally: if a web request ever
   # reaches this function, that is a real finding and this attribute is the thing

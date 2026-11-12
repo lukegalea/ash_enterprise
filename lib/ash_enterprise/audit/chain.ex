@@ -170,7 +170,7 @@ defmodule AshEnterprise.Audit.Chain do
       %{
         sequence: sequence,
         id: Ecto.UUID.cast!(id),
-        occurred_at: occurred_at,
+        occurred_at: utc(occurred_at),
         problem: problem
       }
     end
@@ -182,4 +182,10 @@ defmodule AshEnterprise.Audit.Chain do
       true -> nil
     end
   end
+
+  # `occurred_at` is a `timestamp` column holding UTC, which a raw query returns naive. A
+  # finding's time is a `DateTime`, as its type says and as the chain verification's
+  # evidence (`AshEnterprise.Audit.ChainVerifyWorker`) encodes it.
+  defp utc(%NaiveDateTime{} = at), do: DateTime.from_naive!(at, "Etc/UTC")
+  defp utc(%DateTime{} = at), do: at
 end

@@ -258,6 +258,17 @@ defmodule AshEnterprise.Bpmn.HumanTask do
       prepare build(sort: [inserted_at: :asc, id: :asc])
     end
 
+    # The review tasks an audit package reports for a period
+    # (`AshEnterprise.Audit.Package.Build`): every task that existed during it and
+    # was opened, claimed, decided or cancelled within it, oldest first.
+    read :touched_between do
+      description "Tasks opened before `to` and last changed at or after `from`, oldest first."
+      argument :from, :utc_datetime_usec, allow_nil?: false
+      argument :to, :utc_datetime_usec, allow_nil?: false
+      filter expr(inserted_at < ^arg(:to) and updated_at >= ^arg(:from))
+      prepare build(sort: [inserted_at: :asc, id: :asc])
+    end
+
     action :claim_task, :string do
       description """
       Claim an open task the actor (or one of their teams) is a candidate

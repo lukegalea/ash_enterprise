@@ -1143,6 +1143,10 @@ msgid "Expires"
 msgstr ""
 
 #: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Export"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Expunge expired"
 msgstr ""
 
@@ -2005,6 +2009,10 @@ msgstr ""
 #: lib/ash_enterprise_web/a2ui/team_ui.ex:1
 msgctxt "enum:Elixir.AshEnterprise.Accounts.Types.TeamType"
 msgid "Owner"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Package"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/business_unit_ui.ex:1
@@ -3114,6 +3122,10 @@ msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
 msgid "Tomorrow"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Touched between"
 msgstr ""
 
 #: lib/ash_enterprise/canvas/registry.ex:2
