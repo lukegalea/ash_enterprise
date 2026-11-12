@@ -35,7 +35,7 @@ defmodule AshEnterprise.Telemetry.Metrics.Reporter do
         id = {__MODULE__, event, self()}
 
         :ok =
-          :telemetry.attach(id, event, &__MODULE__.handle_event/4, %{
+          :telemetry.attach(id, event, &__MODULE__.handle_telemetry/4, %{
             metrics: group,
             meter: meter,
             table: table,
@@ -135,7 +135,7 @@ defmodule AshEnterprise.Telemetry.Metrics.Reporter do
   # --- Events ------------------------------------------------------------------------
 
   @doc false
-  def handle_event(_event, measurements, metadata, config) do
+  def handle_telemetry(_event, measurements, metadata, config) do
     for entry <- config.metrics do
       record(entry, measurements, metadata, config)
     end
