@@ -14,6 +14,14 @@ defmodule AshEnterprise.Platform.Changes.StampCorrelation do
   A write made by a governed invocation's target also gets the invocation's key
   (`invocation_key`), from the action context the executor sets.
 
+  A write a BPMN process step makes gets the step's instance trigger depth
+  (`trigger_depth`), which the trigger sweep reads back to bound a process that writes
+  the resource its own subscription watches. It comes from, in order: the `ash:call`
+  context the engine sets (`context.ash_bpmn.trigger_depth`); the process scope
+  `AshEnterprise.Process.ActionInvoker` opens around every service task
+  (`Correlation.with_trigger_depth/2`); and, for a governed invocation executed later by
+  another worker, the instance its `bpmn:<instance>:<token>:<node>` key names.
+
   It also stamps the write's tenant, which is what makes a per-tenant audit trail
   possible at all — `AshEnterprise.Audit.EventLog`'s chain trigger lifts it back
   out into a real, indexed `organization_id` column, and
@@ -33,6 +41,7 @@ defmodule AshEnterprise.Platform.Changes.StampCorrelation do
       AshEnterprise.Platform.Correlation.audit_metadata(context.actor)
       |> put_tenant(changeset.tenant)
       |> put_invocation(changeset.context)
+      |> put_trigger_depth(changeset.context, changeset.tenant)
       |> Map.merge(existing)
 
     Ash.Changeset.set_context(changeset, %{ash_events_metadata: metadata})
@@ -56,6 +65,25 @@ defmodule AshEnterprise.Platform.Changes.StampCorrelation do
     do: Map.put(metadata, "invocation_key", key)
 
   defp put_invocation(metadata, _context), do: metadata
+
+  defp put_trigger_depth(metadata, %{ash_bpmn: %{trigger_depth: depth}}, _tenant)
+       when is_integer(depth),
+       do: Map.put(metadata, "trigger_depth", depth)
+
+  defp put_trigger_depth(%{"trigger_depth" => _} = metadata, _context, _tenant), do: metadata
+
+  defp put_trigger_depth(
+         metadata,
+         %{ash_agent: %{invocation_key: "bpmn:" <> _ = key}},
+         tenant
+       ) do
+    case AshEnterprise.Process.ServiceInvocation.trigger_depth(key, tenant) do
+      depth when is_integer(depth) -> Map.put(metadata, "trigger_depth", depth)
+      nil -> metadata
+    end
+  end
+
+  defp put_trigger_depth(metadata, _context, _tenant), do: metadata
 
   # Temporal safety (AST-149, the earlier audit's judgment carried to the
   # SystemOne facts host): pure changeset-context plumbing — the

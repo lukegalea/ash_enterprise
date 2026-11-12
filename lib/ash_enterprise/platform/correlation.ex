@@ -34,6 +34,7 @@ defmodule AshEnterprise.Platform.Correlation do
   """
 
   @key :ash_enterprise_correlation
+  @trigger_depth_key :ash_enterprise_trigger_depth
 
   @doc """
   The current correlation id, or nil. Unlike `id/0` this never generates one: the
@@ -94,6 +95,36 @@ defmodule AshEnterprise.Platform.Correlation do
     end
   end
 
+  @doc """
+  The trigger depth of the process step running in this process, or nil outside one.
+
+  Not the nested-action `depth/0`. This is the hop count of the BPMN instance whose step is
+  writing (`AshBpmn` starts an instance a trigger caused at the dispatch's depth), and the
+  trigger sweep reads it back from the audit row (`metadata.trigger_depth`) to bound a
+  process that writes the resource its own subscription watches.
+  """
+  def trigger_depth, do: Process.get(@trigger_depth_key)
+
+  @doc """
+  Runs `fun` with `depth` as the trigger depth stamped on every audit row it writes.
+
+  `AshEnterprise.Process.ActionInvoker` wraps each service task in it. Restores the
+  previous value afterwards, so a nested call cannot leak its depth to its caller.
+  """
+  def with_trigger_depth(depth, fun) when is_function(fun, 0) do
+    previous = Process.get(@trigger_depth_key)
+
+    if is_integer(depth), do: Process.put(@trigger_depth_key, depth)
+
+    try do
+      fun.()
+    after
+      if is_nil(previous),
+        do: Process.delete(@trigger_depth_key),
+        else: Process.put(@trigger_depth_key, previous)
+    end
+  end
+
   @doc "Starts a fresh correlation scope. Called once per request."
   def start_new do
     id = Ash.UUID.generate()
@@ -115,7 +146,8 @@ defmodule AshEnterprise.Platform.Correlation do
   a foreign key -- it is a compile-time constant, not a row -- so this is where
   its attribution actually lives. See `AshEnterprise.Platform.SystemActor`. The
   same holds for an automation principal: `automation_principal` names it and
-  `on_behalf_of_id` the person it acted for.
+  `on_behalf_of_id` the person it acted for. `trigger_depth` is present while a
+  process step writes (`with_trigger_depth/2`).
 
   A recipe runner (ADR 0069) also names the dispatch, the audit event and the start grant
   the step ran under, as `recipe_dispatch_id`, `recipe_event_id` and `recipe_grant_id`:
@@ -134,7 +166,9 @@ defmodule AshEnterprise.Platform.Correlation do
       # An automation principal (ADR 0043) is not a user row either, so its name lives
       # here, beside the person it acted for: "this principal, for this person".
       "automation_principal" => automation_name(actor),
-      "on_behalf_of_id" => automation_for(actor)
+      "on_behalf_of_id" => automation_for(actor),
+      # Only while a process step is writing: the hop its instance is. See `trigger_depth/0`.
+      "trigger_depth" => trigger_depth()
     }
     |> Map.merge(recipe(actor))
     |> Enum.reject(fn {_k, v} -> is_nil(v) end)

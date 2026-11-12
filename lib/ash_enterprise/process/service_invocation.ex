@@ -53,6 +53,8 @@ defmodule AshEnterprise.Process.ServiceInvocation do
 
   import Ash.Expr, only: [expr: 1]
 
+  require Ash.Query
+
   alias AshAgent.Invocation.{Failure, Target}
   alias AshEnterprise.Execution
   alias AshEnterprise.Execution.Identity
@@ -119,6 +121,31 @@ defmodule AshEnterprise.Process.ServiceInvocation do
        %{"process_instance_id" => instance_id, "process_node_id" => node_id}}
 
   def position(_ctx), do: {:error, :no_invocation_key}
+
+  @doc """
+  The trigger depth of the instance a `bpmn:<instance>:<token>:<node>` invocation key
+  names, or nil when the key names no instance this tenant can read.
+
+  For a target executed after the service task's job has moved on (by another worker),
+  where the process scope `ActionInvoker` opened is gone: the audit row of what it writes
+  still names the hop. One read of the instance, by id.
+  """
+  @spec trigger_depth(String.t(), term()) :: non_neg_integer() | nil
+  def trigger_depth("bpmn:" <> rest, tenant) do
+    with [instance_id | _] <- String.split(rest, ":"),
+         {:ok, _} <- Ecto.UUID.cast(instance_id),
+         {:ok, %{trigger_depth: depth}} <-
+           AshEnterprise.Bpmn.Instance
+           |> Ash.Query.for_read(:read, %{}, actor: SystemActor.process(), tenant: tenant)
+           |> Ash.Query.filter(id == ^instance_id)
+           |> Ash.read_one() do
+      depth
+    else
+      _ -> nil
+    end
+  end
+
+  def trigger_depth(_key, _tenant), do: nil
 
   # An operator's `AshBpmn.retry_instance/2` reactivates the same token, so the engine's key
   # is the key of the attempt that failed, and asking under it again would be answered with

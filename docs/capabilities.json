@@ -31,7 +31,7 @@
   "pins": [
     {
       "dep": "ash_bpmn",
-      "lock": "b81c8d9849b850da8ae474cdd3a3a8137d5acd8b"
+      "lock": "d6c1b994c725203571639730d83930e029cefd94"
     },
     {
       "dep": "ash_oban",

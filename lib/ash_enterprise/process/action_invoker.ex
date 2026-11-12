@@ -408,11 +408,19 @@ defmodule AshEnterprise.Process.ActionInvoker do
     end
   end
 
+  # Every registry entry runs here, so this is where a service task's writes learn which
+  # trigger hop their instance is: the audit rows they produce carry it
+  # (`Correlation.with_trigger_depth/2`), and the trigger sweep reads it back to bound a
+  # process that writes the resource its own subscription watches.
   defp run(fun, action, ctx) do
-    fun.(ctx)
+    AshEnterprise.Platform.Correlation.with_trigger_depth(trigger_depth(ctx), fn -> fun.(ctx) end)
   rescue
     e ->
       Logger.error("process action #{action} raised: #{Exception.message(e)}")
       {:error, {:action_raised, action, Exception.message(e)}}
   end
+
+  defp trigger_depth(%{trigger_depth: depth}) when is_integer(depth), do: depth
+  defp trigger_depth(%{instance: %{trigger_depth: depth}}) when is_integer(depth), do: depth
+  defp trigger_depth(_ctx), do: 0
 end

@@ -108,6 +108,22 @@ defmodule AshEnterprise.Audit.EventSource do
     {:ok, {events, last_sequence(events)}}
   end
 
+  # The boundary a new subscription version starts after, in one query rather than a walk of
+  # the tenant's log (`AshBpmn.EventSource.high_water/2`).
+  @impl true
+  def latest_sequence(tenant) do
+    AshEnterprise.Audit.EventLog
+    |> Ash.Query.for_read(:read)
+    |> Ash.Query.sort(sequence: :desc)
+    |> Ash.Query.limit(1)
+    |> maybe_null_chain(is_nil(tenant))
+    |> Ash.read!(actor: SystemActor.process(), tenant: tenant)
+    |> case do
+      [%{sequence: sequence}] -> sequence
+      [] -> 0
+    end
+  end
+
   defp maybe_null_chain(query, true), do: Ash.Query.filter(query, is_nil(organization_id))
   defp maybe_null_chain(query, false), do: query
 
