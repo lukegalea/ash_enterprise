@@ -24,7 +24,7 @@ defmodule AshEnterprise.Legacy do
   """
   use Ash.Domain,
     otp_app: :ash_enterprise,
-    extensions: [AshAdmin.Domain, AshEnterprise.Legacy.StranglerCodegen]
+    extensions: [AshAdmin.Domain, AshStrangler.Codegen]
 
   resources do
     resource AshEnterprise.Legacy.User

@@ -77,7 +77,7 @@ defmodule AshEnterprise.Legacy.CodegenIsolationTest do
   end
 
   test "the only migration touching legacy.* is the hand-generated strangler one" do
-    # Written by ash_strangler (`AshEnterprise.Legacy.StranglerCodegen` under
+    # Written by ash_strangler (`AshStrangler.Codegen` under
     # `mix ash.codegen`, or `mix ash_strangler.gen.migration`), not by
     # AshPostgres. That migration does mention `legacy.users` — it declares a view over it, an expression
     # index on it and a notify trigger on it — and that is the one deliberate

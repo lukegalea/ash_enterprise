@@ -472,8 +472,19 @@ per twin (`twin`, `phase`, `refused_because`, one `key`, and a `map`,
 `config :ash_strangler, unions: [...]` and the usual `gen.migration` generates
 the owned table, key indexes, view and `INSTEAD OF` triggers.
 
-- Inserts always land in the owned branch. Do not try to insert into a legacy
-  branch.
+- Inserts land in the owned branch by default. An insert naming a legacy branch
+  reaches the legacy table only when that branch is at `:dual_write` and
+  declares `insert_through because: ...` — optionally `insert_through [:cols],
+  because: ...` to narrow the written columns and `set: [legacy_col: value]`
+  for constants on legacy columns. Use it when the legacy side must see the
+  rows the new application creates during `:dual_write`; it is the host's
+  per-row choice, made by naming the branch in the insert. The legacy table
+  allocates its own key and `RETURNING` carries the view row of it, `__branch`
+  naming the branch. Supplied non-NULL values a route cannot write are refused
+  (`BranchWriteRefused`, naming the column): a column with no legacy column
+  behind it (expression, constant, unmapped), a `not_written_back` column, a
+  column a `set:` constant claims, a column read from a key-forming legacy
+  column, and the key itself.
 - A legacy row's update or delete is refused in `:read_from_legacy` (as
   `AshStrangler.Error.BranchWriteRefused`, with the declared reason) and carried
   to the legacy table in `:dual_write`. Give every branch its own key namespace.
@@ -524,6 +535,16 @@ the owned table, key indexes, view and `INSTEAD OF` triggers.
   --report FILE`. Bring your own obligations from a plug-in's `obligations/1`
   (an `AshStrangler.Estate.Obligation`: a query, its denominator and a severity).
   An obligation that cannot run is not green. See the estates guide for the JSON.
+
+## `mix ash.codegen` coverage
+
+Attach `AshStrangler.Codegen` to a domain (`use Ash.Domain, extensions: [AshStrangler.Codegen]`)
+to make `mix ash.codegen --check` notice a stale compatibility layer. It is opt-in: a host whose
+domains do not attach it sees nothing. Seed with `mix ash.codegen --snapshots-only` and commit
+`priv/strangler_snapshots/`. `mix ash.codegen <name>` then writes `<version>_<name>_strangler.exs`
+and refreshes the snapshots; `--dev` refuses while anything is pending. Never hand-edit the
+snapshots, and never write a strangler migration by hand: regenerate. `mix
+ash_strangler.gen.migration` refreshes the snapshots too when the domain attaches the extension.
 
 ## What the verifiers cannot check
 
