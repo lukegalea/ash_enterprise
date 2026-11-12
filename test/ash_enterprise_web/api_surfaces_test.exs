@@ -73,6 +73,28 @@ defmodule AshEnterpriseWeb.ApiSurfacesTest do
       refute Enum.any?(fields, &String.contains?(String.downcase(&1), "role"))
       refute Enum.any?(fields, &String.contains?(String.downcase(&1), "audit"))
     end
+
+    # The websocket used to connect anyone, with no actor and no tenant, beside an
+    # HTTP path that authenticates a bearer token. Nothing subscribed through it,
+    # so it is gone; these fail when subscriptions come back without a socket that
+    # authenticates the way `/gql` does.
+    test "has no websocket: nothing connects outside the authenticated HTTP path",
+         %{conn: conn} do
+      paths = Enum.map(AshEnterpriseWeb.Endpoint.__sockets__(), &elem(&1, 0))
+
+      refute Enum.any?(paths, &String.starts_with?(&1, "/ws/gql"))
+
+      for transport <- ["/ws/gql/websocket", "/ws/gql/longpoll"] do
+        assert get(conn, transport).status == 404
+      end
+    end
+
+    test "declares no subscriptions, so it needs no socket", %{conn: conn} do
+      assert %{"data" => %{"__schema" => %{"subscriptionType" => nil}}} =
+               conn
+               |> post("/gql", %{query: "{ __schema { subscriptionType { name } } }"})
+               |> json_response(200)
+    end
   end
 
   describe "MCP" do

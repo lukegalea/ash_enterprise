@@ -63,8 +63,6 @@ defmodule AshEnterprise.Application do
         # Start to serve requests, typically the last entry
         AshEnterpriseWeb.Endpoint,
         {AshAuthentication.Supervisor, [otp_app: :ash_enterprise]},
-        {Absinthe.Subscription, AshEnterpriseWeb.Endpoint},
-        AshGraphql.Subscription.Batcher,
         # The projector engine. Boots one leader-monitored `Server` per
         # configured projector (`config :ash_events_projections, projectors:`),
         # so the KYC finding projection drains cluster-wide with automatic

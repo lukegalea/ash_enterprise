@@ -439,7 +439,6 @@ defmodule AshEnterprise.MixProject do
       # is how an advisory goes unnoticed.
       {:ash_ai, "~> 1.0"},
       {:req_llm, "~> 1.7"},
-      {:absinthe_phoenix, "~> 2.0"},
       {:oban, "~> 2.0"},
       # ImportLive's CSV parsing: RFC4180-correct, zero transitive deps.
       {:nimble_csv, "~> 1.2"},

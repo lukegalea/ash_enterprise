@@ -1,6 +1,5 @@
 defmodule AshEnterpriseWeb.Endpoint do
   use Phoenix.Endpoint, otp_app: :ash_enterprise
-  use Absinthe.Phoenix.Endpoint
 
   # The session will be stored in the cookie and signed,
   # this means its contents can be read but not tampered with.
@@ -22,7 +21,10 @@ defmodule AshEnterpriseWeb.Endpoint do
     websocket: [connect_info: [session: {__MODULE__, :session_options, []}]],
     longpoll: [connect_info: [session: {__MODULE__, :session_options, []}]]
 
-  socket "/ws/gql", AshEnterpriseWeb.GraphqlSocket, websocket: true, longpoll: true
+  # No GraphQL socket: the schema has no subscriptions, and a socket would be a
+  # second way in that the HTTP path's bearer authentication, actor and tenant do
+  # not cover. Subscriptions, if they come, bring a socket that authenticates
+  # the way `/gql` does.
 
   # Serve at "/" the static files from "priv/static" directory.
   #

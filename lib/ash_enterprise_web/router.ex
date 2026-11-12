@@ -94,7 +94,6 @@ defmodule AshEnterpriseWeb.Router do
 
     forward "/playground", Absinthe.Plug.GraphiQL,
       schema: Module.concat(["AshEnterpriseWeb.GraphqlSchema"]),
-      socket: Module.concat(["AshEnterpriseWeb.GraphqlSocket"]),
       interface: :simple
 
     forward "/", Absinthe.Plug, schema: Module.concat(["AshEnterpriseWeb.GraphqlSchema"])

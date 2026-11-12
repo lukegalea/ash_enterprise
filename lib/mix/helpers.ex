@@ -9,7 +9,7 @@ defmodule AshEnterprise.Mix.Helpers do
   to require `app.start`, which boots the whole supervision tree: Oban (so
   queues consume jobs *while the task runs* — `audit.verify` was the worst
   offender), the `AshEvents` projector supervisor, the legacy `pg_notify`
-  listener, PubSub and the Absinthe batcher. Side effects and boot time that a
+  listener and PubSub. Side effects and boot time that a
   data-level task has no business paying for. See
   `docs/reviews/iron-law-audit.md`, fix item 3.
 
