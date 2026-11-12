@@ -13,7 +13,8 @@ defmodule AshEnterprise.Process.RecipeAuthority do
   | The process was started by | The step |
   |---|---|
   | no recipe (a person, a call from code) | runs as it always has |
-  | a `:causing_person` recipe on the allowlisted key | runs as it always has |
+  | a `:causing_person` recipe on the allowlisted key | runs as it always has, as the person who caused the event |
+  | a `:causing_person` recipe, in a job that names a tenant that is not the instance's | runs nothing: `{:no_authority, :other_tenant}` |
   | a `:human_tasks_only` recipe | runs nothing: `{:no_authority, :human_tasks_only}` |
   | a `:causing_person` recipe on any other key | runs nothing: `{:no_authority, :causing_person_not_allowed}` |
   | a `:standing_grant` recipe whose publisher is an active member holding the version's grant | runs as the `recipe_runner` acting for the publisher: `{:ok, %{authority: :standing_grant, ...}}` |
@@ -165,10 +166,19 @@ defmodule AshEnterprise.Process.RecipeAuthority do
 
   defp decide(nil, _root, _ctx), do: :ok
 
-  defp decide({%Subscription{authority: :causing_person, key: key} = subscription, _}, root, _) do
-    if Authority.causing_person?(key),
-      do: :ok,
-      else: refuse(:causing_person_not_allowed, subscription, root)
+  # The step runs as the person who caused the event, in the instance's tenant. A job that
+  # names another tenant runs nothing, as under a standing grant.
+  defp decide({%Subscription{authority: :causing_person, key: key} = subscription, _}, root, ctx) do
+    cond do
+      not Authority.causing_person?(key) ->
+        refuse(:causing_person_not_allowed, subscription, root)
+
+      other_tenant?(root, ctx) ->
+        refuse(:other_tenant, subscription, root)
+
+      true ->
+        :ok
+    end
   end
 
   defp decide({%Subscription{authority: :standing_grant} = subscription, dispatch}, root, ctx),
@@ -185,7 +195,7 @@ defmodule AshEnterprise.Process.RecipeAuthority do
       is_nil(tenant) ->
         refuse(:no_tenant, subscription, root)
 
-      ctx[:tenant] not in [nil, tenant] ->
+      other_tenant?(root, ctx) ->
         refuse(:other_tenant, subscription, root)
 
       true ->
@@ -291,6 +301,9 @@ defmodule AshEnterprise.Process.RecipeAuthority do
   end
 
   defp grant_id(_person_id, _grant_key, _tenant), do: nil
+
+  # The job's arguments name a tenant that is not the one the instance belongs to.
+  defp other_tenant?(root, ctx), do: ctx[:tenant] not in [nil, instance_tenant(root)]
 
   defp instance_tenant(%{organization_id: id}), do: id
   defp instance_tenant(_instance), do: nil

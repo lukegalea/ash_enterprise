@@ -335,6 +335,42 @@ defmodule AshEnterprise.Process.RecipeAuthorityTest do
       end
     end
 
+    test "a job naming another tenant runs nothing, and the step does not act", ctx do
+      key = process!(ctx.tenant, acting("serviceTask"))
+
+      ctx.tenant
+      |> draft!(%{key: @allowlisted, process_key: key})
+      |> Subscription.set_authority!(:causing_person, opts(ctx.tenant))
+      |> Subscription.publish!(opts(ctx.tenant))
+
+      request = submit!(ctx)
+      sweep!(ctx.tenant)
+
+      assert [%Dispatch{instance_id: instance_id}] = started(ctx.tenant)
+      instance = instance!(instance_id, ctx.tenant)
+
+      %{organization: other} =
+        Seeder.seed_tenant(
+          unique_name: "recipe-other-#{System.unique_integer([:positive])}",
+          email: "recipe-other-#{System.unique_integer([:positive])}@example.com"
+        )
+
+      assert RecipeAuthority.check(%{instance: instance, tenant: other.id}) ==
+               {:error, {:no_authority, :other_tenant}}
+
+      assert ActionInvoker.invoke("reject_request", %{
+               instance: instance,
+               tenant: other.id,
+               subject: request
+             }) == {:error, {:no_authority, :other_tenant}}
+
+      assert reload(request, ctx.tenant).decision_outcome == nil
+
+      # Its own tenant, or none named, runs as before.
+      assert RecipeAuthority.check(%{instance: instance, tenant: ctx.tenant}) == :ok
+      assert RecipeAuthority.check(%{instance: instance}) == :ok
+    end
+
     test "a step of the allowlisted recipe's process runs as the person who caused it", ctx do
       key = process!(ctx.tenant, acting("serviceTask"))
 
