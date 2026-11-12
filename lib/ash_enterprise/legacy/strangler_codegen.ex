@@ -157,6 +157,10 @@ defmodule AshEnterprise.Legacy.StranglerCodegen do
   Called by `mix ash.codegen <name>` after it writes the migration those
   statements belong in, and once by hand to seed the initial snapshots.
   """
+  # Paths here come from compiled resource module names and the project's own
+  # priv/ directory — never from request or user input — so Sobelow's
+  # low-confidence Traversal findings on the File calls are false positives.
+  # sobelow_skip ["Traversal.FileModule"]
   @spec write_snapshots!(keyword()) :: [String.t()]
   def write_snapshots!(opts \\ []) do
     root = opts[:snapshot_root] || snapshot_root()
@@ -275,6 +279,9 @@ defmodule AshEnterprise.Legacy.StranglerCodegen do
     end
   end
 
+  # The directory is the repo's own priv/migrations and the name comes from the
+  # developer's own command line, not from request input; see write_snapshots!/1.
+  # sobelow_skip ["Traversal.FileModule"]
   defp write_migration!(name) do
     repo = repo!()
     dir = migrations_path(repo)
@@ -352,6 +359,9 @@ defmodule AshEnterprise.Legacy.StranglerCodegen do
     }
   end
 
+  # Reads only the committed snapshot files under the project root; see
+  # write_snapshots!/1.
+  # sobelow_skip ["Traversal.FileModule"]
   defp read_snapshot(path) do
     case File.read(path) do
       {:error, :enoent} ->
