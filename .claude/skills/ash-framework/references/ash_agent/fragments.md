@@ -178,6 +178,9 @@ One row per tenant, holding the approval posture in force there (`AshAgent.Appro
 date, with the one action that changes them. Include it on your tenant resource, name your
 `AshAgent.Approval.Authority` and `AshAgent.ExecutionIdentity` implementations in its `approval_posture`
 section, and read the posture the same way the package does: through the authority, never off the row directly.
+The validation asks your authority about the tenant the row itself names: the value of `tenant_attribute` in the
+section — the resource's primary key, when that is a single attribute and you name nothing — never a tenant a
+caller passes.
 
 `set_approval_posture` answers who may change it: one administrator raises the posture; the sole administrator,
 an operator, or a change approved under four eyes lowers it; an `:implementation` posture needs an end date in

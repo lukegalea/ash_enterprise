@@ -370,14 +370,18 @@ defmodule AshEnterprise.Execution.ApprovalPostureTest do
       assert organization(ctx).approval_posture == :standard
     end
 
-    # Asked in their own tenant, another organization's sole administrator
-    # satisfies the posture rule; the policy keeps them to their own row.
-    test "another tenant's sole administrator, asking in their own tenant, is forbidden",
+    # Passing their own tenant does not make another organization's sole
+    # administrator this one's; the policy would keep them to their own row too.
+    test "another tenant's sole administrator, asking in their own tenant, is refused",
          %{ctx: ctx} do
       other = tenant!()
 
-      assert {:error, %Ash.Error.Forbidden{}} =
+      # The package asks about the organization being changed, never the tenant
+      # passed, so they are not its administrator and lowering it is refused.
+      assert {:error, %Ash.Error.Invalid{errors: errors}} =
                set_posture(ctx, :small_team, other, nil, other.tenant)
+
+      assert Enum.any?(errors, &match?(%PostureChangeRefused{reason: :lowering}, &1))
 
       assert organization(ctx).approval_posture == :standard
     end
