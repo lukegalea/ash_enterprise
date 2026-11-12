@@ -101,7 +101,7 @@ The concrete exit: which files change, and how much work it is.
 | [0067](0067-a-document-is-a-pure-function-of-recorded-inputs.md) | A document is a pure function of recorded inputs | accepted (2026-11-10) |
 | [0068](0068-paper-separates-schema-layout-theme-and-wording.md) | Paper separates schema, layout, theme and wording | accepted (2026-11-10) |
 | [0069](0069-a-recipe-runs-on-an-authority-chosen-per-version.md) | A recipe runs on an authority chosen per version; a standing grant is a person's own act | accepted (2026-11-09); built (2026-11-12); amended 2026-11-12: the rows it is decided from are engine-only or written by publishing, and it covers only the diagrams its publisher saw |
-| [0070](0070-upstream-first-placement.md) | Upstream-first placement: put code at the highest layer where it is true; stop at the second use | proposed (2026-11-11) |
+| [0070](0070-upstream-first-placement.md) | Upstream-first placement: code goes at the highest layer where it is true; find gaps first, stop at the second use | proposed (2026-11-11) |
 
 Records 0001–0005, 0007–0009, 0020–0023, 0027–0031, 0033–0037, 0050–0054, 0059 and 0061 are `accepted` and describe code that exists. 0006 is superseded by 0050. 0049 is accepted and in progress: Phase 0 (PostgreSQL 18) and the System One fact cut-over have landed. 0060 is accepted and in progress: its phases 1 (ash_a2ui) and 2 (this repository) have landed; the downstream host's phases and CLDR formatting are not built.
 **0038–0047 are `accepted, not built (2026-09-28)`:** the decision is taken and none of it is built. A record with that

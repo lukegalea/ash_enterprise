@@ -122,8 +122,6 @@ The model will not always fit. You will go to express a requirement and find the
 
 Each step down costs more once and makes every future use cheaper to write **and to review**. That is the trade: you read a foundation once, carefully; after that you read one declarative line per use.
 
-The same goes for UI. If a screen needs a widget the A2UI catalog does not have, do not hand-write it in the app: add it to `ash_a2ui` once, then declare the screen. [ADR 0070](../docs/adr/0070-upstream-first-placement.md) sets the full ladder for code and for UI, and says when to stop.
-
 ## Exercise: climb from 1 to 0
 
 Here is a "1": ticket subjects must not shout. It is inelegant but fine, the first time.
