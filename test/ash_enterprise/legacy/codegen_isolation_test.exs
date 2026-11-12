@@ -77,8 +77,9 @@ defmodule AshEnterprise.Legacy.CodegenIsolationTest do
   end
 
   test "the only migration touching legacy.* is the hand-generated strangler one" do
-    # `mix ash_strangler.gen.migration`, not `mix ash.codegen`. That migration
-    # does mention `legacy.users` — it declares a view over it, an expression
+    # Written by ash_strangler (`AshEnterprise.Legacy.StranglerCodegen` under
+    # `mix ash.codegen`, or `mix ash_strangler.gen.migration`), not by
+    # AshPostgres. That migration does mention `legacy.users` — it declares a view over it, an expression
     # index on it and a notify trigger on it — and that is the one deliberate
     # exception. Any *other* migration mentioning the schema came from codegen,
     # which is the thing this file exists to prevent.
@@ -91,7 +92,7 @@ defmodule AshEnterprise.Legacy.CodegenIsolationTest do
     assert offenders == [],
            """
            These migrations touch `legacy.*` and did not come from
-           `mix ash_strangler.gen.migration`:
+           ash_strangler (a `*_strangler` migration):
 
            #{Enum.map_join(offenders, "\n", &"  #{&1}")}
            """

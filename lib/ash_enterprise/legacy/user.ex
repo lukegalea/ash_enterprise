@@ -51,7 +51,10 @@ defmodule AshEnterprise.Legacy.User do
 
   `:read_from_legacy`. Nothing here writes, and `migrate? false` says Ash owns
   the view and not the table underneath. The DDL comes from
-  `mix ash_strangler.gen.migration`, never from `mix ash.codegen`.
+  `AshStrangler.Migration`, never from AshPostgres's codegen:
+  `AshEnterprise.Legacy.StranglerCodegen` writes it as a `*_strangler`
+  migration when `mix ash.codegen <name>` runs, and `mix ash.codegen --check`
+  fails when it is stale.
   """
 
   use AshEnterprise.Platform.Resource,
