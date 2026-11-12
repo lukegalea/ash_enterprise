@@ -87,6 +87,7 @@ defmodule AshEnterprise.Execution.Identity do
   require Ash.Query
 
   alias AshEnterprise.Accounts.{BusinessUnit, User}
+  alias AshEnterprise.Bpmn.Subscription.Authority
   alias AshEnterprise.Execution.{Invocation, Run}
   alias AshEnterprise.Platform.AutomationPrincipal
   alias AshEnterprise.Process.RecipeAuthority
@@ -355,11 +356,19 @@ defmodule AshEnterprise.Execution.Identity do
     end
   end
 
+  # A recipe's start grant is its publisher's own (ADR 0069): one held through a team counts
+  # for nothing. Any other agent's may be held through a team.
+  defp start_grant_holders(user, agent, tenant) do
+    if Authority.grant_key?(agent),
+      do: [user.id],
+      else: [user.id | ActorContext.team_ids_for(user.id, tenant)]
+  end
+
   defp may_start(_user, agent, _tenant) when not is_binary(agent), do: {:error, :no_agent}
   defp may_start(_user, _agent, nil), do: {:error, :no_tenant}
 
   defp may_start(user, agent, tenant) do
-    principal_ids = [user.id | ActorContext.team_ids_for(user.id, tenant)]
+    principal_ids = start_grant_holders(user, agent, tenant)
 
     AgentStartGrant
     |> Ash.Query.filter(

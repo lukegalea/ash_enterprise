@@ -72,6 +72,10 @@ alone, declare it `machinery_only:` (ADR 0059).
 |---|---|---|---|
 | `human_only` | no | no | yes; a system actor gets nothing |
 | `machinery_only` | no | `oban` only | does not apply |
+| `engine_only` | yes | no | does not apply |
+
+`engine_only:` is for rows the engines write as their own record, which other
+code then trusts: a recipe's `Dispatch` and an `Instance`'s parent (ADR 0069).
 
 Both narrow a path; neither denies. Never reach for `forbid_if` or
 `policies?: false` to make an action person-only.

@@ -1,6 +1,6 @@
 defmodule AshEnterprise.Platform.NarrowedActionsTest do
   @moduledoc """
-  ADR 0059's compile-time guards: `human_only:` and `machinery_only:` must name
+  ADR 0059's compile-time guards: `human_only:`, `machinery_only:` and `engine_only:` must name
   real actions and must not contradict each other or `self_service:`, and a
   strangled read model that projects `version_number` as a constant must opt
   out of the optimistic lock.
@@ -51,6 +51,22 @@ defmodule AshEnterprise.Platform.NarrowedActionsTest do
     test "an action cannot be both human-only and machinery-only" do
       assert refusal(NarrowedActions, widget(human_only: [:approve, :claim])) =~
                "machinery_only :claim is both human_only and machinery_only"
+    end
+
+    test "a misspelt engine_only action is refused" do
+      assert refusal(NarrowedActions, widget(engine_only: [:creat])) =~
+               "engine_only :creat: no such action"
+    end
+
+    test "an engine-only action cannot also be human-only, machinery-only or self-service" do
+      for {action, label} <- [
+            approve: "human_only",
+            claim: "machinery_only",
+            mine: "self_service"
+          ] do
+        assert refusal(NarrowedActions, widget(engine_only: [action])) =~
+                 "engine_only #{inspect(action)} is also #{label}"
+      end
     end
 
     test "a machinery-only action cannot also be self-service" do

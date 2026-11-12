@@ -244,6 +244,10 @@ msgid "Ash events replay create update"
 msgstr "Relecture des événements Ash : mise à jour de création"
 
 #: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Ash events replay grant recipe update"
+msgstr "Relecture des événements Ash : mise à jour d’octroi de recette"
+
+#: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Ash events replay grant update"
 msgstr "Relecture des événements Ash : mise à jour d’octroi"
 
@@ -1273,6 +1277,10 @@ msgstr "Octroyer"
 msgctxt "one_of:admission_grade"
 msgid "Grant"
 msgstr "Accordé"
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Grant recipe"
+msgstr "Octroyer pour une recette"
 
 #: lib/ash_enterprise_web/a2ui/operator_ui.ex:1
 msgid "Health"

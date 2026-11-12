@@ -31,6 +31,9 @@ defmodule AshEnterprise.Process.SubscriptionTest do
 
   defp opts(tenant), do: [actor: SystemActor.process(), tenant: tenant]
 
+  # A dispatch is the engine's own row (`engine_only`): only an engine-marked call writes one.
+  defp engine(tenant), do: opts(tenant) ++ [context: %{private: %{ash_bpmn?: true}}]
+
   defp subscription!(tenant, attrs) do
     defaults = %{
       key: "s-#{System.unique_integer([:positive])}",
@@ -249,7 +252,7 @@ defmodule AshEnterprise.Process.SubscriptionTest do
                    kind: :start,
                    status: :started
                  },
-                 opts(tenant)
+                 engine(tenant)
                )
 
       assert {:error, _} =
@@ -262,7 +265,7 @@ defmodule AshEnterprise.Process.SubscriptionTest do
                    kind: :start,
                    status: :started
                  },
-                 opts(tenant)
+                 engine(tenant)
                )
     end
 
@@ -286,7 +289,7 @@ defmodule AshEnterprise.Process.SubscriptionTest do
             reason: :guard_null,
             depth: 2
           },
-          opts(tenant)
+          engine(tenant)
         )
 
       assert skipped.status == :skipped
@@ -303,7 +306,7 @@ defmodule AshEnterprise.Process.SubscriptionTest do
                    kind: :start,
                    status: :bogus
                  },
-                 opts(tenant)
+                 engine(tenant)
                )
     end
   end

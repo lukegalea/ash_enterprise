@@ -94,6 +94,11 @@ How it is built:
 
 A bare system `ActorContext` carries no name, so it is not `oban` and does not reach a machinery-only action.
 
+A third declaration, `engine_only:`, was added on 2026-11-12 (ADR 0069): the engine bypasses reach the action, the
+system-actor bypass does not, and the union does not apply. It is for the rows the engines write as the record of what
+they did, which other code trusts as theirs (a recipe's dispatch, an instance's parent). `NarrowedActions` refuses an
+engine-only action that is also human-only, machinery-only or self-service.
+
 The verifier `Platform.Verifiers.NarrowedActions` refuses three things: a listed action that does not exist, an action
 that is both human-only and machinery-only, and an action that is both machinery-only and self-service.
 

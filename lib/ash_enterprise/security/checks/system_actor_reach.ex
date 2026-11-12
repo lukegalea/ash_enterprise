@@ -1,8 +1,8 @@
 defmodule AshEnterprise.Security.Checks.SystemActorReach do
   @moduledoc """
   What the system-actor bypass authorizes (ADR 0059): any action, except that
-  a `human_only` action admits no system actor and a `machinery_only` action
-  admits only `AshEnterprise.Platform.SystemActor.oban/0`.
+  a `human_only` or `engine_only` action admits no system actor and a
+  `machinery_only` action admits only `AshEnterprise.Platform.SystemActor.oban/0`.
 
   It sits inside the bypass, after `AshEnterprise.Security.Checks.SystemActor`
   has established that the actor is a system actor, so the closed list of
@@ -21,7 +21,9 @@ defmodule AshEnterprise.Security.Checks.SystemActorReach do
 
   @impl true
   def describe(_opts),
-    do: "action is not human_only, and is machinery_only only for the oban system actor"
+    do:
+      "action is neither human_only nor engine_only, and is machinery_only only for the " <>
+        "oban system actor"
 
   @impl true
   def match?(actor, %{resource: resource, action: action}, _opts),

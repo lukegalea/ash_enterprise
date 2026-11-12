@@ -68,6 +68,23 @@ them, on the intersection of the two, rebuilt at every claim.**
    from the instance, never from a payload. The audit entry of the target's write names the principal, the person
    (`on_behalf_of_id`) and, as provenance, the dispatch, event and grant ids.
 
+8. **Nobody else writes what a standing grant is decided from** (amended 2026-11-12, after review). Three rows decide
+   a step: the dispatch that names the instance, the instance tree above it and the publisher's start grant. Each is
+   written by the engine or by `publish_granted` alone:
+   - `Dispatch` and `Instance` creates are `engine_only`, a new base-resource declaration beside ADR 0059's two: the
+     engine bypasses reach the action, and no system actor and no grant row does. Without it, a tenant administrator
+     (auto-granted every organization-owned resource's create) could write a dispatch naming an instance they started,
+     or start an instance under a recipe's, and its steps would run as the publisher's recipe runner.
+   - `AgentStartGrant`'s `grant` refuses a `recipe:` key, and `publish_granted` writes the grant through
+     `grant_recipe`, which is `machinery_only`. An administrator cannot revive a revoked grant, extend one past its
+     review date or give one to a team, and a recipe's grant held through a team counts for nothing at the step.
+9. **The grant covers the diagrams its publisher saw** (amended 2026-11-12). `publish_granted` stamps
+   `granted_definition_ids`: the latest published version of the process and of every call activity's child, the set
+   it validated. At the step, the instance and every ancestor must run one of them, or the step records
+   `{:no_authority, :definition_not_granted}`. A later version under the key runs nothing until a person publishes the
+   recipe again. A decision route chooses its process when the event arrives, so a standing grant refuses one, and a
+   process not yet published is refused because there is nothing to see.
+
 `human_only` and `changes_authority` actions stay closed to every automation principal, so a recipe runner cannot
 assign roles, approve a human task or publish another recipe. A principal is never an approver or a task candidate
 (ADR 0055). `SystemActor` never runs recipe work.
@@ -91,7 +108,8 @@ diagram, not a per-recipe role. A grant that lapses stops the recipe silently ex
 a control that reports lapsing and orphaned grants is separate work.
 
 **What it forecloses.** A recipe acting on the authority of whoever caused its event, outside the one allowlisted key.
-A recipe inheriting authority from an earlier version. A standing grant created by the setup task, a pack, a system
+A recipe inheriting authority from an earlier version, or reaching a process version its publisher did not see. A
+standing grant routed by a decision. A standing grant created by the setup task, a pack, a system
 actor or an automation principal.
 
 ## Reversal
@@ -99,5 +117,7 @@ actor or an automation principal.
 Remove `publish_granted`, `StampAccountablePerson`, `WriteStartGrant` and `StandingGrantSteps` from the host
 subscription, `recipe_runner` from `AutomationPrincipal`, and the standing-grant branch from `RecipeAuthority`,
 `ActionInvoker` and `ServiceInvocation`; `RecipeAuthority` then refuses `:standing_grant` at the step, as it did before
-this record. Drop the `accountable_person_id`, `caused_by_id` and `valid_until` columns with a regenerated migration.
+this record. Drop the `accountable_person_id`, `caused_by_id`, `valid_until` and `granted_definition_ids` columns with a regenerated
+migration. The `engine_only` declarations on `Dispatch` and `Instance` and the `grant_recipe` split can stay: they
+narrow paths and deny nothing a person needs.
 Existing standing-grant versions stop running; their grants and audit history stay.

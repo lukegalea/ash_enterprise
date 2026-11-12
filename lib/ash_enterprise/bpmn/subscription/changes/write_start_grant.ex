@@ -10,8 +10,9 @@ defmodule AshEnterprise.Bpmn.Subscription.Changes.WriteStartGrant do
   later version never inherits it, and revoking it (or letting it lapse) stops this version's
   steps at their next claim.
 
-  Written without authorization, as part of this action: granting a start is `human_only`,
-  and `publish_granted` is that person's own act, already authorized as a person's. The grant
+  Written through `AgentStartGrant`'s `grant_recipe`, without authorization, as part of
+  this action: `grant` refuses a recipe's key, so this is the only write that makes one, and
+  `publish_granted` is that person's own act, already authorized as a person's. The grant
   names only them, so it lets no one else ask for anything.
   """
 
@@ -31,7 +32,7 @@ defmodule AshEnterprise.Bpmn.Subscription.Changes.WriteStartGrant do
         principal_type: :user,
         valid_until: valid_until
       }
-      |> AgentStartGrant.grant(
+      |> AgentStartGrant.grant_recipe(
         actor: context.actor,
         tenant: subscription.organization_id,
         authorize?: false

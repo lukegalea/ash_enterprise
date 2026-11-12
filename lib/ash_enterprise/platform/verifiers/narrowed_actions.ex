@@ -10,6 +10,9 @@ defmodule AshEnterprise.Platform.Verifiers.NarrowedActions do
   - A `machinery_only` action may not also be `self_service`: self-service is
     a grant path in the union, and the union does not apply to machinery
     actions, so the declaration would be dead.
+  - An `engine_only` action (ADR 0069) may be none of `human_only`,
+    `machinery_only` or `self_service`: each says someone other than the
+    engines runs it.
   """
 
   use Spark.Dsl.Verifier
@@ -23,18 +26,21 @@ defmodule AshEnterprise.Platform.Verifiers.NarrowedActions do
     machinery_only = Verifier.get_option(dsl, [:platform], :machinery_only, [])
     self_service = Verifier.get_option(dsl, [:platform], :self_service, [])
     changes_authority = Verifier.get_option(dsl, [:platform], :changes_authority, [])
+    engine_only = Verifier.get_option(dsl, [:platform], :engine_only, [])
 
     problems =
       missing(dsl, :human_only, human_only) ++
         missing(dsl, :machinery_only, machinery_only) ++
         missing(dsl, :changes_authority, changes_authority) ++
+        missing(dsl, :engine_only, engine_only) ++
         both(machinery_only, human_only, "is both human_only and machinery_only") ++
         both(
           machinery_only,
           self_service,
           "is machinery_only and self_service; the grant union, self-service included, " <>
             "does not apply to a machinery action"
-        )
+        ) ++
+        engine_only_conflicts(engine_only, human_only, machinery_only, self_service)
 
     case problems do
       [] ->
@@ -53,6 +59,18 @@ defmodule AshEnterprise.Platform.Verifiers.NarrowedActions do
   defp missing(dsl, option, names) do
     for name <- names, is_nil(Ash.Resource.Info.action(dsl, name)) do
       {option, "#{option} #{inspect(name)}: no such action"}
+    end
+  end
+
+  defp engine_only_conflicts(engine_only, human_only, machinery_only, self_service) do
+    for {other, label} <- [
+          {human_only, "human_only"},
+          {machinery_only, "machinery_only"},
+          {self_service, "self_service"}
+        ],
+        name <- engine_only,
+        name in other do
+      {:engine_only, "engine_only #{inspect(name)} is also #{label}; only the engines run it"}
     end
   end
 

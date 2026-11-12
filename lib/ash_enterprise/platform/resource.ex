@@ -57,6 +57,10 @@ defmodule AshEnterprise.Platform.Resource do
     * `:machinery_only` — actions only the `oban` system actor may run: the
       system-actor bypass reaches them for `oban` alone, and the grant union
       does not apply to them. ADR 0059. Default `[]`.
+    * `:engine_only` — actions only the process and decision engines may run: the
+      engine bypasses reach them, the system-actor bypass does not, and the grant
+      union does not apply to them. For rows other code trusts as the engines'
+      own record. Default `[]`.
     * `:optimistic_lock?` — put `optimistic_lock(:version_number)` on every
       update action, so a write made from a stale copy of a row fails with
       `Ash.Error.Changes.StaleRecord` instead of overwriting the write it did
@@ -113,6 +117,7 @@ defmodule AshEnterprise.Platform.Resource do
     {self_service, opts} = Keyword.pop(opts, :self_service, [])
     {human_only, opts} = Keyword.pop(opts, :human_only, [])
     {machinery_only, opts} = Keyword.pop(opts, :machinery_only, [])
+    {engine_only, opts} = Keyword.pop(opts, :engine_only, [])
     {changes_authority, opts} = Keyword.pop(opts, :changes_authority, [])
     {optimistic_lock?, opts} = Keyword.pop(opts, :optimistic_lock?, true)
     {audit?, opts} = Keyword.pop(opts, :audit?, true)
@@ -195,6 +200,7 @@ defmodule AshEnterprise.Platform.Resource do
         self_service(unquote(self_service))
         human_only(unquote(human_only))
         machinery_only(unquote(machinery_only))
+        engine_only(unquote(engine_only))
         changes_authority(unquote(changes_authority))
         optimistic_lock?(unquote(optimistic_lock?))
         state_machine?(unquote(state_machine?))

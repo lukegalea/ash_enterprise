@@ -120,6 +120,16 @@ defmodule AshEnterpriseWeb.Bpmn.TriggersPublishTest do
     admin: admin,
     draft: draft
   } do
+    # A standing grant covers the published diagrams its publisher sees, so the pack's
+    # process is published first, as the pack's description says.
+    AshEnterprise.Bpmn.Definition
+    |> Ash.Query.filter(key == ^draft.process_key)
+    |> Ash.read_one!(authorize?: false, tenant: admin.tenant)
+    |> AshEnterprise.Bpmn.Definition.publish!(
+      actor: AshEnterprise.Platform.SystemActor.process(),
+      tenant: admin.tenant
+    )
+
     view = triggers(conn, admin.user)
     view |> element("#publish-granted-#{draft.id}") |> render_click()
 

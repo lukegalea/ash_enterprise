@@ -172,6 +172,21 @@ defmodule AshEnterprise.Platform.SystemAttributes do
         `self_service` (`AshEnterprise.Platform.Verifiers.NarrowedActions`).
         """
       ],
+      engine_only: [
+        type: {:list, :atom},
+        default: [],
+        doc: """
+        Actions only the process and decision engines may run: rows the engines
+        write as the record of what they did, which other code then trusts (a
+        recipe's dispatch, an instance's parent). The engine bypasses reach them;
+        the system-actor bypass does not, and the grant union does not apply to
+        them, so no role row lets a person write one.
+
+        Every listed action must exist, and none may also be `human_only`,
+        `machinery_only` or `self_service`
+        (`AshEnterprise.Platform.Verifiers.NarrowedActions`).
+        """
+      ],
       state_machine?: [
         type: :boolean,
         default: true,

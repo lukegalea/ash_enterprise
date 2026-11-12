@@ -225,6 +225,27 @@ defmodule AshEnterprise.Process.StandingGrantTest do
 
   defp message({:error, error}), do: Exception.message(error)
 
+  defp team!(admin, member) do
+    team =
+      AshEnterprise.Accounts.Team
+      |> Ash.Changeset.for_create(
+        :create,
+        %{name: "Ward #{unique()}", owning_business_unit_id: admin.user.owning_business_unit_id},
+        actor: SystemActor.seed(),
+        tenant: admin.tenant
+      )
+      |> Ash.create!()
+
+    AshEnterprise.Accounts.TeamMembership
+    |> Ash.Changeset.for_create(:create, %{team_id: team.id, user_id: member.user.id},
+      actor: SystemActor.seed(),
+      tenant: admin.tenant
+    )
+    |> Ash.create!()
+
+    team
+  end
+
   # The steps an action runs, by module (and the attribute a built-in names).
   defp step_modules(action_name) do
     Subscription
@@ -350,6 +371,17 @@ defmodule AshEnterprise.Process.StandingGrantTest do
         assert message(result) =~ "serviceTask Legacy (#{action}"
         assert Ash.reload!(draft, authorize?: false).status == :draft
       end
+    end
+
+    test "a process that is not published yet is refused: there is no diagram to see", ctx do
+      draft = draft!(ctx.tenant, "nothing-published-#{unique()}")
+
+      assert {:error, _} =
+               result =
+               Subscription.publish_granted(draft, actor: ctx.publisher.actor, tenant: ctx.tenant)
+
+      assert message(result) =~ "a standing grant needs a published process to cover"
+      assert Ash.reload!(draft, authorize?: false).status == :draft
     end
 
     test "a resource with no tenant is refused here too", ctx do
@@ -514,13 +546,13 @@ defmodule AshEnterprise.Process.StandingGrantTest do
       key = process!(ctx.tenant, @check_expiry)
       ctx.tenant |> draft!(key) |> publish_granted!(ctx.publisher)
 
-      # The diagram changes under the published recipe.
+      # The diagram changes under the published recipe: a version its publisher never saw.
       process!(ctx.tenant, String.replace(@legacy, "ACTION", "reject_request"), key)
 
       record_credential!(ctx)
       sweep!(ctx.tenant)
 
-      assert_raise RuntimeError, ~r/\{:no_authority, :not_an_invocation_target\}/, &advance!/0
+      assert_raise RuntimeError, ~r/\{:no_authority, :definition_not_granted\}/, &advance!/0
       assert invocations(ctx.tenant) == []
     end
 
@@ -569,6 +601,15 @@ defmodule AshEnterprise.Process.StandingGrantTest do
 
       assert {subscription.status, subscription.authority, subscription.accountable_person_id} ==
                {:published, :standing_grant, ctx.publisher.user.id}
+
+      # The diagram its publisher saw, and only that one, is what its steps may run in.
+      [definition] =
+        AshEnterprise.Bpmn.Subscription.Validations.StandingGrantSteps.definitions(
+          key,
+          ctx.tenant
+        )
+
+      assert subscription.granted_definition_ids == [definition.id]
 
       grant = grant!(subscription)
       assert {grant.principal_id, grant.principal_type} == {ctx.publisher.user.id, :user}
@@ -627,6 +668,8 @@ defmodule AshEnterprise.Process.StandingGrantTest do
       advance!()
 
       {_dispatch, root} = started!(ctx.tenant)
+      subscription = Ash.reload!(subscription, authorize?: false)
+      assert length(subscription.granted_definition_ids) == 2
 
       assert [child_instance] =
                Instance
@@ -663,6 +706,204 @@ defmodule AshEnterprise.Process.StandingGrantTest do
 
       assert ActionInvoker.invocation_target?("check_licence_expiry")
       refute ActionInvoker.invocation_target?("grant_role")
+    end
+  end
+
+  # The rows a standing grant is decided from are written only by the engine and by
+  # publish_granted. A person whose role reaches a resource's create may still not forge one.
+  describe "the rows a standing grant is decided from cannot be forged" do
+    setup ctx do
+      key = process!(ctx.tenant, @check_expiry)
+      subscription = ctx.tenant |> draft!(key) |> publish_granted!(ctx.publisher)
+      runner_role!(ctx.admin, [{Credential, :read, :global}])
+
+      # An instance of the same process, started by the administrator, with no recipe.
+      definition =
+        Definition
+        |> Ash.Query.filter(key == ^key and status == :published)
+        |> Ash.read_one!(authorize?: false, tenant: ctx.tenant)
+
+      own =
+        AshBpmn.start_instance!(AshEnterprise.Bpmn,
+          definition: definition,
+          subject: ctx.clinic.credential,
+          actor: SystemActor.process(),
+          started_by_id: ctx.admin.user.id,
+          tenant: ctx.tenant
+        )
+
+      %{subscription: subscription, definition: definition, own: own}
+    end
+
+    test "a person may not write a dispatch naming their own instance, nor a system actor", ctx do
+      assert ActionReach.engine_only?(Dispatch, :create)
+
+      for actor <- [ctx.admin.actor, SystemActor.process(), SystemActor.oban()] do
+        assert {:error, %Ash.Error.Forbidden{}} =
+                 Dispatch.create(
+                   %{
+                     subscription_id: ctx.subscription.id,
+                     event_id: Ash.UUID.generate(),
+                     event_sequence: 1,
+                     event_occurred_at: DateTime.utc_now(),
+                     kind: :start,
+                     status: :started,
+                     instance_id: ctx.own.id
+                   },
+                   actor: actor,
+                   tenant: ctx.tenant
+                 )
+      end
+
+      assert RecipeAuthority.check(%{instance: ctx.own, tenant: ctx.tenant}) == :ok
+    end
+
+    test "a person may not start an instance under a recipe's instance", ctx do
+      assert ActionReach.engine_only?(Instance, :create)
+
+      record_credential!(ctx)
+      sweep!(ctx.tenant)
+      {_dispatch, root} = started!(ctx.tenant)
+
+      assert {:error, %Ash.Error.Forbidden{}} =
+               Instance.create(
+                 %{
+                   definition_id: ctx.definition.id,
+                   subject_type: to_string(Credential),
+                   subject_id: ctx.clinic.credential.id,
+                   started_by_id: ctx.admin.user.id,
+                   parent_instance_id: root.id
+                 },
+                 actor: ctx.admin.actor,
+                 tenant: ctx.tenant
+               )
+    end
+
+    test "nobody but publish_granted writes a recipe's start grant", ctx do
+      grant = grant!(ctx.subscription)
+      Ash.destroy!(grant, authorize?: false, tenant: ctx.tenant)
+      team = team!(ctx.admin, ctx.publisher)
+
+      for {principal_id, principal_type, actor} <- [
+            {ctx.publisher.user.id, :user, ctx.admin.actor},
+            {ctx.publisher.user.id, :user, ctx.publisher.actor},
+            {team.id, :team, ctx.admin.actor}
+          ] do
+        assert {:error, _refused} =
+                 AgentStartGrant.grant(
+                   %{
+                     agent_key: Authority.grant_key(ctx.subscription),
+                     principal_id: principal_id,
+                     principal_type: principal_type,
+                     valid_until: nil
+                   },
+                   actor: actor,
+                   tenant: ctx.tenant
+                 )
+      end
+
+      assert [] = Ash.read!(AgentStartGrant, authorize?: false, tenant: ctx.tenant)
+    end
+
+    test "a recipe's start grant held through a team counts for nothing", ctx do
+      grant = grant!(ctx.subscription)
+      Ash.destroy!(grant, authorize?: false, tenant: ctx.tenant)
+      team = team!(ctx.admin, ctx.publisher)
+
+      Ash.Seed.seed!(AgentStartGrant, %{
+        agent_key: Authority.grant_key(ctx.subscription),
+        principal_id: team.id,
+        principal_type: :team,
+        organization_id: ctx.tenant
+      })
+
+      record_credential!(ctx)
+      sweep!(ctx.tenant)
+      {_dispatch, instance} = started!(ctx.tenant)
+
+      assert RecipeAuthority.check(%{instance: instance, tenant: ctx.tenant}) ==
+               {:error, {:no_authority, :no_start_grant}}
+    end
+  end
+
+  # The publisher reviewed the diagrams publish_granted saw. Anything else runs nothing.
+  describe "a standing grant runs only the diagrams its publisher saw" do
+    test "a later version of the process runs nothing", ctx do
+      key = process!(ctx.tenant, @check_expiry)
+      ctx.tenant |> draft!(key) |> publish_granted!(ctx.publisher)
+      runner_role!(ctx.admin, [{Credential, :read, :global}])
+
+      # A new version under the key, naming another declared target.
+      process!(
+        ctx.tenant,
+        String.replace(@check_expiry, "check_licence_expiry", "check_licence_documents"),
+        key
+      )
+
+      record_credential!(ctx)
+      sweep!(ctx.tenant)
+      {_dispatch, instance} = started!(ctx.tenant)
+
+      assert RecipeAuthority.check(%{instance: instance, tenant: ctx.tenant}) ==
+               {:error, {:no_authority, :definition_not_granted}}
+
+      assert_raise RuntimeError, ~r/\{:no_authority, :definition_not_granted\}/, &advance!/0
+      assert invocations(ctx.tenant) == []
+    end
+
+    test "a later version of a call activity's child runs nothing", ctx do
+      child = process!(ctx.tenant, @check_expiry)
+      parent = process!(ctx.tenant, String.replace(@parent, "CHILD_KEY", child))
+      ctx.tenant |> draft!(parent) |> publish_granted!(ctx.publisher)
+      runner_role!(ctx.admin, [{Credential, :read, :global}])
+
+      process!(
+        ctx.tenant,
+        String.replace(@check_expiry, "check_licence_expiry", "check_licence_documents"),
+        child
+      )
+
+      record_credential!(ctx)
+      sweep!(ctx.tenant)
+
+      assert_raise RuntimeError, ~r/\{:no_authority, :definition_not_granted\}/, &advance!/0
+      assert invocations(ctx.tenant) == []
+    end
+
+    test "a decision route is refused: a standing grant starts one named process", ctx do
+      decision = "standing.route.#{unique()}"
+
+      decision
+      |> then(
+        &AshEnterprise.Decisions.Definition.create!(
+          %{key: &1, name: &1, xml: File.read!("priv/dmn/access_request_risk.dmn")},
+          system(ctx.tenant)
+        )
+      )
+      |> AshEnterprise.Decisions.Definition.publish!(system(ctx.tenant))
+
+      draft =
+        Subscription
+        |> Ash.Changeset.for_create(
+          :create,
+          %{
+            key: "standing.decision.#{unique()}",
+            match_resource: "AshEnterprise.Credentialing.Credential",
+            match_action: :record,
+            match_action_type: :create,
+            route_kind: :decision,
+            decision_key: decision
+          },
+          system(ctx.tenant)
+        )
+        |> Ash.create!()
+
+      assert {:error, _} =
+               result =
+               Subscription.publish_granted(draft, actor: ctx.publisher.actor, tenant: ctx.tenant)
+
+      assert message(result) =~ "a standing grant starts one named process"
+      assert Ash.reload!(draft, authorize?: false).status == :draft
     end
   end
 

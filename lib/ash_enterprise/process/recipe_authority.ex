@@ -18,6 +18,7 @@ defmodule AshEnterprise.Process.RecipeAuthority do
   | a `:causing_person` recipe on any other key | runs nothing: `{:no_authority, :causing_person_not_allowed}` |
   | a `:standing_grant` recipe whose publisher is an active member holding the version's grant | runs as the `recipe_runner` acting for the publisher: `{:ok, %{authority: :standing_grant, ...}}` |
   | a `:standing_grant` recipe whose publisher has left, is inactive or no longer holds the grant | runs nothing: `{:no_authority, reason}`, the reason `AshEnterprise.Execution.Identity` gives |
+  | a `:standing_grant` recipe, in an instance whose definition (or an ancestor's) its publisher did not see | runs nothing: `{:no_authority, :definition_not_granted}` |
   | a recipe whose subscription cannot be read | runs nothing: `{:no_authority, :no_subscription}` |
 
   A call activity's child has no dispatch of its own, so the instance tree is walked up to
@@ -33,6 +34,19 @@ defmodule AshEnterprise.Process.RecipeAuthority do
   deactivated or departed publisher, or a grant revoked or past its `valid_until`, stops the
   step before it runs. The tenant is the instance's, never the job's arguments: a mismatch
   runs nothing.
+
+  The grant covers the diagrams its publisher saw and no others: the step's instance and
+  every ancestor up to the root must run a definition in the version's
+  `granted_definition_ids`, stamped by `publish_granted`. A later version under the key, or
+  a call activity's child published since, runs nothing until a person publishes the recipe
+  again.
+
+  ## Rows only the engine writes
+
+  The dispatch and the instance tree this reads are `engine_only` to create
+  (`AshEnterprise.Bpmn.Dispatch`, `AshEnterprise.Bpmn.Instance`): no role grant and no system
+  actor writes one, so a person cannot attach a publisher's recipe to an instance they
+  started, or start an instance under a recipe's.
 
   ## Claim logic, not a policy check
 
@@ -86,9 +100,10 @@ defmodule AshEnterprise.Process.RecipeAuthority do
         # The instance knows its tenant; the job's arguments only say where to look.
         tenant = instance_tenant(instance) || EngineContext.tenant(ctx)
 
-        with {:ok, root} <- root(instance, tenant, 0),
+        with {:ok, chain} <- chain(instance, tenant, 0, []),
+             root = List.last(chain),
              {:ok, recipe} <- recipe(root, tenant) do
-          decide(recipe, root, ctx)
+          decide(recipe, root, Map.put(ctx, :chain, chain))
         end
 
       _no_instance ->
@@ -178,18 +193,29 @@ defmodule AshEnterprise.Process.RecipeAuthority do
         |> Identity.recipe_requester(Authority.grant_key(subscription), tenant)
         |> case do
           {:ok, requester} ->
-            {:ok,
-             %{
-               authority: :standing_grant,
-               requester: requester,
-               tenant: tenant,
-               subscription_id: subscription.id,
-               dispatch_id: dispatch.id
-             }}
+            granted(subscription, dispatch, root, ctx, requester, tenant)
 
           {:error, reason} ->
             refuse(reason, subscription, root)
         end
+    end
+  end
+
+  # Every instance from the step's up to the root runs a definition the publisher saw.
+  defp granted(subscription, dispatch, root, ctx, requester, tenant) do
+    granted_ids = subscription.granted_definition_ids || []
+
+    if Enum.all?(Map.get(ctx, :chain, [root]), &(&1.definition_id in granted_ids)) do
+      {:ok,
+       %{
+         authority: :standing_grant,
+         requester: requester,
+         tenant: tenant,
+         subscription_id: subscription.id,
+         dispatch_id: dispatch.id
+       }}
+    else
+      refuse(:definition_not_granted, subscription, root)
     end
   end
 
@@ -202,22 +228,28 @@ defmodule AshEnterprise.Process.RecipeAuthority do
     {:error, {:no_authority, reason}}
   end
 
-  defp root(_instance, _tenant, depth) when depth > @max_depth,
+  defp root(instance, tenant, depth) do
+    with {:ok, chain} <- chain(instance, tenant, depth, []), do: {:ok, List.last(chain)}
+  end
+
+  # The instance and its ancestors, the instance first and the root last.
+  defp chain(_instance, _tenant, depth, _acc) when depth > @max_depth,
     do: {:error, {:no_authority, :tree_too_deep}}
 
-  defp root(%{parent_instance_id: parent_id}, tenant, depth) when is_binary(parent_id) do
+  defp chain(%{parent_instance_id: parent_id} = instance, tenant, depth, acc)
+       when is_binary(parent_id) do
     case read_instance(parent_id, tenant) do
-      {:ok, %Instance{} = parent} -> root(parent, tenant, depth + 1)
+      {:ok, %Instance{} = parent} -> chain(parent, tenant, depth + 1, [instance | acc])
       _missing -> {:error, {:no_authority, :no_subscription}}
     end
   end
 
-  defp root(instance, _tenant, _depth), do: {:ok, instance}
+  defp chain(instance, _tenant, _depth, acc), do: {:ok, Enum.reverse([instance | acc])}
 
   defp read_instance(id, tenant) do
     Instance
     |> Ash.Query.filter(id == ^id)
-    |> Ash.Query.select([:id, :parent_instance_id, :organization_id])
+    |> Ash.Query.select([:id, :parent_instance_id, :organization_id, :definition_id])
     |> Ash.read_one(authorize?: false, tenant: tenant)
   end
 

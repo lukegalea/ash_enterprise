@@ -21,6 +21,10 @@ defmodule AshEnterprise.Bpmn.Instance do
       lifecycle?: false,
       audit?: true,
       archival?: false,
+      # Only the engine starts a run. `AshEnterprise.Process.RecipeAuthority` walks
+      # `parent_instance_id` to find the recipe a run answers to, so a run a person could
+      # create under a recipe's run would borrow its standing grant (ADR 0069).
+      engine_only: [:create],
       # Someone asked to decide one of the run's steps may read the run — its
       # flight view — without a role grant (ActorContext `task_instance_ids`).
       extra_grants: [{AshEnterprise.Security.Checks.TaskInstance, field: :id}]

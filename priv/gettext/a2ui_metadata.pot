@@ -242,6 +242,10 @@ msgid "Ash events replay create update"
 msgstr ""
 
 #: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Ash events replay grant recipe update"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Ash events replay grant update"
 msgstr ""
 
@@ -1267,6 +1271,10 @@ msgstr ""
 #: lib/ash_enterprise_web/a2ui/judgments/facts_ui.ex:1
 msgctxt "one_of:admission_grade"
 msgid "Grant"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Grant recipe"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/operator_ui.ex:1

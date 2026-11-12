@@ -12,6 +12,10 @@ defmodule AshEnterprise.Security.Checks.GrantReach do
   `oban` by `AshEnterprise.Security.Checks.SystemActorReach`. Every other
   action's union is untouched.
 
+  An `engine_only` action (ADR 0069) is the same statement made for the engines: the
+  rows they write as the record of what they did, which other code trusts. The union
+  does not apply, and the only policies that can authorize one are the engine bypasses.
+
   Nor does the union apply to an automation principal (ADR 0043) on an action the
   resource declares `human_only` or `changes_authority`: the first is a person's own,
   and a principal acting for a person is not that person; the second changes who may
@@ -30,7 +34,8 @@ defmodule AshEnterprise.Security.Checks.GrantReach do
   @impl true
   def describe(_opts),
     do:
-      "action is not machinery_only, nor human_only or changes_authority for an automation principal"
+      "action is neither machinery_only nor engine_only, nor human_only or changes_authority " <>
+        "for an automation principal"
 
   @impl true
   def match?(%AutomationPrincipal{}, %{resource: resource, action: action}, _opts),

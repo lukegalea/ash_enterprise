@@ -27,6 +27,14 @@ defmodule AshEnterprise.Bpmn.Dispatch do
   `AshBpmn.Resources.Signal`, so a cycle is *bounded* rather than merely
   improbable.
 
+  ## Written by the engine alone
+
+  `create` is `engine_only` (ADR 0069): the trigger sweep writes it, as an engine-marked
+  call, and no role grant and no system actor reaches it. The row is what
+  `AshEnterprise.Process.RecipeAuthority` decides a standing grant from, so a dispatch a
+  person could write naming their own instance would run that instance's steps as a
+  publisher's recipe runner.
+
   ## The cause, which is never authority
 
   `caused_by_id` names the person whose write caused the event, copied from the started
@@ -50,7 +58,10 @@ defmodule AshEnterprise.Bpmn.Dispatch do
       lifecycle?: false,
       # Refused, not merely declined: see the moduledoc.
       audit?: false,
-      archival?: false
+      archival?: false,
+      # The sweep's own record, and the row a standing grant is decided from: only the
+      # engine writes one. See "Written by the engine alone" in the moduledoc.
+      engine_only: [:create]
     ]
 
   attributes do

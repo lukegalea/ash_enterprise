@@ -80,6 +80,16 @@ defmodule AshEnterprise.Bpmn.Subscription do
       description "The person who published this version with :standing_grant. Its steps " <>
                     "run within what they may do, and stop when they no longer may."
     end
+
+    # Stamped by `publish_granted` from what it validated, never from input: the
+    # definitions a `:standing_grant` version's steps may run in.
+    attribute :granted_definition_ids, {:array, :uuid} do
+      public? true
+
+      description "The process definitions this :standing_grant version's publisher saw: " <>
+                    "its process and every call activity's child, as published then. A " <>
+                    "step of any other definition runs nothing."
+    end
   end
 
   actions do
@@ -103,7 +113,8 @@ defmodule AshEnterprise.Bpmn.Subscription do
     # no option for extra actions; `standing_grant_test.exs` fails if a step
     # `publish` carries is missing here. Then: the authority is `:standing_grant` and nothing
     # else, the steps the diagram names must be ones that can run as the intersection, the
-    # actor is stamped as the accountable person, and their start grant for this version
+    # actor is stamped as the accountable person, the definitions validated are stamped as
+    # the only ones its steps may run in, and their start grant for this version
     # (`recipe:<key>:<version>`) is written in the same transaction, so a later version
     # never inherits it.
     update :publish_granted do
@@ -129,6 +140,7 @@ defmodule AshEnterprise.Bpmn.Subscription do
       # Hooks, so they run after authorization: an actor the policy refuses is Forbidden,
       # not an input error.
       change {AshEnterprise.Bpmn.Subscription.Changes.StampAccountablePerson, []}
+      change {AshEnterprise.Bpmn.Subscription.Changes.StampGrantedDefinitions, []}
       change {AshEnterprise.Bpmn.Subscription.Changes.WriteStartGrant, []}
 
       change set_attribute(:status, :published)

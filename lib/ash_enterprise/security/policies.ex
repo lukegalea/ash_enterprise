@@ -73,9 +73,11 @@ defmodule AshEnterprise.Security.Policies do
   action is reached by no bypass, so only the calling person's own grants can
   authorize it; a machinery-only action is reached by the system-actor bypass
   for the `oban` system actor alone, and the union's condition (`GrantReach`)
-  does not match it, so no grant row reaches it either. Neither is a
+  does not match it, so no grant row reaches it either. An `engine_only` action
+  (ADR 0069) is reached by the engine bypasses alone: no system actor and no
+  grant row. None of these is a
   `forbid_if`: each narrows how far an existing path reaches, and an action
-  declaring neither is authorized exactly as before.
+  declaring none of them is authorized exactly as before.
 
   ## Hierarchy security is off by default
 

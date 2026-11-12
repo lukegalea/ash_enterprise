@@ -160,8 +160,10 @@ whose data.
 process engine's, the decision engine's and the system actor's. A resource may declare actions `human_only`, which no
 bypass reaches, so only the calling person's own grants authorize them. It may also declare actions `machinery_only`,
 which the system-actor bypass reaches for the `oban` job runner alone and the union does not apply to, so no grant row
-reaches them. Neither is a `forbid_if`: each limits how far an existing path reaches, a person's grants are what they
-were, and an action that declares neither is authorized as before.
+reaches them. A third declaration, `engine_only` ([ADR 0069](../adr/0069-a-recipe-runs-on-an-authority-chosen-per-version.md)),
+keeps an action for the engines alone: the rows they write as their own record. None is a `forbid_if`: each limits how
+far an existing path reaches, a person's grants are what they were, and an action that declares none of them is
+authorized as before.
 
 ## Further reading
 

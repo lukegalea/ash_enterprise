@@ -36,11 +36,20 @@ defmodule AshEnterprise.Bpmn.Subscription.Authority do
   it never inherits an earlier version's grant; a version whose publisher has left, or whose
   grant has lapsed or been revoked, runs nothing until a person publishes it again.
 
+  Nobody else writes that grant: `AgentStartGrant`'s `grant` refuses a `recipe:` key, so an
+  administrator cannot revive, extend or share one, and only the publisher's own row counts,
+  never one held through a team. Nor does the grant reach a diagram the publisher did not
+  see: `publish_granted` stamps the definitions it validated (`granted_definition_ids`), and
+  a step of any other definition, a later version under the key or a call activity's child
+  included, runs nothing. A standing grant names its process: a decision route is refused.
+
       config :ash_enterprise, AshEnterprise.Bpmn.Subscription,
         standing_grant_review_days: 365
   """
 
   @values [:human_tasks_only, :causing_person, :standing_grant]
+
+  @grant_prefix "recipe:"
 
   # The node types that do work rather than wait for a person. A call activity is here
   # because what it calls is another diagram, which this check cannot see at publish.
@@ -59,7 +68,15 @@ defmodule AshEnterprise.Bpmn.Subscription.Authority do
   `recipe:<key>:<version>`.
   """
   @spec grant_key(map()) :: String.t()
-  def grant_key(%{key: key, version: version}), do: "recipe:#{key}:#{version}"
+  def grant_key(%{key: key, version: version}), do: @grant_prefix <> "#{key}:#{version}"
+
+  @doc """
+  Whether `agent_key` names a recipe version's start grant. Only `publish_granted` writes
+  one (`AshEnterprise.Security.Validations.NotARecipeGrant`).
+  """
+  @spec grant_key?(String.t()) :: boolean()
+  def grant_key?(agent_key) when is_binary(agent_key),
+    do: String.starts_with?(agent_key, @grant_prefix)
 
   @doc "How many days a standing grant lasts before its publisher must publish it again."
   @spec grant_review_days() :: pos_integer()
