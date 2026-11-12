@@ -1,0 +1,75 @@
+{
+  "name": "slow-db-queries",
+  "schemaVersion": "v2",
+  "source": "traces",
+  "spec": {
+    "displayName": "Slow DB queries",
+    "panelType": "list",
+    "requestType": "raw",
+    "queries": [
+      {
+        "type": "builder_query",
+        "spec": {
+          "name": "A",
+          "signal": "traces",
+          "filter": {
+            "expression": "db.system EXISTS AND duration_nano > 100000000"
+          },
+          "limit": 100,
+          "order": [
+            {
+              "key": {
+                "name": "duration_nano"
+              },
+              "direction": "desc"
+            }
+          ]
+        }
+      }
+    ],
+    "selectedFields": [
+      {
+        "name": "service.name",
+        "fieldContext": "resource",
+        "fieldDataType": "string",
+        "signal": "traces"
+      },
+      {
+        "name": "source",
+        "fieldContext": "attribute",
+        "fieldDataType": "string",
+        "signal": "traces"
+      },
+      {
+        "name": "duration_nano",
+        "fieldContext": "span",
+        "fieldDataType": "float64",
+        "signal": "traces"
+      },
+      {
+        "name": "db.statement",
+        "fieldContext": "attribute",
+        "fieldDataType": "string",
+        "signal": "traces"
+      },
+      {
+        "name": "enduser.id",
+        "fieldContext": "attribute",
+        "fieldDataType": "string",
+        "signal": "traces"
+      },
+      {
+        "name": "enduser.name",
+        "fieldContext": "attribute",
+        "fieldDataType": "string",
+        "signal": "traces"
+      },
+      {
+        "name": "app.tenant.name",
+        "fieldContext": "attribute",
+        "fieldDataType": "string",
+        "signal": "traces"
+      }
+    ]
+  }
+}

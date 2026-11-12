@@ -1,6 +1,7 @@
 defmodule AshEnterprise.Telemetry.TaskContext do
   @moduledoc """
-  Carries the trace context and correlation id into a `Task` or any spawned process.
+  Carries the trace context, correlation id and acting user into a `Task` or any spawned
+  process.
 
   Neither crosses a process boundary by itself, so work handed to a `Task` loses its
   place in the trace and its correlation:
@@ -13,29 +14,37 @@ defmodule AshEnterprise.Telemetry.TaskContext do
       Task.Supervisor.async_nolink(sup, TaskContext.bind(fn -> do_work() end))
   """
 
+  alias AshEnterprise.Telemetry.Actor
   alias AshEnterprise.Telemetry.Settings
   alias OpenTelemetry.Ctx
 
   @enforce_keys [:ctx, :correlation]
-  defstruct [:ctx, :correlation]
+  defstruct [:ctx, :correlation, actor: %{}]
 
-  @type t :: %__MODULE__{ctx: term(), correlation: String.t() | nil}
+  @type t :: %__MODULE__{ctx: term(), correlation: String.t() | nil, actor: map()}
 
   @doc "Captures the current trace context and correlation id."
   @spec capture() :: t()
   def capture do
-    %__MODULE__{ctx: Ctx.get_current(), correlation: Settings.correlation().current()}
+    %__MODULE__{
+      ctx: Ctx.get_current(),
+      correlation: Settings.correlation().current(),
+      actor: Actor.current()
+    }
   end
 
   @doc "Runs `fun` under `captured`, then restores the previous context."
   @spec run(t(), (-> result)) :: result when result: var
   def run(%__MODULE__{} = captured, fun) when is_function(fun, 0) do
     token = Ctx.attach(captured.ctx)
+    previous_actor = Actor.current()
+    if map_size(captured.actor) > 0, do: Actor.restore(captured.actor)
 
     try do
       with_correlation(captured.correlation, fun)
     after
       Ctx.detach(token)
+      Actor.restore(previous_actor)
     end
   end
 

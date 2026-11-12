@@ -108,6 +108,29 @@ let
     name = "observability-config";
   };
 
+  # SigNoz's own dashboard templates (Apache-2.0), pinned. The host metrics and the
+  # trace-based HTTP and database dashboards always; the APM one reads span metrics,
+  # so only with them on. Provisioned beside this package's own (observability/provision).
+  signozDashboardsSrc = pkgs.fetchFromGitHub {
+    owner = "SigNoz";
+    repo = "dashboards";
+    rev = "7d43df2673039ba200e94eb87adcca5674434f0d";
+    sha256 = "176dvckp97iy0zq0qysfqvy0775nn7ck0yxp8a29n2kp03nqdbbd";
+  };
+
+  signozTemplates = pkgs.runCommand "observability-signoz-templates" { } ''
+    mkdir -p "$out/dashboards"
+    cp ${signozDashboardsSrc}/LICENSE "$out/LICENSE"
+    cp ${signozDashboardsSrc}/hostmetrics/hostmetrics.json "$out/dashboards/signoz-host-metrics.json"
+    cp ${signozDashboardsSrc}/apm/http-api-monitoring.json "$out/dashboards/signoz-http-api-monitoring.json"
+    cp ${signozDashboardsSrc}/apm/db-calls-monitoring.json "$out/dashboards/signoz-db-calls-monitoring.json"
+    ${lib.optionalString cfg.spanMetrics ''cp ${signozDashboardsSrc}/apm/apm-metrics.json "$out/dashboards/signoz-apm-metrics.json"''}
+  '';
+
+  provisionDirs = lib.concatStringsSep ":" (
+    [ "${configDir}/provision" "${signozTemplates}" ] ++ map (dir: "${dir}") cfg.provision
+  );
+
   # The one place the span-metrics choice lives. Off: no processor, no RED metric
   # series, and SigNoz's Services page reads the trace tables. On: the processor
   # writes signoz_calls_total/signoz_latency and SigNoz reads those.
@@ -168,6 +191,7 @@ let
       OBS_ROOT_EMAIL = cfg.rootEmail;
       OBS_GLITCHTIP_SLUG = cfg.organization;
       OBS_SPAN_METRICS = lib.boolToString cfg.spanMetrics;
+      OBS_PROVISION_DIRS = provisionDirs;
       OBS_APP_ENV = appEnvLines;
       OBS_BUDGET_CLICKHOUSE = toString cfg.budgetMb.clickhouse;
       OBS_BUDGET_COLLECTOR = toString cfg.budgetMb.collector;
@@ -217,6 +241,16 @@ in
       type = lib.types.str;
       default = "dev";
       description = "Organization name in SigNoz and GlitchTip.";
+    };
+    provision = lib.mkOption {
+      type = lib.types.listOf lib.types.path;
+      default = [ ];
+      description = ''
+        The host's own SigNoz content, provisioned on every `up` after this package's:
+        directories holding `dashboards/`, `alerts/` and `views/` of JSON files, in the
+        shapes SigNoz's v2 API takes. See devenv/observability/README.md.
+      '';
+      example = lib.literalExpression "[ ./observability ]";
     };
     appEnv = lib.mkOption {
       type = lib.types.attrsOf lib.types.str;

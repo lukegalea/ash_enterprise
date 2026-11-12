@@ -1,0 +1,508 @@
+{
+  "name": "ash-enterprise-ash-ecto",
+  "schemaVersion": "v6",
+  "tags": [
+    {
+      "key": "stack",
+      "value": "ash"
+    }
+  ],
+  "spec": {
+    "display": {
+      "name": "Ash & Ecto",
+      "description": "Ash actions (latency by resource and action, rate by domain, failures) and Ecto queries (time by table, pool queue time, slowest statements)."
+    },
+    "duration": "1h",
+    "links": [],
+    "variables": [
+      {
+        "kind": "ListVariable",
+        "spec": {
+          "name": "service",
+          "display": {
+            "name": "Service"
+          },
+          "allowAllValue": true,
+          "allowMultiple": true,
+          "sort": "alphabetical-asc",
+          "plugin": {
+            "kind": "signoz/DynamicVariable",
+            "spec": {
+              "name": "service.name",
+              "signal": "traces"
+            }
+          }
+        }
+      }
+    ],
+    "panels": {
+      "ash-p95": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Ash action p95 by resource and action",
+            "description": "ash.action.duration (metric)."
+          },
+          "links": [],
+          "plugin": {
+            "kind": "signoz/TimeSeriesPanel",
+            "spec": {
+              "legend": {
+                "position": "bottom"
+              },
+              "formatting": {
+                "unit": "ms",
+                "decimalPrecision": "2"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "time_series",
+              "spec": {
+                "name": "A",
+                "plugin": {
+                  "kind": "signoz/BuilderQuery",
+                  "spec": {
+                    "name": "A",
+                    "signal": "metrics",
+                    "aggregations": [
+                      {
+                        "metricName": "ash.action.duration.bucket",
+                        "spaceAggregation": "p95",
+                        "timeAggregation": ""
+                      }
+                    ],
+                    "filter": {
+                      "expression": "service.name IN $service"
+                    },
+                    "groupBy": [
+                      {
+                        "name": "resource",
+                        "fieldContext": "attribute",
+                        "fieldDataType": "string"
+                      },
+                      {
+                        "name": "action",
+                        "fieldContext": "attribute",
+                        "fieldDataType": "string"
+                      }
+                    ],
+                    "legend": "{{resource}}.{{action}}"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "ash-domain": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Ash actions per second by domain",
+            "description": "Ash action spans, by ash.domain."
+          },
+          "links": [],
+          "plugin": {
+            "kind": "signoz/TimeSeriesPanel",
+            "spec": {
+              "legend": {
+                "position": "bottom"
+              },
+              "formatting": {
+                "unit": "reqps",
+                "decimalPrecision": "2"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "time_series",
+              "spec": {
+                "name": "A",
+                "plugin": {
+                  "kind": "signoz/BuilderQuery",
+                  "spec": {
+                    "name": "A",
+                    "signal": "traces",
+                    "aggregations": [
+                      {
+                        "expression": "rate()"
+                      }
+                    ],
+                    "filter": {
+                      "expression": "service.name IN $service AND ash.domain EXISTS"
+                    },
+                    "groupBy": [
+                      {
+                        "name": "ash.domain",
+                        "fieldContext": "attribute",
+                        "fieldDataType": "string"
+                      }
+                    ],
+                    "legend": "{{ash.domain}}"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "ash-errors": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Failing Ash actions",
+            "description": "Ash spans with an error status, by resource and action."
+          },
+          "links": [],
+          "plugin": {
+            "kind": "signoz/TablePanel",
+            "spec": {}
+          },
+          "queries": [
+            {
+              "kind": "scalar",
+              "spec": {
+                "name": "A",
+                "plugin": {
+                  "kind": "signoz/BuilderQuery",
+                  "spec": {
+                    "name": "A",
+                    "signal": "traces",
+                    "aggregations": [
+                      {
+                        "expression": "count()",
+                        "alias": "failures"
+                      }
+                    ],
+                    "filter": {
+                      "expression": "service.name IN $service AND ash.resource EXISTS AND has_error = true"
+                    },
+                    "groupBy": [
+                      {
+                        "name": "ash.resource",
+                        "fieldContext": "attribute",
+                        "fieldDataType": "string"
+                      },
+                      {
+                        "name": "ash.action",
+                        "fieldContext": "attribute",
+                        "fieldDataType": "string"
+                      }
+                    ],
+                    "legend": "",
+                    "order": [
+                      {
+                        "key": {
+                          "name": "failures"
+                        },
+                        "direction": "desc"
+                      }
+                    ],
+                    "limit": 20
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "ecto-p95": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Query time p95 by table",
+            "description": "ecto.query.total_time (metric), by source."
+          },
+          "links": [],
+          "plugin": {
+            "kind": "signoz/TimeSeriesPanel",
+            "spec": {
+              "legend": {
+                "position": "bottom"
+              },
+              "formatting": {
+                "unit": "ms",
+                "decimalPrecision": "2"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "time_series",
+              "spec": {
+                "name": "A",
+                "plugin": {
+                  "kind": "signoz/BuilderQuery",
+                  "spec": {
+                    "name": "A",
+                    "signal": "metrics",
+                    "aggregations": [
+                      {
+                        "metricName": "ecto.query.total_time.bucket",
+                        "spaceAggregation": "p95",
+                        "timeAggregation": ""
+                      }
+                    ],
+                    "filter": {
+                      "expression": "service.name IN $service"
+                    },
+                    "groupBy": [
+                      {
+                        "name": "source",
+                        "fieldContext": "attribute",
+                        "fieldDataType": "string"
+                      }
+                    ],
+                    "legend": "{{source}}"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "ecto-queue": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Connection queue time p95",
+            "description": "ecto.query.queue_time (metric): waiting for a pool connection."
+          },
+          "links": [],
+          "plugin": {
+            "kind": "signoz/TimeSeriesPanel",
+            "spec": {
+              "legend": {
+                "position": "bottom"
+              },
+              "formatting": {
+                "unit": "ms",
+                "decimalPrecision": "2"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "time_series",
+              "spec": {
+                "name": "A",
+                "plugin": {
+                  "kind": "signoz/BuilderQuery",
+                  "spec": {
+                    "name": "A",
+                    "signal": "metrics",
+                    "aggregations": [
+                      {
+                        "metricName": "ecto.query.queue_time.bucket",
+                        "spaceAggregation": "p95",
+                        "timeAggregation": ""
+                      }
+                    ],
+                    "filter": {
+                      "expression": "service.name IN $service"
+                    },
+                    "groupBy": [
+                      {
+                        "name": "repo",
+                        "fieldContext": "attribute",
+                        "fieldDataType": "string"
+                      }
+                    ],
+                    "legend": "{{repo}}"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "db-rate": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Queries per second by table",
+            "description": "Database client spans, by source."
+          },
+          "links": [],
+          "plugin": {
+            "kind": "signoz/TimeSeriesPanel",
+            "spec": {
+              "legend": {
+                "position": "bottom"
+              },
+              "formatting": {
+                "unit": "reqps",
+                "decimalPrecision": "2"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "time_series",
+              "spec": {
+                "name": "A",
+                "plugin": {
+                  "kind": "signoz/BuilderQuery",
+                  "spec": {
+                    "name": "A",
+                    "signal": "traces",
+                    "aggregations": [
+                      {
+                        "expression": "rate()"
+                      }
+                    ],
+                    "filter": {
+                      "expression": "service.name IN $service AND db.system EXISTS"
+                    },
+                    "groupBy": [
+                      {
+                        "name": "source",
+                        "fieldContext": "attribute",
+                        "fieldDataType": "string"
+                      }
+                    ],
+                    "legend": "{{source}}"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "slow-queries": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Slowest statements",
+            "description": "Database spans by statement, slowest p95 first."
+          },
+          "links": [],
+          "plugin": {
+            "kind": "signoz/TablePanel",
+            "spec": {}
+          },
+          "queries": [
+            {
+              "kind": "scalar",
+              "spec": {
+                "name": "A",
+                "plugin": {
+                  "kind": "signoz/BuilderQuery",
+                  "spec": {
+                    "name": "A",
+                    "signal": "traces",
+                    "aggregations": [
+                      {
+                        "expression": "p95(duration_nano)",
+                        "alias": "p95"
+                      },
+                      {
+                        "expression": "count()",
+                        "alias": "calls"
+                      }
+                    ],
+                    "filter": {
+                      "expression": "service.name IN $service AND db.system EXISTS"
+                    },
+                    "groupBy": [
+                      {
+                        "name": "db.statement",
+                        "fieldContext": "attribute",
+                        "fieldDataType": "string"
+                      }
+                    ],
+                    "legend": "",
+                    "order": [
+                      {
+                        "key": {
+                          "name": "p95"
+                        },
+                        "direction": "desc"
+                      }
+                    ],
+                    "limit": 20
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "layouts": [
+      {
+        "kind": "Grid",
+        "spec": {
+          "items": [
+            {
+              "x": 0,
+              "y": 0,
+              "width": 6,
+              "height": 6,
+              "content": {
+                "$ref": "#/spec/panels/ash-p95"
+              }
+            },
+            {
+              "x": 6,
+              "y": 0,
+              "width": 6,
+              "height": 6,
+              "content": {
+                "$ref": "#/spec/panels/ash-domain"
+              }
+            },
+            {
+              "x": 0,
+              "y": 6,
+              "width": 6,
+              "height": 6,
+              "content": {
+                "$ref": "#/spec/panels/ash-errors"
+              }
+            },
+            {
+              "x": 6,
+              "y": 6,
+              "width": 6,
+              "height": 6,
+              "content": {
+                "$ref": "#/spec/panels/ecto-p95"
+              }
+            },
+            {
+              "x": 0,
+              "y": 12,
+              "width": 6,
+              "height": 6,
+              "content": {
+                "$ref": "#/spec/panels/ecto-queue"
+              }
+            },
+            {
+              "x": 6,
+              "y": 12,
+              "width": 6,
+              "height": 6,
+              "content": {
+                "$ref": "#/spec/panels/db-rate"
+              }
+            },
+            {
+              "x": 0,
+              "y": 18,
+              "width": 12,
+              "height": 6,
+              "content": {
+                "$ref": "#/spec/panels/slow-queries"
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

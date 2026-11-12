@@ -83,7 +83,8 @@ defmodule AshEnterprise.Telemetry do
 
   `OpentelemetryBandit`, `OpentelemetryPhoenix` (LiveView on), `OpentelemetryOban`
   (consumer spans linked to their producer), `OpentelemetryEcto` per repo, the Oban
-  correlation handlers, the logger filter, and the crash handler.
+  correlation handlers, the logger filter, the crash handler, and the `Req` plugin that
+  traces every outbound request (`AshEnterprise.Telemetry.Req`).
 
   See `AshEnterprise.Telemetry.Attributes` for the attribute names, a documented
   contract. See `AshEnterprise.Telemetry.ObanEngine`, `OtlpIngest`, `BrowserContext`,
@@ -187,6 +188,14 @@ defmodule AshEnterprise.Telemetry do
               type: :boolean,
               default: false,
               doc: "Add `Sentry.LoggerHandler`. See `SentryWiring` for the config it expects."
+            ],
+            req: [
+              type: :boolean,
+              default: true,
+              doc: """
+              Trace every `Req` request (a CLIENT span and `traceparent`) through Req's default
+              plugins. See `AshEnterprise.Telemetry.Req`.
+              """
             ]
           )
 
@@ -316,6 +325,9 @@ defmodule AshEnterprise.Telemetry do
     if opts[:oban] do
       :ok = OpentelemetryOban.setup(job: [span_relationship: :link], plugin: :disabled)
       :ok = ObanContext.attach_job_span(:link)
+      # Sentry's Oban reporter attached when Sentry started; it must run after the job
+      # span handlers so its report joins the job's span.
+      :ok = SentryWiring.order_handlers()
     end
 
     # After the libraries: attribute handlers need the span to exist, and detach
@@ -337,6 +349,7 @@ defmodule AshEnterprise.Telemetry do
     end
 
     if opts[:sentry], do: SentryWiring.add_logger_handler()
+    if opts[:req], do: :ok = AshEnterprise.Telemetry.Req.install()
 
     :ok
   end

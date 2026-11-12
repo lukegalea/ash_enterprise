@@ -1,0 +1,81 @@
+{
+  "alert": "Oban cron worker has not succeeded for 2 hours",
+  "alertType": "METRIC_BASED_ALERT",
+  "description": "A cron worker's last success is more than two hours old: it is failing, or no longer scheduled.",
+  "annotations": {
+    "summary": "{{$worker}} last succeeded {{$value}}s ago",
+    "description": "A cron worker's last success is more than two hours old: it is failing, or no longer scheduled."
+  },
+  "condition": {
+    "compositeQuery": {
+      "queryType": "builder",
+      "panelType": "graph",
+      "queries": [
+        {
+          "type": "builder_query",
+          "spec": {
+            "name": "A",
+            "signal": "metrics",
+            "aggregations": [
+              {
+                "metricName": "oban.cron.last_success_age",
+                "spaceAggregation": "max",
+                "timeAggregation": "latest"
+              }
+            ],
+            "filter": {
+              "expression": ""
+            },
+            "groupBy": [
+              {
+                "name": "worker",
+                "fieldContext": "attribute",
+                "fieldDataType": "string"
+              }
+            ],
+            "legend": "",
+            "stepInterval": 60
+          }
+        }
+      ],
+      "unit": "s"
+    },
+    "selectedQueryName": "A",
+    "thresholds": {
+      "kind": "basic",
+      "spec": [
+        {
+          "name": "warning",
+          "op": "above",
+          "target": 7200,
+          "matchType": "all_the_times",
+          "channels": []
+        }
+      ]
+    }
+  },
+  "evaluation": {
+    "kind": "rolling",
+    "spec": {
+      "evalWindow": "15m",
+      "frequency": "1m"
+    }
+  },
+  "labels": {
+    "severity": "warning",
+    "provisioned": "observability"
+  },
+  "notificationSettings": {
+    "usePolicy": true,
+    "renotify": {
+      "enabled": false,
+      "interval": "30m",
+      "alertStates": [
+        "firing"
+      ]
+    }
+  },
+  "ruleType": "threshold_rule",
+  "schemaVersion": "v2alpha1",
+  "version": "v5"
+}

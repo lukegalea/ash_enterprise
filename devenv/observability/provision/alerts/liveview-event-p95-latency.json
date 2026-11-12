@@ -1,0 +1,80 @@
+{
+  "alert": "LiveView event p95 latency above 1s",
+  "alertType": "TRACES_BASED_ALERT",
+  "description": "The 95th percentile of LiveView handle_event duration is above one second over five minutes.",
+  "annotations": {
+    "summary": "{{$service.name}}: LiveView event p95 {{$value}}",
+    "description": "The 95th percentile of LiveView handle_event duration is above one second over five minutes."
+  },
+  "condition": {
+    "compositeQuery": {
+      "queryType": "builder",
+      "panelType": "graph",
+      "queries": [
+        {
+          "type": "builder_query",
+          "spec": {
+            "name": "A",
+            "signal": "traces",
+            "aggregations": [
+              {
+                "expression": "p95(duration_nano)"
+              }
+            ],
+            "filter": {
+              "expression": "name CONTAINS '.handle_event#'"
+            },
+            "groupBy": [
+              {
+                "name": "service.name",
+                "fieldContext": "resource",
+                "fieldDataType": "string"
+              }
+            ],
+            "legend": "",
+            "stepInterval": 60
+          }
+        }
+      ],
+      "unit": "ns"
+    },
+    "selectedQueryName": "A",
+    "thresholds": {
+      "kind": "basic",
+      "spec": [
+        {
+          "name": "warning",
+          "op": "above",
+          "target": 1,
+          "matchType": "at_least_once",
+          "channels": [],
+          "targetUnit": "s"
+        }
+      ]
+    }
+  },
+  "evaluation": {
+    "kind": "rolling",
+    "spec": {
+      "evalWindow": "5m",
+      "frequency": "1m"
+    }
+  },
+  "labels": {
+    "severity": "warning",
+    "provisioned": "observability"
+  },
+  "notificationSettings": {
+    "usePolicy": true,
+    "renotify": {
+      "enabled": false,
+      "interval": "30m",
+      "alertStates": [
+        "firing"
+      ]
+    }
+  },
+  "ruleType": "threshold_rule",
+  "schemaVersion": "v2alpha1",
+  "version": "v5"
+}

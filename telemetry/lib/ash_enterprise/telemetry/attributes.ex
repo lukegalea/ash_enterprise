@@ -12,6 +12,18 @@ defmodule AshEnterprise.Telemetry.Attributes do
   | `ash.test_key` | The per-test key, in test runs only. |
   | `ash.parent_remote` | `true` when the parent span came from another process or the browser. |
 
+  ## Who acted
+
+  Set by `AshEnterprise.Telemetry.Actor.put/1` and stamped on every span after it, in the
+  server and (from the page's `otel-enduser` meta tag) in the browser.
+
+  | Attribute | Value |
+  |---|---|
+  | `enduser.id` | The signed-in user's id. |
+  | `enduser.role` | Their role, when the host has one. |
+  | `enduser.name` | Their name or email. Only with `config :ash_enterprise_telemetry, :enduser_name?, true`. |
+  | `app.tenant.id`, `app.tenant.name` | The tenant they act in. |
+
   ## Naming the user action
 
   These are what let a slow query name its cause: open the Ecto span, walk to the
@@ -36,7 +48,7 @@ defmodule AshEnterprise.Telemetry.Attributes do
   A `send <queue>` PRODUCER span in the request trace, with `messaging.system`
   (`oban`), `messaging.operation.name` (`send`), `messaging.destination.name` (the
   queue), `oban.job.worker` and, for `insert_all`, `messaging.batch.message_count`.
-  Job meta carries `traceparent` and `correlation_id`.
+  Job meta carries `traceparent`, `correlation_id` and `enduser` (the actor's attributes).
 
   ## Errors
 
@@ -46,7 +58,14 @@ defmodule AshEnterprise.Telemetry.Attributes do
   | `exception.type`, `exception.message`, `exception.stacktrace` | On a span event named `exception`, which is the only thing SigNoz's Exceptions page reads. |
 
   The `process.crash` span carries `exception` as an event, and
-  `process.crash.initial_call` when it is known.
+  `process.crash.initial_call` when it is known. An error reported to Sentry outside any
+  span gets a short `error.report` span (`AshEnterprise.Telemetry.SpanException`), and a
+  browser error outside any span a `browser.error` span.
+
+  An outbound `Req` request is a CLIENT span named after the method, with
+  `http.request.method`, `server.address`, `server.port`, `url.full` (no query),
+  `url.scheme`, `http.response.status_code`, `error.type` and, on a retry,
+  `http.request.resend_count`.
 
   ## Reserved
 
@@ -62,10 +81,13 @@ defmodule AshEnterprise.Telemetry.Attributes do
   | `oban.cron.last_success_age` | observable gauge, seconds | `worker` |
   | `oban.job.discards` | counter | `queue` |
   | `oban.lifeline.rescues` | counter | `outcome` |
+  | `beam.*` | see `AshEnterprise.Telemetry.VmMetrics` | |
+  | the host's `Telemetry.Metrics` | see `AshEnterprise.Telemetry.Metrics` | the metric's tags |
 
   ## Errors in Sentry
 
-  Tags `trace_id`, `span_id` and `correlation_id` join a Sentry event to its trace.
+  Tags `trace_id`, `span_id` and `correlation_id` join a Sentry event to its trace, and
+  `trace_url` links to it when `config :ash_enterprise_telemetry, :trace_url` is set.
   """
 
   @correlation_id "ash.correlation_id"

@@ -27,7 +27,9 @@ defmodule AshEnterprise.Telemetry.SentryWiringTest do
       trace_id = String.duplicate("a", 32)
 
       result =
-        SentryWiring.before_send(event(contexts: %{trace: %{trace_id: trace_id, span_id: "b"}}))
+        SentryWiring.before_send(
+          event(contexts: %{trace: %{trace_id: trace_id, span_id: String.duplicate("b", 16)}})
+        )
 
       assert result.tags["trace_id"] == trace_id
     end
@@ -48,7 +50,7 @@ defmodule AshEnterprise.Telemetry.SentryWiringTest do
     end
 
     test "omits tags with nothing to say, and keeps the host's own" do
-      result = SentryWiring.before_send(event(tags: %{"region" => "ca"}))
+      result = SentryWiring.before_send(event(level: :warning, tags: %{"region" => "ca"}))
       assert result.tags == %{"region" => "ca"}
     end
   end

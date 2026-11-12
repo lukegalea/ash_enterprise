@@ -1,0 +1,737 @@
+{
+  "name": "ash-enterprise-beam-vm",
+  "schemaVersion": "v6",
+  "tags": [
+    {
+      "key": "stack",
+      "value": "beam"
+    }
+  ],
+  "spec": {
+    "display": {
+      "name": "BEAM VM",
+      "description": "The Erlang VM of each node: memory by type, run queues, scheduler utilisation, process, atom, port and ETS counts against their limits, reductions and garbage collection (AshEnterprise.Telemetry.VmMetrics)."
+    },
+    "duration": "1h",
+    "links": [],
+    "variables": [
+      {
+        "kind": "ListVariable",
+        "spec": {
+          "name": "service",
+          "display": {
+            "name": "Service"
+          },
+          "allowAllValue": true,
+          "allowMultiple": true,
+          "sort": "alphabetical-asc",
+          "plugin": {
+            "kind": "signoz/DynamicVariable",
+            "spec": {
+              "name": "service.name",
+              "signal": "metrics"
+            }
+          }
+        }
+      }
+    ],
+    "panels": {
+      "memory": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Memory by type",
+            "description": "beam.memory: processes, binaries, ETS, code, atoms, other."
+          },
+          "links": [],
+          "plugin": {
+            "kind": "signoz/TimeSeriesPanel",
+            "spec": {
+              "legend": {
+                "position": "bottom"
+              },
+              "formatting": {
+                "unit": "bytes",
+                "decimalPrecision": "2"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "time_series",
+              "spec": {
+                "name": "A",
+                "plugin": {
+                  "kind": "signoz/BuilderQuery",
+                  "spec": {
+                    "name": "A",
+                    "signal": "metrics",
+                    "aggregations": [
+                      {
+                        "metricName": "beam.memory",
+                        "spaceAggregation": "sum",
+                        "timeAggregation": "avg"
+                      }
+                    ],
+                    "filter": {
+                      "expression": "service.name IN $service"
+                    },
+                    "groupBy": [
+                      {
+                        "name": "type",
+                        "fieldContext": "attribute",
+                        "fieldDataType": "string"
+                      }
+                    ],
+                    "legend": "{{type}}"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "memory-total": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Memory, total",
+            "description": "beam.memory.total per node."
+          },
+          "links": [],
+          "plugin": {
+            "kind": "signoz/TimeSeriesPanel",
+            "spec": {
+              "legend": {
+                "position": "bottom"
+              },
+              "formatting": {
+                "unit": "bytes",
+                "decimalPrecision": "2"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "time_series",
+              "spec": {
+                "name": "A",
+                "plugin": {
+                  "kind": "signoz/BuilderQuery",
+                  "spec": {
+                    "name": "A",
+                    "signal": "metrics",
+                    "aggregations": [
+                      {
+                        "metricName": "beam.memory.total",
+                        "spaceAggregation": "sum",
+                        "timeAggregation": "avg"
+                      }
+                    ],
+                    "filter": {
+                      "expression": "service.name IN $service"
+                    },
+                    "groupBy": [
+                      {
+                        "name": "service.name",
+                        "fieldContext": "resource",
+                        "fieldDataType": "string"
+                      },
+                      {
+                        "name": "host.name",
+                        "fieldContext": "resource",
+                        "fieldDataType": "string"
+                      }
+                    ],
+                    "legend": "{{service.name}} {{host.name}}"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "run-queue": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Run queue",
+            "description": "Processes ready to run and waiting for a scheduler. Sustained above zero means the node is CPU bound."
+          },
+          "links": [],
+          "plugin": {
+            "kind": "signoz/TimeSeriesPanel",
+            "spec": {
+              "legend": {
+                "position": "bottom"
+              },
+              "formatting": {
+                "unit": "short",
+                "decimalPrecision": "2"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "time_series",
+              "spec": {
+                "name": "A",
+                "plugin": {
+                  "kind": "signoz/BuilderQuery",
+                  "spec": {
+                    "name": "A",
+                    "signal": "metrics",
+                    "aggregations": [
+                      {
+                        "metricName": "beam.run_queue.length",
+                        "spaceAggregation": "sum",
+                        "timeAggregation": "max"
+                      }
+                    ],
+                    "filter": {
+                      "expression": "service.name IN $service"
+                    },
+                    "groupBy": [
+                      {
+                        "name": "scheduler",
+                        "fieldContext": "attribute",
+                        "fieldDataType": "string"
+                      }
+                    ],
+                    "legend": "{{scheduler}}"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "utilization": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Scheduler utilisation",
+            "description": "Share of wall time the schedulers were busy, since the previous export."
+          },
+          "links": [],
+          "plugin": {
+            "kind": "signoz/TimeSeriesPanel",
+            "spec": {
+              "legend": {
+                "position": "bottom"
+              },
+              "formatting": {
+                "unit": "percentunit",
+                "decimalPrecision": "2"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "time_series",
+              "spec": {
+                "name": "A",
+                "plugin": {
+                  "kind": "signoz/BuilderQuery",
+                  "spec": {
+                    "name": "A",
+                    "signal": "metrics",
+                    "aggregations": [
+                      {
+                        "metricName": "beam.scheduler.utilization",
+                        "spaceAggregation": "avg",
+                        "timeAggregation": "avg"
+                      }
+                    ],
+                    "filter": {
+                      "expression": "service.name IN $service"
+                    },
+                    "groupBy": [
+                      {
+                        "name": "type",
+                        "fieldContext": "attribute",
+                        "fieldDataType": "string"
+                      }
+                    ],
+                    "legend": "{{type}}"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "processes": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Processes against the limit",
+            "description": "beam.process.count and beam.process.limit."
+          },
+          "links": [],
+          "plugin": {
+            "kind": "signoz/TimeSeriesPanel",
+            "spec": {
+              "legend": {
+                "position": "bottom"
+              },
+              "formatting": {
+                "unit": "short",
+                "decimalPrecision": "2"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "time_series",
+              "spec": {
+                "name": "composite",
+                "plugin": {
+                  "kind": "signoz/CompositeQuery",
+                  "spec": {
+                    "queries": [
+                      {
+                        "type": "builder_query",
+                        "spec": {
+                          "name": "A",
+                          "signal": "metrics",
+                          "aggregations": [
+                            {
+                              "metricName": "beam.process.count",
+                              "spaceAggregation": "sum",
+                              "timeAggregation": "max"
+                            }
+                          ],
+                          "filter": {
+                            "expression": "service.name IN $service"
+                          },
+                          "groupBy": [],
+                          "legend": "count"
+                        }
+                      },
+                      {
+                        "type": "builder_query",
+                        "spec": {
+                          "name": "B",
+                          "signal": "metrics",
+                          "aggregations": [
+                            {
+                              "metricName": "beam.process.limit",
+                              "spaceAggregation": "max",
+                              "timeAggregation": "max"
+                            }
+                          ],
+                          "filter": {
+                            "expression": "service.name IN $service"
+                          },
+                          "groupBy": [],
+                          "legend": "limit"
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "atoms": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Atoms against the limit",
+            "description": "beam.atom.count only grows; reaching the limit crashes the node."
+          },
+          "links": [],
+          "plugin": {
+            "kind": "signoz/TimeSeriesPanel",
+            "spec": {
+              "legend": {
+                "position": "bottom"
+              },
+              "formatting": {
+                "unit": "short",
+                "decimalPrecision": "2"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "time_series",
+              "spec": {
+                "name": "composite",
+                "plugin": {
+                  "kind": "signoz/CompositeQuery",
+                  "spec": {
+                    "queries": [
+                      {
+                        "type": "builder_query",
+                        "spec": {
+                          "name": "A",
+                          "signal": "metrics",
+                          "aggregations": [
+                            {
+                              "metricName": "beam.atom.count",
+                              "spaceAggregation": "sum",
+                              "timeAggregation": "max"
+                            }
+                          ],
+                          "filter": {
+                            "expression": "service.name IN $service"
+                          },
+                          "groupBy": [],
+                          "legend": "count"
+                        }
+                      },
+                      {
+                        "type": "builder_query",
+                        "spec": {
+                          "name": "B",
+                          "signal": "metrics",
+                          "aggregations": [
+                            {
+                              "metricName": "beam.atom.limit",
+                              "spaceAggregation": "max",
+                              "timeAggregation": "max"
+                            }
+                          ],
+                          "filter": {
+                            "expression": "service.name IN $service"
+                          },
+                          "groupBy": [],
+                          "legend": "limit"
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "ports": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Ports and ETS tables",
+            "description": "beam.port.count and beam.ets.count."
+          },
+          "links": [],
+          "plugin": {
+            "kind": "signoz/TimeSeriesPanel",
+            "spec": {
+              "legend": {
+                "position": "bottom"
+              },
+              "formatting": {
+                "unit": "short",
+                "decimalPrecision": "2"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "time_series",
+              "spec": {
+                "name": "composite",
+                "plugin": {
+                  "kind": "signoz/CompositeQuery",
+                  "spec": {
+                    "queries": [
+                      {
+                        "type": "builder_query",
+                        "spec": {
+                          "name": "A",
+                          "signal": "metrics",
+                          "aggregations": [
+                            {
+                              "metricName": "beam.port.count",
+                              "spaceAggregation": "sum",
+                              "timeAggregation": "max"
+                            }
+                          ],
+                          "filter": {
+                            "expression": "service.name IN $service"
+                          },
+                          "groupBy": [],
+                          "legend": "ports"
+                        }
+                      },
+                      {
+                        "type": "builder_query",
+                        "spec": {
+                          "name": "B",
+                          "signal": "metrics",
+                          "aggregations": [
+                            {
+                              "metricName": "beam.ets.count",
+                              "spaceAggregation": "sum",
+                              "timeAggregation": "max"
+                            }
+                          ],
+                          "filter": {
+                            "expression": "service.name IN $service"
+                          },
+                          "groupBy": [],
+                          "legend": "ETS tables"
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "reductions": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Reductions per second",
+            "description": "Work done by the VM."
+          },
+          "links": [],
+          "plugin": {
+            "kind": "signoz/TimeSeriesPanel",
+            "spec": {
+              "legend": {
+                "position": "bottom"
+              },
+              "formatting": {
+                "unit": "short",
+                "decimalPrecision": "2"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "time_series",
+              "spec": {
+                "name": "A",
+                "plugin": {
+                  "kind": "signoz/BuilderQuery",
+                  "spec": {
+                    "name": "A",
+                    "signal": "metrics",
+                    "aggregations": [
+                      {
+                        "metricName": "beam.reductions",
+                        "spaceAggregation": "sum",
+                        "timeAggregation": "rate"
+                      }
+                    ],
+                    "filter": {
+                      "expression": "service.name IN $service"
+                    },
+                    "groupBy": [],
+                    "legend": "reductions/s"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "gc": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Garbage collections per second",
+            "description": "beam.gc.count."
+          },
+          "links": [],
+          "plugin": {
+            "kind": "signoz/TimeSeriesPanel",
+            "spec": {
+              "legend": {
+                "position": "bottom"
+              },
+              "formatting": {
+                "unit": "short",
+                "decimalPrecision": "2"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "time_series",
+              "spec": {
+                "name": "A",
+                "plugin": {
+                  "kind": "signoz/BuilderQuery",
+                  "spec": {
+                    "name": "A",
+                    "signal": "metrics",
+                    "aggregations": [
+                      {
+                        "metricName": "beam.gc.count",
+                        "spaceAggregation": "sum",
+                        "timeAggregation": "rate"
+                      }
+                    ],
+                    "filter": {
+                      "expression": "service.name IN $service"
+                    },
+                    "groupBy": [],
+                    "legend": "collections/s"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "gc-reclaimed": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Memory reclaimed by GC per second",
+            "description": "beam.gc.reclaimed."
+          },
+          "links": [],
+          "plugin": {
+            "kind": "signoz/TimeSeriesPanel",
+            "spec": {
+              "legend": {
+                "position": "bottom"
+              },
+              "formatting": {
+                "unit": "bytes",
+                "decimalPrecision": "2"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "time_series",
+              "spec": {
+                "name": "A",
+                "plugin": {
+                  "kind": "signoz/BuilderQuery",
+                  "spec": {
+                    "name": "A",
+                    "signal": "metrics",
+                    "aggregations": [
+                      {
+                        "metricName": "beam.gc.reclaimed",
+                        "spaceAggregation": "sum",
+                        "timeAggregation": "rate"
+                      }
+                    ],
+                    "filter": {
+                      "expression": "service.name IN $service"
+                    },
+                    "groupBy": [],
+                    "legend": "reclaimed/s"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "layouts": [
+      {
+        "kind": "Grid",
+        "spec": {
+          "items": [
+            {
+              "x": 0,
+              "y": 0,
+              "width": 6,
+              "height": 6,
+              "content": {
+                "$ref": "#/spec/panels/memory"
+              }
+            },
+            {
+              "x": 6,
+              "y": 0,
+              "width": 6,
+              "height": 6,
+              "content": {
+                "$ref": "#/spec/panels/memory-total"
+              }
+            },
+            {
+              "x": 0,
+              "y": 6,
+              "width": 6,
+              "height": 6,
+              "content": {
+                "$ref": "#/spec/panels/run-queue"
+              }
+            },
+            {
+              "x": 6,
+              "y": 6,
+              "width": 6,
+              "height": 6,
+              "content": {
+                "$ref": "#/spec/panels/utilization"
+              }
+            },
+            {
+              "x": 0,
+              "y": 12,
+              "width": 6,
+              "height": 6,
+              "content": {
+                "$ref": "#/spec/panels/processes"
+              }
+            },
+            {
+              "x": 6,
+              "y": 12,
+              "width": 6,
+              "height": 6,
+              "content": {
+                "$ref": "#/spec/panels/atoms"
+              }
+            },
+            {
+              "x": 0,
+              "y": 18,
+              "width": 6,
+              "height": 6,
+              "content": {
+                "$ref": "#/spec/panels/ports"
+              }
+            },
+            {
+              "x": 6,
+              "y": 18,
+              "width": 6,
+              "height": 6,
+              "content": {
+                "$ref": "#/spec/panels/reductions"
+              }
+            },
+            {
+              "x": 0,
+              "y": 24,
+              "width": 6,
+              "height": 6,
+              "content": {
+                "$ref": "#/spec/panels/gc"
+              }
+            },
+            {
+              "x": 6,
+              "y": 24,
+              "width": 6,
+              "height": 6,
+              "content": {
+                "$ref": "#/spec/panels/gc-reclaimed"
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

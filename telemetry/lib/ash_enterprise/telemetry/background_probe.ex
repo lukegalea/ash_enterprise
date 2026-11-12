@@ -142,12 +142,17 @@ defmodule AshEnterprise.Telemetry.BackgroundProbe do
   end
 
   # --- Observable callbacks: run in the metric reader ------------------------------
+  # A callback outlives the probe (instruments cannot be unregistered), and a raise here
+  # takes the metric reader down with every other metric. So each one answers nothing
+  # rather than raise, as when the probe is restarting and its table is gone.
 
   @doc false
   def observe_depth(_args) do
     for [{queue, state}, {count, _age}] <- :ets.match(@table, {{:series, :"$1"}, :"$2"}) do
       {count, %{queue: queue, state: state}}
     end
+  catch
+    _kind, _reason -> []
   end
 
   @doc false
@@ -155,6 +160,8 @@ defmodule AshEnterprise.Telemetry.BackgroundProbe do
     for [{queue, state}, {_count, age}] <- :ets.match(@table, {{:series, :"$1"}, :"$2"}) do
       {age, %{queue: queue, state: state}}
     end
+  catch
+    _kind, _reason -> []
   end
 
   @doc false
@@ -164,6 +171,8 @@ defmodule AshEnterprise.Telemetry.BackgroundProbe do
     for [worker, unix] <- :ets.match(@table, {{:cron, :"$1"}, :"$2"}) do
       {max(now - unix, 0), %{worker: worker}}
     end
+  catch
+    _kind, _reason -> []
   end
 
   # --- Telemetry handlers ---------------------------------------------------------

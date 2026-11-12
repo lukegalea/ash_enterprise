@@ -1,7 +1,8 @@
 defmodule AshEnterprise.Telemetry.ObanContext do
   @moduledoc """
-  Restores the correlation id when an Oban job starts, so the job's span and audit
-  rows join the action that enqueued it.
+  Restores the correlation id and the acting user (`AshEnterprise.Telemetry.Actor`) when an
+  Oban job starts, so the job's span and audit rows join the action that enqueued it and
+  name who caused it.
 
   The start handler is attached before `OpentelemetryOban`, so the consumer span is
   stamped with the restored id. Stop and exception handlers put the previous value
@@ -19,6 +20,8 @@ defmodule AshEnterprise.Telemetry.ObanContext do
   included, in a stack frame.
   """
 
+  alias AshEnterprise.Telemetry.Actor
+  alias AshEnterprise.Telemetry.FailedSpan
   alias AshEnterprise.Telemetry.Sanitize
   alias AshEnterprise.Telemetry.Settings
   alias OpentelemetryOban.JobHandler
@@ -96,6 +99,10 @@ defmodule AshEnterprise.Telemetry.ObanContext do
         %{error: error, stacktrace: stacktrace} = metadata,
         config
       ) do
+    # Before the library ends the span: Sentry's handler, which runs after this one
+    # (`AshEnterprise.Telemetry.SentryWiring.order_handlers/0`), joins the report to it.
+    FailedSpan.remember()
+
     metadata = %{
       metadata
       | error: Sanitize.exception(error),
@@ -116,7 +123,8 @@ defmodule AshEnterprise.Telemetry.ObanContext do
   def handle_start(_event, _measurements, %{job: %{meta: meta}}, _config) do
     correlation = Settings.correlation()
     previous = correlation.current()
-    Process.put(@previous, [previous | Process.get(@previous, [])])
+    Process.put(@previous, [{previous, Actor.current()} | Process.get(@previous, [])])
+    if is_map(meta["enduser"]), do: Actor.restore(meta["enduser"])
 
     case meta do
       %{"correlation_id" => stamped} when is_binary(stamped) -> correlation.put(stamped)
@@ -134,7 +142,10 @@ defmodule AshEnterprise.Telemetry.ObanContext do
   def handle_stop(_event, _measurements, %{job: _job}, _config) do
     correlation = Settings.correlation()
 
-    case pop_previous() do
+    {previous, previous_actor} = pop_previous()
+    Actor.restore(previous_actor)
+
+    case previous do
       nil -> if function_exported?(correlation, :clear, 0), do: correlation.clear()
       previous -> correlation.put(previous)
     end
@@ -153,7 +164,7 @@ defmodule AshEnterprise.Telemetry.ObanContext do
         previous
 
       [] ->
-        nil
+        {nil, %{}}
     end
   end
 end

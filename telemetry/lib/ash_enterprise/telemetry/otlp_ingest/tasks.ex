@@ -5,6 +5,11 @@ defmodule AshEnterprise.Telemetry.OtlpIngest.Tasks do
   # open. max_children bounds it: when the collector is slower than the browser, the
   # excess batches are dropped rather than queued without limit.
 
+  # A refusal upstream (a wrong DSN key, a collector turning a batch away) is logged with
+  # its status and path, never the query: the DSN key travels there.
+
+  require Logger
+
   @supervisor __MODULE__
 
   @max_children 16
@@ -37,10 +42,23 @@ defmodule AshEnterprise.Telemetry.OtlpIngest.Tasks do
     :exit, reason -> {:error, reason}
   end
 
+  # `plugins: []`: forwarding telemetry is not itself traced (`AshEnterprise.Telemetry.Req`
+  # would add a client span per batch).
   defp post(request, req_options) do
     request
-    |> Keyword.merge(retry: false, receive_timeout: @timeout_ms)
+    |> Keyword.merge(retry: false, receive_timeout: @timeout_ms, plugins: [])
     |> Keyword.merge(req_options)
     |> Req.post()
+    |> log_refusal(request[:url])
   end
+
+  defp log_refusal({:ok, %{status: status}} = result, url) when status >= 400 do
+    %URI{host: host, port: port, path: path} = URI.parse(url)
+
+    Logger.warning("Telemetry forwarding was refused: #{host}:#{port}#{path} answered #{status}")
+
+    result
+  end
+
+  defp log_refusal(result, _url), do: result
 end
