@@ -235,8 +235,9 @@ defmodule AshEnterprise.Bpmn.Subscription do
 
   @doc """
   The tenants the trigger sweep fans out to: every organization with a
-  published, enabled subscription, or with a token parked at a message catch (a process
-  waiting to hear of something).
+  published, enabled subscription, with a retired version whose window the sweep has not
+  finished (the backlog before its successor was published), or with a token parked at a
+  message catch (a process waiting to hear of something).
 
   Wired as `config :ash_bpmn, trigger_tenants: {__MODULE__, :trigger_tenants,
   []}` — the `ash_oban` `list_tenants` pattern, evaluated per call. Deliberately
@@ -257,12 +258,29 @@ defmodule AshEnterprise.Bpmn.Subscription do
       |> Ash.Query.for_read(:read)
       |> Ash.Query.filter(status == :published and enabled == true and kind == :message)
 
+    # A retired version still finishing its window: the events before its successor was
+    # published are still its own, and the sweep dispatches them under it, whatever the
+    # successor watches or whether it is enabled. Until the tenant's cursor reaches the
+    # boundary, the tenant is swept.
+    finishing =
+      __MODULE__
+      |> Ash.Query.for_read(:read)
+      |> Ash.Query.filter(
+        status == :retired and enabled == true and kind == :message and
+          not is_nil(retired_sequence) and
+          not exists(
+            AshEnterprise.Bpmn.Cursor,
+            organization_id == parent(organization_id) and
+              last_sequence >= parent(retired_sequence)
+          )
+      )
+
     waiting =
       AshEnterprise.Bpmn.Token
       |> Ash.Query.for_read(:read)
       |> Ash.Query.filter(status == :waiting and contains(subscription_signature, "message:"))
 
-    Enum.flat_map([subscribed, waiting], fn query ->
+    Enum.flat_map([subscribed, finishing, waiting], fn query ->
       query
       |> Ash.Query.select(:organization_id)
       |> Ash.read!(actor: AshEnterprise.Platform.SystemActor.process(), tenant: nil)

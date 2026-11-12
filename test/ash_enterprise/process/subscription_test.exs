@@ -345,6 +345,36 @@ defmodule AshEnterprise.Process.SubscriptionTest do
       assert with_disabled == Subscription.trigger_tenants(),
              "a disabled or draft subscription neither adds nor removes a tenant"
     end
+
+    # v1's backlog is still v1's after v2 is published. If v2 is disabled and nothing else
+    # in the tenant listens, the tenant is still swept until its cursor passes the boundary.
+    test "a retired version still finishing its window keeps its tenant swept", %{
+      tenant: tenant
+    } do
+      key = "window-#{System.unique_integer([:positive])}"
+      v1 = subscription!(tenant, %{key: key, match_resource: "AshEnterprise.Security.Role"})
+      create_role(tenant, "Backlog #{System.unique_integer([:positive])}")
+
+      v2 = subscription!(tenant, %{key: key, match_resource: "AshEnterprise.Security.Role"})
+      Subscription.disable!(v2, opts(tenant))
+
+      v1 = Ash.reload!(v1, authorize?: false)
+      assert v1.status == :retired
+      assert cursor(tenant).last_sequence < v1.retired_sequence
+      assert tenant in Subscription.trigger_tenants()
+
+      # The sweep reaches the boundary: the window is done and nothing else listens.
+      tenant
+      |> cursor()
+      |> Ash.Changeset.for_update(:advance, %{last_sequence: v1.retired_sequence},
+        actor: SystemActor.process(),
+        tenant: tenant,
+        context: %{private: %{ash_bpmn?: true}}
+      )
+      |> Ash.update!()
+
+      refute tenant in Subscription.trigger_tenants()
+    end
   end
 
   defp create_role(tenant, name) do
