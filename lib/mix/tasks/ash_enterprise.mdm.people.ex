@@ -11,7 +11,8 @@ defmodule Mix.Tasks.AshEnterprise.Mdm.People do
       mix ash_enterprise.mdm.people --organization <id>
       mix ash_enterprise.mdm.people --organization <id> --seed-as admin@example.com
 
-  `--seed-as EMAIL` first turns the sweep on for the organization: it ensures
+  `--seed-as EMAIL` first turns the sweep on for the organization, as that
+  person, who must be a member of it (their business unit is one of its): it ensures
   the platform baselines a pair is routed by (`AshEnterprise.Mdm.Baselines`:
   the seed band table and the steward-review process), then drafts the people
   mapping and match rule set and activates them as that person (activation is
@@ -29,6 +30,7 @@ defmodule Mix.Tasks.AshEnterprise.Mdm.People do
   require Ash.Query
 
   alias AshEnterprise.Mdm.People.{Pipeline, Seed, SweepWorker}
+  alias AshEnterprise.Security.ActorContext
 
   @requirements ["app.config"]
 
@@ -46,9 +48,11 @@ defmodule Mix.Tasks.AshEnterprise.Mdm.People do
 
     if email = opts[:seed_as] do
       organization = opts[:organization] || Mix.raise("--seed-as needs --organization <id>")
+      # Membership first: a refused person changes nothing, baselines included.
+      person = person!(organization, email)
       baselines = AshEnterprise.Mdm.Baselines.ensure!()
       Mix.shell().info("baselines #{inspect(baselines)}")
-      Seed.seed!(organization, person!(organization, email))
+      Seed.seed!(organization, person)
       Mix.shell().info("people sweep turned on for #{organization}")
     end
 
@@ -83,12 +87,43 @@ defmodule Mix.Tasks.AshEnterprise.Mdm.People do
   end
 
   defp person!(organization, email) do
-    AshEnterprise.Accounts.User
-    |> Ash.Query.filter(email == ^email)
-    |> Ash.read_one!(tenant: organization, authorize?: false)
-    |> case do
-      nil -> Mix.raise("no user with that email in #{organization}")
-      user -> user
+    case seeder(organization, email) do
+      {:ok, actor} -> actor
+      {:error, :no_user} -> Mix.raise("no user with that email")
+      {:error, :not_a_member} -> Mix.raise("that user is not a member of #{organization}")
     end
   end
+
+  @doc """
+  The person `--seed-as EMAIL` names, with their context attached, when they are
+  a member of `organization`: their context was built for that tenant (it
+  resolves through the business unit that owns them). A user is not
+  tenant-scoped, so finding one by email says nothing about which tenant they
+  belong to; this is the membership check.
+  """
+  @spec seeder(String.t(), String.t()) ::
+          {:ok, ActorContext.actor()} | {:error, :no_user | :not_a_member}
+  def seeder(organization, email) do
+    AshEnterprise.Accounts.User
+    |> Ash.Query.filter(email == ^email)
+    # Looking the person up is not acting as them: who they are has to be known
+    # before any of their authority can be.
+    |> Ash.read_one!(authorize?: false)
+    |> case do
+      nil ->
+        {:error, :no_user}
+
+      user ->
+        context = ActorContext.build(user)
+
+        if member?(context, organization),
+          do: {:ok, ActorContext.attach(user, context)},
+          else: {:error, :not_a_member}
+    end
+  end
+
+  defp member?(%{organization_id: nil}, _organization), do: false
+
+  defp member?(%{organization_id: organization_id}, organization),
+    do: to_string(organization_id) == to_string(organization)
 end

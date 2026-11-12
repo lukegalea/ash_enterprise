@@ -618,4 +618,44 @@ defmodule AshEnterprise.Mdm.PeopleTest do
     assert_raise Ash.Error.Forbidden, fn -> Seed.seed!(other.tenant, ctx.user) end
     assert People.rule_set(other.tenant) == nil
   end
+
+  describe "--seed-as names a member of the organization" do
+    alias Mix.Tasks.AshEnterprise.Mdm.People, as: Task
+
+    test "refuses a user of another tenant, before anything is seeded", ctx do
+      other = tenant!()
+
+      assert Task.seeder(other.tenant, ctx.email) == {:error, :not_a_member}
+
+      assert_raise Mix.Error, ~r/not a member of #{other.tenant}/, fn ->
+        Task.run(["--organization", other.tenant, "--seed-as", ctx.email])
+      end
+
+      assert People.rule_set(other.tenant) == nil
+    end
+
+    test "refuses a user who belongs to no tenant", ctx do
+      email = "xt-nobody-#{System.unique_integer([:positive])}@example.test"
+
+      AshEnterprise.Accounts.User
+      |> Ash.Changeset.for_create(
+        :register_with_password,
+        %{email: email, password: "password1234", password_confirmation: "password1234"},
+        authorize?: false
+      )
+      |> Ash.create!()
+
+      assert Task.seeder(ctx.tenant, email) == {:error, :not_a_member}
+    end
+
+    test "refuses an unknown email", ctx do
+      assert Task.seeder(ctx.tenant, "xt-nobody-at-all@example.test") == {:error, :no_user}
+    end
+
+    test "accepts a member, with the context of their own tenant", ctx do
+      assert {:ok, actor} = Task.seeder(ctx.tenant, ctx.email)
+      assert actor.id == ctx.user.id
+      assert AshEnterprise.Security.ActorContext.tenant(actor) == ctx.tenant
+    end
+  end
 end
