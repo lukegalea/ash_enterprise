@@ -110,6 +110,7 @@ defmodule AshEnterprise.Accounts do
     end
 
     resource AshEnterprise.Accounts.TeamMembership
+    resource AshEnterprise.Accounts.Offboarding
 
     # The job hierarchy, as distinct from the organizational one. Drives
     # hierarchy security in :position mode, which reaches across business units.

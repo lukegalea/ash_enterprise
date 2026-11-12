@@ -113,6 +113,12 @@ defmodule AshEnterprise.Process.ActionInvoker do
     "request_licence_document" => %{
       invoke: {AshEnterprise.Credentialing.Credential, :request_documents}
     },
+    "offboarding_open" => %{
+      invoke: {AshEnterprise.Accounts.Offboarding, :open}
+    },
+    "offboarding_revoke_credentials" => %{
+      invoke: {AshEnterprise.Accounts.Offboarding, :revoke_credentials}
+    },
     "start_agent_run" => %{
       run: &AshEnterprise.Process.AgentRuns.start/1,
       action: :bespoke,

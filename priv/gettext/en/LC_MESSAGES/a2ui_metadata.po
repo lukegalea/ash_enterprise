@@ -1865,6 +1865,10 @@ msgstr ""
 msgid "Occurred at"
 msgstr ""
 
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Offboarding"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/team_ui.ex:1
 msgid "Office group"
 msgstr ""
@@ -2444,12 +2448,17 @@ msgstr ""
 msgid "Revision"
 msgstr ""
 
+#: lib/ash_enterprise/canvas/registry.ex:2
 #: lib/ash_enterprise_web/a2ui/judgments/certifications_ui.ex:1
 msgid "Revoke"
 msgstr ""
 
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Revoke all stored for subject"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Revoke credentials"
 msgstr ""
 
 #: lib/ash_enterprise/canvas/registry.ex:2

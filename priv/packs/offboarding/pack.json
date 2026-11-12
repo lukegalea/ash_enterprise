@@ -1,0 +1,25 @@
+{
+  "name": "offboarding",
+  "version": 1,
+  "title": "A leaver's credentials are revoked and what they held is reviewed",
+  "description": "When a person is deactivated, revoke the sessions and API keys still live for them, record what they hold in the organization, and open a review for an administrator. Installed as drafts: nothing runs until a person publishes the process and then the recipe with publish_granted, so its steps run within that person's authority and the recipe runner's.",
+  "controls": ["CC6.2", "CC6.3"],
+  "processes": [
+    {
+      "key": "accounts.offboard_leaver",
+      "name": "Offboard a leaver",
+      "file": "offboard_leaver.bpmn"
+    }
+  ],
+  "recipes": [
+    {
+      "key": "accounts.offboarding.user_deactivated",
+      "match_resource": "AshEnterprise.Automation.Occurrence",
+      "match_action": "record",
+      "match_action_type": "create",
+      "guard_feel": "data.type = \"user.deactivated\"",
+      "process_key": "accounts.offboard_leaver",
+      "authority": "human_tasks_only"
+    }
+  ]
+}

@@ -26,7 +26,7 @@ defmodule AshEnterprise.Channels.ParityTest do
 
   use ExUnit.Case, async: true
 
-  alias AshEnterprise.Accounts.Organization
+  alias AshEnterprise.Accounts.{Offboarding, Organization}
   alias AshEnterprise.Acp.Commands
   alias AshEnterprise.Agents.{Console, MorningBrief, ToolCall}
   alias AshEnterprise.Assistant.ReplyDraft
@@ -71,7 +71,13 @@ defmodule AshEnterprise.Channels.ParityTest do
     {ReplyDraft, :draft} =>
       "an agent's tool (`draft_reply`); a person confirms it through approve and reject",
     {Credential, :request_documents} =>
-      "a step of the credential's case process, run by its service task"
+      "a step of the credential's case process, run by its service task",
+    {Offboarding, :open} =>
+      "a step of the offboarding pack's process, run by its service task when a person " <>
+        "is deactivated",
+    {Offboarding, :revoke_credentials} =>
+      "a step of the offboarding pack's process, run by its service task when a person " <>
+        "is deactivated"
   }
 
   # Acts a person should reach on both channels and does not yet, each with what is

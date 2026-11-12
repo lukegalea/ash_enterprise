@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn2:definitions xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:ash="https://github.com/lukegalea/ash_bpmn/ns"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   id="Definitions_offboard_leaver"
+                   targetNamespace="https://ash-enterprise.example/bpmn">
+  <!--
+    Offboard a leaver (SOC 2 CC6.2 and CC6.3: access is removed when it is no longer needed).
+    Started by the pack's recipe when a person is deactivated: the subject is the
+    user.deactivated occurrence recorded in this organization.
+
+    The two service tasks name declared targets (AshEnterprise.Accounts.Offboarding), so under
+    a standing grant they run as the recipe runner acting for the person who published the
+    recipe, and nothing else. Open records the leaver and what they hold here. Revoke revokes
+    the sessions still live for them and archives their API keys, and answers whether they are
+    still inactive: a person reactivated before it runs is not touched, and the process ends.
+
+    The review is for an administrator other than the leaver: the occurrence's subject (the
+    leaver) is excluded from its candidates, since an inactive administrator still holds the
+    role that makes them one.
+
+    Role assignments, team memberships and start grants are not ended here: ending one changes
+    authority, which no automation principal does. While the account is inactive they cannot
+    act; the review lists them for an administrator to end what should not come back.
+  -->
+  <bpmn2:process id="Process_offboard_leaver" name="Offboard a leaver" isExecutable="true">
+
+    <bpmn2:startEvent id="Start" name="Person deactivated">
+      <bpmn2:outgoing>Flow_to_open</bpmn2:outgoing>
+    </bpmn2:startEvent>
+
+    <bpmn2:serviceTask id="Open" name="Record the leaver and what they hold">
+      <bpmn2:extensionElements>
+        <ash:taskConfig action="offboarding_open"/>
+      </bpmn2:extensionElements>
+      <bpmn2:incoming>Flow_to_open</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_to_revoke</bpmn2:outgoing>
+    </bpmn2:serviceTask>
+
+    <bpmn2:serviceTask id="Revoke" name="Revoke live sessions and API keys">
+      <bpmn2:extensionElements>
+        <ash:taskConfig action="offboarding_revoke_credentials"/>
+        <ash:promote><ash:signal name="leaver" required="true"/></ash:promote>
+      </bpmn2:extensionElements>
+      <bpmn2:incoming>Flow_to_revoke</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_to_route</bpmn2:outgoing>
+    </bpmn2:serviceTask>
+
+    <bpmn2:exclusiveGateway id="Route" name="Still inactive?" default="Flow_to_review">
+      <bpmn2:incoming>Flow_to_route</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_reactivated</bpmn2:outgoing>
+      <bpmn2:outgoing>Flow_to_review</bpmn2:outgoing>
+    </bpmn2:exclusiveGateway>
+
+    <bpmn2:endEvent id="EndReactivated" name="Reactivated, nothing revoked">
+      <bpmn2:extensionElements><ash:taskConfig outcome="reactivated"/></bpmn2:extensionElements>
+      <bpmn2:incoming>Flow_reactivated</bpmn2:incoming>
+    </bpmn2:endEvent>
+
+    <bpmn2:userTask id="Review" name="Review what the leaver held">
+      <bpmn2:extensionElements>
+        <ash:taskConfig>
+          <ash:candidates>
+            <ash:candidate kind="role" of="Administrator"/>
+          </ash:candidates>
+          <ash:exclusions>
+            <ash:exclusion who="instance.started_by_id"/>
+            <ash:exclusion who="subject.subject"/>
+          </ash:exclusions>
+          <ash:outcomes>
+            <ash:outcome name="handed_over"/>
+            <ash:outcome name="follow_up"/>
+          </ash:outcomes>
+        </ash:taskConfig>
+      </bpmn2:extensionElements>
+      <bpmn2:incoming>Flow_to_review</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_to_end</bpmn2:outgoing>
+    </bpmn2:userTask>
+
+    <bpmn2:endEvent id="EndReviewed" name="Reviewed">
+      <bpmn2:extensionElements><ash:taskConfig outcome="offboarded"/></bpmn2:extensionElements>
+      <bpmn2:incoming>Flow_to_end</bpmn2:incoming>
+    </bpmn2:endEvent>
+
+    <bpmn2:sequenceFlow id="Flow_to_open" sourceRef="Start" targetRef="Open"/>
+    <bpmn2:sequenceFlow id="Flow_to_revoke" sourceRef="Open" targetRef="Revoke"/>
+    <bpmn2:sequenceFlow id="Flow_to_route" sourceRef="Revoke" targetRef="Route"/>
+    <bpmn2:sequenceFlow id="Flow_reactivated" sourceRef="Route" targetRef="EndReactivated">
+      <bpmn2:conditionExpression xsi:type="bpmn2:tFormalExpression"
+        language="feel">routing.leaver = "reactivated"</bpmn2:conditionExpression>
+    </bpmn2:sequenceFlow>
+    <bpmn2:sequenceFlow id="Flow_to_review" sourceRef="Route" targetRef="Review"/>
+    <bpmn2:sequenceFlow id="Flow_to_end" sourceRef="Review" targetRef="EndReviewed"/>
+  </bpmn2:process>
+
+  <bpmndi:BPMNDiagram id="Diagram_offboard_leaver">
+    <bpmndi:BPMNPlane id="Plane_offboard_leaver" bpmnElement="Process_offboard_leaver">
+      <bpmndi:BPMNShape id="Shape_Start" bpmnElement="Start">
+        <dc:Bounds x="150" y="202" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Open" bpmnElement="Open">
+        <dc:Bounds x="240" y="180" width="140" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Revoke" bpmnElement="Revoke">
+        <dc:Bounds x="430" y="180" width="140" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Route" bpmnElement="Route" isMarkerVisible="true">
+        <dc:Bounds x="620" y="195" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_EndReactivated" bpmnElement="EndReactivated">
+        <dc:Bounds x="740" y="112" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Review" bpmnElement="Review">
+        <dc:Bounds x="720" y="250" width="140" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_EndReviewed" bpmnElement="EndReviewed">
+        <dc:Bounds x="920" y="272" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_to_open" bpmnElement="Flow_to_open">
+        <di:waypoint x="186" y="220"/>
+        <di:waypoint x="240" y="220"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_to_revoke" bpmnElement="Flow_to_revoke">
+        <di:waypoint x="380" y="220"/>
+        <di:waypoint x="430" y="220"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_to_route" bpmnElement="Flow_to_route">
+        <di:waypoint x="570" y="220"/>
+        <di:waypoint x="620" y="220"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_reactivated" bpmnElement="Flow_reactivated">
+        <di:waypoint x="645" y="195"/>
+        <di:waypoint x="645" y="130"/>
+        <di:waypoint x="740" y="130"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_to_review" bpmnElement="Flow_to_review">
+        <di:waypoint x="645" y="245"/>
+        <di:waypoint x="645" y="290"/>
+        <di:waypoint x="720" y="290"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_to_end" bpmnElement="Flow_to_end">
+        <di:waypoint x="860" y="290"/>
+        <di:waypoint x="920" y="290"/>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn2:definitions>
