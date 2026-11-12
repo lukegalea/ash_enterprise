@@ -1,6 +1,6 @@
 # ADR 0065 — SigNoz for traces, logs and metrics; GlitchTip for error triage
 
-- **Status:** proposed (2026-11-09; the instrumentation package is built, the backend wiring in development environments is not)
+- **Status:** accepted (2026-11-12; proposed 2026-11-09)
 - **Date:** 2026-11-09
 - **Supersedes:** ADR 0018 (Grafana LGTM as the observability backend)
 - **Related:** ADR 0056 (the same shape: a public package the host instantiates)
