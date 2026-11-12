@@ -1646,7 +1646,7 @@ msgstr ""
 msgid "Try %{key}"
 msgstr ""
 
-#: lib/ash_enterprise_web/live/bpmn/catalog_live.ex:288
+#: lib/ash_enterprise_web/live/bpmn/catalog_live.ex:414
 #: lib/ash_enterprise_web/live/decisions/try_live.ex:270
 #, elixir-autogen, elixir-format
 msgid "Try it"
@@ -1680,4 +1680,64 @@ msgstr ""
 #: lib/ash_enterprise_web/live/decisions/try_live.ex:122
 #, elixir-autogen, elixir-format
 msgid "v%{version} (%{status})"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/bpmn/catalog_live.ex:310
+#, elixir-autogen, elixir-format
+msgid "Disable"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/bpmn/catalog_live.ex:109
+#, elixir-autogen, elixir-format
+msgid "Disabled %{key} v%{version}."
+msgstr ""
+
+#: lib/ash_enterprise_web/live/bpmn/catalog_live.ex:321
+#, elixir-autogen, elixir-format
+msgid "Enable"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/bpmn/catalog_live.ex:106
+#, elixir-autogen, elixir-format
+msgid "Enabled %{key} v%{version}."
+msgstr ""
+
+#: lib/ash_enterprise_web/live/bpmn/catalog_live.ex:288
+#, elixir-autogen, elixir-format
+msgid "Publish"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/bpmn/catalog_live.ex:299
+#, elixir-autogen, elixir-format
+msgid "Publish with my authority"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/bpmn/catalog_live.ex:93
+#, elixir-autogen, elixir-format
+msgid "Published %{key} v%{version}."
+msgstr ""
+
+#: lib/ash_enterprise_web/live/bpmn/catalog_live.ex:96
+#, elixir-autogen, elixir-format
+msgid "Published %{key} v%{version}: its steps run within your own authority."
+msgstr ""
+
+#: lib/ash_enterprise_web/live/bpmn/catalog_live.ex:332
+#, elixir-autogen, elixir-format
+msgid "Retire"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/bpmn/catalog_live.ex:103
+#, elixir-autogen, elixir-format
+msgid "Retired %{key} v%{version}."
+msgstr ""
+
+#: lib/ash_enterprise_web/live/bpmn/catalog_live.ex:119
+#, elixir-autogen, elixir-format
+msgid "This recipe was not changed: %{reason}"
+msgstr ""
+
+#: lib/ash_enterprise_web/live/bpmn/catalog_live.ex:116
+#, elixir-autogen, elixir-format
+msgid "You may not change this recipe."
 msgstr ""

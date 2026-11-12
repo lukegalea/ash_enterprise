@@ -49,7 +49,8 @@ defmodule AshEnterprise.Bpmn.Subscription do
       changes_authority: [:set_authority],
       # A standing grant is a person's own act: no system actor, no automation principal
       # and nothing an engine marks may publish one (ADR 0043, ADR 0069).
-      human_only: [:publish_granted]
+      # Installing a pack is a person's act too: its drafts are created on their grants.
+      human_only: [:publish_granted, :install_pack]
     ]
 
   require Ash.Query
@@ -133,11 +134,31 @@ defmodule AshEnterprise.Bpmn.Subscription do
       change set_attribute(:status, :published)
       change AshBpmn.Resources.Subscription.CompileExpressions
     end
+
+    # A pack from `priv/packs/` arrives as drafts and nothing else: never published, enabled
+    # or granted, so it cannot make itself live (`AshEnterprise.Bpmn.Packs`). Its process
+    # definitions and recipes are created on the installing person's own grants, and a key
+    # the tenant already has is left alone, so installing again creates nothing.
+    action :install_pack, :map do
+      description "Install a recipe pack into this tenant as drafts, for a person to " <>
+                    "review and publish. Installing it again changes nothing."
+
+      transaction? true
+
+      argument :pack, :string do
+        allow_nil? false
+        description "The pack's name: a directory under priv/packs."
+      end
+
+      run AshEnterprise.Bpmn.Subscription.Actions.InstallPack
+    end
   end
 
   code_interface do
     define :set_authority, action: :set_authority, args: [:authority]
     define :publish_granted, action: :publish_granted
+    define :install_pack, action: :install_pack, args: [:pack]
+    define :get_subscription, action: :read, get_by: [:id]
   end
 
   # The prompt-invalidation wiring: every lifecycle act — publish, retire,

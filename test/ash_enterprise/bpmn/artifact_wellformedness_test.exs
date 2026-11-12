@@ -22,7 +22,9 @@ defmodule AshEnterprise.Bpmn.ArtifactWellformednessTest do
 
   use ExUnit.Case, async: true
 
-  @artifacts Path.wildcard("priv/bpmn/*.bpmn") ++ Path.wildcard("priv/dmn/*.dmn")
+  @artifacts Path.wildcard("priv/bpmn/*.bpmn") ++
+               Path.wildcard("priv/dmn/*.dmn") ++
+               Path.wildcard("priv/packs/*/*.{bpmn,dmn}")
 
   test "there are artifacts to check" do
     # Without this, the suite below passes vacuously if the directories are ever

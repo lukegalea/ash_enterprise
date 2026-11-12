@@ -138,9 +138,11 @@ defmodule AshEnterprise.Security.UserRole do
       description """
       Idempotent. Assigning a role someone already holds is the same intent twice,
       not an error -- which matters when an agent or a directory sync is the caller.
+      A repeat returns the assignment in force and records nothing.
       """
 
       change AshEnterprise.Security.Changes.DefaultScopingBusinessUnit
+      change AshEnterprise.Security.Changes.ReturnHeldAssignment
     end
 
     create :assign_governed do
@@ -156,6 +158,7 @@ defmodule AshEnterprise.Security.UserRole do
 
       validate {AshAgent.Validations.Governed, invocation: AshEnterprise.Execution.Invocation}
       change AshEnterprise.Security.Changes.DefaultScopingBusinessUnit
+      change AshEnterprise.Security.Changes.ReturnHeldAssignment
     end
 
     action :request_assignment, :map do

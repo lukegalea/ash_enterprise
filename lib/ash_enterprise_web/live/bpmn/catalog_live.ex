@@ -51,8 +51,76 @@ defmodule AshEnterpriseWeb.Bpmn.CatalogLive do
     end
   end
 
+  # A recipe's lifecycle, from its row on the triggers table. Each act runs as the signed-in
+  # person, through the subscription's own actions, so the policies decide it here as they
+  # would anywhere (iron law 11): someone without the grant is refused, and an id from
+  # another tenant is not found. `publish` keeps the authority the draft carries (human
+  # tasks only, unless the setup path chose otherwise); `publish_granted` is the person's
+  # standing grant (ADR 0069), which only they can give.
+  @lifecycle ~w(publish publish_granted retire enable disable)
+
+  def handle_event(act, %{"id" => id}, socket) when act in @lifecycle do
+    opts = [actor: socket.assigns[:current_user], tenant: tenant(socket)]
+
+    result =
+      with {:ok, recipe} <- Subscription.get_subscription(id, opts) do
+        lifecycle(act, recipe, opts)
+      end
+
+    socket =
+      case result do
+        {:ok, recipe} -> put_flash(socket, :info, lifecycle_done(act, recipe))
+        {:error, error} -> put_flash(socket, :error, lifecycle_error(error))
+      end
+
+    {:noreply, load(socket, :triggers)}
+  end
+
   defp editor_path(:process, key), do: ~p"/app/processes/#{key}/designer"
   defp editor_path(:decision, key), do: ~p"/app/decisions/#{key}/editor"
+
+  defp lifecycle("publish", recipe, opts), do: Subscription.publish(recipe, opts)
+  defp lifecycle("publish_granted", recipe, opts), do: Subscription.publish_granted(recipe, opts)
+  defp lifecycle("retire", recipe, opts), do: Subscription.retire(recipe, opts)
+  defp lifecycle("enable", recipe, opts), do: Subscription.enable(recipe, opts)
+  defp lifecycle("disable", recipe, opts), do: Subscription.disable(recipe, opts)
+
+  defp lifecycle_done(act, recipe) do
+    bindings = [key: recipe.key, version: recipe.version]
+
+    case act do
+      "publish" ->
+        dgettext("default", "Published %{key} v%{version}.", bindings)
+
+      "publish_granted" ->
+        dgettext(
+          "default",
+          "Published %{key} v%{version}: its steps run within your own authority.",
+          bindings
+        )
+
+      "retire" ->
+        dgettext("default", "Retired %{key} v%{version}.", bindings)
+
+      "enable" ->
+        dgettext("default", "Enabled %{key} v%{version}.", bindings)
+
+      "disable" ->
+        dgettext("default", "Disabled %{key} v%{version}.", bindings)
+    end
+  end
+
+  defp lifecycle_error(error) do
+    case Ash.Error.to_error_class(error) do
+      %Ash.Error.Forbidden{} ->
+        dgettext("default", "You may not change this recipe.")
+
+      %{errors: errors} ->
+        dgettext("default", "This recipe was not changed: %{reason}",
+          reason: Enum.map_join(errors, "; ", &Exception.message/1)
+        )
+    end
+  end
 
   defp load(socket, :processes),
     do: load_definitions(socket, :process, AshEnterprise.Bpmn.Definition)
@@ -191,6 +259,7 @@ defmodule AshEnterpriseWeb.Bpmn.CatalogLive do
                   <th>Guard</th>
                   <th>Starts</th>
                   <th>State</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -205,6 +274,63 @@ defmodule AshEnterpriseWeb.Bpmn.CatalogLive do
                   <td class="font-mono text-xs">{t.decision_key || t.process_key}</td>
                   <td>
                     <.badge tone={state_tone(t)}>{state_label(t)}</.badge>
+                  </td>
+                  <td class="space-x-1 text-right whitespace-nowrap">
+                    <.button
+                      :if={t.status == :draft}
+                      type="button"
+                      phx-click="publish"
+                      phx-value-id={t.id}
+                      variant="ghost"
+                      size="xs"
+                      id={"publish-#{t.id}"}
+                    >
+                      {dgettext("default", "Publish")}
+                    </.button>
+                    <.button
+                      :if={t.status == :draft}
+                      type="button"
+                      phx-click="publish_granted"
+                      phx-value-id={t.id}
+                      variant="ghost"
+                      size="xs"
+                      id={"publish-granted-#{t.id}"}
+                    >
+                      {dgettext("default", "Publish with my authority")}
+                    </.button>
+                    <.button
+                      :if={t.status == :published and t.enabled}
+                      type="button"
+                      phx-click="disable"
+                      phx-value-id={t.id}
+                      variant="ghost"
+                      size="xs"
+                      id={"disable-#{t.id}"}
+                    >
+                      {dgettext("default", "Disable")}
+                    </.button>
+                    <.button
+                      :if={t.status == :published and not t.enabled}
+                      type="button"
+                      phx-click="enable"
+                      phx-value-id={t.id}
+                      variant="ghost"
+                      size="xs"
+                      id={"enable-#{t.id}"}
+                    >
+                      {dgettext("default", "Enable")}
+                    </.button>
+                    <.button
+                      :if={t.status == :published}
+                      type="button"
+                      phx-click="retire"
+                      phx-value-id={t.id}
+                      variant="ghost"
+                      size="xs"
+                      id={"retire-#{t.id}"}
+                    >
+                      {dgettext("default", "Retire")}
+                    </.button>
                   </td>
                 </tr>
               </tbody>

@@ -1363,6 +1363,10 @@ msgid "Inherited"
 msgstr ""
 
 #: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Install pack"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
 #: lib/ash_enterprise_web/a2ui/flight_ui.ex:1
 msgid "Instance"
 msgstr ""

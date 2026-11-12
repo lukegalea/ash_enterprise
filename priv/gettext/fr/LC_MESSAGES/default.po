@@ -1646,7 +1646,7 @@ msgstr "Cette version n’a aucune décision à évaluer. Corrigez-la d’abord 
 msgid "Try %{key}"
 msgstr "Essayer %{key}"
 
-#: lib/ash_enterprise_web/live/bpmn/catalog_live.ex:288
+#: lib/ash_enterprise_web/live/bpmn/catalog_live.ex:414
 #: lib/ash_enterprise_web/live/decisions/try_live.ex:270
 #, elixir-autogen, elixir-format
 msgid "Try it"
@@ -1681,3 +1681,63 @@ msgstr "retirée"
 #, elixir-autogen, elixir-format
 msgid "v%{version} (%{status})"
 msgstr "v%{version} (%{status})"
+
+#: lib/ash_enterprise_web/live/bpmn/catalog_live.ex:310
+#, elixir-autogen, elixir-format
+msgid "Disable"
+msgstr "Désactiver"
+
+#: lib/ash_enterprise_web/live/bpmn/catalog_live.ex:109
+#, elixir-autogen, elixir-format
+msgid "Disabled %{key} v%{version}."
+msgstr "Recette %{key} v%{version} désactivée."
+
+#: lib/ash_enterprise_web/live/bpmn/catalog_live.ex:321
+#, elixir-autogen, elixir-format
+msgid "Enable"
+msgstr "Activer"
+
+#: lib/ash_enterprise_web/live/bpmn/catalog_live.ex:106
+#, elixir-autogen, elixir-format
+msgid "Enabled %{key} v%{version}."
+msgstr "Recette %{key} v%{version} activée."
+
+#: lib/ash_enterprise_web/live/bpmn/catalog_live.ex:288
+#, elixir-autogen, elixir-format
+msgid "Publish"
+msgstr "Publier"
+
+#: lib/ash_enterprise_web/live/bpmn/catalog_live.ex:299
+#, elixir-autogen, elixir-format
+msgid "Publish with my authority"
+msgstr "Publier sous mon autorité"
+
+#: lib/ash_enterprise_web/live/bpmn/catalog_live.ex:93
+#, elixir-autogen, elixir-format
+msgid "Published %{key} v%{version}."
+msgstr "Recette %{key} v%{version} publiée."
+
+#: lib/ash_enterprise_web/live/bpmn/catalog_live.ex:96
+#, elixir-autogen, elixir-format
+msgid "Published %{key} v%{version}: its steps run within your own authority."
+msgstr "Recette %{key} v%{version} publiée : ses étapes s’exécutent dans les limites de votre propre autorité."
+
+#: lib/ash_enterprise_web/live/bpmn/catalog_live.ex:332
+#, elixir-autogen, elixir-format
+msgid "Retire"
+msgstr "Retirer"
+
+#: lib/ash_enterprise_web/live/bpmn/catalog_live.ex:103
+#, elixir-autogen, elixir-format
+msgid "Retired %{key} v%{version}."
+msgstr "Recette %{key} v%{version} retirée."
+
+#: lib/ash_enterprise_web/live/bpmn/catalog_live.ex:119
+#, elixir-autogen, elixir-format
+msgid "This recipe was not changed: %{reason}"
+msgstr "Cette recette n’a pas été modifiée : %{reason}"
+
+#: lib/ash_enterprise_web/live/bpmn/catalog_live.ex:116
+#, elixir-autogen, elixir-format
+msgid "You may not change this recipe."
+msgstr "Vous ne pouvez pas modifier cette recette."

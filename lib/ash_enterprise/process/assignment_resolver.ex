@@ -177,7 +177,10 @@ defmodule AshEnterprise.Process.AssignmentResolver do
 
   # ── paths ────────────────────────────────────────────────────────────────
 
-  # `"subject.created_by_id"` and `"actor"` are the two shapes a diagram uses. Resolved by
+  # `"subject.created_by_id"`, `"instance.started_by_id"` and `"actor"` are the shapes a
+  # diagram uses: the instance's `started_by_id` is the person whose write caused the event a
+  # recipe started it from, which a review excludes so the granter cannot pass their own
+  # change. Resolved by
   # walking the context rather than by evaluating an expression, because a candidate clause is
   # a reference to a person and not a computation -- and keeping it that way is what stops the
   # assignment vocabulary quietly becoming a second expression language.
@@ -192,6 +195,15 @@ defmodule AshEnterprise.Process.AssignmentResolver do
     # An unknown field is a modelling error in the diagram, not a crash in the engine. It
     # resolves to nobody, and the task will have no candidate from this clause -- which is
     # visible immediately in the task list.
+    ArgumentError -> nil
+  end
+
+  defp principal_from_path("instance." <> field, ctx) do
+    case Map.get(ctx, :instance) do
+      nil -> nil
+      instance -> Map.get(instance, String.to_existing_atom(field))
+    end
+  rescue
     ArgumentError -> nil
   end
 
