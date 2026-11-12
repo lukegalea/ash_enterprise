@@ -81,9 +81,11 @@ MyClinic.Execution.invoke(
    URN `type` naming the action, `actions`, the subject as `identifier`, and the target digest, arguments digest and
    preconditions), its `approval_digest` (SHA-256 of the RFC 8785 canonical JSON) and `approval_expires_at` from the
    declaration's `approval_expires_in`. `apply_decision` makes an approved row ready only while the digest recomputed
-   from the row, the target as declared now and the preconditions' records as they stand now still matches, and the
-   approval has not expired; otherwise the row is `stale` with `error_code` `"subject_changed"`, `"target_changed"`,
-   `"manifest_changed"`, `"approval_expired"` or `"approval_changed"`. A host that keeps releases implements
+  from the row, the target as declared now and the preconditions' records as they stand now still matches, and
+  the approval has not expired; otherwise the row is `stale` with `error_code` `"subject_changed"`, `"target_changed"`,
+  `"manifest_changed"`, `"approval_expired"`, `"approval_changed"` or `"approved_by_requester"` (a self-approval
+  the posture in force no longer allows; see `documentation/topics/approval-postures.md`). An approved row also
+  records what its approval rested on as `approval_basis`. A host that keeps releases implements
    `AshAgent.ReleaseManifest` and names it as `release_manifest` in the `invocation` section: `request` then records
    the active release as `release_manifest_id` and the approval binds its digest as `manifest_digest`, so an approval
    does not survive a change of release. The same module may implement `agent_version/2`, the version of an agent the
@@ -162,12 +164,28 @@ Which path a claimed row takes depends on the target's effects declaration:
 | The `:reconcile` trigger | It settles rows whose lease expired, whose dispatch deadline passed or whose outcome is unknown |
 | A resolution task | Attach changes to `request_resolution` (open it) and `apply_resolution` (set its `outcome`) |
 | An `AshAgent.FailureClass` implementation | For each error type of yours a target can return |
-| Approval opening and deciding | Attach a change to `request` (rows that land in `awaiting_approval`) and to `apply_decision` (set its `outcome` from the decided task). The binding to the request is the fragment's (rule 8); who may approve, and whether the approver may still, is yours |
+| Approval opening and deciding | Attach a change to `request` (rows that land in `awaiting_approval`) and to `apply_decision` (set its `outcome` from the decided task). The binding to the request is the fragment's (rule 8); which person may decide is the approval posture's (`AshAgent.Approval.Posture`, read through your `AshAgent.Approval.Authority`), and the row records what the approval rested on as `approval_basis` |
 | A request for more information | `apply_decision` with `outcome: :request_info` parks the row in `request_info` (a waiting status, never claimed); open the requester's task there, and call `provide_info` when they answer. It returns the row to `awaiting_approval` with a new approval window and the same binding, so only a later approval makes it ready. An amendment is a new request, not an answer |
 | Any check at claim | Attach a change to `claim`, for example re-checking that the approver still holds the approver role; to refuse the attempt, call `AshAgent.Invocation.Changes.Claim.stale/2`, which leaves a row an earlier attempt may have reached outside for reconciliation instead |
 
 A change you attach with `changes do change MyChange, where: [action_is(:claim)] end` runs after the fragment's own
 changes for that action and before its hooks.
+
+
+## `AshAgent.Approval.PostureFragment`
+
+One row per tenant, holding the approval posture in force there (`AshAgent.Approval.Posture`) and its end
+date, with the one action that changes them. Include it on your tenant resource, name your
+`AshAgent.Approval.Authority` and `AshAgent.ExecutionIdentity` implementations in its `approval_posture`
+section, and read the posture the same way the package does: through the authority, never off the row directly.
+
+`set_approval_posture` answers who may change it: one administrator raises the posture; the sole administrator,
+an operator, or a change approved under four eyes lowers it; an `:implementation` posture needs an end date in
+the future and within 120 days, and every other posture clears the end date. The four-eyes path is a seam:
+name your invocation resource as `invocation` in the `approval_posture` section, declare the action a four-eyes
+target with `posture_floor?: true`, and reach it through `invoke`; the validation verifies the invocation as
+`AshAgent.Validations.Governed` does. Do not attach `Governed` to the action, which would refuse the direct
+changes (`documentation/topics/approval-postures.md`). The fragment declares no primary key: your resource has one.
 
 ## `AshAgent.AgentVersion`
 

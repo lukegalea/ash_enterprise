@@ -46,6 +46,30 @@ of the resource that includes `AshAgent.Run`.
     run, in the form your `principal_for/2` maps to the run's `executing_principal`. The run refuses a tool call whose
     invocation would run as anyone else.
 
+## `AshAgent.Approval.Authority`
+
+```elixir
+@callback posture(tenant) :: {posture, ends_at | nil}
+@callback holders(tenant, role) :: [person_id]   # everyone who holds or has ever held the role
+@callback administrator_role() :: atom
+@callback operator?(actor) :: boolean
+```
+
+1. Name it as `authority` in the `invocation` section (required). It answers facts about your people for the
+   approval-posture rules (`AshAgent.Approval.Posture`); the package never reads your people, roles or tenants
+   itself. Name the same module, with your `AshAgent.ExecutionIdentity`, in the `approval_posture` section of
+   the resource that includes `AshAgent.Approval.PostureFragment`.
+2. `posture/1` is asked at `apply_decision` and at every `claim` of an approved row. Answer `:standard` unless
+   you stand behind the posture; an end date that has passed reads as `:standard` anyway.
+3. `holders/2` is everyone who holds **or has ever held** the role: the set the lowering rule needs (is this
+   the only administrator there ever was?) and the set the small-team rule asks about (does the approver role
+   have holders at all?). Whether an approver holds a role *now* stays with your policies, as it is today.
+4. `administrator_role/0` names the role whose holders approve when the approver role has none, and the role
+   the posture-change rules are about.
+5. `operator?/1` names a platform-level operator: one who may set any tenant's posture, raising or lowering.
+6. No callback takes an actor: these are facts, not authority checks. Who may call the actions that use them
+   is your policies.
+
 ## `AshAgent.Runtime`
 
 ```elixir

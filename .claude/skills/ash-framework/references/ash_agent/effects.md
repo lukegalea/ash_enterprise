@@ -33,7 +33,12 @@ end
 - `kind` is an ACP tool kind (`:read`, `:edit`, `:delete`, `:move`, `:search`, `:execute`, `:think`, `:fetch`,
   `:switch_mode`, `:other`) and is required.
 - `approval` is `:none` (the default), `:confirm` (ask before it runs) or `:four_eyes` (a second person from
-  `approver_role`, not the one asking). `approval_expires_in` is a duration keyword list.
+  `approver_role`, not the one asking). Which person decides is the approval posture in force
+  (`AshAgent.Approval.Posture`); `:none` and `:confirm` are the same under every posture. `approval_expires_in`
+  is a duration keyword list.
+- `posture_floor?` (only with `approval: :four_eyes`) keeps the effect at `:standard` behaviour under every
+  posture: another holder of the approver role approves, the requester excluded, always. Use it for the
+  actions that change the posture itself.
 - `intent` is `:inspect`, `:propose`, `:approve`, `:test` or `:execute`.
 - `reconcile_with` names a `:read` or generic action on the same resource that finds out whether an outside effect
   happened.
