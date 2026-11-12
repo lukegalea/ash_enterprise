@@ -155,6 +155,14 @@ defmodule AshEnterprise.Bpmn.HumanTask do
       description "What the engine recorded about escalating the task."
     end
 
+    calculate :routing_label,
+              :string,
+              AshEnterprise.Bpmn.Calculations.RoutingLabel do
+      public? true
+
+      description "Set when the task's candidates were all excluded: who it went to instead, or that nobody can act on it."
+    end
+
     calculate :info_exchange,
               :string,
               {AshEnterprise.Bpmn.Calculations.ReviewPacket, field: :questions} do

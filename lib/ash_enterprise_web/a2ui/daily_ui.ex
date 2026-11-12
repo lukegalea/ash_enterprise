@@ -703,7 +703,7 @@ defmodule AshEnterpriseWeb.A2ui.ApprovalsUI do
     end
 
     component :table do
-      fields [:subject_label, :status, :subject_outline, :name, :waiting_since]
+      fields [:subject_label, :status, :subject_outline, :name, :waiting_since, :routing_label]
       read_action :awaiting_me
       row_actions [:approve, :reject, :request_info, :answer, :resolve]
       select_context :task
@@ -712,7 +712,7 @@ defmodule AshEnterpriseWeb.A2ui.ApprovalsUI do
         title :subject_label
         badge :status
         badge_text open: "Open", claimed: "Claimed"
-        meta [:subject_outline, :name, :waiting_since]
+        meta [:subject_outline, :name, :waiting_since, :routing_label]
         columns 2
       end
     end
@@ -736,6 +736,7 @@ defmodule AshEnterpriseWeb.A2ui.ApprovalsUI do
         :review_decision,
         :due_label,
         :escalation_label,
+        :routing_label,
         :info_exchange
       ]
     end
@@ -834,6 +835,10 @@ defmodule AshEnterpriseWeb.A2ui.ApprovalsUI do
 
     field :escalation_label do
       label "Escalation"
+    end
+
+    field :routing_label do
+      label "Routing"
     end
 
     field :info_exchange do

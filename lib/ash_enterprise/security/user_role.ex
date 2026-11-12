@@ -131,6 +131,10 @@ defmodule AshEnterprise.Security.UserRole do
       description "Sets or clears the end of a grant. Clearing it makes the grant open-ended."
       accept [:valid_until]
       require_atomic? false
+
+      # Whether the grant now lasts longer, written into the audit event, so a recipe's guard
+      # can tell an extension (a review) from a shortening without reading anything.
+      change AshEnterprise.Security.Changes.StampValidUntilExtension
     end
 
     read :history do

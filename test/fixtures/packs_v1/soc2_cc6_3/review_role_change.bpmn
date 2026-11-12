@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn2:definitions xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:ash="https://github.com/lukegalea/ash_bpmn/ns"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   id="Definitions_review_role_change"
+                   targetNamespace="https://ash-enterprise.example/bpmn">
+  <!--
+    Review a role change (SOC 2 CC6.3: role changes are authorized). Started by the pack's
+    recipe when a role is assigned. One review by an administrator who is neither the person
+    whose write assigned the role (the instance's started_by_id) nor the row's creator: the
+    exclusions are subtracted from the candidates before the task is written, so the granter
+    is never a candidate for their own change.
+
+    Human tasks only: nothing here acts on its own. A challenged change is recorded, not
+    revoked; revoking stays a person's act in the admin surface.
+  -->
+  <bpmn2:process id="Process_review_role_change" name="Review a role change" isExecutable="true">
+
+    <bpmn2:startEvent id="Start" name="Role assigned">
+      <bpmn2:outgoing>Flow_to_review</bpmn2:outgoing>
+    </bpmn2:startEvent>
+
+    <bpmn2:userTask id="Review" name="Confirm or challenge the role change">
+      <bpmn2:extensionElements>
+        <ash:taskConfig>
+          <ash:candidates>
+            <ash:candidate kind="role" of="Administrator"/>
+          </ash:candidates>
+          <ash:exclusions>
+            <ash:exclusion who="instance.started_by_id"/>
+            <ash:exclusion who="subject.created_by_id"/>
+          </ash:exclusions>
+          <ash:outcomes>
+            <ash:outcome name="approved"/>
+            <ash:outcome name="rejected"/>
+          </ash:outcomes>
+        </ash:taskConfig>
+      </bpmn2:extensionElements>
+      <bpmn2:incoming>Flow_to_review</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_to_route</bpmn2:outgoing>
+    </bpmn2:userTask>
+
+    <bpmn2:exclusiveGateway id="Route" name="Confirmed?" default="Flow_challenged">
+      <bpmn2:incoming>Flow_to_route</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_confirmed</bpmn2:outgoing>
+      <bpmn2:outgoing>Flow_challenged</bpmn2:outgoing>
+    </bpmn2:exclusiveGateway>
+
+    <bpmn2:endEvent id="EndConfirmed" name="Confirmed">
+      <bpmn2:extensionElements><ash:taskConfig outcome="confirmed"/></bpmn2:extensionElements>
+      <bpmn2:incoming>Flow_confirmed</bpmn2:incoming>
+    </bpmn2:endEvent>
+
+    <bpmn2:endEvent id="EndChallenged" name="Challenged">
+      <bpmn2:extensionElements><ash:taskConfig outcome="challenged"/></bpmn2:extensionElements>
+      <bpmn2:incoming>Flow_challenged</bpmn2:incoming>
+    </bpmn2:endEvent>
+
+    <bpmn2:sequenceFlow id="Flow_to_review" sourceRef="Start" targetRef="Review"/>
+    <bpmn2:sequenceFlow id="Flow_to_route" sourceRef="Review" targetRef="Route"/>
+    <bpmn2:sequenceFlow id="Flow_confirmed" sourceRef="Route" targetRef="EndConfirmed">
+      <bpmn2:conditionExpression xsi:type="bpmn2:tFormalExpression"
+        language="feel">task.outcome = "approved"</bpmn2:conditionExpression>
+    </bpmn2:sequenceFlow>
+    <bpmn2:sequenceFlow id="Flow_challenged" sourceRef="Route" targetRef="EndChallenged"/>
+  </bpmn2:process>
+
+  <bpmndi:BPMNDiagram id="Diagram_review_role_change">
+    <bpmndi:BPMNPlane id="Plane_review_role_change" bpmnElement="Process_review_role_change">
+      <bpmndi:BPMNShape id="Shape_Start" bpmnElement="Start">
+        <dc:Bounds x="150" y="202" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Review" bpmnElement="Review">
+        <dc:Bounds x="240" y="180" width="140" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Route" bpmnElement="Route" isMarkerVisible="true">
+        <dc:Bounds x="440" y="195" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_EndConfirmed" bpmnElement="EndConfirmed">
+        <dc:Bounds x="560" y="132" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_EndChallenged" bpmnElement="EndChallenged">
+        <dc:Bounds x="560" y="272" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_to_review" bpmnElement="Flow_to_review">
+        <di:waypoint x="186" y="220"/>
+        <di:waypoint x="240" y="220"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_to_route" bpmnElement="Flow_to_route">
+        <di:waypoint x="380" y="220"/>
+        <di:waypoint x="440" y="220"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_confirmed" bpmnElement="Flow_confirmed">
+        <di:waypoint x="465" y="195"/>
+        <di:waypoint x="465" y="150"/>
+        <di:waypoint x="560" y="150"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_challenged" bpmnElement="Flow_challenged">
+        <di:waypoint x="465" y="245"/>
+        <di:waypoint x="465" y="290"/>
+        <di:waypoint x="560" y="290"/>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn2:definitions>

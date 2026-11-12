@@ -2498,6 +2498,10 @@ msgstr ""
 msgid "Roles"
 msgstr ""
 
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+msgid "Routing"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/rule_set_revision_ui.ex:1
 msgid "Rule set revision"
 msgstr ""

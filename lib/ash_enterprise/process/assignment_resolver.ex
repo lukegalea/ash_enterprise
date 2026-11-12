@@ -80,6 +80,45 @@ defmodule AshEnterprise.Process.AssignmentResolver do
     {:ok, specs |> Enum.flat_map(&resolve_exclusion(&1, ctx)) |> Enum.uniq()}
   end
 
+  # ── nobody eligible ──────────────────────────────────────────────────────
+
+  @default_fallback [%{"kind" => "role", "of" => "Platform Operator"}]
+
+  @doc """
+  Who gets a task whose candidates, minus its exclusions, left nobody: the
+  clauses in `fallback_specs/0`, resolved in the task's tenant like any other
+  clause.
+
+  The case this answers was found on a real deployment: a tenant's only
+  Administrator granted a role, the review excluded the granter, and the task
+  had no candidates. `ash_bpmn` subtracts the exclusions from this answer again
+  (so the granter and the person the change is about never come back in
+  through it), writes the task with whoever remains and records a
+  `:no_eligible_candidate` event, from which
+  `AshEnterprise.Bpmn.Changes.RecordUnassignableFinding` raises a finding in
+  the same transaction. A fallback that resolves nobody is still recorded:
+  the task exists, nobody can act on it, and the finding says so.
+  """
+  @impl true
+  def no_eligible_candidate(_info, ctx), do: candidates(fallback_specs(), ctx)
+
+  @doc """
+  The candidate clauses a task with nobody eligible falls back to.
+
+  Configured as `config :ash_enterprise, #{inspect(__MODULE__)}, no_eligible_candidate: [...]`,
+  in the clause shape a diagram uses. Defaults to the `Platform Operator` role
+  (`mix ash_enterprise.platform.grant_operator`). That role is held in the
+  operator's own tenant, so in any other tenant the default resolves nobody
+  unless that tenant has a role of the same name: a fallback never crosses
+  tenants.
+  """
+  @spec fallback_specs() :: [map()]
+  def fallback_specs do
+    :ash_enterprise
+    |> Application.get_env(__MODULE__, [])
+    |> Keyword.get(:no_eligible_candidate, @default_fallback)
+  end
+
   # ── who a person acts as ─────────────────────────────────────────────────
 
   @doc """

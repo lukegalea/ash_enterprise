@@ -9,17 +9,20 @@
                    targetNamespace="https://ash-enterprise.example/bpmn">
   <!--
     Review a role change (SOC 2 CC6.3: role changes are authorized). Started by the pack's
-    recipe when a role is assigned. One review by an administrator who is neither the person
-    whose write assigned the role (the instance's started_by_id) nor the row's creator: the
-    exclusions are subtracted from the candidates before the task is written, so the granter
-    is never a candidate for their own change.
+    recipes when a role is assigned or an assignment is extended. One review by an
+    administrator who is none of: the person whose write made the change (the instance's
+    started_by_id), the assignment's creator, and the person who holds the role
+    (subject.user_id). The exclusions are subtracted from the candidates before the task is
+    written, so neither the granter nor the grantee is ever a candidate for the change. When
+    that leaves nobody, the host's fallback reviewers get the task, still minus the
+    exclusions, and a finding records it.
 
     Human tasks only: nothing here acts on its own. A challenged change is recorded, not
     revoked; revoking stays a person's act in the admin surface.
   -->
   <bpmn2:process id="Process_review_role_change" name="Review a role change" isExecutable="true">
 
-    <bpmn2:startEvent id="Start" name="Role assigned">
+    <bpmn2:startEvent id="Start" name="Role assigned or extended">
       <bpmn2:outgoing>Flow_to_review</bpmn2:outgoing>
     </bpmn2:startEvent>
 
@@ -32,6 +35,7 @@
           <ash:exclusions>
             <ash:exclusion who="instance.started_by_id"/>
             <ash:exclusion who="subject.created_by_id"/>
+            <ash:exclusion who="subject.user_id"/>
           </ash:exclusions>
           <ash:outcomes>
             <ash:outcome name="approved"/>

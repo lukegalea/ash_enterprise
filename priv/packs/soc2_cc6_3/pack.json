@@ -1,8 +1,8 @@
 {
   "name": "soc2_cc6_3",
-  "version": 1,
+  "version": 2,
   "title": "Role changes are reviewed",
-  "description": "When a role is assigned, an administrator other than the person who assigned it confirms or challenges the change. Installed as drafts: nothing runs until a person publishes the process and the recipe.",
+  "description": "When a role is assigned, or an assignment is extended to last longer, an administrator who is neither the person who made the change nor the person it is about confirms or challenges it. Revoking a role opens no review: it narrows access, and the audit chain records who revoked what and when. Installed as drafts: nothing runs until a person publishes the process and the recipes. A tenant that installed an earlier version keeps it; installing this one adds drafts beside it.",
   "controls": ["CC6.3"],
   "processes": [
     {
@@ -16,6 +16,15 @@
       "key": "soc2.cc6_3.role_assigned",
       "match_resource": "AshEnterprise.Security.UserRole",
       "match_action_type": "create",
+      "process_key": "access.review_role_change",
+      "authority": "human_tasks_only"
+    },
+    {
+      "key": "soc2.cc6_3.role_extended",
+      "match_resource": "AshEnterprise.Security.UserRole",
+      "match_action": "set_valid_until",
+      "match_action_type": "update",
+      "guard_feel": "metadata.valid_until_extended = true",
       "process_key": "access.review_role_change",
       "authority": "human_tasks_only"
     }

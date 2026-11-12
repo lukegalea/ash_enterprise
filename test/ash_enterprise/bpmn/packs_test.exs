@@ -8,7 +8,8 @@ defmodule AshEnterprise.Bpmn.PacksTest do
   causing person or carry a standing grant or set anything else, a caller that is not a
   person, and a person who may not create definitions and subscriptions. Then what an
   install leaves: drafts only, nothing published, enabled or granted, nothing in any other
-  tenant, and nothing more on a second run.
+  tenant, and nothing more on a second run. A later version of a pack adds drafts beside the
+  version a tenant installed and leaves that version as it was.
   SYNTHETIC data only.
   """
 
@@ -27,6 +28,10 @@ defmodule AshEnterprise.Bpmn.PacksTest do
   @pack "soc2_cc6_3"
   @process "access.review_role_change"
   @recipe "soc2.cc6_3.role_assigned"
+  @extended "soc2.cc6_3.role_extended"
+
+  # The pack as version 1 shipped it: one recipe, and a review excluding only the granter.
+  @v1_root Path.expand("../../fixtures/packs_v1", __DIR__)
 
   defp install(who, tenant), do: Subscription.install_pack(@pack, actor: who, tenant: tenant)
 
@@ -275,4 +280,70 @@ defmodule AshEnterprise.Bpmn.PacksTest do
       assert rows(Subscription, admin.tenant, @recipe) == []
     end
   end
+
+  describe "a later version" do
+    test "adds drafts beside an installed earlier version, and leaves that version as it was" do
+      admin = tenant!()
+      opts = [actor: admin.actor, tenant: admin.tenant]
+
+      {:ok, v1} = Packs.load(@pack, @v1_root)
+      assert v1.version == 1
+      assert {:ok, _} = Packs.install(v1, opts)
+
+      [process_v1] = rows(Definition, admin.tenant, @process)
+      process_v1 = Definition.publish!(process_v1, opts)
+      [recipe_v1] = rows(Subscription, admin.tenant, @recipe)
+      recipe_v1 = Subscription.publish!(recipe_v1, opts)
+
+      assert {:ok,
+              %{
+                processes: %{@process => :new_version},
+                recipes: %{@recipe => :existing, @extended => :created}
+              }} = install(admin.actor, admin.tenant)
+
+      # The installed version is untouched: same row, still published, same content.
+      assert %{status: :published, version: 1, xml: xml, updated_at: updated_at} =
+               Ash.get!(Definition, process_v1.id, authorize?: false, tenant: admin.tenant)
+
+      assert xml == process_v1.xml
+      assert updated_at == process_v1.updated_at
+      refute xml =~ "subject.user_id"
+
+      assert [%{id: id, status: :published, version: 1}] =
+               rows(Subscription, admin.tenant, @recipe)
+
+      assert id == recipe_v1.id
+
+      # The new version waits as a draft beside it, and nothing new is live.
+      assert [%{version: 2, xml: draft_xml}] =
+               admin.tenant |> rows_with_status(Definition, @process, :draft)
+
+      assert draft_xml =~ "subject.user_id"
+      assert [%{status: :draft, version: 1}] = rows(Subscription, admin.tenant, @extended)
+
+      assert {:ok, [%{id: ^id}]} =
+               Subscription.latest_published(@recipe, authorize?: false, tenant: admin.tenant)
+
+      assert {:ok, [%{version: 1}]} =
+               Definition.latest_published(@process, authorize?: false, tenant: admin.tenant)
+
+      # And installing it again creates nothing.
+      assert {:ok,
+              %{
+                processes: %{@process => :existing},
+                recipes: %{@recipe => :existing, @extended => :existing}
+              }} = install(admin.actor, admin.tenant)
+
+      assert length(rows(Definition, admin.tenant, @process)) == 2
+    end
+
+    test "names the controls of the packs that ship a process" do
+      assert Packs.controls_for_process(@process) == ["CC6.3"]
+      assert Packs.controls_for_process("no.such.process") == []
+      assert Packs.controls_for_process(nil) == []
+    end
+  end
+
+  defp rows_with_status(tenant, resource, key, status),
+    do: resource |> rows(tenant, key) |> Enum.filter(&(&1.status == status))
 end

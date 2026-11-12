@@ -195,6 +195,13 @@ config :ash_bpmn,
 config :ash_enterprise, AshEnterprise.Bpmn.Subscription,
   causing_person_keys: ["access_request.submitted"]
 
+# Who gets a task whose candidates, minus its exclusions, leave nobody (a tenant's only
+# administrator granting a role their own review excludes them from). Resolved in the task's
+# tenant like a diagram's clauses, and still minus the exclusions; a finding records every
+# such task (`AshEnterprise.Process.AssignmentResolver.no_eligible_candidate/2`).
+config :ash_enterprise, AshEnterprise.Process.AssignmentResolver,
+  no_eligible_candidate: [%{"kind" => "role", "of" => "Platform Operator"}]
+
 config :ash_decisions, ash_domains: [AshEnterprise.Decisions]
 
 # --- The compliance plane (ADR 0035) -------------------------------------------

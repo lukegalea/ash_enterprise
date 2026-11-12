@@ -2507,6 +2507,10 @@ msgstr "Privilège de rôle"
 msgid "Roles"
 msgstr "Rôles"
 
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+msgid "Routing"
+msgstr "Acheminement"
+
 #: lib/ash_enterprise_web/a2ui/rule_set_revision_ui.ex:1
 msgid "Rule set revision"
 msgstr "Révision de l’ensemble de règles"

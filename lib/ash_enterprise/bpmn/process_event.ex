@@ -27,4 +27,10 @@ defmodule AshEnterprise.Bpmn.ProcessEvent do
       audit?: false,
       archival?: false
     ]
+
+  # A task nobody could act on is a compliance finding, raised in the step that wrote the
+  # task, so the two commit together.
+  changes do
+    change AshEnterprise.Bpmn.Changes.RecordUnassignableFinding, on: [:create]
+  end
 end

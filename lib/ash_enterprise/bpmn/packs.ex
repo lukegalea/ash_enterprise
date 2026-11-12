@@ -18,8 +18,19 @@ defmodule AshEnterprise.Bpmn.Packs do
     * `standing_grant` is refused, because a standing grant is the act of the person who
       publishes the recipe (`publish_granted`), never something a draft arrives with.
 
-  Installing is idempotent: a process or recipe whose key the tenant already has, in any
-  status or version, is left as it is and reported as existing, so a re-run creates nothing.
+  Installing is idempotent, and it never touches what a tenant already has:
+
+    * a key the tenant does not have is created as a draft (`:created`);
+    * a key with a version whose content is the pack's, in any status, is left as it is
+      (`:existing`), so a re-run creates nothing;
+    * a key with a draft pending is left as it is (`:existing`): a person's draft is theirs;
+    * otherwise the pack has changed since the tenant installed it, and its content is added
+      as a new draft version of the key (`:new_version`), beside the versions the tenant
+      has. The published version keeps running until a person publishes the new one, which
+      supersedes it the way any next version does.
+
+  So a later version of a pack reaches a tenant that installed an earlier one as drafts, and
+  an installed version is never edited, retired or republished by the installer.
 
   ## The manifest
 
@@ -36,8 +47,10 @@ defmodule AshEnterprise.Bpmn.Packs do
 
   A recipe may also carry `match_action` and `guard_feel`; any other field is refused, so a
   manifest cannot set what the installer does not mean to install. `controls` names the
-  framework criteria the pack's processes support. It is documentation for now: mapping
-  controls to evidence (an OSCAL component definition) is later work.
+  framework criteria the pack's processes support. `controls_for_process/2` reads it, so a
+  finding about a pack's process is filed against the pack's controls
+  (`AshEnterprise.Bpmn.Changes.RecordUnassignableFinding`); mapping controls to evidence (an
+  OSCAL component definition) is later work.
 
   A pack may also carry a `templates` list. The installer ignores it; it is read by
   `AshEnterprise.Compliance.TemplateMap`, which checks the `soc2` pack's map of
@@ -119,6 +132,32 @@ defmodule AshEnterprise.Bpmn.Packs do
       {:ok, %{pack: pack.name, processes: Map.new(processes), recipes: Map.new(recipes)}}
     end
   end
+
+  @doc """
+  The `controls` of every pack under `root` that ships a process with `key`, sorted and
+  without duplicates; `[]` for nil or a key no pack ships. A pack whose manifest cannot be
+  read contributes nothing.
+  """
+  @spec controls_for_process(String.t() | nil, Path.t()) :: [String.t()]
+  def controls_for_process(key, root \\ root())
+
+  def controls_for_process(key, root) when is_binary(key) do
+    root
+    |> names()
+    |> Enum.flat_map(&(root |> Path.join(&1) |> manifest() |> controls_shipping(key)))
+    |> Enum.filter(&is_binary/1)
+    |> Enum.uniq()
+    |> Enum.sort()
+  end
+
+  def controls_for_process(_key, _root), do: []
+
+  defp controls_shipping({:ok, %{"processes" => processes, "controls" => controls}}, key)
+       when is_list(processes) and is_list(controls) do
+    if Enum.any?(processes, &match?(%{"key" => ^key}, &1)), do: controls, else: []
+  end
+
+  defp controls_shipping(_manifest, _key), do: []
 
   # ── reading ──────────────────────────────────────────────────────────────
 
@@ -266,35 +305,58 @@ defmodule AshEnterprise.Bpmn.Packs do
   # ── installing ───────────────────────────────────────────────────────────
 
   defp install_process(process, opts) do
-    if exists?(Definition, process.key, opts) do
-      {:ok, {process.key, :existing}}
-    else
-      with {:ok, definition} <-
-             Definition.create(%{key: process.key, name: process.name, xml: process.xml}, opts) do
-        compiled(definition)
-      end
+    case install_as(versions(Definition, process.key, opts), &(&1.xml == process.xml)) do
+      :existing ->
+        {:ok, {process.key, :existing}}
+
+      outcome ->
+        with {:ok, definition} <-
+               Definition.create(%{key: process.key, name: process.name, xml: process.xml}, opts) do
+          compiled(definition, outcome)
+        end
     end
   end
 
-  defp compiled(%{errors: errors, key: key}) when errors in [nil, []], do: {:ok, {key, :created}}
+  defp compiled(%{errors: errors, key: key}, outcome) when errors in [nil, []],
+    do: {:ok, {key, outcome}}
 
-  defp compiled(%{errors: errors, key: key}),
+  defp compiled(%{errors: errors, key: key}, _outcome),
     do: {:error, "process #{key} does not compile: #{inspect(errors)}"}
 
   defp install_recipe(%{key: key, attrs: attrs}, opts) do
-    if exists?(Subscription, key, opts) do
-      {:ok, {key, :existing}}
-    else
-      with {:ok, _draft} <- Subscription.create(attrs, opts), do: {:ok, {key, :created}}
+    case install_as(versions(Subscription, key, opts), &same_recipe?(&1, attrs)) do
+      :existing ->
+        {:ok, {key, :existing}}
+
+      outcome ->
+        with {:ok, _draft} <- Subscription.create(attrs, opts), do: {:ok, {key, outcome}}
     end
   end
 
-  defp exists?(resource, key, opts) do
+  # What installing a key does, given the tenant's versions of it (see the moduledoc).
+  defp install_as([], _same?), do: :created
+
+  defp install_as(versions, same?) do
+    if Enum.any?(versions, same?) or Enum.any?(versions, &(&1.status == :draft)),
+      do: :existing,
+      else: :new_version
+  end
+
+  @recipe_compared [:match_resource, :match_action, :match_action_type, :guard_feel, :process_key]
+
+  defp same_recipe?(version, attrs) do
+    Enum.all?(@recipe_compared, fn field ->
+      comparable(Map.get(version, field)) == comparable(Map.get(attrs, field))
+    end)
+  end
+
+  defp comparable(nil), do: nil
+  defp comparable(value), do: value |> to_string() |> String.replace_prefix("Elixir.", "")
+
+  defp versions(resource, key, opts) do
     resource
     |> Ash.Query.filter(key == ^key)
-    |> Ash.Query.limit(1)
     |> Ash.read!(opts)
-    |> Enum.any?()
   end
 
   # Runs `fun` over `items`, stopping at the first error; `{:ok, [{key, value}]}` in order.
