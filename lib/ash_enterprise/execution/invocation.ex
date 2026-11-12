@@ -37,9 +37,7 @@ defmodule AshEnterprise.Execution.Invocation do
       whoever reruns it; otherwise the requester's own
       (`AshEnterprise.Execution.Changes.SealingScope`). `rejection_details`, the
       per-field errors of a request-time refusal, is written by the request change
-      itself rather than a caller's input, so it is sealed as an attribute change
-      (`SealUnderScope`'s `changes:`) and read back on every read
-      (`AshEnterprise.Execution.Preparations.RejectionDetails`).
+      itself, never from a caller's input; it is sealed the same way.
       `args_digest` is an HMAC under a key derived from that scope's key
       (`AshEnterprise.Execution.DigestKey`), so a shred makes both unreadable and the
       digest unrecomputable; `recorded?` is then false. No plaintext copy is derived
@@ -174,7 +172,7 @@ defmodule AshEnterprise.Execution.Invocation do
 
   cloak do
     vault({AshEnterprise.Erasure.Vault, :resolve, []})
-    attributes [:args, :result]
+    attributes [:args, :result, :rejection_details]
     encrypt_nil?(false)
   end
 
@@ -194,7 +192,7 @@ defmodule AshEnterprise.Execution.Invocation do
     change AshEnterprise.Execution.Changes.SealingScope, on: [:create]
 
     change {AshEnterprise.Erasure.Changes.SealUnderScope,
-            fields: [:args, :result], changes: [:rejection_details]},
+            fields: [:args, :result, :rejection_details]},
            on: [:create, :update]
 
     change AshEnterprise.Execution.Changes.HandoffFaultPoints, on: [:create]
@@ -217,28 +215,6 @@ defmodule AshEnterprise.Execution.Invocation do
     # too: a request the pre-check refuses is final the moment it is written, and no
     # update follows to wake the run that asked for it.
     change {AshAgent.Run.Changes.Wake, run: AshEnterprise.Execution.Run}, on: [:create, :update]
-  end
-
-  attributes do
-    # `rejection_details` is written by the request change itself (a refusal the
-    # pre-check found), never by a caller's input, so unlike `args` and `result` it
-    # stays a plain attribute (`AshAgent.Invocation.Changes.Request` sets it with
-    # `force_change_attribute/3`, which needs it to exist) and is sealed from the
-    # pending change into this column (`SealUnderScope`, `changes:`). Read back on
-    # every read by `Preparations.RejectionDetails`, which is what a run's next model
-    # turn reads the field errors through.
-    attribute :encrypted_rejection_details, :binary do
-      sensitive? true
-
-      description """
-      `rejection_details`, sealed under the row's erasure scope: why a request-time
-      pre-check refused it, per input at fault.
-      """
-    end
-  end
-
-  preparations do
-    prepare AshEnterprise.Execution.Preparations.RejectionDetails
   end
 
   actions do

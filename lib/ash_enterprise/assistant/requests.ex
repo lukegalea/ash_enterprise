@@ -154,19 +154,21 @@ defmodule AshEnterprise.Assistant.Requests do
   @doc """
   The field errors of a request the pre-check refused at request time (`error_code`
   `invalid_request`): one message per input at fault. The details are sealed with the
-  row (`encrypted_rejection_details`) and read back on every read; a shredded scope
-  leaves none, and every other refusal says nothing beyond its code.
+  row, like its arguments: loaded for its owner, and none once erased. A refusal of
+  permission carries only "not permitted", and a row that was not refused, nothing.
   """
   @spec rejection_messages(Ash.Resource.record()) :: [String.t()] | nil
-  def rejection_messages(row) do
-    case row.rejection_details do
-      %{"errors" => errors} when is_list(errors) ->
+  def rejection_messages(%{status: :rejected} = row) do
+    case Ash.load(row, [:rejection_details], authorize?: false, tenant: row.organization_id) do
+      {:ok, %{rejection_details: %{"errors" => errors}}} when is_list(errors) ->
         errors |> Enum.map(& &1["message"]) |> Enum.reject(&is_nil/1)
 
       _none_or_erased ->
         nil
     end
   end
+
+  def rejection_messages(_row), do: nil
 
   defp verdict_kind("confirm"), do: :merge_duplicate
   defp verdict_kind("reject"), do: :keep_duplicate_separate

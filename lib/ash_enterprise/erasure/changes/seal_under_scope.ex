@@ -5,11 +5,6 @@ defmodule AshEnterprise.Erasure.Changes.SealUnderScope do
       change {AshEnterprise.Erasure.Changes.SealUnderScope, fields: [:body]},
         on: [:create, :update]
 
-  `changes:` names fields no argument carries because an action's own changes write
-  them to the attribute itself (`Ash.Changeset.force_change_attribute/3`): a
-  package's fragment can write one where no caller input exists. Sealed the same way,
-  from the pending attribute change, which is then cleared.
-
   On a resource using `AshCloak`, each cloaked attribute `x` arrives as a
   sensitive *argument* `x`, and `ash_cloak` encrypts it into `encrypted_x` with
   a vault that has no record in hand. This change does that job instead, with
@@ -63,18 +58,14 @@ defmodule AshEnterprise.Erasure.Changes.SealUnderScope do
 
   @impl true
   def init(opts) do
-    fields = List.wrap(opts[:fields])
-    changes = List.wrap(opts[:changes])
+    case Keyword.get(opts, :fields) do
+      [_ | _] = fields ->
+        if Enum.all?(fields, &is_atom/1),
+          do: {:ok, opts},
+          else: {:error, "fields must be a list of atoms"}
 
-    cond do
-      fields == [] and changes == [] ->
-        {:error, "fields and changes must name at least one attribute to seal"}
-
-      not Enum.all?(fields ++ changes, &is_atom/1) ->
-        {:error, "fields and changes must be lists of atoms"}
-
-      true ->
-        {:ok, opts}
+      _ ->
+        {:error, "fields must be a non-empty list of cloaked attribute names"}
     end
   end
 
@@ -83,9 +74,9 @@ defmodule AshEnterprise.Erasure.Changes.SealUnderScope do
 
   @impl true
   def change(changeset, opts, _context) do
-    case sealing(changeset, opts) do
+    case present_fields(changeset, opts[:fields]) do
       [] -> changeset
-      present -> seal(changeset, present)
+      fields -> seal(changeset, fields)
     end
   end
 
@@ -93,26 +84,15 @@ defmodule AshEnterprise.Erasure.Changes.SealUnderScope do
   # sealing needs the scope id and a key lookup, which an atomic update cannot do.
   @impl true
   def atomic(changeset, opts, _context) do
-    case sealing(changeset, opts) do
+    case present_fields(changeset, opts[:fields]) do
       [] -> {:ok, changeset}
-      _present -> {:not_atomic, "sealing content under its erasure scope needs the scope's key"}
+      _fields -> {:not_atomic, "sealing content under its erasure scope needs the scope's key"}
     end
   end
 
-  defp sealing(changeset, opts) do
-    for {field, source} <- sources(opts),
-        match?({:ok, _}, value_of(changeset, field, source)),
-        do: {field, source}
+  defp present_fields(changeset, fields) do
+    Enum.filter(fields, &match?({:ok, _}, Ash.Changeset.fetch_argument(changeset, &1)))
   end
-
-  defp sources(opts) do
-    Enum.flat_map([{:fields, :argument}, {:changes, :change}], fn {key, source} ->
-      for field <- List.wrap(opts[key]), do: {field, source}
-    end)
-  end
-
-  defp value_of(changeset, field, :argument), do: Ash.Changeset.fetch_argument(changeset, field)
-  defp value_of(changeset, field, :change), do: Ash.Changeset.fetch_change(changeset, field)
 
   defp seal(changeset, fields) do
     case Ash.Changeset.get_attribute(changeset, @scope_attribute) do
@@ -163,17 +143,17 @@ defmodule AshEnterprise.Erasure.Changes.SealUnderScope do
     end
   end
 
-  defp seal_field(changeset, {field, source}, scope_id) do
-    {:ok, value} = value_of(changeset, field, source)
+  defp seal_field(changeset, field, scope_id) do
+    {:ok, value} = Ash.Changeset.fetch_argument(changeset, field)
     # Law 10: the encrypted_<field> attribute is declared by the erasure DSL for each
     # sealed field (a closed set) — to_existing_atom is the safe spelling.
     target = String.to_existing_atom("encrypted_#{field}")
 
-    case sealed_value(changeset.resource, field, source, value, scope_id) do
+    case sealed_value(changeset.resource, field, value, scope_id) do
       {:ok, sealed} ->
         changeset
         |> Ash.Changeset.force_change_attribute(target, sealed)
-        |> drop(field, source)
+        |> Ash.Changeset.delete_argument(field)
 
       {:error, :shredded} ->
         Ash.Changeset.add_error(changeset,
@@ -191,15 +171,10 @@ defmodule AshEnterprise.Erasure.Changes.SealUnderScope do
     end
   end
 
-  # A sealed argument is deleted, so `ash_cloak`'s own encrypt hook finds nothing; a
-  # sealed change is cleared, so its plaintext never reaches the column.
-  defp drop(changeset, field, :argument), do: Ash.Changeset.delete_argument(changeset, field)
-  defp drop(changeset, field, :change), do: Ash.Changeset.clear_change(changeset, field)
+  defp sealed_value(_resource, _field, nil, _scope_id), do: {:ok, nil}
 
-  defp sealed_value(_resource, _field, _source, nil, _scope_id), do: {:ok, nil}
-
-  defp sealed_value(resource, field, source, value, scope_id) do
-    with {:ok, sealed} <- Keyring.seal(scope_id, serialize(resource, field, source, value)) do
+  defp sealed_value(resource, field, value, scope_id) do
+    with {:ok, sealed} <- Keyring.seal(scope_id, serialize(resource, field, value)) do
       {:ok, Base.encode64(sealed)}
     end
   end
@@ -207,8 +182,8 @@ defmodule AshEnterprise.Erasure.Changes.SealUnderScope do
   # Mirrors AshCloak's private `serialize/3`, which its decrypt calculation is
   # the inverse of. Kept in step deliberately: the round-trip test for every
   # cloaked type in this app is what notices if ash_cloak changes the format.
-  defp serialize(resource, field, source, value) do
-    %{type: type, constraints: constraints} = spec_of(resource, field, source)
+  defp serialize(resource, field, value) do
+    %{type: type, constraints: constraints} = Ash.Resource.Info.calculation(resource, field)
 
     case Ash.Type.dump_to_embedded(type, value, constraints) do
       {:ok, dumped} when dumped !== value ->
@@ -221,9 +196,4 @@ defmodule AshEnterprise.Erasure.Changes.SealUnderScope do
         raise ArgumentError, "cannot serialize #{inspect(field)} for sealing: #{inspect(other)}"
     end
   end
-
-  # An argument's type is the calculation `ash_cloak` left in the attribute's place; a
-  # change's is the attribute's own.
-  defp spec_of(resource, field, :argument), do: Ash.Resource.Info.calculation(resource, field)
-  defp spec_of(resource, field, :change), do: Ash.Resource.Info.attribute(resource, field)
 end

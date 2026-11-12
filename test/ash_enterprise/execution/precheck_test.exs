@@ -74,19 +74,12 @@ defmodule AshEnterprise.Execution.PrecheckTest do
                {:rejected, :rejected, "invalid_request"}
 
       # Sealed under the row's erasure scope like `args`: ciphertext in its column,
-      # the plaintext only on a read (the preparation that opens it).
+      # the plaintext only when loaded.
       assert row.erasure_scope_id
       assert is_binary(row.encrypted_rejection_details)
       refute row.encrypted_rejection_details =~ "DECLINED"
 
-      # The package's own column stays empty: the sealing clears the pending change.
-      assert %{rows: [[nil]]} =
-               AshEnterprise.Repo.query!(
-                 "SELECT rejection_details FROM exec_invocations WHERE id = $1",
-                 [Ecto.UUID.dump!(row.id)]
-               )
-
-      read = Execution.get_invocation!(row.id, oban(nurse))
+      read = Execution.get_invocation!(row.id, oban(nurse) ++ [load: [:rejection_details]])
 
       assert [%{"message" => message}] = read.rejection_details["errors"]
       assert message =~ "refused by a business rule: declined_by_clinic"
@@ -119,7 +112,7 @@ defmodule AshEnterprise.Execution.PrecheckTest do
                {:rejected, :rejected, "not_permitted"}
 
       # A refusal of permission says never why, and never whether a record exists.
-      read = Execution.get_invocation!(row.id, oban(nurse))
+      read = Execution.get_invocation!(row.id, oban(nurse) ++ [load: [:rejection_details]])
       assert read.rejection_details == %{"errors" => [%{"message" => "not permitted"}]}
 
       # Nothing ran: the role the request named was not assigned (the member's own
