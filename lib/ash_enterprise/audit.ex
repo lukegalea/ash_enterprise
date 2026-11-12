@@ -24,5 +24,22 @@ defmodule AshEnterprise.Audit do
 
   resources do
     resource AshEnterprise.Audit.EventLog
+
+    # The archive store and its run record (ADR 0024's age half, `AshEnterprise.Audit.Retention`).
+    resource AshEnterprise.Audit.ArchivedEvent do
+      define :archived_chain, action: :chain, args: [:organization_id]
+    end
+
+    resource AshEnterprise.Audit.ArchivedEvidence do
+      define :archived_evidence_for_control,
+        action: :for_control,
+        args: [:organization_id, :control_id]
+    end
+
+    resource AshEnterprise.Audit.ArchiveRun do
+      define :record_archive_run, action: :record
+      define :list_archive_runs, action: :read
+      define :latest_purge_anchor, action: :latest_purge_anchor, args: [:chain_organization_id]
+    end
   end
 end

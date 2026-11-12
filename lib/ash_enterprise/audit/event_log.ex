@@ -125,8 +125,13 @@ defmodule AshEnterprise.Audit.EventLog do
 
   ## Retention
 
-  ⚠️ There is still no retention or purge policy: nothing expires and nothing is
-  partitioned (ADR 0024's age half, not built).
+  Ninety days hot, then archived; never purged before four hundred days
+  (`AshEnterprise.Audit.Retention`, ADR 0024's age half). An event older than ninety days
+  is copied to `AshEnterprise.Audit.ArchivedEvent`, the copy is verified, and only then is
+  the hot row deleted. The immutability trigger below allows that delete and no other: the
+  row must be past ninety days and an identical copy must already be archived. The tail
+  of every chain stays hot, so the chain trigger always finds the row to link to. Nothing
+  is partitioned: ADR 0024 accepted monthly partitions, but none was ever created.
 
   Erasure does not delete from this log, and must not. Content from an external
   connection reaches it only as ciphertext sealed under that connection's
@@ -259,6 +264,27 @@ defmodule AshEnterprise.Audit.EventLog do
         up """
         CREATE OR REPLACE FUNCTION ash_enterprise_audit_immutable() RETURNS trigger AS $fn$
         BEGIN
+          -- The one DELETE allowed: retention moving a row out of the hot log. The row
+          -- must be past the ninety-day hot window, and an identical copy of it must
+          -- already be in the archive (`AshEnterprise.Audit.ArchivedEvent`). So a row can
+          -- leave this table only by having arrived there first.
+          IF TG_OP = 'DELETE'
+             AND OLD.occurred_at < now() - interval '90 days'
+             AND EXISTS (
+               SELECT 1 FROM audit_event_archive a
+               WHERE a.id = OLD.id
+                 AND (a.sequence, a.organization_id, a.record_id, a.version, a.occurred_at,
+                      a.resource, a.action, a.action_type, a.user_id, a.data,
+                      a.changed_attributes, a.metadata, a.previous_hash, a.hash)
+                     IS NOT DISTINCT FROM
+                     (OLD.sequence, OLD.organization_id, OLD.record_id, OLD.version,
+                      OLD.occurred_at, OLD.resource, OLD.action, OLD.action_type, OLD.user_id,
+                      OLD.data, OLD.changed_attributes, OLD.metadata, OLD.previous_hash,
+                      OLD.hash)
+             ) THEN
+            RETURN OLD;
+          END IF;
+
           RAISE EXCEPTION 'audit_events is append-only; % is not permitted', TG_OP
             USING ERRCODE = 'restrict_violation',
                   HINT = 'Correct a wrong entry by recording a new one.';
@@ -274,8 +300,12 @@ defmodule AshEnterprise.Audit.EventLog do
         # `mix ecto.reset` has to work and a TRUNCATE is not a quiet edit -- it
         # takes the whole table, which is conspicuous in a way one altered row
         # is not.
+        #
+        # `OR REPLACE` because the function statement above drops with CASCADE, which
+        # takes this trigger with it: a change to the function must change this statement
+        # too, so the migration recreates the trigger after the function.
         up """
-        CREATE TRIGGER audit_events_immutable
+        CREATE OR REPLACE TRIGGER audit_events_immutable
           BEFORE UPDATE OR DELETE ON audit_events
           FOR EACH ROW EXECUTE FUNCTION ash_enterprise_audit_immutable();
         """

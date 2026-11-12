@@ -267,10 +267,10 @@
       "applicability": "applicable",
       "frequency": "daily",
       "owner_role": "Security Lead",
-      "evidence_producer": "mix:ash_enterprise.audit.verify",
+      "evidence_producer": "module:AshEnterprise.Audit.ChainVerifyWorker",
       "operating_process": "file:.github/workflows/ci.yml",
       "test_ref": "file:test/ash_enterprise/audit/chain_test.exs",
-      "rationale": "Separate evaluation of the audit log: the verify task walks every chain and the suite tampers on purpose. CI evaluates the rest on each push. Nothing schedules the verify task or stores its result."
+      "rationale": "Separate evaluation of the audit log: every chain, hot and archived, is verified daily and the result stored as an evidence artifact (AshEnterprise.Audit.ChainVerifyWorker), and the suite tampers on purpose. CI evaluates the rest on each push."
     },
     {
       "id": "CC4.2",
@@ -397,9 +397,9 @@
       "applicability": "applicable",
       "frequency": "daily",
       "owner_role": "Security Lead",
-      "evidence_producer": "mix:ash_enterprise.audit.verify",
+      "evidence_producer": "module:AshEnterprise.Audit.ChainVerifyWorker",
       "test_ref": "file:test/ash_enterprise/audit/chain_test.exs",
-      "rationale": "Log completeness and tamper evidence are carried: the log is hash-chained and a trigger refuses UPDATE and DELETE. Review of the logs and alerting are not (q38)."
+      "rationale": "Log completeness and tamper evidence are carried: the log is hash-chained, a trigger refuses UPDATE and any DELETE but a verified move to the archive, and the chain is verified daily with the result stored as evidence. Review of the logs and alerting are not (q38)."
     },
     {
       "id": "CC7.3",
@@ -464,7 +464,7 @@
       "applicability": "applicable",
       "frequency": "continuous",
       "owner_role": "Operations Lead",
-      "rationale": "Backup and recovery infrastructure is the deployment's. This repository configures none (q48)."
+      "rationale": "Backup and recovery infrastructure is the deployment's. This repository ships the backup and restore drill (scripts/backup-restore-drill, run in CI) and the evidence retention policy, but configures no backup store, schedule or replication (q48, q36)."
     },
     {
       "id": "A1.3",
@@ -472,7 +472,7 @@
       "applicability": "applicable",
       "frequency": "annual",
       "owner_role": "Operations Lead",
-      "rationale": "Testing recovery plans needs a plan and a restore drill. Neither exists here (q48)."
+      "rationale": "A restore drill exists and CI runs it on every push at seed scale (scripts/backup-restore-drill, docs/runbooks/backup-and-restore.md). Running it on the deployment's own data, on a schedule, and keeping its report is the owner's (q48)."
     },
     {
       "id": "PI1.1",

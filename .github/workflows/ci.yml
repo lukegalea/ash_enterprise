@@ -411,6 +411,75 @@ jobs:
       - name: Durability tier
         run: mix test.durability
 
+  backup-restore-drill:
+    name: Backup and restore drill
+    runs-on: ubuntu-latest
+    # q48: back up a seeded database with pg_dump -Fc from one snapshot, restore it into a
+    # fresh database, and prove the copy (every table's row count against the snapshot, every
+    # audit chain verified on the copy). scripts/backup-restore-drill;
+    # docs/runbooks/backup-and-restore.md. Blocking: a restore that has stopped working is
+    # found here, not during an outage.
+    services:
+      postgres:
+        image: pgvector/pgvector:pg18
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      MIX_TEST_PARTITION: _drill
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: beam
+        uses: ./.github/actions/setup-beam
+
+      # Restore only: the main job saves this cache.
+      - name: Restore dependency and build cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            deps
+            _build
+          key: ${{ runner.os }}-mix-${{ steps.beam.outputs.elixir-version }}-${{ hashFiles('mix.lock') }}
+          restore-keys: ${{ runner.os }}-mix-${{ steps.beam.outputs.elixir-version }}-
+
+      # boxic_dmn shells out to `xmllint`; see the main job's step. pg_dump must be no older
+      # than the server (18), which the runner's own client is not.
+      - name: Install xmllint and the PostgreSQL 18 client
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y libxml2-utils postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y postgresql-client-18
+          echo "/usr/lib/postgresql/18/bin" >> "$GITHUB_PATH"
+
+      - run: mix deps.get
+      - run: mix deps.compile
+
+      # The seeded estate the e2e job also starts from: the example tenant, the legacy
+      # estate and their audit chains.
+      - name: Create and seed the database
+        run: |
+          mix ecto.create --quiet
+          mix ash_enterprise.legacy.setup
+          mix ash.setup
+          mix ash_enterprise.seed
+
+      - name: Backup and restore drill
+        run: scripts/backup-restore-drill --json "${{ runner.temp }}/drill.json"
+
+      - name: Drill report
+        if: always()
+        run: cat "${{ runner.temp }}/drill.json" || true
+
   e2e:
     name: Browser end-to-end
     runs-on: ubuntu-latest

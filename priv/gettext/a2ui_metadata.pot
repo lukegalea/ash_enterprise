@@ -222,6 +222,22 @@ msgid "Approved"
 msgstr ""
 
 #: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Archive run"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Archived"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Archived event"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Archived evidence"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Ash Enterprise"
 msgstr ""
 
@@ -1200,6 +1216,10 @@ msgid "Followed up"
 msgstr ""
 
 #: lib/ash_enterprise/canvas/registry.ex:2
+msgid "For control"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
 msgid "For export"
 msgstr ""
 
@@ -1523,6 +1543,10 @@ msgstr ""
 
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Latest published"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Latest purge anchor"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/operator_ui.ex:1
@@ -2362,6 +2386,10 @@ msgstr ""
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
 msgid "Response"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Restore"
 msgstr ""
 
 #: lib/ash_enterprise_web/a2ui/judgments/calibration_ui.ex:1

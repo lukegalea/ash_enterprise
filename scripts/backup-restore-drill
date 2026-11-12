@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Backup and restore drill (q48): pg_dump -Fc the configured database from one snapshot,
+# restore it into a fresh database, then check the copy: every table's row count against
+# the snapshot, and every audit chain verified on the copy. Prints sizes, the dump's
+# SHA-256 and how long the dump and the restore took; exits non-zero on any difference.
+#
+#   scripts/backup-restore-drill                         # the current MIX_ENV's database
+#   scripts/backup-restore-drill --keep --dump /backups/drill.dump --json drill.json
+#
+# The work is `mix ash_enterprise.backup.drill` (its moduledoc has the details); the
+# procedure around it, and what it does not measure, is docs/runbooks/backup-and-restore.md.
+# CI runs it on every push against the service Postgres (the backup-restore-drill job).
+#
+# Needs pg_dump and pg_restore no older than the server, and a role that can create
+# databases. PG_DUMP and PG_RESTORE override the binaries.
+set -euo pipefail
+
+cd "$(git rev-parse --show-toplevel)"
+exec mix ash_enterprise.backup.drill "$@"

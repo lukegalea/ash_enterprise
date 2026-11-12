@@ -36,7 +36,12 @@ defmodule AshEnterprise.Accounts.Team do
     api_type: :team,
     ownership: :business_owned,
     cdm_entity: "Team",
-    extra_extensions: [AshAgent.Effects]
+    extra_extensions: [AshAgent.Effects],
+    # Restoring a deleted team is a person's decision (ADR 0059), and it can bring back
+    # the roles an owner team carries, so no automation principal's grant reaches it
+    # either (ADR 0043).
+    human_only: [:restore],
+    changes_authority: [:restore]
 
   postgres do
     table "teams"
@@ -121,9 +126,37 @@ defmodule AshEnterprise.Accounts.Team do
       message: "directory-backed teams must reference an external group"
   end
 
+  # A deleted team is archived, not removed, and `:archived` is the one read that sees it:
+  # every other read filters archived rows out.
+  archive do
+    exclude_read_actions([:archived])
+  end
+
   actions do
     defaults [:read, :destroy]
     default_accept [:name, :description, :team_type, :administrator_id, :owning_business_unit_id]
+
+    read :archived do
+      description "Deleted (archived) teams, the ones `:restore` can bring back."
+      filter expr(not is_nil(archived_at))
+    end
+
+    update :restore do
+      description """
+      Undo a delete: clear `archived_at` on a team archived within the restore window
+      (`AshEnterprise.Platform.Validations.WithinRestoreWindow`, 30 days by default).
+      Human-only, and audited like any update.
+      """
+
+      accept []
+      # Non-atomic: the window is checked against the archived row as loaded (through
+      # `:archived`, since every other read hides it), and audited updates are non-atomic
+      # anyway (the ash_events wrapper).
+      require_atomic? false
+
+      validate AshEnterprise.Platform.Validations.WithinRestoreWindow
+      change set_attribute(:archived_at, nil)
+    end
 
     create :create do
       primary? true

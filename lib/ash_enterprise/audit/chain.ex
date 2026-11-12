@@ -46,6 +46,7 @@ defmodule AshEnterprise.Audit.Chain do
 
   @type result :: %{
           organization_id: Ash.UUID.t() | nil,
+          anchored_after: integer() | nil,
           checked: non_neg_integer(),
           skipped_unchained_prefix: non_neg_integer(),
           findings: [finding()]
@@ -53,17 +54,30 @@ defmodule AshEnterprise.Audit.Chain do
 
   # One query per branch, not `IS NOT DISTINCT FROM`, so each can use the tenant's chain
   # index.
+  #
+  # Hot and archived rows are one chain (`AshEnterprise.Audit.Retention`): the union reads
+  # both, and `UNION` rather than `UNION ALL` folds a row that is in both tables during a
+  # move into one, while two different rows at one position stay two and break the link.
+  # `$anchor` is the hash of the last event a purge removed (nil if none): the first
+  # remaining row links to it.
   @verify_sql """
-  WITH chained AS (
+  WITH events AS (
+    SELECT #{Enum.join(~w(sequence id record_id version occurred_at resource action action_type user_id organization_id data changed_attributes metadata previous_hash hash), ", ")}
+    FROM audit_events WHERE :tenant_filter
+    UNION
+    SELECT #{Enum.join(~w(sequence id record_id version occurred_at resource action action_type user_id organization_id data changed_attributes metadata previous_hash hash), ", ")}
+    FROM audit_event_archive WHERE :tenant_filter
+  ),
+  chained AS (
     SELECT
       sequence,
       id,
       occurred_at,
       hash,
       previous_hash,
-      lag(hash) OVER (ORDER BY sequence) AS actual_previous,
+      lag(hash, 1, $anchor::text) OVER (ORDER BY sequence) AS actual_previous,
       encode(sha256(convert_to(concat_ws('|',
-        coalesce(lag(hash) OVER (ORDER BY sequence), ''),
+        coalesce(lag(hash, 1, $anchor::text) OVER (ORDER BY sequence), ''),
         sequence::text,
         id::text,
         record_id::text,
@@ -78,15 +92,21 @@ defmodule AshEnterprise.Audit.Chain do
         changed_attributes::text,
         metadata::text
       ), 'UTF8')), 'hex') AS recomputed
-    FROM audit_events
-    WHERE :tenant_filter
+    FROM events
+    WHERE sequence > $after
   )
   SELECT sequence, id, occurred_at, hash, previous_hash, actual_previous, recomputed
   FROM chained
   ORDER BY sequence
   """
-  @verify_tenant String.replace(@verify_sql, ":tenant_filter", "organization_id = $1::uuid")
-  @verify_untenanted String.replace(@verify_sql, ":tenant_filter", "organization_id IS NULL")
+  @verify_tenant @verify_sql
+                 |> String.replace(":tenant_filter", "organization_id = $1::uuid")
+                 |> String.replace("$anchor", "$2")
+                 |> String.replace("$after", "$3")
+  @verify_untenanted @verify_sql
+                     |> String.replace(":tenant_filter", "organization_id IS NULL")
+                     |> String.replace("$anchor", "$1")
+                     |> String.replace("$after", "$2")
 
   @doc """
   Verifies one tenant's chain. `nil` verifies the chain of events with no tenant.
@@ -95,16 +115,22 @@ defmodule AshEnterprise.Audit.Chain do
   """
   @spec verify(Ash.UUID.t() | nil) :: result()
   def verify(organization_id) do
+    {anchor_hash, after_sequence} = anchor(organization_id)
+
     %{rows: rows} =
       case organization_id do
-        nil -> Repo.query!(@verify_untenanted, [])
-        id -> Repo.query!(@verify_tenant, [Ecto.UUID.dump!(id)])
+        nil ->
+          Repo.query!(@verify_untenanted, [anchor_hash, after_sequence])
+
+        id ->
+          Repo.query!(@verify_tenant, [Ecto.UUID.dump!(id), anchor_hash, after_sequence])
       end
 
     {unchained_prefix, chained} = split_prefix(rows)
 
     %{
       organization_id: organization_id,
+      anchored_after: if(anchor_hash, do: after_sequence),
       checked: length(chained),
       skipped_unchained_prefix: length(unchained_prefix),
       findings: chained |> Enum.map(&examine/1) |> Enum.reject(&is_nil/1)
@@ -117,9 +143,21 @@ defmodule AshEnterprise.Audit.Chain do
   @spec verify_all() :: [result()]
   def verify_all do
     %{rows: rows} =
-      Repo.query!("SELECT DISTINCT organization_id FROM audit_events ORDER BY 1 NULLS FIRST")
+      Repo.query!(
+        "SELECT organization_id FROM audit_events UNION " <>
+          "SELECT organization_id FROM audit_event_archive ORDER BY 1 NULLS FIRST"
+      )
 
     Enum.map(rows, fn [org] -> verify(org && Ecto.UUID.cast!(org)) end)
+  end
+
+  # Where the chain starts after a purge: the newest verified purge's last hash and
+  # sequence. With none, the chain starts at its first row, as it always did.
+  defp anchor(organization_id) do
+    case AshEnterprise.Audit.latest_purge_anchor(organization_id, authorize?: false) do
+      {:ok, %{tail_hash: hash, to_sequence: sequence}} when is_binary(hash) -> {hash, sequence}
+      _ -> {nil, -1}
+    end
   end
 
   # Rows predating the chain carry no hash. They are only ignorable while they

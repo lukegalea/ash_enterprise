@@ -131,17 +131,19 @@
       "id": "q10",
       "section": "evidence",
       "question": "Can a deletion be undone?",
-      "answer": "A destroy archives the row instead of deleting it: `ash_archival` soft delete, inherited from the base resource, with an explicit `archival?: false` that a reviewer can grep for. Partial because reversal is not a feature: there is no restore action anywhere in `lib/`, so undoing a deletion is an operator's database operation, and I found no test that asserts an archived row is retained and can be brought back.",
+      "answer": "A destroy archives the row instead of deleting it: `ash_archival` soft delete, inherited from the base resource, with an explicit `archival?: false` that a reviewer can grep for. A team can now be restored: `Team.restore` clears `archived_at` on a team archived within the restore window (30 days by default, `AshEnterprise.Platform.Validations.WithinRestoreWindow`), found through the `:archived` read. It is human-only and counted as changing authority, so no system actor, engine or automation principal reaches it; it needs write on teams; and the restore is audited with the person who did it. The refusals are tested: no write grant, a system actor, another tenant, outside the window, and a team never deleted. Partial because it is one resource: the other soft-deletable resources have no restore action, so undoing their deletion is still an operator's database operation.",
       "status": "partial",
-      "proof": "lib/ash_enterprise/platform/resource.ex"
+      "proof": "test/ash_enterprise/accounts/team_restore_test.exs",
+      "test": "brings a deleted team back, and the log records who did it"
     },
     {
       "id": "q11",
       "section": "evidence",
       "question": "Can you rebuild state by replaying the log?",
-      "answer": "The `AshEvents` replay machinery is wired, but the clear-records step deliberately refuses by default — it is indistinguishable from \"delete all business data\", so each deployment authorizes it explicitly.",
+      "answer": "The `AshEvents` replay machinery is wired, and the clear step is now a configured list (`AshEnterprise.Audit.ClearRecordsForReplay`): it clears only the resources it names, and only where `allow?` is true, which dev and test set and production does not, so production still refuses. It also refuses before deleting anything when the log holds events of an audited resource the list does not name (replay re-runs every event), when events have moved to the archive (replay reads only the hot log), or when the list names the audit log or an unaudited resource. A test replays a log of business units created, nested and renamed, and gets back the same rows, and the replay records no new events. Partial because only that resource is proven: a full rebuild of every resource has not been run, and once retention has archived events the hot log alone cannot rebuild state.",
       "status": "partial",
-      "proof": "lib/ash_enterprise/audit/clear_records_for_replay.ex"
+      "proof": "test/ash_enterprise/audit/replay_drill_test.exs",
+      "test": "the listed resources, row for row"
     },
     {
       "id": "q12",
@@ -383,10 +385,12 @@
       "id": "q36",
       "section": "evidence",
       "question": "How long is evidence kept, and where does it live after ninety days?",
-      "answer": "Open. Nothing expires from `audit_events`, nothing is partitioned and nothing moves to cold storage: no migration creates a partition, and the one retention job in the codebase (`AshEnterprise.Lineage.Retention`, 14 days) prunes lineage rows, which are not the evidence. ADR 0024 accepts the design, monthly partitions with ninety days hot and detached partitions that still verify, and its erasure half is built; the partitioning half is not. A twelve-month SOC 2 window is retained because nothing deletes it, not because anything promises to keep it, and the immutability trigger now refuses the `DELETE` that a retention job would need.",
+      "answer": "Ninety days hot, then archived; never purged before four hundred days (`AshEnterprise.Audit.Retention`, daily). Audit events and superseded evidence artifacts older than ninety days move to `audit_event_archive` and `evidence_artifact_archive`, tables in the same database. Each move copies the rows, compares the copy (count, every column, a SHA-256 digest over the hashes, and each artifact's content against its hash) and deletes the hot rows only when that holds; a failed comparison deletes nothing and is recorded. The immutability trigger allows a delete only of a row past ninety days with an identical archived copy, and the archive's triggers refuse every update and any delete under four hundred days. Purging is off unless configured, refused under 400, and the chain still verifies across hot, archived and purged rows. Not partitioned: ADR 0024's partitions were never created, so the archive is tables, not detached partitions. What a template cannot show is a deployment keeping it for the window: the archive is only as durable as the deployment's backups (q48).",
       "status": "open",
       "adr": "0024",
-      "item": "retention"
+      "item": "retention",
+      "proof": "test/ash_enterprise/audit/retention_test.exs",
+      "test": "a 399-day row is never purged"
     },
     {
       "id": "q37",
@@ -488,9 +492,10 @@
       "id": "q48",
       "section": "assurance",
       "question": "How quickly can you come back from losing the database?",
-      "answer": "Open. Nothing in the repository configures a backup, point-in-time recovery or a restore, and no test or CI job restores a dump. Backups are whatever the deployment provides. No RPO or RTO is committed to, and an untested restore is a belief rather than a control.",
+      "answer": "A backup and restore drill exists and CI runs it on every push: `scripts/backup-restore-drill` dumps the database with `pg_dump -Fc` from one snapshot, restores it into a fresh database, and checks the copy (every table's row count against the snapshot, every audit chain verified on the copy), reporting the dump's size, SHA-256 and how long the dump and restore took; a tampered chain or a missing row fails it. The `backup-restore-drill` CI job runs it against a seeded database on the service Postgres, and `docs/runbooks/backup-and-restore.md` is the procedure. Measured at seed scale only. Nothing here configures where backups are stored, how often they run, point-in-time recovery or replication, and no RPO or RTO is committed to: those come from running the drill on a deployment's own data.",
       "status": "open",
-      "item": "reliability"
+      "item": "reliability",
+      "proof": "scripts/backup-restore-drill"
     },
     {
       "id": "q49",
@@ -513,10 +518,12 @@
       "id": "q51",
       "section": "assurance",
       "question": "Can you show a control operated continuously for twelve months?",
-      "answer": "Partial. This is the question the rest of the section is really asking. What exists: an unbroken, verifiable hash chain covering every write, exportable per tenant for any window, and an ownership row for each SOC 2 criterion in `docs/controls.json`. `ash_compliance` now ships a freshness sweep that turns a missing or stale artifact into an unknown finding, but this host neither schedules it nor records an artifact for any control, so nothing here can yet show a control ran for twelve months. Also missing: a retention policy that guarantees the window is still there in month twelve (q36), and any evidence that anyone reviewed it (q38).",
+      "answer": "Partial. This is the question the rest of the section is really asking. What exists: an unbroken, verifiable hash chain covering every write, exportable per tenant for any window, and an ownership row for each SOC 2 criterion in `docs/controls.json`. Now scheduled: every chain, hot and archived, is verified daily and the result stored as an evidence artifact for CC4.1 and CC7.2, findings included (`AshEnterprise.Audit.ChainVerifyWorker`), and `ash_compliance`'s freshness sweep runs hourly for every organization, so a daily control whose last result is older than a day becomes an open `:unknown` finding, and is resolved when fresh evidence arrives. Retention keeps the window: ninety days hot, nothing purged before four hundred (q36). Still missing: twelve months of it actually running, most criteria having no producer recording evidence at all (they read as unknown), and any evidence that anyone reviewed the log (q38).",
       "status": "partial",
       "adr": "0021",
-      "item": "retention"
+      "item": "retention",
+      "proof": "test/ash_enterprise/compliance/continuous_verification_test.exs",
+      "test": "a stale verification produces its overdue finding"
     },
     {
       "id": "q53",

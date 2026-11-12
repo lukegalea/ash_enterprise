@@ -214,3 +214,10 @@ config :swoosh, :api_client, false
 
 # The showcase's fault panel (AshEnterprise.Showcase) and the fault points it arms.
 config :ash_enterprise, AshEnterprise.Showcase, fault_controls?: true
+
+# Event replay may clear the resources it rebuilds in development
+# (`AshEnterprise.Audit.ClearRecordsForReplay`; production leaves `allow?` false). Name what a
+# replay should rebuild; everything not named keeps its rows.
+config :ash_enterprise, AshEnterprise.Audit.ClearRecordsForReplay,
+  allow?: true,
+  resources: [AshEnterprise.Accounts.BusinessUnit]

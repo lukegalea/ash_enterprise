@@ -97,10 +97,18 @@ defmodule AshEnterprise.Accounts do
     # and Teams are the principals that hang off business units.
     resource AshEnterprise.Accounts.Organization do
       define :get_organization, action: :read, get_by: [:id]
+      define :list_organizations, action: :read
     end
 
     resource AshEnterprise.Accounts.BusinessUnit
-    resource AshEnterprise.Accounts.Team
+
+    resource AshEnterprise.Accounts.Team do
+      # Undo a delete within the restore window (q10): find it among the archived, then
+      # restore it. Human-only.
+      define :get_archived_team, action: :archived, get_by: [:id]
+      define :restore_team, action: :restore
+    end
+
     resource AshEnterprise.Accounts.TeamMembership
 
     # The job hierarchy, as distinct from the organizational one. Drives

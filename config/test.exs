@@ -250,3 +250,9 @@ end
 # (trivial weekday rules blow it under parallel suite scheduling; AshEnterprise
 # #70 evidence). 1000ms keeps the pathological-expression guard meaningful.
 config :ash_decisions, :feel_timeout_ms, 5000
+
+# Event replay may clear the resources it rebuilds here, as in dev
+# (`AshEnterprise.Audit.ClearRecordsForReplay`; production leaves `allow?` false).
+config :ash_enterprise, AshEnterprise.Audit.ClearRecordsForReplay,
+  allow?: true,
+  resources: [AshEnterprise.Accounts.BusinessUnit]

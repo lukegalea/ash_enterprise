@@ -1,6 +1,6 @@
 # ADR 0024 — Audit retention: partition for age, crypto-shred for erasure
 
-- **Status:** accepted (2026-10-12). The erasure half is built and in use; the partitioning half is accepted, not built
+- **Status:** accepted (2026-10-12). The erasure half is built and in use; the age half is built as a verified move to archive tables, not as partitions (2026-11-12)
 - **Date:** 2026-08-19
 - **Implementation note:** 2026-10-12, at the end of this record
 
@@ -173,3 +173,25 @@ account is its own scope, so one connection can be forgotten on its own (`mix as
 **Status: accepted, 2026-10-12.** The erasure mechanism is the one the deployment now depends on to hold third-party
 content it must be able to forget, so the decision is no longer a proposal. The partitioning half is accepted with
 it and stays unbuilt (q36 open). Per-subject erasure (`data_subject` scopes) is partial, as above.
+
+## Implementation note — the age half (2026-11-12)
+
+Built without partitions. No partition was ever created, so there was nothing to detach, and converting
+`audit_events` to a partitioned table would have been a table rewrite under the chain and immutability triggers.
+The age half is instead a move between tables, verified before it deletes (`AshEnterprise.Audit.Retention`,
+[runbook](../runbooks/backup-and-restore.md), `test/ash_enterprise/audit/retention_test.exs`):
+
+- **Ninety days hot.** Events past ninety days move to `audit_event_archive`, and superseded evidence artifacts to
+  `evidence_artifact_archive`, daily. Each move copies, compares the copy with the hot rows (count, every column,
+  a SHA-256 digest over the hashes in order, and each artifact's content against its hash), and deletes only after
+  that holds, in one transaction. A failed comparison deletes nothing and is recorded (`Audit.ArchiveRun`).
+- **The trigger is the second check.** The immutability trigger now allows exactly one `DELETE`: a row past ninety
+  days with an identical copy already archived. Everything else is refused as before.
+- **A partition boundary was never a chain boundary, and neither is this one.** The verifier reads hot and archived
+  rows as one chain, and the tail of each chain stays hot so the chain trigger still has a row to link to.
+- **Four hundred days minimum.** Purging the archive is off unless configured, refused under 400 days, and the
+  archive's triggers refuse younger rows and every update. A purge records the hash of the last event it removed,
+  and verification of what remains starts from it.
+
+What this does not do: make the database smaller (the archive is in the same database; a deployment can move those
+tables to another tablespace, or dump them), or prove anything about a deployment's backups. q36 is the ledger row.

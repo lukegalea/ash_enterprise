@@ -224,6 +224,22 @@ msgid "Approved"
 msgstr "Approuvé"
 
 #: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Archive run"
+msgstr "Exécution d’archivage"
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Archived"
+msgstr "Archivé"
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Archived event"
+msgstr "Événement archivé"
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Archived evidence"
+msgstr "Preuve archivée"
+
+#: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Ash Enterprise"
 msgstr "Ash Enterprise"
 
@@ -1205,6 +1221,10 @@ msgid "Followed up"
 msgstr "Suivie"
 
 #: lib/ash_enterprise/canvas/registry.ex:2
+msgid "For control"
+msgstr "Pour le contrôle"
+
+#: lib/ash_enterprise/canvas/registry.ex:2
 msgid "For export"
 msgstr "Pour l’exportation"
 
@@ -1530,6 +1550,10 @@ msgstr "Plus récent"
 #: lib/ash_enterprise/canvas/registry.ex:2
 msgid "Latest published"
 msgstr "Dernière publication"
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Latest purge anchor"
+msgstr "Dernière ancre de purge"
 
 #: lib/ash_enterprise_web/a2ui/operator_ui.ex:1
 msgid "Latest sync run"
@@ -2371,6 +2395,10 @@ msgstr "Gouverneur de ressources indisponible"
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
 msgid "Response"
 msgstr "Réponse"
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Restore"
+msgstr "Rétablir"
 
 #: lib/ash_enterprise_web/a2ui/judgments/calibration_ui.ex:1
 msgid "Result"

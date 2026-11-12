@@ -137,6 +137,15 @@ config :ash_enterprise, Oban,
          # PROD-17: lineage past its 14-day window is deleted daily
          # (AshEnterprise.Lineage.Retention).
          {"17 4 * * *", AshEnterprise.Lineage.PruneWorker},
+         # ADR 0024's age half: every audit chain is verified daily and the result stored as
+         # evidence for the criteria it evidences (AshEnterprise.Audit.ChainVerifyWorker);
+         # then events and evidence past the ninety-day hot window move to the archive
+         # store, verified before any hot row is deleted (AshEnterprise.Audit.Retention).
+         {"5 3 * * *", AshEnterprise.Audit.ChainVerifyWorker},
+         {"40 3 * * *", AshEnterprise.Audit.RetentionWorker},
+         # `ash_compliance`'s freshness sweep, hourly, for every organization: stale or
+         # missing evidence becomes an `:unknown` finding.
+         {"15 * * * *", AshEnterprise.Compliance.FreshnessSweepWorker},
          # PROD-18: commitments in sent mail and Slack, and follow-ups to ended
          # meetings, proposed as action items (AshEnterprise.Canonical.Commitments).
          # Messages are read only by the in-zone model; with none, they wait.
@@ -240,6 +249,27 @@ config :ash_enterprise, AshEnterprise.Lineage.Store,
   max_buffer: 20_000
 
 config :ash_enterprise, AshEnterprise.Lineage.Retention, days: 14
+
+# Evidence retention (ADR 0024, `AshEnterprise.Audit.Retention`): audit events and evidence
+# artifacts stay hot for 90 days, then move to the archive tables after the copy verifies.
+# `purge_after_days: nil` keeps the archive for ever; a deployment that purges sets a number,
+# and anything under 400 is refused (the archive's triggers refuse younger rows anyway).
+config :ash_enterprise, AshEnterprise.Audit.Retention,
+  hot_days: 90,
+  purge_after_days: nil,
+  batch_size: 10_000
+
+# The freshness sweep's inputs (`AshEnterprise.Compliance.FreshnessSweepWorker`).
+config :ash_enterprise, AshEnterprise.Compliance.FreshnessSweepWorker,
+  controls_file: "docs/controls.json",
+  categories: [:security, :availability]
+
+# Event replay clears only the resources named here, and only where `allow?` is true
+# (`AshEnterprise.Audit.ClearRecordsForReplay`). Off here, so production refuses; dev and
+# test turn it on.
+config :ash_enterprise, AshEnterprise.Audit.ClearRecordsForReplay,
+  allow?: false,
+  resources: []
 
 # The ACP wire adapter's host seams (`AshEnterprise.Acp`): its session store is
 # in memory, so a restart empties it.
