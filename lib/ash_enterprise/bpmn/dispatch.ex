@@ -75,5 +75,7 @@ defmodule AshEnterprise.Bpmn.Dispatch do
 
   changes do
     change {AshEnterprise.Bpmn.Dispatch.RecordCause, []}, on: [:create]
+    # How long the event waited to start its process (`AshEnterprise.Bpmn.Telemetry`).
+    change {AshEnterprise.Bpmn.Dispatch.ReportLatency, []}, on: [:create]
   end
 end

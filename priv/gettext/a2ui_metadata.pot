@@ -2229,6 +2229,14 @@ msgstr ""
 msgid "Recover"
 msgstr ""
 
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Redrive"
+msgstr ""
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Redrive failed"
+msgstr ""
+
 #: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
 #: lib/ash_enterprise_web/a2ui/operator_ui.ex:284
 msgid "Ref"

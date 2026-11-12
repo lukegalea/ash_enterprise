@@ -56,5 +56,8 @@ defmodule AshEnterprise.Bpmn do
     resource AshEnterprise.Bpmn.Subscription
     resource AshEnterprise.Bpmn.Cursor
     resource AshEnterprise.Bpmn.Dispatch
+
+    # A person driving a failed dispatch again, and what came of it.
+    resource AshEnterprise.Bpmn.Redrive
   end
 end

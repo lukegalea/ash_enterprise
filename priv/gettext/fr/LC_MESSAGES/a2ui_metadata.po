@@ -2237,6 +2237,14 @@ msgstr "Enregistrer le verdict"
 msgid "Recover"
 msgstr "Récupérer"
 
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Redrive"
+msgstr "Relance"
+
+#: lib/ash_enterprise/canvas/registry.ex:2
+msgid "Redrive failed"
+msgstr "Relancer les répartitions en échec"
+
 #: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
 #: lib/ash_enterprise_web/a2ui/operator_ui.ex:284
 msgid "Ref"

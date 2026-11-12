@@ -255,6 +255,9 @@ defmodule AshEnterprise.Application do
 
     # Agent steps, tool executions and model calls, as GenAI spans.
     AshEnterprise.Telemetry.GenAI.attach()
+
+    # How far behind each tenant's trigger sweep is.
+    AshEnterprise.Bpmn.Telemetry.attach()
   end
 
   @impl true
