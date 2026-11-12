@@ -165,6 +165,39 @@ defmodule AshEnterprise.Assistant.DecisionsTest do
       assert [] = F.tool!(fresh(ctx), :steward_queue, %{})
     end
 
+    test "a candidate already decided is refused at request time, and nobody approves a refusal",
+         ctx do
+      {avery, _staged, _golden} =
+        AshEnterprise.Mdm.TestSupport.staged_candidate!(
+          ctx.tenant,
+          ctx.user,
+          "Cameron Synthetic",
+          "cameron@example.test"
+        )
+
+      ctx = fresh(ctx)
+
+      # Decided once, as the person...
+      decided = request!(ctx, "Mdm.MatchCandidate.confirm", %{"id" => avery.id})
+      assert {:ok, %{status: :succeeded}} = Requests.confirm(decided.id, ctx.actor, ctx.tenant)
+      assert candidate(avery).status == :confirmed
+
+      tasks = Ash.read!(HumanTask, tenant: ctx.tenant, authorize?: false)
+
+      # ...the same verdict asked again never waits for anyone: the pre-check found
+      # the candidate no longer pending, and the row says which input is at fault.
+      refused = request!(ctx, "Mdm.MatchCandidate.confirm", %{"id" => avery.id})
+
+      # The details are sealed with the row: read back, they are on it again.
+      refused = Execution.get_invocation!(refused.id, tenant: ctx.tenant, authorize?: false)
+      assert {refused.status, refused.error_code} == {:rejected, "invalid_request"}
+      assert [message] = Requests.rejection_messages(refused)
+      assert message =~ "must equal :pending"
+
+      assert Ash.read!(HumanTask, tenant: ctx.tenant, authorize?: false) == tasks
+      assert candidate(avery).status == :confirmed
+    end
+
     test "unsure keeps it in the queue", ctx do
       {avery, _staged, _golden} =
         AshEnterprise.Mdm.TestSupport.staged_candidate!(

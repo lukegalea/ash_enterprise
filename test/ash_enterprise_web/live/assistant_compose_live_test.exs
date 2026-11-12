@@ -20,6 +20,7 @@ defmodule AshEnterpriseWeb.AssistantComposeLiveTest do
   alias AshEnterprise.Test.AssistantFixtures, as: F
   alias AshEnterprise.Test.AssistantFixtures.ScriptedModel
   alias AshEnterprise.Test.DailyFixtures, as: D
+  alias AshEnterprise.Test.Execution.Runs
   alias AshEnterpriseWeb.AssistantHandoff
 
   defp sign_in(conn, user) do
@@ -234,6 +235,60 @@ defmodule AshEnterpriseWeb.AssistantComposeLiveTest do
     render_click(view, "confirm", %{"id" => id})
     render_async(view, 10_000)
     assert [_one] = Task.mine!(actor: ctx.actor, tenant: ctx.tenant)
+  end
+
+  # The pre-check (`AshAgent.Invocation.Target.precheck/3`): a request the action
+  # itself refuses is rejected before it is stored, so the conversation says which
+  # field is at fault and no confirm card ever opens.
+  test "a request the pre-check refuses shows each field's message, and never a Confirm",
+       %{conn: conn, ctx: ctx} do
+    {avery, _staged, _golden} =
+      AshEnterprise.Mdm.TestSupport.staged_candidate!(
+        ctx.tenant,
+        ctx.user,
+        "Drew Synthetic",
+        "drew@example.test"
+      )
+
+    # Decided once out-of-band (the verdict is recorded as the person's), so the
+    # candidate is no longer pending: the verdict asked again is one the action itself
+    # refuses.
+    avery
+    |> Ash.Changeset.for_update(:confirm, %{},
+      actor: ctx.actor,
+      tenant: ctx.tenant,
+      authorize?: false
+    )
+    |> Ash.update!()
+
+    tasks = Ash.read!(HumanTask, tenant: ctx.tenant, authorize?: false)
+
+    ScriptedModel.script!([
+      {:tools, [{"merge_duplicate", %{"input" => %{"id" => avery.id}}}]},
+      {:text, "SYNTHETIC: that pair cannot be merged."}
+    ])
+
+    {:ok, view, _html} = live(conn, "/app/agent")
+    view |> form("#ask-form", ask: %{question: "SYNTHETIC: merge Drew"}) |> render_submit()
+    [run] = run_out!(ctx)
+
+    # Refused as it was made, so no later update wakes the run: the request's own
+    # create does, and the run's next step hands the model the refusal.
+    assert %{status: :waiting} = Runs.run(run)
+    assert [_job] = Runs.step_jobs(run)
+    Runs.step!(run)
+    run_out!(ctx)
+
+    html = await_answer(view)
+    [_, id] = Regex.run(~r/id="request-(r[0-9a-f]+)"/, html)
+
+    assert has_element?(view, "#request-#{id}[data-status=rejected]")
+    assert html =~ "could not be asked"
+    assert html =~ "must equal :pending"
+
+    # Nobody is asked to approve a refusal.
+    refute has_element?(view, "#confirm-#{id}")
+    assert Ash.read!(HumanTask, tenant: ctx.tenant, authorize?: false) == tasks
   end
 
   test "an open request survives a reload, runs once, and every page shows it decided",

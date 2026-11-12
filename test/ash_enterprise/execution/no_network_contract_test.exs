@@ -30,6 +30,7 @@ defmodule AshEnterprise.Execution.NoNetworkContractTest do
               :record,
               :record_reviewed,
               :record_screened,
+              :record_screened_at_run,
               :retitle,
               :retitle_reviewed,
               :record_approved

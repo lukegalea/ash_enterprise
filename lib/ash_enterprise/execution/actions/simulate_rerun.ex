@@ -75,7 +75,9 @@ defmodule AshEnterprise.Execution.Actions.SimulateRerun do
   defp arguments(target, invocation, opts) do
     case Target.prepare(target, Executor.stored_args(invocation, opts), opts) do
       {:ok, _prepared} -> :valid
-      {:error, messages} -> messages
+      # One message per input at fault, as the recovery page states them
+      # (`prepare/3` returns error maps: `message`, and `path` when known).
+      {:error, errors} -> Enum.map(errors, & &1.message)
     end
   rescue
     _unreadable -> :unreadable

@@ -119,7 +119,10 @@ defmodule AshEnterprise.Channels do
   succeeded (a door that confirms and runs at once, or a keyed door handing back a row
   that already ran), `pending` while it waits or runs, `failed` once it was refused or
   failed, with the row's blocked reason (`policy_failed` for a rejection,
-  `integration_unavailable` for an unknown outcome or an unreachable system). A door
+  `integration_unavailable` for an unknown outcome or an unreachable system). A request
+  refused as it was asked is `forbidden` when its principal may not make it
+  (`not_permitted`), and `invalid` when the action refuses its input
+  (`invalid_request`, blocked as `policy_failed`). A door
   answer with no status this module knows is `failed`, never `pending`.
   """
   @spec outcome({:ok | :error, [map()]} | term(), {module(), atom() | nil}) ::
@@ -129,7 +132,7 @@ defmodule AshEnterprise.Channels do
     if request_door?(resource, action) do
       case door_row(messages) do
         %{status: status} = row when not is_nil(status) ->
-          {door_result(status), blocked_reason(row)}
+          {door_result(row), blocked_reason(row)}
 
         _unknown ->
           {:failed, :unclassified}
@@ -228,6 +231,10 @@ defmodule AshEnterprise.Channels do
     :outcome_unknown
   ]
 
+  # Refused as it was asked (the request-time pre-check): by policy, or for its input.
+  defp door_result(%{status: :rejected, error_code: "not_permitted"}), do: :forbidden
+  defp door_result(%{status: :rejected, error_code: "invalid_request"}), do: :invalid
+  defp door_result(%{status: status}), do: door_result(status)
   defp door_result(:succeeded), do: :applied
   defp door_result(status) when status in @pending_statuses, do: :pending
   defp door_result(_refused_failed_stale_cancelled_or_unknown), do: :failed
@@ -327,6 +334,7 @@ defmodule AshEnterprise.Channels do
 
   def blocked_reason(%{status: :failed, failure_class: :denied}), do: :forbidden
   def blocked_reason(%{status: :failed, error_code: "no_authority" <> _}), do: :forbidden
+  def blocked_reason(%{status: :rejected, error_code: "not_permitted"}), do: :forbidden
   def blocked_reason(%{status: :rejected}), do: :policy_failed
   def blocked_reason(%{status: :failed, failure_class: :business}), do: :policy_failed
   def blocked_reason(%{status: :outcome_unknown}), do: :integration_unavailable

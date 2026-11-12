@@ -196,20 +196,28 @@ defmodule AshEnterprise.Channels.BlockedReasonTest do
     assert acp(member, ctx.credential, :correct) == {:forbidden, "forbidden"}
   end
 
-  test "a committee member's own request waits like any other, and runs without the authority to act: forbidden",
+  test "a committee member's own request is refused as it is asked, without the authority to act: forbidden",
        ctx do
-    [member, other] = Enum.take(ctx.clinic.committee, 2)
+    [member | _] = ctx.clinic.committee
 
-    assert web(member, ctx.credential, ctx.tenant) == {:pending, "approval_required"}
-    assert acp(member, ctx.credential) == {:pending, "approval_required"}
+    # Checked as it is asked, as the actor a claim would build: nobody is asked to
+    # approve what the member may not do.
+    assert web(member, ctx.credential, ctx.tenant) == {:forbidden, "forbidden"}
+    assert acp(member, ctx.credential) == {:forbidden, "forbidden"}
 
-    row = activation(ctx.credential, ctx.tenant)
-    assert decide(row, other, :approve, ctx.tenant).status == :ready
-    Oban.drain_queue(queue: :execution)
+    # Refused before its subject was bound, so it carries no preconditions to find it
+    # by; the seeded clinic's own rejections were an approver's.
+    target = "AshEnterprise.Credentialing.Credential.activate_credential"
 
-    refused = Execution.get_invocation!(row.id, oban(ctx.tenant))
-    assert refused.status == :failed
-    assert Channels.blocked_reason(refused) == :forbidden
+    refused =
+      Execution.Invocation
+      |> Ash.Query.filter(
+        target == ^target and status == :rejected and error_code == "not_permitted"
+      )
+      |> Ash.read!(oban(ctx.tenant))
+
+    assert [_ | _] = refused
+    assert Enum.all?(refused, &(Channels.blocked_reason(&1) == :forbidden))
   end
 
   test "the coordinator asks: pending on approval, on both channels; then a rejection and an unreachable registry",

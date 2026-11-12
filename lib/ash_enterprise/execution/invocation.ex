@@ -30,11 +30,16 @@ defmodule AshEnterprise.Execution.Invocation do
     * **The parent.** A request may name only a parent its requester owns
       (`AshEnterprise.Execution.Validations.OwnsParent`), so calling `request` directly
       gains nothing over `invoke`.
-    * **Sealing.** `args` and `result` are sealed under an erasure scope (ADR 0024): the
-      subject's when the target acts on a record that has one; for an agent run's tool
-      call with no such subject, its run's (the run's subject's, when it names one);
-      for a rerun with no such subject, its original's, whoever reruns it; otherwise
-      the requester's own (`AshEnterprise.Execution.Changes.SealingScope`).
+    * **Sealing.** `args`, `result` and `rejection_details` are sealed under an erasure
+      scope (ADR 0024): the subject's when the target acts on a record that has one;
+      for an agent run's tool call with no such subject, its run's (the run's
+      subject's, when it names one); for a rerun with no such subject, its original's,
+      whoever reruns it; otherwise the requester's own
+      (`AshEnterprise.Execution.Changes.SealingScope`). `rejection_details`, the
+      per-field errors of a request-time refusal, is written by the request change
+      itself rather than a caller's input, so it is sealed as an attribute change
+      (`SealUnderScope`'s `changes:`) and read back on every read
+      (`AshEnterprise.Execution.Preparations.RejectionDetails`).
       `args_digest` is an HMAC under a key derived from that scope's key
       (`AshEnterprise.Execution.DigestKey`), so a shred makes both unreadable and the
       digest unrecomputable; `recorded?` is then false. No plaintext copy is derived
@@ -83,7 +88,8 @@ defmodule AshEnterprise.Execution.Invocation do
       `on_complete`.
     * **An agent run's tool calls.** A run's call that is not an in-loop read is one of
       these rows, keyed `run:<run id>:<step seq>:<tool call id>` with the run as its
-      parent; when it finishes it wakes the run (`AshAgent.Run.Changes.Wake`), and the
+      parent; when it finishes, or is refused as it is made, it wakes the run
+      (`AshAgent.Run.Changes.Wake`), and the
       run's next step reads its recorded result. See `AshEnterprise.Execution.Run`.
     * **A run that is not live.** A tool call of a run started with `mode: :eval` or
       `:shadow` (ADR 0058) takes the run's mode. It never waits on an approval and is
@@ -183,8 +189,9 @@ defmodule AshEnterprise.Execution.Invocation do
 
     change AshEnterprise.Execution.Changes.SealingScope, on: [:create]
 
-    change {AshEnterprise.Erasure.Changes.SealUnderScope, fields: [:args, :result]},
-      on: [:create, :update]
+    change {AshEnterprise.Erasure.Changes.SealUnderScope,
+            fields: [:args, :result], changes: [:rejection_details]},
+           on: [:create, :update]
 
     change AshEnterprise.Execution.Changes.HandoffFaultPoints, on: [:create]
 
@@ -202,8 +209,10 @@ defmodule AshEnterprise.Execution.Invocation do
     change AshEnterprise.Execution.Changes.ReadResolution, where: [action_is(:apply_resolution)]
     change AshEnterprise.Execution.Changes.OpenInputTask, where: [action_is(:dispatch)]
 
-    # A run's tool call that finishes wakes its run, in the same transaction.
-    change {AshAgent.Run.Changes.Wake, run: AshEnterprise.Execution.Run}, on: [:update]
+    # A run's tool call that finishes wakes its run, in the same transaction. On create
+    # too: a request the pre-check refuses is final the moment it is written, and no
+    # update follows to wake the run that asked for it.
+    change {AshAgent.Run.Changes.Wake, run: AshEnterprise.Execution.Run}, on: [:create, :update]
   end
 
   attributes do
@@ -221,6 +230,26 @@ defmodule AshEnterprise.Execution.Invocation do
       approved, and for rows that needed no approval.
       """
     end
+
+    # `rejection_details` is written by the request change itself (a refusal the
+    # pre-check found), never by a caller's input, so unlike `args` and `result` it
+    # stays a plain attribute (`AshAgent.Invocation.Changes.Request` sets it with
+    # `force_change_attribute/3`, which needs it to exist) and is sealed from the
+    # pending change into this column (`SealUnderScope`, `changes:`). Read back on
+    # every read by `Preparations.RejectionDetails`, which is what a run's next model
+    # turn reads the field errors through.
+    attribute :encrypted_rejection_details, :binary do
+      sensitive? true
+
+      description """
+      `rejection_details`, sealed under the row's erasure scope: why a request-time
+      pre-check refused it, per input at fault.
+      """
+    end
+  end
+
+  preparations do
+    prepare AshEnterprise.Execution.Preparations.RejectionDetails
   end
 
   actions do

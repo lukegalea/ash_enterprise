@@ -809,6 +809,7 @@ defmodule AshEnterpriseWeb.AssistantLive do
       invocation_id: row.id,
       status: row.status,
       error_code: row.error_code,
+      rejection: Requests.rejection_messages(row),
       description: Requests.describe(row, opts[:actor], opts[:tenant]),
       busy?: false,
       failed?: false,
@@ -864,7 +865,13 @@ defmodule AshEnterpriseWeb.AssistantLive do
   defp requested(socket, id, row) do
     case socket.assigns.shown[id] do
       %{kind: :request} = item ->
-        item = %{item | status: row.status, error_code: row.error_code, busy?: false}
+        item = %{
+          item
+          | status: row.status,
+            error_code: row.error_code,
+            rejection: Requests.rejection_messages(row),
+            busy?: false
+        }
 
         socket =
           if row.status in Requests.final() do
@@ -1515,6 +1522,23 @@ defmodule AshEnterpriseWeb.AssistantLive do
       request_summary(item.description) <>
         ": " <>
         dgettext("assistant", "cancelled. Nothing was changed.")
+
+  # A request the pre-check refused at request time: each field's own message, so the
+  # person sees what to fix; a refusal of permission says no more than that.
+  defp request_line(%{status: :rejected, error_code: "invalid_request"} = item)
+       when is_list(item.rejection) do
+    request_summary(item.description) <>
+      ": " <>
+      dgettext("assistant", "it could not be asked: %{errors}. Nothing was changed.",
+        errors: Enum.join(item.rejection, "; ")
+      )
+  end
+
+  defp request_line(%{status: :rejected, error_code: "not_permitted"} = item),
+    do:
+      request_summary(item.description) <>
+        ": " <>
+        dgettext("assistant", "you can't do this. Nothing was changed.")
 
   defp request_line(%{status: :rejected} = item),
     do:

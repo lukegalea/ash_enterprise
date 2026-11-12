@@ -5,6 +5,8 @@ defmodule AshEnterprise.Execution.Identity do
 
   Authority is rebuilt from grant rows at every claim, never carried over from the
   request. Rebuilding is claim logic, so it reads what it needs; no policy check does.
+  A live request is prechecked the same way before it is stored (`precheck_actor/1`):
+  the actor a claim would build, so a refusal moves to request time.
 
   ## A person
 
@@ -98,6 +100,16 @@ defmodule AshEnterprise.Execution.Identity do
   end
 
   def actor_for(_invocation), do: {:error, :no_principal}
+
+  @doc """
+  The actor a live request is prechecked as, before its row is written
+  (`AshAgent.Invocation.Changes.Request`): the same actor `actor_for/1` builds at a
+  claim, read from the row as it will be -- the principal, lineage and tenant, but no
+  primary key yet -- so what the action, or the principal's authority as it stands
+  now, would refuse is refused at request time, before anyone is asked to approve it.
+  """
+  @impl true
+  def precheck_actor(request), do: actor_for(request)
 
   @doc """
   The principal an actor `actor_for/1` built runs as: a person, or an automation

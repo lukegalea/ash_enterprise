@@ -467,7 +467,7 @@ defmodule AshEnterpriseWeb.JudgmentSurfacesTest do
       assert [] = BandTableCertification |> Ash.read!(tenant: ctx.org, authorize?: false)
     end
 
-    test "an automation principal's request is denied when it runs: certifying is a person's",
+    test "an automation principal's request is refused as it is asked: certifying is a person's",
          ctx do
       run = proposed_run!(ctx.org)
       agent = "table-certifier"
@@ -487,12 +487,7 @@ defmodule AshEnterpriseWeb.JudgmentSurfacesTest do
         )
 
       assert row.executing_principal.type == :automation
-      approve!(row, ctx.actor, ctx)
-      assert %{status: :ready} = ready = Execution.apply_invocation_decision!(row, oban(ctx))
-      assert {:ok, :failed} = Executor.execute(Execution.Invocation, ready.id, oban(ctx))
-
-      assert %{status: :failed, failure_class: :denied} =
-               Execution.get_invocation!(row.id, oban(ctx))
+      assert {row.status, row.error_code} == {:rejected, "not_permitted"}
 
       assert [] = BandTableCertification |> Ash.read!(tenant: ctx.org, authorize?: false)
     end
@@ -508,8 +503,8 @@ defmodule AshEnterpriseWeb.JudgmentSurfacesTest do
 
       banding = review_banding!(record!(tenant: ctx.org), ctx.org)
 
-      # Asked for through an invocation by an automation principal, it is denied and
-      # records nothing (AST-136).
+      # Asked for through an invocation by an automation principal, it is refused as it
+      # is asked and records nothing (AST-136).
       agent = "verdict-writer"
 
       Security.AgentStartGrant.grant!(
@@ -528,10 +523,7 @@ defmodule AshEnterpriseWeb.JudgmentSurfacesTest do
              tenant: ctx.org
            ) do
         {:ok, row} ->
-          approve!(row, ctx.actor, ctx)
-          ready = Execution.apply_invocation_decision!(row, oban(ctx))
-          Executor.execute(Execution.Invocation, ready.id, oban(ctx))
-          assert Execution.get_invocation!(row.id, oban(ctx)).status == :failed
+          assert {row.status, row.error_code} == {:rejected, "not_permitted"}
 
         {:error, _refused} ->
           :ok

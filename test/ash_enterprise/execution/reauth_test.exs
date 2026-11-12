@@ -170,10 +170,10 @@ defmodule AshEnterprise.Execution.ReauthTest do
 
       denied = retitle!(asking, theirs, "Rewritten by the agent")
       allowed = retitle!(asking, own, "Tidied by the agent")
-      assert current(denied, tenant).status == :ready
 
-      assert {:ok, :failed} = run(denied, tenant)
-      assert outcome(denied, tenant) == {:failed, :denied, "forbidden"}
+      # Checked as the actor a claim would build when it is asked, so the narrower
+      # grant refuses it then, before anything waits to run.
+      assert outcome(denied, tenant) == {:rejected, :rejected, "not_permitted"}
       assert title(tenant, theirs.id) == "Admin's handover"
 
       assert {:ok, :succeeded} = run(allowed, tenant)

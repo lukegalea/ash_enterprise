@@ -41,6 +41,7 @@ defmodule AshEnterprise.Test.Execution.ClinicNote do
       :record_approved,
       :record_signed_off,
       :record_screened,
+      :record_screened_at_run,
       :read
     ],
     extra_extensions: [AshAgent.Effects]
@@ -95,6 +96,15 @@ defmodule AshEnterprise.Test.Execution.ClinicNote do
       destructive?: false,
       open_world?: false,
       intent: :execute
+
+    # The same clinic rule, checked where the pre-check cannot see it: only the
+    # running action finds it (`before_action`), so it stays an execution-time
+    # business error (`typed_failure_test.exs`).
+    action :record_screened_at_run,
+      kind: :edit,
+      destructive?: false,
+      open_world?: false,
+      intent: :execute
   end
 
   actions do
@@ -142,6 +152,27 @@ defmodule AshEnterprise.Test.Execution.ClinicNote do
           do: {:error, AshAgent.BusinessError.exception(code: "declined_by_clinic")},
           else: :ok
       end
+    end
+
+    create :record_screened_at_run do
+      accept [:title]
+      change set_attribute(:owner_id, actor(:id))
+      change set_attribute(:source, "clinic_note")
+
+      # Not a validation: a hook, which `AshAgent.Invocation.Target.precheck/3` never
+      # runs, so this refusal is found only when the target runs.
+      change before_action(fn changeset, _context ->
+               if String.starts_with?(
+                    Ash.Changeset.get_attribute(changeset, :title) || "",
+                    "DECLINED"
+                  ),
+                  do:
+                    Ash.Changeset.add_error(
+                      changeset,
+                      AshAgent.BusinessError.exception(code: "declined_by_clinic")
+                    ),
+                  else: changeset
+             end)
     end
   end
 

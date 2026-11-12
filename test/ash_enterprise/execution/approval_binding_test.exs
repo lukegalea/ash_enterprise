@@ -40,7 +40,10 @@ defmodule AshEnterprise.Execution.ApprovalBindingTest do
   setup do
     subscribe_jobs()
     pause_execution!()
-    %{admin: admin, nurse: nurse, tenant: tenant} = clinic!()
+    %{admin: admin, tenant: tenant} = clinic!()
+    # A nurse whose role writes their own notes: a request is checked as its requester
+    # when it is asked, so one they could never run is refused before it is approved.
+    nurse = AshEnterprise.Test.Execution.Authority.note_keeper!(admin, :basic)
 
     lead = DailyFixtures.member!(admin, @lead_role, [])
     second_lead = DailyFixtures.member!(admin, "Front desk #{unique()}", [])
@@ -113,8 +116,8 @@ defmodule AshEnterprise.Execution.ApprovalBindingTest do
     row
   end
 
-  # The same approval on a new note the nurse may write as themselves: the runs that
-  # must succeed use it, since retitling needs a grant on notes nobody here holds.
+  # The same approval on a new note the nurse records as themselves: the runs that must
+  # succeed use it, so they leave the note the other requests are bound to as it was.
   defp request_note!(ctx, title) do
     {:ok, row} = invoke(ctx.nurse, @record, %{"title" => title}, "record:#{unique()}")
     row

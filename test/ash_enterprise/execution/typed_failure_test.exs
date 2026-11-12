@@ -75,13 +75,16 @@ defmodule AshEnterprise.Execution.TypedFailureTest do
     final?(failed, tenant)
   end
 
-  test "a subject gone before the run: rejected, final", %{nurse: nurse, tenant: tenant} do
+  test "a subject gone before the run: rejected, final", %{admin: admin, tenant: tenant} do
     pause_execution!()
-    note = note!(nurse, "Update the rota #{unique()}")
+    # Someone whose role retitles notes: the request is checked as them when it is
+    # made, so only the note's going, after that, is what refuses it.
+    keeper = AshEnterprise.Test.Execution.Authority.note_keeper!(admin, :basic)
+    note = note!(keeper, "Update the rota #{unique()}")
 
     {:ok, row} =
       invoke(
-        nurse,
+        keeper,
         "AshEnterprise.Test.Execution.ClinicNote.retitle",
         %{"id" => note.id, "title" => "Update the weekend rota"},
         "gone:#{unique()}"
@@ -106,10 +109,13 @@ defmodule AshEnterprise.Execution.TypedFailureTest do
        %{nurse: nurse, tenant: tenant} do
     title = "DECLINED: cosmetic referral #{unique()}"
 
+    # `record_screened_at_run`: the rule sits in a hook the pre-check never runs, so
+    # only the running action finds it. (A request whose validation carries the rule is
+    # refused at request time instead — `precheck_test.exs`.)
     {:ok, row} =
       invoke(
         nurse,
-        "AshEnterprise.Test.Execution.ClinicNote.record_screened",
+        "AshEnterprise.Test.Execution.ClinicNote.record_screened_at_run",
         %{"title" => title},
         "rule:#{unique()}"
       )

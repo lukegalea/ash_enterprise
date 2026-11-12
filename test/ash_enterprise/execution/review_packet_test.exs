@@ -48,7 +48,10 @@ defmodule AshEnterprise.Execution.ReviewPacketTest do
   setup do
     subscribe_jobs()
     pause_execution!()
-    %{admin: admin, nurse: nurse, tenant: tenant} = clinic!()
+    %{admin: admin, tenant: tenant} = clinic!()
+    # A nurse whose role writes their own notes: a request is checked as its requester
+    # when it is asked, so one they could never run is refused before it is reviewed.
+    nurse = AshEnterprise.Test.Execution.Authority.note_keeper!(admin, :basic)
 
     lead = DailyFixtures.member!(admin, @lead_role, [])
     bystander = DailyFixtures.member!(admin, "Porter #{unique()}", [])
