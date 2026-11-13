@@ -262,6 +262,10 @@ defmodule AshEnterprise.Mdm.BatchWorker do
     candidates =
       AshEnterprise.Mdm.MatchCandidate
       |> Ash.Query.filter(staged_record_id == ^staged.id and status == :pending and is_nil(band))
+      # "The" admit (or review, or omit) candidate is the top-scoring one, not
+      # whichever row the database returned first: highest score first, ties
+      # broken by id so the pick is deterministic.
+      |> Ash.Query.sort(score: :desc, id: :asc)
       |> Ash.read!(tenant: tenant, authorize?: false)
 
     banded = Enum.map(candidates, &{&1, band_of(&1, tenant)})
@@ -416,20 +420,33 @@ defmodule AshEnterprise.Mdm.BatchWorker do
     |> Ash.Changeset.for_update(:update, %{status: :review}, tenant: tenant, authorize?: false)
     |> Ash.update!(tenant: tenant, authorize?: false)
 
-    AshEnterprise.Mdm.MatchCandidate
-    |> Ash.Changeset.for_create(:create, %{
-      staged_record_id: staged.id,
-      golden_resource: "AshEnterprise.Canonical.Person",
-      golden_id: existing.id,
-      score: Decimal.new("1.0"),
-      explanation: %{"rules" => [%{"rule" => "email_collision", "score" => "1.0"}]}
-    })
-    |> Ash.create!(tenant: tenant, authorize?: false)
-    |> then(fn candidate ->
-      candidate
-      |> Ash.Changeset.for_update(:update, %{band: :review}, tenant: tenant, actor: system)
-      |> Ash.update!(tenant: tenant, actor: system)
-    end)
+    # The scorer may already have paired the row with this person (blocking
+    # reads exact email): the review is the outcome either way, so a second
+    # pairing is not written.
+    paired? =
+      AshEnterprise.Mdm.MatchCandidate
+      |> Ash.Query.filter(
+        staged_record_id == ^staged.id and golden_id == ^existing.id and
+          golden_resource == "AshEnterprise.Canonical.Person"
+      )
+      |> Ash.exists?(tenant: tenant, authorize?: false)
+
+    unless paired? do
+      AshEnterprise.Mdm.MatchCandidate
+      |> Ash.Changeset.for_create(:create, %{
+        staged_record_id: staged.id,
+        golden_resource: "AshEnterprise.Canonical.Person",
+        golden_id: existing.id,
+        score: Decimal.new("1.0"),
+        explanation: %{"rules" => [%{"rule" => "email_collision", "score" => "1.0"}]}
+      })
+      |> Ash.create!(tenant: tenant, authorize?: false)
+      |> then(fn candidate ->
+        candidate
+        |> Ash.Changeset.for_update(:update, %{band: :review}, tenant: tenant, actor: system)
+        |> Ash.update!(tenant: tenant, actor: system)
+      end)
+    end
 
     :ok
   end

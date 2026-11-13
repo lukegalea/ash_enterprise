@@ -326,17 +326,19 @@ defmodule AshEnterprise.Mdm.BatchTest do
   end
 
   describe "matching (MDM-3)" do
-    defp seed_rule_set!(org, admin) do
-      rules = [
-        %{"name" => "email_exact", "kind" => "exact", "fields" => ["email"], "weight" => 1.0},
-        %{
-          "name" => "name_fuzzy",
-          "kind" => "fuzzy",
-          "field" => "name",
-          "algorithm" => "levenshtein",
-          "weight" => 0.5
-        }
-      ]
+    defp seed_rule_set!(org, admin, rules \\ nil) do
+      rules =
+        rules ||
+          [
+            %{"name" => "email_exact", "kind" => "exact", "fields" => ["email"], "weight" => 1.0},
+            %{
+              "name" => "name_fuzzy",
+              "kind" => "fuzzy",
+              "field" => "name",
+              "algorithm" => "levenshtein",
+              "weight" => 0.5
+            }
+          ]
 
       AshEnterprise.Mdm.MatchRuleSet
       |> Ash.Changeset.for_create(
@@ -577,6 +579,144 @@ defmodule AshEnterprise.Mdm.BatchTest do
 
       plan_text = Enum.map_join(plan, " ", & &1)
       assert plan_text =~ "canonical_people_name_trgm_idx"
+    end
+  end
+
+  describe "band routing" do
+    @name_only [
+      %{
+        "name" => "name_fuzzy",
+        "kind" => "fuzzy",
+        "field" => "name",
+        "algorithm" => "levenshtein",
+        "weight" => 1.0
+      }
+    ]
+
+    defp candidates_of(org, batch) do
+      staged =
+        StagedRecord
+        |> Ash.Query.filter(batch_id == ^batch.id)
+        |> Ash.read!(tenant: org, authorize?: false)
+
+      candidates =
+        AshEnterprise.Mdm.MatchCandidate
+        |> Ash.Query.filter(staged_record_id in ^Enum.map(staged, & &1.id))
+        |> Ash.read!(tenant: org, authorize?: false)
+
+      {staged, candidates}
+    end
+
+    defp open_batch!(org, admin, mapping) do
+      ImportBatch
+      |> Ash.Changeset.for_create(:open, %{mapping_id: mapping.id, source_slug: "acme"},
+        tenant: org,
+        actor: admin
+      )
+      |> Ash.create!(tenant: org, actor: admin)
+    end
+
+    test "the top-scoring admit candidate is the one merged, whatever order the rows come in",
+         %{org: org, admin: admin} do
+      AshEnterprise.Mdm.Banding.publish_seed_bands!(platform_org())
+      seed_rule_set!(org, admin, @name_only)
+
+      # Blocking shortlists by name in name order and the scorer writes the
+      # candidates in that order, so the best match sits between two near
+      # misses that also score into the admit band (>= 0.9).
+      before = golden_person!(org, admin, "Ann Existin", "before@x.io")
+      best = golden_person!(org, admin, "Ann Existing", "best@x.io")
+      after_best = golden_person!(org, admin, "Ann Existingx", "after@x.io")
+
+      land_rows!(org, "acme", [
+        {"ann", %{"Email" => "ann.new@x.io", "Full Name" => "Ann Existing"}}
+      ])
+
+      batch = drain!(upload_batch!(org, admin, "acme"))
+      {[staged], candidates} = candidates_of(org, batch)
+      by_golden = Map.new(candidates, &{&1.golden_id, &1})
+
+      for near <- [before, after_best] do
+        assert Decimal.compare(by_golden[near.id].score, Decimal.new("0.9")) != :lt
+        assert Decimal.lt?(by_golden[near.id].score, by_golden[best.id].score)
+        assert by_golden[near.id].status == :superseded
+      end
+
+      assert by_golden[best.id].status == :auto_merged
+      assert by_golden[best.id].band == :admit
+      assert StagedRecord.by_id!(staged.id, tenant: org, authorize?: false).status == :merged
+
+      assert [%{golden_id: golden_id}] =
+               AshEnterprise.Mdm.SourceIdentity
+               |> Ash.Query.filter(golden_id in ^[before.id, best.id, after_best.id])
+               |> Ash.read!(tenant: org, authorize?: false)
+
+      assert golden_id == best.id
+    end
+
+    test "importing the same rows again opens no second identity", %{org: org, admin: admin} do
+      AshEnterprise.Mdm.Banding.publish_seed_bands!(platform_org())
+      seed_rule_set!(org, admin)
+      mapping = seed_active_mapping!(org, admin)
+
+      land_rows!(org, "acme", [
+        {"ann", %{"Email" => "ann@x.io", "Full Name" => "Ann Existing"}}
+      ])
+
+      # Nothing to match the first time: the row becomes its own golden, and
+      # its source identity opens there.
+      first = drain!(open_batch!(org, admin, mapping))
+      {[first_staged], []} = candidates_of(org, first)
+
+      assert StagedRecord.by_id!(first_staged.id, tenant: org, authorize?: false).status ==
+               :created
+
+      # The second import stages the same row again, and it admits into the
+      # golden the first one made, whose identity is already open.
+      second = drain!(open_batch!(org, admin, mapping))
+      assert second.status != :failed
+      {[second_staged], [candidate]} = candidates_of(org, second)
+
+      assert candidate.status == :auto_merged
+
+      assert StagedRecord.by_id!(second_staged.id, tenant: org, authorize?: false).status ==
+               :merged
+
+      assert [identity] =
+               AshEnterprise.Mdm.SourceIdentity
+               |> Ash.Query.filter(golden_resource == "AshEnterprise.Canonical.Person")
+               |> Ash.read!(tenant: org, authorize?: false)
+
+      assert identity.golden_id == candidate.golden_id
+    end
+
+    test "an email collision the scorer already paired goes to the steward on that one pairing",
+         %{org: org, admin: admin} do
+      AshEnterprise.Mdm.Banding.publish_seed_bands!(platform_org())
+      # Names alone: the shared email shortlists the person, and the name
+      # scores the pairing into the omit band.
+      seed_rule_set!(org, admin, @name_only)
+      existing = golden_person!(org, admin, "Zed Quill", "ann@x.io")
+
+      land_rows!(org, "acme", [
+        {"ann", %{"Email" => "ann@x.io", "Full Name" => "Ann Existing"}}
+      ])
+
+      batch = drain!(upload_batch!(org, admin, "acme"))
+      assert batch.status != :failed
+
+      {[staged], candidates} = candidates_of(org, batch)
+
+      assert [candidate] = candidates
+      assert candidate.golden_id == existing.id
+      assert Decimal.lt?(candidate.score, Decimal.new("0.5"))
+      assert StagedRecord.by_id!(staged.id, tenant: org, authorize?: false).status == :review
+
+      # The collision is not a merge: no second person, no identity.
+      assert [_one] =
+               AshEnterprise.Canonical.Person
+               |> Ash.Query.filter(email == "ann@x.io")
+               |> Ash.read!(tenant: org, authorize?: false)
     end
   end
 

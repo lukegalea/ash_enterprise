@@ -17,7 +17,11 @@ defmodule AshEnterprise.Mdm.AutoMerge do
   `StewardVerdict`; nothing here ever sets a person state.
   """
 
+  require Ash.Query
+
   alias AshEnterprise.Mdm.{Refold, SourceIdentity, SourceRecord}
+
+  @golden_resource "AshEnterprise.Canonical.Person"
 
   @doc "Runs the admit band: fold into the golden, open the identity, spend the row."
   def admit!(candidate, staged, golden, tenant) do
@@ -134,23 +138,40 @@ defmodule AshEnterprise.Mdm.AutoMerge do
 
   def open_identity!(staged, _candidate, golden_id, tenant) do
     source_record = Ash.get!(SourceRecord, staged.source_record_id, authorize?: false)
+    source = to_string(source_record.source)
+    stream = to_string(source_record.stream)
 
-    SourceIdentity
-    |> Ash.Changeset.for_create(
-      :open,
-      %{
-        source: to_string(source_record.source),
-        stream: to_string(source_record.stream),
-        external_id: source_record.external_id,
-        golden_resource: "AshEnterprise.Canonical.Person",
-        golden_id: golden_id,
-        asserted_by: :mapping,
-        confidence: nil
-      },
-      tenant: tenant,
-      authorize?: false
-    )
-    |> Ash.create!(tenant: tenant, authorize?: false)
+    # A source id already pointing at a golden of this resource means the row
+    # was admitted before: an import of the same rows again changes nothing
+    # structural. A temporal read as of now returns only the current period
+    # of each identity, so a closed one does not count.
+    open? =
+      SourceIdentity
+      |> Ash.Query.filter(
+        source == ^source and stream == ^stream and
+          external_id == ^source_record.external_id and
+          golden_resource == ^@golden_resource
+      )
+      |> Ash.exists?(tenant: tenant, authorize?: false)
+
+    unless open? do
+      SourceIdentity
+      |> Ash.Changeset.for_create(
+        :open,
+        %{
+          source: source,
+          stream: stream,
+          external_id: source_record.external_id,
+          golden_resource: @golden_resource,
+          golden_id: golden_id,
+          asserted_by: :mapping,
+          confidence: nil
+        },
+        tenant: tenant,
+        authorize?: false
+      )
+      |> Ash.create!(tenant: tenant, authorize?: false)
+    end
 
     :ok
   end
