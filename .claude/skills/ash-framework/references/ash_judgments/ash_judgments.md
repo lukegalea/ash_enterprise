@@ -149,9 +149,14 @@ missing dep is a structured error, never a crash:
   observation's recorded input hash; a mismatch raises
   `AshJudgments.Facts.Errors.EvidenceMismatch` and writes nothing. Without the reference
   the path is unchanged.
-- To move a legacy table to the temporal fragment, replay the recorded admissions
-  through the materialiser in `effective_at` order; never translate the rows in SQL
-  (README, "Replay your admissions").
+- To move a legacy table to the temporal fragment, or rebuild a temporal one, replay
+  the recorded decisions through the materialiser in `effective_at` order; never
+  translate the rows in SQL (README, "Replay your admissions"). When the facts
+  resource is audited by `AshEvents`, use `AshJudgments.Facts.Replay`:
+  `decisions_from_event_log(event_log)` reads them back and `replay/2` applies them.
+  The event log needs `record_as_of? true`: a decision takes effect at its event's
+  `as_of`, and `occurred_at` is the wall clock at the write, so a back-dated
+  admission would replay at the wrong instant. Do not write a host copy.
 
 ## The ash_rules bridge
 

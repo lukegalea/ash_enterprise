@@ -46,7 +46,7 @@ defmodule AshEnterprise.Quality.Changes.AdmitReplyVerdict do
   fact that cannot be written fails the verdict, and the person sees the
   error rather than a recorded verdict the gate cannot see. AshEvents
   strips hooks on replay, so a replayed verdict writes nothing; the
-  fact's own `:materialise` event is what `AshEnterprise.SystemOne.FactReplay`
+  fact's own `:materialise` event is what `AshJudgments.Facts.Replay`
   replays.
   """
 

@@ -17,9 +17,8 @@ defmodule Mix.Tasks.AshEnterprise.SystemOne.ReplayFacts do
       mix ash_enterprise.system_one.replay_facts --file decisions.jsonl
 
   The event log IS the decision sequence: every materialiser write on the
-  facts table was audited, so `:materialise` creates become `:admitted`
-  decisions and `:supersede` updates become `:omitted` decisions at their
-  `occurred_at`. The replay-equivalence property (AST-148) is what makes
+  facts table was audited, and `AshJudgments.Facts.Replay` reads it back,
+  each decision at its write's `as_of`. The replay-equivalence property (AST-148) is what makes
   the rebuild correct. Writes nothing on `--dry-run`.
 
   Boots only the repo (iron law #23): no Oban, no endpoint, no
@@ -28,8 +27,9 @@ defmodule Mix.Tasks.AshEnterprise.SystemOne.ReplayFacts do
 
   use Mix.Task
 
+  alias AshEnterprise.Audit.EventLog
   alias AshEnterprise.Mix.Helpers
-  alias AshEnterprise.SystemOne.FactReplay
+  alias AshJudgments.Facts.Replay
 
   @requirements ["app.config"]
 
@@ -45,7 +45,7 @@ defmodule Mix.Tasks.AshEnterprise.SystemOne.ReplayFacts do
     {source, decisions} =
       case opts[:file] do
         nil ->
-          {:ok, decisions} = FactReplay.decisions_from_event_log([])
+          {:ok, decisions} = Replay.decisions_from_event_log(EventLog)
           {"the audit event log", decisions}
 
         path ->
@@ -70,7 +70,7 @@ defmodule Mix.Tasks.AshEnterprise.SystemOne.ReplayFacts do
     if opts[:dry_run] do
       Mix.shell().info("\nDry run — nothing written.")
     else
-      {:ok, tally} = FactReplay.replay(decisions)
+      {:ok, tally} = Replay.replay(decisions)
 
       verdicts =
         tally
