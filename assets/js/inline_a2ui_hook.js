@@ -15,8 +15,9 @@
 //     a stored request no longer resolves.
 //
 // Everything else — rendering, actions, links — is the shipped hook's own;
-// actions still go up as "a2ui:action" carrying their surfaceId, which the
-// server routes to the surface it holds under that id.
+// every call still goes up as "a2ui:message" (a callAgentFunction carrying its
+// surfaceId), which the server routes to the surface it holds under that id,
+// and the answer comes back on the same namespaced event.
 import {AshA2ui} from "../../deps/ash_a2ui/priv/js/ash_a2ui_hook.js"
 
 export const InlineA2ui = {

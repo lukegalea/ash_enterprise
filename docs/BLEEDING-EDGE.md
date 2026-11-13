@@ -172,6 +172,7 @@ listed gets forgotten.
 | File | Source | Pinned | Used by |
 |---|---|---|---|
 | `priv/quality/inspect/inspect-log-schema.json` | the output of `inspect log schema` (Inspect AI, [inspect.aisi.org.uk](https://inspect.aisi.org.uk/eval-logs.html.md)) | `inspect-ai` 0.3.287, 2026-11-04 | `AshEnterprise.Quality.Interchange.EvalLog.validate/1`, which checks every EvalLog this app exports against its `components.schemas.EvalLog` |
+| `assets/vendor/a2ui/a2ui-web_core-0.15.0-main.8bf644a.tgz`, `assets/vendor/a2ui/a2ui-lit-0.15.0-main.8bf644a.tgz` | the `@a2ui/web_core` and `@a2ui/lit` packages built from [a2ui-project/a2ui](https://github.com/a2ui-project/a2ui) at commit `8bf644a37d680a227296b8c0849a7f4b328b8b73` (package version `0.15.0-main.8bf644a`) | that commit; sha256 `47523d89...0e31fe5` (web_core), `255a3446...20f09840` (lit) | `assets/package.json` (`file:` dependencies and an `overrides` entry): the browser renderer of every A2UI surface |
 
 Inspect makes no compatibility promise for its log format, and this is an OpenAPI document of the whole of its
 viewer API, 340 KB of which `EvalLog` is a part. The mapping is one module (`EvalLog`), so a format change is one
@@ -179,3 +180,14 @@ place to change. To refresh it, `pip install inspect-ai==<version>`, run `inspec
 and run `test/ash_enterprise/quality/interchange_test.exs`: it exports a suite run and reads it back, and a version of
 the schema that refuses the export fails it. Never parse Inspect's binary `.eval` format natively: convert it with
 `inspect log convert --to json` first.
+
+The A2UI tarballs exist because no published `@a2ui` release renders A2UI 1.0 as `ash_a2ui` emits it. npm `0.15.0`
+rejects the `@checks`, `@accessibility` and `@catalogId` component keys of the 1.0 spec text and drops the surface;
+`8bf644a` is the spec commit `ash_a2ui` vendors, and it accepts them. The packages are built with upstream's own
+`prepare-publish` transform (so `@a2ui/web_core/catalogs/basic/v1` and the other subpaths resolve as they do from npm),
+tests left out, and `@a2ui/lit`'s `@a2ui/web_core` dependency pinned to the exact prerelease. The `overrides` entry
+makes npm take the tarball for `@a2ui/markdown-it`'s `^0.10.6` peer as well. `lit` is `^3.3.3` and `zod` is `^3.25.76`
+(v3, not v4). **Path back:** the first `@a2ui/lit` and `@a2ui/web_core` npm release after 0.15.0 that renders the pinned
+spec text. Then set `"@a2ui/web_core": "<release>"` and `"@a2ui/lit": "<release>"` in `assets/package.json`, delete
+`overrides` and `assets/vendor/a2ui/`, run `npm install --prefix assets` and rebuild with `mix assets.build`. Read
+upstream's changelog, not just the version number: the release must accept the keys above.

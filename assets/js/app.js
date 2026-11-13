@@ -32,11 +32,13 @@ import topbar from "../vendor/topbar"
 // trusts. The model never emits markup and never emits script -- it references
 // components that exist. See docs/manifesto/05-agents-are-users.md.
 //
-// Version note: no published @a2ui/lit release ships a v1.0 runtime (0.10.x
-// exposes v0_8/v0_9 entry points only; the v1_0 directory carries schemas
-// alone). ash_a2ui's hook is the v1.0-capable layer on top of the v0.9
-// renderer, so we register the v0_9 catalog here and let the hook translate.
-import "@a2ui/lit/v0_9"
+// Version note: ash_a2ui speaks A2UI 1.0 only, and no published @a2ui release
+// renders the 1.0 spec text yet (0.15.0 drops a surface that carries an
+// `@checks`, `@accessibility` or `@catalogId` key). @a2ui/lit and
+// @a2ui/web_core are therefore vendored tarballs built from upstream commit
+// 8bf644a (assets/vendor/a2ui/, docs/BLEEDING-EDGE.md). The root entry points
+// carry the 1.0 runtime; the hook feeds them 1.0 messages directly.
+import "@a2ui/lit"
 
 // The BPMN designer and instance viewer. Imported from the package's own `priv/js` -- the same
 // arrangement the A2UI hook uses -- so the library ships plain ESM and the host owns the
@@ -51,8 +53,9 @@ import {AshBpmnDesigner, AshBpmnViewer} from "../../deps/ash_bpmn/priv/js/ash_bp
 // table, the literal expression -- and ships no view switcher, so the tabs are
 // server-rendered by the LiveView from the view list the hook reports.
 import {AshDecisionsEditor} from "../../deps/ash_decisions/priv/js/ash_decisions_editor.js"
-import {basicCatalog, A2uiLitElement, A2uiController, Context} from "@a2ui/lit/v0_9"
-import {MessageProcessor, Catalog, ChoicePickerApi, ColumnApi} from "@a2ui/web_core/v0_9"
+import {A2uiLitElement, A2uiController} from "@a2ui/lit"
+import {Catalog, MessageProcessor} from "@a2ui/web_core"
+import {basicCatalog, ChoicePickerApi, ColumnApi, Context} from "@a2ui/web_core/catalogs/basic/v1"
 import {html, css, nothing} from "lit"
 import {ContextProvider} from "@lit/context"
 import {renderMarkdown} from "@a2ui/markdown-it"
@@ -63,7 +66,6 @@ import {createAshAdminCatalog} from "../../deps/ash_a2ui/priv/js/ash_admin_catal
 // The command palette (ctrl+p) and surface launcher (ctrl+k) the app layout
 // mounts on every signed-in page (AshEnterpriseWeb.Shell).
 import {AshA2uiShell} from "../../deps/ash_a2ui/priv/js/ash_a2ui_shell_hook.js"
-import {z} from "zod"
 
 // The /canvas dev surface: the AshCanvas hook hydrates the
 // <ash-canvas-graph> element with the server's structural graph payload
@@ -83,7 +85,6 @@ import "../../deps/ash_a2ui/priv/js/ash_canvas_graph.js"
 // rather than at first render. Note that esbuild happily bundles a call with
 // the wrong shape: a green asset build proves nothing here.
 const ashCatalog = createAshA2uiCatalog({
-  Catalog,
   basicCatalog,
   ChoicePickerApi,
   ColumnApi,
@@ -94,15 +95,14 @@ const ashCatalog = createAshA2uiCatalog({
 
 // The experience layer's semantic admin catalog (entityPage, dataGrid,
 // recordPanel, ...) registers under its OWN catalog id --
-// https://ash-a2ui.dev/catalogs/admin/v1 -- so it sits alongside the merged
+// https://github.com/lukegalea/ash_a2ui/catalogs/admin/v2 -- so it sits alongside the merged
 // catalog rather than shadowing it: the processor resolves
 // `catalogs.find(c => c.id === catalogId)`, basic-catalog surfaces keep
 // resolving to ashCatalog and admin surfaces to adminCatalog. Passing the
 // merged catalog as `basicCatalog` means the admin surfaces inherit its
 // ChoicePicker/Column upgrades too (the admin catalog extends whatever it is
 // given -- "admin adds semantic components; it does not remove primitives").
-// `z` is the zod instance the admin catalog validates its component props
-// with; lit is injected for the same single-instance reason as above.
+// lit is injected for the same single-instance reason as above.
 //
 // `loadMermaid` draws live diagrams (the process flight views). Mermaid is its
 // own esbuild entry (config/config.exs), fetched the first time a diagram
@@ -110,17 +110,16 @@ const ashCatalog = createAshA2uiCatalog({
 // mermaid bundle has no exports and publishes itself on window.AshA2uiMermaid.
 // Without it, a diagram renders as its list of nodes and markers.
 const ashAdminCatalog = createAshAdminCatalog({
-  Catalog,
   basicCatalog: ashCatalog,
   A2uiLitElement,
   A2uiController,
-  z,
   lit: {html, css, nothing},
   loadMermaid: () => import("/assets/js/ash_a2ui_mermaid.js").then(() => window.AshA2uiMermaid)
 })
 
 configureAshA2ui({
   MessageProcessor,
+  Catalog,
   // The merged catalog first (same-id first-match resolution -- see the note
   // above), then the admin catalog as a sibling. Each surface carries the
   // catalogId its encoder emitted, so the two never contend.
@@ -132,9 +131,9 @@ configureAshA2ui({
   // one identical unstyled span. That erases the whole type hierarchy and
   // leaves the --a2ui-font-size-* scale as dead code.
   //
-  // This is a hard requirement for A2UI v1.0, not a nicety: v1.0 removes the
-  // h1-h5 Text variants entirely, so ash_a2ui's v1.0 encoder turns headings
-  // into markdown `#` prefixes and there is no variant left to fall back on.
+  // This is a hard requirement for A2UI 1.0, not a nicety: 1.0 removes the
+  // h1-h5 Text variants entirely, so ash_a2ui's encoder turns headings into
+  // markdown `#` prefixes and there is no variant left to fall back on.
   //
   // renderMarkdown runs its output through DOMPurify, which matters because
   // these values come from the database rather than from a trusted author.
