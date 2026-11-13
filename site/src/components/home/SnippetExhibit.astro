@@ -1,0 +1,33 @@
+---
+/**
+ * A snippet from `src/data/snippets.json`, shown as an Exhibit: the code cut
+ * from the repository at build time, its title, its caption, and a link to the
+ * exact lines it was cut from. Pages name a snippet; they never paste code.
+ *
+ *   <SnippetExhibit name="grant-union" label="Exhibit 2" />
+ */
+import Exhibit from '../Exhibit.astro';
+import { snippet } from '../../lib/facts';
+
+interface Props {
+  name: string;
+  label?: string;
+  /** Replaces the manifest's caption when the page says something narrower about it. */
+  caption?: string;
+  class?: string;
+}
+
+const { name, label, caption, class: className } = Astro.props;
+const s = snippet(name);
+---
+
+<Exhibit
+  label={label}
+  title={s.title}
+  source={s.file}
+  lines={`${s.startLine}-${s.endLine}`}
+  code={s.code}
+  lang={s.lang}
+  caption={caption ?? s.caption}
+  class={className}
+/>

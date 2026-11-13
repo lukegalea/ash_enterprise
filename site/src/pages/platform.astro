@@ -1,0 +1,726 @@
+---
+/**
+ * The platform, by concern: control; audit and erasure; process and decisions;
+ * recipes; AI governance; data; integrations; operate and recover; surfaces.
+ *
+ * Each section's chips are ledger rows: a question in `docs/roadmap.json` or a
+ * capability in `docs/capabilities.json`, read through
+ * `components/home/ledger.ts`. The prose says what the code does and links the
+ * record that decided it; the code is named snippets cut from the repository
+ * at build time; the route list is `docs/routes.json`. Nothing here types a
+ * status, a count or a line of code.
+ *
+ * `/product/` redirects here (`astro.config.mjs`).
+ */
+import Base from '../layouts/Base.astro';
+import Section from '../components/Section.astro';
+import StatusChip from '../components/StatusChip.astro';
+import GrantUnion from '../components/diagrams/GrantUnion.astro';
+import DataFlow from '../components/diagrams/DataFlow.astro';
+import SnippetExhibit from '../components/home/SnippetExhibit.astro';
+import {
+  question,
+  capability,
+  capabilityStatus,
+  packs,
+  pageHref,
+  checklistHref,
+} from '../components/home/ledger';
+import { withBase, adrHref, repoHref } from '../lib/roadmap';
+import { facts, routes, hasRoute } from '../lib/facts';
+
+type Row = { q: string; label: string } | { cap: string };
+
+/** A chip per ledger row; the label is the page's name for the row, the status is the ledger's. */
+function chips(rows: Row[]) {
+  return rows.map((row) =>
+    'q' in row
+      ? { status: question(row.q).status, label: row.label, key: row.q }
+      : { status: capabilityStatus(row.cap), label: capability(row.cap).capability, key: row.cap },
+  );
+}
+
+/** An ADR link as `{ href, text }`, or null when the record is not on the site. */
+function adr(n: string, text: string) {
+  const href = adrHref(n);
+  return href ? { href, text: `ADR ${n}: ${text}` } : null;
+}
+
+const sections = [
+  { id: 'control', title: 'Control' },
+  { id: 'audit', title: 'Audit and erasure' },
+  { id: 'process', title: 'Process and decisions' },
+  { id: 'recipes', title: 'Recipes' },
+  { id: 'ai', title: 'AI governance' },
+  { id: 'data', title: 'Data' },
+  { id: 'integrations', title: 'Integrations' },
+  { id: 'operate', title: 'Operate and recover' },
+  { id: 'surfaces', title: 'Surfaces' },
+];
+
+const control = chips([
+  { q: 'q2', label: 'Grant union' },
+  { q: 'q3', label: 'Ownership' },
+  { q: 'q4', label: 'Hierarchy' },
+  { q: 'q5', label: 'Record shares' },
+  { q: 'q13', label: 'Tenant isolation' },
+  { q: 'q32', label: 'Acting as someone else' },
+  { q: 'q1', label: 'Sign-in' },
+  { q: 'q29', label: 'Your identity provider' },
+]);
+
+const audit = chips([
+  { q: 'q33', label: 'Tamper evidence' },
+  { q: 'q34', label: 'A tenant’s own trail' },
+  { q: 'q35', label: 'Evidence for an auditor' },
+  { q: 'q7', label: 'Every change recorded' },
+  { q: 'q36', label: 'Retention' },
+  { q: 'q14', label: 'Erasure' },
+]);
+
+const process = chips([
+  { q: 'q23', label: 'Processes' },
+  { q: 'q24', label: 'Second-person approval' },
+  { q: 'q53', label: 'Decision tables' },
+  { q: 'q45', label: 'Change without a deploy' },
+  { cap: 'human-approvals-and-work-queues' },
+  { cap: 'visual-authoring' },
+]);
+
+const recipes = chips([
+  { q: 'q30', label: 'Leavers' },
+  { q: 'q38', label: 'Alert review' },
+  { q: 'q49', label: 'Incident triage' },
+  { q: 'q46', label: 'Control mapping' },
+  { q: 'q51', label: 'Continuous evidence' },
+]);
+
+const ai = chips([
+  { q: 'q40', label: 'What a model sees' },
+  { cap: 'model-invocation-and-streaming' },
+  { cap: 'durable-agent-execution' },
+  { cap: 'tool-approvals' },
+  { cap: 'typed-tools' },
+]);
+
+const data = chips([
+  { q: 'q21', label: 'Master data' },
+  { q: 'q18', label: 'Lineage' },
+  { q: 'q16', label: 'Ingestion' },
+  { q: 'q22', label: 'A legacy database' },
+  { q: 'q15', label: 'Where data lives' },
+]);
+
+const integrations = chips([
+  { q: 'q17', label: 'Integration hub' },
+  { q: 'q41', label: 'Outbound events' },
+  { q: 'q42', label: 'Bulk import and export' },
+  { cap: 'secrets-and-connections' },
+  { cap: 'http-and-messaging-tasks' },
+]);
+
+const operate = chips([
+  { q: 'q28', label: 'Observability' },
+  { q: 'q48', label: 'Restore drill' },
+  { q: 'q49', label: 'Incident response' },
+  { q: 'q47', label: 'Uptime promise' },
+  { q: 'q43', label: 'Deploys and migrations' },
+  { q: 'q11', label: 'Replay from the log' },
+]);
+
+const delegation = capability('multi-agent-delegation');
+
+/** The surfaces mounted beside the LiveView screens, from the router. */
+const mounted = routes.filter((r) => r.kind === 'forward');
+
+const proofHref = pageHref('/proof/', '/docs/questions/');
+const roadmapHref = pageHref('/roadmap/', '/docs/roadmap/');
+---
+
+<Base
+  title="Platform"
+  description="What a resource on the Ash Enterprise platform carries, by concern: control, audit and erasure, process and decisions, recipes, AI governance, data, integrations, operating and recovering, and the surfaces it serves. Each with its status from the ledger."
+  active="platform"
+>
+  <header class="ae-container pt-16 pb-12 sm:pt-20">
+    <p class="ae-eyebrow">The platform</p>
+    <h1 class="ae-h1 mt-4 max-w-4xl">What a platform resource carries, concern by concern.</h1>
+    <p class="ae-lead mt-6">
+      Each section says what the code does, shows it, and carries a chip for every checklist
+      question or capability it answers. The chips are read from the ledgers at build time, so a
+      partial answer reads as partial here and everywhere else.
+    </p>
+    <nav aria-label="On this page" class="mt-10">
+      <ol class="flex flex-wrap gap-2">
+        {
+          sections.map((s, i) => (
+            <li>
+              <a
+                class="inline-flex items-center gap-2 border border-ae-rule px-3 py-1.5 font-sans text-sm text-ae-ink transition-colors duration-150 hover:border-ae-workshop"
+                href={`#${s.id}`}
+              >
+                <span class="font-mono text-xs text-ae-copper tabular-nums">
+                  {String(i + 1).padStart(2, '0')}
+                </span>
+                {s.title}
+              </a>
+            </li>
+          ))
+        }
+      </ol>
+    </nav>
+  </header>
+
+  {/* 01 · Control */}
+  <Section
+    id="control"
+    step="01"
+    eyebrow="Control"
+    title="Who may do what is data, and grants only add."
+    wide
+  >
+    <Fragment slot="chips">
+      {control.map((c) => <StatusChip status={c.status} label={c.label} />)}
+    </Fragment>
+
+    <div class="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-start">
+      <div class="ae-body space-y-4">
+        <p>
+          Access is <code class="ae-code">(role, privilege, depth)</code> rows, evaluated as a union of
+          grants. A role, a share of one record, a place above the owner in the hierarchy, or an
+          action the resource declares self-service: any one authorizes, and none takes access
+          away. There is no <code class="ae-code">forbid_if</code> for row access, so the order of the
+          paths cannot change who is let in.
+        </p>
+        <p>
+          Depth reaches a business unit and the units beneath it. The subtree, the actor's teams, the
+          privilege map and the reporting chain are computed once per request, before any action
+          runs. Tenant isolation is asserted on its own, separately from every grant path, so a
+          grant that is too wide still stays inside its tenant.
+        </p>
+        <p>
+          System actors are a closed list, each with a bypass an action can narrow; an action
+          marked <code class="ae-code">human_only</code> is reachable by no bypass at all, and the AI
+          actor matches none. Acting as someone else is a break-glass session: a written reason, a
+          named approver who is neither party, an expiry, and every audit event naming the
+          operator.
+        </p>
+        <p>
+          People sign in with a password. Bringing your own identity provider is not built; the
+          chip above says so.
+        </p>
+        <p class="flex flex-wrap gap-x-5 gap-y-2">
+          <a class="ae-link" href={withBase('/docs/manifesto/03-authorization-is-data/')}>
+            Authorization is data
+          </a>
+          <a
+            class="ae-link"
+            href={repoHref('test/ash_enterprise/security/conformance_test.exs')}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            The conformance suite
+          </a>
+        </p>
+      </div>
+      <SnippetExhibit name="grant-union" label="Exhibit 1" />
+    </div>
+
+    <div class="mt-14">
+      <GrantUnion />
+    </div>
+  </Section>
+
+  {/* 02 · Audit and erasure */}
+  <Section
+    id="audit"
+    step="02"
+    eyebrow="Audit and erasure"
+    title="Every write is recorded in a chain the database will not let you edit."
+    tone="muted"
+    wide
+  >
+    <Fragment slot="chips">
+      {audit.map((c) => <StatusChip status={c.status} label={c.label} />)}
+    </Fragment>
+
+    <div class="grid gap-10 lg:grid-cols-2">
+      <div class="ae-body space-y-4">
+        <p>
+          Every create, update and destroy on a platform resource writes to one central event log,
+          naming the actor and the request's correlation id. A trigger refuses
+          <code class="ae-code">UPDATE</code> and <code class="ae-code">DELETE</code> on the log, and
+          each event carries a SHA-256 chained to the one before it, so someone able to drop the
+          trigger still cannot make an edit look untouched.
+          <code class="ae-code">mix ash_enterprise.audit.verify</code> walks the chains.
+        </p>
+        <p>
+          The log is scoped by tenant, so a customer reads its own trail and nobody else's.
+          <code class="ae-code">mix ash_enterprise.audit.export</code> hands an auditor a window in
+          chain order, hashes included, so they can verify it themselves; it reads through the
+          ordinary action layer, so an export is as wide as its requester's access.
+        </p>
+      </div>
+      <div class="ae-body space-y-4">
+        <p>
+          Old events move to archive tables only after the copy is compared row for row, and purging
+          is off unless configured. The chain verifies across hot, archived and purged rows.
+        </p>
+        <p>
+          Erasure is by crypto-shredding. Content that arrives through an external connection is
+          sealed under that connection's key; destroying the key leaves the rows and the chain
+          intact and the content readable only as <code class="ae-code">shredded</code>. A person's
+          core records are not covered yet, and the log does not record where a change was made
+          from. The chips say both.
+        </p>
+        {
+          adr('0024', 'audit retention and erasure') && (
+            <p>
+              <a class="ae-link" href={adr('0024', 'audit retention and erasure')!.href}>
+                {adr('0024', 'audit retention and erasure')!.text}
+              </a>
+            </p>
+          )
+        }
+      </div>
+    </div>
+
+    <div class="mt-14">
+      <DataFlow />
+    </div>
+  </Section>
+
+  {/* 03 · Process and decisions */}
+  <Section
+    id="process"
+    step="03"
+    eyebrow="Process and decisions"
+    title="Processes are BPMN, rules are DMN, and both are data a tenant can version."
+    wide
+  >
+    <Fragment slot="chips">
+      {process.map((c) => <StatusChip status={c.status} label={c.label} />)}
+    </Fragment>
+
+    <div class="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-start">
+      <div class="ae-body space-y-4">
+        <p>
+          <code class="ae-code">ash_bpmn</code> compiles a BPMN document into an immutable, versioned
+          graph and runs it with a token interpreter over Postgres and Oban. Gateway conditions are
+          FEEL. Its resources sit on the platform base, so a process instance is an ordinary owned,
+          tenant-scoped, audited record.
+        </p>
+        <p>
+          A second person's approval is a change on an action: a work item, a list of candidates,
+          delegation and escalation timers. Maker-checker removes the requester while the candidate
+          list is built, not with a <code class="ae-code">forbid_if</code>, so who may approve is the
+          same union of grants as who may read.
+        </p>
+        <p>
+          <code class="ae-code">ash_decisions</code> keeps each decision as a DMN document, versioned
+          and immutable once published. Hit policies that make rule order matter are refused when
+          it compiles, and a verifier over every table blocks a publish on an error-severity
+          finding. Each evaluation records which version decided, what it saw and which rules
+          fired.
+        </p>
+        <p>
+          A tenant forks a process or a decision, edits it in the browser and publishes its own
+          version. Reverting is deleting a row.
+        </p>
+        <p class="flex flex-wrap gap-x-5 gap-y-2">
+          {
+            [adr('0009', 'strangler and BPMN are first-party'), adr('0028', 'decisions are DMN'), adr('0029', 'process configuration is tenant data')]
+              .filter((a) => a !== null)
+              .map((a) => <a class="ae-link" href={a!.href}>{a!.text}</a>)
+          }
+        </p>
+      </div>
+      <SnippetExhibit name="process-start" label="Exhibit 2" />
+    </div>
+  </Section>
+
+  {/* 04 · Recipes */}
+  <Section
+    id="recipes"
+    step="04"
+    eyebrow="Recipes and compliance packs"
+    title="A recipe starts a process when a write lands. A person decides it may."
+    tone="muted"
+    wide
+  >
+    <Fragment slot="chips">
+      {recipes.map((c) => <StatusChip status={c.status} label={c.label} />)}
+    </Fragment>
+
+    <div class="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-start">
+      <div class="ae-body space-y-4">
+        <p>
+          A recipe is one versioned row: when a committed write lands in a tenant's audit chain and
+          a FEEL guard matches, start a published process. It runs after the write commits and
+          never vetoes it. The row sits on the platform base, so it has the platform's policies,
+          tenancy and audit.
+        </p>
+        <p>
+          Publishing a recipe is a person's act, and that person is recorded as accountable. Its
+          steps run as the recipe runner acting for them, on the intersection of the two sets of
+          grants, rebuilt at every step. A grant is per version and expires. A publisher who has
+          left, a revoked grant or a version nobody is accountable for records
+          <code class="ae-code">no_authority</code> and runs nothing.
+        </p>
+        <p>
+          Compliance runs on the same records. <code class="ae-code">ash_rules</code> rules are
+          evaluated over facts, where missing data is unknown and never a pass;
+          <code class="ae-code">ash_compliance</code> compiles catalogs, profiles and waivers into
+          bundles and maps the gaps to controls. {facts.controls.criteria} SOC 2 criteria have an
+          ownership row; {facts.controls.criteriaWithEvidenceProducer} name what produces their
+          evidence. Each reads as owned, evidenced or unknown, and nothing is reported satisfied.
+        </p>
+        {
+          adr('0069', 'a recipe runs on an authority chosen per version') && (
+            <p>
+              <a class="ae-link" href={adr('0069', 'a recipe runs on an authority chosen per version')!.href}>
+                {adr('0069', 'a recipe runs on an authority chosen per version')!.text}
+              </a>
+            </p>
+          )
+        }
+      </div>
+      <div class="grid min-w-0 gap-8">
+        <SnippetExhibit name="recipe-pack" label="Exhibit 3" />
+        <SnippetExhibit name="compliance-rule" label="Exhibit 4" />
+        <SnippetExhibit name="control-evidence" label="Exhibit 5" />
+      </div>
+    </div>
+
+    <div class="mt-14">
+      <h3 class="ae-eyebrow">Every pack the repository ships</h3>
+      <p class="ae-body mt-3">
+        Each installs as drafts. Nothing runs until a person publishes the process and then the
+        recipe.
+      </p>
+      <ul class="mt-6 grid gap-4 md:grid-cols-2">
+        {
+          packs.map((pack) => (
+            <li class="ae-card min-w-0 p-5">
+              <p class="font-mono text-xs text-ae-copper">{pack.name}</p>
+              <h4 class="ae-h3 mt-2">{pack.title}</h4>
+              <p class="mt-2 text-sm leading-relaxed text-ae-muted">{pack.description}</p>
+              <p class="mt-3 font-mono text-xs leading-relaxed break-words text-ae-muted">
+                Controls: {pack.controls.join(' · ')}
+              </p>
+              <a
+                class="ae-link mt-3 inline-block text-sm"
+                href={repoHref(pack.path)}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {pack.path}
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </Section>
+
+  {/* 05 · AI governance */}
+  <Section
+    id="ai"
+    step="05"
+    eyebrow="AI governance"
+    title="A model gets an actor's permissions, and what leaves the zone is a recorded disclosure."
+    wide
+  >
+    <Fragment slot="chips">
+      {ai.map((c) => <StatusChip status={c.status} label={c.label} />)}
+    </Fragment>
+
+    <div class="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-start">
+      <div class="ae-body space-y-4">
+        <p>
+          An agent is an actor. Its tools are actions the application already has, called as the
+          person who asked, through the same policies, so a model reaches nothing that person
+          could not.
+        </p>
+        <p>
+          Model calls go through one guard, which can confine them to models running inside the
+          data's zone. Each call is recorded by its structure, never its content. Sending data to a
+          model outside the zone is a disclosure: it is refused unless the tenant has recorded an
+          opt-in, every unknown case is refused, and one setting refuses it for everyone.
+        </p>
+        <p>
+          An action with consequences declares its effects, and runs as a governed invocation: the
+          approval is bound to the exact request, the authority is rebuilt from grant rows when it
+          executes, and a lost answer from an outside system is settled by a declared read rather
+          than a retry. An assistant answer is a durable run, so a worker that dies mid-answer
+          leaves a run that is resumed and answered once.
+        </p>
+        <p>
+          Refused on purpose: an agent starting another agent. {delegation.gap}
+        </p>
+        {
+          hasRoute('/app/models') && (
+            <p>
+              Each model profile's permitted use, readiness and restrictions are on a screen at
+              <code class="ae-code">/app/models</code>.
+            </p>
+          )
+        }
+        <p class="flex flex-wrap gap-x-5 gap-y-2">
+          <a class="ae-link" href={withBase('/docs/manifesto/05-agents-are-users/')}>Agents are users</a>
+          {
+            [adr('0042', 'leaving the zone is a disclosure'), adr('0055', 'governed invocations'), adr('0057', 'declared effects')]
+              .filter((a) => a !== null)
+              .map((a) => <a class="ae-link" href={a!.href}>{a!.text}</a>)
+          }
+        </p>
+      </div>
+      <div class="grid min-w-0 gap-8">
+        <SnippetExhibit name="governed-effect" label="Exhibit 6" />
+        <SnippetExhibit name="agent-tools" label="Exhibit 7" />
+      </div>
+    </div>
+  </Section>
+
+  {/* 06 · Data */}
+  <Section
+    id="data"
+    step="06"
+    eyebrow="Data"
+    title="Data from elsewhere lands raw, then becomes a platform resource."
+    tone="muted"
+    wide
+  >
+    <Fragment slot="chips">
+      {data.map((c) => <StatusChip status={c.status} label={c.label} />)}
+    </Fragment>
+
+    <div class="grid gap-10 lg:grid-cols-2">
+      <div class="ae-body space-y-4">
+        <p>
+          External rows land in an operator-only landing resource, sealed for erasure, and
+          host-declared projections promote them into platform resources, where they gain
+          ownership, tenancy and audit.
+        </p>
+        <p>
+          <code class="ae-code">ash_mdm</code> resolves the same customer arriving from several
+          systems: matching banded by a decision table, a steward queue where a person decides, and a
+          merge that picks a winner per attribute, records where each value came from and can be
+          undone. The golden record is an ordinary platform resource.
+        </p>
+        <p>
+          <code class="ae-code">ash_open_lineage</code> emits an OpenLineage event from every
+          platform write and sync, drawn as a graph at <code class="ae-code">/app/lineage</code>. A
+          run's id is the audit log's correlation id. Events carry names only, never an actor, a
+          tenant or a value, and tracing one value back to its source system is not built.
+        </p>
+      </div>
+      <div class="ae-body space-y-4">
+        <p>
+          <code class="ae-code">ash_strangler</code> maps a resource onto a legacy schema through
+          typed combinators whose reverses are built, not guessed. Here a legacy table is read
+          through a compatibility view and its changes are projected into a table this application
+          owns. The legacy database stays the system of record: this is a projection, not a
+          cutover.
+        </p>
+        <p>
+          Zones declare where data may live. Data is admitted to a store only when its tags allow
+          it, and every unknown case is refused. That rule is applied per ingest action, not
+          inherited by every resource.
+        </p>
+        <p class="flex flex-wrap gap-x-5 gap-y-2">
+          {
+            [adr('0031', 'the legacy estate is projected, not cut over'), adr('0054', 'MDM stewardship')]
+              .filter((a) => a !== null)
+              .map((a) => <a class="ae-link" href={a!.href}>{a!.text}</a>)
+          }
+        </p>
+      </div>
+    </div>
+  </Section>
+
+  {/* 07 · Integrations */}
+  <Section
+    id="integrations"
+    step="07"
+    eyebrow="Integrations"
+    title="Providers are reached through declared operations and a proxy, never with a credential in an argument."
+    wide
+  >
+    <Fragment slot="chips">
+      {integrations.map((c) => <StatusChip status={c.status} label={c.label} />)}
+    </Fragment>
+
+    <div class="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-start">
+      <div class="ae-body space-y-4">
+        <p>
+          Nango holds the provider edge: OAuth, token refresh and the proxy. The sync logic stays
+          here as Ash actions over Oban, so a policy decides who may start a sync and the audit log
+          records it. Google Calendar, Gmail and Slack are built that way. No action accepts a
+          connection or a provider credential as input; the connection is derived from the actor.
+        </p>
+        <p>
+          A provider reached with the deployment's own key is declared with
+          <code class="ae-code">ash_operations</code>: one generic action per operation, a spec pinned
+          by its hash, one transport, and a webhook ingress whose signature covers the raw bytes.{' '}
+          {
+            hasRoute('/app/deliveries') && (
+              <>
+                What providers have sent, with each signature's verdict, is listed at
+                <code class="ae-code">/app/deliveries</code>.
+              </>
+            )
+          }
+        </p>
+        <p>
+          Other systems cannot yet subscribe to what happens here, and there is no bulk path in or
+          out. The chips say so.
+        </p>
+        <p class="flex flex-wrap gap-x-5 gap-y-2">
+          {
+            [adr('0011', 'the integration hub'), adr('0063', 'declared operations are a package')]
+              .filter((a) => a !== null)
+              .map((a) => <a class="ae-link" href={a!.href}>{a!.text}</a>)
+          }
+        </p>
+      </div>
+      <SnippetExhibit name="provider-operation" label="Exhibit 8" />
+    </div>
+  </Section>
+
+  {/* 08 · Operate and recover */}
+  <Section
+    id="operate"
+    step="08"
+    eyebrow="Operate and recover"
+    title="Traced by default and drilled in CI. The rota and the pager are the owner's."
+    tone="muted"
+    wide
+  >
+    <Fragment slot="chips">
+      {operate.map((c) => <StatusChip status={c.status} label={c.label} />)}
+    </Fragment>
+
+    <div class="grid gap-10 lg:grid-cols-2">
+      <div class="ae-body space-y-4">
+        <p>
+          <code class="ae-code">ash_enterprise_telemetry</code> attaches tracing in one setup call:
+          every Ash action, query and calculation becomes a span, alongside Phoenix, Ecto, Oban and
+          outbound HTTP, with correlation ids carried across them. Spans are exported over OTLP
+          when an endpoint is configured. SigNoz and GlitchTip run beside the application in
+          development; no deployment we operate runs them yet.
+        </p>
+        <p>
+          <code class="ae-code">GET /health</code> answers without a sign-in and carries no data. A
+          backup and restore drill runs in CI on every push: it dumps the database, restores it
+          into a fresh one, and checks row counts and every audit chain on the copy.
+        </p>
+      </div>
+      <div class="ae-body space-y-4">
+        <p>
+          An alert that reaches the signed inbound webhook opens an incident in its tenant, and the
+          incident triage pack, once published, gives the person on call a task. The rota, the pager
+          and what a customer is told remain the owner's.
+        </p>
+        {
+          hasRoute('/app/recovery') && (
+            <p>
+              A governed invocation that went wrong can be settled, simulated, rerun or cancelled at
+              <code class="ae-code">/app/recovery</code>, each act recorded with who did it and why.
+            </p>
+          )
+        }
+        <p>
+          Every generated migration has a <code class="ae-code">down</code>. A rolling deploy, an old
+          and a new node serving one schema, has not been tested.
+        </p>
+        <p class="flex flex-wrap gap-x-5 gap-y-2">
+          {
+            [adr('0065', 'SigNoz and GlitchTip')]
+              .filter((a) => a !== null)
+              .map((a) => <a class="ae-link" href={a!.href}>{a!.text}</a>)
+          }
+          <a
+            class="ae-link"
+            href={repoHref('docs/runbooks/backup-and-restore.md')}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            The restore runbook
+          </a>
+        </p>
+      </div>
+    </div>
+  </Section>
+
+  {/* 09 · Surfaces */}
+  <Section
+    id="surfaces"
+    step="09"
+    eyebrow="Surfaces"
+    title="Every surface reads the same resources through the same policies."
+    wide
+  >
+    <div class="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-start">
+      <div class="ae-body space-y-4">
+        <p>
+          The application serves {facts.routes.total} routes. {facts.routes.appScreens} of them are
+          screens under <code class="ae-code">/app</code>, built in LiveView and with
+          <code class="ae-code">ash_a2ui</code>, which describes a screen as data from the resource
+          and leaves the drawing to components the client already trusts.
+        </p>
+        <p>
+          A resource is on JSON:API and GraphQL only when it names an
+          <code class="ae-code">api_type</code>, so an internal resource is never published by
+          accident. The API and MCP endpoints take a bearer token: a user's token, or a hashed API
+          key that must carry an expiry and stops working when its owner is deactivated.
+        </p>
+        <p>
+          Routes mounted only in development (the admin, the Clarity diagrams, the canvas and the
+          live dashboard) are not counted and not listed.
+        </p>
+      </div>
+
+      <div class="ae-overflow">
+        <table class="w-full border-collapse text-left text-sm">
+          <caption class="ae-eyebrow pb-3 text-left">
+            Mounted beside the screens, from the router
+          </caption>
+          <thead>
+            <tr class="border-b border-ae-rule-strong">
+              <th scope="col" class="py-2 pr-4 font-mono text-xs font-medium text-ae-muted">Path</th>
+              <th scope="col" class="py-2 font-mono text-xs font-medium text-ae-muted">Served by</th>
+            </tr>
+          </thead>
+          <tbody>
+            {
+              mounted.map((r) => (
+                <tr class="border-b border-ae-rule">
+                  <td class="py-2 pr-4 font-mono text-xs whitespace-nowrap text-ae-ink">{r.path}</td>
+                  <td class="py-2 font-mono text-xs break-all text-ae-muted">{r.module}</td>
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </Section>
+
+  {/* Close */}
+  <section class="ae-section">
+    <div class="ae-container">
+      <h2 class="ae-h2 max-w-3xl">The parts that are not there are listed too.</h2>
+      <p class="ae-lead mt-5">
+        The checklist has {facts.roadmap.questions.total} questions, and every chip on this page is
+        one of its rows or a row of the capability inventory. Follow any of them to its evidence, or
+        to the gap it names.
+      </p>
+      <div class="mt-10 flex flex-wrap items-center gap-4">
+        <a class="ae-btn-primary" href={proofHref}>See the proof <span aria-hidden="true">→</span></a>
+        <a class="ae-btn" href={checklistHref}>The whole checklist</a>
+        <a class="ae-btn" href={roadmapHref}>The roadmap</a>
+      </div>
+    </div>
+  </section>
+</Base>

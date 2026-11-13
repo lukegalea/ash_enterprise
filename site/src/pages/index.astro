@@ -1,374 +1,393 @@
 ---
 /**
- * The homepage — a short, calm argument in the Enterprise Atelier direction.
+ * The home page, in the order PLAN.md "Site" sets: the framework pitch with a
+ * real code specimen; what one declaration gives you; governed agents; recipes
+ * and compliance packs; the generated stack figure; the reference application
+ * and how to run it; the status, then what is not here; the close.
  *
- * The fold sells the possibility; Fig. 1 shows the leverage; the specimen
- * proves one declaration end-to-end; the sections after it stage the team
- * model, the capabilities, the seams, and the doctrine. Everything deep lives
- * one click away — the proof pages, the manifesto, the source.
- *
- * Every internal href goes through `withBase`; every colour comes from the
- * `--ae-*` tokens so the `data-theme` dark swap just works.
+ * Counts come from `lib/facts`, statuses from the ledgers (`docs/roadmap.json`,
+ * `docs/capabilities.json`) through `components/home/ledger.ts`, and every code
+ * sample is a named snippet cut from the repository at build time. Nothing on
+ * this page types a number, a status or a line of code.
  */
 import Base from '../layouts/Base.astro';
+import Section from '../components/Section.astro';
+import StatusChip from '../components/StatusChip.astro';
+import Scoreboard from '../components/Scoreboard.astro';
 import Hero from '../components/home/Hero.astro';
 import StackElevation from '../components/home/StackElevation.astro';
-import SpecimenPlate from '../components/home/SpecimenPlate.astro';
-import { withBase } from '../lib/roadmap';
-import { facts, numberWord } from '../lib/facts';
+import SnippetExhibit from '../components/home/SnippetExhibit.astro';
+import {
+  question,
+  capability,
+  capabilityStatus,
+  packs,
+  pageHref,
+  checklistHref,
+} from '../components/home/ledger';
+import { questions, withBase, adrHref, repoHref } from '../lib/roadmap';
+import { facts, numberWord, packages, tourPath, walkthroughPath } from '../lib/facts';
 
 const GITHUB = 'https://github.com/lukegalea/ash_enterprise';
 
-/* --- Shared rhythm ------------------------------------------------------- */
+const platformHref = withBase('/platform/');
+const packagesHref = pageHref('/packages/', '/docs/bleeding-edge/');
+const runItHref = pageHref('/run-it/', '/docs/');
+const proofHref = pageHref('/proof/', '/docs/questions/');
+const roadmapHref = pageHref('/roadmap/', '/docs/roadmap/');
 
-const container = 'mx-auto w-full max-w-[1280px] px-6 sm:px-8 lg:px-14';
-const eyebrow = 'font-mono text-[11px] uppercase tracking-[0.18em] text-ae-copper';
-const h2 =
-  'mt-4 max-w-[860px] font-display text-[36px] leading-[1.08] tracking-[-0.015em] font-normal text-ae-ink lg:text-[48px]';
-const lead = 'mt-6 max-w-[560px] text-[19px] leading-[1.6] text-ae-ink text-pretty';
-const underlineLink =
-  'self-start border-b border-ae-workshop font-sans text-[15px] font-medium text-ae-workshop transition-colors duration-150 hover:border-ae-vermilion hover:text-ae-vermilion';
+/** ADR link, or null when the record is not on the site. */
+const adr = (n: string) => adrHref(n);
 
-/* --- Section 04 — the team model ----------------------------------------- */
-
-const teamColumns: { label: string; title: string; body: string }[] = [
-  {
-    label: '01 — humans',
-    title: 'Your team owns judgment',
-    body: 'You decide what the business means: where one domain ends and the next begins, which exceptions are real, which records may be merged, which decisions cannot be undone. The framework keeps those decisions explicit and central — never scattered across controllers, callbacks, and tribal memory.',
-  },
-  {
-    label: '02 — agents',
-    title: 'Agents move quickly',
-    body: 'An agent works here the way a strong new hire would: it reads the generated rules, inspects the running system, proposes changes, and operates existing actions through existing policies. It can generate a resource that already carries audit, tenancy, and ownership — because there is no other kind of resource to generate.',
-  },
-  {
-    label: '03 — the framework',
-    title: 'The framework enforces coherence',
-    body: 'Every request — human or agent — resolves through the same actions, the same policy union, the same audit trail, under the actor who initiated it. There is no side door to remember to secure. The platform’s own machinery — the process and decision engines and the deterministic system actors, the job runner among them — takes a declared bypass that an action can narrow, and the model-driven ai actor has none.',
-  },
+/* 03 · Governed agents: capability rows, graded in docs/capabilities.json. */
+const agentCapabilities = [
+  'model-invocation-and-streaming',
+  'durable-agent-execution',
+  'tool-approvals',
+  'typed-tools',
 ];
 
-/* --- Section 05 — capabilities ------------------------------------------- */
-
-const capabilities: { name: string; outcome: string; linkLabel: string; href: string }[] = [
-  {
-    name: 'Identity and authorization',
-    outcome: 'Ownership, hierarchy, sharing, and additive grants come from one actor model.',
-    linkLabel: 'See the capability →',
-    href: withBase('/product/#identity'),
-  },
-  {
-    name: 'Audit and evidence',
-    outcome:
-      'Every action is attributable; the chain can reveal tampering and export an auditor’s window.',
-    linkLabel: 'Open the evidence →',
-    href: withBase('/proof/'),
-  },
-  {
-    name: 'Workflow and decisions',
-    outcome:
-      'BPMN and DMN become versioned application data, with human approvals and FEEL conditions.',
-    linkLabel: 'See the capability →',
-    href: withBase('/product/#workflow'),
-  },
-  {
-    name: 'Legacy adoption',
-    outcome:
-      'Map rather than rewrite; move through reversible phases while the old system keeps running.',
-    linkLabel: 'See the capability →',
-    href: withBase('/product/#legacy'),
-  },
-  {
-    name: 'Derived surfaces',
-    outcome: 'Admin, JSON:API, GraphQL, and agent tools read the same domain and policies.',
-    linkLabel: 'See the capability →',
-    href: withBase('/product/#surfaces'),
-  },
-  {
-    name: 'Tenant-safe agents',
-    outcome: 'Models receive existing actions, not a privileged mutation path.',
-    linkLabel: 'See the capability →',
-    href: withBase('/product/#agents'),
-  },
+/* 04 · The checklist questions the packs answer. */
+const packQuestions = [
+  { id: 'q30', label: 'Leavers' },
+  { id: 'q38', label: 'Alert review' },
+  { id: 'q49', label: 'Incident triage' },
+  { id: 'q46', label: 'Control mapping' },
 ];
 
-/* --- Section 06 — bring your own ----------------------------------------- */
-
-const seams: { concern: string; providers: string; seam: string; included: string }[] = [
-  {
-    concern: 'Enterprise identity',
-    providers: 'Okta · Entra · Keycloak',
-    seam: 'An ash_authentication strategy federates OIDC today; SAML and SCIM are planned, not pretended.',
-    included: 'Password and magic-link accounts with the full actor, role, and audit semantics.',
-  },
-  {
-    concern: 'Analytics & BI',
-    providers: 'Grafana · Superset',
-    seam: 'BI tools read views already filtered by the same actor context; metrics and traces export over OpenTelemetry.',
-    included: 'The Grafana LGTM backend, wired to the same spans the actions emit.',
-  },
-  {
-    concern: 'Data ingestion',
-    providers: 'Meltano',
-    seam: 'Pipelines land normalized data in the warehouse; OpenLineage carries the lineage alongside it.',
-    included: 'An append-only landing resource for raw external rows, and a user projection from a simulated legacy estate, running locally.',
-  },
-  {
-    concern: 'Notification channels',
-    providers: 'Your email & SMS gateways',
-    seam: 'Delivery sits at the notifier edge; the audit log records the decision, not the send.',
-    included: 'Swoosh email senders for confirmation and password reset.',
-  },
-];
-
-/* --- Section 07 — doctrine ----------------------------------------------- */
-
-const doctrines: { title: string; body: string; href: string }[] = [
-  {
-    title: 'Batteries are inherited, not installed.',
-    body: 'A resource that forgets its audit trail should be the one that had to work at it. The base resource injects authorization, audit, tenancy, and lifecycle into every declaration, so the compliant path is the path of least resistance — and opting out is explicit, local, and greppable.',
-    href: withBase('/docs/manifesto/04-batteries-are-inherited/'),
-  },
-  {
-    title: 'Authorization is a union of grants.',
-    body: 'Grants accumulate; nothing subtracts. A role, a share, or a hierarchy — any one path is sufficient, and no rule’s meaning depends on where it sits in the list. Deny rules would reintroduce the order-dependence that makes authorization impossible to reason about, so they are refused.',
-    href: withBase('/docs/manifesto/03-authorization-is-data/'),
-  },
-  {
-    title: 'Agents are users.',
-    body: 'An agent gets no privileged mutation path. It calls the same actions, under the same policies, attributed to the human who asked — and its proposals wait for a person’s approval. The audit trail never has to admit a second, murkier notion of who did what.',
-    href: withBase('/docs/manifesto/05-agents-are-users/'),
-  },
-];
+/* 07 · What is not here: every question the ledger still marks open. */
+const openQuestions = questions.filter((q) => q.status === 'open');
+const selfHosted = capability('self-hosted-operation');
+const gitOnly = packages.every((p) => p.distribution.startsWith('git only'));
+const caps = facts.capabilities.byStatus;
+const q = facts.roadmap.questions;
 ---
 
 <Base
-  title="Ash Enterprise — say what the software must do"
-  description="The framework for small senior teams and smart agents to build ambitious enterprise software. Declare the hard parts once. Inherit the controls. Derive the surfaces. Keep the code worth owning."
+  title="Ash Enterprise: declare the resource, inherit the controls"
+  description="First-party Ash packages and a reference application. A resource on the platform base inherits audit, ownership, tenancy, soft delete, lineage and a policy set that is a union of grants."
   bare={true}
   active="home"
 >
-  <div class="ae-home bg-ae-paper text-ae-ink">
-    {/* 01 · The fold */}
+  <div class="bg-ae-paper text-ae-ink">
+    {/* 01 · The framework pitch */}
     <Hero />
 
-    {/* 02 · The leverage — intro, then Fig. 1 */}
-    <section id="leverage" class="scroll-mt-24 border-t border-ae-rule pt-20 lg:pt-24">
-      <div class={container}>
-        <div class="grid items-start gap-12 lg:grid-cols-2 lg:gap-16">
-          <div>
-            <p class={eyebrow}>Section 02 — the leverage</p>
-            <h2 class={h2}>One declaration. Every enterprise concern.</h2>
-          </div>
-          <p class={`${lead} lg:pt-14`}>
-            Every layer below is someone else’s solved problem. Ash Enterprise is
-            the top stratum: a chosen subset of the Ash ecosystem,
-            {numberWord(facts.packages.runtimeDirect)} first-party packages for the parts Ash leaves to the application, and
-            the conventions that hold them together.
+    {/* 02 · What one declaration gives you */}
+    <Section
+      id="one-declaration"
+      step="02"
+      eyebrow="What one declaration gives you"
+      title="One use line, and the resource is a platform resource."
+      lead={`${facts.resources.declaredOnBase} resources in the reference application declare AshEnterprise.Platform.Resource. What it adds is not written per resource, so it cannot be forgotten on the one added under deadline.`}
+      wide
+    >
+      <div class="grid gap-10 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-start">
+        <div class="ae-body grid gap-5">
+          <dl class="grid gap-5">
+            <div>
+              <dt class="ae-h3">Authorization</dt>
+              <dd class="mt-1">
+                The policy set every resource inherits is a union of grants: a role, a share, a place
+                in the hierarchy or a self-service action. Any one is enough and none subtracts.
+                Checks read what they need from a context computed once per request, and a policy
+                check that issues a query is treated as a bug.
+              </dd>
+            </div>
+            <div>
+              <dt class="ae-h3">Ownership, tenancy and concurrency</dt>
+              <dd class="mt-1">
+                User-or-team ownership, an <code class="ae-code">organization_id</code> on every row,
+                who created and last changed it, and a version number that makes a write from a stale
+                copy fail instead of overwriting.
+              </dd>
+            </div>
+            <div>
+              <dt class="ae-h3">Audit, soft delete and lineage</dt>
+              <dd class="mt-1">
+                Every write goes to one central event log, hash-chained so an edit behind it is found.
+                A destroy archives the row. A successful write emits an OpenLineage run event.
+              </dd>
+            </div>
+            <div>
+              <dt class="ae-h3">Opting out is written down</dt>
+              <dd class="mt-1">
+                <code class="ae-code">audit?: false</code> or <code class="ae-code">archival?: false</code>
+                sits in the resource's own file, where a reviewer sees it. A JSON:API and GraphQL
+                surface appears only when the resource names an <code class="ae-code">api_type</code>.
+              </dd>
+            </div>
+          </dl>
+          <p>
+            <a class="ae-link" href={withBase('/docs/manifesto/04-batteries-are-inherited/')}>
+              Why batteries are inherited
+            </a>
+          </p>
+        </div>
+
+        <div class="grid min-w-0 gap-8">
+          <SnippetExhibit name="platform-extensions" label="Exhibit 2" />
+          <SnippetExhibit name="grant-union" label="Exhibit 3" />
+        </div>
+      </div>
+    </Section>
+
+    {/* 03 · Governed agents */}
+    <Section
+      id="governed-agents"
+      step="03"
+      eyebrow="Governed agents"
+      title="An agent calls the actions its person could, and waits where a person would."
+      tone="muted"
+      wide
+    >
+      <Fragment slot="chips">
+        {
+          agentCapabilities.map((id) => (
+            <StatusChip status={capabilityStatus(id)} label={capability(id).capability} />
+          ))
+        }
+      </Fragment>
+
+      <div class="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-start">
+        <div class="ae-body space-y-4">
+          <p>
+            An agent here is an actor with an actor's permissions. Its tools are actions the
+            application already has, and it calls them as the person who asked, through the same
+            policies. A model reaches nothing that person could not.
+          </p>
+          <p>
+            An action that does something consequential declares its effects: whether it reaches
+            outside the application, whether repeating it is safe, which approval it needs and how
+            a lost answer is checked. <code class="ae-code">ash_agent</code> runs it as a governed
+            invocation: one row holding the request, an approval bound to that exact request, and
+            an outcome that can be <em>unknown</em>. The authority it runs with is rebuilt from
+            grant rows when it executes, not carried over from when it was asked for. An outside
+            call whose answer was lost is settled through a declared read, never sent again
+            blindly.
+          </p>
+          <p>
+            The credentialing tour in the reference application makes{' '}
+            {numberWord(facts.failures.total)} of these go wrong on purpose, from a model timing out to a deploy changing an approved
+            tool, and shows what happens to each.
+          </p>
+          <p class="flex flex-wrap gap-x-5 gap-y-2">
+            <a class="ae-link" href={withBase('/docs/manifesto/05-agents-are-users/')}>Agents are users</a>
+            {adr('0055') && <a class="ae-link" href={adr('0055')!}>ADR 0055: governed invocations</a>}
+            {adr('0057') && <a class="ae-link" href={adr('0057')!}>ADR 0057: declared effects</a>}
+          </p>
+        </div>
+
+        <div class="grid min-w-0 gap-8">
+          <SnippetExhibit name="governed-effect" label="Exhibit 4" />
+        </div>
+      </div>
+    </Section>
+
+    {/* 04 · Recipes and compliance packs */}
+    <Section
+      id="recipes"
+      step="04"
+      eyebrow="Recipes and compliance packs"
+      title="When a write lands, a recipe can start a process. Nothing runs until a person publishes it."
+      wide
+    >
+      <Fragment slot="chips">
+        {packQuestions.map((p) => <StatusChip status={question(p.id).status} label={p.label} />)}
+      </Fragment>
+
+      <div class="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-start">
+        <div class="ae-body space-y-4">
+          <p>
+            A recipe is one versioned row: when a committed write lands in a tenant's audit chain
+            and a FEEL guard matches it, start a published BPMN process. It runs after the write
+            commits and never vetoes it.
+          </p>
+          <p>
+            A pack bundles processes and the recipes that start them, and names the controls it
+            bears on. It installs as drafts. The person who publishes a recipe is recorded as
+            accountable, and its steps run on the intersection of that person's grants and the
+            recipe runner's, rebuilt at every step. If the publisher has left or the grant has
+            lapsed, the step records <code class="ae-code">no_authority</code> and runs nothing.
+          </p>
+          <p>
+            A compliance rule is an <code class="ae-code">ash_rules</code> rule over facts, filed under
+            a gap that <code class="ae-code">ash_compliance</code> maps to a control. Missing evidence
+            is unknown, never a pass, and the audit package never reports a criterion as satisfied.
+          </p>
+          {adr('0069') && (
+            <p>
+              <a class="ae-link" href={adr('0069')!}>ADR 0069: a recipe runs on an authority chosen per version</a>
+            </p>
+          )}
+        </div>
+
+        <div class="grid min-w-0 gap-8">
+          <SnippetExhibit name="recipe-pack" label="Exhibit 5" />
+          <SnippetExhibit name="compliance-rule" label="Exhibit 6" />
+        </div>
+      </div>
+
+      <div class="mt-14">
+        <h3 class="ae-eyebrow">The packs in priv/packs</h3>
+        <ul class="mt-4 divide-y divide-ae-rule border-y border-ae-rule">
+          {
+            packs.map((pack) => (
+              <li class="grid gap-2 py-4 md:grid-cols-[minmax(0,1fr)_minmax(0,16rem)] md:gap-8">
+                <div class="min-w-0">
+                  <a
+                    class="ae-link"
+                    href={repoHref(pack.path)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {pack.title}
+                  </a>
+                  <p class="mt-1 font-mono text-xs text-ae-muted">
+                    {pack.name} · {pack.processes.length}{' '}
+                    {pack.processes.length === 1 ? 'process' : 'processes'} · {pack.recipes.length}{' '}
+                    {pack.recipes.length === 1 ? 'recipe' : 'recipes'}
+                  </p>
+                </div>
+                <p class="min-w-0 font-mono text-xs leading-relaxed break-words text-ae-muted">
+                  {pack.controls.join(' · ')}
+                </p>
+              </li>
+            ))
+          }
+        </ul>
+      </div>
+    </Section>
+
+    {/* 05 · The generated stack figure and the packages */}
+    <Section
+      id="packages"
+      step="05"
+      eyebrow="The packages"
+      title="Ash underneath, and the parts Ash leaves to an application on top."
+      tone="muted"
+      wide
+    >
+      <StackElevation />
+      <p class="mt-10">
+        <a class="ae-btn" href={packagesHref}>
+          What each package does, and what you would carry <span aria-hidden="true">→</span>
+        </a>
+      </p>
+    </Section>
+
+    {/* 06 · The reference application */}
+    <Section
+      id="reference-application"
+      step="06"
+      eyebrow="The reference application"
+      title="Run the reference application on your own machine."
+      wide
+    >
+      <div class="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:items-start">
+        <div class="ae-body space-y-4">
+          <p>
+            The repository is a working application as well as the packages' proving ground:{' '}
+            {numberWord(facts.domains.total)} Ash domains, {facts.routes.appScreens} screens under
+            <code class="ae-code">/app</code> and {facts.tests.files} test files in its suite.
+          </p>
+          <p>
+            The demo seed creates a tenant with a business-unit tree, people and a credentialing
+            clinic. Every person and licence in it is synthetic. Its guided tour at
+            <code class="ae-code">{tourPath}</code> shows {numberWord(facts.failures.total)} failures
+            and what the application does about each; seeding with
+            <code class="ae-code">--history</code> records {numberWord(facts.failures.seeded)} of them,
+            and the rest happen when you click their step.
+          </p>
+          <p class="flex flex-wrap gap-x-5 gap-y-2">
+            <a class="ae-link" href={runItHref}>How to run it</a>
+            <a class="ae-link" href={repoHref(walkthroughPath)} target="_blank" rel="noopener noreferrer">
+              The tour, walked through
+            </a>
+          </p>
+        </div>
+        <SnippetExhibit name="getting-started" label="Exhibit 7" />
+      </div>
+    </Section>
+
+    {/* 07 · Status, then what is not here */}
+    <Section
+      id="status"
+      step="07"
+      eyebrow="Status"
+      title="Where it stands, counted from the ledgers."
+      tone="muted"
+      wide
+    >
+      <div class="grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-start">
+        <div class="ae-body space-y-5">
+          <p>
+            The enterprise checklist asks {q.total} questions. {q.shipped} have a shipped answer, {q.partial}{' '}
+            a partial one, {q.planned} a planned one and {q.open} none yet.
+          </p>
+          <Scoreboard variant="inline" />
+          <p>
+            The capability inventory grades {facts.capabilities.total} capabilities: {caps.existing}{' '}
+            exist with a test that fails if they regress, {caps.partial} are partial, {caps.missing}{' '}
+            are missing and {caps.refused} are refused on purpose. There are {facts.adrs.total}{' '}
+            decision records, {facts.adrs.byStatus.accepted} of them accepted.
+          </p>
+          <p class="flex flex-wrap gap-x-5 gap-y-2">
+            <a class="ae-link" href={proofHref}>The proof</a>
+            <a class="ae-link" href={checklistHref}>The whole checklist</a>
+          </p>
+        </div>
+
+        <div>
+          <h3 class="ae-eyebrow">What is not here</h3>
+          <ul class="mt-4 divide-y divide-ae-rule border-y border-ae-rule">
+            {
+              openQuestions.map((oq) => (
+                <li class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-3">
+                  <span class="min-w-0 text-sm text-ae-ink">{oq.question}</span>
+                  <StatusChip status={oq.status} size="sm" />
+                </li>
+              ))
+            }
+            {
+              gitOnly && (
+                <li class="py-3 text-sm text-ae-ink">
+                  No first-party package is published to Hex; each is a git dependency.
+                </li>
+              )
+            }
+            <li class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-3">
+              <span class="min-w-0 text-sm text-ae-ink">{selfHosted.gap}</span>
+              <StatusChip
+                status={capabilityStatus('self-hosted-operation')}
+                label={selfHosted.capability}
+                size="sm"
+              />
+            </li>
+          </ul>
+          <p class="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-sm">
+            <a class="ae-link" href={roadmapHref}>The roadmap</a>
+            <a class="ae-link" href={withBase('/docs/manifesto/07-what-we-do-not-have/')}>
+              What we do not have, and why
+            </a>
           </p>
         </div>
       </div>
-      <div class={`${container} pt-14 pb-[88px]`}>
-        <StackElevation />
-      </div>
-    </section>
+    </Section>
 
-    {/* 03 · The leverage specimen */}
-    <section id="the-specimen" class="scroll-mt-24 border-t border-ae-rule py-20 lg:py-28">
-      <div class={container}>
-        <p class={eyebrow}>Section 03 — the specimen</p>
-        <h2 class={h2}>What a declaration carries.</h2>
-        <div class="mt-14">
-          <SpecimenPlate />
-        </div>
-      </div>
-    </section>
-
-    {/* 04 · The team model */}
-    <section id="team-model" class="scroll-mt-24 border-t border-ae-rule py-20 lg:py-28">
-      <div class={container}>
-        <p class={eyebrow}>Section 04 — the team model</p>
-        <h2 class={h2}>
-          Humans set direction. Agents multiply the work. The framework holds the
-          line.
-        </h2>
-
-        <div class="mt-14 grid gap-10 sm:grid-cols-3 sm:gap-0">
-          {
-            teamColumns.map((col, i) => (
-              <div
-                class:list={[
-                  'min-w-0',
-                  i > 0 && 'border-t border-ae-rule pt-8 sm:border-t-0 sm:pt-0',
-                  i > 0 && 'sm:border-l sm:border-ae-rule sm:pl-8',
-                  i < teamColumns.length - 1 && 'sm:pr-8',
-                ]}
-              >
-                <p class="font-mono text-[11px] uppercase tracking-[0.18em] text-ae-copper">
-                  {col.label}
-                </p>
-                <h3 class="mt-4 font-sans text-lg font-medium text-ae-ink">
-                  {col.title}
-                </h3>
-                <p class="mt-3 text-[15px] leading-[1.6] text-ae-ink/75 text-pretty">
-                  {col.body}
-                </p>
-              </div>
-            ))
-          }
-        </div>
-
-        <a class={`${underlineLink} mt-14`} href={withBase('/docs/manifesto/05-agents-are-users/')}>
-          Read the argument <span aria-hidden="true">→</span>
-        </a>
-      </div>
-    </section>
-
-    {/* 05 · Capabilities */}
-    <section id="capabilities" class="scroll-mt-24 border-t border-ae-rule py-20 lg:py-28">
-      <div class={container}>
-        <p class={eyebrow}>Section 05 — capabilities</p>
-        <h2 class={h2}>
-          The capabilities large customers ask for. Without a department for each
-          one.
-        </h2>
-
-        <div class="mt-14">
-          <div class="hidden grid-cols-[200px_minmax(0,1fr)_220px] gap-8 border-b border-ae-rule pb-3 lg:grid">
-            <p class="font-mono text-[11px] uppercase tracking-[0.18em] text-ae-blueprint">Capability</p>
-            <p class="font-mono text-[11px] uppercase tracking-[0.18em] text-ae-blueprint">What it buys</p>
-            <p class="font-mono text-[11px] uppercase tracking-[0.18em] text-ae-blueprint">Evidence</p>
-          </div>
-
-          {
-            capabilities.map((cap) => (
-              <div class="grid gap-3 border-t border-ae-rule py-7 lg:grid-cols-[200px_minmax(0,1fr)_220px] lg:items-baseline lg:gap-8">
-                <h3 class="font-sans text-[15px] font-medium text-ae-ink">{cap.name}</h3>
-                <p class="max-w-[60ch] text-[15px] leading-[1.6] text-ae-ink/75 text-pretty">
-                  {cap.outcome}
-                </p>
-                <a class={underlineLink} href={cap.href}>
-                  {cap.linkLabel}
-                </a>
-              </div>
-            ))
-          }
-          <div class="border-t border-ae-rule" aria-hidden="true" />
-        </div>
-      </div>
-    </section>
-
-    {/* 06 · Bring your own */}
-    <section id="bring-your-own" class="scroll-mt-24 border-t border-ae-rule py-20 lg:py-28">
-      <div class={container}>
-        <p class={eyebrow}>Section 06 — the seams</p>
-        <h2 class={h2}>
-          Bring your own identity. Your analytics. Your notification channels.
-        </h2>
-        <p class={lead}>
-          Ash Enterprise is deliberately less opinionated where every enterprise
-          already has an answer. It integrates at the seams instead of
-          duplicating them — and includes a lightweight version only so the
-          reference app runs standalone.
+    {/* 08 · Close */}
+    <section id="begin" class="ae-section">
+      <div class="ae-container">
+        <h2 class="ae-h2 max-w-3xl">Read the argument, then read the code that keeps it.</h2>
+        <p class="ae-lead mt-5">
+          The manifesto says why the platform is shaped this way, the decision records say what was
+          chosen and when, and the source shows whether it holds.
         </p>
-
-        <div class="mt-14">
-          <div class="hidden grid-cols-[minmax(0,0.8fr)_minmax(0,1.3fr)_minmax(0,1fr)] gap-8 border-b border-ae-rule pb-3 lg:grid">
-            <p class="font-mono text-[11px] uppercase tracking-[0.18em] text-ae-blueprint">Concern</p>
-            <p class="font-mono text-[11px] uppercase tracking-[0.18em] text-ae-blueprint">
-              The seam Ash Enterprise exposes
-            </p>
-            <p class="font-mono text-[11px] uppercase tracking-[0.18em] text-ae-blueprint">
-              Included lightweight version
-            </p>
-          </div>
-
-          {
-            seams.map((row) => (
-              <div class="grid gap-3 border-t border-ae-rule py-7 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.3fr)_minmax(0,1fr)] lg:items-baseline lg:gap-8">
-                <div>
-                  <h3 class="font-sans text-[15px] font-medium text-ae-ink">{row.concern}</h3>
-                  <p class="mt-1 font-mono text-[12px] text-ae-blueprint">{row.providers}</p>
-                </div>
-                <p class="max-w-[60ch] text-[15px] leading-[1.6] text-ae-ink/75 text-pretty">
-                  {row.seam}
-                </p>
-                <p class="max-w-[48ch] text-[15px] leading-[1.6] text-ae-ink/75 text-pretty">
-                  {row.included}
-                </p>
-              </div>
-            ))
-          }
-          <div class="border-t border-ae-rule" aria-hidden="true" />
-        </div>
-
-        <a
-          class={`${underlineLink} mt-10`}
-          href={withBase('/docs/manifesto/07-what-we-do-not-have/#bring-your-own')}
-        >
-          Read the scope decisions <span aria-hidden="true">→</span>
-        </a>
-      </div>
-    </section>
-
-    {/* 07 · Doctrine */}
-    <section id="doctrine" class="scroll-mt-24 border-t border-ae-rule py-20 lg:py-28">
-      <div class={container}>
-        <p class={eyebrow}>Section 07 — doctrine</p>
-        <h2 class={h2}>Strong opinions, held in code.</h2>
-
-        <div class="mt-14">
-          {
-            doctrines.map((d) => (
-              <div class="grid gap-4 border-t border-ae-rule py-10 lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)_auto] lg:items-baseline lg:gap-10">
-                <h3 class="font-display text-[26px] leading-[1.15] font-normal text-ae-ink">
-                  {d.title}
-                </h3>
-                <p class="max-w-[62ch] text-[15px] leading-[1.6] text-ae-ink/75 text-pretty">
-                  {d.body}
-                </p>
-                <a class={underlineLink} href={d.href}>
-                  Read the argument <span aria-hidden="true">→</span>
-                </a>
-              </div>
-            ))
-          }
-          <div class="border-t border-ae-rule" aria-hidden="true" />
-        </div>
-      </div>
-    </section>
-
-    {/* 08 · Closing */}
-    <section id="begin" class="border-t border-ae-rule bg-ae-paper-2 py-24 lg:py-28">
-      <div class={container}>
-        <p class={eyebrow}>Section 08 — begin</p>
-        <h2 class="mt-4 max-w-[980px] font-display text-[36px] leading-[1.08] tracking-[-0.015em] font-normal text-ae-ink lg:text-[48px]">
-          Bring the application you have. Build the one your largest customer
-          expects.
-        </h2>
-        <p class="mt-6 max-w-[640px] text-[19px] leading-[1.6] text-ae-ink text-pretty">
-          Run the reference application, follow a real enterprise flow, and
-          decide which parts are worth keeping.
-        </p>
-
-        <div class="mt-12 flex flex-wrap items-center gap-6">
-          <a
-            class="inline-flex items-center gap-[10px] rounded-ae bg-ae-vermilion px-7 py-4 font-sans text-base font-medium text-ae-on-accent transition-opacity duration-150 hover:opacity-90"
-            href={withBase('/docs/manifesto/')}
-          >
-            Read the doctrine <span aria-hidden="true">→</span>
-          </a>
-          <a
-            class="border-b border-ae-workshop px-1 py-4 font-sans text-base font-medium text-ae-workshop transition-colors duration-150 hover:border-ae-vermilion hover:text-ae-vermilion"
-            href={GITHUB}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Clone the repository
-          </a>
-          <a class={`${underlineLink} px-1 py-4 text-base`} href={withBase('/proof/')}>
-            Explore the proof <span aria-hidden="true">→</span>
+        <div class="mt-10 flex flex-wrap items-center gap-4">
+          <a class="ae-btn" href={withBase('/docs/manifesto/')}>Read the manifesto</a>
+          <a class="ae-btn" href={platformHref}>See the platform</a>
+          <a class="ae-link text-sm" href={GITHUB} target="_blank" rel="noopener noreferrer">
+            Source on GitHub
           </a>
         </div>
       </div>

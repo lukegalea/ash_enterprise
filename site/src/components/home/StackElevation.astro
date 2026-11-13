@@ -1,77 +1,58 @@
 ---
 /**
- * Fig. 1 — the stack read as an elevation (handoff §3).
+ * Fig. 1 — the stack read as an elevation, generated from `docs/packages.json`.
  *
- * Five strata, read top-down 05 → 01; the reveal animation builds bottom-up
- * 01 → 05 so the stack assembles as it enters the viewport. The chip lists are
- * the brief's verified split (checked against mix.exs), not the handoff's.
+ * Stratum 05 is the platform base and every first-party package a release
+ * carries, each linked to the commit mix.lock pins. Stratum 04 is what those
+ * packages declare that is not ours and not Ash itself (`builds_on`), with the
+ * forks the build carries linked to the fork. Nothing in either list is typed
+ * here, so adding a package or a dependency changes the figure on the next
+ * build. Strata 01–03 are the platform underneath.
  *
- * Fully static and credible without JavaScript: the strata render in their
- * final state unless the script both runs and motion is allowed.
+ * Read top-down 05 → 01; the reveal builds bottom-up when motion is allowed,
+ * and the static render is always the final state.
  */
-const REPO = 'https://github.com/lukegalea/ash_enterprise';
+import { packages, forks, pinnedHref, facts, numberWord } from '../../lib/facts';
+import { repoHref } from '../../lib/roadmap';
 
 interface Chip {
   label: string;
-  href: string;
+  href?: string;
+  note?: string;
 }
 
-/** The upstream packages wired in below are Hex dependencies in mix.exs; their docs are on hexdocs. */
-const hex = (pkg: string): string => `https://hexdocs.pm/${pkg}/`;
+const runtime = packages.filter((p) => p.only === null);
+const firstPartyNames = new Set(packages.map((p) => p.name));
+const forkByName = new Map(forks.map((f) => [f.name, f]));
 
-/** First-party packages are git dependencies in mix.exs; none of ours is on Hex. */
-const gh = (pkg: string): string => `https://github.com/lukegalea/${pkg}`;
-
-/** Stratum 05 — the first-party layer. One filled, the rest outlined. */
-const filledChip: Chip = {
+const baseChip: Chip = {
   label: 'AshEnterprise.Platform.Resource',
-  href: `${REPO}/blob/main/lib/ash_enterprise/platform/resource.ex`,
+  href: repoHref('lib/ash_enterprise/platform/resource.ex'),
 };
 
-const outlinedChips: Chip[] = [
-  { label: 'ash_strangler', href: gh('ash_strangler') },
-  { label: 'ash_bpmn', href: gh('ash_bpmn') },
-  { label: 'ash_decisions', href: gh('ash_decisions') },
-  { label: 'ash_rules', href: gh('ash_rules') },
-  { label: 'ash_compliance', href: gh('ash_compliance') },
-  { label: 'ash_a2ui', href: gh('ash_a2ui') },
-  { label: 'CDM generators', href: `${REPO}/tree/main/priv/cdm` },
-  {
-    label: 'Security.ActorContext',
-    href: `${REPO}/blob/main/lib/ash_enterprise/security/actor_context.ex`,
-  },
-];
+const packageChips: Chip[] = runtime.map((p) => ({
+  label: p.name,
+  href: pinnedHref(p),
+  note: p.declared === 'transitive' ? 'through another package' : undefined,
+}));
 
-/** Stratum 04 — the upstream packages the reference application depends on (mix.exs). */
-const wiredChips: Chip[] = [
-  { label: 'AshPostgres', href: hex('ash_postgres') },
-  { label: 'AshPhoenix', href: hex('ash_phoenix') },
-  { label: 'AshJsonApi', href: hex('ash_json_api') },
-  { label: 'AshGraphQL', href: hex('ash_graphql') },
-  { label: 'AshAdmin', href: hex('ash_admin') },
-  { label: 'AshEvents (fork)', href: gh('ash_events') },
-  { label: 'AshArchival', href: hex('ash_archival') },
-  { label: 'AshOban', href: hex('ash_oban') },
-  { label: 'AshAi', href: hex('ash_ai') },
-  { label: 'AshStateMachine', href: hex('ash_state_machine') },
-  { label: 'OpentelemetryAsh', href: hex('opentelemetry_ash') },
-  { label: 'Reactor', href: hex('reactor') },
-  { label: 'AshAuthentication', href: hex('ash_authentication') },
-  { label: 'AshCloak', href: hex('ash_cloak') },
-  { label: 'AshMoney', href: hex('ash_money') },
-];
-
-/** Band heading — the handoff's 12px / 0.14em mono caps. */
-const bandHeading =
-  'font-mono text-[12px] uppercase tracking-[0.14em] font-medium';
+const upstreamChips: Chip[] = [
+  ...new Set(runtime.flatMap((p) => p.builds_on)),
+]
+  .filter((name) => name !== 'ash' && !firstPartyNames.has(name))
+  .sort()
+  .map((name) => {
+    const fork = forkByName.get(name);
+    return fork ? { label: name, href: fork.fork, note: 'fork' } : { label: name };
+  });
 
 interface Stratum {
   folio: string;
   title: string;
   annotation: string;
-  /** Band classes; strata alternate surface steps, 05 is keyed to workshop. */
   bandClass: string;
   headingClass: string;
+  chips?: 'first-party' | 'upstream';
 }
 
 const strata: Stratum[] = [
@@ -79,45 +60,46 @@ const strata: Stratum[] = [
     folio: '05',
     title: 'Ash Enterprise',
     annotation:
-      'The enterprise substrate Ash leaves to you: ownership hierarchy, tamper-evident audit, legacy strangling, BPMN and DMN as application data.',
-    bandClass: 'border border-ae-workshop bg-ae-paper-2 py-[22px]',
+      'The platform base every resource uses, and the packages for what Ash leaves to an application: audit chains, processes, decisions, rules, compliance, master data and governed agents.',
+    bandClass: 'border border-ae-workshop bg-ae-paper-2',
     headingClass: 'text-ae-workshop',
+    chips: 'first-party',
   },
   {
     folio: '04',
-    title: 'The Ash ecosystem',
+    title: 'What those packages build on',
     annotation:
-      'Persistence, APIs, admin, jobs, events, soft deletion and LLM tools — all reading the same resources. Ash Enterprise wires the ones below together as one system.',
-    bandClass: 'border border-ae-rule bg-ae-paper py-[22px]',
+      'The Ash extensions and libraries the first-party packages declare, read from their own mix files.',
+    bandClass: 'border border-ae-rule bg-ae-paper',
     headingClass: 'text-ae-ink',
+    chips: 'upstream',
   },
   {
     folio: '03',
-    title: 'Ash — resources, actions, policies',
-    annotation:
-      'Model your domain, derive the rest. Every extension above reads the same declarative resource.',
-    bandClass: 'border border-ae-rule bg-ae-paper-2 py-5',
+    title: 'Ash: resources, actions, policies',
+    annotation: 'The declarative model every stratum above reads.',
+    bandClass: 'border border-ae-rule bg-ae-paper-2',
     headingClass: 'text-ae-ink',
   },
   {
     folio: '02',
-    title: 'Phoenix & LiveView · Elixir & OTP',
-    annotation:
-      'Server-rendered interactivity and supervision trees, without a second runtime to operate.',
-    bandClass: 'border border-ae-rule bg-ae-paper-3 py-5',
+    title: 'Phoenix and LiveView · Elixir and OTP',
+    annotation: 'The web layer and the runtime libraries.',
+    bandClass: 'border border-ae-rule bg-ae-paper-3',
     headingClass: 'text-ae-ink',
   },
   {
     folio: '01',
-    title: 'BEAM — the Erlang virtual machine',
-    annotation:
-      'Concurrency, isolation and fault tolerance that predate every framework above it.',
-    bandClass: 'border border-ae-rule bg-ae-paper-4 py-5',
+    title: 'The BEAM',
+    annotation: 'The Erlang virtual machine.',
+    bandClass: 'border border-ae-rule bg-ae-paper-4',
     headingClass: 'text-ae-ink',
   },
 ];
 
-const chipBase = 'inline-flex items-center gap-1.5 px-3 py-[7px] font-mono text-[13px]';
+const chipBase =
+  'inline-flex items-center gap-1.5 px-2.5 py-[5px] font-mono text-[12.5px] leading-tight';
+const tooling = packages.filter((p) => p.only !== null);
 ---
 
 <figure id="ae-fig-stack">
@@ -126,62 +108,85 @@ const chipBase = 'inline-flex items-center gap-1.5 px-3 py-[7px] font-mono text-
       strata.map((s, i) => (
         <div
           class:list={[
-            'ae-stratum grid grid-cols-1 lg:grid-cols-[96px_minmax(0,1fr)_300px] lg:items-stretch lg:gap-8',
+            'ae-stratum grid grid-cols-1 lg:grid-cols-[72px_minmax(0,1fr)_280px] lg:items-stretch lg:gap-8',
             i > 0 && 'mt-3',
           ]}
         >
-          {/* Folio */}
-          <p class="font-mono text-[12px] text-ae-copper lg:pt-6">
-            <span class="lg:hidden" aria-hidden="true">stratum </span>{s.folio}
+          <p class="font-mono text-[12px] text-ae-copper lg:pt-5">
+            <span class="lg:hidden">stratum </span>
+            {s.folio}
           </p>
 
-          {/* Band */}
-          <div class:list={['min-w-0', s.bandClass]}>
-            <div class="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 px-6">
-              <h3 class:list={[bandHeading, s.headingClass]}>{s.title}</h3>
-            </div>
+          <div class:list={['min-w-0 py-4', s.bandClass]}>
+            <h3
+              class:list={[
+                'px-5 font-mono text-[12px] font-medium uppercase tracking-[0.14em]',
+                s.headingClass,
+              ]}
+            >
+              {s.title}
+            </h3>
 
-            {s.folio === '05' && (
-              <div class="flex flex-wrap gap-2 px-6 pt-3.5">
-                <a
-                  class:list={[chipBase, 'bg-ae-workshop text-ae-on-accent transition-colors duration-150 hover:opacity-90']}
-                  href={filledChip.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  {filledChip.label}
-                </a>
-                {outlinedChips.map((chip) => (
+            {s.chips === 'first-party' && (
+              <ul class="flex flex-wrap gap-2 px-5 pt-3" aria-label="First-party packages">
+                <li>
                   <a
-                    class:list={[chipBase, 'border border-ae-workshop text-ae-ink transition-colors duration-150 hover:border-ae-workshop hover:bg-ae-paper']}
-                    href={chip.href}
+                    class:list={[chipBase, 'bg-ae-workshop text-ae-on-accent hover:opacity-90']}
+                    href={baseChip.href}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
-                    {chip.label}
+                    {baseChip.label}
                   </a>
+                </li>
+                {packageChips.map((chip) => (
+                  <li>
+                    <a
+                      class:list={[
+                        chipBase,
+                        'border border-ae-workshop text-ae-ink transition-colors duration-150 hover:bg-ae-paper',
+                      ]}
+                      href={chip.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {chip.label}
+                      {chip.note && <span class="text-ae-muted">({chip.note})</span>}
+                    </a>
+                  </li>
                 ))}
-              </div>
+              </ul>
             )}
 
-            {s.folio === '04' && (
-              <div class="flex flex-wrap gap-2 px-6 pt-3.5">
-                {wiredChips.map((chip) => (
-                  <a
-                    class:list={[chipBase, 'border border-ae-rule bg-ae-paper-2 text-ae-ink transition-colors duration-150 hover:border-ae-workshop']}
-                    href={chip.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    {chip.label}
-                  </a>
+            {s.chips === 'upstream' && (
+              <ul class="flex flex-wrap gap-2 px-5 pt-3" aria-label="Packages they build on">
+                {upstreamChips.map((chip) => (
+                  <li>
+                    {chip.href ? (
+                      <a
+                        class:list={[
+                          chipBase,
+                          'border border-ae-rule-strong bg-ae-paper-2 text-ae-ink transition-colors duration-150 hover:border-ae-workshop',
+                        ]}
+                        href={chip.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {chip.label}
+                        <span class="text-ae-muted">({chip.note})</span>
+                      </a>
+                    ) : (
+                      <span class:list={[chipBase, 'border border-ae-rule bg-ae-paper-2 text-ae-ink']}>
+                        {chip.label}
+                      </span>
+                    )}
+                  </li>
                 ))}
-              </div>
+              </ul>
             )}
           </div>
 
-          {/* Margin annotation */}
-          <p class="mt-4 pl-0 text-[14px] leading-[1.55] text-ae-ink lg:mt-0 lg:border-l lg:border-ae-rule lg:pt-6 lg:pl-6">
+          <p class="mt-3 text-[14px] leading-[1.55] text-ae-muted lg:mt-0 lg:border-l lg:border-ae-rule lg:pt-5 lg:pl-6">
             {s.annotation}
           </p>
         </div>
@@ -189,16 +194,20 @@ const chipBase = 'inline-flex items-center gap-1.5 px-3 py-[7px] font-mono text-
     }
   </div>
 
-  <figcaption class="mt-6 max-w-[820px] text-[14px] leading-[1.55] text-ae-blueprint">
-    Fig. 1 — The stack read as an elevation. Everything below this line is
-    already built. Nothing in strata 01–04 is ours; stratum 05 is the part a
-    small team would otherwise hand-build on every project.
+  <figcaption class="mt-6 max-w-[820px] text-[14px] leading-[1.55] text-ae-muted">
+    Fig. 1 — Generated from <code class="ae-code">docs/packages.json</code> at build time: the{' '}
+    {numberWord(facts.packages.runtime)} first-party packages a release carries, each linked to the
+    commit the lock file pins, and what they declare. {
+      facts.packages.tooling > 0 && (
+        <>Developer tooling is not in a release and is not drawn: {tooling.map((p) => p.name).join(', ')}.</>
+      )
+    } Every first-party package is distributed through git; none is published to Hex. {
+      facts.packages.forks > 0 && <>A fork is marked where the build carries one.</>
+    }
   </figcaption>
 </figure>
 
 <style>
-  /* The reveal is opt-in: the script sets data-animate only when it can run and
-   * motion is allowed, so the static render is always the final state. */
   #ae-fig-stack[data-animate] .ae-stratum {
     opacity: 0;
     transform: translateY(8px);
@@ -234,7 +243,6 @@ const chipBase = 'inline-flex items-center gap-1.5 px-3 py-[7px] font-mono text-
       (entries) => {
         if (!entries.some((entry) => entry.isIntersecting)) return;
         io.disconnect();
-        // Build bottom-up: stratum 01 first, 120ms apart, 300ms each.
         rows
           .slice()
           .reverse()

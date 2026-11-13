@@ -69,6 +69,50 @@
       "mustContain": ["fails_when(", "outcome(:noncompliant"]
     },
     {
+      "name": "platform-extensions",
+      "title": "What the use line adds",
+      "caption": "The extensions every platform resource gets from AshEnterprise.Platform.Resource. Audit, soft delete and the API surfaces each have an option to turn them off or on in the resource's own file.",
+      "file": "lib/ash_enterprise/platform/resource.ex",
+      "start": "    extensions =",
+      "end": "|> Enum.uniq()",
+      "mustContain": [
+        "AshEnterprise.Platform.SystemAttributes",
+        "AshOpenLineage.Extension",
+        "maybe_add(audit?, AshEvents.Events)",
+        "maybe_add(archival?, AshArchival.Resource)",
+        "AshJsonApi.Resource",
+        "AshGraphql.Resource"
+      ]
+    },
+    {
+      "name": "getting-started",
+      "title": "The first run",
+      "caption": "From the README. Everything runs inside devenv, and nothing needs configuring for dev or test.",
+      "file": "README.md",
+      "lang": "bash",
+      "start": "devenv up -d                            # Postgres",
+      "end": "devenv shell -- iex-server",
+      "mustContain": ["devenv up -d", "mix setup", "mix ash_enterprise.seed", "mix ash_enterprise.demo", "iex-server"]
+    },
+    {
+      "name": "provider-operation",
+      "title": "One declared operation on an external service",
+      "caption": "ash_operations turns this into a generic action with a code interface. The call is not idempotent, so a lost answer is reconciled through another declared read instead of being sent again.",
+      "file": "lib/ash_enterprise/credentialing/registry_api.ex",
+      "start": "    operation :activate, :post,",
+      "block": true,
+      "mustContain": ["reconcile_with :list_activations", "discloses? true", "sensitive?: true"]
+    },
+    {
+      "name": "agent-tools",
+      "title": "Tools are existing actions",
+      "caption": "An ash_ai tool names an action a resource already has. A model that calls it runs that action as the person asking, through the same policies.",
+      "file": "lib/ash_enterprise/accounts.ex",
+      "start": "  tools do",
+      "block": true,
+      "mustContain": ["tool :list_users, AshEnterprise.Accounts.User, :read"]
+    },
+    {
       "name": "control-evidence",
       "title": "A criterion with its owner, evidence producer and test",
       "caption": "From docs/controls.json. It names who owns the criterion, what produces its evidence and the test that proves it; it carries no status.",
