@@ -57,7 +57,7 @@ The concrete exit: which files change, and how much work it is.
 | [0023](0023-impersonation-is-attribution.md) | Impersonation adds attribution, never reach | accepted (in part) |
 | [0024](0024-audit-retention-and-erasure.md) | Audit retention: partition for age, crypto-shred for erasure | accepted (2026-10-12; erasure built; age half built 2026-11-12 as a verified move to archive tables, not partitions) |
 | [0025](0025-log-shipping-and-review.md) | Logs ship to the customer's SIEM; review is evidence | proposed |
-| [0026](0026-ai-governance-is-disclosure.md) | AI governance is disclosure, not a second authorization model | proposed (narrowed by 0042) |
+| [0026](0026-ai-governance-is-disclosure.md) | AI governance is disclosure, not a second authorization model | proposed (narrowed by 0042; amended 2026-11-13) |
 | [0027](0027-feel-is-the-expression-language.md) | FEEL is the one expression language, and the engine is adopted rather than written | accepted |
 | [0028](0028-decisions-are-dmn.md) | Decisions are DMN, measured against the TCK, in their own first-party package | accepted |
 | [0029](0029-process-configuration-is-tenant-data.md) | Process and decision configuration is tenant data, defaulting to a platform baseline | accepted |
