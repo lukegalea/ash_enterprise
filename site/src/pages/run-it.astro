@@ -1,0 +1,330 @@
+---
+/**
+ * Run it: the local recipe, the people the demo seeds, and the twelve failures
+ * the credentialing tour shows.
+ *
+ * The commands are cut from README.md and the walkthrough (`snippet()`); the
+ * failures come from `docs/failures.json`, which
+ * `test/ash_enterprise/site_data_test.exs` checks against the tour itself; every
+ * URL is checked against `docs/routes.json`; and every persona's address is
+ * checked against the seed module it is cited from. A page that names a route,
+ * a person or a failure the code no longer has fails the build.
+ */
+import Base from '../layouts/Base.astro';
+import Section from '../components/Section.astro';
+import Exhibit from '../components/Exhibit.astro';
+import {
+  snippet,
+  failures,
+  tourPath,
+  walkthroughPath,
+  hasRoute,
+  facts,
+  numberWord,
+} from '../lib/facts';
+import { withBase, repoHref } from '../lib/roadmap';
+
+const cap = (s: string): string => s.replace(/^./, (c) => c.toUpperCase());
+
+const recipe = snippet('local-recipe');
+const commandCount = recipe.code.split('\n').filter((l) => l.trim() && !l.trim().startsWith('#')).length;
+const history = snippet('demo-history');
+
+// ---------------------------------------------------------------------------
+// Where to look
+// ---------------------------------------------------------------------------
+
+const places: { path: string; what: string }[] = [
+  { path: '/app', what: 'The launcher: every surface, grouped. Signing in lands here.' },
+  { path: tourPath, what: 'The credentialing tour: twelve failures, F1 to F12, and what the application does about each.' },
+  { path: '/app/tasks', what: 'Every process task waiting on you, as a board: claim, complete, delegate.' },
+  { path: '/app/approvals', what: 'Approvals waiting on you, with what is being approved.' },
+  { path: '/app/explorer', what: 'The execution explorer: the record behind each beat of the tour.' },
+  { path: '/app/recovery', what: 'The recovery surface, where a request whose outcome is unknown is settled.' },
+  { path: '/app/mdm/import', what: 'Import a customer CSV, review the proposed mapping, and run it.' },
+  { path: '/app/legacy-users', what: 'Users read from a legacy schema through a compatibility view.' },
+  { path: '/agent', what: 'The helper console. It proposes changes for your approval, and needs a model key.' },
+  { path: '/api/json/swaggerui', what: 'The JSON:API, with its OpenAPI description.' },
+  { path: '/gql/playground', what: 'The GraphQL API.' },
+];
+const missingRoutes = places.filter((p) => !hasRoute(p.path)).map((p) => p.path);
+if (missingRoutes.length) {
+  throw new Error(`run-it.astro names routes docs/routes.json does not have: ${missingRoutes.join(', ')}`);
+}
+
+// ---------------------------------------------------------------------------
+// Personas, each checked against the seed module it is cited from
+// ---------------------------------------------------------------------------
+
+const seedSources = import.meta.glob(
+  [
+    '../../../lib/ash_enterprise/platform/demo_tenant.ex',
+    '../../../lib/ash_enterprise/platform/demo_data.ex',
+    '../../../lib/ash_enterprise/credentialing/demo_data.ex',
+    '../../../lib/ash_enterprise/credentialing/licence_demo_data.ex',
+  ],
+  { query: '?raw', import: 'default', eager: true },
+) as Record<string, string>;
+
+const seedText = (repoPath: string): string => {
+  const text = seedSources[`../../../${repoPath}`];
+  if (text === undefined) throw new Error(`run-it.astro cites ${repoPath}, which is not in this build`);
+  return text;
+};
+
+const personas: { who: string[]; role: string; may: string; source: string }[] = [
+  {
+    who: ['demo-admin@example.com'],
+    role: 'The demo tenant’s administrator',
+    may: 'Owns the demo data. Sign in as this person for the customer import walk-through.',
+    source: 'lib/ash_enterprise/platform/demo_tenant.ex',
+  },
+  {
+    who: ['aisha@example.com', 'soren@example.com'],
+    role: 'Team lead, granted deep',
+    may: 'Manage people and teams in their own business unit and below it.',
+    source: 'lib/ash_enterprise/platform/demo_data.ex',
+  },
+  {
+    who: ['priya@example.com'],
+    role: 'Support desk, granted local',
+    may: 'Read people and teams in their own business unit only.',
+    source: 'lib/ash_enterprise/platform/demo_data.ex',
+  },
+  {
+    who: ['beatriz@example.com'],
+    role: 'Auditor, granted global',
+    may: 'Read everything in the tenant and change nothing.',
+    source: 'lib/ash_enterprise/platform/demo_data.ex',
+  },
+  {
+    who: ['rosa@example.com'],
+    role: 'Credentialing coordinator',
+    may: 'Register clinics, clinicians and credentials, and ask for a credential to be activated. The tour starts here.',
+    source: 'lib/ash_enterprise/credentialing/demo_data.ex',
+  },
+  {
+    who: ['kenji@example.com', 'amaka@example.com'],
+    role: 'Credentialing committee',
+    may: 'Read the clinic’s records and approve or reject a waiting activation.',
+    source: 'lib/ash_enterprise/credentialing/demo_data.ex',
+  },
+  {
+    who: ['ines@example.com', 'omar@example.com'],
+    role: 'The clinic’s directors, as Administrators',
+    may: 'Publish an agent, which takes both of them: one asks and the other approves.',
+    source: 'lib/ash_enterprise/credentialing/licence_demo_data.ex',
+  },
+];
+for (const p of personas) {
+  const text = seedText(p.source);
+  for (const email of p.who) {
+    if (!text.includes(email)) throw new Error(`run-it.astro: ${email} is not in ${p.source}`);
+  }
+}
+
+const seededCount = facts.failures.seeded;
+const clickedCount = facts.failures.total - facts.failures.seeded;
+---
+
+<Base
+  title="Run it"
+  description="Run the reference application locally: the commands, the synthetic people the demo seeds, and the twelve failures the credentialing tour makes happen."
+  active="run-it"
+>
+  <header class="ae-container-narrow pt-16 pb-4 sm:pt-20">
+    <p class="ae-eyebrow">Run it</p>
+    <h1 class="ae-h1 mt-4">Run the reference application on your own machine</h1>
+    <p class="ae-lead mt-6">
+      {cap(numberWord(commandCount))} commands give you the application, a demo tenant filled with synthetic people, and a tour that makes{' '}
+      {numberWord(facts.failures.total)} things go wrong and shows what the application does about each.
+    </p>
+  </header>
+
+  <Section
+    id="recipe"
+    step="01"
+    eyebrow="The recipe"
+    title="Everything runs inside devenv"
+    lead="devenv pins the toolchain: Elixir 1.20 on OTP 27, Node 22, and PostgreSQL 18 with pgvector. Run mix through it, never directly."
+  >
+    <Exhibit
+      label="Shell"
+      title={recipe.title}
+      source={recipe.file}
+      lines={`${recipe.startLine}-${recipe.endLine}`}
+      code={recipe.code}
+      lang={recipe.lang}
+      caption={recipe.caption}
+    />
+
+    <div class="ae-body mt-10 space-y-4">
+      <p>
+        Sign in with the credentials the seeder prints. Every demo person signs in with the fixed password{' '}
+        <code class="ae-code">password1234</code>, which is for a local database only. On an instance other people can
+        reach, run <code class="ae-code">mix ash_enterprise.demo --password-file PATH</code> instead: a random password
+        is written to that file and never printed.
+      </p>
+      <p>
+        <code class="ae-code">mix ash_enterprise.demo</code> writes to its own tenant, <code class="ae-code">clinic-demo</code>,
+        and to no other, so it is safe on a database that already holds real tenants. It creates everything through the
+        application's own actions, and running it twice changes nothing.
+      </p>
+    </div>
+
+    <h3 class="ae-h3 mt-12">Three things that will confuse you</h3>
+    <ul class="ae-body mt-4 list-disc space-y-3 pl-5">
+      <li>
+        <strong class="text-ae-ink">The Postgres port moves.</strong> devenv shifts it when 5432 is taken. Read{' '}
+        <code class="ae-code">$PGPORT</code> rather than assuming it; <code class="ae-code">config/dev.exs</code> and{' '}
+        <code class="ae-code">config/test.exs</code> already do.
+      </li>
+      <li>
+        <strong class="text-ae-ink">Do not run the server as a devenv process.</strong> It holds the build lock and
+        blocks every other mix command. Start it with <code class="ae-code">iex-server</code>.
+      </li>
+      <li>
+        <strong class="text-ae-ink">Leave <code class="ae-code">MIX_ENV</code> unset.</strong> Exporting it pins every
+        mix command to one environment, so <code class="ae-code">mix test</code> would not load the test config.
+      </li>
+    </ul>
+    <p class="ae-body mt-6">
+      The helper console at <code class="ae-code">/agent</code> needs <code class="ae-code">ANTHROPIC_API_KEY</code> or{' '}
+      <code class="ae-code">OPENAI_API_KEY</code> in <code class="ae-code">.env</code>, and says so when neither is set.{' '}
+      <code class="ae-code">scripts/pre-ci</code> runs CI's static checks in CI's order, without the
+      test suite.
+    </p>
+  </Section>
+
+  <Section
+    id="where"
+    step="02"
+    eyebrow="Where to look"
+    title="The screens worth opening first"
+    lead="Each path is checked against the application's router when this site is built."
+    tone="muted"
+    wide
+  >
+    <div class="ae-overflow border border-ae-rule bg-ae-paper" tabindex="0" role="region" aria-label="Screens to open">
+      <table class="w-full min-w-[34rem] text-left text-sm">
+        <thead class="bg-ae-paper-2 text-xs text-ae-muted">
+          <tr>
+            <th scope="col" class="px-4 py-2 font-medium">Path</th>
+            <th scope="col" class="px-4 py-2 font-medium">What it is</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-ae-rule">
+          {
+            places.map((p) => (
+              <tr>
+                <th scope="row" class="px-4 py-2.5 align-top font-mono text-xs font-normal whitespace-nowrap text-ae-ink">
+                  {p.path}
+                </th>
+                <td class="px-4 py-2.5 text-ae-muted">{p.what}</td>
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+    </div>
+  </Section>
+
+  <Section
+    id="personas"
+    step="03"
+    eyebrow="Personas"
+    title="Who to sign in as"
+    lead="The demo seeds people whose grants differ in depth, not only in name, so the same screen shows each of them something different. Every name and address is synthetic."
+    wide
+  >
+    <div class="ae-overflow border border-ae-rule" tabindex="0" role="region" aria-label="Demo personas">
+      <table class="w-full min-w-[40rem] text-left text-sm">
+        <thead class="bg-ae-paper-2 text-xs text-ae-muted">
+          <tr>
+            <th scope="col" class="px-4 py-2 font-medium">Sign in as</th>
+            <th scope="col" class="px-4 py-2 font-medium">Role</th>
+            <th scope="col" class="px-4 py-2 font-medium">May</th>
+            <th scope="col" class="px-4 py-2 font-medium">Seeded by</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-ae-rule">
+          {
+            personas.map((p) => (
+              <tr>
+                <th scope="row" class="px-4 py-2.5 align-top font-mono text-xs font-normal text-ae-ink">
+                  {p.who.map((w) => (
+                    <span class="block">{w}</span>
+                  ))}
+                </th>
+                <td class="px-4 py-2.5 align-top text-ae-ink">{p.role}</td>
+                <td class="px-4 py-2.5 align-top text-ae-muted">{p.may}</td>
+                <td class="px-4 py-2.5 align-top text-xs">
+                  <a class="ae-link font-mono" href={repoHref(p.source)}>
+                    {p.source.split('/').pop()}
+                  </a>
+                </td>
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+    </div>
+    <p class="ae-body mt-6">
+      Deep reaches a person's own business unit and everything below it, local their own unit only, global the whole
+      tenant. The tree has three divisions, one of them two levels deep, so the difference shows.
+    </p>
+  </Section>
+
+  <Section
+    id="failures"
+    step="04"
+    eyebrow="F1 to F12"
+    title="Twelve failures, and what the application does about each"
+    lead={`The credentialing tour at ${tourPath} walks a coordinator from asking for a licence to be activated to a new release of the agent that reads licence documents, and makes these happen on the way. ${cap(numberWord(seededCount))} are recorded by --history; the other ${numberWord(clickedCount)} are made by clicking their beat.`}
+    tone="muted"
+    wide
+  >
+    <Exhibit
+      label="Shell"
+      title={history.title}
+      source={history.file}
+      lines={`${history.startLine}-${history.endLine}`}
+      code={history.code}
+      lang={history.lang}
+      caption={history.caption}
+    />
+
+    <ol class="mt-12 space-y-4">
+      {
+        failures.map((f) => (
+          <li id={f.id.toLowerCase()} class="ae-card scroll-mt-24 p-5">
+            <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+              <h3 class="text-base font-semibold text-ae-ink">
+                <span class="font-mono text-ae-copper">{f.id}</span> {f.title}
+              </h3>
+              <p class="font-mono text-xs text-ae-muted">
+                beat {f.beat} · {f.seeded ? 'recorded by --history' : 'click the beat'}
+              </p>
+            </div>
+            <p class="mt-3 text-sm leading-relaxed text-ae-muted">{f.what_happens}</p>
+            <ul class="mt-3 space-y-1 border-t border-ae-rule pt-3 text-xs">
+              {f.tests.map((t) => (
+                <li class="text-ae-muted">
+                  <a class="ae-link font-mono" href={repoHref(t.file)}>
+                    {t.file.split('/').pop()}
+                  </a>
+                  <span> — {t.test}</span>
+                </li>
+              ))}
+            </ul>
+          </li>
+        ))
+      }
+    </ol>
+
+    <div class="mt-10 flex flex-wrap gap-3">
+      <a class="ae-btn" href={repoHref(walkthroughPath)}>The walkthrough, beat by beat</a>
+      <a class="ae-btn" href={withBase('/proof/')}>What is built, and what tests it</a>
+    </div>
+  </Section>
+</Base>

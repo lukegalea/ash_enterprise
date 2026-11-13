@@ -73,42 +73,6 @@ export const items: readonly Item[] = data.items;
 /** All four statuses in the order they should be presented. */
 export const statuses: readonly Status[] = ['shipped', 'partial', 'planned', 'open'];
 
-/**
- * Presentation for a status pill. The `dark:` utilities work because
- * `global.css` redefines the `dark:` variant to follow `data-theme`, which is
- * the attribute Starlight sets.
- */
-export const statusMeta: Record<Status, { label: string; icon: string; classes: string }> = {
-  shipped: {
-    label: 'Shipped',
-    icon: '✅',
-    classes:
-      'bg-emerald-50 text-emerald-800 ring-1 ring-inset ring-emerald-600/20 ' +
-      'dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-400/25',
-  },
-  partial: {
-    label: 'Partial',
-    icon: '🟡',
-    classes:
-      'bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-600/20 ' +
-      'dark:bg-amber-500/10 dark:text-amber-300 dark:ring-amber-400/25',
-  },
-  planned: {
-    label: 'Planned',
-    icon: '🔵',
-    classes:
-      'bg-sky-50 text-sky-800 ring-1 ring-inset ring-sky-600/20 ' +
-      'dark:bg-sky-500/10 dark:text-sky-300 dark:ring-sky-400/25',
-  },
-  open: {
-    label: 'Open',
-    icon: '⚪',
-    classes:
-      'bg-zinc-100 text-zinc-700 ring-1 ring-inset ring-zinc-500/20 ' +
-      'dark:bg-zinc-400/10 dark:text-zinc-300 dark:ring-zinc-400/25',
-  },
-};
-
 export interface Counts {
   shipped: number;
   partial: number;

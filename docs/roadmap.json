@@ -737,7 +737,7 @@
       "id": "siem",
       "title": "Log shipping, review and alerting",
       "priority": 2,
-      "choice": "Structured export to the customer's SIEM; Grafana for ours",
+      "choice": "Structured export to the customer's SIEM; SigNoz for ours (ADR 0065)",
       "adr": "0025",
       "status": "planned",
       "effort": "A notifier streaming audit events as structured JSON to a customer-configured sink, per tenant, with the chain hashes intact so the copy is verifiable against the original. Alerting rules follow the same ledger the control map does.",

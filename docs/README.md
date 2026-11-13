@@ -2,13 +2,13 @@
 
 Four kinds of document live here.
 
-| | What it is | Read it when |
+| Page | What it is | Read it when |
 |---|---|---|
 | [**QUESTIONS.md**](QUESTIONS.md) | The ledger. Every question an enterprise application must answer, our answer, and what proves it. | You want to know what this actually does before reading why. |
 | [**COMPLIANCE.md**](COMPLIANCE.md) | The control map: named SOC 2, ISO 27001 and GDPR controls, where each stands, and what proves it. Generated from the ledger. | Someone has sent you a security questionnaire. |
 | [**ROADMAP.md**](ROADMAP.md) | Where the gaps go, in what order, and what each choice beat. | You want to know where it is heading, or whether a decision was reasoned. |
 | [**manifesto/**](manifesto/00-index.md) | The argument. Eight theses, one of which is the honest list of what is missing. | You want to know *why* anything here is shaped the way it is. |
-| [**adr/**](adr/README.md) | The decisions. Forty-eight records, each with the exit from it. | You disagree with something and want to know what it would cost to change. |
+| [**adr/**](adr/README.md) | The decisions, each with the exit from it. | You disagree with something and want to know what it would cost to change. |
 | [**plans/**](plans/README.md) | The specifications. Long-form designs for work that is proposed or partly built. | You are about to build one of them. |
 | [**BLEEDING-EDGE.md**](BLEEDING-EDGE.md) | Every dependency that is not a Hex release: forks of upstream packages, our unreleased packages, and host-side workarounds, each with its path back. | You are starting a new application from this template, or bumping a dependency. |
 | [**HOUSE-STYLE.md**](HOUSE-STYLE.md) | How this repository writes: nine rules with stable ids, from "say the thing first" to English and French product copy. | You are writing a doc, an ADR, a commit message or product copy. |

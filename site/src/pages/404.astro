@@ -5,28 +5,21 @@
  */
 import Base from '../layouts/Base.astro';
 import { withBase } from '../lib/roadmap';
-
-const link =
-  'inline-flex items-center justify-center gap-2 rounded-ae border border-ae-rule-strong px-5 py-3 text-sm font-semibold text-ae-ink transition-colors hover:bg-ae-paper-2';
 ---
 
 <Base title="Page not found" description="That page does not exist on this site.">
-  <section class="mx-auto flex max-w-2xl flex-col items-center px-4 py-28 text-center sm:px-6 sm:py-40">
-    <p class="font-mono text-sm tracking-widest text-ae-muted">404</p>
-    <h1 class="mt-4 text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
-      That page is not here
-    </h1>
-    <p class="mt-5 leading-relaxed text-pretty text-ae-muted">
-      The link may be stale, or the page may have moved as the docs were reorganised. The manifesto,
-      the decision records and the plans all live under <code
-        class="rounded-ae bg-ae-paper-2 px-1.5 py-0.5 font-mono text-[0.9em]">/docs</code
-      >.
+  <section class="ae-container-narrow flex flex-col items-center py-28 text-center sm:py-40">
+    <p class="ae-eyebrow">404</p>
+    <h1 class="ae-h1 mt-4">That page is not here</h1>
+    <p class="ae-lead mx-auto mt-5">
+      The link may be stale, or the page may have moved. The manifesto, the decision records and the plans all live
+      under <code class="ae-code">/docs</code>.
     </p>
 
     <div class="mt-10 flex flex-wrap justify-center gap-3">
-      <a class={link} href={withBase('/')}>Back to the overview</a>
-      <a class={link} href={withBase('/docs/')}>Browse the docs</a>
-      <a class={link} href={withBase('/roadmap/')}>Roadmap</a>
+      <a class="ae-btn" href={withBase('/')}>Back to the overview</a>
+      <a class="ae-btn" href={withBase('/docs/')}>Browse the docs</a>
+      <a class="ae-btn" href={withBase('/roadmap/')}>Roadmap</a>
     </div>
   </section>
 </Base>

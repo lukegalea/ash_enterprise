@@ -120,6 +120,25 @@
       "json": { "array": "criteria", "id": "CC2.1" },
       "mustContain": ["\"evidence_producer\"", "\"test_ref\"", "\"owner_role\""],
       "mustNotContain": ["\"status\""]
+    },
+    {
+      "name": "local-recipe",
+      "title": "A first run, from the README",
+      "caption": "Postgres, the dependencies and database, the minimum seed, the demo tenant, then the application. Nothing to configure for dev or test.",
+      "file": "README.md",
+      "lang": "bash",
+      "start": "devenv up -d                            # Postgres (with pgvector)",
+      "end": "devenv shell -- iex-server              # the app",
+      "mustContain": ["mix setup", "mix ash_enterprise.seed", "mix ash_enterprise.demo", "iex-server"]
+    },
+    {
+      "name": "demo-history",
+      "title": "Seeding the tour's history",
+      "caption": "Records the failures that need a fault, in the demo tenant only. PATH holds the demo password; a random one is written there when the file does not exist.",
+      "file": "docs/showcase/credentialing-walkthrough.md",
+      "lang": "bash",
+      "start": "devenv shell -- mix ash_enterprise.demo --history --password-file PATH",
+      "mustContain": ["--history", "--password-file"]
     }
   ]
 }

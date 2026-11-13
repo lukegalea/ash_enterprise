@@ -29,7 +29,7 @@ import sharp from 'sharp';
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..');
 
-/* --- Atelier palette (the `--ae-*` tokens in src/styles/global.css) -------- */
+/* --- Atelier palette (the `--ae-*` tokens in src/styles/tokens.css) -------- */
 const PAPER = '#F3EFE4';
 const INK = '#20221F';
 const COPPER = '#A5623B';

@@ -1,0 +1,399 @@
+---
+/**
+ * The packages page: every first-party package the application resolves, the
+ * forks and the override it carries, and what keeping each one costs.
+ *
+ * Rendered from `docs/packages.json` through `lib/facts.ts`.
+ * `test/ash_enterprise/site_data_test.exs` fails CI when that file disagrees
+ * with mix.exs, mix.lock or battery/mix.exs, and derives each package's
+ * maturity from lib/ and test/, so nothing on this page is a judgement typed
+ * into the page.
+ */
+import Base from '../layouts/Base.astro';
+import Section from '../components/Section.astro';
+import {
+  packages,
+  forks,
+  overrides,
+  toolingForks,
+  hexChecked,
+  pinnedHref,
+  facts,
+  numberWord,
+  type Package,
+  type Maturity,
+} from '../lib/facts';
+import { withBase, adrHref, repoHref } from '../lib/roadmap';
+import { ciJob } from '../lib/ci';
+import { inlineMarkdown } from '../components/inline';
+
+const cap = (s: string): string => s.replace(/^./, (c) => c.toUpperCase());
+
+const maturity: Record<Maturity, { label: string; means: string }> = {
+  'used-and-tested-here': {
+    label: 'Used and tested here',
+    means:
+      "lib/ uses its modules and the application's own suite names them, so CI fails when the package breaks here.",
+  },
+  'wired-not-tested-here': {
+    label: 'Wired, not tested here',
+    means:
+      'lib/ wires it, but no test file names its modules. It runs underneath code that is tested, and is tested in its own repository.',
+  },
+  tooling: {
+    label: 'Tooling',
+    means: 'A dev and test dependency. It is not in a release.',
+  },
+};
+
+const groups: { id: string; title: string; lead: string; rows: Package[] }[] = [
+  {
+    id: 'declared',
+    title: 'Declared in mix.exs',
+    lead: 'Named directly in the application’s mix.exs and shipped in a release.',
+    rows: packages.filter((p) => p.declared === 'direct' && !p.only),
+  },
+  {
+    id: 'transitive',
+    title: 'Arriving through another package',
+    lead: 'Not named in mix.exs: it arrives as another first-party package’s dependency.',
+    rows: packages.filter((p) => p.declared === 'transitive'),
+  },
+  {
+    id: 'in-repo',
+    title: 'Living in this repository',
+    lead: 'A package with its own mix project, lock and CI job. The application uses it by path; another project can use it through a sparse git dependency.',
+    rows: packages.filter((p) => p.declared === 'path'),
+  },
+  {
+    id: 'tooling',
+    title: 'Developer tooling',
+    lead: 'Loaded in development and test only.',
+    rows: packages.filter((p) => p.only),
+  },
+].filter((g) => g.rows.length > 0);
+
+const shown = groups.reduce((n, g) => n + g.rows.length, 0);
+if (shown !== packages.length) {
+  throw new Error(`packages.astro groups ${shown} of ${packages.length} packages; a package fell outside every group`);
+}
+
+const short = (ref: string | null): string => (ref ? ref.slice(0, 7) : '');
+
+// The upstream Ash packages the first-party packages build on, derived from
+// their `builds_on` lists rather than typed: names in the ash_* family that are
+// not our own.
+const ours = new Set(packages.map((p) => p.name));
+const upstreamAsh = [...new Set(packages.flatMap((p) => p.builds_on))]
+  .filter((n) => (n === 'ash' || n.startsWith('ash_')) && !ours.has(n))
+  .sort((a, b) => (a === 'ash' ? -1 : b === 'ash' ? 1 : a.localeCompare(b)));
+const forkNames = new Set(forks.map((f) => f.name));
+
+const taken = packages.filter((p) => facts.packages.hexNameTaken.includes(p.name));
+const coldClone = ciJob('cold-clone');
+---
+
+<Base
+  title="Packages"
+  description="The first-party packages this application is built from, the forks and override it carries, how each is wired and tested here, and what keeping it costs. Every first-party package is fetched from git."
+  active="packages"
+>
+  <header class="ae-container-narrow pt-16 pb-4 sm:pt-20">
+    <p class="ae-eyebrow">Packages</p>
+    <h1 class="ae-h1 mt-4">The packages this application is built from</h1>
+    <p class="ae-lead mt-6">
+      {cap(numberWord(facts.packages.firstParty))} first-party packages, {numberWord(facts.packages.forks)} forks of
+      other people's packages and {numberWord(facts.packages.overrides)} version override. Each card says what the
+      package does, what this application uses it for, how it is tested here, and what you would carry by keeping it.
+    </p>
+    <p class="ae-body mt-4">
+      Distribution is git only. None of the first-party packages is published to Hex: each is fetched from its
+      repository at the commit <code class="ae-code">mix.lock</code> pins, and CI's{' '}
+      <a class="ae-link" href={withBase(`/proof/#gate-${coldClone.id}`)}>{coldClone.id} job</a> checks that every one
+      of them can be fetched with no credentials.
+    </p>
+  </header>
+
+  <Section
+    id="reading"
+    step="01"
+    eyebrow="How to read a card"
+    title="Maturity is derived, not judged"
+    lead="A test compares each package with lib/ and test/ by module name and fails CI when the label is wrong."
+  >
+    <dl class="grid gap-4 sm:grid-cols-3">
+      {
+        (Object.keys(maturity) as Maturity[]).map((m) => (
+          <div class="ae-card p-5">
+            <dt class="font-medium text-ae-ink">
+              {maturity[m].label}
+              <span class="ml-1 font-mono text-sm text-ae-muted tabular-nums">{facts.packages.byMaturity[m]}</span>
+            </dt>
+            <dd class="mt-2 text-sm leading-relaxed text-ae-muted">{maturity[m].means}</dd>
+          </div>
+        ))
+      }
+    </dl>
+    <p class="ae-body mt-6">
+      {cap(numberWord(facts.packages.battery))} of them are also exercised together by the cross-substrate battery, a
+      mix project of its own that CI runs against its own database. A card marked “battery” is one of those. The source
+      is <a class="ae-link font-mono" href={repoHref('docs/packages.json')}>docs/packages.json</a>, checked by{' '}
+      <a class="ae-link font-mono" href={repoHref('test/ash_enterprise/site_data_test.exs')}
+        >test/ash_enterprise/site_data_test.exs</a
+      >.
+    </p>
+  </Section>
+
+  {
+    groups.map((group, gi) => (
+      <Section
+        id={group.id}
+        step={String(gi + 2).padStart(2, '0')}
+        eyebrow={`${group.rows.length} ${group.rows.length === 1 ? 'package' : 'packages'}`}
+        title={group.title}
+        lead={group.lead}
+        tone={gi % 2 === 0 ? 'muted' : 'default'}
+        wide
+      >
+        <ul class="grid gap-5 lg:grid-cols-2">
+          {group.rows.map((pkg) => {
+            const adr = adrHref(pkg.adr);
+            return (
+              <li id={`pkg-${pkg.name}`} class="ae-card flex scroll-mt-24 flex-col p-6">
+                <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                  <h3 class="font-mono text-lg text-ae-ink">{pkg.name}</h3>
+                  <p class="font-mono text-xs text-ae-muted">
+                    {pkg.version}
+                    {pkg.ref && (
+                      <>
+                        {' '}
+                        ·{' '}
+                        <a class="ae-link" href={pinnedHref(pkg)}>
+                          {short(pkg.ref)}
+                          <span class="sr-only"> (the pinned commit of {pkg.name})</span>
+                        </a>
+                      </>
+                    )}
+                    {!pkg.ref && (
+                      <>
+                        {' '}
+                        ·{' '}
+                        <a class="ae-link" href={pinnedHref(pkg)}>
+                          source<span class="sr-only"> of {pkg.name}</span>
+                        </a>
+                      </>
+                    )}
+                  </p>
+                </div>
+
+                <p class="mt-2 flex flex-wrap gap-2 text-xs">
+                  <span class="border border-ae-rule bg-ae-paper-2 px-2 py-0.5 text-ae-ink">
+                    {maturity[pkg.maturity].label}
+                  </span>
+                  <span class="border border-ae-rule px-2 py-0.5 text-ae-muted">{pkg.distribution}</span>
+                  {pkg.battery && <span class="border border-ae-rule px-2 py-0.5 text-ae-muted">battery</span>}
+                  {adr ? (
+                    <a class="ae-link border border-ae-rule px-2 py-0.5" href={adr}>
+                      ADR {pkg.adr}
+                    </a>
+                  ) : null}
+                </p>
+
+                <p class="mt-4 text-sm leading-relaxed text-ae-ink">{pkg.purpose}</p>
+
+                <dl class="mt-4 space-y-3 text-sm leading-relaxed">
+                  <div>
+                    <dt class="ae-eyebrow">Used here for</dt>
+                    <dd class="mt-1 text-ae-muted" set:html={inlineMarkdown(pkg.used_for)} />
+                  </div>
+                  {pkg.stated_status && (
+                    <div>
+                      <dt class="ae-eyebrow">Its own README says</dt>
+                      <dd class="mt-1 text-ae-muted" set:html={inlineMarkdown(pkg.stated_status)} />
+                    </div>
+                  )}
+                  <div>
+                    <dt class="ae-eyebrow">What you would carry</dt>
+                    <dd class="mt-1 text-ae-muted" set:html={inlineMarkdown(pkg.carry)} />
+                  </div>
+                  <div>
+                    <dt class="ae-eyebrow">Path to a Hex release</dt>
+                    <dd class="mt-1 text-ae-muted" set:html={inlineMarkdown(pkg.hex_path)} />
+                  </div>
+                  {pkg.builds_on.length > 0 && (
+                    <div>
+                      <dt class="ae-eyebrow">Builds on</dt>
+                      <dd class="mt-1 flex flex-wrap gap-1.5">
+                        {pkg.builds_on.map((dep) =>
+                          ours.has(dep) ? (
+                            <a class="ae-code ae-link text-xs" href={`#pkg-${dep}`}>
+                              {dep}
+                            </a>
+                          ) : (
+                            <span class="ae-code text-xs">
+                              {dep}
+                              {forkNames.has(dep) && <span class="text-ae-muted"> (fork)</span>}
+                            </span>
+                          ),
+                        )}
+                      </dd>
+                    </div>
+                  )}
+                </dl>
+              </li>
+            );
+          })}
+        </ul>
+      </Section>
+    ))
+  }
+
+  <Section
+    id="forks"
+    step={String(groups.length + 2).padStart(2, '0')}
+    eyebrow="Forks and overrides"
+    title="What the build carries that is not upstream's"
+    lead="Each fork and override has a stated reason and a path back. docs/BLEEDING-EDGE.md is the longer account."
+    tone="muted"
+    wide
+  >
+    <ul class="grid gap-5 lg:grid-cols-2">
+      {
+        forks.map((f) => (
+          <li id={`fork-${f.name}`} class="ae-card scroll-mt-24 p-6">
+            <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+              <h3 class="font-mono text-lg text-ae-ink">{f.name}</h3>
+              <p class="font-mono text-xs text-ae-muted">
+                fork of <a class="ae-link" href={f.upstream}>{f.upstream.replace('https://github.com/', '')}</a>{' '}
+                {f.upstream_hex}
+              </p>
+            </div>
+            <p class="mt-2 flex flex-wrap gap-2 text-xs">
+              <span class="border border-ae-rule px-2 py-0.5 text-ae-muted">{f.declared}</span>
+              {f.override && <span class="border border-ae-rule px-2 py-0.5 text-ae-muted">override: true</span>}
+              <a class="ae-link border border-ae-rule px-2 py-0.5 font-mono" href={`${f.fork}/tree/${f.ref}`}>
+                {f.branch ? `${f.branch} @ ` : ''}
+                {short(f.ref)}
+              </a>
+            </p>
+            <dl class="mt-4 space-y-3 text-sm leading-relaxed">
+              <div>
+                <dt class="ae-eyebrow">What it adds</dt>
+                <dd class="mt-1 text-ae-muted" set:html={inlineMarkdown(f.adds)} />
+              </div>
+              <div>
+                <dt class="ae-eyebrow">The path back</dt>
+                <dd class="mt-1 text-ae-muted" set:html={inlineMarkdown(f.path_back)} />
+              </div>
+            </dl>
+          </li>
+        ))
+      }
+    </ul>
+
+    <div id="overrides" class="mt-12 scroll-mt-24">
+      <h3 class="ae-h3">Overrides</h3>
+      <ul class="mt-5 space-y-4">
+        {
+          overrides.map((o) => (
+            <li class="ae-card p-5 text-sm leading-relaxed">
+              <p class="font-mono text-ae-ink">
+                {o.name} {o.requirement}
+              </p>
+              <p class="mt-2 text-ae-muted" set:html={inlineMarkdown(o.reason)} />
+              <p class="mt-2 text-ae-muted">
+                <span class="text-ae-ink">The path back: </span>
+                {o.path_back}
+              </p>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+
+    {
+      toolingForks.length > 0 && (
+        <div class="mt-12">
+          <h3 class="ae-h3">Forks used only by tooling</h3>
+          <ul class="mt-5 space-y-4">
+            {toolingForks.map((t) => (
+              <li class="ae-card p-5 text-sm leading-relaxed">
+                <p class="font-mono text-ae-ink">
+                  <a class="ae-link" href={`${t.fork}/tree/${t.branch}`}>
+                    {t.name}
+                  </a>{' '}
+                  <span class="text-ae-muted">({t.branch})</span>
+                </p>
+                <p class="mt-2 text-ae-muted" set:html={inlineMarkdown(t.note)} />
+              </li>
+            ))}
+          </ul>
+        </div>
+      )
+    }
+
+    <div class="mt-10">
+      <a class="ae-btn" href={withBase('/docs/bleeding-edge/')}>Every dependency that is not a Hex release</a>
+    </div>
+  </Section>
+
+  <Section
+    id="hex-names"
+    step={String(groups.length + 3).padStart(2, '0')}
+    eyebrow="Names on Hex"
+    title={`${cap(numberWord(taken.length))} package names are already taken on Hex`}
+    lead={`Checked against hex.pm on ${hexChecked}. The other names are free.`}
+  >
+    <ul class="space-y-4">
+      {
+        taken.map((p) => (
+          <li class="ae-card p-5 text-sm leading-relaxed">
+            <p class="font-mono text-ae-ink">
+              <a class="ae-link" href={`#pkg-${p.name}`}>
+                {p.name}
+              </a>
+            </p>
+            <p class="mt-2 text-ae-muted">{cap(p.hex_name)}</p>
+            <p class="mt-2 text-ae-muted">
+              <span class="text-ae-ink">Path to a Hex release: </span>
+              {p.hex_path}
+            </p>
+          </li>
+        ))
+      }
+    </ul>
+  </Section>
+
+  <Section
+    id="built-on-ash"
+    step={String(groups.length + 4).padStart(2, '0')}
+    eyebrow="Built on Ash"
+    title="Every package here extends Ash"
+    tone="muted"
+  >
+    <div class="ae-body space-y-4">
+      <p>
+        These packages are extensions of <a class="ae-link" href="https://github.com/ash-project/ash">Ash</a>, the
+        declarative resource framework from the Ash project, and build on the packages that project publishes. The
+        ones named in the cards above are:
+      </p>
+      <ul class="flex flex-wrap gap-2">
+        {
+          upstreamAsh.map((name) => (
+            <li>
+              <a class="ae-code ae-link" href={`https://github.com/ash-project/${name}`}>
+                {name}
+              </a>
+              {forkNames.has(name) && <span class="text-xs"> (carried as a fork, above)</span>}
+            </li>
+          ))
+        }
+      </ul>
+      <p>
+        Where this application needs something an upstream release does not have yet, it carries a fork, and each
+        fork records what it adds and its path back to a release: see{' '}
+        <a class="ae-link" href="#forks">Forks and overrides</a>.
+      </p>
+    </div>
+  </Section>
+</Base>
