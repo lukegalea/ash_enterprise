@@ -15,9 +15,11 @@ import {signIn} from "./support/sign_in"
  * shadow roots and Playwright's engines pierce those natively, so the
  * locators read the semantic components' rendered DOM (the `<table>` inside
  * `ash-admin-data-grid`, the `<dl>` inside `ash-admin-record-panel`, ...).
- * A few selectors lean on the encoder's frozen id contract
- * (`form_input_name-input`, `query_search_input`) -- those ids are part of
- * the wire contract, not implementation detail.
+ * Inputs are found by their labels. The component ids
+ * (`form_input_name`, `query_search_input`) are the encoder's contract, but the
+ * `<id>-input` DOM ids the admin catalog derived from them are the renderer's
+ * to assign: the pinned 1.0 renderer gives the element inside a form section its
+ * own `a2ui-n<N>` id, so a label is the stable handle.
  *
  * Seed state: the tenant seeder provisions one team ("Example Corp (All
  * Users)"). The edit flow runs against a team THIS spec creates, so the run
@@ -30,6 +32,10 @@ import {signIn} from "./support/sign_in"
  * what says the page is ready. Not `networkidle`: the live connection can
  * keep the network busy past any idle window, and the wait then never ends.
  */
+function nameInput(page) {
+  return page.locator("ash-admin-record-panel").getByRole("textbox", {name: "Name", exact: true})
+}
+
 async function gotoTeams(page) {
   await page.goto("/app/teams")
   const grid = page.locator("ash-admin-data-grid table")
@@ -136,7 +142,7 @@ test.describe.serial("a2ui admin experience", () => {
     const teamName = `QA Team ${Date.now()}`
 
     await page.getByRole("button", {name: "Create team"}).click()
-    await page.locator("#form_input_name-input").fill(teamName)
+    await nameInput(page).fill(teamName)
     await page.locator("ash-admin-action-bar").getByRole("button", {name: "Create team"}).click()
 
     const banner = page.locator("ash-admin-status-banner")
@@ -154,11 +160,11 @@ test.describe.serial("a2ui admin experience", () => {
     await createdRow.getByRole("button", {name: "Edit"}).click()
     const panel = page.locator("ash-admin-record-panel")
     await expect(panel.locator("section.panel")).toHaveAttribute("aria-label", "Edit team")
-    await expect(page.locator("#form_input_name-input")).toHaveValue(teamName)
+    await expect(nameInput(page)).toHaveValue(teamName)
 
     // A real edit round-trip.
     const renamed = `${teamName} (renamed)`
-    await page.locator("#form_input_name-input").fill(renamed)
+    await nameInput(page).fill(renamed)
     await page
       .locator("ash-admin-action-bar")
       .getByRole("button", {name: "Save changes"})
@@ -175,7 +181,7 @@ test.describe.serial("a2ui admin experience", () => {
   test("empty state replaces the grid for a nonsense search", async () => {
     await gotoTeams(page)
 
-    await page.locator("#query_search_input-input").fill("zzz-no-such-team-zzz")
+    await page.getByRole("textbox", {name: "Search", exact: true}).fill("zzz-no-such-team-zzz")
     await page.getByText("Apply", {exact: true}).click()
 
     const empty = page.locator("ash-admin-empty-state")
