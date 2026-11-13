@@ -210,6 +210,7 @@ defmodule AshEnterpriseWeb.AlertWebhookTest do
                "alertname" => "Security: refused sign-ins above 20 in 5 minutes",
                "severity" => "warning",
                "category" => "security",
+               "series" => "fp-one",
                "rule_id" =>
                  body |> Jason.decode!() |> get_in(["alerts", Access.at(0), "labels", "ruleId"])
              }

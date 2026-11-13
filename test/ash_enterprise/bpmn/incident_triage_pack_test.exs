@@ -252,6 +252,12 @@ defmodule AshEnterprise.Bpmn.IncidentTriagePackTest do
                  actor: person.actor,
                  tenant: ctx.tenant
                )
+
+      assert {:error, %Ash.Error.Forbidden{}} =
+               Automation.resolve_incident_series(incident, "fp-forged",
+                 actor: person.actor,
+                 tenant: ctx.tenant
+               )
     end
   end
 

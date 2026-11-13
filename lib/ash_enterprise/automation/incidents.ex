@@ -17,6 +17,17 @@ defmodule AshEnterprise.Automation.Incidents do
   incident, not a footnote to a closed one. An `alert.resolved` occurrence closes the open
   incident for its key as `alert_resolved`; with none open it does nothing.
 
+  ## Series
+
+  One rule fires once per label set, and a provider that says so gives each alert a
+  `series` (SigNoz's fingerprint). The open incident keeps the series still firing
+  (`Incident.firing_series`): a firing adds its series, and a resolution takes its series out
+  and closes the incident only when none is left. Otherwise the first series to resolve
+  would close the incident while the others still fire, and their renotifications, replays
+  of alerts already recorded, would never reach here to open it again. A new incident opened
+  after a concluded triage carries the series the closed one still had firing. An alert
+  with no series closes the incident on resolving.
+
   An occurrence of any other type, or an alert with no provider or no rule to key it by, does
   nothing.
 
@@ -67,9 +78,11 @@ defmodule AshEnterprise.Automation.Incidents do
 
   @doc """
   What `occurrence` does to its tenant's incidents. Call inside the transaction that
-  recorded it. Returns `{:ok, :opened | :joined | :closed | :none}` or `{:error, error}`.
+  recorded it. Returns `{:ok, :opened | :joined | :series_resolved | :closed | :none}` or
+  `{:error, error}`.
   """
-  @spec track(Occurrence.t()) :: {:ok, :opened | :joined | :closed | :none} | {:error, term()}
+  @spec track(Occurrence.t()) ::
+          {:ok, :opened | :joined | :series_resolved | :closed | :none} | {:error, term()}
   def track(%Occurrence{type: type, data: data, organization_id: tenant} = occurrence)
       when type in [@firing, @resolved] and is_binary(tenant) do
     case key(data) do
@@ -82,7 +95,7 @@ defmodule AshEnterprise.Automation.Incidents do
 
   defp decide(@firing, key, occurrence) do
     case open_incident(occurrence.organization_id, key) do
-      nil -> open(key, occurrence)
+      nil -> open(key, occurrence, [])
       incident -> open_or_join(incident, triage_concluded?(incident), key, occurrence)
     end
   end
@@ -90,19 +103,46 @@ defmodule AshEnterprise.Automation.Incidents do
   defp decide(@resolved, key, occurrence) do
     case open_incident(occurrence.organization_id, key) do
       nil -> {:ok, :none}
-      incident -> with({:ok, _} <- close(incident, :alert_resolved), do: {:ok, :closed})
+      incident -> resolve(incident, series(occurrence.data))
+    end
+  end
+
+  # The series that resolved leaves the incident; the incident closes when none is left. A
+  # resolution with no series, or of the last series, closes it.
+  defp resolve(incident, series) do
+    firing = incident.firing_series || []
+
+    cond do
+      is_nil(series) or firing -- [series] == [] ->
+        with({:ok, _} <- close(incident, :alert_resolved), do: {:ok, :closed})
+
+      series in firing ->
+        with {:ok, _} <-
+               Automation.resolve_incident_series(
+                 incident,
+                 series,
+                 opts(incident.organization_id)
+               ),
+             do: {:ok, :series_resolved}
+
+      # A series this incident never saw fire (one that fired under an incident closed
+      # since): the ones it did see are still firing.
+      true ->
+        {:ok, :none}
     end
   end
 
   defp open_or_join(incident, true = _concluded?, key, occurrence) do
-    with {:ok, _closed} <- close(incident, :triage_concluded), do: open(key, occurrence)
+    with {:ok, _closed} <- close(incident, :triage_concluded),
+         do: open(key, occurrence, incident.firing_series || [])
   end
 
   defp open_or_join(incident, false = _concluded?, _key, occurrence),
     do: join(incident, occurrence)
 
-  defp open(key, occurrence) do
+  defp open(key, occurrence, still_firing) do
     data = occurrence.data
+    firing = Enum.uniq(still_firing ++ List.wrap(series(data)))
 
     %{
       key: key,
@@ -111,6 +151,7 @@ defmodule AshEnterprise.Automation.Incidents do
       category: field(data, "category"),
       provider: field(data, "provider"),
       opened_by_occurrence_id: occurrence.id,
+      firing_series: firing,
       at: occurrence.time
     }
     |> Automation.open_incident(opts(occurrence.organization_id))
@@ -123,7 +164,7 @@ defmodule AshEnterprise.Automation.Incidents do
   defp join(incident, occurrence) do
     case Automation.join_incident(
            incident,
-           %{at: occurrence.time},
+           %{at: occurrence.time, series: series(occurrence.data)},
            opts(incident.organization_id)
          ) do
       {:ok, _incident} -> {:ok, :joined}
@@ -172,8 +213,11 @@ defmodule AshEnterprise.Automation.Incidents do
     "rule_id" => :rule_id,
     "alertname" => :alertname,
     "severity" => :severity,
-    "category" => :category
+    "category" => :category,
+    "series" => :series
   }
+
+  defp series(data), do: field(data, "series")
 
   defp field(data, name),
     do: text(Map.get(data, name) || Map.get(data, Map.fetch!(@fields, name)))

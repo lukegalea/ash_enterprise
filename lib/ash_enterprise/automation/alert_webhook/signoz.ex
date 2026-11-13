@@ -61,7 +61,10 @@ defmodule AshEnterprise.Automation.AlertWebhook.Signoz do
             "alertname" => AlertWebhook.label(labels["alertname"]),
             "severity" => AlertWebhook.label(labels["severity"]),
             "category" => AlertWebhook.label(labels["category"]),
-            "rule_id" => rule_id
+            "rule_id" => rule_id,
+            # One rule fires once per label set; the fingerprint names the set, so an
+            # incident knows which of its rule's series are still firing.
+            "series" => fingerprint
           }
         }
       ]

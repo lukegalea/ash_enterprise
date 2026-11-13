@@ -3,7 +3,7 @@ defmodule AshEnterpriseWeb.IncidentWebhookTest do
   The whole three-in-the-morning path from the outside (q49): a signed SigNoz alert arrives
   at the inbound alert webhook, opens an incident in the key's organization, and the
   `incident_triage` pack gives the On-call role one triage task. The same rule firing again
-  joins the incident; its resolution closes it.
+  joins the incident; it closes when every series of the rule that fired has resolved.
 
   Refused first: an unsigned delivery and a delivery under another tenant's key open no
   incident here. `test/ash_enterprise/bpmn/incident_triage_pack_test.exs` covers the
@@ -161,7 +161,82 @@ defmodule AshEnterpriseWeb.IncidentWebhookTest do
     assert [%{status: :open, alert_count: 2}] = incidents(ctx.ours)
     assert [_task] = open_tasks(ctx.ours)
 
+    # One series resolving leaves the incident open while the other still fires.
     assert deliver(signoz("resolved", "rule-h", "fp-b")) |> response(204)
+    assert [%{status: :open, firing_series: ["fp-a"]}] = incidents(ctx.ours)
+
+    assert deliver(signoz("resolved", "rule-h", "fp-a")) |> response(204)
     assert [%{status: :closed, closed_reason: :alert_resolved}] = incidents(ctx.ours)
+  end
+
+  describe "a rule firing in several series" do
+    test "another tenant's resolution of the same rule and series leaves ours open", ctx do
+      assert deliver(signoz_many([{"firing", "rule-s", "fp-a"}])) |> response(204)
+
+      assert deliver(signoz_many([{"resolved", "rule-s", "fp-a"}]),
+               key: "ops-theirs",
+               secret: "synthetic-secret-theirs"
+             )
+             |> response(204)
+
+      assert [%{status: :open, firing_series: ["fp-a"]}] = incidents(ctx.ours)
+    end
+
+    test "a resolution of a series the incident never saw fire leaves it open", ctx do
+      assert deliver(signoz_many([{"firing", "rule-s", "fp-a"}])) |> response(204)
+      assert deliver(signoz_many([{"resolved", "rule-s", "fp-z"}])) |> response(204)
+
+      assert [%{status: :open, firing_series: ["fp-a"]}] = incidents(ctx.ours)
+    end
+
+    test "one series resolving does not close the incident while another still fires, " <>
+           "and a renotification of the other finds it still open",
+         ctx do
+      assert deliver(signoz_many([{"firing", "rule-s", "fp-a"}, {"firing", "rule-s", "fp-b"}]))
+             |> response(204)
+
+      sweep!(ctx.ours)
+
+      assert [%{key: "signoz:rule-s", status: :open, alert_count: 2} = incident] =
+               incidents(ctx.ours)
+
+      assert Enum.sort(incident.firing_series) == ["fp-a", "fp-b"]
+      assert [_task] = open_tasks(ctx.ours)
+
+      assert deliver(signoz_many([{"resolved", "rule-s", "fp-a"}])) |> response(204)
+      assert [%{status: :open, firing_series: ["fp-b"]}] = incidents(ctx.ours)
+
+      # Alertmanager renotifies the series still firing: a replay of an alert already
+      # recorded, so nothing new is written, and the incident is still the open one.
+      assert deliver(signoz_many([{"firing", "rule-s", "fp-b"}])) |> response(204)
+      sweep!(ctx.ours)
+
+      assert [%{status: :open, firing_series: ["fp-b"]}] = incidents(ctx.ours)
+      assert [_task] = open_tasks(ctx.ours)
+
+      assert deliver(signoz_many([{"resolved", "rule-s", "fp-b"}])) |> response(204)
+      assert [%{status: :closed, closed_reason: :alert_resolved}] = incidents(ctx.ours)
+    end
+  end
+
+  defp signoz_many(alerts) do
+    Jason.encode!(%{
+      "receiver" => "ash",
+      "status" => "firing",
+      "alerts" =>
+        for {status, rule, fingerprint} <- alerts do
+          %{
+            "status" => status,
+            "labels" => %{
+              "alertname" => "Error rate above budget",
+              "ruleId" => rule,
+              "severity" => "warning",
+              "category" => "availability"
+            },
+            "startsAt" => "2026-11-13T03:00:00Z",
+            "fingerprint" => fingerprint
+          }
+        end
+    })
   end
 end

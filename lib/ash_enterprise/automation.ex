@@ -24,6 +24,7 @@ defmodule AshEnterprise.Automation do
     resource AshEnterprise.Automation.Incident do
       define :open_incident, action: :open
       define :join_incident, action: :join
+      define :resolve_incident_series, action: :resolve_series, args: [:series]
       define :close_incident, action: :close, args: [:reason]
       define :list_incidents, action: :read
     end

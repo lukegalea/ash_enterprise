@@ -11,13 +11,24 @@ defmodule AshEnterprise.Automation.Incident do
   | The alert | The incident |
   |---|---|
   | fires, and no incident with its key is open | `open`: a new incident, `alert_count` 1 |
-  | fires, and one is open | `join`: `alert_count` and `last_alert_at` move, nothing else |
-  | fires, and the open one's triage has finished | `close` that one (`triage_concluded`), then `open` a new one |
-  | resolves | `close` the open one (`alert_resolved`) |
+  | fires, and one is open | `join`: `alert_count` and `last_alert_at` move, and its series is added to `firing_series` |
+  | fires, and the open one's triage has finished | `close` that one (`triage_concluded`), then `open` a new one carrying the series still firing |
+  | resolves, and another series of the rule is still firing | `resolve_series`: its series leaves `firing_series`, and the incident stays open |
+  | resolves, and no other series is firing | `close` the open one (`alert_resolved`) |
 
   The key is the provider and the alerting rule (`"signoz:<rule id>"`, or the alert's name
   when a provider gives no rule id), so the same rule firing again is the same incident, and
   another rule is another incident.
+
+  ## One rule, several series
+
+  A rule fires once per label set: SigNoz sends one alert per series, each with its own
+  fingerprint and the rule's id. They are one incident, and it stays open while any of them
+  fires. `firing_series` holds the series still firing; a resolution of one series closes
+  the incident only when it was the last. Without this, the first series to resolve would
+  close the incident while the others still fire, and their renotifications, which are
+  replays of alerts already recorded, would never open it again. An alert with no series
+  (a provider that gives none) closes the incident on resolving, as before.
 
   Opening is an audited create, so a recipe can match it: the `incident_triage` pack
   (`priv/packs/incident_triage/`) starts a triage process whose task goes to the tenant's
@@ -42,7 +53,7 @@ defmodule AshEnterprise.Automation.Incident do
     ownership: :organization_owned,
     lifecycle?: false,
     archival?: false,
-    machinery_only: [:open, :join, :close]
+    machinery_only: [:open, :join, :resolve_series, :close]
 
   postgres do
     table "automation_incidents"
@@ -57,7 +68,17 @@ defmodule AshEnterprise.Automation.Incident do
     create :open do
       description "Open an incident for an alert whose key has none open. Machinery only."
       primary? true
-      accept [:key, :title, :severity, :category, :provider, :opened_by_occurrence_id]
+
+      accept [
+        :key,
+        :title,
+        :severity,
+        :category,
+        :provider,
+        :opened_by_occurrence_id,
+        :firing_series
+      ]
+
       argument :at, :utc_datetime_usec, allow_nil?: false
       change set_attribute(:first_alert_at, arg(:at))
       change set_attribute(:last_alert_at, arg(:at))
@@ -68,9 +89,23 @@ defmodule AshEnterprise.Automation.Incident do
       # Not atomic: see `AshEnterprise.Automation.Changes.CountAlert`.
       require_atomic? false
       argument :at, :utc_datetime_usec, allow_nil?: false
+      argument :series, :string, constraints: [max_length: 200]
       validate attribute_equals(:status, :open)
       change AshEnterprise.Automation.Changes.CountAlert
       change set_attribute(:last_alert_at, arg(:at))
+      change {AshEnterprise.Automation.Changes.FiringSeries, op: :add}
+    end
+
+    update :resolve_series do
+      description """
+      One series of the open incident's rule resolved while another still fires: it leaves
+      `firing_series`, and the incident stays open. Machinery only.
+      """
+
+      require_atomic? false
+      argument :series, :string, allow_nil?: false, constraints: [max_length: 200]
+      validate attribute_equals(:status, :open)
+      change {AshEnterprise.Automation.Changes.FiringSeries, op: :remove}
     end
 
     update :close do
@@ -153,6 +188,16 @@ defmodule AshEnterprise.Automation.Incident do
 
     attribute :closed_at, :utc_datetime_usec do
       public? true
+    end
+
+    attribute :firing_series, {:array, :string} do
+      allow_nil? false
+      public? true
+      default []
+
+      description "The series of the rule still firing, as the provider identifies them " <>
+                    "(SigNoz's fingerprint). The incident closes on a resolution only when " <>
+                    "none is left."
     end
 
     attribute :opened_by_occurrence_id, :uuid do

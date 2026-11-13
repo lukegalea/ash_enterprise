@@ -50,7 +50,9 @@ point: a template can make an alert into an assigned, audited task, but it canno
 
 ## When an incident closes
 
-- Its alert resolves (an `alert.resolved` occurrence for the same key): closed as `alert_resolved`.
+- Its alert resolves (an `alert.resolved` occurrence for the same key): closed as `alert_resolved`. A rule fires once
+  per label set, and SigNoz sends each as its own alert (its fingerprint); the incident closes only when every series
+  that fired has resolved, and until then the row lists the ones still firing (`firing_series`).
 - Its triage finished: the next alert for the same key closes it as `triage_concluded` and opens a new incident with
   a new task. Until that next alert, the row still reads `open`; the triage run's status is what says it was handled.
 
