@@ -49,7 +49,7 @@ defmodule AshEnterprise.Audit.Package.Build do
   alias AshCompliance.Oscal.AssessmentResults
   alias AshCompliance.Ownership.Evidence
   alias AshCompliance.Ownership.Package, as: CompliancePackage
-  alias AshEnterprise.Audit.{ChainVerifyWorker, EventLog}
+  alias AshEnterprise.Audit.{ChainVerifyWorker, EventLog, Export}
   alias AshEnterprise.Compliance.FreshnessSweepWorker
   alias AshEnterprise.Security.ActorContext
 
@@ -247,11 +247,8 @@ defmodule AshEnterprise.Audit.Package.Build do
     }
   end
 
-  defp events_in_period(from, to, host) do
-    EventLog
-    |> Ash.Query.for_read(:for_export, %{from: from, to: to}, host)
-    |> Ash.count!()
-  end
+  # Hot and archived, as `events.csv` is written (`AshEnterprise.Audit.Export`).
+  defp events_in_period(from, to, host), do: Export.count(from, to, host)
 
   # The scheduled verifications stored in the period, hot or archived: one artifact a day
   # per criterion the worker evidences, so one criterion's are counted. Read whole rather

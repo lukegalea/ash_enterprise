@@ -54,14 +54,34 @@ defmodule AshEnterprise.Audit.ArchivedEvent do
        repo: AshEnterprise.Repo,
        guard_function: "ash_enterprise_audit_archive_guard"}
 
-  # As `AshEnterprise.Audit.EventLog`: reading the archive is reading the audit log.
+  # The archive's half of `AshEnterprise.Audit.Export`, beside the hot log's own `:for_export`.
+  actions do
+    read :for_export do
+      description """
+      The archived half of the evidence an auditor asks for (`AshEnterprise.Audit.Export`):
+      what happened in a window and has left the hot log, in chain order.
+      """
+
+      argument :from, :utc_datetime_usec, allow_nil?: false
+      argument :to, :utc_datetime_usec, allow_nil?: false
+
+      prepare build(sort: [sequence: :asc])
+      pagination keyset?: true, required?: false
+
+      filter expr(occurred_at >= ^arg(:from) and occurred_at < ^arg(:to))
+    end
+  end
+
+  # Reading the archive is reading the audit log, so the grant that reaches it is the one on
+  # `AshEnterprise.Audit.EventLog`: an auditor who may read the log reads all of it, and a
+  # second privilege would let an export silently stop at ninety days.
   policies do
     bypass AshEnterprise.Security.Checks.SystemActor do
       authorize_if always()
     end
 
     policy action_type(:read) do
-      authorize_if AshEnterprise.Security.Checks.RoleGrant
+      authorize_if {AshEnterprise.Security.Checks.RoleGrant, as: AshEnterprise.Audit.EventLog}
     end
   end
 

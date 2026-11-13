@@ -17,13 +17,18 @@ defmodule AshEnterprise.Test.DailyFixtures do
   alias AshEnterprise.Security
   alias AshEnterprise.Security.ActorContext
 
-  @doc "A seeded tenant: `%{actor:, user:, tenant:, organization:}`. `operator?: true` grants the Platform Operator role."
+  @doc "A seeded tenant: `%{actor:, user:, tenant:, organization:}`. `operator?: true` grants the Platform Operator role; `organization_id:` picks its id."
   def tenant!(opts \\ []) do
     n = System.unique_integer([:positive])
     email = Keyword.get(opts, :email, "daily-#{n}@example.test")
 
     seeded =
-      Seeder.seed_tenant(name: "Daily #{n}", unique_name: "daily-#{n}", email: email)
+      Seeder.seed_tenant(
+        name: "Daily #{n}",
+        unique_name: "daily-#{n}",
+        email: email,
+        organization_id: Keyword.get(opts, :organization_id)
+      )
 
     if Keyword.get(opts, :operator?, false), do: Seeder.grant_platform_operator(seeded.user)
 

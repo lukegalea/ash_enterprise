@@ -19,6 +19,15 @@ defmodule AshEnterprise.Audit.Export do
   `hash` can be checked against the live chain by anyone who receives it, which
   is what makes it evidence rather than a claim. See `AshEvents.Chain`.
 
+  ## Hot and archived
+
+  Events older than the hot window (ninety days) have moved to the archive
+  (`AshEnterprise.Audit.ArchivedEvent`, `AshEnterprise.Audit.Retention`), and an
+  export of a period reads both: the archived events in the window first, then the
+  hot ones. Retention archives each chain's leading run, so every archived event of a
+  tenant comes before every hot one and the file stays in chain order. The rows are
+  byte for byte the hot rows they were, so the chain columns verify the same.
+
   ## Scoping
 
   Reads run through the ordinary action layer with an actor and a tenant, so an
@@ -35,7 +44,7 @@ defmodule AshEnterprise.Audit.Export do
   the recipient keeps the ability to re-sort and re-check.
   """
 
-  alias AshEnterprise.Audit.EventLog
+  alias AshEnterprise.Audit.{ArchivedEvent, EventLog}
 
   # Sobelow reads `@sobelow_skip` out of the source AST, so nothing in the
   # compiled module ever consults it and Elixir reports it as "set but never
@@ -72,13 +81,33 @@ defmodule AshEnterprise.Audit.Export do
   def stream(from, to, opts \\ []) do
     header = [Enum.map_join(@columns, ",", &to_string/1) <> "\n"]
 
+    opts = Keyword.put_new(opts, :batch_size, 500)
+
     rows =
-      EventLog
-      |> Ash.Query.for_read(:for_export, %{from: from, to: to})
-      |> Ash.stream!(Keyword.put_new(opts, :batch_size, 500))
+      [ArchivedEvent, EventLog]
+      |> Stream.flat_map(fn resource ->
+        resource
+        |> Ash.Query.for_read(:for_export, %{from: from, to: to})
+        |> Ash.stream!(opts)
+      end)
       |> Stream.map(&row/1)
 
     Stream.concat(header, rows)
+  end
+
+  @doc """
+  How many events `[from, to)` holds, hot and archived: the number of rows `stream/3`
+  writes for the same options. Options as `stream/3`'s.
+  """
+  @spec count(DateTime.t(), DateTime.t(), keyword()) :: non_neg_integer()
+  def count(from, to, opts \\ []) do
+    [ArchivedEvent, EventLog]
+    |> Enum.map(fn resource ->
+      resource
+      |> Ash.Query.for_read(:for_export, %{from: from, to: to})
+      |> Ash.count!(opts)
+    end)
+    |> Enum.sum()
   end
 
   @doc "Writes the export to `path`. Returns the number of events written."

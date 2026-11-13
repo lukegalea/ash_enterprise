@@ -11,7 +11,7 @@ defmodule AshEnterprise.Audit.PackageTest do
 
   use AshEnterprise.DataCase, async: false
 
-  import AshEnterprise.Test.DailyFixtures, only: [tenant!: 0, member!: 3, brief!: 1]
+  import AshEnterprise.Test.DailyFixtures, only: [tenant!: 0, tenant!: 1, member!: 3, brief!: 1]
 
   alias AshCompliance.Domain, as: Compliance
   alias AshCompliance.Oscal.AssessmentResults
@@ -139,6 +139,60 @@ defmodule AshEnterprise.Audit.PackageTest do
       assert package["manifest"]["tenant"] == ctx.ours.tenant
       assert package["chain"]["events_in_period"] > 0
       assert package["chain"]["events_in_period"] == count_events(ctx.ours.tenant)
+    end
+  end
+
+  describe "archived events" do
+    # The retention run moves events past ninety days out of the hot log. An export of a
+    # period that reaches back past that must still carry them, and count them. The tenant's
+    # chain has to start with the old event, as a deployment older than ninety days does, so
+    # the event is written before the tenant is seeded.
+
+    test "another tenant's archived event is not in our events.csv", ctx do
+      {_theirs, record_id} = tenant_reaching_back!(120)
+      archive!()
+
+      {dir, manifest} = export_files!(ctx.auditor, ctx.ours.tenant)
+
+      refute File.read!(Path.join(dir, "events.csv")) =~ record_id
+      assert manifest["events_csv"]["complete"] == true
+    end
+
+    test "a reader without a grant on the log reads no archived event either" do
+      {tenant, _record_id} = tenant_reaching_back!(120)
+      archive!()
+      assert archived_count(tenant.tenant) == 1
+      nobody = member!(tenant, "Nothing", [])
+      {from, to} = long_window()
+
+      assert from
+             |> Audit.Export.stream(to, actor: nobody.actor, tenant: tenant.tenant)
+             |> Enum.to_list()
+             |> length() == 1
+    end
+
+    test "an event archived past ninety days is in events.csv, counted, and the manifest is complete" do
+      {tenant, record_id} = tenant_reaching_back!(120)
+      archive!()
+      assert archived_count(tenant.tenant) == 1
+
+      # The auditor holds a grant on the log, and none on the archive: reading the archive
+      # is reading the log.
+      auditor = auditor!(tenant)
+      activity!(tenant)
+
+      {dir, manifest} = export_files!(auditor, tenant.tenant)
+
+      [_header | rows] =
+        dir |> Path.join("events.csv") |> File.read!() |> String.split("\n", trim: true)
+
+      # Chain order: the archived event leads the chain, so it is the first row.
+      assert rows |> hd() |> String.contains?(record_id)
+
+      chain = dir |> Path.join("chain.json") |> File.read!() |> Jason.decode!()
+      assert chain["events_in_period"] == length(rows)
+      assert manifest["events_csv"]["rows"] == length(rows)
+      assert manifest["events_csv"]["complete"] == true
     end
   end
 
@@ -382,6 +436,69 @@ defmodule AshEnterprise.Audit.PackageTest do
   end
 
   # --- helpers ---------------------------------------------------------------
+
+  # An event in `tenant`'s chain, `days_ago` old, written as `AshEnterprise.Audit.RetentionTest`
+  # writes one; the chain trigger hashes and links it. Returns the event's record id.
+  defp old_event!(tenant, days_ago) do
+    [[record_id]] =
+      Repo.query!(
+        "INSERT INTO audit_events (record_id, metadata, occurred_at, resource, action, action_type) " <>
+          "VALUES (gen_random_uuid(), $1::jsonb, now() - make_interval(days => $2), " <>
+          "'Elixir.Probe', 'create', 'create') RETURNING record_id",
+        [%{"organization_id" => tenant}, days_ago]
+      ).rows
+
+    Ecto.UUID.cast!(record_id)
+  end
+
+  # A tenant whose chain starts with an event `days_ago` old: the event, then the seeding.
+  defp tenant_reaching_back!(days_ago) do
+    id = Ash.UUID.generate()
+    record_id = old_event!(id, days_ago)
+    {tenant!(organization_id: id), record_id}
+  end
+
+  defp archive! do
+    {:ok, _result} = AshEnterprise.Audit.Retention.archive()
+  end
+
+  defp archived_count(tenant) do
+    [[n]] =
+      Repo.query!("SELECT count(*) FROM audit_event_archive WHERE organization_id = $1::uuid", [
+        Ecto.UUID.dump!(tenant)
+      ]).rows
+
+    n
+  end
+
+  defp long_window do
+    now = DateTime.utc_now()
+    {DateTime.add(now, -150, :day), DateTime.add(now, 1, :hour)}
+  end
+
+  # Runs the mix task over the long window and returns the directory and the manifest.
+  defp export_files!(person, tenant) do
+    dir = Path.join(System.tmp_dir!(), "audit-package-#{System.unique_integer([:positive])}")
+    on_exit(fn -> File.rm_rf!(dir) end)
+    {from, to} = long_window()
+
+    ExUnit.CaptureIO.capture_io(fn ->
+      Mix.Tasks.AshEnterprise.Audit.Export.run([
+        "--tenant",
+        tenant,
+        "--as",
+        person.email,
+        "--from",
+        DateTime.to_iso8601(from),
+        "--to",
+        DateTime.to_iso8601(to),
+        "--out",
+        dir
+      ])
+    end)
+
+    {dir, dir |> Path.join("manifest.json") |> File.read!() |> Jason.decode!()}
+  end
 
   defp count_events(tenant) do
     {from, to} = window()

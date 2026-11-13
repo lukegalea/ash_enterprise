@@ -25,6 +25,15 @@ defmodule AshEnterprise.Security.Checks.RoleGrant do
   Ash applies the same filter as a predicate for writes, so one implementation
   covers create, read, update and destroy.
 
+  ## A grant read off another resource
+
+  `{RoleGrant, as: Resource}` answers from the actor's grant on `Resource` rather than
+  on the resource the policy belongs to. It is for a resource that is another one's
+  rows moved elsewhere, where a separate privilege would be a second grant over the same
+  data: `AshEnterprise.Audit.ArchivedEvent` is the audit log past ninety days, so reading
+  it is reading `AshEnterprise.Audit.EventLog`. The depth clauses still test the policy's
+  own resource's columns.
+
   ## Never queries
 
   Everything comes from the precomputed context. See
@@ -38,11 +47,17 @@ defmodule AshEnterprise.Security.Checks.RoleGrant do
   alias AshEnterprise.Security.ActorContext
 
   @impl true
-  def describe(_opts), do: "actor holds a role granting this action at sufficient depth"
+  def describe(opts) do
+    case Keyword.get(opts, :as) do
+      nil -> "actor holds a role granting this action at sufficient depth"
+      resource -> "actor holds a role granting this action on #{inspect(resource)}"
+    end
+  end
 
   @impl true
-  def filter(actor, authorizer, _opts) do
+  def filter(actor, authorizer, opts) do
     context = ActorContext.for_actor(actor)
+    granted_on = Keyword.get(opts, :as) || authorizer.resource
 
     cond do
       # A system actor is not subject to grants, but it reaches no further here
@@ -60,10 +75,10 @@ defmodule AshEnterprise.Security.Checks.RoleGrant do
         false
 
       generic?(authorizer) ->
-        ActorContext.grant(context, authorizer.resource, verb(authorizer)).global?
+        ActorContext.grant(context, granted_on, verb(authorizer)).global?
 
       true ->
-        grant = ActorContext.grant(context, authorizer.resource, verb(authorizer))
+        grant = ActorContext.grant(context, granted_on, verb(authorizer))
         build_filter(grant, context, authorizer.resource)
     end
   end
