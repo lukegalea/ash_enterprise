@@ -347,6 +347,26 @@ defmodule AshEnterprise.Mdm.StewardTaskTest do
     assert id == ctx.steward.user.id
   end
 
+  for {verdict, status} <- [confirm: :confirmed, reject: :rejected] do
+    test "an escalated candidate is #{verdict}ed from the record the escalation returned", ctx do
+      opts = [actor: ctx.steward.actor, tenant: ctx.org]
+
+      escalated =
+        ctx.candidate
+        |> reload(ctx.org)
+        |> Ash.Changeset.for_update(:escalate, %{}, opts)
+        |> Ash.update!(opts)
+
+      decided =
+        escalated
+        |> Ash.Changeset.for_update(unquote(verdict), %{}, opts)
+        |> Ash.update!(opts)
+
+      assert decided.status == unquote(status)
+      assert reload(ctx.candidate, ctx.org).status == unquote(status)
+    end
+  end
+
   test "a delegated steward task is decided by the steward it was delegated to", ctx do
     assert {:ok, _} = board(ctx.steward, "claim_task", ctx.task)
 

@@ -34,12 +34,15 @@ defmodule AshEnterprise.Mdm.Changes.StewardEscalation do
 
     ref = %{"verdict" => verdict, "verdict_id" => human.id, "judgment_id" => judgment.id}
 
-    candidate
-    |> Ash.Changeset.for_update(:record_verdict_ref, %{human_verdict_ref: ref},
-      tenant: tenant,
-      authorize?: false
-    )
-    |> Ash.update!(tenant: tenant, authorize?: false)
+    # The row as the ref write left it: `version_number` is an optimistic lock
+    # (ADR 0059), so a confirm or reject from the pre-write struct is stale.
+    candidate =
+      candidate
+      |> Ash.Changeset.for_update(:record_verdict_ref, %{human_verdict_ref: ref},
+        tenant: tenant,
+        authorize?: false
+      )
+      |> Ash.update!(tenant: tenant, authorize?: false)
 
     {:ok, candidate}
   end
