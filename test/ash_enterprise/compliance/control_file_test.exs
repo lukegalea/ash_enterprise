@@ -28,7 +28,7 @@ defmodule AshEnterprise.Compliance.ControlFileTest do
   @not_yet [:no_evidence_producer, :no_process, :no_test_ref, :no_vendor_ref]
 
   # Lower this when a gap is closed. It must never be raised.
-  @known_gaps 101
+  @known_gaps 71
 
   defp all_categories, do: Criteria.categories()
 

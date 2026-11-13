@@ -146,6 +146,10 @@ config :ash_enterprise, Oban,
          # `ash_compliance`'s freshness sweep, hourly, for every organization: stale or
          # missing evidence becomes an `:unknown` finding.
          {"15 * * * *", AshEnterprise.Compliance.FreshnessSweepWorker},
+         # A scheduled control's review falls due once a period: the worker records one
+         # occurrence per organization with a published recipe, template and period, and the
+         # soc2 pack's recipes open the review (AshEnterprise.Compliance.ScheduledReviewWorker).
+         {"25 5 * * *", AshEnterprise.Compliance.ScheduledReviewWorker},
          # PROD-18: commitments in sent mail and Slack, and follow-ups to ended
          # meetings, proposed as action items (AshEnterprise.Canonical.Commitments).
          # Messages are read only by the in-zone model; with none, they wait.

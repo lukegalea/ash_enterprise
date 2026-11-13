@@ -38,6 +38,11 @@ defmodule AshEnterprise.Bpmn.Packs do
   manifest cannot set what the installer does not mean to install. `controls` names the
   framework criteria the pack's processes support. It is documentation for now: mapping
   controls to evidence (an OSCAL component definition) is later work.
+
+  A pack may also carry a `templates` list. The installer ignores it; it is read by
+  `AshEnterprise.Compliance.TemplateMap`, which checks the `soc2` pack's map of
+  `ash_compliance`'s operator process templates to its recipes, to recipes and processes
+  that already exist, or to the reason a template has no event trigger.
   """
 
   require Ash.Query

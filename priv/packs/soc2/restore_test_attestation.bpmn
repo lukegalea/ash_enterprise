@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn2:definitions xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:ash="https://github.com/lukegalea/ash_bpmn/ns"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   id="Definitions_restore_test_attestation"
+                   targetNamespace="https://ash-enterprise.example/bpmn">
+  <!--
+    Attest a restore test (SOC 2 A1.3). Started by the pack's recipe when the quarter's restore test falls due.
+    An administrator attests that a backup was restored and checked, or that it was not.
+
+    The shape follows the operator process template ash_compliance ships as
+    compliance.restore_test_attestation, with its human step only: this pack's recipes are
+    human-tasks-only, so nothing here acts on its own. The template's evidence and
+    completion steps are not run; the outcome is recorded on the task and the instance.
+    The reviewer is an Administrator other than the person whose write started the
+    instance and the creator of the row that started it.
+  -->
+  <bpmn2:process id="Process_restore_test_attestation" name="Attest a restore test" isExecutable="true">
+
+    <bpmn2:startEvent id="Start" name="Restore test due">
+      <bpmn2:outgoing>Flow_to_review</bpmn2:outgoing>
+    </bpmn2:startEvent>
+
+    <bpmn2:userTask id="Review" name="Restore a backup and attest what was restored">
+      <bpmn2:extensionElements>
+        <ash:taskConfig>
+          <ash:candidates>
+            <ash:candidate kind="role" of="Administrator"/>
+          </ash:candidates>
+          <ash:exclusions>
+            <ash:exclusion who="instance.started_by_id"/>
+            <ash:exclusion who="subject.created_by_id"/>
+          </ash:exclusions>
+          <ash:outcomes>
+            <ash:outcome name="completed"/>
+            <ash:outcome name="not_completed"/>
+          </ash:outcomes>
+        </ash:taskConfig>
+      </bpmn2:extensionElements>
+      <bpmn2:incoming>Flow_to_review</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_to_route</bpmn2:outgoing>
+    </bpmn2:userTask>
+
+    <bpmn2:exclusiveGateway id="Route" name="Completed?" default="Flow_not_completed">
+      <bpmn2:incoming>Flow_to_route</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_completed</bpmn2:outgoing>
+      <bpmn2:outgoing>Flow_not_completed</bpmn2:outgoing>
+    </bpmn2:exclusiveGateway>
+
+    <bpmn2:endEvent id="EndCompleted" name="Completed">
+      <bpmn2:extensionElements><ash:taskConfig outcome="completed"/></bpmn2:extensionElements>
+      <bpmn2:incoming>Flow_completed</bpmn2:incoming>
+    </bpmn2:endEvent>
+
+    <bpmn2:endEvent id="EndNotCompleted" name="Not completed">
+      <bpmn2:extensionElements><ash:taskConfig outcome="not_completed"/></bpmn2:extensionElements>
+      <bpmn2:incoming>Flow_not_completed</bpmn2:incoming>
+    </bpmn2:endEvent>
+
+    <bpmn2:sequenceFlow id="Flow_to_review" sourceRef="Start" targetRef="Review"/>
+    <bpmn2:sequenceFlow id="Flow_to_route" sourceRef="Review" targetRef="Route"/>
+    <bpmn2:sequenceFlow id="Flow_completed" sourceRef="Route" targetRef="EndCompleted">
+      <bpmn2:conditionExpression xsi:type="bpmn2:tFormalExpression"
+        language="feel">task.outcome = "completed"</bpmn2:conditionExpression>
+    </bpmn2:sequenceFlow>
+    <bpmn2:sequenceFlow id="Flow_not_completed" sourceRef="Route" targetRef="EndNotCompleted"/>
+  </bpmn2:process>
+
+  <bpmndi:BPMNDiagram id="Diagram_restore_test_attestation">
+    <bpmndi:BPMNPlane id="Plane_restore_test_attestation" bpmnElement="Process_restore_test_attestation">
+      <bpmndi:BPMNShape id="Shape_Start" bpmnElement="Start">
+        <dc:Bounds x="150" y="202" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Review" bpmnElement="Review">
+        <dc:Bounds x="240" y="180" width="140" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Route" bpmnElement="Route" isMarkerVisible="true">
+        <dc:Bounds x="440" y="195" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_EndCompleted" bpmnElement="EndCompleted">
+        <dc:Bounds x="560" y="132" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_EndNotCompleted" bpmnElement="EndNotCompleted">
+        <dc:Bounds x="560" y="272" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_to_review" bpmnElement="Flow_to_review">
+        <di:waypoint x="186" y="220"/>
+        <di:waypoint x="240" y="220"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_to_route" bpmnElement="Flow_to_route">
+        <di:waypoint x="380" y="220"/>
+        <di:waypoint x="440" y="220"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_completed" bpmnElement="Flow_completed">
+        <di:waypoint x="465" y="195"/>
+        <di:waypoint x="465" y="150"/>
+        <di:waypoint x="560" y="150"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_not_completed" bpmnElement="Flow_not_completed">
+        <di:waypoint x="465" y="245"/>
+        <di:waypoint x="465" y="290"/>
+        <di:waypoint x="560" y="290"/>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn2:definitions>

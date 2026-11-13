@@ -27,6 +27,7 @@ defmodule AshEnterprise.Automation.Occurrences do
   | `security.break_glass_approved` | after a `BreakGlassSession` `:approve` commits, which is what makes it usable | the operator's id | `session_id`, `acting_as` (the subject's id), `approver_id`, `minutes` (how long it is live) |
   | `accounts.api_key_issued` | after an `ApiKey` `:issue` commits | the owner's id | `key_id`, `expires_at` |
   | `alert.firing`, `alert.resolved` | an inbound SigNoz or GlitchTip alert, signed and verified (`AshEnterprise.Automation.AlertWebhook`) | none: an alert is about no person (`rule_id` in `data` names the rule or issue) | `provider`, `alertname`, `severity`, `category`, `rule_id` |
+  | `compliance.review_due` | once a day for each scheduled control, in every organization with a published recipe, when its period (week, month, quarter or year) has no occurrence yet (`AshEnterprise.Compliance.ScheduledReviewWorker`) | none | `template`, `frequency`, `period` |
 
   No address, password, token or attempted credential is ever recorded, so `data` carries
   a reason and nothing that identifies what was typed.
@@ -84,6 +85,8 @@ defmodule AshEnterprise.Automation.Occurrences do
   @refused "user.sign_in_refused"
   @break_glass "security.break_glass_approved"
   @api_key "accounts.api_key_issued"
+  @review_due "compliance.review_due"
+  @compliance_source "urn:ash-enterprise:compliance"
 
   @doc """
   The `source` of the account facts: deactivations, refused sign-ins and API keys issued.
@@ -303,6 +306,32 @@ defmodule AshEnterprise.Automation.Occurrences do
 
   defp iso8601(%DateTime{} = at), do: DateTime.to_iso8601(at)
   defp iso8601(_other), do: nil
+
+  @doc """
+  Records that the review of the scheduled control `template` is due for `period`, in one
+  organization (`AshEnterprise.Compliance.ScheduledReviewWorker`). The fact's identity is the
+  template and the period, so recording it again is one row. Never raises: a failure is
+  logged and the next day's run tries again. Returns `:ok`.
+  """
+  @spec review_due(Ash.UUID.t(), String.t(), String.t(), String.t()) :: :ok
+  def review_due(organization, template, frequency, period) do
+    attrs = %{
+      event_id: "#{@review_due}:#{template}:#{period}",
+      source: @compliance_source,
+      type: @review_due,
+      data: %{"template" => template, "frequency" => frequency, "period" => period},
+      time: DateTime.utc_now()
+    }
+
+    safely(fn ->
+      write_one({organization, attrs})
+      :ok
+    end)
+  end
+
+  @doc "The `type` of a scheduled control's review coming due."
+  @spec review_due() :: String.t()
+  def review_due, do: @review_due
 
   @doc """
   Records inbound alerts in one organization, the one the webhook key that signed them

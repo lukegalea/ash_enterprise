@@ -1,0 +1,48 @@
+{
+  "name": "soc2",
+  "version": 1,
+  "title": "Each operator process template has a trigger, or a stated reason it has none",
+  "description": "Maps the nineteen operator process templates ash_compliance ships to this application. A template is served by a recipe in this pack that opens a human-only review (eight of them: seven on a schedule, one on an inbound alert), by a recipe or process another pack or the application already has, or it carries the reason no audited event can start it. Installed as drafts: nothing runs until a person publishes each process and then each recipe. The reviews are human tasks only; the templates' evidence and completion steps are not run.",
+  "controls": ["CC1.1", "CC2.2", "CC3.1", "CC3.2", "CC3.3", "CC3.4", "CC5.1", "CC5.3", "CC6.2", "CC6.3", "CC7.1", "CC7.2", "CC7.3", "CC7.4", "A1.3", "CC1.4", "CC1.5", "CC9.1", "CC9.2"],
+  "processes": [
+    {"key": "soc2.effective_access_review", "name": "Review effective access", "file": "effective_access_review.bpmn"},
+    {"key": "soc2.log_alert_review", "name": "Review the audit log and alerts", "file": "log_alert_review.bpmn"},
+    {"key": "soc2.restore_test_attestation", "name": "Attest a restore test", "file": "restore_test_attestation.bpmn"},
+    {"key": "soc2.policy_review_acknowledgement", "name": "Review the policies and acknowledge them", "file": "policy_review_acknowledgement.bpmn"},
+    {"key": "soc2.training_attestation", "name": "Attest training and role accountability", "file": "training_attestation.bpmn"},
+    {"key": "soc2.risk_register_review", "name": "Review the risk register", "file": "risk_register_review.bpmn"},
+    {"key": "soc2.vendor_review", "name": "Review vendor reports", "file": "vendor_review.bpmn"},
+    {"key": "soc2.vulnerability_triage", "name": "Triage a vulnerability", "file": "vulnerability_triage.bpmn"}
+  ],
+  "recipes": [
+    {"key": "soc2.effective_access_review.due", "match_resource": "AshEnterprise.Automation.Occurrence", "match_action": "record", "match_action_type": "create", "guard_feel": "data.type = \"compliance.review_due\" and data.data.template = \"effective_access_review\"", "process_key": "soc2.effective_access_review", "authority": "human_tasks_only"},
+    {"key": "soc2.log_alert_review.due", "match_resource": "AshEnterprise.Automation.Occurrence", "match_action": "record", "match_action_type": "create", "guard_feel": "data.type = \"compliance.review_due\" and data.data.template = \"log_alert_review\"", "process_key": "soc2.log_alert_review", "authority": "human_tasks_only"},
+    {"key": "soc2.restore_test_attestation.due", "match_resource": "AshEnterprise.Automation.Occurrence", "match_action": "record", "match_action_type": "create", "guard_feel": "data.type = \"compliance.review_due\" and data.data.template = \"restore_test_attestation\"", "process_key": "soc2.restore_test_attestation", "authority": "human_tasks_only"},
+    {"key": "soc2.policy_review_acknowledgement.due", "match_resource": "AshEnterprise.Automation.Occurrence", "match_action": "record", "match_action_type": "create", "guard_feel": "data.type = \"compliance.review_due\" and data.data.template = \"policy_review_acknowledgement\"", "process_key": "soc2.policy_review_acknowledgement", "authority": "human_tasks_only"},
+    {"key": "soc2.training_attestation.due", "match_resource": "AshEnterprise.Automation.Occurrence", "match_action": "record", "match_action_type": "create", "guard_feel": "data.type = \"compliance.review_due\" and data.data.template = \"training_attestation\"", "process_key": "soc2.training_attestation", "authority": "human_tasks_only"},
+    {"key": "soc2.risk_register_review.due", "match_resource": "AshEnterprise.Automation.Occurrence", "match_action": "record", "match_action_type": "create", "guard_feel": "data.type = \"compliance.review_due\" and data.data.template = \"risk_register_review\"", "process_key": "soc2.risk_register_review", "authority": "human_tasks_only"},
+    {"key": "soc2.vendor_review.due", "match_resource": "AshEnterprise.Automation.Occurrence", "match_action": "record", "match_action_type": "create", "guard_feel": "data.type = \"compliance.review_due\" and data.data.template = \"vendor_review\"", "process_key": "soc2.vendor_review", "authority": "human_tasks_only"},
+    {"key": "soc2.vulnerability_triage.alert", "match_resource": "AshEnterprise.Automation.Occurrence", "match_action": "record", "match_action_type": "create", "guard_feel": "data.type = \"alert.firing\" and data.data.category = \"vulnerability\"", "process_key": "soc2.vulnerability_triage", "authority": "human_tasks_only"}
+  ],
+  "templates": [
+    {"template": "effective_access_review", "recipe": "soc2.effective_access_review.due", "trigger": "schedule"},
+    {"template": "access_request", "reference": {"file": "priv/bpmn/access_request_grant.bpmn"}, "note": "The application's own access request process, started by a subscription on AccessRequest that a tenant publishes; it does not need a second one."},
+    {"template": "break_glass", "reference": {"pack": "security_alerts", "recipe": "security_alerts.break_glass_approved"}},
+    {"template": "impersonation", "reference": {"pack": "security_alerts", "recipe": "security_alerts.break_glass_approved"}, "note": "Impersonation here is a break-glass session: the approved session is the audited fact."},
+    {"template": "emergency_change_review", "reason": "A change reaches production through a deploy outside this application, so no audited write records an emergency change; CI is the evidence for CC8.1."},
+    {"template": "custody_cutover_approval", "reason": "This application has no custody or authority cutover to approve; no resource records one."},
+    {"template": "divergence_signoff", "reason": "This application keeps no divergence register; no resource records a divergence to sign off."},
+    {"template": "override_waiver_approval", "reason": "An override or waiver is an ash_compliance resource that is not written to the audit chain, and an approval is a gate before the act, which a recipe, running after commit, cannot be."},
+    {"template": "log_alert_review", "recipe": "soc2.log_alert_review.due", "trigger": "schedule"},
+    {"template": "vulnerability_triage", "recipe": "soc2.vulnerability_triage.alert"},
+    {"template": "incident_response", "reference": {"pack": "incident_triage", "recipe": "incident.triage.opened"}, "note": "An alert opens one incident, and the on-call role triages it."},
+    {"template": "restore_test_attestation", "recipe": "soc2.restore_test_attestation.due", "trigger": "schedule"},
+    {"template": "retention_disposal_approval", "reason": "Disposal is a mix task and a worker, not an audited tenant write, and an approval is a gate before the act, which a recipe, running after commit, cannot be."},
+    {"template": "policy_review_acknowledgement", "recipe": "soc2.policy_review_acknowledgement.due", "trigger": "schedule"},
+    {"template": "oversight_meeting", "reason": "A meeting happens outside this application and leaves no audited write; minutes are written by a person."},
+    {"template": "training_attestation", "recipe": "soc2.training_attestation.due", "trigger": "schedule"},
+    {"template": "risk_register_review", "recipe": "soc2.risk_register_review.due", "trigger": "schedule"},
+    {"template": "vendor_review", "recipe": "soc2.vendor_review.due", "trigger": "schedule"},
+    {"template": "customer_notification", "reason": "A notice to customers is written and sent by a person outside this application; no audited write records one."}
+  ]
+}
