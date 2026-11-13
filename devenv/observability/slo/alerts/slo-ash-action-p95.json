@@ -1,0 +1,84 @@
+{
+  "alert": "SLO Ash action p95 latency above 500 ms",
+  "alertType": "METRIC_BASED_ALERT",
+  "description": "The 95th percentile of Ash action duration (ash.action.duration) is above 500 ms throughout fifteen minutes. The 500 ms objective is an unmeasured default: set it from what your deployment measures.",
+  "annotations": {
+    "summary": "p95 Ash action latency {{$value}} ms",
+    "description": "The 95th percentile of Ash action duration is above 500 ms throughout fifteen minutes."
+  },
+  "condition": {
+    "compositeQuery": {
+      "queryType": "builder",
+      "panelType": "graph",
+      "queries": [
+        {
+          "type": "builder_query",
+          "spec": {
+            "name": "A",
+            "signal": "metrics",
+            "aggregations": [
+              {
+                "metricName": "ash.action.duration.bucket",
+                "spaceAggregation": "p95",
+                "timeAggregation": ""
+              }
+            ],
+            "filter": {
+              "expression": ""
+            },
+            "groupBy": [
+              {
+                "name": "service.name",
+                "fieldContext": "resource",
+                "fieldDataType": "string"
+              }
+            ],
+            "legend": "",
+            "stepInterval": 60
+          }
+        }
+      ],
+      "unit": "ms"
+    },
+    "selectedQueryName": "A",
+    "thresholds": {
+      "kind": "basic",
+      "spec": [
+        {
+          "name": "warning",
+          "op": "above",
+          "target": 500,
+          "matchType": "all_the_times",
+          "channels": [],
+          "targetUnit": "ms"
+        }
+      ]
+    }
+  },
+  "evaluation": {
+    "kind": "rolling",
+    "spec": {
+      "evalWindow": "15m",
+      "frequency": "1m"
+    }
+  },
+  "labels": {
+    "severity": "warning",
+    "category": "latency",
+    "slo": "ash-action-p95-500ms",
+    "provisioned": "ash-enterprise-slo"
+  },
+  "notificationSettings": {
+    "usePolicy": true,
+    "renotify": {
+      "enabled": false,
+      "interval": "30m",
+      "alertStates": [
+        "firing"
+      ]
+    }
+  },
+  "ruleType": "threshold_rule",
+  "schemaVersion": "v2alpha1",
+  "version": "v5"
+}

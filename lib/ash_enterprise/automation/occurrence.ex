@@ -37,6 +37,12 @@ defmodule AshEnterprise.Automation.Occurrence do
   writers (`AshEnterprise.Automation.Occurrences`) run it as the `oban` system actor.
   Reading follows the grant union like any tenant row, and another tenant never sees it.
 
+  ## Alerts open incidents
+
+  An `alert.firing` or `alert.resolved` occurrence opens, joins or closes an
+  `AshEnterprise.Automation.Incident` in the same transaction
+  (`AshEnterprise.Automation.Changes.TrackIncident`).
+
   Not exposed over any API.
   """
 
@@ -60,6 +66,7 @@ defmodule AshEnterprise.Automation.Occurrence do
       primary? true
       accept [:event_id, :source, :type, :subject, :time, :data]
       validate AshEnterprise.Automation.Validations.FactsOnly
+      change AshEnterprise.Automation.Changes.TrackIncident
     end
   end
 

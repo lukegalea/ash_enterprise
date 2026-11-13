@@ -82,6 +82,10 @@ defmodule AshEnterpriseWeb.Endpoint do
   plug Plug.RequestId
   plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint]
 
+  # GET /health only, ahead of the session and the router: no sign-in, no cookie, no data.
+  # See AshEnterpriseWeb.Plugs.Health.
+  plug AshEnterpriseWeb.Plugs.Health
+
   # Provider webhooks (ADR 0063): POST /webhooks/:provider only, ahead of Plug.Parsers
   # because a signature covers the exact bytes and the ingress reads them itself. Every
   # other request passes through untouched.

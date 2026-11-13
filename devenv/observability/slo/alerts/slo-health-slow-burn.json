@@ -1,0 +1,115 @@
+{
+  "alert": "SLO /health availability: error budget burning slowly",
+  "alertType": "TRACES_BASED_ALERT",
+  "description": "More than 3% of /health probes failed over six hours: six times the rate a 99.5% availability objective over 30 days allows, so at this pace the month's budget is gone in about five days.",
+  "annotations": {
+    "summary": "{{$service.name}}: {{$value}}% of /health probes failed",
+    "description": "More than 3% of /health probes failed over six hours: six times the rate a 99.5% availability objective over 30 days allows, so at this pace the month's budget is gone in about five days."
+  },
+  "condition": {
+    "compositeQuery": {
+      "queryType": "builder",
+      "panelType": "graph",
+      "queries": [
+        {
+          "type": "builder_query",
+          "spec": {
+            "name": "A",
+            "signal": "traces",
+            "aggregations": [
+              {
+                "expression": "count()"
+              }
+            ],
+            "filter": {
+              "expression": "kind_string = 'Server' AND url.path = '/health' AND http.response.status_code >= 500"
+            },
+            "groupBy": [
+              {
+                "name": "service.name",
+                "fieldContext": "resource",
+                "fieldDataType": "string"
+              }
+            ],
+            "legend": "",
+            "disabled": true,
+            "stepInterval": 60
+          }
+        },
+        {
+          "type": "builder_query",
+          "spec": {
+            "name": "B",
+            "signal": "traces",
+            "aggregations": [
+              {
+                "expression": "count()"
+              }
+            ],
+            "filter": {
+              "expression": "kind_string = 'Server' AND url.path = '/health'"
+            },
+            "groupBy": [
+              {
+                "name": "service.name",
+                "fieldContext": "resource",
+                "fieldDataType": "string"
+              }
+            ],
+            "legend": "",
+            "disabled": true,
+            "stepInterval": 60
+          }
+        },
+        {
+          "type": "builder_formula",
+          "spec": {
+            "name": "F1",
+            "expression": "(A / B) * 100",
+            "legend": "{{service.name}}"
+          }
+        }
+      ],
+      "unit": "percent"
+    },
+    "selectedQueryName": "F1",
+    "thresholds": {
+      "kind": "basic",
+      "spec": [
+        {
+          "name": "warning",
+          "op": "above",
+          "target": 3,
+          "matchType": "at_least_once",
+          "channels": []
+        }
+      ]
+    }
+  },
+  "evaluation": {
+    "kind": "rolling",
+    "spec": {
+      "evalWindow": "6h",
+      "frequency": "5m"
+    }
+  },
+  "labels": {
+    "severity": "warning",
+    "category": "availability",
+    "slo": "health-availability-99.5",
+    "provisioned": "ash-enterprise-slo"
+  },
+  "notificationSettings": {
+    "usePolicy": true,
+    "renotify": {
+      "enabled": false,
+      "interval": "30m",
+      "alertStates": [
+        "firing"
+      ]
+    }
+  },
+  "ruleType": "threshold_rule",
+  "schemaVersion": "v2alpha1",
+  "version": "v5"
+}

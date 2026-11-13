@@ -6,8 +6,10 @@ defmodule AshEnterprise.Automation do
   | Resource | What it is |
   |---|---|
   | `Occurrence` | A fact recorded into a tenant's audit chain so that a subscription can match it: a user deactivated, a sign-in refused, a break-glass session approved, an API key issued, an inbound alert |
+  | `Incident` | The alerts that share a key, from the first one that fired until it closes: a duplicate alert joins the open incident |
 
-  `AshEnterprise.Automation.Occurrences` is the only writer. Inbound alerts reach it through
+  `AshEnterprise.Automation.Occurrences` is the only writer of occurrences, and
+  `AshEnterprise.Automation.Incidents` of incidents. Inbound alerts reach the first through
   `AshEnterprise.Automation.AlertWebhook`.
   """
 
@@ -17,6 +19,13 @@ defmodule AshEnterprise.Automation do
     resource AshEnterprise.Automation.Occurrence do
       define :record_occurrence, action: :record
       define :list_occurrences, action: :read
+    end
+
+    resource AshEnterprise.Automation.Incident do
+      define :open_incident, action: :open
+      define :join_incident, action: :join
+      define :close_incident, action: :close, args: [:reason]
+      define :list_incidents, action: :read
     end
   end
 end

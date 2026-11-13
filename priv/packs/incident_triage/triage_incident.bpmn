@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn2:definitions xmlns:bpmn2="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                   xmlns:ash="https://github.com/lukegalea/ash_bpmn/ns"
+                   xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                   xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                   xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   id="Definitions_triage_incident"
+                   targetNamespace="https://ash-enterprise.example/bpmn">
+  <!--
+    Triage an incident (SOC 2 CC7.3 and CC7.4: an event is evaluated and responded to).
+    Started by the pack's recipe when an alert opens an incident: the subject is the
+    AshEnterprise.Automation.Incident. A duplicate alert joins the open incident and starts
+    nothing, so the person on call gets one task per incident.
+
+    The task goes to the On-call role and shows on its holders' task list. Whoever takes it
+    resolves the incident or escalates it to an administrator. When the run ends, the next
+    alert with the same key opens a new incident.
+
+    Human tasks only: nothing here acts on its own. Who is on call, how they are paged, and
+    what a customer is told are the owner's.
+  -->
+  <bpmn2:process id="Process_triage_incident" name="Triage an incident" isExecutable="true">
+
+    <bpmn2:startEvent id="Start" name="Incident opened">
+      <bpmn2:outgoing>Flow_to_triage</bpmn2:outgoing>
+    </bpmn2:startEvent>
+
+    <bpmn2:userTask id="Triage" name="Triage the incident">
+      <bpmn2:extensionElements>
+        <ash:taskConfig>
+          <ash:candidates>
+            <ash:candidate kind="role" of="On-call"/>
+          </ash:candidates>
+          <ash:outcomes>
+            <ash:outcome name="resolved"/>
+            <ash:outcome name="escalate"/>
+          </ash:outcomes>
+        </ash:taskConfig>
+      </bpmn2:extensionElements>
+      <bpmn2:incoming>Flow_to_triage</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_to_route</bpmn2:outgoing>
+    </bpmn2:userTask>
+
+    <bpmn2:exclusiveGateway id="Route" name="Escalated?" default="Flow_resolved">
+      <bpmn2:incoming>Flow_to_route</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_resolved</bpmn2:outgoing>
+      <bpmn2:outgoing>Flow_escalated</bpmn2:outgoing>
+    </bpmn2:exclusiveGateway>
+
+    <bpmn2:endEvent id="EndResolved" name="Resolved on call">
+      <bpmn2:extensionElements><ash:taskConfig outcome="resolved"/></bpmn2:extensionElements>
+      <bpmn2:incoming>Flow_resolved</bpmn2:incoming>
+    </bpmn2:endEvent>
+
+    <bpmn2:userTask id="TakeOver" name="Take over the escalated incident">
+      <bpmn2:extensionElements>
+        <ash:taskConfig>
+          <ash:candidates>
+            <ash:candidate kind="role" of="Administrator"/>
+          </ash:candidates>
+          <ash:outcomes>
+            <ash:outcome name="resolved"/>
+          </ash:outcomes>
+        </ash:taskConfig>
+      </bpmn2:extensionElements>
+      <bpmn2:incoming>Flow_escalated</bpmn2:incoming>
+      <bpmn2:outgoing>Flow_to_end</bpmn2:outgoing>
+    </bpmn2:userTask>
+
+    <bpmn2:endEvent id="EndEscalated" name="Resolved after escalation">
+      <bpmn2:extensionElements><ash:taskConfig outcome="resolved_escalated"/></bpmn2:extensionElements>
+      <bpmn2:incoming>Flow_to_end</bpmn2:incoming>
+    </bpmn2:endEvent>
+
+    <bpmn2:sequenceFlow id="Flow_to_triage" sourceRef="Start" targetRef="Triage"/>
+    <bpmn2:sequenceFlow id="Flow_to_route" sourceRef="Triage" targetRef="Route"/>
+    <bpmn2:sequenceFlow id="Flow_resolved" sourceRef="Route" targetRef="EndResolved"/>
+    <bpmn2:sequenceFlow id="Flow_escalated" sourceRef="Route" targetRef="TakeOver">
+      <bpmn2:conditionExpression xsi:type="bpmn2:tFormalExpression"
+        language="feel">task.outcome = "escalate"</bpmn2:conditionExpression>
+    </bpmn2:sequenceFlow>
+    <bpmn2:sequenceFlow id="Flow_to_end" sourceRef="TakeOver" targetRef="EndEscalated"/>
+  </bpmn2:process>
+
+  <bpmndi:BPMNDiagram id="Diagram_triage_incident">
+    <bpmndi:BPMNPlane id="Plane_triage_incident" bpmnElement="Process_triage_incident">
+      <bpmndi:BPMNShape id="Shape_Start" bpmnElement="Start">
+        <dc:Bounds x="150" y="202" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Triage" bpmnElement="Triage">
+        <dc:Bounds x="240" y="180" width="140" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Route" bpmnElement="Route" isMarkerVisible="true">
+        <dc:Bounds x="430" y="195" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_EndResolved" bpmnElement="EndResolved">
+        <dc:Bounds x="560" y="112" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_TakeOver" bpmnElement="TakeOver">
+        <dc:Bounds x="530" y="250" width="140" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_EndEscalated" bpmnElement="EndEscalated">
+        <dc:Bounds x="730" y="272" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Edge_Flow_to_triage" bpmnElement="Flow_to_triage">
+        <di:waypoint x="186" y="220"/>
+        <di:waypoint x="240" y="220"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_to_route" bpmnElement="Flow_to_route">
+        <di:waypoint x="380" y="220"/>
+        <di:waypoint x="430" y="220"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_resolved" bpmnElement="Flow_resolved">
+        <di:waypoint x="455" y="195"/>
+        <di:waypoint x="455" y="130"/>
+        <di:waypoint x="560" y="130"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_escalated" bpmnElement="Flow_escalated">
+        <di:waypoint x="455" y="245"/>
+        <di:waypoint x="455" y="290"/>
+        <di:waypoint x="530" y="290"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Edge_Flow_to_end" bpmnElement="Flow_to_end">
+        <di:waypoint x="670" y="290"/>
+        <di:waypoint x="730" y="290"/>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn2:definitions>

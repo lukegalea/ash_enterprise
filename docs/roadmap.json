@@ -486,9 +486,11 @@
       "id": "q47",
       "section": "assurance",
       "question": "What is promised about uptime, and what happens when it is missed?",
-      "answer": "Open. No SLO, error budget or status page exists in the repository, and no runbook mentions uptime or an incident. Telemetry exists and nothing is expressed as a target, so there is nothing for an incident to be measured against.",
+      "answer": "Open: the template now says how uptime is expressed and measured, and the promise is still the owner's. `GET /health` answers without a sign-in and carries no data: 200 when the database and the job runner answer, 503 otherwise, the status, the version and each check (`test/ash_enterprise_web/health_test.exs`). A default objective is written down as SigNoz rules and a dashboard (`devenv/observability/slo/`): 99.5% of `/health` probes answered over 30 days, alerted on a fast and a slow error-budget burn and on no probe answered for 10 minutes, and p95 Ash action latency under 500 ms. Those numbers are unmeasured defaults, since nothing has run against them for 30 days. A missed objective is an alert, and an alert that reaches the application opens an incident (q49). What is the owner's: the prober that calls `/health`, the number actually promised to customers, a status page, and what a missed month costs. The SLI is measured where the application answers, so a node that answers nothing shows only as missing probes.",
       "status": "open",
-      "item": "reliability"
+      "item": "reliability",
+      "proof": "test/ash_enterprise_web/health_test.exs",
+      "test": "a failing check answers 503, names the check and says nothing else"
     },
     {
       "id": "q48",
@@ -503,9 +505,11 @@
       "id": "q49",
       "section": "assurance",
       "question": "When something breaks at three in the morning, what happens?",
-      "answer": "Open. `docs/runbooks` holds five runbooks (amber console, audit sensitive values, crypto-shredding, morning brief, provider operations) and none is an incident or on-call runbook. Alerts go nowhere, no rota exists and nothing says who tells the customer. The correlation id makes the investigation possible; nothing makes it start.",
+      "answer": "Open: what happens is now written down, built up to a task, and the rest is the owner's (`docs/runbooks/incident-response.md`). A SigNoz or GlitchTip alert that reaches the inbound alert webhook (q38) is recorded in the key's organization as an `alert.firing` occurrence and opens an incident there; a duplicate for the same rule joins the open incident instead of opening a second, and a resolved alert closes it. Once a person publishes the `incident_triage` pack (`priv/packs/incident_triage/`, installed as drafts, human tasks only), opening an incident gives the tenant's starter On-call role one triage task on the task list, which a person resolves or escalates to an administrator; a person not on call neither sees nor takes it, another tenant's alert opens nothing, and every step is in the audit chain (`test/ash_enterprise/bpmn/incident_triage_pack_test.exs`, and end to end through the webhook in `test/ash_enterprise_web/incident_webhook_test.exs`). Still missing: neither tool signs a webhook, so a relay that holds the key is the owner's; the task list wakes nobody; and the rota, a pager and what the customer is told are the owner's.",
       "status": "open",
-      "item": "reliability"
+      "item": "reliability",
+      "proof": "test/ash_enterprise/bpmn/incident_triage_pack_test.exs",
+      "test": "a duplicate alert joins the open incident instead of opening a second"
     },
     {
       "id": "q50",

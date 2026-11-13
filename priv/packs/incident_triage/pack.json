@@ -1,0 +1,24 @@
+{
+  "name": "incident_triage",
+  "version": 1,
+  "title": "An alert opens an incident, and the person on call triages it",
+  "description": "When an alert opens an incident (a duplicate alert joins the open one instead), give the tenant's On-call role a triage task on the task list. The person who takes it resolves the incident or escalates it to an administrator. Installed as drafts: nothing runs until a person publishes the process and the recipe. Human tasks only: nothing here acts on its own.",
+  "controls": ["CC7.3", "CC7.4"],
+  "processes": [
+    {
+      "key": "incident.triage",
+      "name": "Triage an incident",
+      "file": "triage_incident.bpmn"
+    }
+  ],
+  "recipes": [
+    {
+      "key": "incident.triage.opened",
+      "match_resource": "AshEnterprise.Automation.Incident",
+      "match_action": "open",
+      "match_action_type": "create",
+      "process_key": "incident.triage",
+      "authority": "human_tasks_only"
+    }
+  ]
+}

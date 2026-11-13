@@ -1,0 +1,77 @@
+{
+  "alert": "SLO /health: no probes answered for 10 minutes",
+  "alertType": "TRACES_BASED_ALERT",
+  "description": "No /health request was answered for ten minutes. Either the application is down, so nothing answers, or nothing is probing it, so the availability objective is not being measured. Both need a person.",
+  "annotations": {
+    "summary": "No /health probes answered for 10 minutes",
+    "description": "No /health request was answered for ten minutes: the application is down, or nothing is probing it."
+  },
+  "condition": {
+    "compositeQuery": {
+      "queryType": "builder",
+      "panelType": "graph",
+      "queries": [
+        {
+          "type": "builder_query",
+          "spec": {
+            "name": "A",
+            "signal": "traces",
+            "aggregations": [
+              {
+                "expression": "count()"
+              }
+            ],
+            "filter": {
+              "expression": "kind_string = 'Server' AND url.path = '/health'"
+            },
+            "groupBy": [],
+            "legend": "",
+            "stepInterval": 60
+          }
+        }
+      ],
+      "unit": "none"
+    },
+    "selectedQueryName": "A",
+    "alertOnAbsent": true,
+    "absentFor": 10,
+    "thresholds": {
+      "kind": "basic",
+      "spec": [
+        {
+          "name": "critical",
+          "op": "below",
+          "target": 1,
+          "matchType": "all_the_times",
+          "channels": []
+        }
+      ]
+    }
+  },
+  "evaluation": {
+    "kind": "rolling",
+    "spec": {
+      "evalWindow": "10m",
+      "frequency": "1m"
+    }
+  },
+  "labels": {
+    "severity": "critical",
+    "category": "availability",
+    "slo": "health-availability-99.5",
+    "provisioned": "ash-enterprise-slo"
+  },
+  "notificationSettings": {
+    "usePolicy": true,
+    "renotify": {
+      "enabled": false,
+      "interval": "30m",
+      "alertStates": [
+        "firing"
+      ]
+    }
+  },
+  "ruleType": "threshold_rule",
+  "schemaVersion": "v2alpha1",
+  "version": "v5"
+}

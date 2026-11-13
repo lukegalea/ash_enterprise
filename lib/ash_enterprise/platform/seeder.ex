@@ -110,7 +110,8 @@ defmodule AshEnterprise.Platform.Seeder do
   administrator role granting everything at `:global` (bar the operator-only
   privileges, and `:basic` on the owner-only ones), the starter Data Steward
   role (`ensure_data_steward_role/2`), the starter Judgment certifier role
-  (`ensure_judgment_certifier_role/2`, assigned to nobody), and an admin user.
+  (`ensure_judgment_certifier_role/2`, assigned to nobody), the starter On-call
+  role (`ensure_on_call_role/2`, assigned to nobody), and an admin user.
 
   Returns `%{organization: _, business_unit: _, role: _, user: _}`.
   """
@@ -165,6 +166,7 @@ defmodule AshEnterprise.Platform.Seeder do
     role = seed_admin_role(root, tenant, actor)
     _steward = ensure_data_steward_role(tenant, dry_run?: false)
     _certifier = ensure_judgment_certifier_role(tenant, dry_run?: false)
+    _on_call = ensure_on_call_role(tenant, dry_run?: false)
     user = seed_admin_user(email, password, root, organization)
 
     Security.UserRole
@@ -521,6 +523,48 @@ defmodule AshEnterprise.Platform.Seeder do
     |> Enum.map(
       &ensure_judgment_certifier_role(&1.id, dry_run?: Keyword.get(opts, :dry_run?, true))
     )
+  end
+
+  @on_call "On-call"
+
+  @on_call_description "Triages incidents: an alert that opens an incident gives this role the " <>
+                         "triage task (the incident_triage pack). Held by the people on the rota, " <>
+                         "never implied by Administrator. Seeded by the platform."
+
+  # What the person on call reads to triage: the incident the task is about. Deciding the
+  # task is candidacy (the role's name in the pack's process), not a grant.
+  @on_call_grants [{AshEnterprise.Automation.Incident, :read}]
+
+  @doc "The role the incident triage task goes to."
+  @spec on_call_role() :: String.t()
+  def on_call_role, do: @on_call
+
+  @doc "The `{resource, verb}` grants the On-call role carries, each at its widest depth."
+  @spec on_call_grants() :: [{module(), atom()}]
+  def on_call_grants, do: @on_call_grants
+
+  @doc """
+  Makes sure `tenant` has the starter **On-call** role, the candidates of the
+  `incident_triage` pack's triage task, holding read on incidents.
+
+  Same contract as `ensure_data_steward_role/2`: idempotent, additive, dry run
+  by default, assigns the role to nobody. Who is on call is the tenant's rota:
+  an administrator gives the role to the people on it in the role admin.
+  """
+  @spec ensure_on_call_role(Ash.UUID.t(), keyword()) :: map()
+  def ensure_on_call_role(tenant, opts \\ []) do
+    ensure_role(tenant, @on_call, @on_call_description, @on_call_grants, opts)
+  end
+
+  @doc """
+  `ensure_on_call_role/2` across tenants, as `regrant_data_steward/1`.
+  """
+  @spec regrant_on_call(keyword()) :: [map()]
+  def regrant_on_call(opts \\ []) do
+    opts
+    |> Keyword.get(:tenant)
+    |> steward_tenants()
+    |> Enum.map(&ensure_on_call_role(&1.id, dry_run?: Keyword.get(opts, :dry_run?, true)))
   end
 
   defp ensure_role(tenant, name, description, grants, opts) do
