@@ -145,6 +145,10 @@ defmodule AshEnterprise.Bpmn.Subscription do
 
       change set_attribute(:status, :published)
       change AshBpmn.Resources.Subscription.CompileExpressions
+      # Last, as in publish, so a refused publish retires nothing: the published version
+      # of the same key is retired at the log's boundary in this transaction, and each
+      # event starts a process for one version only.
+      change AshBpmn.Resources.Subscription.SupersedePredecessor
     end
 
     # A pack from `priv/packs/` arrives as drafts and nothing else: never published, enabled

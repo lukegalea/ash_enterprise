@@ -246,16 +246,22 @@ defmodule AshEnterprise.Process.StandingGrantTest do
     team
   end
 
-  # The steps an action runs, by module (and the attribute a built-in names).
+  # The steps an action runs, by module (and the attribute a built-in names). The event
+  # log wraps every change in a replay wrapper, so the step is the change it wraps:
+  # comparing the wrapper would make every change look the same.
   defp step_modules(action_name) do
     Subscription
     |> Ash.Resource.Info.action(action_name)
     |> Map.fetch!(:changes)
-    |> Enum.map(fn
-      %Ash.Resource.Validation{validation: {module, opts}} -> {module, opts[:attribute]}
-      %Ash.Resource.Change{change: {module, opts}} -> {module, opts[:attribute]}
-    end)
+    |> Enum.map(&step/1)
   end
+
+  defp step(%Ash.Resource.Validation{validation: {module, opts}}), do: {module, opts[:attribute]}
+
+  defp step(%Ash.Resource.Change{change: {AshEvents.Events.ReplayChangeWrapper, opts}}),
+    do: step(Keyword.fetch!(opts, :change))
+
+  defp step(%Ash.Resource.Change{change: {module, opts}}), do: {module, opts[:attribute]}
 
   # Whether a resource-wide validation or change, by its `where`, applies to `action_name`.
   defp applies_to?(%{where: where}, action_name) do
@@ -286,11 +292,10 @@ defmodule AshEnterprise.Process.StandingGrantTest do
           do: {module, opts[:attribute]}
 
     changes =
-      for %Ash.Resource.Change{change: {module, opts}} = c <-
-            Ash.Resource.Info.changes(Subscription),
+      for %Ash.Resource.Change{} = c <- Ash.Resource.Info.changes(Subscription),
           :update in c.on,
           applies_to?(c, action_name),
-          do: {module, opts[:attribute]}
+          do: step(c)
 
     validations ++ changes
   end
@@ -451,6 +456,83 @@ defmodule AshEnterprise.Process.StandingGrantTest do
 
       assert grant!(v1).id != grant!(v2).id
       assert grant!(v2).agent_key == "recipe:#{recipe}:#{v2.version}"
+    end
+  end
+
+  # publish_granted restates publish, so it must retire the version it replaces the way
+  # publish does (`AshBpmn.Resources.Subscription.SupersedePredecessor`): otherwise v1
+  # stays published beside v2 and one event starts a process for each.
+  describe "a standing grant's next version supersedes the one before" do
+    test "another tenant's publish leaves this tenant's v1 published", ctx do
+      key = process!(ctx.tenant, @check_expiry)
+      recipe = "standing.supersede.#{unique()}"
+      v1 = ctx.tenant |> draft!(key, recipe) |> publish_granted!(ctx.publisher)
+
+      other = clinic!()
+
+      other_publisher =
+        DailyFixtures.member!(
+          other.admin,
+          "Recipe publisher #{unique()}",
+          @subscription_grants ++ [{Credential, :read, :global}]
+        )
+
+      other_key = process!(other.tenant, @check_expiry, key)
+      other_v1 = other.tenant |> draft!(other_key, recipe) |> publish_granted!(other_publisher)
+      other_v2 = other.tenant |> draft!(other_key, recipe) |> publish_granted!(other_publisher)
+
+      assert Ash.reload!(other_v1, authorize?: false).status == :retired
+      assert other_v2.status == :published
+
+      v1 = Ash.reload!(v1, authorize?: false)
+      assert {v1.status, v1.retired_sequence} == {:published, nil}
+    end
+
+    test "an administrator cannot run supersede directly", ctx do
+      key = process!(ctx.tenant, @check_expiry)
+      v1 = ctx.tenant |> draft!(key) |> publish_granted!(ctx.publisher)
+
+      # Even with the boundary supplied the way only code can (a private argument), a
+      # call that is not a publish's is refused.
+      for opts <- [[], [private_arguments: %{retired_sequence: 1}]] do
+        assert {:error, _} =
+                 result =
+                 v1
+                 |> Ash.Changeset.for_update(
+                   :supersede,
+                   %{},
+                   [actor: ctx.admin.actor, tenant: ctx.tenant] ++ opts
+                 )
+                 |> Ash.update()
+
+        assert message(result) =~ "supersede is run by publish"
+      end
+
+      v1 = Ash.reload!(v1, authorize?: false)
+      assert {v1.status, v1.retired_sequence} == {:published, nil}
+    end
+
+    test "publishing v2 retires v1 at a boundary, and an event then starts one process",
+         ctx do
+      key = process!(ctx.tenant, @check_expiry)
+      recipe = "standing.supersede.#{unique()}"
+
+      v1 = ctx.tenant |> draft!(key, recipe) |> publish_granted!(ctx.publisher)
+      v2 = ctx.tenant |> draft!(key, recipe) |> publish_granted!(ctx.publisher)
+
+      v1 = Ash.reload!(v1, authorize?: false)
+      assert v1.status == :retired
+      assert is_integer(v1.retired_sequence)
+      assert v2.status == :published
+      assert v2.effective_sequence == v1.retired_sequence
+
+      runner_role!(ctx.admin, [{Credential, :read, :global}])
+      record_credential!(ctx)
+      sweep!(ctx.tenant)
+
+      {dispatch, _instance} = started!(ctx.tenant)
+      assert dispatch.subscription_id == v2.id
+      assert [_one] = Ash.read!(Instance, authorize?: false, tenant: ctx.tenant)
     end
   end
 
