@@ -18,7 +18,6 @@ defmodule AshEnterprise.Accounts.Offboarding.Actions.Open do
 
   alias AshAgent.BusinessError
   alias AshEnterprise.Accounts.{Offboarding, User}
-  alias AshEnterprise.Accounts.Offboarding.Holdings
   alias AshEnterprise.Automation.{Occurrence, Occurrences}
 
   @impl true
@@ -68,24 +67,11 @@ defmodule AshEnterprise.Accounts.Offboarding.Actions.Open do
     |> Ash.read_one(opts)
   end
 
+  # The leaver, their state and their holdings are read from the occurrence by `record`
+  # itself (`Offboarding.Changes.RecordFromDeactivation`), not passed in.
   defp record(occurrence, opts) do
-    leaver_id = occurrence.subject
-    state = leaver_state(leaver_id)
-
-    holdings =
-      if state == :inactive, do: Holdings.of(leaver_id, Keyword.fetch!(opts, :tenant)), else: %{}
-
     Offboarding
-    |> Ash.Changeset.for_create(
-      :record,
-      %{
-        occurrence_id: occurrence.id,
-        leaver_id: leaver_id,
-        leaver_state: state,
-        holdings: holdings
-      },
-      opts
-    )
+    |> Ash.Changeset.for_create(:record, %{occurrence_id: occurrence.id}, opts)
     |> Ash.create()
   end
 

@@ -36,7 +36,11 @@ defmodule AshEnterprise.Accounts.Offboarding do
   (`AshEnterprise.Accounts.Changes.RevokeTokensOnDeactivation`). It is bounded by
   construction: the update is authorized as the caller on this organization's row, and it
   acts only on the person a platform-written deactivation names, only while they are still
-  inactive.
+  inactive. The row's leaver comes from that deactivation and from nowhere else: `record`
+  accepts only the occurrence, reads it as the caller in this organization, refuses one that
+  is not a deactivation, and reads the leaver, their state and their holdings from it
+  (`AshEnterprise.Accounts.Offboarding.Changes.RecordFromDeactivation`). `revoke` accepts
+  nothing.
 
   ## What is not ended
 
@@ -136,8 +140,14 @@ defmodule AshEnterprise.Accounts.Offboarding do
     defaults [:read]
 
     create :record do
-      description "Records a leaver's offboarding. Written by `open`."
-      accept [:occurrence_id, :leaver_id, :leaver_state, :holdings]
+      description """
+      Records a leaver's offboarding from the `user.deactivated` occurrence it names: the
+      leaver, their state and their holdings are read from it, never taken from the caller.
+      Written by `open`.
+      """
+
+      accept [:occurrence_id]
+      change AshEnterprise.Accounts.Offboarding.Changes.RecordFromDeactivation
     end
 
     update :revoke do

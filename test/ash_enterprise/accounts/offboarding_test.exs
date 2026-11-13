@@ -342,6 +342,100 @@ defmodule AshEnterprise.Accounts.OffboardingTest do
       assert offboardings(other.tenant) == []
     end
 
+    test "record takes only the occurrence: a leaver, state or holdings from the caller is refused",
+         ctx do
+      other = tenant!()
+      outsider = colleague!(other)
+      key = api_key!(outsider)
+      deactivate!(outsider)
+
+      assert {:error, %Ash.Error.Invalid{}} =
+               Offboarding
+               |> Ash.Changeset.for_create(
+                 :record,
+                 %{
+                   occurrence_id: Ash.UUID.generate(),
+                   leaver_id: outsider.user.id,
+                   leaver_state: :inactive,
+                   holdings: %{"note" => "forged"}
+                 },
+                 actor: ctx.admin.actor,
+                 tenant: ctx.tenant
+               )
+               |> Ash.create()
+
+      assert offboardings(ctx.tenant) == []
+      assert live_key?(key)
+    end
+
+    test "record refuses an occurrence that is no deactivation, another tenant's, or none", ctx do
+      refused =
+        Automation.record_occurrence!(
+          %{
+            source: Occurrences.source(),
+            event_id: "#{Occurrences.sign_in_refused()}:#{unique()}",
+            type: Occurrences.sign_in_refused(),
+            subject: ctx.leaver.user.id,
+            time: DateTime.utc_now(),
+            data: %{"reason" => "bad_password"}
+          },
+          actor: SystemActor.oban(),
+          tenant: ctx.tenant
+        )
+
+      other = tenant!()
+      outsider = colleague!(other)
+      key = api_key!(outsider)
+      deactivate!(outsider)
+      elsewhere = occurrence!(other.tenant, Occurrences.deactivated())
+
+      for id <- [refused.id, elsewhere.id, Ash.UUID.generate()] do
+        assert {:error, %Ash.Error.Invalid{} = error} =
+                 Offboarding
+                 |> Ash.Changeset.for_create(:record, %{occurrence_id: id},
+                   actor: ctx.admin.actor,
+                   tenant: ctx.tenant
+                 )
+                 |> Ash.create()
+
+        assert Exception.message(error) =~ "not a deactivation recorded in this organization"
+      end
+
+      assert offboardings(ctx.tenant) == []
+      assert offboardings(other.tenant) == []
+      assert live_key?(key)
+    end
+
+    test "a row recorded directly names only the person its deactivation names", ctx do
+      key = api_key!(ctx.leaver)
+      deactivate!(ctx.leaver)
+      deactivation = occurrence!(ctx.tenant, Occurrences.deactivated())
+
+      offboarding =
+        Offboarding
+        |> Ash.Changeset.for_create(:record, %{occurrence_id: deactivation.id},
+          actor: ctx.admin.actor,
+          tenant: ctx.tenant
+        )
+        |> Ash.create!()
+
+      assert offboarding.leaver_id == ctx.leaver.user.id
+      assert offboarding.leaver_state == :inactive
+      refute offboarding.holdings == %{}
+      refute Map.has_key?(offboarding.holdings, "note")
+
+      # revoke accepts nothing, so it acts on that person and on nobody else.
+      assert {:error, %Ash.Error.Invalid{}} =
+               offboarding
+               |> Ash.Changeset.for_update(:revoke, %{leaver_id: Ash.UUID.generate()},
+                 actor: ctx.admin.actor,
+                 tenant: ctx.tenant
+               )
+               |> Ash.update()
+
+      assert live_key?(key)
+    end
+
     for {how, change} <- [
           revoked: :revoke,
           lapsed: :lapse
