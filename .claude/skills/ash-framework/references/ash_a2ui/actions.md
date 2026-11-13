@@ -1,7 +1,8 @@
-# Actions: routing client envelopes into Ash
+# Actions: routing renderer messages into Ash
 
-Every inbound A2UI `action` envelope must go through
-`AshA2ui.ActionHandler.handle/3`. It validates the envelope, enforces the
+Every inbound A2UI renderer-to-agent message (a `callAgentFunction` for
+`ashAction`, a `rendererFunctionResponse` or an `error`) must go through
+`AshA2ui.ActionHandler.handle/3`. It validates the message, enforces the
 DSL allowlist, invokes the Ash action with the actor, and maps errors onto
 the reserved data-model paths. Calling Ash actions directly from transport
 code skips all of that.
@@ -9,7 +10,7 @@ code skips all of that.
 ## `handle/3` contract
 
 ```elixir
-AshA2ui.ActionHandler.handle(resource_or_ui_module, envelope,
+AshA2ui.ActionHandler.handle(resource_or_ui_module, message,
   actor: current_user,
   tenant: tenant          # optional
   # authorize?: true      # the default — leave it on
@@ -20,9 +21,11 @@ AshA2ui.ActionHandler.handle(resource_or_ui_module, envelope,
 - The first argument is a resource using the `AshA2ui` extension or an
   `AshA2ui.Standalone` UI module — the same module you pass to
   `AshA2ui.Info.build_surface/2`.
-- The envelope may be the full client->server message
-  (`%{"version" => ..., "action" => %{"name" => ..., "context" => ...}}`)
-  or a bare inner action map — both are accepted.
+- The message is one full renderer-to-agent message, verbatim:
+  `%{"version" => "1.0", "callAgentFunction" => ...}` (an `ashAction`
+  call; `args.name` and `args.context` carry the action). A plain
+  `"action"` event is refused with an `UNKNOWN_FUNCTION` `/ui/feedback`
+  error and runs nothing; a malformed message returns `{:error, []}`.
 - Push the returned messages to the client **for both `{:ok, _}` and
   `{:error, _}`** — error messages carry the validation feedback the
   renderer must display.
@@ -61,7 +64,7 @@ hook is `select_context`, whose row button reads "Select <context>".
 
 ## The core action names
 
-The core envelope names are `"submit_form"`, `"invoke"`, `"prompt"`,
+The core action names are `"submit_form"`, `"invoke"`, `"prompt"`,
 `"query"` and the four task-panel actions above. Feature-specific names exist only when the
 surface declares the feature: the context actions (`ash_a2ui:contexts`),
 the relationship-picker actions (`ash_a2ui:relationships`), `"edit_cell"`
@@ -69,8 +72,8 @@ the relationship-picker actions (`ash_a2ui:relationships`), `"edit_cell"`
 the declared update action, with validation errors mirrored into the
 failing row's `_error_<field>` key), `"report"` (`:report` components —
 runs the declared generic action; `ash_a2ui:reports`), `"export"`
-(components with an `export` block — answers with the `downloadFile`
-callFunction; `ash_a2ui:reports`), `"bulk_invoke"` / `"bulk_select"`
+(components with an `export` block — answers with a `callRendererFunction`
+calling `downloadFile`; `ash_a2ui:reports`), `"bulk_invoke"` / `"bulk_select"`
 (tables with `bulk_actions` — see "Bulk actions" below) and `"wizard_next"` /
 `"wizard_back"` (forms declaring `step`s — Next builds the form action's
 changeset over the carried `/form` through the same path `submit_form` writes
@@ -138,18 +141,24 @@ them:
   `start_create`/`cancel_record_task`; populated by `start_edit`.
 - `/errors/<field>` — per-field validation error text; `/errors` is cleared
   to `%{}` on success.
-- `/ui/feedback` — the typed outcome of **every** action:
-  `%{"kind" => "success" | "warning" | "error", "message" => text}`
-  (success text, validation summary, rejection reason, "not authorized").
-  The status Text binds `/ui/feedback/message`; the admin statusBanner binds
-  both keys. On v1.0 surfaces the same outcome is also the structured
-  `/ui/response` object and the `actionResponse` handshake.
+- `/ui/feedback` — the typed outcome of **every** action, always the full
+  map `%{"kind", "message", "code", "functionCallId", "result",
+  "resultText"}`. `kind` is `""` (idle), `"pending"`, `"success"`,
+  `"warning"` or `"error"`; `message` is the success text, validation
+  summary, rejection reason or "not authorized"; `code` is the error code
+  (`VALIDATION_FAILED`, `FORBIDDEN`, `ACTION_FAILED`, `INVALID_ACTION`,
+  `UNKNOWN_ACTION`, `READ_ONLY_AS_OF`). The status Text binds
+  `/ui/feedback/message`; the admin statusBanner binds the map. An
+  `ashAction` call is answered last by an `agentFunctionResponse` carrying
+  the same `functionCallId` (`value` on success, `error {code, message}`
+  on failure).
 - `/ui/intent` and `/ui/panel/*` — the task panel's state (`visible`,
   `mode`, `title`, `primary_label`, `record_id`, the `submit_visible` /
   `form_visible` / `view_visible` sentinels, and `record` — the read-only
   display values of a `view_record`).
-- `/ui/action_result` — the map result of a map-returning generic action
-  (an AshA2ui handler convention, not part of the A2UI spec).
+- `/ui/feedback/result` and `/ui/feedback/resultText` — the map result of
+  a map-returning generic action and its display text (an AshA2ui handler
+  convention, not part of the A2UI spec).
 - `/query` — the authoritative query state on query-enabled surfaces,
   written after `query` actions and query-aware success refreshes
   (multi-table surfaces: `/query/<component_name>` per query-attached
@@ -310,7 +319,7 @@ end
   without a query, Select page marks at most the bulk cap's worth of rows.
 - No `prompt_fields` on bulk actions, no bulk actions on related tables or
   `display :board` tables,
-  and bulk actions are not exposed as AG-UI tools. Full contract in the
+  and bulk actions are not exposed as LLM tools. Full contract in the
   bulk-actions topic.
 
 ## Rules

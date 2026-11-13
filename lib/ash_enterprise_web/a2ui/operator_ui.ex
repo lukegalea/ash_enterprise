@@ -24,7 +24,6 @@ defmodule AshEnterpriseWeb.A2ui.AccountsUI do
     surface_id "accounts"
     title "Accounts & syncs"
     record_label "linked account"
-    spec_version "1.0"
 
     context :account do
       resource AshEnterprise.Integration.LinkedAccount
@@ -171,7 +170,6 @@ defmodule AshEnterpriseWeb.A2ui.ErasureUI do
     surface_id "erasure_scopes"
     title "Erasure scopes"
     record_label "erasure scope"
-    spec_version "1.0"
 
     query :scopes do
       search_fields [:label, :ref]
@@ -296,7 +294,6 @@ defmodule AshEnterpriseWeb.A2ui.ErasureReadOnlyUI do
     surface_id "erasure_scopes_read_only"
     title "Erasure scopes"
     record_label "erasure scope"
-    spec_version "1.0"
 
     query :scopes do
       search_fields [:label, :ref]

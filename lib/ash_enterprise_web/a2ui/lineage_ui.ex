@@ -27,7 +27,6 @@ defmodule AshEnterpriseWeb.A2ui.LineageUI do
     surface_id "lineage"
     title "Lineage"
     record_label "run"
-    spec_version "1.0"
 
     context :window do
       resource AshEnterprise.Lineage.Window

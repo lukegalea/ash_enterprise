@@ -70,16 +70,16 @@ defmodule AshEnterpriseWeb.ShowcaseCredentialingDurabilityTest do
     {:ok, approvals, _html} = live(sign_in(hd(clinic.committee)), "/app/approvals")
     assert_push_event(approvals, "a2ui:messages", %{messages: _}, 5_000)
 
-    render_hook(approvals, "a2ui:action", %{
-      "version" => "v1.0",
-      "action" => %{
-        "name" => "invoke",
-        "surfaceId" => "approvals",
-        "sourceComponentId" => "data_grid",
-        "timestamp" => DateTime.to_iso8601(DateTime.utc_now()),
-        "context" => %{"action" => "approve", "recordId" => request.task_id}
-      }
-    })
+    render_hook(
+      approvals,
+      "a2ui:message",
+      AshEnterprise.A2uiMessage.ash_action(
+        "approvals",
+        "invoke",
+        %{"action" => "approve", "recordId" => request.task_id},
+        source: "data_grid"
+      )
+    )
 
     # Applied as the `:apply_decision` job applies it; the `:execute` job it enqueues
     # runs for real and is killed between the registry and the record.

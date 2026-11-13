@@ -165,8 +165,8 @@ defmodule AshEnterprise.AcpExtMethodsTest do
       do: Enum.find_value(a2ui, &get_in(&1, ["createSurface", "catalogId"]))
 
     test "a client with only the basic catalog gets it, and so do its actions' updates" do
-      basic = "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json"
-      {result, sid, state} = open_with(%{"v1.0" => %{"supportedCatalogIds" => [basic]}})
+      ids = [AshA2ui.Encoder.basic_catalog_id(), AshA2ui.Encoder.ash_catalog_id()]
+      {result, sid, state} = open_with(%{"1.0" => %{"supportedCatalogIds" => ids}})
 
       assert catalog_id(result["a2ui"]) =~ "/catalogs/basic/"
       refute Map.has_key?(result, "fallback")
@@ -175,10 +175,12 @@ defmodule AshEnterprise.AcpExtMethodsTest do
         rpc(state, "_a2ui/action", %{
           "sessionId" => sid,
           "surfaceId" => result["surfaceId"],
-          "action" => %{
-            "name" => "query",
-            "context" => %{"component" => "table", "query" => %{}, "page" => 1}
-          }
+          "action" =>
+            AshEnterprise.A2uiMessage.ash_action(result["surfaceId"], "query", %{
+              "component" => "table",
+              "query" => %{},
+              "page" => 1
+            })
         })
 
       assert %{"outcome" => "applied", "a2ui" => updates} = resp["result"]
@@ -195,17 +197,24 @@ defmodule AshEnterprise.AcpExtMethodsTest do
     test "a client listing the admin catalog gets it" do
       {result, _sid, _state} =
         open_with(%{
-          "v1.0" => %{"supportedCatalogIds" => ["https://ash-a2ui.dev/catalogs/admin/v1"]}
+          "1.0" => %{
+            "supportedCatalogIds" => [
+              AshA2ui.Encoder.basic_catalog_id(),
+              AshA2ui.Encoder.ash_catalog_id(),
+              "https://github.com/lukegalea/ash_a2ui/catalogs/admin/v2"
+            ]
+          }
         })
 
-      assert catalog_id(result["a2ui"]) == "https://ash-a2ui.dev/catalogs/admin/v1"
+      assert catalog_id(result["a2ui"]) ==
+               "https://github.com/lukegalea/ash_a2ui/catalogs/admin/v2"
     end
 
     test "a client that renders none of them gets the fallback and no surface" do
       for capabilities <- [
-            %{"v1.0" => %{"supportedCatalogIds" => []}},
-            %{"v1.0" => %{"supportedCatalogIds" => ["https://example.com/kiosk.json"]}},
-            %{"v1.0" => %{}},
+            %{"1.0" => %{"supportedCatalogIds" => []}},
+            %{"1.0" => %{"supportedCatalogIds" => ["https://example.com/kiosk.json"]}},
+            %{"1.0" => %{}},
             "basic"
           ] do
         {result, sid, _state} = open_with(capabilities)
@@ -227,10 +236,11 @@ defmodule AshEnterprise.AcpExtMethodsTest do
       rpc(state, "_a2ui/action", %{
         "sessionId" => sid,
         "surfaceId" => "people",
-        "action" => %{
-          "name" => "context_select",
-          "context" => %{"context" => "person", "value" => ada.id}
-        }
+        "action" =>
+          AshEnterprise.A2uiMessage.ash_action("people", "context_select", %{
+            "context" => "person",
+            "value" => ada.id
+          })
       })
 
     assert %{"outcome" => "applied", "a2ui" => a2ui} = resp["result"]
@@ -238,6 +248,38 @@ defmodule AshEnterprise.AcpExtMethodsTest do
     assert Enum.any?(a2ui, fn message ->
              match?(%{"updateDataModel" => %{"path" => "/context"}}, message)
            end)
+  end
+
+  test "_a2ui/action refuses a plain action event: only an ashAction call drives a surface" do
+    ctx = tenant!()
+    ada = person!(ctx, "ada@example.test", "Ada Park")
+    {_init, sid, state} = session(ctx)
+
+    plain = %{
+      "version" => "1.0",
+      "action" => %{
+        "name" => "context_select",
+        "surfaceId" => "people",
+        "sourceComponentId" => "data_grid",
+        "timestamp" => "2030-01-01T00:00:00Z",
+        "context" => %{"context" => "person", "value" => ada.id}
+      }
+    }
+
+    {resp, [], state} =
+      rpc(state, "_a2ui/action", %{"sessionId" => sid, "surfaceId" => "people", "action" => plain})
+
+    assert %{"code" => -32_602, "message" => message} = resp["error"]
+    assert message =~ "callAgentFunction"
+
+    # The renderer functions are no door either: another function is refused too.
+    other = AshEnterprise.A2uiMessage.ash_action("people", "context_select", %{})
+    other = put_in(other, ["callAgentFunction", "callFunction", "@call"], "downloadFile")
+
+    {resp, [], _state} =
+      rpc(state, "_a2ui/action", %{"sessionId" => sid, "surfaceId" => "people", "action" => other})
+
+    assert resp["error"]["code"] == -32_602
   end
 
   test "_a2ui/action asks before a write, then applies it as the actor" do
@@ -248,10 +290,12 @@ defmodule AshEnterprise.AcpExtMethodsTest do
     approve = %{
       "sessionId" => sid,
       "surfaceId" => "today",
-      "action" => %{
-        "name" => "invoke",
-        "context" => %{"action" => "approve", "recordId" => brief.id, "component" => "brief"}
-      }
+      "action" =>
+        AshEnterprise.A2uiMessage.ash_action("today", "invoke", %{
+          "action" => "approve",
+          "recordId" => brief.id,
+          "component" => "brief"
+        })
     }
 
     {nil, [permission], state} = rpc(state, "_a2ui/action", approve)
@@ -282,10 +326,12 @@ defmodule AshEnterprise.AcpExtMethodsTest do
       rpc(state, "_a2ui/action", %{
         "sessionId" => sid,
         "surfaceId" => "today",
-        "action" => %{
-          "name" => "invoke",
-          "context" => %{"action" => "reject", "recordId" => brief.id, "component" => "brief"}
-        }
+        "action" =>
+          AshEnterprise.A2uiMessage.ash_action("today", "invoke", %{
+            "action" => "reject",
+            "recordId" => brief.id,
+            "component" => "brief"
+          })
       })
 
     {resp, _settled, _state} =
@@ -320,10 +366,11 @@ defmodule AshEnterprise.AcpExtMethodsTest do
       rpc(state, "_a2ui/action", %{
         "sessionId" => sid,
         "surfaceId" => "tasks",
-        "action" => %{
-          "name" => "prompt",
-          "context" => %{"action" => "complete_task", "recordId" => task.id}
-        }
+        "action" =>
+          AshEnterprise.A2uiMessage.ash_action("tasks", "prompt", %{
+            "action" => "complete_task",
+            "recordId" => task.id
+          })
       })
 
     assert %{"outcome" => "applied", "a2ui" => a2ui} = resp["result"]

@@ -22,14 +22,11 @@ defmodule AshEnterpriseWeb.A2ui.AccountsUITest do
   defp bulk(person, accounts) do
     AshA2ui.ActionHandler.handle(
       AccountsUI,
-      %{
-        "name" => "bulk_invoke",
-        "context" => %{
-          "action" => "sync_now",
-          "component" => "table",
-          "records" => Enum.map(accounts, &%{"id" => &1.id, "_selected" => true})
-        }
-      },
+      AshEnterprise.A2uiMessage.ash_action(AccountsUI, "bulk_invoke", %{
+        "action" => "sync_now",
+        "component" => "table",
+        "records" => Enum.map(accounts, &%{"id" => &1.id, "_selected" => true})
+      }),
       actor: person.actor,
       tenant: person.tenant
     )

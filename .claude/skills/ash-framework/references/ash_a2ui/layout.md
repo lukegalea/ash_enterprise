@@ -117,24 +117,24 @@ topics for the full contracts.
 
 ## List rows (`display :rows`)
 
-- A record page's related lines (a contract's services and prices, its
-  amendments) read as a stack of rows, not a grid: `display :rows` plus a
+- A record page's related lines (an order's items and prices, its
+  shipments) read as a stack of rows, not a grid: `display :rows` plus a
   `row_layout`. The layout's `trailing` fields sit at the row's end,
   right-aligned (an amount, a due date); its `expand` fields show only when
   the row is opened, and declaring any makes every row a disclosure:
 
   ```elixir
-  component :table, :lines do
-    label "Properties & pricing"
-    resource MyApp.ContractLine
+  component :table, :items do
+    label "Items"
+    resource MyApp.OrderItem
     display :rows
-    fields [:service_name, :period, :price, :scope_of_work]
-    context_filter contract_id: :contract
+    fields [:product_name, :delivery_window, :price, :notes]
+    context_filter order_id: :order
 
     row_layout do
-      title :service_name
+      title :product_name
       trailing [:price]
-      expand [:scope_of_work]
+      expand [:notes]
     end
   end
   ```
@@ -147,7 +147,7 @@ topics for the full contracts.
   rows uses them; one that ignores them draws the grid with every column.
   The basic card has no trailing slot or disclosure: both join its
   metadata grid.
-- Lines that belong to something (a contract's lines per property) group
+- Lines that belong to something (an order's items per warehouse) group
   with `group_by`: each run of consecutive rows sharing its value is headed
   once, with `group_subtitle` under the header and `group_icon` beside it.
   Rows are grouped as they arrive, so sort the table's read (or its query)
@@ -155,18 +155,159 @@ topics for the full contracts.
 
   ```elixir
   row_layout do
-    group_by :property_name
-    group_subtitle :property_address
+    group_by :warehouse_name
+    group_subtitle :warehouse_address
     group_icon "home"
-    title :service_name
+    title :product_name
     trailing [:price]
   end
   ```
 
+- A row about a file reads as a document row: its type as a `leading` code
+  before the title (`"PDF"`), and a trailing link that downloads it
+  (`link_url :uri` plus `download true` on the field). Admin catalog 1.15:
+  the column carries `"placement": "leading"`; the basic card keeps it in its
+  metadata grid.
+- A line under a table's rows, in the same card ("2 versions on file"), is a
+  `footer_note :field` on the table (a field of its context record, read
+  like a `section_note`), with an optional `footer_link href: "#history",
+  label: "All versions"`. Admin catalog only: the dataGrid's `footerNote`
+  and `footerLink`.
 - `group_subtitle` and `group_icon` need a `group_by`; both fields must be
   the table's and drop out of the default `meta`. Admin catalog 1.14: their
   columns carry `"placement": "group" | "groupSubtitle"` and the dataGrid
   `groupIcon`; the basic card shows them in its metadata grid.
+
+## Cards (`display :cards`)
+
+- Records that each read as a small document (an order's notes, a policy's
+  terms) draw one card per row: `display :cards` plus a `row_layout`. The
+  layout's `title` and `badge` head the card, its `meta` fields are
+  labeled rows, and its `expand` fields fold under a disclosure named by
+  `expand_label`:
+
+  ```elixir
+  component :table, :terms do
+    resource MyApp.OrderTerm
+    display :cards
+    fields [:name, :status_text, :details, :original_text]
+    context_filter order_id: :order
+
+    row_layout do
+      title :name
+      badge :status_text          # a string already in words shows as written
+      meta [:details]
+      expand [:original_text]
+      expand_label "Show original text"
+    end
+  end
+
+  field :details, do: pairs(true)
+  ```
+
+- A field's `pairs true` says its value is a list of
+  `%{"term" => _, "value" => _}` maps (an `{:array, :map}` calculation):
+  labeled values whose labels differ per record. The renderer draws one
+  labeled row per pair.
+- `display :cards` without a `row_layout`, and `expand_label` without
+  `expand` fields, do not compile. `expand_label` translates as metadata.
+- Admin catalog 1.16: the dataGrid carries `"layout": "cards"` and
+  `expandLabel`, and the pairs column `"pairs": true`. A renderer that
+  ignores them draws the grid. The basic catalog draws its usual card,
+  with the expand fields in its metadata grid.
+
+## Step fields (`steps true`)
+
+- A detail value that is a sequence of stages (an order's fulfilment:
+  Placed → Packed → Shipped → Delivered) draws as a numbered stepper: a
+  field whose value is a list of step maps, declared `steps true`.
+
+  ```elixir
+  # on MyApp.Order: one map per step
+  calculate :fulfilment, {:array, :map}, MyApp.Order.Fulfilment do
+    public? true
+  end
+
+  # [%{label: "Placed",    text: "3 Nov 2026", state: :complete},
+  #  %{label: "Packed",    text: "4 Nov 2026", state: :complete},
+  #  %{label: "Shipped",   text: "Not yet",    state: :current,
+  #    note: "Waiting for the carrier"},
+  #  %{label: "Delivered", text: "Not yet",    state: :upcoming}]
+
+  component :detail, :fulfilment do
+    context :order
+    fields [:fulfilment]
+  end
+
+  field :fulfilment do
+    steps true
+    empty_text "Not placed yet"
+  end
+  ```
+
+- Each step: `label` (required), `text` (the line under the label: a date,
+  "Not yet"), `note` (a smaller line) and `state`, one of `complete`,
+  `current`, `upcoming` or `overdue`. Keys and the state may be atoms or
+  strings. The step's place in the list is its number.
+- Bad values never fail the page: a step without a label is left out (the
+  rest are numbered 1..n), a missing or unknown state reads as `upcoming`,
+  a blank `text` or `note` is left out, and a value that is not a list has
+  no steps (the field's `empty_text` and the card's `hide_empty` apply).
+  Return the label you want shown; do not rely on the fallbacks.
+- The detail data carries the normalized steps at `_steps_<field>`: each
+  `{number, label, text?, note?, state, stateLabel, line}`, where
+  `stateLabel` is the state in words (a library string, translated) and
+  `line` the whole step as one line ("3. Shipped · Current · Not yet ·
+  Waiting for the carrier").
+- Admin catalog 1.17: the `fieldDisplay` binds them as `steps`; the stock
+  renderer draws an ordered list with each step's number, label, state (as
+  words, not only colour), text and note, and marks the current step
+  `aria-current="step"`. The basic catalog draws one Text row per step
+  (its `line`), so a basic-only client still shows every step.
+- Steps are drawn on `:detail` cards; a table or panel shows the raw value.
+  `steps` with `pairs`, a badge (`badge_text`, `badge_tones`,
+  `badge_help`), `link`, `links`, `link_url` or `source` does not compile.
+
+## Table card headers (`heading`, `description`)
+
+- A table that sits in a card of its own on a record page takes a card
+  header and a one-line caption above its rows. Several tables can share
+  one page `section` heading and each still name its own card:
+
+  ```elixir
+  component :table, :lines do
+    section "Order"
+    heading "Order lines"
+    description "Each line on this order, newest first."
+    resource MyApp.OrderLine
+    fields [:product_name, :quantity, :price]
+    context_filter order_id: :order
+  end
+
+  component :table, :shipments do
+    section "Order"
+    heading "Shipments"
+    resource MyApp.Shipment
+    fields [:carrier, :shipped_on]
+    context_filter order_id: :order
+  end
+  ```
+
+- `heading` is not `label`. `label` names the table's section (the
+  heading over a table on multi-table surfaces) and the collection's
+  accessible name; `heading` is drawn only where declared, inside the
+  table's card. Use `heading` for the card's own header.
+- Both are static text, translated in the metadata domain. For a line that
+  reads from the record (a count, a date), use a `section_note` or a
+  `footer_note` instead.
+- Admin catalog 1.18: the dataGrid carries `heading` and `description`
+  only when declared. The stock renderer draws the grid as one card, the
+  header on top and the caption muted under it, in every layout (table,
+  rows, cards) and above the empty state when there are no rows. The basic
+  catalog draws a level-3 Markdown heading Text and a caption Text just
+  before the table.
+- Tables only, and not on a board (a lane has no card): elsewhere they do
+  not compile.
 
 ## Table columns
 

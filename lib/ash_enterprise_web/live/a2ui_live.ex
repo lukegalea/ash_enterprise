@@ -11,7 +11,7 @@ defmodule AshEnterpriseWeb.A2uiLive do
   golden records says when it is reading at an earlier instant.
 
   Each `use`s `AshA2ui.LiveRenderer`, which handles mount, render and the
-  `a2ui:action` event. What we supply is the seam that matters: `actor_fn` and
+  `a2ui:message` event. What we supply is the seam that matters: `actor_fn` and
   `tenant_fn`.
 
   Those two callbacks are what make the surface safe. `AshA2ui` resolves data by

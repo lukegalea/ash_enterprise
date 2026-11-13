@@ -2,16 +2,18 @@ defmodule AshEnterprise.Telemetry.A2uiEventAttributes do
   @moduledoc """
   An `:event_attributes` resolver for `ash_a2ui` surfaces.
 
-  A surface pushes one LiveView event, `a2ui:action`, for everything a user does, so
-  the event name alone says nothing. This reads the action name and surface from the
-  envelope, and the resource or UI module from the LiveView's own surface config:
+  A surface pushes one LiveView event, `a2ui:message`, for everything the renderer says
+  to the server, so the event name alone says nothing. For an A2UI 1.0 `callAgentFunction`
+  calling `ashAction` (every server-handled control), this reads the action name and
+  surface from the message, and the resource or UI module from the LiveView's own surface
+  config:
 
       AshEnterprise.Telemetry.setup(
         otp_app: :my_app,
         event_attributes: {AshEnterprise.Telemetry.A2uiEventAttributes, :resolve, []}
       )
 
-  For a row action (`invoke`, `bulk_invoke`, `prompt`) the envelope's name is only the
+  For a row action (`invoke`, `bulk_invoke`, `prompt`) the call's name is only the
   verb, and the action it runs is in its context, where the client chose it. That
   name is reported only when the surface declares it as a row or bulk action;
   anything else reports the verb, and the client's value appears nowhere. Otherwise a
@@ -43,17 +45,26 @@ defmodule AshEnterprise.Telemetry.A2uiEventAttributes do
   # `ash_a2ui` is the host's dependency, not this package's.
   @compile {:no_warn_undefined, AshA2ui.Info}
 
-  @doc "Attributes for an `a2ui:action` event, or an empty map for any other event."
+  @doc "Attributes for an `a2ui:message` `ashAction` call, or an empty map for any other event."
   @spec resolve(String.t(), map(), term(), keyword()) :: map()
   def resolve(event, params, socket, opts \\ [])
 
-  def resolve("a2ui:action", %{"action" => %{"name" => name} = action}, socket, opts)
+  def resolve(
+        "a2ui:message",
+        %{
+          "callAgentFunction" => %{
+            "surfaceId" => surface_id,
+            "callFunction" => %{"@call" => "ashAction", "args" => %{"name" => name} = args}
+          }
+        },
+        socket,
+        opts
+      )
       when is_binary(name) do
     ui = surface_ui(socket)
-    surface_id = action["surfaceId"]
 
     %{
-      Attributes.ui_action_name() => action_name(name, action["context"], ui, surface_id, opts),
+      Attributes.ui_action_name() => action_name(name, args["context"], ui, surface_id, opts),
       Attributes.ui_surface_id() => surface_id,
       Attributes.ui_action_resource() => ui && inspect(ui)
     }

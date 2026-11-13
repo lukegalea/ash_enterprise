@@ -33,7 +33,7 @@ defmodule AshEnterprise.Telemetry.Attributes do
   |---|---|---|
   | `ui.page.path` | browser | The page, with ids replaced by `:id`. |
   | `ui.control.label` | browser | The clicked control's accessible name, truncated. Never an input's value. |
-  | `ui.event.name` | browser, `handle_event` | The LiveView event, such as `a2ui:action` or `save`. |
+  | `ui.event.name` | browser, `handle_event` | The LiveView event, such as `a2ui:message` or `save`. |
   | `ui.event.type` | browser | The event type, such as `click` or `form`. |
   | `ui.action.name` | `handle_event` | The resolved action, from the `:event_attributes` hook. |
   | `ui.action.resource` | `handle_event` | The resource or UI module it acts on, from the same hook. |

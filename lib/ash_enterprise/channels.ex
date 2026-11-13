@@ -33,14 +33,17 @@ defmodule AshEnterprise.Channels do
   ## Where each channel reads them
 
     * Web: `AshEnterpriseWeb.A2ui.Host.act/3`, the action function of every surface
-      page, adds `"result"` (and, when there is one, `"blockedReason"`) to the
-      `/ui/feedback` value the action handler wrote.
+      page, adds `"channelResult"` (and, when there is one, `"blockedReason"`) to the
+      `/ui/feedback` value the action handler wrote. (The feedback's own `result` is a
+      map-returning action's output.)
     * ACP: `AshEnterprise.Acp.ExtMethods` answers `_a2ui/action` with `"result"`
       beside its `outcome` (`applied`, `denied`, `failed`), and `"blockedReason"`.
 
   Both compute them here (`outcome/2`), from the same handler outcome, so the two cannot
   drift.
   """
+
+  alias AshEnterprise.A2uiMessage
 
   alias AshEnterprise.Execution.Actions.{
     ConfirmInvocation,
@@ -74,13 +77,18 @@ defmodule AshEnterprise.Channels do
     {view.resource, ash_action(view, name, context || %{})}
   end
 
-  @doc "`target/3` for an A2UI action envelope, bare or wrapped in `\"action\"`."
-  @spec envelope_target(module(), map()) :: {Ash.Resource.t(), atom() | nil}
-  def envelope_target(ui, %{"action" => %{"name" => name} = inner}),
-    do: target(ui, name, inner["context"])
-
-  def envelope_target(ui, %{"name" => name} = envelope), do: target(ui, name, envelope["context"])
-  def envelope_target(ui, _envelope), do: target(ui, nil, %{})
+  @doc """
+  `target/3` for an A2UI 1.0 renderer message: the `ashAction` a `callAgentFunction` calls.
+  A message that is not one (a plain `action` event, which the handler refuses) runs no
+  Ash action.
+  """
+  @spec message_target(module(), map()) :: {Ash.Resource.t(), atom() | nil}
+  def message_target(ui, message) do
+    case A2uiMessage.parse(message) do
+      {:ok, name, context} -> target(ui, name, context)
+      :error -> target(ui, nil, %{})
+    end
+  end
 
   defp ash_action(view, "submit_form", context),
     do: if(context["recordId"], do: view.update_action, else: view.create_action)
@@ -191,7 +199,7 @@ defmodule AshEnterprise.Channels do
 
   @doc "The result a web `/ui/feedback` value carries. Anything else is `failed`."
   @spec from_feedback(map() | term()) :: atom()
-  def from_feedback(%{"result" => result}) when is_binary(result), do: known(result)
+  def from_feedback(%{"channelResult" => result}) when is_binary(result), do: known(result)
   def from_feedback(_other), do: :failed
 
   defp known(result) do
@@ -240,17 +248,12 @@ defmodule AshEnterprise.Channels do
   defp door_result(_refused_failed_stale_cancelled_or_unknown), do: :failed
 
   # The row a door answered with, as `AshA2ui.ActionHandler` wrote the generic action's
-  # result: `/ui/action_result` on an A2UI 0.9.1 surface, the `/ui/response` result on a
-  # 1.0 one. Its status and failure class are read against the invocation's own
-  # vocabularies; anything else is nil.
+  # result: the `result` of the `/ui/feedback` it settled. Its status and failure class
+  # are read against the invocation's own vocabularies; anything else is nil.
   defp door_row(messages) do
     answer =
       Enum.find_value(messages, fn
-        %{"updateDataModel" => %{"path" => "/ui/action_result", "value" => %{} = value}}
-        when map_size(value) > 0 ->
-          value
-
-        %{"updateDataModel" => %{"path" => "/ui/response", "value" => %{"result" => %{} = value}}}
+        %{"updateDataModel" => %{"path" => "/ui/feedback", "value" => %{"result" => %{} = value}}}
         when map_size(value) > 0 ->
           value
 
@@ -285,11 +288,8 @@ defmodule AshEnterprise.Channels do
 
   # `AshA2ui.ActionHandler` answers a failure with data-model messages only, so the kind
   # is read back from them. A field error is under `/errors/<field>`. A policy refusal
-  # carries nothing else, so policy details do not leak: on an A2UI 1.0 surface
-  # `/ui/response` with code `UNAUTHORIZED`, on a 0.9.1 one the typed `/ui/feedback`
-  # error carrying exactly the handler's fixed refusal sentence.
-  @forbidden_status "You are not authorized to perform this action."
-
+  # carries nothing else, so policy details do not leak: the `/ui/feedback` error with
+  # code `FORBIDDEN`.
   @doc false
   @spec failure_kind([map()]) :: :forbidden | :invalid | :error
   def failure_kind(messages) do
@@ -305,14 +305,10 @@ defmodule AshEnterprise.Channels do
   end
 
   defp invalid?({"/errors/" <> _field, _value}), do: true
-  defp invalid?({"/ui/response", %{"code" => "VALIDATION_FAILED"}}), do: true
+  defp invalid?({"/ui/feedback", %{"code" => "VALIDATION_FAILED"}}), do: true
   defp invalid?(_update), do: false
 
-  defp forbidden?({"/ui/response", %{"code" => "UNAUTHORIZED"}}), do: true
-
-  defp forbidden?({"/ui/feedback", %{"kind" => "error", "message" => @forbidden_status}}),
-    do: true
-
+  defp forbidden?({"/ui/feedback", %{"kind" => "error", "code" => "FORBIDDEN"}}), do: true
   defp forbidden?(_update), do: false
 
   # --- blocked reasons -----------------------------------------------------------------
@@ -353,22 +349,46 @@ defmodule AshEnterprise.Channels do
   # --- the wire ------------------------------------------------------------------------
 
   @doc """
-  The handler's messages with `result` (and `blocked`, unless it is `:none` or
-  `:unclassified`) added to the `/ui/feedback` value they write. Messages that write no
-  feedback are left as they are: a query or a search answers nothing about an act.
+  The handler's messages with `channelResult` (and `blockedReason`, unless the reason is
+  `:none` or `:unclassified`) added to the `/ui/feedback` value they write, and to the
+  `agentFunctionResponse` that carries the same map back to the renderer. (The feedback's
+  own `result` is the output of a map-returning action, so the channels' word has a key of
+  its own.) Messages that write no feedback are left as they are: a query or a search
+  answers nothing about an act.
 
   A request door answers with its row even when the request failed, was rejected or went
   stale, and the handler, which ran the door without error, writes a success. When the
   result is `failed`, that success becomes an error naming what the request came to, so
-  the person reads the same answer the result carries.
+  the person reads the same answer the result carries; the function call is then answered
+  with that error.
   """
   @spec annotate_feedback([map()], atom(), atom()) :: [map()]
   def annotate_feedback(messages, result, blocked) do
     Enum.map(messages, fn
       %{"updateDataModel" => %{"path" => "/ui/feedback", "value" => value} = update} = message
       when is_map(value) ->
-        value = value |> refused(result, messages) |> wire(result, blocked)
+        value = value |> refused(result, messages) |> wire("channelResult", result, blocked)
         %{message | "updateDataModel" => %{update | "value" => value}}
+
+      %{"agentFunctionResponse" => %{"value" => %{"kind" => _kind} = value} = response} = message ->
+        refused = refused(value, result, messages)
+
+        case refused do
+          %{"kind" => "error", "code" => code, "message" => text} when refused != value ->
+            error = %{"code" => code, "message" => text}
+
+            %{
+              message
+              | "agentFunctionResponse" => %{
+                  "functionCallId" => response["functionCallId"],
+                  "error" => error
+                }
+            }
+
+          _settled ->
+            settled = wire(refused, "channelResult", result, blocked)
+            %{message | "agentFunctionResponse" => %{response | "value" => settled}}
+        end
 
       message ->
         message
@@ -381,6 +401,7 @@ defmodule AshEnterprise.Channels do
         %{
           value
           | "kind" => "error",
+            "code" => "ACTION_FAILED",
             "message" =>
               "The request #{status}#{if code, do: ": " <> code, else: ""}. Nothing was changed."
         }
@@ -394,14 +415,14 @@ defmodule AshEnterprise.Channels do
 
   @doc "`answer` (an ACP `_a2ui/action` answer) with `result` and `blocked` added."
   @spec annotate_answer(map(), atom(), atom()) :: map()
-  def annotate_answer(answer, result, blocked), do: wire(answer, result, blocked)
+  def annotate_answer(answer, result, blocked), do: wire(answer, "result", result, blocked)
 
-  defp wire(map, result, blocked) when blocked in @blocked_reasons,
+  defp wire(map, key, result, blocked) when blocked in @blocked_reasons,
     do:
       map
-      |> Map.put("result", Atom.to_string(result))
+      |> Map.put(key, Atom.to_string(result))
       |> Map.put("blockedReason", Atom.to_string(blocked))
 
-  defp wire(map, result, _none_or_unclassified),
-    do: Map.put(map, "result", Atom.to_string(result))
+  defp wire(map, key, result, _none_or_unclassified),
+    do: Map.put(map, key, Atom.to_string(result))
 end

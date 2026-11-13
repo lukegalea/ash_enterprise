@@ -1736,7 +1736,7 @@ This applies to ANY field used in identity constraints, not just primary keys. U
 <!-- ash:testing-end -->
 <!-- ash_a2ui-start -->
 ## ash_a2ui usage
-_An Ash extension that generates A2UI (Agent to UI) v0.9.1 or v1.0 payloads from Ash resources._
+_An Ash extension that generates A2UI (Agent to UI) 1.0 payloads from Ash resources._
 
 [ash_a2ui usage rules](deps/ash_a2ui/usage-rules.md)
 <!-- ash_a2ui-end -->
@@ -1744,10 +1744,6 @@ _An Ash extension that generates A2UI (Agent to UI) v0.9.1 or v1.0 payloads from
 ## ash_a2ui:actions usage
 [ash_a2ui:actions usage rules](deps/ash_a2ui/usage-rules/actions.md)
 <!-- ash_a2ui:actions-end -->
-<!-- ash_a2ui:ag-ui-start -->
-## ash_a2ui:ag-ui usage
-[ash_a2ui:ag-ui usage rules](deps/ash_a2ui/usage-rules/ag-ui.md)
-<!-- ash_a2ui:ag-ui-end -->
 <!-- ash_a2ui:contexts-start -->
 ## ash_a2ui:contexts usage
 [ash_a2ui:contexts usage rules](deps/ash_a2ui/usage-rules/contexts.md)

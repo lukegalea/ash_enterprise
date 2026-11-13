@@ -349,18 +349,24 @@ defmodule AshEnterprise.Telemetry.BrowserContextTest do
       key = test_key!()
 
       params = %{
-        "version" => "v0.9.1",
-        "action" => %{
-          "name" => "activate_template",
+        "version" => "1.0",
+        "callAgentFunction" => %{
           "surfaceId" => "email_templates",
-          "context" => %{"email" => "secret@example.com"}
+          "functionCallId" => "fc_1",
+          "callFunction" => %{
+            "@call" => "ashAction",
+            "args" => %{
+              "name" => "activate_template",
+              "context" => %{"email" => "secret@example.com"}
+            }
+          }
         }
       }
 
-      run_event(event_meta("a2ui:action", params))
+      run_event(event_meta("a2ui:message", params))
 
-      span = handle_event_span(key, "a2ui:action")
-      assert attr(span, "ui.event.name") == "a2ui:action"
+      span = handle_event_span(key, "a2ui:message")
+      assert attr(span, "ui.event.name") == "a2ui:message"
       assert attr(span, "ui.action.name") == "activate_template"
       assert attr(span, "ui.surface.id") == "email_templates"
       refute inspect(span.attributes) =~ "secret@example.com"

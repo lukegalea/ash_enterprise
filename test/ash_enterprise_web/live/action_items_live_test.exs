@@ -29,16 +29,11 @@ defmodule AshEnterpriseWeb.ActionItemsLiveTest do
   end
 
   defp action(view, name, context) do
-    render_hook(view, "a2ui:action", %{
-      "version" => "v1.0",
-      "action" => %{
-        "name" => name,
-        "surfaceId" => "action_items",
-        "sourceComponentId" => "action_items",
-        "timestamp" => DateTime.to_iso8601(DateTime.utc_now()),
-        "context" => context
-      }
-    })
+    render_hook(
+      view,
+      "a2ui:message",
+      AshEnterprise.A2uiMessage.ash_action("action_items", name, context, source: "action_items")
+    )
 
     pushed(view)
   end

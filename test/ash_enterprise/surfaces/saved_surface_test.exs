@@ -18,8 +18,8 @@ defmodule AshEnterprise.Surfaces.SavedSurfaceTest do
   alias AshEnterprise.Surfaces.{ClientCatalog, SavedStatus}
   alias AshEnterprise.Test.DailyFixtures, as: D
 
-  @admin_catalog "https://ash-a2ui.dev/catalogs/admin/v1"
-  @basic_catalog "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json"
+  @admin_catalog "https://github.com/lukegalea/ash_a2ui/catalogs/admin/v2"
+  @basic_catalog "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json"
 
   defp sign_in(conn, user) do
     {:ok, token, _claims} = AshAuthentication.Jwt.token_for_user(user)
@@ -242,7 +242,11 @@ defmodule AshEnterprise.Surfaces.SavedSurfaceTest do
   end
 
   describe "a client without the catalog gets the declared fallback (DS-04)" do
-    defp caps(ids), do: %{"v1.0" => %{"supportedCatalogIds" => ids}}
+    defp caps(ids), do: %{"1.0" => %{"supportedCatalogIds" => ids}}
+
+    # Every surface needs the basic and the ash_a2ui catalog; the admin one is extra.
+    defp renders(extra),
+      do: [AshA2ui.Encoder.basic_catalog_id(), AshA2ui.Encoder.ash_catalog_id() | extra]
 
     defp build_for(member, capabilities) do
       {:ok, surface} = Composer.reload(people_spec())
@@ -260,7 +264,7 @@ defmodule AshEnterprise.Surfaces.SavedSurfaceTest do
 
     test "a client listing the admin catalog gets it; the web, sending none, too",
          %{member: member} do
-      assert {:ok, messages} = build_for(member, caps([@admin_catalog]))
+      assert {:ok, messages} = build_for(member, caps(renders([@admin_catalog])))
       assert catalog_id(messages) == @admin_catalog
 
       assert {:ok, messages} = build_for(member, nil)
@@ -271,7 +275,7 @@ defmodule AshEnterprise.Surfaces.SavedSurfaceTest do
       assert {:ok, messages} =
                build_for(
                  member,
-                 caps(["https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json"])
+                 caps(renders([]))
                )
 
       assert catalog_id(messages) == @basic_catalog
@@ -284,8 +288,8 @@ defmodule AshEnterprise.Surfaces.SavedSurfaceTest do
       for capabilities <- [
             caps([]),
             caps(["https://example.com/catalogs/clinic-kiosk.json"]),
-            %{"v1.0" => %{}},
-            %{"v1.0" => %{"supportedCatalogIds" => "basic"}},
+            %{"1.0" => %{}},
+            %{"1.0" => %{"supportedCatalogIds" => "basic"}},
             %{},
             "basic"
           ] do

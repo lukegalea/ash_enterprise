@@ -118,10 +118,16 @@ defmodule AshEnterprise.AcpHostTest do
     a2ui = get_in(closing, ["params", "update", "_meta", "a2ui"])
     assert a2ui
 
-    data_model = Enum.find(a2ui, &Map.has_key?(&1, "updateDataModel"))
+    # An A2UI 1.0 surface is one inline `createSurface` carrying its data model.
+    data_model = Enum.find_value(a2ui, &get_in(&1, ["createSurface", "dataModel"]))
     assert data_model
 
-    records = data_model["updateDataModel"]["value"]["records"]
+    records =
+      case data_model["records"] do
+        %{} = by_table -> by_table |> Map.values() |> Enum.find(&is_list/1)
+        rows -> rows
+      end
+
     assert is_list(records) and records != [], "surface records must be non-empty"
     assert hd(records)["name"] == seeded.business_unit.name
   end

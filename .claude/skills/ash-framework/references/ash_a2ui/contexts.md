@@ -84,7 +84,7 @@ end
   (shared `/options` namespace — names must not collide with searchable
   select fields or nested-form arguments), `/detail/<context>`. Action
   contexts on context-enabled surfaces additively carry
-  `"contexts": {"path": "/context"}`.
+  `"contexts": {"@path": "/context"}`.
 - PubSub refreshes through `AshA2ui.LiveRenderer` preserve selections (the
   renderer tracks the last `/context` it pushed and passes it to
   `AshA2ui.Info.build_data_model/2` as `:context_state`). Custom
@@ -150,9 +150,9 @@ with `?ctx[<context>]=<id>`), its `:detail` cards and its related tables:
   `Column` (`section_<first component's key>`, an anchor a section nav can
   target). A card in a section without a `label` draws no heading of its
   own, so a one-card section ("Renewal terms") is not headed twice.
-- A section's summary line ("3 contract lines · 2 properties") is a
+- A section's summary line ("12 items · 3 warehouses") is a
   `section_note :field` on one of its components: a field of the context's
-  record (a calculation on the contract), drawn muted under the section's
+  record (a calculation on the order), drawn muted under the section's
   heading and read with that record, so it changes when the context does.
   It needs the component's `section` and one context: a `:detail`'s
   `context`, or a related table's single `context_filter` context.
@@ -165,6 +165,9 @@ with `?ctx[<context>]=<id>`), its `:detail` cards and its related tables:
   vocabulary. The detail data carries `_badge_<field>`,
   `_badge_tone_<field>` and `_badge_help_<field>`; the admin `fieldDisplay`
   binds them as `badge`, `badgeTone` and `badgeHelp` (catalog 1.12).
+- A detail value that is a sequence of stages draws as a numbered stepper:
+  declare `steps true` on its `field` (see the layout rules, "Step
+  fields"; admin catalog 1.17).
 - A field's `note` ("Calculated") sits beside its label on detail cards
   (admin catalog), saying how the value came to be.
 - A value the record does not state shows the field's `empty_text`

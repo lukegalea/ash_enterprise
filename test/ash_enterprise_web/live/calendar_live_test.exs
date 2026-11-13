@@ -63,16 +63,16 @@ defmodule AshEnterpriseWeb.CalendarLiveTest do
   # A query action on the event table, as the calendar sends it: the
   # `/query/table` state and the rows the LiveView pushes back.
   defp query!(view, state, extra) do
-    render_hook(view, "a2ui:action", %{
-      "version" => "v1.0",
-      "action" => %{
-        "name" => "query",
-        "surfaceId" => "calendar",
-        "sourceComponentId" => "calendar",
-        "timestamp" => DateTime.to_iso8601(DateTime.utc_now()),
-        "context" => Map.merge(%{"component" => "table", "query" => state}, extra)
-      }
-    })
+    render_hook(
+      view,
+      "a2ui:message",
+      AshEnterprise.A2uiMessage.ash_action(
+        "calendar",
+        "query",
+        Map.merge(%{"component" => "table", "query" => state}, extra),
+        source: "calendar"
+      )
+    )
 
     reply = messages(view)
     {value_at(reply, "/query/table"), value_at(reply, "/records/table")}

@@ -104,16 +104,12 @@ defmodule AshEnterpriseWeb.DailyLive do
         end
 
         @impl true
-        def handle_event("a2ui:action", envelope, socket) do
+        def handle_event("a2ui:message", message, socket) do
           {:noreply, socket} =
-            AshA2ui.LiveRenderer.handle_action(__ash_a2ui_config__(), envelope, socket)
+            AshA2ui.LiveRenderer.handle_message(__ash_a2ui_config__(), message, socket)
 
           {:noreply, DailyLive.run_reports(socket, unquote(ui), @daily_reports)}
         end
-
-        def handle_event("a2ui:function_response", payload, socket),
-          do:
-            AshA2ui.LiveRenderer.handle_function_response(__ash_a2ui_config__(), payload, socket)
 
         # A reference link: the renderer navigates to the deep link, which
         # re-authorizes the record (`AshEnterpriseWeb.RecordController`).
@@ -194,17 +190,18 @@ defmodule AshEnterpriseWeb.DailyLive do
     end)
   end
 
-  # The "report" envelope a Run click sends, handled as the actor. Both
-  # outcomes carry messages worth pushing (rows, or the error feedback); the
-  # actionResponse is dropped because no client action is waiting on it.
+  # The "report" call a Run click sends, handled as the actor. Both outcomes
+  # carry messages worth pushing (rows, or the error feedback); the
+  # agentFunctionResponse is dropped because no renderer call is waiting on it.
   defp report_messages(ui, name, opts) do
-    envelope = %{
-      "name" => "report",
-      "context" => %{"component" => to_string(name), "params" => %{}}
-    }
+    message =
+      AshEnterprise.A2uiMessage.ash_action(ui, "report", %{
+        "component" => to_string(name),
+        "params" => %{}
+      })
 
-    {_ok_or_error, messages} = AshA2ui.ActionHandler.handle(ui, envelope, opts)
-    Enum.reject(messages, &Map.has_key?(&1, "actionResponse"))
+    {_ok_or_error, messages} = AshA2ui.ActionHandler.handle(ui, message, opts)
+    Enum.reject(messages, &Map.has_key?(&1, "agentFunctionResponse"))
   end
 
   @doc false

@@ -67,16 +67,16 @@ defmodule AshEnterpriseWeb.ShowcaseCredentialingLiveTest do
     {:ok, view, _html} = live(sign_in(hd(clinic.committee)), "/app/approvals")
     assert_push_event(view, "a2ui:messages", %{messages: _}, 5_000)
 
-    render_hook(view, "a2ui:action", %{
-      "version" => "v1.0",
-      "action" => %{
-        "name" => "invoke",
-        "surfaceId" => "approvals",
-        "sourceComponentId" => "data_grid",
-        "timestamp" => DateTime.to_iso8601(DateTime.utc_now()),
-        "context" => %{"action" => "approve", "recordId" => request.task_id}
-      }
-    })
+    render_hook(
+      view,
+      "a2ui:message",
+      AshEnterprise.A2uiMessage.ash_action(
+        "approvals",
+        "invoke",
+        %{"action" => "approve", "recordId" => request.task_id},
+        source: "data_grid"
+      )
+    )
   end
 
   # What the `:apply_decision` job and then the `:execute` job do.
@@ -119,16 +119,16 @@ defmodule AshEnterpriseWeb.ShowcaseCredentialingLiveTest do
     assert_push_event(view, "a2ui:messages", %{messages: messages}, 5_000)
     assert JSON.encode!(messages) =~ credential.number
 
-    render_hook(view, "a2ui:action", %{
-      "version" => "v1.0",
-      "action" => %{
-        "name" => "invoke",
-        "surfaceId" => "credentials",
-        "sourceComponentId" => "data_grid",
-        "timestamp" => DateTime.to_iso8601(DateTime.utc_now()),
-        "context" => %{"action" => "request_activation", "recordId" => credential.id}
-      }
-    })
+    render_hook(
+      view,
+      "a2ui:message",
+      AshEnterprise.A2uiMessage.ash_action(
+        "credentials",
+        "invoke",
+        %{"action" => "request_activation", "recordId" => credential.id},
+        source: "data_grid"
+      )
+    )
 
     assert %{invocation: invocation} = request_for!(credential, ctx)
 

@@ -278,14 +278,11 @@ defmodule AshEnterpriseWeb.JudgmentSurfacesTest do
       {_status, messages} =
         AshEnterpriseWeb.A2ui.Host.act(
           Judgments.BandTablesUI,
-          %{
-            "name" => "invoke",
-            "context" => %{
-              "action" => "certify_now",
-              "recordId" => run.id,
-              "component" => "table"
-            }
-          },
+          AshEnterprise.A2uiMessage.ash_action(Judgments.BandTablesUI, "invoke", %{
+            "action" => "certify_now",
+            "recordId" => run.id,
+            "component" => "table"
+          }),
           actor: ctx.actor,
           tenant: ctx.org
         )
@@ -296,7 +293,11 @@ defmodule AshEnterpriseWeb.JudgmentSurfacesTest do
                  do: value
                )
 
-      assert %{"kind" => "error", "result" => "failed", "blockedReason" => "policy_failed"} =
+      assert %{
+               "kind" => "error",
+               "channelResult" => "failed",
+               "blockedReason" => "policy_failed"
+             } =
                feedback
 
       assert feedback["message"] =~ "unpublished_draft_exists"
@@ -820,7 +821,7 @@ defmodule AshEnterpriseWeb.JudgmentSurfacesTest do
       %{"action" => action, "recordId" => record.id, "component" => "table"}
       |> then(&if(opts[:values], do: Map.put(&1, "values", opts[:values]), else: &1))
 
-    AshA2ui.ActionHandler.handle(ui, %{"name" => "invoke", "context" => context},
+    AshA2ui.ActionHandler.handle(ui, AshEnterprise.A2uiMessage.ash_action(ui, "invoke", context),
       actor: ctx.actor,
       tenant: ctx.org
     )

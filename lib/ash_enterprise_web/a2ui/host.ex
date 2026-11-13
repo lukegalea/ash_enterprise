@@ -151,8 +151,9 @@ defmodule AshEnterpriseWeb.A2ui.Host do
       )
 
   @doc """
-  Routes a client action envelope through the right handler and pushes the
-  follow-up messages.
+  Routes a renderer message (the `"a2ui:message"` event: a `callAgentFunction` calling
+  `ashAction`) through the right handler and pushes the follow-up messages, the
+  `agentFunctionResponse` last.
 
   Never invokes an Ash action directly: the handler is what enforces the
   row-action allowlist, `visible_when`, and the error contract that puts
@@ -160,29 +161,30 @@ defmodule AshEnterpriseWeb.A2ui.Host do
   """
   @spec handle_action(Phoenix.LiveView.Socket.t(), Presentation.t(), map(), keyword()) ::
           {Phoenix.LiveView.Socket.t(), Presentation.t()}
-  def handle_action(socket, %Presentation{kind: :declared} = presentation, envelope, opts) do
+  def handle_action(socket, %Presentation{kind: :declared} = presentation, message, opts) do
     presentation.surface
-    |> act(envelope, l10n(opts, socket))
+    |> act(message, l10n(opts, socket))
     |> apply_action_result(socket, presentation)
   end
 
-  def handle_action(socket, %Presentation{kind: :dynamic} = presentation, envelope, opts) do
+  def handle_action(socket, %Presentation{kind: :dynamic} = presentation, message, opts) do
     presentation.surface
-    |> AshA2ui.Dynamic.handle_action(envelope, l10n(opts, socket))
+    |> AshA2ui.Dynamic.handle_action(message, l10n(opts, socket))
     |> apply_action_result(socket, presentation)
   end
 
   @doc """
-  Runs a client action envelope on a declared surface through the action handler, and
-  adds the channels' result and blocked reason to the `/ui/feedback` it writes
+  Runs a renderer message on a declared surface through the action handler, and
+  adds the channels' result and blocked reason to the `/ui/feedback` it writes (and to
+  the function call's response)
   (`AshEnterprise.Channels`): the same answer ACP gives for the same act. It is the
   `action_fn` of every surface page (`AshA2ui.LiveRenderer`), generated or hand-written,
   so no page writes feedback without them.
   """
   @spec act(module(), map(), keyword()) :: {:ok | :error, [map()]}
-  def act(ui, envelope, opts) do
-    {status, messages} = handled = AshA2ui.ActionHandler.handle(ui, envelope, opts)
-    {result, blocked} = Channels.outcome(handled, Channels.envelope_target(ui, envelope))
+  def act(ui, message, opts) do
+    {status, messages} = handled = AshA2ui.ActionHandler.handle(ui, message, opts)
+    {result, blocked} = Channels.outcome(handled, Channels.message_target(ui, message))
     {status, Channels.annotate_feedback(messages, result, blocked)}
   end
 

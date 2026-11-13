@@ -9,7 +9,7 @@ defmodule AshEnterprise.Acp.ExtMethods do
   |---|---|
   | `_ash/surfaces/list` | The registry's A2UI surfaces whose door is open for the actor and whose resource they may read (`Ash.can?`) |
   | `_ash/surface/open` | Builds the surface (`AshA2ui.Info.build_surface/2`); with a `recordId`, the record selected through `AshEnterprise.Surfaces.Records` (door, authorized read, context selection — "not found" for anything else). Recorded in the session store, so `session/load` re-emits it, with a one-line `opened <surface>` transcript entry. Built in the catalog the client renders (`_meta.a2uiClientCapabilities`, `AshEnterprise.Surfaces.ClientCatalog`): basic for a client without the admin catalog; for one that renders neither, no surface and a `fallback` saying where the view is on the web |
-  | `_a2ui/action` | Runs the A2UI action through `AshA2ui.ActionHandler` as the session actor. An action that runs an Ash action (`submit_form`, `invoke`, `bulk_invoke`, `edit_cell`) asks first (`{:request_permission, spec}` → `AshEnterprise.Acp.Approvals`) when that action's effects declaration says so (`AshEnterprise.Acp.asks_first?/2`); everything else (query, select, search, prompt, report, export) runs at once. Answers `applied` only when the action succeeded, `denied` when an approval was declined, and `failed` (with a `{kind, message}` error) when policy refused it, its input was invalid or it errored; and, beside it, the channels' `result` (`applied`, `pending`, `declined`, `forbidden`, `invalid`, `failed`) and, for a blocked act, its `blockedReason` (`AshEnterprise.Channels`) |
+  | `_a2ui/action` | Runs the A2UI 1.0 `callAgentFunction` (an `ashAction` call) through `AshA2ui.ActionHandler` as the session actor. An action that runs an Ash action (`submit_form`, `invoke`, `bulk_invoke`, `edit_cell`) asks first (`{:request_permission, spec}` → `AshEnterprise.Acp.Approvals`) when that action's effects declaration says so (`AshEnterprise.Acp.asks_first?/2`); everything else (query, select, search, prompt, report, export) runs at once. Answers `applied` only when the action succeeded, `denied` when an approval was declined, and `failed` (with a `{kind, message}` error) when policy refused it, its input was invalid or it errored; and, beside it, the channels' `result` (`applied`, `pending`, `declined`, `forbidden`, `invalid`, `failed`) and, for a blocked act, its `blockedReason` (`AshEnterprise.Channels`) |
 
   Nothing here bypasses policy: every build and action runs with the actor
   and `authorize?: true`, and a client-supplied surface or record id is only a
@@ -21,6 +21,7 @@ defmodule AshEnterprise.Acp.ExtMethods do
 
   @behaviour AshAcp.ExtMethods
 
+  alias AshEnterprise.A2uiMessage
   alias AshEnterprise.Acp
   alias AshEnterprise.Acp.SessionStore
   alias AshEnterprise.Channels
@@ -218,13 +219,17 @@ defmodule AshEnterprise.Acp.ExtMethods do
     end
   end
 
-  defp parse_action(%{"action" => %{"name" => name} = inner}) when is_binary(name),
-    do: {:ok, name, inner["context"] || %{}}
+  # The renderer's message: a `callAgentFunction` calling `ashAction`. A plain
+  # `action` event is no door onto a surface (`AshA2ui.ActionHandler` refuses it).
+  defp parse_action(message) do
+    case A2uiMessage.parse(message) do
+      {:ok, name, context} ->
+        {:ok, name, context}
 
-  defp parse_action(%{"name" => name} = inner) when is_binary(name),
-    do: {:ok, name, inner["context"] || %{}}
-
-  defp parse_action(_action), do: {:error, -32_602, "action must be an A2UI action envelope"}
+      :error ->
+        {:error, -32_602, "action must be an A2UI 1.0 callAgentFunction calling ashAction"}
+    end
+  end
 
   # An action whose effects declaration asks first (`Acp.asks_first?/2`)
   # asks, and runs on the second call; anything else runs at once. The spec

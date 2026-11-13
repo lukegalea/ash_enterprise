@@ -20,19 +20,26 @@ these mechanisms, in this order of preference:
 
 1. **Optimistic data-model writes** — write the reserved path locally, at
    0 RTT, and let the server's follow-up overwrite it. The shipped hook does
-   this for v1.0 actions: the moment an action fires it writes
-   `/ui/response = {status: "pending", ...}` (plus `actionId` +
-   `wantResponse: true`), the server's `actionResponse` settles it, and a
-   watchdog turns a never-answered action into a visible timeout error.
-   "Working…" is therefore on screen before the request leaves the browser.
+   this for every `ashAction` call that reports an outcome: the moment the
+   call is sent it writes `/ui/feedback = {kind: "pending", functionCallId,
+   ...}`, the server's feedback write and `agentFunctionResponse` settle it,
+   and a watchdog turns a call unanswered after `actionTimeoutMs` into a
+   "still working" notice (still pending, `code: "TIMEOUT"`, so busy
+   buttons stay busy until the real outcome). The words come from the
+   surface's `/ui/feedback_text`, in its language. "Working…" is therefore
+   on screen before the request leaves the browser. The quiet actions
+   (reads, searches, picker and panel steps) write no pending state.
 2. **Typed feedback (`/ui/feedback`)** — the handler answers every action
-   outcome with `{kind, message}`; components bound to it (the basic `status
+   outcome with the full feedback map (`kind`, `message`, `code`, ...);
+   components bound to it (the basic `status
    text`, the admin `statusBanner`) render the outcome the moment the
    follow-up lands. The handler writes it on every success, rejection and
    error path, and clears it when a task opens or closes or a context
    selection settles, so an outcome-bearing action never ends silently.
-   Data-fetch actions (`query`, `option_search`, `context_search`) leave
-   it untouched.
+   The quiet actions (`query`, `option_search`, `context_search`,
+   `option_select`, `nested_add`, `nested_remove`, `bulk_select`, `prompt`,
+   `wizard_next`, `wizard_back`, `open_surface`) leave it untouched unless
+   they fail.
 3. **In-flight states on action buttons** — catalog components acknowledge
    clicks themselves: the admin `actionBar` shows `busy` (disabled + spinner)
    while its submit is in flight, and the admin `dataGrid` row-action buttons
@@ -100,7 +107,7 @@ reference for host-rendered a2ui chrome.
   is a server-enforced state machine (`/ui/panel`), and an optimistic close
   would desync the UI whenever the server rejects or reshapes the
   transition. The transition itself is pure computation, so the round
-  trip is RTT-bounded and the v1.0 pending write covers the wait.
+  trip is RTT-bounded and the hook's pending write covers the wait.
 - **Action handling runs inline in `handle_event`.** Overlapping invokes on
   one record must apply in order; shunting them into concurrent tasks buys
   process freedom at the cost of write races. The action dispatch is a
@@ -122,6 +129,6 @@ reference for host-rendered a2ui chrome.
   reads (query actions) currently rely on the button in-flight states and
   the typed feedback write — not on a per-position skeleton.
 - **Optimistic in-flight styling on the upstream basic-catalog Button** (the
-  plain `v0.9.1` + basic-catalog composition) — the basic catalog is
-  upstream; AshA2ui surfaces on it rely on the hook's v1.0 pending write and
+  plain basic-catalog composition) — the basic catalog is
+  upstream; AshA2ui surfaces on it rely on the hook's pending write and
   the typed status text binding.

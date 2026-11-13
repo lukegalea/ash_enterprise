@@ -259,15 +259,12 @@ defmodule AshEnterprise.Quality.ReviewVerdictTest do
   defp record_verdict(ctx, row, answer, why) do
     AshA2ui.ActionHandler.handle(
       VerdictsUI,
-      %{
-        "name" => "invoke",
-        "context" => %{
-          "action" => "record_verdict",
-          "recordId" => row.id,
-          "component" => "table",
-          "values" => %{"answer" => answer, "why" => why}
-        }
-      },
+      AshEnterprise.A2uiMessage.ash_action(VerdictsUI, "invoke", %{
+        "action" => "record_verdict",
+        "recordId" => row.id,
+        "component" => "table",
+        "values" => %{"answer" => answer, "why" => why}
+      }),
       actor: ctx.actor,
       tenant: ctx.tenant
     )

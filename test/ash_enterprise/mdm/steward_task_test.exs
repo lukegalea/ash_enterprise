@@ -248,7 +248,9 @@ defmodule AshEnterprise.Mdm.StewardTaskTest do
       %{"action" => action, "recordId" => task.id, "component" => "board_#{lane}"}
       |> then(&if(values, do: Map.put(&1, "values", values), else: &1))
 
-    AshA2ui.ActionHandler.handle(TaskBoardUI, %{"name" => "invoke", "context" => context},
+    AshA2ui.ActionHandler.handle(
+      TaskBoardUI,
+      AshEnterprise.A2uiMessage.ash_action(TaskBoardUI, "invoke", context),
       actor: person.actor,
       tenant: person.tenant
     )
@@ -257,10 +259,11 @@ defmodule AshEnterprise.Mdm.StewardTaskTest do
   defp approvals(person, action, task) do
     AshA2ui.ActionHandler.handle(
       ApprovalsUI,
-      %{
-        "name" => "invoke",
-        "context" => %{"action" => action, "recordId" => task.id, "component" => "table"}
-      },
+      AshEnterprise.A2uiMessage.ash_action(ApprovalsUI, "invoke", %{
+        "action" => action,
+        "recordId" => task.id,
+        "component" => "table"
+      }),
       actor: person.actor,
       tenant: person.tenant
     )
@@ -269,10 +272,11 @@ defmodule AshEnterprise.Mdm.StewardTaskTest do
   defp queue(person, action, candidate) do
     AshA2ui.ActionHandler.handle(
       MdmStewardUI,
-      %{
-        "name" => "invoke",
-        "context" => %{"action" => action, "recordId" => candidate.id, "component" => "table"}
-      },
+      AshEnterprise.A2uiMessage.ash_action(MdmStewardUI, "invoke", %{
+        "action" => action,
+        "recordId" => candidate.id,
+        "component" => "table"
+      }),
       actor: person.actor,
       tenant: person.tenant
     )

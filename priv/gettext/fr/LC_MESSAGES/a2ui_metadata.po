@@ -11,7 +11,7 @@ msgstr ""
 "Language: fr\n"
 "Plural-Forms: nplurals=2; plural=(n>1);\n"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
 #: lib/ash_enterprise_web/a2ui/stalled_reviews_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
 msgid "About"
@@ -83,7 +83,7 @@ msgstr "Note d’activation"
 #: lib/ash_enterprise_web/a2ui/business_unit_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/credential_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/operator_ui.ex:1
-#: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:151
 msgid "Active"
 msgstr "Actif"
 
@@ -97,8 +97,8 @@ msgstr "Actif"
 
 #: lib/ash_enterprise_web/a2ui/credential_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/mdm_mapping_ui.ex:1
-#: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
-#: lib/ash_enterprise_web/a2ui/operator_ui.ex:284
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:151
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:282
 #: lib/ash_enterprise_web/a2ui/policy_bundle_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/rule_set_revision_ui.ex:1
 msgctxt "one_of:status"
@@ -152,12 +152,12 @@ msgid "Ancestry"
 msgstr "Ascendance"
 
 #: lib/ash_enterprise/canvas/registry.ex:2
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
 #: lib/ash_enterprise_web/a2ui/judgments/verdicts_ui.ex:1
 msgid "Answer"
 msgstr "Réponse"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
 msgid "Answer the question"
 msgstr "Répondre à la question"
 
@@ -182,23 +182,23 @@ msgstr "Appliquer"
 msgid "Approval"
 msgstr "Approbation"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
 #, fuzzy
 msgid "Approval binding"
 msgstr "Approbation"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
 #, fuzzy
 msgid "Approval digest"
 msgstr "Approbations"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
 msgid "Approvals"
 msgstr "Approbations"
 
 #: lib/ash_enterprise/canvas/registry.ex:2
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
 #: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
 msgid "Approve"
 msgstr "Approuver"
@@ -275,11 +275,11 @@ msgstr "Relecture des événements Ash : mise à jour de projection"
 msgid "Ash events replay share update"
 msgstr "Relecture des événements Ash : mise à jour de partage"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
 msgid "Ask for more information"
 msgstr "Demander plus d’informations"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
 msgid "Ask the requester — they answer before you decide"
 msgstr "Interroger le demandeur — il répond avant votre décision"
 
@@ -315,11 +315,11 @@ msgstr "Affecter à une unité d’affaires"
 msgid "Attach timers"
 msgstr "Joindre des minuteries"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:136
 msgid "Attendee"
 msgstr "Participant"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:136
 msgid "Attendees"
 msgstr "Participants"
 
@@ -455,7 +455,7 @@ msgstr "Par"
 msgid "By key"
 msgstr "Par clé"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:136
 msgid "Calendar"
 msgstr "Calendrier"
 
@@ -475,7 +475,7 @@ msgstr "Provient de"
 msgid "Cancel"
 msgstr "Annuler"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:136
 msgid "Cancelled"
 msgstr "Annulé"
 
@@ -484,9 +484,9 @@ msgctxt "one_of:solve_status"
 msgid "Cancelled"
 msgstr "Annulé"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:136
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:263
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
 #: lib/ash_enterprise_web/a2ui/stalled_reviews_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
 msgctxt "one_of:status"
@@ -576,19 +576,19 @@ msgstr "Prendre la tâche en charge"
 msgid "Claim waiting"
 msgstr "Prendre en charge l’élément en attente"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
 msgid "Claimed"
 msgstr "Pris en charge"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
 #: lib/ash_enterprise_web/a2ui/stalled_reviews_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
 msgctxt "one_of:status"
 msgid "Claimed"
 msgstr "Pris en charge"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
 #: lib/ash_enterprise_web/a2ui/stalled_reviews_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
 msgid "Claimed by"
@@ -607,7 +607,7 @@ msgstr "Fermé"
 msgid "Combining"
 msgstr "Combinaison"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
 msgid "Comment"
 msgstr "Commentaire"
@@ -641,7 +641,7 @@ msgstr "Terminer la tâche"
 msgid "Complete — the outcome, and a note for the record (optional)"
 msgstr "Terminer : le résultat et une note pour le dossier (facultatif)"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
 #: lib/ash_enterprise_web/a2ui/stalled_reviews_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
 msgctxt "one_of:status"
@@ -671,7 +671,7 @@ msgid "Confidence"
 msgstr "Confiance"
 
 #: lib/ash_enterprise/canvas/registry.ex:2
-#: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:151
 msgid "Confirm"
 msgstr "Confirmer"
 
@@ -684,19 +684,19 @@ msgstr "Confirmer"
 msgid "Confirm match"
 msgstr "Confirmer la correspondance"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:136
 msgid "Confirmed"
 msgstr "Confirmé"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:136
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:263
 #: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
 msgctxt "one_of:status"
 msgid "Confirmed"
 msgstr "Confirmé"
 
-#: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
-#: lib/ash_enterprise_web/a2ui/operator_ui.ex:284
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:151
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:282
 msgctxt "one_of:kind"
 msgid "Connection"
 msgstr "Connexion"
@@ -719,20 +719,20 @@ msgstr "Empreinte du contenu (les lots s’y rattachent)"
 msgid "Control id"
 msgstr "Identifiant du contrôle"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:559
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:555
 msgid "Conversation"
 msgstr "Conversation"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:559
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:555
 msgid "Conversation detail"
 msgstr "Détail de la conversation"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:263
 msgid "Conversations"
 msgstr "Conversations"
 
-#: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
-#: lib/ash_enterprise_web/a2ui/operator_ui.ex:284
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:151
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:282
 msgid "Conversations sealed"
 msgstr "Conversations scellées"
 
@@ -816,8 +816,8 @@ msgstr "Confidentiel client"
 msgid "Data class"
 msgstr "Classe de données"
 
-#: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
-#: lib/ash_enterprise_web/a2ui/operator_ui.ex:284
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:151
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:282
 msgctxt "one_of:kind"
 msgid "Data subject"
 msgstr "Personne concernée"
@@ -836,7 +836,7 @@ msgid "Decision"
 msgstr "Décision"
 
 #: lib/ash_enterprise/canvas/registry.ex:2
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
 msgid "Decisions"
 msgstr "Décisions"
 
@@ -909,7 +909,7 @@ msgctxt "one_of:action_type"
 msgid "Destroy"
 msgstr "Détruire"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
 msgid "Details"
 msgstr "Détails"
@@ -989,7 +989,7 @@ msgstr "Abandonné"
 
 #: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
 #: lib/ash_enterprise_web/a2ui/stalled_reviews_ui.ex:1
 msgid "Due"
 msgstr "Échéance"
@@ -1012,7 +1012,7 @@ msgctxt "one_of:direction"
 msgid "Egress"
 msgstr "Sortie"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:263
 #: lib/ash_enterprise_web/a2ui/legacy_user_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
@@ -1057,8 +1057,8 @@ msgstr "Détail de l’entrée"
 msgid "Erasure scope"
 msgstr "Portée d’effacement"
 
-#: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
-#: lib/ash_enterprise_web/a2ui/operator_ui.ex:284
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:151
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:282
 msgid "Erasure scopes"
 msgstr "Portées d’effacement"
 
@@ -1081,7 +1081,7 @@ msgctxt "one_of:outcome"
 msgid "Escalate"
 msgstr "Escalader"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
 #, fuzzy
 msgid "Escalation"
 msgstr "Évaluation"
@@ -1095,11 +1095,11 @@ msgid "Evaluation"
 msgstr "Évaluation"
 
 #: lib/ash_enterprise_web/a2ui/compliance_evaluation_ui.ex:1
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:136
 msgid "Event"
 msgstr "Événement"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:136
 msgid "Event detail"
 msgstr "Détail de l’événement"
 
@@ -1117,12 +1117,12 @@ msgstr "Événement"
 msgid "Events"
 msgstr "Événements"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:263
 msgid "Events organized"
 msgstr "Événements organisés"
 
-#: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
-#: lib/ash_enterprise_web/a2ui/operator_ui.ex:284
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:151
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:282
 msgid "Events sealed"
 msgstr "Événements scellés"
 
@@ -1134,7 +1134,7 @@ msgstr "Chaque revue en cours, à l’étape où elle se trouve actuellement."
 msgid "Every running brief, on the step it is on now."
 msgstr "Chaque synthèse en cours, à l’étape où elle se trouve actuellement."
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
 msgid "Evidence"
 msgstr "Preuve"
 
@@ -1162,7 +1162,7 @@ msgstr "Faits"
 msgid "Failed"
 msgstr "Échec"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
 #, fuzzy
 msgctxt "one_of:outcome"
 msgid "Failed"
@@ -1258,8 +1258,8 @@ msgstr "Fraîcheur"
 
 #: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:455
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:559
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:452
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:555
 msgid "From"
 msgstr "De"
 
@@ -1349,7 +1349,7 @@ msgstr "Ignorée"
 msgid "Import batches"
 msgstr "Lots d’importation"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:263
 msgid "In"
 msgstr "Entrée"
 
@@ -1370,7 +1370,7 @@ msgid "Inactive"
 msgstr "Inactif"
 
 #: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:455
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:452
 msgid "Inbox"
 msgstr "Boîte de réception"
 
@@ -1432,12 +1432,12 @@ msgctxt "one_of:solve_status"
 msgid "Invalid model"
 msgstr "Modèle invalide"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:136
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:263
 msgid "Invited"
 msgstr "Invité"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:263
 msgid "Invited to"
 msgstr "Invité à"
 
@@ -1503,10 +1503,10 @@ msgstr "Arrêter"
 
 #: lib/ash_enterprise_web/a2ui/audit_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/credential_ui.ex:1
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:559
-#: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
-#: lib/ash_enterprise_web/a2ui/operator_ui.ex:284
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:263
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:555
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:151
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:282
 msgid "Kind"
 msgstr "Type"
 
@@ -1518,14 +1518,14 @@ msgstr "Limite de connaissances"
 msgid "Language locale"
 msgstr "Langue et région"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:455
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:559
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:263
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:452
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:555
 msgid "Last activity"
 msgstr "Dernière activité"
 
-#: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
-#: lib/ash_enterprise_web/a2ui/operator_ui.ex:284
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:151
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:282
 msgid "Last changed by"
 msgstr "Dernière modification par"
 
@@ -1550,8 +1550,8 @@ msgctxt "one_of:lane"
 msgid "Later"
 msgstr "Plus tard"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:455
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:559
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:452
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:555
 msgid "Latest"
 msgstr "Plus récent"
 
@@ -1621,8 +1621,8 @@ msgstr "Exécution de traçabilité"
 
 #: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/operator_ui.ex:1
-#: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
-#: lib/ash_enterprise_web/a2ui/operator_ui.ex:284
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:151
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:282
 msgid "Linked account"
 msgstr "Compte lié"
 
@@ -1740,23 +1740,23 @@ msgstr "Fusionné"
 msgid "Merged into"
 msgstr "Fusionné dans"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:455
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:559
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:263
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:452
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:555
 msgid "Message"
 msgstr "Message"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:455
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:559
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:452
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:555
 msgid "Messages"
 msgstr "Messages"
 
-#: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
-#: lib/ash_enterprise_web/a2ui/operator_ui.ex:284
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:151
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:282
 msgid "Messages sealed"
 msgstr "Messages scellés"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:263
 msgid "Messages sent"
 msgstr "Messages envoyés"
 
@@ -1793,7 +1793,7 @@ msgstr "Mes tâches"
 
 #: lib/ash_enterprise_web/a2ui/business_unit_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/catalog_ui.ex:1
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:263
 #: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/profile_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/role_ui.ex:1
@@ -1819,7 +1819,7 @@ msgctxt "one_of:preparation_status"
 msgid "Needs input"
 msgstr "Nécessite une saisie"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:263
 msgid "Next event"
 msgstr "Prochain événement"
 
@@ -1898,12 +1898,12 @@ msgid "Only one applicable"
 msgstr "Une seule applicable"
 
 #: lib/ash_enterprise/canvas/registry.ex:2
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
 msgid "Open"
 msgstr "Ouvrir"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
 #: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/stalled_reviews_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
@@ -1915,7 +1915,7 @@ msgstr "Ouvert"
 msgid "Open a batch"
 msgstr "Ouvrir un lot"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:263
 msgid "Open a person"
 msgstr "Ouvrir une personne"
 
@@ -1929,13 +1929,13 @@ msgid "Open gaps"
 msgstr "Écarts ouverts"
 
 #: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
-#: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
-#: lib/ash_enterprise_web/a2ui/operator_ui.ex:284
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:151
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:282
 msgid "Opened"
 msgstr "Ouvert"
 
-#: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
-#: lib/ash_enterprise_web/a2ui/operator_ui.ex:284
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:151
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:282
 msgid "Opened by"
 msgstr "Ouvert par"
 
@@ -1968,15 +1968,15 @@ msgstr "Organisation"
 msgid "Organization id"
 msgstr "Identifiant de l’organisation"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:263
 msgid "Organized"
 msgstr "Organisé"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:136
 msgid "Organizer"
 msgstr "Organisateur"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:263
 msgid "Organizes"
 msgstr "Organise"
 
@@ -1991,14 +1991,14 @@ msgid "Oscal uuid"
 msgstr "UUID OSCAL"
 
 #: lib/ash_enterprise_web/a2ui/compliance_evaluation_ui.ex:1
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
 #: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
 msgid "Outcome"
 msgstr "Résultat"
 
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
 msgid "Outline"
 msgstr "Plan"
 
@@ -2047,9 +2047,9 @@ msgctxt "one_of:status"
 msgid "Pending approval"
 msgstr "En attente d’approbation"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:455
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:559
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:263
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:452
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:555
 msgid "People"
 msgstr "Personnes"
 
@@ -2071,7 +2071,7 @@ msgctxt "one_of:admission_grade"
 msgid "Person"
 msgstr "Personne"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:263
 #: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
 msgid "Person detail"
 msgstr "Détail de la personne"
@@ -2195,7 +2195,7 @@ msgstr "Publier sous délégation permanente"
 msgid "Pulse"
 msgstr "Pouls"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
 #: lib/ash_enterprise_web/a2ui/judgments/verdicts_ui.ex:1
 msgid "Question"
 msgstr "Question"
@@ -2204,7 +2204,7 @@ msgstr "Question"
 msgid "Question id"
 msgstr "Identifiant de la question"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
 #, fuzzy
 msgid "Questions"
 msgstr "Question"
@@ -2233,8 +2233,8 @@ msgstr "Lire avec"
 msgid "Reads"
 msgstr "Lectures"
 
-#: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
-#: lib/ash_enterprise_web/a2ui/operator_ui.ex:284
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:151
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:282
 msgid "Reason"
 msgstr "Motif"
 
@@ -2281,8 +2281,8 @@ msgstr "Relance"
 msgid "Redrive failed"
 msgstr "Relancer les répartitions en échec"
 
-#: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
-#: lib/ash_enterprise_web/a2ui/operator_ui.ex:284
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:151
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:282
 msgid "Ref"
 msgstr "Réf."
 
@@ -2305,7 +2305,7 @@ msgstr "Régression"
 
 #: lib/ash_enterprise/canvas/registry.ex:2
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
 #: lib/ash_enterprise_web/a2ui/planning_ui.ex:1
 msgid "Reject"
 msgstr "Rejeter"
@@ -2319,7 +2319,7 @@ msgstr "Rejeter"
 msgid "Reject match"
 msgstr "Rejeter la correspondance"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
 msgid "Reject — add a note for the record (optional)"
 msgstr "Rejeter : ajoutez une note pour le dossier (facultatif)"
 
@@ -2403,8 +2403,8 @@ msgctxt "one_of:outcome_reason"
 msgid "Resource governor unavailable"
 msgstr "Gouverneur de ressources indisponible"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:136
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:263
 msgid "Response"
 msgstr "Réponse"
 
@@ -2431,7 +2431,7 @@ msgctxt "one_of:status"
 msgid "Retired"
 msgstr "Retiré"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
 #, fuzzy
 msgctxt "one_of:outcome"
 msgid "Retry"
@@ -2576,13 +2576,13 @@ msgctxt "one_of:world"
 msgid "Scenario"
 msgstr "Scénario"
 
-#: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
-#: lib/ash_enterprise_web/a2ui/operator_ui.ex:284
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:151
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:282
 msgid "Scope"
 msgstr "Portée"
 
-#: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
-#: lib/ash_enterprise_web/a2ui/operator_ui.ex:284
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:151
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:282
 msgid "Scope detail"
 msgstr "Détail de la portée"
 
@@ -2635,7 +2635,7 @@ msgctxt "select_context"
 msgid "Select catalog"
 msgstr "Sélectionner un catalogue"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:559
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:555
 msgctxt "select_context"
 msgid "Select conversation"
 msgstr "Sélectionner une conversation"
@@ -2656,7 +2656,7 @@ msgctxt "select_context"
 msgid "Select entry"
 msgstr "Sélectionner une entrée"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:136
 msgctxt "select_context"
 msgid "Select event"
 msgstr "Sélectionner un événement"
@@ -2676,7 +2676,7 @@ msgctxt "select_context"
 msgid "Select mapping"
 msgstr "Sélectionner une correspondance"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:263
 #: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
 msgctxt "select_context"
 msgid "Select person"
@@ -2688,13 +2688,13 @@ msgctxt "select_context"
 msgid "Select run"
 msgstr "Sélectionner une exécution"
 
-#: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
-#: lib/ash_enterprise_web/a2ui/operator_ui.ex:284
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:151
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:282
 msgctxt "select_context"
 msgid "Select scope"
 msgstr "Sélectionner une portée"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
 msgctxt "select_context"
 msgid "Select task"
@@ -2705,7 +2705,7 @@ msgctxt "select_context"
 msgid "Select team"
 msgstr "Sélectionner une équipe"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:455
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:452
 msgctxt "select_context"
 msgid "Select thread"
 msgstr "Sélectionner un fil"
@@ -2715,9 +2715,9 @@ msgctxt "select_context"
 msgid "Select user"
 msgstr "Sélectionner un utilisateur"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:455
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:559
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:263
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:452
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:555
 msgid "Sent"
 msgstr "Envoyé"
 
@@ -2734,7 +2734,7 @@ msgid "Set valid until"
 msgstr "Définir la fin de validité"
 
 #: lib/ash_enterprise/canvas/registry.ex:2
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
 #, fuzzy
 msgid "Settle"
 msgstr "Régler"
@@ -2747,21 +2747,21 @@ msgstr "Gravité"
 msgid "Share"
 msgstr "Partager"
 
-#: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:151
 msgid "Shred"
 msgstr "Déchiqueter"
 
-#: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:151
 msgid "Shred permanently: type this scope's ref in Confirm, and give a reason (audited). Its key is destroyed; this cannot be undone."
 msgstr "Déchiquetage définitif : saisissez la référence de cette portée dans Confirmer et indiquez un motif (audité). Sa clé est détruite ; cette opération est irréversible."
 
-#: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
-#: lib/ash_enterprise_web/a2ui/operator_ui.ex:284
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:151
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:282
 msgid "Shredded"
 msgstr "Déchiqueté"
 
-#: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
-#: lib/ash_enterprise_web/a2ui/operator_ui.ex:284
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:151
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:282
 msgctxt "one_of:status"
 msgid "Shredded"
 msgstr "Détruit"
@@ -2794,7 +2794,7 @@ msgstr "Signal"
 msgid "Signature"
 msgstr "Signature"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:559
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:555
 msgid "Slack"
 msgstr "Slack"
 
@@ -2880,16 +2880,16 @@ msgstr "État"
 
 #: lib/ash_enterprise_web/a2ui/credential_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:136
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:263
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
 #: lib/ash_enterprise_web/a2ui/finding_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/judgments/certifications_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/legacy_user_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/mdm_batch_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
-#: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
-#: lib/ash_enterprise_web/a2ui/operator_ui.ex:284
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:151
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:282
 #: lib/ash_enterprise_web/a2ui/policy_bundle_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/projected_user_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/rule_set_revision_ui.ex:1
@@ -2899,7 +2899,7 @@ msgid "Status"
 msgstr "Statut"
 
 #: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
 #: lib/ash_enterprise_web/a2ui/stalled_reviews_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
 msgid "Step"
@@ -2931,7 +2931,7 @@ msgstr "Enregistrer le jeton"
 msgid "Stream"
 msgstr "Flux"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:455
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:452
 #: lib/ash_enterprise_web/a2ui/deliveries_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/judgments/facts_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/judgments/verdicts_ui.ex:1
@@ -2955,7 +2955,7 @@ msgstr "Abonnement"
 msgid "Subtree"
 msgstr "Sous-arbre"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
 #, fuzzy
 msgctxt "one_of:outcome"
 msgid "Succeeded"
@@ -2988,16 +2988,16 @@ msgctxt "enum:Elixir.AshEnterprise.Zones.Types.DataClass"
 msgid "Synthetic"
 msgstr "Synthétique"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:455
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:559
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:136
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:263
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:452
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:555
 #: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/mdm_golden_ui.ex:1
 msgid "Table"
 msgstr "Table"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:263
 msgid "Takes part in"
 msgstr "Participe à"
 
@@ -3005,7 +3005,7 @@ msgstr "Participe à"
 msgid "Target resource"
 msgstr "Ressource cible"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
 msgid "Task"
 msgstr "Tâche"
@@ -3014,7 +3014,7 @@ msgstr "Tâche"
 msgid "Task candidate"
 msgstr "Candidat à la tâche"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
 #: lib/ash_enterprise_web/a2ui/task_board_ui.ex:1
 msgid "Task detail"
 msgstr "Détail de la tâche"
@@ -3049,12 +3049,12 @@ msgstr "Type d’équipe"
 msgid "Teams"
 msgstr "Équipes"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:136
 msgid "Tentative"
 msgstr "Provisoire"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:136
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:263
 msgctxt "one_of:status"
 msgid "Tentative"
 msgstr "Provisoire"
@@ -3071,15 +3071,15 @@ msgstr "Le processus de l’exécution, avec un marqueur sur chaque étape où e
 msgid "This step's outcomes"
 msgstr "Résultats de cette étape"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:136
 msgid "This week"
 msgstr "Cette semaine"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:455
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:452
 msgid "Thread"
 msgstr "Fil"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:455
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:452
 msgid "Thread detail"
 msgstr "Détail du fil"
 
@@ -3107,7 +3107,7 @@ msgstr "Titre"
 
 #: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:136
 msgid "Today"
 msgstr "Aujourd’hui"
 
@@ -3124,7 +3124,7 @@ msgstr "Éléments du jour"
 msgid "Token"
 msgstr "Jeton"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:136
 msgid "Tomorrow"
 msgstr "Demain"
 
@@ -3182,7 +3182,7 @@ msgstr "Non résolu"
 msgid "Unresolved inputs"
 msgstr "Entrées non résolues"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:136
 msgid "Upcoming"
 msgstr "À venir"
 
@@ -3257,7 +3257,7 @@ msgid "Waiting on you"
 msgstr "En attente de vous"
 
 #: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
 #: lib/ash_enterprise_web/a2ui/judgments/verdicts_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/mdm_steward_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/stalled_reviews_ui.ex:1
@@ -3274,7 +3274,7 @@ msgstr "Dispensé"
 msgid "Webhook deliveries"
 msgstr "Livraisons de webhooks"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
 msgid "What happened, and why you know: succeeded (it happened), failed (it did not), or retry (it did not happen, you checked, and it runs again)"
 msgstr "Ce qui s’est passé et comment vous le savez : réussi (c’est arrivé), échoué (ce n’est pas arrivé), ou réessayer (ce n’est pas arrivé, vous avez vérifié, et cela s’exécute à nouveau)"
 
@@ -3283,20 +3283,20 @@ msgid "What the model judged"
 msgstr "Ce que le modèle a jugé"
 
 #: lib/ash_enterprise_web/a2ui/audit_ui.ex:1
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:265
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:136
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:263
 #: lib/ash_enterprise_web/a2ui/lineage_ui.ex:1
 msgid "When"
 msgstr "Quand"
 
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:137
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:136
 msgid "Where"
 msgstr "Où"
 
 #: lib/ash_enterprise_web/a2ui/action_items_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/daily_ui.ex:1
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
 #: lib/ash_enterprise_web/a2ui/flight_ui.ex:1
 #: lib/ash_enterprise_web/a2ui/flight_ui.ex:121
 #: lib/ash_enterprise_web/a2ui/flight_ui.ex:72
@@ -3321,7 +3321,7 @@ msgstr "Pourquoi cela correspond"
 msgid "Window"
 msgstr "Fenêtre"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
 msgid "With"
 msgstr "Avec"
 
@@ -3329,7 +3329,7 @@ msgstr "Avec"
 msgid "World"
 msgstr "Monde"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
 msgid "Would run"
 msgstr "S’exécuterait"
 
@@ -3350,7 +3350,7 @@ msgstr "Votre verdict, enregistré comme étiquette d’étalonnage"
 msgid "action item"
 msgstr "élément d’action"
 
-#: lib/ash_enterprise_web/a2ui/daily_ui.ex:673
+#: lib/ash_enterprise_web/a2ui/daily_ui.ex:668
 msgid "approval"
 msgstr "approbation"
 
@@ -3386,8 +3386,8 @@ msgstr "livraison"
 msgid "directory entry"
 msgstr "entrée d’annuaire"
 
-#: lib/ash_enterprise_web/a2ui/operator_ui.ex:152
-#: lib/ash_enterprise_web/a2ui/operator_ui.ex:284
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:151
+#: lib/ash_enterprise_web/a2ui/operator_ui.ex:282
 msgid "erasure scope"
 msgstr "portée d’effacement"
 

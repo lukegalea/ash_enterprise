@@ -113,7 +113,7 @@ defmodule AshEnterprise.AcpDailyTest do
 
       assert turn.response["result"]["stopReason"] == "end_turn", text
       assert turn.said != "", text
-      assert [%{"version" => "v1.0", "createSurface" => create}] = turn.surface, text
+      assert [%{"version" => "1.0", "createSurface" => create}] = turn.surface, text
       assert create["surfaceId"] == surface_id, text
       assert Map.has_key?(create, "dataModel"), text
 

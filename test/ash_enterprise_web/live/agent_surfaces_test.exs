@@ -401,13 +401,18 @@ defmodule AshEnterpriseWeb.AgentSurfacesTest do
       refute render(view) =~ "Another application changed these rows"
     end
 
-    test "an action envelope with nothing shown is ignored rather than guessed at",
+    test "a renderer message with nothing shown is ignored rather than guessed at",
          %{conn: conn} do
       {:ok, view, _html} = live(conn, "/agent")
 
       # Rebuilding a surface from something the client echoed back is the
       # tamper-proofing hole the server-held presentation exists to close.
-      assert render_hook(view, "a2ui:action", %{"action" => %{"name" => "whatever"}})
+      assert render_hook(
+               view,
+               "a2ui:message",
+               AshEnterprise.A2uiMessage.ash_action("whatever", "whatever")
+             )
+
       refute render(view) =~ ~s(data-role="surface")
     end
 

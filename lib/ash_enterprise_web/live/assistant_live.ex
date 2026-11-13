@@ -202,23 +202,26 @@ defmodule AshEnterpriseWeb.AssistantLive do
     end
   end
 
-  # A client action in a composed surface: routed to the surface this page
-  # holds under the envelope's id, through the handler (which authorizes as
+  # A renderer message from a composed surface: routed to the surface this page
+  # holds under the message's surface id, through the handler (which authorizes as
   # the person). An id the page does not hold is ignored, never rebuilt.
-  def handle_event("a2ui:action", %{"action" => %{"surfaceId" => id}} = envelope, socket) do
-    case socket.assigns.surfaces[id] do
+  def handle_event("a2ui:message", message, socket) do
+    id = AshEnterprise.A2uiMessage.surface_id(message)
+
+    case id && socket.assigns.surfaces[id] do
       nil ->
+        {:noreply, socket}
+
+      false ->
         {:noreply, socket}
 
       surface ->
         {_outcome, messages} =
-          AshA2ui.Dynamic.handle_action(surface, envelope, a2ui_opts(socket))
+          AshA2ui.Dynamic.handle_action(surface, message, a2ui_opts(socket))
 
         {:noreply, push_event(socket, "a2ui:messages:" <> id, %{messages: messages})}
     end
   end
-
-  def handle_event("a2ui:action", _envelope, socket), do: {:noreply, socket}
 
   # A reference link in a composed surface: its deep link, re-authorized there.
   def handle_event("a2ui:open_surface", args, socket), do: Host.open_surface(args, socket)

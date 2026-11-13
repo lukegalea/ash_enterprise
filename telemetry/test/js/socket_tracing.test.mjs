@@ -93,13 +93,13 @@ test("the traceparent goes in meta for a form, leaving the urlencoded value alon
 
 test("the span is named with the page and control, and carries the contract attributes", () => {
   const {socket, tracer} = setup({label: "Activate"})
-  socket.encode(eventMessage({type: "click", event: "a2ui:action", value: {}}), () => {})
+  socket.encode(eventMessage({type: "click", event: "a2ui:message", value: {}}), () => {})
 
   const [span] = tracer.spans
   assert.equal(span.name, "/app/widgets/:id Activate")
   assert.deepEqual(span.attributes, {
     "ui.page.path": "/app/widgets/:id",
-    "ui.event.name": "a2ui:action",
+    "ui.event.name": "a2ui:message",
     "ui.event.type": "click",
     "ui.control.label": "Activate"
   })

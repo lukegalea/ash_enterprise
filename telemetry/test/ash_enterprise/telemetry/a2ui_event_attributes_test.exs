@@ -9,12 +9,22 @@ defmodule AshEnterprise.Telemetry.A2uiEventAttributesTest do
   end
 
   defp envelope(name, context) do
-    %{"action" => %{"name" => name, "surfaceId" => "s1", "context" => context}}
+    %{
+      "version" => "1.0",
+      "callAgentFunction" => %{
+        "surfaceId" => "s1",
+        "functionCallId" => "fc_1",
+        "callFunction" => %{
+          "@call" => "ashAction",
+          "args" => %{"name" => name, "context" => context}
+        }
+      }
+    }
   end
 
   defp resolve(name, context, opts \\ []) do
     A2uiEventAttributes.resolve(
-      "a2ui:action",
+      "a2ui:message",
       envelope(name, context),
       %{view: SurfaceView},
       opts
@@ -26,7 +36,7 @@ defmodule AshEnterprise.Telemetry.A2uiEventAttributesTest do
   test "an undeclared client-chosen name reports the verb and appears nowhere" do
     result =
       A2uiEventAttributes.resolve(
-        "a2ui:action",
+        "a2ui:message",
         envelope("invoke", %{"action" => "drop_tables", "recordId" => "r1"}),
         %{view: SurfaceView}
       )
@@ -67,6 +77,13 @@ defmodule AshEnterprise.Telemetry.A2uiEventAttributesTest do
   test "without ash_a2ui loaded and no declared set, a row action reports its verb" do
     assert action_name(resolve("invoke", %{"action" => "activate"})) == "invoke"
     assert A2uiEventAttributes.declared_on_ui(nil, "s1") == []
+  end
+
+  test "a plain action event, which the handler refuses, reports nothing" do
+    plain = %{"version" => "1.0", "action" => %{"name" => "invoke", "surfaceId" => "s1"}}
+
+    assert A2uiEventAttributes.resolve("a2ui:message", plain, %{view: SurfaceView}) == %{}
+    assert A2uiEventAttributes.resolve("a2ui:action", plain, %{view: SurfaceView}) == %{}
   end
 
   test "any other envelope keeps its own name" do

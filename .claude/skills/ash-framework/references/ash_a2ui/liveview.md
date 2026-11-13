@@ -22,6 +22,10 @@ That is the entire LiveView. `use` options:
   the actor is passed to every surface, data-model, and action call.
   Without it every Ash call runs with a nil actor.
 - `:tenant_fn` (optional) — 1-arity `socket -> tenant`, same semantics.
+- `:surfaces` (optional) — more surfaces on the same page, built, pushed,
+  answered and refreshed with the main one:
+  `surfaces: [order_summary: [ui: MyApp.UI.OrderSummaryUI, context: &summary_context/2]]`
+  (see "JS hook wiring" below for the containers).
 - `:pubsub` (optional) — enables live refresh:
   `pubsub: [module: MyApp.PubSub, topics: ["tickets:created", ...]]`.
   Topics are explicit configuration — list the topics your resource's
@@ -38,10 +42,16 @@ a debounced (150 ms) `AshA2ui.Info.build_data_model/2` refresh.
 
 - Server -> client: messages are pushed as the `"a2ui:messages"` event with
   payload `%{messages: [...]}`.
-- Client -> server: the hook pushes the `"a2ui:action"` event carrying the
-  A2UI v0.9.1 client envelope; the LiveView routes it through
+- Client -> server: the hook pushes every renderer-to-agent message
+  (`action`, `callAgentFunction`, `rendererFunctionResponse`, `error`)
+  verbatim as the `"a2ui:message"` event. The LiveView routes it through
   `AshA2ui.ActionHandler.handle/3` and pushes the follow-up messages for
-  both ok and error results.
+  both ok and error results; an `ashAction` call's follow-ups end with its
+  `agentFunctionResponse`.
+- A `rendererFunctionResponse` is matched to the `callRendererFunction` the
+  LiveView pushed (by `functionCallId`, once) and handed to the
+  `:on_function_response` option (`(response, function_name, socket) ->
+  socket`); a duplicate, late or unknown id is dropped with a warning.
 
 - Client -> server: `"a2ui:open_surface"` with `%{"surface", "recordId",
   "query"}` when a reference link is activated. The default handling
@@ -50,7 +60,7 @@ a debounced (150 ms) `AshA2ui.Info.build_data_model/2` refresh.
   `open_surface: &MyLive.open/2` (`(args, socket) -> {:noreply, socket}`)
   to stack surfaces or anything else. The target is always built
   server-side — never trust a client href.
-- Basic-catalog reference links arrive as an `"a2ui:action"` named
+- Basic-catalog reference links arrive as an `ashAction` call named
   `"open_surface"` (context `%{"field", "surface", "recordId"}`). The
   handler validates the field/surface pair (not the record id) and
   returns no messages; on `{:ok, _}` the LiveRenderer navigates through
@@ -78,15 +88,22 @@ its own** — the host app bundle must supply the `@a2ui` renderer classes
 before the LiveSocket mounts the hook:
 
 ```javascript
-import {MessageProcessor} from "@a2ui/web_core/v0_9";
-import {basicCatalog} from "@a2ui/lit/v0_9";  // also registers <a2ui-surface>
+import "@a2ui/lit";  // registers <a2ui-surface>
+import {Catalog, MessageProcessor} from "@a2ui/web_core";
+import {basicCatalog} from "@a2ui/web_core/catalogs/basic/v1";
 import {AshA2ui, configureAshA2ui} from "ash_a2ui/priv/js/ash_a2ui_hook.js";
 
-configureAshA2ui({MessageProcessor, catalogs: [basicCatalog]});
+configureAshA2ui({MessageProcessor, Catalog, catalogs: [basicCatalog]});
 const liveSocket = new LiveSocket("/live", Socket, {hooks: {AshA2ui}});
 ```
 
-Forgetting `configureAshA2ui({MessageProcessor, catalogs})` is the most
+The hook registers the ash_a2ui catalog (`ashAction`, `downloadFile`)
+beside the host's catalogs itself. Optional `configureAshA2ui` keys:
+`markdown`, `openSurface`, `pendingMessage`, `slowMessage` (defaults for a
+surface without `/ui/feedback_text`) and `actionTimeoutMs`. A host
+that needs more renderer functions declares them in a catalog of its own.
+
+Forgetting `configureAshA2ui({MessageProcessor, Catalog, catalogs})` is the most
 common wiring mistake — the hook throws on mount with an explanatory error.
 (`globalThis.__ASH_A2UI_DEPS__` is an equivalent fallback for separately
 bundled hooks.)
@@ -105,8 +122,8 @@ For production-quality surfaces, prefer the full wiring (see the Theming
 topic and the docs in the shipped JS files):
 
 - pass `markdown: {ContextProvider, context: Context.markdown, render:
-  renderMarkdown}` (from `@lit/context`, `@a2ui/lit/v0_9` and
-  `@a2ui/markdown-it`) to `configureAshA2ui` — otherwise Text headings
+  renderMarkdown}` (from `@lit/context`,
+  `@a2ui/web_core/catalogs/basic/v1` and `@a2ui/markdown-it`) to `configureAshA2ui` — otherwise Text headings
   render as literal `## ...` markdown;
 - pass the merged catalog from `priv/js/ash_a2ui_catalog.js`
   (`createAshA2uiCatalog(deps)`) instead of `basicCatalog`, so
@@ -121,7 +138,88 @@ The rendered container is
 `<div id="ash-a2ui-surface" phx-hook="AshA2ui" phx-update="ignore">` —
 `phx-update="ignore"` is required; the renderer owns that DOM.
 
-v0 limitation: one surface per hook instance.
+A hook container renders one surface. To show a second surface on the same
+page, render a second container with its own `id` and `surface` (the
+surface's `surface_id`). The hook then takes only that surface's messages,
+and the first container keeps the rest:
+
+```heex
+<AshA2ui.LiveRenderer.surface_container id="order-summary" surface="order_summary" />
+<AshA2ui.LiveRenderer.surface_container />
+```
+
+How the hook routes each `"a2ui:messages"` push (LiveView delivers every
+push to every hook on the page, nested LiveViews too):
+
+- a message addressed to a surface (`createSurface`, `updateComponents`,
+  `updateDataModel`, `deleteSurface`, and a `callRendererFunction` that
+  names a `surfaceId`) goes to the container whose `surface` matches, else
+  to the unscoped containers;
+- an `agentFunctionResponse` goes to the container that sent the
+  `callAgentFunction` with its `functionCallId`;
+- a message that names no surface (a `callRendererFunction` without a
+  `surfaceId`) goes to the primary container: the one with `primary`, else
+  the unscoped one, else the first mounted. Mark one `primary` when every
+  container is scoped.
+
+With no `surface` and no `primary` on the page, every container takes every
+message, as before.
+
+The LiveRenderer builds, pushes, answers and refreshes the other surfaces
+too: list them under `:surfaces`. An order page with a small summary
+surface above it (`OrderSummaryUI` declares `surface_id "order_summary"`,
+`OrderUI` declares `surface_id "order"`):
+
+```elixir
+defmodule MyAppWeb.OrderLive do
+  use AshA2ui.LiveRenderer,
+    ui: MyApp.UI.OrderUI,
+    actor_fn: & &1.assigns.current_user,
+    surfaces: [
+      order_summary: [ui: MyApp.UI.OrderSummaryUI, context: &__MODULE__.summary_context/2]
+    ]
+
+  # The summary's context selection, validated like a deep link's ids.
+  def summary_context(params, _socket), do: %{"order" => params["id"]}
+
+  def render(assigns) do
+    ~H"""
+    <AshA2ui.LiveRenderer.surface_container id="order-summary" surface="order_summary" />
+    <AshA2ui.LiveRenderer.surface_container id="order" surface="order" primary />
+    """
+  end
+end
+```
+
+That is all the host writes: the option, the context function and the
+containers. For each surface under `:surfaces`:
+
+- the connected mount builds it in its own async task, as the same actor,
+  tenant, `as_of` and locale/translator as the main surface, with
+  `header: false`, and pushes it as `"a2ui:messages"`;
+- `context` (optional) is `(params, socket) -> %{"<context>" => id}` (or
+  `nil`). The ids go through `AshA2ui.Info.context_state_for/3`, the same
+  authorized reads as a deep link; without it the surface is built with no
+  selection. When `handle_params` runs again (live navigation,
+  back/forward) and the selection changed, the surface is rebuilt;
+- each `"a2ui:message"` call is routed by
+  `message["callAgentFunction"]["surfaceId"]`: that surface's UI answers
+  through `AshA2ui.ActionHandler.handle/3` with the same options (the
+  data-model writes, then the call's `agentFunctionResponse`), and its
+  query and context state are kept apart from the main surface's (and never
+  written to the URL). Anything else goes to the main UI as before;
+- a PubSub refresh rebuilds every surface's data model, each with its own
+  state, in one push.
+
+Don't write a `handle_event("a2ui:message", ...)` of your own to route a
+second surface: list it under `:surfaces`. A host that overrides
+`handle_async/3` must delegate the `{:ash_a2ui_surface, name}` keys, as it
+does `:ash_a2ui_surface`. A host that wraps `mount/4` passes the real
+params, since the context functions read them.
+
+Two surfaces in two LiveViews also work: the hook pushes a container's
+`"a2ui:message"` events to the LiveView that owns that container, so each
+LiveRenderer answers its own.
 
 ## Optional host-side pieces
 

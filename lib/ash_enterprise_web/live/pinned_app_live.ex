@@ -129,19 +129,19 @@ defmodule AshEnterpriseWeb.PinnedAppLive do
   def handle_event("reread", _params, socket), do: {:noreply, socket}
 
   # Routed to the surface held here, through the handler (authorized as the
-  # person); with nothing shown there is nothing an envelope can refer to.
+  # person); with nothing shown there is nothing an message can refer to.
   def handle_event(
-        "a2ui:action",
-        envelope,
+        "a2ui:message",
+        message,
         %{assigns: %{presentation: %{} = presentation}} = socket
       ) do
     {socket, presentation} =
-      Host.handle_action(socket, presentation, envelope, actor_opts(socket))
+      Host.handle_action(socket, presentation, message, actor_opts(socket))
 
     {:noreply, assign(socket, :presentation, presentation)}
   end
 
-  def handle_event("a2ui:action", _envelope, socket), do: {:noreply, socket}
+  def handle_event("a2ui:message", _message, socket), do: {:noreply, socket}
 
   def handle_event("a2ui:open_surface", args, socket), do: Host.open_surface(args, socket)
 

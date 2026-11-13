@@ -38,7 +38,6 @@ defmodule AshEnterpriseWeb.A2ui.ActionItemsUI do
     surface_id "action_items"
     title "Action items"
     record_label "action item"
-    spec_version "1.0"
 
     context :item do
       resource AshEnterprise.Canonical.Task

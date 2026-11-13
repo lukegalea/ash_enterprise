@@ -57,10 +57,11 @@ defmodule AshEnterpriseWeb.A2ui.TaskBoardUITest do
   defp approvals_invoke(person, action, task) do
     AshA2ui.ActionHandler.handle(
       ApprovalsUI,
-      %{
-        "name" => "invoke",
-        "context" => %{"action" => action, "recordId" => task.id, "component" => "table"}
-      },
+      AshEnterprise.A2uiMessage.ash_action(ApprovalsUI, "invoke", %{
+        "action" => action,
+        "recordId" => task.id,
+        "component" => "table"
+      }),
       actor: person.actor,
       tenant: person.tenant
     )
@@ -86,7 +87,9 @@ defmodule AshEnterpriseWeb.A2ui.TaskBoardUITest do
 
     context = if values, do: Map.put(context, "values", values), else: context
 
-    AshA2ui.ActionHandler.handle(TaskBoardUI, %{"name" => "invoke", "context" => context},
+    AshA2ui.ActionHandler.handle(
+      TaskBoardUI,
+      AshEnterprise.A2uiMessage.ash_action(TaskBoardUI, "invoke", context),
       actor: person.actor,
       tenant: person.tenant
     )
@@ -99,7 +102,9 @@ defmodule AshEnterpriseWeb.A2ui.TaskBoardUITest do
       "component" => "board_#{task_lane(task)}"
     }
 
-    AshA2ui.ActionHandler.handle(TaskBoardUI, %{"name" => "prompt", "context" => context},
+    AshA2ui.ActionHandler.handle(
+      TaskBoardUI,
+      AshEnterprise.A2uiMessage.ash_action(TaskBoardUI, "prompt", context),
       actor: person.actor,
       tenant: person.tenant
     )

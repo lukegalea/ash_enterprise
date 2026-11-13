@@ -44,7 +44,7 @@ end
 - Options land inline in the ChoicePicker *and* at the reserved
   `/options/<field>` data-model path (`[{"label": _, "value": _}]`, all
   strings). Code against `/options/<field>`; the inline copy exists because
-  the v0.9.1 basic-catalog ChoicePicker can't bind dynamic options.
+  the basic-catalog ChoicePicker can't bind dynamic options.
 - **Do not raise `option_limit` for large option sets — declare
   `option_search` instead.** Truncation at the limit is deliberate; don't
   ship a 5,000-option dropdown.
@@ -170,15 +170,15 @@ end
   adds a server-built `"href"` to every link and is the default
   `AshA2ui.LiveRenderer` navigation target.
 - Admin catalog: link columns carry `"link": {"path": "_links/<field>"}`,
-  FieldDisplays `"link": {"path": ".../_links/<field>"}`; activation calls
+  FieldDisplays `"link": {"@path": ".../_links/<field>"}`; activation calls
   the catalog's `openSurface` function (`{surface, recordId, query}`).
 - Basic catalog, with `link_buttons: true` (the LiveRenderer sets it when
   it has `:open_surface` / `:open_surface_url`; off, links stay plain
   Text): a to-one link (`link :rel` / `link {surface, id_path}`) in a
   table cell, card-row title/meta or detail value wraps its value Text
   (same id) in a borderless Button `<value id>_link` dispatching
-  `"open_surface"` with `{"field", "surface": {"path":
-  ".../_links/<field>/surface"}, "recordId": {"path": ...}}`. The handler
+  `"open_surface"` with `{"field", "surface": {"@path":
+  ".../_links/<field>/surface"}, "recordId": {"@path": ...}}`. The handler
   accepts it only for that field's resolved surface (no follow-ups; the
   record id is not checked, the opened surface authorizes its read) and
   `AshA2ui.LiveRenderer` then navigates like `"a2ui:open_surface"`. Only
@@ -206,7 +206,9 @@ end
   `openSurface`, nothing for the `LinkResolver` to resolve or veto, so prune
   in the calculation if the actor should not see it). The basic catalog shows
   the plain value. Cannot be combined with `link`, `links` or `source`
-  (verified).
+  (verified). A link to a file to save rather than a page to open adds
+  `download true` (admin catalog 1.15): the entry carries `"download" =>
+  true`, and the stock renderer draws `<a download>`. Only with `link_url`.
 - Verified at compile time: `link` → public to-one relationship, `links`
   → public to-many, single-attribute destination PK, `link_label` a
   public destination field, `{surface, id_path}` walks public

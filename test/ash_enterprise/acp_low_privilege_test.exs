@@ -130,10 +130,12 @@ defmodule AshEnterprise.AcpLowPrivilegeTest do
     {resp, _updates, _state, asked} =
       ext_with_permission(s, "_a2ui/action", %{
         "surfaceId" => "today",
-        "action" => %{
-          "name" => "invoke",
-          "context" => %{"action" => "approve", "recordId" => brief.id, "component" => "brief"}
-        }
+        "action" =>
+          AshEnterprise.A2uiMessage.ash_action("today", "invoke", %{
+            "action" => "approve",
+            "recordId" => brief.id,
+            "component" => "brief"
+          })
       })
 
     assert asked == ["Approve · Today"]
@@ -155,10 +157,12 @@ defmodule AshEnterprise.AcpLowPrivilegeTest do
     # it still runs as the member, who is refused, and the outcome says so.
     approve = %{
       "surfaceId" => "approvals",
-      "action" => %{
-        "name" => "invoke",
-        "context" => %{"action" => "approve", "recordId" => task.id, "component" => "tasks"}
-      }
+      "action" =>
+        AshEnterprise.A2uiMessage.ash_action("approvals", "invoke", %{
+          "action" => "approve",
+          "recordId" => task.id,
+          "component" => "tasks"
+        })
     }
 
     {resp, _updates, _state, asked} = ext_with_permission(s, "_a2ui/action", approve)
@@ -178,12 +182,14 @@ defmodule AshEnterprise.AcpLowPrivilegeTest do
     # When the up-front check cannot decide, the refusal comes back from
     # AshA2ui.ActionHandler as data-model messages only; the outcome's kind
     # is read from them.
-    action = %{
-      "name" => "invoke",
-      "context" => %{"action" => "approve", "recordId" => task.id, "component" => "tasks"}
-    }
-
     ui = AshEnterprise.Surfaces.acp_ui(AshEnterprise.Surfaces.fetch!(:approvals))
+
+    action =
+      AshEnterprise.A2uiMessage.ash_action(ui, "invoke", %{
+        "action" => "approve",
+        "recordId" => task.id,
+        "component" => "tasks"
+      })
 
     assert {:error, messages} =
              AshA2ui.ActionHandler.handle(ui, action, actor: actor, tenant: ctx.member.tenant)
@@ -194,17 +200,16 @@ defmodule AshEnterprise.AcpLowPrivilegeTest do
       [%{"updateDataModel" => %{"surfaceId" => "s", "path" => path, "value" => value}}]
     end
 
-    feedback = fn message ->
-      status.("/ui/feedback", %{"kind" => "error", "message" => message})
+    feedback = fn code ->
+      status.("/ui/feedback", %{"kind" => "error", "message" => "Refused.", "code" => code})
     end
 
-    # A 0.9.1 surface reports a refusal as the typed `/ui/feedback` error with
-    # the handler's fixed sentence; any other error text is not a refusal.
-    assert ExtMethods.failure_kind(feedback.("You are not authorized to perform this action.")) ==
-             :forbidden
-
+    # A surface reports a refusal as the typed `/ui/feedback` error with the code
+    # `FORBIDDEN`; any other code is not a refusal.
+    assert ExtMethods.failure_kind(feedback.("FORBIDDEN")) == :forbidden
+    assert ExtMethods.failure_kind(feedback.("VALIDATION_FAILED")) == :invalid
     assert ExtMethods.failure_kind(status.("/errors/title", "is required")) == :invalid
-    assert ExtMethods.failure_kind(feedback.("Something went wrong.")) == :error
+    assert ExtMethods.failure_kind(feedback.("ACTION_FAILED")) == :error
 
     # `/ui/status` is gone from ash_a2ui; a stray one no longer classifies.
     assert ExtMethods.failure_kind(

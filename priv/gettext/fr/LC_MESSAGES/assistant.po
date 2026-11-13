@@ -11,42 +11,42 @@ msgstr ""
 "Language: fr\n"
 "Plural-Forms: nplurals=2; plural=(n>1);\n"
 
-#: lib/ash_enterprise_web/live/assistant_live.ex:1593
+#: lib/ash_enterprise_web/live/assistant_live.ex:1596
 #, elixir-autogen, elixir-format
 msgid "%{summary}: proposed (before 4 November 2026)."
 msgstr "%{summary} : proposé (avant le 4 novembre 2026)."
 
-#: lib/ash_enterprise_web/live/assistant_live.ex:1499
+#: lib/ash_enterprise_web/live/assistant_live.ex:1502
 #, elixir-autogen, elixir-format
 msgid "A change the assistant asked for"
 msgstr "Un changement demandé par l’assistant"
 
-#: lib/ash_enterprise_web/live/assistant_live.ex:1596
+#: lib/ash_enterprise_web/live/assistant_live.ex:1599
 #, elixir-autogen, elixir-format
 msgid "A change was proposed here (before 4 November 2026)."
 msgstr "Un changement a été proposé ici (avant le 4 novembre 2026)."
 
-#: lib/ash_enterprise_web/live/assistant_live.ex:1505
+#: lib/ash_enterprise_web/live/assistant_live.ex:1508
 #, elixir-autogen, elixir-format
 msgid "About"
 msgstr "Objet"
 
-#: lib/ash_enterprise_web/live/assistant_live.ex:1434
+#: lib/ash_enterprise_web/live/assistant_live.ex:1437
 #, elixir-autogen, elixir-format
 msgid "Add an action item"
 msgstr "Ajouter une action à faire"
 
-#: lib/ash_enterprise_web/live/assistant_live.ex:1431
+#: lib/ash_enterprise_web/live/assistant_live.ex:1434
 #, elixir-autogen, elixir-format
 msgid "Add the action item “%{title}”"
 msgstr "Ajouter l’action à faire « %{title} »"
 
-#: lib/ash_enterprise_web/live/assistant_live.ex:1458
+#: lib/ash_enterprise_web/live/assistant_live.ex:1461
 #, elixir-autogen, elixir-format
 msgid "Approve a task waiting on you"
 msgstr "Approuver une tâche qui vous attend"
 
-#: lib/ash_enterprise_web/live/assistant_live.ex:1455
+#: lib/ash_enterprise_web/live/assistant_live.ex:1458
 #, elixir-autogen, elixir-format
 msgid "Approve “%{task}”"
 msgstr "Approuver « %{task} »"
@@ -62,7 +62,7 @@ msgid "Assign the %{role} role to %{user}"
 msgstr "Attribuer le rôle %{role} à %{user}"
 
 #: lib/ash_enterprise_web/live/agent_live.ex:444
-#: lib/ash_enterprise_web/live/assistant_live.ex:1299
+#: lib/ash_enterprise_web/live/assistant_live.ex:1302
 #, elixir-autogen, elixir-format
 msgid "Cancel"
 msgstr "Annuler"
@@ -72,12 +72,12 @@ msgstr "Annuler"
 msgid "Cancelled. Nothing was changed."
 msgstr "Annulé. Rien n’a été modifié."
 
-#: lib/ash_enterprise_web/live/assistant_live.ex:1506
+#: lib/ash_enterprise_web/live/assistant_live.ex:1509
 #, elixir-autogen, elixir-format
 msgid "Comment"
 msgstr "Commentaire"
 
-#: lib/ash_enterprise_web/live/assistant_live.ex:1310
+#: lib/ash_enterprise_web/live/assistant_live.ex:1313
 #, elixir-autogen, elixir-format
 msgid "Confirm"
 msgstr "Confirmer"
@@ -87,57 +87,57 @@ msgstr "Confirmer"
 msgid "Done: the %{role} role is assigned to %{user}."
 msgstr "C’est fait : le rôle %{role} est attribué à %{user}."
 
-#: lib/ash_enterprise_web/live/assistant_live.ex:1504
+#: lib/ash_enterprise_web/live/assistant_live.ex:1507
 #, elixir-autogen, elixir-format
 msgid "Draft"
 msgstr "Brouillon"
 
-#: lib/ash_enterprise_web/live/assistant_live.ex:1503
+#: lib/ash_enterprise_web/live/assistant_live.ex:1506
 #, elixir-autogen, elixir-format
 msgid "Due"
 msgstr "Échéance"
 
-#: lib/ash_enterprise_web/live/assistant_live.ex:1275
+#: lib/ash_enterprise_web/live/assistant_live.ex:1278
 #, elixir-autogen, elixir-format
 msgid "If you confirm, it runs once, as you, under your permissions, and is recorded in the audit log."
 msgstr "Si vous confirmez, cela s’exécute une seule fois, en votre nom, selon vos autorisations, et est consigné dans le journal d’audit."
 
-#: lib/ash_enterprise_web/live/assistant_live.ex:1486
+#: lib/ash_enterprise_web/live/assistant_live.ex:1489
 #, elixir-autogen, elixir-format
 msgid "Keep a possible duplicate separate"
 msgstr "Garder distinct un doublon possible"
 
-#: lib/ash_enterprise_web/live/assistant_live.ex:1480
+#: lib/ash_enterprise_web/live/assistant_live.ex:1483
 #, elixir-autogen, elixir-format
 msgid "Keep “%{incoming}” separate from “%{existing}”"
 msgstr "Garder « %{incoming} » distinct de « %{existing} »"
 
-#: lib/ash_enterprise_web/live/assistant_live.ex:1497
+#: lib/ash_enterprise_web/live/assistant_live.ex:1500
 #, elixir-autogen, elixir-format
 msgid "Mark a possible duplicate as unsure"
 msgstr "Marquer un doublon possible comme incertain"
 
-#: lib/ash_enterprise_web/live/assistant_live.ex:1440
+#: lib/ash_enterprise_web/live/assistant_live.ex:1443
 #, elixir-autogen, elixir-format
 msgid "Mark one of your action items done"
 msgstr "Marquer l’une de vos actions à faire comme terminée"
 
-#: lib/ash_enterprise_web/live/assistant_live.ex:1491
+#: lib/ash_enterprise_web/live/assistant_live.ex:1494
 #, elixir-autogen, elixir-format
 msgid "Mark “%{incoming}” and “%{existing}” as unsure"
 msgstr "Marquer « %{incoming} » et « %{existing} » comme incertains"
 
-#: lib/ash_enterprise_web/live/assistant_live.ex:1437
+#: lib/ash_enterprise_web/live/assistant_live.ex:1440
 #, elixir-autogen, elixir-format
 msgid "Mark “%{title}” done"
 msgstr "Marquer « %{title} » comme terminée"
 
-#: lib/ash_enterprise_web/live/assistant_live.ex:1475
+#: lib/ash_enterprise_web/live/assistant_live.ex:1478
 #, elixir-autogen, elixir-format
 msgid "Merge a possible duplicate"
 msgstr "Fusionner un doublon possible"
 
-#: lib/ash_enterprise_web/live/assistant_live.ex:1469
+#: lib/ash_enterprise_web/live/assistant_live.ex:1472
 #, elixir-autogen, elixir-format
 msgid "Merge “%{incoming}” into “%{existing}”"
 msgstr "Fusionner « %{incoming} » dans « %{existing} »"
@@ -147,12 +147,12 @@ msgstr "Fusionner « %{incoming} » dans « %{existing} »"
 msgid "Open the request"
 msgstr "Ouvrir la demande"
 
-#: lib/ash_enterprise_web/live/assistant_live.ex:1464
+#: lib/ash_enterprise_web/live/assistant_live.ex:1467
 #, elixir-autogen, elixir-format
 msgid "Reject a task waiting on you"
 msgstr "Rejeter une tâche qui vous attend"
 
-#: lib/ash_enterprise_web/live/assistant_live.ex:1461
+#: lib/ash_enterprise_web/live/assistant_live.ex:1464
 #, elixir-autogen, elixir-format
 msgid "Reject “%{task}”"
 msgstr "Rejeter « %{task} »"
@@ -167,12 +167,12 @@ msgstr "Demandé : attribuer le rôle %{role} à %{user}. Rien ne change tant qu
 msgid "Role"
 msgstr "Rôle"
 
-#: lib/ash_enterprise_web/live/assistant_live.ex:1446
+#: lib/ash_enterprise_web/live/assistant_live.ex:1449
 #, elixir-autogen, elixir-format
 msgid "Save a reply draft"
 msgstr "Enregistrer un brouillon de réponse"
 
-#: lib/ash_enterprise_web/live/assistant_live.ex:1443
+#: lib/ash_enterprise_web/live/assistant_live.ex:1446
 #, elixir-autogen, elixir-format
 msgid "Save a reply draft to “%{subject}”"
 msgstr "Enregistrer un brouillon de réponse à « %{subject} »"
@@ -192,17 +192,17 @@ msgstr "Envoyer la demande"
 msgid "Sending it asks: another administrator approves it before the role is assigned (or, where your organization allows it, its only administrator). It then runs as you, and is recorded in the audit log."
 msgstr "L’envoyer ne fait que demander : un autre administrateur l’approuve avant que le rôle soit attribué (ou, si votre organisation le permet, son unique administrateur). Cela s’exécute ensuite en votre nom et est consigné dans le journal d’audit."
 
-#: lib/ash_enterprise_web/live/assistant_live.ex:1452
+#: lib/ash_enterprise_web/live/assistant_live.ex:1455
 #, elixir-autogen, elixir-format
 msgid "Sync one of your linked accounts now"
 msgstr "Synchroniser maintenant l’un de vos comptes liés"
 
-#: lib/ash_enterprise_web/live/assistant_live.ex:1449
+#: lib/ash_enterprise_web/live/assistant_live.ex:1452
 #, elixir-autogen, elixir-format
 msgid "Sync your %{account} account now"
 msgstr "Synchroniser maintenant votre compte %{account}"
 
-#: lib/ash_enterprise_web/live/assistant_live.ex:1287
+#: lib/ash_enterprise_web/live/assistant_live.ex:1290
 #, elixir-autogen, elixir-format
 msgid "That did not go through. Nothing was changed. Try again."
 msgstr "Cela n’a pas abouti. Rien n’a été modifié. Réessayez."
@@ -222,7 +222,7 @@ msgstr "La demande n’a pas été envoyée (%{reason}). Rien n’a été modifi
 msgid "User"
 msgstr "Utilisateur"
 
-#: lib/ash_enterprise_web/live/assistant_live.ex:1262
+#: lib/ash_enterprise_web/live/assistant_live.ex:1265
 #, elixir-autogen, elixir-format
 msgid "Waiting for your confirmation: nothing has happened yet"
 msgstr "En attente de votre confirmation : rien n’a encore été fait"
@@ -232,82 +232,82 @@ msgstr "En attente de votre confirmation : rien n’a encore été fait"
 msgid "You may not ask for that. Nothing was changed."
 msgstr "Vous ne pouvez pas demander cela. Rien n’a été modifié."
 
-#: lib/ash_enterprise_web/live/assistant_live.ex:1574
+#: lib/ash_enterprise_web/live/assistant_live.ex:1577
 #, elixir-autogen, elixir-format
 msgid "added to your action items."
 msgstr "ajoutée à vos actions à faire."
 
-#: lib/ash_enterprise_web/live/assistant_live.ex:1581
+#: lib/ash_enterprise_web/live/assistant_live.ex:1584
 #, elixir-autogen, elixir-format
 msgid "approved."
 msgstr "approuvée."
 
-#: lib/ash_enterprise_web/live/assistant_live.ex:1349
+#: lib/ash_enterprise_web/live/assistant_live.ex:1352
 #, elixir-autogen, elixir-format
 msgid "asked"
 msgstr "demandé"
 
-#: lib/ash_enterprise_web/live/assistant_live.ex:1524
+#: lib/ash_enterprise_web/live/assistant_live.ex:1527
 #, elixir-autogen, elixir-format
 msgid "cancelled. Nothing was changed."
 msgstr "annulé. Rien n’a été modifié."
 
-#: lib/ash_enterprise_web/live/assistant_live.ex:1589
+#: lib/ash_enterprise_web/live/assistant_live.ex:1592
 #, elixir-autogen, elixir-format
 msgid "done."
 msgstr "fait."
 
-#: lib/ash_enterprise_web/live/assistant_live.ex:1578
+#: lib/ash_enterprise_web/live/assistant_live.ex:1581
 #, elixir-autogen, elixir-format
 msgid "draft saved. It was not sent."
 msgstr "brouillon enregistré. Il n’a pas été envoyé."
 
-#: lib/ash_enterprise_web/live/assistant_live.ex:1547
+#: lib/ash_enterprise_web/live/assistant_live.ex:1550
 #, elixir-autogen, elixir-format
 msgid "it could not be asked (%{reason}). Nothing was changed."
 msgstr "la demande n’a pas pu être faite (%{reason}). Rien n’a été modifié."
 
-#: lib/ash_enterprise_web/live/assistant_live.ex:1555
+#: lib/ash_enterprise_web/live/assistant_live.ex:1558
 #, elixir-autogen, elixir-format
 msgid "it did not go through (%{reason}). Nothing was changed."
 msgstr "cela n’a pas abouti (%{reason}). Rien n’a été modifié."
 
-#: lib/ash_enterprise_web/live/assistant_live.ex:1563
+#: lib/ash_enterprise_web/live/assistant_live.ex:1566
 #, elixir-autogen, elixir-format
 msgid "it no longer applies. Nothing was changed."
 msgstr "cela ne s’applique plus. Rien n’a été modifié."
 
-#: lib/ash_enterprise_web/live/assistant_live.ex:1584
+#: lib/ash_enterprise_web/live/assistant_live.ex:1587
 #, elixir-autogen, elixir-format
 msgid "kept separate."
 msgstr "gardés distincts."
 
-#: lib/ash_enterprise_web/live/assistant_live.ex:1575
+#: lib/ash_enterprise_web/live/assistant_live.ex:1578
 #, elixir-autogen, elixir-format
 msgid "marked done."
 msgstr "marquée comme terminée."
 
-#: lib/ash_enterprise_web/live/assistant_live.ex:1587
+#: lib/ash_enterprise_web/live/assistant_live.ex:1590
 #, elixir-autogen, elixir-format
 msgid "marked unsure; it stays in the queue."
 msgstr "marqué comme incertain; il reste dans la file."
 
-#: lib/ash_enterprise_web/live/assistant_live.ex:1583
+#: lib/ash_enterprise_web/live/assistant_live.ex:1586
 #, elixir-autogen, elixir-format
 msgid "merged."
 msgstr "fusionnés."
 
-#: lib/ash_enterprise_web/live/assistant_live.ex:1347
+#: lib/ash_enterprise_web/live/assistant_live.ex:1350
 #, elixir-autogen, elixir-format
 msgid "ran"
 msgstr "exécuté"
 
-#: lib/ash_enterprise_web/live/assistant_live.ex:1582
+#: lib/ash_enterprise_web/live/assistant_live.ex:1585
 #, elixir-autogen, elixir-format
 msgid "rejected."
 msgstr "rejetée."
 
-#: lib/ash_enterprise_web/live/assistant_live.ex:1580
+#: lib/ash_enterprise_web/live/assistant_live.ex:1583
 #, elixir-autogen, elixir-format
 msgid "sync queued."
 msgstr "synchronisation en file d’attente."
@@ -317,22 +317,22 @@ msgstr "synchronisation en file d’attente."
 msgid "the user's own business unit"
 msgstr "l’unité d’affaires de l’utilisateur"
 
-#: lib/ash_enterprise_web/live/assistant_live.ex:1569
+#: lib/ash_enterprise_web/live/assistant_live.ex:1572
 #, elixir-autogen, elixir-format
 msgid "withdrawn. Nothing was changed."
 msgstr "retiré. Rien n’a été modifié."
 
-#: lib/ash_enterprise_web/live/assistant_live.ex:1572
+#: lib/ash_enterprise_web/live/assistant_live.ex:1575
 #, elixir-autogen, elixir-format
 msgid "working on it…"
 msgstr "en cours…"
 
-#: lib/ash_enterprise_web/live/assistant_live.ex:1532
+#: lib/ash_enterprise_web/live/assistant_live.ex:1535
 #, elixir-autogen, elixir-format
 msgid "it could not be asked: %{errors}. Nothing was changed."
 msgstr "la demande n’a pas pu être faite : %{errors}. Rien n’a été modifié."
 
-#: lib/ash_enterprise_web/live/assistant_live.ex:1541
+#: lib/ash_enterprise_web/live/assistant_live.ex:1544
 #, elixir-autogen, elixir-format
 msgid "you can't do this. Nothing was changed."
 msgstr "vous ne pouvez pas faire ceci. Rien n’a été modifié."

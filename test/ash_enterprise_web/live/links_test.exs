@@ -207,16 +207,16 @@ defmodule AshEnterpriseWeb.LinksTest do
       {:ok, view, _html} = live(conn, "/app/people")
       _ = pushed(view)
 
-      render_hook(view, "a2ui:action", %{
-        "version" => "v1.0",
-        "action" => %{
-          "name" => "context_select",
-          "surfaceId" => "people",
-          "sourceComponentId" => "data_grid",
-          "timestamp" => DateTime.to_iso8601(DateTime.utc_now()),
-          "context" => %{"context" => "person", "value" => ada.id}
-        }
-      })
+      render_hook(
+        view,
+        "a2ui:message",
+        AshEnterprise.A2uiMessage.ash_action(
+          "people",
+          "context_select",
+          %{"context" => "person", "value" => ada.id},
+          source: "data_grid"
+        )
+      )
 
       assert_patch(view, ctx_path("/app/people", "person", ada.id))
     end

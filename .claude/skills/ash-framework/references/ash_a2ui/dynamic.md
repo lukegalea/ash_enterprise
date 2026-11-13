@@ -21,8 +21,7 @@ end
   surface's resource, every context resource, every related table's
   `resource` and every `sections` source. Keep it to resources an operator
   may reasonably see end-to-end.
-- Other `resolve/2` options: `:surface_id`, `:spec_version` (`"0.9.1"` or
-  `"1.0"`), and `:via_allowlist` — the modules a spec's `via`-delegated row
+- Other `resolve/2` options: `:surface_id` and `:via_allowlist` — the modules a spec's `via`-delegated row
   actions may dispatch to. It defaults to none, so a spec carrying `via` is
   rejected unless the host passes it; like `:allowlist`, it is host
   configuration.
@@ -82,8 +81,8 @@ end
 
 - **Resolve once, server-side; keep the `%Surface{}` in server state**
   (LiveView assign, ETS, cache) keyed by `surface.surface_id`.
-- Route client `action` envelopes through
-  `AshA2ui.Dynamic.handle_action(server_held_surface, envelope, actor: actor)`.
+- Route renderer messages through
+  `AshA2ui.Dynamic.handle_action(server_held_surface, message, actor: actor)`.
   Never rebuild a surface from anything the client echoes back.
 - Drop the stored struct when the surface is dismissed.
 - `build_surface/2` / `build_data_model/2` / `handle_action/3` take the
@@ -115,7 +114,7 @@ end
   `AshA2ui.Standalone` module) into the equivalent spec. It returns
   `{:ok, spec, rejections}`: every declared feature the spec cannot carry
   (inline editing, export, wizard steps, bulk actions,
-  `surface_id`, `record_label`, `spec_version`) is a visible rejection with
+  `surface_id`, `record_label`) is a visible rejection with
   a reason, never a silent drop. Contexts, related tables and links import
   as spec vocabulary. Show the rejections to whoever edits the spec.
 - `AshA2ui.Web.ComposerLive` (`use AshA2ui.Web.ComposerLive, surfaces: [...]`)

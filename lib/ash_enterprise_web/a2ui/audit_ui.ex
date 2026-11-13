@@ -20,7 +20,6 @@ defmodule AshEnterpriseWeb.A2ui.AuditUI do
     surface_id "audit"
     title "Audit trail"
     record_label "audit entry"
-    spec_version "1.0"
 
     context :entry do
       resource AshEnterprise.Audit.EventLog

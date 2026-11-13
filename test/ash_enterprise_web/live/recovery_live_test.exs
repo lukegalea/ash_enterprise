@@ -77,16 +77,16 @@ defmodule AshEnterpriseWeb.RecoveryLiveTest do
     {:ok, approvals, _html} = live(sign_in(hd(clinic.committee)), "/app/approvals")
     assert_push_event(approvals, "a2ui:messages", %{messages: _}, 5_000)
 
-    render_hook(approvals, "a2ui:action", %{
-      "version" => "v1.0",
-      "action" => %{
-        "name" => "invoke",
-        "surfaceId" => "approvals",
-        "sourceComponentId" => "data_grid",
-        "timestamp" => DateTime.to_iso8601(DateTime.utc_now()),
-        "context" => %{"action" => "approve", "recordId" => request.task_id}
-      }
-    })
+    render_hook(
+      approvals,
+      "a2ui:message",
+      AshEnterprise.A2uiMessage.ash_action(
+        "approvals",
+        "invoke",
+        %{"action" => "approve", "recordId" => request.task_id},
+        source: "data_grid"
+      )
+    )
 
     Execution.apply_invocation_decision!(request.invocation, oban(ctx))
     drain()
@@ -241,16 +241,16 @@ defmodule AshEnterpriseWeb.RecoveryLiveTest do
   defp invoke(view, surface, action, record_id, values \\ nil) do
     context = %{"action" => action, "recordId" => record_id}
 
-    render_hook(view, "a2ui:action", %{
-      "version" => "v1.0",
-      "action" => %{
-        "name" => "invoke",
-        "surfaceId" => surface,
-        "sourceComponentId" => "data_grid",
-        "timestamp" => DateTime.to_iso8601(DateTime.utc_now()),
-        "context" => if(values, do: Map.put(context, "values", values), else: context)
-      }
-    })
+    render_hook(
+      view,
+      "a2ui:message",
+      AshEnterprise.A2uiMessage.ash_action(
+        surface,
+        "invoke",
+        if(values, do: Map.put(context, "values", values), else: context),
+        source: "data_grid"
+      )
+    )
   end
 
   test "the page an act is made on says what it came to, as ACP does", ctx do
@@ -264,7 +264,8 @@ defmodule AshEnterpriseWeb.RecoveryLiveTest do
 
     invoke(view, "credentials", "request_activation", credential.id)
 
-    assert %{"result" => "pending", "blockedReason" => "approval_required"} = feedback!(view)
+    assert %{"channelResult" => "pending", "blockedReason" => "approval_required"} =
+             feedback!(view)
   end
 
   test "a settlement made from the approvals task needs a reason and is recorded with it",
@@ -277,7 +278,7 @@ defmodule AshEnterpriseWeb.RecoveryLiveTest do
 
     # A plain retry, with nothing said: refused, and nothing changes.
     invoke(approvals, "approvals", "resolve", task.id, %{"outcome" => "retry"})
-    assert %{"result" => result} = feedback!(approvals)
+    assert %{"channelResult" => result} = feedback!(approvals)
     assert result in ["invalid", "failed"]
     assert interventions(ctx) == []
     assert Execution.get_invocation!(row.id, oban(ctx)).status == :outcome_unknown
@@ -287,7 +288,7 @@ defmodule AshEnterpriseWeb.RecoveryLiveTest do
       "comment" => "The registry has no record of it; I checked."
     })
 
-    assert %{"result" => "applied"} = feedback!(approvals)
+    assert %{"channelResult" => "applied"} = feedback!(approvals)
 
     assert [%{act: :resolve, resolution: :retry, owner_id: owner_id}] = interventions(ctx)
     assert owner_id == ctx.admin.user.id

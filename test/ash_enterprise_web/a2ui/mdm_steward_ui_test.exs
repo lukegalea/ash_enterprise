@@ -89,10 +89,11 @@ defmodule AshEnterpriseWeb.A2ui.MdmStewardUITest do
   defp invoke(person, action, candidate) do
     AshA2ui.ActionHandler.handle(
       MdmStewardUI,
-      %{
-        "name" => "invoke",
-        "context" => %{"action" => action, "recordId" => candidate.id, "component" => "table"}
-      },
+      AshEnterprise.A2uiMessage.ash_action(MdmStewardUI, "invoke", %{
+        "action" => action,
+        "recordId" => candidate.id,
+        "component" => "table"
+      }),
       actor: person.actor,
       tenant: person.tenant
     )
@@ -101,14 +102,11 @@ defmodule AshEnterpriseWeb.A2ui.MdmStewardUITest do
   defp bulk(person, action, candidates) do
     AshA2ui.ActionHandler.handle(
       MdmStewardUI,
-      %{
-        "name" => "bulk_invoke",
-        "context" => %{
-          "action" => action,
-          "component" => "table",
-          "records" => Enum.map(candidates, &%{"id" => &1.id, "_selected" => true})
-        }
-      },
+      AshEnterprise.A2uiMessage.ash_action(MdmStewardUI, "bulk_invoke", %{
+        "action" => action,
+        "component" => "table",
+        "records" => Enum.map(candidates, &%{"id" => &1.id, "_selected" => true})
+      }),
       actor: person.actor,
       tenant: person.tenant
     )
@@ -265,8 +263,8 @@ defmodule AshEnterpriseWeb.A2ui.MdmStewardUITest do
 
       assert {:error, messages} = invoke(reader, "confirm", candidate)
 
-      # A 0.9.1 surface reports the refusal as the typed `/ui/feedback`
-      # error, which ACP classifies as a refusal.
+      # The surface reports the refusal as the typed `/ui/feedback` error
+      # (code FORBIDDEN), which ACP classifies as a refusal.
       assert ExtMethods.failure_kind(messages) == :forbidden
       assert reload(candidate, admin.tenant).status == :pending
     end

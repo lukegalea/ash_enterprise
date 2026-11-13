@@ -24,7 +24,6 @@ defmodule AshEnterpriseWeb.A2ui.TodayUI do
     surface_id "today"
     title "Today"
     record_label "morning brief"
-    spec_version "1.0"
 
     # The brief opens in detail: its events and its approval, as links.
     context :brief do
@@ -162,7 +161,6 @@ defmodule AshEnterpriseWeb.A2ui.CalendarUI do
     surface_id "calendar"
     title "Calendar"
     record_label "event"
-    spec_version "1.0"
 
     context :event do
       resource AshEnterprise.Canonical.CalendarEvent
@@ -281,7 +279,6 @@ defmodule AshEnterpriseWeb.A2ui.PeopleUI do
     surface_id "people"
     title "People"
     record_label "person"
-    spec_version "1.0"
 
     # Both ways in: search the picker, or (where the grid offers it) a row's
     # View button. Either fills the detail beside the directory.
@@ -474,7 +471,6 @@ defmodule AshEnterpriseWeb.A2ui.InboxUI do
     surface_id "inbox"
     title "Inbox"
     record_label "Gmail thread"
-    spec_version "1.0"
 
     context :thread do
       resource AshEnterprise.Canonical.Conversation
@@ -579,7 +575,6 @@ defmodule AshEnterpriseWeb.A2ui.SlackUI do
     surface_id "slack"
     title "Slack"
     record_label "Slack conversation"
-    spec_version "1.0"
 
     context :conversation do
       resource AshEnterprise.Canonical.Conversation
@@ -695,7 +690,6 @@ defmodule AshEnterpriseWeb.A2ui.ApprovalsUI do
     surface_id "approvals"
     title "Approvals"
     record_label "approval"
-    spec_version "1.0"
 
     context :task do
       resource AshEnterprise.Bpmn.HumanTask

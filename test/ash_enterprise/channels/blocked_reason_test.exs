@@ -28,6 +28,7 @@ defmodule AshEnterprise.Channels.BlockedReasonTest do
   require Ash.Query
 
   alias AshAcp.Server
+  alias AshEnterprise.A2uiMessage
   alias AshEnterprise.Bpmn.HumanTask
   alias AshEnterprise.Channels
   alias AshEnterprise.Credentialing.{DemoData, Registry}
@@ -67,25 +68,19 @@ defmodule AshEnterprise.Channels.BlockedReasonTest do
   defp oban(tenant), do: [actor: SystemActor.oban(), tenant: tenant]
 
   defp envelope(credential, :request) do
-    %{
-      "name" => "invoke",
-      "context" => %{
-        "action" => "request_activation",
-        "recordId" => credential.id,
-        "component" => "table"
-      }
-    }
+    A2uiMessage.ash_action("credentials", "invoke", %{
+      "action" => "request_activation",
+      "recordId" => credential.id,
+      "component" => "table"
+    })
   end
 
   # The credential's edit form: `correct`, a change to its number.
   defp envelope(credential, :correct) do
-    %{
-      "name" => "submit_form",
-      "context" => %{
-        "recordId" => credential.id,
-        "values" => %{"number" => "SYN-#{System.unique_integer([:positive])}"}
-      }
-    }
+    A2uiMessage.ash_action("credentials", "submit_form", %{
+      "recordId" => credential.id,
+      "values" => %{"number" => "SYN-#{System.unique_integer([:positive])}"}
+    })
   end
 
   # The web: the surface's action path, as the page runs it.
@@ -305,17 +300,14 @@ defmodule AshEnterprise.Channels.BlockedReasonTest do
   end
 
   defp answer(row),
-    do: %{"updateDataModel" => %{"path" => "/ui/action_result", "value" => row}}
-
-  defp response(row),
-    do: %{"updateDataModel" => %{"path" => "/ui/response", "value" => %{"result" => row}}}
+    do: %{"updateDataModel" => %{"path" => "/ui/feedback", "value" => %{"result" => row}}}
 
   test "a request door answers with what its request came to, not that it waits" do
     confirm = {AshEnterprise.SystemOne.CalibrationRun, :certify_now}
     request = {AshEnterprise.Credentialing.Credential, :request_activation}
 
-    for door <- [confirm, request], wrap <- [&answer/1, &response/1] do
-      outcome = &Channels.outcome({:ok, [wrap.(&1)]}, door)
+    for door <- [confirm, request] do
+      outcome = &Channels.outcome({:ok, [answer(&1)]}, door)
 
       # Confirmed and run at once, or a keyed door's row that already ran: done.
       assert outcome.(%{"status" => "succeeded"}) == {:applied, :none}
@@ -366,12 +358,10 @@ defmodule AshEnterprise.Channels.BlockedReasonTest do
       assert {:ok, %{"status" => status} = reported} = ConfirmInvocation.report(row)
       assert status == unquote(Atom.to_string(status))
 
-      for wrap <- [&answer/1, &response/1] do
-        assert Channels.outcome(
-                 {:ok, [wrap.(reported)]},
-                 {AshEnterprise.SystemOne.CalibrationRun, :certify_now}
-               ) == unquote(expected)
-      end
+      assert Channels.outcome(
+               {:ok, [answer(reported)]},
+               {AshEnterprise.SystemOne.CalibrationRun, :certify_now}
+             ) == unquote(expected)
     end
   end
 end

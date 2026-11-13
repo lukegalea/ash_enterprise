@@ -104,7 +104,7 @@ defmodule AshEnterpriseWeb.DailyLive.Calendar do
   end
 
   def handle_event(event, params, socket)
-      when event in ["a2ui:action", "a2ui:function_response", "a2ui:open_surface"],
+      when event in ["a2ui:message", "a2ui:open_surface"],
       do: super(event, params, socket)
 
   @impl true

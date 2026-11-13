@@ -34,7 +34,6 @@ defmodule AshEnterpriseWeb.A2ui.PlanningUI do
     surface_id "planning"
     title "Planning review"
     record_label "candidate plan"
-    spec_version "1.0"
 
     context :candidate do
       resource AshEnterprise.Planning.Candidate

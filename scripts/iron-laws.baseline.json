@@ -92,7 +92,7 @@
  {
   "law": "11",
   "file": "lib/ash_enterprise_web/live/daily_live.ex",
-  "text": "def handle_event(\"a2ui:action\", envelope, socket) do",
+  "text": "def handle_event(\"a2ui:message\", message, socket) do",
   "reason": "Authorized through policies: the handler delegates to AshA2ui.LiveRenderer.handle_action/3, which routes the envelope through AshA2ui.ActionHandler with the signed-in actor and authorize?: true (the row-action allowlist and visible_when re-check included). The detector only looks for Ash.can? in the file."
  },
  {

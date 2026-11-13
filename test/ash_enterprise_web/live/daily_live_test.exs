@@ -73,16 +73,16 @@ defmodule AshEnterpriseWeb.DailyLiveTest do
     _bootstrap = pushed(view)
     _reports = pushed(view)
 
-    render_hook(view, "a2ui:action", %{
-      "version" => "v1.0",
-      "action" => %{
-        "name" => "invoke",
-        "surfaceId" => "today",
-        "sourceComponentId" => "data_grid_brief",
-        "timestamp" => DateTime.to_iso8601(DateTime.utc_now()),
-        "context" => %{"action" => "approve", "recordId" => brief.id, "component" => "brief"}
-      }
-    })
+    render_hook(
+      view,
+      "a2ui:message",
+      AshEnterprise.A2uiMessage.ash_action(
+        "today",
+        "invoke",
+        %{"action" => "approve", "recordId" => brief.id, "component" => "brief"},
+        source: "data_grid_brief"
+      )
+    )
 
     assert %{status: :approved} = reload_brief!(brief, ctx.tenant)
   end

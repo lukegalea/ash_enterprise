@@ -9,15 +9,13 @@ defmodule AshEnterpriseWeb.A2uiEventAttributesTest do
   end
 
   defp action_name(verb, action) do
-    envelope = %{
-      "action" => %{
-        "name" => verb,
-        "surfaceId" => "accounts",
-        "context" => %{"action" => action, "recordId" => "r1"}
-      }
-    }
+    message =
+      AshEnterprise.A2uiMessage.ash_action("accounts", verb, %{
+        "action" => action,
+        "recordId" => "r1"
+      })
 
-    A2uiEventAttributes.resolve("a2ui:action", envelope, %{view: AccountsView})[
+    A2uiEventAttributes.resolve("a2ui:message", message, %{view: AccountsView})[
       Attributes.ui_action_name()
     ]
   end

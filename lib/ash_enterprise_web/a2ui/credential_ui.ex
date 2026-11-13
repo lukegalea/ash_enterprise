@@ -23,7 +23,6 @@ defmodule AshEnterpriseWeb.A2ui.CredentialUI do
     surface_id "credentials"
     title "Credentials"
     record_label "credential"
-    spec_version "1.0"
 
     context :credential do
       resource AshEnterprise.Credentialing.Credential

@@ -1,22 +1,19 @@
 # Rules for working with AshA2ui
 
 AshA2ui is an Ash extension that generates A2UI (Agent to UI) protocol
-payloads (v0.9.1 or v1.0) from Ash resources. You declare a surface (table +
+payloads (A2UI 1.0) from Ash resources. You declare a surface (table +
 form + actions) in an `a2ui` DSL block; the extension emits the wire
-messages, routes client `action` envelopes back into Ash actions, and
+messages, routes renderer messages (`callAgentFunction`, `action`) back into Ash actions, and
 enforces authorization. Read the docs before assuming prior knowledge — the
 DSL is small and these rules cover most decisions.
 
 Sub-rules (addressable as `ash_a2ui:<name>`):
 
-- `ash_a2ui:actions` — routing client envelopes through
+- `ash_a2ui:actions` — routing renderer messages through
   `AshA2ui.ActionHandler`, the `row_actions` and `bulk_actions`
   allowlists, and the reserved data-model paths.
 - `ash_a2ui:liveview` — the `AshA2ui.LiveRenderer` transport and the JS
   hook wiring contract.
-- `ash_a2ui:ag-ui` — the `AshA2ui.AgUi` transport: serving surfaces to
-  AG-UI clients (CopilotKit) over SSE, the action round trip, and the
-  authentication contract.
 - `ash_a2ui:queries` — the `query` entity's server-enforced allowlists for
   search/sort/filter/pagination.
 - `ash_a2ui:relationships` — `belongs_to` form selects (inference,
@@ -38,8 +35,8 @@ Sub-rules (addressable as `ash_a2ui:<name>`):
   surface contract, LLM tool integration, and the spec lifecycle
   (serialize/deserialize, diff, promote to a DSL module).
 - `ash_a2ui:reports` — `:report` components (aggregate/report queries over
-  generic actions) and `export` blocks (CSV file export via the v1.0
-  `downloadFile` callFunction).
+  generic actions) and `export` blocks (CSV file export via the
+  `downloadFile` renderer function).
 - `ash_a2ui:diagrams` — `diagram` entities: a host source returning a
   mermaid diagram and markers, server-resolved marker links, lazy-loaded
   mermaid in the admin catalog, and PubSub-driven marker moves.
@@ -62,29 +59,29 @@ Sub-rules (addressable as `ash_a2ui:<name>`):
   the framework guarantees, and what hosts must still do for their own
   chrome.
 
-## Protocol versions
+## The A2UI 1.0 wire
 
-- Each surface declares its wire version with the `spec_version` section
-  option (`"0.9.1"` default for compatibility; `"1.0"` recommended for new
-  surfaces). `AshA2ui.Dynamic.resolve/2` takes the same value as a
-  `:spec_version` option. Everything else in these rules is
-  version-agnostic; the DSL does not change.
-- What changes on `"1.0"` (full rationale in the `a2ui-1-0` doc topic):
-  - Bootstrap is a **single `createSurface`** carrying inline `components` +
-    `dataModel` (no `updateComponents`/`updateDataModel` follow-ups, no
-    two-phase render flash).
-  - Client action envelopes carry a unique `actionId` + `wantResponse: true`
-    and the server replies with an **`actionResponse`** — per-action
-    success/error feedback instead of only global status paths.
-  - Outcomes + generic-action results consolidate on **`/ui/response`**
-    (`{status, message, result, resultText}`) replacing
-    `/ui/action_result`; the typed `/ui/feedback` is written on both wire
-    versions.
-  - `theme` becomes `surfaceProperties`; heading Texts are emitted as
-    Markdown (`### Title`) instead of `variant` values.
-- Both encoders validate against vendored spec schemas
-  (`priv/a2ui/v0_9_1/`, `priv/a2ui/v1_0/` — v1.0 is pinned to a spec
-  Release Candidate commit; see its NOTES.md).
+- AshA2ui speaks A2UI 1.0 only; there is no version option. The full
+  contract is the `a2ui-1-0` doc topic.
+- Bootstrap is a **single inline `createSurface`** carrying `components` and
+  `dataModel`. Later writes are `updateDataModel` messages, and every one
+  carries `value` (a `null` value deletes the path).
+- Bindings are `{"@path": ...}`, function calls `{"@call": ..., "args": ...}`.
+  Headings are Markdown Text (`## Title`), not `variant` values.
+- Server-handled controls send a **`callAgentFunction` calling `ashAction`**
+  (`{name, sourceComponentId, context}`). The server writes the outcome to
+  `/ui/feedback` and answers last with an `agentFunctionResponse` carrying
+  the same `functionCallId`. A plain `action` message is refused
+  (`UNKNOWN_FUNCTION`); nothing emits one.
+- `/ui/feedback` is the one outcome path:
+  `{kind, message, code, functionCallId, result, resultText}`. `kind` is
+  `""`, `pending`, `success`, `warning` or `error`; `result`/`resultText`
+  carry a generic action's map result.
+- Exports reach the browser as a `callRendererFunction` calling
+  `downloadFile`; the renderer answers with a `rendererFunctionResponse`.
+- Every encoder message and every accepted renderer message validates
+  against the vendored spec schemas in `priv/a2ui/v1_0/` (pinned to an
+  upstream commit; see its NOTES.md).
 
 ## When to reach for AshA2ui (preferred ladder)
 
@@ -178,8 +175,8 @@ end
 - Per-cell editing (spreadsheet-style columns) is an `editable` block on
   the table (`fields` allowlist + `update_action`), not a form: cells
   commit through the `"edit_cell"` action, validation errors mirror into
-  the failing row's `_error_<field>` key, and v1.0 surfaces get per-cell
-  pending→settled feedback via the actionResponse handshake. The editable
+  the failing row's `_error_<field>` key, and the outcome is the surface's
+  `/ui/feedback` like any other write. The editable
   `fields` list is a client-reachable allowlist — keep it minimal.
 - Selection-driven screens (pick a record → scope everything else) use
   `context` entities: server-validated pickers, dependent option lists
@@ -277,30 +274,24 @@ end
   under the panel, above the tables.
 - `config :ash_a2ui, :experience_version, ...` no longer exists; drop it
   from host config (it is ignored). The `select_row` action and the
-  `/ui/status` path are gone: bind outcomes to `/ui/feedback` (v1.0 surfaces
-  also carry `/ui/response` and the `actionResponse` handshake).
+  `/ui/status` path are gone: bind outcomes to `/ui/feedback`.
 - `config :ash_a2ui, :catalog, :admin_v1` selects the semantic admin
   catalog (the default is `:basic`). A surface the admin composition cannot
   carry (sections, export, inline editing, bulk actions, nested forms,
   wizard steps, boards) falls back to the basic composition for that
   subtree. The catalog's binding schemas are built from `@a2ui/web_core`'s
-  own exported schema builders (issue #5 is fixed there), so a host zod 4
-  no longer breaks reserved-path bindings — `createAshAdminCatalog` builds
-  without the host passing `z` at all, and throws a loud error if a
-  foreign-zod `z` is still passed. Hosts must still pin matching
-  `@a2ui/lit` / `@a2ui/web_core` versions: both catalogs are verified
-  against 0.11 and 0.12 (the probes in `priv/js/probe/` run on either),
-  and the basic catalog's overrides resolve the upstream elements at
-  runtime, so they also bundle against 0.10.x (verified with lit 0.10.3 /
-  web_core 0.10.6).
+  own exported schema builders, so a host zod 4 does not break
+  reserved-path bindings. Hosts pin matching `@a2ui/lit` /
+  `@a2ui/web_core` versions (both catalogs are verified against 0.15.0).
   The Lit renderer registration ships in `priv/js/ash_admin_catalog.js`
-  (`createAshAdminCatalog(deps)`).
+  (`createAshAdminCatalog(deps)`, built with `basicCatalog.derive`).
 - A transport whose client sends A2UI client capabilities negotiates the
   catalog per client: `AshA2ui.Experience.catalog_for(capabilities)` gives
   `{:ok, catalog}` to pass as `catalog:` to `build_surface/2` and to
   `ActionHandler.handle/3` for that surface, or
-  `{:error, :no_common_catalog}` when the client lists no catalog the
-  library emits; then send no surface (text or a link instead), never the
+  `{:error, :no_common_catalog}` when the client lacks the basic or the
+  ash_a2ui catalog (capabilities are `%{"1.0" => %{"supportedCatalogIds" =>
+  [...]}}`); then send no surface (text or a link instead), never the
   basic one regardless. `nil` capabilities mean the configured catalog.
 
 ## Actors (hosts without authentication)
@@ -361,8 +352,8 @@ end
 
 ## Handling client actions
 
-- **Don't bypass `AshA2ui.ActionHandler`.** Every inbound `action` envelope
-  goes through `AshA2ui.ActionHandler.handle/3` — it validates the envelope,
+- **Don't bypass `AshA2ui.ActionHandler`.** Every inbound renderer message
+  goes through `AshA2ui.ActionHandler.handle/3` — it validates the message,
   enforces the DSL allowlist, invokes the Ash action with the actor, and
   maps validation errors onto the reserved data-model paths. Calling Ash
   actions directly from transport code skips the allowlist and the error
@@ -406,12 +397,10 @@ end
   for validation errors (nested rows:
   `/errors/<argument>/<index>/<field>`), `/options/<name>` for
   relationship select and picker options, `/select/<name>` for
-  searchable-select/picker state, `/ui/feedback` (`kind` + `message`) for
-  every action outcome, `/ui/intent` + `/ui/panel/*` for the task panel,
-  `/ui/action_result` + `/ui/action_result_text` for map-returning generic
-  actions (raw map + display text, cleared on every subsequent action) —
-  on `spec_version "1.0"` surfaces those two consolidate into
-  `/ui/response`,
+  searchable-select/picker state, `/ui/feedback` for every action outcome
+  (`kind`, `message`, `code`, `functionCallId`, and `result` +
+  `resultText` for map-returning generic actions, cleared on every
+  subsequent action), `/ui/intent` + `/ui/panel/*` for the task panel,
   `/query` for query state (multi-table surfaces scope records and query
   state per table: `/records/<component_name>`, `/query/<component_name>`),
   `/prompt/values/<action>` for prompt Modal state (plus
@@ -426,8 +415,8 @@ end
 ## Avoid list
 
 - ❌ Hand-writing or string-templating A2UI message JSON.
-- ❌ Calling Ash actions directly from transport code in response to client
-  envelopes (bypasses the allowlist — use `ActionHandler`).
+- ❌ Calling Ash actions directly from transport code in response to renderer
+  messages (bypasses the allowlist — use `ActionHandler`).
 - ❌ Wide-open `row_actions` or `bulk_actions` (e.g. mirroring every action
   on the resource).
 - ❌ Running a bulk write yourself from carried row ids — `bulk_invoke`
@@ -437,7 +426,7 @@ end
 - ❌ Suppressing or working around compile-time verifier errors.
 - ❌ Expecting actor-dependent field visibility — v0 has none (documented
   limitation); use separate standalone surfaces per audience instead.
-- ❌ Relying on Table components — the v0.9.1 basic catalog has none; tables
+- ❌ Relying on Table components — the basic catalog has none; tables
   are `List` + `Row`/`Column` composition and AshA2ui handles that for you.
 - ❌ Depending on undocumented message batching/ordering details of the
   encoder; only the documented paths and message sequence are contract.
